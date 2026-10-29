@@ -30,19 +30,25 @@ abstract class ProjectByProjectCorrection
         $idOfProjectWhoseFailureClosedTheEntityManager = null;
 
         foreach ($this->projectRepository->findIdsInCreationOrder() as $projectId) {
-            $project = $this->projectRepository->find($projectId);
-            if ($project === null) {
-                continue;
-            }
+            $project = null;
 
             try {
+                $project = $this->projectRepository->find($projectId);
+                if ($project === null) {
+                    continue;
+                }
+
                 if ($isSelected($project)) {
                     $outcomes[] = $idOfProjectWhoseFailureClosedTheEntityManager === null
                         ? $correct($project)
-                        : $this->outcomeOf($project, ProjectCorrectionStatus::Failed, reason: 'not processed: the entity manager was closed by the failure of project '.$idOfProjectWhoseFailureClosedTheEntityManager);
+                        : $this->outcomeOf($project, ProjectCorrectionStatus::Failed, reason: self::notProcessedReason($idOfProjectWhoseFailureClosedTheEntityManager));
                 }
             } catch (\Throwable $failure) {
-                $outcomes[] = $this->outcomeOf($project, ProjectCorrectionStatus::Failed, reason: $failure->getMessage());
+                $outcomes[] = $this->failedOutcomeOf(
+                    $projectId->toRfc4122(),
+                    $project,
+                    $idOfProjectWhoseFailureClosedTheEntityManager === null ? $failure->getMessage() : self::notProcessedReason($idOfProjectWhoseFailureClosedTheEntityManager),
+                );
                 if (!$this->entityManager->isOpen()) {
                     $idOfProjectWhoseFailureClosedTheEntityManager ??= $projectId->toRfc4122();
                 }
@@ -64,5 +70,23 @@ abstract class ProjectByProjectCorrection
             $change,
             $reason,
         );
+    }
+
+    private function failedOutcomeOf(string $projectId, ?IndustryProject $project, string $reason): ProjectCorrectionOutcome
+    {
+        if ($project === null) {
+            return new ProjectCorrectionOutcome($projectId, null, null, ProjectCorrectionStatus::Failed, reason: $reason);
+        }
+
+        try {
+            return $this->outcomeOf($project, ProjectCorrectionStatus::Failed, reason: $reason);
+        } catch (\Throwable) {
+            return new ProjectCorrectionOutcome($projectId, UnknownTypeName::label($project->getProductTypeId()), $project->getRuns(), ProjectCorrectionStatus::Failed, reason: $reason);
+        }
+    }
+
+    private static function notProcessedReason(string $idOfProjectWhoseFailureClosedTheEntityManager): string
+    {
+        return 'not processed: the entity manager was closed by the failure of project '.$idOfProjectWhoseFailureClosedTheEntityManager;
     }
 }

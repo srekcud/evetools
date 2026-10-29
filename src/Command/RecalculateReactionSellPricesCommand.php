@@ -26,7 +26,7 @@ class RecalculateReactionSellPricesCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('created-before', null, InputOption::VALUE_REQUIRED, 'Deployment time of the release that fixed the reaction sell price (ISO 8601)');
+        $this->addOption('created-before', null, InputOption::VALUE_REQUIRED, 'Deployment time of the release that fixed the reaction sell price (absolute ISO 8601 date-time with time zone, e.g. 2026-10-28T00:00:00+00:00)');
         $this->addOption('dry-run', null, InputOption::VALUE_NONE, 'Only show what would be done, do not save');
     }
 
@@ -40,9 +40,8 @@ class RecalculateReactionSellPricesCommand extends Command
             return Command::FAILURE;
         }
 
-        try {
-            $createdBefore = new \DateTimeImmutable($createdBeforeOption);
-        } catch (\DateMalformedStringException) {
+        $createdBefore = \DateTimeImmutable::createFromFormat(\DATE_ATOM, $createdBeforeOption);
+        if ($createdBefore === false || \DateTimeImmutable::getLastErrors() !== false) {
             $io->error('Invalid --created-before value: '.$createdBeforeOption);
 
             return Command::FAILURE;

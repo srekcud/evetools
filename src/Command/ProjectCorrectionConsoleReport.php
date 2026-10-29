@@ -24,7 +24,13 @@ final class ProjectCorrectionConsoleReport
         }
 
         foreach ($outcomes as $outcome) {
-            $io->writeln(\sprintf('%s %s (%d runs): %s', $outcome->projectId, $outcome->label, $outcome->runs, self::resultOf($outcome)));
+            $io->writeln(\sprintf(
+                '%s %s (%s): %s',
+                $outcome->projectId,
+                $outcome->label ?? 'project not loaded',
+                $outcome->runs === null ? 'runs unknown' : $outcome->runs.' runs',
+                self::resultOf($outcome),
+            ));
         }
 
         $countOf = static fn (ProjectCorrectionStatus $status): int => \count(array_filter(

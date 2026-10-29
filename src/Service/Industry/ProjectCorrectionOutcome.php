@@ -10,8 +10,8 @@ final readonly class ProjectCorrectionOutcome
 {
     public function __construct(
         public string $projectId,
-        public string $label,
-        public int $runs,
+        public ?string $label,
+        public ?int $runs,
         public ProjectCorrectionStatus $status,
         public ?string $change = null,
         public ?string $reason = null,
