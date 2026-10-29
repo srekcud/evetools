@@ -1363,12 +1363,16 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
 
     /**
      * @param list<array<string, mixed>> $steps
+     * @return list<array{int, int}>
      */
     private function runsAndQuantityOfEachJobOf(array $steps, int $productTypeId): array
     {
         return array_map(static fn (array $step): array => [$step['runs'], $step['quantity']], $this->stepsOfProduct($steps, $productTypeId));
     }
 
+    /**
+     * @param list<array<string, mixed>> $steps
+     */
     private function totalRunsOf(array $steps, int $productTypeId): int
     {
         return array_sum(array_column($this->stepsOfProduct($steps, $productTypeId), 'runs'));

@@ -689,6 +689,43 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame([], $this->productTypeIdsReadInTheInventionCatalog);
     }
 
+    #[Group('issue-129')]
+    public function testInventionCatalogIsReadOnceForAnInventedBlueprintWithTheCopyActivityNeededAtTwoDepths(): void
+    {
+        $this->inventedProductTypeIds = [self::HOBGOBLIN_II];
+        $this->invTypeRepository->method('find')->willReturn($this->createMock(InvType::class));
+        $droneComponent = $this->buildFlatTreeNode(3000, 3001, 'Drone Component', 4, 1, [], 1);
+        $droneComponent['materials'] = [[
+            'typeId' => self::HOBGOBLIN_II,
+            'typeName' => 'Hobgoblin II',
+            'quantity' => 3,
+            'isBuildable' => true,
+            'blueprint' => $this->buildFlatTreeNode(self::HOBGOBLIN_II_BLUEPRINT, self::HOBGOBLIN_II, 'Hobgoblin II', 3, 1, [], 2, 'manufacturing', true),
+        ]];
+        $tree = $this->buildFlatTreeNode(28352, 28353, 'Rorqual', 2);
+        $tree['materials'] = [
+            [
+                'typeId' => self::HOBGOBLIN_II,
+                'typeName' => 'Hobgoblin II',
+                'quantity' => 5,
+                'isBuildable' => true,
+                'blueprint' => $this->buildFlatTreeNode(self::HOBGOBLIN_II_BLUEPRINT, self::HOBGOBLIN_II, 'Hobgoblin II', 5, 1, [], 1, 'manufacturing', true),
+            ],
+            ['typeId' => 3001, 'typeName' => 'Drone Component', 'quantity' => 4, 'isBuildable' => true, 'blueprint' => $droneComponent],
+        ];
+        $this->treeService->method('buildProductionTree')->willReturn($tree);
+        $this->setupDefaultMocks();
+        $this->materialRepository->method('findMaterialEntitiesForBlueprints')->willReturn([]);
+
+        $project = $this->factory->createProject($this->createUser(), 28353, 2, 10, 2.0, 20);
+
+        $this->assertSame([self::HOBGOBLIN_II], $this->productTypeIdsReadInTheInventionCatalog);
+        $this->assertSame(
+            [[3001, 'manufacturing', 4], [self::HOBGOBLIN_II, 'manufacturing', 8], [28353, 'manufacturing', 2]],
+            array_map(static fn (IndustryProjectStep $step): array => [$step->getProductTypeId(), $step->getActivityType(), $step->getQuantity()], $project->getSteps()->toArray()),
+        );
+    }
+
     // ===========================================
     // splitLongJobs()
     // ===========================================

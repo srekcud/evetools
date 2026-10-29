@@ -14,6 +14,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\IndustryProjectFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(IndustryProjectFactory::class)]
@@ -27,6 +28,8 @@ final class IndustryProjectFactoryRegenerationOnGoldenSdeTest extends TestCase
     private const int OXYGEN_FUEL_BLOCK = 4312;
     private const array FUEL_BLOCKS = [self::HYDROGEN_FUEL_BLOCK, self::NITROGEN_FUEL_BLOCK, self::HELIUM_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK];
     private const int NOMAD = 28846;
+    private const int FERNITE_CARBIDE = 16673;
+    private const float MAX_JOB_DURATION_DAYS_OF_FOUR_FERNITE_CARBIDE_RUNS = 0.5;
     private const int ME_LEVEL = 10;
     private const int TE_LEVEL = 20;
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
@@ -67,6 +70,24 @@ final class IndustryProjectFactoryRegenerationOnGoldenSdeTest extends TestCase
             ),
         );
         self::assertNotNull($splitGroupId);
+    }
+
+    #[Group('issue-2')]
+    public function testRegenerationKeepsTheFixedRunsOfARootReactionJobAndSharesTheRestOfTheQuantityOfTheProjectRunsBetweenTheOtherJobs(): void
+    {
+        $project = $this->factory->createProject(new User(), self::FERNITE_CARBIDE, 10, self::ME_LEVEL, self::MAX_JOB_DURATION_DAYS_OF_FOUR_FERNITE_CARBIDE_RUNS, self::TE_LEVEL);
+        $ferniteCarbideJobs = $this->jobsOfProduct($project, self::FERNITE_CARBIDE);
+        $ferniteCarbideJobs[0]->setRuns(6)->setRunsFixed(true);
+
+        $this->factory->regenerateSteps($project);
+
+        self::assertSame(
+            [[6, 60_000, 0, 10], [2, 20_000, 1, 10], [2, 20_000, 2, 10]],
+            array_map(
+                static fn (IndustryProjectStep $job): array => [$job->getRuns(), $job->getQuantity(), $job->getSplitIndex(), $job->getTotalGroupRuns()],
+                $this->jobsOfProduct($project, self::FERNITE_CARBIDE),
+            ),
+        );
     }
 
     public function testRegenerationKeepsTheStructureOfEachCopyJob(): void
@@ -113,9 +134,14 @@ final class IndustryProjectFactoryRegenerationOnGoldenSdeTest extends TestCase
 
     private function hydrogenFuelBlockJobsOf(IndustryProject $project): array
     {
+        return $this->jobsOfProduct($project, self::HYDROGEN_FUEL_BLOCK);
+    }
+
+    private function jobsOfProduct(IndustryProject $project, int $productTypeId): array
+    {
         $jobs = array_values(array_filter(
             $project->getSteps()->toArray(),
-            static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === self::HYDROGEN_FUEL_BLOCK && $step->getActivityType() !== 'copy',
+            static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === $productTypeId && $step->getActivityType() !== 'copy',
         ));
         usort($jobs, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
 
