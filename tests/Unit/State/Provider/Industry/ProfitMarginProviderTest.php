@@ -161,6 +161,90 @@ class ProfitMarginProviderTest extends TestCase
         yield 'ME above ten' => [['me' => '11'], 'ME must be between 0 and 10, got 11.'];
         yield 'TE above twenty' => [['te' => '24'], 'TE must be an even level between 0 and 20, got 24.'];
         yield 'negative ME' => [['me' => '-1'], 'ME must be between 0 and 10, got -1.'];
+        yield 'ME above ten reported before odd TE' => [['me' => '11', 'te' => '5'], 'ME must be between 0 and 10, got 11.'];
+    }
+
+    #[Group('issue-200')]
+    #[DataProvider('nonNumericEfficiencies')]
+    public function testNonNumericEfficiencyIsABadRequest(array $query): void
+    {
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->never())->method('analyze');
+
+        try {
+            $this->provider(new User(), new Request($query), $profitMarginService)
+                ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+            $this->fail('A non-numeric efficiency level must be refused.');
+        } catch (BadRequestHttpException $refusal) {
+            $this->assertSame(400, $refusal->getStatusCode());
+        }
+    }
+
+    public static function nonNumericEfficiencies(): iterable
+    {
+        yield 'alphabetic TE' => [['te' => 'abc']];
+        yield 'empty TE' => [['te' => '']];
+        yield 'alphabetic ME' => [['me' => 'abc']];
+    }
+
+    #[Group('issue-200')]
+    #[DataProvider('efficiencyBoundsAcceptedByTheDomain')]
+    public function testEfficiencyBoundIsAnalyzedAsSent(array $query, int $expectedMe, int $expectedTe): void
+    {
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                1,
+                $expectedMe,
+                $expectedTe,
+                $this->anything(),
+                $this->anything(),
+                null,
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+            )
+            ->willReturn($this->analysis());
+
+        $this->provider(new User(), new Request($query), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public static function efficiencyBoundsAcceptedByTheDomain(): iterable
+    {
+        yield 'ME zero' => [['me' => '0'], 0, 20];
+        yield 'ME ten' => [['me' => '10', 'te' => '14'], 10, 14];
+        yield 'TE zero' => [['te' => '0'], 10, 0];
+        yield 'TE twenty' => [['me' => '3', 'te' => '20'], 3, 20];
+    }
+
+    #[Group('issue-200')]
+    public function testWithoutCurrentRequestAnalyzesOneRunAtMeTenAndTeTwentyInJita(): void
+    {
+        $user = new User();
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                1,
+                10,
+                20,
+                EveConstants::JITA_STATION_ID,
+                EveConstants::JITA_SOLAR_SYSTEM_ID,
+                null,
+                0.036,
+                0.036,
+                $user,
+                EveConstants::JITA_SOLAR_SYSTEM_ID,
+            )
+            ->willReturn($this->analysis());
+
+        $this->provider($user, null, $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
     }
 
     #[Group('issue-200')]
@@ -498,14 +582,20 @@ class ProfitMarginProviderTest extends TestCase
             ->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID);
     }
 
-    private function provider(User $user, Request $request, ProfitMarginService $profitMarginService, ?IndustryUserSettings $settings = null): ProfitMarginProvider
+    private function provider(User $user, ?Request $request, ProfitMarginService $profitMarginService, ?IndustryUserSettings $settings = null): ProfitMarginProvider
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
         $requestStack = new RequestStack();
-        $requestStack->push($request);
+        if ($request !== null) {
+            $requestStack->push($request);
+        }
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
-        $settingsRepository->method('findOneBy')->willReturn($settings);
+        $settingsRepository->method('findOneBy')->willReturnCallback(
+            static fn (array $criteria): ?IndustryUserSettings => $criteria === ['user' => $user]
+                ? $settings
+                : self::fail(sprintf('Settings looked up by %s instead of the authenticated user.', json_encode(array_keys($criteria)))),
+        );
 
         $decryptors = $this->createStub(Decryptors::class);
         $decryptors->method('all')->willReturn([new Decryptor(self::PROCESS_DECRYPTOR, new Multiplier(1.1), 0, 3, 6)]);
