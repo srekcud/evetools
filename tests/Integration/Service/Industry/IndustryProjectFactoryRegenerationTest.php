@@ -10,6 +10,7 @@ use App\Entity\IndustryRigCategory;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
+use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -21,6 +22,7 @@ use App\Enum\IndustryActivityType;
 use App\Industry\Application\InventionCatalog;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -28,6 +30,7 @@ use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectFactory;
+use App\Service\Industry\IndustryStepCalculator;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Tests\Integration\IntegrationTestCase;
@@ -89,6 +92,8 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const string TEST_AZBEL = 'Test Azbel';
     private const string TEST_SOTIYO = 'Test Sotiyo';
     private const string TEST_TATARA = 'Test Tatara';
+    private const string FAVORITE_RAITARU = 'Favorite Raitaru';
+    private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30_000_142;
 
     private const int COMPONENTS_PER_FRIGATE_RUN = 4;
     private const int MINERALS_PER_COMPONENT_RUN = 10;
@@ -488,6 +493,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     }
 
     #[Group('issue-21')]
+    #[Group('issue-286')]
     public function testRegenerationKeepsTheStructureOfTheHullComponentAndPlansItsSubComponentsWithItsMaterialBonus(): void
     {
         $highsecRaitaru = $this->raitaru(self::HIGHSEC_RAITARU, 'highsec');
@@ -502,13 +508,13 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
 
         self::assertSame(
             [
-                [0, self::SUB_COMPONENT_BLUEPRINT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, 'manufacturing', 2, 80, 80, 10, 20, null, 0, null],
-                [1, self::HULL_COMPONENT_BLUEPRINT_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, 'manufacturing', 1, 13, 13, 10, 20, null, 0, null],
+                [0, self::SUB_COMPONENT_BLUEPRINT_TYPE_ID, self::SUB_COMPONENT_TYPE_ID, 'manufacturing', 2, 86, 86, 10, 20, null, 0, null],
+                [1, self::HULL_COMPONENT_BLUEPRINT_TYPE_ID, self::HULL_COMPONENT_TYPE_ID, 'manufacturing', 1, 14, 14, 10, 20, null, 0, null],
                 [2, self::DESTROYER_BLUEPRINT_TYPE_ID, self::DESTROYER_TYPE_ID, 'manufacturing', 0, 5, 5, 10, 20, null, 0, null],
             ],
             $this->persistedStepsOf($project),
         );
-        self::assertSame([[0, 13, 13, 10, 20, self::HIGHSEC_RAITARU]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+        self::assertSame([[0, 14, 14, 10, 20, self::HIGHSEC_RAITARU]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
     }
 
     #[Group('issue-21')]
@@ -570,6 +576,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     }
 
     #[Group('issue-21')]
+    #[Group('issue-286')]
     public function testChangingTheRunsKeepsTheMeTeAndStructureOfEachJobOfASplitHullComponent(): void
     {
         $highsecRaitaru = $this->raitaru(self::HIGHSEC_RAITARU, 'highsec');
@@ -577,7 +584,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $this->em->flush();
         $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_BUT_NOT_A_SIX_RUN_DESTROYER, 20);
         $hullComponentJobs = $this->jobsOfProductInSplitIndexOrder($project, self::HULL_COMPONENT_TYPE_ID);
-        self::assertSame([[0, 7, 7, 10, 20, null], [1, 6, 6, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+        self::assertSame([[0, 7, 7, 10, 20, null], [1, 7, 7, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
         $hullComponentJobs[0]->setMeLevel(8)->setTeLevel(16)->setStructureConfig($highsecRaitaru);
         $hullComponentJobs[1]->setMeLevel(9)->setTeLevel(18)->setStructureConfig($nullsecRaitaru);
         $this->em->flush();
@@ -587,10 +594,10 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $project = $this->reloaded($project);
 
         self::assertSame(
-            [[0, 8, 8, 8, 16, self::HIGHSEC_RAITARU], [1, 8, 8, 9, 18, self::NULLSEC_RAITARU]],
+            [[0, 9, 9, 8, 16, self::HIGHSEC_RAITARU], [1, 8, 8, 9, 18, self::NULLSEC_RAITARU]],
             $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID),
         );
-        self::assertSame([[0, 99, 99, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::SUB_COMPONENT_TYPE_ID));
+        self::assertSame([[0, 106, 106, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::SUB_COMPONENT_TYPE_ID));
     }
 
     #[Group('issue-21')]
@@ -645,12 +652,13 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     }
 
     #[Group('issue-21')]
+    #[Group('issue-286')]
     public function testAStructureOnARootWithoutRigCategoryPlansItsHullComponentsWithTheBaseMaterialBonusOnly(): void
     {
         $nullsecRaitaru = $this->raitaru(self::NULLSEC_RAITARU, 'nullsec');
         $this->em->flush();
         $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 37, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
-        self::assertSame([[0, 95, 95, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+        self::assertSame([[0, 99, 99, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
         $this->stepOfProduct($project, self::DESTROYER_TYPE_ID)->setStructureConfig($nullsecRaitaru);
         $this->em->flush();
 
@@ -659,6 +667,21 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
 
         self::assertSame([[0, 37, 37, 10, 20, self::NULLSEC_RAITARU]], $this->settingsOfJobsOfProduct($project, self::DESTROYER_TYPE_ID));
         self::assertSame([[0, 99, 99, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+    }
+
+    #[Group('issue-286')]
+    public function testIntermediatesOfADestroyerAreCreatedWithTheStructureOfTheFavoriteSystemThatTheCascadeKeeps(): void
+    {
+        $this->structure(self::FAVORITE_RAITARU, 'raitaru')->setSolarSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID);
+        $this->raitaru(self::NULLSEC_RAITARU, 'nullsec');
+        $this->em->persist((new IndustryUserSettings())->setUser($this->pilot)->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID));
+        $this->em->flush();
+
+        $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+
+        self::assertSame([[0, 14, 14, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
+        self::assertSame([[0, 88, 88, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::SUB_COMPONENT_TYPE_ID));
+        self::assertSame([], $this->stepCalculator()->recalculateStepQuantities($project));
     }
 
     public function testExcludedComponentsAreRememberedOnceAndNeverPlannedAtCreationNorAtRegeneration(): void
@@ -765,6 +788,18 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         usort($jobs, static fn (IndustryProjectStep $a, IndustryProjectStep $b): int => $a->getSplitIndex() <=> $b->getSplitIndex());
 
         return $jobs;
+    }
+
+    private function stepCalculator(): IndustryStepCalculator
+    {
+        $container = self::getContainer();
+
+        return self::autowired(IndustryStepCalculator::class, [
+            $container->get(IndustryCalculationService::class),
+            $container->get(IndustryActivityMaterialRepository::class),
+            $container->get(IndustryActivityProductRepository::class),
+            $this->em,
+        ]);
     }
 
     private function structure(string $name, string $structureType): IndustryStructureConfig

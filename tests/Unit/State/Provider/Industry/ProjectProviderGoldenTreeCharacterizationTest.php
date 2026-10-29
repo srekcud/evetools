@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Get;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryRigCategoryRepository;
@@ -84,6 +85,7 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     ];
 
     private const array ONE_RUN_OF_FUEL_BLOCK_AT_ME_TEN = [44 => 4, 3683 => 20, 3689 => 4, 9832 => 9, self::ROBOTICS => 1, 16272 => 153, 16273 => 315, 16275 => 18];
+    private const array THREE_RUNS_OF_HYDROGEN_FUEL_BLOCK_AT_ME_TEN_IN_THE_RAITARU = [44 => 11, 3683 => 59, 3689 => 11, self::COOLANT => 25, self::ROBOTICS => 3, 16272 => 455, 16273 => 936, 16275 => 54, 17889 => 1203];
 
     private bool $pilotOwnsTataraAndRaitaru = false;
     private User $pilot;
@@ -331,6 +333,28 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
             [self::HYDROGEN_FUEL_BLOCK => 49, self::FERNITE_ALLOY => 974, self::CERAMIC_POWDER => 974],
             array_column($tree['materials'], 'quantity', 'typeId'),
         );
+    }
+
+    #[Group('issue-286')]
+    public function testFuelBlockOfTenRunsOfFerniteCarbideInATataraHasTheNeedOfItsConsumerJobsInItsStepItsNodeAndTheShoppingList(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+        $project = $this->projectOnGoldenSde($this->pilot, self::FERNITE_CARBIDE, 10, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        $tree = $this->treeOf($project);
+        $fuelBlockLeaves = array_intersect_key(
+            array_column($this->shoppingListBuilderOnGoldenSde()->getShoppingList($project)['materials'], 'quantity', 'typeId'),
+            self::THREE_RUNS_OF_HYDROGEN_FUEL_BLOCK_AT_ME_TEN_IN_THE_RAITARU,
+        );
+        ksort($fuelBlockLeaves);
+
+        self::assertSame(
+            [[3, 99]],
+            array_map(static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity()], $this->stepsOf($project, self::HYDROGEN_FUEL_BLOCK)),
+        );
+        self::assertSame([49, 25, 25], self::quantitiesOfRowsOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[99, 3]], self::quantityAndRunsOfNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame(self::THREE_RUNS_OF_HYDROGEN_FUEL_BLOCK_AT_ME_TEN_IN_THE_RAITARU, $fuelBlockLeaves);
     }
 
     #[Group('issue-121')]

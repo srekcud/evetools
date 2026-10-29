@@ -90,6 +90,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
         self::assertSame([], $this->topicsAndStatusesOfThePublishedUpdates());
     }
 
+    #[Group('issue-286')]
     public function testRootReactionOfTheOldCalculationOfTenRunsOfFerniteCarbideIsRegeneratedAtOneHundredThousandUnits(): void
     {
         $project = $this->ferniteCarbideProjectOfTheOldCalculation(self::FERNITE_CARBIDE_PROJECT_ID);
@@ -101,7 +102,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
             self::summaryOf($outcomes),
         );
         self::assertSame(
-            [self::FERNITE_CARBIDE => [[10, 100_000]], self::CERAMIC_POWDER => [[5, 974]], self::FERNITE_ALLOY => [[5, 974]], self::HYDROGEN_FUEL_BLOCK => [[3, 100]]],
+            [self::FERNITE_CARBIDE => [[10, 100_000]], self::CERAMIC_POWDER => [[5, 974]], self::FERNITE_ALLOY => [[5, 974]], self::HYDROGEN_FUEL_BLOCK => [[3, 99]]],
             [
                 self::FERNITE_CARBIDE => self::runsAndQuantityOfEachJob($this->jobsOfProduct($project, self::FERNITE_CARBIDE)),
                 self::CERAMIC_POWDER => self::runsAndQuantityOfEachJob($this->jobsOfProduct($project, self::CERAMIC_POWDER)),
@@ -302,6 +303,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
         self::assertSame([[13, 500], [12, 500]], self::runsAndQuantityOfEachJob($this->rootJobsOf($project)));
     }
 
+    #[Group('issue-286')]
     public function testHundredThousandRunsOfFerniteCarbideGiveOneBillionRootUnits(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
@@ -310,7 +312,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
         $outcomes = $this->regenerationOf($project)->run(false);
 
         self::assertSame(
-            [[self::LARGE_FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::LARGE_FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Changed, 'root jobs 1, runs 1, units 100000 -> jobs 3572, runs 100000, units 1000000000; steps 3568 -> 7139; job matches 0 -> 0, purchases 0 -> 0', null]],
+            [[self::LARGE_FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::LARGE_FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Changed, 'root jobs 1, runs 1, units 100000 -> jobs 3572, runs 100000, units 1000000000; steps 3567 -> 7138; job matches 0 -> 0, purchases 0 -> 0', null]],
             self::summaryOf($outcomes),
         );
         $rootJobs = self::runsAndQuantityOfEachJob($this->rootJobsOf($project));

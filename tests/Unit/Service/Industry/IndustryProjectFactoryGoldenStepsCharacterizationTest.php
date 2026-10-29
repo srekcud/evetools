@@ -193,6 +193,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-2')]
+    #[Group('issue-286')]
     public function testStepsOfTenRunsOfFerniteCarbideInATataraPlanTheIntermediatesOnTheNeedOfTenRuns(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
@@ -201,7 +202,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
 
         self::assertSame([[10, 100_000, 0, 0, 0, 0, null]], $this->jobsOf($steps, self::FERNITE_CARBIDE));
         self::assertSame(
-            [self::CERAMIC_POWDER => [[5, 974]], self::FERNITE_ALLOY => [[5, 974]], self::HYDROGEN_FUEL_BLOCK => [[3, 100]]],
+            [self::CERAMIC_POWDER => [[5, 974]], self::FERNITE_ALLOY => [[5, 974]], self::HYDROGEN_FUEL_BLOCK => [[3, 99]]],
             [
                 self::CERAMIC_POWDER => $this->runsAndQuantityOfEachJobOf($steps, self::CERAMIC_POWDER),
                 self::FERNITE_ALLOY => $this->runsAndQuantityOfEachJobOf($steps, self::FERNITE_ALLOY),
@@ -378,20 +379,24 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         self::assertSame([[1, 1267, 1, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($project), self::PHENOLIC_COMPOSITES));
     }
 
-    // A reaction consumed by reactions in a Tatara gets the reactor rig (2.4 % × 1.1 = 2.64 %) on each consumer job:
-    // Fernite Alloy = ceil(round(100 × 963 × 0.9736, 2)) + ceil(round(100 × 126 × 0.9736, 2)) = 93758 + 12268 = 106026
-    // for the Fernite Carbide and the Plasmonic Metamaterials of one Nomad. The capital components consuming Fernite
-    // Carbide have no category in the stub, so no structure bonus: ME 10 alone. The 365 day ceiling keeps the steps
-    // unsplit, so the step quantity is the need.
+    #[Group('issue-286')]
     public function testReactionConsumedByAReactionInATataraGetsTheReactorRigBonus(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
 
         $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20, maxJobDurationDays: 365.0);
 
-        $steps = $this->stepsOf($project);
-        self::assertSame([[963, 9_622_187, 2, 0, 0, 0, null]], $this->jobsOf($steps, self::FERNITE_CARBIDE));
-        self::assertSame([[531, 106_026, 4, 0, 0, 0, null]], $this->jobsOf($steps, self::FERNITE_ALLOY));
+        self::assertSame([[525, 104_955, 4, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($project), self::FERNITE_ALLOY));
+    }
+
+    #[Group('issue-286')]
+    public function testReactionConsumedByCapitalComponentsWithoutRigCategoryGetsTheRoleBonusOfTheRaitaruOnly(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+
+        $project = $this->createProject(self::NOMAD, runs: 1, meLevel: 10, teLevel: 20, maxJobDurationDays: 365.0);
+
+        self::assertSame([[953, 9_525_965, 2, 0, 0, 0, null]], $this->jobsOf($this->stepsOf($project), self::FERNITE_CARBIDE));
     }
 
     #[Group('issue-110')]
@@ -604,7 +609,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
 
     #[Group('issue-73')]
     #[Group('issue-2')]
-    public function testSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus(): void
+    #[Group('issue-286')]
+    public function testSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheReactorRigOfTheTatara(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
 
@@ -640,7 +646,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-73')]
-    public function testSplitManufacturingConsumerWithoutRigCategoryNeedsTheReactionsOfEachOfItsJobsWithoutStructureBonus(): void
+    #[Group('issue-286')]
+    public function testSplitManufacturingConsumerWithoutRigCategoryNeedsTheReactionsOfEachOfItsJobsWithTheRoleBonusOfTheRaitaruOnly(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
 
@@ -682,19 +689,20 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
 
     #[Group('issue-69')]
     #[Group('issue-134')]
-    public function testIntermediatesOfTenScorpionsInATataraAndARaitaruAreAggregatedWithTheBonusRuleOfEachPath(): void
+    #[Group('issue-286')]
+    public function testIntermediatesOfTenScorpionsInATataraAndARaitaruAreAggregatedWithTheBonusOfEachConsumerJob(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
 
         $project = $this->createProject(self::SCORPION, runs: 10, meLevel: 10, teLevel: 20);
 
         $steps = $this->stepsOf($project);
-        self::assertSame([[7, 253, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
-        self::assertSame([[6, 218, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[7, 251, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
+        self::assertSame([[6, 216, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
         self::assertSame([[7, 68, 3, 0, 0, 0, null]], $this->jobsOf($steps, self::OXY_ORGANIC_SOLVENTS));
-        self::assertSame([[23, 4500, 2, 0, 0, 0, null]], $this->jobsOf($steps, self::PRESSURIZED_OXIDIZERS));
+        self::assertSame([[23, 4455, 2, 0, 0, 0, null]], $this->jobsOf($steps, self::PRESSURIZED_OXIDIZERS));
         self::assertSame(
-            [[23, 4600, 2, 0, 0, 0, 45], [22, 4400, 2, 0, 0, 1, 45]],
+            [[23, 4600, 2, 0, 0, 0, 45], [22, 4314, 2, 0, 0, 1, 45]],
             $this->jobsOf($steps, self::REINFORCED_CARBON_FIBER),
         );
         self::assertSame(
@@ -771,7 +779,8 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
 
     #[Group('issue-73')]
     #[Group('issue-2')]
-    public function testRegeneratedSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus(): void
+    #[Group('issue-286')]
+    public function testRegeneratedSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheReactorRigOfTheTatara(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
         $regenerated = $this->createProject(self::TITANIUM_CHROMIDE, runs: 20, meLevel: 0, teLevel: 0, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);

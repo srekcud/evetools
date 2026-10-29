@@ -86,6 +86,7 @@ final class IndustryProjectFactoryStepRegenerationPreviewTest extends TestCase
         );
     }
 
+    #[Group('issue-286')]
     public function testPreviewTakesTheRootReactionOfTheOldCalculationOfTenRunsOfFerniteCarbideBackAtOneHundredThousandUnitsWithItsIntermediates(): void
     {
         $project = $this->ferniteCarbideProjectOfTheOldCalculation(self::FERNITE_CARBIDE_PROJECT_ID);
@@ -96,7 +97,7 @@ final class IndustryProjectFactoryStepRegenerationPreviewTest extends TestCase
             [
                 [self::CERAMIC_POWDER_REACTION_FORMULA, 'reaction', 1, 0, [5, 974, 0, 0], [5, 974, 0, 0]],
                 [self::FERNITE_ALLOY_REACTION_FORMULA, 'reaction', 1, 0, [5, 974, 0, 0], [5, 974, 0, 0]],
-                [self::HYDROGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', 1, 0, [3, 100, 10, 20], [3, 100, 10, 20]],
+                [self::HYDROGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', 1, 0, [3, 99, 10, 20], [3, 99, 10, 20]],
                 [self::FERNITE_CARBIDE_REACTION_FORMULA, 'reaction', 0, 0, [1, 10, 0, 0], [10, 100_000, 0, 0]],
             ],
             self::linesOf($preview),
