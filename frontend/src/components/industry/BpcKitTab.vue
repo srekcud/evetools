@@ -251,7 +251,7 @@ onMounted(() => {
 </script>
 
 <template>
-<div class="space-y-4">
+  <div class="space-y-4">
     <div v-if="bpcKit?.isT2 !== false" class="w-40">
       <label :for="`${uid}-desired-bpcs`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5" :title="t('industry.bpcKitTab.desiredBpcsHelp')">{{ t('industry.bpcKitTab.desiredBpcs') }}</label>
       <input
@@ -262,7 +262,7 @@ onMounted(() => {
         class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500 transition-colors"
         @input="onDesiredBpcCountInput"
       />
-      </div>
+    </div>
 
     <!-- Loading state -->
     <div v-if="loading && !bpcKit" class="text-center py-12">
