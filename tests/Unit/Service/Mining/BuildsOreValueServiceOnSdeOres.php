@@ -99,6 +99,19 @@ trait BuildsOreValueServiceOnSdeOres
         ];
     }
 
+    private function jitaSellPricesWithoutCompressedOre(): array
+    {
+        $jitaSellPrices = $this->jitaSellPrices();
+        unset(
+            $jitaSellPrices[self::COMPRESSED_VELDSPAR],
+            $jitaSellPrices[self::COMPRESSED_BITUMENS],
+            $jitaSellPrices[self::COMPRESSED_CLEAR_ICICLE],
+            $jitaSellPrices[self::COMPRESSED_FULLERITE_C50],
+        );
+
+        return $jitaSellPrices;
+    }
+
     private function createOreValueService(
         array $jitaSellPrices,
         ?StructureMarketService $structureMarketService = null,

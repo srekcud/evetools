@@ -45,6 +45,7 @@ final class OreValueServiceCharacterizationTest extends TestCase
                 'compressedEquivalentPrice',
                 'structureUnitPrice',
                 'structureCompressedUnitPrice',
+                'structureCompressedEquivalentPrice',
                 'reprocessValue',
                 'structureReprocessValue',
                 'reprocessYield',
@@ -60,6 +61,7 @@ final class OreValueServiceCharacterizationTest extends TestCase
         $this->assertSame(self::DEFAULT_REPROCESS_YIELD, $veldspar['reprocessYield']);
         $this->assertNull($veldspar['structureUnitPrice']);
         $this->assertNull($veldspar['structureCompressedUnitPrice']);
+        $this->assertNull($veldspar['structureCompressedEquivalentPrice']);
         $this->assertNull($veldspar['structureReprocessValue']);
     }
 
@@ -91,7 +93,8 @@ final class OreValueServiceCharacterizationTest extends TestCase
     }
 
     #[Group('mining-audit-P1-1')]
-    public function testCompressedEquivalentPriceCurrentlyDividesTheCompressedPriceByOneHundredMiningAuditP1_1(): void
+    #[Group('issue-259')]
+    public function testCompressedEquivalentPriceIsTheCompressedUnitPriceWhenRawAndCompressedPortionSizesMatch(): void
     {
         $oreValueService = $this->createOreValueService($this->jitaSellPrices());
 
@@ -99,10 +102,10 @@ final class OreValueServiceCharacterizationTest extends TestCase
             [self::VELDSPAR, self::BITUMENS, self::CLEAR_ICICLE, self::FULLERITE_C50],
         );
 
-        $this->assertEqualsWithDelta(0.1961, $orePrices[self::VELDSPAR]['compressedEquivalentPrice'], self::PRICE_DELTA);
-        $this->assertEqualsWithDelta(2.2145, $orePrices[self::BITUMENS]['compressedEquivalentPrice'], self::PRICE_DELTA);
-        $this->assertEqualsWithDelta(1587.0, $orePrices[self::CLEAR_ICICLE]['compressedEquivalentPrice'], self::PRICE_DELTA);
-        $this->assertEqualsWithDelta(28.13, $orePrices[self::FULLERITE_C50]['compressedEquivalentPrice'], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(19.61, $orePrices[self::VELDSPAR]['compressedEquivalentPrice'], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(221.45, $orePrices[self::BITUMENS]['compressedEquivalentPrice'], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(158700.0, $orePrices[self::CLEAR_ICICLE]['compressedEquivalentPrice'], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(2813.0, $orePrices[self::FULLERITE_C50]['compressedEquivalentPrice'], self::PRICE_DELTA);
 
         $taxedVeldspar = $oreValueService->getBatchOrePrices(
             [self::VELDSPAR],
@@ -111,7 +114,7 @@ final class OreValueServiceCharacterizationTest extends TestCase
             self::EXPORT_TAX_PER_CUBIC_METRE,
         )[self::VELDSPAR];
 
-        $this->assertEqualsWithDelta(0.195725, $taxedVeldspar['compressedEquivalentPrice'], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(19.5725, $taxedVeldspar['compressedEquivalentPrice'], self::PRICE_DELTA);
     }
 
     public function testSubtractsExportTaxPerCubicMetreFromRawAndCompressedJitaPricesDownToZero(): void
@@ -212,6 +215,9 @@ final class OreValueServiceCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta(14.62, $orePrices[self::VELDSPAR]['rawUnitPrice'], self::PRICE_DELTA);
         $this->assertEqualsWithDelta(208.3, $orePrices[self::BITUMENS]['structureUnitPrice'], self::PRICE_DELTA);
         $this->assertNull($orePrices[self::BITUMENS]['structureCompressedUnitPrice']);
+        $this->assertArrayHasKey('structureCompressedEquivalentPrice', $orePrices[self::VELDSPAR]);
+        $this->assertEqualsWithDelta(20.38, $orePrices[self::VELDSPAR]['structureCompressedEquivalentPrice'], self::PRICE_DELTA);
+        $this->assertNull($orePrices[self::BITUMENS]['structureCompressedEquivalentPrice']);
         $this->assertEqualsWithDelta(836.1093, $orePrices[self::BITUMENS]['structureReprocessValue'], self::PRICE_DELTA);
         $this->assertEqualsWithDelta(149800.0, $orePrices[self::CLEAR_ICICLE]['structureUnitPrice'], self::PRICE_DELTA);
         $this->assertNull($orePrices[self::CLEAR_ICICLE]['structureReprocessValue']);

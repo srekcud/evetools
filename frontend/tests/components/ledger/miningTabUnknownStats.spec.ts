@@ -1,49 +1,24 @@
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { createI18n } from 'vue-i18n'
+import { enableAutoUnmount } from '@vue/test-utils'
 import en from '@/i18n/locales/en.json'
-import MiningTab from '@/components/ledger/MiningTab.vue'
-import type { MiningEntry, MiningStats } from '@/stores/ledger'
+import type { MiningStats } from '@/stores/ledger'
 import { apiRequest } from '@/services/api'
+import {
+  JITA_SYSTEM_ID,
+  PERIMETER_SYSTEM_ID,
+  SCORDITE_TYPE_ID,
+  VELDSPAR_TYPE_ID,
+  card,
+  cardValue,
+  miningEntry,
+  mountTab,
+  respondWith,
+  type MiningTabWrapper,
+} from './miningLedgerHarness'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
   apiRequest: vi.fn(),
 }))
-
-const VELDSPAR_TYPE_ID = 1230
-const SCORDITE_TYPE_ID = 1228
-const JITA_SYSTEM_ID = 30000142
-const PERIMETER_SYSTEM_ID = 30000144
-
-function miningEntry(overrides: Partial<MiningEntry>): MiningEntry {
-  return {
-    id: 'entry',
-    characterId: 2112000001,
-    characterName: 'Ilyra Castell',
-    date: '2026-10-20T00:00:00+00:00',
-    typeId: VELDSPAR_TYPE_ID,
-    typeName: 'Veldspar',
-    solarSystemId: JITA_SYSTEM_ID,
-    solarSystemName: 'Jita',
-    quantity: 1,
-    unitPrice: null,
-    totalValue: null,
-    compressedTypeId: null,
-    compressedTypeName: null,
-    compressedUnitPrice: null,
-    compressedEquivalentPrice: null,
-    structureUnitPrice: null,
-    structureCompressedUnitPrice: null,
-    reprocessValue: null,
-    structureReprocessValue: null,
-    usage: 'unknown',
-    linkedProjectId: null,
-    linkedCorpProjectId: null,
-    syncedAt: '2026-10-21T08:00:00+00:00',
-    ...overrides,
-  }
-}
 
 const SOLD_VELDSPAR_ENTRY = miningEntry({ id: 'veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', solarSystemId: JITA_SYSTEM_ID, solarSystemName: 'Jita', date: '2026-10-20T00:00:00+00:00', quantity: 12_000, unitPrice: 200, totalValue: 2_400_000, usage: 'sold' })
 const CORP_SCORDITE_ENTRY = miningEntry({ id: 'scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', solarSystemId: PERIMETER_SYSTEM_ID, solarSystemName: 'Perimeter', date: '2026-10-21T00:00:00+00:00', quantity: 4_500, unitPrice: 200, totalValue: 900_000, usage: 'corp_project' })
@@ -53,35 +28,10 @@ const KNOWN_MINING_STATS: MiningStats = {
   totals: { totalValue: 3_300_000, totalQuantity: 16_500 },
   byUsage: {},
   iskPerDay: 110_000,
+  missingPriceTypeIds: [],
 }
 
-function respondWith(stats: () => Promise<unknown>, entries: () => Promise<unknown>) {
-  vi.mocked(apiRequest).mockImplementation((endpoint: string) => {
-    if (endpoint.startsWith('/ledger/mining/stats')) return stats()
-    if (endpoint.startsWith('/ledger/mining/entries')) return entries()
-    return new Promise(() => {})
-  })
-}
-
-async function mountTab() {
-  setActivePinia(createPinia())
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const wrapper = mount(MiningTab, { props: { selectedDays: 30 }, global: { plugins: [i18n] } })
-  await flushPromises()
-  return wrapper
-}
-
-function card(wrapper: Awaited<ReturnType<typeof mountTab>>, label: string) {
-  const found = wrapper.findAll('div.rounded-xl').find(div => div.find('span').exists() && div.get('span').text() === label)
-  if (!found) throw new Error(`No card labelled ${label}`)
-  return found
-}
-
-function cardValue(wrapper: Awaited<ReturnType<typeof mountTab>>, label: string) {
-  return card(wrapper, label).element.children[1] as HTMLElement
-}
-
-function oreBreakdownTotal(wrapper: Awaited<ReturnType<typeof mountTab>>) {
+function oreBreakdownTotal(wrapper: MiningTabWrapper) {
   const breakdown = card(wrapper, en.ledger.mining.oreBreakdown)
   return breakdown.findAll('span').find(span => span.text().endsWith('total'))!
 }

@@ -20,6 +20,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
 
     private const float PRICE_DELTA = 1e-6;
     private const int TYPE_WITHOUT_ANY_PRICE = 81143;
+    private const int OTHER_TYPE_WITHOUT_ANY_PRICE = 81144;
     private const float BITUMENS_REPROCESS_VALUE = 831.2148;
     private const float CLEAR_ICICLE_REPROCESS_VALUE = 215852.598;
     private const float FULLERITE_C50_RAW_PRICE = 2741.0;
@@ -70,7 +71,8 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     }
 
     #[Group('mining-audit-P1-1')]
-    public function testBestUnitPriceCurrentlyWeighsCompressedOreAtOneHundredthOfItsPriceMiningAuditP1_1(): void
+    #[Group('issue-259')]
+    public function testBestUnitPriceWeighsCompressedOreAtItsFullCompressedEquivalentPrice(): void
     {
         $jitaSellPrices = $this->jitaSellPrices();
         $jitaSellPrices[self::VELDSPAR] = 12.4;
@@ -79,8 +81,18 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
 
         $bestUnitPrices = $calculator->getBestUnitPrices([self::VELDSPAR, self::FULLERITE_C50]);
 
-        $this->assertEqualsWithDelta(13.3224, $bestUnitPrices[self::VELDSPAR], self::PRICE_DELTA);
-        $this->assertEqualsWithDelta(28.13, $bestUnitPrices[self::FULLERITE_C50], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(19.61, $bestUnitPrices[self::VELDSPAR], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(2813.0, $bestUnitPrices[self::FULLERITE_C50], self::PRICE_DELTA);
+    }
+
+    #[Group('issue-259')]
+    public function testBestUnitPriceKeepsTheReprocessValueWhenTheCompressedOreSellsLower(): void
+    {
+        $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class), $this->jitaSellPrices());
+
+        $bestUnitPrices = $calculator->getBestUnitPrices([self::BITUMENS]);
+
+        $this->assertEqualsWithDelta(self::BITUMENS_REPROCESS_VALUE, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
     }
 
     #[Group('mining-audit-P2-5')]
@@ -96,7 +108,8 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     }
 
     #[Group('mining-audit-P2-5')]
-    public function testCurrentlyValuesAnOreWithoutAnyPriceAtZeroIskMiningAuditP2_5(): void
+    #[Group('issue-260')]
+    public function testAnOreWithoutAnyPriceMakesItsMiningValueUnknown(): void
     {
         $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
         $miningEntryRepository->method('getQuantitiesByType')->willReturn([
@@ -111,11 +124,15 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         ]);
         $calculator = $this->createCalculator($miningEntryRepository);
 
-        $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE => 0.0], $calculator->getBestUnitPrices([self::TYPE_WITHOUT_ANY_PRICE]));
-        $this->assertEqualsWithDelta(6276890.0, $calculator->getTotalBestValue($this->user, $this->from, $this->to), self::PRICE_DELTA);
-        $this->assertSame(['2026-10-09' => 0.0], $calculator->getDailyBestValues($this->user, $this->from, $this->to));
-        $this->assertSame(
-            [MiningEntry::USAGE_SOLD => ['totalValue' => 0.0, 'totalQuantity' => 3150]],
+        $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE => null], $calculator->getBestUnitPrices([self::TYPE_WITHOUT_ANY_PRICE]));
+        $this->assertMiningValue(null, [self::TYPE_WITHOUT_ANY_PRICE], $calculator->getTotalBestValue($this->user, $this->from, $this->to));
+        $this->assertDailyMiningValues(
+            ['2026-10-09' => null],
+            [self::TYPE_WITHOUT_ANY_PRICE],
+            $calculator->getDailyBestValues($this->user, $this->from, $this->to),
+        );
+        $this->assertTotalsByUsage(
+            [MiningEntry::USAGE_SOLD => [null, 3150, [self::TYPE_WITHOUT_ANY_PRICE]]],
             $calculator->getTotalsByUsageBestValue($this->user, $this->from, $this->to),
         );
     }
@@ -151,7 +168,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
 
         $totalBestValue = $calculator->getTotalBestValue($this->user, $this->from, $this->to, $excludedUsages);
 
-        $this->assertEqualsWithDelta(6892553.0, $totalBestValue, self::PRICE_DELTA);
+        $this->assertMiningValue(6892553.0, [], $totalBestValue);
     }
 
     public function testTotalBestValueIsZeroWithoutMinedQuantityNorPriceLookup(): void
@@ -160,7 +177,10 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         $miningEntryRepository->method('getQuantitiesByType')->willReturn([]);
         $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything());
 
-        $this->assertSame(0.0, $calculator->getTotalBestValue($this->user, $this->from, $this->to));
+        $this->assertSame(
+            ['totalValue' => 0.0, 'missingPriceTypeIds' => []],
+            $calculator->getTotalBestValue($this->user, $this->from, $this->to),
+        );
     }
 
     public function testDailyBestValuesSumBestUnitPriceTimesQuantityPerDay(): void
@@ -178,9 +198,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
 
         $dailyBestValues = $calculator->getDailyBestValues($this->user, $this->from, $this->to, $excludedUsages);
 
-        $this->assertSame(['2026-10-09', '2026-10-10'], array_keys($dailyBestValues));
-        $this->assertEqualsWithDelta(1744299.4, $dailyBestValues['2026-10-09'], self::PRICE_DELTA);
-        $this->assertEqualsWithDelta(3060621.0, $dailyBestValues['2026-10-10'], self::PRICE_DELTA);
+        $this->assertDailyMiningValues(['2026-10-09' => 1744299.4, '2026-10-10' => 3060621.0], [], $dailyBestValues);
     }
 
     public function testDailyBestValuesAreEmptyWithoutMinedQuantityNorPriceLookup(): void
@@ -189,7 +207,10 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([]);
         $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything());
 
-        $this->assertSame([], $calculator->getDailyBestValues($this->user, $this->from, $this->to));
+        $this->assertSame(
+            ['byDate' => [], 'missingPriceTypeIds' => []],
+            $calculator->getDailyBestValues($this->user, $this->from, $this->to),
+        );
     }
 
     public function testTotalsByUsageSumBestValueAndQuantityPerUsage(): void
@@ -206,11 +227,13 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
 
         $totalsByUsage = $calculator->getTotalsByUsageBestValue($this->user, $this->from, $this->to);
 
-        $this->assertSame([MiningEntry::USAGE_SOLD, MiningEntry::USAGE_INDUSTRY], array_keys($totalsByUsage));
-        $this->assertEqualsWithDelta(345719.6, $totalsByUsage[MiningEntry::USAGE_SOLD]['totalValue'], self::PRICE_DELTA);
-        $this->assertSame(27141, $totalsByUsage[MiningEntry::USAGE_SOLD]['totalQuantity']);
-        $this->assertEqualsWithDelta(2424850.7, $totalsByUsage[MiningEntry::USAGE_INDUSTRY]['totalValue'], self::PRICE_DELTA);
-        $this->assertSame(10280, $totalsByUsage[MiningEntry::USAGE_INDUSTRY]['totalQuantity']);
+        $this->assertTotalsByUsage(
+            [
+                MiningEntry::USAGE_SOLD => [345719.6, 27141, []],
+                MiningEntry::USAGE_INDUSTRY => [2424850.7, 10280, []],
+            ],
+            $totalsByUsage,
+        );
     }
 
     public function testTotalsByUsageAreEmptyWithoutMinedQuantityNorPriceLookup(): void
@@ -220,6 +243,204 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything());
 
         $this->assertSame([], $calculator->getTotalsByUsageBestValue($this->user, $this->from, $this->to));
+    }
+
+    #[Group('issue-260')]
+    public function testBestUnitPriceIsUnknownForATypeWithoutAnyPriceSource(): void
+    {
+        $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class));
+
+        $bestUnitPrices = $calculator->getBestUnitPrices([self::BITUMENS, self::TYPE_WITHOUT_ANY_PRICE]);
+
+        $this->assertSame([self::BITUMENS, self::TYPE_WITHOUT_ANY_PRICE], array_keys($bestUnitPrices));
+        $this->assertEqualsWithDelta(self::BITUMENS_REPROCESS_VALUE, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
+        $this->assertNull($bestUnitPrices[self::TYPE_WITHOUT_ANY_PRICE]);
+    }
+
+    #[Group('issue-260')]
+    public function testTotalMiningValueIsUnknownWhenAMinedTypeHasNoPrice(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([
+            self::BITUMENS => ['typeId' => self::BITUMENS, 'quantity' => 1000],
+            self::TYPE_WITHOUT_ANY_PRICE => ['typeId' => self::TYPE_WITHOUT_ANY_PRICE, 'quantity' => 3150],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository);
+
+        $totalBestValue = $calculator->getTotalBestValue($this->user, $this->from, $this->to);
+
+        $this->assertMiningValue(null, [self::TYPE_WITHOUT_ANY_PRICE], $totalBestValue);
+    }
+
+    #[Group('issue-260')]
+    public function testTotalMiningValueIsKnownWhenEveryMinedTypeHasAPrice(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([
+            self::BITUMENS => ['typeId' => self::BITUMENS, 'quantity' => 1000],
+            self::TRITANIUM => ['typeId' => self::TRITANIUM, 'quantity' => 2500],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository);
+
+        $totalBestValue = $calculator->getTotalBestValue($this->user, $this->from, $this->to);
+
+        $this->assertMiningValue(841889.8, [], $totalBestValue);
+    }
+
+    #[Group('issue-260')]
+    public function testDailyMiningValueIsUnknownOnlyOnTheDayHoldingATypeWithoutPrice(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([
+            '2026-10-09' => [self::BITUMENS => 1000],
+            '2026-10-10' => [self::TRITANIUM => 2500, self::TYPE_WITHOUT_ANY_PRICE => 3150],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository);
+
+        $dailyBestValues = $calculator->getDailyBestValues($this->user, $this->from, $this->to);
+
+        $this->assertDailyMiningValues(
+            ['2026-10-09' => 831214.8, '2026-10-10' => null],
+            [self::TYPE_WITHOUT_ANY_PRICE],
+            $dailyBestValues,
+        );
+    }
+
+    #[Group('issue-260')]
+    public function testUsageMiningValueIsUnknownOnlyForTheUsageHoldingATypeWithoutPrice(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([
+            MiningEntry::USAGE_SOLD => [self::BITUMENS => 1000],
+            MiningEntry::USAGE_INDUSTRY => [self::TRITANIUM => 2500, self::TYPE_WITHOUT_ANY_PRICE => 3150],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository);
+
+        $totalsByUsage = $calculator->getTotalsByUsageBestValue($this->user, $this->from, $this->to);
+
+        $this->assertTotalsByUsage(
+            [
+                MiningEntry::USAGE_SOLD => [831214.8, 1000, []],
+                MiningEntry::USAGE_INDUSTRY => [null, 5650, [self::TYPE_WITHOUT_ANY_PRICE]],
+            ],
+            $totalsByUsage,
+        );
+    }
+
+    #[Group('issue-260')]
+    public function testATypeWithoutPriceMinedInZeroQuantityLeavesTheTotalKnownAndUnlisted(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([
+            self::TYPE_WITHOUT_ANY_PRICE => ['typeId' => self::TYPE_WITHOUT_ANY_PRICE, 'quantity' => 0],
+            self::TRITANIUM => ['typeId' => self::TRITANIUM, 'quantity' => 2500],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository);
+
+        $totalBestValue = $calculator->getTotalBestValue($this->user, $this->from, $this->to);
+
+        $this->assertMiningValue(10675.0, [], $totalBestValue);
+    }
+
+    #[Group('issue-260')]
+    public function testATypeWithoutPriceMinedInZeroQuantityLeavesItsDayAndUsageKnown(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([
+            '2026-10-07' => [self::TYPE_WITHOUT_ANY_PRICE => 0, self::FULLERITE_C50 => 615],
+        ]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([
+            MiningEntry::USAGE_UNKNOWN => [self::TYPE_WITHOUT_ANY_PRICE => 0, self::TRITANIUM => 1840],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository);
+
+        $this->assertDailyMiningValues(
+            ['2026-10-07' => 1685715.0],
+            [],
+            $calculator->getDailyBestValues($this->user, $this->from, $this->to),
+        );
+        $this->assertTotalsByUsage(
+            [MiningEntry::USAGE_UNKNOWN => [7856.8, 1840, []]],
+            $calculator->getTotalsByUsageBestValue($this->user, $this->from, $this->to),
+        );
+    }
+
+    #[Group('issue-260')]
+    public function testAMinedTypeAtZeroIskOnJitaIsAKnownZeroValue(): void
+    {
+        $jitaSellPrices = $this->jitaSellPricesWithoutCompressedOre();
+        $jitaSellPrices[self::TRITANIUM] = 0.0;
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([
+            self::TRITANIUM => ['typeId' => self::TRITANIUM, 'quantity' => 2500],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository, $jitaSellPrices);
+
+        $totalBestValue = $calculator->getTotalBestValue($this->user, $this->from, $this->to);
+
+        $this->assertMiningValue(0.0, [], $totalBestValue);
+    }
+
+    #[Group('issue-260')]
+    public function testACompressedPriceAtZeroWithoutRawPriceIsAKnownZeroValue(): void
+    {
+        $jitaSellPrices = $this->jitaSellPrices();
+        unset($jitaSellPrices[self::FULLERITE_C50]);
+        $jitaSellPrices[self::COMPRESSED_FULLERITE_C50] = 0.0;
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([
+            self::FULLERITE_C50 => ['typeId' => self::FULLERITE_C50, 'quantity' => 2290],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository, $jitaSellPrices);
+
+        $this->assertSame([self::FULLERITE_C50 => 0.0], $calculator->getBestUnitPrices([self::FULLERITE_C50]));
+        $this->assertMiningValue(0.0, [], $calculator->getTotalBestValue($this->user, $this->from, $this->to));
+    }
+
+    #[Group('issue-260')]
+    public function testARawPriceOutweighsACompressedPriceAtZero(): void
+    {
+        $jitaSellPrices = $this->jitaSellPrices();
+        $jitaSellPrices[self::COMPRESSED_FULLERITE_C50] = 0.0;
+        $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class), $jitaSellPrices);
+
+        $bestUnitPrices = $calculator->getBestUnitPrices([self::FULLERITE_C50]);
+
+        $this->assertEqualsWithDelta(self::FULLERITE_C50_RAW_PRICE, $bestUnitPrices[self::FULLERITE_C50], self::PRICE_DELTA);
+    }
+
+    #[Group('issue-260')]
+    public function testMissingPriceTypeIdsAreSortedWithoutDuplicates(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([
+            self::OTHER_TYPE_WITHOUT_ANY_PRICE => ['typeId' => self::OTHER_TYPE_WITHOUT_ANY_PRICE, 'quantity' => 1200],
+            self::TYPE_WITHOUT_ANY_PRICE => ['typeId' => self::TYPE_WITHOUT_ANY_PRICE, 'quantity' => 3150],
+            self::TRITANIUM => ['typeId' => self::TRITANIUM, 'quantity' => 2500],
+        ]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([
+            '2026-10-08' => [self::OTHER_TYPE_WITHOUT_ANY_PRICE => 1200, self::TYPE_WITHOUT_ANY_PRICE => 1900],
+            '2026-10-09' => [self::TYPE_WITHOUT_ANY_PRICE => 1250, self::TRITANIUM => 2500],
+        ]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([
+            MiningEntry::USAGE_SOLD => [self::OTHER_TYPE_WITHOUT_ANY_PRICE => 1200, self::TYPE_WITHOUT_ANY_PRICE => 3150],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository);
+
+        $this->assertMiningValue(
+            null,
+            [self::TYPE_WITHOUT_ANY_PRICE, self::OTHER_TYPE_WITHOUT_ANY_PRICE],
+            $calculator->getTotalBestValue($this->user, $this->from, $this->to),
+        );
+        $this->assertDailyMiningValues(
+            ['2026-10-08' => null, '2026-10-09' => null],
+            [self::TYPE_WITHOUT_ANY_PRICE, self::OTHER_TYPE_WITHOUT_ANY_PRICE],
+            $calculator->getDailyBestValues($this->user, $this->from, $this->to),
+        );
+        $this->assertTotalsByUsage(
+            [MiningEntry::USAGE_SOLD => [null, 4350, [self::TYPE_WITHOUT_ANY_PRICE, self::OTHER_TYPE_WITHOUT_ANY_PRICE]]],
+            $calculator->getTotalsByUsageBestValue($this->user, $this->from, $this->to),
+        );
     }
 
     private function createCalculator(
@@ -232,16 +453,45 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         );
     }
 
-    private function jitaSellPricesWithoutCompressedOre(): array
+    private function assertMiningValue(?float $expectedTotalValue, array $expectedMissingPriceTypeIds, mixed $miningValue): void
     {
-        $jitaSellPrices = $this->jitaSellPrices();
-        unset(
-            $jitaSellPrices[self::COMPRESSED_VELDSPAR],
-            $jitaSellPrices[self::COMPRESSED_BITUMENS],
-            $jitaSellPrices[self::COMPRESSED_CLEAR_ICICLE],
-            $jitaSellPrices[self::COMPRESSED_FULLERITE_C50],
-        );
+        $this->assertIsArray($miningValue);
+        $this->assertSame(['totalValue', 'missingPriceTypeIds'], array_keys($miningValue));
+        $this->assertKnownOrUnknownValue($expectedTotalValue, $miningValue['totalValue']);
+        $this->assertSame($expectedMissingPriceTypeIds, $miningValue['missingPriceTypeIds']);
+    }
 
-        return $jitaSellPrices;
+    private function assertDailyMiningValues(array $expectedValuesByDate, array $expectedMissingPriceTypeIds, mixed $dailyMiningValues): void
+    {
+        $this->assertIsArray($dailyMiningValues);
+        $this->assertSame(['byDate', 'missingPriceTypeIds'], array_keys($dailyMiningValues));
+        $this->assertSame(array_keys($expectedValuesByDate), array_keys($dailyMiningValues['byDate']));
+        foreach ($expectedValuesByDate as $date => $expectedValue) {
+            $this->assertKnownOrUnknownValue($expectedValue, $dailyMiningValues['byDate'][$date]);
+        }
+        $this->assertSame($expectedMissingPriceTypeIds, $dailyMiningValues['missingPriceTypeIds']);
+    }
+
+    private function assertTotalsByUsage(array $expectedTotalsByUsage, array $totalsByUsage): void
+    {
+        $this->assertSame(array_keys($expectedTotalsByUsage), array_keys($totalsByUsage));
+        foreach ($expectedTotalsByUsage as $usage => [$expectedTotalValue, $expectedTotalQuantity, $expectedMissingPriceTypeIds]) {
+            $this->assertSame(['totalValue', 'totalQuantity', 'missingPriceTypeIds'], array_keys($totalsByUsage[$usage]));
+            $this->assertKnownOrUnknownValue($expectedTotalValue, $totalsByUsage[$usage]['totalValue']);
+            $this->assertSame($expectedTotalQuantity, $totalsByUsage[$usage]['totalQuantity']);
+            $this->assertSame($expectedMissingPriceTypeIds, $totalsByUsage[$usage]['missingPriceTypeIds']);
+        }
+    }
+
+    private function assertKnownOrUnknownValue(?float $expectedValue, mixed $actualValue): void
+    {
+        if ($expectedValue === null) {
+            $this->assertNull($actualValue);
+
+            return;
+        }
+
+        $this->assertIsFloat($actualValue);
+        $this->assertEqualsWithDelta($expectedValue, $actualValue, self::PRICE_DELTA);
     }
 }
