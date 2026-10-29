@@ -118,7 +118,7 @@ Mesuré sur le prototype de R3 : 13 848 tests unitaires, 6 en échec ; suite Int
 | `…::testChangingTheRunsKeepsTheMeTeAndStructureOfEachJobOfASplitHullComponent` | E12 |
 | `…::testAStructureOnARootWithoutRigCategoryPlansItsHullComponentsWithTheBaseMaterialBonusOnly` | E10 (première assertion seulement) |
 
-Restent verts mais leur nom contredit R1 (à renommer) : `IndustryProjectFactoryGoldenStepsCharacterizationTest::testSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus` et `::testRegeneratedSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus` (E7 : rig de la Tatara, même résultat).
+Restent verts mais leur nom contredit R1 (à renommer) : `IndustryProjectFactoryGoldenStepsCharacterizationTest::testSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsOneRunJobsRoundedJobByJob` et sa variante régénérée (renommés ; des cas à 10 runs par job prouvent le rig de la Tatara, E7).
 
 Restent verts sans changement : le golden `fernite-carbide-10runs-tatara-nullsec.json` et ses lecteurs (`GoldenJobMaterialQuantityTest`, `GoldenPlanTest`, `StructureMaterialModifiersTest`), `ProjectProviderGoldenTreeCharacterizationTest` (dont `testTreeOfTenRunsOfFerniteCarbideInATataraPlannedByTheFactoryShowsTenRunsOfOneHundredThousandUnits`, 49), les snapshots `tests/Fixtures/Characterization/`, `IndustryTreeServiceTest`, `IndustryShoppingListBuilderGoldenCharacterizationTest`, `StockpileGoldenImportCharacterizationTest`.
 

@@ -52,7 +52,7 @@ SDE golden (`tests/Fixtures/Golden/sde-blueprint-recipes.json`), blueprints synt
 | E10 | Idem, fabrication à 3 par run, 3 runs, une entrée de 50 | (entrée 9) | `runs 3`, `quantity 9`, entrée 150. Réécrit `…::testOutputPerRunAffectsRunsCalculation` (entrée 3) |
 | E11 | Idem, réaction à 100 par run, 2 runs, ME 10 passé | (entrée 200) | entrée 400 (pas de ME). Réécrit `…::testReactionDoesNotApplyME` (entrée 2) |
 | E12 | Idem, intermédiaire à 100 par run dont le besoin est 250 | 3 runs, quantité 250 | inchangé (R2) |
-| E13 | Factory, Titanium Chromide (200 par run), Tatara, ME 0, TE 0, durée max 0,05 j | entrée `runs: 4000` lue comme 4 000 unités, soit 20 runs | entrée `runs: 20` : 20 jobs `[1, 200, 0, 0, 0, i, 20]`, Oxygen Fuel Block `[[3, 100, 1, 10, 20, 0, null]]` (assertions inchangées de `testSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus` et de sa variante régénérée ; seule l'entrée passe de 4000 à 20) |
+| E13 | Factory, Titanium Chromide (200 par run), Tatara, ME 0, TE 0, durée max 0,05 j | entrée `runs: 4000` lue comme 4 000 unités, soit 20 runs | entrée `runs: 20` : 20 jobs `[1, 200, 0, 0, 0, i, 20]`, Oxygen Fuel Block `[[3, 100, 1, 10, 20, 0, null]]` (assertions inchangées de `testSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsOneRunJobsRoundedJobByJob` et de sa variante régénérée, renommées) ; seule l'entrée passe de 4000 à 20) |
 | E14 | Régénération : projet E1 dont l'étape racine a été remise à `[1, 25]` (runs non fixés) | — | même étape (même identifiant) `[25, 1000]`, jobs matchés et achats gardés (R6) |
 | E15 | Non-régression : tous les projets à 1 unité par run des goldens (Nomad, Widow, Scorpion, Quantum Microprocessor, Capital Jump Drive…) | — | étapes identiques |
 
