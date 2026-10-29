@@ -359,8 +359,10 @@ class IndustryProjectFactory
      */
     private function addTimeDataToSteps(array &$steps, User $user): void
     {
+        $characterSkillLevels = $this->calculationService->loadCharacterSkillLevels($user);
+
         foreach ($steps as &$step) {
-            $bestCharacter = $this->calculationService->bestCharacterForStepTime($user, $step['blueprintTypeId'], $step['activityType']);
+            $bestCharacter = $this->calculationService->bestCharacterForStepTime($user, $step['blueprintTypeId'], $step['activityType'], $characterSkillLevels);
 
             $step['timePerRun'] = $this->calculationService->timePerRunOf(
                 $user,

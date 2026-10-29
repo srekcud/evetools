@@ -25,6 +25,9 @@ class IndustryCalculationService
     /** @var array<string, int[]> Cache of blueprint science skill IDs */
     private array $blueprintSkillCache = [];
 
+    /** @var array<string, int|null> */
+    private array $baseTimeCache = [];
+
     public function __construct(
         private readonly TypeNameResolver $typeNameResolver,
         private readonly IndustryBonusService $bonusService,
@@ -271,8 +274,7 @@ class IndustryCalculationService
     }
 
     /**
-     * @param array<int, int>|null $characterSkills Skill type ID => level
-     * @return int|null Time per run in seconds, or null if base time not found
+     * @param array<int, int>|null $characterSkills
      */
     public function timePerRunOf(
         User $user,
@@ -301,34 +303,45 @@ class IndustryCalculationService
     }
 
     /**
-     * Find the character of the user with the lowest skill time multiplier for the activity
-     * of a blueprint. Among equal multipliers, the first character wins. A copy uses no character.
-     *
+     * @return list<array{name: string, skills: array<int, int>}>
+     */
+    public function loadCharacterSkillLevels(User $user): array
+    {
+        $characterSkillLevels = [];
+        foreach ($user->getCharacters() as $character) {
+            $skillLevels = [];
+            foreach ($this->skillRepository->findAllSkillsForCharacter($character) as $skill) {
+                $skillLevels[$skill->getSkillId()] = $skill->getLevel();
+            }
+            $characterSkillLevels[] = ['name' => $character->getName(), 'skills' => $skillLevels];
+        }
+
+        return $characterSkillLevels;
+    }
+
+    /**
+     * @param list<array{name: string, skills: array<int, int>}>|null $characterSkillLevels
      * @return array{skills: array<int, int>|null, name: string|null}
      */
-    public function bestCharacterForStepTime(User $user, int $blueprintTypeId, string $activityType): array
+    public function bestCharacterForStepTime(User $user, int $blueprintTypeId, string $activityType, ?array $characterSkillLevels = null): array
     {
         if ($activityType === 'copy') {
             return ['skills' => null, 'name' => null];
         }
 
+        $characterSkillLevels ??= $this->loadCharacterSkillLevels($user);
         $scienceSkillIds = $this->getBlueprintScienceSkillIds($blueprintTypeId, $activityType);
 
         $bestSkills = null;
         $bestName = null;
         $bestMultiplier = PHP_FLOAT_MAX;
 
-        foreach ($user->getCharacters() as $character) {
-            $skillLevels = [];
-            foreach ($this->skillRepository->findAllSkillsForCharacter($character) as $skill) {
-                $skillLevels[$skill->getSkillId()] = $skill->getLevel();
-            }
-
-            $multiplier = $this->calculateSkillTimeMultiplier($skillLevels, $activityType, $scienceSkillIds);
+        foreach ($characterSkillLevels as $character) {
+            $multiplier = $this->calculateSkillTimeMultiplier($character['skills'], $activityType, $scienceSkillIds);
             if ($multiplier < $bestMultiplier) {
                 $bestMultiplier = $multiplier;
-                $bestSkills = $skillLevels;
-                $bestName = $character->getName();
+                $bestSkills = $character['skills'];
+                $bestName = $character['name'];
             }
         }
 
@@ -409,6 +422,11 @@ class IndustryCalculationService
 
     private function baseTimePerRunOf(int $blueprintTypeId, string $activityType): ?int
     {
+        $cacheKey = $blueprintTypeId . '_' . $activityType;
+        if (array_key_exists($cacheKey, $this->baseTimeCache)) {
+            return $this->baseTimeCache[$cacheKey];
+        }
+
         $activityId = match ($activityType) {
             'reaction' => IndustryActivityType::Reaction->value,
             'copy' => IndustryActivityType::Copying->value,
@@ -417,7 +435,10 @@ class IndustryCalculationService
 
         $activitiesByKey = $this->activityRepository->findByTypeIdsAndActivityIds([$blueprintTypeId], [$activityId]);
 
-        return ($activitiesByKey[$blueprintTypeId . '-' . $activityId] ?? null)?->getTime();
+        $baseTime = ($activitiesByKey[$blueprintTypeId . '-' . $activityId] ?? null)?->getTime();
+        $this->baseTimeCache[$cacheKey] = $baseTime;
+
+        return $baseTime;
     }
 
     /**
