@@ -8,11 +8,11 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Repository\IndustryStepJobMatchRepository;
+use App\Service\UuidOrNotFound;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProcessorInterface<mixed, void>
@@ -34,7 +34,7 @@ class UnlinkJobProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $match = $this->matchRepository->find(Uuid::fromString($uriVariables['id']));
+        $match = $this->matchRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Job match not found'));
 
         if ($match === null) {
             throw new NotFoundHttpException('Job match not found');

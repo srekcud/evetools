@@ -938,7 +938,11 @@
       "feesTitle": "Frais de courtage & Taxe de vente",
       "brokerFee": "Frais de courtage (%)",
       "salesTax": "Taxe de vente (%)",
-      "exportCost": "Coût d'export (ISK/m³)"
+      "exportCost": "Coût d'export (ISK/m³)",
+      "feesErrors": {
+        "invalid": "Chaque taux doit être compris entre 0 et 100 % et le coût d'export être positif ou nul. Rien n'a été enregistré.",
+        "failed": "Échec de l'enregistrement des frais."
+      }
     },
     "step": {
       "purchased": "Achete",

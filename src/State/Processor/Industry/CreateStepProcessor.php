@@ -14,6 +14,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -47,7 +48,7 @@ class CreateStepProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
 
         if ($project === null || $project->getUser() !== $user) {
             throw new NotFoundHttpException('Project not found');
@@ -68,7 +69,7 @@ class CreateStepProcessor implements ProcessorInterface
 
         // If stepId is provided, add a child to a single step (create split group)
         if ($stepId !== null) {
-            $existingStep = $this->stepRepository->find(Uuid::fromString($stepId));
+            $existingStep = $this->stepRepository->find(UuidOrNotFound::of($stepId, 'Step not found'));
 
             if ($existingStep === null || $existingStep->getProject() !== $project) {
                 throw new NotFoundHttpException('Step not found');

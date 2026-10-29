@@ -455,6 +455,7 @@ store.fetchUserSettings()
               type="number"
               min="0"
               max="20"
+              step="2"
               :disabled="isT2"
               :class="[
                 'w-20 bg-slate-800 border border-slate-700 rounded-sm px-3 py-1.5 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500',

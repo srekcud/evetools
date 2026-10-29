@@ -8,11 +8,11 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Service\UuidOrNotFound;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProcessorInterface<mixed, void>
@@ -34,7 +34,7 @@ class DeleteStructureProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $structure = $this->structureConfigRepository->find(Uuid::fromString($uriVariables['id']));
+        $structure = $this->structureConfigRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Structure not found'));
 
         if ($structure === null || $structure->getUser() !== $user) {
             throw new NotFoundHttpException('Structure not found');

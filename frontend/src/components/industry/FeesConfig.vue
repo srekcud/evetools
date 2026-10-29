@@ -2,6 +2,7 @@
 import { ref, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
+import { isValidationError } from '@/services/api'
 
 const { t } = useI18n()
 const uid = useId()
@@ -13,6 +14,7 @@ const exportCostPerM3 = ref(1200)
 const loaded = ref(false)
 const saving = ref(false)
 const saved = ref(false)
+const saveErrorKey = ref<string | null>(null)
 
 onMounted(async () => {
   if (loaded.value) return
@@ -28,6 +30,7 @@ onMounted(async () => {
 async function save(): Promise<void> {
   saving.value = true
   saved.value = false
+  saveErrorKey.value = null
   try {
     await store.updateUserSettings({
       brokerFeeRate: brokerFeeRate.value / 100,
@@ -36,8 +39,10 @@ async function save(): Promise<void> {
     })
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
-  } catch {
-    // Error handled in store
+  } catch (e) {
+    saveErrorKey.value = isValidationError(e)
+      ? 'industry.config.feesErrors.invalid'
+      : 'industry.config.feesErrors.failed'
   } finally {
     saving.value = false
   }
@@ -106,5 +111,8 @@ async function save(): Promise<void> {
         </Transition>
       </div>
     </div>
+    <p v-if="saveErrorKey" role="alert" data-testid="fees-save-error" class="mt-3 text-xs text-red-400">
+      {{ t(saveErrorKey) }}
+    </p>
   </div>
 </template>

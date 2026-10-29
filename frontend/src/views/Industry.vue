@@ -706,6 +706,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 type="number"
                 min="0"
                 max="20"
+                step="2"
                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
               />
             </div>

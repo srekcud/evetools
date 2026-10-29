@@ -13,13 +13,13 @@ use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Service\Industry\SplitGroupMaterialNeeds;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProcessorInterface<mixed, ProjectStepResource>
@@ -44,13 +44,13 @@ class MergeStepsProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
 
         if ($project === null || $project->getUser() !== $user) {
             throw new NotFoundHttpException('Project not found');
         }
 
-        $step = $this->stepRepository->find(Uuid::fromString($uriVariables['stepId']));
+        $step = $this->stepRepository->find(UuidOrNotFound::of($uriVariables['stepId'], 'Step not found'));
 
         if ($step === null || $step->getProject() !== $project) {
             throw new NotFoundHttpException('Step not found');

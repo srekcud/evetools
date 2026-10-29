@@ -419,6 +419,7 @@ function formatRootProducts(project: IndustryProject): string {
                     type="number"
                     min="0"
                     max="20"
+                    step="2"
                     class="w-10 bg-slate-700 border border-cyan-500 rounded px-1 py-1 text-sm text-center focus:outline-hidden"
                     @keydown.enter="saveMeTe(project)"
                     @keydown.escape="cancelMeTe"

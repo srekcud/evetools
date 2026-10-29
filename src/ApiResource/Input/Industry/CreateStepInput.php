@@ -17,7 +17,7 @@ class CreateStepInput
     #[Assert\Range(min: 0, max: 10)]
     public ?int $meLevel = null;
 
-    #[Assert\Range(min: 0, max: 20)]
+    #[TimeEfficiencyLevel]
     public ?int $teLevel = null;
 
     public ?string $splitGroupId = null;

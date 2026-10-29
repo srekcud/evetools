@@ -23,7 +23,7 @@ class CreateProjectInput
     #[Assert\Range(min: 0, max: 10)]
     public int $meLevel = 0;
 
-    #[Assert\Range(min: 0, max: 20)]
+    #[TimeEfficiencyLevel]
     public int $teLevel = 0;
 
     #[Assert\GreaterThanOrEqual(self::MINIMUM_MAX_JOB_DURATION_DAYS)]

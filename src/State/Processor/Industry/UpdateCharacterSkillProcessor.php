@@ -12,12 +12,12 @@ use App\Entity\CachedCharacterSkill;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CharacterRepository;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProcessorInterface<UpdateCharacterSkillInput, CharacterSkillResource>
@@ -41,7 +41,7 @@ class UpdateCharacterSkillProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $character = $this->characterRepository->find(Uuid::fromString($uriVariables['characterId']));
+        $character = $this->characterRepository->find(UuidOrNotFound::of($uriVariables['characterId'], 'Character not found'));
 
         if ($character === null || $character->getUser() !== $user) {
             throw new NotFoundHttpException('Character not found');

@@ -60,15 +60,15 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         }
 
         if ($data->brokerFeeRate !== null) {
-            $settings->setBrokerFeeRate(max(0.0, $data->brokerFeeRate));
+            $settings->setBrokerFeeRate($data->brokerFeeRate);
         }
 
         if ($data->salesTaxRate !== null) {
-            $settings->setSalesTaxRate(max(0.0, $data->salesTaxRate));
+            $settings->setSalesTaxRate($data->salesTaxRate);
         }
 
         if ($data->exportCostPerM3 !== null) {
-            $settings->setExportCostPerM3(max(0.0, $data->exportCostPerM3));
+            $settings->setExportCostPerM3($data->exportCostPerM3);
         }
 
         $this->entityManager->flush();

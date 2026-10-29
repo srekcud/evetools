@@ -13,13 +13,13 @@ use App\Entity\User;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\ProductionStructureRigsValidator;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProcessorInterface<UpdateStructureInput, StructureConfigResource>
@@ -44,7 +44,7 @@ class UpdateStructureProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $structure = $this->structureConfigRepository->find(Uuid::fromString($uriVariables['id']));
+        $structure = $this->structureConfigRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Structure not found'));
 
         if ($structure === null || $structure->getUser() !== $user) {
             throw new NotFoundHttpException('Structure not found');

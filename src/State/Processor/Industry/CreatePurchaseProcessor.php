@@ -15,6 +15,7 @@ use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStepPurchaseRepository;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -22,7 +23,6 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProcessorInterface<CreatePurchaseInput, StepPurchaseResource>
@@ -51,13 +51,13 @@ class CreatePurchaseProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
 
         if ($project === null || $project->getUser() !== $user) {
             throw new NotFoundHttpException('Project not found');
         }
 
-        $step = $this->stepRepository->find(Uuid::fromString($uriVariables['stepId']));
+        $step = $this->stepRepository->find(UuidOrNotFound::of($uriVariables['stepId'], 'Step not found'));
 
         if ($step === null || $step->getProject() !== $project) {
             throw new NotFoundHttpException('Step not found');
@@ -102,11 +102,7 @@ class CreatePurchaseProcessor implements ProcessorInterface
 
     private function findOwnedTransaction(User $user, string $transactionId): CachedWalletTransaction
     {
-        if (!Uuid::isValid($transactionId)) {
-            throw new NotFoundHttpException(self::TRANSACTION_NOT_FOUND_MESSAGE);
-        }
-
-        $transaction = $this->transactionRepository->find(Uuid::fromString($transactionId));
+        $transaction = $this->transactionRepository->find(UuidOrNotFound::of($transactionId, self::TRANSACTION_NOT_FOUND_MESSAGE));
 
         if ($transaction === null || !$user->getCharacters()->contains($transaction->getCharacter())) {
             throw new NotFoundHttpException(self::TRANSACTION_NOT_FOUND_MESSAGE);

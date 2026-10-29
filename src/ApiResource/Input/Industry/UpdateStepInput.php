@@ -23,10 +23,11 @@ class UpdateStepInput
     #[Assert\Range(min: 0, max: 10)]
     public ?int $meLevel = null;
 
-    #[Assert\Range(min: 0, max: 20)]
+    #[TimeEfficiencyLevel]
     public ?int $teLevel = null;
 
     /** UUID of IndustryStructureConfig */
+    #[Assert\Uuid]
     public ?string $structureConfigId = null;
 
     #[Assert\Choice(choices: ['auto', 'manual', 'none'])]

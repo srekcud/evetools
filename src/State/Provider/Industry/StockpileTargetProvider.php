@@ -9,10 +9,10 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\StockpileTargetResource;
 use App\Entity\User;
 use App\Repository\IndustryStockpileTargetRepository;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProviderInterface<StockpileTargetResource>
@@ -33,7 +33,7 @@ class StockpileTargetProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $target = $this->targetRepository->find(Uuid::fromString($uriVariables['id']));
+        $target = $this->targetRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Stockpile target not found'));
 
         if ($target === null || $target->getUser() !== $user) {
             throw new NotFoundHttpException('Stockpile target not found');

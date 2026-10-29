@@ -9,10 +9,10 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\StructureConfigResource;
 use App\Entity\User;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProviderInterface<StructureConfigResource>
@@ -34,7 +34,7 @@ class StructureConfigProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $structure = $this->structureRepository->find(Uuid::fromString($uriVariables['id']));
+        $structure = $this->structureRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Structure not found'));
 
         if ($structure === null || $structure->getUser() !== $user) {
             throw new NotFoundHttpException('Structure not found');

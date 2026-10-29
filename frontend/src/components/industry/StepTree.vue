@@ -716,6 +716,7 @@ function mergeGroup(stepId: string) {
                           :aria-label="t('industry.createProject.te')"
                           min="0"
                           max="20"
+                          step="2"
                           class="w-10 bg-slate-800 border border-slate-700 rounded-sm px-1 py-0.5 text-xs text-center focus:border-cyan-500 focus:outline-hidden"
                           @change="(e) => onTeChange(step.id, (e.target as HTMLInputElement).value)"
                           @click.stop

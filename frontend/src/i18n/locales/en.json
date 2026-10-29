@@ -938,7 +938,11 @@
       "feesTitle": "Broker Fee & Sales Tax",
       "brokerFee": "Broker Fee (%)",
       "salesTax": "Sales Tax (%)",
-      "exportCost": "Export cost (ISK/m³)"
+      "exportCost": "Export cost (ISK/m³)",
+      "feesErrors": {
+        "invalid": "Each rate must be between 0 and 100 % and the export cost 0 or more. Nothing was saved.",
+        "failed": "Failed to save the fees."
+      }
     },
     "step": {
       "purchased": "Purchased",

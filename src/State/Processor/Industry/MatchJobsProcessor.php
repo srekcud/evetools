@@ -12,12 +12,12 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProcessorInterface<mixed, MatchJobsResultResource>
@@ -42,7 +42,7 @@ class MatchJobsProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
 
         if ($project === null || $project->getUser() !== $user) {
             throw new NotFoundHttpException('Project not found');

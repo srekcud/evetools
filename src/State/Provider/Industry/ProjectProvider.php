@@ -10,10 +10,10 @@ use App\ApiResource\Industry\ProjectResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\ProductionTreeFromSteps;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProviderInterface<ProjectResource>
@@ -36,7 +36,7 @@ class ProjectProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
 
         if ($project === null || $project->getUser() !== $user) {
             throw new NotFoundHttpException('Project not found');

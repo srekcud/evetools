@@ -9,10 +9,10 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\Entity\User;
 use App\Repository\IndustryStepJobMatchRepository;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProviderInterface<ProjectStepResource>
@@ -33,7 +33,7 @@ class JobMatchDeleteProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $match = $this->matchRepository->find(Uuid::fromString($uriVariables['id']));
+        $match = $this->matchRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Job match not found'));
 
         if ($match === null || $match->getStep()->getProject()->getUser() !== $user) {
             throw new NotFoundHttpException('Job match not found');

@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Industry\Application\Decryptors;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\AnalysisSolarSystems;
+use App\Service\Industry\BlueprintEfficiencyLevels;
 use App\Service\Industry\ProfitMarginService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -48,6 +49,7 @@ class ProfitMarginProvider implements ProviderInterface
         $runs = max(1, (int) ($request?->query->get('runs', '1') ?? '1'));
         $me = (int) ($request?->query->get('me', '10') ?? '10');
         $te = (int) ($request?->query->get('te', '20') ?? '20');
+        BlueprintEfficiencyLevels::requireValid($me, $te);
 
         $solarSystemIdParam = $request?->query->get('solarSystemId');
         $structureIdParam = $request?->query->get('structureId');
