@@ -10,10 +10,11 @@ use App\ApiResource\Industry\CharacterSkillCollectionResource;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\User;
-use App\Exception\EsiApiException;
+use App\Entity\EveToken;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Sync\CharacterSyncFailure;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -25,6 +26,8 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class SyncCharacterSkillsProcessor implements ProcessorInterface
 {
+    private const string SKILLS_SCOPE = 'esi-skills.read_skills.v1';
+
     /** @var int[]|null */
     private ?array $relevantSkillIds = null;
 
@@ -49,27 +52,24 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
 
         $result = new CharacterSkillCollectionResource();
         $syncedCount = 0;
-        $warning = null;
+        $failures = [];
 
         foreach ($user->getCharacters() as $character) {
-            try {
-                $this->syncCharacterSkills($character);
-                $syncedCount++;
-            } catch (EsiApiException $e) {
-                if (in_array($e->statusCode, [502, 503, 504], true)) {
-                    $warning = 'ESI est actuellement en maintenance. Les skills seront synchronisés ultérieurement.';
-                } else {
-                    $this->logger->warning('Failed to sync skills for character', [
-                        'characterName' => $character->getName(),
-                        'error' => $e->getMessage(),
-                        'statusCode' => $e->statusCode,
-                    ]);
+            $token = $character->getEveToken();
+
+            if ($token === null) {
+                $failures[] = CharacterSyncFailure::missingToken($character);
+            } elseif (!$token->hasScope(self::SKILLS_SCOPE)) {
+                $failures[] = CharacterSyncFailure::missingScope($character);
+            } else {
+                try {
+                    $this->syncCharacterSkills($character, $token);
+                    $syncedCount++;
+                } catch (\Throwable $e) {
+                    $failure = CharacterSyncFailure::fromThrowable($character, $e);
+                    $this->logger->warning('Failed to sync skills for character', $failure->logContext($e->getMessage()));
+                    $failures[] = $failure;
                 }
-            } catch (\Throwable $e) {
-                $this->logger->warning('Failed to sync skills for character', [
-                    'characterName' => $character->getName(),
-                    'error' => $e->getMessage(),
-                ]);
             }
 
             $skills = $this->skillRepository->findBy(['character' => $character]);
@@ -77,22 +77,16 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         }
 
         $result->syncedCount = $syncedCount;
-        $result->warning = $warning;
+        $result->failedCharacters = array_map(
+            static fn (CharacterSyncFailure $failure): array => $failure->toArray(),
+            $failures,
+        );
 
         return $result;
     }
 
-    private function syncCharacterSkills(Character $character): void
+    private function syncCharacterSkills(Character $character, EveToken $token): void
     {
-        $token = $character->getEveToken();
-        if ($token === null) {
-            return;
-        }
-
-        if (!$token->hasScope('esi-skills.read_skills.v1')) {
-            return;
-        }
-
         $this->tokenManager->getValidAccessToken($token);
 
         $characterId = $character->getEveCharacterId();

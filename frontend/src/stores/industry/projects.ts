@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { IndustryProject, SearchResult, ShoppingListResponse, CostEstimation, BpcKit, CopyCosts, ProfitMarginResult } from './types'
+import type { CharacterSyncFailure, IndustryProject, SearchResult, ShoppingListResponse, CostEstimation, BpcKit, CopyCosts, ProfitMarginResult } from './types'
 import { enrichProject, enrichStep, formatErrorMessage } from './compat'
 
 const MINIMUM_MAX_JOB_DURATION_DAYS = 0.5
@@ -124,22 +124,22 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     }
   }
 
-  async function matchJobs(projectId: string): Promise<string | null> {
+  async function matchJobs(projectId: string): Promise<CharacterSyncFailure[]> {
     try {
       const data = await apiRequest<{
         steps: IndustryProject['steps']
         jobsCost: number
         syncedCharacters: number
-        warning: string | null
+        failedCharacters: CharacterSyncFailure[]
       }>(`/industry/projects/${projectId}/match-jobs`, { method: 'POST', body: '{}' })
       if (currentProject.value?.id === projectId) {
         currentProject.value.steps = data.steps?.map(enrichStep)
         currentProject.value.jobsCost = data.jobsCost
       }
-      return data.warning
+      return data.failedCharacters
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to match jobs'
-      return null
+      return []
     }
   }
 

@@ -1147,6 +1147,21 @@
       "reactions": "Réactions",
       "searchSystem": "Rechercher un système..."
     },
+    "syncFailures": {
+      "jobsTitle": "Jobs non synchronisés pour {count} personnage, le matching a utilisé les derniers jobs connus : | Jobs non synchronisés pour {count} personnages, le matching a utilisé les derniers jobs connus :",
+      "skillsTitle": "Compétences non synchronisées pour {count} personnage : | Compétences non synchronisées pour {count} personnages :",
+      "line": "{name} : {reason}",
+      "reasons": {
+        "missing_token": "aucun token ESI, reconnectez le personnage",
+        "missing_scope": "il manque une autorisation ESI au token, reconnectez le personnage",
+        "authentication_required": "autorisation révoquée ou expirée, reconnectez le personnage",
+        "esi_rate_limited": "limite de requêtes ESI atteinte, réessayez plus tard",
+        "esi_unavailable": "ESI indisponible (maintenance ou erreur serveur), réessayez plus tard",
+        "esi_error": "erreur ESI {status}",
+        "sync_failed": "échec de la synchronisation"
+      },
+      "reconnectLink": "Reconnecter des personnages"
+    },
     "stepsTab": {
       "esiJobs": "Jobs ESI",
       "list": "Liste",

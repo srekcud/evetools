@@ -11,8 +11,6 @@ class CharacterSkillCollectionResource
 
     public int $syncedCount = 0;
 
-    public ?string $warning = null;
-
     /** @var list<array{characterName: string, reason: string, statusCode: int|null}> */
     public array $failedCharacters = [];
 }

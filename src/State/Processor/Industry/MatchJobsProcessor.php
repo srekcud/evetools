@@ -8,9 +8,9 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\MatchJobsResultResource;
 use App\Entity\User;
-use App\Exception\EsiApiException;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Psr\Log\LoggerInterface;
@@ -49,27 +49,21 @@ class MatchJobsProcessor implements ProcessorInterface
         }
 
         $syncedCount = 0;
-        $warning = null;
+        $failures = [];
 
         foreach ($user->getCharacters() as $character) {
+            if ($character->getEveToken() === null) {
+                $failures[] = CharacterSyncFailure::missingToken($character);
+                continue;
+            }
+
             try {
                 $this->jobSyncService->syncCharacterJobs($character);
                 $syncedCount++;
-            } catch (EsiApiException $e) {
-                if (in_array($e->statusCode, [502, 503, 504], true)) {
-                    $warning = 'ESI est actuellement en maintenance. Les jobs seront synchronisés ultérieurement.';
-                } else {
-                    $this->logger->warning('Failed to sync jobs for character', [
-                        'characterName' => $character->getName(),
-                        'error' => $e->getMessage(),
-                        'statusCode' => $e->statusCode,
-                    ]);
-                }
             } catch (\Throwable $e) {
-                $this->logger->warning('Failed to sync jobs for character', [
-                    'characterName' => $character->getName(),
-                    'error' => $e->getMessage(),
-                ]);
+                $failure = CharacterSyncFailure::fromThrowable($character, $e);
+                $this->logger->warning('Failed to sync jobs for character', $failure->logContext($e->getMessage()));
+                $failures[] = $failure;
             }
         }
 
@@ -82,7 +76,10 @@ class MatchJobsProcessor implements ProcessorInterface
         );
         $result->jobsCost = $project->getJobsCost();
         $result->syncedCharacters = $syncedCount;
-        $result->warning = $warning;
+        $result->failedCharacters = array_map(
+            static fn (CharacterSyncFailure $failure): array => $failure->toArray(),
+            $failures,
+        );
 
         return $result;
     }

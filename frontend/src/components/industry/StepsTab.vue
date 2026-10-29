@@ -7,6 +7,8 @@ import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useStepProductNames } from '@/composables/useStepProductNames'
+import type { CharacterSyncFailure } from '@/stores/industry/types'
+import CharacterSyncFailuresAlert from './CharacterSyncFailuresAlert.vue'
 import StepTree from './StepTree.vue'
 import StepHierarchyTree from './StepHierarchyTree.vue'
 import ShoppingFailedProductsWarning from './shopping/ShoppingFailedProductsWarning.vue'
@@ -26,7 +28,7 @@ const { typeNameLabel } = useTypeNames()
 const stepsViewMode = ref<'flat' | 'tree'>('flat')
 const regeneratingSteps = ref(false)
 const matchJobsLoading = ref(false)
-const matchJobsWarning = ref<string | null>(null)
+const matchJobsFailures = ref<CharacterSyncFailure[]>([])
 const showAvailableJobs = ref(false)
 const overproduceOffers = ref<Record<string, number>>({})
 
@@ -49,10 +51,9 @@ async function togglePurchased(stepId: string, purchased: boolean) {
 
 async function matchJobs() {
   matchJobsLoading.value = true
-  matchJobsWarning.value = null
+  matchJobsFailures.value = []
   try {
-    const warning = await store.matchJobs(props.projectId)
-    matchJobsWarning.value = warning
+    matchJobsFailures.value = await store.matchJobs(props.projectId)
     await Promise.all([
       store.fetchProject(props.projectId),
       stepsStore.fetchAvailableJobs(props.projectId),
@@ -130,7 +131,7 @@ function compatibleSteps(blueprintTypeId: number) {
 
 defineExpose({
   matchJobsLoading,
-  matchJobsWarning,
+  matchJobsFailures,
   matchJobs,
   togglePurchased,
   showAvailableJobs,
@@ -139,25 +140,13 @@ defineExpose({
 
 <template>
   <div>
-    <!-- ESI Warning -->
-    <div
-      v-if="matchJobsWarning"
-      class="mb-4 p-3 bg-amber-500/20 border border-amber-500/50 rounded-lg flex items-center gap-3"
-    >
-      <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
-      <span class="text-amber-200 text-sm">{{ matchJobsWarning }}</span>
-      <button
-        @click="matchJobsWarning = null"
-        class="ml-auto p-1 hover:bg-amber-500/30 rounded-sm text-amber-400"
-        :aria-label="t('common.actions.close')"
-      >
-        <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
+    <CharacterSyncFailuresAlert
+      v-if="matchJobsFailures.length > 0"
+      data-testid="jobs-sync-failures"
+      :title="t('industry.syncFailures.jobsTitle', matchJobsFailures.length)"
+      :failures="matchJobsFailures"
+      @dismiss="matchJobsFailures = []"
+    />
 
     <!-- Toolbar: BPC Kit + Available Jobs + View toggle -->
     <div class="mb-4 flex items-center justify-between">

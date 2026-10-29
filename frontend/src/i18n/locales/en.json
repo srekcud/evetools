@@ -1147,6 +1147,21 @@
       "reactions": "Reactions",
       "searchSystem": "Search a system..."
     },
+    "syncFailures": {
+      "jobsTitle": "Jobs not synced for {count} character, matching used the last known jobs: | Jobs not synced for {count} characters, matching used the last known jobs:",
+      "skillsTitle": "Skills not synced for {count} character: | Skills not synced for {count} characters:",
+      "line": "{name}: {reason}",
+      "reasons": {
+        "missing_token": "no ESI token, reconnect the character",
+        "missing_scope": "the token lacks a required ESI permission, reconnect the character",
+        "authentication_required": "authorization revoked or expired, reconnect the character",
+        "esi_rate_limited": "ESI request limit reached, retry later",
+        "esi_unavailable": "ESI unavailable (maintenance or server error), retry later",
+        "esi_error": "ESI error {status}",
+        "sync_failed": "sync failed"
+      },
+      "reconnectLink": "Reconnect characters"
+    },
     "stepsTab": {
       "esiJobs": "ESI Jobs",
       "list": "List",

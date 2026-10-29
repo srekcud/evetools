@@ -9,6 +9,7 @@ import type {
   StructureSearchResult,
   UserSettings,
   CharacterSkill,
+  CharacterSyncFailure,
 } from './types'
 
 export const useStructuresStore = defineStore('industry-structures', () => {
@@ -153,12 +154,12 @@ export const useStructuresStore = defineStore('industry-structures', () => {
 
   async function syncCharacterSkills() {
     try {
-      const data = await apiRequest<{ characters: CharacterSkill[], warning?: string }>(
+      const data = await apiRequest<{ characters: CharacterSkill[], failedCharacters: CharacterSyncFailure[] }>(
         '/industry/character-skills/sync',
         { method: 'POST', body: '{}' },
       )
       characterSkills.value = data.characters
-      return data.warning || null
+      return data.failedCharacters
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to sync skills'
       throw e

@@ -2,14 +2,15 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStructuresStore } from '@/stores/industry/structures'
-import type { CharacterSkill } from '@/stores/industry/types'
+import type { CharacterSkill, CharacterSyncFailure } from '@/stores/industry/types'
+import CharacterSyncFailuresAlert from './CharacterSyncFailuresAlert.vue'
 
 const { t } = useI18n()
 
 const store = useStructuresStore()
 
 const syncing = ref(false)
-const syncWarning = ref<string | null>(null)
+const syncFailures = ref<CharacterSyncFailure[]>([])
 
 onMounted(() => {
   store.fetchCharacterSkills()
@@ -17,10 +18,9 @@ onMounted(() => {
 
 async function syncAll() {
   syncing.value = true
-  syncWarning.value = null
+  syncFailures.value = []
   try {
-    const warning = await store.syncCharacterSkills()
-    syncWarning.value = warning
+    syncFailures.value = await store.syncCharacterSkills()
   } catch (e) {
     // error handled by store
   } finally {
@@ -93,10 +93,13 @@ function formatRelativeTime(dateStr: string | null): string {
     </div>
 
     <div class="p-6">
-      <!-- Warning from sync -->
-      <div v-if="syncWarning" class="mb-4 p-3 bg-amber-500/20 border border-amber-500/30 rounded-lg text-amber-400 text-sm">
-        {{ syncWarning }}
-      </div>
+      <CharacterSyncFailuresAlert
+        v-if="syncFailures.length > 0"
+        data-testid="skills-sync-failures"
+        :title="t('industry.syncFailures.skillsTitle', syncFailures.length)"
+        :failures="syncFailures"
+        @dismiss="syncFailures = []"
+      />
 
       <div v-if="store.characterSkills.length === 0" class="text-slate-500 text-sm py-4">
         {{ t('industry.skills.noCharacters') }}
