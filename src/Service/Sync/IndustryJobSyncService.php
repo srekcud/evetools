@@ -13,6 +13,7 @@ use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
@@ -39,6 +40,7 @@ class IndustryJobSyncService
         private readonly IndustryStepJobMatchRepository $jobMatchRepository,
         private readonly NotificationDispatcher $notificationDispatcher,
         private readonly CacheItemPoolInterface $esiCache,
+        private readonly CharacterService $characterService,
     ) {
     }
 
@@ -57,6 +59,8 @@ class IndustryJobSyncService
         }
 
         try {
+            $character->updateAffiliation($this->characterService->getCharacterInfo($character->getEveCharacterId()));
+
             $allJobs = [];
 
             // Sync personal jobs

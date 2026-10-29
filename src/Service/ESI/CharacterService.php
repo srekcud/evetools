@@ -20,7 +20,10 @@ class CharacterService
         $characterData = $this->esiClient->getWithCache("/characters/{$characterId}/");
 
         // Get corporation info
-        $corporationId = $characterData['corporation_id'];
+        $corporationId = $characterData['corporation_id'] ?? null;
+        if (!is_int($corporationId)) {
+            throw new \UnexpectedValueException("ESI character {$characterId} response from /characters/{$characterId}/ has no integer 'corporation_id'");
+        }
         $corporationData = $this->esiClient->getWithCache("/corporations/{$corporationId}/");
 
         // Get alliance info if exists

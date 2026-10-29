@@ -275,10 +275,7 @@ class AuthenticationService
     private function updateCharacterInfo(Character $character, CharacterInfoDto $info): void
     {
         $character->setName($info->characterName);
-        $character->setCorporationId($info->corporationId);
-        $character->setCorporationName($info->corporationName);
-        $character->setAllianceId($info->allianceId);
-        $character->setAllianceName($info->allianceName);
+        $character->updateAffiliation($info);
     }
 
     private function updateCharacterToken(Character $character, EveTokenDto $tokenDto): void

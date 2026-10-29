@@ -140,7 +140,11 @@ class Character
 
     public function updateAffiliation(CharacterInfoDto $info): static
     {
-        return $this;
+        return $this
+            ->setCorporationId($info->corporationId)
+            ->setCorporationName($info->corporationName)
+            ->setAllianceId($info->allianceId)
+            ->setAllianceName($info->allianceName);
     }
 
     public function getUser(): ?User
