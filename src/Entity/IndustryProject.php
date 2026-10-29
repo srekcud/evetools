@@ -330,6 +330,14 @@ class IndustryProject
         return $this;
     }
 
+    public function recordEstimatedSellPrice(float $price, string $source, float $tax): static
+    {
+        $this->estimatedSellPrice = $price;
+        $this->estimatedSellPriceSource = $source;
+        $this->estimatedTaxAmount = $tax;
+        return $this;
+    }
+
     /** @return int[] */
     public function getExcludedTypeIds(): array
     {

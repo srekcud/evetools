@@ -16,7 +16,7 @@ class ReactionProjectSellPriceRecalculation extends ProjectByProjectCorrection
 {
     public function __construct(
         IndustryProjectRepository $projectRepository,
-        private readonly EntityManagerInterface $entityManager,
+        EntityManagerInterface $entityManager,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly EstimatedSellPriceEstimator $sellPriceEstimator,
         IndustryCalculationService $calculationService,
@@ -66,9 +66,7 @@ class ReactionProjectSellPriceRecalculation extends ProjectByProjectCorrection
         $change = self::describe($recordedPrice, $recordedSource, $recordedTax).' -> '.self::describe($estimate->amount, $estimate->source, $estimate->taxAmount);
 
         if (!$dryRun) {
-            $project->setEstimatedSellPrice($estimate->amount);
-            $project->setEstimatedSellPriceSource($estimate->source);
-            $project->setEstimatedTaxAmount($estimate->taxAmount);
+            $project->recordEstimatedSellPrice($estimate->amount, $estimate->source, $estimate->taxAmount);
             $this->entityManager->flush();
         }
 

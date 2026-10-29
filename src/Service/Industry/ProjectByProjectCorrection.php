@@ -14,7 +14,7 @@ abstract class ProjectByProjectCorrection
 {
     public function __construct(
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly EntityManagerInterface $entityManager,
+        protected readonly EntityManagerInterface $entityManager,
         private readonly IndustryCalculationService $calculationService,
     ) {
     }

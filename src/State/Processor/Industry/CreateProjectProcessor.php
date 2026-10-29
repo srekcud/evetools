@@ -79,9 +79,7 @@ class CreateProjectProcessor implements ProcessorInterface
         try {
             $estimatedSellPrice = $this->sellPriceEstimator->estimateFor($project);
             if ($estimatedSellPrice !== null) {
-                $project->setEstimatedSellPrice($estimatedSellPrice->amount);
-                $project->setEstimatedSellPriceSource($estimatedSellPrice->source);
-                $project->setEstimatedTaxAmount($estimatedSellPrice->taxAmount);
+                $project->recordEstimatedSellPrice($estimatedSellPrice->amount, $estimatedSellPrice->source, $estimatedSellPrice->taxAmount);
             }
         } catch (\Throwable $e) {
             $this->logEstimationFailure('sell_price', $project, $e);
