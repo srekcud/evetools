@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
+use App\Repository\IndustryStepPurchaseRepository;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -31,6 +32,7 @@ class CreatePurchaseProcessor implements ProcessorInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly CachedWalletTransactionRepository $transactionRepository,
+        private readonly IndustryStepPurchaseRepository $purchaseRepository,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {

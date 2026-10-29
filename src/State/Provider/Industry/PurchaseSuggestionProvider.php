@@ -9,10 +9,12 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\PurchaseSuggestionListResource;
 use App\ApiResource\Industry\PurchaseSuggestionResource;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\IndustryStepPurchaseRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\Industry\IndustryCalculationService;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -28,7 +30,8 @@ class PurchaseSuggestionProvider implements ProviderInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly CachedWalletTransactionRepository $transactionRepository,
         private readonly IndustryCalculationService $calculationService,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly IndustryActivityMaterialRepository $materialRepository,
+        private readonly IndustryStepPurchaseRepository $purchaseRepository,
     ) {
     }
 
@@ -64,14 +67,14 @@ class PurchaseSuggestionProvider implements ProviderInterface
                 }
             }
             if (!empty($blueprintTypeIds)) {
-                $conn = $this->entityManager->getConnection();
-                $placeholders = implode(',', array_fill(0, count($blueprintTypeIds), '?'));
-                $rows = $conn->fetchAllAssociative(
-                    "SELECT DISTINCT material_type_id FROM sde_industry_activity_materials WHERE type_id IN ({$placeholders}) AND activity_id = 1",
+                $materialsByBlueprint = $this->materialRepository->findMaterialsForBlueprints(
                     array_keys($blueprintTypeIds),
+                    [IndustryActivityType::Manufacturing->value],
                 );
-                foreach ($rows as $row) {
-                    $materialTypeIds[(int) $row['material_type_id']] = true;
+                foreach ($materialsByBlueprint as $materials) {
+                    foreach ($materials as $material) {
+                        $materialTypeIds[$material['materialTypeId']] = true;
+                    }
                 }
             }
         }
