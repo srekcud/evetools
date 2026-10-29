@@ -74,6 +74,24 @@ final class SplitGroupMaterialsTest extends TestCase
         self::assertSame(40, SplitGroupMaterials::outputPerRunOf($repository, self::HELIUM_FUEL_BLOCK_BLUEPRINT, 'manufacturing'));
     }
 
+    #[Group('issue-279')]
+    public function testUnitsPerRunOfAnInventionStepAreReadInTheSdeLikeThoseOfAManufacturingStep(): void
+    {
+        $repository = $this->productRepositoryWith(
+            $this->activityProduct(self::BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED, IndustryActivityType::Manufacturing, self::PRODUCT_MANUFACTURED_AND_REACTED, 25),
+        );
+
+        self::assertSame(25, SplitGroupMaterials::outputPerRunOf($repository, self::BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED, 'invention'));
+    }
+
+    public function testActivityOfAReactionStepIsTheReactionAndThatOfAnyOtherStepIsManufacturing(): void
+    {
+        self::assertSame(
+            [11, 1, 1, 1],
+            array_map(SplitGroupMaterials::activityIdOf(...), ['reaction', 'manufacturing', 'copy', 'invention']),
+        );
+    }
+
     #[Group('issue-137')]
     public function testUnitsPerRunOfAStepWhoseBlueprintHasNoProductForItsActivityAreRefused(): void
     {

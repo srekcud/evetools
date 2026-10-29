@@ -25,6 +25,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(SplitStepProcessor::class)]
@@ -246,6 +247,88 @@ final class SplitStepProcessorTest extends TestCase
         self::assertSame([[1, 490, 0, null]], $this->jobsOfProduct(self::TITANIUM_CARBIDE));
     }
 
+    public function testManualSplitGivesEachNewJobTheBlueprintProductActivityDepthSortOrderLevelsStructureAndMatchModeOfTheStep(): void
+    {
+        $step = $this->stepOfTheProject(self::FERNITE_ALLOY, self::FERNITE_ALLOY_FORMULA, 'reaction', runs: 7, quantity: 650)
+            ->setDepth(3)
+            ->setSortOrder(6)
+            ->setMeLevel(2)
+            ->setTeLevel(14)
+            ->setStructureConfig((new IndustryStructureConfig())->setName('Tatara'))
+            ->setJobMatchMode('manual');
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('flush');
+
+        $resources = $this->split($step, numberOfJobs: 2, entityManager: $entityManager);
+
+        $newJob = $this->project->getSteps()->last();
+        self::assertInstanceOf(IndustryProjectStep::class, $newJob);
+        self::assertSame(
+            [self::FERNITE_ALLOY_FORMULA, self::FERNITE_ALLOY, 'reaction', 3, 6, $step->getSplitGroupId(), 2, 14, 'Tatara', 'manual'],
+            [
+                $newJob->getBlueprintTypeId(),
+                $newJob->getProductTypeId(),
+                $newJob->getActivityType(),
+                $newJob->getDepth(),
+                $newJob->getSortOrder(),
+                $newJob->getSplitGroupId(),
+                $newJob->getMeLevel(),
+                $newJob->getTeLevel(),
+                $newJob->getStructureConfig()?->getName(),
+                $newJob->getJobMatchMode(),
+            ],
+        );
+        self::assertSame(
+            [[4, 0], [3, 1]],
+            array_map(static fn (ProjectStepResource $job): array => [$job->runs, $job->splitIndex], $resources),
+        );
+    }
+
+    public function testManualSplitOfAStepOfAProjectOfAnotherPilotIsRefusedAsProjectNotFound(): void
+    {
+        $step = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', runs: 4, quantity: 150);
+        $this->project->setUser(new User());
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        $this->split($step, numberOfJobs: 2);
+    }
+
+    public function testManualSplitIntoMoreJobsThanRunsIsRefused(): void
+    {
+        $step = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', runs: 3, quantity: 110);
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Cannot split 3 runs into 4 jobs');
+
+        $this->split($step, numberOfJobs: 4);
+    }
+
+    public function testManualSplitOfAJobOfASplitGroupIsRefused(): void
+    {
+        $job = $this->stepOfTheProject(self::FERNITE_ALLOY, self::FERNITE_ALLOY_FORMULA, 'reaction', runs: 5, quantity: 500)
+            ->setSplitGroupId('3f6d2b81-7a4c-4e09-b5d3-8c1e9f2a6b47')
+            ->setSplitIndex(1)
+            ->setTotalGroupRuns(9);
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Step is already split. Merge first before re-splitting.');
+
+        $this->split($job, numberOfJobs: 2);
+    }
+
+    public function testManualSplitOfAStepOfAnotherProjectIsRefusedAsStepNotFound(): void
+    {
+        $stepOfAnotherProject = (new IndustryProjectStep())->setRuns(8);
+        (new IndustryProject())->setUser($this->user)->addStep($stepOfAnotherProject);
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Step not found');
+
+        $this->split($stepOfAnotherProject, numberOfJobs: 2);
+    }
+
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity): IndustryProjectStep
     {
         $step = (new IndustryProjectStep())
@@ -262,7 +345,7 @@ final class SplitStepProcessorTest extends TestCase
         return $step;
     }
 
-    private function split(IndustryProjectStep $step, int $numberOfJobs, ?EntityManagerInterface $entityManager = null, ?SplitGroupMaterialNeeds $splitGroupMaterialNeeds = null): void
+    private function split(IndustryProjectStep $step, int $numberOfJobs, ?EntityManagerInterface $entityManager = null, ?SplitGroupMaterialNeeds $splitGroupMaterialNeeds = null): array
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->user);
@@ -271,7 +354,13 @@ final class SplitStepProcessorTest extends TestCase
         $stepRepository = $this->createStub(IndustryProjectStepRepository::class);
         $stepRepository->method('find')->willReturn($step);
         $mapper = $this->createStub(IndustryResourceMapper::class);
-        $mapper->method('stepToResource')->willReturn(new ProjectStepResource());
+        $mapper->method('stepToResource')->willReturnCallback(static function (IndustryProjectStep $job): ProjectStepResource {
+            $resource = new ProjectStepResource();
+            $resource->runs = $job->getRuns();
+            $resource->splitIndex = $job->getSplitIndex();
+
+            return $resource;
+        });
 
         $input = new SplitStepInput();
         $input->numberOfJobs = $numberOfJobs;
@@ -285,7 +374,7 @@ final class SplitStepProcessorTest extends TestCase
             $entityManager ?? $this->createStub(EntityManagerInterface::class),
             $splitGroupMaterialNeeds ?? $this->splitGroupMaterialNeedsOnRecipes(),
         );
-        $processor->process($input, new Post(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+        return $processor->process($input, new Post(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
     }
 
     private function activityProductRepositoryOfTheSde(): IndustryActivityProductRepository

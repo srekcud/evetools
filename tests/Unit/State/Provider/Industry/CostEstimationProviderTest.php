@@ -15,6 +15,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 #[CoversClass(CostEstimationProvider::class)]
 final class CostEstimationProviderTest extends TestCase
@@ -125,6 +126,21 @@ final class CostEstimationProviderTest extends TestCase
         ], self::FERNITE_CARBIDE_TYPE_ID, 8);
 
         self::assertSame(80_000, $resource->outputQuantity);
+    }
+
+    public function testCostEstimationOfAProjectOfAnotherPilotIsRefusedWithoutEstimatingIt(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturn((new IndustryProject())->setUser(new User())->setProductTypeId(self::RIFTER_TYPE_ID)->setRuns(3));
+        $productionCostService = $this->createMock(ProductionCostService::class);
+        $productionCostService->expects($this->never())->method('estimateTotalCost');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        (new CostEstimationProvider($security, $projectRepository, $productionCostService))->provide(new Get(), ['id' => self::PROJECT_ID]);
     }
 
     private function provideFor(array $estimation, int $productTypeId = self::RIFTER_TYPE_ID, int $runs = 2): CostEstimationResource
