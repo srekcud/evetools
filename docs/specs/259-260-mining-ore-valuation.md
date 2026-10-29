@@ -89,7 +89,7 @@ Harnais : `BuildsOreValueServiceOnSdeOres` (prix Jita par défaut : Veldspar 18,
 | # | Cas | Aujourd'hui | Attendu |
 |---|---|---|---|
 | A1 | Veldspar, Compressed Veldspar à 1 000 à Jita (test de l'issue) | `compressedEquivalentPrice` 10.0 | 1000.0 ; `compressedUnitPrice` 1000.0 |
-| A2 | Veldspar, structure 1022734985679 vend Compressed Veldspar à 1 100 | `structureCompressedUnitPrice` 1100.0, pas d'équivalent (front : 11.0) | `structureCompressedUnitPrice` 1100.0, `structureCompressedEquivalentPrice` 1100.0 |
+| A2 | Veldspar, structure 1000000000001 vend Compressed Veldspar à 1 100 | `structureCompressedUnitPrice` 1100.0, pas d'équivalent (front : 11.0) | `structureCompressedUnitPrice` 1100.0, `structureCompressedEquivalentPrice` 1100.0 |
 | A3 | Glace : Clear Icicle, compressé à 158 700 | 1587.0 | 158700.0 |
 | A4 | A1 avec taxe d'export 500 ISK/m³ (compressé 0,001 m³ → 0,5 ISK) | `compressedUnitPrice` 999.5, équivalent 9.995 | `compressedUnitPrice` 999.5, équivalent 999.5 |
 | A5 | A1 + A2, Compressed Veldspar sans `portionSize` | équivalent 10.0 | `compressedUnitPrice` 1000.0, `compressedEquivalentPrice` `null`, `structureCompressedEquivalentPrice` `null` (M2) |

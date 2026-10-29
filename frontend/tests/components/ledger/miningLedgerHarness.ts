@@ -13,7 +13,7 @@ export const MYSTERY_ORE_TYPE_ID = 81143
 export const UNLOADED_ORE_TYPE_ID = 81144
 export const JITA_SYSTEM_ID = 30000142
 export const PERIMETER_SYSTEM_ID = 30000144
-export const ASTRAHUS_STRUCTURE_ID = 1022734985679
+export const ASTRAHUS_STRUCTURE_ID = 1000000000001
 
 export function miningEntry(overrides: Partial<MiningEntry>): MiningEntry {
   return {
