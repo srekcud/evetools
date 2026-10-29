@@ -158,6 +158,27 @@ describe('ShoppingTab one-off market structure and transport cost per m3', () =>
     expect(configPanelOf(wrapper).props('transportCostPerM3')).toBe(TYPED_TRANSPORT_COST_PER_M3)
   })
 
+  it('asks the shopping list with a typed zero transport cost and keeps showing zero after the response', async () => {
+    const wrapper = await mountActivatedShoppingTab()
+
+    await emitFromConfigPanel(wrapper, 'update:transportCostPerM3', 0)
+    await emitFromConfigPanel(wrapper, 'recalculate')
+
+    expect(lastShoppingListUrl()).toBe(`${SHOPPING_LIST_URL}?transportCost=0`)
+    expect(configPanelOf(wrapper).props('transportCostPerM3')).toBe(0)
+  })
+
+  it('syncs the structure market of the picked market structure', async () => {
+    const wrapper = await mountActivatedShoppingTab()
+
+    await emitFromConfigPanel(wrapper, 'update:selectedStructure', { id: PICKED_MARKET_STRUCTURE_ID, name: 'Picked Market' })
+    await emitFromConfigPanel(wrapper, 'sync-structure')
+
+    expect(vi.mocked(apiRequest).mock.calls.filter(([url]) => url === SYNC_STRUCTURE_MARKET_URL)).toEqual([
+      [SYNC_STRUCTURE_MARKET_URL, { method: 'POST', body: '{"structureId":1000000000004}' }],
+    ])
+  })
+
   it('asks the shopping list at the picked market structure only and stores it in the browser', async () => {
     const wrapper = await mountActivatedShoppingTab()
     const pickedMarketStructure = { id: PICKED_MARKET_STRUCTURE_ID, name: 'Picked Market' }

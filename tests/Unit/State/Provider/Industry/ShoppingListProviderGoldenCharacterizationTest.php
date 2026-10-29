@@ -1021,6 +1021,45 @@ final class ShoppingListProviderGoldenCharacterizationTest extends TestCase
         self::assertNull($shoppingList->structureName);
     }
 
+    #[Group('issue-194')]
+    public function testShoppingListWithoutMarketKeepsThePreferredNameWhenThePreferredStructureIsTheDefaultOne(): void
+    {
+        $this->pilot
+            ->setPreferredMarketStructureId(self::DEFAULT_MARKET_STRUCTURE_ID)
+            ->setPreferredMarketStructureName(self::PREFERRED_MARKET_STRUCTURE_NAME);
+        $this->marketUnavailable = true;
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::DEFAULT_MARKET_STRUCTURE_ID, $shoppingList->structureId);
+        self::assertSame(self::PREFERRED_MARKET_STRUCTURE_NAME, $shoppingList->structureName);
+    }
+
+    #[Group('issue-194')]
+    public function testShoppingListWithoutMarketKeepsThePreferredMarketStructureWithoutNameWhenThePreferenceHasNoName(): void
+    {
+        $this->pilot->setPreferredMarketStructureId(self::PREFERRED_MARKET_STRUCTURE_ID);
+        $this->marketUnavailable = true;
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(self::PREFERRED_MARKET_STRUCTURE_ID, $shoppingList->structureId);
+        self::assertNull($shoppingList->structureName);
+    }
+
+    #[Group('issue-194')]
+    public function testShoppingListWithoutMarketKeepsTheTransportCostPerM3OfTheIndustrySettings(): void
+    {
+        $this->pilotPrefersTheMarketStructure();
+        $this->settings = $this->industrySettingsWithTransportCostPerM3(800.0);
+        $this->marketUnavailable = true;
+
+        $shoppingList = $this->provideShoppingList();
+
+        self::assertSame(800.0, $shoppingList->transportCostPerM3);
+        self::assertSame([['user' => $this->pilot]], $this->settingsCriteria);
+    }
+
     private function pilotPrefersTheMarketStructure(): void
     {
         $this->pilot
