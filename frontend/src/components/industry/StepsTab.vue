@@ -6,9 +6,11 @@ import { useStepsStore } from '@/stores/industry/steps'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useStepProductNames } from '@/composables/useStepProductNames'
 import type { CharacterSyncFailure } from '@/stores/industry/types'
 import CharacterSyncFailuresAlert from './CharacterSyncFailuresAlert.vue'
+import SyncErrorAlert from './SyncErrorAlert.vue'
 import StepTree from './StepTree.vue'
 import StepHierarchyTree from './StepHierarchyTree.vue'
 import ShoppingFailedProductsWarning from './shopping/ShoppingFailedProductsWarning.vue'
@@ -26,11 +28,11 @@ const { formatIsk, formatDateTime } = useFormatters()
 const { typeNameLabel } = useTypeNames()
 
 const stepsViewMode = ref<'flat' | 'tree'>('flat')
-const regeneratingSteps = ref(false)
 const matchJobsLoading = ref(false)
 const matchJobsFailures = ref<CharacterSyncFailure[]>([])
 const showAvailableJobs = ref(false)
 const overproduceOffers = ref<Record<string, number>>({})
+const regenerationErrors = ref<string[]>([])
 
 const failedProducts = computed(() => store.currentProject?.failedProducts)
 const productNamesByTypeId = useStepProductNames(computed(() => store.currentProject?.steps ?? []))
@@ -41,9 +43,19 @@ const industryProjectProgress = computed(() => syncStore.getSyncProgress('indust
 watch(industryProjectProgress, (progress) => {
   if (progress?.status === 'completed') {
     store.fetchProject(props.projectId)
-    regeneratingSteps.value = false
+  } else if (progress?.status === 'error') {
+    regenerationErrors.value = [...regenerationErrors.value, progress.message || t('notifications.syncError')]
   }
 })
+
+const { errors: jobsSyncErrors, dismissErrors: dismissJobsSyncErrors } = useIndustryJobsSync(
+  async () => {
+    const reloads = [store.fetchProject(props.projectId)]
+    if (showAvailableJobs.value) reloads.push(stepsStore.fetchAvailableJobs(props.projectId))
+    await Promise.all(reloads)
+  },
+  () => matchJobsLoading.value,
+)
 
 async function togglePurchased(stepId: string, purchased: boolean) {
   await store.toggleStepPurchased(props.projectId, stepId, purchased)
@@ -146,6 +158,22 @@ defineExpose({
       :title="t('industry.syncFailures.jobsTitle', matchJobsFailures.length)"
       :failures="matchJobsFailures"
       @dismiss="matchJobsFailures = []"
+    />
+
+    <SyncErrorAlert
+      v-if="jobsSyncErrors.length > 0"
+      data-testid="jobs-sync-error"
+      :title="t('industry.jobsSyncError.title', jobsSyncErrors.length)"
+      :messages="jobsSyncErrors"
+      @dismiss="dismissJobsSyncErrors"
+    />
+
+    <SyncErrorAlert
+      v-if="regenerationErrors.length > 0"
+      data-testid="steps-regeneration-error"
+      :title="t('industry.stepsTab.regenerationErrorTitle')"
+      :messages="regenerationErrors"
+      @dismiss="regenerationErrors = []"
     />
 
     <!-- Toolbar: BPC Kit + Available Jobs + View toggle -->

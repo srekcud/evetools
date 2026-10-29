@@ -6,6 +6,7 @@ import { useSlotsStore } from '@/stores/industry/slots'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { projectProfitTotal } from '@/utils/projectProfitTotal'
 import { CHART_COLORS } from '@/utils/chartColors'
@@ -27,6 +28,8 @@ const emit = defineEmits<{
 // SVG ring chart constants (48x48 viewport, radius 19)
 const RING_RADIUS = 19
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS // ~119.38
+
+useIndustryJobsSync(() => slotsStore.fetchSlots())
 
 onMounted(async () => {
   await Promise.all([

@@ -2,7 +2,9 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import SyncErrorAlert from '@/components/industry/SyncErrorAlert.vue'
 import { useEveImages } from '@/composables/useEveImages'
+import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { CHART_COLORS } from '@/utils/chartColors'
@@ -182,6 +184,8 @@ const gridLines = computed(() => {
   })
 })
 
+const { errors: jobsSyncErrors, dismissErrors: dismissJobsSyncErrors } = useIndustryJobsSync(() => slotsStore.fetchSlots())
+
 onMounted(() => {
   slotsStore.fetchSlots()
 })
@@ -227,6 +231,14 @@ onMounted(() => {
 
   <!-- Full content -->
   <div v-else-if="slotsStore.data" class="space-y-6">
+
+    <SyncErrorAlert
+      v-if="jobsSyncErrors.length > 0"
+      data-testid="jobs-sync-error"
+      :title="t('industry.jobsSyncError.title', jobsSyncErrors.length)"
+      :messages="jobsSyncErrors"
+      @dismiss="dismissJobsSyncErrors"
+    />
 
     <!-- HEADER -->
     <div class="flex items-center justify-between card-enter" style="animation-delay: 0ms;">

@@ -1162,7 +1162,11 @@
       },
       "reconnectLink": "Reconnect characters"
     },
+    "jobsSyncError": {
+      "title": "Industry jobs sync failed ({count} error), the jobs shown may be out of date: | Industry jobs sync failed ({count} errors), the jobs shown may be out of date:"
+    },
     "stepsTab": {
+      "regenerationErrorTitle": "Steps regeneration failed:",
       "esiJobs": "ESI Jobs",
       "list": "List",
       "tree": "Tree",

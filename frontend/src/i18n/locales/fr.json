@@ -1162,7 +1162,11 @@
       },
       "reconnectLink": "Reconnecter des personnages"
     },
+    "jobsSyncError": {
+      "title": "Échec de la synchronisation des jobs ({count} erreur), les jobs affichés peuvent être périmés : | Échec de la synchronisation des jobs ({count} erreurs), les jobs affichés peuvent être périmés :"
+    },
     "stepsTab": {
+      "regenerationErrorTitle": "Échec de la régénération des étapes :",
       "esiJobs": "Jobs ESI",
       "list": "Liste",
       "tree": "Arbre",
