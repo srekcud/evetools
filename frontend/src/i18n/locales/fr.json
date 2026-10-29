@@ -2028,6 +2028,12 @@
       "recordedBy": "Enregistre par",
       "correctTitle": "Corriger une vente",
       "actionsColumn": "Actions",
+      "sellerColumn": "Vendeur",
+      "unknownSeller": "Vendeur inconnu",
+      "mySales": "Mes ventes",
+      "totalMySales": "Total, mes ventes",
+      "noMySales": "Aucune vente de vos personnages",
+      "unknownSellerOption": "Inconnu",
       "deleteConfirm": {
         "title": "Supprimer cette vente ?",
         "message": "La vente de {item} est retiree du revenu et la distribution est recalculee."

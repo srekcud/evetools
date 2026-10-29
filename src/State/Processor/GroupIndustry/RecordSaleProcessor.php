@@ -11,6 +11,7 @@ use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
 use App\Repository\GroupIndustryProjectRepository;
+use App\Service\GroupIndustry\ResolvesSellerOfUser;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,6 +26,8 @@ use Symfony\Component\Uid\Uuid;
  */
 class RecordSaleProcessor implements ProcessorInterface
 {
+    use ResolvesSellerOfUser;
+
     public function __construct(
         private readonly Security $security,
         private readonly GroupIndustryProjectRepository $projectRepository,
@@ -60,6 +63,8 @@ class RecordSaleProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Cannot record a sale on a completed project');
         }
 
+        $seller = $this->sellerOf($user, $data->sellerCharacterId);
+
         $soldAt = $data->soldAt !== null
             ? new \DateTimeImmutable($data->soldAt)
             : new \DateTimeImmutable();
@@ -74,6 +79,7 @@ class RecordSaleProcessor implements ProcessorInterface
         $sale->setVenue($data->venue);
         $sale->setSoldAt($soldAt);
         $sale->setRecordedBy($user);
+        $sale->setSeller($seller);
 
         $this->entityManager->persist($sale);
         $this->entityManager->flush();

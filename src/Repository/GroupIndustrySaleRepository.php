@@ -25,10 +25,12 @@ class GroupIndustrySaleRepository extends ServiceEntityRepository
     public function findByProjectForListing(GroupIndustryProject $project): array
     {
         return $this->createQueryBuilder('s')
-            ->addSelect('recorder', 'recorderCharacter', 'recorderToken')
+            ->addSelect('recorder', 'recorderCharacter', 'recorderToken', 'seller', 'sellerToken')
             ->leftJoin('s.recordedBy', 'recorder')
             ->leftJoin('recorder.mainCharacter', 'recorderCharacter')
             ->leftJoin('recorderCharacter.eveToken', 'recorderToken')
+            ->leftJoin('s.seller', 'seller')
+            ->leftJoin('seller.eveToken', 'sellerToken')
             ->andWhere('s.project = :project')
             ->setParameter('project', $project)
             ->orderBy('s.soldAt', 'DESC')

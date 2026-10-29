@@ -2,6 +2,7 @@
 import DataTable from '@/components/common/DataTable.vue'
 import { ref, computed, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import type { GroupSale, RecordSaleInput, UpdateSaleInput } from '@/stores/group-industry/types'
@@ -13,6 +14,8 @@ const saleTypeNameFieldId = useId()
 const saleQuantityFieldId = useId()
 const saleUnitPriceFieldId = useId()
 const saleVenueFieldId = useId()
+const saleSellerFieldId = useId()
+const mySalesToggleId = useId()
 
 const props = defineProps<{
   projectId: string
@@ -20,6 +23,7 @@ const props = defineProps<{
 }>()
 
 const store = useGroupDistributionStore()
+const authStore = useAuthStore()
 const { formatNumber, formatDate } = useFormatters()
 
 // Inline sale form state
@@ -35,19 +39,35 @@ const submittingSale = ref(false)
 const correctedSale = ref<GroupSale | null>(null)
 const saleToDelete = ref<GroupSale | null>(null)
 const deletingSale = ref(false)
+const chosenSellerCharacterId = ref<number | null>(null)
+const onlyMySales = ref(false)
 
+const myCharacters = computed(() => authStore.user?.characters ?? [])
+const myEveCharacterIds = computed(() => new Set(myCharacters.value.map(character => character.eveCharacterId)))
+const shownSales = computed(() =>
+  onlyMySales.value
+    ? store.sales.filter(sale => sale.sellerCharacterId !== null && myEveCharacterIds.value.has(sale.sellerCharacterId))
+    : store.sales,
+)
 const totalQuantity = computed(() =>
-  store.sales.reduce((sum, s) => sum + s.quantity, 0),
+  shownSales.value.reduce((sum, s) => sum + s.quantity, 0),
 )
 const totalRevenue = computed(() =>
-  store.sales.reduce((sum, s) => sum + s.totalPrice, 0),
+  shownSales.value.reduce((sum, s) => sum + s.totalPrice, 0),
 )
+
+function ownSellerOf(sale: GroupSale): number | null {
+  return sale.sellerCharacterId !== null && myEveCharacterIds.value.has(sale.sellerCharacterId)
+    ? sale.sellerCharacterId
+    : null
+}
 
 function toggleSaleForm(): void {
   correctedSale.value = null
   showSaleForm.value = !showSaleForm.value
   if (showSaleForm.value) {
     saleForm.value = { typeId: 0, typeName: '', quantity: 1, unitPrice: 0, venue: '' }
+    chosenSellerCharacterId.value = null
   }
 }
 
@@ -60,6 +80,7 @@ function startCorrection(sale: GroupSale): void {
     unitPrice: sale.unitPrice,
     venue: sale.venue ?? '',
   }
+  chosenSellerCharacterId.value = ownSellerOf(sale)
   showSaleForm.value = true
 }
 
@@ -69,6 +90,9 @@ function changesOf(sale: GroupSale, form: RecordSaleInput): UpdateSaleInput {
   if (form.quantity !== sale.quantity) changes.quantity = form.quantity
   if (form.unitPrice !== sale.unitPrice) changes.unitPrice = form.unitPrice
   if (form.venue && form.venue !== sale.venue) changes.venue = form.venue
+  if (chosenSellerCharacterId.value !== null && chosenSellerCharacterId.value !== sale.sellerCharacterId) {
+    changes.sellerCharacterId = chosenSellerCharacterId.value
+  }
   return changes
 }
 
@@ -79,7 +103,9 @@ async function handleSaveSale(): Promise<void> {
     if (correctedSale.value) {
       await store.updateSale(props.projectId, correctedSale.value.id, changesOf(correctedSale.value, saleForm.value))
     } else {
-      await store.recordSale(props.projectId, saleForm.value)
+      const sale: RecordSaleInput = { ...saleForm.value }
+      if (chosenSellerCharacterId.value !== null) sale.sellerCharacterId = chosenSellerCharacterId.value
+      await store.recordSale(props.projectId, sale)
     }
     showSaleForm.value = false
     correctedSale.value = null
@@ -108,6 +134,14 @@ onMounted(() => {
   <div class="mb-8">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold text-slate-100">Sales</h2>
+      <label
+        v-if="store.sales.length > 0"
+        :for="mySalesToggleId"
+        class="ml-auto mr-4 flex items-center gap-2 text-sm text-slate-300"
+      >
+        <input :id="mySalesToggleId" v-model="onlyMySales" type="checkbox" class="rounded border-slate-700 bg-slate-800" />
+        {{ t('groupIndustry.sales.mySales') }}
+      </label>
       <button
         v-if="isAdmin"
         class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 transition-all hover:-translate-y-px"
@@ -139,12 +173,19 @@ onMounted(() => {
 
     <!-- Sales Table -->
     <template v-else>
-      <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
+      <div
+        v-if="onlyMySales && shownSales.length === 0"
+        class="bg-slate-900/80 rounded-xl border border-slate-800 p-12 text-center"
+      >
+        <p class="text-sm text-slate-500">{{ t('groupIndustry.sales.noMySales') }}</p>
+      </div>
+      <div v-else class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
         <DataTable>
           <table class="w-full text-sm">
             <thead>
               <tr class="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
                 <th class="text-left py-3 px-6">Date</th>
+                <th class="text-left py-3 px-3">{{ t('groupIndustry.sales.sellerColumn') }}</th>
                 <th class="text-right py-3 px-3">Quantity</th>
                 <th class="text-right py-3 px-3">Unit Price</th>
                 <th class="text-right py-3 px-3">Revenue</th>
@@ -154,11 +195,12 @@ onMounted(() => {
             </thead>
             <tbody class="divide-y divide-slate-800/30">
               <tr
-                v-for="sale in store.sales"
+                v-for="sale in shownSales"
                 :key="sale.id"
                 class="hover:bg-slate-800/30"
               >
                 <td class="py-3 px-6 text-slate-300">{{ formatDate(sale.soldAt) }}</td>
+                <td class="py-3 px-3 text-slate-300">{{ sale.sellerCharacterName ?? t('groupIndustry.sales.unknownSeller') }}</td>
                 <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                   {{ formatNumber(sale.quantity, 0) }}
                 </td>
@@ -187,8 +229,9 @@ onMounted(() => {
                 </td>
               </tr>
               <!-- Total row -->
-              <tr v-if="store.sales.length > 0" class="bg-slate-800/30 border-t-2 border-slate-700">
-                <td class="py-3 px-6 text-slate-200 font-semibold">{{ t('common.status.total') }}</td>
+              <tr class="bg-slate-800/30 border-t-2 border-slate-700">
+                <td class="py-3 px-6 text-slate-200 font-semibold">{{ onlyMySales ? t('groupIndustry.sales.totalMySales') : t('common.status.total') }}</td>
+                <td class="py-3 px-3"></td>
                 <td class="py-3 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
                   {{ formatNumber(totalQuantity, 0) }}
                 </td>
@@ -210,7 +253,7 @@ onMounted(() => {
         class="mt-4 bg-slate-900/80 rounded-xl border border-cyan-500/20 p-5"
       >
         <h3 class="text-sm font-semibold text-slate-200 mb-4">{{ correctedSale ? t('groupIndustry.sales.correctTitle') : 'Record a Sale' }}</h3>
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
           <div>
             <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">Item Name</label>
             <input
@@ -250,6 +293,17 @@ onMounted(() => {
               placeholder="e.g. Jita 4-4"
               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-cyan-500 focus:outline-none"
             />
+          </div>
+          <div>
+            <label :for="saleSellerFieldId" class="text-xs text-slate-500 mb-1 block">{{ t('groupIndustry.sales.sellerColumn') }}</label>
+            <select
+              :id="saleSellerFieldId"
+              v-model="chosenSellerCharacterId"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+            >
+              <option :value="null">{{ t('groupIndustry.sales.unknownSellerOption') }}</option>
+              <option v-for="character in myCharacters" :key="character.eveCharacterId" :value="character.eveCharacterId">{{ character.name }}</option>
+            </select>
           </div>
           <div class="flex items-end">
             <button

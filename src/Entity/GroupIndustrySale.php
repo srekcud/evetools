@@ -49,6 +49,10 @@ class GroupIndustrySale
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $recordedBy = null;
 
+    #[ORM\ManyToOne(targetEntity: Character::class)]
+    #[ORM\JoinColumn(name: 'seller_character_id', nullable: true, onDelete: 'SET NULL')]
+    private ?Character $seller = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -169,12 +173,13 @@ class GroupIndustrySale
 
     public function getSeller(): ?Character
     {
-        throw new \LogicException('not implemented');
+        return $this->seller;
     }
 
     public function setSeller(?Character $seller): static
     {
-        throw new \LogicException('not implemented');
+        $this->seller = $seller;
+        return $this;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

@@ -123,6 +123,8 @@ class GroupIndustrySaleResource
         $resource->venue = $sale->getVenue();
         $resource->soldAt = $sale->getSoldAt()->format(\DateTimeInterface::ATOM);
         $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
+        $resource->sellerCharacterId = $sale->getSeller()?->getEveCharacterId();
+        $resource->sellerCharacterName = $sale->getSeller()?->getName();
         $resource->createdAt = $sale->getCreatedAt()->format(\DateTimeInterface::ATOM);
 
         return $resource;

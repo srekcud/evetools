@@ -2028,6 +2028,12 @@
       "recordedBy": "Recorded by",
       "correctTitle": "Correct a Sale",
       "actionsColumn": "Actions",
+      "sellerColumn": "Seller",
+      "unknownSeller": "Unknown seller",
+      "mySales": "My sales",
+      "totalMySales": "Total, my sales",
+      "noMySales": "No sales by your characters",
+      "unknownSellerOption": "Unknown",
       "deleteConfirm": {
         "title": "Delete this sale?",
         "message": "The sale of {item} is removed from the revenue and the distribution is recalculated."
