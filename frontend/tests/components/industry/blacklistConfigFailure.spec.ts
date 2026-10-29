@@ -47,10 +47,18 @@ async function mountBlacklistConfig(locale: 'en' | 'fr' = 'en'): Promise<VueWrap
   return wrapper
 }
 
-function fuelBlocksCheckbox(wrapper: VueWrapper) {
-  const label = wrapper.findAll('label').find(candidate => candidate.text() === 'Fuel blocks')
-  expect(label, 'Fuel blocks category').toBeDefined()
+function categoryCheckbox(wrapper: VueWrapper, categoryLabel: string) {
+  const label = wrapper.findAll('label').find(candidate => candidate.text() === categoryLabel)
+  expect(label, `${categoryLabel} category`).toBeDefined()
   return label!.get('input[type="checkbox"]')
+}
+
+function fuelBlocksCheckbox(wrapper: VueWrapper) {
+  return categoryCheckbox(wrapper, 'Fuel blocks')
+}
+
+function capitalComponentsCheckbox(wrapper: VueWrapper) {
+  return categoryCheckbox(wrapper, 'Capital components')
 }
 
 function alertText(wrapper: VueWrapper, testId: string): string | null {
@@ -117,6 +125,25 @@ describe('BlacklistConfig change failure (issue 189)', () => {
       role: 'alert',
       fuelBlocksChecked: false,
       sent: [{ groupIds: [CAPITAL_COMPONENTS_GROUP_ID, FUEL_BLOCKS_GROUP_ID], typeIds: [NITROGEN_FUEL_BLOCK_TYPE_ID] }],
+    })
+  })
+
+  it('shows the change failure and leaves the Capital components category checked when unticking it fails', async () => {
+    reads.respondTo(BLACKLIST_PATH, respondWith(STORED_BLACKLIST))
+    changes.respondTo(BLACKLIST_PATH, rejectWith(new ApiError('API error: 503', 503)))
+    const wrapper = await mountBlacklistConfig()
+
+    await capitalComponentsCheckbox(wrapper).setValue(false)
+    await flushPromises()
+
+    expect({
+      saveError: alertText(wrapper, 'blacklist-save-error'),
+      capitalComponentsChecked: (capitalComponentsCheckbox(wrapper).element as HTMLInputElement).checked,
+      sent: changeBodies,
+    }).toEqual({
+      saveError: SAVE_ERROR_EN,
+      capitalComponentsChecked: true,
+      sent: [{ groupIds: [], typeIds: [NITROGEN_FUEL_BLOCK_TYPE_ID] }],
     })
   })
 

@@ -222,6 +222,39 @@ describe('CostEstimationTab cost estimation failure (issue 189)', () => {
     expect({ errorCard: errorCard(wrapper), totalProductionCost: totalProductionCost(wrapper) })
       .toEqual({ errorCard: null, totalProductionCost: '51,020,000' })
   })
+
+  it('reloads the estimation when the tab is activated again after refreshing the prices failed', async () => {
+    respondToCostEstimation(respondWith(FIRST_COST_ESTIMATION))
+    respondToCopyCosts(respondWith(COPY_COSTS))
+    respondToCostEstimation(rejectWith(new ApiError('API error: 503', 503)))
+    respondToCostEstimation(respondWith(RETRIED_COST_ESTIMATION))
+    const wrapper = await mountActivatedTab()
+    await clickButton(wrapper, en.industry.costEstimation.refreshPrices)
+
+    await activate(wrapper)
+
+    expect({
+      errorCard: errorCard(wrapper),
+      totalProductionCost: totalProductionCost(wrapper),
+      requested: vi.mocked(apiRequest).mock.calls.map(([endpoint]) => endpoint),
+    }).toEqual({
+      errorCard: null,
+      totalProductionCost: '51,020,000',
+      requested: [COST_ESTIMATION_PATH, COPY_COSTS_PATH, COST_ESTIMATION_PATH, COST_ESTIMATION_PATH],
+    })
+  })
+
+  it.each([
+    ['en', en.industry.costEstimation.error],
+    ['fr', fr.industry.costEstimation.error],
+  ] as const)('shows the generic cost estimation failure when the failure carries no message (%s)', async (locale, costEstimationError) => {
+    respondToCostEstimation(rejectWith('Gateway timeout (fictif)'))
+    respondToCopyCosts(respondWith(COPY_COSTS))
+
+    const wrapper = await mountActivatedTab(locale)
+
+    expect(errorCard(wrapper)?.texts).toEqual([costEstimationError, costEstimationError])
+  })
 })
 
 describe('CostEstimationTab copy costs failure (issue 189)', () => {
@@ -258,5 +291,21 @@ describe('CostEstimationTab copy costs failure (issue 189)', () => {
       copyCostsSectionShown: copyCostsSectionShown(wrapper),
       totalCopyCostShown: wrapper.text().includes('412,000 ISK'),
     }).toEqual({ copyCostsError: null, copyCostsSectionShown: true, totalCopyCostShown: true })
+  })
+
+  it('removes the copy costs alert when the tab is activated again and the project needs no copy', async () => {
+    respondToCostEstimation(respondWith(FIRST_COST_ESTIMATION))
+    respondToCopyCosts(rejectWith(new ApiError('API error: 503', 503)))
+    respondToCopyCosts(respondWith({ id: PROJECT_ID, copies: [], totalCopyCost: 0 } satisfies CopyCosts))
+    const wrapper = await mountActivatedTab()
+    const copyCostsErrorAfterFailure = copyCostsErrorText(wrapper)
+
+    await activate(wrapper)
+
+    expect({
+      copyCostsErrorAfterFailure,
+      copyCostsError: copyCostsErrorText(wrapper),
+      copyCostsSectionShown: copyCostsSectionShown(wrapper),
+    }).toEqual({ copyCostsErrorAfterFailure: COPY_COSTS_ERROR.en, copyCostsError: null, copyCostsSectionShown: false })
   })
 })

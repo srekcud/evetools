@@ -20,7 +20,7 @@ export function respondWith(value: unknown): ApiOutcome {
   return () => Promise.resolve(value)
 }
 
-export function rejectWith(reason: Error): ApiOutcome {
+export function rejectWith(reason: unknown): ApiOutcome {
   return () => Promise.reject(reason)
 }
 

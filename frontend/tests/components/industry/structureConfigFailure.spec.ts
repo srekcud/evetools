@@ -180,6 +180,18 @@ describe('StructureConfig delete failure (issue 189)', () => {
     })
   })
 
+  it('shows the delete failure inside the delete modal, under the confirmation text', async () => {
+    const wrapper = await mountWithAFailedDeletionOfRaitaruPerimeter()
+
+    const modalParagraphs = wrapper.get('[role="dialog"]').findAll('p').map(paragraph => paragraph.text())
+
+    expect({ deleteErrorInModal: wrapper.get('[role="dialog"] [data-testid="structure-delete-error"]').text(), modalParagraphs })
+      .toEqual({
+        deleteErrorInModal: DELETE_ERROR_EN,
+        modalParagraphs: ['Are you sure you want to delete Raitaru Perimeter?', DELETE_ERROR_EN],
+      })
+  })
+
   it('closes the modal on cancel and shows no delete failure when it is opened again', async () => {
     const wrapper = await mountWithAFailedDeletionOfRaitaruPerimeter()
 
@@ -227,6 +239,38 @@ describe('StructureConfig save failure (issue 189)', () => {
       role: alert.exists() ? alert.attributes('role') : null,
       handlerErrors,
     }).toEqual({ typedName: 'Azbel Kador', saveError, role: 'alert', handlerErrors: [] })
+  })
+
+  it.each([
+    ['en', SAVE_ERROR.en, en.common.actions.edit, en.common.actions.save, en.industry.structures.namePlaceholder],
+    ['fr', SAVE_ERROR.fr, fr.common.actions.edit, fr.common.actions.save, fr.industry.structures.namePlaceholder],
+  ] as const)('keeps the edit form open with the typed name and the structure unchanged when the edit fails (%s)', async (locale, saveError, editLabel, saveLabel, namePlaceholder) => {
+    reads.respondTo(STRUCTURES_PATH, respondWith({ structures: [RAITARU_PERIMETER], rigOptions: RIG_OPTIONS }))
+    writes.respondTo(`PATCH ${STRUCTURES_PATH}/struct-1`, rejectWith(new ApiError('API error: 500', 500)))
+    const wrapper = await mountStructureConfig(locale)
+    await wrapper.get(`button[aria-label="${editLabel}"]`).trigger('click')
+    await flushPromises()
+    await wrapper.get(`input[placeholder="${namePlaceholder}"]`).setValue('Raitaru Perimeter II')
+
+    await clickButton(wrapper, saveLabel)
+
+    const nameInput = wrapper.find(`input[placeholder="${namePlaceholder}"]`)
+    const patchBodies = vi.mocked(apiRequest).mock.calls
+      .filter(([, options]) => options?.method === 'PATCH')
+      .map(([endpoint, options]) => [endpoint, JSON.parse(String(options?.body))])
+    expect({
+      typedName: nameInput.exists() ? (nameInput.element as HTMLInputElement).value : null,
+      saveError: alertText(wrapper, 'structure-save-error'),
+      sent: patchBodies,
+      structures: useStructuresStore().structures,
+      handlerErrors,
+    }).toEqual({
+      typedName: 'Raitaru Perimeter II',
+      saveError,
+      sent: [[`${STRUCTURES_PATH}/struct-1`, { name: 'Raitaru Perimeter II', securityType: 'highsec', structureType: 'raitaru', rigs: [] }]],
+      structures: [RAITARU_PERIMETER],
+      handlerErrors: [],
+    })
   })
 
   it('names the structure already imported when the server answers a conflict', async () => {

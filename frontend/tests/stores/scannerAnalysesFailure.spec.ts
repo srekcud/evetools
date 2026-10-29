@@ -193,6 +193,55 @@ describe('scanner store pivot analysis failure (issue 189)', () => {
     expect({ result: store.pivotResult, error: store.pivotError, loading: store.pivotLoading })
       .toEqual({ result: null, error: 'API error: 503', loading: false })
   })
+
+  it('keeps loading until the latest analysis answers, whatever an outdated analysis answers before it', async () => {
+    const store = useScannerStore()
+    respondToPivotOf(ISHTAR_TYPE_ID, respondWith(ISHTAR_PIVOT))
+    await store.fetchPivotAnalysis(ISHTAR_TYPE_ID, 1)
+    const vexorResponse = deferred<PivotAnalysisResult>()
+    respondToPivotOf(VEXOR_TYPE_ID, awaiting(vexorResponse))
+    respondToPivotOf(ISHTAR_TYPE_ID, awaiting(deferred<PivotAnalysisResult>()))
+    const outdatedAnalysis = store.fetchPivotAnalysis(VEXOR_TYPE_ID, 5)
+    void store.fetchPivotAnalysis(ISHTAR_TYPE_ID, 2)
+
+    vexorResponse.reject(new ApiError('API error: 503', 503))
+    await outdatedAnalysis
+
+    expect({ result: store.pivotResult, error: store.pivotError, loading: store.pivotLoading })
+      .toEqual({ result: ISHTAR_PIVOT, error: null, loading: true })
+  })
+})
+
+describe('scanner store failure without message (issue 189)', () => {
+  it('keeps the generic buy vs build failure when the failure carries no message', async () => {
+    const store = useScannerStore()
+    respondToBuyVsBuildOf(VEXOR_TYPE_ID, rejectWith('Gateway timeout (fictif)'))
+
+    await store.fetchBuyVsBuild(VEXOR_TYPE_ID, 3, 10)
+
+    expect({ result: store.buyVsBuildResult, error: store.buyVsBuildError })
+      .toEqual({ result: null, error: 'Analysis failed' })
+  })
+
+  it('keeps the generic pivot failure when the failure carries no message', async () => {
+    const store = useScannerStore()
+    respondToPivotOf(VEXOR_TYPE_ID, rejectWith('Gateway timeout (fictif)'))
+
+    await store.fetchPivotAnalysis(VEXOR_TYPE_ID, 5)
+
+    expect({ result: store.pivotResult, error: store.pivotError })
+      .toEqual({ result: null, error: 'Analysis failed' })
+  })
+
+  it('keeps the generic scan failure when the failure carries no message', async () => {
+    const store = useScannerStore()
+    outcomes.respondTo(PROFIT_SCAN_PATH, rejectWith('Gateway timeout (fictif)'))
+
+    await store.fetchBatchScan()
+
+    expect({ scanResults: store.scanResults, scanError: store.scanError })
+      .toEqual({ scanResults: [], scanError: 'Scan failed' })
+  })
 })
 
 describe('scanner store batch scan failure (issue 189)', () => {
@@ -238,5 +287,22 @@ describe('scanner store batch scan failure (issue 189)', () => {
 
     expect({ scanResults: store.scanResults, scanError: store.scanError, scanLoading: store.scanLoading })
       .toEqual({ scanResults: [MERLIN], scanError: null, scanLoading: false })
+  })
+
+  it('keeps loading until the latest scan answers, whatever an outdated scan answers before it', async () => {
+    const store = useScannerStore()
+    const outdatedScanResponse = deferred<BatchScanItem[]>()
+    outcomes.respondTo(PROFIT_SCAN_PATH, respondWith([RIFTER, TRISTAN]))
+    outcomes.respondTo(PROFIT_SCAN_PATH, awaiting(outdatedScanResponse))
+    outcomes.respondTo(PROFIT_SCAN_PATH, awaiting(deferred<BatchScanItem[]>()))
+    await store.fetchBatchScan()
+    const outdatedScan = store.fetchBatchScan({ category: 'ships' })
+    void store.fetchBatchScan({ minMargin: 15 })
+
+    outdatedScanResponse.reject(new Error(SCAN_TIMEOUT))
+    await outdatedScan
+
+    expect({ scanResults: store.scanResults, scanError: store.scanError, scanLoading: store.scanLoading })
+      .toEqual({ scanResults: [RIFTER, TRISTAN], scanError: null, scanLoading: true })
   })
 })

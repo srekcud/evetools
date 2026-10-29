@@ -110,6 +110,16 @@ describe('projects store margin analysis failure (issue 189)', () => {
     })
   })
 
+  it('keeps the generic margin failure when the failure carries no message', async () => {
+    const store = useProjectsStore()
+    respondToMarginOf(VEXOR_TYPE_ID, rejectWith('Gateway timeout (fictif)'))
+
+    await store.analyzeMargin(VEXOR_TYPE_ID)
+
+    expect({ marginError: store.marginError, pageError: store.error })
+      .toEqual({ marginError: 'Failed to analyze profit margin', pageError: null })
+  })
+
   it('replaces the margin and clears the margin error when the next analysis succeeds', async () => {
     const store = useProjectsStore()
     respondToMarginOf(VEXOR_TYPE_ID, rejectWith(new Error(PRICE_DATA_UNAVAILABLE)))
