@@ -284,32 +284,32 @@ class IndustryProjectFactory
      */
     private function collectStepsFromTree(array &$steps, array $node, int $rootMeLevel = 0, int $rootTeLevel = 0): void
     {
-        if (!empty($node['hasCopy'])) {
-            $copyKey = self::stepKey($node['blueprintTypeId'], 'copy');
-            if (isset($steps[$copyKey])) {
-                $steps[$copyKey]['quantity'] += $node['runs'];
-                $steps[$copyKey]['runs'] = $steps[$copyKey]['quantity'];
-                $steps[$copyKey]['planningLevel'] = max($steps[$copyKey]['planningLevel'], $node['depth']);
-            } else {
-                $steps[$copyKey] = [
-                    'blueprintTypeId' => $node['blueprintTypeId'],
-                    'productTypeId' => $node['productTypeId'],
-                    'productTypeName' => $node['productTypeName'] . ' (BPC)',
-                    'quantity' => $node['runs'],
-                    'runs' => $node['runs'],
-                    'outputPerRun' => 1,
-                    'depth' => $node['depth'],
-                    'activityType' => 'copy',
-                    'meLevel' => 0,
-                    'teLevel' => 0,
-                    'structureConfig' => null,
-                    'planningLevel' => $node['depth'],
-                ];
-            }
-        }
-
         $activityType = $node['activityType'];
         $key = self::stepKey($node['blueprintTypeId'], $activityType);
+        $copyKey = self::stepKey($node['blueprintTypeId'], 'copy');
+        $hasCopyActivity = !empty($node['hasCopy']);
+
+        if (isset($steps[$copyKey])) {
+            $steps[$copyKey]['quantity'] += $node['runs'];
+            $steps[$copyKey]['runs'] = $steps[$copyKey]['quantity'];
+            $steps[$copyKey]['planningLevel'] = max($steps[$copyKey]['planningLevel'], $node['depth']);
+        } elseif ($hasCopyActivity && !isset($steps[$key]) && $this->inventionCatalog->inventionOf($node['productTypeId']) === null) {
+            $steps[$copyKey] = [
+                'blueprintTypeId' => $node['blueprintTypeId'],
+                'productTypeId' => $node['productTypeId'],
+                'productTypeName' => $node['productTypeName'] . ' (BPC)',
+                'quantity' => $node['runs'],
+                'runs' => $node['runs'],
+                'outputPerRun' => 1,
+                'depth' => $node['depth'],
+                'activityType' => 'copy',
+                'meLevel' => 0,
+                'teLevel' => 0,
+                'structureConfig' => null,
+                'planningLevel' => $node['depth'],
+            ];
+        }
+
         $outputPerRun = $node['outputPerRun'];
 
         // Determine ME/TE for this step based on depth and activity type
@@ -346,6 +346,7 @@ class IndustryProjectFactory
                 'teLevel' => $stepTeLevel,
                 'structureConfig' => null,
                 'planningLevel' => $depth,
+                'hasCopyActivity' => $hasCopyActivity,
             ];
         }
 
@@ -394,10 +395,6 @@ class IndustryProjectFactory
             }
         }
         $materialsByKey = $this->materialsOfSteps($steps);
-        $blueprintTypeIdsWithCopyStep = array_column(
-            array_filter($steps, static fn (array $step): bool => $step['activityType'] === 'copy'),
-            'blueprintTypeId',
-        );
 
         uasort($steps, static fn (array $a, array $b): int => $a['planningLevel'] <=> $b['planningLevel']);
 
@@ -416,7 +413,7 @@ class IndustryProjectFactory
 
             $existingJobsWithFixedRuns = $existingJobsWithFixedRunsByKey[self::stepKey($step['blueprintTypeId'], $step['activityType'])] ?? null;
             $plannedJobs = $existingJobsWithFixedRuns === null
-                ? $this->jobsOf($step, $maxJobDurationDays, $this->bpcMaxRunsOf($step, $blueprintTypeIdsWithCopyStep))
+                ? $this->jobsOf($step, $maxJobDurationDays, $this->bpcMaxRunsOf($step))
                 : self::jobsKeepingFixedRuns($step, $existingJobsWithFixedRuns);
             $jobs = array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $plannedJobs);
             $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
@@ -564,11 +561,10 @@ class IndustryProjectFactory
 
     /**
      * @param array<string, mixed> $step
-     * @param list<int> $blueprintTypeIdsWithCopyStep
      */
-    private function bpcMaxRunsOf(array $step, array $blueprintTypeIdsWithCopyStep): ?int
+    private function bpcMaxRunsOf(array $step): ?int
     {
-        if ($step['activityType'] !== 'manufacturing' || !in_array($step['blueprintTypeId'], $blueprintTypeIdsWithCopyStep, true)) {
+        if ($step['activityType'] !== 'manufacturing' || !$step['hasCopyActivity']) {
             return null;
         }
 

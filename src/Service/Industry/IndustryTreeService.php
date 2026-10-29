@@ -35,8 +35,9 @@ class IndustryTreeService
      */
     public function buildProductionTree(int $productTypeId, int $runs = 1, int $finalMe = 0, array $excludedTypeIds = [], ?User $user = null, array $structureBonusOverrides = []): array
     {
+        $rootProducer = $this->findProducerFor($productTypeId) ?? throw new \RuntimeException("No blueprint or reaction found for product type ID {$productTypeId}");
         $missingTypeIds = [];
-        $tree = $this->buildNode($productTypeId, $runs, $finalMe, 0, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
+        $tree = $this->buildNode($rootProducer, $productTypeId, $runs * $rootProducer->getQuantity(), $finalMe, 0, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
 
         if ($missingTypeIds !== []) {
             throw new TypeMissingFromSdeException($missingTypeIds);
@@ -56,15 +57,8 @@ class IndustryTreeService
      * @param array<int, float> $structureBonusOverrides
      * @return array<string, mixed>
      */
-    private function buildNode(int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, array &$missingTypeIds, array $structureBonusOverrides = []): array
+    private function buildNode(\App\Entity\Sde\IndustryActivityProduct $product, int $productTypeId, int $quantity, int $meLevel, int $depth, array $excludedTypeIds, ?User $user, array &$missingTypeIds, array $structureBonusOverrides = []): array
     {
-        // Find the blueprint/formula that produces this type (manufacturing or reaction)
-        $product = $this->findProducerFor($productTypeId);
-
-        if ($product === null) {
-            throw new \RuntimeException("No blueprint or reaction found for product type ID {$productTypeId}");
-        }
-
         $blueprintTypeId = $product->getTypeId();
         $activityId = $product->getActivityId();
         $outputPerRun = $product->getQuantity();
@@ -164,7 +158,7 @@ class IndustryTreeService
 
             if ($isBuildable) {
                 // Intermediate manufacturing uses ME 10, reactions have no ME
-                $node['blueprint'] = $this->buildNode($matTypeId, $adjustedQuantity, $this->intermediateMeLevelFor($matProducer), $depth + 1, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
+                $node['blueprint'] = $this->buildNode($matProducer, $matTypeId, $adjustedQuantity, $this->intermediateMeLevelFor($matProducer), $depth + 1, $excludedTypeIds, $user, $missingTypeIds, $structureBonusOverrides);
             }
 
             $materialNodes[] = $node;
