@@ -88,16 +88,7 @@ class IndustryProjectFactory
         }
 
         try {
-            $settingsOfExistingSteps = $this->settingsOfExistingStepsByKeyInSplitIndexOrder($project);
-            $tree = $this->productionTreeOf($project);
-
-            $rawSteps = [];
-            $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
-            $rawSteps = array_map(fn (array $rawStep): array => $this->withSettingsOfExistingStep($rawStep, $settingsOfExistingSteps), $rawSteps);
-            $this->addTimeDataToSteps($rawSteps, $user);
-            $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), $settingsOfExistingSteps, $this->existingJobsWithFixedRunsByKey($project));
-
-            $this->sortRawSteps($rawSteps);
+            $rawSteps = $this->regenerationPlanOf($project);
             $this->applyPlanToExistingSteps($project, $rawSteps);
 
             $this->entityManager->flush();
@@ -118,7 +109,84 @@ class IndustryProjectFactory
 
     public function stepRegenerationPreviewOf(IndustryProject $project): StepRegenerationPreview
     {
-        return new StepRegenerationPreview([], 0);
+        $valuesBeforeByStepId = [];
+        foreach ($project->getSteps() as $step) {
+            $valuesBeforeByStepId[spl_object_id($step)] = self::valuesOfStep($step);
+        }
+
+        $rawSteps = $this->regenerationPlanOf($project);
+        $matching = $this->matchPlanToExistingSteps($project, $rawSteps);
+
+        $lines = array_map(
+            fn (array $match): StepRegenerationPreviewLine => new StepRegenerationPreviewLine(
+                $match['existingStep'],
+                $match['plannedStep']['blueprintTypeId'],
+                $match['plannedStep']['activityType'],
+                $match['plannedStep']['depth'],
+                $match['plannedStep']['splitIndex'] ?? 0,
+                $match['existingStep'] === null ? null : $valuesBeforeByStepId[spl_object_id($match['existingStep'])],
+                new StepJobValues(
+                    $match['plannedStep']['runs'],
+                    $match['plannedStep']['quantity'],
+                    $this->meLevelOfPlannedStep($project, $match['plannedStep']),
+                    $this->teLevelOfPlannedStep($project, $match['plannedStep']),
+                ),
+            ),
+            $matching['matches'],
+        );
+
+        $plannedKeys = array_column($matching['matches'], 'key');
+        $stepsKeptOutOfPlan = array_filter(
+            $matching['remainingStepsByKey'],
+            static fn (string $key): bool => !in_array($key, $plannedKeys, true),
+            ARRAY_FILTER_USE_KEY,
+        );
+
+        return new StepRegenerationPreview(
+            $lines,
+            count($rawSteps) + array_sum(array_map(count(...), $stepsKeptOutOfPlan)),
+        );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function regenerationPlanOf(IndustryProject $project): array
+    {
+        $user = $project->getUser();
+        $settingsOfExistingSteps = $this->settingsOfExistingStepsByKeyInSplitIndexOrder($project);
+        $tree = $this->productionTreeOf($project);
+
+        $rawSteps = [];
+        $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
+        $rawSteps = array_map(fn (array $rawStep): array => $this->withSettingsOfExistingStep($rawStep, $settingsOfExistingSteps), $rawSteps);
+        $this->addTimeDataToSteps($rawSteps, $user);
+        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), $settingsOfExistingSteps, $this->existingJobsWithFixedRunsByKey($project));
+
+        $this->sortRawSteps($rawSteps);
+
+        return $rawSteps;
+    }
+
+    private static function valuesOfStep(IndustryProjectStep $step): StepJobValues
+    {
+        return new StepJobValues($step->getRuns(), $step->getQuantity(), $step->getMeLevel(), $step->getTeLevel());
+    }
+
+    /**
+     * @param array<string, mixed> $plannedStep
+     */
+    private function meLevelOfPlannedStep(IndustryProject $project, array $plannedStep): int
+    {
+        return $plannedStep['meLevel'] ?? ($plannedStep['depth'] === 0 ? $project->getMeLevel() : 10);
+    }
+
+    /**
+     * @param array<string, mixed> $plannedStep
+     */
+    private function teLevelOfPlannedStep(IndustryProject $project, array $plannedStep): int
+    {
+        return $plannedStep['teLevel'] ?? ($plannedStep['depth'] === 0 ? $project->getTeLevel() : 20);
     }
 
     /**
@@ -217,8 +285,26 @@ class IndustryProjectFactory
         $step->setTotalGroupRuns($plannedStep['totalGroupRuns'] ?? null);
         $step->setStructureConfig($plannedStep['structureConfig']);
 
-        $step->setMeLevel($plannedStep['meLevel'] ?? ($plannedStep['depth'] === 0 ? $project->getMeLevel() : 10));
-        $step->setTeLevel($plannedStep['teLevel'] ?? ($plannedStep['depth'] === 0 ? $project->getTeLevel() : 20));
+        $step->setMeLevel($this->meLevelOfPlannedStep($project, $plannedStep));
+        $step->setTeLevel($this->teLevelOfPlannedStep($project, $plannedStep));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rawSteps
+     * @return array{matches: list<array{plannedStep: array<string, mixed>, key: string, existingStep: IndustryProjectStep|null}>, remainingStepsByKey: array<string, list<IndustryProjectStep>>}
+     */
+    private function matchPlanToExistingSteps(IndustryProject $project, array $rawSteps): array
+    {
+        $existingStepsByKey = $this->existingStepsByKeyInSplitIndexOrder($project);
+        $matches = [];
+
+        foreach ($rawSteps as $plannedStep) {
+            $key = self::stepKey($plannedStep['blueprintTypeId'], $plannedStep['activityType']);
+            $existingStepsByKey[$key] ??= [];
+            $matches[] = ['plannedStep' => $plannedStep, 'key' => $key, 'existingStep' => array_shift($existingStepsByKey[$key])];
+        }
+
+        return ['matches' => $matches, 'remainingStepsByKey' => $existingStepsByKey];
     }
 
     /**
@@ -226,18 +312,17 @@ class IndustryProjectFactory
      */
     private function applyPlanToExistingSteps(IndustryProject $project, array $rawSteps): void
     {
-        $existingStepsByKey = $this->existingStepsByKeyInSplitIndexOrder($project);
+        $matching = $this->matchPlanToExistingSteps($project, $rawSteps);
         $lastKeptStepByKey = [];
 
-        foreach ($rawSteps as $sortOrder => $plannedStep) {
-            $key = self::stepKey($plannedStep['blueprintTypeId'], $plannedStep['activityType']);
-            $existingStepsByKey[$key] ??= [];
-            $step = array_shift($existingStepsByKey[$key]) ?? new IndustryProjectStep();
-            $this->applyPlannedStep($project, $step, $plannedStep, $sortOrder);
+        foreach ($matching['matches'] as $sortOrder => $match) {
+            $step = $match['existingStep'] ?? new IndustryProjectStep();
+            $this->applyPlannedStep($project, $step, $match['plannedStep'], $sortOrder);
             $project->addStep($step);
-            $lastKeptStepByKey[$key] = $step;
+            $lastKeptStepByKey[$match['key']] = $step;
         }
 
+        $existingStepsByKey = $matching['remainingStepsByKey'];
         $stepsOutOfPlan = [];
         foreach ($existingStepsByKey as $key => $remainingSteps) {
             foreach ($remainingSteps as $remainingStep) {

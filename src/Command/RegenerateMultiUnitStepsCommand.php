@@ -10,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:industry:regenerate-multi-unit-steps',
@@ -30,6 +31,13 @@ class RegenerateMultiUnitStepsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        return Command::SUCCESS;
+        $dryRun = $input->getOption('dry-run');
+
+        return ProjectCorrectionConsoleReport::print(
+            new SymfonyStyle($input, $output),
+            $this->regeneration->run($dryRun),
+            $dryRun,
+            'No project to regenerate',
+        );
     }
 }
