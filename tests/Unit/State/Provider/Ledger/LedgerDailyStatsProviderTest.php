@@ -76,10 +76,43 @@ final class LedgerDailyStatsProviderTest extends TestCase
         $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE], $dailyStats->missingPriceTypeIds);
     }
 
+    public function testAKnownDayAddsPveAndMiningIntoItsTotalAndSubtractsExpensesFromItsProfit(): void
+    {
+        $miningDay = (new \DateTimeImmutable('-12 days'))->format('Y-m-d');
+        $pveIncomeRepository = $this->createStub(PveIncomeRepository::class);
+        $pveIncomeRepository->method('getDailyTotalsByType')->willReturn([
+            $miningDay => ['bounties' => 60.0, 'lootSales' => 40.0, 'corpProject' => 0.0],
+        ]);
+        $pveExpenseRepository = $this->createStub(PveExpenseRepository::class);
+        $pveExpenseRepository->method('getDailyTotals')->willReturn([
+            $miningDay => ['date' => $miningDay, 'total' => 30.0],
+        ]);
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([
+            $miningDay => [self::TRITANIUM => 10],
+        ]);
+        $jitaSellPrices = $this->jitaSellPricesWithoutCompressedOre();
+        $jitaSellPrices[self::TRITANIUM] = 5.0;
+
+        $dailyStats = $this->createProvider($pveIncomeRepository, $pveExpenseRepository, $miningEntryRepository, $jitaSellPrices)->provide(new Get());
+
+        $days = array_values(array_filter(
+            $dailyStats->daily,
+            static fn (LedgerDayResource $day): bool => $day->date === $miningDay,
+        ));
+        $this->assertCount(1, $days);
+        $this->assertSame(
+            ['pve' => 100.0, 'mining' => 50.0, 'expenses' => 30.0, 'total' => 150.0, 'profit' => 120.0],
+            ['pve' => $days[0]->pve, 'mining' => $days[0]->mining, 'expenses' => $days[0]->expenses, 'total' => $days[0]->total, 'profit' => $days[0]->profit],
+        );
+        $this->assertSame([], $dailyStats->missingPriceTypeIds);
+    }
+
     private function createProvider(
         PveIncomeRepository $pveIncomeRepository,
         PveExpenseRepository $pveExpenseRepository,
         MiningEntryRepository $miningEntryRepository,
+        ?array $jitaSellPrices = null,
     ): LedgerDailyStatsProvider {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
@@ -95,7 +128,7 @@ final class LedgerDailyStatsProviderTest extends TestCase
             $ledgerSettingsRepository,
             new MiningBestValueCalculator(
                 $miningEntryRepository,
-                $this->createOreValueService($this->jitaSellPricesWithoutCompressedOre()),
+                $this->createOreValueService($jitaSellPrices ?? $this->jitaSellPricesWithoutCompressedOre()),
             ),
             $requestStack,
         );

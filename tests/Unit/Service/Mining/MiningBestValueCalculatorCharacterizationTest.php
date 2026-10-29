@@ -443,6 +443,22 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         );
     }
 
+    #[Group('issue-260')]
+    public function testDailyMissingPriceTypeIdsAreSortedWithoutDuplicatesAcrossDays(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([
+            '2026-10-05' => [self::OTHER_TYPE_WITHOUT_ANY_PRICE => 640],
+            '2026-10-06' => [self::TYPE_WITHOUT_ANY_PRICE => 1830, self::OTHER_TYPE_WITHOUT_ANY_PRICE => 975],
+        ]);
+        $calculator = $this->createCalculator($miningEntryRepository);
+
+        $dailyBestValues = $calculator->getDailyBestValues($this->user, $this->from, $this->to);
+
+        $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE, self::OTHER_TYPE_WITHOUT_ANY_PRICE], $dailyBestValues['missingPriceTypeIds']);
+        $this->assertSame(['2026-10-05' => null, '2026-10-06' => null], $dailyBestValues['byDate']);
+    }
+
     private function createCalculator(
         MiningEntryRepository $miningEntryRepository,
         ?array $jitaSellPrices = null,

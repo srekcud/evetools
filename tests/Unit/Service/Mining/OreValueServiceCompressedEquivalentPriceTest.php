@@ -8,6 +8,7 @@ use App\Service\OreValueService;
 use App\Service\StructureMarketService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(OreValueService::class)]
@@ -157,6 +158,26 @@ final class OreValueServiceCompressedEquivalentPriceTest extends TestCase
         $this->assertEqualsWithDelta(1000.0, $veldspar['compressedUnitPrice'], self::PRICE_DELTA);
         $this->assertArrayHasKey('structureCompressedEquivalentPrice', $veldspar);
         $this->assertNull($veldspar['structureCompressedEquivalentPrice']);
+    }
+
+    #[TestWith([-1])]
+    public function testCompressedEquivalentPricesAreUnknownWhenTheRawPortionSizeIsNotPositive(int $rawPortionSize): void
+    {
+        $sdeTypes = $this->sdeTypes();
+        $sdeTypes[self::VELDSPAR]['portionSize'] = $rawPortionSize;
+        $sdeTypes[self::COMPRESSED_VELDSPAR]['portionSize'] = 100;
+        $oreValueService = $this->createOreValueService(
+            $this->jitaSellPricesWithCompressedVeldsparAtOneThousand(),
+            $this->structureSellingCompressedVeldspar(self::STRUCTURE_COMPRESSED_VELDSPAR_PRICE),
+            $sdeTypes,
+        );
+
+        $veldspar = $oreValueService->getBatchOrePrices([self::VELDSPAR], self::MARKET_STRUCTURE_ID)[self::VELDSPAR];
+
+        $this->assertNull($veldspar['compressedEquivalentPrice']);
+        $this->assertNull($veldspar['structureCompressedEquivalentPrice']);
+        $this->assertSame(1000.0, $veldspar['compressedUnitPrice']);
+        $this->assertSame(1100.0, $veldspar['structureCompressedUnitPrice']);
     }
 
     private function jitaSellPricesWithCompressedVeldsparAtOneThousand(): array

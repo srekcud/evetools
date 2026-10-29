@@ -97,23 +97,139 @@ final class LedgerDashboardProviderTest extends TestCase
         $this->assertSame([], $dashboard->missingPriceTypeIds);
     }
 
-    private function createProvider(MiningEntryRepository $miningEntryRepository): LedgerDashboardProvider
+    public function testPveModeSumsEveryPveIncomeTypeIncludingCorpProjects(): void
     {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([]);
+
+        $dashboard = $this->createProvider($miningEntryRepository, $this->everyPveIncomeType())->provide(new Get());
+
+        $this->assertSame(2_427_000.0, $dashboard->totals['pve']);
+        $this->assertSame(
+            ['bounties' => 1_000_000.0, 'ess' => 230_000.0, 'missions' => 470_000.0, 'lootSales' => 117_000.0, 'corpProjects' => 610_000.0],
+            $dashboard->pveBreakdown,
+        );
+    }
+
+    public function testRatesAreExactZerosWithoutDaysNorIncome(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([]);
+
+        $dashboard = $this->createProvider($miningEntryRepository, [], 25_000.0, UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE, ['days' => '0'])
+            ->provide(new Get());
+
+        $this->assertSame(0.0, $dashboard->totals['total']);
+        $this->assertSame(-25_000.0, $dashboard->totals['profit']);
+        $this->assertSame(0.0, $dashboard->iskPerDay);
+        $this->assertSame(0.0, $dashboard->pvePercent);
+        $this->assertSame(0.0, $dashboard->miningPercent);
+    }
+
+    public function testPveModeExcludesCorpProjectMiningFromTheMiningTotalAndItsBreakdown(): void
+    {
+        $miningEntryRepository = $this->createMock(MiningEntryRepository::class);
+        $miningEntryRepository->expects($this->once())
+            ->method('getQuantitiesByType')
+            ->with($this->isInstanceOf(User::class), $this->anything(), $this->anything(), [MiningEntry::USAGE_CORP_PROJECT])
+            ->willReturn([self::BITUMENS => ['typeId' => self::BITUMENS, 'quantity' => 1000]]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([
+            MiningEntry::USAGE_SOLD => [self::BITUMENS => 1000],
+            MiningEntry::USAGE_CORP_PROJECT => [self::FULLERITE_C50 => 300],
+        ]);
+
+        $dashboard = $this->createProvider($miningEntryRepository, $this->everyPveIncomeType(), self::EXPENSES, UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE)
+            ->provide(new Get());
+
+        $this->assertEqualsWithDelta(831214.8, $dashboard->totals['mining'], self::VALUE_DELTA);
+        $this->assertSame(0.0, $dashboard->miningBreakdown['corpProject']);
+        $this->assertSame(610_000.0, $dashboard->pveBreakdown['corpProjects']);
+    }
+
+    public function testMiningModeCountsCorpProjectMiningInTheMiningTotalAndItsBreakdown(): void
+    {
+        $miningEntryRepository = $this->createMock(MiningEntryRepository::class);
+        $miningEntryRepository->expects($this->once())
+            ->method('getQuantitiesByType')
+            ->with($this->isInstanceOf(User::class), $this->anything(), $this->anything(), null)
+            ->willReturn([
+                self::BITUMENS => ['typeId' => self::BITUMENS, 'quantity' => 1000],
+                self::FULLERITE_C50 => ['typeId' => self::FULLERITE_C50, 'quantity' => 300],
+            ]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([
+            MiningEntry::USAGE_SOLD => [self::BITUMENS => 1000],
+            MiningEntry::USAGE_CORP_PROJECT => [self::FULLERITE_C50 => 300],
+        ]);
+
+        $dashboard = $this->createProvider($miningEntryRepository, $this->everyPveIncomeType(), self::EXPENSES, UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING)
+            ->provide(new Get());
+
+        $this->assertSame(1_817_000.0, $dashboard->totals['pve']);
+        $this->assertSame(0.0, $dashboard->pveBreakdown['corpProjects']);
+        $this->assertEqualsWithDelta(1653514.8, $dashboard->totals['mining'], self::VALUE_DELTA);
+        $this->assertSame(822_300.0, $dashboard->miningBreakdown['corpProject']);
+    }
+
+    public function testMiningModeLeavesTheCorpProjectMiningBreakdownUnknownWhenItHoldsATypeWithoutPrice(): void
+    {
+        $miningEntryRepository = $this->createMock(MiningEntryRepository::class);
+        $miningEntryRepository->expects($this->once())
+            ->method('getQuantitiesByType')
+            ->with($this->isInstanceOf(User::class), $this->anything(), $this->anything(), null)
+            ->willReturn([
+                self::BITUMENS => ['typeId' => self::BITUMENS, 'quantity' => 1000],
+                self::FULLERITE_C50 => ['typeId' => self::FULLERITE_C50, 'quantity' => 300],
+                self::TYPE_WITHOUT_ANY_PRICE => ['typeId' => self::TYPE_WITHOUT_ANY_PRICE, 'quantity' => 700],
+            ]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([
+            MiningEntry::USAGE_SOLD => [self::BITUMENS => 1000],
+            MiningEntry::USAGE_CORP_PROJECT => [self::TYPE_WITHOUT_ANY_PRICE => 700, self::FULLERITE_C50 => 300],
+        ]);
+
+        $dashboard = $this->createProvider($miningEntryRepository, $this->everyPveIncomeType(), self::EXPENSES, UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING)
+            ->provide(new Get());
+
+        $this->assertEqualsWithDelta(831214.8, $dashboard->miningBreakdown['sold'], self::VALUE_DELTA);
+        $this->assertNull($dashboard->miningBreakdown['corpProject']);
+        $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE], $dashboard->missingPriceTypeIds);
+    }
+
+    private function everyPveIncomeType(): array
+    {
+        return [
+            PveIncomeType::Bounty->value => 1_000_000.0,
+            PveIncomeType::Ess->value => 230_000.0,
+            PveIncomeType::Mission->value => 470_000.0,
+            PveIncomeType::LootSale->value => 85_000.0,
+            PveIncomeType::LootContract->value => 32_000.0,
+            PveIncomeType::CorpProject->value => 610_000.0,
+        ];
+    }
+
+    private function createProvider(
+        MiningEntryRepository $miningEntryRepository,
+        array $pveIncomeTotalsByType = [PveIncomeType::Bounty->value => self::BOUNTIES],
+        float $expensesTotal = self::EXPENSES,
+        string $corpProjectAccounting = UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE,
+        array $query = [],
+    ): LedgerDashboardProvider {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
         $pveIncomeRepository = $this->createStub(PveIncomeRepository::class);
-        $pveIncomeRepository->method('getTotalsByType')->willReturn([PveIncomeType::Bounty->value => self::BOUNTIES]);
+        $pveIncomeRepository->method('getTotalsByType')->willReturn($pveIncomeTotalsByType);
         $pveExpenseRepository = $this->createStub(PveExpenseRepository::class);
-        $pveExpenseRepository->method('getTotalByUserAndDateRange')->willReturn(self::EXPENSES);
-        $pveExpenseRepository->method('getTotalsByTypeAndDateRange')->willReturn([PveExpense::TYPE_AMMO => self::EXPENSES]);
+        $pveExpenseRepository->method('getTotalByUserAndDateRange')->willReturn($expensesTotal);
+        $pveExpenseRepository->method('getTotalsByTypeAndDateRange')->willReturn([PveExpense::TYPE_AMMO => $expensesTotal]);
         $ledgerSettingsRepository = $this->createStub(UserLedgerSettingsRepository::class);
         $ledgerSettingsRepository->method('findByUser')->willReturn(
-            (new UserLedgerSettings())->setCorpProjectAccounting(UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE),
+            (new UserLedgerSettings())->setCorpProjectAccounting($corpProjectAccounting),
         );
         $pveSettingsRepository = $this->createStub(UserPveSettingsRepository::class);
         $pveSettingsRepository->method('findByUser')->willReturn(null);
         $requestStack = new RequestStack();
-        $requestStack->push(new Request());
+        $requestStack->push(new Request($query));
 
         return new LedgerDashboardProvider(
             $security,

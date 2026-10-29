@@ -86,14 +86,29 @@ final class MiningStatsProviderTest extends TestCase
         $this->assertSame([], $stats->missingPriceTypeIds);
     }
 
-    private function createProvider(MiningEntryRepository $miningEntryRepository): MiningStatsProvider
+    public function testIskPerDayIsAnExactZeroWithoutDays(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getTotalQuantityByUserAndDateRange')->willReturn(1000);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([
+            self::BITUMENS => ['typeId' => self::BITUMENS, 'quantity' => 1000],
+        ]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([]);
+
+        $stats = $this->createProvider($miningEntryRepository, ['days' => '0'])->provide(new Get());
+
+        $this->assertEqualsWithDelta(831214.8, $stats->totals['totalValue'], self::VALUE_DELTA);
+        $this->assertSame(0.0, $stats->iskPerDay);
+    }
+
+    private function createProvider(MiningEntryRepository $miningEntryRepository, array $query = []): MiningStatsProvider
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
         $settingsRepository = $this->createStub(UserLedgerSettingsRepository::class);
         $settingsRepository->method('findByUser')->willReturn(null);
         $requestStack = new RequestStack();
-        $requestStack->push(new Request());
+        $requestStack->push(new Request($query));
 
         return new MiningStatsProvider(
             $security,
