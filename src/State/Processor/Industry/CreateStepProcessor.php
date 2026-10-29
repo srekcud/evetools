@@ -10,10 +10,13 @@ use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\CreateStepInput;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
+use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\SplitGroupMaterials;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -155,21 +158,14 @@ class CreateStepProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Unknown type');
         }
 
-        $activityProduct = $this->activityProductRepository->findOneBy([
-            'productTypeId' => $typeId,
-            'activityId' => 1,
-        ]);
-
-        if ($activityProduct === null) {
-            $activityProduct = $this->activityProductRepository->findOneBy([
-                'productTypeId' => $typeId,
-                'activityId' => 11,
-            ]);
+        try {
+            $producer = SplitGroupMaterials::producerOf($this->activityProductRepository, $typeId);
+        } catch (ProducerMissingFromSdeException $missingProducer) {
+            throw new BadRequestHttpException($missingProducer->getMessage(), $missingProducer);
         }
 
-        $blueprintTypeId = $activityProduct?->getTypeId() ?? $typeId;
-        $activityType = match ($activityProduct?->getActivityId()) {
-            11 => 'reaction',
+        $activityType = match ($producer->getActivityId()) {
+            IndustryActivityType::Reaction->value => 'reaction',
             default => 'manufacturing',
         };
 
@@ -181,9 +177,9 @@ class CreateStepProcessor implements ProcessorInterface
         }
 
         $step = new IndustryProjectStep();
-        $step->setBlueprintTypeId($blueprintTypeId);
+        $step->setBlueprintTypeId($producer->getTypeId());
         $step->setProductTypeId($typeId);
-        $step->setQuantity($runs);
+        $step->setQuantity($runs * $producer->getQuantity());
         $step->setRuns($runs);
         $step->setDepth(0);
         $step->setActivityType($activityType);
