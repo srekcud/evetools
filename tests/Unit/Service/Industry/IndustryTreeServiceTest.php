@@ -369,19 +369,39 @@ class IndustryTreeServiceTest extends TestCase
             'category' => 'ship',
         ]);
 
-        $this->bonusService->method('getCategoryForProduct')->willReturn('ship');
-        $this->bonusService->method('findBestStructureForCategory')->willReturn([
-            'bonus' => ['base' => 1.0, 'rig' => 4.2, 'total' => 5.16],
-            'structure' => null,
-            'category' => 'ship',
-        ]);
-
         // ME 10, 26 runs, base 100, structure base 1%, rig 4.2%
         // 100 * 26 * 0.9 * 0.99 * 0.958 = 2219.30 -> ceil -> 2220
         $tree = $this->service->buildProductionTree(200, 26, 10, [], $user);
 
         $this->assertSame(2220, $tree['materials'][0]['quantity']);
         $this->assertSame(5.16, $tree['structureBonus']);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    #[Group('issue-286')]
+    public function testMaterialOfAnotherRigCategoryThanTheProductIsReducedByTheStructureBonusOfTheProductJob(): void
+    {
+        $shipBlueprint = $this->createProduct(100, IndustryActivityType::Manufacturing->value, 200, 1);
+        $this->setupProductLookup([200 => ['blueprint' => $shipBlueprint, 'reaction' => null]]);
+        $this->activityMaterialRepository->method('findBy')->willReturn([$this->createMaterial(100, IndustryActivityType::Manufacturing->value, 300, 120)]);
+        $this->invTypeRepository->method('find')->willReturnCallback(fn (int $typeId) => $this->createInvType($typeId, "Type #{$typeId}"));
+        $this->bonusService->method('findBestStructureForProduct')->willReturn([
+            'bonus' => ['base' => 1.0, 'rig' => 4.2, 'total' => 5.16],
+            'structure' => null,
+            'category' => 'ship',
+        ]);
+        $this->bonusService->method('getCategoryForProduct')->willReturnCallback(
+            static fn (int $typeId): string => $typeId === 300 ? 'advanced_component' : 'ship',
+        );
+        $this->bonusService->method('findBestStructureForCategory')->willReturn([
+            'bonus' => ['base' => 1.0, 'rig' => 2.0, 'total' => 2.98],
+            'structure' => null,
+            'category' => 'advanced_component',
+        ]);
+
+        $tree = $this->service->buildProductionTree(200, 26, 10, [], $this->createStub(User::class));
+
+        $this->assertSame([300, 2664], [$tree['materials'][0]['typeId'], $tree['materials'][0]['quantity']]);
     }
 
     // ===========================================

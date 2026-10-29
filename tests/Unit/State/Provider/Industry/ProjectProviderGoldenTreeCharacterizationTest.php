@@ -352,9 +352,34 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
             [[3, 99]],
             array_map(static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity()], $this->stepsOf($project, self::HYDROGEN_FUEL_BLOCK)),
         );
-        self::assertSame([49, 25, 25], self::quantitiesOfRowsOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([self::FERNITE_CARBIDE => 49, self::FERNITE_ALLOY => 25, self::CERAMIC_POWDER => 25], self::rowQuantityOfEachConsumerOf($tree, self::HYDROGEN_FUEL_BLOCK));
         self::assertSame([[99, 3]], self::quantityAndRunsOfNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
         self::assertSame(self::THREE_RUNS_OF_HYDROGEN_FUEL_BLOCK_AT_ME_TEN_IN_THE_RAITARU, $fuelBlockLeaves);
+    }
+
+    #[Group('issue-286')]
+    public function testFuelBlockOfOneUnsplitNomadInATataraHasTheRowOfEachConsumerJobWithTheReactorRigAndTheirSumInItsStepAndItsNode(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+        $project = $this->projectOnGoldenSde($this->pilot, self::NOMAD, 1, 10, 20, self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
+
+        $tree = $this->treeOf($project);
+        $fuelBlockRows = self::rowQuantityOfEachConsumerOf($tree, self::HYDROGEN_FUEL_BLOCK);
+
+        self::assertSame(
+            [self::FERNITE_ALLOY => [525, 2556], self::CERAMIC_POWDER => [666, 3243], self::FERNITE_CARBIDE => [953, 4640]],
+            [
+                self::FERNITE_ALLOY => [self::nodesOf($tree, self::FERNITE_ALLOY)[0]['runs'], $fuelBlockRows[self::FERNITE_ALLOY]],
+                self::CERAMIC_POWDER => [self::nodesOf($tree, self::CERAMIC_POWDER)[0]['runs'], $fuelBlockRows[self::CERAMIC_POWDER]],
+                self::FERNITE_CARBIDE => [self::nodesOf($tree, self::FERNITE_CARBIDE)[0]['runs'], $fuelBlockRows[self::FERNITE_CARBIDE]],
+            ],
+        );
+        self::assertSame([13, 12109], [\count($fuelBlockRows), array_sum($fuelBlockRows)]);
+        self::assertSame([[12109, 303]], self::quantityAndRunsOfNodesOf($tree, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame(
+            [[303, 12109]],
+            array_map(static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity()], $this->stepsOf($project, self::HYDROGEN_FUEL_BLOCK)),
+        );
     }
 
     #[Group('issue-121')]
@@ -940,6 +965,20 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         }
 
         return $quantities;
+    }
+
+    private static function rowQuantityOfEachConsumerOf(array $tree, int $typeId): array
+    {
+        $quantityByConsumer = [];
+        foreach (self::allNodesOf($tree) as $node) {
+            foreach ($node['materials'] as $material) {
+                if ($material['typeId'] === $typeId) {
+                    $quantityByConsumer[$node['productTypeId']] = $material['quantity'];
+                }
+            }
+        }
+
+        return $quantityByConsumer;
     }
 
     private static function nodeCountOf(array $tree): int

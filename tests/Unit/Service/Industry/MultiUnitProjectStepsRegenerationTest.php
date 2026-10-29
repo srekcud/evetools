@@ -317,6 +317,8 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
         );
         $rootJobs = self::runsAndQuantityOfEachJob($this->rootJobsOf($project));
         self::assertSame([self::LARGE_FERNITE_CARBIDE_RUNS, 1_000_000_000], [array_sum(array_column($rootJobs, 0)), array_sum(array_column($rootJobs, 1))]);
+        $hydrogenFuelBlockJobs = self::runsAndQuantityOfEachJob($this->jobsOfProduct($project, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([24_146, 965_814], [array_sum(array_column($hydrogenFuelBlockJobs, 0)), array_sum(array_column($hydrogenFuelBlockJobs, 1))]);
     }
 
     public function testRootOfOneJobRegeneratedOverTheMaximumJobDurationIsSplitInTwoJobs(): void

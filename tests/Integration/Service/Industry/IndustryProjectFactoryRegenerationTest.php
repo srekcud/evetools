@@ -77,6 +77,16 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const int POLYMERS_PER_REACTION_RUN = 20;
     private const int MINERALS_PER_POLYMER_REACTION_RUN = 12;
     private const int POLYMER_REACTION_TIME_PER_RUN_SECONDS = 3600;
+    private const int POLYMER_FORMULA_GROUP_ID = 999_992_429;
+    private const int FUEL_BLOCK_GROUP_ID = 999_992_338;
+    private const int FUEL_BLOCK_TYPE_ID = 999_992_351;
+    private const int FUEL_BLOCK_BLUEPRINT_TYPE_ID = 999_992_352;
+    private const int FUEL_BLOCKS_PER_POLYMER_REACTION_RUN = 5;
+    private const int MINERALS_PER_FUEL_BLOCK_RUN = 9;
+    private const string POLYMER_RIG_CATEGORY = 'composite_reaction';
+    private const string REACTOR_EFFICIENCY_RIG = 'Standup L-Set Reactor Efficiency II';
+    private const string COMPOSITE_REACTOR_MATERIAL_RIG = 'Standup M-Set Composite Reactor Material Efficiency I';
+    private const int COMPOSITE_PLATE_RUNS_NEEDING_SIXTEEN_POLYMER_RUNS = 56;
 
     private const int HULL_COMPONENTS_PER_DESTROYER_RUN = 3;
     private const int SUB_COMPONENTS_PER_HULL_COMPONENT_RUN = 7;
@@ -94,6 +104,9 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     private const string TEST_TATARA = 'Test Tatara';
     private const string FAVORITE_RAITARU = 'Favorite Raitaru';
     private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30_000_142;
+    private const string TEST_ATHANOR = 'Test Athanor';
+    private const string FAVORITE_ATHANOR = 'Favorite Athanor';
+    private const int FAVORITE_REACTION_SYSTEM_ID = 30_000_144;
 
     private const int COMPONENTS_PER_FRIGATE_RUN = 4;
     private const int MINERALS_PER_COMPONENT_RUN = 10;
@@ -672,7 +685,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     #[Group('issue-286')]
     public function testIntermediatesOfADestroyerAreCreatedWithTheStructureOfTheFavoriteSystemThatTheCascadeKeeps(): void
     {
-        $this->structure(self::FAVORITE_RAITARU, 'raitaru')->setSolarSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID);
+        $this->structure(self::FAVORITE_RAITARU, 'raitaru')->setSolarSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID)->setRigs([self::HULL_COMPONENT_MATERIAL_RIG]);
         $this->raitaru(self::NULLSEC_RAITARU, 'nullsec');
         $this->em->persist((new IndustryUserSettings())->setUser($this->pilot)->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID));
         $this->em->flush();
@@ -680,8 +693,43 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
 
         self::assertSame([[0, 14, 14, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));
-        self::assertSame([[0, 88, 88, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::SUB_COMPONENT_TYPE_ID));
+        self::assertSame([[0, 86, 86, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::SUB_COMPONENT_TYPE_ID));
         self::assertSame([], $this->stepCalculator()->recalculateStepQuantities($project));
+    }
+
+    #[Group('issue-286')]
+    public function testFuelBlocksOfAPolymerReactionAreCreatedWithTheStructureOfTheFavoriteReactionSystemThatTheCascadeKeeps(): void
+    {
+        $this->seedFuelBlocksOfACompositePolymerReaction();
+        $this->structure(self::FAVORITE_ATHANOR, 'athanor')->setSolarSystemId(self::FAVORITE_REACTION_SYSTEM_ID)->setRigs([self::COMPOSITE_REACTOR_MATERIAL_RIG]);
+        $this->structure(self::TEST_TATARA, 'tatara')->setSecurityType('nullsec')->setRigs([self::REACTOR_EFFICIENCY_RIG]);
+        $this->em->persist((new IndustryUserSettings())->setUser($this->pilot)->setFavoriteReactionSystemId(self::FAVORITE_REACTION_SYSTEM_ID));
+        $this->em->flush();
+
+        $project = $this->factory->createProject($this->pilot, self::COMPOSITE_PLATE_TYPE_ID, self::COMPOSITE_PLATE_RUNS_NEEDING_SIXTEEN_POLYMER_RUNS, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+
+        self::assertSame([[0, 16, 303, 0, 0, null]], $this->settingsOfJobsOfProduct($project, self::POLYMER_TYPE_ID));
+        self::assertSame([[0, 79, 79, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::FUEL_BLOCK_TYPE_ID));
+        self::assertSame([], $this->stepCalculator()->recalculateStepQuantities($project));
+    }
+
+    #[Group('issue-286')]
+    public function testRegenerationKeepsTheAthanorOfAPolymerReactionAndPlansItsFuelBlocksWithItsMaterialBonusRatherThanTheBetterRiggedTatara(): void
+    {
+        $this->seedFuelBlocksOfACompositePolymerReaction();
+        $athanor = $this->structure(self::TEST_ATHANOR, 'athanor')->setRigs([self::COMPOSITE_REACTOR_MATERIAL_RIG]);
+        $this->structure(self::TEST_TATARA, 'tatara')->setSecurityType('nullsec')->setRigs([self::REACTOR_EFFICIENCY_RIG]);
+        $this->em->flush();
+        $project = $this->factory->createProject($this->pilot, self::COMPOSITE_PLATE_TYPE_ID, self::COMPOSITE_PLATE_RUNS_NEEDING_SIXTEEN_POLYMER_RUNS, 10, self::MAX_JOB_DURATION_DAYS_WITHOUT_SPLIT, 20);
+        self::assertSame([[0, 78, 78, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::FUEL_BLOCK_TYPE_ID));
+        $this->stepOfProduct($project, self::POLYMER_TYPE_ID)->setStructureConfig($athanor);
+        $this->em->flush();
+
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame([[0, 16, 303, 0, 0, self::TEST_ATHANOR]], $this->settingsOfJobsOfProduct($project, self::POLYMER_TYPE_ID));
+        self::assertSame([[0, 79, 79, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::FUEL_BLOCK_TYPE_ID));
     }
 
     public function testExcludedComponentsAreRememberedOnceAndNeverPlannedAtCreationNorAtRegeneration(): void
@@ -950,6 +998,17 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $this->em->persist((new IndustryActivityProduct())->setTypeId(self::POLYMER_FORMULA_TYPE_ID)->setActivityId($reaction)->setProductTypeId(self::POLYMER_TYPE_ID)->setQuantity(self::POLYMERS_PER_REACTION_RUN));
         $this->em->persist((new IndustryActivityMaterial())->setTypeId(self::POLYMER_FORMULA_TYPE_ID)->setActivityId($reaction)->setMaterialTypeId(self::MINERAL_TYPE_ID)->setQuantity(self::MINERALS_PER_POLYMER_REACTION_RUN));
         $this->em->persist((new IndustryActivity())->setTypeId(self::POLYMER_FORMULA_TYPE_ID)->setActivityId($reaction)->setTime(self::POLYMER_REACTION_TIME_PER_RUN_SECONDS));
+    }
+
+    private function seedFuelBlocksOfACompositePolymerReaction(): void
+    {
+        $category = $this->em->find(InvCategory::class, self::SHIP_CATEGORY_ID);
+        self::assertNotNull($category);
+        $this->type(self::POLYMER_FORMULA_TYPE_ID, 'Test Polymer Reaction Formula', $this->group(self::POLYMER_FORMULA_GROUP_ID, 'Test Composite Reaction Formulas', $category));
+        $this->em->persist((new IndustryRigCategory())->setGroupId(self::POLYMER_FORMULA_GROUP_ID)->setCategory(self::POLYMER_RIG_CATEGORY));
+        $this->type(self::FUEL_BLOCK_TYPE_ID, 'Test Fuel Block', $this->group(self::FUEL_BLOCK_GROUP_ID, 'Test Fuel Block', $category));
+        $this->manufacturingRecipe(self::FUEL_BLOCK_BLUEPRINT_TYPE_ID, self::FUEL_BLOCK_TYPE_ID, self::MINERAL_TYPE_ID, self::MINERALS_PER_FUEL_BLOCK_RUN);
+        $this->em->persist((new IndustryActivityMaterial())->setTypeId(self::POLYMER_FORMULA_TYPE_ID)->setActivityId(IndustryActivityType::Reaction->value)->setMaterialTypeId(self::FUEL_BLOCK_TYPE_ID)->setQuantity(self::FUEL_BLOCKS_PER_POLYMER_REACTION_RUN));
     }
 
     private function manufacturingRecipe(int $blueprintTypeId, int $productTypeId, int $materialTypeId, int $baseQuantityPerRun, int $baseTimePerRunSeconds = self::BASE_TIME_PER_RUN_SECONDS): void
