@@ -57,7 +57,6 @@ class LedgerDailyStatsProvider implements ProviderInterface
         // Get expense daily totals
         $expenseDaily = $this->pveExpenseRepository->getDailyTotals($user, $from, $to);
 
-        // Get mining daily totals using best-price strategy
         $excludeMiningUsages = $corpProjectAccounting === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE
             ? [MiningEntry::USAGE_CORP_PROJECT]
             : null;
@@ -77,16 +76,14 @@ class LedgerDailyStatsProvider implements ProviderInterface
             $pveDay = $pveDailyByType[$dateStr] ?? ['bounties' => 0.0, 'lootSales' => 0.0];
             $day->pve = $pveDay['bounties'] + $pveDay['lootSales'];
 
-            // Mining (best-price strategy)
-            $day->mining = $miningDailyBestValues[$dateStr] ?? 0.0;
+            $day->mining = array_key_exists($dateStr, $miningDailyBestValues['byDate']) ? $miningDailyBestValues['byDate'][$dateStr] : 0.0;
 
             // Expenses
             $expenseDay = $expenseDaily[$dateStr] ?? ['total' => 0.0];
             $day->expenses = $expenseDay['total'];
 
-            // Total and profit
-            $day->total = $day->pve + $day->mining;
-            $day->profit = $day->total - $day->expenses;
+            $day->total = $day->mining === null ? null : $day->pve + $day->mining;
+            $day->profit = $day->total === null ? null : $day->total - $day->expenses;
 
             $daily[] = $day;
             $current = $current->modify('+1 day');
@@ -99,6 +96,7 @@ class LedgerDailyStatsProvider implements ProviderInterface
             'days' => $days,
         ];
         $resource->daily = $daily;
+        $resource->missingPriceTypeIds = $miningDailyBestValues['missingPriceTypeIds'];
 
         return $resource;
     }

@@ -62,14 +62,19 @@ class MiningStatsByTypeProvider implements ProviderInterface
             $stat = new MiningTypeStatsResource();
             $stat->typeId = $data['typeId'];
             $stat->typeName = $data['typeName'];
-            $bestUnitPrice = $bestPrices[$data['typeId']] ?? 0.0;
-            $stat->totalValue = $bestUnitPrice * $data['totalQuantity'];
+            $bestUnitPrice = $bestPrices[$data['typeId']];
+            $stat->totalValue = $bestUnitPrice === null ? null : $bestUnitPrice * $data['totalQuantity'];
             $stat->totalQuantity = $data['totalQuantity'];
             $typeStats[] = $stat;
         }
 
-        // Re-sort by totalValue DESC after recalculation
-        usort($typeStats, fn(MiningTypeStatsResource $a, MiningTypeStatsResource $b) => $b->totalValue <=> $a->totalValue);
+        usort($typeStats, static function (MiningTypeStatsResource $a, MiningTypeStatsResource $b): int {
+            if ($a->totalValue === null || $b->totalValue === null) {
+                return ($a->totalValue === null) <=> ($b->totalValue === null);
+            }
+
+            return $b->totalValue <=> $a->totalValue;
+        });
 
         $resource = new MiningStatsByTypeResource();
         $resource->period = [

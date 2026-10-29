@@ -49,7 +49,6 @@ class MiningStatsDailyProvider implements ProviderInterface
         $settings = $this->settingsRepository->findByUser($user);
         $excludeUsages = $this->getExcludeUsages($settings);
 
-        // Get daily best-price values
         $dailyBestValues = $this->miningBestValueCalculator->getDailyBestValues($user, $from, $to, $excludeUsages);
 
         // Get daily quantities for display
@@ -63,7 +62,7 @@ class MiningStatsDailyProvider implements ProviderInterface
             $dayStats = new MiningDailyStatsResource();
             $dayStats->date = $dateStr;
 
-            $dayStats->totalValue = $dailyBestValues[$dateStr] ?? 0.0;
+            $dayStats->totalValue = array_key_exists($dateStr, $dailyBestValues['byDate']) ? $dailyBestValues['byDate'][$dateStr] : 0.0;
             if (isset($dailyTotals[$dateStr])) {
                 $dayStats->totalQuantity = $dailyTotals[$dateStr]['totalQuantity'];
             }
@@ -79,6 +78,7 @@ class MiningStatsDailyProvider implements ProviderInterface
             'days' => $days,
         ];
         $resource->daily = $daily;
+        $resource->missingPriceTypeIds = $dailyBestValues['missingPriceTypeIds'];
 
         return $resource;
     }

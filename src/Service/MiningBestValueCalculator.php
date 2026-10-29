@@ -7,14 +7,15 @@ namespace App\Service;
 use App\Entity\User;
 use App\Repository\MiningEntryRepository;
 
-/**
- * Calculates mining value using the "best price" strategy:
- * GREATEST(compressedEquivalentPrice, reprocessValue, structureCompressedUnitPrice/100, structureReprocessValue, rawUnitPrice)
- *
- * This matches the frontend logic in useMiningPricing.ts getBestPriceValue().
- */
 class MiningBestValueCalculator
 {
+    private const array COMPARED_PRICE_SOURCES = [
+        'compressedEquivalentPrice',
+        'reprocessValue',
+        'structureCompressedEquivalentPrice',
+        'structureReprocessValue',
+    ];
+
     public function __construct(
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly OreValueService $oreValueService,
@@ -22,38 +23,32 @@ class MiningBestValueCalculator
     }
 
     /**
-     * Calculate the total best value for all mining entries in a date range.
-     *
      * @param list<string>|null $excludeUsages
+     * @return array{totalValue: float|null, missingPriceTypeIds: list<int>}
      */
     public function getTotalBestValue(
         User $user,
         \DateTimeImmutable $from,
         \DateTimeImmutable $to,
         ?array $excludeUsages = null,
-    ): float {
+    ): array {
         $quantitiesByType = $this->miningEntryRepository->getQuantitiesByType($user, $from, $to, $excludeUsages);
 
         if (empty($quantitiesByType)) {
-            return 0.0;
+            return ['totalValue' => 0.0, 'missingPriceTypeIds' => []];
         }
 
-        $typeIds = array_keys($quantitiesByType);
-        $bestPrices = $this->getBestUnitPrices($typeIds);
+        $bestPrices = $this->getBestUnitPrices(array_keys($quantitiesByType));
 
-        $total = 0.0;
-        foreach ($quantitiesByType as $typeId => $data) {
-            $total += ($bestPrices[$typeId] ?? 0.0) * $data['quantity'];
-        }
-
-        return $total;
+        return $this->valueQuantities(
+            array_map(static fn (array $data): int => $data['quantity'], $quantitiesByType),
+            $bestPrices,
+        );
     }
 
     /**
-     * Calculate daily best values for mining entries in a date range.
-     *
      * @param list<string>|null $excludeUsages
-     * @return array<string, float> date => totalBestValue
+     * @return array{byDate: array<string, float|null>, missingPriceTypeIds: list<int>}
      */
     public function getDailyBestValues(
         User $user,
@@ -64,35 +59,27 @@ class MiningBestValueCalculator
         $byDateAndType = $this->miningEntryRepository->getQuantitiesByTypeAndDate($user, $from, $to, $excludeUsages);
 
         if (empty($byDateAndType)) {
-            return [];
+            return ['byDate' => [], 'missingPriceTypeIds' => []];
         }
 
-        // Collect all unique type IDs across all dates
-        $allTypeIds = [];
-        foreach ($byDateAndType as $typeQuantities) {
-            foreach (array_keys($typeQuantities) as $typeId) {
-                $allTypeIds[$typeId] = true;
-            }
-        }
+        $bestPrices = $this->getBestUnitPricesOfEverySet($byDateAndType);
 
-        $bestPrices = $this->getBestUnitPrices(array_keys($allTypeIds));
-
-        $dailyValues = [];
+        $byDate = [];
+        $missingPriceTypeIds = [];
         foreach ($byDateAndType as $date => $typeQuantities) {
-            $dayTotal = 0.0;
-            foreach ($typeQuantities as $typeId => $quantity) {
-                $dayTotal += ($bestPrices[$typeId] ?? 0.0) * $quantity;
-            }
-            $dailyValues[$date] = $dayTotal;
+            $dayValue = $this->valueQuantities($typeQuantities, $bestPrices);
+            $byDate[$date] = $dayValue['totalValue'];
+            $missingPriceTypeIds = array_merge($missingPriceTypeIds, $dayValue['missingPriceTypeIds']);
         }
 
-        return $dailyValues;
+        $missingPriceTypeIds = array_unique($missingPriceTypeIds);
+        sort($missingPriceTypeIds);
+
+        return ['byDate' => $byDate, 'missingPriceTypeIds' => $missingPriceTypeIds];
     }
 
     /**
-     * Calculate totals by usage using the best-price strategy.
-     *
-     * @return array<string, array{totalValue: float, totalQuantity: int}>
+     * @return array<string, array{totalValue: float|null, totalQuantity: int, missingPriceTypeIds: list<int>}>
      */
     public function getTotalsByUsageBestValue(
         User $user,
@@ -105,27 +92,15 @@ class MiningBestValueCalculator
             return [];
         }
 
-        // Collect all unique type IDs across all usages
-        $allTypeIds = [];
-        foreach ($byUsageAndType as $typeQuantities) {
-            foreach (array_keys($typeQuantities) as $typeId) {
-                $allTypeIds[$typeId] = true;
-            }
-        }
-
-        $bestPrices = $this->getBestUnitPrices(array_keys($allTypeIds));
+        $bestPrices = $this->getBestUnitPricesOfEverySet($byUsageAndType);
 
         $totals = [];
         foreach ($byUsageAndType as $usage => $typeQuantities) {
-            $totalValue = 0.0;
-            $totalQuantity = 0;
-            foreach ($typeQuantities as $typeId => $quantity) {
-                $totalValue += ($bestPrices[$typeId] ?? 0.0) * $quantity;
-                $totalQuantity += $quantity;
-            }
+            $usageValue = $this->valueQuantities($typeQuantities, $bestPrices);
             $totals[$usage] = [
-                'totalValue' => $totalValue,
-                'totalQuantity' => $totalQuantity,
+                'totalValue' => $usageValue['totalValue'],
+                'totalQuantity' => array_sum($typeQuantities),
+                'missingPriceTypeIds' => $usageValue['missingPriceTypeIds'],
             ];
         }
 
@@ -133,10 +108,8 @@ class MiningBestValueCalculator
     }
 
     /**
-     * Get best unit prices for the given ore types.
-     *
      * @param int[] $typeIds
-     * @return array<int, float> typeId => bestUnitPrice
+     * @return array<int, float|null> typeId => bestUnitPrice, null when the type has no price
      */
     public function getBestUnitPrices(array $typeIds): array
     {
@@ -155,33 +128,72 @@ class MiningBestValueCalculator
     }
 
     /**
-     * Compute the best unit price from ore price data.
-     * Mirrors frontend getBestPriceValue() logic.
-     *
+     * @param array<string, array<int, int>> $quantitiesBySet
+     * @return array<int, float|null>
+     */
+    private function getBestUnitPricesOfEverySet(array $quantitiesBySet): array
+    {
+        $typeIds = [];
+        foreach ($quantitiesBySet as $typeQuantities) {
+            foreach (array_keys($typeQuantities) as $typeId) {
+                $typeIds[$typeId] = true;
+            }
+        }
+
+        return $this->getBestUnitPrices(array_keys($typeIds));
+    }
+
+    /**
+     * @param array<int, int> $typeQuantities typeId => quantity
+     * @param array<int, float|null> $bestPrices
+     * @return array{totalValue: float|null, missingPriceTypeIds: list<int>}
+     */
+    private function valueQuantities(array $typeQuantities, array $bestPrices): array
+    {
+        $totalValue = 0.0;
+        $missingPriceTypeIds = [];
+        foreach ($typeQuantities as $typeId => $quantity) {
+            if ($quantity === 0) {
+                continue;
+            }
+            $bestPrice = $bestPrices[$typeId];
+            if ($bestPrice === null) {
+                $missingPriceTypeIds[] = $typeId;
+                continue;
+            }
+            $totalValue += $bestPrice * $quantity;
+        }
+        sort($missingPriceTypeIds);
+
+        return [
+            'totalValue' => $missingPriceTypeIds === [] ? $totalValue : null,
+            'missingPriceTypeIds' => $missingPriceTypeIds,
+        ];
+    }
+
+    /**
      * @param array<string, mixed> $priceData
      */
-    private function computeBestUnitPrice(array $priceData): float
+    private function computeBestUnitPrice(array $priceData): ?float
     {
-        $prices = [];
-
-        if (!empty($priceData['compressedEquivalentPrice'])) {
-            $prices[] = (float) $priceData['compressedEquivalentPrice'];
-        }
-        if (!empty($priceData['reprocessValue'])) {
-            $prices[] = (float) $priceData['reprocessValue'];
-        }
-        if (!empty($priceData['structureCompressedUnitPrice'])) {
-            $prices[] = (float) $priceData['structureCompressedUnitPrice'] / 100;
-        }
-        if (!empty($priceData['structureReprocessValue'])) {
-            $prices[] = (float) $priceData['structureReprocessValue'];
+        $sourcePrices = [];
+        foreach (self::COMPARED_PRICE_SOURCES as $source) {
+            $sourcePrice = $priceData[$source] ?? null;
+            if ($sourcePrice !== null) {
+                $sourcePrices[] = (float) $sourcePrice;
+            }
         }
 
-        if (empty($prices)) {
-            // Fallback to raw unit price
-            return (float) ($priceData['rawUnitPrice'] ?? 0.0);
+        $positiveSourcePrices = array_filter($sourcePrices, static fn (float $price): bool => $price > 0.0);
+        if ($positiveSourcePrices !== []) {
+            return max($positiveSourcePrices);
         }
 
-        return max($prices);
+        $rawUnitPrice = $priceData['rawUnitPrice'] ?? null;
+        if ($rawUnitPrice !== null) {
+            return (float) $rawUnitPrice;
+        }
+
+        return $sourcePrices === [] ? null : 0.0;
     }
 }

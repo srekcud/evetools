@@ -62,11 +62,14 @@ class MiningStatsResource
     /** @var array<string, mixed> */
     public array $period = [];
 
-    /** @var array<string, float> */
+    /** @var array{totalValue?: float|null, totalQuantity?: int} */
     public array $totals = [];
 
-    /** @var array<string, array<string, mixed>> */
+    /** @var array<string, array{totalValue: float|null, totalQuantity: int, missingPriceTypeIds: list<int>}> */
     public array $byUsage = [];
 
-    public float $iskPerDay = 0.0;
+    public ?float $iskPerDay = 0.0;
+
+    /** @var list<int> */
+    public array $missingPriceTypeIds = [];
 }

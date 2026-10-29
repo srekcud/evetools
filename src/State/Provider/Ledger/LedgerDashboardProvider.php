@@ -82,17 +82,22 @@ class LedgerDashboardProvider implements ProviderInterface
             ? [MiningEntry::USAGE_CORP_PROJECT]
             : null;
 
-        $miningTotal = $this->miningBestValueCalculator->getTotalBestValue($user, $from, $to, $excludeMiningUsages);
+        $miningValue = $this->miningBestValueCalculator->getTotalBestValue($user, $from, $to, $excludeMiningUsages);
+        $miningTotal = $miningValue['totalValue'];
         $miningByUsage = $this->miningBestValueCalculator->getTotalsByUsageBestValue($user, $from, $to);
 
-        // Calculate combined totals
-        $totalIncome = $pveTotal + $miningTotal;
-        $profit = $totalIncome - $expensesTotal;
-        $iskPerDay = $days > 0 ? $profit / $days : 0;
-
-        // Calculate percentages
-        $pvePercent = $totalIncome > 0 ? ($pveTotal / $totalIncome) * 100 : 0;
-        $miningPercent = $totalIncome > 0 ? ($miningTotal / $totalIncome) * 100 : 0;
+        $totalIncome = null;
+        $profit = null;
+        $iskPerDay = null;
+        $pvePercent = null;
+        $miningPercent = null;
+        if ($miningTotal !== null) {
+            $totalIncome = $pveTotal + $miningTotal;
+            $profit = $totalIncome - $expensesTotal;
+            $iskPerDay = $days > 0 ? $profit / $days : 0.0;
+            $pvePercent = $totalIncome > 0 ? ($pveTotal / $totalIncome) * 100 : 0.0;
+            $miningPercent = $totalIncome > 0 ? ($miningTotal / $totalIncome) * 100 : 0.0;
+        }
 
         // Build resource
         $resource = new LedgerDashboardResource();
@@ -116,13 +121,14 @@ class LedgerDashboardProvider implements ProviderInterface
             'corpProjects' => $corpProjectAccounting === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE ? $corpProjectPveTotal : 0.0,
         ];
         $resource->miningBreakdown = [
-            'sold' => $miningByUsage[MiningEntry::USAGE_SOLD]['totalValue'] ?? 0.0,
+            'sold' => $this->usageValue($miningByUsage, MiningEntry::USAGE_SOLD),
             'corpProject' => $corpProjectAccounting === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING
-                ? ($miningByUsage[MiningEntry::USAGE_CORP_PROJECT]['totalValue'] ?? 0.0)
+                ? $this->usageValue($miningByUsage, MiningEntry::USAGE_CORP_PROJECT)
                 : 0.0,
-            'industry' => $miningByUsage[MiningEntry::USAGE_INDUSTRY]['totalValue'] ?? 0.0,
-            'unknown' => $miningByUsage[MiningEntry::USAGE_UNKNOWN]['totalValue'] ?? 0.0,
+            'industry' => $this->usageValue($miningByUsage, MiningEntry::USAGE_INDUSTRY),
+            'unknown' => $this->usageValue($miningByUsage, MiningEntry::USAGE_UNKNOWN),
         ];
+        $resource->missingPriceTypeIds = $miningValue['missingPriceTypeIds'];
         $resource->expensesByType = $expensesByType;
         $resource->iskPerDay = $iskPerDay;
         $resource->pvePercent = $pvePercent;
@@ -136,5 +142,13 @@ class LedgerDashboardProvider implements ProviderInterface
         ];
 
         return $resource;
+    }
+
+    /**
+     * @param array<string, array{totalValue: float|null, totalQuantity: int, missingPriceTypeIds: list<int>}> $miningByUsage
+     */
+    private function usageValue(array $miningByUsage, string $usage): ?float
+    {
+        return array_key_exists($usage, $miningByUsage) ? $miningByUsage[$usage]['totalValue'] : 0.0;
     }
 }

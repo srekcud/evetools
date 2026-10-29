@@ -8,7 +8,7 @@ class MiningDailyStatsResource
 {
     public string $date;
 
-    public float $totalValue = 0.0;
+    public ?float $totalValue = 0.0;
 
     public int $totalQuantity = 0;
 }

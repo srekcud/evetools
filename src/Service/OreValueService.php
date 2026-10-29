@@ -12,9 +12,6 @@ use App\Repository\Sde\InvTypeRepository;
  */
 class OreValueService
 {
-    // Compression ratio: 100 raw ore = 1 compressed ore
-    private const COMPRESSION_RATIO = 100;
-
     // Default reprocessing yield (can be configured by user)
     private const DEFAULT_REPROCESS_YIELD = 0.78; // 78% yield with skills
 
@@ -106,6 +103,7 @@ class OreValueService
                 'compressedEquivalentPrice' => null,
                 'structureUnitPrice' => $structurePrices[$typeId] ?? null,
                 'structureCompressedUnitPrice' => null,
+                'structureCompressedEquivalentPrice' => null,
                 'reprocessValue' => null,
                 'structureReprocessValue' => null,
                 'reprocessYield' => $reprocessYield,
@@ -124,15 +122,20 @@ class OreValueService
                 $compressedVolume = $compressedType?->getVolume() ?? 0.0;
                 $compressedExportCost = $exportTax * $compressedVolume;
 
+                $rawPortionSize = $rawType?->getPortionSize();
+                $compressedPortionSize = $compressedType?->getPortionSize();
+
                 if ($compressedJitaPrice !== null) {
-                    // Apply export tax to compressed price
-                    $compressedJitaPriceNet = max(0, $compressedJitaPrice - $compressedExportCost);
+                    $compressedJitaPriceNet = max(0.0, $compressedJitaPrice - $compressedExportCost);
                     $result['compressedUnitPrice'] = $compressedJitaPriceNet;
-                    // Equivalent price per raw unit (1 compressed = 100 raw)
-                    $result['compressedEquivalentPrice'] = $compressedJitaPriceNet / self::COMPRESSION_RATIO;
+                    $result['compressedEquivalentPrice'] = $this->compressedEquivalentPrice($compressedJitaPriceNet, $rawPortionSize, $compressedPortionSize);
                 }
 
-                $result['structureCompressedUnitPrice'] = $structurePrices[$compressed['typeId']] ?? null;
+                $structureCompressedUnitPrice = $structurePrices[$compressed['typeId']] ?? null;
+                $result['structureCompressedUnitPrice'] = $structureCompressedUnitPrice;
+                if ($structureCompressedUnitPrice !== null) {
+                    $result['structureCompressedEquivalentPrice'] = $this->compressedEquivalentPrice($structureCompressedUnitPrice, $rawPortionSize, $compressedPortionSize);
+                }
             }
 
             // Reprocess value calculation
@@ -180,6 +183,15 @@ class OreValueService
         }
 
         return $results;
+    }
+
+    private function compressedEquivalentPrice(float $compressedUnitPrice, ?int $rawPortionSize, ?int $compressedPortionSize): ?float
+    {
+        if ($rawPortionSize === null || $rawPortionSize <= 0 || $compressedPortionSize === null || $compressedPortionSize <= 0) {
+            return null;
+        }
+
+        return $compressedUnitPrice * $compressedPortionSize / $rawPortionSize;
     }
 
     /**

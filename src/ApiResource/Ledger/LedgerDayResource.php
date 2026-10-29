@@ -8,13 +8,13 @@ class LedgerDayResource
 {
     public string $date;
 
-    public float $total = 0.0;
+    public ?float $total = 0.0;
 
     public float $pve = 0.0;
 
-    public float $mining = 0.0;
+    public ?float $mining = 0.0;
 
     public float $expenses = 0.0;
 
-    public float $profit = 0.0;
+    public ?float $profit = 0.0;
 }

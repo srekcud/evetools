@@ -16,4 +16,7 @@ class LedgerDailyStatsResource
 
     /** @var LedgerDayResource[] */
     public array $daily = [];
+
+    /** @var list<int> */
+    public array $missingPriceTypeIds = [];
 }

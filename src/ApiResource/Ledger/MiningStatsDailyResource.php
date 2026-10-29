@@ -16,4 +16,7 @@ class MiningStatsDailyResource
 
     /** @var MiningDailyStatsResource[] */
     public array $daily = [];
+
+    /** @var list<int> */
+    public array $missingPriceTypeIds = [];
 }

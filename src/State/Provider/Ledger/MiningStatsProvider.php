@@ -51,14 +51,13 @@ class MiningStatsProvider implements ProviderInterface
         // Get totals
         $totalQuantity = $this->miningEntryRepository->getTotalQuantityByUserAndDateRange($user, $from, $to, $excludeUsages);
 
-        // Get best-price total (uses OreValueService for compressed/reprocess prices)
         $totalBestValue = $this->miningBestValueCalculator->getTotalBestValue($user, $from, $to, $excludeUsages);
+        $totalValue = $totalBestValue['totalValue'];
 
         // Get by usage
         $byUsage = $this->miningBestValueCalculator->getTotalsByUsageBestValue($user, $from, $to);
 
-        // Calculate ISK per day based on best value
-        $iskPerDay = $days > 0 ? $totalBestValue / $days : 0;
+        $iskPerDay = $totalValue === null ? null : ($days > 0 ? $totalValue / $days : 0.0);
 
         $resource = new MiningStatsResource();
         $resource->period = [
@@ -67,11 +66,12 @@ class MiningStatsProvider implements ProviderInterface
             'days' => $days,
         ];
         $resource->totals = [
-            'totalValue' => $totalBestValue,
+            'totalValue' => $totalValue,
             'totalQuantity' => $totalQuantity,
         ];
         $resource->byUsage = $byUsage;
         $resource->iskPerDay = $iskPerDay;
+        $resource->missingPriceTypeIds = $totalBestValue['missingPriceTypeIds'];
 
         return $resource;
     }

@@ -51,7 +51,7 @@ class LedgerDashboardResource
 
     /**
      * Combined totals.
-     * @var array{total: float, pve: float, mining: float, expenses: float, profit: float}
+     * @var array{total: float|null, pve: float, mining: float|null, expenses: float, profit: float|null}
      */
     public array $totals = ['total' => 0.0, 'pve' => 0.0, 'mining' => 0.0, 'expenses' => 0.0, 'profit' => 0.0];
 
@@ -63,7 +63,7 @@ class LedgerDashboardResource
 
     /**
      * Mining breakdown by usage.
-     * @var array{sold: float, corpProject: float, industry: float, unknown: float}
+     * @var array{sold: float|null, corpProject: float|null, industry: float|null, unknown: float|null}
      */
     public array $miningBreakdown = ['sold' => 0.0, 'corpProject' => 0.0, 'industry' => 0.0, 'unknown' => 0.0];
 
@@ -76,17 +76,23 @@ class LedgerDashboardResource
     /**
      * ISK per day (profit / days).
      */
-    public float $iskPerDay = 0.0;
+    public ?float $iskPerDay = 0.0;
 
     /**
      * Percentage of total from PVE.
      */
-    public float $pvePercent = 0.0;
+    public ?float $pvePercent = 0.0;
 
     /**
      * Percentage of total from Mining.
      */
-    public float $miningPercent = 0.0;
+    public ?float $miningPercent = 0.0;
+
+    /**
+     * Types mined without any price, which make the mining value unknown.
+     * @var list<int>
+     */
+    public array $missingPriceTypeIds = [];
 
     /**
      * Last sync timestamps.

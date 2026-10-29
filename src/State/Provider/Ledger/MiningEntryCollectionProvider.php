@@ -110,6 +110,8 @@ class MiningEntryCollectionProvider implements ProviderInterface
             $resource->compressedEquivalentPrice = $prices['compressedEquivalentPrice'];
             $resource->structureUnitPrice = $prices['structureUnitPrice'];
             $resource->structureCompressedUnitPrice = $prices['structureCompressedUnitPrice'];
+            $resource->structureCompressedEquivalentPrice = $prices['structureCompressedEquivalentPrice'];
+            $resource->rawUnitPrice = $prices['rawUnitPrice'];
             $resource->reprocessValue = $prices['reprocessValue'] ?? null;
             $resource->structureReprocessValue = $prices['structureReprocessValue'] ?? null;
         }

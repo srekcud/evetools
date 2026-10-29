@@ -96,13 +96,16 @@ class MiningEntryResource
 
     public ?float $compressedUnitPrice = null;
 
-    /** Price per raw unit based on compressed price (compressedPrice / 100) */
     public ?float $compressedEquivalentPrice = null;
 
     // Structure prices (if structure selected)
     public ?float $structureUnitPrice = null;
 
     public ?float $structureCompressedUnitPrice = null;
+
+    public ?float $structureCompressedEquivalentPrice = null;
+
+    public ?float $rawUnitPrice = null;
 
     // Reprocess value (value of minerals after reprocessing, per unit)
     public ?float $reprocessValue = null;
