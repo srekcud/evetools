@@ -21,6 +21,7 @@ use App\State\Processor\Industry\CreatePurchaseProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -33,6 +34,9 @@ final class CreatePurchaseProcessorTest extends TestCase
     private const string CREATED = 'created';
     private const string TRANSACTION_NOT_FOUND = '404 Transaction not found';
     private const string ALREADY_LINKED_CONFLICT = '409 This transaction is already linked to a purchase.';
+    private const string PROJECT_NOT_FOUND = '404 Project not found';
+    private const string STEP_NOT_FOUND = '404 Step not found';
+    private const string INCOMPLETE_MANUAL_PURCHASE = '400 Manual purchase requires typeId, quantity and unitPrice';
 
     private const string J1_PROJECT_ID = '0192f0c4-7b1e-7a3c-9d2e-205000000001';
     private const string S1_STEP_ID = '0192f0c4-7b1e-7a3c-9d2e-205000000011';
@@ -47,6 +51,9 @@ final class CreatePurchaseProcessorTest extends TestCase
     private IndustryProjectStep $s1b;
     private IndustryProjectStep $s2;
     private IndustryProjectStep $s9;
+    private IndustryProject $j9;
+    private ?IndustryProject $foundProject;
+    private ?IndustryProjectStep $foundStep;
     private CachedWalletTransaction $t1;
     private CachedWalletTransaction $t2;
     private CachedWalletTransaction $t3;
@@ -99,9 +106,12 @@ final class CreatePurchaseProcessorTest extends TestCase
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($u1);
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $projectRepository->method('find')->willReturn($j1);
+        $this->foundProject = $j1;
+        $this->j9 = $j9;
+        $projectRepository->method('find')->willReturnCallback(fn (): ?IndustryProject => $this->foundProject);
         $stepRepository = $this->createStub(IndustryProjectStepRepository::class);
-        $stepRepository->method('find')->willReturn($this->s1);
+        $this->foundStep = $this->s1;
+        $stepRepository->method('find')->willReturnCallback(fn (): ?IndustryProjectStep => $this->foundStep);
         $mapper = $this->createStub(IndustryResourceMapper::class);
         $mapper->method('purchaseToResource')->willReturn(new StepPurchaseResource());
 
@@ -271,6 +281,73 @@ final class CreatePurchaseProcessorTest extends TestCase
                 $purchase->getTransaction(),
                 $purchase->getStep(),
             ],
+        );
+    }
+
+    #[Group('issue-285')]
+    public function testUnknownProjectIsNotFoundAndNoPurchaseIsCreated(): void
+    {
+        $this->foundProject = null;
+
+        self::assertSame(self::PROJECT_NOT_FOUND, $this->outcomeOf($this->linkInput(self::T1_UUID, null)));
+        $this->assertNothingWasReadNorWritten();
+    }
+
+    #[Group('issue-285')]
+    public function testProjectOfAnotherUserIsNotFoundAndNoPurchaseIsCreated(): void
+    {
+        $this->foundProject = $this->j9;
+        $this->foundStep = $this->s9;
+
+        self::assertSame(self::PROJECT_NOT_FOUND, $this->outcomeOf($this->linkInput(self::T1_UUID, null)));
+        $this->assertNothingWasReadNorWritten();
+        self::assertSame(0, $this->s9->getPurchases()->count());
+    }
+
+    #[Group('issue-285')]
+    public function testUnknownStepIsNotFoundAndNoPurchaseIsCreated(): void
+    {
+        $this->foundStep = null;
+
+        self::assertSame(self::STEP_NOT_FOUND, $this->outcomeOf($this->linkInput(self::T1_UUID, null)));
+        $this->assertNothingWasReadNorWritten();
+    }
+
+    #[Group('issue-285')]
+    public function testStepOfAnotherProjectIsNotFoundAndNoPurchaseIsCreated(): void
+    {
+        $this->foundStep = $this->s2;
+
+        self::assertSame(self::STEP_NOT_FOUND, $this->outcomeOf($this->linkInput(self::T1_UUID, null)));
+        $this->assertNothingWasReadNorWritten();
+        self::assertSame(0, $this->s2->getPurchases()->count());
+    }
+
+    #[Group('issue-285')]
+    #[DataProvider('incompleteManualPurchases')]
+    public function testIncompleteManualPurchaseIsABadRequestAndNoPurchaseIsCreated(?int $typeId, ?int $quantity, ?float $unitPrice): void
+    {
+        $input = new CreatePurchaseInput();
+        $input->typeId = $typeId;
+        $input->quantity = $quantity;
+        $input->unitPrice = $unitPrice;
+
+        self::assertSame(self::INCOMPLETE_MANUAL_PURCHASE, $this->outcomeOf($input));
+        $this->assertNothingWasReadNorWritten();
+    }
+
+    public static function incompleteManualPurchases(): iterable
+    {
+        yield 'without typeId' => [null, 7, 1_000.0];
+        yield 'without quantity' => [9103, null, 1_000.0];
+        yield 'without unit price' => [9103, 7, null];
+    }
+
+    private function assertNothingWasReadNorWritten(): void
+    {
+        self::assertSame(
+            [0, 0, 0, 0, 0],
+            [count($this->persistedPurchases), $this->flushes, $this->walletTransactionLookups, $this->linkedPurchaseLookups, $this->s1->getPurchases()->count()],
         );
     }
 

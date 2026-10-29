@@ -24,6 +24,8 @@ const ALREADY_LINKED_EN = 'This transaction is already linked to a purchase. Sug
 const NOT_FOUND_EN = 'The transaction or the step no longer exists. Suggestions have been refreshed.'
 const FAILED_EN = 'Failed to link the purchase.'
 const ALREADY_LINKED_FR = 'Cette transaction est déjà rattachée à un achat. Les suggestions ont été rafraîchies.'
+const NOT_FOUND_FR = 'La transaction ou l\'étape n\'existe plus. Les suggestions ont été rafraîchies.'
+const FAILED_FR = 'Échec du rattachement de l\'achat.'
 
 const ROOT_STEP: IndustryProjectStep = {
   id: ROOT_STEP_ID,
@@ -300,13 +302,42 @@ describe('ShoppingTab purchase link error', () => {
   it.each([
     ['an ApiError 500', new ApiError('Internal Server Error', 500)],
     ['a network failure', new TypeError('Failed to fetch')],
-  ])('shows the generic link failure message on %s', async (_label, error) => {
+  ])('shows the generic link failure message and refreshes the suggestions on %s', async (_label, error) => {
     const wrapper = await mountShoppingTab()
     linkOutcomes = [rejectWith(error)]
 
     await clickLink(wrapper, T2)
 
     expect(purchasesPanelOf(wrapper).props('linkError')).toBe(FAILED_EN)
+    expect(requestsOtherThanTheShoppingList()).toEqual([linkRequestOf(T2), [SUGGESTIONS_URL]])
+    expect(resetLinkingId).toHaveBeenCalledTimes(1)
+    expect(uncaughtErrors).toEqual([])
+  })
+
+  it.each([
+    ['a 404', new ApiError('Step not found', 404), NOT_FOUND_FR],
+    ['a 500', new ApiError('Internal Server Error', 500), FAILED_FR],
+  ])('shows the link error in French on %s', async (_label, error, expectedMessage) => {
+    const wrapper = await mountShoppingTab('fr')
+    linkOutcomes = [rejectWith(error)]
+
+    await clickLink(wrapper, T2)
+
+    expect(purchasesPanelOf(wrapper).props('linkError')).toBe(expectedMessage)
+  })
+
+  it('sends no request and keeps the previous link error when no step matches the type of the suggestion', async () => {
+    const wrapper = await mountShoppingTab()
+    linkOutcomes = [rejectWith(new ApiError('This transaction is already linked to a purchase.', 409))]
+    await clickLink(wrapper, T2)
+    expect(purchasesPanelOf(wrapper).props('linkError')).toBe(ALREADY_LINKED_EN)
+    useProjectsStore().currentProject = { ...PROJECT, steps: [{ ...ROOT_STEP, activityType: 'copy' }] }
+    vi.mocked(apiRequest).mockClear()
+
+    await clickLink(wrapper, T1)
+
+    expect(purchasesPanelOf(wrapper).props('linkError')).toBe(ALREADY_LINKED_EN)
+    expect(vi.mocked(apiRequest).mock.calls).toEqual([])
     expect(uncaughtErrors).toEqual([])
   })
 

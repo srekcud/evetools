@@ -23,6 +23,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 #[CoversClass(PurchaseSuggestionProvider::class)]
 final class PurchaseSuggestionProviderTest extends TestCase
@@ -233,6 +234,27 @@ final class PurchaseSuggestionProviderTest extends TestCase
             ->provide(new Get(), ['id' => self::PROJECT_ID]);
 
         self::assertSame([0, [], [], []], [$result->totalCount, $this->materialLookups, $this->buyLookups, $this->purchaseLookups]);
+    }
+
+    #[Group('issue-285')]
+    public function testProjectOfAnotherUserIsNotFoundWithoutReadingTheWalletTransactions(): void
+    {
+        $p1 = (new Character())->setName('Pilot One');
+        $u1 = $this->pilotWith($p1);
+        $u9 = $this->pilotWith((new Character())->setName('Other Pilot'));
+        $j9 = $this->projectOf($u9, 9090);
+        $j9->addStep($this->step(9209, 9090, 1, 0));
+        $j9->addStep($this->step(9201, 9101, 30, 1));
+        $provider = $this->provider($u1, $j9, ['Pilot One' => [$this->buy($p1, 6_400_000_001, 9101, 120, 5.25)]]);
+
+        try {
+            $provider->provide(new Get(), ['id' => self::PROJECT_ID]);
+            $outcome = 'provided';
+        } catch (HttpExceptionInterface $exception) {
+            $outcome = $exception->getStatusCode() . ' ' . $exception->getMessage();
+        }
+
+        self::assertSame(['404 Project not found', [], [], []], [$outcome, $this->buyLookups, $this->materialLookups, $this->purchaseLookups]);
     }
 
     /**
