@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\MessageHandler;
 
+use App\Dto\CharacterInfoDto;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
@@ -13,6 +14,7 @@ use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\PaginatedEsiResponse;
 use App\Service\Mercure\MercurePublisherService;
@@ -126,6 +128,7 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
             $this->createStub(IndustryStepJobMatchRepository::class),
             $this->createStub(NotificationDispatcher::class),
             new ArrayAdapter(),
+            $this->characterServiceReadingCorporation(self::CORPORATION_ID),
         );
 
         [$character, $alt] = $this->charactersOfCorporation(self::CHARACTER_ID, self::OTHER_CHARACTER_ID);
@@ -148,6 +151,21 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
         );
 
         return $characterRepository;
+    }
+
+    private function characterServiceReadingCorporation(int $corporationId): CharacterService
+    {
+        $characterService = $this->createStub(CharacterService::class);
+        $characterService->method('getCharacterInfo')->willReturnCallback(
+            static fn (int $eveCharacterId): CharacterInfoDto => new CharacterInfoDto(
+                $eveCharacterId,
+                'Industrialist ' . $eveCharacterId,
+                $corporationId,
+                'Handler Corp',
+            ),
+        );
+
+        return $characterService;
     }
 
     private function character(string $characterId): Character

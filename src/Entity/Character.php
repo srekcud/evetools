@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Dto\CharacterInfoDto;
 use App\Enum\AuthStatus;
 use App\Repository\CharacterRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -134,6 +135,11 @@ class Character
     {
         $this->allianceName = $allianceName;
 
+        return $this;
+    }
+
+    public function updateAffiliation(CharacterInfoDto $info): static
+    {
         return $this;
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Sync;
 
+use App\Dto\CharacterInfoDto;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\EveToken;
@@ -16,6 +17,7 @@ use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryStepJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\PaginatedEsiResponse;
 use App\Service\Mercure\MercurePublisherService;
@@ -77,6 +79,14 @@ class IndustryJobSyncServiceTest extends TestCase
     private const int CORPORATION_JOB_OF_E_ID = 710;
     private const int PERSONAL_JOB_OF_D_ID = 100;
     private const int ESI_EXPIRES_AFTER_SECONDS = 300;
+    private const string OLD_CORPORATION_NAME = 'Old Corp';
+    private const string NEW_CORPORATION_NAME = 'New Corp';
+    private const int NEW_ALLIANCE_ID = 99000001;
+    private const string NEW_ALLIANCE_NAME = 'New Alliance';
+    private const string PERSONAL_JOBS_ENDPOINT_OF_A = '/characters/12345/industry/jobs/?include_completed=true';
+    private const int STALE_PERSONAL_JOB_ID = 100;
+    private const int CORPORATION_JOB_IN_NEW_CORPORATION_ID = 710;
+    private const int CORPORATION_JOB_IN_OLD_CORPORATION_ID = 700;
 
     private EsiClient&MockObject $esiClient;
     private CachedIndustryJobRepository&MockObject $jobRepository;
@@ -99,6 +109,11 @@ class IndustryJobSyncServiceTest extends TestCase
     private MockClock $esiCacheClock;
     private array $corporationJobsReads = [];
     private array $corporationJobsReadOutcomes = [];
+    private array $forbiddenCorporationJobsEndpoints = [];
+    private array $personalJobsReads = [];
+    private array $characterInfoReads = [];
+    private array $characterInfoReadOutcomes = [];
+    private array $esiReadsInOrder = [];
 
     protected function setUp(): void
     {
@@ -148,6 +163,10 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->esiClient->method('getPaginatedWithExpiry')->willReturnCallback(
             function (string $endpoint): PaginatedEsiResponse {
                 $this->corporationJobsReads[] = $endpoint;
+                $this->esiReadsInOrder[] = $endpoint;
+                if (in_array($endpoint, $this->forbiddenCorporationJobsEndpoints, true)) {
+                    throw EsiApiException::forbidden(endpoint: $endpoint);
+                }
                 $outcome = count($this->corporationJobsReadOutcomes) > 1
                     ? array_shift($this->corporationJobsReadOutcomes)
                     : ($this->corporationJobsReadOutcomes[0] ?? $this->corporationJobsResponse([]));
@@ -169,6 +188,7 @@ class IndustryJobSyncServiceTest extends TestCase
             $this->jobMatchRepository,
             $this->notificationDispatcher,
             $this->esiCache,
+            $this->characterServiceReadingRecordedAffiliations(),
         );
     }
 
@@ -1980,9 +2000,314 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame([null, null], [$cachedJob->getCost(), $jobMatch->getCost()]);
     }
 
+    #[Group('issue-211')]
+    public function testCharacterMovedToAnotherCorporationTakesItsAffiliationAndReadsOnlyTheJobsOfTheNewCorporation(): void
+    {
+        [$character, $stalePersonalJob] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME);
+        $this->givenCorporationJobs([$this->corporationJobInNewCorporation()]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME, null, null], $this->affiliationOf($character));
+        $this->assertSame(
+            ['affiliation of 12345', self::PERSONAL_JOBS_ENDPOINT_OF_A, self::OTHER_CORPORATION_JOBS_ENDPOINT],
+            $this->esiReadsInOrder,
+        );
+        $this->assertSame([[self::CORPORATION_JOB_IN_NEW_CORPORATION_ID, 3, 'active', self::RIFTER_TYPE_ID, 4_200_000.25]], $this->persistedJobStates());
+        $this->assertSame($character, $this->persistedJobs[0]->getCharacter());
+        $this->assertSame(
+            ['delivered', $stalePersonalJob->getEndDate()->format('c')],
+            [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()?->format('c')],
+        );
+        $this->assertSame(1, $this->flushCount);
+    }
+
+    #[Group('issue-211')]
+    public function testCharacterStillInItsCorporationKeepsItsAffiliationAndReadsTheJobsOfThatCorporation(): void
+    {
+        [$character, $stalePersonalJob] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::CORPORATION_ID, self::OLD_CORPORATION_NAME);
+        $this->givenCorporationJobs([$this->corporationJobInOldCorporation()]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([self::CORPORATION_ID, self::OLD_CORPORATION_NAME, null, null], $this->affiliationOf($character));
+        $this->assertSame([self::CHARACTER_A_ID], $this->characterInfoReads);
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame([[self::CORPORATION_JOB_IN_OLD_CORPORATION_ID, 8, 'active', self::TRITANIUM_TYPE_ID, 980_000.0]], $this->persistedJobStates());
+        $this->assertSame('delivered', $stalePersonalJob->getStatus());
+        $this->assertSame(1, $this->flushCount);
+    }
+
+    #[Group('issue-211')]
+    #[DataProvider('affiliationReadFailures')]
+    public function testAffiliationReadFailurePropagatesBeforeAnyJobReadWithoutWriting(\Throwable $affiliationReadFailure): void
+    {
+        [$character, $stalePersonalJob] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $this->characterInfoReadOutcomes[self::CHARACTER_A_ID] = $affiliationReadFailure;
+        $this->givenCorporationJobs([$this->corporationJobInNewCorporation()]);
+
+        $this->assertSame($affiliationReadFailure, $this->syncCatchingFailure($character));
+        $this->assertSame([self::CHARACTER_A_ID], $this->characterInfoReads);
+        $this->assertSame([], $this->personalJobsReads);
+        $this->assertSame([], $this->corporationJobsReads);
+        $this->assertSame(0, $this->flushCount);
+        $this->assertSame([], $this->persistedJobs);
+        $this->assertSame([self::CORPORATION_ID, self::OLD_CORPORATION_NAME, null, null], $this->affiliationOf($character));
+        $this->assertSame(['active', null], [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()]);
+        $this->assertSame(
+            [[$this->userTopicOf($character), $affiliationReadFailure->getMessage()]],
+            $this->industryJobsSyncErrorEvents(),
+        );
+    }
+
+    public static function affiliationReadFailures(): iterable
+    {
+        yield 'E3 service unavailable 503' => [EsiApiException::fromResponse(503, 'Service Unavailable', '/characters/12345/')];
+        yield 'E4 error limited 420 after the client retry' => [EsiApiException::fromResponse(420, 'Error limited', '/corporations/98000002/')];
+        yield 'E5 character response without corporation_id' => [new \UnexpectedValueException("ESI response /characters/12345/ has no integer 'corporation_id'")];
+        yield 'not found 404' => [EsiApiException::notFound(endpoint: '/alliances/99000001/')];
+        yield 'network error without cached copy' => [EsiApiException::fromResponse(0, 'Network error: connection reset', '/characters/12345/')];
+    }
+
+    #[Group('issue-211')]
+    public function testCharacterMovedOutOfACorporationWhereItLostItsRolesNeverReadsThatCorporationAgain(): void
+    {
+        [$character, $stalePersonalJob] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME);
+        $this->forbiddenCorporationJobsEndpoints = [self::CORPORATION_JOBS_ENDPOINT];
+        $this->givenCorporationJobs([$this->corporationJobInNewCorporation()]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([self::OTHER_CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame([], $this->loggedWarnings());
+        $this->assertSame(
+            ['delivered', $stalePersonalJob->getEndDate()->format('c')],
+            [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()?->format('c')],
+        );
+    }
+
+    #[Group('issue-211')]
+    public function testCharacterWithoutRolesInItsNewCorporationKeepsTheNewAffiliationAndMarksNoJobDelivered(): void
+    {
+        [$character, $stalePersonalJob] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME);
+        $this->forbiddenCorporationJobsEndpoints = [self::OTHER_CORPORATION_JOBS_ENDPOINT];
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME, null, null], $this->affiliationOf($character));
+        $this->assertSame([self::OTHER_CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertCount(1, $this->loggedWarnings());
+        $this->assertSame(['active', null], [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()]);
+        $this->assertSame(1, $this->flushCount);
+    }
+
+    #[Group('issue-211')]
+    public function testCorporationJobsReadFailureOfTheNewCorporationPropagatesWithoutFlush(): void
+    {
+        [$character, $stalePersonalJob] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME);
+        $serviceUnavailable = EsiApiException::fromResponse(503, 'Service Unavailable', self::OTHER_CORPORATION_JOBS_ENDPOINT);
+        $this->givenCorporationJobsReadOutcomes($serviceUnavailable);
+
+        $this->assertSame($serviceUnavailable, $this->syncCatchingFailure($character));
+        $this->assertSame([self::OTHER_CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame(0, $this->flushCount);
+        $this->assertSame(['active', null], [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()]);
+    }
+
+    #[Group('issue-211')]
+    public function testCharacterJoiningAnAllianceTakesTheAllianceRead(): void
+    {
+        [$character] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME, self::NEW_ALLIANCE_ID, self::NEW_ALLIANCE_NAME);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            [self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME, self::NEW_ALLIANCE_ID, self::NEW_ALLIANCE_NAME],
+            $this->affiliationOf($character),
+        );
+    }
+
+    #[Group('issue-211')]
+    public function testCharacterLeavingItsAllianceHasNoAllianceAnymore(): void
+    {
+        [$character] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $character->setAllianceId(self::NEW_ALLIANCE_ID)->setAllianceName(self::NEW_ALLIANCE_NAME);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME, null, null], $this->affiliationOf($character));
+    }
+
+    #[Group('issue-211')]
+    public function testCharacterWithoutCorporationJobsScopeTakesItsNewCorporationWithoutReadingCorporationJobs(): void
+    {
+        [$character] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME, null, null], $this->affiliationOf($character));
+        $this->assertSame([self::CHARACTER_A_ID], $this->characterInfoReads);
+        $this->assertSame([], $this->corporationJobsReads);
+        $this->assertSame(1, $this->flushCount);
+    }
+
+    #[Group('issue-211')]
+    public function testCharacterWithoutTokenDoesNotReadItsAffiliation(): void
+    {
+        $character = (new Character())
+            ->setEveCharacterId(self::CHARACTER_A_ID)
+            ->setName('Spec Industrialist')
+            ->setCorporationId(self::CORPORATION_ID)
+            ->setCorporationName(self::OLD_CORPORATION_NAME);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([], $this->characterInfoReads);
+        $this->assertSame([self::CORPORATION_ID, self::OLD_CORPORATION_NAME, null, null], $this->affiliationOf($character));
+    }
+
+    #[Group('issue-211')]
+    public function testWarmCacheOfTheOldCorporationIsNotServedToCharacterMovedToTheNewCorporation(): void
+    {
+        $characterC = $this->createCharacterWithUser(self::CHARACTER_C_ID);
+        [$character] = $this->givenCharacterOfOldCorporationWithStalePersonalJob(self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE);
+        $this->givenAffiliationReadFromEsi(self::CHARACTER_A_ID, self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME);
+        $this->givenCorporationJobsReadOutcomes(
+            $this->corporationJobsResponse([
+                $this->corporationJobInOldCorporation(),
+                $this->corporationJobOfSpec213(self::CORPORATION_JOB_OF_C_ID, self::CHARACTER_C_ID, 'ready', self::NITROGEN_FUEL_BLOCK_TYPE_ID, 6, 3_100_000.5),
+            ]),
+            $this->corporationJobsResponse([$this->corporationJobInNewCorporation()]),
+        );
+        $this->service->syncCharacterJobs($characterC);
+        $this->forgetRecordedSideEffects();
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([self::CHARACTER_C_ID, self::CHARACTER_A_ID], $this->characterInfoReads);
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT, self::OTHER_CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+        $this->assertSame([[self::CORPORATION_JOB_IN_NEW_CORPORATION_ID, 3, 'active', self::RIFTER_TYPE_ID, 4_200_000.25]], $this->persistedJobStates());
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function characterServiceReadingRecordedAffiliations(): CharacterService
+    {
+        $characterService = $this->createStub(CharacterService::class);
+        $characterService->method('getCharacterInfo')->willReturnCallback(
+            function (int $eveCharacterId): CharacterInfoDto {
+                $this->characterInfoReads[] = $eveCharacterId;
+                $this->esiReadsInOrder[] = "affiliation of {$eveCharacterId}";
+                $outcome = $this->characterInfoReadOutcomes[$eveCharacterId]
+                    ?? new CharacterInfoDto($eveCharacterId, "Char{$eveCharacterId}", self::CORPORATION_ID, self::OLD_CORPORATION_NAME);
+                if ($outcome instanceof \Throwable) {
+                    throw $outcome;
+                }
+
+                return $outcome;
+            },
+        );
+
+        return $characterService;
+    }
+
+    private function givenAffiliationReadFromEsi(int $eveCharacterId, int $corporationId, string $corporationName, ?int $allianceId = null, ?string $allianceName = null): void
+    {
+        $this->characterInfoReadOutcomes[$eveCharacterId] = new CharacterInfoDto(
+            $eveCharacterId,
+            "Char{$eveCharacterId}",
+            $corporationId,
+            $corporationName,
+            $allianceId,
+            $allianceName,
+        );
+    }
+
+    private function corporationNameOf(int $corporationId): string
+    {
+        return $corporationId === self::OTHER_CORPORATION_ID ? self::NEW_CORPORATION_NAME : self::OLD_CORPORATION_NAME;
+    }
+
+    private function givenCharacterOfOldCorporationWithStalePersonalJob(string ...$scopes): array
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::fromString('0199a1f0-0000-7000-8000-000000000211'));
+        $token = $this->createStub(EveToken::class);
+        $token->method('hasScope')->willReturnCallback(
+            static fn (string $scope): bool => in_array($scope, $scopes, true),
+        );
+        $character = (new Character())
+            ->setEveCharacterId(self::CHARACTER_A_ID)
+            ->setName('Spec Industrialist')
+            ->setCorporationId(self::CORPORATION_ID)
+            ->setCorporationName(self::OLD_CORPORATION_NAME)
+            ->setUser($user)
+            ->setEveToken($token);
+        $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
+
+        $this->esiClient->method('get')->willReturnCallback(function (string $endpoint): array {
+            $this->personalJobsReads[] = $endpoint;
+            $this->esiReadsInOrder[] = $endpoint;
+
+            return [];
+        });
+        $stalePersonalJob = $this->makeCachedJob(self::STALE_PERSONAL_JOB_ID, $character, 'active', '-3 hours');
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([$stalePersonalJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->recordPersistedJobs();
+        $this->em->method('flush')->willReturnCallback(function (): void {
+            ++$this->flushCount;
+        });
+
+        return [$character, $stalePersonalJob];
+    }
+
+    private function corporationJobInNewCorporation(): array
+    {
+        return $this->corporationJobOfSpec213(self::CORPORATION_JOB_IN_NEW_CORPORATION_ID, self::CHARACTER_A_ID, 'active', self::RIFTER_TYPE_ID, 3, 4_200_000.25);
+    }
+
+    private function corporationJobInOldCorporation(): array
+    {
+        return $this->corporationJobOfSpec213(self::CORPORATION_JOB_IN_OLD_CORPORATION_ID, self::CHARACTER_A_ID, 'active', self::TRITANIUM_TYPE_ID, 8, 980_000.0);
+    }
+
+    private function affiliationOf(Character $character): array
+    {
+        return [$character->getCorporationId(), $character->getCorporationName(), $character->getAllianceId(), $character->getAllianceName()];
+    }
+
+    private function persistedJobStates(): array
+    {
+        return array_map(
+            static fn (CachedIndustryJob $job): array => [$job->getJobId(), $job->getRuns(), $job->getStatus(), $job->getProductTypeId(), $job->getCost()],
+            $this->persistedJobs,
+        );
+    }
+
+    private function industryJobsSyncErrorEvents(): array
+    {
+        $events = [];
+        foreach ($this->publishedMercureUpdates as [$topic, $payload]) {
+            if ($payload['syncType'] === 'industry-jobs' && $payload['status'] === 'error') {
+                $events[] = [$topic, $payload['message']];
+            }
+        }
+
+        return $events;
+    }
 
     private function givenCorporationJobs(array $corporationJobs): void
     {
@@ -2355,6 +2680,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $character->method('getCorporationId')->willReturn($corporationId);
 
         $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
+        $this->givenAffiliationReadFromEsi($eveCharacterId, $corporationId, $this->corporationNameOf($corporationId));
 
         return $character;
     }

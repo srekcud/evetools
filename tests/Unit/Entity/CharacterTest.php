@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Entity;
 
+use App\Dto\CharacterInfoDto;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
 use App\Enum\AuthStatus;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(Character::class)]
@@ -87,6 +89,43 @@ class CharacterTest extends TestCase
         $this->assertSame('Test Alliance', $character->getAllianceName());
     }
 
+    #[Group('issue-211')]
+    public function testUpdateAffiliationTakesCorporationAndAllianceRead(): void
+    {
+        $character = $this->characterOfOldCorp();
+
+        $character->updateAffiliation(new CharacterInfoDto(12345, 'Renamed Industrialist', 98000002, 'New Corp', 99000001, 'New Alliance'));
+
+        self::assertSame(
+            [98000002, 'New Corp', 99000001, 'New Alliance'],
+            [$character->getCorporationId(), $character->getCorporationName(), $character->getAllianceId(), $character->getAllianceName()],
+        );
+    }
+
+    #[Group('issue-211')]
+    public function testUpdateAffiliationWithoutAllianceClearsTheRecordedAlliance(): void
+    {
+        $character = $this->characterOfOldCorp()->setAllianceId(99000001)->setAllianceName('Old Alliance');
+
+        $character->updateAffiliation(new CharacterInfoDto(12345, 'Spec Industrialist', 98000002, 'New Corp'));
+
+        self::assertSame(
+            [98000002, 'New Corp', null, null],
+            [$character->getCorporationId(), $character->getCorporationName(), $character->getAllianceId(), $character->getAllianceName()],
+        );
+    }
+
+    #[Group('issue-211')]
+    public function testUpdateAffiliationKeepsTheNameAndEveCharacterIdOfTheCharacter(): void
+    {
+        $character = $this->characterOfOldCorp();
+
+        $updatedCharacter = $character->updateAffiliation(new CharacterInfoDto(67890, 'Renamed Industrialist', 98000002, 'New Corp'));
+
+        self::assertSame($character, $updatedCharacter);
+        self::assertSame([12345, 'Spec Industrialist'], [$character->getEveCharacterId(), $character->getName()]);
+    }
+
     public function testNewCharacterHasAValidAuthStatus(): void
     {
         $character = new Character();
@@ -124,5 +163,14 @@ class CharacterTest extends TestCase
 
         self::assertTrue($mainCharacter->isAuthValid());
         self::assertFalse($altCharacter->isAuthValid());
+    }
+
+    private function characterOfOldCorp(): Character
+    {
+        return (new Character())
+            ->setEveCharacterId(12345)
+            ->setName('Spec Industrialist')
+            ->setCorporationId(98000001)
+            ->setCorporationName('Old Corp');
     }
 }
