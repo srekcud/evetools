@@ -195,4 +195,17 @@ describe('StepsTab job sync failures', () => {
     expect(wrapper.find(BANNER).text()).toContain('Jobs non synchronisés pour 1 personnage, le matching a utilisé les derniers jobs connus :')
     expect(bannerLines(wrapper)).toEqual(['Pilot Three : aucun token ESI, reconnectez le personnage'])
   })
+
+  it('names two failed characters with the french plural title', async () => {
+    const wrapper = await mountAndSyncJobs([
+      { characterName: 'Pilot One', reason: 'esi_rate_limited', statusCode: 429 },
+      { characterName: 'Pilot Three', reason: 'sync_failed', statusCode: null },
+    ], 'fr')
+
+    expect(wrapper.find(BANNER).text()).toContain('Jobs non synchronisés pour 2 personnages, le matching a utilisé les derniers jobs connus :')
+    expect(bannerLines(wrapper)).toEqual([
+      'Pilot One : limite de requêtes ESI atteinte, réessayez plus tard',
+      'Pilot Three : échec de la synchronisation',
+    ])
+  })
 })

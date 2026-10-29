@@ -6,9 +6,12 @@ namespace App\Tests\Unit\State\Processor\Industry;
 
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\Industry\MatchJobsResultResource;
+use App\ApiResource\Industry\ProjectStepResource;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
@@ -24,6 +27,9 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\ErrorHandler\BufferingLogger;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 #[CoversClass(MatchJobsProcessor::class)]
 #[CoversClass(CharacterSyncFailure::class)]
@@ -43,6 +49,11 @@ final class MatchJobsProcessorTest extends TestCase
     private Character $pilotThree;
     private IndustryProject $project;
     private BufferingLogger $logger;
+    private ?User $authenticatedUser;
+    private ?IndustryProject $foundProject;
+    private ProjectStepResource $stepResource;
+
+    private array $mappedSteps = [];
 
     private array $syncFailuresByCharacterName = [];
 
@@ -58,6 +69,14 @@ final class MatchJobsProcessorTest extends TestCase
         $this->pilotThree = $this->addCharacterWithToken(self::PILOT_THREE, self::PILOT_THREE_ID);
         $this->project = (new IndustryProject())->setUser($this->user);
         $this->logger = new BufferingLogger();
+        $this->authenticatedUser = $this->user;
+        $this->foundProject = $this->project;
+        $this->stepResource = new ProjectStepResource();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->logger->cleanLogs();
     }
 
     public static function provideSingleCharacterSyncFailure(): iterable
@@ -213,6 +232,65 @@ final class MatchJobsProcessorTest extends TestCase
         );
     }
 
+    public function testRejectsAProjectOfAnotherUserWith404(): void
+    {
+        $this->foundProject = (new IndustryProject())->setUser(new User());
+
+        $rejection = $this->rejectionOfMatchJobs();
+
+        $this->assertInstanceOf(NotFoundHttpException::class, $rejection);
+        $this->assertSame(404, $rejection->getStatusCode());
+        $this->assertSame(0, $this->matchEsiJobsCalls);
+        $this->assertSame([], $this->syncedCharacterNames);
+    }
+
+    public function testRejectsAnUnknownProjectWith404(): void
+    {
+        $this->foundProject = null;
+
+        $rejection = $this->rejectionOfMatchJobs();
+
+        $this->assertInstanceOf(NotFoundHttpException::class, $rejection);
+        $this->assertSame(404, $rejection->getStatusCode());
+        $this->assertSame(0, $this->matchEsiJobsCalls);
+        $this->assertSame([], $this->syncedCharacterNames);
+    }
+
+    public function testRejectsAnonymousWith401(): void
+    {
+        $this->authenticatedUser = null;
+
+        $rejection = $this->rejectionOfMatchJobs();
+
+        $this->assertInstanceOf(UnauthorizedHttpException::class, $rejection);
+        $this->assertSame(401, $rejection->getStatusCode());
+        $this->assertSame(0, $this->matchEsiJobsCalls);
+        $this->assertSame([], $this->syncedCharacterNames);
+    }
+
+    public function testMapsEachStepAndKeepsJobsCost(): void
+    {
+        $step = (new IndustryProjectStep())->addJobMatch((new IndustryStepJobMatch())->setCost(1_482_350.25));
+        $this->project->addStep($step);
+
+        $result = $this->matchJobs();
+
+        $this->assertSame([$step], $this->mappedSteps);
+        $this->assertSame([$this->stepResource], $result->steps);
+        $this->assertSame(1_482_350.25, $result->jobsCost);
+    }
+
+    private function rejectionOfMatchJobs(): HttpExceptionInterface
+    {
+        try {
+            $this->matchJobs();
+        } catch (HttpExceptionInterface $rejection) {
+            return $rejection;
+        }
+
+        $this->fail('The job match was not rejected');
+    }
+
     private function addCharacterWithToken(string $name, int $eveCharacterId): Character
     {
         $character = (new Character())
@@ -227,10 +305,10 @@ final class MatchJobsProcessorTest extends TestCase
     private function matchJobs(): MatchJobsResultResource
     {
         $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn($this->user);
+        $security->method('getUser')->willReturn($this->authenticatedUser);
 
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $projectRepository->method('find')->willReturn($this->project);
+        $projectRepository->method('find')->willReturn($this->foundProject);
 
         $jobSyncService = $this->createStub(IndustryJobSyncService::class);
         $jobSyncService->method('syncCharacterJobs')->willReturnCallback(function (Character $character): void {
@@ -246,12 +324,19 @@ final class MatchJobsProcessorTest extends TestCase
             $this->matchEsiJobsCalls++;
         });
 
+        $mapper = $this->createStub(IndustryResourceMapper::class);
+        $mapper->method('stepToResource')->willReturnCallback(function (IndustryProjectStep $step): ProjectStepResource {
+            $this->mappedSteps[] = $step;
+
+            return $this->stepResource;
+        });
+
         $processor = new MatchJobsProcessor(
             $security,
             $projectRepository,
             $jobMatcher,
             $jobSyncService,
-            $this->createStub(IndustryResourceMapper::class),
+            $mapper,
             $this->logger,
         );
 

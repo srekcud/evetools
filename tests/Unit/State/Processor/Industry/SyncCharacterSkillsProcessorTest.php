@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Processor\Industry;
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\Industry\CharacterSkillCollectionResource;
 use App\ApiResource\Industry\CharacterSkillResource;
+use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
@@ -44,6 +45,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
     private const string PILOT_TWO_SKILLS_ENDPOINT = '/characters/2112000002/skills/';
 
     private User $user;
+    private Character $pilotOne;
     private Character $pilotTwo;
     private EveToken $pilotOneToken;
     private EveToken $pilotTwoToken;
@@ -57,14 +59,22 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
     private array $skillsEndpointFailures = [];
 
+    private array $cachedSkillsByCharacterName = [];
+
     protected function setUp(): void
     {
         $this->user = new User();
         $this->pilotOneToken = (new EveToken())->setScopes([self::SKILLS_SCOPE]);
         $this->pilotTwoToken = (new EveToken())->setScopes([self::SKILLS_SCOPE, self::JOBS_SCOPE]);
-        $this->addCharacter(self::PILOT_ONE, self::PILOT_ONE_ID, $this->pilotOneToken);
+        $this->pilotOne = $this->addCharacter(self::PILOT_ONE, self::PILOT_ONE_ID, $this->pilotOneToken);
         $this->pilotTwo = $this->addCharacter(self::PILOT_TWO, self::PILOT_TWO_ID, $this->pilotTwoToken);
         $this->logger = new BufferingLogger();
+        $this->cachedSkillsByCharacterName = [self::PILOT_ONE => [], self::PILOT_TWO => []];
+    }
+
+    protected function tearDown(): void
+    {
+        $this->logger->cleanLogs();
     }
 
     public function testDoesNotCallEsiNorCountACharacterWhoseTokenLacksTheSkillsScope(): void
@@ -188,6 +198,49 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         );
     }
 
+    public function testReturnsEachCharacterWithItsOwnCachedSkills(): void
+    {
+        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE]);
+        $this->cachedSkillsByCharacterName[self::PILOT_ONE] = [
+            $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_INDUSTRY, 5, true, '2026-10-20T08:15:00+00:00'),
+            $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_REACTIONS, 2, true, '2026-10-21T11:30:00+00:00'),
+        ];
+        $this->cachedSkillsByCharacterName[self::PILOT_TWO] = [
+            $this->cachedSkill($this->pilotTwo, CachedCharacterSkill::SKILL_INDUSTRY, 3, false, '2026-10-27T19:42:00+00:00'),
+            $this->cachedSkill($this->pilotTwo, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY, 4, false, '2026-10-26T06:05:00+00:00'),
+        ];
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [
+                [self::PILOT_ONE, 5, 0, 2, 'manual', '2026-10-21T11:30:00+00:00'],
+                [self::PILOT_TWO, 3, 4, 0, 'esi', '2026-10-27T19:42:00+00:00'],
+            ],
+            array_map(
+                static fn (CharacterSkillResource $character): array => [
+                    $character->characterName,
+                    $character->industry,
+                    $character->advancedIndustry,
+                    $character->reactions,
+                    $character->source,
+                    $character->lastSyncAt,
+                ],
+                $result->characters,
+            ),
+        );
+    }
+
+    private function cachedSkill(Character $character, int $skillId, int $level, bool $isManual, string $cachedAt): CachedCharacterSkill
+    {
+        return (new CachedCharacterSkill())
+            ->setCharacter($character)
+            ->setSkillId($skillId)
+            ->setLevel($level)
+            ->setIsManual($isManual)
+            ->setCachedAt(new \DateTimeImmutable($cachedAt));
+    }
+
     private function addCharacter(string $name, int $eveCharacterId, EveToken $token): Character
     {
         $character = (new Character())
@@ -226,7 +279,9 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         });
 
         $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
-        $skillRepository->method('findBy')->willReturn([]);
+        $skillRepository->method('findBy')->willReturnCallback(
+            fn (array $criteria): array => $this->cachedSkillsByCharacterName[$criteria['character']->getName()],
+        );
 
         $connection = $this->createStub(Connection::class);
         $connection->method('fetchAllAssociative')->willReturn([]);

@@ -115,6 +115,13 @@ describe('CharacterSyncFailuresAlert', () => {
     expect(wrapper.findAll('a')).toHaveLength(0)
   })
 
+  it('shows no link for esi_unavailable alone', () => {
+    const wrapper = mountAlert([{ characterName: 'Pilot Two', reason: 'esi_unavailable', statusCode: 502 }])
+
+    expect(lines(wrapper)).toEqual(['Pilot Two: ESI unavailable (maintenance or server error), retry later'])
+    expect(wrapper.findAll('a')).toHaveLength(0)
+  })
+
   it('asks to be dismissed from a close button with an accessible name', async () => {
     const wrapper = mountAlert([{ characterName: 'Pilot Two', reason: 'esi_error', statusCode: 403 }])
 

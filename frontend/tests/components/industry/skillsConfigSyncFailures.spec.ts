@@ -85,6 +85,33 @@ describe('SkillsConfig skill sync failures', () => {
     ])
   })
 
+  it('names two failed characters with the french plural title', async () => {
+    const wrapper = await mountAndSyncSkills([
+      { characterName: 'Pilot One', reason: 'authentication_required', statusCode: null },
+      { characterName: 'Pilot Two', reason: 'esi_error', statusCode: 403 },
+    ], 'fr')
+
+    expect(wrapper.find(BANNER).text()).toContain('Compétences non synchronisées pour 2 personnages :')
+    expect(bannerLines(wrapper)).toEqual([
+      'Pilot One : autorisation révoquée ou expirée, reconnectez le personnage',
+      'Pilot Two : erreur ESI 403',
+    ])
+  })
+
+  it('removes the banner of a previous sync when the next sync fails', async () => {
+    const wrapper = await mountAndSyncSkills([{ characterName: 'Pilot Three', reason: 'esi_unavailable', statusCode: 503 }])
+    expect(bannerLines(wrapper)).toEqual(['Pilot Three: ESI unavailable (maintenance or server error), retry later'])
+    vi.spyOn(useStructuresStore(), 'syncCharacterSkills').mockRejectedValue(new Error('Gateway timeout'))
+
+    const syncButton = wrapper.findAll('button').find(button => button.text() === 'Sync all')
+    if (!syncButton) throw new Error('No sync all button')
+    await syncButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find(BANNER).exists()).toBe(false)
+    expect(wrapper.findAll('tbody tr')).toHaveLength(3)
+  })
+
   it('shows no banner when every character was synced', async () => {
     const wrapper = await mountAndSyncSkills([])
 
