@@ -15,12 +15,14 @@ use App\Enum\IndustryActivityType;
 use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\EstimatedSellPriceEstimator;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\ProductionCostService;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\State\Processor\Industry\CreateProjectProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
+use App\Tests\Unit\Service\Industry\AutowiresByType;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -33,8 +35,11 @@ use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 #[CoversClass(CreateProjectProcessor::class)]
+#[CoversClass(EstimatedSellPriceEstimator::class)]
 final class CreateProjectProcessorTest extends TestCase
 {
+    use AutowiresByType;
+
     private const int NITROGEN_FUEL_BLOCK = 4051;
     private const int ROBOTICS = 9848;
     private const int RIFTER = 587;
@@ -63,7 +68,7 @@ final class CreateProjectProcessorTest extends TestCase
         $security->method('getUser')->willReturn($this->createStub(User::class));
         $projectFactory = $this->createStub(IndustryProjectFactory::class);
         $projectFactory->method('createProject')->willThrowException(new TypeMissingFromSdeException([self::ROBOTICS]));
-        $processor = new CreateProjectProcessor(
+        $processor = self::autowired(CreateProjectProcessor::class, [
             $security,
             $projectFactory,
             $this->createStub(IndustryResourceMapper::class),
@@ -74,7 +79,7 @@ final class CreateProjectProcessorTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(IndustryUserSettingsRepository::class),
             new NullLogger(),
-        );
+        ]);
         $input = new CreateProjectInput();
         $input->typeId = self::NITROGEN_FUEL_BLOCK;
         $input->runs = 25;
@@ -180,7 +185,7 @@ final class CreateProjectProcessorTest extends TestCase
     {
         $user = $this->createStub(User::class);
         $user->method('getPreferredMarketStructureId')->willReturn(null);
-        $project = $this->projectFor(self::NITROGEN_FUEL_BLOCK);
+        $project = $this->projectFor(self::NITROGEN_FUEL_BLOCK, $user);
         $productionCostService = $this->createStub(ProductionCostService::class);
         $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
         $productionCostService->method('estimateMaterialCost')->willThrowException(new \RuntimeException(self::MATERIAL_COST_FAILURE_REASON));
@@ -215,7 +220,7 @@ final class CreateProjectProcessorTest extends TestCase
     {
         $user = $this->createStub(User::class);
         $user->method('getPreferredMarketStructureId')->willReturn(null);
-        $project = $this->projectFor(self::RIFTER);
+        $project = $this->projectFor(self::RIFTER, $user);
         $productionCostService = $this->createStub(ProductionCostService::class);
         $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
         $productionCostService->method('estimateMaterialCost')->willReturn([
@@ -246,7 +251,7 @@ final class CreateProjectProcessorTest extends TestCase
     {
         $user = $this->createStub(User::class);
         $user->method('getPreferredMarketStructureId')->willReturn(null);
-        $project = $this->projectFor(self::RIFTER);
+        $project = $this->projectFor(self::RIFTER, $user);
         $productionCostService = $this->createStub(ProductionCostService::class);
         $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => null, 'steps' => []]);
         $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 8700.0, 'items' => [], 'failedProducts' => []]);
@@ -311,7 +316,7 @@ final class CreateProjectProcessorTest extends TestCase
             function (User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays, int $teLevel, ?string $name, array $excludedTypeIds = []) use (&$excludedTypeIdsGivenToTheFactory): IndustryProject {
                 $excludedTypeIdsGivenToTheFactory = $excludedTypeIds;
 
-                return $this->projectFor($productTypeId);
+                return $this->projectFor($productTypeId, $user);
             },
         );
         $mapper = $this->createStub(IndustryResourceMapper::class);
@@ -319,7 +324,7 @@ final class CreateProjectProcessorTest extends TestCase
         $productionCostService = $this->createStub(ProductionCostService::class);
         $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
         $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 400_000.0, 'items' => [], 'failedProducts' => []]);
-        $processor = new CreateProjectProcessor(
+        $processor = self::autowired(CreateProjectProcessor::class, [
             $security,
             $projectFactory,
             $mapper,
@@ -330,7 +335,7 @@ final class CreateProjectProcessorTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->settingsRepositoryReturning(null),
             new NullLogger(),
-        );
+        ]);
         $input = $this->inputFor(self::QUANTUM_MICROPROCESSOR);
         $input->excludedTypeIds = [self::TITANIUM_CARBIDE, self::PHENOLIC_COMPOSITES, self::TITANIUM_CARBIDE];
 
@@ -349,7 +354,7 @@ final class CreateProjectProcessorTest extends TestCase
             function (User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays, int $teLevel) use (&$factoryArguments): IndustryProject {
                 $factoryArguments = ['productTypeId' => $productTypeId, 'runs' => $runs, 'meLevel' => $meLevel, 'teLevel' => $teLevel];
 
-                return $this->projectFor($productTypeId);
+                return $this->projectFor($productTypeId, $user);
             },
         );
         $mapper = $this->createStub(IndustryResourceMapper::class);
@@ -357,7 +362,7 @@ final class CreateProjectProcessorTest extends TestCase
         $productionCostService = $this->createStub(ProductionCostService::class);
         $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
         $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 400_000.0, 'items' => [], 'failedProducts' => []]);
-        $processor = new CreateProjectProcessor(
+        $processor = self::autowired(CreateProjectProcessor::class, [
             $security,
             $projectFactory,
             $mapper,
@@ -368,7 +373,7 @@ final class CreateProjectProcessorTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->settingsRepositoryReturning(null),
             new NullLogger(),
-        );
+        ]);
         $input = new CreateProjectInput();
         $input->typeId = $productTypeId;
         $input->runs = $runs;
@@ -391,7 +396,7 @@ final class CreateProjectProcessorTest extends TestCase
     ): IndustryProject {
         $user = $this->createStub(User::class);
         $user->method('getPreferredMarketStructureId')->willReturn($structurePrice === null ? null : self::PREFERRED_MARKET_STRUCTURE_ID);
-        $project = $this->projectFor($productTypeId, $runs);
+        $project = $this->projectFor($productTypeId, $user, $runs);
         $productionCostService = $this->createStub(ProductionCostService::class);
         $productionCostService->method('estimateJobInstallCosts')->willReturn(['total' => self::ESTIMATED_JOB_COST, 'steps' => []]);
         $productionCostService->method('estimateMaterialCost')->willReturn(['total' => 400_000.0, 'items' => [], 'failedProducts' => []]);
@@ -439,7 +444,7 @@ final class CreateProjectProcessorTest extends TestCase
             static fn (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct => $producersByActivityId[$activityId] ?? null,
         );
 
-        return new CreateProjectProcessor(
+        return self::autowired(CreateProjectProcessor::class, [
             $security,
             $projectFactory,
             $mapper,
@@ -450,7 +455,7 @@ final class CreateProjectProcessorTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $settingsRepository,
             $logger,
-        );
+        ]);
     }
 
     private function ferniteCarbideReactionFormula(): IndustryActivityProduct
@@ -477,9 +482,10 @@ final class CreateProjectProcessorTest extends TestCase
             ->setSalesTaxRate(self::SALES_TAX_RATE);
     }
 
-    private function projectFor(int $productTypeId, int $runs = self::PROJECT_RUNS): IndustryProject
+    private function projectFor(int $productTypeId, User $user, int $runs = self::PROJECT_RUNS): IndustryProject
     {
         return (new IndustryProject())
+            ->setUser($user)
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
     }

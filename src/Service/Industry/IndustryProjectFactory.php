@@ -116,6 +116,11 @@ class IndustryProjectFactory
         }
     }
 
+    public function stepRegenerationPreviewOf(IndustryProject $project): StepRegenerationPreview
+    {
+        return new StepRegenerationPreview([], 0);
+    }
+
     /**
      * @return array<string, list<array{meLevel: int, teLevel: int, structureConfig: IndustryStructureConfig|null}>>
      */

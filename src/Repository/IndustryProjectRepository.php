@@ -9,6 +9,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<IndustryProject>
@@ -55,5 +56,13 @@ class IndustryProjectRepository extends ServiceEntityRepository
             ->getResult();
 
         return $projects;
+    }
+
+    /**
+     * @return list<Uuid>
+     */
+    public function findIdsInCreationOrder(): array
+    {
+        return [];
     }
 }

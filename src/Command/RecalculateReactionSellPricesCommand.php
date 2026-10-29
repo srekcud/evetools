@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Command;
+
+use App\Service\Industry\ReactionProjectSellPriceRecalculation;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+
+#[AsCommand(
+    name: 'app:industry:recalculate-reaction-sell-prices',
+    description: 'Recalculate the estimated sell price of the active reaction projects created before the given time',
+)]
+class RecalculateReactionSellPricesCommand extends Command
+{
+    public function __construct(
+        private readonly ReactionProjectSellPriceRecalculation $recalculation,
+    ) {
+        parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption('created-before', null, InputOption::VALUE_REQUIRED, 'Deployment time of the release that fixed the reaction sell price (ISO 8601)');
+        $this->addOption('dry-run', null, InputOption::VALUE_NONE, 'Only show what would be done, do not save');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        return Command::SUCCESS;
+    }
+}

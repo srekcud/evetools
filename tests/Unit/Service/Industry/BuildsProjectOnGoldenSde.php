@@ -62,7 +62,7 @@ trait BuildsProjectOnGoldenSde
 
     private bool $goldenT2ProductsAreInvented = true;
 
-    private function projectFactoryOnGoldenSde(IndustryBonusService $bonusService, IndustryCalculationService $calculationService, ?EntityManagerInterface $projectEntityManager = null, ?CachedCharacterSkillRepository $skillRepository = null): IndustryProjectFactory
+    private function projectFactoryOnGoldenSde(IndustryBonusService $bonusService, IndustryCalculationService $calculationService, ?EntityManagerInterface $projectEntityManager = null, ?CachedCharacterSkillRepository $skillRepository = null, ?HubInterface $mercureHub = null): IndustryProjectFactory
     {
         $typeRepository = $this->typeRepositoryOnGoldenSde();
         $materialRepository = $this->materialRepositoryOnGoldenSde();
@@ -78,7 +78,7 @@ trait BuildsProjectOnGoldenSde
             $this->activityRepositoryOnGoldenSde(),
             $this->blueprintRepositoryOnGoldenSde(),
             $projectEntityManager ?? $this->entityManagerWithoutRows(),
-            new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            new MercurePublisherService($mercureHub ?? $this->createStub(HubInterface::class), new NullLogger()),
             $this->inventionCatalogOfGoldenSde(),
         ]);
     }
