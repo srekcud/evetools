@@ -12,6 +12,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<GroupIndustryContribution>
@@ -89,7 +90,7 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleColumnResult();
 
-        return array_values(array_map(strval(...), $bomItemIds));
+        return array_values(array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $bomItemIds));
     }
 
     public function countByMember(GroupIndustryProjectMember $member): int
