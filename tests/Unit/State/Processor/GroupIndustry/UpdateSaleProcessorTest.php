@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\UpdateSaleInput;
+use App\Entity\CachedWalletTransaction;
 use App\Entity\GroupIndustrySale;
 use App\Enum\GroupProjectStatus;
 use App\Service\Mercure\MercurePublisherService;
@@ -28,6 +29,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(UpdateSaleProcessor::class)]
 #[Group('issue-164')]
@@ -37,6 +39,9 @@ final class UpdateSaleProcessorTest extends TestCase
     use GroupProjectAccessProfiles;
     use SabreBatchSales;
     use SabreBatchSellers;
+
+    private const int SABRE_TYPE_ID_OF_T1 = 22456;
+    private const string LINKED_SALE_REFUSAL = '400 This sale is linked to a wallet transaction.';
 
     private Security&Stub $security;
     private GroupSaleItemProvider $provider;
@@ -412,6 +417,149 @@ final class UpdateSaleProcessorTest extends TestCase
         $outcome = $this->outcomeOf(fn () => $this->correctSabreSale(['sellerCharacterId' => self::O_MAIN_EVE_CHARACTER_ID]));
 
         self::assertSame(['400 Cannot correct a sale on a completed project', 0], [$outcome, $this->flushes]);
+    }
+
+    public static function correctionsOfAValueTakenFromTheWalletTransaction(): iterable
+    {
+        yield 'P1 unit price' => [['unitPrice' => 60_000_000.0]];
+        yield 'P5 seller among the characters of the owner' => [['sellerCharacterId' => self::O_ALT_EVE_CHARACTER_ID]];
+        yield 'P5 sale date' => [['soldAt' => '2026-10-25T10:00:00+00:00']];
+        yield 'P5 type identical to the one of the transaction' => [['typeId' => self::SABRE_TYPE_ID_OF_T1]];
+        yield 'type typed by name' => [['typeId' => 0]];
+        yield 'unit price with a quantity within the transaction' => [['quantity' => 2, 'unitPrice' => 60_000_000.0]];
+        yield 'free unit price' => [['unitPrice' => 0.0]];
+    }
+
+    #[Group('issue-241')]
+    #[DataProvider('correctionsOfAValueTakenFromTheWalletTransaction')]
+    public function testCorrectionOfAValueTakenFromTheWalletTransactionIsRefusedAndKeepsTheLinkedSale(array $changes): void
+    {
+        $t1 = $this->linkTheSabreSaleToT1();
+        $this->actAsTheOwnerWithHisCharacters();
+
+        $outcome = $this->outcomeOf(fn () => $this->correctSabreSale($changes));
+
+        self::assertSame(
+            [self::LINKED_SALE_REFUSAL, [61_250_000.0, 3, 183_750_000.0], self::SABRE_TYPE_ID_OF_T1, '2026-10-24T21:05:00+00:00', 0, []],
+            [$outcome, $this->persistedSabreSaleAmounts(), $this->sabreSale->getTypeId(), $this->sabreSale->getSoldAt()->format(\DateTimeInterface::ATOM), $this->flushes, $this->publishedUpdates],
+        );
+        self::assertSame([$this->oMain, $t1], [$this->sabreSale->getSeller(), $this->sabreSale->getWalletTransaction()]);
+    }
+
+    public static function quantitiesWithinT1(): iterable
+    {
+        yield 'P2 two of the three units' => [2, 122_500_000.0];
+        yield 'every unit of the transaction' => [3, 183_750_000.0];
+        yield 'a single unit' => [1, 61_250_000.0];
+    }
+
+    #[Group('issue-241')]
+    #[DataProvider('quantitiesWithinT1')]
+    public function testQuantityOfALinkedSaleIsCorrectedWithinTheQuantityOfItsTransaction(int $quantity, float $expectedTotalPrice): void
+    {
+        $t1 = $this->linkTheSabreSaleToT1();
+        $this->actAsTheOwnerWithHisCharacters();
+
+        $sale = $this->correctSabreSale(['quantity' => $quantity]);
+
+        self::assertSame(
+            [$quantity, 61_250_000.0, $expectedTotalPrice, true, self::O_MAIN_EVE_CHARACTER_ID, 1],
+            [$sale->quantity, $sale->unitPrice, $sale->totalPrice, $sale->linkedToWalletTransaction, $sale->sellerCharacterId, $this->flushes],
+        );
+        self::assertSame($t1, $this->sabreSale->getWalletTransaction());
+    }
+
+    #[Group('issue-241')]
+    public function testP3QuantityAboveTheTransactionIsRefusedAndKeepsTheLinkedSale(): void
+    {
+        $this->linkTheSabreSaleToT1();
+        $this->actAsTheOwnerWithHisCharacters();
+
+        $outcome = $this->outcomeOf(fn () => $this->correctSabreSale(['quantity' => 4]));
+
+        self::assertSame(
+            ['400 The quantity exceeds the quantity of the transaction.', [61_250_000.0, 3, 183_750_000.0], 0, []],
+            [$outcome, $this->persistedSabreSaleAmounts(), $this->flushes, $this->publishedUpdates],
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testP4VenueAndItemNameOfALinkedSaleStayFree(): void
+    {
+        $this->linkTheSabreSaleToT1();
+        $this->actAsTheOwnerWithHisCharacters();
+
+        $sale = $this->correctSabreSale(['venue' => 'Jita 4-4', 'typeName' => 'Sabre (fleet hull)']);
+
+        self::assertSame(
+            ['Jita 4-4', 'Sabre (fleet hull)', 183_750_000.0, true, 1],
+            [$sale->venue, $sale->typeName, $sale->totalPrice, $sale->linkedToWalletTransaction, $this->flushes],
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testValuesOfTheTransactionLeftNullDoNotBlockTheCorrectionOfALinkedSale(): void
+    {
+        $this->linkTheSabreSaleToT1();
+        $this->actAsTheOwnerWithHisCharacters();
+
+        $sale = $this->correctSabreSale(['typeId' => null, 'unitPrice' => null, 'soldAt' => null, 'sellerCharacterId' => null, 'quantity' => 2]);
+
+        self::assertSame(
+            [self::SABRE_TYPE_ID_OF_T1, 2, 61_250_000.0, 122_500_000.0, '2026-10-24T21:05:00+00:00', 'O-Main'],
+            [$sale->typeId, $sale->quantity, $sale->unitPrice, $sale->totalPrice, $sale->soldAt, $sale->sellerCharacterName],
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testSaleWhoseWalletTransactionVanishedIsCorrectedFreely(): void
+    {
+        $this->sabreSale->setTypeId(self::SABRE_TYPE_ID_OF_T1)->setQuantity(3)->setUnitPrice(61_250_000.0)->recalculateTotalPrice();
+        $this->actAsTheOwnerWithHisCharacters();
+
+        $sale = $this->correctSabreSale([
+            'unitPrice' => 60_000_000.0,
+            'quantity' => 4,
+            'soldAt' => '2026-10-25T10:00:00+00:00',
+            'sellerCharacterId' => self::O_ALT_EVE_CHARACTER_ID,
+        ]);
+
+        self::assertSame(
+            [4, 60_000_000.0, 240_000_000.0, '2026-10-25T10:00:00+00:00', 'O-Alt', false],
+            [$sale->quantity, $sale->unitPrice, $sale->totalPrice, $sale->soldAt, $sale->sellerCharacterName, $sale->linkedToWalletTransaction],
+        );
+    }
+
+    private function linkTheSabreSaleToT1(): CachedWalletTransaction
+    {
+        $t1 = (new CachedWalletTransaction())
+            ->setCharacter($this->oMain)
+            ->setTransactionId(6_100_000_001)
+            ->setIsBuy(false)
+            ->setTypeId(self::SABRE_TYPE_ID_OF_T1)
+            ->setQuantity(3)
+            ->setUnitPrice(61_250_000.0)
+            ->setDate(new \DateTimeImmutable('2026-10-24T21:05:00+00:00'))
+            ->setLocationId(60003760)
+            ->setClientId(2119000001);
+        (new \ReflectionProperty(CachedWalletTransaction::class, 'id'))->setValue($t1, Uuid::v4());
+
+        $this->sabreSale
+            ->setTypeId(self::SABRE_TYPE_ID_OF_T1)
+            ->setQuantity(3)
+            ->setUnitPrice(61_250_000.0)
+            ->recalculateTotalPrice()
+            ->setVenue(null)
+            ->setSoldAt(new \DateTimeImmutable('2026-10-24T21:05:00+00:00'))
+            ->setSeller($this->oMain)
+            ->setWalletTransaction($t1);
+
+        return $t1;
+    }
+
+    private function actAsTheOwnerWithHisCharacters(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt));
     }
 
     private function correctSabreSale(array $changes, ?array $uriVariables = null): GroupIndustrySaleResource

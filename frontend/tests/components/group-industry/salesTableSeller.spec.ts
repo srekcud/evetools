@@ -38,6 +38,7 @@ function sale(id: string, quantity: number, unitPrice: number, soldAt: string, s
     recordedByCharacterName: recorder,
     sellerCharacterId: seller === null ? null : seller[0],
     sellerCharacterName: seller === null ? null : seller[1],
+    linkedToWalletTransaction: false,
     createdAt: soldAt,
   }
 }

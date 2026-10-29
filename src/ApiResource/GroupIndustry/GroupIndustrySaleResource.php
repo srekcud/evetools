@@ -109,6 +109,8 @@ class GroupIndustrySaleResource
 
     public ?string $sellerCharacterName = null;
 
+    public bool $linkedToWalletTransaction = false;
+
     public string $createdAt;
 
     public static function fromSale(GroupIndustrySale $sale): self

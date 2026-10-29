@@ -415,6 +415,58 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         );
     }
 
+    #[Group('issue-241')]
+    public function testX1SaleLinkedToAWalletTransactionOfTheDeletedAccountIsKeptUnlinkedWithoutSellerNorAuthor(): void
+    {
+        $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
+        $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
+        $project = $this->createProject($brann, 'Sabre');
+        $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $t5 = (new CachedWalletTransaction())
+            ->setCharacter($this->mainCharacterOf($kaelen))
+            ->setTransactionId(6_100_000_005)
+            ->setTypeId(22_456)
+            ->setQuantity(2)
+            ->setUnitPrice(61_000_000.0)
+            ->setIsBuy(false)
+            ->setLocationId(1_035_466_617_946)
+            ->setClientId(2_119_000_005)
+            ->setDate(new \DateTimeImmutable('2026-10-25 18:00:00'));
+        $this->em->persist($t5);
+        $sale = $this->addSale($project, $kaelen, 22_456, 'Sabre', 2, 61_000_000.0)
+            ->setSeller($this->mainCharacterOf($kaelen))
+            ->setWalletTransaction($t5);
+        $this->em->flush();
+        $projectId = (string) $project->getId();
+        $saleId = (string) $sale->getId();
+        $transactionId = (string) $t5->getId();
+        $brannId = (string) $brann->getId();
+
+        $this->deleteAccount((string) $kaelen->getId());
+
+        $sale = $this->em->find(GroupIndustrySale::class, $saleId);
+        self::assertInstanceOf(GroupIndustrySale::class, $sale);
+        self::assertSame(
+            [null, null, null, 2, 122_000_000.0],
+            [$sale->getWalletTransaction(), $sale->getSeller(), $sale->getRecordedBy(), $sale->getQuantity(), $sale->getTotalPrice()],
+        );
+        self::assertSame(0, $this->countWhereIn('cached_wallet_transactions', 'id', [$transactionId]));
+        self::assertSame(122_000_000.0, $this->distributionOf($projectId)->totalRevenue);
+        self::assertSame(
+            [[false, null, null, 122_000_000.0]],
+            array_map(
+                static fn (GroupIndustrySaleResource $listedSale): array => [
+                    $listedSale->linkedToWalletTransaction,
+                    $listedSale->sellerCharacterName,
+                    $listedSale->recordedByCharacterName,
+                    $listedSale->totalPrice,
+                ],
+                $this->listSalesOf($projectId, $brannId),
+            ),
+        );
+    }
+
     public function testCorporationAssetVisibilityIsKeptWithoutAuthorAndCorporationAssetsSyncFallsBackOnAnotherCharacter(): void
     {
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main', self::SHARED_CORPORATION_ID, [self::CORP_ASSETS_SCOPE]);

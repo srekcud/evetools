@@ -42,6 +42,11 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function findUnlinkedSaleTransactions(array $characters, array $typeIds, \DateTimeImmutable $since): array
+    {
+        throw new \LogicException('not implemented');
+    }
+
     /**
      * Check which transaction IDs already exist in the database.
      *

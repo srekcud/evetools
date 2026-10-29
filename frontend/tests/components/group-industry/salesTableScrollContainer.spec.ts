@@ -26,6 +26,7 @@ const FEROX_SALE: GroupSale = {
   recordedByCharacterName: 'Bob Builder',
   sellerCharacterId: null,
   sellerCharacterName: null,
+  linkedToWalletTransaction: false,
   createdAt: '2026-10-21T14:05:00+00:00',
 }
 
@@ -41,6 +42,7 @@ const SABRE_SALE: GroupSale = {
   recordedByCharacterName: null,
   sellerCharacterId: null,
   sellerCharacterName: null,
+  linkedToWalletTransaction: false,
   createdAt: '2026-10-22T09:31:00+00:00',
 }
 

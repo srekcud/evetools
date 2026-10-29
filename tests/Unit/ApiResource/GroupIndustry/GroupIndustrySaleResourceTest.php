@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\ApiResource\GroupIndustry;
 
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
+use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
@@ -61,6 +62,32 @@ final class GroupIndustrySaleResourceTest extends TestCase
             [self::A_MAIN_EVE_CHARACTER_ID, 'A-Main', null, 62_000_000.0],
             [$resource->sellerCharacterId, $resource->sellerCharacterName, $resource->recordedByCharacterName, $resource->totalPrice],
         );
+    }
+
+    public function testSaleRecordedFromAWalletTransactionIsLinkedToIt(): void
+    {
+        $oMain = (new Character())->setEveCharacterId(self::O_MAIN_EVE_CHARACTER_ID)->setName('O-Main');
+        $t1 = (new CachedWalletTransaction())
+            ->setCharacter($oMain)
+            ->setTransactionId(6_100_000_001)
+            ->setIsBuy(false)
+            ->setTypeId(22456)
+            ->setQuantity(3)
+            ->setUnitPrice(61_250_000.0)
+            ->setDate(new \DateTimeImmutable('2026-10-24T21:05:00+00:00'))
+            ->setLocationId(60003760)
+            ->setClientId(2119000001);
+
+        $resource = GroupIndustrySaleResource::fromSale($this->sabreSale(3, 61_250_000.0, null)->setSeller($oMain)->setWalletTransaction($t1));
+
+        self::assertSame([true, 183_750_000.0], [$resource->linkedToWalletTransaction, $resource->totalPrice]);
+    }
+
+    public function testSaleRecordedByHandIsNotLinkedToAnyWalletTransaction(): void
+    {
+        $resource = GroupIndustrySaleResource::fromSale($this->sabreSale(3, 61_250_000.0, null)->setWalletTransaction(null));
+
+        self::assertSame([false, 183_750_000.0], [$resource->linkedToWalletTransaction, $resource->totalPrice]);
     }
 
     private function sabreSale(int $quantity, float $unitPrice, ?User $recordedBy): GroupIndustrySale

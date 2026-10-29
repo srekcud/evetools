@@ -34,6 +34,7 @@ const SABRE_BATCH_SALES: GroupSale[] = [
     recordedByCharacterName: 'Brann Holt',
     sellerCharacterId: null,
     sellerCharacterName: null,
+    linkedToWalletTransaction: false,
     createdAt: '2026-10-20T18:31:00+00:00',
   },
   {
@@ -48,6 +49,7 @@ const SABRE_BATCH_SALES: GroupSale[] = [
     recordedByCharacterName: 'Brann Holt',
     sellerCharacterId: null,
     sellerCharacterName: null,
+    linkedToWalletTransaction: false,
     createdAt: '2026-10-21T16:50:00+00:00',
   },
 ]
@@ -65,6 +67,7 @@ const HECATE_BATCH_SALES: GroupSale[] = [
     recordedByCharacterName: 'Cyra Lune',
     sellerCharacterId: null,
     sellerCharacterName: null,
+    linkedToWalletTransaction: false,
     createdAt: '2026-10-22T09:31:00+00:00',
   },
 ]

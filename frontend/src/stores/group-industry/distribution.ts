@@ -4,8 +4,10 @@ import { apiRequest } from '@/services/api'
 import type {
   Distribution,
   GroupSale,
+  GroupSaleSuggestion,
   GroupMember,
   LineRentalRates,
+  RecordSaleFromWalletTransactionInput,
   RecordSaleInput,
   UpdateSaleInput,
 } from './types'
@@ -24,6 +26,9 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   const salesError = ref<string | null>(null)
   const membersError = ref<string | null>(null)
   const openedProjectId = ref<string | null>(null)
+  const saleSuggestions = ref<GroupSaleSuggestion[]>([])
+  const loadingSaleSuggestions = ref(false)
+  const saleSuggestionsError = ref<string | null>(null)
 
   function openProject(projectId: string): void {
     if (openedProjectId.value === projectId) {
@@ -129,6 +134,14 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     }
   }
 
+  async function fetchSaleSuggestions(_projectId: string): Promise<void> {
+    throw new Error('not implemented')
+  }
+
+  async function recordSaleFromWalletTransaction(_projectId: string, _input: RecordSaleFromWalletTransactionInput): Promise<GroupSale> {
+    throw new Error('not implemented')
+  }
+
   function fetchMembers(projectId: string): Promise<void> {
     return fetchForProject(projectId, 'members', members, [], loadingMembers, membersError, 'Failed to fetch members')
   }
@@ -231,6 +244,11 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     recordSale,
     updateSale,
     deleteSale,
+    saleSuggestions,
+    loadingSaleSuggestions,
+    saleSuggestionsError,
+    fetchSaleSuggestions,
+    recordSaleFromWalletTransaction,
     fetchMembers,
     updateMember,
     kickMember,

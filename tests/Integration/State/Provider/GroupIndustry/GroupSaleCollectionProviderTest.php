@@ -6,6 +6,8 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
+use App\Entity\CachedWalletTransaction;
+use App\Entity\Character;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
@@ -30,6 +32,8 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
     private const int SABRE_TYPE_ID = 22456;
     private const int CAPACITOR_BOOSTER_TYPE_ID = 3554;
     private const int NANITE_PASTE_TYPE_ID = 28668;
+
+    private static int $lastWalletTransactionId = 6_241_000_000;
 
     public function testSalesListIssuesTheSameQueriesForTwoOrFourRecordingAdmins(): void
     {
@@ -193,7 +197,44 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         );
     }
 
-    private function createProjectWithSalesSoldByDistinctCharacters(string $prefix, int $sellersCount): array
+    #[Group('issue-241')]
+    public function testSalesLinkedToWalletTransactionsAreListedWithoutAnyAdditionalQuery(): void
+    {
+        [$unlinkedViewerId, $unlinkedProjectId] = $this->createProjectWithSalesSoldByDistinctCharacters('Rhea Tallis', sellersCount: 2);
+        [$linkedViewerId, $linkedProjectId] = $this->createProjectWithSalesSoldByDistinctCharacters('Joss Varn', sellersCount: 2, linkedToWalletTransactions: true);
+
+        $unlinkedQueries = $this->queriesListingTheSales($unlinkedViewerId, $unlinkedProjectId);
+        $linkedQueries = $this->queriesListingTheSales($linkedViewerId, $linkedProjectId);
+
+        self::assertCount(
+            \count($unlinkedQueries),
+            $linkedQueries,
+            sprintf("4 unlinked sales: %d queries; 4 linked sales: %d queries:\n%s", \count($unlinkedQueries), \count($linkedQueries), implode("\n", $linkedQueries)),
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testSalesAreListedAsLinkedToAWalletTransactionOrNot(): void
+    {
+        [$unlinkedViewerId, $unlinkedProjectId] = $this->createProjectWithSalesSoldByDistinctCharacters('Mira Okoro', sellersCount: 2);
+        [$linkedViewerId, $linkedProjectId] = $this->createProjectWithSalesSoldByDistinctCharacters('Teo Brandt', sellersCount: 2, linkedToWalletTransactions: true);
+        $this->em->clear();
+
+        $linkedFlags = static fn (array $sales): array => array_map(
+            static fn (GroupIndustrySaleResource $sale): bool => $sale->linkedToWalletTransaction,
+            $sales,
+        );
+
+        self::assertSame(
+            [[false, false, false, false], [true, true, true, true]],
+            [
+                $linkedFlags($this->salesOf($unlinkedProjectId, $this->user($unlinkedViewerId))),
+                $linkedFlags($this->salesOf($linkedProjectId, $this->user($linkedViewerId))),
+            ],
+        );
+    }
+
+    private function createProjectWithSalesSoldByDistinctCharacters(string $prefix, int $sellersCount, bool $linkedToWalletTransactions = false): array
     {
         $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
         $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
@@ -208,7 +249,8 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         }
 
         for ($saleIndex = 1; $saleIndex <= 2 * $sellersCount; ++$saleIndex) {
-            $this->addSale(
+            $seller = $sellers[$saleIndex % $sellersCount];
+            $sale = $this->addSale(
                 $project,
                 self::SABRE_TYPE_ID,
                 'Sabre',
@@ -216,12 +258,32 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
                 60_000_000.0 + $saleIndex * 25_000.0,
                 sprintf('2026-10-%02dT12:15:00+00:00', $saleIndex),
                 $owner,
-            )->setSeller($sellers[$saleIndex % $sellersCount]);
+            )->setSeller($seller);
+            if ($linkedToWalletTransactions) {
+                $sale->setWalletTransaction($this->saleTransactionOf($seller, $sale));
+            }
         }
 
         $this->em->flush();
 
         return [(string) $viewer->getId(), (string) $project->getId()];
+    }
+
+    private function saleTransactionOf(Character $seller, GroupIndustrySale $sale): CachedWalletTransaction
+    {
+        $transaction = (new CachedWalletTransaction())
+            ->setCharacter($seller)
+            ->setTransactionId(++self::$lastWalletTransactionId)
+            ->setIsBuy(false)
+            ->setTypeId(self::SABRE_TYPE_ID)
+            ->setQuantity($sale->getQuantity())
+            ->setUnitPrice($sale->getUnitPrice())
+            ->setDate($sale->getSoldAt())
+            ->setLocationId(60003760)
+            ->setClientId(2_119_000_241);
+        $this->em->persist($transaction);
+
+        return $transaction;
     }
 
     private function queriesListingTheSales(string $viewerId, string $projectId): array

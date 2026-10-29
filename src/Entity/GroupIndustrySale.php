@@ -182,6 +182,16 @@ class GroupIndustrySale
         return $this;
     }
 
+    public function getWalletTransaction(): ?CachedWalletTransaction
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function setWalletTransaction(?CachedWalletTransaction $walletTransaction): static
+    {
+        throw new \LogicException('not implemented');
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;

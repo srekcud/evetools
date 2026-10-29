@@ -123,7 +123,22 @@ export type GroupSale = {
   recordedByCharacterName: string | null
   sellerCharacterId: number | null
   sellerCharacterName: string | null
+  linkedToWalletTransaction: boolean
   createdAt: string
+}
+
+export type GroupSaleSuggestion = {
+  transactionId: string
+  typeId: number
+  typeName: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  date: string
+  sellerCharacterId: number
+  sellerCharacterName: string
+  locationId: number
+  possibleDuplicateSaleIds: string[]
 }
 
 // --- Distribution ---
@@ -211,4 +226,9 @@ export type UpdateSaleInput = {
   venue?: string
   soldAt?: string
   sellerCharacterId?: number
+}
+
+export type RecordSaleFromWalletTransactionInput = {
+  transactionId: string
+  quantity?: number
 }

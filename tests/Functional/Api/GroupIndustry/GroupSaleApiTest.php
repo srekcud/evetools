@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\GroupIndustry;
 
+use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\GroupIndustryProject;
+use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
@@ -267,6 +269,136 @@ final class GroupSaleApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame([['sellerCharacterId'], [900000.0, 1800000.0]], [$this->violatedPaths(), $this->storedSabreSaleAmounts()]);
+    }
+
+    #[Group('issue-241')]
+    public function testOwnerReadsTheSaleSuggestionsOfTheProjectThroughItsRoute(): void
+    {
+        $t1 = $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->saleSuggestionsUri());
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [[$t1->getId()?->toRfc4122(), 22456, 'Sabre', 3, 183_750_000.0, 'Aria Solberg']],
+            array_map(
+                static fn (array $suggestion): array => [
+                    $suggestion['transactionId'],
+                    $suggestion['typeId'],
+                    $suggestion['typeName'],
+                    $suggestion['quantity'],
+                    (float) $suggestion['totalPrice'],
+                    $suggestion['sellerCharacterName'],
+                ],
+                $this->responseJson()['member'],
+            ),
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testPlainMemberIsRefusedTheSaleSuggestions(): void
+    {
+        $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->saleSuggestionsUri());
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    #[Group('issue-241')]
+    public function testOwnerRecordsASaleFromHisWalletTransactionThroughItsRoute(): void
+    {
+        $t1 = $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->saleFromWalletTransactionUri(), ['transactionId' => $t1->getId()?->toRfc4122(), 'quantity' => 2]);
+
+        self::assertResponseStatusCodeSame(201);
+        $sale = $this->responseJson();
+        self::assertSame(
+            [2, 122_500_000.0, 'Aria Solberg', true, 2],
+            [$sale['quantity'], (float) $sale['totalPrice'], $sale['sellerCharacterName'], $sale['linkedToWalletTransaction'], $this->salesCountOf($this->sabreDoctrine)],
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testL11UnknownTransactionIsNotFoundAndNothingIsRecorded(): void
+    {
+        $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->saleFromWalletTransactionUri(), ['transactionId' => '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e51']);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(['Transaction not found', 1], [$this->responseJson()['detail'] ?? null, $this->salesCountOf($this->sabreDoctrine)]);
+    }
+
+    #[Group('issue-241')]
+    public function testL11TransactionIdentifierThatIsNotAUuidIsRejectedOnTheTransactionIdentifier(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->saleFromWalletTransactionUri(), ['transactionId' => 'not-a-uuid']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([['transactionId'], 1], [$this->violatedPaths(), $this->salesCountOf($this->sabreDoctrine)]);
+    }
+
+    #[Group('issue-241')]
+    public function testPlainMemberSendingAZeroQuantityIsToldAboutTheQuantityBeforeTheAccessRefusal(): void
+    {
+        $t1 = $this->persistSabreSaleOfTheOwnerMain();
+        $this->client->loginUser($this->member, 'api');
+        $this->request('POST', $this->saleFromWalletTransactionUri(), ['transactionId' => $t1->getId()?->toRfc4122(), 'quantity' => 0]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['quantity'], $this->violatedPaths());
+    }
+
+    #[Group('issue-241')]
+    public function testOwnerRecordingTheTransactionOfTheAdminIsNotFound(): void
+    {
+        $adminSale = $this->persistWalletSale($this->admin, 6_100_000_005, 2, 61_000_000.0);
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->saleFromWalletTransactionUri(), ['transactionId' => $adminSale->getId()?->toRfc4122()]);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(1, $this->salesCountOf($this->sabreDoctrine));
+    }
+
+    private function persistSabreSaleOfTheOwnerMain(): CachedWalletTransaction
+    {
+        return $this->persistWalletSale($this->owner, 6_100_000_001, 3, 61_250_000.0);
+    }
+
+    private function persistWalletSale(User $seller, int $transactionId, int $quantity, float $unitPrice): CachedWalletTransaction
+    {
+        if ($this->sabreDoctrine->getItems()->isEmpty()) {
+            $this->sabreDoctrine->addItem((new GroupIndustryProjectItem())->setTypeId(22456)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
+        }
+        $sellerCharacter = $seller->getMainCharacter();
+        \assert($sellerCharacter instanceof Character);
+        $transaction = (new CachedWalletTransaction())
+            ->setCharacter($sellerCharacter)
+            ->setTransactionId($transactionId)
+            ->setIsBuy(false)
+            ->setTypeId(22456)
+            ->setQuantity($quantity)
+            ->setUnitPrice($unitPrice)
+            ->setDate(new \DateTimeImmutable('+1 minute'))
+            ->setLocationId(60003760)
+            ->setClientId(2_119_000_241);
+        $this->em->persist($transaction);
+        $this->em->flush();
+
+        return $transaction;
+    }
+
+    private function saleSuggestionsUri(): string
+    {
+        return sprintf('/api/group-industry/projects/%s/sale-suggestions', $this->sabreDoctrine->getId()?->toRfc4122());
+    }
+
+    private function saleFromWalletTransactionUri(): string
+    {
+        return sprintf('/api/group-industry/projects/%s/sales/from-wallet-transaction', $this->sabreDoctrine->getId()?->toRfc4122());
     }
 
     private function persistPilot(string $name, int $corporationId): User

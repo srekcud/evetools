@@ -8,6 +8,7 @@ use App\Entity\Character;
 use App\Entity\User;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\MockObject\Stub;
+use Symfony\Component\Uid\Uuid;
 
 trait SabreBatchSellers
 {
@@ -33,7 +34,10 @@ trait SabreBatchSellers
 
     private function sellerCharacter(int $eveCharacterId, string $name): Character
     {
-        return (new Character())->setEveCharacterId($eveCharacterId)->setName($name);
+        $character = (new Character())->setEveCharacterId($eveCharacterId)->setName($name);
+        (new \ReflectionProperty(Character::class, 'id'))->setValue($character, Uuid::v4());
+
+        return $character;
     }
 
     private function withCharacters(User $user, Character $mainCharacter, Character ...$otherCharacters): User
