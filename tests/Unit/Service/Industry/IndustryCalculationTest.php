@@ -54,6 +54,12 @@ class IndustryCalculationTest extends TestCase
     private const int RAVEN_BLUEPRINT = 688;
     private const int RAVEN_MANUFACTURING_BASE_TIME_PER_RUN = 18000;
     private const int RAVEN_COPYING_BASE_TIME_PER_RUN = 14400;
+    private const int PRODUCT_OF_19000_SECONDS = 999_100_001;
+    private const int BLUEPRINT_OF_19000_SECONDS = 999_200_001;
+    private const int PRODUCT_OF_10000_SECONDS = 999_100_002;
+    private const int BLUEPRINT_OF_10000_SECONDS = 999_200_002;
+    private const int PRODUCT_OF_16003_SECONDS = 999_100_003;
+    private const int BLUEPRINT_OF_16003_SECONDS = 999_200_003;
     private const int BLUEPRINT_WITHOUT_BASE_TIME = 999_999_999;
     private const int FIRST_SCIENCE_SKILL = 999_000_001;
     private const int SECOND_SCIENCE_SKILL = 999_000_002;
@@ -429,6 +435,29 @@ class IndustryCalculationTest extends TestCase
         self::assertSame(10663, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE));
     }
 
+    #[Group('issue-277')]
+    #[DataProvider('timesPerRunWhoseProductCarriesFloatingPointNoise')]
+    public function testTimePerRunIsNotRoundedUpByTheFloatingPointNoiseOfItsProduct(int $productTypeId, int $blueprintTypeId, int $teLevel, int $expectedTimePerRun): void
+    {
+        $step = $this->stepOfAProject($productTypeId, $blueprintTypeId, 'manufacturing', $teLevel);
+
+        self::assertSame($expectedTimePerRun, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE));
+    }
+
+    public static function timesPerRunWhoseProductCarriesFloatingPointNoise(): iterable
+    {
+        yield 'base time 19000 at TE 0 with Industry V and Advanced Industry V' => [self::PRODUCT_OF_19000_SECONDS, self::BLUEPRINT_OF_19000_SECONDS, 0, 12920];
+        yield 'base time 10000 at TE 0 with Industry V and Advanced Industry V' => [self::PRODUCT_OF_10000_SECONDS, self::BLUEPRINT_OF_10000_SECONDS, 0, 6800];
+    }
+
+    #[Group('issue-277')]
+    public function testTimePerRunWithATrueFractionOfASecondIsStillRoundedUp(): void
+    {
+        $step = $this->stepOfAProject(self::PRODUCT_OF_16003_SECONDS, self::BLUEPRINT_OF_16003_SECONDS, 'manufacturing', 20);
+
+        self::assertSame(8706, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE));
+    }
+
     #[Group('issue-126')]
     public function testTimePerRunOfACopyStepIsTheCopyingBaseTimeOfTheBlueprint(): void
     {
@@ -461,6 +490,9 @@ class IndustryCalculationTest extends TestCase
             self::REINFORCED_CARBON_FIBER_FORMULA.'-'.IndustryActivityType::Reaction->value => self::REINFORCED_CARBON_FIBER_BASE_TIME_PER_RUN,
             self::RAVEN_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => self::RAVEN_MANUFACTURING_BASE_TIME_PER_RUN,
             self::RAVEN_BLUEPRINT.'-'.IndustryActivityType::Copying->value => self::RAVEN_COPYING_BASE_TIME_PER_RUN,
+            self::BLUEPRINT_OF_19000_SECONDS.'-'.IndustryActivityType::Manufacturing->value => 19000,
+            self::BLUEPRINT_OF_10000_SECONDS.'-'.IndustryActivityType::Manufacturing->value => 10000,
+            self::BLUEPRINT_OF_16003_SECONDS.'-'.IndustryActivityType::Manufacturing->value => 16003,
         ];
         $connection = $this->createStub(Connection::class);
         $connection->method('fetchOne')->willReturnCallback(

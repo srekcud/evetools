@@ -1019,8 +1019,8 @@ class IndustryProjectFactoryTest extends TestCase
             true,
             [13, 14],
             [
-                ['manufacturing' => [[13, null, 12921, 'Industrialist']], 'copy' => [[13, null, 14100, null]]],
-                ['manufacturing' => [[7, 14, 12921, 'Industrialist'], [7, 14, 12921, 'Industrialist']], 'copy' => [[14, null, 14100, null]]],
+                ['manufacturing' => [[13, null, 12920, 'Industrialist']], 'copy' => [[13, null, 14100, null]]],
+                ['manufacturing' => [[7, 14, 12920, 'Industrialist'], [7, 14, 12920, 'Industrialist']], 'copy' => [[14, null, 14100, null]]],
             ],
         ];
     }
