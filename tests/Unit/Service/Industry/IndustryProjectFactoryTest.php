@@ -15,6 +15,9 @@ use App\Entity\Sde\IndustryBlueprint;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
+use App\Industry\Application\InventionCatalog;
+use App\Industry\Application\InventionRecipe;
+use App\Industry\Domain\Runs;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CachedStructureRepository;
@@ -60,6 +63,10 @@ class IndustryProjectFactoryTest extends TestCase
     private const int BPC_MAX_RUNS_ABOVE_THE_RUNS_OF_EVERY_STEP = 1_000;
     private const int FAVORITE_MANUFACTURING_SYSTEM = 30_002_510;
     private const int OTHER_SYSTEM = 30_000_142;
+    private const int HOBGOBLIN_II = 2456;
+    private const int HOBGOBLIN_II_BLUEPRINT = 2457;
+    private const int T1_BLUEPRINT_OF_THE_INVENTED_PRODUCT = 690;
+    private const int T1_PRODUCT_OF_THE_INVENTED_PRODUCT = 589;
     private const string MATERIAL_EFFICIENCY_RIG_OF_BASIC_SMALL_SHIPS = 'Standup M-Set Basic Small Ship Manufacturing Material Efficiency I';
 
     private IndustryTreeService&MockObject $treeService;
@@ -75,6 +82,8 @@ class IndustryProjectFactoryTest extends TestCase
     private array $structuresOfThePilot = [];
     private ?int $favoriteManufacturingSystemId = null;
     private array $rigCategoryByGroupId = [];
+    private array $inventedProductTypeIds = [];
+    private array $productTypeIdsReadInTheInventionCatalog = [];
 
     protected function setUp(): void
     {
@@ -116,7 +125,24 @@ class IndustryProjectFactoryTest extends TestCase
             $this->entityManager,
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $this->blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(),
+            $this->inventionCatalogOfTheInventedProducts(),
         ]);
+    }
+
+    private function inventionCatalogOfTheInventedProducts(): InventionCatalog
+    {
+        $inventionCatalog = $this->createStub(InventionCatalog::class);
+        $inventionCatalog->method('inventionOf')->willReturnCallback(
+            function (int $productTypeId): ?InventionRecipe {
+                $this->productTypeIdsReadInTheInventionCatalog[] = $productTypeId;
+
+                return \in_array($productTypeId, $this->inventedProductTypeIds, true)
+                    ? new InventionRecipe(self::T1_BLUEPRINT_OF_THE_INVENTED_PRODUCT, self::T1_PRODUCT_OF_THE_INVENTED_PRODUCT, null, new Runs(1), [])
+                    : null;
+            },
+        );
+
+        return $inventionCatalog;
     }
 
     private function blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(): IndustryBlueprintRepository
@@ -596,7 +622,7 @@ class IndustryProjectFactoryTest extends TestCase
         $invType = $this->createMock(InvType::class);
         $this->invTypeRepository->method('find')->willReturn($invType);
 
-        $tree = $this->buildFlatTreeNode(586, 587, 'Sabre', 10, 1, [], 0, 'manufacturing', true);
+        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 10, 1, [], 0, 'manufacturing', true);
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->setupDefaultMocks();
 
@@ -614,6 +640,53 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame(10, $copyStep->getRuns());
         $this->assertSame(0, $copyStep->getMeLevel());
         $this->assertSame(0, $copyStep->getTeLevel());
+    }
+
+    #[Group('issue-129')]
+    public function testBlueprintOfAnInventedProductWithTheCopyActivityHasNoCopyStepAndKeepsItsManufacturingStep(): void
+    {
+        $this->inventedProductTypeIds = [self::HOBGOBLIN_II];
+        $this->invTypeRepository->method('find')->willReturn($this->createMock(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn(
+            $this->buildFlatTreeNode(self::HOBGOBLIN_II_BLUEPRINT, self::HOBGOBLIN_II, 'Hobgoblin II', 7, 1, [], 0, 'manufacturing', true),
+        );
+        $this->setupDefaultMocks();
+
+        $project = $this->factory->createProject($this->createUser(), self::HOBGOBLIN_II, 7, 3, 2.0, 6);
+
+        $this->assertSame(
+            [['manufacturing', self::HOBGOBLIN_II_BLUEPRINT, 7, 7, 3, 6]],
+            array_map(
+                static fn (IndustryProjectStep $step): array => [$step->getActivityType(), $step->getBlueprintTypeId(), $step->getRuns(), $step->getQuantity(), $step->getMeLevel(), $step->getTeLevel()],
+                $project->getSteps()->toArray(),
+            ),
+        );
+    }
+
+    #[Group('issue-129')]
+    public function testInventionCatalogIsReadNeitherForAReactionNorForABlueprintWithoutTheCopyActivity(): void
+    {
+        $this->inventedProductTypeIds = [587, 2001];
+        $this->invTypeRepository->method('find')->willReturn($this->createMock(InvType::class));
+        $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 5);
+        $tree['materials'] = [[
+            'typeId' => 2001,
+            'typeName' => 'Fullerite',
+            'quantity' => 1000,
+            'isBuildable' => true,
+            'blueprint' => $this->buildFlatTreeNode(2000, 2001, 'Fullerite', 10, 200, [], 1, 'reaction'),
+        ]];
+        $this->treeService->method('buildProductionTree')->willReturn($tree);
+        $this->setupDefaultMocks();
+        $this->materialRepository->method('findMaterialEntitiesForBlueprints')->willReturn([]);
+
+        $project = $this->factory->createProject($this->createUser(), 587, 5, 10, 2.0, 20);
+
+        $this->assertSame(
+            [[2001, 'reaction'], [587, 'manufacturing']],
+            array_map(static fn (IndustryProjectStep $step): array => [$step->getProductTypeId(), $step->getActivityType()], $project->getSteps()->toArray()),
+        );
+        $this->assertSame([], $this->productTypeIdsReadInTheInventionCatalog);
     }
 
     // ===========================================

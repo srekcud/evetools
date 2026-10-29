@@ -2,8 +2,8 @@
     "blueprintTypeId": 1004051,
     "productTypeId": 4051,
     "productTypeName": "Nitrogen Fuel Block",
-    "quantity": 25,
-    "runs": 1,
+    "quantity": 1000,
+    "runs": 25,
     "outputPerRun": 40,
     "depth": 0,
     "activityType": "manufacturing",
@@ -12,68 +12,68 @@
         {
             "typeId": 44,
             "typeName": "Enriched Uranium",
-            "quantity": 4,
+            "quantity": 90,
             "isBuildable": false,
             "activityType": null
         },
         {
             "typeId": 3683,
             "typeName": "Oxygen",
-            "quantity": 20,
+            "quantity": 495,
             "isBuildable": false,
             "activityType": null
         },
         {
             "typeId": 3689,
             "typeName": "Mechanical Parts",
-            "quantity": 4,
+            "quantity": 90,
             "isBuildable": false,
             "activityType": null
         },
         {
             "typeId": 9832,
             "typeName": "Coolant",
-            "quantity": 9,
+            "quantity": 203,
             "isBuildable": false,
             "activityType": null
         },
         {
             "typeId": 9848,
             "typeName": "Robotics",
-            "quantity": 1,
+            "quantity": 25,
             "isBuildable": false,
             "activityType": null
         },
         {
             "typeId": 16272,
             "typeName": "Heavy Water",
-            "quantity": 153,
+            "quantity": 3825,
             "isBuildable": false,
             "activityType": null
         },
         {
             "typeId": 16273,
             "typeName": "Liquid Ozone",
-            "quantity": 315,
+            "quantity": 7875,
             "isBuildable": false,
             "activityType": null
         },
         {
             "typeId": 16275,
             "typeName": "Strontium Clathrates",
-            "quantity": 18,
+            "quantity": 450,
             "isBuildable": false,
             "activityType": null
         },
         {
             "typeId": 17888,
             "typeName": "Nitrogen Isotopes",
-            "quantity": 405,
+            "quantity": 10125,
             "isBuildable": false,
             "activityType": null
         }
     ],
-    "structureBonus": 0.0,
+    "structureBonus": 0.0.0,
     "structureName": null,
     "productCategory": null
 }

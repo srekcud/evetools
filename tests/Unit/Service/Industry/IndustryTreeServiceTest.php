@@ -19,6 +19,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -249,6 +250,7 @@ class IndustryTreeServiceTest extends TestCase
     // Reaction item (activity_id=11)
     // ===========================================
 
+    #[Group('issue-2')]
     public function testBuildProductionTreeReactionItem(): void
     {
         // Reaction: Reinforced Carbon Fiber (typeId=30003) from formula 30002
@@ -278,8 +280,7 @@ class IndustryTreeServiceTest extends TestCase
                 };
             });
 
-        // 400 units requested, 200 per run => 2 runs
-        $tree = $this->service->buildProductionTree(30003, 400, 0);
+        $tree = $this->service->buildProductionTree(30003, 2, 0);
 
         $this->assertSame('reaction', $tree['activityType']);
         $this->assertSame(2, $tree['runs']);
@@ -463,9 +464,9 @@ class IndustryTreeServiceTest extends TestCase
     // Multiple runs with output > 1 per run
     // ===========================================
 
+    #[Group('issue-2')]
     public function testOutputPerRunAffectsRunsCalculation(): void
     {
-        // Output 3 per run, requesting 9 units => 3 runs
         $product = $this->createProduct(100, IndustryActivityType::Manufacturing->value, 200, 3);
 
         $this->setupProductLookup([
@@ -480,17 +481,19 @@ class IndustryTreeServiceTest extends TestCase
             ->method('find')
             ->willReturnCallback(fn (int $typeId) => $this->createInvType($typeId, "Type #{$typeId}"));
 
-        $tree = $this->service->buildProductionTree(200, 9, 0);
+        $tree = $this->service->buildProductionTree(200, 3, 0);
 
         $this->assertSame(3, $tree['outputPerRun']);
-        $this->assertSame(3, $tree['runs']); // ceil(9/3) = 3
-        $this->assertSame(150, $tree['materials'][0]['quantity']); // 50 * 3
+        $this->assertSame(3, $tree['runs']);
+        $this->assertSame(9, $tree['quantity']);
+        $this->assertSame(150, $tree['materials'][0]['quantity']);
     }
 
     // ===========================================
     // Reactions do NOT apply ME
     // ===========================================
 
+    #[Group('issue-2')]
     public function testReactionDoesNotApplyME(): void
     {
         $reactionProduct = $this->createProduct(30002, IndustryActivityType::Reaction->value, 30003, 100);
@@ -507,10 +510,8 @@ class IndustryTreeServiceTest extends TestCase
             ->method('find')
             ->willReturnCallback(fn (int $typeId) => $this->createInvType($typeId, "Type #{$typeId}"));
 
-        // Even though ME 10 is passed, reactions should ignore it
-        $tree = $this->service->buildProductionTree(30003, 200, 10);
+        $tree = $this->service->buildProductionTree(30003, 2, 10);
 
-        // 200 qty, 100 per run = 2 runs, 200 * 2 = 400 (no ME reduction)
         $this->assertSame(400, $tree['materials'][0]['quantity']);
     }
 
@@ -603,6 +604,47 @@ class IndustryTreeServiceTest extends TestCase
         $this->assertSame(16672, $reactionNode['typeId']);
         $this->assertFalse($reactionNode['isBuildable']);
         $this->assertArrayNotHasKey('blueprint', $reactionNode);
+    }
+
+    #[Group('issue-2')]
+    public function testIntermediateNeedOfTwoHundredFiftyUnitsAtOneHundredPerRunIsThreeRunsOfTwoHundredFiftyUnits(): void
+    {
+        $this->setupProductLookup([
+            7001 => ['blueprint' => $this->createProduct(7000, IndustryActivityType::Manufacturing->value, 7001, 1), 'reaction' => null],
+            7003 => ['blueprint' => $this->createProduct(7002, IndustryActivityType::Manufacturing->value, 7003, 100), 'reaction' => null],
+        ]);
+        $this->activityMaterialRepository->method('findBy')->willReturnCallback(
+            fn (array $criteria): array => match ($criteria['typeId']) {
+                7000 => [$this->createMaterial(7000, IndustryActivityType::Manufacturing->value, 7003, 250)],
+                7002 => [$this->createMaterial(7002, IndustryActivityType::Manufacturing->value, 34, 60)],
+                default => [],
+            },
+        );
+        $this->invTypeRepository->method('find')->willReturnCallback(fn (int $typeId) => $this->createInvType($typeId, "Type #{$typeId}"));
+
+        $tree = $this->service->buildProductionTree(7001, 1, 0);
+
+        $intermediate = $tree['materials'][0]['blueprint'];
+        $this->assertSame([3, 250, 100], [$intermediate['runs'], $intermediate['quantity'], $intermediate['outputPerRun']]);
+        $this->assertSame([[34, 162]], array_map(static fn (array $material): array => [$material['typeId'], $material['quantity']], $intermediate['materials']));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    #[Group('issue-2')]
+    public function testRootOfTwentyFiveRunsOfNitrogenFuelBlockOnTheGoldenSdeIsTwentyFiveRunsOfOneThousandUnits(): void
+    {
+        $tree = $this->treeServiceOnGoldenSde()->buildProductionTree(self::NITROGEN_FUEL_BLOCK, 25, 10);
+
+        $this->assertSame([25, 1000, 40, 'manufacturing'], [$tree['runs'], $tree['quantity'], $tree['outputPerRun'], $tree['activityType']]);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    #[Group('issue-2')]
+    public function testRootOfTenRunsOfFerniteCarbideOnTheGoldenSdeIsTenRunsOfOneHundredThousandUnits(): void
+    {
+        $tree = $this->treeServiceOnGoldenSde()->buildProductionTree(self::FERNITE_CARBIDE, 10, 0);
+
+        $this->assertSame([10, 100_000, 10_000, 'reaction'], [$tree['runs'], $tree['quantity'], $tree['outputPerRun'], $tree['activityType']]);
     }
 
     #[AllowMockObjectsWithoutExpectations]

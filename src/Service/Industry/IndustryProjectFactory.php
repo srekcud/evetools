@@ -9,6 +9,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\User;
+use App\Industry\Application\InventionCatalog;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -37,6 +38,7 @@ class IndustryProjectFactory
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly IndustryBlueprintRepository $blueprintRepository,
+        private readonly InventionCatalog $inventionCatalog,
     ) {
     }
 

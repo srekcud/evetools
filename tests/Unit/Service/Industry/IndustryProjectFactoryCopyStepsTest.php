@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
+use App\Entity\IndustryStepPurchase;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
@@ -48,6 +50,7 @@ final class IndustryProjectFactoryCopyStepsTest extends TestCase
     private const int LIFE_SUPPORT_BACKUP_UNIT = 57486;
     private const int WIDOW = 22436;
     private const int MARSHAL = 44996;
+    private const int HAIL_L = 12779;
 
     private const int HYDROGEN_FUEL_BLOCK_BLUEPRINT = 1_004_246;
     private const int NITROGEN_FUEL_BLOCK_BLUEPRINT = 1_004_051;
@@ -59,6 +62,10 @@ final class IndustryProjectFactoryCopyStepsTest extends TestCase
     private const int LIFE_SUPPORT_BACKUP_UNIT_BLUEPRINT = 1_057_486;
     private const int WIDOW_BLUEPRINT = 1_022_436;
     private const int MARSHAL_BLUEPRINT = 1_044_996;
+    private const int NOMAD_BLUEPRINT = 1_028_846;
+    private const int FENRIR_BLUEPRINT = 1_020_189;
+    private const int HAIL_L_BLUEPRINT = 1_012_779;
+    private const int RAM_AMMUNITION_TECH_BLUEPRINT = 1_011_476;
 
     private const int ME_LEVEL = 10;
     private const int TE_LEVEL = 20;
@@ -75,7 +82,6 @@ final class IndustryProjectFactoryCopyStepsTest extends TestCase
         1_021_025 => [27, 27],
         1_021_027 => [32, 32],
         1_021_037 => [10],
-        1_028_846 => [1, 1],
         1_029_043 => [607, 607],
         1_029_045 => [634, 634, 634],
         1_029_049 => [684, 684, 684, 684],
@@ -205,11 +211,69 @@ final class IndustryProjectFactoryCopyStepsTest extends TestCase
         );
     }
 
-    public function testCopyOfThreeWidowsWithABpcMaxRunsOfOneIsOneCopyPerRun(): void
+    #[Group('issue-129')]
+    public function testThreeWidowsOfAnInventedBlueprintHaveNoCopyAndStayOneManufacturingJobPerRunUnderTheBpcMaxRunsOfOne(): void
     {
         $project = $this->createProject(self::WIDOW, runs: 3, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
 
+        self::assertSame([], $this->copyRunsOf($project, self::WIDOW_BLUEPRINT));
+        self::assertSame([1, 1, 1], $this->manufacturingRunsOf($project, self::WIDOW));
+    }
+
+    #[Group('issue-129')]
+    public function testTwoNomadsOfAnInventedBlueprintHaveNoCopyButTheFenrirOfTheirT1BlueprintIsCopiedForEachOfItsJobs(): void
+    {
+        $project = $this->createProject(self::NOMAD, runs: 2, maxJobDurationDays: self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        self::assertSame(
+            [self::NOMAD_BLUEPRINT => [], self::FENRIR_BLUEPRINT => [1, 1]],
+            [self::NOMAD_BLUEPRINT => $this->copyRunsOf($project, self::NOMAD_BLUEPRINT), self::FENRIR_BLUEPRINT => $this->copyRunsOf($project, self::FENRIR_BLUEPRINT)],
+        );
+    }
+
+    #[Group('issue-129')]
+    public function testTenRunsOfHailLOfAnInventedBlueprintHaveNoCopyButTheirRamAmmunitionTechIsCopied(): void
+    {
+        $project = $this->createProject(self::HAIL_L, runs: 10, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
+
+        self::assertSame(
+            [self::HAIL_L_BLUEPRINT => [], self::RAM_AMMUNITION_TECH_BLUEPRINT => [1]],
+            [self::HAIL_L_BLUEPRINT => $this->copyRunsOf($project, self::HAIL_L_BLUEPRINT), self::RAM_AMMUNITION_TECH_BLUEPRINT => $this->copyRunsOf($project, self::RAM_AMMUNITION_TECH_BLUEPRINT)],
+        );
+    }
+
+    #[Group('issue-129')]
+    public function testCopyCostsOfThreeWidowsHaveNoLineOfTheInventedBlueprintAndSumTheirOtherLines(): void
+    {
+        $project = $this->createProject(self::WIDOW, runs: 3, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
+
+        $copyCosts = $this->inventionServiceOnGoldenSde()->getProjectCopyCosts($project);
+
+        self::assertSame([], array_values(array_filter($copyCosts['copies'], static fn (array $copy): bool => $copy['blueprintTypeId'] === self::WIDOW_BLUEPRINT)));
+        self::assertEqualsWithDelta(array_sum(array_column($copyCosts['copies'], 'cost')), $copyCosts['totalCopyCost'], self::COST_DELTA);
+    }
+
+    #[Group('issue-129')]
+    public function testCopiesOfAnInventedBlueprintCreatedBeforeItsInventionWasKnownAreKeptOutOfThePlanAfterItsStepsWithTheirJobsAndPurchases(): void
+    {
+        $this->goldenT2ProductsAreInvented = false;
+        $factoryWithoutInvention = $this->projectFactoryOnGoldenSde($this->bonusService, $this->calculationService);
+        $project = $factoryWithoutInvention->createProject($this->pilot, self::WIDOW, 3, self::ME_LEVEL, self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING, self::TE_LEVEL);
+        $widowCopySteps = $this->copyStepsOf($project, self::WIDOW_BLUEPRINT);
         self::assertSame([1, 1, 1], $this->copyRunsOf($project, self::WIDOW_BLUEPRINT));
+        $jobMatch = (new IndustryStepJobMatch())->setEsiJobId(7_340_118)->setRuns(1);
+        $purchase = (new IndustryStepPurchase())->setTypeId(self::WIDOW_BLUEPRINT)->setQuantity(1);
+        $widowCopySteps[0]->addJobMatch($jobMatch)->addPurchase($purchase);
+
+        $this->factory->regenerateSteps($project);
+
+        $stepCount = $project->getSteps()->count();
+        self::assertSame($widowCopySteps, $this->copyStepsOf($project, self::WIDOW_BLUEPRINT));
+        self::assertSame(
+            [[$stepCount - 3, 1], [$stepCount - 2, 1], [$stepCount - 1, 1]],
+            array_map(static fn (IndustryProjectStep $copyStep): array => [$copyStep->getSortOrder(), $copyStep->getRuns()], $widowCopySteps),
+        );
+        self::assertSame([[$jobMatch], [$purchase]], [$widowCopySteps[0]->getJobMatches()->toArray(), $widowCopySteps[0]->getPurchases()->toArray()]);
     }
 
     public function testEveryOtherCopyOfTwoNomadsHasTheRunsOfTheManufacturingJobsOfItsBlueprint(): void

@@ -17,6 +17,7 @@ use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Industry\Application\InventionCatalog;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
@@ -113,6 +114,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
             $this->em,
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $container->get(IndustryBlueprintRepository::class),
+            $container->get(InventionCatalog::class),
         ]);
     }
 

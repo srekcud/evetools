@@ -11,6 +11,9 @@ use App\Entity\Sde\IndustryBlueprint;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Enum\IndustryActivityType;
+use App\Industry\Application\InventionCatalog;
+use App\Industry\Application\InventionRecipe;
+use App\Industry\Domain\Runs;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
@@ -28,6 +31,7 @@ use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Industry\Application\Double\InMemoryInventionCatalog;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
@@ -40,6 +44,11 @@ trait BuildsProjectOnGoldenSde
     private const string GOLDEN_DIR = __DIR__.'/../../../Fixtures/Golden/';
     private const int SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
     private const int UNCATEGORIZED_GROUP_ID = 999_999_001;
+    private const array T1_BLUEPRINT_AND_T1_PRODUCT_OF_EACH_INVENTED_GOLDEN_PRODUCT = [
+        22436 => [1_000_640, 640],
+        28846 => [1_020_189, 20189],
+        12779 => [2_000_000_001, 2_000_000_002],
+    ];
 
     private array $typeIdsMissingFromSde = [];
 
@@ -50,6 +59,8 @@ trait BuildsProjectOnGoldenSde
     private array $typeIdsWithoutIndustryBlueprint = [];
 
     private array $typeIdsWithZeroMaxProductionLimit = [];
+
+    private bool $goldenT2ProductsAreInvented = true;
 
     private function projectFactoryOnGoldenSde(IndustryBonusService $bonusService, IndustryCalculationService $calculationService, ?EntityManagerInterface $projectEntityManager = null, ?CachedCharacterSkillRepository $skillRepository = null): IndustryProjectFactory
     {
@@ -68,7 +79,20 @@ trait BuildsProjectOnGoldenSde
             $this->blueprintRepositoryOnGoldenSde(),
             $projectEntityManager ?? $this->entityManagerWithoutRows(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            $this->inventionCatalogOfGoldenSde(),
         ]);
+    }
+
+    private function inventionCatalogOfGoldenSde(): InventionCatalog
+    {
+        if (!$this->goldenT2ProductsAreInvented) {
+            return new InMemoryInventionCatalog();
+        }
+
+        return new InMemoryInventionCatalog(array_map(
+            static fn (array $t1BlueprintAndT1Product): InventionRecipe => new InventionRecipe($t1BlueprintAndT1Product[0], $t1BlueprintAndT1Product[1], null, new Runs(1), []),
+            self::T1_BLUEPRINT_AND_T1_PRODUCT_OF_EACH_INVENTED_GOLDEN_PRODUCT,
+        ));
     }
 
     private function calculationServiceOnGoldenSde(IndustryBonusService $bonusService, IndustryStructureConfigRepository $structureConfigRepository, ?CachedCharacterSkillRepository $skillRepository = null): IndustryCalculationService

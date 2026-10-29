@@ -204,18 +204,31 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     }
 
     #[Group('issue-2')]
-    public function testTreeOfTwentyFiveRunsOfNitrogenFuelBlockPlannedByTheFactoryCurrentlyShowsOneRunIssue2(): void
+    public function testTreeOfTwentyFiveRunsOfNitrogenFuelBlockPlannedByTheFactoryShowsTwentyFiveRunsOfOneThousandUnits(): void
     {
         $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
 
         $tree = $this->treeOf($project);
 
         self::assertSame(
-            [25, 1, 40, 'manufacturing', 0.0, null],
+            [1000, 25, 40, 'manufacturing', 0.0, null],
             [$tree['quantity'], $tree['runs'], $tree['outputPerRun'], $tree['activityType'], $tree['structureBonus'], $tree['structureName']],
         );
-        self::assertSame(self::ONE_RUN_OF_FUEL_BLOCK_AT_ME_TEN + [17888 => 405], array_column($tree['materials'], 'quantity', 'typeId'));
+        self::assertSame(
+            [44 => 90, 3683 => 495, 3689 => 90, 9832 => 203, self::ROBOTICS => 25, 16272 => 3825, 16273 => 7875, 16275 => 450, 17888 => 10125],
+            array_column($tree['materials'], 'quantity', 'typeId'),
+        );
         $this->assertMatchesSnapshot('nitrogen-fuel-block-25runs-me10-npc', $tree);
+    }
+
+    #[Group('issue-2')]
+    public function testTreeOfTenRunsOfRamAmmunitionTechPlannedByTheFactoryShowsTenRunsOfOneThousandUnits(): void
+    {
+        $project = $this->projectOnGoldenSde($this->pilot, self::RAM_AMMUNITION_TECH, 10, 10, 20, self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
+
+        $tree = $this->treeOf($project);
+
+        self::assertSame([1000, 10, 100, 'manufacturing'], [$tree['quantity'], $tree['runs'], $tree['outputPerRun'], $tree['activityType']]);
     }
 
     #[Group('issue-121')]
@@ -300,16 +313,16 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     }
 
     #[Group('issue-2')]
-    public function testTreeOfTenRunsOfFerniteCarbideInATataraPlannedByTheFactoryCurrentlyShowsOneRunIssue2(): void
+    public function testTreeOfTenRunsOfFerniteCarbideInATataraPlannedByTheFactoryShowsTenRunsOfOneHundredThousandUnits(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
         $project = $this->projectOnGoldenSde($this->pilot, self::FERNITE_CARBIDE, 10, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
 
         $tree = $this->treeOf($project);
 
-        self::assertSame([10, 1], [$tree['quantity'], $tree['runs']]);
+        self::assertSame([100_000, 10], [$tree['quantity'], $tree['runs']]);
         self::assertSame(
-            [self::HYDROGEN_FUEL_BLOCK => 5, self::FERNITE_ALLOY => 98, self::CERAMIC_POWDER => 98],
+            [self::HYDROGEN_FUEL_BLOCK => 49, self::FERNITE_ALLOY => 974, self::CERAMIC_POWDER => 974],
             array_column($tree['materials'], 'quantity', 'typeId'),
         );
     }

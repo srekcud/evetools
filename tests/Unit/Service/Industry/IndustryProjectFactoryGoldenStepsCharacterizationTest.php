@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
+use App\Entity\IndustryStepPurchase;
 use App\Entity\User;
 use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryRigCategoryRepository;
@@ -19,6 +21,7 @@ use App\Service\Industry\IndustryStepCalculator;
 use App\Service\Industry\SplitGroupQuantities;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -77,6 +80,10 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     private const int THERMOSETTING_POLYMER = 57455;
     private const int PRESSURIZED_OXIDIZERS = 57456;
     private const int REINFORCED_CARBON_FIBER = 57457;
+    private const int RAM_AMMUNITION_TECH = 11476;
+    private const int HAIL_L = 12779;
+    private const int FULLERIDES = 16679;
+    private const int CAPITAL_JUMP_DRIVE = 21025;
     private const int UNKNOWN_BLUEPRINT_TYPE_ID = 999_999_999;
 
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
@@ -133,14 +140,32 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     // ===========================================
 
     #[Group('issue-2')]
-    public function testStepsOfTwentyFiveRunsOfNitrogenFuelBlockCurrentlyPlanOneRunOfTwentyFiveUnitsIssue2(): void
+    public function testStepsOfTwentyFiveRunsOfNitrogenFuelBlockPlanTwentyFiveRunsOfOneThousandUnits(): void
     {
         $project = $this->createProject(self::NITROGEN_FUEL_BLOCK, runs: 25, meLevel: 10, teLevel: 20);
 
         self::assertSame(25, $project->getRuns());
         self::assertSame(
-            [['sortOrder' => 0, 'product' => 'Nitrogen Fuel Block', 'productTypeId' => self::NITROGEN_FUEL_BLOCK, 'blueprintTypeId' => 1_004_051, 'activityType' => 'manufacturing', 'depth' => 0, 'runs' => 1, 'quantity' => 25, 'meLevel' => 10, 'teLevel' => 20, 'splitGroup' => null, 'splitIndex' => 0, 'totalGroupRuns' => null]],
+            [['sortOrder' => 0, 'product' => 'Nitrogen Fuel Block', 'productTypeId' => self::NITROGEN_FUEL_BLOCK, 'blueprintTypeId' => 1_004_051, 'activityType' => 'manufacturing', 'depth' => 0, 'runs' => 25, 'quantity' => 1000, 'meLevel' => 10, 'teLevel' => 20, 'splitGroup' => null, 'splitIndex' => 0, 'totalGroupRuns' => null]],
             $this->stepsOf($project),
+        );
+    }
+
+    #[Group('issue-2')]
+    public function testRegeneratedRootStepOfTwentyFiveRunsOfNitrogenFuelBlockLeftAtOneRunOfTwentyFiveUnitsIsTheSameStepAtTwentyFiveRunsOfOneThousandUnits(): void
+    {
+        $project = $this->createProject(self::NITROGEN_FUEL_BLOCK, runs: 25, meLevel: 10, teLevel: 20);
+        $rootStep = $this->stepOfProductIn($project, self::NITROGEN_FUEL_BLOCK);
+        $jobMatch = (new IndustryStepJobMatch())->setEsiJobId(6_120_457)->setRuns(1);
+        $purchase = (new IndustryStepPurchase())->setTypeId(17888)->setQuantity(405);
+        $rootStep->setRuns(1)->setQuantity(25)->setInStockQuantity(12)->addJobMatch($jobMatch)->addPurchase($purchase);
+
+        $this->factory->regenerateSteps($project);
+
+        self::assertSame([$rootStep], $project->getSteps()->toArray());
+        self::assertSame(
+            [25, 1000, 12, [$jobMatch], [$purchase]],
+            [$rootStep->getRuns(), $rootStep->getQuantity(), $rootStep->getInStockQuantity(), $rootStep->getJobMatches()->toArray(), $rootStep->getPurchases()->toArray()],
         );
     }
 
@@ -154,17 +179,84 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-2')]
-    public function testStepsOfOneRunOfFerniteCarbideInATataraCurrentlyPlanTheRootReactionForOneUnitIssue2(): void
+    public function testStepsOfOneRunOfFerniteCarbideInATataraPlanTheRootReactionForTenThousandUnits(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
 
         $project = $this->createProject(self::FERNITE_CARBIDE, runs: 1, meLevel: 10, teLevel: 20);
 
         self::assertSame(
-            [['product' => 'Fernite Carbide', 'productTypeId' => self::FERNITE_CARBIDE, 'blueprintTypeId' => 1_016_673, 'activityType' => 'reaction', 'depth' => 0, 'runs' => 1, 'quantity' => 1, 'meLevel' => 0, 'teLevel' => 0, 'splitGroup' => null, 'splitIndex' => 0, 'totalGroupRuns' => null]],
+            [['product' => 'Fernite Carbide', 'productTypeId' => self::FERNITE_CARBIDE, 'blueprintTypeId' => 1_016_673, 'activityType' => 'reaction', 'depth' => 0, 'runs' => 1, 'quantity' => 10_000, 'meLevel' => 0, 'teLevel' => 0, 'splitGroup' => null, 'splitIndex' => 0, 'totalGroupRuns' => null]],
             array_values(array_filter($this->canonicalStepsOf($project), static fn (array $step): bool => $step['depth'] === 0)),
         );
         self::assertSame(['Ceramic Powder', 'Fernite Alloy', 'Hydrogen Fuel Block', 'Fernite Carbide'], array_column($this->stepsOf($project), 'product'));
+    }
+
+    #[Group('issue-2')]
+    public function testStepsOfTenRunsOfFerniteCarbideInATataraPlanTheIntermediatesOnTheNeedOfTenRuns(): void
+    {
+        $this->pilotOwnsTataraAndRaitaru = true;
+
+        $steps = $this->stepsOf($this->createProject(self::FERNITE_CARBIDE, runs: 10, meLevel: 10, teLevel: 20));
+
+        self::assertSame([[10, 100_000, 0, 0, 0, 0, null]], $this->jobsOf($steps, self::FERNITE_CARBIDE));
+        self::assertSame(
+            [self::CERAMIC_POWDER => [[5, 974]], self::FERNITE_ALLOY => [[5, 974]], self::HYDROGEN_FUEL_BLOCK => [[3, 99]]],
+            [
+                self::CERAMIC_POWDER => $this->runsAndQuantityOfEachJobOf($steps, self::CERAMIC_POWDER),
+                self::FERNITE_ALLOY => $this->runsAndQuantityOfEachJobOf($steps, self::FERNITE_ALLOY),
+                self::HYDROGEN_FUEL_BLOCK => $this->runsAndQuantityOfEachJobOf($steps, self::HYDROGEN_FUEL_BLOCK),
+            ],
+        );
+    }
+
+    #[Group('issue-2')]
+    public function testStepsOfTenRunsOfRamAmmunitionTechPlanTenRunsOfOneThousandUnits(): void
+    {
+        $steps = $this->stepsOf($this->createProject(self::RAM_AMMUNITION_TECH, runs: 10, meLevel: 10, teLevel: 20, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING));
+
+        self::assertSame([[10, 1000, 0, 10, 20, 0, null]], $this->jobsOf($steps, self::RAM_AMMUNITION_TECH));
+    }
+
+    #[Group('issue-2')]
+    public function testStepsOfTenRunsOfHailLPlanFiftyThousandRoundsAndOneRunOfRamAmmunitionTechForItsNeedOfTen(): void
+    {
+        $steps = $this->stepsOf($this->createProject(self::HAIL_L, runs: 10, meLevel: 2, teLevel: 4, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING));
+
+        self::assertSame(
+            [self::HAIL_L => [[10, 50_000, 0, 2, 4, 0, null]], self::RAM_AMMUNITION_TECH => [[1, 10, 1, 10, 20, 0, null]]],
+            [self::HAIL_L => $this->jobsOf($steps, self::HAIL_L), self::RAM_AMMUNITION_TECH => $this->jobsOf($steps, self::RAM_AMMUNITION_TECH)],
+        );
+    }
+
+    #[Group('issue-2')]
+    public function testStepsOfTwoHundredFiftyRunsOfHailLWithoutItsReactionsRoundTheNeedOfTwoHundredFiftyRamAmmunitionTechUpToThreeRuns(): void
+    {
+        $project = $this->factory->createProject($this->pilot, self::HAIL_L, 250, 2, self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING, 4, null, [self::FERNITE_CARBIDE, self::FULLERIDES]);
+
+        $steps = $this->stepsOf($project);
+        self::assertSame(
+            [self::HAIL_L => [[250, 1_250_000, 0, 2, 4, 0, null]], self::RAM_AMMUNITION_TECH => [[3, 250, 1, 10, 20, 0, null]]],
+            [self::HAIL_L => $this->jobsOf($steps, self::HAIL_L), self::RAM_AMMUNITION_TECH => $this->jobsOf($steps, self::RAM_AMMUNITION_TECH)],
+        );
+    }
+
+    #[Group('issue-2')]
+    #[DataProvider('productsOfOneUnitPerRunAndTheirRuns')]
+    public function testRootOfAProductOfOneUnitPerRunPlansTheRunsOfTheProjectAsItsQuantity(int $productTypeId, int $runs): void
+    {
+        $steps = $this->stepsOf($this->createProject($productTypeId, $runs, meLevel: 10, teLevel: 20));
+
+        self::assertSame([$runs, $runs], [$this->totalRunsOf($steps, $productTypeId), $this->totalQuantityOf($steps, $productTypeId)]);
+    }
+
+    public static function productsOfOneUnitPerRunAndTheirRuns(): iterable
+    {
+        yield 'one Nomad' => [self::NOMAD, 1];
+        yield 'three Widows' => [self::WIDOW, 3];
+        yield 'twenty-five Scorpions' => [self::SCORPION, 25];
+        yield 'thirty-two Quantum Microprocessors' => [self::QUANTUM_MICROPROCESSOR, 32];
+        yield 'four Capital Jump Drives' => [self::CAPITAL_JUMP_DRIVE, 4];
     }
 
     public function testStepsOfOneRunOfFerniteCarbideInATataraMergeTheFuelBlocksOfTheRootAndOfBothReactionsInOneStep(): void
@@ -511,11 +603,12 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-73')]
+    #[Group('issue-2')]
     public function testSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
 
-        $project = $this->createProject(self::TITANIUM_CHROMIDE, runs: 4000, meLevel: 0, teLevel: 0, maxJobDurationDays: 0.05);
+        $project = $this->createProject(self::TITANIUM_CHROMIDE, runs: 20, meLevel: 0, teLevel: 0, maxJobDurationDays: 0.05);
 
         $steps = $this->stepsOf($project);
         self::assertSame(
@@ -677,10 +770,11 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-73')]
+    #[Group('issue-2')]
     public function testRegeneratedSplitReactionConsumerInATataraNeedsTheFuelBlocksOfEachOfItsJobsWithTheRaitaruBonus(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
-        $regenerated = $this->createProject(self::TITANIUM_CHROMIDE, runs: 4000, meLevel: 0, teLevel: 0, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
+        $regenerated = $this->createProject(self::TITANIUM_CHROMIDE, runs: 20, meLevel: 0, teLevel: 0, maxJobDurationDays: self::MAX_JOB_DURATION_DAYS_THAT_SPLITS_NOTHING);
         $regenerated->setMaxJobDurationDays(0.05);
 
         $this->factory->regenerateSteps($regenerated);
@@ -1270,6 +1364,11 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     /**
      * @param list<array<string, mixed>> $steps
      */
+    private function runsAndQuantityOfEachJobOf(array $steps, int $productTypeId): array
+    {
+        return array_map(static fn (array $step): array => [$step['runs'], $step['quantity']], $this->stepsOfProduct($steps, $productTypeId));
+    }
+
     private function totalRunsOf(array $steps, int $productTypeId): int
     {
         return array_sum(array_column($this->stepsOfProduct($steps, $productTypeId), 'runs'));
