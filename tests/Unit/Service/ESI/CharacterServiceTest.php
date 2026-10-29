@@ -74,6 +74,32 @@ final class CharacterServiceTest extends TestCase
         self::assertSame([self::CHARACTER_ENDPOINT, '/corporations/98000001/'], $this->readEndpoints);
     }
 
+    public function testAllianceReadFailurePropagates(): void
+    {
+        $this->esiResponses = [
+            self::CHARACTER_ENDPOINT => ['name' => 'Spec Industrialist', 'corporation_id' => 98000002, 'alliance_id' => 99000001],
+            '/corporations/98000002/' => ['name' => 'New Corp'],
+        ];
+
+        $failure = $this->characterInfoReadFailure();
+
+        self::assertInstanceOf(EsiApiException::class, $failure);
+        self::assertSame([404, '/alliances/99000001/'], [$failure->statusCode, $failure->endpoint]);
+    }
+
+    public function testCorporationReadFailurePropagates(): void
+    {
+        $this->esiResponses = [
+            self::CHARACTER_ENDPOINT => ['name' => 'Spec Industrialist', 'corporation_id' => 98000003, 'alliance_id' => 99000004],
+            '/alliances/99000004/' => ['name' => 'Other Alliance'],
+        ];
+
+        $failure = $this->characterInfoReadFailure();
+
+        self::assertInstanceOf(EsiApiException::class, $failure);
+        self::assertSame([404, '/corporations/98000003/'], [$failure->statusCode, $failure->endpoint]);
+    }
+
     #[DataProvider('characterResponsesWithoutIntegerCorporationId')]
     public function testCharacterResponseWithoutIntegerCorporationIdIsRejectedNamingTheEndpoint(array $characterResponse): void
     {
@@ -82,12 +108,7 @@ final class CharacterServiceTest extends TestCase
             '/corporations/98000002/' => ['name' => 'New Corp'],
         ];
 
-        $failure = null;
-        try {
-            $this->characterService->getCharacterInfo(self::EVE_CHARACTER_ID);
-        } catch (\Throwable $thrown) {
-            $failure = $thrown;
-        }
+        $failure = $this->characterInfoReadFailure();
 
         self::assertInstanceOf(\UnexpectedValueException::class, $failure);
         self::assertStringContainsString(self::CHARACTER_ENDPOINT, $failure->getMessage());
@@ -99,5 +120,16 @@ final class CharacterServiceTest extends TestCase
         yield 'E5 corporation_id missing' => [['name' => 'Spec Industrialist']];
         yield 'corporation_id null' => [['name' => 'Spec Industrialist', 'corporation_id' => null]];
         yield 'corporation_id as string' => [['name' => 'Spec Industrialist', 'corporation_id' => '98000002']];
+    }
+
+    private function characterInfoReadFailure(): ?\Throwable
+    {
+        try {
+            $this->characterService->getCharacterInfo(self::EVE_CHARACTER_ID);
+        } catch (\Throwable $thrown) {
+            return $thrown;
+        }
+
+        return null;
     }
 }

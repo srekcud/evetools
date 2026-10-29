@@ -2060,6 +2060,16 @@ class IndustryJobSyncServiceTest extends TestCase
             [[$this->userTopicOf($character), $affiliationReadFailure->getMessage()]],
             $this->industryJobsSyncErrorEvents(),
         );
+        $this->assertSame(
+            [[$this->userTopicOf($character), 'started'], [$this->userTopicOf($character), 'error']],
+            array_map(
+                static fn (array $update): array => [$update[0], $update[1]['status']],
+                array_values(array_filter(
+                    $this->publishedMercureUpdates,
+                    static fn (array $update): bool => $update[1]['syncType'] === 'industry-jobs',
+                )),
+            ),
+        );
     }
 
     public static function affiliationReadFailures(): iterable
