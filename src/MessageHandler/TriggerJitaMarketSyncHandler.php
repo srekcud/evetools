@@ -28,6 +28,10 @@ final readonly class TriggerJitaMarketSyncHandler
         try {
             $result = $this->jitaMarketService->syncJitaMarket();
 
+            if (!$result['success']) {
+                throw new \RuntimeException($result['error']);
+            }
+
             $this->logger->info('Jita market sync completed', [
                 'typeCount' => $result['typeCount'],
                 'duration' => $result['duration'],

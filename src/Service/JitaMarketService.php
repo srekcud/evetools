@@ -48,7 +48,7 @@ class JitaMarketService
      * Sync all Jita market prices for industry materials.
      * Uses batched requests to avoid OOM with large datasets.
      *
-     * @return array{success: bool, typeCount: int, duration: float, error?: string}
+     * @return array{success: true, typeCount: int, duration: float}|array{success: false, typeCount: int, duration: float, error: string}
      */
     public function syncJitaMarket(): array
     {
