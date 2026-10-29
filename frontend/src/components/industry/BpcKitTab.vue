@@ -237,9 +237,9 @@ watch(defaultDesiredBpcCount, (defaultCount) => {
 }, { immediate: true })
 
 watch(desiredBpcCount, (newVal) => {
+  if (debounceTimer) clearTimeout(debounceTimer)
   if (newVal == null || newVal < 1) return
   if (newVal === requestedBpcCount.value) return
-  if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
     loadBpcKit()
   }, 500)

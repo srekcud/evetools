@@ -120,9 +120,30 @@ function requestedDesiredBpcCounts(): (number | null)[] {
     })
 }
 
-function lastRequestedDesiredBpcCount(): number | null | undefined {
-  const counts = requestedDesiredBpcCounts()
-  return counts[counts.length - 1]
+function vagabondKitWithRunsPerBpcWithoutDecryptor(runsPerBpc: number): BpcKit {
+  const kit = structuredClone(VAGABOND_BPC_KIT)
+  kit.inventions[0].decryptorOptions[0].runs = runsPerBpc
+  return kit
+}
+
+function vagabondKitWithAugmentationDecryptorAsBest(): BpcKit {
+  const kit = structuredClone(VAGABOND_BPC_KIT)
+  kit.summary.bestDecryptorTypeId = AUGMENTATION_DECRYPTOR_TYPE_ID
+  return kit
+}
+
+const VAGABOND_COMPONENT_BPC_KIT: BpcKit = {
+  id: VAGABOND_PROJECT_ID,
+  isT2: false,
+  inventions: [],
+  summary: { totalInventionCost: 0, bestDecryptorTypeId: null, totalBpcKitCost: 0 },
+}
+
+function serveBpcKit(kit: BpcKit): void {
+  vi.mocked(apiRequest).mockImplementation(async (path: string) => {
+    if (isBpcKitRequest(path)) return structuredClone(kit)
+    return null
+  })
 }
 
 async function settle(): Promise<void> {
@@ -155,10 +176,14 @@ function desiredBpcCountInput(wrapper: VueWrapper): DOMWrapper<HTMLInputElement>
   return input
 }
 
-async function selectDecryptor(wrapper: VueWrapper, decryptorName: string): Promise<void> {
+function decryptorRow(wrapper: VueWrapper, decryptorName: string): DOMWrapper<Element> {
   const row = wrapper.findAll('tbody tr').find(candidate => candidate.text().includes(decryptorName))
   expect(row, `decryptor row ${decryptorName}`).toBeDefined()
-  await row!.trigger('click')
+  return row!
+}
+
+async function selectDecryptor(wrapper: VueWrapper, decryptorName: string): Promise<void> {
+  await decryptorRow(wrapper, decryptorName).trigger('click')
   await settle()
 }
 
@@ -168,10 +193,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockImplementation(async (path: string) => {
-    if (isBpcKitRequest(path)) return structuredClone(VAGABOND_BPC_KIT)
-    return null
-  })
+  serveBpcKit(VAGABOND_BPC_KIT)
 })
 
 afterEach(() => {
@@ -182,14 +204,14 @@ describe('BpcKitTab default desired BPC count', () => {
   it('proposes and requests 3 BPCs for a 30 runs project with 10 runs per BPC', async () => {
     const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
 
-    expect(lastRequestedDesiredBpcCount()).toBe(3)
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3])
     expect(desiredBpcCountInput(wrapper).element.value).toBe('3')
   })
 
   it('rounds the desired BPC count up to cover every run of a 31 runs project with 10 runs per BPC', async () => {
     const wrapper = await mountTheVagabondKit(vagabondProjectOf(31))
 
-    expect(lastRequestedDesiredBpcCount()).toBe(4)
+    expect(requestedDesiredBpcCounts()).toEqual([null, 4])
     expect(desiredBpcCountInput(wrapper).element.value).toBe('4')
   })
 
@@ -200,13 +222,41 @@ describe('BpcKitTab default desired BPC count', () => {
     expect(requestedDesiredBpcCounts()).toEqual([null])
   })
 
+  it('proposes one BPC per run when each BPC holds a single run', async () => {
+    serveBpcKit(vagabondKitWithRunsPerBpcWithoutDecryptor(1))
+
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+
+    expect(desiredBpcCountInput(wrapper).element.value).toBe('30')
+    expect(requestedDesiredBpcCounts()).toEqual([null, 30])
+  })
+
+  it('proposes no desired BPC count when the runs per BPC are zero', async () => {
+    serveBpcKit(vagabondKitWithRunsPerBpcWithoutDecryptor(0))
+
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+
+    expect(desiredBpcCountInput(wrapper).element.value).toBe('')
+    expect(requestedDesiredBpcCounts()).toEqual([null])
+  })
+
   it('recomputes the desired BPC count from the runs per BPC of the selected decryptor', async () => {
     const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
 
     await selectDecryptor(wrapper, 'Augmentation Decryptor')
 
-    expect(lastRequestedDesiredBpcCount()).toBe(2)
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3, 2])
     expect(desiredBpcCountInput(wrapper).element.value).toBe('2')
+    expect(decryptorRow(wrapper, 'Augmentation Decryptor').classes()).toContain('bg-cyan-500/10')
+  })
+
+  it('proposes the desired BPC count from the runs per BPC of the best decryptor', async () => {
+    serveBpcKit(vagabondKitWithAugmentationDecryptorAsBest())
+
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+
+    expect(desiredBpcCountInput(wrapper).element.value).toBe('2')
+    expect(requestedDesiredBpcCounts()).toEqual([null, 2])
   })
 
   it('recomputes the desired BPC count when the runs of the project change', async () => {
@@ -215,7 +265,7 @@ describe('BpcKitTab default desired BPC count', () => {
     useProjectsStore().currentProject = vagabondProjectOf(52)
     await settle()
 
-    expect(lastRequestedDesiredBpcCount()).toBe(6)
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3, 6])
     expect(desiredBpcCountInput(wrapper).element.value).toBe('6')
   })
 
@@ -224,19 +274,97 @@ describe('BpcKitTab default desired BPC count', () => {
 
     await desiredBpcCountInput(wrapper).setValue('5')
     await settle()
-    expect(lastRequestedDesiredBpcCount()).toBe(5)
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3, 5])
 
     useProjectsStore().currentProject = vagabondProjectOf(52)
     await settle()
 
     expect(desiredBpcCountInput(wrapper).element.value).toBe('5')
-    expect(lastRequestedDesiredBpcCount()).toBe(5)
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3, 5])
+  })
+
+  it('requests the BPC kit without desired BPC count when the user types a single BPC', async () => {
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+    await desiredBpcCountInput(wrapper).setValue('5')
+    await settle()
+
+    await desiredBpcCountInput(wrapper).setValue('1')
+    await settle()
+
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3, 5, null])
+  })
+
+  it('requests nothing when the user types a zero or negative desired BPC count', async () => {
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+
+    await desiredBpcCountInput(wrapper).setValue('0')
+    await settle()
+    await desiredBpcCountInput(wrapper).setValue('-2')
+    await settle()
+
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3])
+  })
+
+  it('keeps the desired BPC count cleared by the user when the runs of the project change', async () => {
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+
+    await desiredBpcCountInput(wrapper).setValue('')
+    await settle()
+    useProjectsStore().currentProject = vagabondProjectOf(52)
+    await settle()
+
+    expect(desiredBpcCountInput(wrapper).element.value).toBe('')
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3])
+  })
+
+  it('requests the BPC kit once with the last desired BPC count typed within 500 ms', async () => {
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+
+    await desiredBpcCountInput(wrapper).setValue('4')
+    await desiredBpcCountInput(wrapper).setValue('5')
+    vi.advanceTimersByTime(499)
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3])
+
+    vi.advanceTimersByTime(1)
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3, 5])
+  })
+
+  it('requests nothing when the user types back the desired BPC count already requested', async () => {
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+    await desiredBpcCountInput(wrapper).setValue('5')
+    await settle()
+
+    await desiredBpcCountInput(wrapper).setValue('3')
+    await desiredBpcCountInput(wrapper).setValue('5')
+    await settle()
+
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3, 5])
   })
 
   it('proposes no desired BPC count while the runs of the project are unknown', async () => {
     const wrapper = await mountTheVagabondKit(null)
 
     expect(desiredBpcCountInput(wrapper).element.value).toBe('')
+    expect(requestedDesiredBpcCounts()).toEqual([null])
+  })
+
+  it('proposes the desired BPC count once the runs of the project become known', async () => {
+    const wrapper = await mountTheVagabondKit(null)
+
+    useProjectsStore().currentProject = vagabondProjectOf(30)
+    await settle()
+
+    expect(desiredBpcCountInput(wrapper).element.value).toBe('3')
+    expect(requestedDesiredBpcCounts()).toEqual([null, 3])
+  })
+
+  it('hides the desired BPC count of a kit without invention', async () => {
+    serveBpcKit(VAGABOND_COMPONENT_BPC_KIT)
+
+    const wrapper = await mountTheVagabondKit(vagabondProjectOf(30))
+
+    expect(wrapper.findAll('label').some(label => label.text().includes(desiredBpcsLabel))).toBe(false)
+    expect(wrapper.find('input[type="number"]').exists()).toBe(false)
     expect(requestedDesiredBpcCounts()).toEqual([null])
   })
 })
