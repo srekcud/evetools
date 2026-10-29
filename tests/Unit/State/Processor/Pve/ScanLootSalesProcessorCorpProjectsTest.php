@@ -71,6 +71,8 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
 
     private array $tokenOwners = [];
 
+    private array $accessTokenRequests = [];
+
     public function testCorpProjectContributionDetectedAsSaleWorthQuantityTimesRewardPerContribution(): void
     {
         $contributedAt = new \DateTimeImmutable('-2 days');
@@ -676,6 +678,99 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame([], $result->detectedSales);
     }
 
+    #[Group('issue-243')]
+    public function testContributorRefusedDuringItsContributionDoesNotStopTheNextContributor(): void
+    {
+        $processor = $this->createProcessor(
+            $this->tritaniumDriveResponses(
+                [
+                    $this->contributorRecord(self::PILOT_TWO_ID, 'Pilot Two', 400),
+                    $this->contributorRecord(self::PILOT_THREE_ID, 'Pilot Three', 730),
+                ],
+                [self::PILOT_THREE_ID => 730],
+                new \DateTimeImmutable('-3 days'),
+            ),
+            characters: [
+                $this->character(self::EVE_CHARACTER_ID, 'Pilot One', self::CORPORATION_ID, self::CORPORATION_NAME),
+                $this->character(self::PILOT_TWO_ID, 'Pilot Two', self::CORPORATION_ID, self::CORPORATION_NAME),
+                $this->character(self::PILOT_THREE_ID, 'Pilot Three', self::CORPORATION_ID, self::CORPORATION_NAME),
+            ],
+            refusedCharacterIds: [self::PILOT_TWO_ID],
+        );
+
+        $result = $processor->process(null, new Post());
+
+        $this->assertSame($this->tritaniumDrivePaths(self::PILOT_THREE_ID), $this->requestedPaths());
+        $this->assertSame(
+            [...array_fill(0, 5, 'Authorization: Bearer access-token-2112000001'), 'Authorization: Bearer access-token-2112000003'],
+            $this->requestedAuthorizations(),
+        );
+        $this->assertSame(1, $result->scannedProjects);
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_THREE_ID)), 'Pilot Three', 730, 9125.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame(['Pilot Two'], $result->charactersToReconnect);
+        $this->assertSame([], $result->corporationsWithoutValidCharacter);
+    }
+
+    #[Group('issue-243')]
+    public function testInvalidCharacterIsNeverAskedForAnAccessTokenByTheCorporationProjectScan(): void
+    {
+        $processor = $this->createProcessor(
+            $this->tritaniumDriveResponses(
+                [
+                    $this->contributorRecord(self::EVE_CHARACTER_ID, 'Pilot One', 150),
+                    $this->contributorRecord(self::PILOT_TWO_ID, 'Pilot Two', 820),
+                ],
+                [self::PILOT_TWO_ID => 820],
+                new \DateTimeImmutable('-2 days'),
+            ),
+            characters: [
+                $this->character(self::EVE_CHARACTER_ID, 'Pilot One', self::CORPORATION_ID, self::CORPORATION_NAME, authValid: false),
+                $this->character(self::PILOT_TWO_ID, 'Pilot Two', self::CORPORATION_ID, self::CORPORATION_NAME),
+            ],
+        );
+
+        $result = $processor->process(null, new Post());
+
+        $walletTransactionsScan = [self::EVE_CHARACTER_ID, self::PILOT_TWO_ID, self::PILOT_TWO_ID];
+        $contractsScan = [self::EVE_CHARACTER_ID, self::PILOT_TWO_ID, self::PILOT_TWO_ID];
+        $corporationProjectsScan = array_fill(0, 7, self::PILOT_TWO_ID);
+        $this->assertSame([...$walletTransactionsScan, ...$contractsScan, ...$corporationProjectsScan], $this->accessTokenRequests);
+        $this->assertSame($this->tritaniumDrivePaths(self::PILOT_TWO_ID), $this->requestedPaths());
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID)), 'Pilot Two', 820, 10250.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame(['Pilot One'], $result->charactersToReconnect);
+    }
+
+    #[Group('issue-243')]
+    public function testCachedProjectListIsNotServedToARefusedReader(): void
+    {
+        $processorCache = new ArrayAdapter();
+        $cachedProjectList = $processorCache->getItem('corp_projects_' . self::CORPORATION_ID);
+        $cachedProjectList->set([$this->projectRecord(self::PROJECT_ID, self::PROJECT_NAME, 'Active', new \DateTimeImmutable('-1 day'))]);
+        $processorCache->save($cachedProjectList);
+        $processor = $this->createProcessor(
+            [
+                ...$this->contributorPages(self::PROJECT_ID, [$this->contributorRecord(self::PILOT_TWO_ID, 'Pilot Two', 580)]),
+                ...$this->projectDetails(self::PROJECT_ID, self::TRITANIUM, self::REWARD_PER_CONTRIBUTION),
+                ...$this->contribution(self::PROJECT_ID, self::PILOT_TWO_ID, 580, new \DateTimeImmutable('-2 days')),
+            ],
+            characters: [
+                $this->character(self::EVE_CHARACTER_ID, 'Pilot One', self::CORPORATION_ID, self::CORPORATION_NAME),
+                $this->character(self::PILOT_TWO_ID, 'Pilot Two', self::CORPORATION_ID, self::CORPORATION_NAME),
+            ],
+            refusedCharacterIds: [self::EVE_CHARACTER_ID],
+            processorCache: $processorCache,
+        );
+
+        $result = $processor->process(null, new Post());
+
+        $this->assertSame(array_slice($this->tritaniumDrivePaths(self::PILOT_TWO_ID), 2), $this->requestedPaths());
+        $this->assertSame(array_fill(0, 4, 'Authorization: Bearer access-token-2112000002'), $this->requestedAuthorizations());
+        $this->assertSame(1, $result->scannedProjects);
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID)), 'Pilot Two', 580, 7250.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame(['Pilot One'], $result->charactersToReconnect);
+        $this->assertSame([], $result->corporationsWithoutValidCharacter);
+    }
+
     private function saleSummaries(array $detectedSales): array
     {
         return array_map(
@@ -791,6 +886,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         array $knownTypeNamesById = [self::TRITANIUM => 'Tritanium', self::ROGUE_DRONE_INFESTATION_DATA => 'Rogue Drone Infestation Data'],
         ?array $characters = null,
         array $refusedCharacterIds = [],
+        ArrayAdapter $processorCache = new ArrayAdapter(),
     ): ScanLootSalesProcessor {
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturnCallback(
@@ -826,7 +922,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
             invTypeRepository: $invTypeRepository,
             requestStack: $requestStack,
             logger: new NullLogger(),
-            cache: new ArrayAdapter(),
+            cache: $processorCache,
         );
     }
 
@@ -949,6 +1045,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
     private function accessTokenOf(EveToken $token, array $refusedCharacterIds): string
     {
         $owner = $this->tokenOwners[spl_object_id($token)];
+        $this->accessTokenRequests[] = $owner->getEveCharacterId();
         if (!$owner->isAuthValid() || in_array($owner->getEveCharacterId(), $refusedCharacterIds, true)) {
             throw new EveAuthRequiredException((string) $owner->getEveCharacterId());
         }
