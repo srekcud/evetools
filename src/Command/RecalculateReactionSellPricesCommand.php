@@ -10,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:industry:recalculate-reaction-sell-prices',
@@ -31,6 +32,29 @@ class RecalculateReactionSellPricesCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        return Command::SUCCESS;
+        $io = new SymfonyStyle($input, $output);
+        $createdBeforeOption = $input->getOption('created-before');
+        if ($createdBeforeOption === null) {
+            $io->error('The --created-before option is required: pass the deployment time of the release that fixed the reaction sell price');
+
+            return Command::FAILURE;
+        }
+
+        try {
+            $createdBefore = new \DateTimeImmutable($createdBeforeOption);
+        } catch (\DateMalformedStringException) {
+            $io->error('Invalid --created-before value: '.$createdBeforeOption);
+
+            return Command::FAILURE;
+        }
+
+        $dryRun = $input->getOption('dry-run');
+
+        return ProjectCorrectionConsoleReport::print(
+            $io,
+            $this->recalculation->run($createdBefore, $dryRun),
+            $dryRun,
+            'No project to recalculate',
+        );
     }
 }
