@@ -15,17 +15,12 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
-use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
 
 class IndustryResourceMapper
 {
-    /** @var array<string, array<string, array{skills: array<int, int>, name: string, time: int|null}>> */
-    /** @var array<string, array{skills: array<int, int>|null, name: string|null, time?: int|null}> */
-    private array $bestCharacterCache = [];
-
     /** @var array<int, array<array{esiJobId: int, runs: int, status: string, characterName: string}>>|null */
     private ?array $similarJobsByBlueprint = null;
 
@@ -34,7 +29,6 @@ class IndustryResourceMapper
 
     public function __construct(
         private readonly IndustryCalculationService $calculationService,
-        private readonly CachedCharacterSkillRepository $skillRepository,
         private readonly CachedIndustryJobRepository $industryJobRepository,
         private readonly InventionService $inventionService,
     ) {
@@ -250,10 +244,9 @@ class IndustryResourceMapper
         $resource->structureTimeBonus = $structureData['timeBonus'];
         $resource->favoriteSystemWithoutSuitableStructure = $structureData['favoriteSystemWithoutSuitableStructure'];
 
-        // Calculate time with best character's skills
-        $bestChar = $this->findBestCharacterForStep($step);
-        $resource->timePerRun = $this->calculationService->calculateTimePerRun($step, $bestChar['skills'] ?? null);
-        $resource->recommendedCharacterName = $bestChar['name'] ?? null;
+        $bestCharacter = $this->calculationService->bestCharacterForStepTime($step->getProject()->getUser(), $step->getBlueprintTypeId(), $step->getActivityType());
+        $resource->timePerRun = $this->calculationService->calculateTimePerRun($step, $bestCharacter['skills']);
+        $resource->recommendedCharacterName = $bestCharacter['name'];
 
         // Job matches
         $resource->jobMatches = [];
@@ -381,82 +374,5 @@ class IndustryResourceMapper
         }
 
         $this->similarJobsByBlueprint = $indexed;
-    }
-
-    /**
-     * Find the best character (lowest time) for a step based on all relevant skills.
-     * Includes Industry/AdvInd/Reactions and blueprint-specific science skills.
-     *
-     * @return array{skills: array<int, int>|null, name: string|null, time?: int|null}
-     */
-    private function findBestCharacterForStep(IndustryProjectStep $step): array
-    {
-        $user = $step->getProject()->getUser();
-        $activityType = $step->getActivityType();
-
-        if ($activityType === 'copy') {
-            return ['skills' => null, 'name' => null];
-        }
-
-        // Cache includes blueprint ID since science skills vary per blueprint
-        $cacheKey = ($user->getId()?->toRfc4122() ?? '') . '_' . $step->getBlueprintTypeId() . '_' . $activityType;
-
-        if (isset($this->bestCharacterCache[$cacheKey])) {
-            return $this->bestCharacterCache[$cacheKey];
-        }
-
-        // Get blueprint-specific science skill IDs
-        $scienceSkillIds = $this->calculationService->getBlueprintScienceSkillIds(
-            $step->getBlueprintTypeId(),
-            $activityType
-        );
-
-        $bestSkills = null;
-        $bestName = null;
-        $bestMultiplier = PHP_FLOAT_MAX;
-
-        foreach ($user->getCharacters() as $character) {
-            // Load all skills if blueprint needs science skills, otherwise just industry skills
-            if (!empty($scienceSkillIds)) {
-                $charSkills = $this->skillRepository->findAllSkillsForCharacter($character);
-            } else {
-                $charSkills = $this->skillRepository->findIndustrySkillsForCharacter($character);
-            }
-
-            $skillLevels = [];
-            foreach ($charSkills as $skill) {
-                $skillLevels[$skill->getSkillId()] = $skill->getLevel();
-            }
-
-            $multiplier = 1.0;
-            if ($activityType === 'reaction') {
-                $reactionLevel = $skillLevels[CachedCharacterSkill::SKILL_REACTIONS] ?? 0;
-                $multiplier *= (1 - 0.04 * $reactionLevel);
-            } else {
-                $industryLevel = $skillLevels[CachedCharacterSkill::SKILL_INDUSTRY] ?? 0;
-                $advancedLevel = $skillLevels[CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY] ?? 0;
-                $multiplier *= (1 - 0.04 * $industryLevel);
-                $multiplier *= (1 - 0.03 * $advancedLevel);
-            }
-
-            // Blueprint-specific science skills (1% per level)
-            foreach ($scienceSkillIds as $skillId) {
-                $level = $skillLevels[$skillId] ?? 0;
-                if ($level > 0) {
-                    $multiplier *= (1 - 0.01 * $level);
-                }
-            }
-
-            if ($multiplier < $bestMultiplier) {
-                $bestMultiplier = $multiplier;
-                $bestSkills = $skillLevels;
-                $bestName = $character->getName();
-            }
-        }
-
-        $result = ['skills' => $bestSkills, 'name' => $bestName];
-        $this->bestCharacterCache[$cacheKey] = $result;
-
-        return $result;
     }
 }

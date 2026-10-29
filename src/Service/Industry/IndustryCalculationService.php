@@ -9,7 +9,9 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
+use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
+use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Enum\IndustryActivityType;
@@ -23,6 +25,9 @@ class IndustryCalculationService
     /** @var array<string, int[]> Cache of blueprint science skill IDs */
     private array $blueprintSkillCache = [];
 
+    /** @var array<string, int|null> */
+    private array $baseTimeCache = [];
+
     public function __construct(
         private readonly TypeNameResolver $typeNameResolver,
         private readonly IndustryBonusService $bonusService,
@@ -31,6 +36,8 @@ class IndustryCalculationService
         private readonly EntityManagerInterface $entityManager,
         private readonly StaStationRepository $staStationRepository,
         private readonly CachedStructureRepository $cachedStructureRepository,
+        private readonly IndustryActivityRepository $activityRepository,
+        private readonly CachedCharacterSkillRepository $skillRepository,
     ) {
     }
 
@@ -113,11 +120,23 @@ class IndustryCalculationService
      */
     public function getStructureBonusForStep(IndustryProjectStep $step): array
     {
-        $structureConfig = $step->getStructureConfig();
-        $isReaction = $step->getActivityType() === 'reaction';
+        return $this->structureBonusOf(
+            $step->getProject()->getUser(),
+            $step->getProductTypeId(),
+            $step->getActivityType(),
+            $step->getStructureConfig(),
+        );
+    }
+
+    /**
+     * @return array{structure: IndustryStructureConfig|null, materialBonus: array{total: float, base: float, rig: float}, timeBonus: float, name: string|null, favoriteSystemWithoutSuitableStructure: bool}
+     */
+    public function structureBonusOf(User $user, int $productTypeId, string $activityType, ?IndustryStructureConfig $structureConfig): array
+    {
+        $isReaction = $activityType === 'reaction';
 
         if ($structureConfig !== null) {
-            $assignedStructureBonus = $this->assignedStructureBonusOf($structureConfig, $step->getProductTypeId(), $isReaction);
+            $assignedStructureBonus = $this->assignedStructureBonusOf($structureConfig, $productTypeId, $isReaction);
 
             return [
                 'structure' => $structureConfig,
@@ -129,18 +148,17 @@ class IndustryCalculationService
         }
 
         // No assigned structure — try favorite system first, then fallback to global best
-        $user = $step->getProject()->getUser();
         $favoriteSystemId = $this->findFavoriteSystemId($user, $isReaction);
 
         if ($favoriteSystemId !== null) {
-            $favoriteResult = $this->findBestInFavoriteSystem($user, $favoriteSystemId, $step->getProductTypeId(), $isReaction);
+            $favoriteResult = $this->findBestInFavoriteSystem($user, $favoriteSystemId, $productTypeId, $isReaction);
             if ($favoriteResult !== null) {
                 return $favoriteResult;
             }
         }
 
         // Fallback: find the global best structure
-        $bestMaterial = $this->bonusService->findBestStructureForProduct($user, $step->getProductTypeId(), $isReaction);
+        $bestMaterial = $this->bonusService->findBestStructureForProduct($user, $productTypeId, $isReaction);
 
         $structure = $bestMaterial['structure'];
         $materialBonus = $bestMaterial['bonus'];
@@ -244,23 +262,90 @@ class IndustryCalculationService
      */
     public function calculateTimePerRun(IndustryProjectStep $step, ?array $characterSkills = null): ?int
     {
-        $baseTime = $this->getBaseTimePerRun($step->getBlueprintTypeId(), $step->getActivityType());
+        return $this->timePerRunOf(
+            $step->getProject()->getUser(),
+            $step->getBlueprintTypeId(),
+            $step->getProductTypeId(),
+            $step->getActivityType(),
+            $step->getTeLevel(),
+            $step->getStructureConfig(),
+            $characterSkills,
+        );
+    }
+
+    /**
+     * @param array<int, int>|null $characterSkills
+     */
+    public function timePerRunOf(
+        User $user,
+        int $blueprintTypeId,
+        int $productTypeId,
+        string $activityType,
+        int $teLevel,
+        ?IndustryStructureConfig $structureConfig,
+        ?array $characterSkills,
+    ): ?int {
+        $baseTime = $this->baseTimePerRunOf($blueprintTypeId, $activityType);
         if ($baseTime === null) {
             return null;
         }
 
-        $teMultiplier = 1 - $step->getTeLevel() / 100;
-
-        $structureData = $this->getStructureBonusForStep($step);
-        $structureTimeMultiplier = 1 - $structureData['timeBonus'] / 100;
+        $teMultiplier = 1 - $teLevel / 100;
+        $structureTimeMultiplier = 1 - $this->structureBonusOf($user, $productTypeId, $activityType, $structureConfig)['timeBonus'] / 100;
 
         $skillMultiplier = 1.0;
         if ($characterSkills !== null) {
-            $scienceSkillIds = $this->getBlueprintScienceSkillIds($step->getBlueprintTypeId(), $step->getActivityType());
-            $skillMultiplier = $this->calculateSkillTimeMultiplier($characterSkills, $step->getActivityType(), $scienceSkillIds);
+            $scienceSkillIds = $this->getBlueprintScienceSkillIds($blueprintTypeId, $activityType);
+            $skillMultiplier = $this->calculateSkillTimeMultiplier($characterSkills, $activityType, $scienceSkillIds);
         }
 
         return (int) ceil($baseTime * $teMultiplier * $structureTimeMultiplier * $skillMultiplier);
+    }
+
+    /**
+     * @return list<array{name: string, skills: array<int, int>}>
+     */
+    public function loadCharacterSkillLevels(User $user): array
+    {
+        $characterSkillLevels = [];
+        foreach ($user->getCharacters() as $character) {
+            $skillLevels = [];
+            foreach ($this->skillRepository->findAllSkillsForCharacter($character) as $skill) {
+                $skillLevels[$skill->getSkillId()] = $skill->getLevel();
+            }
+            $characterSkillLevels[] = ['name' => $character->getName(), 'skills' => $skillLevels];
+        }
+
+        return $characterSkillLevels;
+    }
+
+    /**
+     * @param list<array{name: string, skills: array<int, int>}>|null $characterSkillLevels
+     * @return array{skills: array<int, int>|null, name: string|null}
+     */
+    public function bestCharacterForStepTime(User $user, int $blueprintTypeId, string $activityType, ?array $characterSkillLevels = null): array
+    {
+        if ($activityType === 'copy') {
+            return ['skills' => null, 'name' => null];
+        }
+
+        $characterSkillLevels ??= $this->loadCharacterSkillLevels($user);
+        $scienceSkillIds = $this->getBlueprintScienceSkillIds($blueprintTypeId, $activityType);
+
+        $bestSkills = null;
+        $bestName = null;
+        $bestMultiplier = PHP_FLOAT_MAX;
+
+        foreach ($characterSkillLevels as $character) {
+            $multiplier = $this->calculateSkillTimeMultiplier($character['skills'], $activityType, $scienceSkillIds);
+            if ($multiplier < $bestMultiplier) {
+                $bestMultiplier = $multiplier;
+                $bestSkills = $character['skills'];
+                $bestName = $character['name'];
+            }
+        }
+
+        return ['skills' => $bestSkills, 'name' => $bestName];
     }
 
     /**
@@ -335,23 +420,25 @@ class IndustryCalculationService
         return $skillIds;
     }
 
-    /**
-     * Get the base time per run from SDE for a blueprint activity.
-     */
-    private function getBaseTimePerRun(int $blueprintTypeId, string $activityType): ?int
+    private function baseTimePerRunOf(int $blueprintTypeId, string $activityType): ?int
     {
+        $cacheKey = $blueprintTypeId . '_' . $activityType;
+        if (array_key_exists($cacheKey, $this->baseTimeCache)) {
+            return $this->baseTimeCache[$cacheKey];
+        }
+
         $activityId = match ($activityType) {
             'reaction' => IndustryActivityType::Reaction->value,
+            'copy' => IndustryActivityType::Copying->value,
             default => IndustryActivityType::Manufacturing->value,
         };
 
-        $conn = $this->entityManager->getConnection();
-        $time = $conn->fetchOne(
-            'SELECT time FROM sde_industry_activities WHERE type_id = ? AND activity_id = ?',
-            [$blueprintTypeId, $activityId],
-        );
+        $activitiesByKey = $this->activityRepository->findByTypeIdsAndActivityIds([$blueprintTypeId], [$activityId]);
 
-        return $time !== false ? (int) $time : null;
+        $baseTime = ($activitiesByKey[$blueprintTypeId . '-' . $activityId] ?? null)?->getTime();
+        $this->baseTimeCache[$cacheKey] = $baseTime;
+
+        return $baseTime;
     }
 
     /**

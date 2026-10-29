@@ -35,6 +35,8 @@ use Symfony\Component\Mercure\HubInterface;
 
 trait BuildsProjectOnGoldenSde
 {
+    use AutowiresByType;
+
     private const string GOLDEN_DIR = __DIR__.'/../../../Fixtures/Golden/';
     private const int SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
     private const int UNCATEGORIZED_GROUP_ID = 999_999_001;
@@ -69,7 +71,7 @@ trait BuildsProjectOnGoldenSde
         ]);
     }
 
-    private function calculationServiceOnGoldenSde(IndustryBonusService $bonusService, IndustryStructureConfigRepository $structureConfigRepository): IndustryCalculationService
+    private function calculationServiceOnGoldenSde(IndustryBonusService $bonusService, IndustryStructureConfigRepository $structureConfigRepository, ?CachedCharacterSkillRepository $skillRepository = null): IndustryCalculationService
     {
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
@@ -82,6 +84,8 @@ trait BuildsProjectOnGoldenSde
             $this->entityManagerWithoutRows(),
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
+            $this->activityRepositoryOnGoldenSde(),
+            $skillRepository ?? $this->createStub(CachedCharacterSkillRepository::class),
         );
     }
 
@@ -247,28 +251,6 @@ trait BuildsProjectOnGoldenSde
         );
 
         return $activityRepository;
-    }
-
-    private static function autowired(string $class, array $services): object
-    {
-        $parameters = (new \ReflectionClass($class))->getConstructor()?->getParameters() ?? [];
-
-        return new $class(...array_map(
-            static function (\ReflectionParameter $parameter) use ($class, $services): object {
-                $type = (string) $parameter->getType();
-                foreach ($services as $service) {
-                    if ($service instanceof $type) {
-                        return $service;
-                    }
-                }
-                if (str_starts_with($type, 'App\\Service\\Industry\\') && class_exists($type)) {
-                    return self::autowired($type, $services);
-                }
-
-                throw new \LogicException(\sprintf('The golden harness has no %s for $%s of %s', $type, $parameter->getName(), $class));
-            },
-            $parameters,
-        ));
     }
 
     private static function activityMaterials(int $blueprintTypeId, int $activityId): array

@@ -30,6 +30,7 @@ use App\Service\Industry\IndustryTreeService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\UpdateStepProcessor;
 use App\Tests\Integration\IntegrationTestCase;
+use App\Tests\Unit\Service\Industry\AutowiresByType;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
@@ -38,6 +39,8 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 #[Group('issue-185')]
 final class UpdateStepFixedRunsTest extends IntegrationTestCase
 {
+    use AutowiresByType;
+
     private const int SHIP_CATEGORY_ID = 999_993_006;
     private const int CRUISER_GROUP_ID = 999_993_026;
     private const int PLATING_GROUP_ID = 999_993_334;
@@ -98,7 +101,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
 
         $container = self::getContainer();
         $this->processor = $container->get(UpdateStepProcessor::class);
-        $this->factory = new IndustryProjectFactory(
+        $this->factory = self::autowired(IndustryProjectFactory::class, [
             $container->get(IndustryTreeService::class),
             $container->get(IndustryBlacklistService::class),
             $container->get(IndustryBonusService::class),
@@ -110,7 +113,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
             $this->em,
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $container->get(IndustryBlueprintRepository::class),
-        );
+        ]);
     }
 
     public function testRunsEnteredBelowTheNeedOfAStepThatIsNotSplitAreFixed(): void

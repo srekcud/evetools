@@ -8,13 +8,16 @@ use App\Entity\CachedCharacterSkill;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
+use App\Entity\Sde\IndustryActivity;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\StaStationRepository;
 use App\Service\Industry\IndustryBonusService;
@@ -47,6 +50,10 @@ class IndustryCalculationTest extends TestCase
     private const int REINFORCED_CARBON_FIBER = 57457;
     private const int REINFORCED_CARBON_FIBER_FORMULA = 1_057_457;
     private const int REINFORCED_CARBON_FIBER_BASE_TIME_PER_RUN = 10800;
+    private const int RAVEN = 638;
+    private const int RAVEN_BLUEPRINT = 688;
+    private const int RAVEN_MANUFACTURING_BASE_TIME_PER_RUN = 18000;
+    private const int RAVEN_COPYING_BASE_TIME_PER_RUN = 14400;
     private const int BLUEPRINT_WITHOUT_BASE_TIME = 999_999_999;
     private const int FIRST_SCIENCE_SKILL = 999_000_001;
     private const int SECOND_SCIENCE_SKILL = 999_000_002;
@@ -71,6 +78,8 @@ class IndustryCalculationTest extends TestCase
             $this->createStub(\Doctrine\ORM\EntityManagerInterface::class),
             $this->createStub(\App\Repository\Sde\StaStationRepository::class),
             $this->createStub(\App\Repository\CachedStructureRepository::class),
+            $this->createStub(IndustryActivityRepository::class),
+            $this->createStub(CachedCharacterSkillRepository::class),
         );
     }
 
@@ -412,22 +421,76 @@ class IndustryCalculationTest extends TestCase
         self::assertNull($this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::REACTIONS_FOUR));
     }
 
+    #[Group('issue-134')]
+    public function testTimePerRunIsRoundedUpToTheNextSecondEvenWhenItsFractionIsBelowOneHalf(): void
+    {
+        $step = $this->stepOfAProject(self::CAPITAL_CARGO_BAY, self::CAPITAL_CARGO_BAY_BLUEPRINT, 'manufacturing', 2);
+
+        self::assertSame(10663, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE));
+    }
+
+    #[Group('issue-126')]
+    public function testTimePerRunOfACopyStepIsTheCopyingBaseTimeOfTheBlueprint(): void
+    {
+        $copyStep = $this->stepOfAProject(self::RAVEN, self::RAVEN_BLUEPRINT, 'copy', 0);
+
+        self::assertSame(14400, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($copyStep));
+    }
+
+    #[Group('issue-126')]
+    public function testTimePerRunOfAManufacturingStepIsTheManufacturingBaseTimeEvenWhenTheBlueprintHasACopyingTime(): void
+    {
+        $manufacturingStep = $this->stepOfAProject(self::RAVEN, self::RAVEN_BLUEPRINT, 'manufacturing', 0);
+
+        self::assertSame(18000, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($manufacturingStep));
+    }
+
+    #[Group('issue-126')]
+    public function testTimePerRunOfACopyStepIsUnknownWhenTheSdeHasNoCopyingTimeForTheBlueprint(): void
+    {
+        $copyStep = $this->stepOfAProject(self::CAPITAL_JUMP_DRIVE, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'copy', 0);
+
+        self::assertNull($this->calculationServiceOnSdeActivities()->calculateTimePerRun($copyStep));
+    }
+
     private function calculationServiceOnSdeActivities(array $scienceSkillIdsByBlueprintAndActivity = []): IndustryCalculationService
     {
         $baseTimesByBlueprintAndActivity = [
-            self::CAPITAL_JUMP_DRIVE_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => (string) self::CAPITAL_JUMP_DRIVE_BASE_TIME_PER_RUN,
-            self::CAPITAL_CARGO_BAY_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => (string) self::CAPITAL_CARGO_BAY_BASE_TIME_PER_RUN,
-            self::REINFORCED_CARBON_FIBER_FORMULA.'-'.IndustryActivityType::Reaction->value => (string) self::REINFORCED_CARBON_FIBER_BASE_TIME_PER_RUN,
+            self::CAPITAL_JUMP_DRIVE_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => self::CAPITAL_JUMP_DRIVE_BASE_TIME_PER_RUN,
+            self::CAPITAL_CARGO_BAY_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => self::CAPITAL_CARGO_BAY_BASE_TIME_PER_RUN,
+            self::REINFORCED_CARBON_FIBER_FORMULA.'-'.IndustryActivityType::Reaction->value => self::REINFORCED_CARBON_FIBER_BASE_TIME_PER_RUN,
+            self::RAVEN_BLUEPRINT.'-'.IndustryActivityType::Manufacturing->value => self::RAVEN_MANUFACTURING_BASE_TIME_PER_RUN,
+            self::RAVEN_BLUEPRINT.'-'.IndustryActivityType::Copying->value => self::RAVEN_COPYING_BASE_TIME_PER_RUN,
         ];
         $connection = $this->createStub(Connection::class);
         $connection->method('fetchOne')->willReturnCallback(
-            static fn (string $sql, array $params): string|false => $baseTimesByBlueprintAndActivity[$params[0].'-'.$params[1]] ?? false,
+            static fn (string $sql, array $params): string|false => isset($baseTimesByBlueprintAndActivity[$params[0].'-'.$params[1]])
+                ? (string) $baseTimesByBlueprintAndActivity[$params[0].'-'.$params[1]]
+                : false,
         );
         $connection->method('fetchAllAssociative')->willReturnCallback(
             static fn (string $sql, array $params): array => array_map(
                 static fn (int $skillId): array => ['skill_id' => (string) $skillId],
                 $scienceSkillIdsByBlueprintAndActivity[$params[0].'-'.$params[1]] ?? [],
             ),
+        );
+        $activityRepository = $this->createStub(IndustryActivityRepository::class);
+        $activityRepository->method('findByTypeIdsAndActivityIds')->willReturnCallback(
+            static function (array $blueprintTypeIds, array $activityIds) use ($baseTimesByBlueprintAndActivity): array {
+                $activities = [];
+                foreach ($blueprintTypeIds as $blueprintTypeId) {
+                    foreach ($activityIds as $activityId) {
+                        if (isset($baseTimesByBlueprintAndActivity[$blueprintTypeId.'-'.$activityId])) {
+                            $activities[$blueprintTypeId.'-'.$activityId] = (new IndustryActivity())
+                                ->setTypeId($blueprintTypeId)
+                                ->setActivityId($activityId)
+                                ->setTime($baseTimesByBlueprintAndActivity[$blueprintTypeId.'-'.$activityId]);
+                        }
+                    }
+                }
+
+                return $activities;
+            },
         );
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('getConnection')->willReturn($connection);
@@ -447,6 +510,8 @@ class IndustryCalculationTest extends TestCase
             $entityManager,
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
+            $activityRepository,
+            $this->createStub(CachedCharacterSkillRepository::class),
         );
     }
 

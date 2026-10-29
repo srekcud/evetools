@@ -20,9 +20,7 @@ final class TataraAndRaitaruBonusService extends IndustryBonusService
     private const string ADVANCED_COMPONENT_CATEGORY = 'advanced_component';
     private const string REACTION_CATEGORY = 'composite_reaction';
     private const float RAITARU_BASE_MATERIAL_BONUS = 1.0;
-    private const float RAITARU_TIME_BONUS = 15.0;
     private const float TATARA_REACTOR_RIG_BONUS = 2.64;
-    private const float TATARA_TIME_BONUS = 25.0;
 
     public function __construct(
         private readonly \Closure $pilotOwnsTataraAndRaitaru,
@@ -60,17 +58,6 @@ final class TataraAndRaitaruBonusService extends IndustryBonusService
     public function findBestStructureForCategory(User $user, string $category, bool $isReaction = false): array
     {
         return $isReaction ? self::tatara($category) : self::raitaru($category);
-    }
-
-    public function findBestStructureForProductTimeBonus(User $user, int $typeId, bool $isReaction = false): array
-    {
-        $category = $this->getCategoryForProduct($typeId, $isReaction);
-
-        return match (true) {
-            $category === null => ['structure' => null, 'bonus' => 0.0, 'category' => null],
-            $isReaction => ['structure' => self::tatara($category)['structure'], 'bonus' => self::TATARA_TIME_BONUS, 'category' => $category],
-            default => ['structure' => self::raitaru($category)['structure'], 'bonus' => self::RAITARU_TIME_BONUS, 'category' => $category],
-        };
     }
 
     private static function tatara(?string $category): array

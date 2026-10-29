@@ -342,54 +342,6 @@ class IndustryBonusService
     }
 
     /**
-     * Find the best structure and its TIME bonus for a given product.
-     *
-     * @return array{structure: IndustryStructureConfig|null, bonus: float, category: string|null}
-     */
-    public function findBestStructureForProductTimeBonus(User $user, int $typeId, bool $isReaction = false): array
-    {
-        $category = $this->getCategoryForProduct($typeId, $isReaction);
-
-        if (!$category) {
-            return ['structure' => null, 'bonus' => 0.0, 'category' => null];
-        }
-
-        return $this->findBestStructureForCategoryTimeBonus($user, $category, $isReaction);
-    }
-
-    /**
-     * Find the best structure and its TIME bonus for a given category.
-     *
-     * @return array{structure: IndustryStructureConfig|null, bonus: float, category: string|null}
-     */
-    public function findBestStructureForCategoryTimeBonus(User $user, string $category, bool $isReaction = false): array
-    {
-        $structures = $this->structureRepository->findByUser($user);
-
-        if (empty($structures)) {
-            return ['structure' => null, 'bonus' => 0.0, 'category' => $category];
-        }
-
-        $bestStructure = null;
-        $bestBonus = 0.0;
-
-        foreach ($structures as $structure) {
-            if (!$this->isSuitableForActivity($structure, $isReaction)) {
-                continue;
-            }
-
-            $bonus = $this->calculateStructureTimeBonusForCategory($structure, $category);
-
-            if ($bonus > $bestBonus) {
-                $bestBonus = $bonus;
-                $bestStructure = $structure;
-            }
-        }
-
-        return ['structure' => $bestStructure, 'bonus' => $bestBonus, 'category' => $category];
-    }
-
-    /**
      * Calculate the TIME bonus a structure provides for a specific category.
      * Includes base structure time bonuses:
      * - Raitaru: 15%, Azbel: 20%, Sotiyo: 30% for manufacturing
@@ -428,23 +380,6 @@ class IndustryBonusService
         $totalBonus = 1 - (1 - $baseBonus / 100) * (1 - $rigBonus / 100);
 
         return round($totalBonus * 100, 2);
-    }
-
-    /**
-     * Calculate adjusted time per run with TE and structure bonuses.
-     *
-     * @param int $baseTimePerRun Base time per run in seconds (from SDE)
-     * @param int $teLevel Blueprint Time Efficiency level (0-20)
-     * @param float $structureTimeBonus Structure time bonus percentage (0-50)
-     * @return int Adjusted time per run in seconds
-     */
-    public function calculateAdjustedTimePerRun(int $baseTimePerRun, int $teLevel = 0, float $structureTimeBonus = 0.0): int
-    {
-        // Formula: baseTime × (1 - TE/100) × (1 - structureBonus/100)
-        $teMultiplier = 1 - $teLevel / 100;
-        $structureMultiplier = 1 - $structureTimeBonus / 100;
-
-        return (int) ceil($baseTimePerRun * $teMultiplier * $structureMultiplier);
     }
 
     /**

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\Sde\InvType;
+use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\StaStationRepository;
 use App\Service\Industry\IndustryBonusService;
@@ -71,6 +73,8 @@ trait ResolvesTypeNamesFromSde
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
+            $this->createStub(IndustryActivityRepository::class),
+            $this->createStub(CachedCharacterSkillRepository::class),
         );
     }
 }

@@ -588,6 +588,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     }
 
     #[Group('issue-69')]
+    #[Group('issue-134')]
     public function testIntermediatesOfTenScorpionsInATataraAndARaitaruAreAggregatedWithTheBonusRuleOfEachPath(): void
     {
         $this->pilotOwnsTataraAndRaitaru = true;
@@ -595,12 +596,12 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
         $project = $this->createProject(self::SCORPION, runs: 10, meLevel: 10, teLevel: 20);
 
         $steps = $this->stepsOf($project);
-        self::assertSame([[7, 255, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
-        self::assertSame([[6, 220, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
+        self::assertSame([[7, 253, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::OXYGEN_FUEL_BLOCK));
+        self::assertSame([[6, 218, 4, 10, 20, 0, null]], $this->jobsOf($steps, self::HYDROGEN_FUEL_BLOCK));
         self::assertSame([[7, 68, 3, 0, 0, 0, null]], $this->jobsOf($steps, self::OXY_ORGANIC_SOLVENTS));
-        self::assertSame([[12, 2400, 2, 0, 0, 0, 23], [11, 2100, 2, 0, 0, 1, 23]], $this->jobsOf($steps, self::PRESSURIZED_OXIDIZERS));
+        self::assertSame([[23, 4500, 2, 0, 0, 0, null]], $this->jobsOf($steps, self::PRESSURIZED_OXIDIZERS));
         self::assertSame(
-            [[15, 3000, 2, 0, 0, 0, 45], [15, 3000, 2, 0, 0, 1, 45], [15, 3000, 2, 0, 0, 2, 45]],
+            [[23, 4600, 2, 0, 0, 0, 45], [22, 4400, 2, 0, 0, 1, 45]],
             $this->jobsOf($steps, self::REINFORCED_CARBON_FIBER),
         );
         self::assertSame(
