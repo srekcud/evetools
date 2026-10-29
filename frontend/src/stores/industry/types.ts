@@ -315,6 +315,14 @@ export interface CharacterSkill {
   lastSyncAt: string | null
 }
 
+export type CharacterSyncFailureReason = 'missing_token' | 'missing_scope' | 'authentication_required' | 'esi_rate_limited' | 'esi_unavailable' | 'esi_error' | 'sync_failed'
+
+export interface CharacterSyncFailure {
+  characterName: string
+  reason: CharacterSyncFailureReason
+  statusCode: number | null
+}
+
 export interface UserSettings {
   favoriteManufacturingSystemId: number | null
   favoriteManufacturingSystemName: string | null

@@ -1,0 +1,270 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\State\Processor\Industry;
+
+use ApiPlatform\Metadata\Post;
+use App\ApiResource\Industry\CharacterSkillCollectionResource;
+use App\ApiResource\Industry\CharacterSkillResource;
+use App\Entity\Character;
+use App\Entity\EveToken;
+use App\Entity\User;
+use App\Exception\EsiApiException;
+use App\Exception\EveAuthRequiredException;
+use App\Repository\CachedCharacterSkillRepository;
+use App\Repository\CachedIndustryJobRepository;
+use App\Service\ESI\EsiClient;
+use App\Service\ESI\TokenManager;
+use App\Service\Industry\IndustryCalculationService;
+use App\Service\Industry\InventionService;
+use App\Service\Sync\CharacterSyncFailure;
+use App\State\Processor\Industry\SyncCharacterSkillsProcessor;
+use App\State\Provider\Industry\IndustryResourceMapper;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\ErrorHandler\BufferingLogger;
+
+#[CoversClass(SyncCharacterSkillsProcessor::class)]
+#[CoversClass(CharacterSyncFailure::class)]
+#[Group('issue-197')]
+final class SyncCharacterSkillsProcessorTest extends TestCase
+{
+    private const string SKILLS_SCOPE = 'esi-skills.read_skills.v1';
+    private const string JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
+    private const string PILOT_ONE = 'Pilot One';
+    private const string PILOT_TWO = 'Pilot Two';
+    private const int PILOT_ONE_ID = 2_112_000_001;
+    private const int PILOT_TWO_ID = 2_112_000_002;
+    private const string PILOT_ONE_SKILLS_ENDPOINT = '/characters/2112000001/skills/';
+    private const string PILOT_TWO_SKILLS_ENDPOINT = '/characters/2112000002/skills/';
+
+    private User $user;
+    private Character $pilotTwo;
+    private EveToken $pilotOneToken;
+    private EveToken $pilotTwoToken;
+    private BufferingLogger $logger;
+
+    private array $accessTokenRequests = [];
+
+    private array $skillsEndpointCalls = [];
+
+    private array $accessTokenFailures = [];
+
+    private array $skillsEndpointFailures = [];
+
+    protected function setUp(): void
+    {
+        $this->user = new User();
+        $this->pilotOneToken = (new EveToken())->setScopes([self::SKILLS_SCOPE]);
+        $this->pilotTwoToken = (new EveToken())->setScopes([self::SKILLS_SCOPE, self::JOBS_SCOPE]);
+        $this->addCharacter(self::PILOT_ONE, self::PILOT_ONE_ID, $this->pilotOneToken);
+        $this->pilotTwo = $this->addCharacter(self::PILOT_TWO, self::PILOT_TWO_ID, $this->pilotTwoToken);
+        $this->logger = new BufferingLogger();
+    }
+
+    public function testDoesNotCallEsiNorCountACharacterWhoseTokenLacksTheSkillsScope(): void
+    {
+        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE]);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(1, $result->syncedCount);
+        $this->assertSame(
+            [['characterName' => self::PILOT_TWO, 'reason' => 'missing_scope', 'statusCode' => null]],
+            $result->failedCharacters,
+        );
+        $this->assertSame([self::PILOT_ONE], $this->accessTokenRequests);
+        $this->assertSame([self::PILOT_ONE_SKILLS_ENDPOINT], $this->skillsEndpointCalls);
+        $this->assertSame([self::PILOT_ONE, self::PILOT_TWO], $this->characterNames($result));
+        $this->assertSame([], $this->loggedLevelsAndContexts());
+    }
+
+    public function testDoesNotCallEsiNorCountACharacterWithoutToken(): void
+    {
+        $this->pilotTwo->setEveToken(null);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(1, $result->syncedCount);
+        $this->assertSame(
+            [['characterName' => self::PILOT_TWO, 'reason' => 'missing_token', 'statusCode' => null]],
+            $result->failedCharacters,
+        );
+        $this->assertSame([self::PILOT_ONE_SKILLS_ENDPOINT], $this->skillsEndpointCalls);
+        $this->assertSame([self::PILOT_ONE, self::PILOT_TWO], $this->characterNames($result));
+        $this->assertSame([], $this->loggedLevelsAndContexts());
+    }
+
+    public function testNamesTheCharacterWhoseAuthorizationIsRevoked(): void
+    {
+        $this->accessTokenFailures[self::PILOT_TWO] = new EveAuthRequiredException((string) self::PILOT_TWO_ID, 'Grant revoked for Pilot Two');
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(1, $result->syncedCount);
+        $this->assertSame(
+            [['characterName' => self::PILOT_TWO, 'reason' => 'authentication_required', 'statusCode' => null]],
+            $result->failedCharacters,
+        );
+        $this->assertSame([self::PILOT_ONE_SKILLS_ENDPOINT], $this->skillsEndpointCalls);
+    }
+
+    public function testNamesTheCharacterWhoseSkillsAreForbidden(): void
+    {
+        $this->skillsEndpointFailures[self::PILOT_TWO_SKILLS_ENDPOINT] = new EsiApiException('Forbidden for Pilot Two', 403);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(1, $result->syncedCount);
+        $this->assertSame(
+            [['characterName' => self::PILOT_TWO, 'reason' => 'esi_error', 'statusCode' => 403]],
+            $result->failedCharacters,
+        );
+    }
+
+    public function testNamesAndLogsTheCharacterWhoseSkillsHitAnEsiBadGateway(): void
+    {
+        $this->skillsEndpointFailures[self::PILOT_TWO_SKILLS_ENDPOINT] = new EsiApiException('Bad gateway for Pilot Two', 502);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(1, $result->syncedCount);
+        $this->assertSame(
+            [['characterName' => self::PILOT_TWO, 'reason' => 'esi_unavailable', 'statusCode' => 502]],
+            $result->failedCharacters,
+        );
+        $this->assertSame([self::PILOT_ONE, self::PILOT_TWO], $this->characterNames($result));
+        $this->assertSame(
+            [['warning', ['characterName' => self::PILOT_TWO, 'error' => 'Bad gateway for Pilot Two', 'statusCode' => 502]]],
+            $this->loggedLevelsAndContexts(),
+        );
+    }
+
+    public function testNamesEveryFailedCharacterInTheOrderOfTheUserCharacters(): void
+    {
+        $this->skillsEndpointFailures[self::PILOT_ONE_SKILLS_ENDPOINT] = new EsiApiException('Error limited for Pilot One', 420);
+        $this->pilotTwo->setEveToken(null);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(0, $result->syncedCount);
+        $this->assertSame(
+            [
+                ['characterName' => self::PILOT_ONE, 'reason' => 'esi_rate_limited', 'statusCode' => 420],
+                ['characterName' => self::PILOT_TWO, 'reason' => 'missing_token', 'statusCode' => null],
+            ],
+            $result->failedCharacters,
+        );
+        $this->assertSame([self::PILOT_ONE, self::PILOT_TWO], $this->characterNames($result));
+        $this->assertSame(
+            [['warning', ['characterName' => self::PILOT_ONE, 'error' => 'Error limited for Pilot One', 'statusCode' => 420]]],
+            $this->loggedLevelsAndContexts(),
+        );
+    }
+
+    public function testCountsEveryCharacterAndNamesNoneWhenAllSyncsSucceed(): void
+    {
+        $result = $this->syncSkills();
+
+        $this->assertSame(2, $result->syncedCount);
+        $this->assertSame([], $result->failedCharacters);
+        $this->assertSame([self::PILOT_ONE_SKILLS_ENDPOINT, self::PILOT_TWO_SKILLS_ENDPOINT], $this->skillsEndpointCalls);
+    }
+
+    public function testAnswersWithoutWarningField(): void
+    {
+        $this->skillsEndpointFailures[self::PILOT_TWO_SKILLS_ENDPOINT] = new EsiApiException('Bad gateway for Pilot Two', 502);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            ['characters', 'syncedCount', 'failedCharacters'],
+            array_keys(get_object_vars($result)),
+        );
+    }
+
+    private function addCharacter(string $name, int $eveCharacterId, EveToken $token): Character
+    {
+        $character = (new Character())
+            ->setName($name)
+            ->setEveCharacterId($eveCharacterId);
+        $character->setEveToken($token);
+        $this->user->addCharacter($character);
+
+        return $character;
+    }
+
+    private function syncSkills(): CharacterSkillCollectionResource
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->user);
+
+        $tokenManager = $this->createStub(TokenManager::class);
+        $tokenManager->method('getValidAccessToken')->willReturnCallback(function (EveToken $token): string {
+            $characterName = $token->getCharacter()?->getName() ?? '';
+            $this->accessTokenRequests[] = $characterName;
+            if (isset($this->accessTokenFailures[$characterName])) {
+                throw $this->accessTokenFailures[$characterName];
+            }
+
+            return 'access-token-' . $characterName;
+        });
+
+        $esiClient = $this->createStub(EsiClient::class);
+        $esiClient->method('get')->willReturnCallback(function (string $endpoint): array {
+            $this->skillsEndpointCalls[] = $endpoint;
+            if (isset($this->skillsEndpointFailures[$endpoint])) {
+                throw $this->skillsEndpointFailures[$endpoint];
+            }
+
+            return ['skills' => []];
+        });
+
+        $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
+        $skillRepository->method('findBy')->willReturn([]);
+
+        $connection = $this->createStub(Connection::class);
+        $connection->method('fetchAllAssociative')->willReturn([]);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('getConnection')->willReturn($connection);
+
+        $mapper = new IndustryResourceMapper(
+            $this->createStub(IndustryCalculationService::class),
+            $this->createStub(CachedIndustryJobRepository::class),
+            $this->createStub(InventionService::class),
+        );
+
+        $processor = new SyncCharacterSkillsProcessor(
+            $security,
+            $esiClient,
+            $tokenManager,
+            $skillRepository,
+            $mapper,
+            $entityManager,
+            $this->logger,
+        );
+
+        return $processor->process(null, new Post());
+    }
+
+    private function characterNames(CharacterSkillCollectionResource $result): array
+    {
+        return array_map(
+            static fn (CharacterSkillResource $character): string => $character->characterName,
+            $result->characters,
+        );
+    }
+
+    private function loggedLevelsAndContexts(): array
+    {
+        return array_map(
+            static fn (array $log): array => [$log[0], $log[2]],
+            $this->logger->cleanLogs(),
+        );
+    }
+}
