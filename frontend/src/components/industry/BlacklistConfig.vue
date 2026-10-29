@@ -13,11 +13,28 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const itemSearchQuery = ref('')
 const itemSearchResults = ref<SearchResult[]>([])
 const showDropdown = ref(false)
+const loadFailed = ref(false)
+const saveFailed = ref(false)
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
-onMounted(() => {
-  store.fetchBlacklist()
+onMounted(async () => {
+  try {
+    await store.fetchBlacklist()
+  } catch {
+    loadFailed.value = true
+  }
 })
+
+async function saveBlacklist(groupIds: number[], typeIds: number[]): Promise<boolean> {
+  saveFailed.value = false
+  try {
+    await store.updateBlacklist(groupIds, typeIds)
+    return true
+  } catch {
+    saveFailed.value = true
+    return false
+  }
+}
 
 const activeGroupIds = computed(() => {
   if (!store.blacklist) return new Set<number>()
@@ -35,7 +52,7 @@ const activeTypeIds = computed(() => {
   return new Set(store.blacklist.items.map((i) => i.typeId))
 })
 
-async function toggleCategory(key: string) {
+async function toggleCategory(key: string, event: Event) {
   if (!store.blacklist) return
   const cat = store.blacklist.categories.find((c) => c.key === key)
   if (!cat) return
@@ -51,18 +68,20 @@ async function toggleCategory(key: string) {
     newGroupIds = [...new Set([...currentGroupIds, ...cat.groupIds])]
   }
 
-  await store.updateBlacklist(newGroupIds, [...activeTypeIds.value])
+  if (!await saveBlacklist(newGroupIds, [...activeTypeIds.value])) {
+    (event.target as HTMLInputElement).checked = cat.blacklisted
+  }
 }
 
 async function removeItem(typeId: number) {
   const newTypeIds = [...activeTypeIds.value].filter((id) => id !== typeId)
-  await store.updateBlacklist([...activeGroupIds.value], newTypeIds)
+  await saveBlacklist([...activeGroupIds.value], newTypeIds)
 }
 
 async function addItem(typeId: number) {
   if (activeTypeIds.value.has(typeId)) return
   const newTypeIds = [...activeTypeIds.value, typeId]
-  await store.updateBlacklist([...activeGroupIds.value], newTypeIds)
+  if (!await saveBlacklist([...activeGroupIds.value], newTypeIds)) return
   itemSearchQuery.value = ''
   itemSearchResults.value = []
   showDropdown.value = false
@@ -90,11 +109,19 @@ function hideDropdownDelayed() {
 
 <template>
   <div class="space-y-6">
-    <div v-if="!store.blacklist" class="text-center py-8 text-slate-500">
+    <p v-if="loadFailed" role="alert" data-testid="blacklist-load-error" class="text-sm text-red-400">
+      {{ t('industry.blacklist.loadError') }}
+    </p>
+
+    <div v-else-if="!store.blacklist" class="text-center py-8 text-slate-500">
       {{ t('common.status.loading') }}
     </div>
 
     <template v-else>
+      <p v-if="saveFailed" role="alert" data-testid="blacklist-save-error" class="text-sm text-red-400">
+        {{ t('industry.blacklist.saveError') }}
+      </p>
+
       <!-- Categories -->
       <div>
         <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">{{ t('industry.blacklist.categories') }}</h4>
@@ -107,7 +134,7 @@ function hideDropdownDelayed() {
             <input
               type="checkbox"
               :checked="cat.blacklisted"
-              @change="toggleCategory(cat.key)"
+              @change="toggleCategory(cat.key, $event)"
               class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
             />
             <span class="text-sm text-slate-200">{{ cat.label }}</span>

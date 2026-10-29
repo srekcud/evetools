@@ -18,19 +18,14 @@ export const useStructuresStore = defineStore('industry-structures', () => {
   const corporationStructures = ref<CorporationStructure[]>([])
   const userSettings = ref<UserSettings | null>(null)
   const characterSkills = ref<CharacterSkill[]>([])
-  const error = ref<string | null>(null)
 
   async function fetchStructures() {
-    try {
-      const data = await apiRequest<{
-        structures: StructureConfig[]
-        rigOptions: RigOptions
-      }>('/industry/structures')
-      structures.value = data.structures
-      rigOptions.value = data.rigOptions
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch structures'
-    }
+    const data = await apiRequest<{
+      structures: StructureConfig[]
+      rigOptions: RigOptions
+    }>('/industry/structures')
+    structures.value = data.structures
+    rigOptions.value = data.rigOptions
   }
 
   async function fetchCorporationStructures() {
@@ -53,44 +48,29 @@ export const useStructuresStore = defineStore('industry-structures', () => {
     rigs: string[]
     facilityTaxRate: number | null
   }) {
-    try {
-      const structure = await apiRequest<StructureConfig>('/industry/structures', {
-        method: 'POST',
-        body: JSON.stringify({ ...data, isDefault: false }),
-      })
-      structures.value.push(structure)
-      return structure
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to create structure'
-      throw e
-    }
+    const structure = await apiRequest<StructureConfig>('/industry/structures', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, isDefault: false }),
+    })
+    structures.value.push(structure)
+    return structure
   }
 
   async function updateStructure(id: string, data: Partial<StructureConfig>) {
-    try {
-      const updated = await apiRequest<StructureConfig>(`/industry/structures/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      })
-      const idx = structures.value.findIndex(s => s.id === id)
-      if (idx !== -1) {
-        structures.value[idx] = updated
-      }
-      return updated
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to update structure'
-      throw e
+    const updated = await apiRequest<StructureConfig>(`/industry/structures/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+    const idx = structures.value.findIndex(s => s.id === id)
+    if (idx !== -1) {
+      structures.value[idx] = updated
     }
+    return updated
   }
 
   async function deleteStructure(id: string) {
-    try {
-      await apiRequest(`/industry/structures/${id}`, { method: 'DELETE' })
-      structures.value = structures.value.filter(s => s.id !== id)
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to delete structure'
-      throw e
-    }
+    await apiRequest(`/industry/structures/${id}`, { method: 'DELETE' })
+    structures.value = structures.value.filter(s => s.id !== id)
   }
 
   async function searchStructures(query: string): Promise<{ structures: StructureSearchResult[], incomplete?: boolean, error?: string }> {
@@ -130,16 +110,11 @@ export const useStructuresStore = defineStore('industry-structures', () => {
   }
 
   async function updateUserSettings(data: Partial<UserSettings>) {
-    try {
-      userSettings.value = await apiRequest<UserSettings>('/industry/settings', {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      })
-      return userSettings.value
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to update settings'
-      throw e
-    }
+    userSettings.value = await apiRequest<UserSettings>('/industry/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+    return userSettings.value
   }
 
   // Character skills
@@ -153,37 +128,27 @@ export const useStructuresStore = defineStore('industry-structures', () => {
   }
 
   async function syncCharacterSkills() {
-    try {
-      const data = await apiRequest<{ characters: CharacterSkill[], failedCharacters: CharacterSyncFailure[] }>(
-        '/industry/character-skills/sync',
-        { method: 'POST', body: '{}' },
-      )
-      characterSkills.value = data.characters
-      return data.failedCharacters
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to sync skills'
-      throw e
-    }
+    const data = await apiRequest<{ characters: CharacterSkill[], failedCharacters: CharacterSyncFailure[] }>(
+      '/industry/character-skills/sync',
+      { method: 'POST', body: '{}' },
+    )
+    characterSkills.value = data.characters
+    return data.failedCharacters
   }
 
   async function updateCharacterSkill(characterId: number, data: Partial<CharacterSkill>) {
-    try {
-      const updated = await apiRequest<CharacterSkill>(
-        `/industry/character-skills/${characterId}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify(data),
-        },
-      )
-      const idx = characterSkills.value.findIndex(c => c.characterId === characterId)
-      if (idx !== -1) {
-        characterSkills.value[idx] = updated
-      }
-      return updated
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to update skill'
-      throw e
+    const updated = await apiRequest<CharacterSkill>(
+      `/industry/character-skills/${characterId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      },
+    )
+    const idx = characterSkills.value.findIndex(c => c.characterId === characterId)
+    if (idx !== -1) {
+      characterSkills.value[idx] = updated
     }
+    return updated
   }
 
   return {
@@ -192,7 +157,6 @@ export const useStructuresStore = defineStore('industry-structures', () => {
     corporationStructures,
     userSettings,
     characterSkills,
-    error,
     fetchStructures,
     fetchCorporationStructures,
     createStructure,

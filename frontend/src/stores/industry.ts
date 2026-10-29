@@ -101,6 +101,7 @@ export function useIndustryStore() {
     get copyCosts() { return projectsStore.copyCosts },
     get marginResult() { return projectsStore.marginResult },
     get marginLoading() { return projectsStore.marginLoading },
+    get marginError() { return projectsStore.marginError },
     get defaultMaxJobDurationDays() { return projectsStore.defaultMaxJobDurationDays },
     setDefaultMaxJobDurationDays: projectsStore.setDefaultMaxJobDurationDays,
     searchProducts: projectsStore.searchProducts,

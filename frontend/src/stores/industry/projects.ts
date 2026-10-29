@@ -163,7 +163,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     }
   }
 
-  async function fetchCostEstimation(projectId: string): Promise<CostEstimation | null> {
+  async function fetchCostEstimation(projectId: string): Promise<CostEstimation> {
     try {
       const data = await apiRequest<CostEstimation>(
         `/industry/projects/${projectId}/cost-estimation`,
@@ -171,8 +171,8 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       costEstimation.value = data
       return data
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch cost estimation'
-      return null
+      costEstimation.value = null
+      throw e
     }
   }
 
@@ -193,7 +193,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     }
   }
 
-  async function fetchCopyCosts(projectId: string): Promise<CopyCosts | null> {
+  async function fetchCopyCosts(projectId: string): Promise<CopyCosts> {
     try {
       const data = await apiRequest<CopyCosts>(
         `/industry/projects/${projectId}/copy-costs`,
@@ -201,8 +201,8 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       copyCosts.value = data
       return data
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch copy costs'
-      return null
+      copyCosts.value = null
+      throw e
     }
   }
 
@@ -210,6 +210,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
   const marginResult = ref<ProfitMarginResult | null>(null)
   const marginLoading = ref(false)
   const marginError = ref<string | null>(null)
+  let latestMarginRequestId = 0
 
   async function analyzeMargin(
     typeId: number,
@@ -222,7 +223,9 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       decryptorTypeId?: number | null
     } = {},
   ): Promise<ProfitMarginResult | null> {
+    const requestId = ++latestMarginRequestId
     marginLoading.value = true
+    marginError.value = null
     try {
       const queryParams = new URLSearchParams()
       if (params.runs != null) queryParams.set('runs', params.runs.toString())
@@ -235,13 +238,16 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       const data = await apiRequest<ProfitMarginResult>(
         `/industry/profit-margin/${typeId}${qs}`,
       )
+      if (requestId !== latestMarginRequestId) return null
       marginResult.value = data
       return data
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to analyze profit margin'
+      if (requestId !== latestMarginRequestId) return null
+      marginResult.value = null
+      marginError.value = e instanceof Error ? e.message : 'Failed to analyze profit margin'
       return null
     } finally {
-      marginLoading.value = false
+      if (requestId === latestMarginRequestId) marginLoading.value = false
     }
   }
 

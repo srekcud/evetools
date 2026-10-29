@@ -1062,6 +1062,7 @@
       "showAll": "Show all",
       "collapse": "Collapse",
       "bpcCopyCosts": "BPC Copy Costs",
+      "copyCostsError": "BPC copy costs could not be loaded.",
       "totalCopyCost": "Total Copy Cost",
       "depth": "Depth",
       "unknown": "Unknown",
@@ -1126,6 +1127,8 @@
     "blacklist": {
       "title": "Blacklist",
       "description": "Exclude specific categories or items from automatic project decomposition.",
+      "loadError": "The blacklist could not be loaded.",
+      "saveError": "The blacklist change was not saved.",
       "categories": "Categories",
       "individualItems": "Individual items",
       "searchPlaceholder": "Search an item...",
@@ -1218,6 +1221,9 @@
     "structures": {
       "title": "Production structures",
       "description": "Configure your production structures to calculate material bonuses applied to projects.",
+      "loadError": "Your structures could not be loaded.",
+      "saveError": "The structure was not saved.",
+      "deleteError": "The structure was not deleted.",
       "newStructure": "New structure",
       "editStructure": "Edit structure",
       "corpStructures": "Corporation shared structures",

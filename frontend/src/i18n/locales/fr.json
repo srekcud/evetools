@@ -1062,6 +1062,7 @@
       "showAll": "Tout afficher",
       "collapse": "Reduire",
       "bpcCopyCosts": "Couts de copie BPC",
+      "copyCostsError": "Les coûts de copie des BPC n'ont pas pu être chargés.",
       "totalCopyCost": "Cout total de copie",
       "depth": "Profondeur",
       "unknown": "Inconnu",
@@ -1126,6 +1127,8 @@
     "blacklist": {
       "title": "Blacklist",
       "description": "Excluez des categories ou items specifiques de la decomposition automatique des projets.",
+      "loadError": "La blacklist n'a pas pu être chargée.",
+      "saveError": "La modification de la blacklist n'a pas été enregistrée.",
       "categories": "Categories",
       "individualItems": "Items individuels",
       "searchPlaceholder": "Rechercher un item...",
@@ -1218,6 +1221,9 @@
     "structures": {
       "title": "Structures de production",
       "description": "Configurez vos structures de production pour calculer les bonus de matériaux appliqués aux projets.",
+      "loadError": "Vos structures n'ont pas pu être chargées.",
+      "saveError": "La structure n'a pas été enregistrée.",
+      "deleteError": "La structure n'a pas été supprimée.",
       "newStructure": "Nouvelle structure",
       "editStructure": "Modifier la structure",
       "corpStructures": "Structures partagées par la corporation",

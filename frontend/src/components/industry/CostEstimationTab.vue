@@ -29,6 +29,7 @@ const error = ref<string | null>(null)
 const costData = ref<CostEstimation | null>(null)
 const copyCostsData = ref<CopyCosts | null>(null)
 const copyCostsLoading = ref(false)
+const copyCostsFailed = ref(false)
 const materialsExpanded = ref(false)
 const savingCosts = ref(false)
 const refreshing = ref(false)
@@ -117,6 +118,7 @@ async function loadCostEstimation() {
     costData.value = data
     lastFetchedAt.value = new Date().toISOString()
   } catch (e) {
+    costData.value = null
     error.value = e instanceof Error ? e.message : t('industry.costEstimation.error')
   } finally {
     loading.value = false
@@ -152,10 +154,12 @@ function goToInvention() {
 
 async function loadCopyCosts() {
   copyCostsLoading.value = true
+  copyCostsFailed.value = false
   try {
     copyCostsData.value = await store.fetchCopyCosts(props.projectId)
   } catch {
-    // Non-critical, just skip
+    copyCostsData.value = null
+    copyCostsFailed.value = true
   } finally {
     copyCostsLoading.value = false
   }
@@ -467,6 +471,10 @@ defineExpose({ activate, loadCostEstimation })
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
         {{ t('common.status.loading') }}
+      </div>
+
+      <div v-else-if="copyCostsFailed" class="eve-card p-4">
+        <p role="alert" data-testid="copy-costs-error" class="text-sm text-red-400">{{ t('industry.costEstimation.copyCostsError') }}</p>
       </div>
 
       <!-- Section: Invention Cost (only for T2) -->

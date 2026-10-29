@@ -55,6 +55,7 @@ const MATERIALS_COLLAPSED_LIMIT = 6
 // Computed
 const result = computed((): ProfitMarginResult | null => store.marginResult)
 const loading = computed(() => store.marginLoading)
+const marginError = computed(() => store.marginError)
 
 const isT2 = computed(() => selectedProduct.value?.isT2 ?? false)
 
@@ -340,7 +341,7 @@ async function analyzeType(typeId: number): Promise<ProfitMarginResult | null> {
     te: teLevel.value,
     solarSystemId: selectedSolarSystemId.value ?? undefined,
   })
-  lastFetchedAt.value = new Date().toISOString()
+  if (analysis !== null) lastFetchedAt.value = new Date().toISOString()
   return analysis
 }
 
@@ -500,8 +501,12 @@ store.fetchUserSettings()
       </div>
     </div>
 
+    <div v-if="marginError" data-testid="margin-error" class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400">
+      {{ marginError }}
+    </div>
+
     <!-- Empty state -->
-    <div v-if="!result && !loading" class="eve-card p-12 text-center">
+    <div v-if="!result && !loading && !marginError" class="eve-card p-12 text-center">
       <svg class="w-12 h-12 text-slate-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>

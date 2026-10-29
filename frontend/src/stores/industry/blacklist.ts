@@ -5,25 +5,16 @@ import type { BlacklistConfig, SearchResult } from './types'
 
 export const useBlacklistStore = defineStore('industry-blacklist', () => {
   const blacklist = ref<BlacklistConfig | null>(null)
-  const error = ref<string | null>(null)
 
   async function fetchBlacklist() {
-    try {
-      blacklist.value = await apiRequest<BlacklistConfig>('/industry/blacklist')
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch blacklist'
-    }
+    blacklist.value = await apiRequest<BlacklistConfig>('/industry/blacklist')
   }
 
   async function updateBlacklist(groupIds: number[], typeIds: number[]) {
-    try {
-      blacklist.value = await apiRequest<BlacklistConfig>('/industry/blacklist', {
-        method: 'PUT',
-        body: JSON.stringify({ groupIds, typeIds }),
-      })
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to update blacklist'
-    }
+    blacklist.value = await apiRequest<BlacklistConfig>('/industry/blacklist', {
+      method: 'PUT',
+      body: JSON.stringify({ groupIds, typeIds }),
+    })
   }
 
   async function searchBlacklistItems(query: string): Promise<SearchResult[]> {
@@ -40,7 +31,6 @@ export const useBlacklistStore = defineStore('industry-blacklist', () => {
 
   return {
     blacklist,
-    error,
     fetchBlacklist,
     updateBlacklist,
     searchBlacklistItems,

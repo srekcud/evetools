@@ -43,7 +43,12 @@ export const useScannerStore = defineStore('industry-scanner', () => {
   const pivotLoading = ref(false)
   const pivotError = ref<string | null>(null)
 
+  let latestScanRequestId = 0
+  let latestBuyVsBuildRequestId = 0
+  let latestPivotRequestId = 0
+
   async function fetchBatchScan(filters?: Partial<ScanFilters>): Promise<void> {
+    const requestId = ++latestScanRequestId
     scanLoading.value = true
     scanError.value = null
 
@@ -64,12 +69,15 @@ export const useScannerStore = defineStore('industry-scanner', () => {
       const url = `/industry/profit-scan${query ? `?${query}` : ''}`
 
       const data = await apiRequest<BatchScanItem[]>(url)
+      if (requestId !== latestScanRequestId) return
       scanResults.value = data
       lastScanAt.value = new Date()
     } catch (e) {
+      if (requestId !== latestScanRequestId) return
+      scanResults.value = []
       scanError.value = e instanceof Error ? e.message : 'Scan failed'
     } finally {
-      scanLoading.value = false
+      if (requestId === latestScanRequestId) scanLoading.value = false
     }
   }
 
@@ -80,6 +88,7 @@ export const useScannerStore = defineStore('industry-scanner', () => {
     solarSystemId?: number | null,
     structureId?: number | null,
   ): Promise<void> {
+    const requestId = ++latestBuyVsBuildRequestId
     buyVsBuildLoading.value = true
     buyVsBuildError.value = null
 
@@ -93,11 +102,14 @@ export const useScannerStore = defineStore('industry-scanner', () => {
       const data = await apiRequest<BuyVsBuildResult>(
         `/industry/buy-vs-build/${typeId}?${params.toString()}`,
       )
+      if (requestId !== latestBuyVsBuildRequestId) return
       buyVsBuildResult.value = data
     } catch (e) {
+      if (requestId !== latestBuyVsBuildRequestId) return
+      buyVsBuildResult.value = null
       buyVsBuildError.value = e instanceof Error ? e.message : 'Analysis failed'
     } finally {
-      buyVsBuildLoading.value = false
+      if (requestId === latestBuyVsBuildRequestId) buyVsBuildLoading.value = false
     }
   }
 
@@ -111,6 +123,7 @@ export const useScannerStore = defineStore('industry-scanner', () => {
     runs: number,
     solarSystemId?: number | null,
   ): Promise<void> {
+    const requestId = ++latestPivotRequestId
     pivotLoading.value = true
     pivotError.value = null
 
@@ -122,11 +135,14 @@ export const useScannerStore = defineStore('industry-scanner', () => {
       const data = await apiRequest<PivotAnalysisResult>(
         `/industry/pivot-advisor/${typeId}?${params.toString()}`,
       )
+      if (requestId !== latestPivotRequestId) return
       pivotResult.value = data
     } catch (e) {
+      if (requestId !== latestPivotRequestId) return
+      pivotResult.value = null
       pivotError.value = e instanceof Error ? e.message : 'Analysis failed'
     } finally {
-      pivotLoading.value = false
+      if (requestId === latestPivotRequestId) pivotLoading.value = false
     }
   }
 

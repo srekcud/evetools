@@ -58,6 +58,7 @@ const corporationStructuresLoaded = ref(false)
 
 const HTTP_CONFLICT = 409
 const saveError = ref<string | null>(null)
+const loadFailed = ref(false)
 
 const importedLocationIds = computed(() => new Set(
   store.structures.flatMap(s => (s.locationId ? [s.locationId] : [])),
@@ -68,7 +69,9 @@ function isAlreadyImported(locationId: number): boolean {
 }
 
 onMounted(async () => {
-  store.fetchStructures()
+  store.fetchStructures().catch(() => {
+    loadFailed.value = true
+  })
   await store.fetchCorporationStructures()
   corporationStructuresLoaded.value = true
 })
@@ -358,8 +361,9 @@ async function saveStructure() {
     if (e instanceof ApiError && e.status === HTTP_CONFLICT) {
       const existing = store.structures.find(s => s.locationId === formLocationId.value)
       saveError.value = t('industry.structures.alreadyImported', { name: existing?.name ?? formName.value })
+    } else {
+      saveError.value = t('industry.structures.saveError')
     }
-    // Other errors are handled by the store
   }
 }
 
@@ -378,6 +382,7 @@ function cancelCorpEdit() {
 const showDeleteModal = ref(false)
 const deleteStructureId = ref<string | null>(null)
 const deleteStructureName = ref('')
+const deleteFailed = ref(false)
 
 function openDeleteModal(structure: StructureConfig) {
   deleteStructureId.value = structure.id
@@ -386,8 +391,14 @@ function openDeleteModal(structure: StructureConfig) {
 }
 
 async function confirmDelete() {
-  if (deleteStructureId.value) {
-    await store.deleteStructure(deleteStructureId.value)
+  deleteFailed.value = false
+  try {
+    if (deleteStructureId.value) {
+      await store.deleteStructure(deleteStructureId.value)
+    }
+  } catch {
+    deleteFailed.value = true
+    return
   }
   showDeleteModal.value = false
   deleteStructureId.value = null
@@ -395,6 +406,7 @@ async function confirmDelete() {
 }
 
 function cancelDelete() {
+  deleteFailed.value = false
   showDeleteModal.value = false
   deleteStructureId.value = null
   deleteStructureName.value = ''
@@ -847,7 +859,7 @@ watch(
           </div>
         </div>
 
-        <p v-if="saveError" class="text-sm text-amber-400">{{ saveError }}</p>
+        <p v-if="saveError" role="alert" data-testid="structure-save-error" class="text-sm text-amber-400">{{ saveError }}</p>
 
         <!-- Actions -->
         <div class="flex gap-3 pt-2">
@@ -867,6 +879,10 @@ watch(
         </div>
       </div>
     </div>
+
+    <p v-if="loadFailed" role="alert" data-testid="structures-load-error" class="text-sm text-red-400">
+      {{ t('industry.structures.loadError') }}
+    </p>
 
     <!-- Structures List -->
     <div v-if="store.structures.length > 0" class="space-y-2">
@@ -955,7 +971,7 @@ watch(
 
     <!-- Empty State -->
     <div
-      v-else-if="!showAddForm"
+      v-else-if="!showAddForm && !loadFailed"
       class="text-center py-8 text-slate-500"
     >
       <p>{{ t('industry.structures.noStructures') }}</p>
@@ -974,6 +990,9 @@ watch(
       </template>
       <p class="text-slate-400 mb-6">
         {{ t('industry.structures.deleteConfirm', { name: deleteStructureName }) }}
+      </p>
+      <p v-if="deleteFailed" role="alert" data-testid="structure-delete-error" class="text-sm text-red-400 mb-6">
+        {{ t('industry.structures.deleteError') }}
       </p>
       <div class="flex gap-3">
         <button
