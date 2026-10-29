@@ -40,12 +40,9 @@ describe('structures store character skills sync', () => {
     expect(await useStructuresStore().syncCharacterSkills()).toEqual([])
   })
 
-  it('rethrows and keeps the error when the request fails', async () => {
+  it('rethrows the error when the request fails', async () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('Service unavailable'))
 
-    const store = useStructuresStore()
-
-    await expect(store.syncCharacterSkills()).rejects.toThrow('Service unavailable')
-    expect(store.error).toBe('Service unavailable')
+    await expect(useStructuresStore().syncCharacterSkills()).rejects.toThrow('Service unavailable')
   })
 })

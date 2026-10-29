@@ -209,6 +209,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
   // Profit Margin
   const marginResult = ref<ProfitMarginResult | null>(null)
   const marginLoading = ref(false)
+  const marginError = ref<string | null>(null)
 
   async function analyzeMargin(
     typeId: number,
@@ -257,6 +258,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     copyCosts,
     marginResult,
     marginLoading,
+    marginError,
     isLoading,
     error,
     defaultMaxJobDurationDays,
