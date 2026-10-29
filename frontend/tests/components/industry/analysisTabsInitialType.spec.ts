@@ -6,6 +6,7 @@ import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
 import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import { apiRequest } from '@/services/api'
+import type { ProfitMarginResult } from '@/stores/industry/types'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -23,6 +24,43 @@ const SABRE_TYPE_ID = 22456
 const HULK_TYPE_ID = 22544
 const DRAKE_TYPE_ID = 24698
 const ROKH_TYPE_ID = 24688
+
+const RAVEN_MARGIN_ANALYSIS: ProfitMarginResult = {
+  typeId: RAVEN_TYPE_ID,
+  typeName: 'Raven',
+  isT2: false,
+  runs: 1,
+  outputQuantity: 1,
+  outputPerRun: 1,
+  materialCost: 98_400_000,
+  materials: [
+    { typeId: 34, typeName: 'Tritanium', quantity: 8_200_000, unitPrice: 4.1, totalPrice: 33_620_000 },
+    { typeId: 35, typeName: 'Pyerite', quantity: 2_100_000, unitPrice: 30.85, totalPrice: 64_780_000 },
+  ],
+  jobInstallCost: 1_350_000,
+  jobInstallSteps: [],
+  inventionCost: null,
+  totalCost: 99_750_000,
+  costPerUnit: 99_750_000,
+  invention: null,
+  sellPrices: {
+    jitaSell: 121_000_000,
+    structureSell: 118_500_000,
+    structureBuy: 112_300_000,
+    contractSell: null,
+    contractCount: null,
+    structureId: 1_035_466_617_946,
+    structureName: 'Tatara Alpha',
+  },
+  brokerFeeRate: 0.03,
+  salesTaxRate: 0.036,
+  margins: {
+    structureSell: { revenue: 118_500_000, fees: 7_821_000, profit: 10_929_000, margin: 9.22 },
+  },
+  dailyVolume: 14,
+  missingData: [],
+  warnings: [],
+}
 
 function isAnalysisRequest(endpoint: string): boolean {
   return ANALYSIS_ENDPOINTS.some(prefix => endpoint.startsWith(prefix))
@@ -79,6 +117,21 @@ describe('ProfitMarginTab initial type', () => {
     await flushPromises()
 
     expect(requestedAnalyses()).toEqual([])
+  })
+
+  it('shows the initial type as the selected product once its margin is analyzed', async () => {
+    vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+      if (endpoint.startsWith(`${PROFIT_MARGIN_ENDPOINT}${RAVEN_TYPE_ID}`)) return RAVEN_MARGIN_ANALYSIS
+      return null
+    })
+
+    const wrapper = mount(ProfitMarginTab, { ...mountingOptions(), props: { initialTypeId: RAVEN_TYPE_ID } })
+    await flushPromises()
+
+    const selectedProductIcon = wrapper.find(`img[alt="${RAVEN_MARGIN_ANALYSIS.typeName}"]`)
+    expect(selectedProductIcon.exists()).toBe(true)
+    expect(selectedProductIcon.attributes('src')).toContain(`/types/${RAVEN_TYPE_ID}/`)
+    expect(wrapper.find(`button[aria-label="${en.common.actions.clear}"]`).exists()).toBe(true)
   })
 })
 
