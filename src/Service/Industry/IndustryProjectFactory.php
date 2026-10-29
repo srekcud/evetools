@@ -26,12 +26,10 @@ use Symfony\Component\Uid\Uuid;
 class IndustryProjectFactory
 {
     private const SECONDS_PER_DAY = 86400;
-    private const array NO_MATERIAL_BONUS = ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0];
 
     public function __construct(
         private readonly IndustryTreeService $treeService,
         private readonly IndustryBlacklistService $blacklistService,
-        private readonly IndustryBonusService $bonusService,
         private readonly IndustryCalculationService $calculationService,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityMaterialRepository $materialRepository,
@@ -571,52 +569,14 @@ class IndustryProjectFactory
      */
     private function addNeedOfJobs(array &$needByProduct, User $user, array $consumer, array $jobRuns, array $materials, array $activityTypeByProduct): void
     {
+        $materialBonus = $this->calculationService->structureBonusOf($user, $consumer['productTypeId'], $consumer['activityType'], $consumer['structureConfig'])['materialBonus'];
         foreach ($materials as $material) {
             $materialTypeId = $material->getMaterialTypeId();
             if (!isset($activityTypeByProduct[$materialTypeId])) {
                 continue;
             }
-            $materialBonus = $this->materialBonusOf($user, $consumer, $materialTypeId, $activityTypeByProduct[$materialTypeId] === 'reaction');
             $needByProduct[$materialTypeId] += SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRuns, $consumer['meLevel'], $materialBonus);
         }
-    }
-
-    /**
-     * @param array<string, mixed> $consumer
-     * @return array{total: float, base: float, rig: float}
-     */
-    private function materialBonusOf(User $user, array $consumer, int $materialTypeId, bool $materialIsReaction): array
-    {
-        if ($consumer['structureConfig'] !== null) {
-            return $this->calculationService->assignedStructureBonusOf($consumer['structureConfig'], $consumer['productTypeId'], $consumer['activityType'] === 'reaction')['materialBonus'];
-        }
-
-        if ($materialIsReaction) {
-            return $this->reactionMaterialBonusOf($user, $consumer);
-        }
-
-        $consumerIsReaction = $consumer['activityType'] === 'reaction';
-        $consumerStructure = $this->bonusService->findBestStructureForProduct($user, $consumer['productTypeId'], $consumerIsReaction);
-        $materialCategory = $this->bonusService->getCategoryForProduct($materialTypeId, false);
-        if ($materialCategory !== null && $materialCategory !== $consumerStructure['category']) {
-            return $this->bonusService->findBestStructureForCategory($user, $materialCategory, false)['bonus'];
-        }
-
-        return $consumerStructure['bonus'];
-    }
-
-    /**
-     * @param array<string, mixed> $consumer
-     * @return array{total: float, base: float, rig: float}
-     */
-    private function reactionMaterialBonusOf(User $user, array $consumer): array
-    {
-        $consumerIsReaction = $consumer['activityType'] === 'reaction';
-        $consumerCategory = $this->bonusService->getCategoryForProduct($consumer['productTypeId'], $consumerIsReaction);
-
-        return $consumerCategory === null
-            ? self::NO_MATERIAL_BONUS
-            : $this->bonusService->findBestStructureForCategory($user, $consumerCategory, $consumerIsReaction)['bonus'];
     }
 
     /**

@@ -116,22 +116,7 @@ class IndustryTreeService
             $matTypeId = $material->getMaterialTypeId();
             $baseQuantity = $material->getQuantity();
 
-            // IMPORTANT: The structure bonus must be looked up for EACH material's category,
-            // not the parent product's category. E.g., when building a Rorqual (capital_ship),
-            // the CCP materials are basic_capital_component and need their own bonus.
-            // When an override is active for this node, use a single bonus (matching recalculateStepQuantities behavior).
-            $matStructureBase = $structureBaseBonus;
-            $matRigBonus = $rigBonus;
-            if (!$hasOverride && $user !== null) {
-                $materialCategory = $this->bonusService->getCategoryForProduct($matTypeId, false);
-                if ($materialCategory !== null && $materialCategory !== $productCategory) {
-                    $materialBonusData = $this->bonusService->findBestStructureForCategory($user, $materialCategory, false);
-                    $matStructureBase = $materialBonusData['bonus']['base'];
-                    $matRigBonus = $materialBonusData['bonus']['rig'];
-                }
-            }
-
-            $adjustedQuantity = MaterialQuantityFormula::forJob($baseQuantity, $runs, $effectiveMe, $matStructureBase, $matRigBonus);
+            $adjustedQuantity = MaterialQuantityFormula::forJob($baseQuantity, $runs, $effectiveMe, $structureBaseBonus, $rigBonus);
 
             $matTypeName = $this->typeNameOf($matTypeId, $missingTypeIds);
 
