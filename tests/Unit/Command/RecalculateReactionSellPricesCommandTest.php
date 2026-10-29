@@ -10,6 +10,7 @@ use App\Service\Industry\ProjectCorrectionOutcome;
 use App\Service\Industry\ReactionProjectSellPriceRecalculation;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -109,6 +110,30 @@ final class RecalculateReactionSellPricesCommandTest extends TestCase
         self::assertSame(Command::FAILURE, $exitCode);
         self::assertSame([], $this->runsOfTheRecalculation);
         self::assertStringContainsString('Invalid --created-before value: not-a-date', self::normalized($tester->getDisplay()));
+    }
+
+    #[TestWith([''])]
+    #[TestWith(['now'])]
+    #[TestWith(['tomorrow'])]
+    public function testCreatedBeforeOptionThatIsNotAnAbsoluteTimeFailsWithoutRecalculatingAnything(string $createdBefore): void
+    {
+        $tester = new CommandTester($this->command([self::ferniteCarbideChanged()]));
+
+        $exitCode = $tester->execute(['--created-before' => $createdBefore]);
+
+        self::assertSame(Command::FAILURE, $exitCode);
+        self::assertSame([], $this->runsOfTheRecalculation);
+        self::assertStringContainsString('Invalid --created-before value: '.$createdBefore, self::normalized($tester->getDisplay()));
+    }
+
+    public function testCreatedBeforeOptionInIso8601WithTimeZoneIsPassedToTheRecalculation(): void
+    {
+        $tester = new CommandTester($this->command([self::ferniteCarbideChanged()]));
+
+        $exitCode = $tester->execute(['--created-before' => '2026-10-28T00:00:00+00:00']);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertSame([['2026-10-28T00:00:00+00:00', false]], $this->runsOfTheRecalculation);
     }
 
     public function testNoProjectToRecalculateSucceeds(): void

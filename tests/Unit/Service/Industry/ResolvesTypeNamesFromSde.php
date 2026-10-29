@@ -63,8 +63,11 @@ trait ResolvesTypeNamesFromSde
 
     private function calculationServiceOnSdeKnowing(array $typeNamesByTypeId): IndustryCalculationService
     {
-        $invTypeRepository = $this->sdeTypeRepositoryKnowing($typeNamesByTypeId);
+        return $this->calculationServiceOnSdeTypeRepository($this->sdeTypeRepositoryKnowing($typeNamesByTypeId));
+    }
 
+    private function calculationServiceOnSdeTypeRepository(InvTypeRepository $invTypeRepository): IndustryCalculationService
+    {
         return new IndustryCalculationService(
             new TypeNameResolver($invTypeRepository),
             $this->createStub(IndustryBonusService::class),

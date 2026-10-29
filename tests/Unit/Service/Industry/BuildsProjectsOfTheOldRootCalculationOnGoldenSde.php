@@ -152,6 +152,11 @@ trait BuildsProjectsOfTheOldRootCalculationOnGoldenSde
         return array_values(array_intersect($this->entityManagerCalls, ['persist', 'remove', 'flush']));
     }
 
+    private function clearCountOfTheEntityManager(): int
+    {
+        return \count(array_keys($this->entityManagerCalls, 'clear', true));
+    }
+
     private function topicsAndStatusesOfThePublishedUpdates(): array
     {
         return array_map(
