@@ -1452,6 +1452,7 @@
       "dailyRevenue": "Daily revenue",
       "pveBreakdown": "PVE breakdown",
       "miningBreakdown": "Mining breakdown",
+      "miningMissingPrices": "{count} ore without a price: mining value unknown | {count} ores without a price: mining value unknown",
       "loot": "Loot"
     },
     "mining": {
@@ -1474,6 +1475,7 @@
       "corp": "Corp",
       "iskPerActiveDay": "ISK / active day",
       "activeDays": "{count} active days",
+      "missingPriceTypes": "Ores without a price: {types}",
       "minedVolume": "Mined volume",
       "units": "units",
       "mainSystem": "Main system",

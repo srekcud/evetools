@@ -1,6 +1,29 @@
 import { computed, type Ref } from 'vue'
 import type { MiningEntry } from '@/stores/ledger'
 
+export interface MiningValueByUsage {
+  sold: number | null
+  corp_project: number | null
+  industry: number | null
+  unknown: number | null
+  total: number | null
+}
+
+interface PriceSource {
+  value: number | null
+  color: string
+  source: string
+}
+
+type PricedSource = PriceSource & { value: number }
+
+const FALLBACK_PRICE_COLOR = 'text-slate-400'
+const NO_PRICE_COLOR = 'text-slate-600'
+
+function addKnownValues(left: number | null, right: number | null): number | null {
+  return left === null || right === null ? null : left + right
+}
+
 /**
  * Composable for mining pricing logic: best price selection and usage-based aggregation.
  */
@@ -9,54 +32,48 @@ export function useMiningPricing(
   reprocessYield: Ref<number>,
 ) {
   /**
-   * Get just the best price numeric value for a given entry (for stats calculations).
+   * Get best price with color and source label for display in the table.
    */
-  function getBestPriceValue(entry: MiningEntry): number {
-    const prices: number[] = []
+  function getBestPrice(entry: MiningEntry): PriceSource {
+    const sources: PriceSource[] = [
+      { value: entry.compressedEquivalentPrice, color: 'text-cyan-400', source: 'Jita compresse' },
+      { value: entry.reprocessValue, color: 'text-purple-400', source: `Jita reprocess ${reprocessYield.value.toFixed(0)}%` },
+      { value: entry.structureCompressedEquivalentPrice, color: 'text-teal-400', source: 'Structure compresse' },
+      { value: entry.structureReprocessValue, color: 'text-lime-400', source: `Structure reprocess ${reprocessYield.value.toFixed(0)}%` },
+    ]
+    const pricedSources = sources.filter((source): source is PricedSource => source.value !== null)
+    const positiveSources = pricedSources.filter(source => source.value > 0)
 
-    if (entry.compressedEquivalentPrice) prices.push(entry.compressedEquivalentPrice)
-    if (entry.reprocessValue) prices.push(entry.reprocessValue)
-    if (entry.structureCompressedUnitPrice) prices.push(entry.structureCompressedUnitPrice / 100)
-    if (entry.structureReprocessValue) prices.push(entry.structureReprocessValue)
-
-    if (prices.length === 0 && entry.totalValue && entry.quantity > 0) {
-      return entry.totalValue / entry.quantity
+    if (positiveSources.length > 0) {
+      return positiveSources.reduce((best, current) => current.value > best.value ? current : best)
     }
-
-    return prices.length > 0 ? Math.max(...prices) : 0
+    if (entry.totalValue !== null && entry.quantity > 0) {
+      return { value: entry.totalValue / entry.quantity, color: FALLBACK_PRICE_COLOR, source: '' }
+    }
+    if (entry.rawUnitPrice !== null) {
+      return { value: entry.rawUnitPrice, color: FALLBACK_PRICE_COLOR, source: '' }
+    }
+    return { value: pricedSources.length > 0 ? 0 : null, color: NO_PRICE_COLOR, source: '' }
   }
 
   /**
-   * Get best price with color and source label for display in the table.
+   * Get just the best price numeric value for a given entry (for stats calculations).
    */
-  function getBestPrice(entry: MiningEntry): { value: number; color: string; source: string } {
-    const prices: { value: number; color: string; source: string }[] = []
+  function getBestPriceValue(entry: MiningEntry): number | null {
+    return getBestPrice(entry).value
+  }
 
-    if (entry.compressedEquivalentPrice) {
-      prices.push({ value: entry.compressedEquivalentPrice, color: 'text-cyan-400', source: 'Jita compresse' })
-    }
-    if (entry.reprocessValue) {
-      prices.push({ value: entry.reprocessValue, color: 'text-purple-400', source: `Jita reprocess ${reprocessYield.value.toFixed(0)}%` })
-    }
-    if (entry.structureCompressedUnitPrice) {
-      prices.push({ value: entry.structureCompressedUnitPrice / 100, color: 'text-teal-400', source: 'Structure compresse' })
-    }
-    if (entry.structureReprocessValue) {
-      prices.push({ value: entry.structureReprocessValue, color: 'text-lime-400', source: `Structure reprocess ${reprocessYield.value.toFixed(0)}%` })
-    }
-
-    if (prices.length === 0) {
-      return { value: 0, color: 'text-slate-600', source: '' }
-    }
-
-    return prices.reduce((best, current) => current.value > best.value ? current : best)
+  function getEntryValue(entry: MiningEntry): number | null {
+    if (entry.quantity === 0) return 0
+    const bestPrice = getBestPriceValue(entry)
+    return bestPrice === null ? null : bestPrice * entry.quantity
   }
 
   /**
    * Aggregated mining values by usage type.
    */
-  const miningByUsage = computed(() => {
-    const result = {
+  const miningByUsage = computed((): MiningValueByUsage => {
+    const result: MiningValueByUsage = {
       sold: 0,
       corp_project: 0,
       industry: 0,
@@ -64,10 +81,9 @@ export function useMiningPricing(
       total: 0,
     }
     for (const entry of miningEntries.value) {
-      const bestPrice = getBestPriceValue(entry)
-      const value = bestPrice * entry.quantity
-      result[entry.usage] = (result[entry.usage] || 0) + value
-      result.total += value
+      const value = getEntryValue(entry)
+      result[entry.usage] = addKnownValues(result[entry.usage], value)
+      result.total = addKnownValues(result.total, value)
     }
     return result
   })
@@ -75,6 +91,7 @@ export function useMiningPricing(
   return {
     getBestPrice,
     getBestPriceValue,
+    getEntryValue,
     miningByUsage,
   }
 }

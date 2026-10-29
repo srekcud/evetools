@@ -7,6 +7,7 @@ import { useMiningPricing } from '@/composables/useMiningPricing'
 import { useContextMenu } from '@/composables/useContextMenu'
 import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import type { MiningEntry } from '@/stores/ledger'
 import MiningEntryMenu from './MiningEntryMenu.vue'
 
@@ -28,7 +29,7 @@ const { typeNameLabel } = useTypeNames()
 // Wrap reprocessYield as a ref for the composable
 const reprocessYieldRef = computed(() => props.reprocessYield)
 const entriesRef = computed(() => props.entries)
-const { getBestPrice } = useMiningPricing(entriesRef, reprocessYieldRef)
+const { getBestPrice, getEntryValue } = useMiningPricing(entriesRef, reprocessYieldRef)
 
 // Context menu
 const { menuPosition, activeMenuId: activeMenuEntryId, openMenu, closeMenu } = useContextMenu()
@@ -273,8 +274,8 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
               <span v-else class="text-slate-600">-</span>
             </td>
             <td v-if="selectedStructureId" class="px-3 py-3 text-sm text-right">
-              <span v-if="entry.structureCompressedUnitPrice" class="text-emerald-400" :title="`Compresse: ${formatNumber(entry.structureCompressedUnitPrice, 0)} ISK/u`">
-                {{ formatNumber(entry.structureCompressedUnitPrice / 100, 1) }}
+              <span v-if="entry.structureCompressedEquivalentPrice" class="text-emerald-400" :title="`Compresse: ${formatNumber(entry.structureCompressedUnitPrice, 0)} ISK/u`">
+                {{ formatNumber(entry.structureCompressedEquivalentPrice, 1) }}
               </span>
               <span v-else-if="entry.structureUnitPrice" class="text-slate-400">
                 {{ formatNumber(entry.structureUnitPrice, 0) }}
@@ -282,13 +283,14 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
               <span v-else class="text-slate-600">-</span>
             </td>
             <td class="px-3 py-3 text-sm text-right">
+              <span v-if="getEntryValue(entry) === null" class="text-slate-600"><UnknownValue /></span>
               <span
-                v-if="getBestPrice(entry).value > 0"
+                v-else-if="getEntryValue(entry) !== 0"
                 :class="getBestPrice(entry).color"
                 class="font-medium"
                 :title="getBestPrice(entry).source"
               >
-                {{ formatIskShort(getBestPrice(entry).value * entry.quantity) }}
+                {{ formatIskShort(getEntryValue(entry)) }}
               </span>
               <span v-else class="text-slate-600">-</span>
             </td>

@@ -1452,6 +1452,7 @@
       "dailyRevenue": "Revenus journaliers",
       "pveBreakdown": "Repartition PVE",
       "miningBreakdown": "Repartition minage",
+      "miningMissingPrices": "{count} minerai sans prix : valeur du minage inconnue | {count} minerais sans prix : valeur du minage inconnue",
       "loot": "Loot"
     },
     "mining": {
@@ -1474,6 +1475,7 @@
       "corp": "Corp",
       "iskPerActiveDay": "ISK / jour actif",
       "activeDays": "{count} jours actifs",
+      "missingPriceTypes": "Minerais sans prix : {types}",
       "minedVolume": "Volume mine",
       "units": "unites",
       "mainSystem": "Systeme principal",

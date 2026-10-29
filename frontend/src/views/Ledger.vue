@@ -51,7 +51,8 @@ const settings = computed(() => ledgerStore.settings)
 // Max daily value for chart scaling
 const maxDailyValue = computed(() => {
   if (!dailyStats.value?.daily) return 0
-  return Math.max(...dailyStats.value.daily.map(d => d.total))
+  const knownTotals = dailyStats.value.daily.map(d => d.total).filter((total): total is number => total !== null)
+  return Math.max(...knownTotals)
 })
 
 // Fetch dashboard data

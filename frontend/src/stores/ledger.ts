@@ -10,11 +10,11 @@ export interface LedgerDashboard {
     days: number
   }
   totals: {
-    total: number
+    total: number | null
     pve: number
-    mining: number
+    mining: number | null
     expenses: number
-    profit: number
+    profit: number | null
   }
   pveBreakdown: {
     bounties: number
@@ -24,15 +24,16 @@ export interface LedgerDashboard {
     corpProjects: number
   }
   miningBreakdown: {
-    sold: number
-    corpProject: number
-    industry: number
-    unknown: number
+    sold: number | null
+    corpProject: number | null
+    industry: number | null
+    unknown: number | null
   }
   expensesByType: Record<string, number>
-  iskPerDay: number
-  pvePercent: number
-  miningPercent: number
+  iskPerDay: number | null
+  pvePercent: number | null
+  miningPercent: number | null
+  missingPriceTypeIds: number[]
   lastSync: {
     pve: string | null
     mining: string | null
@@ -50,12 +51,13 @@ export interface LedgerDailyStats {
   }
   daily: {
     date: string
-    total: number
+    total: number | null
     pve: number
-    mining: number
+    mining: number | null
     expenses: number
-    profit: number
+    profit: number | null
   }[]
+  missingPriceTypeIds: number[]
 }
 
 export interface MiningEntry {
@@ -78,6 +80,8 @@ export interface MiningEntry {
   // Structure prices
   structureUnitPrice: number | null
   structureCompressedUnitPrice: number | null
+  structureCompressedEquivalentPrice: number | null
+  rawUnitPrice: number | null
   // Reprocess value
   reprocessValue: number | null
   // Structure reprocess value
@@ -95,11 +99,12 @@ export interface MiningStats {
     days: number
   }
   totals: {
-    totalValue: number
+    totalValue: number | null
     totalQuantity: number
   }
-  byUsage: Record<string, { usage: string; totalValue: number; totalQuantity: number }>
-  iskPerDay: number
+  byUsage: Record<string, { totalValue: number | null; totalQuantity: number; missingPriceTypeIds: number[] }>
+  iskPerDay: number | null
+  missingPriceTypeIds: number[]
 }
 
 export interface MiningDailyStats {
@@ -110,9 +115,10 @@ export interface MiningDailyStats {
   }
   daily: {
     date: string
-    totalValue: number
+    totalValue: number | null
     totalQuantity: number
   }[]
+  missingPriceTypeIds: number[]
 }
 
 export interface MiningStatsByType {
@@ -124,7 +130,7 @@ export interface MiningStatsByType {
   byType: {
     typeId: number
     typeName: string | null
-    totalValue: number
+    totalValue: number | null
     totalQuantity: number
   }[]
 }

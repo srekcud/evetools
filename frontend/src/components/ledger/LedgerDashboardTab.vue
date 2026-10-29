@@ -14,6 +14,8 @@ import {
 } from 'chart.js'
 import type { LedgerDashboard, LedgerDailyStats } from '@/stores/ledger'
 import { CHART_COLORS } from '@/utils/chartColors'
+import IskAmount from '@/components/common/IskAmount.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
@@ -29,6 +31,10 @@ const { formatIskShort, formatIskFull, formatDate, formatDateTime } = useFormatt
 
 function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
+}
+
+function formatIskFullOrUnknown(value: number | null): string {
+  return value === null ? t('common.unknownValue') : formatIskFull(value)
 }
 
 function formatChartIsk(value: number): string {
@@ -100,13 +106,13 @@ const chartOptions = computed(() => ({
           return formatDate(day.date)
         },
         label: (context: { dataset: { label?: string }; raw: unknown }) => {
-          const value = context.raw as number
-          return `  ${context.dataset.label}: ${formatIskFull(value)}`
+          const value = context.raw as number | null
+          return `  ${context.dataset.label}: ${formatIskFullOrUnknown(value)}`
         },
         afterBody: (items: { dataIndex: number }[]) => {
           if (!props.dailyStats?.daily) return []
           const day = props.dailyStats.daily[items[0].dataIndex]
-          return [`  Total: ${formatIskFull(day.total)}`]
+          return [`  Total: ${formatIskFullOrUnknown(day.total)}`]
         },
       },
     },
@@ -148,19 +154,28 @@ const chartOptions = computed(() => ({
           <span class="text-xs text-slate-500">{{ t('ledger.period.nDays', { n: selectedDays }) }}</span>
         </div>
         <div class="mt-2 text-2xl font-bold text-white">
-          {{ formatIskShort(dashboard.totals.total) }}
+          <IskAmount :value="dashboard.totals.total" short />
         </div>
         <div class="mt-2 flex items-center gap-2">
           <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
             <div
+              v-if="dashboard.pvePercent !== null"
               class="h-full bg-linear-to-r from-cyan-500 to-blue-500"
               :style="{ width: `${dashboard.pvePercent}%` }"
             />
           </div>
         </div>
         <div class="mt-1 flex justify-between text-xs text-slate-500">
-          <span>PVE {{ formatPercent(dashboard.pvePercent) }}</span>
-          <span>Mining {{ formatPercent(dashboard.miningPercent) }}</span>
+          <span>
+            PVE
+            <UnknownValue v-if="dashboard.pvePercent === null" />
+            <template v-else>{{ formatPercent(dashboard.pvePercent) }}</template>
+          </span>
+          <span>
+            Mining
+            <UnknownValue v-if="dashboard.miningPercent === null" />
+            <template v-else>{{ formatPercent(dashboard.miningPercent) }}</template>
+          </span>
         </div>
       </div>
 
@@ -189,10 +204,13 @@ const chartOptions = computed(() => ({
           </svg>
         </div>
         <div class="mt-2 text-2xl font-bold text-amber-400">
-          {{ formatIskShort(dashboard.totals.mining) }}
+          <IskAmount :value="dashboard.totals.mining" short />
         </div>
         <div class="mt-2 text-xs text-slate-500">
-          ISK/jour: {{ formatIskShort(dashboard.iskPerDay) }}
+          ISK/jour: <IskAmount :value="dashboard.iskPerDay" short />
+        </div>
+        <div v-if="dashboard.missingPriceTypeIds.length > 0" class="mt-1 text-xs text-amber-400">
+          {{ t('ledger.dashboard.miningMissingPrices', { count: dashboard.missingPriceTypeIds.length }, dashboard.missingPriceTypeIds.length) }}
         </div>
       </div>
     </div>
@@ -253,15 +271,15 @@ const chartOptions = computed(() => ({
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-slate-400">{{ t('ledger.mining.usage.sold') }}</span>
-            <span class="text-emerald-400 font-medium">{{ formatIskShort(dashboard.miningBreakdown.sold) }}</span>
+            <span class="text-emerald-400 font-medium"><IskAmount :value="dashboard.miningBreakdown.sold" short /></span>
           </div>
           <div v-if="dashboard.settings.corpProjectAccounting === 'mining'" class="flex items-center justify-between">
             <span class="text-slate-400">{{ t('ledger.mining.usage.corpProject') }}</span>
-            <span class="text-amber-400 font-medium">{{ formatIskShort(dashboard.miningBreakdown.corpProject) }}</span>
+            <span class="text-amber-400 font-medium"><IskAmount :value="dashboard.miningBreakdown.corpProject" short /></span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-slate-400">{{ t('ledger.mining.usage.unknown') }}</span>
-            <span class="text-slate-500 font-medium">{{ formatIskShort(dashboard.miningBreakdown.unknown) }}</span>
+            <span class="text-slate-500 font-medium"><IskAmount :value="dashboard.miningBreakdown.unknown" short /></span>
           </div>
         </div>
       </div>

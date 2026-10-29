@@ -164,8 +164,16 @@ const activeDays = computed(() => {
 
 const iskPerActiveDay = computed((): number | null => {
   if (miningStats.value === null) return null
+  const totalValue = miningStats.value.totals.totalValue
+  if (totalValue === null) return null
   if (activeDays.value === 0) return 0
-  return miningStats.value.totals.totalValue / activeDays.value
+  return totalValue / activeDays.value
+})
+
+const missingPriceTypeLabels = computed((): string[] => {
+  if (miningStats.value === null) return []
+  const typeNamesById = new Map(miningEntries.value.map(entry => [entry.typeId, entry.typeName]))
+  return miningStats.value.missingPriceTypeIds.map(typeId => typeNamesById.get(typeId) ?? `#${typeId}`)
 })
 
 const mainSystem = computed(() => {
@@ -186,6 +194,7 @@ const mainSystem = computed(() => {
 
   if (miningStats.value === null) return { ...maxSystem, percent: null }
   const backendTotal = miningStats.value.totals.totalValue
+  if (backendTotal === null) return { ...maxSystem, percent: null }
   return { ...maxSystem, percent: backendTotal > 0 ? (maxSystem.value / backendTotal) * 100 : 0 }
 })
 
@@ -384,6 +393,7 @@ defineExpose({
       :mining-stats="miningStats"
       :loading="ledgerStore.isLoading"
       :main-system="mainSystem"
+      :missing-price-type-labels="missingPriceTypeLabels"
     />
 
     <!-- Entries Table -->
