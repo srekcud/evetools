@@ -70,7 +70,10 @@ class IndustryStepCalculator
                 $onNeedOfSteps(
                     $stepsByProduct[$productTypeId],
                     $needByProduct[$productTypeId],
-                    $this->outputPerRunOf($stepsByProduct[$productTypeId][0], $productsByKey),
+                    SplitGroupMaterials::outputPerRunOfProduct(
+                        $productsByKey[ProductionStepGraph::blueprintKeyOf($stepsByProduct[$productTypeId][0])] ?? null,
+                        $stepsByProduct[$productTypeId][0]->getBlueprintTypeId(),
+                    ),
                 );
             }
 
@@ -93,17 +96,6 @@ class IndustryStepCalculator
             $consumer->getMeLevel(),
             $materialBonus['base'],
             $materialBonus['rig'],
-        );
-    }
-
-    /**
-     * @param array<string, IndustryActivityProduct> $productsByKey
-     */
-    private function outputPerRunOf(IndustryProjectStep $step, array $productsByKey): int
-    {
-        return SplitGroupMaterials::outputPerRunOfProduct(
-            $productsByKey[ProductionStepGraph::blueprintKeyOf($step)] ?? null,
-            $step->getBlueprintTypeId(),
         );
     }
 }

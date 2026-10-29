@@ -115,11 +115,11 @@ class UpdateStepProcessor implements ProcessorInterface
         }
 
         if ($data->runs !== null && $data->runs >= 1) {
-            $quantityPerRun = SplitGroupMaterials::outputPerRunOf($this->activityProductRepository, $step->getBlueprintTypeId(), $step->getActivityType());
+            $outputPerRun = SplitGroupMaterials::outputPerRunOf($this->activityProductRepository, $step->getBlueprintTypeId(), $step->getActivityType());
             $needRuns = $this->stepCalculator->needRunsOf($project, $step);
             $runs = $needRuns === null ? $data->runs : $this->fixRunsEnteredOnTheJob($project, $step, $data->runs, $needRuns, $data->overproduce === true);
             $step->setRuns($runs);
-            $step->setQuantity($runs * $quantityPerRun);
+            $step->setQuantity($runs * $outputPerRun);
             $needsCascade = true;
         }
 
