@@ -94,7 +94,10 @@ const failedProductNamesByTypeId = computed(() => {
 // Sell price comparison
 const project = computed(() => store.currentProject)
 const sellPrice = computed(() => project.value?.sellPrice ?? null)
-const runs = computed(() => project.value?.runs ?? 1)
+const sellPricePerUnit = computed(() => {
+  if (sellPrice.value == null || !costData.value) return null
+  return sellPrice.value / costData.value.outputQuantity
+})
 
 const profitAmount = computed(() => {
   if (sellPrice.value == null || !costData.value || costData.value.totalCost === null) return null
@@ -501,7 +504,7 @@ defineExpose({ activate, loadCostEstimation })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.costEstimation.sellPriceComparison') }}</h4>
-          <span class="text-xs text-slate-600 ml-2">{{ runs }} unit{{ runs > 1 ? 's' : '' }}</span>
+          <span class="text-xs text-slate-600 ml-2">{{ costData.outputQuantity.toLocaleString() }} unit{{ costData.outputQuantity > 1 ? 's' : '' }}</span>
         </div>
 
         <div class="p-4">
@@ -513,7 +516,7 @@ defineExpose({ activate, loadCostEstimation })
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.sellPriceLabel') }}</div>
               <div class="font-mono text-slate-200 text-lg">{{ sellPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</div>
-              <div v-if="runs > 1" class="text-table-cell text-slate-600 font-mono">{{ t('industry.costEstimation.perUnitShort', { price: formatIsk(sellPrice / runs) }) }}</div>
+              <div v-if="costData.outputQuantity > 1" class="text-table-cell text-slate-600 font-mono">{{ sellPricePerUnit === null ? t('industry.costEstimation.unknown') : t('industry.costEstimation.perUnitShort', { price: formatIsk(sellPricePerUnit) }) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.profitLabel') }}</div>

@@ -1041,7 +1041,7 @@
       "sellPriceComparison": "Comparaison prix de vente",
       "totalCostLabel": "Cout total",
       "sellPriceLabel": "Prix de vente",
-      "perUnitShort": "@ {price} / unite",
+      "perUnitShort": "{'@'} {price} / unite",
       "profitLabel": "Profit",
       "marginLabel": "Marge",
       "costBreakdown": "Repartition des couts",
