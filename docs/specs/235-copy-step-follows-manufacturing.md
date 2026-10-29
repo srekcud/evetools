@@ -30,7 +30,7 @@ SDE golden, ME 10 / TE 20, sans structure, mêmes plafonds que la spec #234. Col
 | C4 | Nomad 1 run, durée max 2 j : copies de Hydrogen, Oxygen, Nitrogen, Helium Fuel Block (fabrication 161 + 161 ; 44 ; 106 ; 107) | `[345]` ; `[66]` ; `[114]` ; `[115]` | `[161, 161]` ; `[44]` ; `[106]` ; `[107]` |
 | C5 | Nomad 1 run, sans durée max : copie de Capital Electrolytic Capacitor Unit (fabrication 476 + 475, plafond 800) | `[951]` | `[476, 475]` |
 | C6 | Scorpion 25 runs : copies du Scorpion (fabrication 9 + 8 + 8), de la Auto-Integrity Preservation Seal (841 runs), de la Life Support Backup Unit (421 runs), plafond 200 | `[25]` ; `[840]` ; `[420]` | `[9, 8, 8]` ; `[169, 168, 168, 168, 168]` ; `[141, 140, 140]` |
-| C7 | Widow 3 runs, plafond 1 | `[3]` | `[1, 1, 1]` |
+| C7 | Widow 3 runs, plafond 1 (l'étape de copie du blueprint T2 n'existe plus depuis #129, spec 2-129 ; reste le plafond de la fabrication : `[1, 1, 1]`) | `[3]` | `[1, 1, 1]` |
 | C8 | C1 : toutes les autres copies du plan | runs de l'ancienne somme par branche | runs de la fabrication de leur blueprint (ex. blueprint 1021017 : 9 devient 10 ; 1021027 : 63 devient 64) |
 
 ## Cas limites

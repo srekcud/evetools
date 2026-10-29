@@ -1,6 +1,6 @@
 # Spec #2 (chemin projet) + #129 — Runs du projet à la racine de l'arbre, pas d'étape de copie pour un blueprint inventé
 
-**Statut : rédigée le 2026-10-29 sans entretien, à valider par Sylvain.** Les choix faits en autonomie sont dans « Décisions prises en autonomie », avec leur raison. Ceux qui changent un montant, une quantité ou une durée affichés sans que les issues le prévoient, ou qui relèvent du produit, sont dans « À trancher par Sylvain » : à poser avant la phase rouge.
+**Statut : rédigée le 2026-10-29 sans entretien, validée par Sylvain (T1 à T4 tranchés le 2026-10-29).** Les choix faits en autonomie sont dans « Décisions prises en autonomie », avec leur raison. Ceux qui changent un montant, une quantité ou une durée affichés sans que les issues le prévoient, ou qui relèvent du produit, sont dans « À trancher par Sylvain » : à poser avant la phase rouge.
 
 ## Contexte
 
