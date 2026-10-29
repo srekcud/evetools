@@ -119,6 +119,15 @@ final class CreateGroupProjectInputValidationTest extends TestCase
         );
     }
 
+    #[Group('issue-168')]
+    public function testItemOfOneRunBesideAnItemOfOneHundredThousandRunsPushesTheSumOfTheRunsOverTheMaximum(): void
+    {
+        self::assertSame(
+            ['items'],
+            $this->violatedPathsOfTheInputWithItems([$this->fenrirItem(['runs' => 100000]), $this->scorpionItem(['runs' => 1])]),
+        );
+    }
+
     #[Group('issue-257')]
     public function testThreeItemsOfOneRunEachAreAccepted(): void
     {

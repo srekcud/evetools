@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\ApiResource\Input\GroupIndustry\ReviewContributionInput;
+use App\Entity\Character;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
@@ -28,6 +29,7 @@ use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -411,6 +413,69 @@ class ReviewContributionProcessorTest extends TestCase
         self::assertSame(self::ALREADY_FULFILLED_QUANTITY, $this->bomItem->getFulfilledQuantity());
     }
 
+    #[Group('issue-168')]
+    public function testApprovalIsPublishedWithTheContributionAndThePilotOfItsReviewer(): void
+    {
+        $character = new Character();
+        $character->setName('Mira Dane');
+        $this->owner->method('getMainCharacter')->willReturn($character);
+        $contributor = $this->addMember($this->createStub(User::class), GroupMemberRole::Member);
+        $contribution = $this->pendingContributionOf($contributor);
+        $payloads = $this->capturePublishedPayloads();
+
+        $this->review($this->owner, $contribution, 'approved');
+
+        self::assertCount(1, $payloads);
+        self::assertSame('contribution_approved', $payloads[0]['action']);
+        self::assertSame(
+            ['contributionId' => $contribution->getId()->toRfc4122(), 'reviewedBy' => 'Mira Dane'],
+            $payloads[0]['data'],
+        );
+    }
+
+    #[Group('issue-168')]
+    public function testRejectionByAReviewerWithoutMainCharacterIsPublishedWithAnUnknownReviewer(): void
+    {
+        $contributor = $this->addMember($this->createStub(User::class), GroupMemberRole::Member);
+        $contribution = $this->pendingContributionOf($contributor);
+        $payloads = $this->capturePublishedPayloads();
+
+        $this->review($this->owner, $contribution, 'rejected');
+
+        self::assertCount(1, $payloads);
+        self::assertSame('contribution_rejected', $payloads[0]['action']);
+        self::assertSame(
+            ['contributionId' => $contribution->getId()->toRfc4122(), 'reviewedBy' => 'Unknown'],
+            $payloads[0]['data'],
+        );
+    }
+
+    #[Group('issue-168')]
+    public function testReviewWithoutContributionIdentifierIsNotFound(): void
+    {
+        $this->security->method('getUser')->willReturn($this->owner);
+        $input = new ReviewContributionInput();
+        $input->status = 'approved';
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Contribution not found');
+
+        $this->processor->process($input, new Patch(), ['projectId' => $this->project->getId()->toRfc4122()]);
+    }
+
+    #[Group('issue-168')]
+    public function testReviewWithoutProjectIdentifierIsNotFound(): void
+    {
+        $this->security->method('getUser')->willReturn($this->owner);
+        $input = new ReviewContributionInput();
+        $input->status = 'approved';
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Contribution not found');
+
+        $this->processor->process($input, new Patch(), ['id' => Uuid::v4()->toRfc4122()]);
+    }
+
     private function review(User $reviewer, GroupIndustryContribution $contribution, string $decision): GroupIndustryContributionResource
     {
         $this->security->method('getUser')->willReturn($reviewer);
@@ -453,6 +518,20 @@ class ReviewContributionProcessorTest extends TestCase
         $this->assignId($contribution);
 
         return $contribution;
+    }
+
+    private function capturePublishedPayloads(): \ArrayObject
+    {
+        $payloads = new \ArrayObject();
+        $this->hub->method('publish')->willReturnCallback(
+            static function (Update $update) use ($payloads): string {
+                $payloads[] = json_decode($update->getData(), true);
+
+                return 'update-id';
+            },
+        );
+
+        return $payloads;
     }
 
     private function expectOneMercureEvent(string $action): void

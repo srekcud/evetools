@@ -449,6 +449,38 @@ class GroupIndustryContributionServiceTest extends TestCase
         $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
     }
 
+    #[Group('issue-168')]
+    public function testAntiDuplicateCheckRefusesAMemberWhoseContributionOfThatTypeIsPending(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Pending);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('A contribution of this type is already pending or approved for this item');
+
+        $this->service->validateAntiDuplicate($this->member, $this->bomItem, ContributionType::JobInstall);
+    }
+
+    #[Group('issue-168')]
+    public function testAntiDuplicateCheckRefusesAMemberWhoseContributionOfThatTypeIsApproved(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Approved);
+
+        $this->expectException(\DomainException::class);
+
+        $this->service->validateAntiDuplicate($this->member, $this->bomItem, ContributionType::LineRental);
+    }
+
+    #[Group('issue-168')]
+    public function testAntiDuplicateCheckAcceptsAMemberWhoseContributionOfThatTypeWasRejected(): void
+    {
+        $this->givenExistingContributionWithStatus(ContributionStatus::Rejected);
+        $this->entityManager->expects($this->never())->method('persist');
+
+        $this->service->validateAntiDuplicate($this->member, $this->bomItem, ContributionType::Bpc);
+
+        $this->addToAssertionCount(1);
+    }
+
     private function refusalOf(GroupIndustryBomItem $bomItem, ContributionType $type, int $quantity, ?float $estimatedValue): \DomainException
     {
         $this->givenNoExistingContribution();
