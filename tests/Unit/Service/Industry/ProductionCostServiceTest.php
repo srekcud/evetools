@@ -1069,6 +1069,60 @@ class ProductionCostServiceTest extends TestCase
     #[Group('issue-125')]
     public function testPerUnitCostOfAProductManufacturedAndReactedIsComputedAtTheUnitsPerRunOfItsBlueprint(): void
     {
+        $result = $this->service->estimateTotalCost($this->projectOfFiveRunsOfAProductManufacturedAndReacted());
+
+        $this->assertSame(200_000.0, $result['totalCost']);
+        $this->assertSame(1_000.0, $result['perUnit']);
+    }
+
+    #[Group('issue-125')]
+    public function testPerUnitCostOfAReactionProjectWithAnUnknownTotalCostStaysUnknown(): void
+    {
+        $project = $this->ferniteCarbideReactionProjectOfEightRuns([['typeId' => 16640, 'reason' => 'No blueprint or reaction found for product type ID 16640']]);
+        $this->stubProducers($this->ferniteCarbideReactionFormula());
+
+        $result = $this->service->estimateTotalCost($project);
+
+        $this->assertNull($result['materialCost']);
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['perUnit']);
+    }
+
+    #[Group('issue-281')]
+    public function testCostEstimationOfAReactionProjectCarriesTheOutputQuantityAtTheUnitsPerRunOfItsReactionFormula(): void
+    {
+        $project = $this->ferniteCarbideReactionProjectOfEightRuns([]);
+        $this->stubProducers($this->ferniteCarbideReactionFormula());
+
+        $result = $this->service->estimateTotalCost($project);
+
+        $this->assertSame(80_000, $result['outputQuantity']);
+        $this->assertSame(1.15, $result['perUnit']);
+    }
+
+    #[Group('issue-281')]
+    public function testCostEstimationOfAProductManufacturedAndReactedCarriesTheOutputQuantityAtTheUnitsPerRunOfItsBlueprint(): void
+    {
+        $result = $this->service->estimateTotalCost($this->projectOfFiveRunsOfAProductManufacturedAndReacted());
+
+        $this->assertSame(200, $result['outputQuantity']);
+    }
+
+    #[Group('issue-281')]
+    public function testCostEstimationOfAReactionProjectWithAnUnknownTotalCostStillCarriesItsOutputQuantity(): void
+    {
+        $project = $this->ferniteCarbideReactionProjectOfEightRuns([['typeId' => 16640, 'reason' => 'No blueprint or reaction found for product type ID 16640']]);
+        $this->stubProducers($this->ferniteCarbideReactionFormula());
+
+        $result = $this->service->estimateTotalCost($project);
+
+        $this->assertNull($result['totalCost']);
+        $this->assertNull($result['perUnit']);
+        $this->assertSame(80_000, $result['outputQuantity']);
+    }
+
+    private function projectOfFiveRunsOfAProductManufacturedAndReacted(): IndustryProject&MockObject
+    {
         $step = $this->createStep('manufacturing', self::PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, 5, $this->createStructureConfig(30002510), self::BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID);
         $project = $this->createProject(self::PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, 5);
         $project->method('getSteps')->willReturn(new ArrayCollection([$step]));
@@ -1087,23 +1141,7 @@ class ProductionCostServiceTest extends TestCase
             $this->producer(self::FORMULA_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, IndustryActivityType::Reaction, self::PRODUCT_MANUFACTURED_AND_REACTED_TYPE_ID, 200),
         );
 
-        $result = $this->service->estimateTotalCost($project);
-
-        $this->assertSame(200_000.0, $result['totalCost']);
-        $this->assertSame(1_000.0, $result['perUnit']);
-    }
-
-    #[Group('issue-125')]
-    public function testPerUnitCostOfAReactionProjectWithAnUnknownTotalCostStaysUnknown(): void
-    {
-        $project = $this->ferniteCarbideReactionProjectOfEightRuns([['typeId' => 16640, 'reason' => 'No blueprint or reaction found for product type ID 16640']]);
-        $this->stubProducers($this->ferniteCarbideReactionFormula());
-
-        $result = $this->service->estimateTotalCost($project);
-
-        $this->assertNull($result['materialCost']);
-        $this->assertNull($result['totalCost']);
-        $this->assertNull($result['perUnit']);
+        return $project;
     }
 
     private function ferniteCarbideReactionProjectOfEightRuns(array $failedProducts): IndustryProject&MockObject

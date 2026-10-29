@@ -97,14 +97,24 @@ final class UpdateStepProcessorTest extends TestCase
         self::assertSame([3, 30_000], [$ferniteCarbide->getRuns(), $ferniteCarbide->getQuantity()]);
     }
 
-    #[Group('issue-137')]
-    public function testRunsEnteredOnACopyStepCurrentlyCountTheUnitsPerRunOfTheProductManufacturedByItsBlueprintIssue137(): void
+    #[Group('issue-279')]
+    public function testRunsEnteredOnACopyStepCountOneBlueprintCopyPerRun(): void
     {
         $hydrogenFuelBlockCopy = $this->stepOfTheProject(self::HYDROGEN_FUEL_BLOCK, self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'copy', runs: 6, quantity: 6, depth: 1, meLevel: 0);
 
         $this->patch($hydrogenFuelBlockCopy, $this->runsEntered(10), $this->createStub(EntityManagerInterface::class));
 
-        self::assertSame([10, 400], [$hydrogenFuelBlockCopy->getRuns(), $hydrogenFuelBlockCopy->getQuantity()]);
+        self::assertSame([10, 10], [$hydrogenFuelBlockCopy->getRuns(), $hydrogenFuelBlockCopy->getQuantity()]);
+    }
+
+    #[Group('issue-279')]
+    public function testRunsEnteredOnACopyStepWhoseBlueprintHasNoProductInTheSdeCountOneBlueprintCopyPerRun(): void
+    {
+        $hydrogenFuelBlockCopy = $this->stepOfTheProject(self::HYDROGEN_FUEL_BLOCK, self::BLUEPRINT_MISSING_FROM_THE_SDE, 'copy', runs: 6, quantity: 6, depth: 1, meLevel: 0);
+
+        $this->patch($hydrogenFuelBlockCopy, $this->runsEntered(10), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([10, 10], [$hydrogenFuelBlockCopy->getRuns(), $hydrogenFuelBlockCopy->getQuantity()]);
     }
 
     #[Group('issue-137')]

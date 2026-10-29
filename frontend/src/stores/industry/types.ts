@@ -473,6 +473,7 @@ export interface CostEstimation {
   bpoCost: number
   totalCost: number | null
   perUnit: number | null
+  outputQuantity: number
   materials: CostEstimationMaterial[]
   jobInstallSteps: CostEstimationStep[]
   failedProducts: ShoppingListFailedProduct[]
