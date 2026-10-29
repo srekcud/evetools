@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
+import fr from '@/i18n/locales/fr.json'
 import ShoppingFailedProductsWarning from '@/components/industry/shopping/ShoppingFailedProductsWarning.vue'
 import type { ShoppingListFailedProduct } from '@/stores/industry/types'
 
@@ -9,8 +10,8 @@ const ROBOTICS_REASON = `No blueprint or reaction found for product type ID ${RO
 const UNNAMED_TYPE_ID = 123456
 const UNNAMED_REASON = `Types missing from the SDE: ${UNNAMED_TYPE_ID}`
 
-function mountWarning(failedProducts: ShoppingListFailedProduct[]) {
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+function mountWarning(failedProducts: ShoppingListFailedProduct[], locale: 'en' | 'fr' = 'en') {
+  const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   return mount(ShoppingFailedProductsWarning, {
     global: { plugins: [i18n] },
     props: {
@@ -29,11 +30,17 @@ describe('ShoppingFailedProductsWarning', () => {
     expect(text).toContain(ROBOTICS_REASON)
   })
 
-  it('names a failed product unknown to the project by its type ID', () => {
+  it('labels a failed product unknown to the project as an unknown name with its type ID', () => {
     const text = mountWarning([{ typeId: UNNAMED_TYPE_ID, reason: UNNAMED_REASON }]).text()
 
-    expect(text).toContain(String(UNNAMED_TYPE_ID))
+    expect(text).toContain(`Unknown name (#${UNNAMED_TYPE_ID})`)
     expect(text).toContain(UNNAMED_REASON)
+  })
+
+  it('labels a failed product unknown to the project as an unknown name in french', () => {
+    const text = mountWarning([{ typeId: UNNAMED_TYPE_ID, reason: UNNAMED_REASON }], 'fr').text()
+
+    expect(text).toContain(`Nom inconnu (#${UNNAMED_TYPE_ID})`)
   })
 
   it('renders the reason as plain text', () => {

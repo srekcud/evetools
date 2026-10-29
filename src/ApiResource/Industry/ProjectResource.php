@@ -147,6 +147,9 @@ class ProjectResource
     /** @var array<string, mixed>|null */
     public ?array $tree = null;
 
+    /** @var array<array{typeId: int, reason: string}>|null */
+    public ?array $failedProducts = null;
+
     /** @var array<array{typeId: int, typeName: string, quantity: int}>|null */
     public ?array $inventionMaterials = null;
 }

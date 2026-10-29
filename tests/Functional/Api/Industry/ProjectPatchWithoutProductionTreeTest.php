@@ -56,6 +56,24 @@ final class ProjectPatchWithoutProductionTreeTest extends WebTestCase
         self::assertSame(self::PATCHED_NOTES, $this->em->find(IndustryProject::class, $project->getId())?->getNotes());
     }
 
+    #[Group('issue-193')]
+    public function testPatchingProjectNotesAnswersFailedProductsAsNotComputed(): void
+    {
+        $owner = $this->persistUser();
+        $project = $this->persistProject($owner);
+        $this->em->flush();
+
+        $this->treeService->expects(self::never())->method('buildProductionTree');
+
+        $this->client->loginUser($owner, 'api');
+        $this->patchProject($project, ['notes' => self::PATCHED_NOTES]);
+
+        self::assertResponseStatusCodeSame(200);
+        $response = $this->responseJson();
+        self::assertArrayHasKey('failedProducts', $response);
+        self::assertNull($response['failedProducts']);
+    }
+
     public function testPatchingProjectRunsBuildsTheProductionTreeOnceForTheRegeneration(): void
     {
         $owner = $this->persistUser();

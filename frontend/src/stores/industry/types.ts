@@ -133,6 +133,7 @@ export interface IndustryProject {
   rootProducts?: RootProduct[]
   steps?: IndustryProjectStep[]
   tree?: ProductionTreeNode | null
+  failedProducts?: ShoppingListFailedProduct[] | null
 }
 
 export interface ShoppingListItem {

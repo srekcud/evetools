@@ -11,6 +11,7 @@ use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryRigCategoryRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryTreeService;
@@ -65,6 +66,7 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     private const int ISOGEN = 37;
     private const int NOCXIUM = 38;
     private const int MEGACYTE = 40;
+    private const int OXYGEN_ISOTOPES = 17887;
 
     private const float SHORT_MAX_JOB_DURATION_DAYS = 0.01;
     private const float DEFAULT_MAX_JOB_DURATION_DAYS = 2.0;
@@ -87,6 +89,7 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     private User $pilot;
     private ?IndustryProject $requestedProject = null;
     private ProjectStepResource $mappedStep;
+    private int $productsOfBlueprintsReadCount = 0;
 
     protected function setUp(): void
     {
@@ -232,11 +235,14 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     }
 
     #[Group('issue-121')]
-    public function testTreeOfAProjectWithoutStepIsNull(): void
+    #[Group('issue-193')]
+    public function testProjectWithoutStepHasNoTreeAndNoFailedProduct(): void
     {
         $project = self::projectOf($this->pilot, self::NITROGEN_FUEL_BLOCK, 25, 10);
 
-        self::assertNull($this->provide($project)->tree);
+        $resource = $this->provide($project);
+
+        self::assertSame([null, []], [$resource->tree, $resource->failedProducts]);
     }
 
     #[Group('issue-121')]
@@ -483,30 +489,146 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
     }
 
     #[Group('issue-121')]
-    public function testTreeIsNullWhenTheRootStepHasNoBlueprintNorReaction(): void
+    #[Group('issue-193')]
+    public function testTreeIsNullAndTheRootIsAFailedProductWhenTheRootStepHasNoBlueprintNorReaction(): void
     {
         $project = self::projectOf($this->pilot, self::ROBOTICS, 1, 10);
         self::addStep($project, self::ROBOTICS, 1, 0, 'manufacturing');
 
-        self::assertNull($this->provide($project)->tree);
+        $resource = $this->provide($project);
+
+        self::assertSame(
+            [null, [['typeId' => self::ROBOTICS, 'reason' => 'No blueprint or reaction found for product type ID 9848']]],
+            [$resource->tree, $resource->failedProducts],
+        );
     }
 
     #[Group('issue-121')]
-    public function testTreeIsNullWhenATypeOfAShownNodeIsMissingFromTheSde(): void
+    #[Group('issue-193')]
+    public function testTreeIsNullAndTheRootIsAFailedProductWhenAMaterialOfTheRootIsMissingFromTheSde(): void
     {
         $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
         $this->typeIdsMissingFromSde = [self::ROBOTICS];
 
-        self::assertNull($this->provide($project)->tree);
+        $resource = $this->provide($project);
+
+        self::assertSame(
+            [null, [['typeId' => self::NITROGEN_FUEL_BLOCK, 'reason' => 'Types missing from the SDE: 9848']]],
+            [$resource->tree, $resource->failedProducts],
+        );
     }
 
     #[Group('issue-121')]
-    public function testTreeIsNullWhenATypeOfAnIntermediateNodeIsMissingFromTheSde(): void
+    #[Group('issue-193')]
+    public function testTreeIsNullAndTheIntermediateIsAFailedProductWhenAMaterialOfTheIntermediateIsMissingFromTheSde(): void
     {
         $project = $this->oneRunOfFerniteCarbide(10);
         $this->typeIdsMissingFromSde = [self::SCANDIUM];
 
-        self::assertNull($this->provide($project)->tree);
+        $resource = $this->provide($project);
+
+        self::assertSame(
+            [null, [['typeId' => self::FERNITE_ALLOY, 'reason' => 'Types missing from the SDE: 16639']]],
+            [$resource->tree, $resource->failedProducts],
+        );
+    }
+
+    #[Group('issue-193')]
+    public function testProjectWhoseTypesAreAllInTheSdeKeepsItsTreeWithoutFailedProduct(): void
+    {
+        $project = $this->projectOnGoldenSde($this->pilot, self::NITROGEN_FUEL_BLOCK, 1, 10, 20, self::DEFAULT_MAX_JOB_DURATION_DAYS);
+
+        $resource = $this->provide($project);
+
+        self::assertIsArray($resource->tree);
+        self::assertSame(
+            [self::ONE_RUN_OF_FUEL_BLOCK_AT_ME_TEN + [17888 => 405], []],
+            [array_column($resource->tree['materials'], 'quantity', 'typeId'), $resource->failedProducts],
+        );
+    }
+
+    #[Group('issue-193')]
+    public function testEveryFailedProductIsListedByAscendingTypeId(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide(0);
+        $this->typeIdsMissingFromSde = [self::SCANDIUM, self::ROBOTICS];
+
+        $resource = $this->provide($project);
+
+        self::assertSame(
+            [null, [
+                ['typeId' => self::HYDROGEN_FUEL_BLOCK, 'reason' => 'Types missing from the SDE: 9848'],
+                ['typeId' => self::FERNITE_ALLOY, 'reason' => 'Types missing from the SDE: 16639'],
+            ]],
+            [$resource->tree, $resource->failedProducts],
+        );
+    }
+
+    #[Group('issue-193')]
+    public function testIntermediateMissingFromTheSdeIsAFailedProductAlongWithItsConsumer(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide(0);
+        $this->typeIdsMissingFromSde = [self::FERNITE_ALLOY];
+
+        $resource = $this->provide($project);
+
+        self::assertSame(
+            [null, [
+                ['typeId' => self::FERNITE_ALLOY, 'reason' => 'Types missing from the SDE: 16656'],
+                ['typeId' => self::FERNITE_CARBIDE, 'reason' => 'Types missing from the SDE: 16656'],
+            ]],
+            [$resource->tree, $resource->failedProducts],
+        );
+    }
+
+    #[Group('issue-193')]
+    public function testBlacklistedIntermediateWithAMaterialMissingFromTheSdeIsAFailedProductBesideTheShownTree(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide(0);
+        $this->pilot->setIndustryBlacklistTypeIds([self::FERNITE_ALLOY]);
+        $this->typeIdsMissingFromSde = [self::SCANDIUM];
+
+        $resource = $this->provide($project);
+
+        self::assertIsArray($resource->tree);
+        self::assertSame(
+            [
+                [['typeId' => self::FERNITE_ALLOY, 'typeName' => 'Fernite Alloy', 'quantity' => 100, 'isBuildable' => false, 'activityType' => null]],
+                [],
+                [['typeId' => self::FERNITE_ALLOY, 'reason' => 'Types missing from the SDE: 16639']],
+            ],
+            [
+                array_values(array_filter($resource->tree['materials'], static fn (array $material): bool => $material['typeId'] === self::FERNITE_ALLOY)),
+                self::nodesOf($resource->tree, self::FERNITE_ALLOY),
+                $resource->failedProducts,
+            ],
+        );
+    }
+
+    #[Group('issue-193')]
+    public function testStepWithoutRecipeConsumedByNoStepIsAFailedProductBesideTheUnchangedTree(): void
+    {
+        $treeWithoutTheAddedStep = $this->treeOf($this->oneRunOfFerniteCarbide(0));
+        $project = $this->oneRunOfFerniteCarbide(0);
+        self::addStep($project, self::OXYGEN_ISOTOPES, 1, 1, 'manufacturing');
+
+        $resource = $this->provide($project);
+
+        self::assertSame(
+            [$treeWithoutTheAddedStep, [['typeId' => self::OXYGEN_ISOTOPES, 'reason' => 'No blueprint or reaction found for product type ID 17887']]],
+            [$resource->tree, $resource->failedProducts],
+        );
+    }
+
+    #[Group('issue-193')]
+    public function testProjectReadResolvesTheNeedsOfItsStepsOnce(): void
+    {
+        $project = $this->oneRunOfFerniteCarbide(10);
+        $this->typeIdsMissingFromSde = [self::SCANDIUM];
+
+        $this->provide($project);
+
+        self::assertSame(1, $this->productsOfBlueprintsReadCount);
     }
 
     #[Group('issue-121')]
@@ -686,7 +808,7 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
         $mapper->method('stepToResource')->willReturn($this->mappedStep);
 
         $typeRepository = $this->typeRepositoryOnGoldenSde();
-        $productRepository = $this->productRepositoryOnGoldenSde();
+        $productRepository = $this->productRepositoryCountingTheProductsOfBlueprintsReads();
         $materialRepository = $this->materialRepositoryOnGoldenSde();
         $entityManager = $this->entityManagerWithoutRows();
         $bonusService = $this->pilotBonusService();
@@ -706,6 +828,23 @@ final class ProjectProviderGoldenTreeCharacterizationTest extends TestCase
             $this->activityRepositoryOnGoldenSde(),
             $entityManager,
         ]);
+    }
+
+    private function productRepositoryCountingTheProductsOfBlueprintsReads(): IndustryActivityProductRepository
+    {
+        $goldenProductRepository = $this->productRepositoryOnGoldenSde();
+
+        $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        $productRepository->method('findBlueprintForProduct')->willReturnCallback($goldenProductRepository->findBlueprintForProduct(...));
+        $productRepository->method('findProductsForBlueprints')->willReturnCallback(
+            function (array $blueprintTypeIds, array $activityIds) use ($goldenProductRepository): array {
+                ++$this->productsOfBlueprintsReadCount;
+
+                return $goldenProductRepository->findProductsForBlueprints($blueprintTypeIds, $activityIds);
+            },
+        );
+
+        return $productRepository;
     }
 
     private function provide(IndustryProject $project): ProjectResource
