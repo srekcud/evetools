@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useFormatters } from '@/composables/useFormatters'
@@ -16,6 +17,10 @@ const emit = defineEmits<{
   importSale: [sale: DetectedLootSale]
   ignoreSale: [sale: DetectedLootSale]
 }>()
+
+function hasAuthenticationNotice(results: LootSaleScanResult): boolean {
+  return results.corporationsWithoutValidCharacter.length > 0 || results.charactersToReconnect.length > 0
+}
 
 const { t } = useI18n()
 const { formatIskFull, formatDate } = useFormatters()
@@ -36,7 +41,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
           <div>
             <h3 :id="titleId" class="text-lg font-semibold">{{ t('pve.detectedLootSales') }}</h3>
             <p class="text-sm text-slate-400 mt-1">
-              {{ t('pve.lootScanSummary', { transactions: scanResults.scannedTransactions, contracts: scanResults.scannedContracts || 0, projects: scanResults.scannedProjects || 0, detected: scanResults.detectedSales.length }) }}
+              {{ t(scanResults.scannedProjects === null ? 'pve.lootScanSummaryUnknownProjects' : 'pve.lootScanSummary', { transactions: scanResults.scannedTransactions, contracts: scanResults.scannedContracts || 0, projects: scanResults.scannedProjects, detected: scanResults.detectedSales.length }) }}
             </p>
           </div>
           <button @click="emit('close')" class="text-slate-400 hover:text-slate-300" :aria-label="t('common.actions.close')">
@@ -47,6 +52,25 @@ const { getTypeIconUrl, onImageError } = useEveImages()
         </div>
       </div>
     </template>
+
+    <div v-if="hasAuthenticationNotice(scanResults)" class="px-6 pt-4 space-y-3">
+      <div
+        v-if="scanResults.corporationsWithoutValidCharacter.length > 0"
+        role="alert"
+        class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400"
+      >
+        {{ t('pve.corpProjectsAuthenticationError', { corporations: scanResults.corporationsWithoutValidCharacter.join(', ') }) }}
+      </div>
+      <div
+        v-if="scanResults.charactersToReconnect.length > 0"
+        class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-400"
+      >
+        {{ t('pve.charactersToReconnect', { count: scanResults.charactersToReconnect.length, names: scanResults.charactersToReconnect.join(', ') }) }}
+      </div>
+      <RouterLink to="/characters" class="inline-block text-sm text-blue-400 hover:text-blue-300 underline">
+        {{ t('pve.reconnectCharactersLink') }}
+      </RouterLink>
+    </div>
 
     <div v-if="scanResults.detectedSales.length > 0" class="flex-1 overflow-y-auto p-6">
       <!-- Sales list -->

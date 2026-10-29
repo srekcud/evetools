@@ -77,6 +77,8 @@ export type DetectedLootSale = {
 export type LootSaleScanResult = {
   scannedTransactions: number
   scannedContracts?: number
-  scannedProjects?: number
+  scannedProjects: number | null
   detectedSales: DetectedLootSale[]
+  charactersToReconnect: string[]
+  corporationsWithoutValidCharacter: string[]
 }

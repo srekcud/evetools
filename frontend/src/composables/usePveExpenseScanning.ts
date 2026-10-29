@@ -9,6 +9,13 @@ import type {
   LootSaleScanResult,
 } from '@/types/pve'
 
+const FAILED_LOOT_SALES_SCAN = {
+  detectedSales: [],
+  scannedProjects: null,
+  charactersToReconnect: [],
+  corporationsWithoutValidCharacter: [],
+}
+
 export function usePveExpenseScanning(
   onDataRefresh: () => Promise<void>,
   onError: (message: string) => void,
@@ -158,7 +165,7 @@ export function usePveExpenseScanning(
         })
       ])
 
-      const lootSalesData = lootSalesResponse.ok ? await lootSalesResponse.json() : { detectedSales: [] }
+      const lootSalesData = lootSalesResponse.ok ? await lootSalesResponse.json() : FAILED_LOOT_SALES_SCAN
       const lootContractsData = lootContractsResponse.ok ? await lootContractsResponse.json() : { detectedContracts: [] }
 
       const lootSales: DetectedLootSale[] = (lootSalesData.detectedSales || [])
@@ -206,7 +213,9 @@ export function usePveExpenseScanning(
       lootScanResults.value = {
         scannedTransactions: lootSalesData.scannedTransactions || 0,
         scannedContracts: (lootSalesData.scannedContracts || 0) + (lootContractsData.scannedContracts || 0),
-        scannedProjects: lootSalesData.scannedProjects || 0,
+        scannedProjects: lootSalesData.scannedProjects,
+        charactersToReconnect: lootSalesData.charactersToReconnect,
+        corporationsWithoutValidCharacter: lootSalesData.corporationsWithoutValidCharacter,
         detectedSales: allSales
       }
       showLootScanResults.value = true
