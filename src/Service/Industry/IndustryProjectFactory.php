@@ -9,10 +9,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\User;
-use App\Enum\IndustryActivityType;
-use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
-use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Mercure\MercurePublisherService;
@@ -35,10 +32,8 @@ class IndustryProjectFactory
         private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryBonusService $bonusService,
         private readonly IndustryCalculationService $calculationService,
-        private readonly CachedCharacterSkillRepository $skillRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityMaterialRepository $materialRepository,
-        private readonly IndustryActivityRepository $activityRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly IndustryBlueprintRepository $blueprintRepository,
@@ -364,108 +359,20 @@ class IndustryProjectFactory
      */
     private function addTimeDataToSteps(array &$steps, User $user): void
     {
-        // Preload all skills for all characters (one query per character)
-        $characterSkillLevels = $this->loadAllCharacterSkills($user);
-
-        // Preload all activities in one batch query
-        $allTypeIds = [];
-        $allActivityIds = [];
-        foreach ($steps as $step) {
-            $activityId = match ($step['activityType']) {
-                'reaction' => IndustryActivityType::Reaction->value,
-                'copy' => IndustryActivityType::Copying->value,
-                default => IndustryActivityType::Manufacturing->value,
-            };
-            $allTypeIds[] = $step['blueprintTypeId'];
-            $allActivityIds[] = $activityId;
-        }
-        $activitiesByKey = $this->activityRepository->findByTypeIdsAndActivityIds($allTypeIds, $allActivityIds);
-
         foreach ($steps as &$step) {
-            $activityId = match ($step['activityType']) {
-                'reaction' => IndustryActivityType::Reaction->value,
-                'copy' => IndustryActivityType::Copying->value,
-                default => IndustryActivityType::Manufacturing->value,
-            };
+            $bestCharacter = $this->calculationService->bestCharacterForStepTime($user, $step['blueprintTypeId'], $step['activityType']);
 
-            $activityKey = $step['blueprintTypeId'] . '-' . $activityId;
-            $activity = $activitiesByKey[$activityKey] ?? null;
-
-            $baseTimePerRun = $activity?->getTime();
-            $step['baseTimePerRun'] = $baseTimePerRun;
-
-            if ($baseTimePerRun === null) {
-                $step['timePerRun'] = null;
-                continue;
-            }
-
-            $isReaction = $step['activityType'] === 'reaction';
-            $structureTimeBonus = $step['structureConfig'] === null
-                ? $this->bonusService->findBestStructureForProductTimeBonus($user, $step['productTypeId'], $isReaction)['bonus']
-                : $this->calculationService->assignedStructureBonusOf($step['structureConfig'], $step['productTypeId'], $isReaction)['timeBonus'];
-
-            $adjustedTimePerRun = $this->bonusService->calculateAdjustedTimePerRun(
-                $baseTimePerRun,
-                $step['teLevel'],
-                $structureTimeBonus
-            );
-
-            // Find the best character's skill multiplier for this specific blueprint
-            $skillMultiplier = $this->findBestSkillMultiplierForBlueprint(
-                $characterSkillLevels,
+            $step['timePerRun'] = $this->calculationService->timePerRunOf(
+                $user,
                 $step['blueprintTypeId'],
+                $step['productTypeId'],
                 $step['activityType'],
+                $step['teLevel'],
+                $step['structureConfig'],
+                $bestCharacter['skills'],
             );
-            $adjustedTimePerRun = (int) ceil($adjustedTimePerRun * $skillMultiplier);
-
-            $step['timePerRun'] = $adjustedTimePerRun;
         }
         unset($step);
-    }
-
-    /**
-     * Load all cached skills for all user's characters.
-     *
-     * @return array<string, array<int, int>> characterName => [skillId => level]
-     */
-    private function loadAllCharacterSkills(User $user): array
-    {
-        $result = [];
-        foreach ($user->getCharacters() as $character) {
-            $charSkills = $this->skillRepository->findAllSkillsForCharacter($character);
-            $levels = [];
-            foreach ($charSkills as $skill) {
-                $levels[$skill->getSkillId()] = $skill->getLevel();
-            }
-            $result[$character->getName()] = $levels;
-        }
-        return $result;
-    }
-
-    /**
-     * Find the best (lowest) skill time multiplier for a specific blueprint
-     * across all characters, including blueprint-specific science skills.
-     *
-     * @param array<string, array<int, int>> $characterSkillLevels
-     */
-    private function findBestSkillMultiplierForBlueprint(
-        array $characterSkillLevels,
-        int $blueprintTypeId,
-        string $activityType,
-    ): float {
-        $scienceSkillIds = $this->calculationService->getBlueprintScienceSkillIds($blueprintTypeId, $activityType);
-
-        $bestMultiplier = 1.0;
-
-        foreach ($characterSkillLevels as $skillLevels) {
-            $multiplier = $this->calculationService->calculateSkillTimeMultiplier($skillLevels, $activityType, $scienceSkillIds);
-
-            if ($multiplier < $bestMultiplier) {
-                $bestMultiplier = $multiplier;
-            }
-        }
-
-        return $bestMultiplier;
     }
 
     /**

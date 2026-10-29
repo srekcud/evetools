@@ -40,8 +40,8 @@ Services déjà branchés sur le noyau (`grep -rln 'App\\Industry\\' src`) :
 | `ProductionStepGraph` | Parcours consommateurs vers matériaux des étapes | `productionStepsByProduct`, `productsFromConsumersToMaterials` | `IndustryStepCalculator`, `ProductionStepNeedsResolver` | couvert via ces classes |
 | `ProductionStepNeedsResolver` | Passe partagée sur les étapes : produits en erreur, besoin, stock, acheté ou blacklisté, runs effectifs et Δ par produit (spec #121, R4 et R5). Résultat : `ProductionStepNeeds` et un `StepProductNeed` par produit | `resolve`, `materialQuantityOf` | `IndustryShoppingListBuilder`, `ProductionTreeFromSteps` | via `IndustryShoppingListBuilderGoldenCharacterizationTest`, `…FromStepsTest` et `ProjectProviderGoldenTreeCharacterizationTest` |
 | `ProductionTreeFromSteps` | Arbre affiché d'un projet, dérivé des étapes : un nœud par produit, références chez les autres consommateurs (spec #121 arbre) | `buildTree` | `ProjectProvider` | `ProjectProviderGoldenTreeCharacterizationTest` (`tests/Unit/State/Provider/Industry/`) |
-| `IndustryCalculationService` | Quantité matériau, bonus de la structure d'une étape, durée par run, compétences | `calculateMaterialQuantity`, `getStructureBonusForStep`, `calculateTimePerRun`, `calculateSkillTimeMultiplier` | factory, `SlotTrackerService`, `ProductionCostService`, `IndustryJobMatcher`, providers | `IndustryCalculationTest` |
-| `IndustryBonusService` | Bonus de structure et de rig (tables codées en dur) et durée ajustée | `findBestStructureForProduct`, `findBestStructureForCategory`, `calculateAdjustedTimePerRun`, `getCategoryForProduct` | factory, `IndustryTreeService`, `IndustryCalculationService`, `IndustryShoppingListBuilder`, `ProductionTreeFromSteps` | `IndustryBonusServiceTest` |
+| `IndustryCalculationService` | Quantité matériau, bonus de la structure d'une étape, durée par run (une seule fonction pour l'affichage et la génération, #126 #134), personnage retenu, compétences | `calculateMaterialQuantity`, `getStructureBonusForStep`, `structureBonusOf`, `timePerRunOf` (temps de base lu par `IndustryActivityRepository` : fabrication, réaction, copie ; `null` sans temps de base), `calculateTimePerRun` (délègue à `timePerRunOf`), `bestCharacterForStepTime` (copie : aucun personnage), `calculateSkillTimeMultiplier` | factory (`addTimeDataToSteps`), `IndustryResourceMapper::stepToResource`, `SlotTrackerService`, `ProductionCostService`, `IndustryJobMatcher`, providers | `IndustryCalculationTest` |
+| `IndustryBonusService` | Bonus de structure et de rig (tables codées en dur) | `findBestStructureForProduct`, `findBestStructureForCategory`, `calculateStructureTimeBonusForCategory`, `getCategoryForProduct` | factory, `IndustryTreeService`, `IndustryCalculationService`, `IndustryShoppingListBuilder`, `ProductionTreeFromSteps` | `IndustryBonusServiceTest` |
 | `IndustryShoppingListBuilder` | Liste d'achats d'un projet (matières premières sur la passe de `ProductionStepNeedsResolver`), produits en erreur | `getShoppingList`, `getPurchasedQuantities` | `ShoppingListProvider`, `ProductionCostService` | `IndustryShoppingListBuilderGoldenCharacterizationTest`, `…FromStepsTest` ; `ShoppingListProviderGoldenCharacterizationTest` |
 | `StockpileService` | Aperçu et import d'un produit en cibles de Stockpile, sur le plan du noyau (demande des intermédiaires, feuilles) ; statut, déficit, produit prêt. Prix absent : montants `null` et `missingPriceTypeIds` (#8) | `previewImport`, `importFromBlueprint`, `getStockpileStatus` ; privées : `stockpileTargetsOf` (cibles et **niveau de Stockpile**), `reduceTargetsByStartingStock`, `amountOf`, `typeIdsWithoutPrice` | `StockpileImportProcessor`, `StockpileImportPreviewProcessor`, `StockpileStatusProvider` | `StockpileServiceTest`, `StockpileGoldenImportCharacterizationTest`, `StockpileStatus*Test` ; `StockpileImportPreviewProcessorTest` (`tests/Unit/State/Processor/Industry/`), `StockpileStatusProviderTest` (`tests/Unit/State/Provider/Industry/`) ; supports `BuildsStockpileOnWidgetSde` |
 | `StockpileStartingStockReducer` | Réduit les cibles par le stock de départ : besoin du plan complet moins besoin du plan réduit (stock du produit importé d'abord, puis stock des intermédiaires) ; imports pris dans l'ordre de création | `reduce` ; privée : `reductionOf` | `StockpileService` | `StockpileStartingStockReducerTest`, `StockpileStatusIntermediateStockTest` |
@@ -87,30 +87,30 @@ Tests d'intégration : `tests/Integration/Service/Industry/IndustryProjectFactor
 | Transport inconnu du scanner (#255) | `BatchProfitScannerService::transportCost` (tarif 0 : 0, connu ; sinon `null` sans volume), `getExportVolume` (produit absent du SDE ou sans volume : `null` ; navire d'un groupe de `SHIP_PACKAGED_VOLUMES` : volume emballé), `loadTypeVolumes` ; export seulement si le lieu de vente est Jita. Motif `UNKNOWN_REASON_MISSING_VOLUME` après les motifs de prix de vente, de prix matériau et d'installation. API : `BatchScanResultResource::$importCost`, `$exportCost` (`?float`). Tests : `BatchProfitScanRulesTest::testProductAndMaterialsWithoutSdeVolumeLeaveBothTransportCostsAndTheProfitUnknown`, `testZeroRatePerCubicMetreChargesNoTransportEvenWithoutSdeVolume`, `testShipOfAGroupWithAPackagedVolumeIsExportedWithItEvenWithoutSdeVolume` ; `BatchScanProviderTest::testUnknownTransportCostsAreExposedAsNullNextToTheKnownOne` ; front : `batchScanTabUnknownTransportCost.spec.ts` |
 | BOM d'un projet de groupe | `GroupIndustryProjectService::buildBom` (appelée par `createProject`) : plan par `planOf` (privée, `ProductionPlanning::planOf`), cibles par `targetsOf` (un item = une cible par produit, ME et TE ; runs additionnés), lignes de job par `jobLinesOf` (`final` ou `component`) et `copyLinesOf` (copie, groupe `blueprint`), invention par `replaceT2BlueprintCopiesByInventions`. Matériaux = `Plan::$leaves`. Tests : `tests/Unit/Service/GroupIndustry/{GroupIndustryProjectServiceTest,GroupIndustryBomGoldenCharacterizationTest}`, `tests/Integration/Service/GroupIndustry/GroupIndustryBomPersistenceTest` |
 | Blacklist | `IndustryBlacklistService::resolveBlacklistedTypeIds` ; écriture : `UpdateBlacklistProcessor`. Buy vs Build ne l'applique pas. Group Industry : `GroupIndustryProjectService::resolveBlacklistedTypeIds` (privée, blacklist du projet) |
-| Durée de job, compétences | `IndustryCalculationService::calculateTimePerRun`, `calculateSkillTimeMultiplier` ; `IndustryProjectFactory::addTimeDataToSteps` ; durée maximale : `IndustryProject::$maxJobDurationDays` ; compétences : `SyncCharacterSkillsProcessor`, `UpdateCharacterSkillProcessor`. Noyau (non branché) : `Domain\JobDuration`, `SkillTimeModifier` |
+| Durée de job, compétences | `IndustryCalculationService::timePerRunOf` (seule durée par run : affichage par `calculateTimePerRun`, génération par `IndustryProjectFactory::addTimeDataToSteps`), `bestCharacterForStepTime`, `calculateSkillTimeMultiplier` ; durée maximale : `IndustryProject::$maxJobDurationDays` ; compétences : `SyncCharacterSkillsProcessor`, `UpdateCharacterSkillProcessor`. Noyau (non branché) : `Domain\JobDuration`, `SkillTimeModifier` |
 | Marge et profit | Marge : `ProfitMarginService::analyze`, `marginsOf`. Coût marginal : `ProductionPlanner::marginalCost`. Coût inconnu : `Domain\Cost`, `MissingDataPresenter::of`. Prix partiel : `Cost::$partialPrices`, `PartialPricePresenter::of` |
 | Mercure, sync des jobs | `SyncCharacterIndustryJobsHandler` (message `SyncCharacterIndustryJobs`) puis `Sync\IndustryJobSyncService::syncCharacterJobs` : `syncStarted`, `syncProgress`, `syncCompleted`, `syncError` sur le type `industry-jobs`. Topics : `MercurePublisherService::getTopicsForUser`. Planification : `SyncScheduler` (message `SyncIndustryJobs`). Front : `stores/sync.ts` |
 
 ## 4. Lire sans tout charger
 
-Fichiers de plus de 400 lignes (`wc -l`, 2026-10-28) :
+Fichiers de plus de 400 lignes (`wc -l`, 2026-10-29) :
 
 | Backend | Lignes |
 |---|---|
 | `src/Service/JitaMarketService.php` | 1081 |
-| `src/Service/Industry/IndustryProjectFactory.php` | 743 |
 | `src/Service/Industry/BatchProfitScannerService.php` | 689 |
-| `src/Service/Industry/IndustryBonusService.php` | 674 |
+| `src/Service/Industry/IndustryProjectFactory.php` | 650 |
 | `src/Service/Industry/PivotAdvisorService.php` | 631 |
+| `src/Service/Industry/IndustryBonusService.php` | 609 |
 | `src/Service/Industry/InventionService.php` | 599 |
 | `src/Entity/IndustryStructureConfig.php` | 507 |
 | `src/Service/Industry/StockpileService.php` | 489 |
 | `src/Entity/IndustryProject.php` | 467 |
-| `src/State/Provider/Industry/IndustryResourceMapper.php` | 462 |
 | `src/Service/GroupIndustry/GroupIndustryProjectService.php` | 453 |
+| `src/Service/Industry/IndustryCalculationService.php` | 445 |
 | `src/Service/Sync/IndustryJobSyncService.php` | 404 |
 
-`ProfitMarginService` (350), `BuyVsBuildService` (356), `IndustryCalculationService` (379) et `IndustryStepCalculator` (108) tiennent sous 400 lignes.
+`ProfitMarginService` (350), `BuyVsBuildService` (356), `IndustryResourceMapper` (378) et `IndustryStepCalculator` (108) tiennent sous 400 lignes.
 
 Frontend : `StructureConfig.vue` 1033, `StepTree.vue` 980, `BuyVsBuildTab.vue` 868, `BatchScanTab.vue` 866, `types.ts` (stores) 845, `ProfitMarginTab.vue` 843, `Industry.vue` 828, `IndustrySlotsSection.vue` 741, `IndustryDashboard.vue` 678, `ProjectTable.vue` 676, `ShoppingTab.vue` 659, `ProjectDetail.vue` 634, `CostEstimationTab.vue` 618, `PivotAdvisorTab.vue` 591, `BpcKitTab.vue` 472.
 
