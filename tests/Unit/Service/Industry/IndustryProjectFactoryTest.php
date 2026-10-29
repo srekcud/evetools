@@ -933,6 +933,61 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame([[3, null, 10400, 'Main']], $this->displayedJobsOf($project, 'manufacturing'));
     }
 
+    #[Group('issue-134')]
+    public function testSplitAndDisplayedTimePerRunTakeTheSkillsOfTheFastestCharacterBetweenSlowerOnes(): void
+    {
+        $user = $this->userWithCharacters([
+            'Trainee' => [CachedCharacterSkill::SKILL_INDUSTRY => 1],
+            'Main' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4],
+            'Alt' => [CachedCharacterSkill::SKILL_INDUSTRY => 4, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5],
+        ]);
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(39001, 39002, 'Fastest Character Product', 20));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['39001-1' => 14300];
+
+        $project = $this->factory->createProject($user, 39002, 20, 10, 2.35, 0);
+
+        $this->assertSame([[20, null, 10068, 'Main']], $this->displayedJobsOf($project, 'manufacturing'));
+    }
+
+    #[Group('issue-134')]
+    public function testRegeneratedStepWithAnAssignedAzbelIsSplitAndDisplayedWithTheTimeBonusOfTheAzbelRatherThanOfTheFavoriteRaitaru(): void
+    {
+        $this->givenAProductInAGroup(38002, 3800, 'advanced_large_ship');
+        $assignedAzbel = self::structure('azbel', self::OTHER_SYSTEM);
+        $this->structuresOfThePilot = [self::structure('raitaru', self::FAVORITE_MANUFACTURING_SYSTEM), $assignedAzbel];
+        $this->favoriteManufacturingSystemId = self::FAVORITE_MANUFACTURING_SYSTEM;
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(38001, 38002, 'Assigned Structure Product', 20));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['38001-1' => 10500];
+        $project = (new IndustryProject())
+            ->setUser($this->userWithCharacters([]))
+            ->setProductTypeId(38002)
+            ->setRuns(20)
+            ->setMeLevel(10)
+            ->setTeLevel(0)
+            ->setMaxJobDurationDays(2.0);
+        $project->addStep((new IndustryProjectStep())
+            ->setBlueprintTypeId(38001)
+            ->setProductTypeId(38002)
+            ->setActivityType('manufacturing')
+            ->setDepth(0)
+            ->setRuns(20)
+            ->setQuantity(20)
+            ->setMeLevel(10)
+            ->setTeLevel(0)
+            ->setStructureConfig($assignedAzbel));
+
+        $this->factory->regenerateSteps($project);
+
+        $this->assertSame([[20, null, 8400, null]], $this->displayedJobsOf($project, 'manufacturing'));
+        $this->assertSame([$assignedAzbel], array_map(
+            static fn (IndustryProjectStep $step): ?IndustryStructureConfig => $step->getStructureConfig(),
+            $this->stepsOfActivity($project, 'manufacturing'),
+        ));
+    }
+
     // ===========================================
     // Step sorting: deepest first, then by activity type
     // ===========================================

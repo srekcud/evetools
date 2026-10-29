@@ -421,6 +421,14 @@ class IndustryCalculationTest extends TestCase
         self::assertNull($this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::REACTIONS_FOUR));
     }
 
+    #[Group('issue-134')]
+    public function testTimePerRunIsRoundedUpToTheNextSecondEvenWhenItsFractionIsBelowOneHalf(): void
+    {
+        $step = $this->stepOfAProject(self::CAPITAL_CARGO_BAY, self::CAPITAL_CARGO_BAY_BLUEPRINT, 'manufacturing', 2);
+
+        self::assertSame(10663, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE));
+    }
+
     #[Group('issue-126')]
     public function testTimePerRunOfACopyStepIsTheCopyingBaseTimeOfTheBlueprint(): void
     {
