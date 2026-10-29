@@ -155,6 +155,17 @@ function bannerLines(wrapper: VueWrapper, banner: string): string[] {
   return wrapper.find(banner).findAll('li').map(line => line.text())
 }
 
+async function closeBanner(wrapper: VueWrapper, banner: string) {
+  const closeButton = wrapper.find(banner).findAll('button').find(button => button.attributes('aria-label') === en.common.actions.close)
+  if (!closeButton) throw new Error('No close button with an accessible name')
+  await closeButton.trigger('click')
+  await flushPromises()
+}
+
+function regenerationError(message: string, timestamp: string): SyncProgress {
+  return syncEvent('industry-project', 'error', null, message, null, timestamp)
+}
+
 enableAutoUnmount(afterEach)
 
 beforeEach(() => {
@@ -252,6 +263,76 @@ describe('StepsTab on jobs sync events (issue 215)', () => {
 
     expect(fetchProject).toHaveBeenCalledTimes(1)
     expect(fetchProject).toHaveBeenCalledWith(PROJECT_ID)
+  })
+
+  it('reloads the project on a jobs sync end received after the jobs match resolved', async () => {
+    const { wrapper, matchJobs, fetchProject } = mountStepsTab()
+    matchJobs.mockResolvedValue([])
+    await openEsiJobsPanel(wrapper)
+    await buttonLabelled(wrapper, en.industry.stepsTab.syncJobs).trigger('click')
+    await flushPromises()
+
+    expect(matchJobs).toHaveBeenCalledTimes(1)
+    expect(fetchProject).toHaveBeenCalledTimes(1)
+
+    await receive(syncEvent('industry-jobs', 'completed', 100, '4 active jobs, 0 ready to deliver', { total: 4, active: 4, ready: 0 }, '2026-10-29T11:15:00+00:00'))
+
+    expect(fetchProject).toHaveBeenCalledTimes(2)
+    expect(fetchProject).toHaveBeenLastCalledWith(PROJECT_ID)
+  })
+
+  it('closes the jobs sync error banner', async () => {
+    const { wrapper } = mountStepsTab()
+    await flushPromises()
+
+    await receive(jobsSyncError('boom E', '2026-10-29T11:25:00+00:00'))
+
+    expect(wrapper.findAll(JOBS_SYNC_ERROR_BANNER)).toHaveLength(1)
+    await closeBanner(wrapper, JOBS_SYNC_ERROR_BANNER)
+
+    expect(wrapper.find(JOBS_SYNC_ERROR_BANNER).exists()).toBe(false)
+  })
+
+  it('shows the translated fallback for a jobs sync error without message', async () => {
+    const { wrapper } = mountStepsTab()
+    await flushPromises()
+
+    await receive(jobsSyncError('', '2026-10-29T11:27:00+00:00'))
+
+    expect(wrapper.findAll(JOBS_SYNC_ERROR_BANNER)).toHaveLength(1)
+    expect(bannerLines(wrapper, JOBS_SYNC_ERROR_BANNER)).toEqual([en.notifications.syncError])
+    expect(bannerLines(wrapper, JOBS_SYNC_ERROR_BANNER)).toEqual(['Sync error'])
+  })
+
+  it('shows the translated fallback for a steps regeneration error without message', async () => {
+    const { wrapper } = mountStepsTab()
+    await flushPromises()
+
+    await receive(regenerationError('', '2026-10-29T11:32:00+00:00'))
+
+    expect(wrapper.findAll(REGENERATION_ERROR_BANNER)).toHaveLength(1)
+    expect(bannerLines(wrapper, REGENERATION_ERROR_BANNER)).toEqual([en.notifications.syncError])
+    expect(bannerLines(wrapper, REGENERATION_ERROR_BANNER)).toEqual(['Sync error'])
+  })
+
+  it('lists two steps regeneration errors and reopens with only the next one after closing', async () => {
+    const { wrapper } = mountStepsTab()
+    await flushPromises()
+
+    await receive(regenerationError('Blueprint missing (fictif)', '2026-10-29T11:37:00+00:00'))
+    await receive(regenerationError('Tree build failed (fictif)', '2026-10-29T11:37:08+00:00'))
+
+    expect(wrapper.findAll(REGENERATION_ERROR_BANNER)).toHaveLength(1)
+    expect(bannerLines(wrapper, REGENERATION_ERROR_BANNER)).toEqual(['Blueprint missing (fictif)', 'Tree build failed (fictif)'])
+
+    await closeBanner(wrapper, REGENERATION_ERROR_BANNER)
+
+    expect(wrapper.find(REGENERATION_ERROR_BANNER).exists()).toBe(false)
+
+    await receive(regenerationError('boom B', '2026-10-29T11:38:00+00:00'))
+
+    expect(wrapper.findAll(REGENERATION_ERROR_BANNER)).toHaveLength(1)
+    expect(bannerLines(wrapper, REGENERATION_ERROR_BANNER)).toEqual(['boom B'])
   })
 
   it('reloads nothing on the job completed and project progress notifications', async () => {

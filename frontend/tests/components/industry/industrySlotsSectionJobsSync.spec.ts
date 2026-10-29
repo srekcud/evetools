@@ -137,6 +137,28 @@ describe('IndustrySlotsSection on jobs sync events (issue 215)', () => {
     expect(bannerLines(wrapper)).toEqual(['boom A'])
   })
 
+  it('keeps the banner on a started or in-progress jobs sync received after an error', async () => {
+    const wrapper = await mountSlotsSection()
+
+    await receive(jobsSyncError('boom A', '2026-10-29T09:35:00+00:00'))
+    await receive(JOBS_SYNC_STARTED)
+    await receive(JOBS_SYNC_AT_30)
+
+    expect(slotsRequestCount()).toBe(1)
+    expect(wrapper.findAll(BANNER)).toHaveLength(1)
+    expect(bannerLines(wrapper)).toEqual(['boom A'])
+  })
+
+  it('shows the translated fallback for an error without message', async () => {
+    const wrapper = await mountSlotsSection()
+
+    await receive(jobsSyncError('', '2026-10-29T09:37:00+00:00'))
+
+    expect(wrapper.findAll(BANNER)).toHaveLength(1)
+    expect(bannerLines(wrapper)).toEqual([en.notifications.syncError])
+    expect(bannerLines(wrapper)).toEqual(['Sync error'])
+  })
+
   it('lists two jobs sync errors with the same text as two lines under the plural title', async () => {
     const wrapper = await mountSlotsSection()
 
@@ -163,6 +185,29 @@ describe('IndustrySlotsSection on jobs sync events (issue 215)', () => {
     expect(wrapper.findAll(BANNER)).toHaveLength(1)
     expect(wrapper.find(BANNER).text()).toContain('Industry jobs sync failed (1 error), the jobs shown may be out of date:')
     expect(bannerLines(wrapper)).toEqual(['boom B'])
+  })
+
+  it('closes the banner listing two jobs sync errors', async () => {
+    const wrapper = await mountSlotsSection()
+
+    await receive(jobsSyncError('boom A', '2026-10-29T09:55:00+00:00'))
+    await receive(jobsSyncError('boom C', '2026-10-29T09:55:04+00:00'))
+
+    expect(bannerLines(wrapper)).toEqual(['boom A', 'boom C'])
+    await closeBanner(wrapper)
+
+    expect(wrapper.find(BANNER).exists()).toBe(false)
+  })
+
+  it('titles the jobs sync error banner in french with the plural for two errors', async () => {
+    const wrapper = await mountSlotsSection('fr')
+
+    await receive(jobsSyncError('boom A', '2026-10-29T10:05:00+00:00'))
+    await receive(jobsSyncError('boom D', '2026-10-29T10:05:06+00:00'))
+
+    expect(wrapper.findAll(BANNER)).toHaveLength(1)
+    expect(wrapper.find(BANNER).text()).toContain('Échec de la synchronisation des jobs (2 erreurs), les jobs affichés peuvent être périmés :')
+    expect(bannerLines(wrapper)).toEqual(['boom A', 'boom D'])
   })
 
   it('titles the jobs sync error banner in french', async () => {
