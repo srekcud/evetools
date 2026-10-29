@@ -37,6 +37,8 @@ class CostEstimationResource
 
     public ?float $perUnit = 0;
 
+    public int $outputQuantity;
+
     /** @var array<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}> */
     public array $materials = [];
 

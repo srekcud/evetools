@@ -1045,7 +1045,7 @@
       "sellPriceComparison": "Sell Price Comparison",
       "totalCostLabel": "Total Cost",
       "sellPriceLabel": "Sell Price",
-      "perUnitShort": "@ {price} / unit",
+      "perUnitShort": "{'@'} {price} / unit",
       "profitLabel": "Profit",
       "marginLabel": "Margin",
       "costBreakdown": "Cost breakdown",

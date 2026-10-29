@@ -24,6 +24,7 @@ final class CostEstimationProviderTest extends TestCase
     private const int PYERITE_TYPE_ID = 35;
     private const int RIFTER_TYPE_ID = 587;
     private const int ROBOTICS_TYPE_ID = 9848;
+    private const int FERNITE_CARBIDE_TYPE_ID = 16673;
     private const string ROBOTICS_FAILURE_REASON = 'No blueprint or reaction found for product type ID 9848';
 
     #[Group('issue-119')]
@@ -37,6 +38,7 @@ final class CostEstimationProviderTest extends TestCase
             'bpoCost' => 1000.0,
             'totalCost' => null,
             'perUnit' => null,
+            'outputQuantity' => 2,
             'materials' => [$this->pyeriteMaterial()],
             'jobInstallSteps' => [],
             'failedProducts' => $failedProducts,
@@ -61,6 +63,7 @@ final class CostEstimationProviderTest extends TestCase
             'bpoCost' => 1000.0,
             'totalCost' => 14700.0,
             'perUnit' => 7350.0,
+            'outputQuantity' => 2,
             'materials' => [$this->pyeriteMaterial()],
             'jobInstallSteps' => [],
             'failedProducts' => [],
@@ -94,6 +97,7 @@ final class CostEstimationProviderTest extends TestCase
             'bpoCost' => 1000.0,
             'totalCost' => null,
             'perUnit' => null,
+            'outputQuantity' => 2,
             'materials' => [$this->pyeriteMaterial()],
             'jobInstallSteps' => [$unknownStep],
             'failedProducts' => [],
@@ -104,6 +108,39 @@ final class CostEstimationProviderTest extends TestCase
         self::assertNull($resource->totalCost);
         self::assertNull($resource->perUnit);
         self::assertSame([$unknownStep], $resource->jobInstallSteps);
+    }
+
+    #[Group('issue-281')]
+    public function testCostEstimationExposesTheOutputQuantityOfTheProject(): void
+    {
+        $resource = $this->provideFor([
+            'materialCost' => 76_400.0,
+            'jobInstallCost' => 3_600.0,
+            'bpoCost' => 12_000.0,
+            'totalCost' => 92_000.0,
+            'perUnit' => 1.15,
+            'outputQuantity' => 80_000,
+            'materials' => [],
+            'jobInstallSteps' => [],
+            'failedProducts' => [],
+        ], self::FERNITE_CARBIDE_TYPE_ID, 8);
+
+        self::assertSame(80_000, $resource->outputQuantity);
+    }
+
+    public function testCostEstimationOfAProjectOfAnotherPilotIsRefusedWithoutEstimatingIt(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturn((new IndustryProject())->setUser(new User())->setProductTypeId(self::RIFTER_TYPE_ID)->setRuns(3));
+        $productionCostService = $this->createMock(ProductionCostService::class);
+        $productionCostService->expects($this->never())->method('estimateTotalCost');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        (new CostEstimationProvider($security, $projectRepository, $productionCostService))->provide(new Get(), ['id' => self::PROJECT_ID]);
     }
 
     #[Group('issue-200')]
@@ -123,13 +160,13 @@ final class CostEstimationProviderTest extends TestCase
             ->provide(new Get(), ['id' => 'cost-1']);
     }
 
-    private function provideFor(array $estimation): CostEstimationResource
+    private function provideFor(array $estimation, int $productTypeId = self::RIFTER_TYPE_ID, int $runs = 2): CostEstimationResource
     {
         $user = new User();
         $project = (new IndustryProject())
             ->setUser($user)
-            ->setProductTypeId(self::RIFTER_TYPE_ID)
-            ->setRuns(2);
+            ->setProductTypeId($productTypeId)
+            ->setRuns($runs);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
         $projectRepository = $this->createStub(IndustryProjectRepository::class);

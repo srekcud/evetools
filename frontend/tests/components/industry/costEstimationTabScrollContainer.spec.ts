@@ -22,6 +22,7 @@ const VEXOR_COST_ESTIMATION: CostEstimation = {
   bpoCost: 0,
   totalCost: 9_522_000,
   perUnit: 3_174_000,
+  outputQuantity: 3,
   materials: [
     { typeId: 34, typeName: 'Tritanium', quantity: 1_350_000, unitPrice: 4.8, totalPrice: 6_480_000 },
     { typeId: 36, typeName: 'Mexallon', quantity: 52_000, unitPrice: 55, totalPrice: 2_860_000 },

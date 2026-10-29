@@ -45,14 +45,51 @@ final class SplitGroupMaterialsTest extends TestCase
         SplitGroupMaterials::outputPerRunOfProduct(null, self::BLUEPRINT_MISSING_FROM_THE_SDE);
     }
 
-    #[Group('issue-137')]
-    public function testUnitsPerRunOfACopyStepAreCurrentlyTheUnitsPerRunOfTheProductManufacturedByItsBlueprintIssue137(): void
+    #[Group('issue-279')]
+    public function testUnitsPerRunOfACopyStepAreOneBlueprintCopy(): void
     {
         $repository = $this->productRepositoryWith(
             $this->activityProduct(self::HELIUM_FUEL_BLOCK_BLUEPRINT, IndustryActivityType::Manufacturing, self::HELIUM_FUEL_BLOCK, self::HELIUM_FUEL_BLOCK_UNITS_PER_RUN),
         );
 
-        self::assertSame(40, SplitGroupMaterials::outputPerRunOf($repository, self::HELIUM_FUEL_BLOCK_BLUEPRINT, 'copy'));
+        self::assertSame(1, SplitGroupMaterials::outputPerRunOf($repository, self::HELIUM_FUEL_BLOCK_BLUEPRINT, 'copy'));
+    }
+
+    #[Group('issue-279')]
+    public function testUnitsPerRunOfACopyStepWhoseBlueprintIsMissingFromTheSdeAreOneBlueprintCopyWithoutReadingTheSde(): void
+    {
+        $repository = $this->createMock(IndustryActivityProductRepository::class);
+        $repository->expects($this->never())->method('findOneBy');
+
+        self::assertSame(1, SplitGroupMaterials::outputPerRunOf($repository, self::BLUEPRINT_MISSING_FROM_THE_SDE, 'copy'));
+    }
+
+    #[Group('issue-279')]
+    public function testUnitsPerRunOfAManufacturingStepAreTheUnitsPerRunOfTheProductOfItsBlueprint(): void
+    {
+        $repository = $this->productRepositoryWith(
+            $this->activityProduct(self::HELIUM_FUEL_BLOCK_BLUEPRINT, IndustryActivityType::Manufacturing, self::HELIUM_FUEL_BLOCK, self::HELIUM_FUEL_BLOCK_UNITS_PER_RUN),
+        );
+
+        self::assertSame(40, SplitGroupMaterials::outputPerRunOf($repository, self::HELIUM_FUEL_BLOCK_BLUEPRINT, 'manufacturing'));
+    }
+
+    #[Group('issue-279')]
+    public function testUnitsPerRunOfAnInventionStepAreReadInTheSdeLikeThoseOfAManufacturingStep(): void
+    {
+        $repository = $this->productRepositoryWith(
+            $this->activityProduct(self::BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED, IndustryActivityType::Manufacturing, self::PRODUCT_MANUFACTURED_AND_REACTED, 25),
+        );
+
+        self::assertSame(25, SplitGroupMaterials::outputPerRunOf($repository, self::BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED, 'invention'));
+    }
+
+    public function testActivityOfAReactionStepIsTheReactionAndThatOfAnyOtherStepIsManufacturing(): void
+    {
+        self::assertSame(
+            [11, 1, 1, 1],
+            array_map(SplitGroupMaterials::activityIdOf(...), ['reaction', 'manufacturing', 'copy', 'invention']),
+        );
     }
 
     #[Group('issue-137')]
