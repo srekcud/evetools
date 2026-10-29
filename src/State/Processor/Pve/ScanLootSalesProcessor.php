@@ -8,9 +8,11 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Pve\DetectedSaleResource;
 use App\ApiResource\Pve\ScanLootSalesResultResource;
+use App\Entity\Character;
 use App\Entity\PveIncome;
 use App\Entity\User;
 use App\Enum\PveIncomeType;
+use App\Exception\EveAuthRequiredException;
 use App\Repository\PveIncomeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
@@ -270,6 +272,8 @@ class ScanLootSalesProcessor implements ProcessorInterface
         // Scan corporation projects contributions
         $scannedProjects = 0;
         $scannedCorporations = [];
+        $corporationsWithoutValidCharacter = [];
+        $refusedCharacterIds = [];
 
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
@@ -290,11 +294,23 @@ class ScanLootSalesProcessor implements ProcessorInterface
             }
             $scannedCorporations[] = $corporationId;
 
-            try {
-                $this->tokenManager->getValidAccessToken($token);
+            $userCharactersMap = [];
+            foreach ($user->getCharacters() as $char) {
+                if ($char->getCorporationId() === $corporationId && $char->getEveToken() !== null) {
+                    $userCharactersMap[$char->getEveCharacterId()] = $char;
+                }
+            }
+            $userCharacterIds = array_keys($userCharactersMap);
 
-                // Get corporation projects (cached)
-                $projects = $this->getCachedCorpProjects($corporationId, $token);
+            try {
+                $projectsReader = $this->selectProjectsReader($userCharactersMap, $corporationId, $refusedCharacterIds);
+
+                if ($projectsReader === null) {
+                    $corporationsWithoutValidCharacter[] = $character->getCorporationName();
+                    continue;
+                }
+
+                ['token' => $token, 'projects' => $projects] = $projectsReader;
 
                 $this->logger->info('Corp projects: Found ' . count($projects) . ' projects for corp ' . $corporationId);
 
@@ -303,16 +319,6 @@ class ScanLootSalesProcessor implements ProcessorInterface
                     static fn (array $project): bool => $project['state'] !== 'Deleted'
                         && new \DateTimeImmutable($project['last_modified']) >= $from,
                 );
-
-                // Build list of user's character IDs in this corporation
-                $userCharacterIds = [];
-                $userCharactersMap = [];
-                foreach ($user->getCharacters() as $char) {
-                    if ($char->getCorporationId() === $corporationId && $char->getEveToken() !== null) {
-                        $userCharacterIds[] = $char->getEveCharacterId();
-                        $userCharactersMap[$char->getEveCharacterId()] = $char;
-                    }
-                }
 
                 foreach ($relevantProjects as $project) {
                     $scannedProjects++;
@@ -349,7 +355,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
                         foreach ($matchingCharIds as $characterId) {
                             $charToCheck = $userCharactersMap[$characterId];
                             $charToken = $charToCheck->getEveToken();
-                            if ($charToken === null) {
+                            if ($charToken === null || !$this->canBeCalledByTheScan($charToCheck, $refusedCharacterIds)) {
                                 continue;
                             }
 
@@ -414,6 +420,9 @@ class ScanLootSalesProcessor implements ProcessorInterface
                                 $sale->projectName = $projectName;
 
                                 $detectedSales[] = $sale;
+                            } catch (EveAuthRequiredException) {
+                                $refusedCharacterIds[$characterId] = true;
+                                continue;
                             } catch (\Throwable) {
                                 continue;
                             }
@@ -431,11 +440,67 @@ class ScanLootSalesProcessor implements ProcessorInterface
 
         $resource->scannedTransactions = $scannedTransactions;
         $resource->scannedContracts = $scannedContracts;
-        $resource->scannedProjects = $scannedProjects;
+        $resource->scannedProjects = $corporationsWithoutValidCharacter === [] ? $scannedProjects : null;
         $resource->detectedSales = $detectedSales;
         $resource->noLootTypesConfigured = false;
+        $resource->charactersToReconnect = $this->namesOfCharactersToReconnect($user, $refusedCharacterIds);
+        $resource->corporationsWithoutValidCharacter = $corporationsWithoutValidCharacter;
 
         return $resource;
+    }
+
+    /**
+     * @param array<int, Character> $corporationCharacters
+     * @param array<int, true> $refusedCharacterIds
+     *
+     * @return array{token: EveToken, projects: array<mixed>}|null
+     */
+    private function selectProjectsReader(array $corporationCharacters, int $corporationId, array &$refusedCharacterIds): ?array
+    {
+        foreach ($corporationCharacters as $candidate) {
+            $candidateToken = $candidate->getEveToken();
+            if ($candidateToken === null || !$this->canBeCalledByTheScan($candidate, $refusedCharacterIds)) {
+                continue;
+            }
+
+            try {
+                $this->tokenManager->getValidAccessToken($candidateToken);
+
+                return [
+                    'token' => $candidateToken,
+                    'projects' => $this->getCachedCorpProjects($corporationId, $candidateToken),
+                ];
+            } catch (EveAuthRequiredException) {
+                $refusedCharacterIds[$candidate->getEveCharacterId()] = true;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<int, true> $refusedCharacterIds
+     */
+    private function canBeCalledByTheScan(Character $character, array $refusedCharacterIds): bool
+    {
+        return $character->isAuthValid() && !isset($refusedCharacterIds[$character->getEveCharacterId()]);
+    }
+
+    /**
+     * @param array<int, true> $refusedCharacterIds
+     *
+     * @return list<string>
+     */
+    private function namesOfCharactersToReconnect(User $user, array $refusedCharacterIds): array
+    {
+        $names = [];
+        foreach ($user->getCharacters() as $character) {
+            if ($character->getEveToken() !== null && !$this->canBeCalledByTheScan($character, $refusedCharacterIds)) {
+                $names[] = $character->getName();
+            }
+        }
+
+        return $names;
     }
 
     /**

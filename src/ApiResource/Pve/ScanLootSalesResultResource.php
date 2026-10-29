@@ -10,10 +10,16 @@ class ScanLootSalesResultResource
 
     public int $scannedContracts = 0;
 
-    public int $scannedProjects = 0;
+    public ?int $scannedProjects = 0;
 
     /** @var DetectedSaleResource[] */
     public array $detectedSales = [];
 
     public bool $noLootTypesConfigured = false;
+
+    /** @var list<string> */
+    public array $charactersToReconnect = [];
+
+    /** @var list<string> */
+    public array $corporationsWithoutValidCharacter = [];
 }
