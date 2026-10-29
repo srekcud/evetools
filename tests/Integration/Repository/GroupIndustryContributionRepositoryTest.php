@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Repository;
 
+use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
@@ -89,6 +90,56 @@ final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->repository->sumApprovedValueByProject([]));
     }
 
+    #[Group('issue-257')]
+    public function testContributedBomItemIdsAreTheLinesOfTheProjectCarryingAContributionOfAnyStatusEachOnce(): void
+    {
+        $sabre = $this->createProject('Sabre batch');
+        $sabreOwner = $this->addMember($sabre, GroupMemberRole::Owner);
+        $sabreAdmin = $this->addMember($sabre, GroupMemberRole::Admin);
+        $tritanium = $this->addBomLine($sabre, 34, 'Tritanium', 120_000);
+        $pyerite = $this->addBomLine($sabre, 35, 'Pyerite', 45_000);
+        $mexallon = $this->addBomLine($sabre, 36, 'Mexallon', 9_600);
+        $this->addBomLine($sabre, 37, 'Isogen', 2_700);
+        $this->addContributionOn($sabreOwner, $tritanium, ContributionStatus::Approved);
+        $this->addContributionOn($sabreOwner, $pyerite, ContributionStatus::Pending);
+        $this->addContributionOn($sabreAdmin, $pyerite, ContributionStatus::Rejected);
+        $this->addContributionOn($sabreAdmin, $mexallon, ContributionStatus::Rejected);
+        $this->addContribution($sabreAdmin, ContributionType::LineRental, 250_000.0, ContributionStatus::Approved);
+        $this->em->flush();
+
+        $expected = [$tritanium->getId()->toRfc4122(), $pyerite->getId()->toRfc4122(), $mexallon->getId()->toRfc4122()];
+        sort($expected);
+        $contributedBomItemIds = $this->repository->findContributedBomItemIds($sabre);
+        sort($contributedBomItemIds);
+
+        self::assertSame($expected, $contributedBomItemIds);
+    }
+
+    #[Group('issue-257')]
+    public function testContributedBomItemIdsAreReadOnlyForTheGivenProject(): void
+    {
+        $sabre = $this->createProject('Sabre batch');
+        $morphite = $this->addBomLine($sabre, 11399, 'Morphite', 150);
+        $this->addContributionOn($this->addMember($sabre, GroupMemberRole::Owner), $morphite, ContributionStatus::Pending);
+        $jackdaw = $this->createProject('Jackdaw batch');
+        $zydrine = $this->addBomLine($jackdaw, 39, 'Zydrine', 820);
+        $this->addContributionOn($this->addMember($jackdaw, GroupMemberRole::Owner), $zydrine, ContributionStatus::Approved);
+        $this->em->flush();
+
+        self::assertSame([$morphite->getId()->toRfc4122()], $this->repository->findContributedBomItemIds($sabre));
+    }
+
+    #[Group('issue-257')]
+    public function testProjectWhoseOnlyContributionHasNoBomLineGivesNoContributedBomItemId(): void
+    {
+        $ishtar = $this->createProject('Ishtar fleet');
+        $this->addBomLine($ishtar, 38, 'Nocxium', 1_350);
+        $this->addContribution($this->addMember($ishtar, GroupMemberRole::Owner), ContributionType::LineRental, 400_000.0, ContributionStatus::Approved);
+        $this->em->flush();
+
+        self::assertSame([], $this->repository->findContributedBomItemIds($ishtar));
+    }
+
     private function createProject(string $name): GroupIndustryProject
     {
         $project = (new GroupIndustryProject())->setOwner($this->createUser())->setName($name);
@@ -106,6 +157,31 @@ final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
         $project->addMember($member);
 
         return $member;
+    }
+
+    private function addBomLine(GroupIndustryProject $project, int $typeId, string $typeName, int $requiredQuantity): GroupIndustryBomItem
+    {
+        $line = (new GroupIndustryBomItem())
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setRequiredQuantity($requiredQuantity)
+            ->setIsJob(false);
+        $project->addBomItem($line);
+
+        return $line;
+    }
+
+    private function addContributionOn(GroupIndustryProjectMember $member, GroupIndustryBomItem $line, ContributionStatus $status): void
+    {
+        $member->getProject()->addContribution(
+            (new GroupIndustryContribution())
+                ->setMember($member)
+                ->setBomItem($line)
+                ->setType(ContributionType::Material)
+                ->setQuantity($line->getRequiredQuantity())
+                ->setEstimatedValue(0.0)
+                ->setStatus($status),
+        );
     }
 
     private function addContribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void

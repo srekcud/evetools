@@ -76,6 +76,11 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
         return $values;
     }
 
+    public function findContributedBomItemIds(GroupIndustryProject $project): array
+    {
+        throw new \LogicException('not implemented');
+    }
+
     public function countByMember(GroupIndustryProjectMember $member): int
     {
         return (int) $this->createQueryBuilder('c')

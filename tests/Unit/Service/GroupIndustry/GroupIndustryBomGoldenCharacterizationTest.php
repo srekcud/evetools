@@ -36,6 +36,7 @@ use App\Industry\Domain\Runs;
 use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Industry\Infrastructure\Sde\SdeBlueprintCatalog;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
@@ -70,6 +71,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private const string NOMAD_GOLDEN = __DIR__.'/../../../Fixtures/Golden/nomad-1run-me10-no-structure.ravworks.json';
     private const int BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
     private const string OWNER_ID = '01890a5d-ac96-774b-bcce-b302099a8057';
+    private const string PERSISTED_LINE_IDENTIFIER_FORMAT = '10000000-0000-4000-8000-%012d';
 
     private const int NITROGEN_FUEL_BLOCK = 4051;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
@@ -112,7 +114,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private const int PROTOTYPE_AMMUNITION_L_INVENTED_BPC_RUNS = 5;
     private const int SYNTHETIC_MAX_PRODUCTION_LIMIT = 300;
     private const int SYNTHETIC_BASE_TIME_SECONDS = 1_200;
-    private const int HAIL_L_MANUFACTURING_LINES_OF_NINE_THOUSAND_RUNS = 900;
+    private const int HAIL_L_MANUFACTURING_LINES_OF_THIRTY_FIVE_THOUSAND_RUNS = 3_500;
 
     private const array INVENTION_TYPE_NAMES = [
         self::DEPLETED_URANIUM_L => 'Depleted Uranium L',
@@ -155,6 +157,12 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private array $ownerStructures = [];
 
     private array $manufacturingRigCategories = [];
+
+    private ?array $contributedBomItemIdsInTheDatabase = null;
+
+    private array $projectsQueriedForTheirContributedBomItems = [];
+
+    private int $persistedLineCount = 0;
 
     private InMemoryUserProductionStructures $userStructures;
     private Connection $connection;
@@ -664,22 +672,23 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     #[Group('issue-105')]
     #[Group('issue-141')]
-    public function testNineThousandRunsOfHailLAreSplitIntoJobsOfTenRunsAndInventedForAllTheirManufacturingRuns(): void
+    #[Group('issue-257')]
+    public function testThirtyFiveThousandRunsOfHailLAreSplitIntoJobsOfTenRunsAndInventedForAllTheirManufacturingRuns(): void
     {
-        $project = $this->projectOf([[self::HAIL_L, 9_000, 2, 4]]);
+        $project = $this->projectOf([[self::HAIL_L, 35_000, 2, 4]]);
 
         $this->service->buildBom($project, $this->owner);
 
         self::assertSame(
-            array_fill(0, self::HAIL_L_MANUFACTURING_LINES_OF_NINE_THOUSAND_RUNS, [self::HAIL_L, 'manufacturing', 'final', 10, 2, 4, 50_000, null]),
+            array_fill(0, self::HAIL_L_MANUFACTURING_LINES_OF_THIRTY_FIVE_THOUSAND_RUNS, [self::HAIL_L, 'manufacturing', 'final', 10, 2, 4, 50_000, null]),
             $this->jobsOfTypeAndActivity($project, self::HAIL_L, 'manufacturing'),
         );
-        self::assertSame($this->hailLInventionJobs(2_648), $this->inventionJobs($project));
+        self::assertSame($this->hailLInventionJobs(10_295), $this->inventionJobs($project));
         self::assertSame(
-            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 2_648], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 5_296]],
+            [[self::DATACORE_NUCLEAR_PHYSICS, 'Datacore - Nuclear Physics', 10_295], [self::DATACORE_MECHANICAL_ENGINEERING, 'Datacore - Mechanical Engineering', 20_590]],
             $this->datacoreLines($project),
         );
-        self::assertCount(958, $project->getBomItems());
+        self::assertCount(3_616, $project->getBomItems());
     }
 
     #[Group('issue-105')]
@@ -1212,8 +1221,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     public static function planWithinTheBomLineLimitProvider(): iterable
     {
-        yield 'nine hundred eighty-nine jobs, one copy and nine materials' => [989, 999];
-        yield 'nine hundred ninety jobs, one copy and nine materials, exactly the limit' => [990, 1_000];
+        yield 'four thousand nine hundred eighty-nine jobs, one copy and nine materials' => [4_989, 4_999];
+        yield 'four thousand nine hundred ninety jobs, one copy and nine materials, exactly the limit' => [4_990, 5_000];
     }
 
     #[Group('issue-164')]
@@ -1234,10 +1243,10 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     #[Group('issue-164')]
     #[Group('issue-257')]
-    public function testPlanOfOneThousandAndOneBomLinesIsRefusedNamingItsLineCountAndTheLimitBeforeAnyPriceIsRead(): void
+    public function testPlanOfFiveThousandAndOneBomLinesIsRefusedNamingItsLineCountAndTheLimitBeforeAnyPriceIsRead(): void
     {
         $this->maxProductionLimitOverrides = [self::NITROGEN_FUEL_BLOCK => 1];
-        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 991, 10, 20]]);
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 4_991, 10, 20]]);
 
         $failure = null;
         try {
@@ -1247,8 +1256,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         }
 
         self::assertInstanceOf(\RuntimeException::class, $failure);
-        self::assertMatchesRegularExpression('/(?<![\d,.])1001(?![\d,.])/', $failure->getMessage());
-        self::assertMatchesRegularExpression('/(?<![\d,.])1000(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5000(?![\d,.])/', $failure->getMessage());
         self::assertCount(0, $project->getBomItems());
         self::assertSame([], $this->pricedTypeIds);
     }
@@ -1260,20 +1269,21 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $this->maxProductionLimitOverrides = [self::NITROGEN_FUEL_BLOCK => 1];
 
         [$failure, $persisted, $flushCount] = $this->createProjectFailure(
-            [['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 991]],
+            [['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 4_991]],
         );
 
         self::assertInstanceOf(\RuntimeException::class, $failure);
-        self::assertMatchesRegularExpression('/(?<![\d,.])1001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5000(?![\d,.])/', $failure->getMessage());
         self::assertSame([], $persisted);
         self::assertSame(0, $flushCount);
     }
 
     #[Group('issue-164')]
     #[Group('issue-257')]
-    public function testOneThousandRunsOfFenrirAtItsMaxProductionLimitOfOneAreRefusedNamingTheBomLineLimit(): void
+    public function testFiveThousandRunsOfFenrirAtItsMaxProductionLimitOfOneAreRefusedNamingTheirLineCountAndTheBomLineLimit(): void
     {
-        $project = $this->projectOf([[self::FENRIR, 1_000, 10, 20]]);
+        $project = $this->projectOf([[self::FENRIR, 5_000, 10, 20]]);
 
         $failure = null;
         try {
@@ -1284,7 +1294,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
         self::assertInstanceOf(\RuntimeException::class, $failure);
         self::assertMatchesRegularExpression('/BOM lines/', $failure->getMessage());
-        self::assertMatchesRegularExpression('/(?<![\d,.])1000(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])27257(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5000(?![\d,.])/', $failure->getMessage());
         self::assertCount(0, $project->getBomItems());
         self::assertSame([], $this->pricedTypeIds);
     }
@@ -1305,12 +1316,12 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     public function testInventionAndCopyLinesOfAT2PlanCountTowardsTheBomLineLimitAtExactlyTheLimit(): void
     {
         $this->maxProductionLimitOverrides = [self::HAIL_L => 1];
-        $project = $this->projectOf([[self::HAIL_L, 958, 2, 4]]);
+        $project = $this->projectOf([[self::HAIL_L, 4_954, 2, 4]]);
 
         $this->service->buildBom($project, $this->owner);
 
-        self::assertCount(1_000, $project->getBomItems());
-        self::assertCount(958, $this->jobsOf($project, self::HAIL_L, 'manufacturing'));
+        self::assertCount(5_000, $project->getBomItems());
+        self::assertCount(4_954, $this->jobsOf($project, self::HAIL_L, 'manufacturing'));
         self::assertCount(1, $this->jobsOf($project, self::HAIL_L, 'invention'));
         self::assertCount(1, $this->jobsOf($project, self::DEPLETED_URANIUM_L, 'copy'));
         self::assertSame([], $this->jobsOf($project, self::HAIL_L, 'copy'));
@@ -1321,7 +1332,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     public function testInventionAndCopyLinesOfAT2PlanPushItOneLineOverTheBomLineLimit(): void
     {
         $this->maxProductionLimitOverrides = [self::HAIL_L => 1];
-        $project = $this->projectOf([[self::HAIL_L, 959, 2, 4]]);
+        $project = $this->projectOf([[self::HAIL_L, 4_955, 2, 4]]);
 
         $failure = null;
         try {
@@ -1331,7 +1342,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         }
 
         self::assertInstanceOf(\RuntimeException::class, $failure);
-        self::assertMatchesRegularExpression('/(?<![\d,.])1001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5000(?![\d,.])/', $failure->getMessage());
         self::assertCount(0, $project->getBomItems());
         self::assertSame([], $this->pricedTypeIds);
     }
@@ -1341,7 +1353,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     public function testBomLineLimitCountsTheWholePlanOfAllTheItemsOfTheProject(): void
     {
         $this->maxProductionLimitOverrides = [self::NITROGEN_FUEL_BLOCK => 1];
-        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 500, 10, 20], [self::NITROGEN_FUEL_BLOCK, 491, 10, 20]]);
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 2_500, 10, 20], [self::NITROGEN_FUEL_BLOCK, 2_491, 10, 20]]);
 
         $failure = null;
         try {
@@ -1351,7 +1363,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         }
 
         self::assertInstanceOf(\RuntimeException::class, $failure);
-        self::assertMatchesRegularExpression('/(?<![\d,.])1001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5000(?![\d,.])/', $failure->getMessage());
         self::assertCount(0, $project->getBomItems());
     }
 
@@ -1365,7 +1378,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
         $approvedIsotopes = $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $isotopes->setFulfilledQuantity(300);
-        $project->getItems()->first()->setRuns(991);
+        $project->getItems()->first()->setRuns(4_991);
         $statesBeforeRebuild = $this->lineStates($project);
         $pricingCallsBeforeRebuild = $this->pricedTypeIds;
 
@@ -1377,7 +1390,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         }
 
         self::assertInstanceOf(\RuntimeException::class, $failure);
-        self::assertMatchesRegularExpression('/(?<![\d,.])1001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5001(?![\d,.])/', $failure->getMessage());
+        self::assertMatchesRegularExpression('/(?<![\d,.])5000(?![\d,.])/', $failure->getMessage());
         self::assertCount(11, $statesBeforeRebuild);
         self::assertSame($statesBeforeRebuild, $this->lineStates($project));
         self::assertSame($this->idsOf([$approvedIsotopes]), $this->idsOf($project->getContributions()->toArray()));
@@ -1980,6 +1994,87 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame($this->idsOf([$approvedIsotopes]), $this->idsOf($project->getContributions()->toArray()));
     }
 
+    #[Group('issue-257')]
+    public function testLineContributedSinceTheProjectWasLoadedIsKeptWhenDroppedFromThePlan(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $this->persistLines($project);
+        $robotics = $this->bomItemsOf($project, self::ROBOTICS)[0];
+        $this->contributedBomItemIdsInTheDatabase = [$robotics->getId()->toRfc4122()];
+        $this->removeMaterialsFromTheRecipe(self::NITROGEN_FUEL_BLOCK, [self::ROBOTICS]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$robotics]), $this->idsOf($this->bomItemsOf($project, self::ROBOTICS)));
+        self::assertSame([1, 0], [$robotics->getRequiredQuantity(), $robotics->getFulfilledQuantity()]);
+        self::assertCount(11, $project->getBomItems());
+        self::assertCount(0, $project->getContributions());
+    }
+
+    #[Group('issue-257')]
+    public function testContributionLeftInTheLoadedProjectButNoLongerInTheDatabaseKeepsNoLineDroppedFromThePlan(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $this->persistLines($project);
+        $this->contribution($project, new GroupIndustryProjectMember(), $this->bomItemsOf($project, self::ROBOTICS)[0], ContributionType::Material, 1, ContributionStatus::Pending);
+        $this->contributedBomItemIdsInTheDatabase = [];
+        $this->removeMaterialsFromTheRecipe(self::NITROGEN_FUEL_BLOCK, [self::ROBOTICS]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame([], $this->idsOf($this->bomItemsOf($project, self::ROBOTICS)));
+        self::assertCount(10, $project->getBomItems());
+    }
+
+    #[Group('issue-257')]
+    public function testFewerSplitJobsOfEqualRunsKeepTheJobContributedSinceTheProjectWasLoadedBeforeTheLowestIdentifier(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 100, 10, 20]]);
+        $lowIdentifierJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000001', 125, 5_000);
+        $contributedJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000002', 125, 5_000);
+        $this->contributedBomItemIdsInTheDatabase = ['00000000-0000-4000-8000-000000000002'];
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertSame($this->idsOf([$contributedJob]), $this->idsOf($this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')));
+        self::assertSame([100, 4_000], [$contributedJob->getRuns(), $contributedJob->getRequiredQuantity()]);
+        self::assertFalse($project->getBomItems()->contains($lowIdentifierJob));
+    }
+
+    #[Group('issue-257')]
+    public function testBomOfAProjectWithoutAnyLineIsBuiltWithoutReadingTheContributedLines(): void
+    {
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertCount(11, $project->getBomItems());
+        self::assertSame([], $this->projectsQueriedForTheirContributedBomItems);
+    }
+
+    public static function projectOfSeveralLineCountsProvider(): iterable
+    {
+        yield 'eleven lines' => [1, 11];
+        yield 'two hundred sixty lines' => [250, 260];
+    }
+
+    #[Group('issue-257')]
+    #[DataProvider('projectOfSeveralLineCountsProvider')]
+    public function testRebuildReadsTheContributedLinesOfTheProjectOnceWhateverItsLineCount(int $runs, int $lineCount): void
+    {
+        $this->maxProductionLimitOverrides = [self::NITROGEN_FUEL_BLOCK => 1];
+        $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, $runs, 0, 0]]);
+        $this->service->buildBom($project, $this->owner);
+        $this->persistLines($project);
+
+        $this->service->buildBom($project, $this->owner);
+
+        self::assertCount($lineCount, $project->getBomItems());
+        self::assertSame([spl_object_id($project)], array_map(spl_object_id(...), $this->projectsQueriedForTheirContributedBomItems));
+    }
+
     #[Group('issue-107')]
     public function testFinalManufacturingJobOfOneRunRequiresTheUnitsProducedByThatRun(): void
     {
@@ -2324,8 +2419,51 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             ->setEstimatedValue(0.0)
             ->setStatus($status);
         $project->addContribution($contribution);
+        $this->persistLine($bomItem);
 
         return $contribution;
+    }
+
+    private function persistLines(GroupIndustryProject $project): void
+    {
+        foreach ($project->getBomItems() as $line) {
+            $this->persistLine($line);
+        }
+    }
+
+    private function persistLine(GroupIndustryBomItem $line): void
+    {
+        if ($line->getId() !== null) {
+            return;
+        }
+
+        ++$this->persistedLineCount;
+        (new \ReflectionProperty(GroupIndustryBomItem::class, 'id'))->setValue($line, Uuid::fromString(\sprintf(self::PERSISTED_LINE_IDENTIFIER_FORMAT, $this->persistedLineCount)));
+    }
+
+    private function contributionRepositoryOnTheContributionsOfTheProject(): GroupIndustryContributionRepository
+    {
+        $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
+        $contributionRepository->method('findContributedBomItemIds')->willReturnCallback(function (GroupIndustryProject $project): array {
+            $this->projectsQueriedForTheirContributedBomItems[] = $project;
+
+            return $this->contributedBomItemIdsInTheDatabase ?? $this->contributedBomItemIdsOf($project);
+        });
+
+        return $contributionRepository;
+    }
+
+    private function contributedBomItemIdsOf(GroupIndustryProject $project): array
+    {
+        $contributedBomItemIds = [];
+        foreach ($project->getContributions() as $contribution) {
+            $contributedLine = $contribution->getBomItem();
+            if ($contributedLine !== null) {
+                $contributedBomItemIds[] = $contributedLine->getId()->toRfc4122();
+            }
+        }
+
+        return array_values(array_unique($contributedBomItemIds));
     }
 
     private function serviceInventing(?float $hailLBaseProbability, int $hailLInventedBpcRuns = self::HAIL_L_INVENTED_BPC_RUNS): GroupIndustryProjectService
@@ -2357,6 +2495,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             $inventionService,
             $productRepository,
             $activityRepository,
+            $this->contributionRepositoryOnTheContributionsOfTheProject(),
         );
     }
 

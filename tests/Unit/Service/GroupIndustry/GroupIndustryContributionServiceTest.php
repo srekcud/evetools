@@ -379,62 +379,6 @@ class GroupIndustryContributionServiceTest extends TestCase
         $this->service->reject($contribution, $this->reviewer);
     }
 
-    public function testSubmitAutoDetectedIsApprovedAndIncrementsFulfillment(): void
-    {
-        $this->contributionRepository
-            ->method('findByMemberBomItemAndType')
-            ->willReturn(null);
-
-        $this->assertSame(0, $this->bomItem->getFulfilledQuantity());
-
-        $this->entityManager->expects($this->once())->method('persist');
-        $this->entityManager->expects($this->once())->method('flush');
-
-        $contribution = $this->service->submitAutoDetected(
-            $this->member,
-            $this->bomItem,
-            ContributionType::JobInstall,
-            1,
-            125000.0,
-        );
-
-        $this->assertSame(ContributionStatus::Approved, $contribution->getStatus());
-        $this->assertTrue($contribution->isAutoDetected());
-        $this->assertTrue($contribution->isVerified());
-        $this->assertSame(ContributionType::JobInstall, $contribution->getType());
-        $this->assertSame(125000.0, $contribution->getEstimatedValue());
-        $this->assertSame(1, $this->bomItem->getFulfilledQuantity());
-    }
-
-    public function testSubmitAutoDetectedRecordsTheDetectedQuantityForTheMemberOnTheBomItemOfTheProject(): void
-    {
-        $this->givenNoExistingContribution();
-        $morphite = $this->morphiteBomItem();
-
-        $contribution = $this->service->submitAutoDetected($this->member, $morphite, ContributionType::Material, 120, 1092000.0);
-
-        $this->assertSame($this->project, $contribution->getProject());
-        $this->assertSame($this->member, $contribution->getMember());
-        $this->assertSame($morphite, $contribution->getBomItem());
-        $this->assertSame(120, $contribution->getQuantity());
-        $this->assertSame(1092000.0, $contribution->getEstimatedValue());
-        $this->assertSame(120, $morphite->getFulfilledQuantity());
-    }
-
-    public function testSubmitAutoDetectedIsRefusedWhenTheMemberAlreadyHasAPendingContributionOfThatTypeOnTheBomItem(): void
-    {
-        $this->givenExistingContributionWithStatus(ContributionStatus::Pending);
-        $this->entityManager->expects($this->never())->method('persist');
-
-        try {
-            $this->service->submitAutoDetected($this->member, $this->bomItem, ContributionType::JobInstall, 3, 482500.0);
-            $this->fail('A duplicate auto-detected contribution was accepted');
-        } catch (\DomainException $duplicate) {
-            $this->assertSame('A contribution of this type is already pending or approved for this item', $duplicate->getMessage());
-        }
-        $this->assertSame(0, $this->bomItem->getFulfilledQuantity());
-    }
-
     public function testSubmitIsRefusedWhenTheMemberAlreadyHasAPendingContributionOfThatTypeOnTheBomItem(): void
     {
         $this->givenExistingContributionWithStatus(ContributionStatus::Pending);

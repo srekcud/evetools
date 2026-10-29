@@ -23,6 +23,7 @@ use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -652,6 +653,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
             $this->inventionService,
             $this->activityProductRepository(),
             $this->activityRepository(),
+            $this->createStub(GroupIndustryContributionRepository::class),
         );
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
 use App\Entity\GroupIndustryProject;
@@ -19,6 +20,7 @@ use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -137,6 +139,76 @@ class UpdateGroupProjectProcessorTest extends TestCase
         self::assertSame('completed', $resource->status);
         self::assertSame(GroupProjectStatus::Completed, $this->project->getStatus());
         self::assertNotNull($this->project->getCompletedAt());
+    }
+
+    #[Group('issue-257')]
+    public function testSalesTaxBringingTheFeesToExactlyOneHundredWithTheRecordedBrokerFeeIsSaved(): void
+    {
+        $this->project->setBrokerFeePercent(3.6);
+        $input = new UpdateGroupProjectInput();
+        $input->salesTaxPercent = 96.4;
+
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->update($input);
+
+        self::assertSame([3.6, 96.4], [$this->project->getBrokerFeePercent(), $this->project->getSalesTaxPercent()]);
+        self::assertSame(96.4, $resource->salesTaxPercent);
+    }
+
+    #[Group('issue-257')]
+    public function testSalesTaxBringingTheFeesOverOneHundredWithTheRecordedBrokerFeeIsRejectedOnTheSalesTaxAndChangesNothing(): void
+    {
+        $this->project->setBrokerFeePercent(3.6);
+        $input = new UpdateGroupProjectInput();
+        $input->name = 'Rorqual batch';
+        $input->salesTaxPercent = 96.5;
+
+        $this->assertFeesAreRejectedOnTheSalesTax($input);
+
+        self::assertSame(['Orca batch', 3.6, 3.6], [$this->project->getName(), $this->project->getBrokerFeePercent(), $this->project->getSalesTaxPercent()]);
+    }
+
+    #[Group('issue-257')]
+    public function testBrokerFeeBringingTheFeesOverOneHundredWithTheRecordedSalesTaxIsRejectedOnTheSalesTaxAndChangesNothing(): void
+    {
+        $input = new UpdateGroupProjectInput();
+        $input->brokerFeePercent = 99.0;
+
+        $this->assertFeesAreRejectedOnTheSalesTax($input);
+
+        self::assertSame([3.0, 3.6], [$this->project->getBrokerFeePercent(), $this->project->getSalesTaxPercent()]);
+    }
+
+    #[Group('issue-257')]
+    public function testBrokerFeeBringingTheFeesToExactlyOneHundredWithTheRecordedSalesTaxIsSaved(): void
+    {
+        $input = new UpdateGroupProjectInput();
+        $input->brokerFeePercent = 96.4;
+
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->update($input);
+
+        self::assertSame([96.4, 3.6], [$this->project->getBrokerFeePercent(), $this->project->getSalesTaxPercent()]);
+        self::assertSame(96.4, $resource->brokerFeePercent);
+    }
+
+    private function assertFeesAreRejectedOnTheSalesTax(UpdateGroupProjectInput $input): void
+    {
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (ValidationException $exception) {
+            $refusal = $exception;
+        }
+
+        self::assertInstanceOf(ValidationException::class, $refusal);
+        self::assertSame(422, $refusal->getStatusCode());
+        self::assertCount(1, $refusal->getConstraintViolationList());
+        self::assertSame('salesTaxPercent', $refusal->getConstraintViolationList()->get(0)->getPropertyPath());
     }
 
     private function assertUpdateIsRefused(UpdateGroupProjectInput $input): void

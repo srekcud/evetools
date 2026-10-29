@@ -227,3 +227,23 @@ describe('ContributeModal for a material without BOM price, an unknown value', (
     expect(modalText(wrapper)).not.toContain('Figé le')
   })
 })
+
+describe('ContributeModal labels of the auto-calculated BOM price', () => {
+  it('reads « Auto-calculated » and « Unit price: » in English from translation keys that exist', async () => {
+    const wrapper = await openModalFor(TRITANIUM_AT_BOM_PRICE)
+
+    expect(modalText(wrapper)).toContain('Auto-calculated')
+    expect(modalText(wrapper)).toContain('Unit price:')
+    expect(modalText(wrapper)).not.toContain('groupIndustry.contribute')
+  })
+
+  it('reads « Calculé automatiquement » and « Prix unitaire : » in French', async () => {
+    const wrapper = await openModalFor(TRITANIUM_AT_BOM_PRICE, { locale: 'fr' })
+
+    expect(modalText(wrapper)).toContain('Calculé automatiquement')
+    expect(modalText(wrapper)).toContain('Prix unitaire :')
+    expect(modalText(wrapper)).not.toContain('Auto-calculated')
+    expect(modalText(wrapper)).not.toContain('Unit price')
+    expect(modalText(wrapper)).not.toContain('groupIndustry.contribute')
+  })
+})

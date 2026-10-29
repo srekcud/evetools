@@ -19,6 +19,7 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\GroupIndustry\CreateProjectData;
@@ -26,11 +27,16 @@ use App\Service\GroupIndustry\GroupIndustryProjectService;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Tests\Integration\IntegrationTestCase;
+use App\Tests\Integration\RecordsSqlQueries;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
+use Symfony\Component\Uid\Uuid;
 
 final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 {
+    use RecordsSqlQueries;
+
     private const int ACTIVITY_MANUFACTURING = 1;
     private const int ACTIVITY_COPYING = 5;
 
@@ -83,6 +89,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             self::getContainer()->get(InventionService::class),
             self::getContainer()->get(IndustryActivityProductRepository::class),
             self::getContainer()->get(IndustryActivityRepository::class),
+            self::getContainer()->get(GroupIndustryContributionRepository::class),
         );
     }
 
@@ -237,6 +244,75 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             ),
         );
         self::assertSame($contributionsBefore, $this->persistedContributionRows($projectId));
+    }
+
+    #[Group('issue-257')]
+    public function testLineContributedAfterTheProjectWasLoadedIsKeptWithItsContributionWhenDroppedFromThePlan(): void
+    {
+        $projectId = (string) $this->createNitrogenFuelBlockProject(runs: 1, meLevel: 0, teLevel: 0)->getId();
+        $this->flushAndClear();
+        [$project, $owner] = $this->loadedProjectAndOwner($projectId);
+        self::assertCount(0, $project->getContributions());
+        $roboticsId = $this->connection->fetchOne('SELECT id FROM group_industry_bom_items WHERE project_id = ? AND type_id = ?', [$projectId, self::ROBOTICS]);
+        $this->insertMaterialContributionOfOneUnit($projectId, $roboticsId);
+        $this->connection->delete('sde_industry_activity_materials', ['type_id' => self::NITROGEN_FUEL_BLOCK_BLUEPRINT, 'material_type_id' => self::ROBOTICS]);
+
+        $this->service->buildBom($project, $owner);
+        $this->flushAndClear();
+
+        self::assertSame(
+            [[$roboticsId, 1, 0]],
+            $this->connection->fetchAllNumeric(
+                'SELECT id, required_quantity, fulfilled_quantity FROM group_industry_bom_items WHERE project_id = ? AND type_id = ?',
+                [$projectId, self::ROBOTICS],
+            ),
+        );
+        self::assertSame([[ContributionType::Material->value, 1, ContributionStatus::Pending->value, $roboticsId]], $this->persistedContributionRows($projectId));
+        self::assertSame(11, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM group_industry_bom_items WHERE project_id = ?', [$projectId]));
+    }
+
+    public static function projectOfSeveralLineCountsProvider(): iterable
+    {
+        yield 'one run, eleven lines' => [1, 11];
+        yield 'twenty-five runs at a max production limit of one, thirty-five lines' => [25, 35];
+    }
+
+    #[Group('issue-257')]
+    #[DataProvider('projectOfSeveralLineCountsProvider')]
+    public function testRebuildReadsTheContributedLinesOfTheProjectInOneQueryWhateverItsLineCount(int $runs, int $lineCount): void
+    {
+        $this->connection->update('sde_industry_blueprints', ['max_production_limit' => 1], ['type_id' => self::NITROGEN_FUEL_BLOCK_BLUEPRINT]);
+        $projectId = (string) $this->createNitrogenFuelBlockProject(runs: $runs, meLevel: 0, teLevel: 0)->getId();
+        $this->flushAndClear();
+        [$project, $owner] = $this->loadedProjectAndOwner($projectId);
+        self::assertCount(0, $project->getContributions());
+
+        $contributionQueries = $this->queriesMatching(
+            $this->sqlExecutedDuring(fn () => $this->service->buildBom($project, $owner)),
+            '/\bgroup_industry_contributions\b/',
+        );
+
+        self::assertCount($lineCount, $project->getBomItems());
+        self::assertCount(1, $contributionQueries, implode("\n", $contributionQueries));
+    }
+
+    private function loadedProjectAndOwner(string $projectId): array
+    {
+        $project = $this->em->find(GroupIndustryProject::class, $projectId);
+        \assert($project instanceof GroupIndustryProject);
+        $owner = $this->em->find(User::class, $this->owner->getId());
+        \assert($owner instanceof User);
+
+        return [$project, $owner];
+    }
+
+    private function insertMaterialContributionOfOneUnit(string $projectId, string $bomItemId): void
+    {
+        $this->connection->executeStatement(
+            "INSERT INTO group_industry_contributions (id, project_id, member_id, bom_item_id, type, quantity, estimated_value, status, is_auto_detected, is_verified, created_at)
+             SELECT ?, project_id, id, ?, ?, 1, 76000, ?, false, false, NOW() FROM group_industry_project_members WHERE project_id = ?",
+            [Uuid::v7()->toRfc4122(), $bomItemId, ContributionType::Material->value, ContributionStatus::Pending->value, $projectId],
+        );
     }
 
     private function createNitrogenFuelBlockProject(int $runs, int $meLevel, int $teLevel): GroupIndustryProject

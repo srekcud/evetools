@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
 use App\Entity\GroupIndustryProject;
@@ -116,13 +117,79 @@ class CreateGroupProjectProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn($this->owner);
         $this->givenSabreHasABlueprint();
         $this->projectService->method('createProject')->willThrowException(
-            new \RuntimeException('The production plan has 1001 BOM lines, the limit is 1000.'),
+            new \RuntimeException('The production plan has 5001 BOM lines, above the limit of 5000 BOM lines per project.'),
         );
 
         $this->expectException(BadRequestHttpException::class);
-        $this->expectExceptionMessage('The production plan has 1001 BOM lines, the limit is 1000.');
+        $this->expectExceptionMessage('The production plan has 5001 BOM lines, above the limit of 5000 BOM lines per project.');
 
         $this->processor->process($this->sabreInput(), new Post());
+    }
+
+    public static function effectiveFeesOverOneHundredProvider(): iterable
+    {
+        yield 'F9 broker fee of one hundred sent, sales tax of 3.6 from the settings' => [[0.015, 0.036], 100.0, null];
+        yield 'broker fee of 96.41 sent, sales tax of 3.6 by default without settings' => [null, 96.41, null];
+        yield 'sales tax of 98.51 sent, broker fee of 1.5 from the settings' => [[0.015, 0.045], null, 98.51];
+    }
+
+    #[Group('issue-257')]
+    #[DataProvider('effectiveFeesOverOneHundredProvider')]
+    public function testEffectiveFeesSummingOverOneHundredAreRejectedOnTheSalesTaxAndNoProjectIsCreated(?array $ownerRates, ?float $brokerFeePercentSent, ?float $salesTaxPercentSent): void
+    {
+        $this->givenOwnerRates($ownerRates);
+        $input = $this->sabreInput();
+        $input->brokerFeePercent = $brokerFeePercentSent;
+        $input->salesTaxPercent = $salesTaxPercentSent;
+
+        $refusal = null;
+        try {
+            $this->createProjectFrom($input);
+        } catch (ValidationException $exception) {
+            $refusal = $exception;
+        }
+
+        self::assertInstanceOf(ValidationException::class, $refusal);
+        self::assertSame(422, $refusal->getStatusCode());
+        self::assertCount(1, $refusal->getConstraintViolationList());
+        self::assertSame('salesTaxPercent', $refusal->getConstraintViolationList()->get(0)->getPropertyPath());
+        self::assertNull($this->createdProjectData);
+    }
+
+    public static function effectiveFeesOfExactlyOneHundredProvider(): iterable
+    {
+        yield 'broker fee of 96.4 sent, sales tax of 3.6 from the settings' => [[0.015, 0.036], 96.4, null, 96.4, 3.6];
+        yield 'sales tax of 98.5 sent, broker fee of 1.5 from the settings' => [[0.015, 0.045], null, 98.5, 1.5, 98.5];
+    }
+
+    #[Group('issue-257')]
+    #[DataProvider('effectiveFeesOfExactlyOneHundredProvider')]
+    public function testEffectiveFeesSummingToExactlyOneHundredCreateTheProject(?array $ownerRates, ?float $brokerFeePercentSent, ?float $salesTaxPercentSent, float $expectedBrokerFeePercent, float $expectedSalesTaxPercent): void
+    {
+        $this->givenOwnerRates($ownerRates);
+        $input = $this->sabreInput();
+        $input->brokerFeePercent = $brokerFeePercentSent;
+        $input->salesTaxPercent = $salesTaxPercentSent;
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame(
+            [$expectedBrokerFeePercent, $expectedSalesTaxPercent],
+            [$this->createdProjectData->brokerFeePercent, $this->createdProjectData->salesTaxPercent],
+        );
+    }
+
+    private function givenOwnerRates(?array $ownerRates): void
+    {
+        if ($ownerRates === null) {
+            return;
+        }
+
+        $this->ownerSettings = (new IndustryUserSettings())
+            ->setUser($this->owner)
+            ->setBrokerFeeRate($ownerRates[0])
+            ->setSalesTaxRate($ownerRates[1]);
     }
 
     private function sabreInput(): CreateGroupProjectInput
