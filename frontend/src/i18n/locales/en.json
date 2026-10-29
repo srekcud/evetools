@@ -1976,7 +1976,9 @@
       "bomPriceLabel": "BOM price, frozen at project creation",
       "bomPriceFrozenOn": "Frozen on {date}",
       "bomPriceSource": "Jita, cheapest 5% of sell orders",
-      "methodBomPrice": "Method: BOM price × quantity"
+      "methodBomPrice": "Method: BOM price × quantity",
+      "autoCalculated": "Auto-calculated",
+      "unitPrice": "Unit price:"
     },
     "contributions": {
       "title": "Contributions",

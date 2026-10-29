@@ -76,9 +76,20 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
         return $values;
     }
 
+    /**
+     * @return list<string>
+     */
     public function findContributedBomItemIds(GroupIndustryProject $project): array
     {
-        throw new \LogicException('not implemented');
+        $bomItemIds = $this->createQueryBuilder('c')
+            ->select('DISTINCT IDENTITY(c.bomItem)')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.bomItem IS NOT NULL')
+            ->setParameter('project', $project)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(strval(...), $bomItemIds));
     }
 
     public function countByMember(GroupIndustryProjectMember $member): int

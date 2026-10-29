@@ -1976,7 +1976,9 @@
       "bomPriceLabel": "Prix BOM, figé à la création du projet",
       "bomPriceFrozenOn": "Figé le {date}",
       "bomPriceSource": "Jita, 5 % des ordres de vente les moins chers",
-      "methodBomPrice": "Méthode : prix BOM × quantité"
+      "methodBomPrice": "Méthode : prix BOM × quantité",
+      "autoCalculated": "Calculé automatiquement",
+      "unitPrice": "Prix unitaire :"
     },
     "contributions": {
       "title": "Contributions",

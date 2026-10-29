@@ -61,38 +61,6 @@ class GroupIndustryContributionService
     }
 
     /**
-     * Submit an auto-detected contribution (from ESI industry jobs sync).
-     * Auto-detected contributions are auto-approved and immediately increment fulfillment.
-     */
-    public function submitAutoDetected(
-        GroupIndustryProjectMember $member,
-        GroupIndustryBomItem $bomItem,
-        ContributionType $type,
-        int $quantity,
-        float $estimatedValue,
-    ): GroupIndustryContribution {
-        $this->validateAntiDuplicate($member, $bomItem, $type);
-
-        $contribution = new GroupIndustryContribution();
-        $contribution->setProject($member->getProject());
-        $contribution->setMember($member);
-        $contribution->setBomItem($bomItem);
-        $contribution->setType($type);
-        $contribution->setQuantity($quantity);
-        $contribution->setEstimatedValue($estimatedValue);
-        $contribution->setStatus(ContributionStatus::Approved);
-        $contribution->setIsAutoDetected(true);
-        $contribution->setIsVerified(true);
-
-        $this->incrementFulfillment($bomItem, $quantity);
-
-        $this->entityManager->persist($contribution);
-        $this->entityManager->flush();
-
-        return $contribution;
-    }
-
-    /**
      * Approve a pending contribution. Increments the BOM item fulfillment.
      *
      * @throws \DomainException if contribution is not pending

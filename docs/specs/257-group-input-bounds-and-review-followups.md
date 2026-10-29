@@ -54,21 +54,21 @@ Code lu sur `fix/group-group-industry`, 2026-10-29.
 
 ### Lignes de BOM (R1, `MAX_BOM_LINES = 5000`)
 
-Les tests du lot 5 figent 989 runs de Nitrogen Fuel Block à 999 lignes, 990 à 1 000 (`GroupIndustryBomGoldenCharacterizationTest.php:1213-1217`), et 958 runs de Hail L à 1 000 lignes (`:1305-1317`), 959 à 1 001 (`:1321-1337`). Les comptes `runs + 10` (Nitrogen Fuel Block, plafond 1) et `runs + 42` (Hail L, plafond 1) généralisent ces valeurs à 4 990 et 4 958 runs : **déduit, non exécuté** (PHP absent de l'hôte). Le test rouge le confirme par `count($project->getBomItems())` avant de figer les valeurs.
+Les tests du lot 5 figent 989 runs de Nitrogen Fuel Block à 999 lignes, 990 à 1 000 (`GroupIndustryBomGoldenCharacterizationTest.php:1213-1217`), et 958 runs de Hail L à 1 000 lignes (`:1305-1317`), 959 à 1 001 (`:1321-1337`). Le compte `runs + 10` (Nitrogen Fuel Block, plafond 1) se généralise à 4 990 runs pour 5 000 lignes. Pour Hail L (plafond 1), `runs + 42` est faux à cette échelle (46 lignes hors jobs finaux, des composants dépassent leur plafond) : mesuré, 4 954 runs donnent 5 000 lignes et 4 955 en donnent 5 001.
 
 | # | Item | Lignes | Aujourd'hui (1000) | Attendu (5000) |
 |---|---|---|---|---|
 | B1 | Nitrogen Fuel Block, plafond forcé à 1, ME 10, TE 20, 4 989 runs | 4 999 | refusé | accepté |
 | B2 | idem, 4 990 runs | 5 000 | refusé | accepté (exactement la limite) |
 | B3 | idem, 4 991 runs | 5 001 | refusé | refusé, message avec 5001 et 5000, rien de persisté |
-| B4 | Hail L, plafond forcé à 1, ME 2, TE 4, 4 958 runs | 5 000 | refusé | accepté |
-| B5 | idem, 4 959 runs | 5 001 | refusé | refusé |
-| B6 | Hail L, plafond d'origine 10, ME 2, TE 4, **35 000 runs** | au moins 3 500 jobs finaux, total **inconnu** | refusé | accepté si le total ne dépasse pas 5000 (Q1, règle de blocage ci-dessous) |
+| B4 | Hail L, plafond forcé à 1, ME 2, TE 4, 4 954 runs | 5 000 | refusé | accepté |
+| B5 | idem, 4 955 runs | 5 001 | refusé | refusé |
+| B6 | Hail L, plafond d'origine 10, ME 2, TE 4, **35 000 runs** | 3 616 (mesuré) | refusé | accepté |
 | B7 | Hail L, 9 000 runs (test actuel) | 958 (`:667-683`) | accepté | accepté, inchangé |
-| B8 | Fenrir, plafond 1, ME 10, TE 20, 5 000 runs | au moins 5 001 (5 000 jobs finaux et au moins un matériau) | refusé | refusé |
+| B8 | Fenrir, plafond 1, ME 10, TE 20, 5 000 runs | 27 257 (mesuré) | refusé | refusé |
 | B9 | Fenrir, 1 run | 113 (`:1294-1301`) | accepté | accepté, inchangé |
 
-B6 : le total exact des lignes de 35 000 runs de Hail L n'a pas pu être établi : l'hôte n'a pas PHP, aucun test ne le compte (le test d'origine n'asserte pas le nombre de lignes) et l'extrapolation depuis les 58 lignes hors jobs finaux de 9 000 runs (958 moins 900) n'est qu'une tendance. Le compte exact est **fixé par le test rouge** (`assertCount` du total mesuré, avant l'écriture du vert). **Règle (décidée en autonomie le 2026-10-29)** : si ce total dépasse 5000, le vert s'arrête, `MAX_BOM_LINES` n'est pas élargie en silence et le point va au journal « Blocages ».
+B6 : le total mesuré par le test rouge est de 3 616 lignes, sous 5000 : `assertCount(3_616, …)` le fige. B8 : 27 257 lignes mesurées, figées dans le test.
 
 ### Runs d'un item (R2)
 
@@ -194,7 +194,7 @@ Cassent avec `MAX_BOM_LINES = 5000` (le plan refusé à 1001 lignes passe) :
 Restent verts mais deviennent faux dans leur nom ou leur jeu de données (« exactly the limit », 989/990) :
 
 - `planWithinTheBomLineLimitProvider` (`:1213-1218`) et `testPlanOfNitrogenFuelBlockAtAMaxProductionLimitOfOneWithinTheBomLineLimitIsBuilt` (`:1222`) : les cas 989 (999 lignes) et 990 (1 000 lignes) passent encore ; ils doivent viser 4 989, 4 990 (B1, B2), le cas 991 vise 4 991 (B3) ;
-- `testInventionAndCopyLinesOfAT2PlanCountTowardsTheBomLineLimitAtExactlyTheLimit` (`:1305`, 958 runs, 1 000 lignes) : à passer à 4 958 (B4).
+- `testInventionAndCopyLinesOfAT2PlanCountTowardsTheBomLineLimitAtExactlyTheLimit` (`:1305`, 958 runs, 1 000 lignes) : à passer à 4 954 (B4).
 
 À réécrire dans l'autre sens :
 

@@ -8,6 +8,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 class SubmitContributionInput
 {
+    private const int MAXIMUM_QUANTITY = 2147483647;
+
     #[Assert\NotBlank]
     #[Assert\Choice(choices: ['material', 'job_install', 'bpc', 'line_rental'])]
     public string $type;
@@ -17,6 +19,7 @@ class SubmitContributionInput
 
     #[Assert\NotNull]
     #[Assert\Positive]
+    #[Assert\LessThanOrEqual(self::MAXIMUM_QUANTITY)]
     public int $quantity;
 
     #[Assert\PositiveOrZero]

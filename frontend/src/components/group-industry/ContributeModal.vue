@@ -301,11 +301,11 @@ async function submit(): Promise<void> {
         <div v-if="selectedType === 'material' && selectedBomItem && autoEstimatedValue != null" class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
           <div class="flex items-center justify-between mb-2">
             <span class="text-sm text-slate-400">{{ t('groupIndustry.contribute.bomPriceLabel') }}</span>
-            <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Auto-calculated</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">{{ t('groupIndustry.contribute.autoCalculated') }}</span>
           </div>
           <p class="text-xs text-slate-500 mb-2">{{ bomPriceSourceLine }}</p>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-slate-500">Unit price:</span>
+            <span class="text-sm text-slate-500">{{ t('groupIndustry.contribute.unitPrice') }}</span>
             <span class="font-mono text-sm text-slate-300" style="font-variant-numeric: tabular-nums;">
               {{ selectedBomItem.estimatedPrice != null ? formatIskFull(selectedBomItem.estimatedPrice) : '---' }}
             </span>

@@ -30,6 +30,7 @@ use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\ProductionPlanner;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
+use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\InventionService;
@@ -41,7 +42,7 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class GroupIndustryProjectService
 {
-    public const int MAX_BOM_LINES = 1000;
+    public const int MAX_BOM_LINES = 5000;
 
     public function __construct(
         private readonly ProductionPlanning $productionPlanning,
@@ -51,6 +52,7 @@ class GroupIndustryProjectService
         private readonly InventionService $inventionService,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryActivityRepository $activityRepository,
+        private readonly GroupIndustryContributionRepository $contributionRepository,
     ) {
     }
 
@@ -161,18 +163,13 @@ class GroupIndustryProjectService
      */
     private function reconcileBomLines(GroupIndustryProject $project, array $plannedLines): void
     {
-        $linesWithContribution = [];
-        foreach ($project->getContributions() as $contribution) {
-            $contributedLine = $contribution->getBomItem();
-            if ($contributedLine !== null) {
-                $linesWithContribution[spl_object_id($contributedLine)] = true;
-            }
-        }
+        $contributedLineIds = $this->contributedLineIdsOf($project);
+        $carriesContribution = static fn (GroupIndustryBomItem $line): bool => $line->getId() !== null && isset($contributedLineIds[$line->getId()->toRfc4122()]);
 
         $existingByKey = $this->groupByLineKey(array_values($project->getBomItems()->toArray()));
         foreach ($existingByKey as &$existingLines) {
             usort($existingLines, static fn (GroupIndustryBomItem $a, GroupIndustryBomItem $b): int => $b->getRuns() <=> $a->getRuns()
-                ?: isset($linesWithContribution[spl_object_id($b)]) <=> isset($linesWithContribution[spl_object_id($a)])
+                ?: $carriesContribution($b) <=> $carriesContribution($a)
                 ?: (string) $a->getId() <=> (string) $b->getId());
         }
         unset($existingLines);
@@ -193,11 +190,23 @@ class GroupIndustryProjectService
 
         foreach ($existingByKey as $unmatchedLines) {
             foreach ($unmatchedLines as $unmatchedLine) {
-                if (!isset($linesWithContribution[spl_object_id($unmatchedLine)])) {
+                if (!$carriesContribution($unmatchedLine)) {
                     $project->removeBomItem($unmatchedLine);
                 }
             }
         }
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function contributedLineIdsOf(GroupIndustryProject $project): array
+    {
+        if ($project->getBomItems()->isEmpty()) {
+            return [];
+        }
+
+        return array_flip($this->contributionRepository->findContributedBomItemIds($project));
     }
 
     /**

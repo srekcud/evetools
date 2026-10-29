@@ -7,6 +7,7 @@ namespace App\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
+use App\ApiResource\Input\GroupIndustry\GroupProjectFees;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
@@ -64,8 +65,17 @@ class UpdateGroupProjectProcessor implements ProcessorInterface
 
         $oldStatus = $project->getStatus();
 
-        if ($project->isCompleted() && ($data->brokerFeePercent !== null || $data->salesTaxPercent !== null)) {
+        $feesAreChanged = $data->brokerFeePercent !== null || $data->salesTaxPercent !== null;
+
+        if ($feesAreChanged && $project->isCompleted()) {
             throw new BadRequestHttpException('Cannot change the fees of a completed project');
+        }
+
+        if ($feesAreChanged) {
+            GroupProjectFees::rejectEffectiveFeesAboveMaximum(
+                $data->brokerFeePercent ?? $project->getBrokerFeePercent(),
+                $data->salesTaxPercent ?? $project->getSalesTaxPercent(),
+            );
         }
 
         if ($data->name !== null) {

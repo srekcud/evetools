@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
+use App\ApiResource\Input\GroupIndustry\GroupProjectFees;
 use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -68,6 +69,9 @@ class CreateGroupProjectProcessor implements ProcessorInterface
         $resolvedGroupIds = array_values(array_unique($resolvedGroupIds));
 
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
+        $brokerFeePercent = $data->brokerFeePercent ?? self::ratePercent($settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE);
+        $salesTaxPercent = $data->salesTaxPercent ?? self::ratePercent($settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE);
+        GroupProjectFees::rejectEffectiveFeesAboveMaximum($brokerFeePercent, $salesTaxPercent);
 
         try {
             $projectData = new CreateProjectData(
@@ -77,8 +81,8 @@ class CreateGroupProjectProcessor implements ProcessorInterface
                 blacklistTypeIds: $data->blacklistTypeIds,
                 containerName: $data->containerName,
                 lineRentalRatesOverride: $data->lineRentalRatesOverride,
-                brokerFeePercent: $data->brokerFeePercent ?? self::ratePercent($settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE),
-                salesTaxPercent: $data->salesTaxPercent ?? self::ratePercent($settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE),
+                brokerFeePercent: $brokerFeePercent,
+                salesTaxPercent: $salesTaxPercent,
             );
 
             $project = $this->projectService->createProject($user, $projectData);
