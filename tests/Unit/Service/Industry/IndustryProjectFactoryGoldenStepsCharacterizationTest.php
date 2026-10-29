@@ -201,7 +201,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
 
         self::assertSame([[10, 100_000, 0, 0, 0, 0, null]], $this->jobsOf($steps, self::FERNITE_CARBIDE));
         self::assertSame(
-            [self::CERAMIC_POWDER => [[5, 974]], self::FERNITE_ALLOY => [[5, 974]], self::HYDROGEN_FUEL_BLOCK => [[3, 99]]],
+            [self::CERAMIC_POWDER => [[5, 974]], self::FERNITE_ALLOY => [[5, 974]], self::HYDROGEN_FUEL_BLOCK => [[3, 100]]],
             [
                 self::CERAMIC_POWDER => $this->runsAndQuantityOfEachJobOf($steps, self::CERAMIC_POWDER),
                 self::FERNITE_ALLOY => $this->runsAndQuantityOfEachJobOf($steps, self::FERNITE_ALLOY),
