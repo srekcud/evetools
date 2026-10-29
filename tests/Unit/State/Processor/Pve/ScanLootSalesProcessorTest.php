@@ -177,6 +177,7 @@ class ScanLootSalesProcessorTest extends TestCase
         $character->method('getCorporationId')->willReturn(self::NPC_CORPORATION_ID);
         $character->method('getEveToken')->willReturn($this->createStub(EveToken::class));
         $character->method('getName')->willReturn('Loot Seller');
+        $character->method('isAuthValid')->willReturn(true);
 
         $user = $this->createStub(User::class);
         $user->method('getCharacters')->willReturn(new ArrayCollection([$character]));
