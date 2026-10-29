@@ -88,10 +88,7 @@ class LedgerDashboardResource
      */
     public ?float $miningPercent = 0.0;
 
-    /**
-     * Types mined without any price, which make the mining value unknown.
-     * @var list<int>
-     */
+    /** @var list<int> */
     public array $missingPriceTypeIds = [];
 
     /**
