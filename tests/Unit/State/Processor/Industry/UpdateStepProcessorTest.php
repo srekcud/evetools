@@ -123,9 +123,10 @@ final class UpdateStepProcessorTest extends TestCase
             },
         );
 
-        $this->patch($ferniteCarbide, $this->runsEntered(3), $entityManager, $this->createStub(EntityManagerInterface::class));
+        $updatedSteps = $this->patch($ferniteCarbide, $this->runsEntered(3), $entityManager, $this->createStub(EntityManagerInterface::class));
 
         self::assertSame([[3, 30_000], [1, 15]], $stepsAtFlush);
+        self::assertSame([[self::FERNITE_CARBIDE, 30_000], [self::HYDROGEN_FUEL_BLOCK, 15]], $this->productAndQuantityOf($updatedSteps));
     }
 
     #[Group('issue-137')]
@@ -136,9 +137,21 @@ final class UpdateStepProcessorTest extends TestCase
         $meLevelEntered = new UpdateStepInput();
         $meLevelEntered->meLevel = 8;
 
-        $this->patch($quantumMicroprocessor, $meLevelEntered, $this->createStub(EntityManagerInterface::class));
+        $updatedSteps = $this->patch($quantumMicroprocessor, $meLevelEntered, $this->createStub(EntityManagerInterface::class));
 
         self::assertSame([8, 1, 501], [$quantumMicroprocessor->getMeLevel(), $titaniumCarbide->getRuns(), $titaniumCarbide->getQuantity()]);
+        self::assertSame([[self::QUANTUM_MICROPROCESSOR, 32], [self::TITANIUM_CARBIDE, 501]], $this->productAndQuantityOf($updatedSteps));
+    }
+
+    #[Group('issue-137')]
+    public function testRunsEnteredOnAStepWithoutMaterialStepReturnTheResourceOfThatStepAlone(): void
+    {
+        $phenolicComposites = $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, self::PHENOLIC_COMPOSITES + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 2, quantity: 4_400, depth: 0, meLevel: 0);
+
+        $updatedStep = $this->patch($phenolicComposites, $this->runsEntered(5), $this->createStub(EntityManagerInterface::class));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame([self::PHENOLIC_COMPOSITES, 11_000], [$updatedStep->productTypeId, $updatedStep->quantity]);
     }
 
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity, int $depth, int $meLevel): IndustryProjectStep
@@ -164,7 +177,14 @@ final class UpdateStepProcessorTest extends TestCase
         return $input;
     }
 
-    private function patch(IndustryProjectStep $step, UpdateStepInput $input, EntityManagerInterface $entityManager, ?EntityManagerInterface $calculatorEntityManager = null): void
+    private function productAndQuantityOf(ProjectStepResource|array $updatedSteps): array
+    {
+        self::assertIsList($updatedSteps);
+
+        return array_map(static fn (ProjectStepResource $resource): array => [$resource->productTypeId, $resource->quantity], $updatedSteps);
+    }
+
+    private function patch(IndustryProjectStep $step, UpdateStepInput $input, EntityManagerInterface $entityManager, ?EntityManagerInterface $calculatorEntityManager = null): ProjectStepResource|array
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->pilot);
@@ -173,7 +193,13 @@ final class UpdateStepProcessorTest extends TestCase
         $stepRepository = $this->createStub(IndustryProjectStepRepository::class);
         $stepRepository->method('find')->willReturn($step);
         $mapper = $this->createStub(IndustryResourceMapper::class);
-        $mapper->method('stepToResource')->willReturn(new ProjectStepResource());
+        $mapper->method('stepToResource')->willReturnCallback(static function (IndustryProjectStep $mappedStep): ProjectStepResource {
+            $resource = new ProjectStepResource();
+            $resource->productTypeId = $mappedStep->getProductTypeId();
+            $resource->quantity = $mappedStep->getQuantity();
+
+            return $resource;
+        });
         $structureConfigRepository = $this->createStub(IndustryStructureConfigRepository::class);
         $productRepository = $this->productRepositoryOfTheGoldenBlueprints();
         $calculationService = $this->calculationServiceOnGoldenSde($this->bonusServiceWithoutStructure(), $structureConfigRepository);
@@ -188,7 +214,7 @@ final class UpdateStepProcessorTest extends TestCase
             $mapper,
             $entityManager,
         );
-        $processor->process($input, new Patch(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+        return $processor->process($input, new Patch(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
     }
 
     private function productRepositoryOfTheGoldenBlueprints(): IndustryActivityProductRepository
