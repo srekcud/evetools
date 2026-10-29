@@ -329,7 +329,7 @@ describe('ShoppingTab purchase link error', () => {
     await clickLink(wrapper, T1)
 
     expect(purchasesPanelOf(wrapper).props('linkError')).toBeNull()
-    expect(requestsOtherThanTheShoppingList().map(([url]) => url).sort()).toEqual([PROJECT_URL, PURCHASES_URL, SUGGESTIONS_URL])
+    expect(requestsOtherThanTheShoppingList().map(([url]) => url).sort()).toEqual([PROJECT_URL, SUGGESTIONS_URL, PURCHASES_URL])
   })
 
   it('clears the link error when the suggestions are refreshed', async () => {

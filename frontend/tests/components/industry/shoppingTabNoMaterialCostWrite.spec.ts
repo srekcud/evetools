@@ -157,9 +157,9 @@ function applyButton(wrapper: ReturnType<typeof mountShoppingTab>['wrapper']) {
 }
 
 function materialCostUnknownReason(): string {
-  const reason = (en.industry.shoppingTab as Record<string, string>).materialCostUnknown
+  const reason = (en.industry.shoppingTab as unknown as Record<string, unknown>).materialCostUnknown
   expect(reason).toBeTruthy()
-  return reason
+  return reason as string
 }
 
 function projectWrites() {
