@@ -8,12 +8,15 @@ use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStructureConfig;
+use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivity;
-use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryBlueprint;
+use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
+use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
@@ -29,11 +32,14 @@ use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\InventionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\TypeNameResolver;
+use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -43,6 +49,8 @@ use Symfony\Component\Mercure\HubInterface;
 #[CoversClass(IndustryProjectFactory::class)]
 class IndustryProjectFactoryTest extends TestCase
 {
+    use AutowiresByType;
+
     private const int QUANTUM_MICROPROCESSOR = 11540;
     private const int QUANTUM_MICROPROCESSOR_BLUEPRINT = 11541;
     private const int TITANIUM_CARBIDE = 16671;
@@ -50,48 +58,65 @@ class IndustryProjectFactoryTest extends TestCase
     private const int NANOTRANSISTORS = 16681;
     private const int QUANTUM_MICROPROCESSOR_RUNS = 32;
     private const int BPC_MAX_RUNS_ABOVE_THE_RUNS_OF_EVERY_STEP = 1_000;
+    private const int FAVORITE_MANUFACTURING_SYSTEM = 30_002_510;
+    private const int OTHER_SYSTEM = 30_000_142;
+    private const string MATERIAL_EFFICIENCY_RIG_OF_BASIC_SMALL_SHIPS = 'Standup M-Set Basic Small Ship Manufacturing Material Efficiency I';
 
     private IndustryTreeService&MockObject $treeService;
     private IndustryBlacklistService&MockObject $blacklistService;
-    private IndustryBonusService&MockObject $bonusService;
-    private IndustryCalculationService&MockObject $calculationService;
-    private CachedCharacterSkillRepository&MockObject $skillRepository;
+    private IndustryCalculationService $calculationService;
+    private CachedCharacterSkillRepository $skillRepository;
     private InvTypeRepository&MockObject $invTypeRepository;
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
-    private IndustryActivityRepository&MockObject $activityRepository;
     private EntityManagerInterface&MockObject $entityManager;
-    private MercurePublisherService $mercurePublisher;
     private IndustryProjectFactory $factory;
+    private array $baseTimeByBlueprintAndActivity = [];
+    private array $skillLevelsByCharacterName = [];
+    private array $structuresOfThePilot = [];
+    private ?int $favoriteManufacturingSystemId = null;
+    private array $rigCategoryByGroupId = [];
 
     protected function setUp(): void
     {
         $this->treeService = $this->createMock(IndustryTreeService::class);
         $this->blacklistService = $this->createMock(IndustryBlacklistService::class);
-        $this->bonusService = $this->createMock(IndustryBonusService::class);
-        $this->calculationService = $this->createMock(IndustryCalculationService::class);
-        $this->skillRepository = $this->createMock(CachedCharacterSkillRepository::class);
+        $this->skillRepository = $this->skillRepositoryOfTheCharacters();
         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
         $this->materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
-        $this->activityRepository = $this->createMock(IndustryActivityRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->mercurePublisher = new MercurePublisherService(
-            $this->createMock(HubInterface::class),
-            new NullLogger(),
+        $activityRepository = $this->activityRepositoryWithTheBaseTimes();
+        $structureConfigRepository = $this->structureConfigRepositoryOfThePilot();
+        $bonusService = new IndustryBonusService(
+            $this->rigCategoryRepository(),
+            $structureConfigRepository,
+            $this->invTypeRepository,
+            $this->createStub(IndustryActivityProductRepository::class),
+        );
+        $this->calculationService = new IndustryCalculationService(
+            $this->createStub(TypeNameResolver::class),
+            $bonusService,
+            $structureConfigRepository,
+            $this->settingsRepositoryWithTheFavoriteManufacturingSystem(),
+            $this->sdeEntityManagerWithTheBaseTimes(),
+            $this->createStub(StaStationRepository::class),
+            $this->createStub(CachedStructureRepository::class),
+            $activityRepository,
+            $this->skillRepository,
         );
 
-        $this->factory = new IndustryProjectFactory(
+        $this->factory = self::autowired(IndustryProjectFactory::class, [
             $this->treeService,
             $this->blacklistService,
-            $this->bonusService,
+            $bonusService,
             $this->calculationService,
             $this->skillRepository,
             $this->invTypeRepository,
             $this->materialRepository,
-            $this->activityRepository,
+            $activityRepository,
             $this->entityManager,
-            $this->mercurePublisher,
+            new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $this->blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(),
-        );
+        ]);
     }
 
     private function blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(): IndustryBlueprintRepository
@@ -112,9 +137,104 @@ class IndustryProjectFactoryTest extends TestCase
         return $blueprintRepository;
     }
 
-    // ===========================================
-    // Helper methods
-    // ===========================================
+    private function activityRepositoryWithTheBaseTimes(): IndustryActivityRepository
+    {
+        $activityRepository = $this->createStub(IndustryActivityRepository::class);
+        $activityRepository->method('findByTypeIdsAndActivityIds')->willReturnCallback(
+            function (array $blueprintTypeIds, array $activityIds): array {
+                $activities = [];
+                foreach ($blueprintTypeIds as $blueprintTypeId) {
+                    foreach ($activityIds as $activityId) {
+                        if (isset($this->baseTimeByBlueprintAndActivity[$blueprintTypeId.'-'.$activityId])) {
+                            $activities[$blueprintTypeId.'-'.$activityId] = (new IndustryActivity())
+                                ->setTypeId($blueprintTypeId)
+                                ->setActivityId($activityId)
+                                ->setTime($this->baseTimeByBlueprintAndActivity[$blueprintTypeId.'-'.$activityId]);
+                        }
+                    }
+                }
+
+                return $activities;
+            },
+        );
+
+        return $activityRepository;
+    }
+
+    private function sdeEntityManagerWithTheBaseTimes(): EntityManagerInterface
+    {
+        $connection = $this->createStub(Connection::class);
+        $connection->method('fetchOne')->willReturnCallback(
+            fn (string $sql, array $params): string|false => isset($this->baseTimeByBlueprintAndActivity[$params[0].'-'.$params[1]])
+                ? (string) $this->baseTimeByBlueprintAndActivity[$params[0].'-'.$params[1]]
+                : false,
+        );
+        $connection->method('fetchAllAssociative')->willReturn([]);
+        $sdeEntityManager = $this->createStub(EntityManagerInterface::class);
+        $sdeEntityManager->method('getConnection')->willReturn($connection);
+
+        return $sdeEntityManager;
+    }
+
+    private function skillRepositoryOfTheCharacters(): CachedCharacterSkillRepository
+    {
+        $skillsOf = fn (Character $character): array => array_map(
+            static fn (int $skillId, int $level): CachedCharacterSkill => (new CachedCharacterSkill())->setSkillId($skillId)->setLevel($level),
+            array_keys($this->skillLevelsByCharacterName[$character->getName()]),
+            array_values($this->skillLevelsByCharacterName[$character->getName()]),
+        );
+        $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
+        $skillRepository->method('findAllSkillsForCharacter')->willReturnCallback($skillsOf);
+        $skillRepository->method('findIndustrySkillsForCharacter')->willReturnCallback($skillsOf);
+
+        return $skillRepository;
+    }
+
+    private function structureConfigRepositoryOfThePilot(): IndustryStructureConfigRepository
+    {
+        $structureConfigRepository = $this->createStub(IndustryStructureConfigRepository::class);
+        $structureConfigRepository->method('findByUser')->willReturnCallback(fn (): array => $this->structuresOfThePilot);
+
+        return $structureConfigRepository;
+    }
+
+    private function settingsRepositoryWithTheFavoriteManufacturingSystem(): IndustryUserSettingsRepository
+    {
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturnCallback(
+            fn (): ?IndustryUserSettings => $this->favoriteManufacturingSystemId === null
+                ? null
+                : (new IndustryUserSettings())->setFavoriteManufacturingSystemId($this->favoriteManufacturingSystemId),
+        );
+
+        return $settingsRepository;
+    }
+
+    private function rigCategoryRepository(): IndustryRigCategoryRepository
+    {
+        $rigCategoryRepository = $this->createStub(IndustryRigCategoryRepository::class);
+        $rigCategoryRepository->method('buildGroupCategoryMap')->willReturnCallback(fn (): array => $this->rigCategoryByGroupId);
+
+        return $rigCategoryRepository;
+    }
+
+    private function givenAProductInAGroup(int $productTypeId, int $groupId, ?string $rigCategory): void
+    {
+        $this->invTypeRepository->method('find')->willReturn(
+            (new InvType())->setTypeId($productTypeId)->setTypeName('Product '.$productTypeId)->setGroup((new InvGroup())->setGroupId($groupId)),
+        );
+        $this->rigCategoryByGroupId = $rigCategory === null ? [] : [$groupId => $rigCategory];
+    }
+
+    private static function structure(string $structureType, int $solarSystemId, array $rigs = []): IndustryStructureConfig
+    {
+        return (new IndustryStructureConfig())
+            ->setName(ucfirst($structureType).' in '.$solarSystemId)
+            ->setStructureType($structureType)
+            ->setSecurityType('highsec')
+            ->setSolarSystemId($solarSystemId)
+            ->setRigs($rigs);
+    }
 
     private function createUser(): User&MockObject
     {
@@ -124,27 +244,50 @@ class IndustryProjectFactoryTest extends TestCase
         return $user;
     }
 
-    private function createUserWithCharacter(string $charName, array $skills): User&MockObject
+    private function userWithCharacters(array $skillLevelsByCharacterName): User
     {
-        $character = $this->createMock(Character::class);
-        $character->method('getName')->willReturn($charName);
-
-        $user = $this->createMock(User::class);
-        $user->method('getCharacters')->willReturn(new \Doctrine\Common\Collections\ArrayCollection([$character]));
-
-        $cachedSkills = [];
-        foreach ($skills as $skillId => $level) {
-            $skill = $this->createMock(CachedCharacterSkill::class);
-            $skill->method('getSkillId')->willReturn($skillId);
-            $skill->method('getLevel')->willReturn($level);
-            $cachedSkills[] = $skill;
+        $this->skillLevelsByCharacterName = $skillLevelsByCharacterName;
+        $user = new User();
+        foreach (array_keys($skillLevelsByCharacterName) as $characterName) {
+            $user->addCharacter((new Character())->setName($characterName));
         }
 
-        $this->skillRepository->method('findAllSkillsForCharacter')
-            ->with($character)
-            ->willReturn($cachedSkills);
-
         return $user;
+    }
+
+    private function runsAndSplitTotalOfEachStep(IndustryProject $project, string $activityType): array
+    {
+        return array_map(
+            static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getTotalGroupRuns()],
+            $this->stepsOfActivity($project, $activityType),
+        );
+    }
+
+    private function displayedJobsOf(IndustryProject $project, string $activityType): array
+    {
+        $mapper = self::autowired(IndustryResourceMapper::class, [
+            $this->calculationService,
+            $this->skillRepository,
+            $this->createStub(CachedIndustryJobRepository::class),
+            $this->createStub(InventionService::class),
+        ]);
+
+        return array_map(
+            static function (IndustryProjectStep $step) use ($mapper): array {
+                $displayedStep = $mapper->stepToResource($step);
+
+                return [$step->getRuns(), $step->getTotalGroupRuns(), $displayedStep->timePerRun, $displayedStep->recommendedCharacterName];
+            },
+            $this->stepsOfActivity($project, $activityType),
+        );
+    }
+
+    private function stepsOfActivity(IndustryProject $project, string $activityType): array
+    {
+        return array_values(array_filter(
+            $project->getSteps()->toArray(),
+            static fn (IndustryProjectStep $step): bool => $step->getActivityType() === $activityType,
+        ));
     }
 
     /**
@@ -194,15 +337,6 @@ class IndustryProjectFactoryTest extends TestCase
     private function setupDefaultMocks(): void
     {
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
-        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn([]);
-        $this->bonusService->method('findBestStructureForProductTimeBonus')->willReturn([
-            'bonus' => 0.0,
-            'structure' => null,
-        ]);
-        $this->bonusService->method('calculateAdjustedTimePerRun')->willReturnCallback(
-            fn (int $base, int $te, float $structureBonus) => $base,
-        );
-        $this->calculationService->method('getBlueprintScienceSkillIds')->willReturn([]);
     }
 
     // ===========================================
@@ -356,8 +490,6 @@ class IndustryProjectFactoryTest extends TestCase
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->setupDefaultMocks();
 
-        // Reactions need bonus lookup for recalculate
-        $this->bonusService->method('getCategoryForProduct')->willReturn(null);
         $this->materialRepository->method('findMaterialEntitiesForBlueprints')->willReturn([]);
 
         $project = $this->factory->createProject($user, 587, 5, 10, 2.0, 20);
@@ -497,31 +629,10 @@ class IndustryProjectFactoryTest extends TestCase
         $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 100);
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
-        $this->calculationService->method('getBlueprintScienceSkillIds')->willReturn([]);
-
-        // Each run takes 50000 seconds (~13.8 hours)
-        // Max duration: 1 day = 86400 seconds
-        // maxRunsPerJob = floor(86400 / 50000) = 1
-        // So 100 runs should be split into 100 jobs of 1 run each
-        $activity = $this->createMock(IndustryActivity::class);
-        $activity->method('getTime')->willReturn(50000);
-        $activity->method('getTypeId')->willReturn(586);
-        $activity->method('getActivityId')->willReturn(1);
-        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn([
-            '586-1' => $activity,
-        ]);
-
-        $this->bonusService->method('findBestStructureForProductTimeBonus')->willReturn([
-            'bonus' => 0.0,
-            'structure' => null,
-        ]);
-        $this->bonusService->method('calculateAdjustedTimePerRun')->willReturnCallback(
-            fn (int $base, int $te, float $structureBonus) => $base,
-        );
+        $this->baseTimeByBlueprintAndActivity = ['586-1' => 50000];
 
         $project = $this->factory->createProject($user, 587, 100, 10, 1.0, 20);
 
-        // All steps should have splitGroupId set
         $splitSteps = [];
         foreach ($project->getSteps() as $step) {
             if ($step->getSplitGroupId() !== null) {
@@ -531,7 +642,6 @@ class IndustryProjectFactoryTest extends TestCase
 
         $this->assertGreaterThan(1, count($splitSteps), 'Job should be split into multiple steps');
 
-        // Total runs across splits should equal 100
         $totalRuns = 0;
         foreach ($splitSteps as $step) {
             $totalRuns += $step->getRuns();
@@ -548,18 +658,7 @@ class IndustryProjectFactoryTest extends TestCase
         $tree = $this->buildFlatTreeNode(586, 587, 'Rifter', 5);
         $this->treeService->method('buildProductionTree')->willReturn($tree);
         $this->setupDefaultMocks();
-
-        // Each run takes 3600 seconds (1 hour), 5 runs = 5 hours < 2 days
-        $activity = $this->createMock(IndustryActivity::class);
-        $activity->method('getTime')->willReturn(3600);
-        $activity->method('getTypeId')->willReturn(586);
-        $activity->method('getActivityId')->willReturn(1);
-        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn([
-            '586-1' => $activity,
-        ]);
-        $this->bonusService->method('calculateAdjustedTimePerRun')->willReturnCallback(
-            fn (int $base, int $te, float $structureBonus) => $base,
-        );
+        $this->baseTimeByBlueprintAndActivity = ['586-1' => 3600];
 
         $project = $this->factory->createProject($user, 587, 5, 10, 2.0, 20);
 
@@ -576,19 +675,7 @@ class IndustryProjectFactoryTest extends TestCase
             $this->buildFlatTreeNode(22457, 22456, 'Sabre', 12, 1, [], 0, 'manufacturing', true),
         );
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
-        $this->calculationService->method('getBlueprintScienceSkillIds')->willReturn([]);
-        $copyActivity = $this->createMock(IndustryActivity::class);
-        $copyActivity->method('getTime')->willReturn(48_000);
-        $manufacturingActivity = $this->createMock(IndustryActivity::class);
-        $manufacturingActivity->method('getTime')->willReturn(1_200);
-        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn([
-            '22457-5' => $copyActivity,
-            '22457-1' => $manufacturingActivity,
-        ]);
-        $this->bonusService->method('findBestStructureForProductTimeBonus')->willReturn(['bonus' => 0.0, 'structure' => null]);
-        $this->bonusService->method('calculateAdjustedTimePerRun')->willReturnCallback(
-            fn (int $base, int $te, float $structureBonus) => $base,
-        );
+        $this->baseTimeByBlueprintAndActivity = ['22457-5' => 48_000, '22457-1' => 1_200];
 
         $project = $this->factory->createProject($user, 22456, 12, 10, 1.0, 20);
 
@@ -602,30 +689,22 @@ class IndustryProjectFactoryTest extends TestCase
         );
     }
 
-    // ===========================================
-    // Skill multiplier calculation
-    // ===========================================
-
     #[Group('issue-165')]
     public function testIndustryFiveAndAdvancedIndustryFiveCutTheTimePerRunThatDecidesTheSplit(): void
     {
-        $user = $this->createUserWithCharacter('TestChar', [
+        $user = $this->userWithCharacters(['TestChar' => [
             CachedCharacterSkill::SKILL_INDUSTRY => 5,
             CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
-        ]);
+        ]]);
         $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
         $this->treeService->method('buildProductionTree')->willReturnCallback(
             fn (int $productTypeId, int $runs): array => $this->buildFlatTreeNode(586, 587, 'Rifter', $runs),
         );
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
-        $activity = (new IndustryActivity())->setTypeId(586)->setActivityId(1)->setTime(10000);
-        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn(['586-1' => $activity]);
-        $this->bonusService->method('findBestStructureForProductTimeBonus')->willReturn(['bonus' => 0.0, 'structure' => null]);
-        $this->bonusService->method('calculateAdjustedTimePerRun')->willReturn(10000);
-        $factory = $this->factoryWithTheSkillTimeMultiplierOfIndustryCalculation();
+        $this->baseTimeByBlueprintAndActivity = ['586-1' => 10000];
 
-        $twentyFiveRuns = $factory->createProject($user, 587, 25, 10, 2.0, 0);
-        $twentySixRuns = $factory->createProject($user, 587, 26, 10, 2.0, 0);
+        $twentyFiveRuns = $this->factory->createProject($user, 587, 25, 10, 2.0, 0);
+        $twentySixRuns = $this->factory->createProject($user, 587, 26, 10, 2.0, 0);
 
         $this->assertSame([[25, null]], $this->runsAndSplitTotalOfEachStep($twentyFiveRuns, 'manufacturing'));
         $this->assertSame([[13, 26], [13, 26]], $this->runsAndSplitTotalOfEachStep($twentySixRuns, 'manufacturing'));
@@ -634,22 +713,17 @@ class IndustryProjectFactoryTest extends TestCase
     #[Group('issue-165')]
     public function testReactionsFourCutsTheTimePerRunThatDecidesTheSplit(): void
     {
-        $user = $this->createUserWithCharacter('ReactChar', [CachedCharacterSkill::SKILL_REACTIONS => 4]);
+        $user = $this->userWithCharacters(['ReactChar' => [CachedCharacterSkill::SKILL_REACTIONS => 4]]);
         $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
         $this->treeService->method('buildProductionTree')->willReturnCallback(
             fn (int $productTypeId, int $runs): array => $this->buildFlatTreeNode(2000, 2001, 'Reaction Product', $runs, 200, [], 0, 'reaction'),
         );
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
-        $activity = (new IndustryActivity())->setTypeId(2000)->setActivityId(11)->setTime(3600);
-        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn(['2000-11' => $activity]);
-        $this->bonusService->method('findBestStructureForProductTimeBonus')->willReturn(['bonus' => 0.0, 'structure' => null]);
-        $this->bonusService->method('calculateAdjustedTimePerRun')->willReturn(3600);
-        $this->bonusService->method('getCategoryForProduct')->willReturn(null);
+        $this->baseTimeByBlueprintAndActivity = ['2000-11' => 3600];
         $this->materialRepository->method('findMaterialEntitiesForBlueprints')->willReturn([]);
-        $factory = $this->factoryWithTheSkillTimeMultiplierOfIndustryCalculation();
 
-        $fiftySevenRuns = $factory->createProject($user, 2001, 57, 0, 2.0, 0);
-        $fiftyEightRuns = $factory->createProject($user, 2001, 58, 0, 2.0, 0);
+        $fiftySevenRuns = $this->factory->createProject($user, 2001, 57, 0, 2.0, 0);
+        $fiftyEightRuns = $this->factory->createProject($user, 2001, 58, 0, 2.0, 0);
 
         $this->assertSame([[57, null]], $this->runsAndSplitTotalOfEachStep($fiftySevenRuns, 'reaction'));
         $this->assertSame([[29, 58], [29, 58]], $this->runsAndSplitTotalOfEachStep($fiftyEightRuns, 'reaction'));
@@ -669,14 +743,10 @@ class IndustryProjectFactoryTest extends TestCase
             fn (int $productTypeId, int $runs): array => $this->buildFlatTreeNode(586, 587, 'Rifter', $runs),
         );
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
-        $activity = (new IndustryActivity())->setTypeId(586)->setActivityId(1)->setTime(10000);
-        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn(['586-1' => $activity]);
-        $this->bonusService->method('findBestStructureForProductTimeBonus')->willReturn(['bonus' => 0.0, 'structure' => null]);
-        $this->bonusService->method('calculateAdjustedTimePerRun')->willReturn(10000);
-        $factory = $this->factoryWithTheSkillTimeMultiplierOfIndustryCalculation();
+        $this->baseTimeByBlueprintAndActivity = ['586-1' => 10000];
 
-        $twentyOneRuns = $factory->createProject($user, 587, 21, 10, 2.0, 0);
-        $twentyTwoRuns = $factory->createProject($user, 587, 22, 10, 2.0, 0);
+        $twentyOneRuns = $this->factory->createProject($user, 587, 21, 10, 2.0, 0);
+        $twentyTwoRuns = $this->factory->createProject($user, 587, 22, 10, 2.0, 0);
 
         $this->assertSame([[21, null]], $this->runsAndSplitTotalOfEachStep($twentyOneRuns, 'manufacturing'));
         $this->assertSame([[11, 22], [11, 22]], $this->runsAndSplitTotalOfEachStep($twentyTwoRuns, 'manufacturing'));
@@ -696,91 +766,171 @@ class IndustryProjectFactoryTest extends TestCase
     }
 
     #[Group('issue-134')]
-    public function testSplitCurrentlyUsesATimePerRunOneSecondLongerThanTheTimePerRunOfIndustryCalculationIssue134(): void
+    public function testRunsWhoseJobFillsExactlyTheMaximumDurationWithTheDisplayedTimePerRunStayInOneJob(): void
     {
-        $skills = [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5];
-        $user = $this->createUserWithCharacter('TestChar', $skills);
+        $user = $this->userWithCharacters(['Industrialist' => [
+            CachedCharacterSkill::SKILL_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+        ]]);
         $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
         $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(586, 587, 'Rifter', 14400));
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([]);
-        $activity = (new IndustryActivity())->setTypeId(586)->setActivityId(1)->setTime(16003);
-        $this->activityRepository->method('findByTypeIdsAndActivityIds')->willReturn(['586-1' => $activity]);
-        $bonusService = new IndustryBonusService(
-            $this->createStub(IndustryRigCategoryRepository::class),
-            $this->createStub(IndustryStructureConfigRepository::class),
-            $this->createStub(InvTypeRepository::class),
-            $this->createStub(IndustryActivityProductRepository::class),
-        );
-        $calculationService = $this->calculationServiceWithBaseTimePerRun($bonusService, 16003);
-        $factory = $this->factoryWithTheSkillTimeMultiplierOfIndustryCalculation($bonusService, $calculationService);
+        $this->baseTimeByBlueprintAndActivity = ['586-1' => 16003];
 
-        $project = $factory->createProject($user, 587, 14400, 10, 1451.0, 20);
+        $project = $this->factory->createProject($user, 587, 14400, 10, 1451.0, 20);
 
-        $this->assertSame([[7200, 14400], [7200, 14400]], $this->runsAndSplitTotalOfEachStep($project, 'manufacturing'));
-        $this->assertSame(8706, $calculationService->calculateTimePerRun($project->getSteps()->first(), $skills));
+        $this->assertSame([[14400, null, 8706, 'Industrialist']], $this->displayedJobsOf($project, 'manufacturing'));
     }
 
-    private function factoryWithTheSkillTimeMultiplierOfIndustryCalculation(?IndustryBonusService $bonusService = null, ?IndustryCalculationService $calculationService = null): IndustryProjectFactory
+    #[Group('issue-134')]
+    public function testSplitTakesTheTimeBonusOfTheRaitaruOfTheFavoriteSystemRatherThanOfTheFasterAzbelElsewhere(): void
     {
-        $bonusService ??= $this->bonusService;
+        $this->givenAProductInAGroup(36002, 3600, 'basic_large_ship');
+        $this->structuresOfThePilot = [
+            self::structure('raitaru', self::FAVORITE_MANUFACTURING_SYSTEM),
+            self::structure('azbel', self::OTHER_SYSTEM),
+        ];
+        $this->favoriteManufacturingSystemId = self::FAVORITE_MANUFACTURING_SYSTEM;
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(36001, 36002, 'Favorite System Product', 21));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['36001-1' => 10000];
 
-        return new IndustryProjectFactory(
-            $this->treeService,
-            $this->blacklistService,
-            $bonusService,
-            $calculationService ?? $this->calculationServiceWithBaseTimePerRun($bonusService, null),
-            $this->skillRepository,
-            $this->invTypeRepository,
-            $this->materialRepository,
-            $this->activityRepository,
-            $this->entityManager,
-            $this->mercurePublisher,
-            $this->blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(),
-        );
+        $project = $this->factory->createProject($this->userWithCharacters([]), 36002, 21, 10, 2.0, 0);
+
+        $this->assertSame([[11, 21, 8500, null], [10, 21, 8500, null]], $this->displayedJobsOf($project, 'manufacturing'));
     }
 
-    private function calculationServiceWithBaseTimePerRun(IndustryBonusService $bonusService, ?int $baseTimePerRun): IndustryCalculationService
+    #[Group('issue-134')]
+    public function testSplitOfAProductWithoutRigCategoryTakesTheRoleTimeBonusOfTheStructure(): void
     {
-        $connection = $this->createStub(Connection::class);
-        $connection->method('fetchOne')->willReturn($baseTimePerRun === null ? false : (string) $baseTimePerRun);
-        $connection->method('fetchAllAssociative')->willReturn([]);
-        $sdeEntityManager = $this->createStub(EntityManagerInterface::class);
-        $sdeEntityManager->method('getConnection')->willReturn($connection);
+        $this->givenAProductInAGroup(37002, 3700, null);
+        $this->structuresOfThePilot = [self::structure('raitaru', self::OTHER_SYSTEM)];
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(37001, 37002, 'Deployable', 18));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['37001-1' => 10000];
 
-        return new IndustryCalculationService(
-            $this->createStub(TypeNameResolver::class),
-            $bonusService,
-            $this->createStub(IndustryStructureConfigRepository::class),
-            $this->createStub(IndustryUserSettingsRepository::class),
-            $sdeEntityManager,
-            $this->createStub(StaStationRepository::class),
-            $this->createStub(CachedStructureRepository::class),
-        );
+        $project = $this->factory->createProject($this->userWithCharacters([]), 37002, 18, 10, 2.0, 0);
+
+        $this->assertSame([[18, null, 8500, null]], $this->displayedJobsOf($project, 'manufacturing'));
     }
 
-    private function userWithCharacters(array $skillLevelsByCharacterName): User
-    {
-        $user = new User();
-        foreach (array_keys($skillLevelsByCharacterName) as $characterName) {
-            $user->addCharacter((new Character())->setName($characterName));
+    #[Group('issue-134')]
+    #[Group('issue-126')]
+    #[DataProvider('generatedJobsOfTwoProjectsAndTheirDisplayedTimePerRun')]
+    public function testEveryGeneratedJobDisplaysTheTimePerRunThatDecidedItsSplit(
+        int $blueprintTypeId,
+        int $productTypeId,
+        int $groupId,
+        ?string $rigCategory,
+        array $structures,
+        ?int $favoriteManufacturingSystemId,
+        array $skillLevelsByCharacterName,
+        array $baseTimeByActivityId,
+        int $teLevel,
+        bool $hasCopy,
+        array $runsOfEachProject,
+        array $expectedDisplayedJobsOfEachProject,
+    ): void {
+        $this->givenAProductInAGroup($productTypeId, $groupId, $rigCategory);
+        $this->structuresOfThePilot = $structures;
+        $this->favoriteManufacturingSystemId = $favoriteManufacturingSystemId;
+        foreach ($baseTimeByActivityId as $activityId => $baseTime) {
+            $this->baseTimeByBlueprintAndActivity[$blueprintTypeId.'-'.$activityId] = $baseTime;
         }
-        $this->skillRepository->method('findAllSkillsForCharacter')->willReturnCallback(
-            static fn (Character $character): array => array_map(
-                static fn (int $skillId, int $level): CachedCharacterSkill => (new CachedCharacterSkill())->setSkillId($skillId)->setLevel($level),
-                array_keys($skillLevelsByCharacterName[$character->getName()]),
-                array_values($skillLevelsByCharacterName[$character->getName()]),
-            ),
+        $user = $this->userWithCharacters($skillLevelsByCharacterName);
+        $this->treeService->method('buildProductionTree')->willReturnCallback(
+            fn (int $requestedProductTypeId, int $runs): array => $this->buildFlatTreeNode($blueprintTypeId, $productTypeId, 'Product '.$productTypeId, $runs, 1, [], 0, 'manufacturing', $hasCopy),
         );
+        $this->setupDefaultMocks();
 
-        return $user;
+        $displayedJobsOfEachProject = [];
+        foreach ($runsOfEachProject as $runs) {
+            $project = $this->factory->createProject($user, $productTypeId, $runs, 10, 2.0, $teLevel);
+            $displayedJobsOfEachProject[] = [
+                'manufacturing' => $this->displayedJobsOf($project, 'manufacturing'),
+                'copy' => $this->displayedJobsOf($project, 'copy'),
+            ];
+        }
+
+        $this->assertSame($expectedDisplayedJobsOfEachProject, $displayedJobsOfEachProject);
     }
 
-    private function runsAndSplitTotalOfEachStep(IndustryProject $project, string $activityType): array
+    public static function generatedJobsOfTwoProjectsAndTheirDisplayedTimePerRun(): iterable
     {
-        return array_values(array_map(
-            static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getTotalGroupRuns()],
-            array_filter($project->getSteps()->toArray(), static fn (IndustryProjectStep $step): bool => $step->getActivityType() === $activityType),
-        ));
+        yield 'Raitaru of the favorite system before a faster Azbel elsewhere, character with Industry IV' => [
+            31001, 31002, 3100, 'basic_medium_ship',
+            [self::structure('raitaru', self::FAVORITE_MANUFACTURING_SYSTEM), self::structure('azbel', self::OTHER_SYSTEM)],
+            self::FAVORITE_MANUFACTURING_SYSTEM,
+            ['Industrialist' => [CachedCharacterSkill::SKILL_INDUSTRY => 4]],
+            [1 => 10000],
+            0,
+            false,
+            [24, 25],
+            [
+                ['manufacturing' => [[24, null, 7140, 'Industrialist']], 'copy' => []],
+                ['manufacturing' => [[13, 25, 7140, 'Industrialist'], [12, 25, 7140, 'Industrialist']], 'copy' => []],
+            ],
+        ];
+        yield 'best structure by material bonus without favorite system, before a faster Azbel' => [
+            32001, 32002, 3200, 'basic_small_ship',
+            [self::structure('azbel', self::OTHER_SYSTEM), self::structure('raitaru', self::OTHER_SYSTEM, [self::MATERIAL_EFFICIENCY_RIG_OF_BASIC_SMALL_SHIPS])],
+            null,
+            [],
+            [1 => 11000],
+            0,
+            false,
+            [18, 19],
+            [
+                ['manufacturing' => [[18, null, 9350, null]], 'copy' => []],
+                ['manufacturing' => [[10, 19, 9350, null], [9, 19, 9350, null]], 'copy' => []],
+            ],
+        ];
+        yield 'role time bonus of the only structure for a product without rig category, at TE 10' => [
+            33001, 33002, 3300, null,
+            [self::structure('raitaru', self::OTHER_SYSTEM)],
+            null,
+            [],
+            [1 => 12000],
+            10,
+            false,
+            [18, 19],
+            [
+                ['manufacturing' => [[18, null, 9180, null]], 'copy' => []],
+                ['manufacturing' => [[10, 19, 9180, null], [9, 19, 9180, null]], 'copy' => []],
+            ],
+        ];
+        yield 'copy of the blueprint, never split, without character and with its copying base time' => [
+            34001, 34002, 3400, 'basic_small_ship',
+            [],
+            null,
+            ['Industrialist' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5]],
+            [1 => 19000, 5 => 14100],
+            0,
+            true,
+            [13, 14],
+            [
+                ['manufacturing' => [[13, null, 12921, 'Industrialist']], 'copy' => [[13, null, 14100, null]]],
+                ['manufacturing' => [[7, 14, 12921, 'Industrialist'], [7, 14, 12921, 'Industrialist']], 'copy' => [[14, null, 14100, null]]],
+            ],
+        ];
+    }
+
+    #[Group('issue-134')]
+    public function testDisplayedTimePerRunIsThatOfTheFirstCharacterAmongThoseWithTheLowestSkillTimeMultiplier(): void
+    {
+        $user = $this->userWithCharacters([
+            'Trainee' => [CachedCharacterSkill::SKILL_INDUSTRY => 1],
+            'Main' => [CachedCharacterSkill::SKILL_INDUSTRY => 5],
+            'Twin' => [CachedCharacterSkill::SKILL_INDUSTRY => 5],
+        ]);
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(35001, 35002, 'Twin Product', 3));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['35001-1' => 13000];
+
+        $project = $this->factory->createProject($user, 35002, 3, 10, 2.0, 0);
+
+        $this->assertSame([[3, null, 10400, 'Main']], $this->displayedJobsOf($project, 'manufacturing'));
     }
 
     // ===========================================

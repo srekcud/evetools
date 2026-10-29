@@ -30,12 +30,15 @@ use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Tests\Integration\IntegrationTestCase;
+use App\Tests\Unit\Service\Industry\AutowiresByType;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
 
 final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
 {
+    use AutowiresByType;
+
     private const int SHIP_CATEGORY_ID = 999_992_006;
     private const int FRIGATE_GROUP_ID = 999_992_025;
     private const int COMPONENT_GROUP_ID = 999_992_334;
@@ -125,7 +128,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
         $this->em->flush();
 
         $container = self::getContainer();
-        $this->factory = new IndustryProjectFactory(
+        $this->factory = self::autowired(IndustryProjectFactory::class, [
             $container->get(IndustryTreeService::class),
             $container->get(IndustryBlacklistService::class),
             $container->get(IndustryBonusService::class),
@@ -137,7 +140,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
             $this->em,
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
             $container->get(IndustryBlueprintRepository::class),
-        );
+        ]);
     }
 
     public function testCreatedProjectPersistsTheStepsOfTheTree(): void
@@ -592,7 +595,7 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
     public function testRegenerationSplitsTheHullComponentWithTheTimeBonusOfItsStructureRatherThanTheBestOne(): void
     {
         $azbel = $this->structure(self::TEST_AZBEL, 'azbel');
-        $this->structure(self::TEST_SOTIYO, 'sotiyo');
+        $this->structure(self::TEST_SOTIYO, 'sotiyo')->setRigs([self::HULL_COMPONENT_MATERIAL_RIG]);
         $this->em->flush();
         $project = $this->factory->createProject($this->pilot, self::DESTROYER_TYPE_ID, 5, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_HULL_COMPONENT_IN_AN_AZBEL_BUT_NOT_IN_A_SOTIYO, 20);
         self::assertSame([[0, 14, 14, 10, 20, null]], $this->settingsOfJobsOfProduct($project, self::HULL_COMPONENT_TYPE_ID));

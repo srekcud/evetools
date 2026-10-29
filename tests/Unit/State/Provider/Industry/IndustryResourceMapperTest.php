@@ -15,6 +15,7 @@ use App\Repository\CachedIndustryJobRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
 use App\State\Provider\Industry\IndustryResourceMapper;
+use App\Tests\Unit\Service\Industry\AutowiresByType;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -23,6 +24,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(IndustryResourceMapper::class)]
 class IndustryResourceMapperTest extends TestCase
 {
+    use AutowiresByType;
     use ResolvesTypeNamesFromSde;
 
     private const int NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID = 4314;
@@ -31,12 +33,12 @@ class IndustryResourceMapperTest extends TestCase
 
     public function testStructureResourceExposesReactionMaterialBonusWithReactionSecurityMultiplier(): void
     {
-        $mapper = new IndustryResourceMapper(
+        $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->createStub(IndustryCalculationService::class),
             $this->createStub(CachedCharacterSkillRepository::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
-        );
+        ]);
 
         $tatara = new IndustryStructureConfig();
         $tatara->setName('Nullsec Tatara');
@@ -53,12 +55,12 @@ class IndustryResourceMapperTest extends TestCase
 
     public function testStructureResourceExposesStandardLargeRigTimeBonusAtTheSdeScale(): void
     {
-        $mapper = new IndustryResourceMapper(
+        $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->createStub(IndustryCalculationService::class),
             $this->createStub(CachedCharacterSkillRepository::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
-        );
+        ]);
 
         $azbel = new IndustryStructureConfig();
         $azbel->setName('Nullsec Azbel');
@@ -74,12 +76,12 @@ class IndustryResourceMapperTest extends TestCase
 
     public function testStructureResourceExposesTheGameFacilityTaxForAnNpcStationStoredWithAnotherTax(): void
     {
-        $mapper = new IndustryResourceMapper(
+        $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->createStub(IndustryCalculationService::class),
             $this->createStub(CachedCharacterSkillRepository::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
-        );
+        ]);
 
         $station = new IndustryStructureConfig();
         $station->setName('Hek VIII');
@@ -279,12 +281,12 @@ class IndustryResourceMapperTest extends TestCase
     #[Group('issue-115')]
     public function testProjectWithTwoKnownRootProductsIsNamedAfterBoth(): void
     {
-        $mapper = new IndustryResourceMapper(
+        $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->calculationServiceOnSdeKnowingNitrogenAndHydrogenFuelBlocks(),
             $this->createStub(CachedCharacterSkillRepository::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
-        );
+        ]);
         $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null);
         $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 40, 10, 20);
         $this->rootStep($project, self::HYDROGEN_FUEL_BLOCK_TYPE_ID, self::HYDROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 15, 8, 16);
@@ -429,12 +431,12 @@ class IndustryResourceMapperTest extends TestCase
 
     private function mapperOnSdeKnowingOnlyNitrogenFuelBlock(): IndustryResourceMapper
     {
-        return new IndustryResourceMapper(
+        return self::autowired(IndustryResourceMapper::class, [
             $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(),
             $this->createStub(CachedCharacterSkillRepository::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
-        );
+        ]);
     }
 
     private function project(int $productTypeId, ?string $customName): IndustryProject

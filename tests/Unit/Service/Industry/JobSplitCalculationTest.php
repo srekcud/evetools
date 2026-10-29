@@ -62,8 +62,9 @@ final class JobSplitCalculationTest extends TestCase
             $this->createStub(InvTypeRepository::class),
             $this->createStub(IndustryActivityProductRepository::class),
         );
-        $calculationService = $this->calculationServiceOnGoldenSde($bonusService, $this->createStub(IndustryStructureConfigRepository::class));
-        $this->factory = $this->projectFactoryOnGoldenSde($bonusService, $calculationService, skillRepository: $this->skillRepositoryOfThePilot());
+        $skillRepository = $this->skillRepositoryOfThePilot();
+        $calculationService = $this->calculationServiceOnGoldenSde($bonusService, $this->createStub(IndustryStructureConfigRepository::class), $skillRepository);
+        $this->factory = $this->projectFactoryOnGoldenSde($bonusService, $calculationService, skillRepository: $skillRepository);
     }
 
     public function testCapitalJumpDriveOfAPilotWithIndustryFiveAndAdvancedIndustryFiveIsSplitIntoFourteenAndThirteenRuns(): void

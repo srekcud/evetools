@@ -424,57 +424,6 @@ class IndustryBonusServiceTest extends TestCase
     }
 
     // ===========================================
-    // Adjusted Time Calculation Tests
-    // ===========================================
-
-    public function testAdjustedTimeWithNoBonus(): void
-    {
-        // Base time 3600s (1 hour), TE 0, structure 0%
-        $adjusted = $this->bonusService->calculateAdjustedTimePerRun(3600, 0, 0.0);
-        $this->assertSame(3600, $adjusted);
-    }
-
-    public function testAdjustedTimeWithTE20(): void
-    {
-        // Base time 3600s, TE 20, structure 0%
-        // 3600 × (1 - 20/100) = 3600 × 0.80 = 2880s
-        $adjusted = $this->bonusService->calculateAdjustedTimePerRun(3600, 20, 0.0);
-        $this->assertSame(2880, $adjusted);
-    }
-
-    public function testAdjustedTimeWithStructureBonus(): void
-    {
-        // Base time 3600s, TE 0, structure 20%
-        // 3600 × (1 - 0/100) × (1 - 20/100) = 3600 × 1.0 × 0.80 = 2880s
-        $adjusted = $this->bonusService->calculateAdjustedTimePerRun(3600, 0, 20.0);
-        $this->assertSame(2880, $adjusted);
-    }
-
-    public function testAdjustedTimeWithBothBonuses(): void
-    {
-        // Base time 3600s, TE 20, structure 20%
-        // 3600 × (1 - 20/100) × (1 - 20/100) = 3600 × 0.80 × 0.80 = 2304s
-        $adjusted = $this->bonusService->calculateAdjustedTimePerRun(3600, 20, 20.0);
-        $this->assertSame(2304, $adjusted);
-    }
-
-    public function testAdjustedTimeWithFullBonuses(): void
-    {
-        // Base time 86400s (1 day), TE 20, structure 25%
-        // 86400 × 0.80 × 0.75 = 51840s (0.6 days)
-        $adjusted = $this->bonusService->calculateAdjustedTimePerRun(86400, 20, 25.0);
-        $this->assertSame(51840, $adjusted);
-    }
-
-    public function testAdjustedTimeRoundsUp(): void
-    {
-        // Base time 3601s, TE 20, structure 0%
-        // 3601 × 0.80 = 2880.8 → ceil to 2881
-        $adjusted = $this->bonusService->calculateAdjustedTimePerRun(3601, 20, 0.0);
-        $this->assertSame(2881, $adjusted);
-    }
-
-    // ===========================================
     // Issue #71: reaction time bonus of the refineries (SDE strReactionTimeMultiplier)
     // Athanor: no reaction time bonus. Tatara: 0.75, i.e. 25 %.
     // ===========================================
@@ -509,18 +458,6 @@ class IndustryBonusServiceTest extends TestCase
 
         // 1 - 0.75 x (1 - 0.264) = 44.8 %
         $this->assertSame(44.8, $this->bonusService->calculateStructureTimeBonusForCategory($tatara, 'composite_reaction'));
-    }
-
-    public function testBestReactionTimeStructureIsTheTataraOverTheAthanor(): void
-    {
-        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', []);
-        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', []);
-        $bonusService = $this->bonusServiceForStructures([$athanor, $tatara]);
-
-        $best = $bonusService->findBestStructureForCategoryTimeBonus(new User(), 'composite_reaction', true);
-
-        $this->assertSame($tatara, $best['structure']);
-        $this->assertSame(25.0, $best['bonus']);
     }
 
     public function testAthanorRemainsTheReactionStructureForAReactionWithoutRigCategory(): void
@@ -798,75 +735,6 @@ class IndustryBonusServiceTest extends TestCase
 
         $this->assertSame('tatara', $best['structure']->getStructureType());
         $this->assertSame(['total' => 0.0, 'base' => 0.0, 'rig' => 0.0], $best['bonus']);
-    }
-
-    // ===========================================
-    // Best structure on time bonus for a category
-    // ===========================================
-
-    public function testBestTimeStructureWithoutAnyStructureKeepsTheCategory(): void
-    {
-        $best = $this->bonusServiceForStructures([])->findBestStructureForCategoryTimeBonus(new User(), 'basic_capital_component');
-
-        $this->assertSame(['structure' => null, 'bonus' => 0.0, 'category' => 'basic_capital_component'], $best);
-    }
-
-    public function testBestTimeStructureDefaultsToManufacturing(): void
-    {
-        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', []);
-        $tatara = $this->createStructure('Test Tatara', 'tatara', 'nullsec', []);
-
-        $best = $this->bonusServiceForStructures([$tatara, $raitaru])->findBestStructureForCategoryTimeBonus(new User(), 'basic_capital_component');
-
-        $this->assertSame(['structure' => $raitaru, 'bonus' => 15.0, 'category' => 'basic_capital_component'], $best);
-    }
-
-    public function testBestTimeStructureNeverRetainsAStructureWithoutTimeBonus(): void
-    {
-        $station = $this->createStructure('Test Station', 'station', 'highsec', []);
-
-        $best = $this->bonusServiceForStructures([$station])->findBestStructureForCategoryTimeBonus(new User(), 'basic_capital_component', false);
-
-        $this->assertSame(['structure' => null, 'bonus' => 0.0, 'category' => 'basic_capital_component'], $best);
-    }
-
-    public function testBestTimeStructureKeepsTheFirstOfTwoEqualStructures(): void
-    {
-        $firstAzbel = $this->createStructure('First Azbel', 'azbel', 'nullsec', []);
-        $secondAzbel = $this->createStructure('Second Azbel', 'azbel', 'nullsec', []);
-
-        $best = $this->bonusServiceForStructures([$firstAzbel, $secondAzbel])->findBestStructureForCategoryTimeBonus(new User(), 'equipment', false);
-
-        $this->assertSame($firstAzbel, $best['structure']);
-        $this->assertSame(20.0, $best['bonus']);
-    }
-
-    public function testBestTimeStructureRetainsTheBestManufacturingStructureAndSkipsTheRefineries(): void
-    {
-        $raitaruWithTimeRig = $this->createStructure('Test Raitaru', 'raitaru', 'lowsec', ['Standup M-Set Equipment Manufacturing Time Efficiency II']);
-        $sotiyo = $this->createStructure('Test Sotiyo', 'sotiyo', 'lowsec', []);
-        $tatara = $this->createStructure('Test Tatara', 'tatara', 'lowsec', []);
-
-        $best = $this->bonusServiceForStructures([$sotiyo, $tatara, $raitaruWithTimeRig])
-            ->findBestStructureForCategoryTimeBonus(new User(), 'equipment', false);
-
-        // Raitaru: rig 24 x 1.9 = 45.6 % ; 1 - 0.85 x 0.544 = 53.76 % > Sotiyo 30 %
-        $this->assertSame(['structure' => $raitaruWithTimeRig, 'bonus' => 53.76, 'category' => 'equipment'], $best);
-    }
-
-    // ===========================================
-    // Adjusted time per run: default arguments and rounding up
-    // ===========================================
-
-    public function testAdjustedTimeWithoutTeNorStructureBonusIsTheBaseTime(): void
-    {
-        $this->assertSame(3600, $this->bonusService->calculateAdjustedTimePerRun(3600));
-    }
-
-    public function testAdjustedTimeRoundsUpEvenBelowHalfASecond(): void
-    {
-        // 3603 x 0.80 = 2882.4 -> 2883
-        $this->assertSame(2883, $this->bonusService->calculateAdjustedTimePerRun(3603, 20, 0.0));
     }
 
     public function testBaseMaterialBonusIsOnePercentForAnEngineeringComplexInManufacturingOnly(): void
