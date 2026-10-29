@@ -149,6 +149,8 @@ deptrac:
     App\State\Processor\GroupIndustry\ReviewContributionProcessor:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
       - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
+    App\State\Processor\GroupIndustry\RecordSaleFromWalletTransactionProcessor:
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\GroupIndustry\RecordSaleProcessor:
       - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\GroupIndustry\SubmitContributionProcessor:

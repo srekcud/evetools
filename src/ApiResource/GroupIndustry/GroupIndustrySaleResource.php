@@ -12,11 +12,13 @@ use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
+use App\ApiResource\Input\GroupIndustry\RecordSaleFromWalletTransactionInput;
 use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
 use App\ApiResource\Input\GroupIndustry\UpdateSaleInput;
 use App\Entity\GroupIndustrySale;
 use App\Service\GroupIndustry\PilotName;
 use App\State\Processor\GroupIndustry\DeleteSaleProcessor;
+use App\State\Processor\GroupIndustry\RecordSaleFromWalletTransactionProcessor;
 use App\State\Processor\GroupIndustry\RecordSaleProcessor;
 use App\State\Processor\GroupIndustry\UpdateSaleProcessor;
 use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
@@ -48,6 +50,19 @@ use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
             openapi: new Model\Operation(
                 summary: 'Record a sale',
                 description: 'Records a new sale for the project (admin/owner only)',
+                tags: ['Group Industry - Sales'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/group-industry/projects/{projectId}/sales/from-wallet-transaction',
+            uriVariables: [
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+            ],
+            processor: RecordSaleFromWalletTransactionProcessor::class,
+            input: RecordSaleFromWalletTransactionInput::class,
+            openapi: new Model\Operation(
+                summary: 'Record a sale from a wallet transaction',
+                description: 'Records a sale of the project from a sale of one of your wallet transactions (admin/owner only)',
                 tags: ['Group Industry - Sales'],
             ),
         ),
@@ -127,6 +142,7 @@ class GroupIndustrySaleResource
         $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
         $resource->sellerCharacterId = $sale->getSeller()?->getEveCharacterId();
         $resource->sellerCharacterName = $sale->getSeller()?->getName();
+        $resource->linkedToWalletTransaction = $sale->getWalletTransaction() !== null;
         $resource->createdAt = $sale->getCreatedAt()->format(\DateTimeInterface::ATOM);
 
         return $resource;

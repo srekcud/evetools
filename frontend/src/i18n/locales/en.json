@@ -2033,11 +2033,25 @@
       "mySales": "My sales",
       "totalMySales": "Total, my sales",
       "noMySales": "No sales by your characters",
+      "walletBadge": "Wallet",
       "unknownSellerOption": "Unknown",
       "deleteConfirm": {
         "title": "Delete this sale?",
         "message": "The sale of {item} is removed from the revenue and the distribution is recalculated."
       }
+    },
+    "saleSuggestions": {
+      "title": "Transactions to link",
+      "date": "Date",
+      "character": "Character",
+      "quantity": "Quantity",
+      "unitPrice": "Unit Price",
+      "total": "Total",
+      "possibleDuplicate": "Possible duplicate",
+      "possibleDuplicateHint": "Matches a sale already recorded with the same quantity and unit price",
+      "record": "Record as sale",
+      "empty": "No wallet transaction to link",
+      "quantityLabel": "Quantity to record"
     },
     "members": {
       "title": "Members",

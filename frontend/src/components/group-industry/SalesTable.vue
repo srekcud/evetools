@@ -42,6 +42,7 @@ const deletingSale = ref(false)
 const chosenSellerCharacterId = ref<number | null>(null)
 const onlyMySales = ref(false)
 
+const correctedSaleIsLinked = computed(() => correctedSale.value?.linkedToWalletTransaction === true)
 const myCharacters = computed(() => authStore.user?.characters ?? [])
 const myEveCharacterIds = computed(() => new Set(myCharacters.value.map(character => character.eveCharacterId)))
 const shownSales = computed(() =>
@@ -200,7 +201,13 @@ onMounted(() => {
                 class="hover:bg-slate-800/30"
               >
                 <td class="py-3 px-6 text-slate-300">{{ formatDate(sale.soldAt) }}</td>
-                <td class="py-3 px-3 text-slate-300">{{ sale.sellerCharacterName ?? t('groupIndustry.sales.unknownSeller') }}</td>
+                <td class="py-3 px-3 text-slate-300">
+                  {{ sale.sellerCharacterName ?? t('groupIndustry.sales.unknownSeller') }}
+                  <span
+                    v-if="sale.linkedToWalletTransaction"
+                    class="ml-2 text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  >{{ t('groupIndustry.sales.walletBadge') }}</span>
+                </td>
                 <td class="py-3 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                   {{ formatNumber(sale.quantity, 0) }}
                 </td>
@@ -281,7 +288,8 @@ onMounted(() => {
               v-model.number="saleForm.unitPrice"
               type="number"
               min="0"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
+              :disabled="correctedSaleIsLinked"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none disabled:opacity-50"
             />
           </div>
           <div>
@@ -299,7 +307,8 @@ onMounted(() => {
             <select
               :id="saleSellerFieldId"
               v-model="chosenSellerCharacterId"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+              :disabled="correctedSaleIsLinked"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none disabled:opacity-50"
             >
               <option :value="null">{{ t('groupIndustry.sales.unknownSellerOption') }}</option>
               <option v-for="character in myCharacters" :key="character.eveCharacterId" :value="character.eveCharacterId">{{ character.name }}</option>

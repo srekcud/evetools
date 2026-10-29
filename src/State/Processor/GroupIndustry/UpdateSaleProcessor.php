@@ -58,6 +58,7 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
         }
 
         $sale = $this->saleOf($this->saleRepository, $project, $uriVariables);
+        $this->assertCorrectionKeepsTheWalletTransaction($sale, $data);
         $this->applyCorrection($sale, $data, $this->sellerOf($user, $data->sellerCharacterId));
 
         $this->entityManager->flush();
@@ -74,6 +75,25 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
         );
 
         return GroupIndustrySaleResource::fromSale($sale);
+    }
+
+    private function assertCorrectionKeepsTheWalletTransaction(GroupIndustrySale $sale, UpdateSaleInput $correction): void
+    {
+        $transaction = $sale->getWalletTransaction();
+        if ($transaction === null) {
+            return;
+        }
+
+        if ($correction->typeId !== null
+            || $correction->unitPrice !== null
+            || $correction->soldAt !== null
+            || $correction->sellerCharacterId !== null) {
+            throw new BadRequestHttpException('This sale is linked to a wallet transaction.');
+        }
+
+        if ($correction->quantity !== null && $correction->quantity > $transaction->getQuantity()) {
+            throw new BadRequestHttpException('The quantity exceeds the quantity of the transaction.');
+        }
     }
 
     private function applyCorrection(GroupIndustrySale $sale, UpdateSaleInput $correction, ?Character $seller): void

@@ -6,7 +6,9 @@ namespace App\Repository;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
+use App\Entity\GroupIndustrySale;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -42,9 +44,32 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @param Character[] $characters
+     * @param int[] $typeIds
+     * @return CachedWalletTransaction[]
+     */
     public function findUnlinkedSaleTransactions(array $characters, array $typeIds, \DateTimeImmutable $since): array
     {
-        throw new \LogicException('not implemented');
+        if ($characters === [] || $typeIds === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->addSelect('c')
+            ->innerJoin('t.character', 'c')
+            ->leftJoin(GroupIndustrySale::class, 's', Join::WITH, 's.walletTransaction = t')
+            ->where('t.character IN (:characters)')
+            ->andWhere('t.isBuy = false')
+            ->andWhere('t.typeId IN (:typeIds)')
+            ->andWhere('t.date >= :since')
+            ->andWhere('s.id IS NULL')
+            ->setParameter('characters', $characters)
+            ->setParameter('typeIds', $typeIds)
+            ->setParameter('since', $since)
+            ->orderBy('t.date', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**

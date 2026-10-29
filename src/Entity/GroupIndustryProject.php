@@ -287,6 +287,17 @@ class GroupIndustryProject
         return $this->items;
     }
 
+    public function getItemTypeName(int $typeId): ?string
+    {
+        foreach ($this->items as $item) {
+            if ($item->getTypeId() === $typeId) {
+                return $item->getTypeName();
+            }
+        }
+
+        return null;
+    }
+
     public function addItem(GroupIndustryProjectItem $item): static
     {
         if (!$this->items->contains($item)) {

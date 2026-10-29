@@ -2033,11 +2033,25 @@
       "mySales": "Mes ventes",
       "totalMySales": "Total, mes ventes",
       "noMySales": "Aucune vente de vos personnages",
+      "walletBadge": "Wallet",
       "unknownSellerOption": "Inconnu",
       "deleteConfirm": {
         "title": "Supprimer cette vente ?",
         "message": "La vente de {item} est retiree du revenu et la distribution est recalculee."
       }
+    },
+    "saleSuggestions": {
+      "title": "Transactions à rattacher",
+      "date": "Date",
+      "character": "Personnage",
+      "quantity": "Quantité",
+      "unitPrice": "Prix unitaire",
+      "total": "Total",
+      "possibleDuplicate": "Doublon possible",
+      "possibleDuplicateHint": "Correspond à une vente déjà enregistrée de même quantité et de même prix unitaire",
+      "record": "Enregistrer comme vente",
+      "empty": "Aucune transaction wallet à rattacher",
+      "quantityLabel": "Quantité à enregistrer"
     },
     "members": {
       "title": "Membres",

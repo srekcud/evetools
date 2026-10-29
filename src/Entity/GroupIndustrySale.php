@@ -53,6 +53,10 @@ class GroupIndustrySale
     #[ORM\JoinColumn(name: 'seller_character_id', nullable: true, onDelete: 'SET NULL')]
     private ?Character $seller = null;
 
+    #[ORM\OneToOne(targetEntity: CachedWalletTransaction::class)]
+    #[ORM\JoinColumn(name: 'wallet_transaction_id', nullable: true, onDelete: 'SET NULL')]
+    private ?CachedWalletTransaction $walletTransaction = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -184,12 +188,13 @@ class GroupIndustrySale
 
     public function getWalletTransaction(): ?CachedWalletTransaction
     {
-        throw new \LogicException('not implemented');
+        return $this->walletTransaction;
     }
 
     public function setWalletTransaction(?CachedWalletTransaction $walletTransaction): static
     {
-        throw new \LogicException('not implemented');
+        $this->walletTransaction = $walletTransaction;
+        return $this;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

@@ -45,6 +45,9 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     loadingDistribution.value = false
     loadingSales.value = false
     loadingMembers.value = false
+    saleSuggestions.value = []
+    saleSuggestionsError.value = null
+    loadingSaleSuggestions.value = false
   }
 
   async function fetchForProject<T>(
@@ -84,11 +87,11 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     return fetchForProject(projectId, 'sales', sales, [], loadingSales, salesError, 'Failed to fetch sales')
   }
 
-  async function recordSale(projectId: string, input: RecordSaleInput): Promise<GroupSale | null> {
+  async function postSale(projectId: string, resource: string, input: RecordSaleInput | RecordSaleFromWalletTransactionInput): Promise<GroupSale> {
     error.value = null
     try {
       const sale = await apiRequest<GroupSale>(
-        `/group-industry/projects/${projectId}/sales`,
+        `/group-industry/projects/${projectId}/${resource}`,
         {
           method: 'POST',
           body: JSON.stringify(input),
@@ -100,6 +103,14 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
       error.value = e instanceof Error ? e.message : 'Failed to record sale'
       throw e
     }
+  }
+
+  function recordSale(projectId: string, input: RecordSaleInput): Promise<GroupSale> {
+    return postSale(projectId, 'sales', input)
+  }
+
+  function recordSaleFromWalletTransaction(projectId: string, input: RecordSaleFromWalletTransactionInput): Promise<GroupSale> {
+    return postSale(projectId, 'sales/from-wallet-transaction', input)
   }
 
   async function updateSale(projectId: string, saleId: string, input: UpdateSaleInput): Promise<GroupSale> {
@@ -134,12 +145,8 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     }
   }
 
-  async function fetchSaleSuggestions(_projectId: string): Promise<void> {
-    throw new Error('not implemented')
-  }
-
-  async function recordSaleFromWalletTransaction(_projectId: string, _input: RecordSaleFromWalletTransactionInput): Promise<GroupSale> {
-    throw new Error('not implemented')
+  function fetchSaleSuggestions(projectId: string): Promise<void> {
+    return fetchForProject(projectId, 'sale-suggestions', saleSuggestions, [], loadingSaleSuggestions, saleSuggestionsError, 'Failed to fetch sale suggestions')
   }
 
   function fetchMembers(projectId: string): Promise<void> {
