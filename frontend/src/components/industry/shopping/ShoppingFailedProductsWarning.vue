@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useTypeNames } from '@/composables/useTypeNames'
 import type { ShoppingListFailedProduct } from '@/stores/industry/types'
 
 const props = defineProps<{
@@ -10,6 +11,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { typeNameLabel } = useTypeNames()
 
 const warningMessage = computed(() => props.message ?? t('industry.shoppingTab.failedProductsWarning'))
 </script>
@@ -27,7 +29,7 @@ const warningMessage = computed(() => props.message ?? t('industry.shoppingTab.f
       <p class="text-amber-300">{{ warningMessage }}</p>
       <ul class="mt-1 space-y-0.5 text-xs text-amber-400/70">
         <li v-for="failedProduct in failedProducts" :key="failedProduct.typeId">
-          <span class="text-amber-300">{{ productNamesByTypeId.get(failedProduct.typeId) ?? failedProduct.typeId }}</span>
+          <span class="text-amber-300">{{ typeNameLabel(productNamesByTypeId.get(failedProduct.typeId) ?? null, failedProduct.typeId) }}</span>
           : {{ failedProduct.reason }}
         </li>
       </ul>

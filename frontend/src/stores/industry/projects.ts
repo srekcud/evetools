@@ -99,7 +99,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       ))
       // PATCH response from projectToResource does not include steps/tree —
       // preserve existing ones to avoid wiping loaded data.
-      const { steps: _s, tree: _t, ...safeUpdated } = updated as IndustryProject & { tree?: unknown }
+      const { steps: _s, tree: _t, failedProducts: _f, ...safeUpdated } = updated as IndustryProject & { tree?: unknown }
       const idx = projects.value.findIndex((p) => p.id === id)
       if (idx !== -1) {
         projects.value[idx] = { ...projects.value[idx], ...safeUpdated }

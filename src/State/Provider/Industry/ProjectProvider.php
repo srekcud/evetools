@@ -49,7 +49,9 @@ class ProjectProvider implements ProviderInterface
             $project->getSteps()->toArray()
         );
 
-        $resource->tree = $this->productionTree->buildTree($project);
+        $productionTree = $this->productionTree->buildTree($project);
+        $resource->tree = $productionTree['tree'];
+        $resource->failedProducts = $productionTree['failedProducts'];
 
         return $resource;
     }

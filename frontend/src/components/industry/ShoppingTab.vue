@@ -7,6 +7,7 @@ import { usePurchasesStore } from '@/stores/industry/purchases'
 import { useFormatters } from '@/composables/useFormatters'
 import { useShoppingStockAnalysis } from '@/composables/useShoppingStockAnalysis'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { useStepProductNames } from '@/composables/useStepProductNames'
 import { apiRequest } from '@/services/api'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ShoppingConfigPanel from './shopping/ShoppingConfigPanel.vue'
@@ -74,13 +75,7 @@ const transportCostPerM3 = ref(1200)
 const projectIdRef = computed(() => props.projectId)
 const stepsRef = computed(() => store.currentProject?.steps ?? [])
 
-const productNamesByTypeId = computed(() => {
-  const names = new Map<number, string>()
-  for (const step of stepsRef.value) {
-    if (step.productTypeName) names.set(step.productTypeId, step.productTypeName)
-  }
-  return names
-})
+const productNamesByTypeId = useStepProductNames(stepsRef)
 
 // Stock analysis composable
 const stock = useShoppingStockAnalysis(

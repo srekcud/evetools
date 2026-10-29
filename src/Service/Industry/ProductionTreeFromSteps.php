@@ -16,11 +16,20 @@ class ProductionTreeFromSteps
     }
 
     /**
-     * @return array<string, mixed>|null
+     * @return array{tree: array<string, mixed>|null, failedProducts: list<array{typeId: int, reason: string}>}
      */
-    public function buildTree(IndustryProject $project): ?array
+    public function buildTree(IndustryProject $project): array
     {
         $needs = $this->needsResolver->resolve($project);
+
+        return ['tree' => $this->treeOf($project, $needs), 'failedProducts' => array_values($needs->failedProducts)];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function treeOf(IndustryProject $project, ProductionStepNeeds $needs): ?array
+    {
         $rootTypeId = $project->getProductTypeId();
         if (!isset($needs->needsByProduct[$rootTypeId])) {
             return null;

@@ -6,8 +6,10 @@ import { useStepsStore } from '@/stores/industry/steps'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { useStepProductNames } from '@/composables/useStepProductNames'
 import StepTree from './StepTree.vue'
 import StepHierarchyTree from './StepHierarchyTree.vue'
+import ShoppingFailedProductsWarning from './shopping/ShoppingFailedProductsWarning.vue'
 
 const { t } = useI18n()
 
@@ -27,6 +29,9 @@ const matchJobsLoading = ref(false)
 const matchJobsWarning = ref<string | null>(null)
 const showAvailableJobs = ref(false)
 const overproduceOffers = ref<Record<string, number>>({})
+
+const failedProducts = computed(() => store.currentProject?.failedProducts)
+const productNamesByTypeId = useStepProductNames(computed(() => store.currentProject?.steps ?? []))
 
 // Mercure sync progress
 const industryProjectProgress = computed(() => syncStore.getSyncProgress('industry-project'))
@@ -314,6 +319,14 @@ defineExpose({
         </table>
       </div>
     </div>
+
+    <ShoppingFailedProductsWarning
+      v-if="failedProducts"
+      class="mb-4"
+      :failed-products="failedProducts"
+      :product-names-by-type-id="productNamesByTypeId"
+      :message="t('industry.stepsTab.failedProductsWarning')"
+    />
 
     <!-- Steps list (flat view) -->
     <div v-if="stepsViewMode === 'flat'">

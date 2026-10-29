@@ -1160,6 +1160,7 @@
       "unlinkEsi": "Delier le job ESI",
       "linkToStep": "Lier a une etape",
       "noSteps": "Aucune etape",
+      "failedProductsWarning": "L'arbre de production de ces produits n'a pas pu etre construit.",
       "treeUnavailable": "Arbre non disponible",
       "loading": "Chargement..."
     },

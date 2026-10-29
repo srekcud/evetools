@@ -1160,6 +1160,7 @@
       "unlinkEsi": "Unlink ESI job",
       "linkToStep": "Link to step",
       "noSteps": "No steps",
+      "failedProductsWarning": "The production tree of these products could not be built.",
       "treeUnavailable": "Tree unavailable",
       "loading": "Loading..."
     },
