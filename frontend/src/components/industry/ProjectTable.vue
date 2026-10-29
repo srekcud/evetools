@@ -107,14 +107,14 @@ function startEdit(project: IndustryProject, field: string) {
 const editingMeTe = ref<string | null>(null)
 const editMeValue = ref<string>('')
 const editTeValue = ref<string>('')
-const meInputRef = ref<HTMLInputElement | null>(null)
+const meInputRef = ref<HTMLInputElement[]>([])
 
 function startEditMeTe(project: IndustryProject) {
   if (!isEditable(project)) return
   editMeValue.value = String(project.meLevel)
   editTeValue.value = String(project.teLevel)
   editingMeTe.value = project.id
-  nextTick(() => meInputRef.value?.focus())
+  nextTick(() => meInputRef.value[0]?.focus())
 }
 
 async function saveMeTe(project: IndustryProject) {

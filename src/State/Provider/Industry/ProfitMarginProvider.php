@@ -47,8 +47,8 @@ class ProfitMarginProvider implements ProviderInterface
 
         // Parse query params with defaults
         $runs = max(1, (int) ($request?->query->get('runs', '1') ?? '1'));
-        $me = (int) ($request?->query->get('me', '10') ?? '10');
-        $te = (int) ($request?->query->get('te', '20') ?? '20');
+        $me = $this->efficiencyLevelParameter($request?->query->get('me'), 'me', 10);
+        $te = $this->efficiencyLevelParameter($request?->query->get('te'), 'te', 20);
         BlueprintEfficiencyLevels::requireValid($me, $te);
 
         $solarSystemIdParam = $request?->query->get('solarSystemId');
@@ -94,6 +94,20 @@ class ProfitMarginProvider implements ProviderInterface
         );
 
         return $this->mapToResource($result);
+    }
+
+    private function efficiencyLevelParameter(mixed $rawValue, string $name, int $default): int
+    {
+        if ($rawValue === null) {
+            return $default;
+        }
+
+        $level = filter_var($rawValue, FILTER_VALIDATE_INT);
+        if ($level === false) {
+            throw new BadRequestHttpException(sprintf("Query parameter '%s' must be an integer.", $name));
+        }
+
+        return $level;
     }
 
     private function isDecryptor(int $typeId): bool
