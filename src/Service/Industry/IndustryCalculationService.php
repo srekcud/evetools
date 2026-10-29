@@ -299,7 +299,7 @@ class IndustryCalculationService
             $skillMultiplier = $this->calculateSkillTimeMultiplier($characterSkills, $activityType, $scienceSkillIds);
         }
 
-        return (int) ceil($baseTime * $teMultiplier * $structureTimeMultiplier * $skillMultiplier);
+        return (int) ceil(round($baseTime * $teMultiplier * $structureTimeMultiplier * $skillMultiplier, 6));
     }
 
     /**
