@@ -8,7 +8,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useShoppingStockAnalysis } from '@/composables/useShoppingStockAnalysis'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useStepProductNames } from '@/composables/useStepProductNames'
-import { apiRequest } from '@/services/api'
+import { ApiError, apiRequest } from '@/services/api'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ShoppingConfigPanel from './shopping/ShoppingConfigPanel.vue'
 import ShoppingTotalsSummary from './shopping/ShoppingTotalsSummary.vue'
@@ -18,6 +18,9 @@ import ShoppingFailedProductsWarning from './shopping/ShoppingFailedProductsWarn
 import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
 import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 import type { ShoppingListFailedProduct, ShoppingListItem, ShoppingListTotals } from '@/stores/industry/types'
+
+const HTTP_NOT_FOUND = 404
+const HTTP_CONFLICT = 409
 
 export interface EnrichedShoppingItem extends ShoppingListItem {
   inStock: number
@@ -395,10 +398,19 @@ async function refreshAfterPurchaseChange() {
 }
 
 // Purchases
+const purchaseLinkError = ref<string | null>(null)
+
+function linkErrorKeyFor(error: unknown): string {
+  if (error instanceof ApiError && error.status === HTTP_CONFLICT) return 'industry.shoppingTab.linkErrors.alreadyLinked'
+  if (error instanceof ApiError && error.status === HTTP_NOT_FOUND) return 'industry.shoppingTab.linkErrors.notFound'
+  return 'industry.shoppingTab.linkErrors.failed'
+}
+
 async function linkSuggestion(suggestion: { transactionUuid: string; typeId: number; transactionId: number }) {
   const step = findStepForType(suggestion.typeId)
   if (!step) return
 
+  purchaseLinkError.value = null
   try {
     await purchasesStore.createPurchase(props.projectId, step.id, {
       transactionId: suggestion.transactionUuid,
@@ -409,6 +421,9 @@ async function linkSuggestion(suggestion: { transactionUuid: string; typeId: num
     ])
     await loadShoppingList()
     stock.performStockAnalysis()
+  } catch (e) {
+    purchaseLinkError.value = t(linkErrorKeyFor(e))
+    await purchasesStore.fetchSuggestions(props.projectId)
   } finally {
     purchasesPanelRef.value?.resetLinkingId()
   }
@@ -425,6 +440,7 @@ async function removePurchase(stepId: string, purchaseId: string) {
 }
 
 async function loadSuggestions() {
+  purchaseLinkError.value = null
   purchasesLoading.value = true
   try {
     await purchasesStore.fetchSuggestions(props.projectId)
@@ -645,6 +661,7 @@ defineExpose({
         :material-cost="store.currentProject?.materialCost ?? null"
         :purchases-loading="purchasesLoading"
         :can-find-step-for-type="canFindStepForType"
+        :link-error="purchaseLinkError"
         @load-suggestions="loadSuggestions"
         @link-suggestion="linkSuggestion"
         @remove-purchase="removePurchase"

@@ -1294,6 +1294,11 @@
       "loadingSuggestions": "Chargement des suggestions d'achats...",
       "purchaseSuggestions": "Suggestions d'achats (wallet ESI)",
       "noWalletMatch": "Aucune transaction wallet correspondant aux materiaux du projet.",
+      "linkErrors": {
+        "alreadyLinked": "Cette transaction est déjà rattachée à un achat. Les suggestions ont été rafraîchies.",
+        "notFound": "La transaction ou l'étape n'existe plus. Les suggestions ont été rafraîchies.",
+        "failed": "Échec du rattachement de l'achat."
+      },
       "date": "Date",
       "item": "Item",
       "qty": "Qte",

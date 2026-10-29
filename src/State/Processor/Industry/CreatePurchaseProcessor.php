@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\StepPurchaseResource;
 use App\ApiResource\Input\Industry\CreatePurchaseInput;
+use App\Entity\CachedWalletTransaction;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
@@ -18,6 +19,7 @@ use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -27,6 +29,9 @@ use Symfony\Component\Uid\Uuid;
  */
 class CreatePurchaseProcessor implements ProcessorInterface
 {
+    private const string TRANSACTION_NOT_FOUND_MESSAGE = 'Transaction not found';
+    private const string ALREADY_LINKED_MESSAGE = 'This transaction is already linked to a purchase.';
+
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
@@ -64,11 +69,10 @@ class CreatePurchaseProcessor implements ProcessorInterface
         $purchase->setStep($step);
 
         if ($data->transactionId !== null) {
-            // Link to ESI wallet transaction
-            $transaction = $this->transactionRepository->find(Uuid::fromString($data->transactionId));
+            $transaction = $this->findOwnedTransaction($user, $data->transactionId);
 
-            if ($transaction === null) {
-                throw new NotFoundHttpException('Transaction not found');
+            if ($this->purchaseRepository->findOneBy(['transaction' => $transaction]) !== null) {
+                throw new ConflictHttpException(self::ALREADY_LINKED_MESSAGE);
             }
 
             $purchase->setTransaction($transaction);
@@ -78,7 +82,6 @@ class CreatePurchaseProcessor implements ProcessorInterface
             $purchase->setTotalPrice($purchase->getUnitPrice() * $purchase->getQuantity());
             $purchase->setSource('esi_wallet');
         } else {
-            // Manual entry
             if ($data->typeId === null || $data->quantity === null || $data->unitPrice === null) {
                 throw new BadRequestHttpException('Manual purchase requires typeId, quantity and unitPrice');
             }
@@ -95,5 +98,20 @@ class CreatePurchaseProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         return $this->mapper->purchaseToResource($purchase);
+    }
+
+    private function findOwnedTransaction(User $user, string $transactionId): CachedWalletTransaction
+    {
+        if (!Uuid::isValid($transactionId)) {
+            throw new NotFoundHttpException(self::TRANSACTION_NOT_FOUND_MESSAGE);
+        }
+
+        $transaction = $this->transactionRepository->find(Uuid::fromString($transactionId));
+
+        if ($transaction === null || !$user->getCharacters()->contains($transaction->getCharacter())) {
+            throw new NotFoundHttpException(self::TRANSACTION_NOT_FOUND_MESSAGE);
+        }
+
+        return $transaction;
     }
 }

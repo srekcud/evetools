@@ -1294,6 +1294,11 @@
       "loadingSuggestions": "Loading purchase suggestions...",
       "purchaseSuggestions": "Purchase suggestions (ESI wallet)",
       "noWalletMatch": "No wallet transactions matching project materials.",
+      "linkErrors": {
+        "alreadyLinked": "This transaction is already linked to a purchase. Suggestions have been refreshed.",
+        "notFound": "The transaction or the step no longer exists. Suggestions have been refreshed.",
+        "failed": "Failed to link the purchase."
+      },
       "date": "Date",
       "item": "Item",
       "qty": "Qty",

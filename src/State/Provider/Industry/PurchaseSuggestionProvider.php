@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\PurchaseSuggestionListResource;
 use App\ApiResource\Industry\PurchaseSuggestionResource;
+use App\Entity\IndustryStepPurchase;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Repository\CachedWalletTransactionRepository;
@@ -49,8 +50,6 @@ class PurchaseSuggestionProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        // Collect all material type IDs needed by this project.
-        // First try from sub-steps (depth > 0), then fallback to SDE blueprint materials.
         $materialTypeIds = [];
         foreach ($project->getSteps() as $step) {
             if ($step->getDepth() > 0 && $step->getActivityType() !== 'copy') {
@@ -58,7 +57,6 @@ class PurchaseSuggestionProvider implements ProviderInterface
             }
         }
 
-        // If no sub-steps, extract materials directly from SDE blueprints
         if (empty($materialTypeIds)) {
             $blueprintTypeIds = [];
             foreach ($project->getSteps() as $step) {
@@ -69,7 +67,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
             if (!empty($blueprintTypeIds)) {
                 $materialsByBlueprint = $this->materialRepository->findMaterialsForBlueprints(
                     array_keys($blueprintTypeIds),
-                    [IndustryActivityType::Manufacturing->value],
+                    [IndustryActivityType::Manufacturing->value, IndustryActivityType::Reaction->value],
                 );
                 foreach ($materialsByBlueprint as $materials) {
                     foreach ($materials as $material) {
@@ -85,19 +83,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
             return $result;
         }
 
-        // Get already-linked transaction IDs for this project
-        $linkedTransactionIds = [];
-        foreach ($project->getSteps() as $step) {
-            foreach ($step->getPurchases() as $purchase) {
-                $tx = $purchase->getTransaction();
-                if ($tx !== null) {
-                    $linkedTransactionIds[(string) $tx->getId()] = true;
-                }
-            }
-        }
-
-        // Find matching wallet transactions for all user's characters
-        $suggestions = [];
+        $foundTransactions = [];
         foreach ($user->getCharacters() as $character) {
             $transactions = $this->transactionRepository->findBuysByTypeIds(
                 $character,
@@ -105,21 +91,46 @@ class PurchaseSuggestionProvider implements ProviderInterface
             );
 
             foreach ($transactions as $tx) {
-                $suggestion = new PurchaseSuggestionResource();
-                $suggestion->transactionId = $tx->getTransactionId();
-                $suggestion->transactionUuid = (string) $tx->getId();
-                $suggestion->typeId = $tx->getTypeId();
-                $suggestion->typeName = $this->calculationService->resolveTypeName($tx->getTypeId());
-                $suggestion->quantity = $tx->getQuantity();
-                $suggestion->unitPrice = $tx->getUnitPrice();
-                $suggestion->totalPrice = $tx->getTotalPrice();
-                $suggestion->date = $tx->getDate()->format('c');
-                $suggestion->characterName = $character->getName();
-                $suggestion->locationId = $tx->getLocationId();
-                $suggestion->alreadyLinked = isset($linkedTransactionIds[(string) $tx->getId()]);
-
-                $suggestions[] = $suggestion;
+                $foundTransactions[] = [$character, $tx];
             }
+        }
+
+        $purchases = [];
+        if ($foundTransactions !== []) {
+            $purchases = $this->purchaseRepository->findBy([
+                'transaction' => array_map(static fn (array $found) => $found[1], $foundTransactions),
+            ]);
+        }
+
+        $suggestions = [];
+        foreach ($foundTransactions as [$character, $tx]) {
+            $linkingPurchases = array_filter(
+                $purchases,
+                static fn (IndustryStepPurchase $purchase) => $purchase->getTransaction() === $tx,
+            );
+            $linkedToCurrentProject = array_any(
+                $linkingPurchases,
+                static fn (IndustryStepPurchase $purchase) => $purchase->getStep()->getProject() === $project,
+            );
+
+            if ($linkingPurchases !== [] && !$linkedToCurrentProject) {
+                continue;
+            }
+
+            $suggestion = new PurchaseSuggestionResource();
+            $suggestion->transactionId = $tx->getTransactionId();
+            $suggestion->transactionUuid = (string) $tx->getId();
+            $suggestion->typeId = $tx->getTypeId();
+            $suggestion->typeName = $this->calculationService->resolveTypeName($tx->getTypeId());
+            $suggestion->quantity = $tx->getQuantity();
+            $suggestion->unitPrice = $tx->getUnitPrice();
+            $suggestion->totalPrice = $tx->getTotalPrice();
+            $suggestion->date = $tx->getDate()->format('c');
+            $suggestion->characterName = $character->getName();
+            $suggestion->locationId = $tx->getLocationId();
+            $suggestion->alreadyLinked = $linkedToCurrentProject;
+
+            $suggestions[] = $suggestion;
         }
 
         $result = new PurchaseSuggestionListResource();

@@ -26,6 +26,7 @@ const props = defineProps<{
   materialCost: number | null
   purchasesLoading: boolean
   canFindStepForType: (typeId: number) => boolean
+  linkError: string | null
 }>()
 
 const emit = defineEmits<{
@@ -102,6 +103,15 @@ defineExpose({ resetLinkingId })
           </svg>
           {{ t('common.actions.refresh') }}
         </button>
+      </div>
+
+      <div
+        v-if="linkError"
+        data-testid="purchase-link-error"
+        role="alert"
+        class="mb-3 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm"
+      >
+        {{ linkError }}
       </div>
 
       <div v-if="suggestions.length === 0" class="text-center py-6 text-slate-500 text-sm">
