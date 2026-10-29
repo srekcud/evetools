@@ -28,6 +28,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(UpdateStepProcessor::class)]
@@ -152,6 +153,32 @@ final class UpdateStepProcessorTest extends TestCase
 
         self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
         self::assertSame([self::PHENOLIC_COMPOSITES, 11_000], [$updatedStep->productTypeId, $updatedStep->quantity]);
+    }
+
+    #[Group('issue-200')]
+    public function testProjectIdThatIsNotAUuidIsNotFoundWithoutReadingTheProjectsNorTheSteps(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->pilot);
+        $projectRepository = $this->createMock(IndustryProjectRepository::class);
+        $projectRepository->expects($this->never())->method('find');
+        $stepRepository = $this->createMock(IndustryProjectStepRepository::class);
+        $stepRepository->expects($this->never())->method('find');
+        $processor = new UpdateStepProcessor(
+            $security,
+            $projectRepository,
+            $stepRepository,
+            $this->createStub(IndustryActivityProductRepository::class),
+            $this->createStub(IndustryStructureConfigRepository::class),
+            $this->createStub(IndustryStepCalculator::class),
+            $this->createStub(IndustryResourceMapper::class),
+            $this->createStub(EntityManagerInterface::class),
+        );
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        $processor->process($this->runsEntered(7), new Patch(), ['id' => 'not-a-uuid', 'stepId' => '0192f0c4-7b1e-7a3c-9d2e-200000000011']);
     }
 
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity, int $depth, int $meLevel): IndustryProjectStep

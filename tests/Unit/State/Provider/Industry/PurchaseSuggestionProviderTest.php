@@ -257,6 +257,27 @@ final class PurchaseSuggestionProviderTest extends TestCase
         self::assertSame(['404 Project not found', [], [], []], [$outcome, $this->buyLookups, $this->materialLookups, $this->purchaseLookups]);
     }
 
+    #[Group('issue-200')]
+    public function testProjectIdThatIsNotAUuidIsNotFoundWithoutReadingTheWalletTransactions(): void
+    {
+        $p1 = (new Character())->setName('Pilot One');
+        $u1 = $this->pilotWith($p1);
+        $j7 = $this->projectOf($u1, 9070);
+        $j7->addStep($this->step(9207, 9070, 1, 0));
+        $provider = $this->provider($u1, $j7, ['Pilot One' => [$this->buy($p1, 6_400_000_007, 9070, 45, 8.75)]]);
+
+        try {
+            $provider->provide(new Get(), ['id' => 'abc']);
+            $outcome = 'provided';
+        } catch (HttpExceptionInterface $exception) {
+            $outcome = $exception->getStatusCode().' '.$exception->getMessage();
+        } catch (\Throwable $throwable) {
+            $outcome = $throwable::class.': '.$throwable->getMessage();
+        }
+
+        self::assertSame(['404 Project not found', [], [], []], [$outcome, $this->buyLookups, $this->materialLookups, $this->purchaseLookups]);
+    }
+
     /**
      * @param array<string, list<CachedWalletTransaction>> $buysByCharacterName
      */

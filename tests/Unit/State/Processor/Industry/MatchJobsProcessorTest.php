@@ -61,6 +61,10 @@ final class MatchJobsProcessorTest extends TestCase
 
     private int $matchEsiJobsCalls = 0;
 
+    private string $projectIdInUrl = self::PROJECT_ID;
+
+    private int $projectLookups = 0;
+
     protected function setUp(): void
     {
         $this->user = new User();
@@ -256,6 +260,26 @@ final class MatchJobsProcessorTest extends TestCase
         $this->assertSame([], $this->syncedCharacterNames);
     }
 
+    #[Group('issue-200')]
+    public function testProjectIdThatIsNotAUuidIsNotFoundWithoutReadingTheProjectsNorSyncing(): void
+    {
+        $this->projectIdInUrl = 'abc';
+
+        self::assertSame(
+            ['404 Project not found', 0, [], 0],
+            [$this->outcomeOfMatchJobs(), $this->projectLookups, $this->syncedCharacterNames, $this->matchEsiJobsCalls],
+        );
+    }
+
+    #[Group('issue-200')]
+    public function testUnknownValidProjectUuidIsNotFoundAfterOneProjectLookup(): void
+    {
+        $this->projectIdInUrl = '0192f0c4-7b1e-7a3c-9d2e-2000000000ff';
+        $this->foundProject = null;
+
+        self::assertSame(['404 Project not found', 1], [$this->outcomeOfMatchJobs(), $this->projectLookups]);
+    }
+
     public function testRejectsAnonymousWith401(): void
     {
         $this->authenticatedUser = null;
@@ -291,6 +315,19 @@ final class MatchJobsProcessorTest extends TestCase
         $this->fail('The job match was not rejected');
     }
 
+    private function outcomeOfMatchJobs(): string
+    {
+        try {
+            $this->matchJobs();
+        } catch (HttpExceptionInterface $rejection) {
+            return $rejection->getStatusCode().' '.$rejection->getMessage();
+        } catch (\Throwable $throwable) {
+            return $throwable::class.': '.$throwable->getMessage();
+        }
+
+        return 'matched';
+    }
+
     private function addCharacterWithToken(string $name, int $eveCharacterId): Character
     {
         $character = (new Character())
@@ -308,7 +345,11 @@ final class MatchJobsProcessorTest extends TestCase
         $security->method('getUser')->willReturn($this->authenticatedUser);
 
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $projectRepository->method('find')->willReturn($this->foundProject);
+        $projectRepository->method('find')->willReturnCallback(function (): ?IndustryProject {
+            $this->projectLookups++;
+
+            return $this->foundProject;
+        });
 
         $jobSyncService = $this->createStub(IndustryJobSyncService::class);
         $jobSyncService->method('syncCharacterJobs')->willReturnCallback(function (Character $character): void {
@@ -340,7 +381,7 @@ final class MatchJobsProcessorTest extends TestCase
             $this->logger,
         );
 
-        return $processor->process(null, new Post(), ['id' => self::PROJECT_ID]);
+        return $processor->process(null, new Post(), ['id' => $this->projectIdInUrl]);
     }
 
     private function loggedLevelsAndContexts(): array

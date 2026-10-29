@@ -16,6 +16,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(UnlinkJobProcessor::class)]
@@ -58,5 +59,23 @@ class UnlinkJobProcessorTest extends TestCase
         self::assertCount(0, $stepS->getJobMatches());
         self::assertSame('manual', $stepS->getJobMatchMode());
         self::assertSame(self::SPEC_STEP_RUNS, $stepS->getRuns());
+    }
+
+    #[Group('issue-200')]
+    public function testJobMatchIdThatIsNotAUuidIsNotFoundWithoutReadingTheJobMatchesNorRemovingAnything(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+        $matchRepository = $this->createMock(IndustryStepJobMatchRepository::class);
+        $matchRepository->expects($this->never())->method('find');
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->never())->method('remove');
+        $entityManager->expects($this->never())->method('flush');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Job match not found');
+
+        (new UnlinkJobProcessor($security, $matchRepository, $entityManager))
+            ->process(null, new Delete(), ['id' => 'm-1']);
     }
 }

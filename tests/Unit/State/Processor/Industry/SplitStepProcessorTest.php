@@ -25,6 +25,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(SplitStepProcessor::class)]
@@ -246,6 +247,34 @@ final class SplitStepProcessorTest extends TestCase
         self::assertSame([[1, 490, 0, null]], $this->jobsOfProduct(self::TITANIUM_CARBIDE));
     }
 
+    #[Group('issue-200')]
+    public function testProjectIdThatIsNotAUuidIsNotFoundWithoutReadingTheProjectsNorTheSteps(): void
+    {
+        $projectRepository = $this->createMock(IndustryProjectRepository::class);
+        $projectRepository->expects($this->never())->method('find');
+        $stepRepository = $this->createMock(IndustryProjectStepRepository::class);
+        $stepRepository->expects($this->never())->method('find');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        $this->splitAt(['id' => 'abc', 'stepId' => 'def'], $projectRepository, $stepRepository);
+    }
+
+    #[Group('issue-200')]
+    public function testStepIdThatIsNotAUuidUnderAnOwnedProjectIsNotFoundWithoutReadingTheSteps(): void
+    {
+        $projectRepository = $this->createMock(IndustryProjectRepository::class);
+        $projectRepository->expects($this->once())->method('find')->willReturn($this->project);
+        $stepRepository = $this->createMock(IndustryProjectStepRepository::class);
+        $stepRepository->expects($this->never())->method('find');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Step not found');
+
+        $this->splitAt(['id' => '0192f0c4-7b1e-7a3c-9d2e-200000000001', 'stepId' => 'def'], $projectRepository, $stepRepository);
+    }
+
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity): IndustryProjectStep
     {
         $step = (new IndustryProjectStep())
@@ -286,6 +315,25 @@ final class SplitStepProcessorTest extends TestCase
             $splitGroupMaterialNeeds ?? $this->splitGroupMaterialNeedsOnRecipes(),
         );
         $processor->process($input, new Post(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+    }
+
+    private function splitAt(array $uriVariables, IndustryProjectRepository $projectRepository, IndustryProjectStepRepository $stepRepository): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->user);
+        $input = new SplitStepInput();
+        $input->numberOfJobs = 3;
+
+        $processor = new SplitStepProcessor(
+            $security,
+            $projectRepository,
+            $stepRepository,
+            $this->activityProductRepositoryOfTheSde(),
+            $this->createStub(IndustryResourceMapper::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->splitGroupMaterialNeedsOnRecipes(),
+        );
+        $processor->process($input, new Post(), $uriVariables);
     }
 
     private function activityProductRepositoryOfTheSde(): IndustryActivityProductRepository

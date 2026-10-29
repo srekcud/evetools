@@ -15,6 +15,7 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\ProfitMarginService;
 use App\State\Provider\Industry\ProfitMarginProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -137,6 +138,53 @@ class ProfitMarginProviderTest extends TestCase
         $this->expectException(BadRequestHttpException::class);
 
         $this->provider(new User(), new Request(['decryptorTypeId' => (string) self::UNKNOWN_DECRYPTOR]), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    #[Group('issue-200')]
+    #[DataProvider('efficienciesRefusedByTheDomain')]
+    public function testEfficiencyRefusedByTheDomainIsABadRequestWithTheDomainMessage(array $query, string $expectedMessage): void
+    {
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->never())->method('analyze');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage($expectedMessage);
+
+        $this->provider(new User(), new Request($query), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public static function efficienciesRefusedByTheDomain(): iterable
+    {
+        yield 'odd TE' => [['te' => '5'], 'TE must be an even level between 0 and 20, got 5.'];
+        yield 'ME above ten' => [['me' => '11'], 'ME must be between 0 and 10, got 11.'];
+        yield 'TE above twenty' => [['te' => '24'], 'TE must be an even level between 0 and 20, got 24.'];
+        yield 'negative ME' => [['me' => '-1'], 'ME must be between 0 and 10, got -1.'];
+    }
+
+    #[Group('issue-200')]
+    public function testEvenTeInRangeIsAnalyzedWithTheDefaultMe(): void
+    {
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                1,
+                10,
+                8,
+                $this->anything(),
+                $this->anything(),
+                null,
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+            )
+            ->willReturn($this->analysis());
+
+        $this->provider(new User(), new Request(['te' => '8']), $profitMarginService)
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
     }
 

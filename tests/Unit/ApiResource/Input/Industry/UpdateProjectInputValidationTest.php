@@ -117,6 +117,58 @@ final class UpdateProjectInputValidationTest extends TestCase
         self::assertSame(['maxJobDurationDays'], $this->propertyPathsOf($violations));
     }
 
+    #[Group('issue-200')]
+    public function testPatchingAnOddProjectTeLevelIsRejectedWithTheParityMessage(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'teLevel', 13);
+
+        self::assertCount(1, $violations);
+        self::assertSame('teLevel', $violations[0]->getPropertyPath());
+        self::assertSame('TE must be an even level between 0 and 20.', $violations[0]->getMessage());
+    }
+
+    #[Group('issue-200')]
+    public function testPatchingAnEvenProjectTeLevelIsAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'teLevel', 12);
+
+        self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-200')]
+    #[DataProvider('jobsStartDatesThatAreNotAtomDateTimes')]
+    public function testPatchingAJobsStartDateThatIsNotAnAtomDateTimeIsRejected(string $jobsStartDate): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'jobsStartDate', $jobsStartDate);
+
+        self::assertSame(['jobsStartDate'], array_values(array_unique($this->propertyPathsOf($violations))));
+    }
+
+    public static function jobsStartDatesThatAreNotAtomDateTimes(): \Generator
+    {
+        yield 'unreadable text' => ['x'];
+        yield 'empty text' => [''];
+        yield 'impossible calendar date' => ['2026-02-30T00:00:00+00:00'];
+        yield 'date without time' => ['2026-11-03'];
+        yield 'relative date' => ['tomorrow'];
+    }
+
+    #[Group('issue-200')]
+    public function testPatchingAnAtomJobsStartDateIsAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'jobsStartDate', '2026-11-02T00:00:00+00:00');
+
+        self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-200')]
+    public function testPatchingWithoutJobsStartDateIsAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'jobsStartDate', null);
+
+        self::assertCount(0, $violations);
+    }
+
     public static function projectStatuses(): \Generator
     {
         foreach (ProjectStatus::cases() as $projectStatus) {

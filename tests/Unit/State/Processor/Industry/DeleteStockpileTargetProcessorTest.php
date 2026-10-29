@@ -12,9 +12,11 @@ use App\Repository\IndustryStockpileTargetRepository;
 use App\State\Processor\Industry\DeleteStockpileTargetProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(DeleteStockpileTargetProcessor::class)]
@@ -111,6 +113,24 @@ final class DeleteStockpileTargetProcessorTest extends TestCase
         $this->delete($gadget);
 
         self::assertSame([self::WIDGET, self::GADGET], $deletedProducts);
+    }
+
+    #[Group('issue-200')]
+    public function testTargetIdThatIsNotAUuidIsNotFoundAndKeepsEveryTargetAndStockpileImport(): void
+    {
+        $this->addTarget(4, self::GADGET, self::GADGET);
+        $this->importRepository->expects(self::never())->method('deleteAllForUserAndProduct');
+
+        try {
+            $this->processor->process(null, new Delete(), ['id' => 'target-9']);
+            $outcome = 'deleted';
+        } catch (HttpExceptionInterface $rejection) {
+            $outcome = $rejection->getStatusCode().' '.$rejection->getMessage();
+        } catch (\Throwable $throwable) {
+            $outcome = $throwable::class.': '.$throwable->getMessage();
+        }
+
+        self::assertSame(['404 Stockpile target not found', 1], [$outcome, \count($this->targets)]);
     }
 
     private function addTarget(int $selfId, int $typeId, ?int $sourceProductTypeId): IndustryStockpileTarget

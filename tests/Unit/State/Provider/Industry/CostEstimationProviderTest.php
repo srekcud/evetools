@@ -15,6 +15,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 #[CoversClass(CostEstimationProvider::class)]
 final class CostEstimationProviderTest extends TestCase
@@ -103,6 +104,23 @@ final class CostEstimationProviderTest extends TestCase
         self::assertNull($resource->totalCost);
         self::assertNull($resource->perUnit);
         self::assertSame([$unknownStep], $resource->jobInstallSteps);
+    }
+
+    #[Group('issue-200')]
+    public function testProjectIdThatIsNotAUuidIsNotFoundWithoutReadingTheProjectsNorEstimating(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+        $projectRepository = $this->createMock(IndustryProjectRepository::class);
+        $projectRepository->expects($this->never())->method('find');
+        $productionCostService = $this->createMock(ProductionCostService::class);
+        $productionCostService->expects($this->never())->method('estimateTotalCost');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        (new CostEstimationProvider($security, $projectRepository, $productionCostService))
+            ->provide(new Get(), ['id' => 'cost-1']);
     }
 
     private function provideFor(array $estimation): CostEstimationResource

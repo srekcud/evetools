@@ -24,6 +24,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(MergeStepsProcessor::class)]
@@ -145,6 +146,31 @@ final class MergeStepsProcessorTest extends TestCase
         $project->addStep($step);
 
         return $step;
+    }
+
+    #[Group('issue-200')]
+    public function testStepIdThatIsNotAUuidUnderAnOwnedProjectIsNotFoundWithoutReadingTheSteps(): void
+    {
+        $user = new User();
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($user);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturn((new IndustryProject())->setUser($user));
+        $stepRepository = $this->createMock(IndustryProjectStepRepository::class);
+        $stepRepository->expects($this->never())->method('find');
+        $processor = new MergeStepsProcessor(
+            $security,
+            $projectRepository,
+            $stepRepository,
+            $this->createStub(IndustryResourceMapper::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->splitGroupMaterialNeedsOnRecipes(),
+        );
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Step not found');
+
+        $processor->process(null, new Post(), ['id' => '0192f0c4-7b1e-7a3c-9d2e-200000000001', 'stepId' => 'split-2']);
     }
 
     private function merge(IndustryProject $project, IndustryProjectStep $jobOfTheSplitGroup): void

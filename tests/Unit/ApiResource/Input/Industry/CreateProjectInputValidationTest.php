@@ -119,6 +119,24 @@ final class CreateProjectInputValidationTest extends TestCase
         self::assertSame(['maxJobDurationDays'], $this->propertyPathsOf($violations));
     }
 
+    #[Group('issue-200')]
+    public function testOddProjectTeLevelIsRejectedWithTheParityMessage(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new CreateProjectInput(), 'teLevel', 7);
+
+        self::assertCount(1, $violations);
+        self::assertSame('teLevel', $violations[0]->getPropertyPath());
+        self::assertSame('TE must be an even level between 0 and 20.', $violations[0]->getMessage());
+    }
+
+    #[Group('issue-200')]
+    public function testEvenProjectTeLevelIsAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new CreateProjectInput(), 'teLevel', 10);
+
+        self::assertCount(0, $violations);
+    }
+
     private function validateExcludedTypeIds(array $excludedTypeIds): ConstraintViolationListInterface
     {
         return $this->validator->validatePropertyValue(new CreateProjectInput(), 'excludedTypeIds', $excludedTypeIds);

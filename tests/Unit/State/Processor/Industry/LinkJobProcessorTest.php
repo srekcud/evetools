@@ -304,6 +304,25 @@ class LinkJobProcessorTest extends TestCase
         $processor->process($this->input(self::ESI_JOB_ID), new Post(), $this->uriVariables());
     }
 
+    #[Group('issue-200')]
+    public function testStepIdThatIsNotAUuidIsNotFoundAfterReadingTheProjectWithoutReadingTheSteps(): void
+    {
+        $projectRepository = $this->createMock(IndustryProjectRepository::class);
+        $projectRepository->expects($this->once())->method('find')->willReturn($this->project);
+        $stepRepository = $this->createMock(IndustryProjectStepRepository::class);
+        $stepRepository->expects($this->never())->method('find');
+        $processor = $this->createProcessor(projectRepository: $projectRepository, stepRepository: $stepRepository);
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Step not found');
+
+        $processor->process(
+            $this->input(self::ESI_JOB_ID),
+            new Post(),
+            ['id' => '0192f0c4-7b1e-7a3c-9d2e-200000000001', 'stepId' => 'zz-9'],
+        );
+    }
+
     // ===========================================
     // Progress (issue #3)
     // ===========================================
