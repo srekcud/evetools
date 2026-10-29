@@ -104,6 +104,7 @@ const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<v
   members: distributionStore.fetchMembers,
   projectDetail: projectStore.fetchProjectDetail,
   sales: distributionStore.fetchSales,
+  saleSuggestions: id => (isOwnerOrAdmin.value ? distributionStore.fetchSaleSuggestions(id) : Promise.resolve()),
   distribution: distributionStore.fetchDistribution,
 }
 
@@ -449,7 +450,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <!-- Tab Content: Distribution -->
       <div v-else-if="activeTab === 'distribution'">
         <SalesTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
-        <SaleSuggestionsPanel v-if="isOwnerOrAdmin && !isCompleted" :project-id="projectId" />
+        <SaleSuggestionsPanel v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
         <FinancialSummary />
         <DistributionTable />
       </div>

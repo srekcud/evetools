@@ -2048,6 +2048,8 @@
       "unitPrice": "Prix unitaire",
       "total": "Total",
       "possibleDuplicate": "Doublon possible",
+      "duplicateOf": "Doublon possible de la vente du {date}, total {total} ISK",
+      "recordFailed": "Échec de l'enregistrement de la vente",
       "possibleDuplicateHint": "Correspond à une vente déjà enregistrée de même quantité et de même prix unitaire",
       "record": "Enregistrer comme vente",
       "empty": "Aucune transaction wallet à rattacher",

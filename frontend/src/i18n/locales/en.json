@@ -2048,6 +2048,8 @@
       "unitPrice": "Unit Price",
       "total": "Total",
       "possibleDuplicate": "Possible duplicate",
+      "duplicateOf": "Possible duplicate of the sale of {date}, total {total} ISK",
+      "recordFailed": "Failed to record sale",
       "possibleDuplicateHint": "Matches a sale already recorded with the same quantity and unit price",
       "record": "Record as sale",
       "empty": "No wallet transaction to link",

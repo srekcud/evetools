@@ -5,10 +5,11 @@ import DataTable from '@/components/common/DataTable.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
-import type { GroupSaleSuggestion, RecordSaleFromWalletTransactionInput } from '@/stores/group-industry/types'
+import type { GroupSale, GroupSaleSuggestion, RecordSaleFromWalletTransactionInput } from '@/stores/group-industry/types'
 
 const props = defineProps<{
   projectId: string
+  recordingDisabled?: boolean
 }>()
 
 const { t } = useI18n()
@@ -17,6 +18,11 @@ const { formatNumber, formatDate } = useFormatters()
 
 const enteredQuantities = ref<Record<string, number | ''>>({})
 const recordingTransactionId = ref<string | null>(null)
+const linkingError = ref<string | null>(null)
+
+function duplicatedSalesOf(suggestion: GroupSaleSuggestion): GroupSale[] {
+  return store.sales.filter(sale => suggestion.possibleDuplicateSaleIds.includes(sale.id))
+}
 
 async function recordAsSale(suggestion: GroupSaleSuggestion): Promise<void> {
   const input: RecordSaleFromWalletTransactionInput = { transactionId: suggestion.transactionId }
@@ -24,9 +30,11 @@ async function recordAsSale(suggestion: GroupSaleSuggestion): Promise<void> {
   if (typeof enteredQuantity === 'number') input.quantity = enteredQuantity
 
   recordingTransactionId.value = suggestion.transactionId
+  linkingError.value = null
   try {
     await store.recordSaleFromWalletTransaction(props.projectId, input)
-  } catch {
+  } catch (e) {
+    linkingError.value = e instanceof Error ? e.message : t('groupIndustry.saleSuggestions.recordFailed')
     return
   } finally {
     recordingTransactionId.value = null
@@ -93,11 +101,17 @@ onMounted(() => {
               </td>
               <td class="py-3 px-6">
                 <div class="flex items-center justify-end gap-3 whitespace-nowrap">
-                  <span
-                    v-if="suggestion.possibleDuplicateSaleIds.length > 0"
-                    :title="t('groupIndustry.saleSuggestions.possibleDuplicateHint')"
-                    class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  >{{ t('groupIndustry.saleSuggestions.possibleDuplicate') }}</span>
+                  <div v-if="suggestion.possibleDuplicateSaleIds.length > 0" class="flex flex-col items-end gap-1">
+                    <span
+                      :title="t('groupIndustry.saleSuggestions.possibleDuplicateHint')"
+                      class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    >{{ t('groupIndustry.saleSuggestions.possibleDuplicate') }}</span>
+                    <span
+                      v-for="sale in duplicatedSalesOf(suggestion)"
+                      :key="sale.id"
+                      class="text-xs text-amber-400/80"
+                    >{{ t('groupIndustry.saleSuggestions.duplicateOf', { date: formatDate(sale.soldAt), total: formatNumber(sale.totalPrice, 0) }) }}</span>
+                  </div>
                   <input
                     v-model.number="enteredQuantities[suggestion.transactionId]"
                     type="number"
@@ -108,7 +122,7 @@ onMounted(() => {
                     class="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none"
                   />
                   <button
-                    :disabled="recordingTransactionId !== null"
+                    :disabled="recordingDisabled || recordingTransactionId !== null"
                     class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg text-white text-xs font-medium transition-colors"
                     @click="recordAsSale(suggestion)"
                   >{{ t('groupIndustry.saleSuggestions.record') }}</button>
@@ -120,8 +134,8 @@ onMounted(() => {
       </DataTable>
     </div>
 
-    <div v-if="store.error" class="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-      <p class="text-sm text-red-400">{{ store.error }}</p>
+    <div v-if="linkingError" class="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+      <p class="text-sm text-red-400">{{ linkingError }}</p>
     </div>
   </div>
 </template>

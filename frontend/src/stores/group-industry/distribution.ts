@@ -88,25 +88,25 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   }
 
   async function postSale(projectId: string, resource: string, input: RecordSaleInput | RecordSaleFromWalletTransactionInput): Promise<GroupSale> {
+    const sale = await apiRequest<GroupSale>(
+      `/group-industry/projects/${projectId}/${resource}`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    )
+    sales.value.unshift(sale)
+    return sale
+  }
+
+  async function recordSale(projectId: string, input: RecordSaleInput): Promise<GroupSale> {
     error.value = null
     try {
-      const sale = await apiRequest<GroupSale>(
-        `/group-industry/projects/${projectId}/${resource}`,
-        {
-          method: 'POST',
-          body: JSON.stringify(input),
-        },
-      )
-      sales.value.unshift(sale)
-      return sale
+      return await postSale(projectId, 'sales', input)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to record sale'
       throw e
     }
-  }
-
-  function recordSale(projectId: string, input: RecordSaleInput): Promise<GroupSale> {
-    return postSale(projectId, 'sales', input)
   }
 
   function recordSaleFromWalletTransaction(projectId: string, input: RecordSaleFromWalletTransactionInput): Promise<GroupSale> {

@@ -56,8 +56,9 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('t')
-            ->addSelect('c')
+            ->addSelect('c', 'token')
             ->innerJoin('t.character', 'c')
+            ->leftJoin('c.eveToken', 'token')
             ->leftJoin(GroupIndustrySale::class, 's', Join::WITH, 's.walletTransaction = t')
             ->where('t.character IN (:characters)')
             ->andWhere('t.isBuy = false')
