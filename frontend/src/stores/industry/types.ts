@@ -178,7 +178,7 @@ export interface ShoppingListFailedProduct {
 export interface ShoppingListResponse {
   materials: ShoppingListItem[]
   structureId: number
-  structureName: string
+  structureName: string | null
   structureAccessible: boolean
   structureFromCache: boolean
   structureLastSync: string | null

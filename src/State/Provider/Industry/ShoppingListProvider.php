@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\ShoppingListMaterialResource;
 use App\ApiResource\Industry\ShoppingListResource;
 use App\ApiResource\Industry\ShoppingListTotalsResource;
+use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryUserSettingsRepository;
@@ -75,9 +76,14 @@ class ShoppingListProvider implements ProviderInterface
         $purchasedQuantities = $this->shoppingListBuilder->getPurchasedQuantities($project);
 
         $request = $this->requestStack->getCurrentRequest();
-        $structureId = $request?->query->get('structureId');
-        $structureId = $structureId !== null ? (int) $structureId : $user->getPreferredMarketStructureId();
-        $transportCostPerM3 = (float) ($request?->query->get('transportCost', 1200) ?? 1200);
+        $requestedStructureId = $request?->query->get('structureId');
+        $structureId = $requestedStructureId !== null
+            ? (int) $requestedStructureId
+            : ($user->getPreferredMarketStructureId() ?? $this->marketService->getDefaultStructureId());
+        $requestedTransportCost = $request?->query->get('transportCost');
+        $transportCostPerM3 = $requestedTransportCost !== null
+            ? (float) $requestedTransportCost
+            : ($this->settingsRepository->findOneBy(['user' => $user])?->getExportCostPerM3() ?? EveConstants::DEFAULT_EXPORT_COST_PER_M3);
 
         $token = null;
         foreach ($user->getCharacters() as $character) {
@@ -236,8 +242,8 @@ class ShoppingListProvider implements ProviderInterface
         $resource = new ShoppingListResource();
         $resource->id = $uriVariables['id'];
         $resource->materials = $enrichedMaterials;
-        $resource->structureId = $priceData !== null ? $priceData['structureId'] : $this->marketService->getDefaultStructureId();
-        $resource->structureName = $priceData !== null ? $priceData['structureName'] : $this->marketService->getDefaultStructureName();
+        $resource->structureId = $priceData !== null ? $priceData['structureId'] : $structureId;
+        $resource->structureName = $priceData !== null ? $priceData['structureName'] : $this->resolvedStructureName($user, $structureId);
         $resource->structureAccessible = $priceData !== null && $priceData['structureAccessible'];
         $resource->structureFromCache = $priceData !== null && $priceData['structureFromCache'];
         $resource->structureLastSync = $structureLastSync;
@@ -251,5 +257,18 @@ class ShoppingListProvider implements ProviderInterface
         $resource->failedProducts = $shoppingList['failedProducts'];
 
         return $resource;
+    }
+
+    private function resolvedStructureName(User $user, int $structureId): ?string
+    {
+        if ($structureId === $user->getPreferredMarketStructureId()) {
+            return $user->getPreferredMarketStructureName();
+        }
+
+        if ($structureId === $this->marketService->getDefaultStructureId()) {
+            return $this->marketService->getDefaultStructureName();
+        }
+
+        return null;
     }
 }

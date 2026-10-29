@@ -15,9 +15,8 @@ interface StructureSearchResult {
 
 defineProps<{
   selectedStructure: { id: number | null; name: string }
-  defaultStructureName?: string
   effectiveStructureName?: string | null
-  transportCostPerM3: number
+  transportCostPerM3: number | null
   pastedStock: string
   parsedStockCount: number
   stockAnalysisLoading: boolean
@@ -107,7 +106,7 @@ function onStructureInputBlur() {
           v-model="structureSearchQuery"
           :id="`${uid}-structure`"
           type="text"
-          :placeholder="selectedStructure.name || defaultStructureName"
+          :placeholder="selectedStructure.name || effectiveStructureName || undefined"
           :class="[
             'w-full bg-slate-800 border rounded-sm pl-3 pr-8 py-1.5 text-sm focus:outline-hidden',
             selectedStructure.id

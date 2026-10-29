@@ -61,7 +61,7 @@ const { typeNameLabel } = useTypeNames()
 
 // Shopping list state
 const shoppingList = ref<ShoppingListItem[]>([])
-const shoppingStructureName = ref('')
+const shoppingStructureName = ref<string | null>(null)
 const shoppingStructureAccessible = ref(false)
 const shoppingStructureFromCache = ref(false)
 const shoppingStructureLastSync = ref<string | null>(null)
@@ -72,7 +72,9 @@ const missingPriceTypeIds = ref<number[]>([])
 const failedProducts = ref<ShoppingListFailedProduct[]>([])
 const shoppingLoading = ref(false)
 const shoppingSyncing = ref(false)
-const transportCostPerM3 = ref(1200)
+const typedTransportCostPerM3 = ref<number | null>(null)
+const responseTransportCostPerM3 = ref<number | null>(null)
+const transportCostPerM3 = computed(() => typedTransportCostPerM3.value ?? responseTransportCostPerM3.value)
 
 // Reactive refs for the composable
 const projectIdRef = computed(() => props.projectId)
@@ -101,8 +103,6 @@ watch(marketStructureProgress, (progress) => {
 
 // Structure search with persistence
 const STRUCTURE_STORAGE_KEY = 'industry_shopping_structure'
-const DEFAULT_STRUCTURE_ID = 1049588174021
-const DEFAULT_STRUCTURE_NAME = 'C-J6MT - 1st Taj Mahgoon'
 
 function loadPersistedStructure(): { id: number | null; name: string } {
   const stored = localStorage.getItem(STRUCTURE_STORAGE_KEY)
@@ -114,7 +114,7 @@ function loadPersistedStructure(): { id: number | null; name: string } {
       // ignore
     }
   }
-  return { id: DEFAULT_STRUCTURE_ID, name: DEFAULT_STRUCTURE_NAME }
+  return { id: null, name: '' }
 }
 
 function saveStructureToStorage(structure: { id: number | null; name: string }) {
@@ -313,10 +313,11 @@ async function loadShoppingList() {
   shoppingPriceError.value = null
   try {
     const structureId = selectedStructure.value.id ?? undefined
-    const response = await store.fetchShoppingList(props.projectId, structureId, transportCostPerM3.value)
+    const response = await store.fetchShoppingList(props.projectId, structureId, typedTransportCostPerM3.value ?? undefined)
     if (response) {
       shoppingList.value = response.materials
       shoppingStructureName.value = response.structureName
+      responseTransportCostPerM3.value = response.transportCostPerM3
       shoppingStructureAccessible.value = response.structureAccessible
       shoppingStructureFromCache.value = response.structureFromCache
       shoppingStructureLastSync.value = response.structureLastSync
@@ -510,7 +511,7 @@ defineExpose({
       <ShoppingConfigPanel
         v-if="store.currentProject?.status !== 'completed'"
         :selected-structure="selectedStructure"
-        :default-structure-name="DEFAULT_STRUCTURE_NAME"
+        :effective-structure-name="shoppingStructureName"
         :transport-cost-per-m3="transportCostPerM3"
         :pasted-stock="stock.pastedStock.value"
         :parsed-stock-count="stock.parsedStock.value.length"
@@ -518,7 +519,7 @@ defineExpose({
         :shopping-syncing="shoppingSyncing"
         :market-structure-progress="marketStructureProgress"
         @update:selected-structure="onStructureChange"
-        @update:transport-cost-per-m3="transportCostPerM3 = $event"
+        @update:transport-cost-per-m3="typedTransportCostPerM3 = $event"
         @update:pasted-stock="stock.pastedStock.value = $event"
         @sync-structure="syncStructureMarket"
         @recalculate="loadShoppingList"
@@ -555,7 +556,7 @@ defineExpose({
           <div class="text-sm">
             <p class="text-amber-300">{{ t('industry.shoppingTab.structurePricesUnavailable') }}</p>
             <p class="text-amber-400/70 text-xs mt-0.5">
-              {{ t('industry.shoppingTab.structureNotSynced', { name: shoppingStructureName }) }}
+              {{ t('industry.shoppingTab.structureNotSynced', { name: displayStructureName }) }}
             </p>
           </div>
         </div>
