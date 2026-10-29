@@ -4,7 +4,9 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
+import { dateFormat } from '@/composables/useFormatters'
 import { ApiError, apiRequest } from '@/services/api'
+import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import type { GroupSale, GroupSaleSuggestion } from '@/stores/group-industry/types'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -14,6 +16,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const PROJECT_ID = 'project-sabre'
 const SUGGESTIONS_PATH = `/group-industry/projects/${PROJECT_ID}/sale-suggestions`
+const SALES_PATH = `/group-industry/projects/${PROJECT_ID}/sales`
 const SALE_FROM_WALLET_TRANSACTION_PATH = `/group-industry/projects/${PROJECT_ID}/sales/from-wallet-transaction`
 const T1_ID = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e01'
 const T7_ID = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e07'
@@ -63,7 +66,29 @@ const SALE_OF_T7: GroupSale = {
   createdAt: '2026-10-29T08:00:00+00:00',
 }
 
+function manualSale(id: string, soldAt: string): GroupSale {
+  return {
+    id,
+    typeId: 0,
+    typeName: 'Sabre',
+    quantity: 3,
+    unitPrice: 61_250_000,
+    totalPrice: 183_750_000,
+    venue: 'Jita 4-4',
+    soldAt,
+    recordedByCharacterName: 'O-Main',
+    sellerCharacterId: null,
+    sellerCharacterName: null,
+    linkedToWalletTransaction: false,
+    createdAt: soldAt,
+  }
+}
+
+const MANUAL_SALE_V = manualSale('sale-v', '2026-10-24T12:00:00+00:00')
+const MANUAL_SALE_V2 = manualSale('sale-v2', '2026-10-25T12:00:00+00:00')
+
 type Responses = {
+  sales: () => Promise<unknown>
   suggestions: () => Promise<unknown>
   recording: () => Promise<unknown>
 }
@@ -78,6 +103,11 @@ async function mountPanel(locale: 'en' | 'fr' = 'en'): Promise<VueWrapper> {
   })
   await flushPromises()
   return wrapper
+}
+
+async function listSalesOfTheProject(sales: GroupSale[]): Promise<void> {
+  responses.sales = async () => sales
+  await useGroupDistributionStore().fetchSales(PROJECT_ID)
 }
 
 function normalized(text: string): string {
@@ -136,13 +166,16 @@ function suggestionReads(): number {
 
 beforeEach(() => {
   setActivePinia(createPinia())
+  dateFormat.value = 'eu'
   vi.mocked(apiRequest).mockReset()
   responses = {
+    sales: async () => [],
     suggestions: async () => [T7_SUGGESTION, T1_SUGGESTION],
     recording: async () => SALE_OF_T7,
   }
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
     if (endpoint === SUGGESTIONS_PATH) return responses.suggestions()
+    if (endpoint === SALES_PATH) return responses.sales()
     if (endpoint === SALE_FROM_WALLET_TRANSACTION_PATH && options?.method === 'POST') return responses.recording()
     throw new Error(`unexpected request ${options?.method ?? 'GET'} ${endpoint}`)
   })
@@ -235,5 +268,45 @@ describe('SaleSuggestionsPanel recording', () => {
     await recordAsSale(wrapper, 'O-Main')
 
     expect([normalized(wrapper.text()).includes(ALREADY_LINKED), shownSuggestions(wrapper).length]).toEqual([true, 2])
+  })
+})
+
+describe('SaleSuggestionsPanel possible duplicates', () => {
+  it('names the manual sale V that T1 may duplicate, with its date and total', async () => {
+    await listSalesOfTheProject([MANUAL_SALE_V])
+
+    const wrapper = await mountPanel()
+
+    expect(normalized(rowSoldBy(wrapper, 'O-Main').text())).toContain('Possible duplicate of the sale of 24/10/26, total 183,750,000 ISK')
+  })
+
+  it('names every sale that T1 may duplicate', async () => {
+    await listSalesOfTheProject([MANUAL_SALE_V, MANUAL_SALE_V2])
+    responses.suggestions = async () => [T7_SUGGESTION, { ...T1_SUGGESTION, possibleDuplicateSaleIds: ['sale-v', 'sale-v2'] }]
+
+    const wrapper = await mountPanel()
+
+    const t1Row = normalized(rowSoldBy(wrapper, 'O-Main').text())
+    expect([
+      t1Row.includes('Possible duplicate of the sale of 24/10/26, total 183,750,000 ISK'),
+      t1Row.includes('Possible duplicate of the sale of 25/10/26, total 183,750,000 ISK'),
+    ]).toEqual([true, true])
+  })
+
+  it('names the duplicated sale in French', async () => {
+    await listSalesOfTheProject([MANUAL_SALE_V])
+
+    const wrapper = await mountPanel('fr')
+
+    expect(normalized(wrapper.text())).toContain('Doublon possible de la vente du 24/10/26, total 183 750 000 ISK')
+  })
+
+  it('names no sale it cannot find among the listed sales', async () => {
+    await listSalesOfTheProject([])
+
+    const wrapper = await mountPanel()
+
+    const t1Row = normalized(rowSoldBy(wrapper, 'O-Main').text())
+    expect([t1Row.includes('Possible duplicate'), t1Row.includes('of the sale of')]).toEqual([true, false])
   })
 })

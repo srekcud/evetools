@@ -153,13 +153,13 @@ describe('group distribution store sale recorded from a wallet transaction', () 
     })
   })
 
-  it('keeps the sales and shows the conflict when the transaction is already linked', async () => {
+  it('keeps the sales and hands the conflict to the caller without the shared error of the sales table', async () => {
     const store = useGroupDistributionStore()
     store.sales = [MANUAL_SALE_V]
     vi.mocked(apiRequest).mockRejectedValueOnce(new ApiError(ALREADY_LINKED, 409))
 
     await expect(store.recordSaleFromWalletTransaction(SABRE_PROJECT_ID, { transactionId: T1_ID })).rejects.toThrow(ALREADY_LINKED)
 
-    expect({ sales: store.sales, error: store.error }).toEqual({ sales: [MANUAL_SALE_V], error: ALREADY_LINKED })
+    expect({ sales: store.sales, error: store.error }).toEqual({ sales: [MANUAL_SALE_V], error: null })
   })
 })
