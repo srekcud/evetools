@@ -50,6 +50,7 @@ class CostEstimationProvider implements ProviderInterface
         $resource->bpoCost = $estimation['bpoCost'];
         $resource->totalCost = $estimation['totalCost'];
         $resource->perUnit = $estimation['perUnit'];
+        $resource->outputQuantity = $estimation['outputQuantity'];
         $resource->materials = $estimation['materials'];
         $resource->jobInstallSteps = $estimation['jobInstallSteps'];
         $resource->failedProducts = $estimation['failedProducts'];

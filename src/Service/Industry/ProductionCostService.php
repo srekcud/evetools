@@ -140,7 +140,7 @@ class ProductionCostService
     /**
      * Estimate the total production cost with full breakdown.
      *
-     * @return array{materialCost: float|null, jobInstallCost: float|null, bpoCost: float, totalCost: float|null, perUnit: float|null, materials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, jobInstallSteps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float|null, runs: int, installCost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>}>, failedProducts: list<array{typeId: int, reason: string}>}
+     * @return array{materialCost: float|null, jobInstallCost: float|null, bpoCost: float, totalCost: float|null, perUnit: float|null, outputQuantity: int, materials: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>, jobInstallSteps: list<array{stepId: string, productTypeId: int, productName: string|null, solarSystemId: int, systemName: string, costIndex: float|null, runs: int, installCost: float|null, unknownReason: string|null, missingAdjustedPriceTypeIds: list<int>}>, failedProducts: list<array{typeId: int, reason: string}>}
      */
     public function estimateTotalCost(IndustryProject $project): array
     {
@@ -165,6 +165,7 @@ class ProductionCostService
             'bpoCost' => $bpoCost,
             'totalCost' => $totalCost,
             'perUnit' => $perUnit,
+            'outputQuantity' => $totalOutputQuantity,
             'materials' => $materialResult['items'],
             'jobInstallSteps' => $jobInstallResult['steps'],
             'failedProducts' => $materialResult['failedProducts'],
