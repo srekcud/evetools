@@ -12,6 +12,8 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 
 final class SplitGroupMaterials
 {
+    public const int OUTPUT_PER_COPY_RUN = 1;
+
     /**
      * @param list<int> $jobRuns
      * @param array{total: float, base: float, rig: float} $materialBonus
@@ -26,6 +28,10 @@ final class SplitGroupMaterials
 
     public static function outputPerRunOf(IndustryActivityProductRepository $productRepository, int $blueprintTypeId, string $activityType): int
     {
+        if ($activityType === 'copy') {
+            return self::OUTPUT_PER_COPY_RUN;
+        }
+
         return self::outputPerRunOfProduct(
             $productRepository->findOneBy([
                 'typeId' => $blueprintTypeId,

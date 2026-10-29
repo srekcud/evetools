@@ -30,8 +30,6 @@ use Symfony\Component\Uid\Uuid;
  */
 class SplitStepProcessor implements ProcessorInterface
 {
-    private const int OUTPUT_PER_COPY_RUN = 1;
-
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
@@ -86,7 +84,7 @@ class SplitStepProcessor implements ProcessorInterface
         try {
             $quantitiesBySplitIndex = SplitGroupQuantities::share(
                 $step->getQuantity(),
-                $this->getOutputPerRun($step->getBlueprintTypeId(), $step->getActivityType()),
+                SplitGroupMaterials::outputPerRunOf($this->activityProductRepository, $step->getBlueprintTypeId(), $step->getActivityType()),
                 $runsBySplitIndex,
             );
             $this->splitGroupMaterialNeeds->applyChangeOfJobs($project, $step, [$totalRuns], $runsBySplitIndex);
@@ -128,14 +126,5 @@ class SplitStepProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         return array_map(fn ($s) => $this->mapper->stepToResource($s), $results);
-    }
-
-    private function getOutputPerRun(int $blueprintTypeId, string $activityType): int
-    {
-        if ($activityType === 'copy') {
-            return self::OUTPUT_PER_COPY_RUN;
-        }
-
-        return SplitGroupMaterials::outputPerRunOf($this->activityProductRepository, $blueprintTypeId, $activityType);
     }
 }
