@@ -7,6 +7,7 @@ namespace App\Tests\Integration\Service\Account;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\Assets\CorpAssetVisibilityResource;
+use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\CachedAsset;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\CachedIndustryJob;
@@ -136,6 +137,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'characters.user_id' => 2,
             'escalations.user_id' => 1,
             'eve_tokens.character_id' => 2,
+            'group_industry_sales.seller_character_id' => 1,
             'industry_projects.user_id' => 1,
             'industry_structure_configs.user_id' => 1,
             'industry_user_settings.user_id' => 1,
@@ -376,6 +378,41 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         self::assertCount(1, $listedSales);
         self::assertNull($listedSales[0]->recordedByCharacterName);
         self::assertSame(5_000_000.0, $listedSales[0]->totalPrice);
+    }
+
+    #[Group('issue-241')]
+    public function testSaleSoldByACharacterOfTheDeletedAccountIsKeptWithoutSellerNorAuthor(): void
+    {
+        $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
+        $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
+        $project = $this->createProject($brann, 'Sabre');
+        $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $sale = $this->addSale($project, $kaelen, 0, 'Sabre', 3, 61_250_000.0)->setSeller($this->mainCharacterOf($kaelen));
+        $this->em->flush();
+        $projectId = (string) $project->getId();
+        $saleId = (string) $sale->getId();
+        $brannId = (string) $brann->getId();
+
+        $this->deleteAccount((string) $kaelen->getId());
+
+        $sale = $this->em->find(GroupIndustrySale::class, $saleId);
+        self::assertInstanceOf(GroupIndustrySale::class, $sale);
+        self::assertSame([null, null, 183_750_000.0], [$sale->getSeller(), $sale->getRecordedBy(), $sale->getTotalPrice()]);
+        self::assertSame(183_750_000.0, $this->distributionOf($projectId)->totalRevenue);
+        $listedSales = $this->listSalesOf($projectId, $brannId);
+        self::assertSame(
+            [[null, null, null, 183_750_000.0]],
+            array_map(
+                static fn (GroupIndustrySaleResource $listedSale): array => [
+                    $listedSale->sellerCharacterId,
+                    $listedSale->sellerCharacterName,
+                    $listedSale->recordedByCharacterName,
+                    $listedSale->totalPrice,
+                ],
+                $listedSales,
+            ),
+        );
     }
 
     public function testCorporationAssetVisibilityIsKeptWithoutAuthorAndCorporationAssetsSyncFallsBackOnAnotherCharacter(): void
@@ -1048,6 +1085,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setExpiresAt(new \DateTimeImmutable('+3 days')));
         $this->createStructure($user, sprintf('Structure %d', $seed), $seed === 1 ? 'raitaru' : 'azbel');
         $this->createSharedShoppingList($user, 30 + $seed, sprintf('Listed type %d', $seed), 100 * $seed);
+        $this->addSale($this->createProject($user, sprintf('Sold project %d', $seed)), $user, 22_456, 'Sabre', $seed, 60_000_000.0 + 1_250_000.0 * $seed)
+            ->setSeller($character);
     }
 
     private function esiClient(array &$esiRequests, array $responses): EsiClient

@@ -15,6 +15,7 @@ use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
 use App\Tests\Unit\State\Provider\GroupIndustry\GroupProjectAccessProfiles;
 use App\Tests\Unit\State\Provider\GroupIndustry\SabreBatchSales;
+use App\Tests\Unit\State\Provider\GroupIndustry\SabreBatchSellers;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -35,6 +36,7 @@ final class UpdateSaleProcessorTest extends TestCase
 {
     use GroupProjectAccessProfiles;
     use SabreBatchSales;
+    use SabreBatchSellers;
 
     private Security&Stub $security;
     private GroupSaleItemProvider $provider;
@@ -49,6 +51,7 @@ final class UpdateSaleProcessorTest extends TestCase
         $this->sabreBatch->setStatus(GroupProjectStatus::Selling);
         $this->recordSabreSale();
         $this->createHecateBatchOfTheSabreBatchOwner();
+        $this->createSabreBatchSellers();
         $this->security = $this->createStub(Security::class);
 
         $entityManager = $this->createStub(EntityManagerInterface::class);
@@ -298,6 +301,117 @@ final class UpdateSaleProcessorTest extends TestCase
 
         self::assertInstanceOf(BadRequestHttpException::class, $refusal);
         self::assertSame([[900000.0, 2, 1800000.0], 0, []], [$this->persistedSabreSaleAmounts(), $this->flushes, $this->publishedUpdates]);
+    }
+
+    #[Group('issue-241')]
+    public function testAdminNamesHisCharacterAsSellerOfASaleWithoutSellerAndTheTotalStays(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain));
+
+        $sale = $this->correctSabreSale(['sellerCharacterId' => self::A_MAIN_EVE_CHARACTER_ID]);
+
+        self::assertSame(
+            [self::A_MAIN_EVE_CHARACTER_ID, 'A-Main', 2, 900000.0, 1800000.0, 1],
+            [$sale->sellerCharacterId, $sale->sellerCharacterName, $sale->quantity, $sale->unitPrice, $sale->totalPrice, $this->flushes],
+        );
+        self::assertSame($this->aMain, $this->sabreSale->getSeller());
+    }
+
+    #[Group('issue-241')]
+    public function testCorrectionOfTheSellerPublishesTheSameSaleUpdatedData(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain));
+
+        $this->correctSabreSale(['sellerCharacterId' => self::A_MAIN_EVE_CHARACTER_ID]);
+
+        self::assertSame(
+            [[
+                'action' => 'sale_updated',
+                'data' => ['saleId' => $this->sabreSale->getId()->toRfc4122(), 'typeName' => 'Sabre', 'quantity' => 2, 'totalPrice' => 1800000.0],
+            ]],
+            $this->actionsAndDataOf($this->publishedUpdates),
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testOwnerMovesTheSaleFromAnAdminCharacterToHisAlt(): void
+    {
+        $this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain);
+        $this->sabreSale->setSeller($this->aMain);
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt));
+
+        $sale = $this->correctSabreSale(['sellerCharacterId' => self::O_ALT_EVE_CHARACTER_ID]);
+
+        self::assertSame([self::O_ALT_EVE_CHARACTER_ID, 'O-Alt'], [$sale->sellerCharacterId, $sale->sellerCharacterName]);
+        self::assertSame($this->oAlt, $this->sabreSale->getSeller());
+    }
+
+    public static function correctionsThatLeaveTheSellerOut(): iterable
+    {
+        yield 'A8 null seller' => [['sellerCharacterId' => null], 1800000.0];
+        yield 'unit price only' => [['unitPrice' => 950000.0], 1900000.0];
+    }
+
+    #[Group('issue-241')]
+    #[DataProvider('correctionsThatLeaveTheSellerOut')]
+    public function testCorrectionThatLeavesTheSellerOutKeepsTheSellerOfTheSale(array $changes, float $expectedTotalPrice): void
+    {
+        $this->sabreSale->setSeller($this->oAlt);
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain));
+
+        $sale = $this->correctSabreSale($changes);
+
+        self::assertSame(
+            [self::O_ALT_EVE_CHARACTER_ID, 'O-Alt', $expectedTotalPrice],
+            [$sale->sellerCharacterId, $sale->sellerCharacterName, $sale->totalPrice],
+        );
+        self::assertSame($this->oAlt, $this->sabreSale->getSeller());
+    }
+
+    public static function sellerCorrectionsNamingACharacterOfAnotherUser(): iterable
+    {
+        yield 'A9 main of the owner' => [['sellerCharacterId' => self::O_MAIN_EVE_CHARACTER_ID]];
+        yield 'character unknown to the application' => [['sellerCharacterId' => self::UNKNOWN_EVE_CHARACTER_ID]];
+        yield 'main of the owner with a new unit price' => [['unitPrice' => 950000.0, 'sellerCharacterId' => self::O_MAIN_EVE_CHARACTER_ID]];
+    }
+
+    #[Group('issue-241')]
+    #[DataProvider('sellerCorrectionsNamingACharacterOfAnotherUser')]
+    public function testSellerCorrectionNamingACharacterOfAnotherUserIsRefusedAndKeepsTheSale(array $changes): void
+    {
+        $this->sabreSale->setSeller($this->oAlt);
+        $this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt);
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain));
+
+        $outcome = $this->outcomeOf(fn () => $this->correctSabreSale($changes));
+
+        self::assertSame(
+            [self::SELLER_OF_ANOTHER_USER, [900000.0, 2, 1800000.0], 0, []],
+            [$outcome, $this->persistedSabreSaleAmounts(), $this->flushes, $this->publishedUpdates],
+        );
+        self::assertSame($this->oAlt, $this->sabreSale->getSeller());
+    }
+
+    #[Group('issue-241')]
+    public function testMemberNamingHisOwnCharacterAsSellerIsStillRefusedTheCorrection(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain));
+
+        $outcome = $this->outcomeOf(fn () => $this->correctSabreSale(['sellerCharacterId' => self::M_MAIN_EVE_CHARACTER_ID]));
+
+        self::assertSame([self::ADMIN_OR_OWNER_ONLY, 0, []], [$outcome, $this->flushes, $this->publishedUpdates]);
+    }
+
+    #[Group('issue-241')]
+    public function testSellerCorrectionNamingAForeignCharacterOnACompletedProjectIsRefusedAsCompleted(): void
+    {
+        $this->security->method('getUser')->willReturn(
+            $this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN_OF_COMPLETED_PROJECT), $this->aMain),
+        );
+
+        $outcome = $this->outcomeOf(fn () => $this->correctSabreSale(['sellerCharacterId' => self::O_MAIN_EVE_CHARACTER_ID]));
+
+        self::assertSame(['400 Cannot correct a sale on a completed project', 0], [$outcome, $this->flushes]);
     }
 
     private function correctSabreSale(array $changes, ?array $uriVariables = null): GroupIndustrySaleResource

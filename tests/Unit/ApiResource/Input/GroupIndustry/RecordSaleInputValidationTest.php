@@ -150,6 +150,35 @@ final class RecordSaleInputValidationTest extends TestCase
         self::assertSame([], $this->violatedPathsOf(['venue' => null]));
     }
 
+    #[Group('issue-241')]
+    #[DataProvider('sellerCharacterIdsThatAreNotPositive')]
+    public function testSellerCharacterIdThatIsNotPositiveIsRejectedOnTheSellerCharacterId(int $sellerCharacterId): void
+    {
+        self::assertSame(['sellerCharacterId'], $this->violatedPathsOf(['sellerCharacterId' => $sellerCharacterId]));
+    }
+
+    public static function sellerCharacterIdsThatAreNotPositive(): iterable
+    {
+        yield 'A4 zero' => [0];
+        yield 'A4 negative' => [-5];
+    }
+
+    #[Group('issue-241')]
+    #[DataProvider('acceptedSellerCharacterIds')]
+    public function testSaleWithAPositiveSellerCharacterIdOrWithoutSellerIsAccepted(array $seller): void
+    {
+        self::assertSame([], $this->violatedPathsOf($seller));
+    }
+
+    public static function acceptedSellerCharacterIds(): iterable
+    {
+        yield 'A1 alt of the owner' => [['sellerCharacterId' => 2120000002]];
+        yield 'A5 positive but unknown to the application' => [['sellerCharacterId' => 99999999]];
+        yield 'smallest positive identifier' => [['sellerCharacterId' => 1]];
+        yield 'A2 null seller' => [['sellerCharacterId' => null]];
+        yield 'A2 seller left out' => [[]];
+    }
+
     private function violatedPathsOf(array $changes, array $without = []): array
     {
         $fields = array_diff_key(

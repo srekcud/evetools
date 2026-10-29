@@ -105,6 +105,10 @@ class GroupIndustrySaleResource
 
     public ?string $recordedByCharacterName = null;
 
+    public ?int $sellerCharacterId = null;
+
+    public ?string $sellerCharacterName = null;
+
     public string $createdAt;
 
     public static function fromSale(GroupIndustrySale $sale): self

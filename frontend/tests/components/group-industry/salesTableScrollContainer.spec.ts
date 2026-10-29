@@ -24,6 +24,8 @@ const FEROX_SALE: GroupSale = {
   venue: 'Jita 4-4',
   soldAt: '2026-10-21T14:00:00+00:00',
   recordedByCharacterName: 'Bob Builder',
+  sellerCharacterId: null,
+  sellerCharacterName: null,
   createdAt: '2026-10-21T14:05:00+00:00',
 }
 
@@ -37,6 +39,8 @@ const SABRE_SALE: GroupSale = {
   venue: null,
   soldAt: '2026-10-22T09:30:00+00:00',
   recordedByCharacterName: null,
+  sellerCharacterId: null,
+  sellerCharacterName: null,
   createdAt: '2026-10-22T09:31:00+00:00',
 }
 

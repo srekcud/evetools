@@ -14,6 +14,7 @@ use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -103,6 +104,44 @@ class GroupSaleCollectionProviderTest extends TestCase
                 $resources,
             ),
         );
+    }
+
+    #[Group('issue-241')]
+    public function testSalesAreListedWithTheirSellerOrAnUnknownSeller(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+        $owner = $this->pilot('O-Main');
+        $this->listedSales = [
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 3, 61_250_000.0, '2026-10-24T21:05:00+00:00', $owner)->setSeller($this->seller(2120000001, 'O-Main')),
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 2, 60_000_000.0, '2026-10-23T19:10:00+00:00', $owner)->setSeller($this->seller(2120000002, 'O-Alt')),
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 1, 62_000_000.0, '2026-10-22T11:20:00+00:00', $this->pilot('A-Main'))->setSeller($this->seller(2120000011, 'A-Main')),
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 1, 59_500_000.0, '2026-10-21T08:00:00+00:00', $owner),
+        ];
+
+        $resources = $this->salesOf($this->sabreBatch->getId());
+
+        self::assertSame(
+            [
+                [2120000001, 'O-Main', 'O-Main', 183_750_000.0],
+                [2120000002, 'O-Alt', 'O-Main', 120_000_000.0],
+                [2120000011, 'A-Main', 'A-Main', 62_000_000.0],
+                [null, null, 'O-Main', 59_500_000.0],
+            ],
+            array_map(
+                static fn (GroupIndustrySaleResource $resource): array => [
+                    $resource->sellerCharacterId,
+                    $resource->sellerCharacterName,
+                    $resource->recordedByCharacterName,
+                    $resource->totalPrice,
+                ],
+                $resources,
+            ),
+        );
+    }
+
+    private function seller(int $eveCharacterId, string $name): Character
+    {
+        return (new Character())->setEveCharacterId($eveCharacterId)->setName($name);
     }
 
     private function salesOf(Uuid $projectId): array

@@ -35,6 +35,8 @@ const SABRE_BATCH_SALES: GroupSale[] = [
     venue: 'Amarr VIII (Oris)',
     soldAt: '2026-10-21T16:45:00+00:00',
     recordedByCharacterName: 'Brann Holt',
+    sellerCharacterId: null,
+    sellerCharacterName: null,
     createdAt: '2026-10-21T16:50:00+00:00',
   },
 ]

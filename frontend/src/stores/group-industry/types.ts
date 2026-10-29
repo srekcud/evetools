@@ -121,6 +121,8 @@ export type GroupSale = {
   venue: string | null
   soldAt: string
   recordedByCharacterName: string | null
+  sellerCharacterId: number | null
+  sellerCharacterName: string | null
   createdAt: string
 }
 
@@ -198,6 +200,7 @@ export type RecordSaleInput = {
   unitPrice: number
   venue?: string
   soldAt?: string
+  sellerCharacterId?: number
 }
 
 export type UpdateSaleInput = {
@@ -207,4 +210,5 @@ export type UpdateSaleInput = {
   unitPrice?: number
   venue?: string
   soldAt?: string
+  sellerCharacterId?: number
 }

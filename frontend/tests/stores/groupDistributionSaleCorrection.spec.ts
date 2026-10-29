@@ -20,6 +20,8 @@ const ISHTAR_SALE: GroupSale = {
   venue: 'Jita IV - Moon 4',
   soldAt: '2026-10-20T18:30:00+00:00',
   recordedByCharacterName: 'Brann Holt',
+  sellerCharacterId: null,
+  sellerCharacterName: null,
   createdAt: '2026-10-20T18:31:00+00:00',
 }
 
@@ -33,6 +35,8 @@ const SABRE_SALE: GroupSale = {
   venue: 'Amarr VIII (Oris)',
   soldAt: '2026-10-21T16:45:00+00:00',
   recordedByCharacterName: 'Brann Holt',
+  sellerCharacterId: null,
+  sellerCharacterName: null,
   createdAt: '2026-10-21T16:50:00+00:00',
 }
 
@@ -46,6 +50,8 @@ const HOUND_SALE: GroupSale = {
   venue: null,
   soldAt: '2026-10-22T09:30:00+00:00',
   recordedByCharacterName: null,
+  sellerCharacterId: null,
+  sellerCharacterName: null,
   createdAt: '2026-10-22T09:31:00+00:00',
 }
 

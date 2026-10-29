@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
+use App\Entity\Character;
 use App\Enum\GroupProjectStatus;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
@@ -53,6 +54,17 @@ final class GroupSaleItemProviderTest extends TestCase
             [$this->sabreSale->getId()->toRfc4122(), 'Sabre', 2, 900000.0, 1800000.0, self::SABRE_SALE_VENUE, self::SABRE_SALE_SOLD_AT, self::SABRE_SALE_RECORDER_NAME],
             [$sale->id, $sale->typeName, $sale->quantity, $sale->unitPrice, $sale->totalPrice, $sale->venue, $sale->soldAt, $sale->recordedByCharacterName],
         );
+    }
+
+    #[Group('issue-241')]
+    public function testAdminLoadsTheSaleToCorrectWithItsSeller(): void
+    {
+        $this->sabreSale->setSeller((new Character())->setEveCharacterId(2120000002)->setName('O-Alt'));
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $sale = $this->provideSale($this->sabreSaleUri());
+
+        self::assertSame([2120000002, 'O-Alt', self::SABRE_SALE_RECORDER_NAME], [$sale->sellerCharacterId, $sale->sellerCharacterName, $sale->recordedByCharacterName]);
     }
 
     public static function saleAccessMatrix(): iterable

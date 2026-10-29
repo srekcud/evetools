@@ -213,6 +213,62 @@ final class GroupSaleApiTest extends WebTestCase
         self::assertSame([['items[0][runs]'], $projectsBefore], [$this->violatedPaths(), $this->em->getRepository(GroupIndustryProject::class)->count([])]);
     }
 
+    #[Group('issue-241')]
+    public function testSaleNamingASellerOfIdentifierZeroIsRejectedOnTheSellerAndNothingIsRecorded(): void
+    {
+        $this->client->loginUser($this->admin, 'api');
+        $this->postIshtarSale(['sellerCharacterId' => 0]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([['sellerCharacterId'], 1], [$this->violatedPaths(), $this->salesCountOf($this->sabreDoctrine)]);
+    }
+
+    #[Group('issue-241')]
+    public function testPlainMemberNamingANegativeSellerIsToldAboutTheSellerBeforeTheAccessRefusal(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->postIshtarSale(['sellerCharacterId' => -5]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['sellerCharacterId'], $this->violatedPaths());
+    }
+
+    #[Group('issue-241')]
+    public function testAdminRecordsASaleSoldByHisMainAndReadsItsSellerInTheResponse(): void
+    {
+        $adminMainEveCharacterId = $this->admin->getMainCharacter()?->getEveCharacterId();
+        $this->client->loginUser($this->admin, 'api');
+        $this->postIshtarSale(['sellerCharacterId' => $adminMainEveCharacterId]);
+
+        self::assertResponseStatusCodeSame(201);
+        $sale = $this->responseJson();
+        self::assertSame(
+            [$adminMainEveCharacterId, 'Brann Holt', 'Brann Holt', 6000000.0, 2],
+            [$sale['sellerCharacterId'], $sale['sellerCharacterName'], $sale['recordedByCharacterName'], (float) $sale['totalPrice'], $this->salesCountOf($this->sabreDoctrine)],
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testOwnerNamingTheMainOfTheAdminAsSellerIsRefusedAndNothingIsRecorded(): void
+    {
+        $adminMainEveCharacterId = $this->admin->getMainCharacter()?->getEveCharacterId();
+        $this->client->loginUser($this->owner, 'api');
+        $this->postIshtarSale(['sellerCharacterId' => $adminMainEveCharacterId]);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(1, $this->salesCountOf($this->sabreDoctrine));
+    }
+
+    #[Group('issue-241')]
+    public function testCorrectionNamingASellerOfIdentifierZeroIsRejectedOnTheSellerAndKeepsTheSale(): void
+    {
+        $this->client->loginUser($this->admin, 'api');
+        $this->request('PATCH', $this->sabreSaleUri($this->sabreDoctrine), ['sellerCharacterId' => 0]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([['sellerCharacterId'], [900000.0, 1800000.0]], [$this->violatedPaths(), $this->storedSabreSaleAmounts()]);
+    }
+
     private function persistPilot(string $name, int $corporationId): User
     {
         $character = (new Character())

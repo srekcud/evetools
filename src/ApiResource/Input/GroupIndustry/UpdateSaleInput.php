@@ -26,4 +26,6 @@ class UpdateSaleInput
 
     #[Assert\DateTime(format: \DateTimeInterface::ATOM)]
     public ?string $soldAt = null;
+
+    public ?int $sellerCharacterId = null;
 }

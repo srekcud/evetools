@@ -167,6 +167,16 @@ class GroupIndustrySale
         return $this;
     }
 
+    public function getSeller(): ?Character
+    {
+        throw new \LogicException('not implemented');
+    }
+
+    public function setSeller(?Character $seller): static
+    {
+        throw new \LogicException('not implemented');
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;

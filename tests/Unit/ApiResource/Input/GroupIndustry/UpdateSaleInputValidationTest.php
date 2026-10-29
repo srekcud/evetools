@@ -87,6 +87,33 @@ final class UpdateSaleInputValidationTest extends TestCase
         yield 'UTC sale date written Z' => ['soldAt', '2026-10-24T09:00:00Z'];
     }
 
+    #[Group('issue-241')]
+    #[DataProvider('sellerCharacterIdsThatAreNotPositive')]
+    public function testSellerCorrectionThatIsNotPositiveIsRejectedOnTheSellerCharacterId(int $sellerCharacterId): void
+    {
+        self::assertSame(['sellerCharacterId'], $this->violatedPathsOf(['sellerCharacterId' => $sellerCharacterId]));
+    }
+
+    public static function sellerCharacterIdsThatAreNotPositive(): iterable
+    {
+        yield 'A4 zero' => [0];
+        yield 'A4 negative' => [-5];
+    }
+
+    #[Group('issue-241')]
+    #[DataProvider('acceptedSellerCorrections')]
+    public function testSellerCorrectionWithAPositiveIdentifierOrNullIsAccepted(array $seller): void
+    {
+        self::assertSame([], $this->violatedPathsOf($seller));
+    }
+
+    public static function acceptedSellerCorrections(): iterable
+    {
+        yield 'A7 character of the admin' => [['sellerCharacterId' => 2120000011]];
+        yield 'smallest positive identifier' => [['sellerCharacterId' => 1]];
+        yield 'A8 null seller' => [['sellerCharacterId' => null]];
+    }
+
     private function violatedPathsOf(array $fields): array
     {
         $input = new UpdateSaleInput();

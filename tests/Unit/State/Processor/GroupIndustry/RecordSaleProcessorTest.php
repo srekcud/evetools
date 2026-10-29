@@ -13,6 +13,7 @@ use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\RecordSaleProcessor;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\Tests\Unit\State\Provider\GroupIndustry\GroupProjectAccessProfiles;
+use App\Tests\Unit\State\Provider\GroupIndustry\SabreBatchSellers;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -25,6 +26,7 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(RecordSaleProcessor::class)]
@@ -32,6 +34,7 @@ use Symfony\Component\Uid\Uuid;
 class RecordSaleProcessorTest extends TestCase
 {
     use GroupProjectAccessProfiles;
+    use SabreBatchSellers;
 
     private const int ORCA_TYPE_ID = 28606;
     private const int SOLD_QUANTITY = 5;
@@ -43,16 +46,21 @@ class RecordSaleProcessorTest extends TestCase
     private HubInterface&MockObject $hub;
     private RecordSaleProcessor $processor;
     private int $persistedSales = 0;
+    private ?GroupIndustrySale $persistedSale = null;
+
+    private array $publishedUpdates = [];
 
     protected function setUp(): void
     {
         $this->createSabreBatch();
+        $this->createSabreBatchSellers();
         $this->security = $this->createStub(Security::class);
 
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->entityManager->method('persist')->willReturnCallback(function (GroupIndustrySale $sale): void {
             (new \ReflectionProperty($sale, 'id'))->setValue($sale, Uuid::v4());
             ++$this->persistedSales;
+            $this->persistedSale = $sale;
         });
         $this->hub = $this->createMock(HubInterface::class);
 
@@ -180,6 +188,168 @@ class RecordSaleProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn(null);
 
         self::assertSame([self::UNAUTHORIZED, 0], [$this->outcomeOf(fn () => $this->recordOrcaSale($this->sabreBatch->getId())), $this->persistedSales]);
+    }
+
+    #[Group('issue-241')]
+    public function testOwnerRecordsTheSabreSaleSoldByHisAltWithTheAltAsSellerAndHisMainAsRecorder(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt));
+
+        $resource = $this->recordBaseSabreSale(['sellerCharacterId' => self::O_ALT_EVE_CHARACTER_ID]);
+
+        self::assertSame(
+            [self::O_ALT_EVE_CHARACTER_ID, 'O-Alt', 'O-Main', 3, 61_250_000.0, 183_750_000.0],
+            [$resource->sellerCharacterId, $resource->sellerCharacterName, $resource->recordedByCharacterName, $resource->quantity, $resource->unitPrice, $resource->totalPrice],
+        );
+        self::assertSame([1, $this->oAlt], [$this->persistedSales, $this->persistedSale?->getSeller()]);
+    }
+
+    #[Group('issue-241')]
+    public function testOwnerRecordsTheSabreSaleSoldByHisMainWithTheMainAsSeller(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt));
+
+        $resource = $this->recordBaseSabreSale(['sellerCharacterId' => self::O_MAIN_EVE_CHARACTER_ID]);
+
+        self::assertSame([self::O_MAIN_EVE_CHARACTER_ID, 'O-Main'], [$resource->sellerCharacterId, $resource->sellerCharacterName]);
+        self::assertSame($this->oMain, $this->persistedSale?->getSeller());
+    }
+
+    #[Group('issue-241')]
+    public function testSaleRecordedWithoutSellerHasAnUnknownSeller(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt));
+
+        $resource = $this->recordBaseSabreSale([]);
+
+        self::assertSame(
+            [null, null, 'O-Main', 183_750_000.0, 1],
+            [$resource->sellerCharacterId, $resource->sellerCharacterName, $resource->recordedByCharacterName, $resource->totalPrice, $this->persistedSales],
+        );
+        self::assertNull($this->persistedSale?->getSeller());
+    }
+
+    #[Group('issue-241')]
+    public function testAdminRecordsASaleSoldByHisOwnCharacter(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain));
+
+        $resource = $this->recordBaseSabreSale(['sellerCharacterId' => self::A_MAIN_EVE_CHARACTER_ID]);
+
+        self::assertSame(
+            [self::A_MAIN_EVE_CHARACTER_ID, 'A-Main', 'A-Main', 183_750_000.0],
+            [$resource->sellerCharacterId, $resource->sellerCharacterName, $resource->recordedByCharacterName, $resource->totalPrice],
+        );
+        self::assertSame($this->aMain, $this->persistedSale?->getSeller());
+    }
+
+    public static function sellersThatAreNotACharacterOfTheRecorder(): iterable
+    {
+        yield 'A3 owner names the character of an admin' => [self::OWNER, self::A_MAIN_EVE_CHARACTER_ID];
+        yield 'A5 owner names a character unknown to the application' => [self::OWNER, self::UNKNOWN_EVE_CHARACTER_ID];
+        yield 'admin names the alt of the owner' => [self::ACCEPTED_ADMIN, self::O_ALT_EVE_CHARACTER_ID];
+        yield 'admin names the character of a member' => [self::ACCEPTED_ADMIN, self::M_MAIN_EVE_CHARACTER_ID];
+    }
+
+    #[Group('issue-241')]
+    #[DataProvider('sellersThatAreNotACharacterOfTheRecorder')]
+    public function testSellerThatIsNotACharacterOfTheRecorderIsRefusedWithoutRecordingNorPublishing(string $recorderProfile, int $sellerCharacterId): void
+    {
+        $recorders = $this->sabreBatchRecordersWithTheirCharacters();
+        $this->security->method('getUser')->willReturn($recorders[$recorderProfile]);
+        $this->capturePublishedUpdates();
+
+        $outcome = $this->outcomeOf(fn () => $this->recordBaseSabreSale(['sellerCharacterId' => $sellerCharacterId]));
+
+        self::assertSame([self::SELLER_OF_ANOTHER_USER, 0, []], [$outcome, $this->persistedSales, $this->publishedUpdates]);
+    }
+
+    #[Group('issue-241')]
+    public function testMemberNamingHisOwnCharacterAsSellerIsStillRefusedTheRecording(): void
+    {
+        $member = $this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain);
+        $this->security->method('getUser')->willReturn($member);
+
+        $outcome = $this->outcomeOf(fn () => $this->recordBaseSabreSale(['sellerCharacterId' => self::M_MAIN_EVE_CHARACTER_ID]));
+
+        self::assertSame([self::ADMIN_OR_OWNER_ONLY, 0], [$outcome, $this->persistedSales]);
+    }
+
+    #[Group('issue-241')]
+    public function testSaleNamingAForeignSellerOnACompletedProjectIsRefusedAsCompleted(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt));
+
+        $outcome = $this->outcomeOf(function (): GroupIndustrySaleResource {
+            $this->sabreBatch->setStatus(GroupProjectStatus::Completed);
+
+            return $this->processor->process($this->baseSabreSaleInput(['sellerCharacterId' => self::A_MAIN_EVE_CHARACTER_ID]), new Post(), [
+                'projectId' => $this->sabreBatch->getId()->toRfc4122(),
+            ]);
+        });
+
+        self::assertSame([self::COMPLETED_PROJECT_REFUSAL, 0], [$outcome, $this->persistedSales]);
+    }
+
+    #[Group('issue-241')]
+    public function testSaleRecordedWithASellerPublishesTheSameSaleRecordedDataAsWithout(): void
+    {
+        $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt));
+        $this->capturePublishedUpdates();
+
+        $this->recordBaseSabreSale(['sellerCharacterId' => self::O_ALT_EVE_CHARACTER_ID]);
+
+        self::assertSame(
+            [[
+                'action' => 'sale_recorded',
+                'data' => ['saleId' => $this->persistedSale?->getId()?->toRfc4122(), 'typeName' => 'Sabre', 'quantity' => 3, 'totalPrice' => 183_750_000.0],
+            ]],
+            array_map(static function (Update $update): array {
+                $payload = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
+
+                return ['action' => $payload['action'], 'data' => $payload['data']];
+            }, $this->publishedUpdates),
+        );
+    }
+
+    private function sabreBatchRecordersWithTheirCharacters(): array
+    {
+        $recorders = [
+            self::OWNER => $this->withCharacters($this->userWithProfile(self::OWNER), $this->oMain, $this->oAlt),
+            self::ACCEPTED_ADMIN => $this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain),
+        ];
+        $this->withCharacters($this->userWithProfile(self::ACCEPTED_MEMBER), $this->mMain);
+
+        return $recorders;
+    }
+
+    private function capturePublishedUpdates(): void
+    {
+        $this->hub->method('publish')->willReturnCallback(function (Update $update): string {
+            $this->publishedUpdates[] = $update;
+
+            return 'published';
+        });
+    }
+
+    private function recordBaseSabreSale(array $changes): GroupIndustrySaleResource
+    {
+        $this->sabreBatch->setStatus(GroupProjectStatus::Selling);
+
+        return $this->processor->process($this->baseSabreSaleInput($changes), new Post(), [
+            'projectId' => $this->sabreBatch->getId()->toRfc4122(),
+        ]);
+    }
+
+    private function baseSabreSaleInput(array $changes): RecordSaleInput
+    {
+        $input = new RecordSaleInput();
+        $fields = array_merge(['typeId' => 0, 'typeName' => 'Sabre', 'quantity' => 3, 'unitPrice' => 61_250_000.0], $changes);
+        foreach ($fields as $field => $value) {
+            $input->{$field} = $value;
+        }
+
+        return $input;
     }
 
     private function recordIshtarSale(array $changes): GroupIndustrySaleResource

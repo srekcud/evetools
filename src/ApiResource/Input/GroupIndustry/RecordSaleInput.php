@@ -32,4 +32,6 @@ class RecordSaleInput
 
     #[Assert\DateTime(format: \DateTimeInterface::ATOM)]
     public ?string $soldAt = null;
+
+    public ?int $sellerCharacterId = null;
 }

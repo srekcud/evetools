@@ -114,6 +114,116 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         );
     }
 
+    #[Group('issue-241')]
+    public function testSalesListIssuesTheSameQueriesForTwoOrFourDistinctSellers(): void
+    {
+        [$twoSellersViewerId, $twoSellersProjectId] = $this->createProjectWithSalesSoldByDistinctCharacters('Tessa Kord', sellersCount: 2);
+        [$fourSellersViewerId, $fourSellersProjectId] = $this->createProjectWithSalesSoldByDistinctCharacters('Ilan Mercer', sellersCount: 4);
+
+        $twoSellersQueries = $this->queriesListingTheSales($twoSellersViewerId, $twoSellersProjectId);
+        $fourSellersQueries = $this->queriesListingTheSales($fourSellersViewerId, $fourSellersProjectId);
+
+        self::assertCount(
+            \count($twoSellersQueries),
+            $fourSellersQueries,
+            sprintf(
+                "4 sales by 2 sellers: %d queries; 8 sales by 4 sellers: %d queries:\n%s",
+                \count($twoSellersQueries),
+                \count($fourSellersQueries),
+                implode("\n", $fourSellersQueries),
+            ),
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testSalesListOfFourDistinctSellersIssuesABoundedNumberOfQueries(): void
+    {
+        [$viewerId, $projectId] = $this->createProjectWithSalesSoldByDistinctCharacters('Nadia Prell', sellersCount: 4);
+
+        $queries = $this->queriesListingTheSales($viewerId, $projectId);
+
+        self::assertLessThanOrEqual(
+            self::MAX_QUERIES,
+            \count($queries),
+            sprintf("expected at most %d queries, got %d:\n%s", self::MAX_QUERIES, \count($queries), implode("\n", $queries)),
+        );
+    }
+
+    #[Group('issue-241')]
+    public function testSalesAreListedWithTheirSellerOrAnUnknownSeller(): void
+    {
+        $owner = $this->createUser();
+        $oMain = $this->createCharacter($owner, 'O-Main')->setEveCharacterId(2120000001);
+        $oAlt = $this->createCharacter($owner, 'O-Alt')->setEveCharacterId(2120000002);
+        $owner->setMainCharacter($oMain);
+        $admin = $this->createUser();
+        $aMain = $this->createCharacter($admin, 'A-Main')->setEveCharacterId(2120000011);
+        $admin->setMainCharacter($aMain);
+        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre');
+        $this->em->persist($project);
+        $this->addMember($project, $owner, GroupMemberRole::Owner);
+        $this->addMember($project, $admin, GroupMemberRole::Admin);
+        $this->addSale($project, self::SABRE_TYPE_ID, 'Sabre', 3, 61_250_000.0, '2026-10-24T21:05:00+00:00', $owner)->setSeller($oMain);
+        $this->addSale($project, self::SABRE_TYPE_ID, 'Sabre', 2, 60_000_000.0, '2026-10-23T19:10:00+00:00', $owner)->setSeller($oAlt);
+        $this->addSale($project, self::SABRE_TYPE_ID, 'Sabre', 1, 62_000_000.0, '2026-10-22T11:20:00+00:00', $admin)->setSeller($aMain);
+        $this->addSale($project, self::SABRE_TYPE_ID, 'Sabre', 1, 59_500_000.0, '2026-10-21T08:00:00+00:00', $owner);
+        $this->em->flush();
+        $ownerId = (string) $owner->getId();
+        $projectId = (string) $project->getId();
+        $this->em->clear();
+
+        $sales = $this->salesOf($projectId, $this->user($ownerId));
+
+        self::assertSame(
+            [
+                [2120000001, 'O-Main', 'O-Main', 183_750_000.0],
+                [2120000002, 'O-Alt', 'O-Main', 120_000_000.0],
+                [2120000011, 'A-Main', 'A-Main', 62_000_000.0],
+                [null, null, 'O-Main', 59_500_000.0],
+            ],
+            array_map(
+                static fn (GroupIndustrySaleResource $sale): array => [
+                    $sale->sellerCharacterId,
+                    $sale->sellerCharacterName,
+                    $sale->recordedByCharacterName,
+                    $sale->totalPrice,
+                ],
+                $sales,
+            ),
+        );
+    }
+
+    private function createProjectWithSalesSoldByDistinctCharacters(string $prefix, int $sellersCount): array
+    {
+        $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
+        $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
+        $project = (new GroupIndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $this->em->persist($project);
+        $this->addMember($project, $owner, GroupMemberRole::Owner);
+        $this->addMember($project, $viewer, GroupMemberRole::Member);
+
+        $sellers = [];
+        for ($sellerIndex = 1; $sellerIndex <= $sellersCount; ++$sellerIndex) {
+            $sellers[] = $this->createCharacter($owner, sprintf('Seller %d of %s', $sellerIndex, $prefix));
+        }
+
+        for ($saleIndex = 1; $saleIndex <= 2 * $sellersCount; ++$saleIndex) {
+            $this->addSale(
+                $project,
+                self::SABRE_TYPE_ID,
+                'Sabre',
+                $saleIndex,
+                60_000_000.0 + $saleIndex * 25_000.0,
+                sprintf('2026-10-%02dT12:15:00+00:00', $saleIndex),
+                $owner,
+            )->setSeller($sellers[$saleIndex % $sellersCount]);
+        }
+
+        $this->em->flush();
+
+        return [(string) $viewer->getId(), (string) $project->getId()];
+    }
+
     private function queriesListingTheSales(string $viewerId, string $projectId): array
     {
         $this->em->clear();
@@ -200,7 +310,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addSale(GroupIndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $soldAt, ?User $recordedBy): void
+    private function addSale(GroupIndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $soldAt, ?User $recordedBy): GroupIndustrySale
     {
         $sale = (new GroupIndustrySale())
             ->setTypeId($typeId)
@@ -214,5 +324,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
             $sale->setRecordedBy($recordedBy);
         }
         $project->addSale($sale);
+
+        return $sale;
     }
 }
