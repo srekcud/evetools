@@ -132,7 +132,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
                     $existing->setLevel($level);
                     $existing->setCachedAt($now);
                 }
-            } elseif ($level > 0) {
+            } elseif ($level > 0 || $skillId === CachedCharacterSkill::SKILL_SCIENCE) {
                 $skill = new CachedCharacterSkill();
                 $skill->setCharacter($character);
                 $skill->setSkillId($skillId);
@@ -169,6 +169,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         $alwaysInclude = array_unique(array_merge(
             CachedCharacterSkill::INDUSTRY_SKILL_IDS,
             CachedCharacterSkill::SLOT_SKILL_IDS,
+            [CachedCharacterSkill::SKILL_SCIENCE],
         ));
         foreach ($alwaysInclude as $id) {
             if (!in_array($id, $skillIds, true)) {

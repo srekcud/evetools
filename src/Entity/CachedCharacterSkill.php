@@ -26,6 +26,7 @@ class CachedCharacterSkill
     public const ADVANCED_INDUSTRY_TIME_BONUS_PER_LEVEL = 0.03;
     public const REACTION_TIME_BONUS_PER_LEVEL = 0.04;
     public const SCIENCE_SKILL_TIME_BONUS_PER_LEVEL = 0.01;
+    public const SCIENCE_COPY_TIME_BONUS_PER_LEVEL = 0.05;
 
     public const INDUSTRY_SKILL_IDS = [
         self::SKILL_INDUSTRY,
