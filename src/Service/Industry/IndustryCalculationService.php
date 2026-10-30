@@ -16,7 +16,6 @@ use App\Service\TypeNameResolver;
 
 class IndustryCalculationService
 {
-
     public function __construct(
         private readonly TypeNameResolver $typeNameResolver,
         private readonly IndustryBonusService $bonusService,
