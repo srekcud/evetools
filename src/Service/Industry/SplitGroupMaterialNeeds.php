@@ -55,7 +55,7 @@ final class SplitGroupMaterialNeeds
 
         $changedSteps = [];
         foreach ($newNeeds as $newNeed) {
-            array_push($changedSteps, ...SplitGroupQuantities::applyNeedToSteps($newNeed['steps'], $newNeed['need'], $newNeed['outputPerRun']));
+            array_push($changedSteps, ...SplitGroupQuantities::applyNeedToSteps($newNeed['steps'], $newNeed['need'], $newNeed['outputPerRun'])->changedSteps);
         }
 
         return $changedSteps;

@@ -29,7 +29,7 @@ class IndustryStepCalculator
     {
         $updatedSteps = [];
         $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use (&$updatedSteps): void {
-            array_push($updatedSteps, ...SplitGroupQuantities::applyNeedToSteps($steps, $need, $outputPerRun));
+            array_push($updatedSteps, ...SplitGroupQuantities::applyNeedToSteps($steps, $need, $outputPerRun)->changedSteps);
         });
 
         if ($updatedSteps !== []) {

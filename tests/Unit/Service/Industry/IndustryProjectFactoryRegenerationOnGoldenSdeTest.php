@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\IndustryRigCategoryRepository;
@@ -88,6 +89,35 @@ final class IndustryProjectFactoryRegenerationOnGoldenSdeTest extends TestCase
                 $this->jobsOfProduct($project, self::FERNITE_CARBIDE),
             ),
         );
+    }
+
+    public function testRegenerationRemovesTheSurplusJobsOfAGroupWhoseFixedJobCoversTheNewNeedAndDissolvesTheGroup(): void
+    {
+        $project = $this->factory->createProject(new User(), self::FERNITE_CARBIDE, 10, self::ME_LEVEL, self::MAX_JOB_DURATION_DAYS_OF_FOUR_FERNITE_CARBIDE_RUNS, self::TE_LEVEL);
+        $ferniteCarbideJobs = $this->jobsOfProduct($project, self::FERNITE_CARBIDE);
+        $ferniteCarbideJobs[0]->setRuns(6)->setRunsFixed(true);
+        $matchedJob = (new IndustryStepJobMatch())->setEsiJobId(7_131_208)->setRuns(3);
+        $ferniteCarbideJobs[2]->addJobMatch($matchedJob);
+        $project->setRuns(5);
+
+        $this->factory->regenerateSteps($project);
+
+        self::assertSame(
+            [[6, 60_000, true, null, 0, null, [7_131_208]]],
+            array_map(
+                static fn (IndustryProjectStep $job): array => [
+                    $job->getRuns(),
+                    $job->getQuantity(),
+                    $job->isRunsFixed(),
+                    $job->getSplitGroupId(),
+                    $job->getSplitIndex(),
+                    $job->getTotalGroupRuns(),
+                    array_values(array_map(static fn (IndustryStepJobMatch $match): int => $match->getEsiJobId(), $job->getJobMatches()->toArray())),
+                ],
+                $this->jobsOfProduct($project, self::FERNITE_CARBIDE),
+            ),
+        );
+        self::assertSame([$ferniteCarbideJobs[0]], $this->jobsOfProduct($project, self::FERNITE_CARBIDE));
     }
 
     public function testRegenerationKeepsTheStructureOfEachCopyJob(): void

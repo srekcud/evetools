@@ -40,6 +40,8 @@ final class UpdateStepProcessorTest extends TestCase
     private const int TITANIUM_CARBIDE = 16671;
     private const int PHENOLIC_COMPOSITES = 16680;
     private const int FERNITE_CARBIDE = 16673;
+    private const int FERNITE_ALLOY = 16656;
+    private const int FERNITE_ALLOY_OUTPUT_PER_RUN = 200;
     private const int HYDROGEN_FUEL_BLOCK = 4246;
     private const int BLUEPRINT_MISSING_FROM_THE_SDE = 999_999_999;
     private const int FORMULA_MISSING_FROM_THE_SDE = 999_999_998;
@@ -165,6 +167,40 @@ final class UpdateStepProcessorTest extends TestCase
         self::assertSame([self::PHENOLIC_COMPOSITES, 11_000], [$updatedStep->productTypeId, $updatedStep->quantity]);
     }
 
+    public function testResponseToRunsEnteredOnTheRootStepListsTheKeptJobsOfItsSplitChildGroupWithoutTheSurplusJob(): void
+    {
+        $ferniteCarbide = $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 20, quantity: 200_000, depth: 0, meLevel: 0);
+        $alloyJobs = array_map(
+            fn (int $splitIndex): IndustryProjectStep => $this->jobOfTheFerniteAlloyGroup($splitIndex, runs: 10, totalGroupRuns: 30),
+            [0, 1, 2],
+        );
+
+        $updatedSteps = $this->patch($ferniteCarbide, $this->runsEntered(4), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[self::FERNITE_CARBIDE, 40_000], [self::FERNITE_ALLOY, 200], [self::FERNITE_ALLOY, 200]], $this->productAndQuantityOf($updatedSteps));
+        self::assertSame([true, true, false], array_map(fn (IndustryProjectStep $job): bool => $this->project->getSteps()->contains($job), $alloyJobs));
+    }
+
+    public function testReleasingTheFixedRunsOfAJobThatTheNeedNoLongerRunsRemovesItFromTheProjectAndFromTheResponse(): void
+    {
+        $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 1, quantity: 10_000, depth: 0, meLevel: 0);
+        $firstAlloyJob = $this->jobOfTheFerniteAlloyGroup(0, runs: 3, totalGroupRuns: 5);
+        $fixedAlloyJob = $this->jobOfTheFerniteAlloyGroup(1, runs: 2, totalGroupRuns: 5)->setRunsFixed(true);
+        $runsReleased = new UpdateStepInput();
+        $runsReleased->runsFixed = false;
+
+        $updatedSteps = $this->patch($fixedAlloyJob, $runsReleased, $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[self::FERNITE_ALLOY, 100]], $this->productAndQuantityOf($updatedSteps));
+        self::assertSame(
+            [false, [1, 100, null, 0, null]],
+            [
+                $this->project->getSteps()->contains($fixedAlloyJob),
+                [$firstAlloyJob->getRuns(), $firstAlloyJob->getQuantity(), $firstAlloyJob->getSplitGroupId(), $firstAlloyJob->getSplitIndex(), $firstAlloyJob->getTotalGroupRuns()],
+            ],
+        );
+    }
+
     #[Group('issue-200')]
     public function testProjectIdThatIsNotAUuidIsNotFoundWithoutReadingTheProjectsNorTheSteps(): void
     {
@@ -204,6 +240,14 @@ final class UpdateStepProcessorTest extends TestCase
         $this->project->addStep($step);
 
         return $step;
+    }
+
+    private function jobOfTheFerniteAlloyGroup(int $splitIndex, int $runs, int $totalGroupRuns): IndustryProjectStep
+    {
+        return $this->stepOfTheProject(self::FERNITE_ALLOY, self::FERNITE_ALLOY + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: $runs, quantity: $runs * self::FERNITE_ALLOY_OUTPUT_PER_RUN, depth: 1, meLevel: 0)
+            ->setSplitGroupId('fernite-alloy')
+            ->setSplitIndex($splitIndex)
+            ->setTotalGroupRuns($totalGroupRuns);
     }
 
     private function runsEntered(int $runs): UpdateStepInput

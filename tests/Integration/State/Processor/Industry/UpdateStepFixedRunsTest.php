@@ -10,6 +10,8 @@ use App\ApiResource\Input\Industry\UpdateStepInput;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
+use App\Entity\IndustryStepPurchase;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -216,7 +218,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         );
     }
 
-    public function testAFixedJobKeepsItsRunsWhenTheNeedRisesThenFalls(): void
+    public function testAFixedJobKeepsItsRunsWhenTheNeedRisesThenFallsBelowThemAndItsGroupIsDissolved(): void
     {
         $project = $this->projectWithAPlatingSplitInTwoJobs();
         [$firstJobId, $secondJobId] = $this->platingJobIdsOf($project);
@@ -233,11 +235,36 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         );
 
         $this->patch($project, $cruiserStepId, ['runs' => 3]);
-        $platingJobs = $this->platingJobsOf($this->reloaded($project));
+        $project = $this->reloaded($project);
 
+        self::assertSame([[$firstJobId, 15, 15, true, 0, null]], $this->platingJobsOf($project));
+        self::assertNull($this->stepOfProduct($project, self::PLATING_TYPE_ID)->getSplitGroupId());
+    }
+
+    public function testRegenerationOnANeedCoveredByTheFixedJobRemovesTheOtherJobAndPassesItsMatchedJobAndPurchaseToTheFixedJob(): void
+    {
+        $project = $this->projectWithAPlatingSplitInTwoJobs();
+        [$firstJobId] = $this->platingJobIdsOf($project);
+        $this->patch($project, $firstJobId, ['runs' => 15]);
+        $project = $this->reloaded($project);
+        $this->platingStepsInSplitIndexOrder($project)[1]
+            ->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(7_131_377)->setRuns(5)->setCharacterName('Fixed Runs Pilot'))
+            ->addPurchase((new IndustryStepPurchase())->setTypeId(self::ALLOY_TYPE_ID)->setQuantity(55)->setUnitPrice(1_250.0)->setTotalPrice(68_750.0)->setSource('manual'));
+        $project = $this->reloaded($project);
+
+        $project->setRuns(3);
+        $this->factory->regenerateSteps($project);
+        $project = $this->reloaded($project);
+
+        self::assertSame([[$firstJobId, 15, 15, true, 0, null]], $this->platingJobsOf($project));
+        $platingStep = $this->stepOfProduct($project, self::PLATING_TYPE_ID);
         self::assertSame(
-            [[$firstJobId, 15, 15, true, 0, 16], [$secondJobId, 1, false, 1, 16]],
-            [$platingJobs[0], [$platingJobs[1][0], $platingJobs[1][1], $platingJobs[1][3], $platingJobs[1][4], $platingJobs[1][5]]],
+            [null, [7_131_377], [self::ALLOY_TYPE_ID]],
+            [
+                $platingStep->getSplitGroupId(),
+                array_values(array_map(static fn (IndustryStepJobMatch $match): int => $match->getEsiJobId(), $platingStep->getJobMatches()->toArray())),
+                array_values(array_map(static fn (IndustryStepPurchase $purchase): int => $purchase->getTypeId(), $platingStep->getPurchases()->toArray())),
+            ],
         );
     }
 
@@ -337,16 +364,56 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
 
     public function testRunsEnteredOnAJobWhoseCapFallsBelowOneRunAreFixedAtOneRun(): void
     {
-        $project = $this->factory->createProject($this->pilot, self::CARRIER_TYPE_ID, 8, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_FUEL_BLOCK_IN_FOUR_JOBS, self::PROJECT_TE);
+        $project = $this->projectWithAFuelBlockNeedOf864SplitInThreeJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->fuelBlockJobIdsOf($project);
+        $this->patch($project, $thirdJobId, ['runs' => 22, 'overproduce' => true]);
         $project = $this->reloaded($project);
-        $this->patch($project, $this->idOf($this->stepOfProduct($project, self::CARRIER_TYPE_ID)), ['runs' => 1]);
-        $project = $this->reloaded($project);
-        [$firstJobId, $secondJobId, $thirdJobId, $fourthJobId] = $this->fuelBlockJobIdsOf($project);
 
         $this->patch($project, $firstJobId, ['runs' => 5]);
 
         self::assertSame(
-            [[$firstJobId, 1, 40, true, 0, 4], [$secondJobId, 1, 40, false, 1, 4], [$thirdJobId, 1, 28, false, 2, 4], [$fourthJobId, 1, 0, false, 3, 4]],
+            [[$firstJobId, 1, 40, true, 0, 30], [$secondJobId, 7, 280, true, 1, 30], [$thirdJobId, 22, 880, true, 2, 30]],
+            $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
+        );
+    }
+
+    public function testSurplusFuelBlockJobIsRemovedWhenTheRunsOfTheCarrierFallBelowTheNumberOfJobs(): void
+    {
+        $project = $this->projectWithAFuelBlockNeedOf864SplitInFourJobs();
+        [$firstJobId, $secondJobId, $thirdJobId] = $this->fuelBlockJobIdsOf($project);
+        $carrierStepId = $this->idOf($this->stepOfProduct($project, self::CARRIER_TYPE_ID));
+
+        $response = $this->patchResponse($project, $carrierStepId, ['runs' => 1]);
+
+        self::assertSame([$carrierStepId, 4], [$response[0]->id, \count($response)]);
+        self::assertSame(
+            [[$firstJobId, 1, 40, 0, 3], [$secondJobId, 1, 40, 1, 3], [$thirdJobId, 1, 28, 2, 3]],
+            $this->jobsOfTheResponse($response, self::FUEL_BLOCK_TYPE_ID),
+        );
+        self::assertSame(
+            [[$firstJobId, 1, 40, false, 0, 3], [$secondJobId, 1, 40, false, 1, 3], [$thirdJobId, 1, 28, false, 2, 3]],
+            $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
+        );
+    }
+
+    public function testReleasingTheFixedRunsOfAnOverproducedGroupWhoseNeedFellRemovesTheSurplusJobEvenWhenItIsTheEditedJob(): void
+    {
+        $project = $this->projectWithAFuelBlockNeedOf864SplitInFourJobs();
+        [$firstJobId, $secondJobId, $thirdJobId, $fourthJobId] = $this->fuelBlockJobIdsOf($project);
+        $this->patch($project, $firstJobId, ['runs' => 10, 'overproduce' => true]);
+        $project = $this->reloaded($project);
+        $this->patch($project, $this->idOf($this->stepOfProduct($project, self::CARRIER_TYPE_ID)), ['runs' => 1]);
+        $project = $this->reloaded($project);
+
+        $response = $this->patchResponse($project, $fourthJobId, ['runsFixed' => false]);
+
+        self::assertSame(
+            [[$firstJobId, 1, 40, 0, 3], [$secondJobId, 1, 40, 1, 3], [$thirdJobId, 1, 28, 2, 3]],
+            $this->jobsOfTheResponse($response, self::FUEL_BLOCK_TYPE_ID),
+        );
+        self::assertCount(3, $response);
+        self::assertSame(
+            [[$firstJobId, 1, 40, false, 0, 3], [$secondJobId, 1, 40, false, 1, 3], [$thirdJobId, 1, 28, false, 2, 3]],
             $this->jobsOfProduct($this->reloaded($project), self::FUEL_BLOCK_TYPE_ID),
         );
     }
@@ -482,7 +549,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         self::assertSame([$cruiserStepId, 4], [$response[0]->id, \count($response)]);
         self::assertSame(
             [[$firstJobId, 10, 10, 0, 29], [$secondJobId, 10, 10, 1, 29], [$thirdJobId, 9, 9, 2, 29]],
-            $this->platingJobsOfTheResponse($response),
+            $this->jobsOfTheResponse($response, self::PLATING_TYPE_ID),
         );
         self::assertSame(
             [[$firstJobId, 10, 10, false, 0, 29], [$secondJobId, 10, 10, false, 1, 29], [$thirdJobId, 9, 9, false, 2, 29]],
@@ -535,6 +602,18 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         return $project;
     }
 
+    private function projectWithAFuelBlockNeedOf864SplitInFourJobs(): IndustryProject
+    {
+        $project = $this->factory->createProject($this->pilot, self::CARRIER_TYPE_ID, 8, 10, self::MAX_JOB_DURATION_DAYS_SPLITTING_THE_FUEL_BLOCK_IN_FOUR_JOBS, self::PROJECT_TE);
+        $project = $this->reloaded($project);
+        self::assertSame(
+            [[6, 240, false, 0, 22], [6, 240, false, 1, 22], [5, 200, false, 2, 22], [5, 184, false, 3, 22]],
+            array_map(static fn (array $job): array => array_slice($job, 1), $this->jobsOfProduct($project, self::FUEL_BLOCK_TYPE_ID)),
+        );
+
+        return $project;
+    }
+
     /**
      * @return list<string>
      */
@@ -564,7 +643,10 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
      */
     private function patch(IndustryProject $project, string $stepId, array $fields): ProjectStepResource
     {
-        return $this->patchResponse($project, $stepId, $fields)[0];
+        $editedStep = $this->patchResponse($project, $stepId, $fields)[0];
+        self::assertSame($stepId, $editedStep->id);
+
+        return $editedStep;
     }
 
     /**
@@ -583,27 +665,24 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         $projectId = $project->getId();
         self::assertNotNull($projectId);
         $response = $this->processor->process($input, new Patch(), ['id' => $projectId->toRfc4122(), 'stepId' => $stepId]);
-        $updatedSteps = \is_array($response) ? $response : [$response];
-        self::assertSame($stepId, $updatedSteps[0]->id);
-
-        return $updatedSteps;
+        return \is_array($response) ? $response : [$response];
     }
 
     /**
      * @param list<ProjectStepResource> $updatedSteps
      * @return list<array{string, int, int, int|null, int|null}>
      */
-    private function platingJobsOfTheResponse(array $updatedSteps): array
+    private function jobsOfTheResponse(array $updatedSteps, int $productTypeId): array
     {
-        $platingJobs = array_values(array_filter(
+        $jobs = array_values(array_filter(
             $updatedSteps,
-            static fn (ProjectStepResource $step): bool => $step->productTypeId === self::PLATING_TYPE_ID,
+            static fn (ProjectStepResource $step): bool => $step->productTypeId === $productTypeId,
         ));
-        usort($platingJobs, static fn (ProjectStepResource $a, ProjectStepResource $b): int => $a->splitIndex <=> $b->splitIndex);
+        usort($jobs, static fn (ProjectStepResource $a, ProjectStepResource $b): int => $a->splitIndex <=> $b->splitIndex);
 
         return array_map(
             static fn (ProjectStepResource $job): array => [$job->id, $job->runs, $job->quantity, $job->splitIndex, $job->totalGroupRuns],
-            $platingJobs,
+            $jobs,
         );
     }
 

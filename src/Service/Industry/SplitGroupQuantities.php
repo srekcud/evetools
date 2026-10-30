@@ -49,9 +49,17 @@ final class SplitGroupQuantities
 
     /**
      * @param list<IndustryProjectStep> $steps
+     */
+    public static function applyNeedToSteps(array $steps, int $need, int $outputPerRun): AppliedNeed
+    {
+        return new AppliedNeed(self::changedStepsOfTheNeed($steps, $need, $outputPerRun), []);
+    }
+
+    /**
+     * @param list<IndustryProjectStep> $steps
      * @return list<IndustryProjectStep>
      */
-    public static function applyNeedToSteps(array $steps, int $need, int $outputPerRun): array
+    private static function changedStepsOfTheNeed(array $steps, int $need, int $outputPerRun): array
     {
         $totalRuns = self::runsOfNeed($need, $outputPerRun);
 

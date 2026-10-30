@@ -40,6 +40,31 @@ final class SplitGroupMaterialNeedsTest extends TestCase
         );
     }
 
+    public function testChildSplitGroupOfAManualSplitKeepsOnlyTheJobsThatItsNewNeedRuns(): void
+    {
+        $project = (new IndustryProject())->setUser(new User());
+        $quantumMicroprocessor = $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32);
+        $titaniumCarbideJobs = array_map(
+            fn (int $splitIndex): IndustryProjectStep => $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: $splitIndex === 0 ? 490 : 0)
+                ->setSplitGroupId('titanium-carbide')
+                ->setSplitIndex($splitIndex)
+                ->setTotalGroupRuns(3),
+            [0, 1, 2],
+        );
+        $this->stepOf($project, self::PHENOLIC_COMPOSITES, 'reaction', runs: 1, quantity: 173);
+
+        $changedSteps = $this->splitGroupMaterialNeedsOnRecipes()->applyChangeOfJobs($project, $quantumMicroprocessor, [32], [11, 11, 10]);
+
+        self::assertSame(
+            [[1, 491, null, 0, null]],
+            array_map(
+                static fn (IndustryProjectStep $job): array => [$job->getRuns(), $job->getQuantity(), $job->getSplitGroupId(), $job->getSplitIndex(), $job->getTotalGroupRuns()],
+                array_values(array_filter($project->getSteps()->toArray(), static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === self::TITANIUM_CARBIDE)),
+            ),
+        );
+        self::assertSame([$titaniumCarbideJobs[0]], array_values(array_filter($changedSteps, static fn (IndustryProjectStep $step): bool => $step->getProductTypeId() === self::TITANIUM_CARBIDE)));
+    }
+
     private function stepOf(IndustryProject $project, int $productTypeId, string $activityType, int $runs, int $quantity): IndustryProjectStep
     {
         $step = (new IndustryProjectStep())
