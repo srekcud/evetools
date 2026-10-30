@@ -54,6 +54,31 @@ class PveIncomeRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return list<array{corpProjectId: ?string, corpProjectCharacterId: ?int, corpProjectQuantity: ?int, transactionId: ?int}>
+     */
+    public function findCorpProjectImports(User $user): array
+    {
+        $rows = $this->createQueryBuilder('i')
+            ->select('i.corpProjectId', 'i.corpProjectCharacterId', 'i.corpProjectQuantity', 'i.transactionId')
+            ->where('i.user = :user')
+            ->andWhere('i.type = :type')
+            ->setParameter('user', $user)
+            ->setParameter('type', PveIncomeType::CorpProject)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_values(array_map(
+            static fn (array $row): array => [
+                'corpProjectId' => $row['corpProjectId'] === null ? null : (string) $row['corpProjectId'],
+                'corpProjectCharacterId' => $row['corpProjectCharacterId'] === null ? null : (int) $row['corpProjectCharacterId'],
+                'corpProjectQuantity' => $row['corpProjectQuantity'] === null ? null : (int) $row['corpProjectQuantity'],
+                'transactionId' => $row['transactionId'] === null ? null : (int) $row['transactionId'],
+            ],
+            $rows,
+        ));
+    }
+
+    /**
      * @return int[]
      */
     public function getImportedTransactionIds(User $user): array

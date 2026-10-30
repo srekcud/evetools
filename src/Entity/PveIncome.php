@@ -15,6 +15,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['user_id', 'date'])]
 #[ORM\Index(columns: ['user_id', 'transaction_id'])]
 #[ORM\Index(columns: ['user_id', 'journal_entry_id'])]
+#[ORM\Index(name: 'IDX_5586A343A76ED395BE9A0191', columns: ['user_id', 'corp_project_id'])]
 class PveIncome
 {
     #[ORM\Id]
@@ -50,6 +51,15 @@ class PveIncome
 
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $contractId = null;
+
+    #[ORM\Column(type: 'string', length: 36, nullable: true)]
+    private ?string $corpProjectId = null;
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $corpProjectCharacterId = null;
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $corpProjectQuantity = null;
 
     public function __construct()
     {
@@ -155,4 +165,36 @@ class PveIncome
         return $this;
     }
 
+    public function getCorpProjectId(): ?string
+    {
+        return $this->corpProjectId;
+    }
+
+    public function setCorpProjectId(?string $corpProjectId): static
+    {
+        $this->corpProjectId = $corpProjectId;
+        return $this;
+    }
+
+    public function getCorpProjectCharacterId(): ?int
+    {
+        return $this->corpProjectCharacterId;
+    }
+
+    public function setCorpProjectCharacterId(?int $corpProjectCharacterId): static
+    {
+        $this->corpProjectCharacterId = $corpProjectCharacterId;
+        return $this;
+    }
+
+    public function getCorpProjectQuantity(): ?int
+    {
+        return $this->corpProjectQuantity;
+    }
+
+    public function setCorpProjectQuantity(?int $corpProjectQuantity): static
+    {
+        $this->corpProjectQuantity = $corpProjectQuantity;
+        return $this;
+    }
 }

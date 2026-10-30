@@ -449,7 +449,9 @@
         "missing_projects_scope": "access to corporation projects not granted, reconnect the character",
         "esi_error": "ESI error (HTTP {status})",
         "esi_error_network": "ESI unreachable",
-        "unexpected_response": "incomplete ESI response"
+        "unexpected_response": "incomplete ESI response",
+        "contribution_below_imported": "ESI quantity lower than the quantity already imported",
+        "legacy_import_quantity_unknown": "quantity of the previous import unknown, delete this project's income line to import it again"
       }
     },
     "corpProject": "Corp project",
@@ -479,6 +481,7 @@
       "scanLootFailed": "Failed to scan loot sales",
       "lootSalesScanHttpFailure": "Loot sales and corporation projects scan failed (HTTP {status})",
       "lootContractsScanHttpFailure": "Loot contracts scan failed (HTTP {status})",
+      "corpProjectContributionStale": "Contribution already counted in the meantime (sync or another tab): run the scan again.",
       "contractZeroPrice": "This contract has a price of 0 ISK and cannot be imported as a loot sale",
       "addLootSaleFailed": "Failed to add loot sale",
       "ignoreFailed": "Failed to add to ignore list"

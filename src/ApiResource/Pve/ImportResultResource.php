@@ -9,4 +9,6 @@ class ImportResultResource
     public int $imported = 0;
 
     public int $rejectedZeroPrice = 0;
+
+    public int $rejectedContributions = 0;
 }

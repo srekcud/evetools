@@ -84,6 +84,10 @@ class UserPveSettings
     #[ORM\Column(type: 'json')]
     private array $declinedLootSaleTransactionIds = [];
 
+    /** @var array<string, int> */
+    #[ORM\Column(type: 'json')]
+    private array $declinedCorpProjectQuantities = [];
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
 
@@ -244,6 +248,25 @@ class UserPveSettings
         return $this;
     }
 
+    public function declinedCorpProjectQuantityOf(string $projectId, int $characterId): int
+    {
+        $pairKey = self::corpProjectPairKey($projectId, $characterId);
+
+        return array_key_exists($pairKey, $this->declinedCorpProjectQuantities) ? $this->declinedCorpProjectQuantities[$pairKey] : 0;
+    }
+
+    public function addDeclinedCorpProjectQuantity(string $projectId, int $characterId, int $quantity): static
+    {
+        $this->declinedCorpProjectQuantities[self::corpProjectPairKey($projectId, $characterId)] = $this->declinedCorpProjectQuantityOf($projectId, $characterId) + $quantity;
+        $this->updatedAt = new \DateTimeImmutable();
+        return $this;
+    }
+
+    private static function corpProjectPairKey(string $projectId, int $characterId): string
+    {
+        return "{$projectId}:{$characterId}";
+    }
+
     /**
      * Clear declined lists, except for IDs that should be kept.
      *
@@ -256,6 +279,7 @@ class UserPveSettings
         $this->declinedContractIds = array_values(array_intersect($this->declinedContractIds, $keepContractIds));
         $this->declinedTransactionIds = array_values(array_intersect($this->declinedTransactionIds, $keepTransactionIds));
         $this->declinedLootSaleTransactionIds = array_values(array_intersect($this->declinedLootSaleTransactionIds, $keepTransactionIds));
+        $this->declinedCorpProjectQuantities = [];
         $this->updatedAt = new \DateTimeImmutable();
         return $this;
     }

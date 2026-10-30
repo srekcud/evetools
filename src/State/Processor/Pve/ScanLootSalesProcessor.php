@@ -259,32 +259,23 @@ class ScanLootSalesProcessor implements ProcessorInterface
         $corpProjectReading = $this->corpProjectContributionReader->read($user, $from);
 
         foreach ($corpProjectReading->contributions as $contribution) {
-            $trackingId = -abs(crc32($contribution->projectId . '_' . $contribution->characterId));
-
-            if (in_array($trackingId, $importedTransactionIds, true)) {
-                continue;
-            }
-            if (in_array($trackingId, $declinedTransactionIds, true)) {
-                continue;
-            }
-
             $typeName = $contribution->typeId > 0
                 ? ($this->invTypeRepository->find($contribution->typeId)?->getTypeName() ?? UnknownTypeName::label($contribution->typeId))
                 : 'Items';
 
             $sale = new DetectedSaleResource();
-            $sale->transactionId = $trackingId;
+            $sale->transactionId = $contribution->trackingId();
             $sale->contractId = 0;
             $sale->projectId = $contribution->projectId;
             $sale->type = PveIncomeType::CorpProject->value;
             $sale->typeId = $contribution->typeId;
-            $sale->typeName = "{$contribution->contributed}x {$typeName}";
-            $sale->quantity = $contribution->contributed;
-            $sale->price = $contribution->rewardPerContribution === null
-                ? null
-                : $contribution->contributed * $contribution->rewardPerContribution;
+            $sale->typeName = "{$contribution->pendingQuantity()}x {$typeName}";
+            $sale->quantity = $contribution->pendingQuantity();
+            $sale->price = $contribution->pendingValue();
             $sale->dateIssued = $contribution->contributedAt->format('Y-m-d');
             $sale->characterName = $contribution->characterName;
+            $sale->characterId = $contribution->characterId;
+            $sale->accountedQuantity = $contribution->accountedQuantity;
             $sale->source = 'corp_project';
             $sale->projectName = $contribution->projectName;
 

@@ -235,6 +235,12 @@ export function usePveExpenseScanning(
     }
   }
 
+  function dropDetectedLootSale(sale: DetectedLootSale) {
+    if (!lootScanResults.value) return
+
+    lootScanResults.value.detectedSales = lootScanResults.value.detectedSales.filter(s => s !== sale)
+  }
+
   async function importSingleLootSale(sale: DetectedLootSale) {
     if (!lootScanResults.value) return
 
@@ -286,12 +292,22 @@ export function usePveExpenseScanning(
               price: sale.price,
               dateIssued: sale.dateIssued,
               transactionId: sale.transactionId,
+              projectId: sale.projectId,
+              characterId: sale.characterId,
+              accountedQuantity: sale.accountedQuantity,
             }],
             declined: []
           }),
         })
 
         if (!response.ok) throw new Error('Failed to import contribution')
+
+        const data = await safeJsonParse<{ rejectedContributions?: number }>(response)
+        if (data.rejectedContributions && data.rejectedContributions > 0) {
+          dropDetectedLootSale(sale)
+          onError(t('pve.errors.corpProjectContributionStale'))
+          return
+        }
 
         if (sale.transactionId) {
           seenTransactionIds.value.add(sale.transactionId)
@@ -324,7 +340,7 @@ export function usePveExpenseScanning(
         }
       }
 
-      lootScanResults.value.detectedSales = lootScanResults.value.detectedSales.filter(s => s !== sale)
+      dropDetectedLootSale(sale)
 
       await onDataRefresh()
     } catch (e) {
@@ -355,6 +371,38 @@ export function usePveExpenseScanning(
         if (sale.contractId) {
           seenContractIds.value.add(sale.contractId)
         }
+      } else if (sale.source === 'corp_project') {
+        const response = await authFetch('/api/pve/import-loot-sales', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authStore.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sales: [],
+            declined: [{
+              type: 'corp_project',
+              transactionId: sale.transactionId,
+              projectId: sale.projectId,
+              characterId: sale.characterId,
+              quantity: sale.quantity,
+              accountedQuantity: sale.accountedQuantity,
+            }]
+          }),
+        })
+
+        if (!response.ok) throw new Error('Failed to decline contribution')
+
+        const data = await safeJsonParse<{ rejectedContributions?: number }>(response)
+        if (data.rejectedContributions && data.rejectedContributions > 0) {
+          dropDetectedLootSale(sale)
+          onError(t('pve.errors.corpProjectContributionStale'))
+          return
+        }
+
+        if (sale.transactionId) {
+          seenTransactionIds.value.add(sale.transactionId)
+        }
       } else {
         await authFetch('/api/pve/import-loot-sales', {
           method: 'POST',
@@ -373,7 +421,7 @@ export function usePveExpenseScanning(
         }
       }
 
-      lootScanResults.value.detectedSales = lootScanResults.value.detectedSales.filter(s => s !== sale)
+      dropDetectedLootSale(sale)
     } catch (e) {
       onError(t('pve.errors.ignoreFailed'))
       console.error(e)

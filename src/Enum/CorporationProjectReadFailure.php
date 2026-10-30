@@ -10,4 +10,6 @@ enum CorporationProjectReadFailure: string
     case MissingProjectsScope = 'missing_projects_scope';
     case EsiError = 'esi_error';
     case UnexpectedResponse = 'unexpected_response';
+    case ContributionBelowImported = 'contribution_below_imported';
+    case LegacyImportQuantityUnknown = 'legacy_import_quantity_unknown';
 }

@@ -29,4 +29,8 @@ class DetectedSaleResource
     public string $source = '';
 
     public ?string $projectName = null;
+
+    public ?int $characterId = null;
+
+    public ?int $accountedQuantity = null;
 }

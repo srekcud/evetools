@@ -62,6 +62,8 @@ export type DetectedLootSale = {
   contractId?: number
   projectId?: string | null
   projectName?: string
+  characterId?: number
+  accountedQuantity?: number
   type: string
   typeId: number
   typeName: string

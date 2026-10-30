@@ -31,6 +31,7 @@ final readonly class CorpProjectContributionReader
         private TokenManager $tokenManager,
         private CacheItemPoolInterface $cache,
         private LoggerInterface $logger,
+        private CorpProjectContributionAccounting $contributionAccounting,
     ) {
     }
 
@@ -38,6 +39,7 @@ final readonly class CorpProjectContributionReader
     {
         $reading = new CorpProjectContributionReading();
         $readCorporationIds = [];
+        $accountedQuantities = $this->contributionAccounting->accountedQuantitiesOf($user);
 
         foreach ($user->getCharacters() as $character) {
             $corporationId = $character->getCorporationId();
@@ -50,13 +52,13 @@ final readonly class CorpProjectContributionReader
             }
             $readCorporationIds[] = $corporationId;
 
-            $reading = $reading->merge($this->readCorporation($user, $character, $from));
+            $reading = $reading->merge($this->readCorporation($user, $character, $from, $accountedQuantities));
         }
 
         return $reading;
     }
 
-    private function readCorporation(User $user, Character $corporationCharacter, \DateTimeImmutable $from): CorpProjectContributionReading
+    private function readCorporation(User $user, Character $corporationCharacter, \DateTimeImmutable $from, CorpProjectAccountedQuantities $accountedQuantities): CorpProjectContributionReading
     {
         $corporationId = $corporationCharacter->getCorporationId();
         $corporationName = $corporationCharacter->getCorporationName();
@@ -97,7 +99,7 @@ final readonly class CorpProjectContributionReader
 
             $this->logger->info('Corp projects: Found ' . count($projects) . ' projects for corp ' . $corporationId);
 
-            return $this->readProjects($projects, $candidateToken, $corporationCharacters, $corporationId, $corporationName, $from, $refusedCharacterIds);
+            return $this->readProjects($projects, $candidateToken, $corporationCharacters, $corporationId, $corporationName, $from, $refusedCharacterIds, $accountedQuantities);
         }
 
         return new CorpProjectContributionReading(
@@ -125,6 +127,7 @@ final readonly class CorpProjectContributionReader
         string $corporationName,
         \DateTimeImmutable $from,
         array $refusedCharacterIds,
+        CorpProjectAccountedQuantities $accountedQuantities,
     ): CorpProjectContributionReading {
         $reading = new CorpProjectContributionReading(refusedCharacterIds: $refusedCharacterIds);
 
@@ -155,6 +158,7 @@ final readonly class CorpProjectContributionReader
                 $corporationName,
                 $from,
                 $reading->refusedCharacterIds,
+                $accountedQuantities,
             ));
         }
 
@@ -175,6 +179,7 @@ final readonly class CorpProjectContributionReader
         string $corporationName,
         \DateTimeImmutable $from,
         array $refusedCharacterIds,
+        CorpProjectAccountedQuantities $accountedQuantities,
     ): CorpProjectContributionReading {
         $projectId = $project['id'];
         $projectName = $project['name'] ?? 'Project';
@@ -268,6 +273,23 @@ final readonly class CorpProjectContributionReader
                     continue;
                 }
 
+                if ($accountedQuantities->isLegacyIdentifierDeclined($projectId, $characterId)) {
+                    continue;
+                }
+
+                $accountedQuantity = $accountedQuantities->quantityOf($projectId, $characterId);
+                if ($accountedQuantity === null) {
+                    $errors[] = new CorporationProjectReadError($corporationName, $projectName, $character->getName(), CorporationProjectReadFailure::LegacyImportQuantityUnknown);
+                    continue;
+                }
+                if ($contributed < $accountedQuantity) {
+                    $errors[] = new CorporationProjectReadError($corporationName, $projectName, $character->getName(), CorporationProjectReadFailure::ContributionBelowImported);
+                    continue;
+                }
+                if ($contributed === $accountedQuantity) {
+                    continue;
+                }
+
                 $contributions[] = new CorpProjectContribution(
                     $projectId,
                     $projectName,
@@ -276,6 +298,7 @@ final readonly class CorpProjectContributionReader
                     $character->getName(),
                     $typeId,
                     $contributed,
+                    $accountedQuantity,
                     $rewardPerContribution,
                     $contributedAt,
                 );
