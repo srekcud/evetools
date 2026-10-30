@@ -18,6 +18,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Repository\CachedIndustryJobRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\TimePerRunCalculator;
 
 class IndustryResourceMapper
 {
@@ -29,6 +30,7 @@ class IndustryResourceMapper
 
     public function __construct(
         private readonly IndustryCalculationService $calculationService,
+        private readonly TimePerRunCalculator $timePerRunCalculator,
         private readonly CachedIndustryJobRepository $industryJobRepository,
         private readonly InventionService $inventionService,
     ) {
@@ -244,8 +246,8 @@ class IndustryResourceMapper
         $resource->structureTimeBonus = $structureData['timeBonus'];
         $resource->favoriteSystemWithoutSuitableStructure = $structureData['favoriteSystemWithoutSuitableStructure'];
 
-        $bestCharacter = $this->calculationService->bestCharacterForStepTime($step->getProject()->getUser(), $step->getBlueprintTypeId(), $step->getActivityType());
-        $resource->timePerRun = $bestCharacter['skillsUnknown'] ? null : $this->calculationService->calculateTimePerRun($step, $bestCharacter['skills']);
+        $bestCharacter = $this->timePerRunCalculator->bestCharacterForStepTime($step->getProject()->getUser(), $step->getBlueprintTypeId(), $step->getActivityType());
+        $resource->timePerRun = $bestCharacter['skillsUnknown'] ? null : $this->timePerRunCalculator->calculateTimePerRun($step, $bestCharacter['skills']);
         $resource->recommendedCharacterName = $bestCharacter['name'];
 
         // Job matches

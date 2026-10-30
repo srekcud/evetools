@@ -31,6 +31,7 @@ class IndustryProjectFactory
         private readonly IndustryTreeService $treeService,
         private readonly IndustryBlacklistService $blacklistService,
         private readonly IndustryCalculationService $calculationService,
+        private readonly TimePerRunCalculator $timePerRunCalculator,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityMaterialRepository $materialRepository,
         private readonly EntityManagerInterface $entityManager,
@@ -450,12 +451,12 @@ class IndustryProjectFactory
      */
     private function addTimeDataToSteps(array &$steps, User $user): void
     {
-        $characterSkillLevels = $this->calculationService->loadCharacterSkillLevels($user);
+        $characterSkillLevels = $this->timePerRunCalculator->loadCharacterSkillLevels($user);
 
         foreach ($steps as &$step) {
-            $bestCharacter = $this->calculationService->bestCharacterForStepTime($user, $step['blueprintTypeId'], $step['activityType'], $characterSkillLevels);
+            $bestCharacter = $this->timePerRunCalculator->bestCharacterForStepTime($user, $step['blueprintTypeId'], $step['activityType'], $characterSkillLevels);
 
-            $step['timePerRun'] = $bestCharacter['skillsUnknown'] ? null : $this->calculationService->timePerRunOf(
+            $step['timePerRun'] = $bestCharacter['skillsUnknown'] ? null : $this->timePerRunCalculator->timePerRunOf(
                 $user,
                 $step['blueprintTypeId'],
                 $step['productTypeId'],
