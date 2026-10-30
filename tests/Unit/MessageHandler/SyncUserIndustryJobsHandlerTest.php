@@ -69,8 +69,10 @@ final class SyncUserIndustryJobsHandlerTest extends TestCase
 
         $handler(new SyncUserIndustryJobs(self::DELETED_USER_ID));
 
-        $levels = array_map(static fn (array $log): string => $log[0], $logger->cleanLogs());
-        self::assertSame([LogLevel::WARNING], $levels);
+        self::assertSame(
+            [[LogLevel::WARNING, 'User not found for industry jobs sync', ['userId' => self::DELETED_USER_ID]]],
+            $logger->cleanLogs(),
+        );
     }
 
     public function testUserJobsSyncFailurePropagatesToTheBusAfterOneSyncOfThatUser(): void

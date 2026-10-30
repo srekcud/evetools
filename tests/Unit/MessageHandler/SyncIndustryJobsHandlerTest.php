@@ -16,7 +16,9 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
@@ -44,6 +46,30 @@ final class SyncIndustryJobsHandlerTest extends TestCase
 
     /** @var list<list<string|null>> */
     private array $syncTrackerCalls = [];
+
+    private BufferingLogger $logger;
+
+    protected function setUp(): void
+    {
+        $this->logger = new BufferingLogger();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->logger->cleanLogs();
+    }
+
+    public function testLogsTheUsersQueuedAndTheCharactersRead(): void
+    {
+        $handler = $this->handler($this->charactersOfTwoUsers());
+
+        $handler(new SyncIndustryJobs());
+
+        self::assertSame(
+            [[LogLevel::INFO, 'Industry jobs sync queued', ['usersQueued' => 2, 'totalCharacters' => 4]]],
+            $this->logger->cleanLogs(),
+        );
+    }
 
     public function testQueuesOneUserIndustryJobsMessagePerDistinctUserInOrderOfFirstAppearance(): void
     {
@@ -150,7 +176,7 @@ final class SyncIndustryJobsHandlerTest extends TestCase
             },
         );
 
-        return new SyncIndustryJobsHandler($characterRepository, $messageBus, new NullLogger(), $this->syncTracker());
+        return new SyncIndustryJobsHandler($characterRepository, $messageBus, $this->logger, $this->syncTracker());
     }
 
     private function syncTracker(): SyncTracker

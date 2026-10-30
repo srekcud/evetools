@@ -380,4 +380,36 @@ describe('StepsTab on the characters not synced by the last user jobs sync (issu
     expect(wrapper.find(LAST_JOBS_SYNC_FAILURES_BANNER).exists()).toBe(false)
     expect(fetchProject).not.toHaveBeenCalled()
   })
+
+  it('closes the characters not synced banner and keeps the jobs sync error banner', async () => {
+    const { wrapper } = mountStepsTab()
+    await flushPromises()
+
+    await receive(jobsSyncError('boom F', '2026-10-30T09:58:00+00:00'))
+    await receive(USER_JOBS_SYNC_END_WITH_PILOT_FIVE_NOT_SYNCED)
+
+    expect(wrapper.findAll(JOBS_SYNC_ERROR_BANNER)).toHaveLength(1)
+    expect(wrapper.findAll(LAST_JOBS_SYNC_FAILURES_BANNER)).toHaveLength(1)
+
+    await closeBanner(wrapper, LAST_JOBS_SYNC_FAILURES_BANNER)
+
+    expect(wrapper.find(LAST_JOBS_SYNC_FAILURES_BANNER).exists()).toBe(false)
+    expect(bannerLines(wrapper, JOBS_SYNC_ERROR_BANNER)).toEqual(['boom F'])
+  })
+
+  it('closes the jobs sync error banner and keeps the characters not synced banner', async () => {
+    const { wrapper } = mountStepsTab()
+    await flushPromises()
+
+    await receive(jobsSyncError('boom G', '2026-10-30T09:59:00+00:00'))
+    await receive(USER_JOBS_SYNC_END_WITH_PILOT_FIVE_NOT_SYNCED)
+
+    expect(wrapper.findAll(JOBS_SYNC_ERROR_BANNER)).toHaveLength(1)
+    expect(wrapper.findAll(LAST_JOBS_SYNC_FAILURES_BANNER)).toHaveLength(1)
+
+    await closeBanner(wrapper, JOBS_SYNC_ERROR_BANNER)
+
+    expect(wrapper.find(JOBS_SYNC_ERROR_BANNER).exists()).toBe(false)
+    expect(bannerLines(wrapper, LAST_JOBS_SYNC_FAILURES_BANNER)).toEqual(['Pilot Five: ESI error 403'])
+  })
 })

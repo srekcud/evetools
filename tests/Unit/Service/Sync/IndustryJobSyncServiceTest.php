@@ -2413,6 +2413,47 @@ class IndustryJobSyncServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-215')]
+    public function testUserJobsSyncAddsUpJobsReadByDifferentCharacters(): void
+    {
+        $user = $this->createUserWithCharacters([
+            21509 => [self::CHARACTER_JOBS_SCOPE],
+            21510 => [self::CHARACTER_JOBS_SCOPE],
+        ]);
+        $this->givenPersonalJobsReadOutcomes([
+            21509 => [$this->makeJobData(910, 21509, 'active', self::RIFTER_TYPE_ID)],
+            21510 => [$this->makeTritaniumJobData(911, 21510, 'ready')],
+        ]);
+        $this->givenCorporationJobs([]);
+        $this->givenNoCachedJobNorJobMatch();
+
+        $this->service->syncUserJobs($user);
+
+        $this->assertSame(
+            [[self::USER_OF_SPEC_215_TOPIC, '1 active jobs, 1 ready to deliver', ['total' => 2, 'active' => 1, 'ready' => 1, 'failedCharacters' => []]]],
+            $this->industryJobsSyncCompletedEvents(),
+        );
+        $this->assertSame([], $this->corporationJobsReads);
+    }
+
+    #[Group('issue-215')]
+    public function testUserJobsSyncOfUserWithoutIdThrowsLogicExceptionBeforeAnyPublication(): void
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(null);
+
+        $raised = null;
+        try {
+            $this->service->syncUserJobs($user);
+        } catch (\LogicException $failure) {
+            $raised = $failure;
+        }
+
+        $this->assertSame('Cannot sync industry jobs of a user without id', $raised?->getMessage());
+        $this->assertSame([], $this->publishedMercureUpdates);
+        $this->assertSame([], $this->personalJobsReads);
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
