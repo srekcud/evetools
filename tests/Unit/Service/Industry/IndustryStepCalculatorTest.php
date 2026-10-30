@@ -399,4 +399,47 @@ class IndustryStepCalculatorTest extends TestCase
         $this->assertGreaterThanOrEqual(1, $child1->getRuns());
         $this->assertGreaterThanOrEqual(1, $child2->getRuns());
     }
+
+    public function testSurplusJobRemovedWhileNoKeptJobChangesIsFlushed(): void
+    {
+        $consumerStep = $this->createStep('manufacturing', 100, 101, 10, 10, 0);
+        $firstFixedJob = $this->createStep('manufacturing', 200, 201, 6, 60, 1, 10, 'split-185', 0)->setRunsFixed(true)->setTotalGroupRuns(10);
+        $secondFixedJob = $this->createStep('manufacturing', 200, 201, 4, 40, 1, 10, 'split-185', 1)->setRunsFixed(true)->setTotalGroupRuns(10);
+        $jobWithoutRuns = $this->createStep('manufacturing', 200, 201, 0, 0, 1, 10, 'split-185', 2)->setTotalGroupRuns(10);
+        $project = $this->createProject([$consumerStep, $firstFixedJob, $secondFixedJob, $jobWithoutRuns]);
+
+        $material = new \App\Entity\Sde\IndustryActivityMaterial();
+        $material->setTypeId(100);
+        $material->setActivityId(IndustryActivityType::Manufacturing->value);
+        $material->setMaterialTypeId(201);
+        $material->setQuantity(11);
+        $this->materialRepository->method('findMaterialEntitiesForBlueprints')->willReturn(['100-1' => [$material]]);
+        $this->calculationService->method('getStructureBonusForStep')->willReturn([
+            'structure' => null,
+            'materialBonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0],
+            'timeBonus' => 0.0,
+            'name' => null,
+        ]);
+        $this->calculationService->method('calculateMaterialQuantity')->with(11, 10, 10, 0.0, 0.0)->willReturn(100);
+        $product = new IndustryActivityProduct();
+        $product->setTypeId(200);
+        $product->setActivityId(IndustryActivityType::Manufacturing->value);
+        $product->setProductTypeId(201);
+        $product->setQuantity(10);
+        $this->productRepository->method('findProductsForBlueprints')->willReturn(['200-1' => $product]);
+
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $updated = $this->calculator->recalculateStepQuantities($project);
+
+        $this->assertSame([], $updated);
+        $this->assertSame([$consumerStep, $firstFixedJob, $secondFixedJob], array_values($project->getSteps()->toArray()));
+        $this->assertSame(
+            [[6, 60, 0, 10], [4, 40, 1, 10]],
+            [
+                [$firstFixedJob->getRuns(), $firstFixedJob->getQuantity(), $firstFixedJob->getSplitIndex(), $firstFixedJob->getTotalGroupRuns()],
+                [$secondFixedJob->getRuns(), $secondFixedJob->getQuantity(), $secondFixedJob->getSplitIndex(), $secondFixedJob->getTotalGroupRuns()],
+            ],
+        );
+    }
 }

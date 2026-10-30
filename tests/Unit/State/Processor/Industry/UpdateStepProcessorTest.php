@@ -9,6 +9,7 @@ use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\UpdateStepInput;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
@@ -199,6 +200,69 @@ final class UpdateStepProcessorTest extends TestCase
                 [$firstAlloyJob->getRuns(), $firstAlloyJob->getQuantity(), $firstAlloyJob->getSplitGroupId(), $firstAlloyJob->getSplitIndex(), $firstAlloyJob->getTotalGroupRuns()],
             ],
         );
+    }
+
+    public function testEditedJobRemovedAsASurplusJobWhileNoOtherStepChangesIsNotInTheResponse(): void
+    {
+        $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 4, quantity: 40_000, depth: 0, meLevel: 0);
+        $firstAlloyJob = $this->jobOfTheFerniteAlloyGroup(0, runs: 1, totalGroupRuns: 2);
+        $secondAlloyJob = $this->jobOfTheFerniteAlloyGroup(1, runs: 1, totalGroupRuns: 2);
+        $alloyJobWithoutRuns = $this->jobOfTheFerniteAlloyGroup(2, runs: 0, totalGroupRuns: 2);
+        $meLevelEntered = new UpdateStepInput();
+        $meLevelEntered->meLevel = 2;
+
+        $updatedSteps = $this->patch($alloyJobWithoutRuns, $meLevelEntered, $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame(
+            [[true, true, false], [1, 200, 0, 2], [1, 200, 1, 2]],
+            [
+                array_map(fn (IndustryProjectStep $job): bool => $this->project->getSteps()->contains($job), [$firstAlloyJob, $secondAlloyJob, $alloyJobWithoutRuns]),
+                [$firstAlloyJob->getRuns(), $firstAlloyJob->getQuantity(), $firstAlloyJob->getSplitIndex(), $firstAlloyJob->getTotalGroupRuns()],
+                [$secondAlloyJob->getRuns(), $secondAlloyJob->getQuantity(), $secondAlloyJob->getSplitIndex(), $secondAlloyJob->getTotalGroupRuns()],
+            ],
+        );
+        self::assertSame([], $updatedSteps);
+    }
+
+    public function testReleasingKeepsTheCommittedEditedJobAndRemovesTheSmallerSplitIndex(): void
+    {
+        $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 4, quantity: 40_000, depth: 0, meLevel: 0);
+        $alloyJobWithoutCommitment = $this->jobOfTheFerniteAlloyGroup(0, runs: 3, totalGroupRuns: 9)->setRunsFixed(true);
+        $editedAlloyJob = $this->jobOfTheFerniteAlloyGroup(1, runs: 2, totalGroupRuns: 9)->setRunsFixed(true)
+            ->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(7_131_601)->setRuns(2));
+        $absorbingAlloyJob = $this->jobOfTheFerniteAlloyGroup(2, runs: 2, totalGroupRuns: 9)->setRunsFixed(true)
+            ->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(7_131_602)->setRuns(2))
+            ->setInStockQuantity(15);
+        $committedSurplusAlloyJob = $this->jobOfTheFerniteAlloyGroup(3, runs: 2, totalGroupRuns: 9)->setRunsFixed(true)
+            ->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(7_131_603)->setRuns(2))
+            ->setPurchased(true);
+        $runsReleased = new UpdateStepInput();
+        $runsReleased->runsFixed = false;
+
+        $updatedSteps = $this->patch($editedAlloyJob, $runsReleased, $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame(
+            [false, true, true, false],
+            array_map(fn (IndustryProjectStep $job): bool => $this->project->getSteps()->contains($job), [$alloyJobWithoutCommitment, $editedAlloyJob, $absorbingAlloyJob, $committedSurplusAlloyJob]),
+        );
+        self::assertSame(
+            [[1, 200, false, 'fernite-alloy', 0, 2, [7_131_601], 0, false], [1, 200, false, 'fernite-alloy', 1, 2, [7_131_602, 7_131_603], 15, true]],
+            array_map(
+                static fn (IndustryProjectStep $job): array => [
+                    $job->getRuns(),
+                    $job->getQuantity(),
+                    $job->isRunsFixed(),
+                    $job->getSplitGroupId(),
+                    $job->getSplitIndex(),
+                    $job->getTotalGroupRuns(),
+                    array_values(array_map(static fn (IndustryStepJobMatch $matchedJob): int => $matchedJob->getEsiJobId(), $job->getJobMatches()->toArray())),
+                    $job->getInStockQuantity(),
+                    $job->isPurchased(),
+                ],
+                [$editedAlloyJob, $absorbingAlloyJob],
+            ),
+        );
+        self::assertSame([[self::FERNITE_ALLOY, 200], [self::FERNITE_ALLOY, 200]], $this->productAndQuantityOf($updatedSteps));
     }
 
     #[Group('issue-200')]

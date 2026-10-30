@@ -212,6 +212,149 @@ final class SplitGroupQuantitiesTest extends TestCase
         self::assertSame([$lastJob], $appliedNeed->surplusJobs);
     }
 
+    public function testKeptJobsAreSelectedAndRenumberedByAscendingSplitIndexWhateverTheInputOrder(): void
+    {
+        $jobWithoutCommitment = $this->jobOfTheSplitGroup(splitIndex: 0, runs: 5, totalGroupRuns: 18);
+        $firstCommittedJob = $this->jobOfTheSplitGroup(splitIndex: 1, runs: 6, totalGroupRuns: 18)
+            ->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(7_131_101)->setRuns(6));
+        $secondCommittedJob = $this->jobOfTheSplitGroup(splitIndex: 2, runs: 4, totalGroupRuns: 18)->setInStockQuantity(25);
+        $lastCommittedJob = $this->jobOfTheSplitGroup(splitIndex: 3, runs: 3, totalGroupRuns: 18)
+            ->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(7_131_104)->setRuns(3))
+            ->setInStockQuantity(12)
+            ->setPurchased(true);
+
+        $appliedNeed = SplitGroupQuantities::applyNeedToSteps(
+            [$lastCommittedJob, $secondCommittedJob, $jobWithoutCommitment, $firstCommittedJob],
+            70,
+            self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN,
+        );
+
+        self::assertSame(
+            [[1, 40, false, self::SPLIT_GROUP_ID, 0, 2], [1, 30, false, self::SPLIT_GROUP_ID, 1, 2]],
+            $this->splitStateOf([$firstCommittedJob, $secondCommittedJob]),
+        );
+        self::assertSame(
+            [[[7_131_101], 0, false], [[7_131_104], 37, true]],
+            [
+                [$this->esiJobIdsOf($firstCommittedJob), $firstCommittedJob->getInStockQuantity(), $firstCommittedJob->isPurchased()],
+                [$this->esiJobIdsOf($secondCommittedJob), $secondCommittedJob->getInStockQuantity(), $secondCommittedJob->isPurchased()],
+            ],
+        );
+        self::assertSame([$lastCommittedJob, $jobWithoutCommitment], $appliedNeed->surplusJobs);
+    }
+
+    public function testRunsMissingFromTheLastJobAreTakenFromTheSmallestSplitIndexAmongTheJobsWithTheMostRuns(): void
+    {
+        $secondJob = $this->jobOfTheSplitGroup(splitIndex: 1, runs: 6, totalGroupRuns: 13);
+        $firstJob = $this->jobOfTheSplitGroup(splitIndex: 0, runs: 6, totalGroupRuns: 13);
+        $lastJob = $this->jobOfTheSplitGroup(splitIndex: 2, runs: 1, totalGroupRuns: 13);
+
+        $appliedNeed = SplitGroupQuantities::applyNeedToSteps([$secondJob, $firstJob, $lastJob], 150, self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN);
+
+        self::assertSame(
+            [[1, 40, false, self::SPLIT_GROUP_ID, 0, 4], [2, 80, false, self::SPLIT_GROUP_ID, 1, 4], [1, 30, false, self::SPLIT_GROUP_ID, 2, 4]],
+            $this->splitStateOf([$firstJob, $secondJob, $lastJob]),
+        );
+        self::assertSame([], $appliedNeed->surplusJobs);
+    }
+
+    public function testTwoRunsMissingFromTheLastJobsAreTakenOneByOneFromTheJobWithTheMostRuns(): void
+    {
+        $jobs = array_map(
+            fn (array $splitIndexAndRuns): IndustryProjectStep => $this->jobOfTheSplitGroup(splitIndex: $splitIndexAndRuns[0], runs: $splitIndexAndRuns[1], totalGroupRuns: 20),
+            [[0, 9], [1, 9], [2, 1], [3, 1]],
+        );
+
+        $appliedNeed = SplitGroupQuantities::applyNeedToSteps($jobs, 130, self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN);
+
+        self::assertSame(
+            [
+                [1, 40, false, self::SPLIT_GROUP_ID, 0, 4],
+                [1, 40, false, self::SPLIT_GROUP_ID, 1, 4],
+                [1, 40, false, self::SPLIT_GROUP_ID, 2, 4],
+                [1, 10, false, self::SPLIT_GROUP_ID, 3, 4],
+            ],
+            $this->splitStateOf($jobs),
+        );
+        self::assertSame([], $appliedNeed->surplusJobs);
+    }
+
+    public function testKeptJobWhoseOnlyChangeIsItsSplitIndexIsAChangedStep(): void
+    {
+        $firstJob = $this->jobOfTheSplitGroup(splitIndex: 0, runs: 1, totalGroupRuns: 2);
+        $surplusJob = $this->jobOfTheSplitGroup(splitIndex: 1, runs: 1, totalGroupRuns: 2)->setQuantity(0);
+        $committedJob = $this->jobOfTheSplitGroup(splitIndex: 2, runs: 1, totalGroupRuns: 2)->setQuantity(30)->setInStockQuantity(10);
+
+        $appliedNeed = SplitGroupQuantities::applyNeedToSteps([$firstJob, $surplusJob, $committedJob], 70, self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN);
+
+        self::assertSame(
+            [[1, 40, false, self::SPLIT_GROUP_ID, 0, 2], [1, 30, false, self::SPLIT_GROUP_ID, 1, 2]],
+            $this->splitStateOf([$firstJob, $committedJob]),
+        );
+        self::assertSame([$committedJob], $appliedNeed->changedSteps);
+        self::assertSame([$surplusJob], $appliedNeed->surplusJobs);
+    }
+
+    public function testKeptJobWhoseOnlyChangeIsItsQuantityIsAChangedStep(): void
+    {
+        $firstJob = $this->jobOfTheSplitGroup(splitIndex: 0, runs: 3, totalGroupRuns: 5);
+        $lastJob = $this->jobOfTheSplitGroup(splitIndex: 1, runs: 2, totalGroupRuns: 5);
+
+        $appliedNeed = SplitGroupQuantities::applyNeedToSteps([$firstJob, $lastJob], 190, self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN);
+
+        self::assertSame(
+            [[3, 120, false, self::SPLIT_GROUP_ID, 0, 5], [2, 70, false, self::SPLIT_GROUP_ID, 1, 5]],
+            $this->splitStateOf([$firstJob, $lastJob]),
+        );
+        self::assertSame([$lastJob], $appliedNeed->changedSteps);
+    }
+
+    #[Group('issue-185')]
+    public function testCommittedJobsThatAreNotFixedAreRemovedAndAbsorbedByTheFixedJobThatRunsMoreThanTheNeed(): void
+    {
+        $fixedJob = $this->jobOfTheSplitGroup(splitIndex: 0, runs: 12, runsFixed: true, totalGroupRuns: 16);
+        $matchedJobOfTheFirstCommittedJob = (new IndustryStepJobMatch())->setEsiJobId(7_131_701)->setRuns(2);
+        $firstCommittedJob = $this->jobOfTheSplitGroup(splitIndex: 1, runs: 2, totalGroupRuns: 16)->addJobMatch($matchedJobOfTheFirstCommittedJob);
+        $secondCommittedJob = $this->jobOfTheSplitGroup(splitIndex: 2, runs: 2, totalGroupRuns: 16)->setInStockQuantity(55);
+
+        $appliedNeed = SplitGroupQuantities::applyNeedToSteps([$fixedJob, $firstCommittedJob, $secondCommittedJob], 390, self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN);
+
+        self::assertSame([[12, 480, true, null, 0, null]], $this->splitStateOf([$fixedJob]));
+        self::assertSame([[7_131_701], 55], [$this->esiJobIdsOf($fixedJob), $fixedJob->getInStockQuantity()]);
+        self::assertSame([$firstCommittedJob, $secondCommittedJob], $appliedNeed->surplusJobs);
+        self::assertSame([$fixedJob], $appliedNeed->changedSteps);
+    }
+
+    #[Group('issue-185')]
+    public function testSurplusJobsThatAreNotFixedAreAbsorbedByTheFixedJobOfLargestKeptSplitIndex(): void
+    {
+        $jobWithoutCommitment = $this->jobOfTheSplitGroup(splitIndex: 0, runs: 3, totalGroupRuns: 18);
+        $committedJob = $this->jobOfTheSplitGroup(splitIndex: 1, runs: 3, totalGroupRuns: 18)
+            ->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(7_131_712)->setRuns(3));
+        $fixedJob = $this->jobOfTheSplitGroup(splitIndex: 2, runs: 10, runsFixed: true, totalGroupRuns: 18);
+        $committedSurplusJob = $this->jobOfTheSplitGroup(splitIndex: 3, runs: 2, totalGroupRuns: 18)->setInStockQuantity(20);
+
+        $appliedNeed = SplitGroupQuantities::applyNeedToSteps(
+            [$jobWithoutCommitment, $committedJob, $fixedJob, $committedSurplusJob],
+            430,
+            self::OXYGEN_FUEL_BLOCK_OUTPUT_PER_RUN,
+        );
+
+        self::assertSame(
+            [[1, 30, false, self::SPLIT_GROUP_ID, 0, 11], [10, 400, true, self::SPLIT_GROUP_ID, 1, 11]],
+            $this->splitStateOf([$committedJob, $fixedJob]),
+        );
+        self::assertSame(
+            [[[7_131_712], 0], [[], 20]],
+            [
+                [$this->esiJobIdsOf($committedJob), $committedJob->getInStockQuantity()],
+                [$this->esiJobIdsOf($fixedJob), $fixedJob->getInStockQuantity()],
+            ],
+        );
+        self::assertSame([$jobWithoutCommitment, $committedSurplusJob], $appliedNeed->surplusJobs);
+        self::assertSame([$committedJob, $fixedJob], $appliedNeed->changedSteps);
+    }
+
     #[Group('issue-185')]
     public function testAGroupWhoseJobsAreAllFixedKeepsTheirRunsAboveTheNeed(): void
     {
