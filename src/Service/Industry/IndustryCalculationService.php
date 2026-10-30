@@ -303,30 +303,31 @@ class IndustryCalculationService
     }
 
     /**
-     * @return list<array{name: string, skills: array<int, int>}>
+     * @return list<array{name: string, skills: array<int, int>|null}>
      */
     public function loadCharacterSkillLevels(User $user): array
     {
         $characterSkillLevels = [];
         foreach ($user->getCharacters() as $character) {
+            $cachedSkills = $this->skillRepository->findAllSkillsForCharacter($character);
             $skillLevels = [];
-            foreach ($this->skillRepository->findAllSkillsForCharacter($character) as $skill) {
+            foreach ($cachedSkills as $skill) {
                 $skillLevels[$skill->getSkillId()] = $skill->getLevel();
             }
-            $characterSkillLevels[] = ['name' => $character->getName(), 'skills' => $skillLevels];
+            $characterSkillLevels[] = ['name' => $character->getName(), 'skills' => $cachedSkills === [] ? null : $skillLevels];
         }
 
         return $characterSkillLevels;
     }
 
     /**
-     * @param list<array{name: string, skills: array<int, int>}>|null $characterSkillLevels
-     * @return array{skills: array<int, int>|null, name: string|null}
+     * @param list<array{name: string, skills: array<int, int>|null}>|null $characterSkillLevels
+     * @return array{skills: array<int, int>|null, name: string|null, skillsUnknown: bool}
      */
     public function bestCharacterForStepTime(User $user, int $blueprintTypeId, string $activityType, ?array $characterSkillLevels = null): array
     {
         if ($activityType === 'copy') {
-            return ['skills' => null, 'name' => null];
+            return ['skills' => null, 'name' => null, 'skillsUnknown' => false];
         }
 
         $characterSkillLevels ??= $this->loadCharacterSkillLevels($user);
@@ -337,6 +338,10 @@ class IndustryCalculationService
         $bestMultiplier = PHP_FLOAT_MAX;
 
         foreach ($characterSkillLevels as $character) {
+            if ($character['skills'] === null) {
+                continue;
+            }
+
             $multiplier = $this->calculateSkillTimeMultiplier($character['skills'], $activityType, $scienceSkillIds);
             if ($multiplier < $bestMultiplier) {
                 $bestMultiplier = $multiplier;
@@ -345,7 +350,9 @@ class IndustryCalculationService
             }
         }
 
-        return ['skills' => $bestSkills, 'name' => $bestName];
+        $skillsUnknown = $bestName === null && $characterSkillLevels !== [];
+
+        return ['skills' => $bestSkills, 'name' => $bestName, 'skillsUnknown' => $skillsUnknown];
     }
 
     /**

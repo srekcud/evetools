@@ -455,7 +455,7 @@ class IndustryProjectFactory
         foreach ($steps as &$step) {
             $bestCharacter = $this->calculationService->bestCharacterForStepTime($user, $step['blueprintTypeId'], $step['activityType'], $characterSkillLevels);
 
-            $step['timePerRun'] = $this->calculationService->timePerRunOf(
+            $step['timePerRun'] = $bestCharacter['skillsUnknown'] ? null : $this->calculationService->timePerRunOf(
                 $user,
                 $step['blueprintTypeId'],
                 $step['productTypeId'],
