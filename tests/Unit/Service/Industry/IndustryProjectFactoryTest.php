@@ -934,6 +934,7 @@ class IndustryProjectFactoryTest extends TestCase
 
     #[Group('issue-134')]
     #[Group('issue-126')]
+    #[Group('issue-275')]
     #[DataProvider('generatedJobsOfTwoProjectsAndTheirDisplayedTimePerRun')]
     public function testEveryGeneratedJobDisplaysTheTimePerRunThatDecidedItsSplit(
         int $blueprintTypeId,
@@ -1017,7 +1018,7 @@ class IndustryProjectFactoryTest extends TestCase
                 ['manufacturing' => [[10, 19, 9180, null], [9, 19, 9180, null]], 'copy' => []],
             ],
         ];
-        yield 'copy of the blueprint, never split, without character and with its copying base time' => [
+        yield 'copy of the blueprint, never split, with an unknown Science level' => [
             34001, 34002, 3400, 'basic_small_ship',
             [],
             null,
@@ -1027,8 +1028,26 @@ class IndustryProjectFactoryTest extends TestCase
             true,
             [13, 14],
             [
-                ['manufacturing' => [[13, null, 12920, 'Industrialist']], 'copy' => [[13, null, 14100, null]]],
-                ['manufacturing' => [[7, 14, 12920, 'Industrialist'], [7, 14, 12920, 'Industrialist']], 'copy' => [[14, null, 14100, null]]],
+                ['manufacturing' => [[13, null, 12920, 'Industrialist']], 'copy' => [[13, null, null, null]]],
+                ['manufacturing' => [[7, 14, 12920, 'Industrialist'], [7, 14, 12920, 'Industrialist']], 'copy' => [[14, null, null, null]]],
+            ],
+        ];
+        yield 'copy of the blueprint, never split, with Science V and Advanced Industry V' => [
+            34001, 34002, 3400, 'basic_small_ship',
+            [],
+            null,
+            ['Industrialist' => [
+                CachedCharacterSkill::SKILL_INDUSTRY => 5,
+                CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+                CachedCharacterSkill::SKILL_SCIENCE => 5,
+            ]],
+            [1 => 19000, 5 => 14100],
+            0,
+            true,
+            [13, 14],
+            [
+                ['manufacturing' => [[13, null, 12920, 'Industrialist']], 'copy' => [[13, null, 8989, 'Industrialist']]],
+                ['manufacturing' => [[7, 14, 12920, 'Industrialist'], [7, 14, 12920, 'Industrialist']], 'copy' => [[14, null, 8989, 'Industrialist']]],
             ],
         ];
     }
@@ -1182,7 +1201,8 @@ class IndustryProjectFactoryTest extends TestCase
     }
 
     #[Group('issue-282')]
-    public function testManufacturingOfACharacterWithoutCachedSkillIsUnknownAndUnsplitWhileItsCopyKeepsItsCopyingTimePerRun(): void
+    #[Group('issue-275')]
+    public function testManufacturingAndCopyOfACharacterWithoutCachedSkillAreUnknownAndUnsplit(): void
     {
         $user = $this->userWithCharacters(['Fresh' => []]);
         $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
@@ -1193,7 +1213,56 @@ class IndustryProjectFactoryTest extends TestCase
         $project = $this->factory->createProject($user, 43002, 13, 10, 2.0, 0);
 
         $this->assertSame(
-            ['manufacturing' => [[13, null, null, null]], 'copy' => [[13, null, 14100, null]]],
+            ['manufacturing' => [[13, null, null, null]], 'copy' => [[13, null, null, null]]],
+            ['manufacturing' => $this->displayedJobsOf($project, 'manufacturing'), 'copy' => $this->displayedJobsOf($project, 'copy')],
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testCopyStepRetainsItsOwnRecommendedCharacterRatherThanThatOfTheManufacturingOfItsBlueprint(): void
+    {
+        $user = $this->userWithCharacters([
+            'Builder' => [
+                CachedCharacterSkill::SKILL_INDUSTRY => 5,
+                CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+                CachedCharacterSkill::SKILL_SCIENCE => 0,
+            ],
+            'Copier' => [CachedCharacterSkill::SKILL_SCIENCE => 5],
+        ]);
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(47001, 47002, 'Copied Hull', 13, 1, [], 0, 'manufacturing', true));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['47001-1' => 19000, '47001-5' => 14100];
+
+        $project = $this->factory->createProject($user, 47002, 13, 10, 2.0, 0);
+
+        $this->assertSame(
+            ['manufacturing' => [[13, null, 12920, 'Builder']], 'copy' => [[13, null, 10575, 'Copier']]],
+            ['manufacturing' => $this->displayedJobsOf($project, 'manufacturing'), 'copy' => $this->displayedJobsOf($project, 'copy')],
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testEveryJobOfACopyStepSplitUnderTheBpcMaxRunsDisplaysTheSameTimePerRunAndRecommendedCharacter(): void
+    {
+        $user = $this->userWithCharacters(['Industrialist' => [
+            CachedCharacterSkill::SKILL_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_SCIENCE => 5,
+        ]]);
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(48001, 48002, 'Capped Copied Hull', 25, 1, [], 0, 'manufacturing', true));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['48001-1' => 1000, '48001-5' => 14100];
+        $this->bpcMaxRunsByBlueprintTypeId = [48001 => 10];
+
+        $project = $this->factory->createProject($user, 48002, 25, 10, 2.0, 0);
+
+        $this->assertSame(
+            [
+                'manufacturing' => [[9, 25, 680, 'Industrialist'], [8, 25, 680, 'Industrialist'], [8, 25, 680, 'Industrialist']],
+                'copy' => [[9, 25, 8989, 'Industrialist'], [8, 25, 8989, 'Industrialist'], [8, 25, 8989, 'Industrialist']],
+            ],
             ['manufacturing' => $this->displayedJobsOf($project, 'manufacturing'), 'copy' => $this->displayedJobsOf($project, 'copy')],
         );
     }

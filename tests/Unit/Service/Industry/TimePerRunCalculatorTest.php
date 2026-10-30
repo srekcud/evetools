@@ -360,14 +360,63 @@ class TimePerRunCalculatorTest extends TestCase
     }
 
     #[Group('issue-282')]
-    public function testSkillsOfACopyStepAreNotUnknownEvenWhenTheOnlyCharacterHasNoCachedSkill(): void
+    #[Group('issue-275')]
+    public function testSkillsOfACopyStepAreUnknownWhenTheOnlyCharacterHasNoCachedSkill(): void
     {
         $user = $this->userWithCachedSkills(['Fresh' => []]);
 
         self::assertSame(
-            ['skills' => null, 'name' => null, 'skillsUnknown' => false],
+            ['skills' => null, 'name' => null, 'skillsUnknown' => true],
             $this->bestCharacterOfTheLoadedSkillLevels($user, self::RAVEN_BLUEPRINT, 'copy'),
         );
+    }
+
+    #[Group('issue-275')]
+    public function testSkillsOfACopyStepAreUnknownWhenTheOnlyCharacterHasKnownSkillsWithoutScience(): void
+    {
+        $user = $this->userWithCachedSkills(['Old' => self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE]);
+
+        self::assertSame(
+            ['skills' => null, 'name' => null, 'skillsUnknown' => true],
+            $this->bestCharacterOfTheLoadedSkillLevels($user, self::RAVEN_BLUEPRINT, 'copy'),
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testSkillsOfACopyStepAreThoseOfTheCharacterWithAKnownScienceLevel(): void
+    {
+        $user = $this->userWithCachedSkills(['Main' => [
+            CachedCharacterSkill::SKILL_SCIENCE => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+        ]]);
+
+        self::assertSame(
+            [
+                'skills' => [CachedCharacterSkill::SKILL_SCIENCE => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5],
+                'name' => 'Main',
+                'skillsUnknown' => false,
+            ],
+            $this->bestCharacterOfTheLoadedSkillLevels($user, self::RAVEN_BLUEPRINT, 'copy'),
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testTimePerRunOfACopyStepIsUnknownForGivenSkillsWithoutScience(): void
+    {
+        $copyStep = $this->stepOfAProject(self::RAVEN, self::RAVEN_BLUEPRINT, 'copy', 0);
+
+        self::assertNull($this->timePerRunCalculatorOnSdeActivities()->calculateTimePerRun($copyStep, self::ADVANCED_INDUSTRY_FIVE));
+    }
+
+    #[Group('issue-275')]
+    public function testTimePerRunOfACopyStepTakesScienceButNotIndustry(): void
+    {
+        $copyStep = $this->stepOfAProject(self::RAVEN, self::RAVEN_BLUEPRINT, 'copy', 0);
+
+        self::assertSame(10800, $this->timePerRunCalculatorOnSdeActivities()->calculateTimePerRun($copyStep, [
+            CachedCharacterSkill::SKILL_SCIENCE => 5,
+            CachedCharacterSkill::SKILL_INDUSTRY => 5,
+        ]));
     }
 
     #[Group('issue-282')]
@@ -477,13 +526,133 @@ class TimePerRunCalculatorTest extends TestCase
     }
 
     #[Group('issue-283')]
-    public function testCopyStepHasItsCopyingTimePerRunAndNoRecommendedCharacterEvenWithUnknownSkills(): void
+    #[Group('issue-275')]
+    public function testCopyStepOfACharacterWithoutCachedSkillHasAnUnknownTimePerRunAndNoRecommendedCharacter(): void
     {
         $user = $this->userWithCachedSkills(['Fresh' => []]);
 
         self::assertSame(
-            ['timePerRun' => 14400, 'recommendedCharacterName' => null],
+            ['timePerRun' => null, 'recommendedCharacterName' => null],
             $this->timePerRunCalculatorOnSdeActivities()->timePerRunAndRecommendedCharacterOf($user, self::RAVEN_BLUEPRINT, self::RAVEN, 'copy', 0, null),
+        );
+    }
+
+    #[Group('issue-275')]
+    #[DataProvider('copyTimesPerRunAndRecommendedCharactersByCachedSkillsOfTheCharacters')]
+    public function testCopyStepTakesTheTimePerRunOfTheCharacterWithTheLowestSkillTimeMultiplierAmongThoseWithAKnownScienceLevel(array $skillLevelsByCharacterName, ?int $expectedTimePerRun, ?string $expectedRecommendedCharacterName): void
+    {
+        $user = $this->userWithCachedSkills($skillLevelsByCharacterName);
+
+        self::assertSame(
+            ['timePerRun' => $expectedTimePerRun, 'recommendedCharacterName' => $expectedRecommendedCharacterName],
+            $this->timePerRunCalculatorOnSdeActivities()->timePerRunAndRecommendedCharacterOf($user, self::RAVEN_BLUEPRINT, self::RAVEN, 'copy', 0, null),
+        );
+    }
+
+    public static function copyTimesPerRunAndRecommendedCharactersByCachedSkillsOfTheCharacters(): iterable
+    {
+        yield 'Science at level 0: copying base time' => [
+            ['Main' => [CachedCharacterSkill::SKILL_SCIENCE => 0]],
+            14400,
+            'Main',
+        ];
+        yield 'Science V: 5 % per level' => [
+            ['Main' => [CachedCharacterSkill::SKILL_SCIENCE => 5]],
+            10800,
+            'Main',
+        ];
+        yield 'Science III' => [
+            ['Main' => [CachedCharacterSkill::SKILL_SCIENCE => 3]],
+            12240,
+            'Main',
+        ];
+        yield 'Science V and Advanced Industry V' => [
+            ['Main' => [CachedCharacterSkill::SKILL_SCIENCE => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5]],
+            9180,
+            'Main',
+        ];
+        yield 'Science at level 0 and Advanced Industry V: Advanced Industry applies' => [
+            ['Main' => [CachedCharacterSkill::SKILL_SCIENCE => 0, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5]],
+            12240,
+            'Main',
+        ];
+        yield 'Science V, Industry V and Advanced Industry V: Industry does not apply' => [
+            ['Main' => [
+                CachedCharacterSkill::SKILL_SCIENCE => 5,
+                CachedCharacterSkill::SKILL_INDUSTRY => 5,
+                CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+            ]],
+            9180,
+            'Main',
+        ];
+        yield 'Science IV and Advanced Industry III: true fraction rounded up' => [
+            ['Main' => [CachedCharacterSkill::SKILL_SCIENCE => 4, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 3]],
+            10484,
+            'Main',
+        ];
+        yield 'Advanced Industry decides between Science V alone and Science IV with Advanced Industry V' => [
+            [
+                'Alt' => [CachedCharacterSkill::SKILL_SCIENCE => 5],
+                'Main' => [CachedCharacterSkill::SKILL_SCIENCE => 4, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5],
+            ],
+            9792,
+            'Main',
+        ];
+        yield 'first of two characters with the same skill time multiplier' => [
+            [
+                'Twin1' => [CachedCharacterSkill::SKILL_SCIENCE => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5],
+                'Twin2' => [CachedCharacterSkill::SKILL_SCIENCE => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5],
+            ],
+            9180,
+            'Twin1',
+        ];
+        yield 'character with known skills without Science is ignored' => [
+            [
+                'Old' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5],
+                'New' => [CachedCharacterSkill::SKILL_SCIENCE => 3],
+            ],
+            12240,
+            'New',
+        ];
+        yield 'character without cached skill is ignored' => [
+            [
+                'Fresh' => [],
+                'Main' => [CachedCharacterSkill::SKILL_SCIENCE => 5],
+            ],
+            10800,
+            'Main',
+        ];
+        yield 'only character with known skills without Science: unknown' => [
+            ['Old' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5]],
+            null,
+            null,
+        ];
+        yield 'user without character: copying base time without skill reduction' => [
+            [],
+            14400,
+            null,
+        ];
+    }
+
+    #[Group('issue-275')]
+    public function testCopyStepWithoutCopyingTimeInTheSdeHasAnUnknownTimePerRunButARecommendedCharacter(): void
+    {
+        $user = $this->userWithCachedSkills(['Main' => [CachedCharacterSkill::SKILL_SCIENCE => 5]]);
+
+        self::assertSame(
+            ['timePerRun' => null, 'recommendedCharacterName' => 'Main'],
+            $this->timePerRunCalculatorOnSdeActivities()->timePerRunAndRecommendedCharacterOf($user, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, self::CAPITAL_JUMP_DRIVE, 'copy', 0, null),
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testScienceDoesNotShortenTheTimePerRunOfAManufacturingStep(): void
+    {
+        $user = $this->userWithCachedSkills(['Main' => [CachedCharacterSkill::SKILL_SCIENCE => 5]]);
+
+        self::assertSame(
+            ['timePerRun' => 18000, 'recommendedCharacterName' => 'Main'],
+            $this->timePerRunCalculatorOnSdeActivities()->timePerRunAndRecommendedCharacterOf($user, self::RAVEN_BLUEPRINT, self::RAVEN, 'manufacturing', 0, null),
         );
     }
 

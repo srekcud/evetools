@@ -62,6 +62,10 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
     private array $cachedSkillsByCharacterName = [];
 
+    private array $esiSkillsByEndpoint = [];
+
+    private array $persistedSkillsByCharacterName = [];
+
     protected function setUp(): void
     {
         $this->user = new User();
@@ -232,6 +236,106 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         );
     }
 
+    #[Group('issue-275')]
+    public function testWritesTheScienceLevelReadFromEsi(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_SCIENCE, 4, 5),
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame([[CachedCharacterSkill::SKILL_SCIENCE, 4, false]], $this->persistedSkillsOf(self::PILOT_ONE));
+    }
+
+    #[Group('issue-275')]
+    public function testWritesScienceAtLevelZeroAndNoOtherSkillWhenEsiReturnsNoSkill(): void
+    {
+        $this->syncSkills();
+
+        $this->assertSame([[CachedCharacterSkill::SKILL_SCIENCE, 0, false]], $this->persistedSkillsOf(self::PILOT_ONE));
+    }
+
+    #[Group('issue-275')]
+    public function testWritesScienceAtLevelZeroForACharacterSyncedBeforeWithoutScience(): void
+    {
+        $industry = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_INDUSTRY, 5, false, '2026-10-12T09:00:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_ONE] = [$industry];
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_INDUSTRY, 5, 5),
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame(
+            [[CachedCharacterSkill::SKILL_SCIENCE, 0, false], 5],
+            [...$this->persistedSkillsOf(self::PILOT_ONE), $industry->getLevel()],
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testUpdatesTheScienceLevelOfAnExistingEsiLine(): void
+    {
+        $science = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_SCIENCE, 3, false, '2026-10-14T16:20:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_ONE] = [$science];
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_SCIENCE, 4, 4),
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame([4, []], [$science->getLevel(), $this->persistedSkillsOf(self::PILOT_ONE)]);
+    }
+
+    #[Group('issue-275')]
+    public function testSetsTheScienceLevelOfAnExistingEsiLineToZeroWhenEsiNoLongerReturnsScience(): void
+    {
+        $science = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_SCIENCE, 2, false, '2026-10-15T07:45:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_ONE] = [$science];
+
+        $this->syncSkills();
+
+        $this->assertSame([0, []], [$science->getLevel(), $this->persistedSkillsOf(self::PILOT_ONE)]);
+    }
+
+    #[Group('issue-275')]
+    public function testWritesNoScienceLevelForACharacterWhoseTokenLacksTheSkillsScope(): void
+    {
+        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE]);
+
+        $this->syncSkills();
+
+        $this->assertSame([[], [self::PILOT_ONE_SKILLS_ENDPOINT]], [$this->persistedSkillsOf(self::PILOT_TWO), $this->skillsEndpointCalls]);
+    }
+
+    #[Group('issue-275')]
+    public function testWritesNoScienceLevelForACharacterWhoseSkillsHitAnEsiBadGateway(): void
+    {
+        $this->skillsEndpointFailures[self::PILOT_TWO_SKILLS_ENDPOINT] = new EsiApiException('Bad gateway for Pilot Two', 502);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [[], [['characterName' => self::PILOT_TWO, 'reason' => 'esi_unavailable', 'statusCode' => 502]]],
+            [$this->persistedSkillsOf(self::PILOT_TWO), $result->failedCharacters],
+        );
+    }
+
+    private function esiSkill(int $skillId, int $activeSkillLevel, int $trainedSkillLevel): array
+    {
+        return [
+            'skill_id' => $skillId,
+            'active_skill_level' => $activeSkillLevel,
+            'trained_skill_level' => $trainedSkillLevel,
+            'skillpoints_in_skill' => 256_000,
+        ];
+    }
+
+    private function persistedSkillsOf(string $characterName): array
+    {
+        return $this->persistedSkillsByCharacterName[$characterName] ?? [];
+    }
+
     private function cachedSkill(Character $character, int $skillId, int $level, bool $isManual, string $cachedAt): CachedCharacterSkill
     {
         return (new CachedCharacterSkill())
@@ -276,7 +380,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 throw $this->skillsEndpointFailures[$endpoint];
             }
 
-            return ['skills' => []];
+            return ['skills' => $this->esiSkillsByEndpoint[$endpoint] ?? []];
         });
 
         $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
@@ -288,6 +392,9 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $connection->method('fetchAllAssociative')->willReturn([]);
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('getConnection')->willReturn($connection);
+        $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persistedSkillsByCharacterName[$entity->getCharacter()->getName()][] = [$entity->getSkillId(), $entity->getLevel(), $entity->isManual()];
+        });
 
         $mapper = new IndustryResourceMapper(
             $this->createStub(IndustryCalculationService::class),
