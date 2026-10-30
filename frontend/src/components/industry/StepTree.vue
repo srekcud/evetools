@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -71,6 +72,10 @@ const { typeNameLabel } = useTypeNames()
 function stepTotalDuration(step: IndustryProjectStep): number | null {
   if (step.timePerRun === null) return null
   return step.timePerRun * step.runs
+}
+
+function isStepWithUnknownDuration(step: IndustryProjectStep): boolean {
+  return !step.purchased && !step.inStock && step.timePerRun === null
 }
 
 // Calculate total duration for a split group
@@ -581,11 +586,12 @@ function mergeGroup(stepId: string) {
                     {{ splitGroup.runsCompleted }} {{ t('industry.stepTree.completed') }}
                   </span>
                   <!-- Duration -->
-                  <span v-if="groupTotalDuration(splitGroup.children)" class="text-slate-500 flex items-center gap-1">
+                  <span v-if="splitGroup.children.some(isStepWithUnknownDuration) || groupTotalDuration(splitGroup.children)" class="text-slate-500 flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    {{ formatDuration(groupTotalDuration(splitGroup.children)) }}
+                    <UnknownValue v-if="splitGroup.children.some(isStepWithUnknownDuration)" />
+                    <template v-else>{{ formatDuration(groupTotalDuration(splitGroup.children)) }}</template>
                   </span>
                 </span>
               </span>
@@ -812,12 +818,15 @@ function mergeGroup(stepId: string) {
                   <span v-if="step.manualJobData && !step.esiJobCharacterName" class="text-amber-400">(manuel)</span>
                 </div>
                 <!-- Duration for step -->
-                <div v-if="stepTotalDuration(step) && !step.purchased && !step.inStock" class="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                <div v-if="isStepWithUnknownDuration(step) || (stepTotalDuration(step) && !step.purchased && !step.inStock)" class="flex items-center gap-1 mt-1 text-xs text-slate-500">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  {{ formatDuration(stepTotalDuration(step)) }}
-                  <span v-if="step.runs > 1" class="text-slate-600">({{ formatDuration(step.timePerRun) }}/run)</span>
+                  <UnknownValue v-if="isStepWithUnknownDuration(step)" />
+                  <template v-else>
+                    {{ formatDuration(stepTotalDuration(step)) }}
+                    <span v-if="step.runs > 1" class="text-slate-600">({{ formatDuration(step.timePerRun) }}/run)</span>
+                  </template>
                 </div>
               </div>
 

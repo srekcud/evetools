@@ -8,6 +8,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { parseIskValue } from '@/composables/useIskParser'
 import { formatDuration, useProjectTime } from '@/composables/useProjectTime'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import StepsTab from './StepsTab.vue'
 import ShoppingTab from './ShoppingTab.vue'
 import BpcKitTab from './BpcKitTab.vue'
@@ -30,7 +31,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel, projectDisplayName } = useTypeNames()
 
 const projectRef = computed(() => store.currentProject)
-const { estimatedProjectTime } = useProjectTime(projectRef)
+const { estimatedProjectTime, isEstimatedProjectTimeUnknown } = useProjectTime(projectRef)
 
 const PROJECT_TABS = ['steps', 'shopping', 'invention', 'costs'] as const
 const activeTab = useTabQuery(PROJECT_TABS, 'steps', 'projectTab')
@@ -250,7 +251,8 @@ onMounted(async () => {
               </span>
               <span v-if="store.currentProject.name" class="text-slate-400">{{ typeNameLabel(store.currentProject.productTypeName, store.currentProject.productTypeId) }}</span>
               <span class="text-slate-400">{{ store.currentProject.runs }} run{{ store.currentProject.runs > 1 ? 's' : '' }} · ME {{ store.currentProject.meLevel }} · TE {{ store.currentProject.teLevel }}</span>
-              <span v-if="estimatedProjectTime" class="text-cyan-400 font-mono">{{ formatDuration(estimatedProjectTime) }}</span>
+              <span v-if="isEstimatedProjectTimeUnknown" class="text-cyan-400 font-mono"><UnknownValue /></span>
+              <span v-else-if="estimatedProjectTime" class="text-cyan-400 font-mono">{{ formatDuration(estimatedProjectTime) }}</span>
               <!-- Jobs start date -->
               <span class="text-slate-600">·</span>
               <label class="flex items-center gap-1 text-xs text-slate-500">
@@ -291,7 +293,8 @@ onMounted(async () => {
                     @change="onJobsStartDateChange"
                   />
                 </label>
-                <span v-if="estimatedProjectTime" class="text-cyan-400 font-mono text-xs">{{ formatDuration(estimatedProjectTime) }}</span>
+                <span v-if="isEstimatedProjectTimeUnknown" class="text-cyan-400 font-mono text-xs"><UnknownValue /></span>
+                <span v-else-if="estimatedProjectTime" class="text-cyan-400 font-mono text-xs">{{ formatDuration(estimatedProjectTime) }}</span>
               </div>
             </div>
           </div>

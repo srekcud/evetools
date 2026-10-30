@@ -29,14 +29,16 @@ export function formatDuration(seconds: number | null): string {
  * (steps at same depth can run in parallel, but different depths are sequential).
  */
 export function useProjectTime(project: Ref<IndustryProject | null>) {
+  const stepsToBuild = computed(() => (project.value?.steps ?? []).filter(step => !step.purchased && !step.inStock))
+
+  const isEstimatedProjectTimeUnknown = computed(() => stepsToBuild.value.some(step => step.timePerRun === null))
+
   const estimatedProjectTime = computed(() => {
-    const steps = project.value?.steps
-    if (!steps || steps.length === 0) return null
+    if (isEstimatedProjectTimeUnknown.value) return null
 
     const maxByDepth = new Map<number, number>()
 
-    for (const step of steps) {
-      if (step.purchased || step.inStock) continue
+    for (const step of stepsToBuild.value) {
       if (step.timePerRun === null) continue
 
       const duration = step.timePerRun * step.runs
@@ -53,8 +55,6 @@ export function useProjectTime(project: Ref<IndustryProject | null>) {
 
     return total > 0 ? total : null
   })
-
-  const isEstimatedProjectTimeUnknown = computed(() => false)
 
   return { estimatedProjectTime, isEstimatedProjectTimeUnknown, formatDuration }
 }
