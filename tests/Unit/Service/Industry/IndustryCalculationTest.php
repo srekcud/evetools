@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\CachedCharacterSkill;
+use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
@@ -73,6 +74,8 @@ class IndustryCalculationTest extends TestCase
     private const array REACTIONS_FOUR = [CachedCharacterSkill::SKILL_REACTIONS => 4];
 
     private IndustryCalculationService $calculationService;
+
+    private array $cachedSkillsByCharacterName = [];
 
     protected function setUp(): void
     {
@@ -482,6 +485,126 @@ class IndustryCalculationTest extends TestCase
         self::assertNull($this->calculationServiceOnSdeActivities()->calculateTimePerRun($copyStep));
     }
 
+    #[Group('issue-282')]
+    public function testLoadedSkillLevelsAreUnknownForACharacterWithoutCachedSkillAndKnownForACharacterWithACachedLevelZero(): void
+    {
+        $user = $this->userWithCachedSkills([
+            'Fresh' => [],
+            'Zero' => [CachedCharacterSkill::SKILL_INDUSTRY => 0],
+            'Main' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4],
+        ]);
+
+        self::assertSame(
+            [
+                ['name' => 'Fresh', 'skills' => null],
+                ['name' => 'Zero', 'skills' => [CachedCharacterSkill::SKILL_INDUSTRY => 0]],
+                ['name' => 'Main', 'skills' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4]],
+            ],
+            $this->calculationServiceOnSdeActivities()->loadCharacterSkillLevels($user),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testLoadedSkillLevelsOfACharacterWithManualSkillsOnlyAreKnown(): void
+    {
+        $user = $this->userWithCachedSkills(['Manual' => [CachedCharacterSkill::SKILL_INDUSTRY => 4]], isManual: true);
+
+        self::assertSame(
+            [['name' => 'Manual', 'skills' => [CachedCharacterSkill::SKILL_INDUSTRY => 4]]],
+            $this->calculationServiceOnSdeActivities()->loadCharacterSkillLevels($user),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testSkillsOfAManufacturingStepAreUnknownWhenTheOnlyCharacterHasNoCachedSkill(): void
+    {
+        $user = $this->userWithCachedSkills(['Fresh' => []]);
+
+        self::assertSame(
+            ['skills' => null, 'name' => null, 'skillsUnknown' => true],
+            $this->bestCharacterOfTheLoadedSkillLevels($user, self::RAVEN_BLUEPRINT, 'manufacturing'),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testCharacterWithKnownSkillsAtLevelZeroIsRetainedRatherThanAFirstCharacterWithUnknownSkills(): void
+    {
+        $user = $this->userWithCachedSkills(['Fresh' => [], 'Zero' => [CachedCharacterSkill::SKILL_INDUSTRY => 0]]);
+
+        self::assertSame(
+            ['skills' => [CachedCharacterSkill::SKILL_INDUSTRY => 0], 'name' => 'Zero', 'skillsUnknown' => false],
+            $this->bestCharacterOfTheLoadedSkillLevels($user, self::RAVEN_BLUEPRINT, 'manufacturing'),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testSkillsOfAManufacturingStepAreNotUnknownForAUserWithoutCharacter(): void
+    {
+        self::assertSame(
+            ['skills' => null, 'name' => null, 'skillsUnknown' => false],
+            $this->bestCharacterOfTheLoadedSkillLevels($this->userWithCachedSkills([]), self::CAPITAL_CARGO_BAY_BLUEPRINT, 'manufacturing'),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testSkillsOfACopyStepAreNotUnknownEvenWhenTheOnlyCharacterHasNoCachedSkill(): void
+    {
+        $user = $this->userWithCachedSkills(['Fresh' => []]);
+
+        self::assertSame(
+            ['skills' => null, 'name' => null, 'skillsUnknown' => false],
+            $this->bestCharacterOfTheLoadedSkillLevels($user, self::RAVEN_BLUEPRINT, 'copy'),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testSkillsOfAReactionStepAreUnknownWhenNoCharacterHasCachedSkills(): void
+    {
+        $user = $this->userWithCachedSkills(['Fresh1' => [], 'Fresh2' => []]);
+
+        self::assertSame(
+            ['skills' => null, 'name' => null, 'skillsUnknown' => true],
+            $this->bestCharacterOfTheLoadedSkillLevels($user, self::REINFORCED_CARBON_FIBER_FORMULA, 'reaction'),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testTimePerRunOfAManufacturingStepWithIndustryAndAdvancedIndustryAtLevelZeroIsItsBaseTime(): void
+    {
+        $step = $this->stepOfAProject(self::RAVEN, self::RAVEN_BLUEPRINT, 'manufacturing', 0);
+
+        self::assertSame(18000, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, [
+            CachedCharacterSkill::SKILL_INDUSTRY => 0,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0,
+        ]));
+    }
+
+    private function bestCharacterOfTheLoadedSkillLevels(User $user, int $blueprintTypeId, string $activityType): array
+    {
+        $calculationService = $this->calculationServiceOnSdeActivities();
+
+        return $calculationService->bestCharacterForStepTime($user, $blueprintTypeId, $activityType, $calculationService->loadCharacterSkillLevels($user));
+    }
+
+    private function userWithCachedSkills(array $skillLevelsByCharacterName, bool $isManual = false): User
+    {
+        $this->cachedSkillsByCharacterName = [];
+        $user = new User();
+        foreach ($skillLevelsByCharacterName as $characterName => $skillLevels) {
+            $character = (new Character())->setName($characterName);
+            $user->addCharacter($character);
+            foreach ($skillLevels as $skillId => $level) {
+                $this->cachedSkillsByCharacterName[$characterName][] = (new CachedCharacterSkill())
+                    ->setCharacter($character)
+                    ->setSkillId($skillId)
+                    ->setLevel($level)
+                    ->setIsManual($isManual);
+            }
+        }
+
+        return $user;
+    }
+
     private function calculationServiceOnSdeActivities(array $scienceSkillIdsByBlueprintAndActivity = []): IndustryCalculationService
     {
         $baseTimesByBlueprintAndActivity = [
@@ -543,8 +666,18 @@ class IndustryCalculationTest extends TestCase
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
             $activityRepository,
-            $this->createStub(CachedCharacterSkillRepository::class),
+            $this->skillRepositoryOfTheCachedSkills(),
         );
+    }
+
+    private function skillRepositoryOfTheCachedSkills(): CachedCharacterSkillRepository
+    {
+        $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
+        $skillRepository->method('findAllSkillsForCharacter')->willReturnCallback(
+            fn (Character $character): array => $this->cachedSkillsByCharacterName[$character->getName()] ?? [],
+        );
+
+        return $skillRepository;
     }
 
     private function stepOfAProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $teLevel): IndustryProjectStep

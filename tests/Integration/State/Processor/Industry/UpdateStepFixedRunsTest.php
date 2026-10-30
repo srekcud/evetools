@@ -7,6 +7,7 @@ namespace App\Tests\Integration\State\Processor\Industry;
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\UpdateStepInput;
+use App\Entity\CachedCharacterSkill;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\Sde\IndustryActivity;
@@ -96,6 +97,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         \assert($pilot instanceof User);
         $pilot->setMainCharacter($character);
         $this->pilot = $pilot;
+        $this->em->persist((new CachedCharacterSkill())->setCharacter($character)->setSkillId(CachedCharacterSkill::SKILL_INDUSTRY)->setLevel(0)->setIsManual(true));
         $this->seedCruiserRecipe();
         $this->seedCarrierRecipe();
         $this->em->flush();

@@ -35,7 +35,11 @@ final class JobSplitCalculationTest extends TestCase
     private const float THREE_QUARTERS_OF_A_DAY = 0.75;
     private const float DURATION_OF_TWENTY_SEVEN_RUNS_AT_TWELVE_THOUSAND_EIGHT_HUNDRED_SECONDS_IN_DAYS = 4.0;
     private const float MAX_JOB_DURATION_SHORTER_THAN_ONE_RUN_DAYS = 0.1;
-    private const array NO_SKILL = [];
+    private const array SKILLS_AT_LEVEL_ZERO = [
+        CachedCharacterSkill::SKILL_INDUSTRY => 0,
+        CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0,
+        CachedCharacterSkill::SKILL_REACTIONS => 0,
+    ];
     private const array INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE = [
         CachedCharacterSkill::SKILL_INDUSTRY => 5,
         CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
@@ -44,7 +48,7 @@ final class JobSplitCalculationTest extends TestCase
 
     private User $pilot;
 
-    private array $skillLevelsOfThePilot = self::NO_SKILL;
+    private array $skillLevelsOfThePilot = self::SKILLS_AT_LEVEL_ZERO;
 
     private bool $pilotOwnsTataraAndRaitaru = false;
 
@@ -81,7 +85,7 @@ final class JobSplitCalculationTest extends TestCase
         self::assertNotNull($this->stepsOfProduct($project, self::CAPITAL_JUMP_DRIVE)[0]->getSplitGroupId());
     }
 
-    public function testCapitalJumpDriveAtTeTwentyWithoutSkillsIsSplitIntoThreeJobsOfNineRuns(): void
+    public function testCapitalJumpDriveAtTeTwentyWithSkillsAtLevelZeroIsSplitIntoThreeJobsOfNineRuns(): void
     {
         $project = $this->createCapitalJumpDriveProject(teLevel: 20, maxJobDurationDays: self::DEFAULT_MAX_JOB_DURATION_DAYS);
 
@@ -101,8 +105,8 @@ final class JobSplitCalculationTest extends TestCase
 
     public static function capitalJumpDriveSplitsAtOneDayByTeAndSkills(): iterable
     {
-        yield 'TE 0 without skills: 16000 s per run, 5 runs per job' => [0, self::NO_SKILL, [5, 5, 5, 4, 4, 4]];
-        yield 'TE 20 without skills: 12800 s per run, 6 runs per job' => [20, self::NO_SKILL, [6, 6, 5, 5, 5]];
+        yield 'TE 0 with skills at level 0: 16000 s per run, 5 runs per job' => [0, self::SKILLS_AT_LEVEL_ZERO, [5, 5, 5, 4, 4, 4]];
+        yield 'TE 20 with skills at level 0: 12800 s per run, 6 runs per job' => [20, self::SKILLS_AT_LEVEL_ZERO, [6, 6, 5, 5, 5]];
         yield 'TE 0 with Industry V and Advanced Industry V: 10880 s per run, 7 runs per job' => [0, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, [7, 7, 7, 6]];
         yield 'TE 20 with Industry V and Advanced Industry V: 8704 s per run, 9 runs per job' => [20, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, [9, 9, 9]];
         yield 'TE 20 with Reactions IV only: 12800 s per run, 6 runs per job' => [20, self::REACTIONS_FOUR, [6, 6, 5, 5, 5]];
@@ -158,7 +162,7 @@ final class JobSplitCalculationTest extends TestCase
 
     public static function reinforcedCarbonFiberOfACapitalJumpDriveSplitsBySkills(): iterable
     {
-        yield 'without skills: 10800 s per run, 6 runs per job' => [self::NO_SKILL, [[5, 1000, 0, 13], [4, 800, 1, 13], [4, 630, 2, 13]]];
+        yield 'with skills at level 0: 10800 s per run, 6 runs per job' => [self::SKILLS_AT_LEVEL_ZERO, [[5, 1000, 0, 13], [4, 800, 1, 13], [4, 630, 2, 13]]];
         yield 'with Reactions IV: 9072 s per run, 7 runs per job' => [self::REACTIONS_FOUR, [[7, 1400, 0, 13], [6, 1030, 1, 13]]];
         yield 'with Industry V and Advanced Industry V only: 10800 s per run, 6 runs per job' => [self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, [[5, 1000, 0, 13], [4, 800, 1, 13], [4, 630, 2, 13]]];
     }

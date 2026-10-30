@@ -1098,6 +1098,111 @@ class IndustryProjectFactoryTest extends TestCase
         ));
     }
 
+    #[Group('issue-282')]
+    #[DataProvider('displayedJobsOfEighteenRunsOfAManufacturingStepByCachedSkillsOfTheCharacters')]
+    public function testTimePerRunOfAManufacturingStepIsUnknownAndUnsplitOnlyWhenNoCharacterOfTheUserHasKnownSkills(array $skillLevelsByCharacterName, array $expectedDisplayedJobs): void
+    {
+        $user = $this->userWithCharacters($skillLevelsByCharacterName);
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(41001, 41002, 'Unknown Skills Product', 18));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['41001-1' => 10000];
+
+        $project = $this->factory->createProject($user, 41002, 18, 10, 2.0, 0);
+
+        $this->assertSame($expectedDisplayedJobs, $this->displayedJobsOf($project, 'manufacturing'));
+    }
+
+    public static function displayedJobsOfEighteenRunsOfAManufacturingStepByCachedSkillsOfTheCharacters(): iterable
+    {
+        yield 'only character without cached skill: unknown time per run, one job' => [
+            ['Fresh' => []],
+            [[18, null, null, null]],
+        ];
+        yield 'only character with Industry and Advanced Industry at level 0: 180000 s split in two jobs' => [
+            ['Zero' => [CachedCharacterSkill::SKILL_INDUSTRY => 0, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0]],
+            [[9, 18, 10000, 'Zero'], [9, 18, 10000, 'Zero']],
+        ];
+        yield 'only character with Mass Production I alone: Industry at level 0, split in two jobs' => [
+            ['Novice' => [CachedCharacterSkill::SKILL_MASS_PRODUCTION => 1]],
+            [[9, 18, 10000, 'Novice'], [9, 18, 10000, 'Novice']],
+        ];
+        yield 'character without cached skill before a character with Industry V: 144000 s in one job' => [
+            ['Fresh' => [], 'Main' => [CachedCharacterSkill::SKILL_INDUSTRY => 5]],
+            [[18, null, 8000, 'Main']],
+        ];
+        yield 'character without cached skill before a character with Industry at level 0: the known one is retained' => [
+            ['Fresh' => [], 'Zero' => [CachedCharacterSkill::SKILL_INDUSTRY => 0]],
+            [[9, 18, 10000, 'Zero'], [9, 18, 10000, 'Zero']],
+        ];
+        yield 'two characters without cached skill: unknown time per run, one job' => [
+            ['Fresh1' => [], 'Fresh2' => []],
+            [[18, null, null, null]],
+        ];
+        yield 'user without character: no skill reduction, split in two jobs' => [
+            [],
+            [[9, 18, 10000, null], [9, 18, 10000, null]],
+        ];
+    }
+
+    #[Group('issue-282')]
+    #[DataProvider('displayedJobsOfFiftyRunsOfAReactionStepByCachedSkillsOfTheCharacters')]
+    public function testTimePerRunOfAReactionStepIsUnknownAndUnsplitWhenNoCharacterOfTheUserHasKnownSkills(array $skillLevelsByCharacterName, array $expectedDisplayedJobs): void
+    {
+        $user = $this->userWithCharacters($skillLevelsByCharacterName);
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(42001, 42002, 'Unknown Skills Reaction Product', 50, 200, [], 0, 'reaction'));
+        $this->setupDefaultMocks();
+        $this->materialRepository->method('findMaterialEntitiesForBlueprints')->willReturn([]);
+        $this->baseTimeByBlueprintAndActivity = ['42001-11' => 3600];
+
+        $project = $this->factory->createProject($user, 42002, 50, 0, 2.0, 0);
+
+        $this->assertSame($expectedDisplayedJobs, $this->displayedJobsOf($project, 'reaction'));
+    }
+
+    public static function displayedJobsOfFiftyRunsOfAReactionStepByCachedSkillsOfTheCharacters(): iterable
+    {
+        yield 'only character without cached skill: unknown time per run, one job' => [
+            ['Fresh' => []],
+            [[50, null, null, null]],
+        ];
+        yield 'only character with Industry V and Advanced Industry V without Reactions: Reactions at level 0, 180000 s split in two jobs' => [
+            ['Industrialist' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5]],
+            [[25, 50, 3600, 'Industrialist'], [25, 50, 3600, 'Industrialist']],
+        ];
+    }
+
+    #[Group('issue-282')]
+    public function testManufacturingOfACharacterWithoutCachedSkillIsUnknownAndUnsplitWhileItsCopyKeepsItsCopyingTimePerRun(): void
+    {
+        $user = $this->userWithCharacters(['Fresh' => []]);
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(43001, 43002, 'Copied Product', 13, 1, [], 0, 'manufacturing', true));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['43001-1' => 19000, '43001-5' => 14100];
+
+        $project = $this->factory->createProject($user, 43002, 13, 10, 2.0, 0);
+
+        $this->assertSame(
+            ['manufacturing' => [[13, null, null, null]], 'copy' => [[13, null, 14100, null]]],
+            ['manufacturing' => $this->displayedJobsOf($project, 'manufacturing'), 'copy' => $this->displayedJobsOf($project, 'copy')],
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testStepWithoutBaseTimeInTheSdeOfACharacterWithoutCachedSkillHasNoRecommendedCharacter(): void
+    {
+        $user = $this->userWithCharacters(['Fresh' => []]);
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(44001, 44002, 'Product Without Base Time', 1000));
+        $this->setupDefaultMocks();
+
+        $project = $this->factory->createProject($user, 44002, 1000, 10, 2.0, 0);
+
+        $this->assertSame([[1000, null, null, null]], $this->displayedJobsOf($project, 'manufacturing'));
+    }
+
     // ===========================================
     // Step sorting: deepest first, then by activity type
     // ===========================================

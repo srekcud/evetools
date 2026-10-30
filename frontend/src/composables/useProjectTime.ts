@@ -54,5 +54,7 @@ export function useProjectTime(project: Ref<IndustryProject | null>) {
     return total > 0 ? total : null
   })
 
-  return { estimatedProjectTime, formatDuration }
+  const isEstimatedProjectTimeUnknown = computed(() => false)
+
+  return { estimatedProjectTime, isEstimatedProjectTimeUnknown, formatDuration }
 }
