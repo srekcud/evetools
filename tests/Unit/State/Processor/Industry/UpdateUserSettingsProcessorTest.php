@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry;
 
 use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\Industry\UserSettingsResource;
 use App\ApiResource\Input\Industry\UpdateUserSettingsInput;
 use App\Entity\IndustryUserSettings;
@@ -29,6 +30,7 @@ final class UpdateUserSettingsProcessorTest extends TestCase
     private const int AMARR_SYSTEM_ID = 30002187;
     private const int PERIMETER_SYSTEM_ID = 30000144;
     private const int SYSTEM_ID_ABSENT_FROM_THE_SDE = 30099999;
+    private const int OTHER_SYSTEM_ID_ABSENT_FROM_THE_SDE = 30088888;
 
     private User $user;
     private IndustryUserSettings $settings;
@@ -175,40 +177,96 @@ final class UpdateUserSettingsProcessorTest extends TestCase
         );
     }
 
-    public function testFavoriteSystemAbsentFromTheSdeIsReturnedWithoutName(): void
+    public function testFavoriteManufacturingSystemAbsentFromTheSdeIsRefusedAndNothingIsStored(): void
     {
         $input = new UpdateUserSettingsInput();
         $input->favoriteManufacturingSystemId = self::SYSTEM_ID_ABSENT_FROM_THE_SDE;
+        $input->favoriteReactionSystemId = self::RENS_SYSTEM_ID;
+        $input->brokerFeeRate = 0.0175;
 
-        $resource = $this->patch($input);
+        $refusal = $this->patchExpectingRefusal($input, $this->settings);
 
         self::assertSame(
-            [self::SYSTEM_ID_ABSENT_FROM_THE_SDE, null, self::PERIMETER_SYSTEM_ID, 'Perimeter'],
-            [
-                $resource->favoriteManufacturingSystemId,
-                $resource->favoriteManufacturingSystemName,
-                $resource->favoriteReactionSystemId,
-                $resource->favoriteReactionSystemName,
-            ],
+            [422, ['favoriteManufacturingSystemId' => self::SYSTEM_ID_ABSENT_FROM_THE_SDE]],
+            [$refusal->getStatusCode(), $this->refusedValuesByPropertyPath($refusal)],
+        );
+        self::assertSame(
+            [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID, 0.025, 0.045, 1200.0],
+            $this->storedSettings(),
         );
     }
 
-    public function testReactionSystemAbsentFromTheSdeIsReturnedWithoutName(): void
+    public function testFavoriteReactionSystemAbsentFromTheSdeIsRefusedAndNothingIsStored(): void
+    {
+        $input = new UpdateUserSettingsInput();
+        $input->favoriteManufacturingSystemId = self::JITA_SYSTEM_ID;
+        $input->favoriteReactionSystemId = self::OTHER_SYSTEM_ID_ABSENT_FROM_THE_SDE;
+        $input->salesTaxRate = 0.0288;
+
+        $refusal = $this->patchExpectingRefusal($input, $this->settings);
+
+        self::assertSame(
+            [422, ['favoriteReactionSystemId' => self::OTHER_SYSTEM_ID_ABSENT_FROM_THE_SDE]],
+            [$refusal->getStatusCode(), $this->refusedValuesByPropertyPath($refusal)],
+        );
+        self::assertSame(
+            [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID, 0.025, 0.045, 1200.0],
+            $this->storedSettings(),
+        );
+    }
+
+    public function testFavoriteSystemAbsentFromTheSdeIsRefusedWithoutWritingTheSettingsOfANewUser(): void
     {
         $input = new UpdateUserSettingsInput();
         $input->favoriteReactionSystemId = self::SYSTEM_ID_ABSENT_FROM_THE_SDE;
+        $input->exportCostPerM3 = 975.0;
 
-        $resource = $this->patch($input);
+        $refusal = $this->patchExpectingRefusal($input, null);
 
         self::assertSame(
-            [self::AMARR_SYSTEM_ID, 'Amarr', self::SYSTEM_ID_ABSENT_FROM_THE_SDE, null],
-            [
-                $resource->favoriteManufacturingSystemId,
-                $resource->favoriteManufacturingSystemName,
-                $resource->favoriteReactionSystemId,
-                $resource->favoriteReactionSystemName,
-            ],
+            [422, ['favoriteReactionSystemId' => self::SYSTEM_ID_ABSENT_FROM_THE_SDE]],
+            [$refusal->getStatusCode(), $this->refusedValuesByPropertyPath($refusal)],
         );
+    }
+
+    private function patchExpectingRefusal(UpdateUserSettingsInput $input, ?IndustryUserSettings $storedSettings): ValidationException
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->user);
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn($storedSettings);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->never())->method('flush');
+
+        try {
+            (new UpdateUserSettingsProcessor($security, $settingsRepository, $this->solarSystemRepository(), $entityManager))
+                ->process($input, new Patch());
+        } catch (ValidationException $refusal) {
+            return $refusal;
+        }
+
+        self::fail('The settings update was not refused.');
+    }
+
+    private function refusedValuesByPropertyPath(ValidationException $refusal): array
+    {
+        $refusedValues = [];
+        foreach ($refusal->getConstraintViolationList() as $violation) {
+            $refusedValues[$violation->getPropertyPath()] = $violation->getInvalidValue();
+        }
+
+        return $refusedValues;
+    }
+
+    private function storedSettings(): array
+    {
+        return [
+            $this->settings->getFavoriteManufacturingSystemId(),
+            $this->settings->getFavoriteReactionSystemId(),
+            $this->settings->getBrokerFeeRate(),
+            $this->settings->getSalesTaxRate(),
+            $this->settings->getExportCostPerM3(),
+        ];
     }
 
     private function patch(UpdateUserSettingsInput $input): UserSettingsResource

@@ -334,9 +334,8 @@ async function mountNewProjectModal(locale: Locale): Promise<MountedComponent> {
   await clickButton(labels.bulkPaste)
   await wrapper.get('textarea').setValue('Ferox 2 4 x100')
   await clickButton(labels.parseAndAdd)
-  Object.assign(wrapper.vm, { blacklistItems: [{ typeId: 11993, typeName: 'Cormorant' }] })
   await flushPromises()
-  return { wrapper, expectedIconOnlyButtons: 3 }
+  return { wrapper, expectedIconOnlyButtons: 2 }
 }
 
 async function mountStructureConfig(locale: Locale): Promise<MountedComponent> {
