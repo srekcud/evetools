@@ -363,6 +363,11 @@ class IndustryProjectStep
         return $this;
     }
 
+    public function isCommitted(): bool
+    {
+        return !$this->jobMatches->isEmpty() || !$this->purchases->isEmpty() || $this->inStockQuantity > 0 || $this->purchased;
+    }
+
     public function absorb(self $excessStep): static
     {
         foreach ($excessStep->jobMatches->toArray() as $jobMatch) {

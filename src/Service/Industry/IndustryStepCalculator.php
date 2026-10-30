@@ -28,8 +28,14 @@ class IndustryStepCalculator
     public function recalculateStepQuantities(IndustryProject $project): array
     {
         $updatedSteps = [];
-        $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use (&$updatedSteps): void {
-            array_push($updatedSteps, ...SplitGroupQuantities::applyNeedToSteps($steps, $need, $outputPerRun)->changedSteps);
+        $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use ($project, &$updatedSteps): array {
+            $appliedNeed = SplitGroupQuantities::applyNeedToSteps($steps, $need, $outputPerRun);
+            array_push($updatedSteps, ...$appliedNeed->changedSteps);
+            foreach ($appliedNeed->surplusJobs as $surplusJob) {
+                $project->removeStep($surplusJob);
+            }
+
+            return $appliedNeed->surplusJobs;
         });
 
         if ($updatedSteps !== []) {
@@ -42,17 +48,19 @@ class IndustryStepCalculator
     public function needRunsOf(IndustryProject $project, IndustryProjectStep $step): ?int
     {
         $needRuns = null;
-        $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use ($step, &$needRuns): void {
+        $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use ($step, &$needRuns): array {
             if (\in_array($step, $steps, true)) {
                 $needRuns = SplitGroupQuantities::runsOfNeed($need, $outputPerRun);
             }
+
+            return [];
         });
 
         return $needRuns;
     }
 
     /**
-     * @param callable(list<IndustryProjectStep>, int, int): void $onNeedOfSteps
+     * @param callable(list<IndustryProjectStep>, int, int): list<IndustryProjectStep> $onNeedOfSteps
      */
     private function walkNeedsFromConsumersToMaterials(IndustryProject $project, callable $onNeedOfSteps): void
     {
@@ -67,7 +75,7 @@ class IndustryStepCalculator
 
         foreach (ProductionStepGraph::productsFromConsumersToMaterials($project, $stepsByProduct, $materialsByKey) as $productTypeId) {
             if (isset($needByProduct[$productTypeId])) {
-                $onNeedOfSteps(
+                $surplusJobs = $onNeedOfSteps(
                     $stepsByProduct[$productTypeId],
                     $needByProduct[$productTypeId],
                     SplitGroupMaterials::outputPerRunOfProduct(
@@ -75,6 +83,10 @@ class IndustryStepCalculator
                         $stepsByProduct[$productTypeId][0]->getBlueprintTypeId(),
                     ),
                 );
+                $stepsByProduct[$productTypeId] = array_values(array_filter(
+                    $stepsByProduct[$productTypeId],
+                    static fn (IndustryProjectStep $step): bool => !\in_array($step, $surplusJobs, true),
+                ));
             }
 
             foreach ($stepsByProduct[$productTypeId] as $consumer) {

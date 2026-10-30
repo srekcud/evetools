@@ -596,7 +596,11 @@ class IndustryProjectFactory
      */
     private static function jobsKeepingFixedRuns(array $step, array $existingJobs): array
     {
-        SplitGroupQuantities::applyNeedToSteps($existingJobs, $step['quantity'], $step['outputPerRun']);
+        $surplusJobs = SplitGroupQuantities::applyNeedToSteps($existingJobs, $step['quantity'], $step['outputPerRun'])->surplusJobs;
+        foreach ($surplusJobs as $surplusJob) {
+            $surplusJob->getProject()->removeStep($surplusJob);
+        }
+        $keptJobs = array_filter($existingJobs, static fn (IndustryProjectStep $existingJob): bool => !\in_array($existingJob, $surplusJobs, true));
 
         return array_map(static fn (IndustryProjectStep $existingJob): array => [
             ...$step,
@@ -605,7 +609,7 @@ class IndustryProjectFactory
             'splitGroupId' => $existingJob->getSplitGroupId(),
             'splitIndex' => $existingJob->getSplitIndex(),
             'totalGroupRuns' => $existingJob->getTotalGroupRuns(),
-        ], $existingJobs);
+        ], array_values($keptJobs));
     }
 
     /**

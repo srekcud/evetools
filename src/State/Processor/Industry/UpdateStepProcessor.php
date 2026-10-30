@@ -134,13 +134,14 @@ class UpdateStepProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         if (!empty($cascadedSteps)) {
-            $updatedStepResources = [$this->mapper->stepToResource($step)];
+            $stepsOfTheResponse = $project->getSteps()->contains($step) ? [$step] : [];
             foreach ($cascadedSteps as $updatedStep) {
                 if ($updatedStep !== $step) {
-                    $updatedStepResources[] = $this->mapper->stepToResource($updatedStep);
+                    $stepsOfTheResponse[] = $updatedStep;
                 }
             }
-            return $updatedStepResources;
+
+            return array_map(fn (IndustryProjectStep $stepOfTheResponse): ProjectStepResource => $this->mapper->stepToResource($stepOfTheResponse), $stepsOfTheResponse);
         }
 
         return $this->mapper->stepToResource($step);

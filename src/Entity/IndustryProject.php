@@ -437,6 +437,13 @@ class IndustryProject
         return $this;
     }
 
+    public function removeStep(IndustryProjectStep $step): static
+    {
+        $this->steps->removeElement($step);
+
+        return $this;
+    }
+
     public function getJobsCost(): float
     {
         $total = 0.0;
