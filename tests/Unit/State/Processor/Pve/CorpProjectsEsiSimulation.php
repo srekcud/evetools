@@ -17,6 +17,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Pve\CorpProjectContributionAccounting;
 use App\Service\Pve\CorpProjectContributionReader;
 use App\State\Processor\Pve\ScanLootSalesProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -69,6 +70,8 @@ trait CorpProjectsEsiSimulation
         array $importedTransactionIds = [],
         array $declinedTransactionIds = [],
         ?int $days = null,
+        array $corpProjectImports = [],
+        UserPveSettings $settings = new UserPveSettings(),
     ): ScanLootSalesProcessor {
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturnCallback(
@@ -80,7 +83,6 @@ trait CorpProjectsEsiSimulation
             $characters ?? [$this->character(self::EVE_CHARACTER_ID, 'Pilot One', self::CORPORATION_ID, self::CORPORATION_NAME)],
         ));
 
-        $settings = new UserPveSettings();
         $settings->setLootTypeIds($lootTypeIds);
         foreach ($declinedTransactionIds as $declinedTransactionId) {
             $settings->addDeclinedLootSaleTransactionId($declinedTransactionId);
@@ -89,7 +91,11 @@ trait CorpProjectsEsiSimulation
         $settingsRepository->method('getOrCreate')->willReturn($settings);
 
         $incomeRepository = $this->createStub(PveIncomeRepository::class);
-        $incomeRepository->method('getImportedTransactionIds')->willReturn($importedTransactionIds);
+        $incomeRepository->method('getImportedTransactionIds')->willReturn([
+            ...$importedTransactionIds,
+            ...array_values(array_filter(array_column($corpProjectImports, 'transactionId'), static fn (?int $transactionId): bool => $transactionId !== null)),
+        ]);
+        $incomeRepository->method('findCorpProjectImports')->willReturn($corpProjectImports);
 
         $typesById = array_map(fn (string $typeName): InvType => $this->createInvType($typeName), $knownTypeNamesById);
         $invTypeRepository = $this->createStub(InvTypeRepository::class);
@@ -114,6 +120,10 @@ trait CorpProjectsEsiSimulation
                 tokenManager: $tokenManager,
                 cache: $readerCache,
                 logger: $readerLogger,
+                contributionAccounting: new CorpProjectContributionAccounting(
+                    incomeRepository: $incomeRepository,
+                    settingsRepository: $settingsRepository,
+                ),
             ),
         );
     }

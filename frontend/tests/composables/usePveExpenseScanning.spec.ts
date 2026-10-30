@@ -341,3 +341,167 @@ describe('usePveExpenseScanning loot sale scan result', () => {
     ])
   })
 })
+
+const PILOT_ONE_CONTRIBUTION_DELTA = {
+  ...CORP_PROJECT_SALE,
+  transactionId: -1497420833,
+  characterId: 2112000001,
+  characterName: 'Pilot One',
+  typeName: '600x Tritanium',
+  quantity: 600,
+  price: 7500,
+  accountedQuantity: 1000,
+}
+
+const PILOT_TWO_FIRST_CONTRIBUTION = {
+  ...CORP_PROJECT_SALE,
+  transactionId: -305718244,
+  characterId: 2112000002,
+  characterName: 'Pilot Two',
+  typeName: '400x Tritanium',
+  quantity: 400,
+  price: 5000,
+  accountedQuantity: 0,
+}
+
+const MARKET_LOOT_SALE = {
+  transactionId: 8200017,
+  contractId: 0,
+  type: 'loot_sale',
+  typeId: 60459,
+  typeName: '12x Rogue Drone Infestation Data',
+  quantity: 12,
+  price: 4560000,
+  dateIssued: '2026-10-25',
+  characterName: 'Pilot Two',
+  source: 'market',
+}
+
+function respondToScanAndImport(detectedSales: unknown[], importResult: Record<string, number>): unknown[] {
+  const importBodies: unknown[] = []
+  vi.mocked(authFetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url.startsWith('/api/pve/scan-loot-sales')) return jsonResponse(lootSalesScan({ detectedSales }))
+    if (url.startsWith('/api/pve/scan-loot-contracts')) return jsonResponse({ scannedContracts: 0, detectedContracts: [] })
+    if (url === '/api/pve/import-loot-sales') {
+      importBodies.push(JSON.parse(String(init?.body)))
+      return jsonResponse(importResult)
+    }
+    throw new Error(`Unexpected request ${url}`)
+  })
+  return importBodies
+}
+
+function detectedSaleSummaries(scanning: ReturnType<typeof usePveExpenseScanning>): [string, number][] {
+  return (scanning.lootScanResults.value?.detectedSales ?? []).map(sale => [sale.characterName, sale.quantity])
+}
+
+describe('usePveExpenseScanning pending corporation project contribution', () => {
+  it('sends the project, the character, the delta and the accounted quantity when importing a contribution', async () => {
+    const importBodies = respondToScanAndImport([PILOT_ONE_CONTRIBUTION_DELTA], { imported: 1, rejectedZeroPrice: 0, rejectedContributions: 0 })
+    const onError = vi.fn()
+    const scanning = mountScanning({ onError })
+    await scanning.scanLootSales(30)
+
+    await scanning.importSingleLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+
+    expect(importBodies).toEqual([{
+      sales: [{
+        type: 'corp_project',
+        typeId: 34,
+        typeName: 'Tritanium Drive: 600x Tritanium',
+        quantity: 600,
+        price: 7500,
+        dateIssued: '2026-10-27',
+        transactionId: -1497420833,
+        projectId: 'a1b2c3d4-project',
+        characterId: 2112000001,
+        accountedQuantity: 1000,
+      }],
+      declined: [],
+    }])
+    expect(onError).not.toHaveBeenCalled()
+    expect(detectedSaleSummaries(scanning)).toEqual([])
+  })
+
+  it('sends an explicit zero accounted quantity for a first contribution', async () => {
+    const importBodies = respondToScanAndImport([PILOT_TWO_FIRST_CONTRIBUTION], { imported: 1, rejectedZeroPrice: 0, rejectedContributions: 0 })
+    const scanning = mountScanning()
+    await scanning.scanLootSales(30)
+
+    await scanning.importSingleLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+
+    expect(importBodies).toEqual([{
+      sales: [{
+        type: 'corp_project',
+        typeId: 34,
+        typeName: 'Tritanium Drive: 400x Tritanium',
+        quantity: 400,
+        price: 5000,
+        dateIssued: '2026-10-27',
+        transactionId: -305718244,
+        projectId: 'a1b2c3d4-project',
+        characterId: 2112000002,
+        accountedQuantity: 0,
+      }],
+      declined: [],
+    }])
+  })
+
+  it('reports a contribution counted in the meantime and drops it from the list', async () => {
+    respondToScanAndImport([PILOT_ONE_CONTRIBUTION_DELTA, PILOT_TWO_FIRST_CONTRIBUTION], { imported: 0, rejectedZeroPrice: 0, rejectedContributions: 1 })
+    const onError = vi.fn()
+    const scanning = mountScanning({ onError })
+    await scanning.scanLootSales(30)
+
+    await scanning.importSingleLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+
+    expect(onError.mock.calls).toEqual([['Contribution already counted in the meantime (sync or another tab): run the scan again.']])
+    expect(detectedSaleSummaries(scanning)).toEqual([['Pilot Two', 400]])
+  })
+
+  it('sends the project, the character, the delta and the accounted quantity when declining a contribution', async () => {
+    const importBodies = respondToScanAndImport([PILOT_ONE_CONTRIBUTION_DELTA], { imported: 0, rejectedZeroPrice: 0, rejectedContributions: 0 })
+    const onError = vi.fn()
+    const scanning = mountScanning({ onError })
+    await scanning.scanLootSales(30)
+
+    await scanning.ignoreLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+
+    expect(importBodies).toEqual([{
+      sales: [],
+      declined: [{
+        type: 'corp_project',
+        transactionId: -1497420833,
+        projectId: 'a1b2c3d4-project',
+        characterId: 2112000001,
+        quantity: 600,
+        accountedQuantity: 1000,
+      }],
+    }])
+    expect(onError).not.toHaveBeenCalled()
+    expect(detectedSaleSummaries(scanning)).toEqual([])
+  })
+
+  it('reports a declined contribution counted in the meantime and drops it from the list', async () => {
+    respondToScanAndImport([PILOT_ONE_CONTRIBUTION_DELTA, PILOT_TWO_FIRST_CONTRIBUTION], { imported: 0, rejectedZeroPrice: 0, rejectedContributions: 1 })
+    const onError = vi.fn()
+    const scanning = mountScanning({ onError })
+    await scanning.scanLootSales(30)
+
+    await scanning.ignoreLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+
+    expect(onError.mock.calls).toEqual([['Contribution already counted in the meantime (sync or another tab): run the scan again.']])
+    expect(detectedSaleSummaries(scanning)).toEqual([['Pilot Two', 400]])
+  })
+
+  it('keeps declining a market sale by its transaction identifier only', async () => {
+    const importBodies = respondToScanAndImport([MARKET_LOOT_SALE], { imported: 0, rejectedZeroPrice: 0, rejectedContributions: 0 })
+    const scanning = mountScanning()
+    await scanning.scanLootSales(30)
+
+    await scanning.ignoreLootSale(scanning.lootScanResults.value!.detectedSales[0]!)
+
+    expect(importBodies).toEqual([{ sales: [], declined: [{ transactionId: 8200017 }] }])
+  })
+})

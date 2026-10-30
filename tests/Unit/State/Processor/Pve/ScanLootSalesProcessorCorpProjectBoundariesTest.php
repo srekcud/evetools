@@ -41,13 +41,18 @@ final class ScanLootSalesProcessorCorpProjectBoundariesTest extends TestCase
                 $this->character(self::PILOT_TWO_ID, 'Pilot Two', self::CORPORATION_ID, self::CORPORATION_NAME),
                 $this->character(self::PILOT_THREE_ID, 'Pilot Three', self::CORPORATION_ID, self::CORPORATION_NAME),
             ],
-            importedTransactionIds: [-abs(crc32('a1b2c3d4-project_2112000001'))],
             declinedTransactionIds: [-abs(crc32('a1b2c3d4-project_2112000002'))],
+            corpProjectImports: [[
+                'corpProjectId' => self::PROJECT_ID,
+                'corpProjectCharacterId' => self::EVE_CHARACTER_ID,
+                'corpProjectQuantity' => 1000,
+                'transactionId' => -abs(crc32('a1b2c3d4-project_2112000001_1000')),
+            ]],
         );
 
         $result = $processor->process(null, new Post());
 
-        $this->assertSame([[-abs(crc32('a1b2c3d4-project_2112000003')), 'Pilot Three', 250, 3125.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32('a1b2c3d4-project_2112000003_250')), 'Pilot Three', 250, 3125.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
 

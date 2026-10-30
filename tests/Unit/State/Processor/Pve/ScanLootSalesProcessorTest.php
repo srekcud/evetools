@@ -16,6 +16,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Pve\CorpProjectContributionAccounting;
 use App\Service\Pve\CorpProjectContributionReader;
 use App\State\Processor\Pve\ScanLootSalesProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -140,6 +141,7 @@ class ScanLootSalesProcessorTest extends TestCase
 
         $incomeRepository = $this->createStub(PveIncomeRepository::class);
         $incomeRepository->method('getImportedTransactionIds')->willReturn([]);
+        $incomeRepository->method('findCorpProjectImports')->willReturn([]);
 
         $typesById = [
             self::FIFTH_TIER_OVERSEERS_PERSONAL_EFFECTS => $this->createInvType("5th Tier Overseer's Personal Effects"),
@@ -166,6 +168,10 @@ class ScanLootSalesProcessorTest extends TestCase
                 tokenManager: $tokenManager,
                 cache: new ArrayAdapter(),
                 logger: new NullLogger(),
+                contributionAccounting: new CorpProjectContributionAccounting(
+                    incomeRepository: $incomeRepository,
+                    settingsRepository: $settingsRepository,
+                ),
             ),
         );
     }

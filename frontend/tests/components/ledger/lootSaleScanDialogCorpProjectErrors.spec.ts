@@ -56,6 +56,22 @@ const PILOT_ONE_CONTRIBUTION_INCOMPLETE: CorporationProjectError = {
   httpStatus: null,
 }
 
+const PILOT_ONE_CUMUL_BELOW_IMPORTED: CorporationProjectError = {
+  corporationName: 'Fictional Mining Corp',
+  projectName: 'Tritanium Drive',
+  characterName: 'Pilot One',
+  reason: 'contribution_below_imported',
+  httpStatus: null,
+}
+
+const PILOT_ONE_LEGACY_IMPORT_QUANTITY_UNKNOWN: CorporationProjectError = {
+  corporationName: 'Fictional Mining Corp',
+  projectName: 'Tritanium Drive',
+  characterName: 'Pilot One',
+  reason: 'legacy_import_quantity_unknown',
+  httpStatus: null,
+}
+
 function contributionOfUnknownValue(): DetectedLootSale {
   return {
     transactionId: -1830477215,
@@ -372,6 +388,65 @@ describe('LootSaleScanDialog corporation project errors', () => {
       ],
       'pve.errors.lootContractsScanHttpFailure': ['Loot contracts scan failed (HTTP {status})', 'Scan des contrats de loot en échec (HTTP {status})'],
       'ledger.period.all': ['All', 'Tout'],
+    }
+
+    const paths = Object.keys(expectedTexts)
+    expect(Object.fromEntries(paths.map(path => [path, messageAt(en, path)]))).toEqual(
+      Object.fromEntries(paths.map(path => [path, expectedTexts[path][0]])),
+    )
+    expect(Object.fromEntries(paths.map(path => [path, messageAt(fr, path)]))).toEqual(
+      Object.fromEntries(paths.map(path => [path, expectedTexts[path][1]])),
+    )
+  })
+
+  it('reports a cumul lower than the quantity already imported without the characters link', () => {
+    const wrapper = mountDialog(scanResult({ corporationProjectErrors: [PILOT_ONE_CUMUL_BELOW_IMPORTED] }))
+
+    expect(alertTexts(wrapper)[0]).toContain(
+      'Contribution of Pilot One to project Tritanium Drive could not be read: ESI quantity lower than the quantity already imported',
+    )
+    expect(reconnectLinkTargets(wrapper, 'Reconnect characters')).toEqual([])
+  })
+
+  it('reports a cumul lower than the quantity already imported in French', () => {
+    const wrapper = mountDialog(scanResult({ corporationProjectErrors: [PILOT_ONE_CUMUL_BELOW_IMPORTED] }), 'fr')
+
+    expect(alertTexts(wrapper)[0]).toContain(
+      'Contribution de Pilot One au projet Tritanium Drive illisible : quantité ESI inférieure à la quantité déjà importée',
+    )
+  })
+
+  it('asks to delete the income line of a previous import of unknown quantity', () => {
+    const wrapper = mountDialog(scanResult({ corporationProjectErrors: [PILOT_ONE_LEGACY_IMPORT_QUANTITY_UNKNOWN] }))
+
+    expect(alertTexts(wrapper)[0]).toContain(
+      "Contribution of Pilot One to project Tritanium Drive could not be read: quantity of the previous import unknown, delete this project's income line to import it again",
+    )
+    expect(reconnectLinkTargets(wrapper, 'Reconnect characters')).toEqual([])
+  })
+
+  it('asks to delete the income line of a previous import of unknown quantity in French', () => {
+    const wrapper = mountDialog(scanResult({ corporationProjectErrors: [PILOT_ONE_LEGACY_IMPORT_QUANTITY_UNKNOWN] }), 'fr')
+
+    expect(alertTexts(wrapper)[0]).toContain(
+      "Contribution de Pilot One au projet Tritanium Drive illisible : quantité de l'import précédent inconnue, supprimez la ligne de revenu de ce projet pour la réimporter",
+    )
+  })
+
+  it('declares the lot 2 texts of the pending corporation project contributions in English and French', () => {
+    const expectedTexts: Record<string, [string, string]> = {
+      'pve.corpProjectErrors.reason.contribution_below_imported': [
+        'ESI quantity lower than the quantity already imported',
+        'quantité ESI inférieure à la quantité déjà importée',
+      ],
+      'pve.corpProjectErrors.reason.legacy_import_quantity_unknown': [
+        "quantity of the previous import unknown, delete this project's income line to import it again",
+        "quantité de l'import précédent inconnue, supprimez la ligne de revenu de ce projet pour la réimporter",
+      ],
+      'pve.errors.corpProjectContributionStale': [
+        'Contribution already counted in the meantime (sync or another tab): run the scan again.',
+        'Contribution déjà comptée entre-temps (synchro ou autre onglet) : relancez le scan.',
+      ],
     }
 
     const paths = Object.keys(expectedTexts)

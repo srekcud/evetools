@@ -46,7 +46,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame(1, $result->scannedProjects);
         $this->assertCount(1, $result->detectedSales);
         $sale = $result->detectedSales[0];
-        $this->assertSame(-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID)), $sale->transactionId);
+        $this->assertSame(-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID . '_1000')), $sale->transactionId);
         $this->assertSame(0, $sale->contractId);
         $this->assertSame(self::PROJECT_ID, $sale->projectId);
         $this->assertSame(PveIncomeType::CorpProject->value, $sale->type);
@@ -168,7 +168,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame(1, $result->scannedProjects);
         $this->assertCount(1, $result->detectedSales);
         $sale = $result->detectedSales[0];
-        $this->assertSame(-abs(crc32(self::RED_LOOT_PROJECT_ID . '_' . self::EVE_CHARACTER_ID)), $sale->transactionId);
+        $this->assertSame(-abs(crc32(self::RED_LOOT_PROJECT_ID . '_' . self::EVE_CHARACTER_ID . '_' . self::RED_LOOT_CONTRIBUTED_QUANTITY)), $sale->transactionId);
         $this->assertSame(self::RED_LOOT_PROJECT_ID, $sale->projectId);
         $this->assertSame(PveIncomeType::CorpProject->value, $sale->type);
         $this->assertSame(self::ROGUE_DRONE_INFESTATION_DATA, $sale->typeId);
@@ -366,7 +366,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame($this->tritaniumDrivePaths(self::PILOT_THREE_ID), $this->requestedPaths());
         $this->assertSame(array_fill(0, 6, 'Authorization: Bearer access-token-2112000003'), $this->requestedAuthorizations());
         $this->assertSame(1, $result->scannedProjects);
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_THREE_ID)), 'Pilot Three', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_THREE_ID . '_1000')), 'Pilot Three', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame(['Pilot One', 'Pilot Two', 'Pilot Four'], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
@@ -411,7 +411,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame($this->tritaniumDrivePaths(self::EVE_CHARACTER_ID), $this->requestedPaths());
         $this->assertSame(array_fill(0, 6, 'Authorization: Bearer access-token-2112000001'), $this->requestedAuthorizations());
         $this->assertSame(1, $result->scannedProjects);
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID)), 'Pilot One', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID . '_1000')), 'Pilot One', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame([], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
@@ -447,7 +447,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame($this->tritaniumDrivePaths(self::PILOT_TWO_ID), $this->requestedPaths());
         $this->assertSame(array_fill(0, 6, 'Authorization: Bearer access-token-2112000002'), $this->requestedAuthorizations());
         $this->assertSame(1, $result->scannedProjects);
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID)), 'Pilot Two', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID . '_1000')), 'Pilot Two', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame(['Pilot One'], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
@@ -497,7 +497,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame($this->tritaniumDrivePaths(self::EVE_CHARACTER_ID), $this->requestedPaths());
         $this->assertSame(array_fill(0, 6, 'Authorization: Bearer access-token-2112000001'), $this->requestedAuthorizations());
         $this->assertSame(1, $result->scannedProjects);
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID)), 'Pilot One', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID . '_1000')), 'Pilot One', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame(['Pilot Two'], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
@@ -519,7 +519,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
 
         $this->assertSame($this->tritaniumDrivePaths(self::EVE_CHARACTER_ID), $this->requestedPaths());
         $this->assertSame(array_fill(0, 6, 'Authorization: Bearer access-token-2112000001'), $this->requestedAuthorizations());
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID)), 'Pilot One', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID . '_1000')), 'Pilot One', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
         $this->assertNull($result->scannedProjects);
         $this->assertSame(['Pilot Three', 'Pilot Four'], $result->charactersToReconnect);
         $this->assertSame([[self::SECOND_CORPORATION_NAME, null, null, 'no_valid_character', null]], $this->errorSummaries($result->corporationProjectErrors));
@@ -542,7 +542,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
 
         $this->assertSame($this->tritaniumDrivePaths(self::PILOT_TWO_ID), $this->requestedPaths());
         $this->assertSame(array_fill(0, 6, 'Authorization: Bearer access-token-2112000002'), $this->requestedAuthorizations());
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID)), 'Pilot Two', 360, 4500.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID . '_360')), 'Pilot Two', 360, 4500.0]], $this->saleSummaries($result->detectedSales));
         $this->assertNull($result->scannedProjects);
         $this->assertSame(['Pilot Three', 'Pilot Four', 'Pilot One'], $result->charactersToReconnect);
         $this->assertSame([[self::SECOND_CORPORATION_NAME, null, null, 'no_valid_character', null]], $this->errorSummaries($result->corporationProjectErrors));
@@ -563,7 +563,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
 
         $this->assertSame($this->tritaniumDrivePaths(self::EVE_CHARACTER_ID), $this->requestedPaths());
         $this->assertSame(1, $result->scannedProjects);
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID)), 'Pilot One', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::EVE_CHARACTER_ID . '_1000')), 'Pilot One', 1000, 12500.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame(['Pilot Two'], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
@@ -592,7 +592,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame($this->tritaniumDrivePaths(self::PILOT_TWO_ID), $this->requestedPaths());
         $this->assertSame(array_fill(0, 6, 'Authorization: Bearer access-token-2112000002'), $this->requestedAuthorizations());
         $this->assertSame(1, $result->scannedProjects);
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID)), 'Pilot Two', 640, 8000.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID . '_640')), 'Pilot Two', 640, 8000.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame([], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
@@ -620,7 +620,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
 
         $this->assertSame($this->tritaniumDrivePaths(self::PILOT_TWO_ID), $this->requestedPaths());
         $this->assertSame(array_fill(0, 6, 'Authorization: Bearer access-token-2112000002'), $this->requestedAuthorizations());
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID)), 'Pilot Two', 520, 6500.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID . '_520')), 'Pilot Two', 520, 6500.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame(['Pilot One'], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
@@ -673,7 +673,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
             $this->requestedAuthorizations(),
         );
         $this->assertSame(1, $result->scannedProjects);
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_THREE_ID)), 'Pilot Three', 730, 9125.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_THREE_ID . '_730')), 'Pilot Three', 730, 9125.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame(['Pilot Two'], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }
@@ -703,7 +703,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $corporationProjectsScan = array_fill(0, 7, self::PILOT_TWO_ID);
         $this->assertSame([...$walletTransactionsScan, ...$contractsScan, ...$corporationProjectsScan], $this->accessTokenRequests);
         $this->assertSame($this->tritaniumDrivePaths(self::PILOT_TWO_ID), $this->requestedPaths());
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID)), 'Pilot Two', 820, 10250.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID . '_820')), 'Pilot Two', 820, 10250.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame(['Pilot One'], $result->charactersToReconnect);
     }
 
@@ -733,7 +733,7 @@ class ScanLootSalesProcessorCorpProjectsTest extends TestCase
         $this->assertSame(array_slice($this->tritaniumDrivePaths(self::PILOT_TWO_ID), 2), $this->requestedPaths());
         $this->assertSame(array_fill(0, 4, 'Authorization: Bearer access-token-2112000002'), $this->requestedAuthorizations());
         $this->assertSame(1, $result->scannedProjects);
-        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID)), 'Pilot Two', 580, 7250.0]], $this->saleSummaries($result->detectedSales));
+        $this->assertSame([[-abs(crc32(self::PROJECT_ID . '_' . self::PILOT_TWO_ID . '_580')), 'Pilot Two', 580, 7250.0]], $this->saleSummaries($result->detectedSales));
         $this->assertSame(['Pilot One'], $result->charactersToReconnect);
         $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
     }

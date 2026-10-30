@@ -6,6 +6,7 @@ namespace App\Tests\Unit\ApiResource\Pve;
 
 use App\ApiResource\Pve\CorporationProjectErrorResource;
 use App\ApiResource\Pve\DetectedSaleResource;
+use App\ApiResource\Pve\ImportResultResource;
 use App\ApiResource\Pve\ScanLootSalesResultResource;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -14,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ScanLootSalesResultResource::class)]
 #[CoversClass(CorporationProjectErrorResource::class)]
 #[CoversClass(DetectedSaleResource::class)]
+#[CoversClass(ImportResultResource::class)]
 #[Group('issue-243')]
 final class ScanLootSalesResultResourceTest extends TestCase
 {
@@ -51,6 +53,23 @@ final class ScanLootSalesResultResourceTest extends TestCase
     public function testDetectedSalePriceCanBeUnknown(): void
     {
         $this->assertSame('?float', $this->propertyType(DetectedSaleResource::class, 'price'));
+    }
+
+    public function testDetectedSaleCarriesAnOptionalCharacterAndAccountedQuantityLeftUnsetOutsideCorporationProjects(): void
+    {
+        $sale = new DetectedSaleResource();
+
+        $this->assertSame(['?int', '?int'], [
+            $this->propertyType(DetectedSaleResource::class, 'characterId'),
+            $this->propertyType(DetectedSaleResource::class, 'accountedQuantity'),
+        ]);
+        $this->assertSame([null, null], [$sale->characterId, $sale->accountedQuantity]);
+    }
+
+    public function testImportResultCountsNoRejectedContributionByDefault(): void
+    {
+        $this->assertSame('int', $this->propertyType(ImportResultResource::class, 'rejectedContributions'));
+        $this->assertSame(0, (new ImportResultResource())->rejectedContributions);
     }
 
     private function propertyType(string $className, string $propertyName): string
