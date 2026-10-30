@@ -633,6 +633,7 @@ defineExpose({
       @close="scanning.showLootScanResults.value = false"
       @import-sale="scanning.importSingleLootSale"
       @ignore-sale="scanning.ignoreLootSale"
+      @open-loot-config="showLootConfig = true"
     />
   </div>
 </template>

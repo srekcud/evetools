@@ -12,6 +12,7 @@ use App\Entity\PveIncome;
 use App\Entity\User;
 use App\Enum\PveIncomeType;
 use App\Entity\UserLedgerSettings;
+use App\Repository\MiningEntryRepository;
 use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserLedgerSettingsRepository;
@@ -34,6 +35,7 @@ class LedgerDashboardProvider implements ProviderInterface
         private readonly UserPveSettingsRepository $pveSettingsRepository,
         private readonly MiningBestValueCalculator $miningBestValueCalculator,
         private readonly RequestStack $requestStack,
+        private readonly MiningEntryRepository $miningEntryRepository,
     ) {
     }
 
@@ -140,8 +142,20 @@ class LedgerDashboardProvider implements ProviderInterface
         $resource->settings = [
             'corpProjectAccounting' => $corpProjectAccounting,
         ];
+        $resource->oldestEntryDate = $this->oldestEntryDate($user)?->format('Y-m-d');
 
         return $resource;
+    }
+
+    private function oldestEntryDate(User $user): ?\DateTimeImmutable
+    {
+        $oldestDates = array_filter([
+            $this->pveIncomeRepository->findOldestDate($user),
+            $this->pveExpenseRepository->findOldestDate($user),
+            $this->miningEntryRepository->findOldestDate($user),
+        ]);
+
+        return $oldestDates === [] ? null : min($oldestDates);
     }
 
     /**

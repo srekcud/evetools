@@ -290,6 +290,13 @@ class PveIncomeRepository extends ServiceEntityRepository
 
     public function findOldestDate(User $user): ?\DateTimeImmutable
     {
-        throw new \LogicException('Not implemented yet');
+        $oldestDate = $this->createQueryBuilder('i')
+            ->select('MIN(i.date)')
+            ->where('i.user = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $oldestDate === null ? null : new \DateTimeImmutable((string) $oldestDate);
     }
 }

@@ -9,13 +9,6 @@ import type {
   LootSaleScanResult,
 } from '@/types/pve'
 
-const FAILED_LOOT_SALES_SCAN = {
-  detectedSales: [],
-  scannedProjects: null,
-  charactersToReconnect: [],
-  corporationsWithoutValidCharacter: [],
-}
-
 export function usePveExpenseScanning(
   onDataRefresh: () => Promise<void>,
   onError: (message: string) => void,
@@ -165,8 +158,17 @@ export function usePveExpenseScanning(
         })
       ])
 
-      const lootSalesData = lootSalesResponse.ok ? await lootSalesResponse.json() : FAILED_LOOT_SALES_SCAN
-      const lootContractsData = lootContractsResponse.ok ? await lootContractsResponse.json() : { detectedContracts: [] }
+      if (!lootSalesResponse.ok) {
+        onError(t('pve.errors.lootSalesScanHttpFailure', { status: lootSalesResponse.status }))
+        return
+      }
+      if (!lootContractsResponse.ok) {
+        onError(t('pve.errors.lootContractsScanHttpFailure', { status: lootContractsResponse.status }))
+        return
+      }
+
+      const lootSalesData = await lootSalesResponse.json()
+      const lootContractsData = await lootContractsResponse.json()
 
       const lootSales: DetectedLootSale[] = (lootSalesData.detectedSales || [])
         .filter((s: DetectedLootSale) => s.source !== 'contract')
@@ -174,7 +176,7 @@ export function usePveExpenseScanning(
         .map((s: DetectedLootSale) => ({
           ...s,
           selected: true,
-          needsPriceInput: s.source === 'corp_project' && s.price === 0
+          needsPriceInput: s.source === 'corp_project' && (s.price === null || s.price === 0)
         }))
 
       const lootContracts: DetectedLootSale[] = (lootContractsData.detectedContracts || [])
@@ -205,17 +207,23 @@ export function usePveExpenseScanning(
 
       const allSales = [...lootSales, ...lootContracts]
 
-      if (allSales.length === 0 && lootSalesData.noLootTypesConfigured) {
+      const hasNothingToShow = allSales.length === 0
+        && lootSalesData.corporationProjectErrors.length === 0
+        && lootSalesData.charactersToReconnect.length === 0
+      if (lootSalesData.noLootTypesConfigured && hasNothingToShow) {
         onOpenLootConfig()
         return
       }
 
       lootScanResults.value = {
-        scannedTransactions: lootSalesData.scannedTransactions || 0,
-        scannedContracts: (lootSalesData.scannedContracts || 0) + (lootContractsData.scannedContracts || 0),
+        scannedTransactions: lootSalesData.scannedTransactions,
+        scannedContracts: lootSalesData.noLootTypesConfigured
+          ? lootContractsData.scannedContracts
+          : lootSalesData.scannedContracts + lootContractsData.scannedContracts,
         scannedProjects: lootSalesData.scannedProjects,
         charactersToReconnect: lootSalesData.charactersToReconnect,
-        corporationsWithoutValidCharacter: lootSalesData.corporationsWithoutValidCharacter,
+        corporationProjectErrors: lootSalesData.corporationProjectErrors,
+        noLootTypesConfigured: lootSalesData.noLootTypesConfigured,
         detectedSales: allSales
       }
       showLootScanResults.value = true

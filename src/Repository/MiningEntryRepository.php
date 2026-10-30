@@ -337,6 +337,13 @@ class MiningEntryRepository extends ServiceEntityRepository
 
     public function findOldestDate(User $user): ?\DateTimeImmutable
     {
-        throw new \LogicException('Not implemented yet');
+        $oldestDate = $this->createQueryBuilder('m')
+            ->select('MIN(m.date)')
+            ->where('m.user = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $oldestDate === null ? null : new \DateTimeImmutable((string) $oldestDate);
     }
 }

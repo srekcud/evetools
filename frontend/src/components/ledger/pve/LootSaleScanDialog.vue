@@ -2,9 +2,10 @@
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
+import LootSaleActions from '@/components/ledger/pve/LootSaleActions.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
-import type { LootSaleScanResult, DetectedLootSale } from '@/types/pve'
+import type { CorporationProjectError, LootSaleScanResult, DetectedLootSale } from '@/types/pve'
 
 defineProps<{
   visible: boolean
@@ -16,14 +17,43 @@ const emit = defineEmits<{
   close: []
   importSale: [sale: DetectedLootSale]
   ignoreSale: [sale: DetectedLootSale]
+  openLootConfig: []
 }>()
+
+const REASONS_REQUIRING_RECONNECTION = ['no_valid_character', 'missing_projects_scope']
+
+const { t } = useI18n()
 
 function hasAuthenticationNotice(results: LootSaleScanResult): boolean {
   return results.charactersToReconnect.length > 0
+    || results.corporationProjectErrors.some(error => REASONS_REQUIRING_RECONNECTION.includes(error.reason))
 }
 
-const { t } = useI18n()
-const { formatIskFull, formatDate } = useFormatters()
+function hasNotice(results: LootSaleScanResult): boolean {
+  return hasAuthenticationNotice(results) || results.corporationProjectErrors.length > 0 || results.noLootTypesConfigured
+}
+
+function summaryOf(results: LootSaleScanResult): string {
+  const counts = { transactions: results.scannedTransactions, contracts: results.scannedContracts, projects: results.scannedProjects, detected: results.detectedSales.length }
+  if (results.noLootTypesConfigured) {
+    return t(results.scannedProjects === null ? 'pve.lootScanSummaryNoLootTypesUnknownProjects' : 'pve.lootScanSummaryNoLootTypes', counts)
+  }
+  return t(results.scannedProjects === null ? 'pve.lootScanSummaryUnknownProjects' : 'pve.lootScanSummary', counts)
+}
+
+function describeCorporationProjectError(error: CorporationProjectError): string {
+  const subject = error.projectName === null
+    ? t('pve.corpProjectErrors.subject.corporation', { corporation: error.corporationName })
+    : error.characterName === null
+      ? t('pve.corpProjectErrors.subject.project', { project: error.projectName, corporation: error.corporationName })
+      : t('pve.corpProjectErrors.subject.contribution', { character: error.characterName, project: error.projectName })
+  const reason = error.reason === 'esi_error' && error.httpStatus === null
+    ? t('pve.corpProjectErrors.reason.esi_error_network')
+    : t(`pve.corpProjectErrors.reason.${error.reason}`, { status: error.httpStatus })
+  return t('pve.corpProjectErrors.line', { subject, reason })
+}
+
+const { formatDate } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 </script>
 
@@ -41,7 +71,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
           <div>
             <h3 :id="titleId" class="text-lg font-semibold">{{ t('pve.detectedLootSales') }}</h3>
             <p class="text-sm text-slate-400 mt-1">
-              {{ t(scanResults.scannedProjects === null ? 'pve.lootScanSummaryUnknownProjects' : 'pve.lootScanSummary', { transactions: scanResults.scannedTransactions, contracts: scanResults.scannedContracts || 0, projects: scanResults.scannedProjects, detected: scanResults.detectedSales.length }) }}
+              {{ summaryOf(scanResults) }}
             </p>
           </div>
           <button @click="emit('close')" class="text-slate-400 hover:text-slate-300" :aria-label="t('common.actions.close')">
@@ -53,14 +83,35 @@ const { getTypeIconUrl, onImageError } = useEveImages()
       </div>
     </template>
 
-    <div v-if="hasAuthenticationNotice(scanResults)" class="px-6 pt-4 space-y-3">
+    <div v-if="hasNotice(scanResults)" class="px-6 pt-4 space-y-3">
+      <div
+        v-for="(error, index) in scanResults.corporationProjectErrors"
+        :key="index"
+        role="alert"
+        class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400"
+      >
+        {{ describeCorporationProjectError(error) }}
+      </div>
+      <div
+        v-if="scanResults.noLootTypesConfigured"
+        class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-400 space-y-2"
+      >
+        <p>{{ t('pve.noLootTypesProjectsOnly') }}</p>
+        <button
+          type="button"
+          class="px-3 py-1 text-xs bg-amber-600 hover:bg-amber-500 rounded-sm text-white font-medium"
+          @click="emit('openLootConfig')"
+        >
+          {{ t('pve.configureLootTypes') }}
+        </button>
+      </div>
       <div
         v-if="scanResults.charactersToReconnect.length > 0"
         class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-400"
       >
         {{ t('pve.charactersToReconnect', { count: scanResults.charactersToReconnect.length, names: scanResults.charactersToReconnect.join(', ') }) }}
       </div>
-      <RouterLink to="/characters" class="inline-block text-sm text-blue-400 hover:text-blue-300 underline">
+      <RouterLink v-if="hasAuthenticationNotice(scanResults)" to="/characters" class="inline-block text-sm text-blue-400 hover:text-blue-300 underline">
         {{ t('pve.reconnectCharactersLink') }}
       </RouterLink>
     </div>
@@ -96,40 +147,12 @@ const { getTypeIconUrl, onImageError } = useEveImages()
               <p class="text-sm text-slate-300">{{ sale.typeName }}</p>
               <p class="text-xs text-slate-500">{{ formatDate(sale.dateIssued) }}</p>
             </div>
-            <div class="flex flex-col items-end gap-2">
-              <!-- Editable price for 0 ISK contracts or corp project contributions -->
-              <div v-if="(sale.source === 'contract' || sale.source === 'corp_project') && sale.price === 0" class="flex items-center gap-1">
-                <input
-                  type="number"
-                  v-model.number="sale.price"
-                  :aria-label="sale.typeName"
-                  class="w-28 px-2 py-1 text-right bg-slate-700 border border-slate-600 rounded-sm text-amber-400 font-mono text-sm focus:outline-hidden focus:border-amber-500"
-                  min="0"
-                  step="100000"
-                  :placeholder="sale.source === 'corp_project' ? 'Valeur' : 'Prix'"
-                />
-                <span class="text-xs text-slate-500">ISK</span>
-              </div>
-              <!-- Fixed price display -->
-              <p v-else class="text-amber-400 font-mono text-sm">+{{ formatIskFull(sale.price) }}</p>
-              <!-- Action buttons -->
-              <div class="flex gap-2">
-                <button
-                  @click="emit('importSale', sale)"
-                  :disabled="isImporting || ((sale.source === 'contract' || sale.source === 'corp_project') && sale.price <= 0)"
-                  class="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-sm text-white font-medium"
-                >
-                  {{ t('common.actions.add') }}
-                </button>
-                <button
-                  @click="emit('ignoreSale', sale)"
-                  :disabled="isImporting"
-                  class="px-3 py-1 text-xs bg-slate-600 hover:bg-slate-500 disabled:opacity-50 rounded-sm text-slate-300 font-medium"
-                >
-                  {{ t('pve.ignore') }}
-                </button>
-              </div>
-            </div>
+            <LootSaleActions
+              :detected-sale="sale"
+              :is-importing="isImporting"
+              @import-sale="emit('importSale', sale)"
+              @ignore-sale="emit('ignoreSale', sale)"
+            />
           </div>
         </div>
       </div>

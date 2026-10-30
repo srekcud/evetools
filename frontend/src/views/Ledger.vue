@@ -32,10 +32,12 @@ const periodOptions = computed(() => [
   { value: 90, label: t('ledger.period.nDays', { n: 90 }) },
 ])
 
+const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
+
 const ytdDays = computed(() => {
   const now = new Date()
   const startOfYear = new Date(now.getFullYear(), 0, 1)
-  return Math.ceil((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24))
+  return Math.ceil((now.getTime() - startOfYear.getTime()) / MILLISECONDS_PER_DAY)
 })
 
 // Loading states
@@ -43,6 +45,12 @@ const isLoading = computed(() => ledgerStore.isLoading || pveStore.isLoading)
 
 // Dashboard data
 const dashboard = computed(() => ledgerStore.dashboard)
+const allDays = computed(() => {
+  const oldestEntryDate = dashboard.value?.oldestEntryDate
+  if (!oldestEntryDate) return null
+  const oldestEntryStart = new Date(`${oldestEntryDate}T00:00:00Z`)
+  return Math.ceil((Date.now() - oldestEntryStart.getTime()) / MILLISECONDS_PER_DAY) + 1
+})
 const dailyStats = computed(() => ledgerStore.dailyStats)
 
 // Settings
@@ -117,6 +125,18 @@ onMounted(async () => {
               ]"
             >
               YTD
+            </button>
+            <button
+              v-if="allDays !== null"
+              @click="selectedDays = allDays"
+              :class="[
+                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                selectedDays === allDays
+                  ? 'bg-cyan-600 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              ]"
+            >
+              {{ t('ledger.period.all') }}
             </button>
           </div>
         </div>

@@ -20,7 +20,7 @@ class DetectedSaleResource
 
     public int $quantity = 0;
 
-    public float $price = 0.0;
+    public ?float $price = null;
 
     public string $dateIssued = '';
 

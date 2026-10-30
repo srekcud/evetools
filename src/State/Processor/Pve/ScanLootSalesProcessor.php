@@ -6,24 +6,20 @@ namespace App\State\Processor\Pve;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
+use App\ApiResource\Pve\CorporationProjectErrorResource;
 use App\ApiResource\Pve\DetectedSaleResource;
 use App\ApiResource\Pve\ScanLootSalesResultResource;
-use App\Entity\Character;
-use App\Entity\PveIncome;
 use App\Entity\User;
 use App\Enum\PveIncomeType;
-use App\Exception\EveAuthRequiredException;
 use App\Repository\PveIncomeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
-use App\Entity\EveToken;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Pve\CorpProjectContributionReader;
+use App\Service\Pve\CorporationProjectReadError;
 use App\Service\UnknownTypeName;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -33,10 +29,6 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class ScanLootSalesProcessor implements ProcessorInterface
 {
-    private const CACHE_TTL_PROJECTS = 900; // 15 minutes
-    private const CACHE_TTL_CONTRIBUTORS = 300; // 5 minutes
-    private const CORP_PROJECTS_COMPATIBILITY_DATE = '2025-12-16';
-
     public function __construct(
         private readonly Security $security,
         private readonly EsiClient $esiClient,
@@ -47,7 +39,6 @@ class ScanLootSalesProcessor implements ProcessorInterface
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
         private readonly CorpProjectContributionReader $corpProjectContributionReader,
-        private readonly CacheItemPoolInterface $cache = new ArrayAdapter(),
     ) {
     }
 
@@ -68,15 +59,6 @@ class ScanLootSalesProcessor implements ProcessorInterface
 
         $resource = new ScanLootSalesResultResource();
 
-        if (empty($lootTypeIds)) {
-            $resource->scannedTransactions = 0;
-            $resource->scannedContracts = 0;
-            $resource->detectedSales = [];
-            $resource->noLootTypesConfigured = true;
-
-            return $resource;
-        }
-
         $importedTransactionIds = $this->incomeRepository->getImportedTransactionIds($user);
         $declinedTransactionIds = $settings->getDeclinedLootSaleTransactionIds();
 
@@ -84,8 +66,10 @@ class ScanLootSalesProcessor implements ProcessorInterface
         $scannedTransactions = 0;
         $scannedContracts = 0;
 
+        $charactersReadForLootSales = $lootTypeIds === [] ? [] : $user->getCharacters();
+
         // Scan market transactions
-        foreach ($user->getCharacters() as $character) {
+        foreach ($charactersReadForLootSales as $character) {
             $token = $character->getEveToken();
             if ($token === null) {
                 continue;
@@ -153,7 +137,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
         }
 
         // Scan contracts for loot sales
-        foreach ($user->getCharacters() as $character) {
+        foreach ($charactersReadForLootSales as $character) {
             $token = $character->getEveToken();
             if ($token === null) {
                 continue;
@@ -272,221 +256,62 @@ class ScanLootSalesProcessor implements ProcessorInterface
             }
         }
 
-        // Scan corporation projects contributions
-        $scannedProjects = 0;
-        $scannedCorporations = [];
-        $corporationsWithoutValidCharacter = [];
-        $refusedCharacterIds = [];
+        $corpProjectReading = $this->corpProjectContributionReader->read($user, $from);
 
-        foreach ($user->getCharacters() as $character) {
-            $token = $character->getEveToken();
-            if ($token === null) {
+        foreach ($corpProjectReading->contributions as $contribution) {
+            $trackingId = -abs(crc32($contribution->projectId . '_' . $contribution->characterId));
+
+            if (in_array($trackingId, $importedTransactionIds, true)) {
+                continue;
+            }
+            if (in_array($trackingId, $declinedTransactionIds, true)) {
                 continue;
             }
 
-            $corporationId = $character->getCorporationId();
+            $typeName = $contribution->typeId > 0
+                ? ($this->invTypeRepository->find($contribution->typeId)?->getTypeName() ?? UnknownTypeName::label($contribution->typeId))
+                : 'Items';
 
-            // Skip NPC corporations (ID < 2000000)
-            if ($corporationId < 2000000) {
-                continue;
-            }
+            $sale = new DetectedSaleResource();
+            $sale->transactionId = $trackingId;
+            $sale->contractId = 0;
+            $sale->projectId = $contribution->projectId;
+            $sale->type = PveIncomeType::CorpProject->value;
+            $sale->typeId = $contribution->typeId;
+            $sale->typeName = "{$contribution->contributed}x {$typeName}";
+            $sale->quantity = $contribution->contributed;
+            $sale->price = $contribution->rewardPerContribution === null
+                ? null
+                : $contribution->contributed * $contribution->rewardPerContribution;
+            $sale->dateIssued = $contribution->contributedAt->format('Y-m-d');
+            $sale->characterName = $contribution->characterName;
+            $sale->source = 'corp_project';
+            $sale->projectName = $contribution->projectName;
 
-            // Skip if we already scanned this corporation
-            if (in_array($corporationId, $scannedCorporations, true)) {
-                continue;
-            }
-            $scannedCorporations[] = $corporationId;
-
-            $userCharactersMap = [];
-            foreach ($user->getCharacters() as $char) {
-                if ($char->getCorporationId() === $corporationId && $char->getEveToken() !== null) {
-                    $userCharactersMap[$char->getEveCharacterId()] = $char;
-                }
-            }
-            $userCharacterIds = array_keys($userCharactersMap);
-
-            try {
-                $projectsReader = $this->selectProjectsReader($userCharactersMap, $corporationId, $refusedCharacterIds);
-
-                if ($projectsReader === null) {
-                    $corporationsWithoutValidCharacter[] = $character->getCorporationName();
-                    continue;
-                }
-
-                ['token' => $token, 'projects' => $projects] = $projectsReader;
-
-                $this->logger->info('Corp projects: Found ' . count($projects) . ' projects for corp ' . $corporationId);
-
-                $relevantProjects = array_filter(
-                    $projects,
-                    static fn (array $project): bool => $project['state'] !== 'Deleted'
-                        && new \DateTimeImmutable($project['last_modified']) >= $from,
-                );
-
-                foreach ($relevantProjects as $project) {
-                    $scannedProjects++;
-                    $projectId = $project['id'] ?? null;
-                    if ($projectId === null) {
-                        continue;
-                    }
-                    $projectName = $project['name'] ?? 'Project';
-
-                    // First get list of contributors (cached)
-                    try {
-                        $contributorIds = $this->getCachedContributors($corporationId, $projectId, $token);
-
-                        // Check if any of user's characters contributed
-                        $matchingCharIds = array_intersect($userCharacterIds, $contributorIds);
-
-                        if (empty($matchingCharIds)) {
-                            continue; // No contributions from user's characters
-                        }
-
-                        $this->logger->info("Corp projects: Found " . count($matchingCharIds) . " contributors in project {$projectName}");
-
-                        // Get project details (cached) to find type_id and reward per unit
-                        $projectDetails = $this->getCachedProjectDetails($corporationId, $projectId, $token);
-
-                        // Get the type_id from configuration.deliver_item.items
-                        $deliverItems = $projectDetails['configuration']['deliver_item']['items'] ?? [];
-                        $typeId = $deliverItems[0]['type_id'] ?? 0;
-
-                        // Get reward per unit from contribution.reward_per_contribution
-                        $rewardPerUnit = (float) ($projectDetails['contribution']['reward_per_contribution'] ?? 0);
-
-                        // Fetch detailed contributions only for matching characters
-                        foreach ($matchingCharIds as $characterId) {
-                            $charToCheck = $userCharactersMap[$characterId];
-                            $charToken = $charToCheck->getEveToken();
-                            if ($charToken === null || !$this->canBeCalledByTheScan($charToCheck, $refusedCharacterIds)) {
-                                continue;
-                            }
-
-                            try {
-                                $contribution = $this->esiClient->getUnversioned(
-                                    "/corporations/{$corporationId}/projects/{$projectId}/contribution/{$characterId}",
-                                    $charToken,
-                                    self::CORP_PROJECTS_COMPATIBILITY_DATE,
-                                );
-
-                                $this->logger->info('Corp projects: Contribution for ' . $charToCheck->getName() . ': ' . json_encode($contribution));
-
-                                // The contribution response has: contributed (quantity), last_modified (date)
-                                $quantity = $contribution['contributed'] ?? $contribution['quantity'] ?? $contribution['amount'] ?? 0;
-                                $contributedAt = $contribution['last_modified'] ?? $contribution['contributed_at'] ?? null;
-
-                                if ($quantity <= 0) {
-                                    continue;
-                                }
-
-                                // Check date if available
-                                if ($contributedAt !== null) {
-                                    try {
-                                        $contributionDate = new \DateTimeImmutable($contributedAt);
-                                        if ($contributionDate < $from) {
-                                            continue;
-                                        }
-                                    } catch (\Exception) {
-                                        // Invalid date, skip date check
-                                    }
-                                }
-
-                                // Create tracking ID
-                                $trackingId = -abs(crc32($projectId . '_' . $characterId));
-
-                                if (in_array($trackingId, $importedTransactionIds, true)) {
-                                    continue;
-                                }
-                                if (in_array($trackingId, $declinedTransactionIds, true)) {
-                                    continue;
-                                }
-
-                                $typeName = $typeId > 0
-                                    ? ($this->invTypeRepository->find($typeId)?->getTypeName() ?? UnknownTypeName::label($typeId))
-                                    : 'Items';
-
-                                // Calculate price based on quantity contributed * reward per unit
-                                $price = $quantity * $rewardPerUnit;
-
-                                $sale = new DetectedSaleResource();
-                                $sale->transactionId = $trackingId;
-                                $sale->contractId = 0;
-                                $sale->projectId = $projectId;
-                                $sale->type = PveIncomeType::CorpProject->value;
-                                $sale->typeId = $typeId;
-                                $sale->typeName = "{$quantity}x {$typeName}";
-                                $sale->quantity = $quantity;
-                                $sale->price = $price;
-                                $sale->dateIssued = $contributedAt ? (new \DateTimeImmutable($contributedAt))->format('Y-m-d') : date('Y-m-d');
-                                $sale->characterName = $charToCheck->getName();
-                                $sale->source = 'corp_project';
-                                $sale->projectName = $projectName;
-
-                                $detectedSales[] = $sale;
-                            } catch (EveAuthRequiredException) {
-                                $refusedCharacterIds[$characterId] = true;
-                                continue;
-                            } catch (\Throwable) {
-                                continue;
-                            }
-                        }
-                    } catch (\Throwable $e) {
-                        $this->logger->debug("Corp projects: Could not get contributors for {$projectName}: {$e->getMessage()}");
-                        continue;
-                    }
-                }
-            } catch (\Throwable $e) {
-                $this->logger->warning("Corp projects: Error for corp {$corporationId}: {$e->getMessage()}");
-                continue;
-            }
+            $detectedSales[] = $sale;
         }
 
-        $resource->scannedTransactions = $scannedTransactions;
-        $resource->scannedContracts = $scannedContracts;
-        $resource->scannedProjects = $corporationsWithoutValidCharacter === [] ? $scannedProjects : null;
+        $resource->scannedTransactions = $lootTypeIds === [] ? null : $scannedTransactions;
+        $resource->scannedContracts = $lootTypeIds === [] ? null : $scannedContracts;
+        $resource->scannedProjects = $corpProjectReading->scannedProjects;
         $resource->detectedSales = $detectedSales;
-        $resource->noLootTypesConfigured = false;
-        $resource->charactersToReconnect = $this->namesOfCharactersToReconnect($user, $refusedCharacterIds);
-        $resource->corporationsWithoutValidCharacter = $corporationsWithoutValidCharacter;
+        $resource->noLootTypesConfigured = $lootTypeIds === [];
+        $resource->charactersToReconnect = $this->namesOfCharactersToReconnect($user, $corpProjectReading->refusedCharacterIds);
+        $resource->corporationProjectErrors = array_map(
+            static function (CorporationProjectReadError $error): CorporationProjectErrorResource {
+                $errorResource = new CorporationProjectErrorResource();
+                $errorResource->corporationName = $error->corporationName;
+                $errorResource->projectName = $error->projectName;
+                $errorResource->characterName = $error->characterName;
+                $errorResource->reason = $error->reason->value;
+                $errorResource->httpStatus = $error->httpStatus;
+
+                return $errorResource;
+            },
+            $corpProjectReading->errors,
+        );
 
         return $resource;
-    }
-
-    /**
-     * @param array<int, Character> $corporationCharacters
-     * @param array<int, true> $refusedCharacterIds
-     *
-     * @return array{token: EveToken, projects: array<mixed>}|null
-     */
-    private function selectProjectsReader(array $corporationCharacters, int $corporationId, array &$refusedCharacterIds): ?array
-    {
-        foreach ($corporationCharacters as $candidate) {
-            $candidateToken = $candidate->getEveToken();
-            if ($candidateToken === null || !$this->canBeCalledByTheScan($candidate, $refusedCharacterIds)) {
-                continue;
-            }
-
-            try {
-                $this->tokenManager->getValidAccessToken($candidateToken);
-
-                return [
-                    'token' => $candidateToken,
-                    'projects' => $this->getCachedCorpProjects($corporationId, $candidateToken),
-                ];
-            } catch (EveAuthRequiredException) {
-                $refusedCharacterIds[$candidate->getEveCharacterId()] = true;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param array<int, true> $refusedCharacterIds
-     */
-    private function canBeCalledByTheScan(Character $character, array $refusedCharacterIds): bool
-    {
-        return $character->isAuthValid() && !isset($refusedCharacterIds[$character->getEveCharacterId()]);
     }
 
     /**
@@ -498,99 +323,11 @@ class ScanLootSalesProcessor implements ProcessorInterface
     {
         $names = [];
         foreach ($user->getCharacters() as $character) {
-            if ($character->getEveToken() !== null && !$this->canBeCalledByTheScan($character, $refusedCharacterIds)) {
+            if ($character->getEveToken() !== null && (!$character->isAuthValid() || isset($refusedCharacterIds[$character->getEveCharacterId()]))) {
                 $names[] = $character->getName();
             }
         }
 
         return $names;
-    }
-
-    /**
-     * Get corporation projects with caching.
-     *
-     * @return array<mixed>
-     */
-    private function getCachedCorpProjects(int $corporationId, EveToken $token): array
-    {
-        $cacheKey = "corp_projects_{$corporationId}";
-        $cacheItem = $this->cache->getItem($cacheKey);
-
-        if ($cacheItem->isHit()) {
-            $this->logger->debug("Corp projects: Cache hit for projects list (corp {$corporationId})");
-            return $cacheItem->get();
-        }
-
-        $projects = $this->esiClient->getUnversionedCursorPaginated(
-            "/corporations/{$corporationId}/projects?state=All",
-            $token,
-            self::CORP_PROJECTS_COMPATIBILITY_DATE,
-            'projects',
-        );
-
-        $cacheItem->set($projects);
-        $cacheItem->expiresAfter(self::CACHE_TTL_PROJECTS);
-        $this->cache->save($cacheItem);
-
-        return $projects;
-    }
-
-    /**
-     * Get project contributors with caching.
-     *
-     * @return array<int>
-     */
-    private function getCachedContributors(int $corporationId, string $projectId, EveToken $token): array
-    {
-        $cacheKey = "corp_project_contributors_{$corporationId}_{$projectId}";
-        $cacheItem = $this->cache->getItem($cacheKey);
-
-        if ($cacheItem->isHit()) {
-            $this->logger->debug("Corp projects: Cache hit for contributors (project {$projectId})");
-            return $cacheItem->get();
-        }
-
-        $contributors = $this->esiClient->getUnversionedCursorPaginated(
-            "/corporations/{$corporationId}/projects/{$projectId}/contributors",
-            $token,
-            self::CORP_PROJECTS_COMPATIBILITY_DATE,
-            'contributors',
-        );
-
-        $contributorIds = array_map(fn($c) => $c['character_id'] ?? $c['id'] ?? 0, $contributors);
-
-        $cacheItem->set($contributorIds);
-        $cacheItem->expiresAfter(self::CACHE_TTL_CONTRIBUTORS);
-        $this->cache->save($cacheItem);
-
-        return $contributorIds;
-    }
-
-    /**
-     * Get project details with caching.
-     *
-     * @return array<mixed>
-     */
-    private function getCachedProjectDetails(int $corporationId, string $projectId, EveToken $token): array
-    {
-        $cacheKey = "corp_project_details_{$corporationId}_{$projectId}";
-        $cacheItem = $this->cache->getItem($cacheKey);
-
-        if ($cacheItem->isHit()) {
-            $this->logger->debug("Corp projects: Cache hit for project details (project {$projectId})");
-            return $cacheItem->get();
-        }
-
-        $projectDetails = $this->esiClient->getUnversioned(
-            "/corporations/{$corporationId}/projects/{$projectId}",
-            $token,
-            self::CORP_PROJECTS_COMPATIBILITY_DATE,
-        );
-
-        $cacheItem->set($projectDetails);
-        $cacheItem->expiresAfter(self::CACHE_TTL_PROJECTS);
-        $this->cache->save($cacheItem);
-
-        return $projectDetails;
     }
 }

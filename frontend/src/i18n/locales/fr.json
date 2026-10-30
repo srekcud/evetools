@@ -431,9 +431,27 @@
     "detectedLootSales": "Ventes de loot detectees",
     "lootScanSummary": "{transactions} transactions, {contracts} contrats, {projects} projets scannes - {detected} ventes detectees",
     "lootScanSummaryUnknownProjects": "{transactions} transactions, {contracts} contrats, projets : inconnu - {detected} ventes détectées",
-    "corpProjectsAuthenticationError": "Erreur d'authentification : projets de {corporations} illisibles, aucun personnage de cette corporation n'a d'autorisation valide.",
     "charactersToReconnect": "{count} personnage à reconnecter, ignoré par le scan : {names} | {count} personnages à reconnecter, ignorés par le scan : {names}",
     "reconnectCharactersLink": "Reconnecter des personnages",
+    "lootScanSummaryNoLootTypes": "{contracts} contrats, {projects} projets scannés - {detected} ventes détectées",
+    "lootScanSummaryNoLootTypesUnknownProjects": "{contracts} contrats, projets : inconnu - {detected} ventes détectées",
+    "noLootTypesProjectsOnly": "Aucun type de loot configuré : les ventes du marché ne sont pas lues, seuls les contrats de loot PVE et les projets corporation le sont.",
+    "configureLootTypes": "Configurer les types de loot",
+    "corpProjectErrors": {
+      "line": "{subject} : {reason}",
+      "subject": {
+        "corporation": "Projets de {corporation} illisibles",
+        "project": "Projet {project} de {corporation} illisible",
+        "contribution": "Contribution de {character} au projet {project} illisible"
+      },
+      "reason": {
+        "no_valid_character": "aucun personnage de cette corporation n'a d'autorisation valide",
+        "missing_projects_scope": "accès aux projets corporation non accordé, reconnectez le personnage",
+        "esi_error": "erreur ESI (HTTP {status})",
+        "esi_error_network": "ESI injoignable",
+        "unexpected_response": "réponse ESI incomplète"
+      }
+    },
     "corpProject": "Projet corp",
     "ignore": "Ignorer",
     "noLootSalesDetected": "Aucune vente de loot detectee",
@@ -459,6 +477,8 @@
       "scanFailed": "Erreur lors du scan",
       "importFailed": "Erreur lors de l'import",
       "scanLootFailed": "Erreur lors du scan des ventes de loot",
+      "lootSalesScanHttpFailure": "Scan des ventes de loot et des projets corporation en échec (HTTP {status})",
+      "lootContractsScanHttpFailure": "Scan des contrats de loot en échec (HTTP {status})",
       "contractZeroPrice": "Ce contrat a un prix de 0 ISK et ne peut pas etre importe comme vente de loot",
       "addLootSaleFailed": "Erreur lors de l'ajout de la vente de loot",
       "ignoreFailed": "Erreur lors de l'ajout a la liste des ignores"
@@ -1485,7 +1505,8 @@
       "7days": "7 jours",
       "30days": "30 jours",
       "90days": "90 jours",
-      "nDays": "{n} jours"
+      "nDays": "{n} jours",
+      "all": "Tout"
     },
     "dashboard": {
       "dailyRevenue": "Revenus journaliers",
