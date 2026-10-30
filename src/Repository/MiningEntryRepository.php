@@ -334,4 +334,9 @@ class MiningEntryRepository extends ServiceEntityRepository
 
         return $byUsageAndType;
     }
+
+    public function findOldestDate(User $user): ?\DateTimeImmutable
+    {
+        throw new \LogicException('Not implemented yet');
+    }
 }

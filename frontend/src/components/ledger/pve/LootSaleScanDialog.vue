@@ -19,7 +19,7 @@ const emit = defineEmits<{
 }>()
 
 function hasAuthenticationNotice(results: LootSaleScanResult): boolean {
-  return results.corporationsWithoutValidCharacter.length > 0 || results.charactersToReconnect.length > 0
+  return results.charactersToReconnect.length > 0
 }
 
 const { t } = useI18n()
@@ -54,13 +54,6 @@ const { getTypeIconUrl, onImageError } = useEveImages()
     </template>
 
     <div v-if="hasAuthenticationNotice(scanResults)" class="px-6 pt-4 space-y-3">
-      <div
-        v-if="scanResults.corporationsWithoutValidCharacter.length > 0"
-        role="alert"
-        class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400"
-      >
-        {{ t('pve.corpProjectsAuthenticationError', { corporations: scanResults.corporationsWithoutValidCharacter.join(', ') }) }}
-      </div>
       <div
         v-if="scanResults.charactersToReconnect.length > 0"
         class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-400"

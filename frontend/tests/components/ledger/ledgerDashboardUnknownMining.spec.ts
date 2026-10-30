@@ -15,6 +15,7 @@ const DASHBOARD_WITH_UNKNOWN_MINING: LedgerDashboard = {
   missingPriceTypeIds: [MYSTERY_ORE_TYPE_ID],
   lastSync: { pve: null, mining: null },
   settings: { corpProjectAccounting: 'pve' },
+  oldestEntryDate: '2026-02-14',
 }
 
 function mountDashboard(dashboard: LedgerDashboard) {

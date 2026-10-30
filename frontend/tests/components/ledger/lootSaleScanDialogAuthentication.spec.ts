@@ -4,16 +4,19 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import LootSaleScanDialog from '@/components/ledger/pve/LootSaleScanDialog.vue'
-import type { LootSaleScanResult } from '@/types/pve'
+import type { CorporationProjectError, LootSaleScanResult } from '@/types/pve'
 
-const NEW_PVE_KEYS = [
+const AUTHENTICATION_REPORT_PVE_KEYS = [
   'lootScanSummaryUnknownProjects',
-  'corpProjectsAuthenticationError',
   'charactersToReconnect',
   'reconnectCharactersLink',
 ]
 
 const EmptyView = { render: () => null }
+
+function withoutValidCharacter(corporationName: string): CorporationProjectError {
+  return { corporationName, projectName: null, characterName: null, reason: 'no_valid_character', httpStatus: null }
+}
 
 function scanResult(overrides: Partial<LootSaleScanResult>): LootSaleScanResult {
   return {
@@ -22,7 +25,8 @@ function scanResult(overrides: Partial<LootSaleScanResult>): LootSaleScanResult 
     scannedProjects: 0,
     detectedSales: [],
     charactersToReconnect: [],
-    corporationsWithoutValidCharacter: [],
+    corporationProjectErrors: [],
+    noLootTypesConfigured: false,
     ...overrides,
   }
 }
@@ -46,8 +50,8 @@ function reconnectLinkTargets(wrapper: VueWrapper, label: string): (string | und
   return wrapper.findAll('a').filter(link => link.text() === label).map(link => link.attributes('href'))
 }
 
-function newPveMessages(messages: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(messages).filter(([key]) => NEW_PVE_KEYS.includes(key)))
+function authenticationReportPveMessages(messages: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(messages).filter(([key]) => AUTHENTICATION_REPORT_PVE_KEYS.includes(key)))
 }
 
 describe('LootSaleScanDialog corporation project authentication', () => {
@@ -65,14 +69,15 @@ describe('LootSaleScanDialog corporation project authentication', () => {
     expect(wrapper.text()).not.toContain('0 projets')
   })
 
-  it('shows an authentication error alert naming the unreadable corporation with a link to the characters page', () => {
-    const wrapper = mountDialog(scanResult({ scannedProjects: null, corporationsWithoutValidCharacter: ['Fictional Mining Corp'] }))
+  it('shows an error alert naming the corporation without any valid character with a link to the characters page', () => {
+    const wrapper = mountDialog(scanResult({ scannedProjects: null, corporationProjectErrors: [withoutValidCharacter('Fictional Mining Corp')] }))
 
     const alerts = wrapper.findAll('[role="alert"]')
     expect(alerts).toHaveLength(1)
     expect(alerts[0].text()).toContain(
-      'Authentication error: projects of Fictional Mining Corp could not be read, no character of this corporation has a valid authorization.',
+      'Projects of Fictional Mining Corp could not be read: no character of this corporation has a valid authorization',
     )
+    expect(alerts[0].text()).not.toContain('Authentication error')
     expect(reconnectLinkTargets(wrapper, 'Reconnect characters')).toEqual(['/characters'])
   })
 
@@ -98,19 +103,20 @@ describe('LootSaleScanDialog corporation project authentication', () => {
     expect(reconnectLinkTargets(wrapper, 'Reconnecter des personnages')).toEqual(['/characters'])
   })
 
-  it('keeps the empty state below the alert and the characters to reconnect when no sale is detected', () => {
+  it('keeps the empty state below the alerts and the characters to reconnect when no sale is detected', () => {
     const wrapper = mountDialog(scanResult({
       scannedTransactions: 5,
       scannedContracts: 0,
       scannedProjects: null,
       charactersToReconnect: ['Pilot One', 'Pilot Two', 'Pilot Three', 'Pilot Four'],
-      corporationsWithoutValidCharacter: ['Fictional Mining Corp', 'Second Fictional Corp'],
+      corporationProjectErrors: [withoutValidCharacter('Fictional Mining Corp'), withoutValidCharacter('Second Fictional Corp')],
     }))
 
     expect(wrapper.text()).toContain('5 transactions, 0 contracts, projects: unknown - 0 sales detected')
-    expect(wrapper.get('[role="alert"]').text()).toContain(
-      'Authentication error: projects of Fictional Mining Corp, Second Fictional Corp could not be read',
-    )
+    const alerts = wrapper.findAll('[role="alert"]').map(alert => alert.text())
+    expect(alerts).toHaveLength(2)
+    expect(alerts[0]).toContain('Projects of Fictional Mining Corp could not be read: no character of this corporation has a valid authorization')
+    expect(alerts[1]).toContain('Projects of Second Fictional Corp could not be read: no character of this corporation has a valid authorization')
     expect(wrapper.text()).toContain('4 characters to reconnect, skipped by the scan: Pilot One, Pilot Two, Pilot Three, Pilot Four')
     expect(wrapper.text()).toContain('No loot sales detected')
     const targets = reconnectLinkTargets(wrapper, 'Reconnect characters')
@@ -127,16 +133,14 @@ describe('LootSaleScanDialog corporation project authentication', () => {
     expect(reconnectLinkTargets(wrapper, 'Reconnect characters')).toEqual([])
   })
 
-  it('declares the four new pve keys with the specified texts in English and French', () => {
-    expect(newPveMessages(en.pve)).toEqual({
+  it('keeps the three pve keys of the authentication report with the specified texts in English and French', () => {
+    expect(authenticationReportPveMessages(en.pve)).toEqual({
       lootScanSummaryUnknownProjects: '{transactions} transactions, {contracts} contracts, projects: unknown - {detected} sales detected',
-      corpProjectsAuthenticationError: 'Authentication error: projects of {corporations} could not be read, no character of this corporation has a valid authorization.',
       charactersToReconnect: '{count} character to reconnect, skipped by the scan: {names} | {count} characters to reconnect, skipped by the scan: {names}',
       reconnectCharactersLink: 'Reconnect characters',
     })
-    expect(newPveMessages(fr.pve)).toEqual({
+    expect(authenticationReportPveMessages(fr.pve)).toEqual({
       lootScanSummaryUnknownProjects: '{transactions} transactions, {contracts} contrats, projets : inconnu - {detected} ventes détectées',
-      corpProjectsAuthenticationError: "Erreur d'authentification : projets de {corporations} illisibles, aucun personnage de cette corporation n'a d'autorisation valide.",
       charactersToReconnect: '{count} personnage à reconnecter, ignoré par le scan : {names} | {count} personnages à reconnecter, ignorés par le scan : {names}',
       reconnectCharactersLink: 'Reconnecter des personnages',
     })

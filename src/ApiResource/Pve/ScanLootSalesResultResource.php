@@ -22,4 +22,7 @@ class ScanLootSalesResultResource
 
     /** @var list<string> */
     public array $corporationsWithoutValidCharacter = [];
+
+    /** @var list<CorporationProjectErrorResource> */
+    public array $corporationProjectErrors = [];
 }

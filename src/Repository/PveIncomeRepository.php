@@ -287,4 +287,9 @@ class PveIncomeRepository extends ServiceEntityRepository
 
         return $dailyTotals;
     }
+
+    public function findOldestDate(User $user): ?\DateTimeImmutable
+    {
+        throw new \LogicException('Not implemented yet');
+    }
 }

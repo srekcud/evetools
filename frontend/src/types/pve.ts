@@ -66,7 +66,7 @@ export type DetectedLootSale = {
   typeId: number
   typeName: string
   quantity: number
-  price: number
+  price: number | null
   dateIssued: string
   characterName: string
   source?: 'market' | 'contract' | 'corp_project'
@@ -74,11 +74,20 @@ export type DetectedLootSale = {
   needsPriceInput?: boolean
 }
 
+export type CorporationProjectError = {
+  corporationName: string
+  projectName: string | null
+  characterName: string | null
+  reason: string
+  httpStatus: number | null
+}
+
 export type LootSaleScanResult = {
-  scannedTransactions: number
-  scannedContracts?: number
+  scannedTransactions: number | null
+  scannedContracts?: number | null
   scannedProjects: number | null
   detectedSales: DetectedLootSale[]
   charactersToReconnect: string[]
-  corporationsWithoutValidCharacter: string[]
+  corporationProjectErrors: CorporationProjectError[]
+  noLootTypesConfigured: boolean
 }

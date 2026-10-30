@@ -41,6 +41,7 @@ export interface LedgerDashboard {
   settings: {
     corpProjectAccounting: 'pve' | 'mining'
   }
+  oldestEntryDate: string | null
 }
 
 export interface LedgerDailyStats {

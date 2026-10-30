@@ -102,4 +102,6 @@ class LedgerDashboardResource
      * @var array<string, mixed>
      */
     public array $settings = [];
+
+    public ?string $oldestEntryDate = null;
 }

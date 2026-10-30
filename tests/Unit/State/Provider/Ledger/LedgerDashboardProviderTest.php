@@ -196,6 +196,61 @@ final class LedgerDashboardProviderTest extends TestCase
         $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE], $dashboard->missingPriceTypeIds);
     }
 
+    #[Group('issue-243')]
+    public function testOldestEntryDateIsTheEarliestPveIncomeWhateverTheSelectedDays(): void
+    {
+        $dashboard = $this->createProvider(
+            $this->miningEntryRepositoryWithOldestDate(new \DateTimeImmutable('2026-02-14 06:40:00')),
+            query: ['days' => '30'],
+            oldestIncomeDate: new \DateTimeImmutable('2026-01-31 08:15:00'),
+            oldestExpenseDate: new \DateTimeImmutable('2026-03-02 19:05:00'),
+        )->provide(new Get());
+
+        $this->assertSame('2026-01-31', $dashboard->oldestEntryDate);
+    }
+
+    #[Group('issue-243')]
+    public function testOldestEntryDateIsTheEarliestMiningEntryWhenItPrecedesPveIncomesAndExpenses(): void
+    {
+        $dashboard = $this->createProvider(
+            $this->miningEntryRepositoryWithOldestDate(new \DateTimeImmutable('2025-11-23 00:00:00')),
+            query: ['days' => '7'],
+            oldestIncomeDate: new \DateTimeImmutable('2026-04-10 12:00:00'),
+            oldestExpenseDate: new \DateTimeImmutable('2026-03-22 21:30:00'),
+        )->provide(new Get());
+
+        $this->assertSame('2025-11-23', $dashboard->oldestEntryDate);
+    }
+
+    #[Group('issue-243')]
+    public function testOldestEntryDateIsTheOnlyPveExpenseDateWithoutIncomeNorMining(): void
+    {
+        $dashboard = $this->createProvider(
+            $this->miningEntryRepositoryWithOldestDate(null),
+            oldestExpenseDate: new \DateTimeImmutable('2026-03-02 19:05:00'),
+        )->provide(new Get());
+
+        $this->assertSame('2026-03-02', $dashboard->oldestEntryDate);
+    }
+
+    #[Group('issue-243')]
+    public function testOldestEntryDateIsUnknownWithoutAnyEntry(): void
+    {
+        $dashboard = $this->createProvider($this->miningEntryRepositoryWithOldestDate(null))->provide(new Get());
+
+        $this->assertNull($dashboard->oldestEntryDate);
+    }
+
+    private function miningEntryRepositoryWithOldestDate(?\DateTimeImmutable $oldestMiningDate): MiningEntryRepository
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([]);
+        $miningEntryRepository->method('findOldestDate')->willReturn($oldestMiningDate);
+
+        return $miningEntryRepository;
+    }
+
     private function everyPveIncomeType(): array
     {
         return [
@@ -214,14 +269,18 @@ final class LedgerDashboardProviderTest extends TestCase
         float $expensesTotal = self::EXPENSES,
         string $corpProjectAccounting = UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE,
         array $query = [],
+        ?\DateTimeImmutable $oldestIncomeDate = null,
+        ?\DateTimeImmutable $oldestExpenseDate = null,
     ): LedgerDashboardProvider {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
         $pveIncomeRepository = $this->createStub(PveIncomeRepository::class);
         $pveIncomeRepository->method('getTotalsByType')->willReturn($pveIncomeTotalsByType);
+        $pveIncomeRepository->method('findOldestDate')->willReturn($oldestIncomeDate);
         $pveExpenseRepository = $this->createStub(PveExpenseRepository::class);
         $pveExpenseRepository->method('getTotalByUserAndDateRange')->willReturn($expensesTotal);
         $pveExpenseRepository->method('getTotalsByTypeAndDateRange')->willReturn([PveExpense::TYPE_AMMO => $expensesTotal]);
+        $pveExpenseRepository->method('findOldestDate')->willReturn($oldestExpenseDate);
         $ledgerSettingsRepository = $this->createStub(UserLedgerSettingsRepository::class);
         $ledgerSettingsRepository->method('findByUser')->willReturn(
             (new UserLedgerSettings())->setCorpProjectAccounting($corpProjectAccounting),
@@ -242,6 +301,7 @@ final class LedgerDashboardProviderTest extends TestCase
                 $this->createOreValueService($this->jitaSellPricesWithoutCompressedOre()),
             ),
             $requestStack,
+            $miningEntryRepository,
         );
     }
 }

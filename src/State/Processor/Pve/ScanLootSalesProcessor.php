@@ -19,9 +19,11 @@ use App\Repository\UserPveSettingsRepository;
 use App\Entity\EveToken;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Pve\CorpProjectContributionReader;
 use App\Service\UnknownTypeName;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -44,7 +46,8 @@ class ScanLootSalesProcessor implements ProcessorInterface
         private readonly InvTypeRepository $invTypeRepository,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
-        private readonly CacheItemPoolInterface $cache,
+        private readonly CorpProjectContributionReader $corpProjectContributionReader,
+        private readonly CacheItemPoolInterface $cache = new ArrayAdapter(),
     ) {
     }
 

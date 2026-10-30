@@ -16,6 +16,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Pve\CorpProjectContributionReader;
 use App\State\Processor\Pve\ScanLootSalesProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -149,16 +150,23 @@ class ScanLootSalesProcessorTest extends TestCase
         $requestStack = new RequestStack();
         $requestStack->push(new Request());
 
+        $tokenManager = $this->createStub(TokenManager::class);
+
         return new ScanLootSalesProcessor(
             security: $security,
             esiClient: $esiClient,
-            tokenManager: $this->createStub(TokenManager::class),
+            tokenManager: $tokenManager,
             incomeRepository: $incomeRepository,
             settingsRepository: $settingsRepository,
             invTypeRepository: $invTypeRepository,
             requestStack: $requestStack,
             logger: new NullLogger(),
-            cache: new ArrayAdapter(),
+            corpProjectContributionReader: new CorpProjectContributionReader(
+                esiClient: $esiClient,
+                tokenManager: $tokenManager,
+                cache: new ArrayAdapter(),
+                logger: new NullLogger(),
+            ),
         );
     }
 
