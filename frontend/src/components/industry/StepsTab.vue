@@ -48,7 +48,12 @@ watch(industryProjectProgress, (progress) => {
   }
 })
 
-const { errors: jobsSyncErrors, dismissErrors: dismissJobsSyncErrors } = useIndustryJobsSync(
+const {
+  errors: jobsSyncErrors,
+  dismissErrors: dismissJobsSyncErrors,
+  failures: lastJobsSyncFailures,
+  dismissFailures: dismissLastJobsSyncFailures,
+} = useIndustryJobsSync(
   async () => {
     const reloads = [store.fetchProject(props.projectId)]
     if (showAvailableJobs.value) reloads.push(stepsStore.fetchAvailableJobs(props.projectId))
@@ -166,6 +171,14 @@ defineExpose({
       :title="t('industry.jobsSyncError.title', jobsSyncErrors.length)"
       :messages="jobsSyncErrors"
       @dismiss="dismissJobsSyncErrors"
+    />
+
+    <CharacterSyncFailuresAlert
+      v-if="lastJobsSyncFailures.length > 0"
+      data-testid="last-jobs-sync-failures"
+      :title="t('industry.syncFailures.lastJobsSyncTitle', lastJobsSyncFailures.length)"
+      :failures="lastJobsSyncFailures"
+      @dismiss="dismissLastJobsSyncFailures"
     />
 
     <SyncErrorAlert

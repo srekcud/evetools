@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
-use App\Message\SyncCharacterIndustryJobs;
 use App\Message\SyncIndustryJobs;
+use App\Message\SyncUserIndustryJobs;
 use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
 use Psr\Log\LoggerInterface;
@@ -29,25 +29,24 @@ final readonly class SyncIndustryJobsHandler
 
         try {
             $characters = $this->characterRepository->findActiveWithValidTokens();
-            $queued = 0;
+            $userIds = [];
 
             foreach ($characters as $character) {
-                $characterId = $character->getId()?->toRfc4122();
-                $token = $character->getEveToken();
-                if ($characterId === null || $token === null || !$token->hasScope('esi-industry.read_character_jobs.v1')) {
+                $userId = $character->getUser()?->getId()?->toRfc4122();
+                if ($userId === null || isset($userIds[$userId])) {
                     continue;
                 }
 
-                $this->messageBus->dispatch(new SyncCharacterIndustryJobs($characterId));
-                $queued++;
+                $userIds[$userId] = true;
+                $this->messageBus->dispatch(new SyncUserIndustryJobs($userId));
             }
 
             $this->logger->info('Industry jobs sync queued', [
-                'charactersQueued' => $queued,
+                'usersQueued' => count($userIds),
                 'totalCharacters' => count($characters),
             ]);
 
-            $this->syncTracker->complete('industry', "{$queued}/" . count($characters) . ' chars queued');
+            $this->syncTracker->complete('industry', count($userIds) . ' users queued for ' . count($characters) . ' chars');
         } catch (\Throwable $e) {
             $this->syncTracker->fail('industry', $e->getMessage());
             throw $e;

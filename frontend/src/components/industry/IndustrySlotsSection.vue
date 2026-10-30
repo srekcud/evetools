@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import CharacterSyncFailuresAlert from '@/components/industry/CharacterSyncFailuresAlert.vue'
 import SyncErrorAlert from '@/components/industry/SyncErrorAlert.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
@@ -184,7 +185,12 @@ const gridLines = computed(() => {
   })
 })
 
-const { errors: jobsSyncErrors, dismissErrors: dismissJobsSyncErrors } = useIndustryJobsSync(() => slotsStore.fetchSlots())
+const {
+  errors: jobsSyncErrors,
+  dismissErrors: dismissJobsSyncErrors,
+  failures: lastJobsSyncFailures,
+  dismissFailures: dismissLastJobsSyncFailures,
+} = useIndustryJobsSync(() => slotsStore.fetchSlots())
 
 onMounted(() => {
   slotsStore.fetchSlots()
@@ -238,6 +244,14 @@ onMounted(() => {
       :title="t('industry.jobsSyncError.title', jobsSyncErrors.length)"
       :messages="jobsSyncErrors"
       @dismiss="dismissJobsSyncErrors"
+    />
+
+    <CharacterSyncFailuresAlert
+      v-if="lastJobsSyncFailures.length > 0"
+      data-testid="last-jobs-sync-failures"
+      :title="t('industry.syncFailures.lastJobsSyncTitle', lastJobsSyncFailures.length)"
+      :failures="lastJobsSyncFailures"
+      @dismiss="dismissLastJobsSyncFailures"
     />
 
     <!-- HEADER -->

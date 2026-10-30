@@ -1156,6 +1156,7 @@
     },
     "syncFailures": {
       "jobsTitle": "Jobs not synced for {count} character, matching used the last known jobs: | Jobs not synced for {count} characters, matching used the last known jobs:",
+      "lastJobsSyncTitle": "Jobs not synced for {count} character at the last sync, the jobs shown may be out of date: | Jobs not synced for {count} characters at the last sync, the jobs shown may be out of date:",
       "skillsTitle": "Skills not synced for {count} character: | Skills not synced for {count} characters:",
       "line": "{name}: {reason}",
       "reasons": {

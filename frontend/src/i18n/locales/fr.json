@@ -1156,6 +1156,7 @@
     },
     "syncFailures": {
       "jobsTitle": "Jobs non synchronisés pour {count} personnage, le matching a utilisé les derniers jobs connus : | Jobs non synchronisés pour {count} personnages, le matching a utilisé les derniers jobs connus :",
+      "lastJobsSyncTitle": "Jobs non synchronisés pour {count} personnage lors de la dernière synchronisation, les jobs affichés peuvent être périmés : | Jobs non synchronisés pour {count} personnages lors de la dernière synchronisation, les jobs affichés peuvent être périmés :",
       "skillsTitle": "Compétences non synchronisées pour {count} personnage : | Compétences non synchronisées pour {count} personnages :",
       "line": "{name} : {reason}",
       "reasons": {

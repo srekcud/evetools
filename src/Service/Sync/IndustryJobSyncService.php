@@ -26,6 +26,8 @@ class IndustryJobSyncService
 {
     private const int FORBIDDEN_STATUS_CODE = 403;
 
+    private const string PERSONAL_JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
+
     private const array COMPLETED_STATUSES = [CachedIndustryJob::STATUS_READY, CachedIndustryJob::STATUS_DELIVERED];
 
     private const string CORPORATION_JOBS_CACHE_KEY_PREFIX = 'industry_corporation_jobs_';
@@ -46,6 +48,46 @@ class IndustryJobSyncService
 
     public function syncUserJobs(User $user): void
     {
+        $userId = $user->getId()?->toRfc4122() ?? throw new \LogicException('Cannot sync industry jobs of a user without id');
+
+        $this->mercurePublisher->syncStarted($userId, 'industry-jobs', 'Fetching industry jobs...');
+
+        try {
+            $characters = $user->getCharacters();
+            $characterCount = count($characters);
+            $statusesByJobId = [];
+            $failures = [];
+            $processedCount = 0;
+
+            foreach ($characters as $character) {
+                $outcome = $this->syncCharacterOfUser($character, $user);
+                if ($outcome instanceof CharacterSyncFailure) {
+                    $failures[] = $outcome->toArray();
+                } else {
+                    $statusesByJobId = array_replace($statusesByJobId, $outcome);
+                }
+
+                $processedCount++;
+                $this->mercurePublisher->syncProgress(
+                    $userId,
+                    'industry-jobs',
+                    intdiv(100 * $processedCount, $characterCount),
+                    sprintf('%d/%d characters processed', $processedCount, $characterCount),
+                );
+            }
+
+            $message = self::jobCountsMessage(self::jobCounts($statusesByJobId));
+            if ($failures !== []) {
+                $message .= sprintf(', %d characters not synced', count($failures));
+            }
+            $this->mercurePublisher->syncCompleted($userId, 'industry-jobs', $message, [
+                ...self::jobCounts($statusesByJobId),
+                'failedCharacters' => $failures,
+            ]);
+        } catch (\Throwable $e) {
+            $this->mercurePublisher->syncError($userId, 'industry-jobs', $e->getMessage());
+            throw $e;
+        }
     }
 
     public function syncCharacterJobs(Character $character): void
@@ -55,7 +97,8 @@ class IndustryJobSyncService
             return;
         }
 
-        $userId = $character->getUser()?->getId()?->toRfc4122();
+        $user = $character->getUser();
+        $userId = $user?->getId()?->toRfc4122();
 
         // Notify sync started
         if ($userId !== null) {
@@ -63,183 +106,10 @@ class IndustryJobSyncService
         }
 
         try {
-            $character->updateAffiliation($this->characterService->getCharacterInfo($character->getEveCharacterId()));
-
-            $allJobs = [];
-
-            // Sync personal jobs
-            $personalJobsUnknown = !$token->hasScope('esi-industry.read_character_jobs.v1');
-            if (!$personalJobsUnknown) {
-                $characterId = $character->getEveCharacterId();
-                $personalJobs = $this->esiClient->get(
-                    "/characters/{$characterId}/industry/jobs/?include_completed=true",
-                    $token,
-                );
-                $allJobs = array_merge($allJobs, $personalJobs);
-            }
-
-            // Update progress
-            if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 30, 'Personal jobs fetched...');
-            }
-
-            $corporationJobsUnknown = false;
-            if ($token->hasScope('esi-industry.read_corporation_jobs.v1')) {
-                try {
-                    $allJobs = array_merge($this->corporationJobs($character->getCorporationId(), $token), $allJobs);
-                } catch (EsiApiException $e) {
-                    if ($e->statusCode !== self::FORBIDDEN_STATUS_CODE) {
-                        throw $e;
-                    }
-                    $corporationJobsUnknown = true;
-                    $this->logger->warning('Corporation jobs forbidden, delivered marking skipped', [
-                        'characterName' => $character->getName(),
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            // Deduplicate by job_id (in case a personal job is also in corp jobs)
-            $jobsByJobId = [];
-            foreach ($allJobs as $jobData) {
-                $jobsByJobId[$jobData['job_id']] = $jobData;
-            }
-
-            // Build a lookup of EVE character ID → Character entity for installer attribution
-            $installerLookup = [];
-            $user = $character->getUser();
-            if ($user !== null) {
-                foreach ($user->getCharacters() as $userChar) {
-                    $installerLookup[$userChar->getEveCharacterId()] = $userChar;
-                }
-            }
-
-            // Track which ESI job IDs belong to the user's characters (not corpmates)
-            $syncedJobsByJobId = [];
-            $playerJobsByJobId = [];
-
-            foreach ($jobsByJobId as $jobData) {
-                // Resolve the actual installer character — skip jobs from corpmates
-                $installerId = $jobData['installer_id'] ?? null;
-                if ($installerId === null || !isset($installerLookup[$installerId])) {
-                    // Job belongs to a corpmate, not one of the user's characters — skip
-                    continue;
-                }
-                $playerJobsByJobId[$jobData['job_id']] = $jobData;
-            }
+            $counts = self::jobCounts($this->syncJobsOfCharacter($character, $token, $user));
 
             if ($userId !== null) {
-                $this->mercurePublisher->syncProgress($userId, 'industry-jobs', 60, sprintf('Processing %d jobs...', count($playerJobsByJobId)));
-            }
-
-            foreach ($playerJobsByJobId as $jobData) {
-                $installerCharacter = $installerLookup[$jobData['installer_id']];
-
-                $existing = $this->jobRepository->findByJobId($jobData['job_id']);
-
-                if ($existing !== null) {
-                    // Update existing job - fix character attribution
-                    $existing->setCharacter($installerCharacter);
-                    $existing->setStatus($jobData['status']);
-                    $existing->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
-                    $existing->setEndDate(new \DateTimeImmutable($jobData['end_date']));
-                    $existing->setProductTypeId($jobData['product_type_id'] ?? null);
-                    $existing->setRuns($jobData['runs']);
-                    $existing->setCost(self::esiCost($jobData));
-                    if (isset($jobData['completed_date'])) {
-                        $existing->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
-                    }
-                    $existing->setCachedAt(new \DateTimeImmutable());
-                    $syncedJobsByJobId[$jobData['job_id']] = $existing;
-                    continue;
-                }
-
-                $job = new CachedIndustryJob();
-                $job->setCharacter($installerCharacter);
-                $job->setJobId($jobData['job_id']);
-                $job->setActivityId($jobData['activity_id']);
-                $job->setBlueprintTypeId($jobData['blueprint_type_id']);
-                $job->setProductTypeId($jobData['product_type_id'] ?? null);
-                $job->setRuns($jobData['runs']);
-                $job->setCost(self::esiCost($jobData));
-                $job->setStatus($jobData['status']);
-                $job->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
-                $job->setStartDate(new \DateTimeImmutable($jobData['start_date']));
-                $job->setEndDate(new \DateTimeImmutable($jobData['end_date']));
-                if (isset($jobData['completed_date'])) {
-                    $job->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
-                }
-                if ($jobData['status'] === CachedIndustryJob::STATUS_DELIVERED) {
-                    $job->setCompletionNotifiedAt(new \DateTimeImmutable());
-                }
-
-                $this->entityManager->persist($job);
-                $syncedJobsByJobId[$jobData['job_id']] = $job;
-            }
-
-            // Mark stale jobs of the synced character as delivered: jobs in DB that disappeared
-            // from ESI with an end_date in the past are effectively delivered/expired.
-            // Alts' jobs are left to their own sync.
-            if (!$personalJobsUnknown && !$corporationJobsUnknown) {
-                $now = new \DateTimeImmutable();
-                foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
-                    $jobId = $dbJob->getJobId();
-                    if (isset($jobsByJobId[$jobId])) {
-                        continue;
-                    }
-                    if ($dbJob->getStatus() === CachedIndustryJob::STATUS_PAUSED || $dbJob->getEndDate() > $now) {
-                        continue;
-                    }
-                    $dbJob->setStatus(CachedIndustryJob::STATUS_DELIVERED);
-                    $dbJob->setCompletedDate($dbJob->getEndDate());
-                    $dbJob->setCachedAt($now);
-                    $dbJob->setCompletionNotifiedAt($now);
-                    $syncedJobsByJobId[$jobId] = $dbJob;
-                    $this->logger->info('Stale industry job marked as delivered', [
-                        'jobId' => $jobId,
-                        'characterName' => $character->getName(),
-                        'endDate' => $dbJob->getEndDate()->format('c'),
-                    ]);
-                }
-            }
-
-            foreach ($this->jobMatchRepository->findByEsiJobIds(array_keys($syncedJobsByJobId)) as $jobMatch) {
-                $jobMatch->copyJobState($syncedJobsByJobId[$jobMatch->getEsiJobId()]);
-            }
-
-            $jobIdsToNotify = array_keys(array_filter(
-                $syncedJobsByJobId,
-                static fn (CachedIndustryJob $job): bool => $job->getCompletionNotifiedAt() === null
-                    && in_array($job->getStatus(), self::COMPLETED_STATUSES, true),
-            ));
-
-            $this->entityManager->flush();
-
-            $this->logger->info('Industry jobs synced', [
-                'characterName' => $character->getName(),
-                'jobCount' => count($jobsByJobId),
-            ]);
-
-            // Count active jobs
-            $activeJobs = array_filter($playerJobsByJobId, static fn (array $job): bool => $job['status'] === CachedIndustryJob::STATUS_ACTIVE);
-            $readyJobs = array_filter($playerJobsByJobId, static fn (array $job): bool => $job['status'] === CachedIndustryJob::STATUS_READY);
-
-            // Notify sync completed
-            if ($userId !== null) {
-                $message = sprintf('%d active jobs, %d ready to deliver', count($activeJobs), count($readyJobs));
-                $this->mercurePublisher->syncCompleted($userId, 'industry-jobs', $message, [
-                    'total' => count($playerJobsByJobId),
-                    'active' => count($activeJobs),
-                    'ready' => count($readyJobs),
-                ]);
-
-                if ($user !== null) {
-                    $notifiedJobs = $this->sendCompletionNotifications($user, $userId, array_map(
-                        static fn (int $jobId): array => $jobsByJobId[$jobId],
-                        $jobIdsToNotify,
-                    ));
-                    $this->notifyProjectProgress($userId, $notifiedJobs);
-                }
+                $this->mercurePublisher->syncCompleted($userId, 'industry-jobs', self::jobCountsMessage($counts), $counts);
             }
         } catch (\Throwable $e) {
             if ($userId !== null) {
@@ -247,6 +117,209 @@ class IndustryJobSyncService
             }
             throw $e;
         }
+    }
+
+    /** @return array<int, string>|CharacterSyncFailure */
+    private function syncCharacterOfUser(Character $character, User $user): array|CharacterSyncFailure
+    {
+        $token = $character->getEveToken();
+        if ($token === null) {
+            return CharacterSyncFailure::missingToken($character);
+        }
+        if (!$token->hasScope(self::PERSONAL_JOBS_SCOPE)) {
+            return CharacterSyncFailure::missingScope($character);
+        }
+
+        try {
+            return $this->syncJobsOfCharacter($character, $token, $user);
+        } catch (\Throwable $e) {
+            $failure = CharacterSyncFailure::fromThrowable($character, $e);
+            $this->logger->warning('Failed to sync jobs for character', $failure->logContext($e->getMessage()));
+
+            return $failure;
+        }
+    }
+
+    /** @return array<int, string> */
+    private function syncJobsOfCharacter(Character $character, EveToken $token, ?User $user): array
+    {
+        $character->updateAffiliation($this->characterService->getCharacterInfo($character->getEveCharacterId()));
+
+        $allJobs = [];
+
+        // Sync personal jobs
+        $personalJobsUnknown = !$token->hasScope(self::PERSONAL_JOBS_SCOPE);
+        if (!$personalJobsUnknown) {
+            $characterId = $character->getEveCharacterId();
+            $personalJobs = $this->esiClient->get(
+                "/characters/{$characterId}/industry/jobs/?include_completed=true",
+                $token,
+            );
+            $allJobs = array_merge($allJobs, $personalJobs);
+        }
+
+        $corporationJobsUnknown = false;
+        if ($token->hasScope('esi-industry.read_corporation_jobs.v1')) {
+            try {
+                $allJobs = array_merge($this->corporationJobs($character->getCorporationId(), $token), $allJobs);
+            } catch (EsiApiException $e) {
+                if ($e->statusCode !== self::FORBIDDEN_STATUS_CODE) {
+                    throw $e;
+                }
+                $corporationJobsUnknown = true;
+                $this->logger->warning('Corporation jobs forbidden, delivered marking skipped', [
+                    'characterName' => $character->getName(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Deduplicate by job_id (in case a personal job is also in corp jobs)
+        $jobsByJobId = [];
+        foreach ($allJobs as $jobData) {
+            $jobsByJobId[$jobData['job_id']] = $jobData;
+        }
+
+        // Build a lookup of EVE character ID → Character entity for installer attribution
+        $installerLookup = [];
+        if ($user !== null) {
+            foreach ($user->getCharacters() as $userChar) {
+                $installerLookup[$userChar->getEveCharacterId()] = $userChar;
+            }
+        }
+
+        // Track which ESI job IDs belong to the user's characters (not corpmates)
+        $syncedJobsByJobId = [];
+        $playerJobsByJobId = [];
+
+        foreach ($jobsByJobId as $jobData) {
+            // Resolve the actual installer character — skip jobs from corpmates
+            $installerId = $jobData['installer_id'] ?? null;
+            if ($installerId === null || !isset($installerLookup[$installerId])) {
+                // Job belongs to a corpmate, not one of the user's characters — skip
+                continue;
+            }
+            $playerJobsByJobId[$jobData['job_id']] = $jobData;
+        }
+
+        foreach ($playerJobsByJobId as $jobData) {
+            $installerCharacter = $installerLookup[$jobData['installer_id']];
+
+            $existing = $this->jobRepository->findByJobId($jobData['job_id']);
+
+            if ($existing !== null) {
+                // Update existing job - fix character attribution
+                $existing->setCharacter($installerCharacter);
+                $existing->setStatus($jobData['status']);
+                $existing->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
+                $existing->setEndDate(new \DateTimeImmutable($jobData['end_date']));
+                $existing->setProductTypeId($jobData['product_type_id'] ?? null);
+                $existing->setRuns($jobData['runs']);
+                $existing->setCost(self::esiCost($jobData));
+                if (isset($jobData['completed_date'])) {
+                    $existing->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
+                }
+                $existing->setCachedAt(new \DateTimeImmutable());
+                $syncedJobsByJobId[$jobData['job_id']] = $existing;
+                continue;
+            }
+
+            $job = new CachedIndustryJob();
+            $job->setCharacter($installerCharacter);
+            $job->setJobId($jobData['job_id']);
+            $job->setActivityId($jobData['activity_id']);
+            $job->setBlueprintTypeId($jobData['blueprint_type_id']);
+            $job->setProductTypeId($jobData['product_type_id'] ?? null);
+            $job->setRuns($jobData['runs']);
+            $job->setCost(self::esiCost($jobData));
+            $job->setStatus($jobData['status']);
+            $job->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
+            $job->setStartDate(new \DateTimeImmutable($jobData['start_date']));
+            $job->setEndDate(new \DateTimeImmutable($jobData['end_date']));
+            if (isset($jobData['completed_date'])) {
+                $job->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
+            }
+            if ($jobData['status'] === CachedIndustryJob::STATUS_DELIVERED) {
+                $job->setCompletionNotifiedAt(new \DateTimeImmutable());
+            }
+
+            $this->entityManager->persist($job);
+            $syncedJobsByJobId[$jobData['job_id']] = $job;
+        }
+
+        // Mark stale jobs of the synced character as delivered: jobs in DB that disappeared
+        // from ESI with an end_date in the past are effectively delivered/expired.
+        // Alts' jobs are left to their own sync.
+        if (!$personalJobsUnknown && !$corporationJobsUnknown) {
+            $now = new \DateTimeImmutable();
+            foreach ($this->jobRepository->findActiveJobsByCharacter($character) as $dbJob) {
+                $jobId = $dbJob->getJobId();
+                if (isset($jobsByJobId[$jobId])) {
+                    continue;
+                }
+                if ($dbJob->getStatus() === CachedIndustryJob::STATUS_PAUSED || $dbJob->getEndDate() > $now) {
+                    continue;
+                }
+                $dbJob->setStatus(CachedIndustryJob::STATUS_DELIVERED);
+                $dbJob->setCompletedDate($dbJob->getEndDate());
+                $dbJob->setCachedAt($now);
+                $dbJob->setCompletionNotifiedAt($now);
+                $syncedJobsByJobId[$jobId] = $dbJob;
+                $this->logger->info('Stale industry job marked as delivered', [
+                    'jobId' => $jobId,
+                    'characterName' => $character->getName(),
+                    'endDate' => $dbJob->getEndDate()->format('c'),
+                ]);
+            }
+        }
+
+        foreach ($this->jobMatchRepository->findByEsiJobIds(array_keys($syncedJobsByJobId)) as $jobMatch) {
+            $jobMatch->copyJobState($syncedJobsByJobId[$jobMatch->getEsiJobId()]);
+        }
+
+        $jobIdsToNotify = array_keys(array_filter(
+            $syncedJobsByJobId,
+            static fn (CachedIndustryJob $job): bool => $job->getCompletionNotifiedAt() === null
+                && in_array($job->getStatus(), self::COMPLETED_STATUSES, true),
+        ));
+
+        $this->entityManager->flush();
+
+        $this->logger->info('Industry jobs synced', [
+            'characterName' => $character->getName(),
+            'jobCount' => count($jobsByJobId),
+        ]);
+
+        $userId = $user?->getId()?->toRfc4122();
+        if ($user !== null && $userId !== null) {
+            $notifiedJobs = $this->sendCompletionNotifications($user, $userId, array_map(
+                static fn (int $jobId): array => $jobsByJobId[$jobId],
+                $jobIdsToNotify,
+            ));
+            $this->notifyProjectProgress($userId, $notifiedJobs);
+        }
+
+        return array_map(static fn (array $job): string => $job['status'], $playerJobsByJobId);
+    }
+
+    /**
+     * @param array<int, string> $statusesByJobId
+     *
+     * @return array{total: int, active: int, ready: int}
+     */
+    private static function jobCounts(array $statusesByJobId): array
+    {
+        return [
+            'total' => count($statusesByJobId),
+            'active' => count(array_keys($statusesByJobId, CachedIndustryJob::STATUS_ACTIVE, true)),
+            'ready' => count(array_keys($statusesByJobId, CachedIndustryJob::STATUS_READY, true)),
+        ];
+    }
+
+    /** @param array{total: int, active: int, ready: int} $counts */
+    private static function jobCountsMessage(array $counts): string
+    {
+        return sprintf('%d active jobs, %d ready to deliver', $counts['active'], $counts['ready']);
     }
 
     /**

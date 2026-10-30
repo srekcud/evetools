@@ -9,6 +9,7 @@ use App\Repository\UserRepository;
 use App\Service\Sync\IndustryJobSyncService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 
 #[AsMessageHandler]
 final readonly class SyncUserIndustryJobsHandler
@@ -22,5 +23,14 @@ final readonly class SyncUserIndustryJobsHandler
 
     public function __invoke(SyncUserIndustryJobs $message): void
     {
+        $user = $this->userRepository->find(Uuid::fromString($message->userId));
+
+        if ($user === null) {
+            $this->logger->warning('User not found for industry jobs sync', ['userId' => $message->userId]);
+
+            return;
+        }
+
+        $this->industryJobSyncService->syncUserJobs($user);
     }
 }

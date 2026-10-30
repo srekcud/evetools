@@ -22,6 +22,7 @@ framework:
             App\Message\SyncCharacterPlanetaryColonies: async
             App\Message\SyncIndustryJobs: async
             App\Message\SyncCharacterIndustryJobs: async
+            App\Message\SyncUserIndustryJobs: async
             App\Message\TriggerPveSync: async
             App\Message\SyncWalletTransactions: async
             App\Message\SyncCharacterWalletTransactions: async
