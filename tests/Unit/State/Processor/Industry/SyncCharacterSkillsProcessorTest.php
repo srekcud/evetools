@@ -45,6 +45,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
     private const int PILOT_TWO_ID = 2_112_000_002;
     private const string PILOT_ONE_SKILLS_ENDPOINT = '/characters/2112000001/skills/';
     private const string PILOT_TWO_SKILLS_ENDPOINT = '/characters/2112000002/skills/';
+    private const int BLUEPRINT_SCIENCE_SKILL = 999_000_001;
+    private const int SKILL_OUTSIDE_THE_SYNCED_LIST = 999_000_101;
 
     private User $user;
     private Character $pilotOne;
@@ -68,6 +70,14 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
     private array $persistedSkillsByCharacterName = [];
 
     private array $esiResponsesByEndpoint = [];
+
+    private array $persistedSkills = [];
+
+    private array $flushedCharacterNames = [];
+
+    private array $sdeSkillRows = [];
+
+    private int $sdeSkillQueryCount = 0;
 
     protected function setUp(): void
     {
@@ -424,6 +434,128 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         );
     }
 
+    #[Group('issue-275')]
+    public function testWritesTheIndustrySlotAndScienceSkillsReadFromEsiWhenTheSdeListsNoSkill(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(self::SKILL_OUTSIDE_THE_SYNCED_LIST, 4, 5),
+            $this->esiSkill(CachedCharacterSkill::SKILL_INDUSTRY, 5, 5),
+            $this->esiSkill(CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY, 4, 5),
+            $this->esiSkill(CachedCharacterSkill::SKILL_REACTIONS, 3, 4),
+            $this->esiSkill(CachedCharacterSkill::SKILL_MASS_PRODUCTION, 2, 5),
+            $this->esiSkill(CachedCharacterSkill::SKILL_ADVANCED_MASS_PRODUCTION, 1, 3),
+            $this->esiSkill(CachedCharacterSkill::SKILL_MASS_REACTIONS, 3, 5),
+            $this->esiSkill(CachedCharacterSkill::SKILL_ADVANCED_REACTIONS, 2, 2),
+            $this->esiSkill(CachedCharacterSkill::SKILL_LABORATORY_OPERATION, 4, 4),
+            $this->esiSkill(CachedCharacterSkill::SKILL_ADVANCED_LABORATORY_OPERATION, 1, 1),
+            $this->esiSkill(CachedCharacterSkill::SKILL_SCIENCE, 5, 5),
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame(
+            [
+                CachedCharacterSkill::SKILL_INDUSTRY => 5,
+                CachedCharacterSkill::SKILL_MASS_PRODUCTION => 2,
+                CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
+                CachedCharacterSkill::SKILL_SCIENCE => 5,
+                CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 4,
+                CachedCharacterSkill::SKILL_ADVANCED_LABORATORY_OPERATION => 1,
+                CachedCharacterSkill::SKILL_ADVANCED_MASS_PRODUCTION => 1,
+                CachedCharacterSkill::SKILL_REACTIONS => 3,
+                CachedCharacterSkill::SKILL_ADVANCED_REACTIONS => 2,
+                CachedCharacterSkill::SKILL_MASS_REACTIONS => 3,
+            ],
+            $this->persistedLevelsBySkillIdOf(self::PILOT_ONE),
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testWritesEachBlueprintScienceSkillListedByTheSdeOnce(): void
+    {
+        $this->sdeSkillRows = [
+            ['skill_id' => (string) self::BLUEPRINT_SCIENCE_SKILL],
+            ['skill_id' => (string) CachedCharacterSkill::SKILL_INDUSTRY],
+        ];
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(self::BLUEPRINT_SCIENCE_SKILL, 4, 5),
+            $this->esiSkill(CachedCharacterSkill::SKILL_INDUSTRY, 5, 5),
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame(
+            [
+                [
+                    CachedCharacterSkill::SKILL_INDUSTRY => 5,
+                    CachedCharacterSkill::SKILL_SCIENCE => 0,
+                    self::BLUEPRINT_SCIENCE_SKILL => 4,
+                ],
+                3,
+            ],
+            [$this->persistedLevelsBySkillIdOf(self::PILOT_ONE), count($this->persistedSkillsOf(self::PILOT_ONE))],
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testQueriesTheSdeSkillsOnceForAllTheSyncedCharacters(): void
+    {
+        $result = $this->syncSkills();
+
+        $this->assertSame([2, 1], [$result->syncedCount, $this->sdeSkillQueryCount]);
+    }
+
+    #[Group('issue-275')]
+    public function testFlushesTheSkillsWrittenForEachSyncedCharacter(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_TWO_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_SCIENCE, 2, 3),
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame([[self::PILOT_ONE], [self::PILOT_ONE, self::PILOT_TWO]], $this->flushedCharacterNames);
+    }
+
+    #[Group('issue-275')]
+    public function testStampsTheEsiLinesWithTheSyncTimeAndLeavesTheManualLinesUntouched(): void
+    {
+        $industry = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_INDUSTRY, 3, false, '2026-10-13T08:00:00+00:00');
+        $advancedIndustry = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY, 5, true, '2026-10-11T22:40:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_ONE] = [$industry, $advancedIndustry];
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_INDUSTRY, 4, 4),
+            $this->esiSkill(CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY, 2, 2),
+            $this->esiSkill(CachedCharacterSkill::SKILL_SCIENCE, 1, 1),
+        ];
+        $syncStartedAt = new \DateTimeImmutable();
+
+        $this->syncSkills();
+
+        $this->assertSame(
+            [4, true, 5, '2026-10-11T22:40:00+00:00', [CachedCharacterSkill::SKILL_SCIENCE, 1, false], true],
+            [
+                $industry->getLevel(),
+                $industry->getCachedAt() >= $syncStartedAt,
+                $advancedIndustry->getLevel(),
+                $advancedIndustry->getCachedAt()->format(DATE_ATOM),
+                [$this->persistedSkills[0]->getSkillId(), $this->persistedSkills[0]->getLevel(), $this->persistedSkills[0]->isManual()],
+                $this->persistedSkills[0]->getCachedAt() >= $syncStartedAt,
+            ],
+        );
+    }
+
+    private function persistedLevelsBySkillIdOf(string $characterName): array
+    {
+        $levelsBySkillId = [];
+        foreach ($this->persistedSkillsOf($characterName) as [$skillId, $level]) {
+            $levelsBySkillId[$skillId] = $level;
+        }
+        ksort($levelsBySkillId);
+
+        return $levelsBySkillId;
+    }
+
     private function esiSkill(int $skillId, int $activeSkillLevel, int $trainedSkillLevel): array
     {
         return [
@@ -492,11 +624,19 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         );
 
         $connection = $this->createStub(Connection::class);
-        $connection->method('fetchAllAssociative')->willReturn([]);
+        $connection->method('fetchAllAssociative')->willReturnCallback(function (): array {
+            $this->sdeSkillQueryCount++;
+
+            return $this->sdeSkillRows;
+        });
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('getConnection')->willReturn($connection);
         $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persistedSkills[] = $entity;
             $this->persistedSkillsByCharacterName[$entity->getCharacter()->getName()][] = [$entity->getSkillId(), $entity->getLevel(), $entity->isManual()];
+        });
+        $entityManager->method('flush')->willReturnCallback(function (): void {
+            $this->flushedCharacterNames[] = array_keys($this->persistedSkillsByCharacterName);
         });
 
         $mapper = new IndustryResourceMapper(
