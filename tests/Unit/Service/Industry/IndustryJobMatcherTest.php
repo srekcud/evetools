@@ -14,14 +14,12 @@ use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
-use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\StaStationRepository;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
@@ -1244,11 +1242,8 @@ class IndustryJobMatcherTest extends TestCase
             $this->createStub(IndustryBonusService::class),
             $this->createStub(IndustryStructureConfigRepository::class),
             $this->createStub(IndustryUserSettingsRepository::class),
-            $this->entityManager,
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
-            $this->createStub(IndustryActivityRepository::class),
-            $this->createStub(CachedCharacterSkillRepository::class),
         );
         $realStepCalculator = new IndustryStepCalculator(
             $realCalculationService,

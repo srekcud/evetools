@@ -67,7 +67,7 @@ final class JobSplitCalculationTest extends TestCase
             $this->createStub(IndustryActivityProductRepository::class),
         );
         $skillRepository = $this->skillRepositoryOfThePilot();
-        $calculationService = $this->calculationServiceOnGoldenSde($bonusService, $this->createStub(IndustryStructureConfigRepository::class), $skillRepository);
+        $calculationService = $this->calculationServiceOnGoldenSde($bonusService, $this->createStub(IndustryStructureConfigRepository::class));
         $this->factory = $this->projectFactoryOnGoldenSde($bonusService, $calculationService, skillRepository: $skillRepository);
     }
 

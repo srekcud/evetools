@@ -24,6 +24,7 @@ use App\Repository\Sde\StaStationRepository;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\TimePerRunCalculator;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -51,6 +52,8 @@ class IndustryResourceMapperTest extends TestCase
         $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->createStub(IndustryCalculationService::class),
             $this->createStub(CachedCharacterSkillRepository::class),
+            $this->createStub(IndustryActivityRepository::class),
+            $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
         ]);
@@ -73,6 +76,8 @@ class IndustryResourceMapperTest extends TestCase
         $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->createStub(IndustryCalculationService::class),
             $this->createStub(CachedCharacterSkillRepository::class),
+            $this->createStub(IndustryActivityRepository::class),
+            $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
         ]);
@@ -94,6 +99,8 @@ class IndustryResourceMapperTest extends TestCase
         $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->createStub(IndustryCalculationService::class),
             $this->createStub(CachedCharacterSkillRepository::class),
+            $this->createStub(IndustryActivityRepository::class),
+            $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
         ]);
@@ -299,6 +306,8 @@ class IndustryResourceMapperTest extends TestCase
         $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->calculationServiceOnSdeKnowingNitrogenAndHydrogenFuelBlocks(),
             $this->createStub(CachedCharacterSkillRepository::class),
+            $this->createStub(IndustryActivityRepository::class),
+            $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
         ]);
@@ -499,18 +508,18 @@ class IndustryResourceMapperTest extends TestCase
             fn (Character $character): array => $this->cachedSkillsByCharacterName[$character->getName()],
         );
 
+        $calculationService = new IndustryCalculationService(
+            new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock()),
+            $this->createStub(IndustryBonusService::class),
+            $this->createStub(IndustryStructureConfigRepository::class),
+            $this->createStub(IndustryUserSettingsRepository::class),
+            $this->createStub(StaStationRepository::class),
+            $this->createStub(CachedStructureRepository::class),
+        );
+
         return self::autowired(IndustryResourceMapper::class, [
-            new IndustryCalculationService(
-                new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock()),
-                $this->createStub(IndustryBonusService::class),
-                $this->createStub(IndustryStructureConfigRepository::class),
-                $this->createStub(IndustryUserSettingsRepository::class),
-                $this->createStub(EntityManagerInterface::class),
-                $this->createStub(StaStationRepository::class),
-                $this->createStub(CachedStructureRepository::class),
-                $activityRepository,
-                $skillRepository,
-            ),
+            $calculationService,
+            new TimePerRunCalculator($calculationService, $activityRepository, $this->createStub(EntityManagerInterface::class), $skillRepository),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
         ]);
@@ -521,6 +530,8 @@ class IndustryResourceMapperTest extends TestCase
         return self::autowired(IndustryResourceMapper::class, [
             $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(),
             $this->createStub(CachedCharacterSkillRepository::class),
+            $this->createStub(IndustryActivityRepository::class),
+            $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
         ]);

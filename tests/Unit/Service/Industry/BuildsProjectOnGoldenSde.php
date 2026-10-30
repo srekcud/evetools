@@ -29,6 +29,7 @@ use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryTreeService;
+use App\Service\Industry\TimePerRunCalculator;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemoryInventionCatalog;
@@ -66,12 +67,19 @@ trait BuildsProjectOnGoldenSde
     {
         $typeRepository = $this->typeRepositoryOnGoldenSde();
         $materialRepository = $this->materialRepositoryOnGoldenSde();
+        $timePerRunCalculator = new TimePerRunCalculator(
+            $calculationService,
+            $this->activityRepositoryOnGoldenSde(),
+            $this->entityManagerWithoutRows(),
+            $skillRepository ?? $this->createStub(CachedCharacterSkillRepository::class),
+        );
 
         return self::autowired(IndustryProjectFactory::class, [
             new IndustryTreeService($this->productRepositoryOnGoldenSde(), $materialRepository, $typeRepository, $this->entityManagerWithCopyActivitiesOfGoldenSde(), $bonusService),
             new IndustryBlacklistService($this->entityManagerWithoutRows()),
             $bonusService,
             $calculationService,
+            $timePerRunCalculator,
             $skillRepository ?? $this->createStub(CachedCharacterSkillRepository::class),
             $typeRepository,
             $materialRepository,
@@ -95,7 +103,7 @@ trait BuildsProjectOnGoldenSde
         ));
     }
 
-    private function calculationServiceOnGoldenSde(IndustryBonusService $bonusService, IndustryStructureConfigRepository $structureConfigRepository, ?CachedCharacterSkillRepository $skillRepository = null): IndustryCalculationService
+    private function calculationServiceOnGoldenSde(IndustryBonusService $bonusService, IndustryStructureConfigRepository $structureConfigRepository): IndustryCalculationService
     {
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
@@ -105,11 +113,8 @@ trait BuildsProjectOnGoldenSde
             $bonusService,
             $structureConfigRepository,
             $settingsRepository,
-            $this->entityManagerWithoutRows(),
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
-            $this->activityRepositoryOnGoldenSde(),
-            $skillRepository ?? $this->createStub(CachedCharacterSkillRepository::class),
         );
     }
 

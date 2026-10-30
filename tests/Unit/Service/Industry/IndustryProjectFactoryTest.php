@@ -36,6 +36,7 @@ use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\IndustryTreeService;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\TimePerRunCalculator;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\IndustryResourceMapper;
@@ -72,6 +73,7 @@ class IndustryProjectFactoryTest extends TestCase
     private IndustryTreeService&MockObject $treeService;
     private IndustryBlacklistService&MockObject $blacklistService;
     private IndustryCalculationService $calculationService;
+    private TimePerRunCalculator $timePerRunCalculator;
     private CachedCharacterSkillRepository $skillRepository;
     private InvTypeRepository&MockObject $invTypeRepository;
     private IndustryActivityMaterialRepository&MockObject $materialRepository;
@@ -107,10 +109,13 @@ class IndustryProjectFactoryTest extends TestCase
             $bonusService,
             $structureConfigRepository,
             $this->settingsRepositoryWithTheFavoriteManufacturingSystem(),
-            $this->sdeEntityManagerWithTheBaseTimes(),
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
+        );
+        $this->timePerRunCalculator = new TimePerRunCalculator(
+            $this->calculationService,
             $activityRepository,
+            $this->sdeEntityManagerWithTheBaseTimes(),
             $this->skillRepository,
         );
 
@@ -119,6 +124,7 @@ class IndustryProjectFactoryTest extends TestCase
             $this->blacklistService,
             $bonusService,
             $this->calculationService,
+            $this->timePerRunCalculator,
             $this->skillRepository,
             $this->invTypeRepository,
             $this->materialRepository,
@@ -294,6 +300,7 @@ class IndustryProjectFactoryTest extends TestCase
     {
         $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->calculationService,
+            $this->timePerRunCalculator,
             $this->skillRepository,
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),

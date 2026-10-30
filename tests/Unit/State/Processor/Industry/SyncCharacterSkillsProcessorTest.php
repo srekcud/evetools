@@ -19,6 +19,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\TimePerRunCalculator;
 use App\Service\Sync\CharacterSyncFailure;
 use App\State\Processor\Industry\SyncCharacterSkillsProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
@@ -290,6 +291,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
         $mapper = new IndustryResourceMapper(
             $this->createStub(IndustryCalculationService::class),
+            $this->createStub(TimePerRunCalculator::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
         );

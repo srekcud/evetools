@@ -7,20 +7,17 @@ namespace App\Tests\Unit\State\Processor\Industry;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Enum\IndustryActivityType;
-use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\StaStationRepository;
 use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\SplitGroupMaterialNeeds;
 use App\Service\TypeNameResolver;
-use Doctrine\ORM\EntityManagerInterface;
 
 trait BuildsSplitGroupMaterialNeeds
 {
@@ -197,11 +194,8 @@ trait BuildsSplitGroupMaterialNeeds
             $bonusService,
             $this->createStub(IndustryStructureConfigRepository::class),
             $settingsRepository,
-            $this->createStub(EntityManagerInterface::class),
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
-            $this->createStub(IndustryActivityRepository::class),
-            $this->createStub(CachedCharacterSkillRepository::class),
         );
     }
 }
