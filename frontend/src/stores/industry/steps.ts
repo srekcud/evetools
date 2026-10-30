@@ -30,6 +30,14 @@ export const useStepsStore = defineStore('industry-steps', () => {
     }
   }
 
+  function stepsOfTheResponseNeedTheProject(projectId: string, stepId: string, answeredSteps: IndustryProjectStep[]): boolean {
+    const stepsInTheStore = projectsStore.currentProject?.id === projectId ? projectsStore.currentProject.steps ?? [] : []
+    const wasInASplitGroup = (answeredStep: IndustryProjectStep) => stepsInTheStore.some(s => s.id === answeredStep.id && s.splitGroupId !== null)
+
+    return !answeredSteps.some(answeredStep => answeredStep.id === stepId)
+      || answeredSteps.some(answeredStep => answeredStep.splitGroupId !== null || wasInASplitGroup(answeredStep))
+  }
+
   async function toggleStepPurchased(projectId: string, stepId: string, purchased: boolean) {
     try {
       const updated = enrichStep(await apiRequest<IndustryProjectStep>(
@@ -74,8 +82,12 @@ export const useStepsStore = defineStore('industry-steps', () => {
       // API may return single step or array (when cascade recalculation occurs)
       if (Array.isArray(result)) {
         const enriched = result.map(enrichStep)
-        updateMultipleStepsInProject(projectId, enriched)
-        return enriched[0]
+        if (stepsOfTheResponseNeedTheProject(projectId, stepId, enriched)) {
+          await projectsStore.fetchProject(projectId)
+        } else {
+          updateMultipleStepsInProject(projectId, enriched)
+        }
+        return enriched.find(answeredStep => answeredStep.id === stepId)
       } else {
         const enriched = enrichStep(result)
         updateStepInProject(projectId, enriched)
