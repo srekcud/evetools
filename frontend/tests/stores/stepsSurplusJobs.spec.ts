@@ -242,6 +242,49 @@ describe('steps store after the removal of surplus jobs', () => {
     ])
   })
 
+  it('reloads the project when a returned split job is not in the store', async () => {
+    useProjectsStore().currentProject = project([carrierStep(CARRIER_RUNS_BEFORE), unsplitFuelBlockStep(22, 864)])
+    serverAnswers([carrierStep(CARRIER_RUNS_AFTER), ...fuelBlockGroupOfThreeJobs()], [carrierStep(CARRIER_RUNS_AFTER), ...fuelBlockGroupOfThreeJobs()])
+
+    await useStepsStore().updateStepRuns(PROJECT_ID, CARRIER_STEP_ID, CARRIER_RUNS_AFTER)
+
+    expect(requestsSent()).toEqual([`PATCH ${PROJECT_PATH}/steps/${CARRIER_STEP_ID}`, `GET ${PROJECT_PATH}`])
+    expect(stepsInTheStore().map(([id]) => id)).toEqual([CARRIER_STEP_ID, ...FUEL_BLOCK_JOB_IDS.slice(0, 3)])
+  })
+
+  it('returns the edited step found by its id in a list response', async () => {
+    useProjectsStore().currentProject = project([carrierStep(CARRIER_RUNS_BEFORE), unsplitFuelBlockStep(22, 864)])
+    serverAnswers([unsplitFuelBlockStep(3, 108), carrierStep(CARRIER_RUNS_AFTER)], [])
+
+    const editedStep = await useStepsStore().updateStepRuns(PROJECT_ID, CARRIER_STEP_ID, CARRIER_RUNS_AFTER)
+
+    expect([editedStep?.id, editedStep?.runs, editedStep?.quantity]).toEqual([CARRIER_STEP_ID, 1, 1])
+  })
+
+  it('returns no step when the edited job is no longer in the response', async () => {
+    useProjectsStore().currentProject = project([carrierStep(CARRIER_RUNS_AFTER), ...fuelBlockGroupOfFourJobs()])
+    serverAnswers(fuelBlockGroupOfThreeJobs(), [carrierStep(CARRIER_RUNS_AFTER), ...fuelBlockGroupOfThreeJobs()])
+
+    const editedStep = await useStepsStore().releaseStepRuns(PROJECT_ID, FUEL_BLOCK_JOB_IDS[3])
+
+    expect(editedStep).toBeUndefined()
+  })
+
+  it('leaves the steps of another current project untouched when no split group is involved', async () => {
+    const otherProject = { ...project([fuelBlockJob(0, 9, 360, 14), fuelBlockJob(1, 5, 200, 14)]), id: 'project-185' }
+    useProjectsStore().currentProject = otherProject
+    serverAnswers([carrierStep(CARRIER_RUNS_AFTER), unsplitFuelBlockStep(3, 108)], [])
+
+    await useStepsStore().updateStepRuns(PROJECT_ID, CARRIER_STEP_ID, CARRIER_RUNS_AFTER)
+
+    expect(requestsSent()).toEqual([`PATCH ${PROJECT_PATH}/steps/${CARRIER_STEP_ID}`])
+    expect([useProjectsStore().currentProject?.id, ...stepsInTheStore()]).toEqual([
+      'project-185',
+      [FUEL_BLOCK_JOB_IDS[0], 9, 360, FUEL_BLOCK_SPLIT_GROUP_ID],
+      [FUEL_BLOCK_JOB_IDS[1], 5, 200, FUEL_BLOCK_SPLIT_GROUP_ID],
+    ])
+  })
+
   it('replaces a split job answered alone without reloading the project', async () => {
     useProjectsStore().currentProject = project([carrierStep(CARRIER_RUNS_BEFORE), ...fuelBlockGroupOfFourJobs()])
     serverAnswers({ ...fuelBlockGroupOfFourJobs()[1], teLevel: 14 }, [])
