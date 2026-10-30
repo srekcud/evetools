@@ -28,17 +28,19 @@ class IndustryStepCalculator
     public function recalculateStepQuantities(IndustryProject $project): array
     {
         $updatedSteps = [];
-        $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use ($project, &$updatedSteps): array {
+        $hasRemovedJob = false;
+        $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use ($project, &$updatedSteps, &$hasRemovedJob): array {
             $appliedNeed = SplitGroupQuantities::applyNeedToSteps($steps, $need, $outputPerRun);
             array_push($updatedSteps, ...$appliedNeed->changedSteps);
             foreach ($appliedNeed->surplusJobs as $surplusJob) {
                 $project->removeStep($surplusJob);
+                $hasRemovedJob = true;
             }
 
             return $appliedNeed->surplusJobs;
         });
 
-        if ($updatedSteps !== []) {
+        if ($updatedSteps !== [] || $hasRemovedJob) {
             $this->entityManager->flush();
         }
 

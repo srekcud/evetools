@@ -133,8 +133,10 @@ class UpdateStepProcessor implements ProcessorInterface
 
         $this->entityManager->flush();
 
-        if (!empty($cascadedSteps)) {
-            $stepsOfTheResponse = $project->getSteps()->contains($step) ? [$step] : [];
+        $isEditedStepRemoved = !$project->getSteps()->contains($step);
+
+        if (!empty($cascadedSteps) || $isEditedStepRemoved) {
+            $stepsOfTheResponse = $isEditedStepRemoved ? [] : [$step];
             foreach ($cascadedSteps as $updatedStep) {
                 if ($updatedStep !== $step) {
                     $stepsOfTheResponse[] = $updatedStep;
