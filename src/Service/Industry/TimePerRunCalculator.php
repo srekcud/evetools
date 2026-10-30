@@ -15,6 +15,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class TimePerRunCalculator
 {
+    private const string COPY_ACTIVITY = 'copy';
+
     /** @var array<string, int[]> Cache of blueprint science skill IDs */
     private array $blueprintSkillCache = [];
 
@@ -90,7 +92,11 @@ class TimePerRunCalculator
 
         $skillMultiplier = 1.0;
         if ($characterSkills !== null) {
-            $scienceSkillIds = $this->getBlueprintScienceSkillIds($blueprintTypeId, $activityType);
+            if ($activityType === self::COPY_ACTIVITY && !$this->hasKnownScienceLevel($characterSkills)) {
+                return null;
+            }
+
+            $scienceSkillIds = $this->blueprintScienceSkillIdsOf($blueprintTypeId, $activityType);
             $skillMultiplier = $this->calculateSkillTimeMultiplier($characterSkills, $activityType, $scienceSkillIds);
         }
 
@@ -121,12 +127,8 @@ class TimePerRunCalculator
      */
     public function bestCharacterForStepTime(User $user, int $blueprintTypeId, string $activityType, ?array $characterSkillLevels = null): array
     {
-        if ($activityType === 'copy') {
-            return ['skills' => null, 'name' => null, 'skillsUnknown' => false];
-        }
-
         $characterSkillLevels ??= $this->loadCharacterSkillLevels($user);
-        $scienceSkillIds = $this->getBlueprintScienceSkillIds($blueprintTypeId, $activityType);
+        $scienceSkillIds = $this->blueprintScienceSkillIdsOf($blueprintTypeId, $activityType);
 
         $bestSkills = null;
         $bestName = null;
@@ -134,6 +136,10 @@ class TimePerRunCalculator
 
         foreach ($characterSkillLevels as $character) {
             if ($character['skills'] === null) {
+                continue;
+            }
+
+            if ($activityType === self::COPY_ACTIVITY && !$this->hasKnownScienceLevel($character['skills'])) {
                 continue;
             }
 
@@ -153,8 +159,9 @@ class TimePerRunCalculator
     /**
      * Calculate the skill time multiplier for a given set of character skills.
      *
-     * Applies Industry (4%/lvl), Advanced Industry (3%/lvl), or Reactions (4%/lvl)
-     * plus blueprint-specific science skills (1%/lvl).
+     * Applies Industry (4%/lvl) and Advanced Industry (3%/lvl), Reactions (4%/lvl),
+     * or Science (5%/lvl) and Advanced Industry (3%/lvl) for a copy,
+     * plus blueprint-specific science skills (1%/lvl) outside a copy.
      *
      * @param array<int, int> $skillLevels Skill type ID => level
      * @param int[] $scienceSkillIds Blueprint-specific science skill IDs
@@ -163,7 +170,10 @@ class TimePerRunCalculator
     {
         $multiplier = 1.0;
 
-        if ($activityType === 'reaction') {
+        if ($activityType === self::COPY_ACTIVITY) {
+            $multiplier *= (1 - CachedCharacterSkill::SCIENCE_COPY_TIME_BONUS_PER_LEVEL * $skillLevels[CachedCharacterSkill::SKILL_SCIENCE]);
+            $multiplier *= (1 - CachedCharacterSkill::ADVANCED_INDUSTRY_TIME_BONUS_PER_LEVEL * ($skillLevels[CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY] ?? 0));
+        } elseif ($activityType === 'reaction') {
             $reactionLevel = $skillLevels[CachedCharacterSkill::SKILL_REACTIONS] ?? 0;
             $multiplier *= (1 - CachedCharacterSkill::REACTION_TIME_BONUS_PER_LEVEL * $reactionLevel);
         } else {
@@ -222,6 +232,22 @@ class TimePerRunCalculator
         return $skillIds;
     }
 
+    /**
+     * @param array<int, int> $characterSkills
+     */
+    private function hasKnownScienceLevel(array $characterSkills): bool
+    {
+        return array_key_exists(CachedCharacterSkill::SKILL_SCIENCE, $characterSkills);
+    }
+
+    /**
+     * @return int[]
+     */
+    private function blueprintScienceSkillIdsOf(int $blueprintTypeId, string $activityType): array
+    {
+        return $activityType === self::COPY_ACTIVITY ? [] : $this->getBlueprintScienceSkillIds($blueprintTypeId, $activityType);
+    }
+
     private function baseTimePerRunOf(int $blueprintTypeId, string $activityType): ?int
     {
         $cacheKey = $blueprintTypeId . '_' . $activityType;
@@ -231,7 +257,7 @@ class TimePerRunCalculator
 
         $activityId = match ($activityType) {
             'reaction' => IndustryActivityType::Reaction->value,
-            'copy' => IndustryActivityType::Copying->value,
+            self::COPY_ACTIVITY => IndustryActivityType::Copying->value,
             default => IndustryActivityType::Manufacturing->value,
         };
 
