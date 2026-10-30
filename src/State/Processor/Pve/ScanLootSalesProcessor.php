@@ -16,6 +16,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Pve\CorpProjectContribution;
 use App\Service\Pve\CorpProjectContributionReader;
 use App\Service\Pve\CorporationProjectReadError;
 use App\Service\UnknownTypeName;
@@ -261,7 +262,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
         foreach ($corpProjectReading->contributions as $contribution) {
             $typeName = $contribution->typeId > 0
                 ? ($this->invTypeRepository->find($contribution->typeId)?->getTypeName() ?? UnknownTypeName::label($contribution->typeId))
-                : 'Items';
+                : CorpProjectContribution::UNTYPED_LABEL;
 
             $sale = new DetectedSaleResource();
             $sale->transactionId = $contribution->trackingId();

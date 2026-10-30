@@ -62,6 +62,7 @@ class SyncPveProcessor implements ProcessorInterface
             'bounties' => $results['bounties'],
             'lootSales' => $results['lootSales'],
             'lootContracts' => $results['lootContracts'],
+            'corpProjects' => $results['corpProjects'],
             'expenses' => $results['expenses'],
         ];
         $resource->lastSyncAt = $settings?->getLastSyncAt()?->format('c');

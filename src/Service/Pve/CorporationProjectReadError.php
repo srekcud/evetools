@@ -16,4 +16,15 @@ final readonly class CorporationProjectReadError
         public ?int $httpStatus = null,
     ) {
     }
+
+    public function summary(): string
+    {
+        $subject = implode(' / ', array_filter(
+            [$this->corporationName, $this->projectName, $this->characterName],
+            static fn (?string $part): bool => $part !== null,
+        ));
+        $httpSuffix = $this->httpStatus === null ? '' : " (HTTP {$this->httpStatus})";
+
+        return "{$subject}: {$this->reason->value}{$httpSuffix}";
+    }
 }

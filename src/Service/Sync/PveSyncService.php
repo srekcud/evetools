@@ -17,6 +17,8 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Pve\CorpProjectContribution;
+use App\Service\Pve\CorpProjectContributionReader;
 use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -43,6 +45,9 @@ class PveSyncService
      */
     private array $failedCharacterIds = [];
 
+    /** @var list<string> */
+    private array $corpProjectReadErrors = [];
+
     public function __construct(
         private readonly EsiClient $esiClient,
         private readonly TokenManager $tokenManager,
@@ -53,6 +58,7 @@ class PveSyncService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly CorpProjectContributionReader $corpProjectContributionReader,
     ) {
     }
 
@@ -115,13 +121,14 @@ class PveSyncService
     }
 
     /**
-     * @return array{bounties: int, lootSales: int, lootContracts: int, expenses: int, errors: list<string>, failedCharacters: int, tokenizedCharacters: int}
+     * @return array{bounties: int, lootSales: int, lootContracts: int, corpProjects: int, expenses: int, errors: list<string>, failedCharacters: int, tokenizedCharacters: int}
      */
     public function syncAll(User $user): array
     {
         $userId = $user->getId()?->toRfc4122();
 
         $this->failedCharacterIds = [];
+        $this->corpProjectReadErrors = [];
         $tokenizedCharacters = 0;
         foreach ($user->getCharacters() as $character) {
             if ($character->getEveToken() !== null) {
@@ -133,6 +140,7 @@ class PveSyncService
             'bounties' => 0,
             'lootSales' => 0,
             'lootContracts' => 0,
+            'corpProjects' => 0,
             'expenses' => 0,
             'errors' => [],
             'failedCharacters' => 0,
@@ -177,6 +185,17 @@ class PveSyncService
 
             try {
                 if ($userId !== null) {
+                    $this->mercurePublisher->syncProgress($userId, 'pve', 75, 'Fetching corporation projects...');
+                }
+                $results['corpProjects'] = $this->syncCorpProjectContributions($user);
+            } catch (\Throwable $e) {
+                $results['errors'][] = 'corpProjects: ' . $e->getMessage();
+                $this->logger->error('Failed to sync corporation projects', ['error' => $e->getMessage()]);
+            }
+            array_push($results['errors'], ...$this->corpProjectReadErrors);
+
+            try {
+                if ($userId !== null) {
                     $this->mercurePublisher->syncProgress($userId, 'pve', 85, 'Fetching expenses...');
                 }
                 $results['expenses'] = $this->syncExpensesFromTransactions($user);
@@ -216,6 +235,7 @@ class PveSyncService
                     'bounties' => $results['bounties'],
                     'lootSales' => $results['lootSales'],
                     'lootContracts' => $results['lootContracts'],
+                    'corpProjects' => $results['corpProjects'],
                     'expenses' => $results['expenses'],
                     'totalImported' => $totalImported,
                     'errors' => count($results['errors']),
@@ -510,6 +530,54 @@ class PveSyncService
         }
 
         $this->logger->info('Synced loot contracts', ['user' => $user->getId(), 'imported' => $imported]);
+        return $imported;
+    }
+
+    public function syncCorpProjectContributions(User $user): int
+    {
+        $this->corpProjectReadErrors = [];
+        $from = new \DateTimeImmutable('-' . self::DEFAULT_DAYS_TO_SYNC . ' days');
+        $reading = $this->corpProjectContributionReader->read($user, $from);
+
+        foreach ($reading->errors as $error) {
+            $summary = 'corpProjects: ' . $error->summary();
+            $this->corpProjectReadErrors[] = $summary;
+            $this->logger->warning('Failed to read corporation project contributions', ['error' => $summary]);
+        }
+
+        $imported = 0;
+
+        foreach ($reading->contributions as $contribution) {
+            $amount = $contribution->pendingValue();
+            if ($amount === null || $amount <= 0) {
+                continue;
+            }
+
+            $typeName = $contribution->typeId > 0
+                ? $this->getTypeName($contribution->typeId)
+                : CorpProjectContribution::UNTYPED_LABEL;
+
+            $income = new PveIncome();
+            $income->setUser($user);
+            $income->setType(PveIncomeType::CorpProject);
+            $income->setDescription("{$contribution->projectName}: {$contribution->pendingQuantity()}x {$typeName}");
+            $income->setAmount($amount);
+            $income->setDate($contribution->contributedAt);
+            $income->setTransactionId($contribution->trackingId());
+            $income->setCorpProjectId($contribution->projectId);
+            $income->setCorpProjectCharacterId($contribution->characterId);
+            $income->setCorpProjectQuantity($contribution->pendingQuantity());
+
+            $this->entityManager->persist($income);
+            $imported++;
+        }
+
+        if ($imported > 0) {
+            $this->entityManager->flush();
+        }
+
+        $this->logger->info('Synced corporation project contributions', ['user' => $user->getId(), 'imported' => $imported]);
+
         return $imported;
     }
 

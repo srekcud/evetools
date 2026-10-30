@@ -6,6 +6,8 @@ namespace App\Service\Pve;
 
 final readonly class CorpProjectContribution
 {
+    public const UNTYPED_LABEL = 'Items';
+
     public function __construct(
         public string $projectId,
         public string $projectName,
