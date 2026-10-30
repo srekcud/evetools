@@ -159,9 +159,8 @@ class TimePerRunCalculator
     /**
      * Calculate the skill time multiplier for a given set of character skills.
      *
-     * Applies Industry (4%/lvl) and Advanced Industry (3%/lvl), Reactions (4%/lvl),
-     * or Science (5%/lvl) and Advanced Industry (3%/lvl) for a copy,
-     * plus blueprint-specific science skills (1%/lvl) outside a copy.
+     * Applies Industry (4%/lvl), Advanced Industry (3%/lvl), or Reactions (4%/lvl)
+     * plus blueprint-specific science skills (1%/lvl).
      *
      * @param array<int, int> $skillLevels Skill type ID => level
      * @param int[] $scienceSkillIds Blueprint-specific science skill IDs
@@ -171,6 +170,10 @@ class TimePerRunCalculator
         $multiplier = 1.0;
 
         if ($activityType === self::COPY_ACTIVITY) {
+            if (!$this->hasKnownScienceLevel($skillLevels)) {
+                throw new \InvalidArgumentException('The Science level is unknown for a copy step');
+            }
+
             $multiplier *= (1 - CachedCharacterSkill::SCIENCE_COPY_TIME_BONUS_PER_LEVEL * $skillLevels[CachedCharacterSkill::SKILL_SCIENCE]);
             $multiplier *= (1 - CachedCharacterSkill::ADVANCED_INDUSTRY_TIME_BONUS_PER_LEVEL * ($skillLevels[CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY] ?? 0));
         } elseif ($activityType === 'reaction') {

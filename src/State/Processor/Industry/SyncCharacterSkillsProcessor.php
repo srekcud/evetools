@@ -95,7 +95,11 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
             $token,
         );
 
-        $allEsiSkills = $skillsData['skills'] ?? [];
+        $allEsiSkills = $skillsData['skills'] ?? null;
+        if (!is_array($allEsiSkills) || !array_is_list($allEsiSkills)) {
+            throw new \UnexpectedValueException("ESI skills response of character {$characterId} has no 'skills' list");
+        }
+
         $now = new \DateTimeImmutable();
 
         // Only sync manufacturing-relevant skills (base industry + blueprint science skills)
@@ -104,10 +108,13 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         // Index ESI skills by ID for fast lookup
         $esiBySkillId = [];
         foreach ($allEsiSkills as $esiSkill) {
-            $skillId = $esiSkill['skill_id'] ?? 0;
-            if ($skillId > 0) {
-                $esiBySkillId[$skillId] = $esiSkill;
+            if (!isset($esiSkill['skill_id'])) {
+                throw new \UnexpectedValueException("ESI skills response of character {$characterId} has an entry without 'skill_id'");
             }
+            if (!isset($esiSkill['active_skill_level'])) {
+                throw new \UnexpectedValueException("ESI skills response of character {$characterId} has skill {$esiSkill['skill_id']} without 'active_skill_level'");
+            }
+            $esiBySkillId[$esiSkill['skill_id']] = $esiSkill;
         }
 
         // Load all existing skills for this character in one query
@@ -121,9 +128,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         foreach ($relevantSkillIds as $skillId) {
             $level = 0;
             if (isset($esiBySkillId[$skillId])) {
-                $level = $esiBySkillId[$skillId]['active_skill_level']
-                    ?? $esiBySkillId[$skillId]['trained_skill_level']
-                    ?? 0;
+                $level = $esiBySkillId[$skillId]['active_skill_level'];
             }
 
             if (isset($existingBySkillId[$skillId])) {
