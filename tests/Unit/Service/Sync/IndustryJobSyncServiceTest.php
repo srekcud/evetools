@@ -87,6 +87,10 @@ class IndustryJobSyncServiceTest extends TestCase
     private const int STALE_PERSONAL_JOB_ID = 100;
     private const int CORPORATION_JOB_IN_NEW_CORPORATION_ID = 710;
     private const int CORPORATION_JOB_IN_OLD_CORPORATION_ID = 700;
+    private const string PERSONAL_JOBS_ENDPOINT_FORMAT = '/characters/%d/industry/jobs/?include_completed=true';
+    private const string USER_OF_SPEC_215_ID = '0199a1f0-0000-7000-8000-000000215201';
+    private const string USER_OF_SPEC_215_TOPIC = '/user/0199a1f0-0000-7000-8000-000000215201/sync/industry-jobs';
+    private const string FAILED_CHARACTER_SYNC_WARNING = 'Failed to sync jobs for character';
 
     private EsiClient&MockObject $esiClient;
     private CachedIndustryJobRepository&MockObject $jobRepository;
@@ -986,7 +990,8 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     #[Group('issue-213')]
-    public function testProgressPublishedToCharacterWithoutCorporationRolesServedByWarmCacheCountsOnlyJobsOfItsUser(): void
+    #[Group('issue-215')]
+    public function testCharacterWithoutCorporationRolesServedByWarmCachePublishesStartedThenCompletedWithoutProgress(): void
     {
         $characterA = $this->createCharacterWithUser(self::CHARACTER_A_ID);
         $characterD = $this->createCharacterWithUser(self::CHARACTER_D_WITHOUT_ROLES_ID);
@@ -1006,10 +1011,10 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame(
             [
-                [$this->userTopicOf($characterD), 30, 'Personal jobs fetched...'],
-                [$this->userTopicOf($characterD), 60, 'Processing 1 jobs...'],
+                ['started', 0, 'Fetching industry jobs...', null],
+                ['completed', 100, '1 active jobs, 0 ready to deliver', ['total' => 1, 'active' => 1, 'ready' => 0]],
             ],
-            $this->industryJobsSyncProgressEvents(),
+            $this->industryJobsSyncEvents(),
         );
     }
 
@@ -2208,6 +2213,206 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame([[self::CORPORATION_JOB_IN_NEW_CORPORATION_ID, 3, 'active', self::RIFTER_TYPE_ID, 4_200_000.25]], $this->persistedJobStates());
     }
 
+    #[Group('issue-215')]
+    public function testUserJobsSyncPublishesOneStartedOneProgressPerCharacterAndOneCompletedNamingTheCharactersNotSynced(): void
+    {
+        $user = $this->createUserWithCharacters([
+            21504 => [self::CORPORATION_JOBS_SCOPE],
+            21505 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+            21506 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+        ]);
+        $this->givenPersonalJobsReadOutcomes([
+            21505 => EsiApiException::forbidden(endpoint: sprintf(self::PERSONAL_JOBS_ENDPOINT_FORMAT, 21505)),
+            21506 => [
+                $this->makeJobData(600, 21506, 'active', self::RIFTER_TYPE_ID),
+                $this->makeJobData(601, 21506, 'active', self::NITROGEN_FUEL_BLOCK_TYPE_ID),
+                $this->makeTritaniumJobData(602, 21506, 'ready'),
+                $this->makeJobData(603, 21506, 'delivered'),
+            ],
+        ]);
+        $this->givenCorporationJobs([]);
+        $this->givenNoCachedJobNorJobMatch();
+
+        $this->service->syncUserJobs($user);
+
+        $this->assertSame(
+            [
+                ['started', 0, 'Fetching industry jobs...', null],
+                ['in_progress', 33, '1/3 characters processed', null],
+                ['in_progress', 66, '2/3 characters processed', null],
+                ['in_progress', 100, '3/3 characters processed', null],
+                ['completed', 100, '2 active jobs, 1 ready to deliver, 2 characters not synced', [
+                    'total' => 4,
+                    'active' => 2,
+                    'ready' => 1,
+                    'failedCharacters' => [
+                        ['characterName' => 'Char21504', 'reason' => 'missing_scope', 'statusCode' => null],
+                        ['characterName' => 'Char21505', 'reason' => 'esi_error', 'statusCode' => 403],
+                    ],
+                ]],
+            ],
+            $this->industryJobsSyncEvents(),
+        );
+        $this->assertSame([self::USER_OF_SPEC_215_TOPIC], $this->industryJobsSyncTopics());
+        $this->assertSame([21505, 21506], $this->characterInfoReads);
+        $this->assertSame(
+            [[LogLevel::WARNING, self::FAILED_CHARACTER_SYNC_WARNING, ['characterName' => 'Char21505', 'error' => 'Access forbidden', 'statusCode' => 403]]],
+            $this->loggedWarnings(),
+        );
+    }
+
+    #[Group('issue-215')]
+    public function testUserJobsSyncWhoseCharactersAllFailPublishesCompletedNamingThemWithoutError(): void
+    {
+        $user = $this->createUserWithCharacters([
+            21507 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+            21508 => null,
+        ]);
+        $this->givenPersonalJobsReadOutcomes([
+            21507 => EsiApiException::fromResponse(503, 'Service Unavailable', sprintf(self::PERSONAL_JOBS_ENDPOINT_FORMAT, 21507)),
+        ]);
+        $this->givenCorporationJobs([]);
+        $this->givenNoCachedJobNorJobMatch();
+
+        $this->service->syncUserJobs($user);
+
+        $this->assertSame(
+            [
+                ['started', 0, 'Fetching industry jobs...', null],
+                ['in_progress', 50, '1/2 characters processed', null],
+                ['in_progress', 100, '2/2 characters processed', null],
+                ['completed', 100, '0 active jobs, 0 ready to deliver, 2 characters not synced', [
+                    'total' => 0,
+                    'active' => 0,
+                    'ready' => 0,
+                    'failedCharacters' => [
+                        ['characterName' => 'Char21507', 'reason' => 'esi_unavailable', 'statusCode' => 503],
+                        ['characterName' => 'Char21508', 'reason' => 'missing_token', 'statusCode' => null],
+                    ],
+                ]],
+            ],
+            $this->industryJobsSyncEvents(),
+        );
+        $this->assertSame([21507], $this->characterInfoReads);
+    }
+
+    #[Group('issue-215')]
+    public function testUserJobsSyncOfUserWithoutCharacterPublishesStartedThenEmptyCompletedWithoutProgress(): void
+    {
+        $user = $this->createUserWithCharacters([]);
+
+        $this->service->syncUserJobs($user);
+
+        $this->assertSame(
+            [
+                ['started', 0, 'Fetching industry jobs...', null],
+                ['completed', 100, '0 active jobs, 0 ready to deliver', ['total' => 0, 'active' => 0, 'ready' => 0, 'failedCharacters' => []]],
+            ],
+            $this->industryJobsSyncEvents(),
+        );
+        $this->assertSame([], $this->characterInfoReads);
+        $this->assertSame([], $this->personalJobsReads);
+    }
+
+    #[Group('issue-215')]
+    public function testUserJobsSyncFailingOutsideACharacterSyncPublishesErrorAndPropagates(): void
+    {
+        $collectionFailure = new \RuntimeException('Character collection unavailable');
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::fromString(self::USER_OF_SPEC_215_ID));
+        $user->method('getCharacters')->willThrowException($collectionFailure);
+
+        $raised = null;
+        try {
+            $this->service->syncUserJobs($user);
+        } catch (\Throwable $failure) {
+            $raised = $failure;
+        }
+
+        $this->assertSame($collectionFailure, $raised);
+        $this->assertSame(
+            [
+                ['started', 0, 'Fetching industry jobs...', null],
+                ['error', null, 'Character collection unavailable', null],
+            ],
+            $this->industryJobsSyncEvents(),
+        );
+    }
+
+    #[Group('issue-215')]
+    public function testUserJobsSyncCountsOnceACorporationJobReadByTwoCharactersOfTheUser(): void
+    {
+        $user = $this->createUserWithCharacters([
+            21509 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+            21510 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+        ]);
+        $this->givenPersonalJobsReadOutcomes([
+            21509 => [$this->makeJobData(910, 21509, 'active', self::RIFTER_TYPE_ID)],
+            21510 => [],
+        ]);
+        $this->givenCorporationJobs([
+            $this->makeJobData(910, 21509, 'active', self::RIFTER_TYPE_ID),
+            $this->makeTritaniumJobData(911, 21510, 'ready'),
+            $this->makeJobData(912, self::FIRST_CORPMATE_ID, 'active', self::NITROGEN_FUEL_BLOCK_TYPE_ID),
+        ]);
+        $this->givenNoCachedJobNorJobMatch();
+
+        $this->service->syncUserJobs($user);
+
+        $this->assertSame(
+            [
+                ['started', 0, 'Fetching industry jobs...', null],
+                ['in_progress', 50, '1/2 characters processed', null],
+                ['in_progress', 100, '2/2 characters processed', null],
+                ['completed', 100, '1 active jobs, 1 ready to deliver', ['total' => 2, 'active' => 1, 'ready' => 1, 'failedCharacters' => []]],
+            ],
+            $this->industryJobsSyncEvents(),
+        );
+        $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
+    }
+
+    #[Group('issue-215')]
+    public function testUserJobsSyncGoesOnAfterACharacterWhoseNotificationSendFailsAndLeavesItsJobsOutOfTheCounts(): void
+    {
+        $user = $this->createUserWithCharacters([
+            21511 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+            21512 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+        ]);
+        $this->givenPersonalJobsReadOutcomes([
+            21511 => [$this->makeTritaniumJobData(620, 21511, 'ready')],
+            21512 => [$this->makeJobData(621, 21512, 'active', self::RIFTER_TYPE_ID)],
+        ]);
+        $this->givenCorporationJobs([]);
+        $this->givenNoCachedJobNorJobMatch();
+        $this->recordPersistedJobs();
+        $this->recordDispatchedNotifications(failingJobId: 620, failure: new \RuntimeException('Push endpoint unreachable'));
+
+        $this->service->syncUserJobs($user);
+
+        $this->assertSame(
+            [
+                ['started', 0, 'Fetching industry jobs...', null],
+                ['in_progress', 50, '1/2 characters processed', null],
+                ['in_progress', 100, '2/2 characters processed', null],
+                ['completed', 100, '1 active jobs, 0 ready to deliver, 1 characters not synced', [
+                    'total' => 1,
+                    'active' => 1,
+                    'ready' => 0,
+                    'failedCharacters' => [
+                        ['characterName' => 'Char21511', 'reason' => 'sync_failed', 'statusCode' => null],
+                    ],
+                ]],
+            ],
+            $this->industryJobsSyncEvents(),
+        );
+        $this->assertSame([['claim', 620], ['dispatch', 620], ['release', 620]], $this->completionNotificationEvents);
+        $this->assertSame([[620, 10, 'ready', self::TRITANIUM_TYPE_ID, 2_340_000.0], [621, 5, 'active', self::RIFTER_TYPE_ID, 100_000.0]], $this->persistedJobStates());
+        $this->assertSame(
+            [[LogLevel::WARNING, self::FAILED_CHARACTER_SYNC_WARNING, ['characterName' => 'Char21511', 'error' => 'Push endpoint unreachable']]],
+            $this->loggedWarnings(),
+        );
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
@@ -2454,16 +2659,86 @@ class IndustryJobSyncServiceTest extends TestCase
         return sprintf('/user/%s/sync/industry-jobs', $character->getUser()->getId()->toRfc4122());
     }
 
-    private function industryJobsSyncProgressEvents(): array
+    private function industryJobsSyncEvents(): array
     {
         $events = [];
-        foreach ($this->publishedMercureUpdates as [$topic, $payload]) {
-            if ($payload['syncType'] === 'industry-jobs' && $payload['status'] === 'in_progress') {
-                $events[] = [$topic, $payload['progress'], $payload['message']];
+        foreach ($this->publishedMercureUpdates as [, $payload]) {
+            if ($payload['syncType'] === 'industry-jobs') {
+                $events[] = [$payload['status'], $payload['progress'], $payload['message'], $payload['data']];
             }
         }
 
         return $events;
+    }
+
+    private function industryJobsSyncTopics(): array
+    {
+        $topics = [];
+        foreach ($this->publishedMercureUpdates as [$topic, $payload]) {
+            if ($payload['syncType'] === 'industry-jobs') {
+                $topics[] = $topic;
+            }
+        }
+
+        return array_values(array_unique($topics));
+    }
+
+    private function createUserWithCharacters(array $scopesByEveCharacterId): User
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::fromString(self::USER_OF_SPEC_215_ID));
+
+        $characters = [];
+        foreach ($scopesByEveCharacterId as $eveCharacterId => $scopes) {
+            $token = null;
+            if ($scopes !== null) {
+                $token = $this->createStub(EveToken::class);
+                $token->method('isExpiringSoon')->willReturn(false);
+                $token->method('hasScope')->willReturnCallback(
+                    static fn (string $scope): bool => in_array($scope, $scopes, true),
+                );
+            }
+
+            $character = $this->createStub(Character::class);
+            $character->method('getEveCharacterId')->willReturn($eveCharacterId);
+            $character->method('getEveToken')->willReturn($token);
+            $character->method('getName')->willReturn("Char{$eveCharacterId}");
+            $character->method('getUser')->willReturn($user);
+            $character->method('getCorporationId')->willReturn(self::CORPORATION_ID);
+            $characters[] = $character;
+        }
+
+        $user->method('getCharacters')->willReturn(new ArrayCollection($characters));
+
+        return $user;
+    }
+
+    private function givenPersonalJobsReadOutcomes(array $outcomesByEveCharacterId): void
+    {
+        $this->esiClient->method('get')->willReturnCallback(
+            function (string $endpoint) use ($outcomesByEveCharacterId): array {
+                $this->personalJobsReads[] = $endpoint;
+                foreach ($outcomesByEveCharacterId as $eveCharacterId => $outcome) {
+                    if ($endpoint !== sprintf(self::PERSONAL_JOBS_ENDPOINT_FORMAT, $eveCharacterId)) {
+                        continue;
+                    }
+                    if ($outcome instanceof \Throwable) {
+                        throw $outcome;
+                    }
+
+                    return $outcome;
+                }
+
+                return [];
+            },
+        );
+    }
+
+    private function givenNoCachedJobNorJobMatch(): void
+    {
+        $this->stubCachedJobs([]);
+        $this->stubActiveJobsByCharacter([]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
     }
 
     private function industryJobsSyncCompletedEvents(): array

@@ -30,6 +30,15 @@ const PILOT_THREE_JOBS_SYNC_ERROR: SyncProgress = {
   timestamp: '2026-10-29T12:00:13+00:00',
 }
 
+const PILOT_FOUR_NOT_SYNCED_JOBS_SYNC_END: SyncProgress = {
+  syncType: 'industry-jobs',
+  status: 'completed',
+  progress: 100,
+  message: '2 active jobs, 1 ready to deliver, 1 characters not synced',
+  data: { total: 3, active: 2, ready: 1, failedCharacters: [{ characterName: 'Pilot Four', reason: 'missing_scope', statusCode: null }] },
+  timestamp: '2026-10-30T10:30:05+00:00',
+}
+
 async function receive(message: SyncProgress) {
   const syncStore = useSyncStore()
   syncStore.syncStatus = { ...syncStore.syncStatus, [message.syncType]: message }
@@ -60,5 +69,17 @@ describe('IndustryDashboard on jobs sync events (issue 215)', () => {
     expect(slotsRequestCount()).toBe(2)
     expect(wrapper.find('[data-testid="jobs-sync-error"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('boom A')
+  })
+
+  it('reloads the slots on a user jobs sync end naming a character not synced and shows no banner', async () => {
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
+    const wrapper = mount(IndustryDashboard, { global: { plugins: [i18n] } })
+    await flushPromises()
+
+    await receive(PILOT_FOUR_NOT_SYNCED_JOBS_SYNC_END)
+
+    expect(slotsRequestCount()).toBe(2)
+    expect(wrapper.find('[data-testid="last-jobs-sync-failures"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Pilot Four')
   })
 })

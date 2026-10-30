@@ -44,6 +44,10 @@ class IndustryJobSyncService
     ) {
     }
 
+    public function syncUserJobs(User $user): void
+    {
+    }
+
     public function syncCharacterJobs(Character $character): void
     {
         $token = $character->getEveToken();

@@ -8,7 +8,7 @@ import StepsTab from '@/components/industry/StepsTab.vue'
 import { useProjectsStore } from '@/stores/industry/projects'
 import { useStepsStore } from '@/stores/industry/steps'
 import { useSyncStore, type SyncProgress, type SyncStatus } from '@/stores/sync'
-import type { IndustryProject, IndustryProjectStep } from '@/stores/industry/types'
+import type { CharacterSyncFailure, IndustryProject, IndustryProjectStep } from '@/stores/industry/types'
 
 const PROJECT_ID = 'project-215'
 const JOBS_SYNC_ERROR_BANNER = '[data-testid="jobs-sync-error"]'
@@ -105,6 +105,11 @@ const CORMORANT_PROJECT: IndustryProject = {
 function syncEvent(syncType: string, status: SyncStatus, progress: number | null, message: string, data: Record<string, unknown> | null, timestamp: string): SyncProgress {
   return { syncType, status, progress, message, data, timestamp }
 }
+
+const LAST_JOBS_SYNC_FAILURES_BANNER = '[data-testid="last-jobs-sync-failures"]'
+const MATCH_JOBS_FAILURES_BANNER = '[data-testid="jobs-sync-failures"]'
+const PILOT_FIVE_ESI_ERROR: CharacterSyncFailure = { characterName: 'Pilot Five', reason: 'esi_error', statusCode: 403 }
+const USER_JOBS_SYNC_END_WITH_PILOT_FIVE_NOT_SYNCED = syncEvent('industry-jobs', 'completed', 100, '2 active jobs, 1 ready to deliver, 1 characters not synced', { total: 3, active: 2, ready: 1, failedCharacters: [PILOT_FIVE_ESI_ERROR] }, '2026-10-30T10:00:05+00:00')
 
 const PILOT_ONE_JOBS_SYNC_END = syncEvent('industry-jobs', 'completed', 100, '2 active jobs, 1 ready to deliver', { total: 3, active: 2, ready: 1 }, '2026-10-29T11:00:05+00:00')
 const NOTIFICATION = 'notification' as string as SyncStatus
@@ -344,5 +349,35 @@ describe('StepsTab on jobs sync events (issue 215)', () => {
 
     expect(fetchProject).not.toHaveBeenCalled()
     expect(fetchAvailableJobs).not.toHaveBeenCalled()
+  })
+})
+
+describe('StepsTab on the characters not synced by the last user jobs sync (issue 215)', () => {
+  it('names the character not synced by the last jobs sync in its own banner and reloads the project once', async () => {
+    const { wrapper, fetchProject } = mountStepsTab()
+    await flushPromises()
+
+    await receive(USER_JOBS_SYNC_END_WITH_PILOT_FIVE_NOT_SYNCED)
+
+    expect(wrapper.findAll(LAST_JOBS_SYNC_FAILURES_BANNER)).toHaveLength(1)
+    expect(wrapper.find(LAST_JOBS_SYNC_FAILURES_BANNER).text()).toContain('Jobs not synced for 1 character at the last sync, the jobs shown may be out of date:')
+    expect(bannerLines(wrapper, LAST_JOBS_SYNC_FAILURES_BANNER)).toEqual(['Pilot Five: ESI error 403'])
+    expect(fetchProject).toHaveBeenCalledTimes(1)
+    expect(fetchProject).toHaveBeenCalledWith(PROJECT_ID)
+    expect(wrapper.find(MATCH_JOBS_FAILURES_BANNER).exists()).toBe(false)
+  })
+
+  it('ignores the characters not synced carried by a jobs sync end received while matching the jobs', async () => {
+    const { wrapper, matchJobs, fetchProject } = mountStepsTab()
+    await openEsiJobsPanel(wrapper)
+    await buttonLabelled(wrapper, en.industry.stepsTab.syncJobs).trigger('click')
+    await flushPromises()
+
+    expect(matchJobs).toHaveBeenCalledTimes(1)
+
+    await receive(USER_JOBS_SYNC_END_WITH_PILOT_FIVE_NOT_SYNCED)
+
+    expect(wrapper.find(LAST_JOBS_SYNC_FAILURES_BANNER).exists()).toBe(false)
+    expect(fetchProject).not.toHaveBeenCalled()
   })
 })

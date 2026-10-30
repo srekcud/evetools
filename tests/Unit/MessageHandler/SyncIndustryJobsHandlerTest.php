@@ -6,13 +6,15 @@ namespace App\Tests\Unit\MessageHandler;
 
 use App\Entity\Character;
 use App\Entity\EveToken;
-use App\Message\SyncCharacterIndustryJobs;
+use App\Entity\User;
 use App\Message\SyncIndustryJobs;
+use App\Message\SyncUserIndustryJobs;
 use App\MessageHandler\SyncIndustryJobsHandler;
 use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Messenger\Envelope;
@@ -21,14 +23,21 @@ use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(SyncIndustryJobsHandler::class)]
 #[AllowMockObjectsWithoutExpectations]
+#[Group('issue-215')]
 final class SyncIndustryJobsHandlerTest extends TestCase
 {
     private const string INDUSTRY_JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
     private const string WALLET_SCOPE = 'esi-wallet.read_character_wallet.v1';
 
-    private const string CHARACTER_WITH_JOBS_SCOPE_A = '0199a1f0-0000-7000-8000-0000000000a1';
-    private const string CHARACTER_WITH_WALLET_SCOPE_ONLY = '0199a1f0-0000-7000-8000-0000000000b2';
-    private const string CHARACTER_WITH_JOBS_SCOPE_C = '0199a1f0-0000-7000-8000-0000000000c3';
+    private const string USER_U1 = '0199a1f0-0000-7000-8000-000000215001';
+    private const string USER_U2 = '0199a1f0-0000-7000-8000-000000215002';
+
+    private const string CHARACTER_A1 = '0199a1f0-0000-7000-8000-0000000000a1';
+    private const string CHARACTER_A2 = '0199a1f0-0000-7000-8000-0000000000a2';
+    private const string CHARACTER_A3 = '0199a1f0-0000-7000-8000-0000000000a3';
+    private const string CHARACTER_B1 = '0199a1f0-0000-7000-8000-0000000000b1';
+    private const string CHARACTER_C1 = '0199a1f0-0000-7000-8000-0000000000c1';
+    private const string CHARACTER_D1 = '0199a1f0-0000-7000-8000-0000000000d1';
 
     /** @var list<object> */
     private array $dispatchedMessages = [];
@@ -36,90 +45,61 @@ final class SyncIndustryJobsHandlerTest extends TestCase
     /** @var list<list<string|null>> */
     private array $syncTrackerCalls = [];
 
-    public function testQueuesOneCharacterIndustryJobsMessagePerCharacterHoldingTheJobsScope(): void
+    public function testQueuesOneUserIndustryJobsMessagePerDistinctUserInOrderOfFirstAppearance(): void
     {
-        $handler = $this->handler([
-            $this->character(self::CHARACTER_WITH_JOBS_SCOPE_A, [self::INDUSTRY_JOBS_SCOPE]),
-            $this->character(self::CHARACTER_WITH_WALLET_SCOPE_ONLY, [self::WALLET_SCOPE]),
-            $this->character(self::CHARACTER_WITH_JOBS_SCOPE_C, [self::WALLET_SCOPE, self::INDUSTRY_JOBS_SCOPE]),
-        ]);
+        $handler = $this->handler($this->charactersOfTwoUsers());
 
         $handler(new SyncIndustryJobs());
 
         self::assertEquals(
-            [
-                new SyncCharacterIndustryJobs(self::CHARACTER_WITH_JOBS_SCOPE_A),
-                new SyncCharacterIndustryJobs(self::CHARACTER_WITH_JOBS_SCOPE_C),
-            ],
+            [new SyncUserIndustryJobs(self::USER_U1), new SyncUserIndustryJobs(self::USER_U2)],
             $this->dispatchedMessages,
         );
     }
 
-    public function testSyncTrackerCompletesWithQueuedCharactersOutOfAllCharacters(): void
+    public function testSyncTrackerCompletesWithQueuedUsersForCharactersRead(): void
     {
-        $handler = $this->handler([
-            $this->character(self::CHARACTER_WITH_JOBS_SCOPE_A, [self::INDUSTRY_JOBS_SCOPE]),
-            $this->character(self::CHARACTER_WITH_WALLET_SCOPE_ONLY, [self::WALLET_SCOPE]),
-            $this->character(self::CHARACTER_WITH_JOBS_SCOPE_C, [self::INDUSTRY_JOBS_SCOPE]),
-        ]);
+        $handler = $this->handler($this->charactersOfTwoUsers());
 
         $handler(new SyncIndustryJobs());
 
         self::assertSame(
-            [['start', 'industry'], ['complete', 'industry', '2/3 chars queued']],
+            [['start', 'industry'], ['complete', 'industry', '2 users queued for 4 chars']],
             $this->syncTrackerCalls,
         );
     }
 
-    public function testCharacterWithoutTokenIsNotQueued(): void
+    public function testCharacterWithoutUserQueuesNothing(): void
     {
-        $characterWithoutToken = $this->createStub(Character::class);
-        $characterWithoutToken->method('getId')->willReturn(Uuid::fromString(self::CHARACTER_WITH_WALLET_SCOPE_ONLY));
-        $characterWithoutToken->method('getEveToken')->willReturn(null);
-
         $handler = $this->handler([
-            $characterWithoutToken,
-            $this->character(self::CHARACTER_WITH_JOBS_SCOPE_C, [self::INDUSTRY_JOBS_SCOPE]),
+            $this->character(self::CHARACTER_C1, null, [self::INDUSTRY_JOBS_SCOPE]),
+            $this->character(self::CHARACTER_A1, $this->user(self::USER_U1), [self::INDUSTRY_JOBS_SCOPE]),
         ]);
 
         $handler(new SyncIndustryJobs());
 
-        self::assertEquals([new SyncCharacterIndustryJobs(self::CHARACTER_WITH_JOBS_SCOPE_C)], $this->dispatchedMessages);
-        self::assertSame(['complete', 'industry', '1/2 chars queued'], $this->syncTrackerCalls[1] ?? null);
+        self::assertEquals([new SyncUserIndustryJobs(self::USER_U1)], $this->dispatchedMessages);
+        self::assertSame(['complete', 'industry', '1 users queued for 2 chars'], $this->syncTrackerCalls[1] ?? null);
     }
 
-    public function testCharacterWithoutIdIsNotQueued(): void
+    public function testCharacterWhoseUserHasNoIdQueuesNothing(): void
     {
-        $token = $this->createStub(EveToken::class);
-        $token->method('hasScope')->willReturn(true);
-        $characterWithoutId = $this->createStub(Character::class);
-        $characterWithoutId->method('getId')->willReturn(null);
-        $characterWithoutId->method('getEveToken')->willReturn($token);
-
         $handler = $this->handler([
-            $this->character(self::CHARACTER_WITH_JOBS_SCOPE_A, [self::INDUSTRY_JOBS_SCOPE]),
-            $characterWithoutId,
-            $this->character(self::CHARACTER_WITH_WALLET_SCOPE_ONLY, [self::WALLET_SCOPE]),
-            $this->character(self::CHARACTER_WITH_JOBS_SCOPE_C, [self::INDUSTRY_JOBS_SCOPE]),
+            $this->character(self::CHARACTER_D1, $this->user(null), [self::INDUSTRY_JOBS_SCOPE]),
+            $this->character(self::CHARACTER_B1, $this->user(self::USER_U2), [self::WALLET_SCOPE]),
         ]);
 
         $handler(new SyncIndustryJobs());
 
-        self::assertEquals(
-            [
-                new SyncCharacterIndustryJobs(self::CHARACTER_WITH_JOBS_SCOPE_A),
-                new SyncCharacterIndustryJobs(self::CHARACTER_WITH_JOBS_SCOPE_C),
-            ],
-            $this->dispatchedMessages,
-        );
-        self::assertSame(['complete', 'industry', '2/4 chars queued'], $this->syncTrackerCalls[1] ?? null);
+        self::assertEquals([new SyncUserIndustryJobs(self::USER_U2)], $this->dispatchedMessages);
+        self::assertSame(['complete', 'industry', '1 users queued for 2 chars'], $this->syncTrackerCalls[1] ?? null);
     }
 
     public function testSyncTrackerFailsAndErrorPropagatesWhenQueueingFails(): void
     {
         $characterRepository = $this->createStub(CharacterRepository::class);
         $characterRepository->method('findActiveWithValidTokens')->willReturn([
-            $this->character(self::CHARACTER_WITH_JOBS_SCOPE_A, [self::INDUSTRY_JOBS_SCOPE]),
+            $this->character(self::CHARACTER_A1, $this->user(self::USER_U1), [self::INDUSTRY_JOBS_SCOPE]),
         ]);
 
         $messageBus = $this->createStub(MessageBusInterface::class);
@@ -139,6 +119,20 @@ final class SyncIndustryJobsHandlerTest extends TestCase
             [['start', 'industry'], ['fail', 'industry', 'async transport unreachable']],
             $this->syncTrackerCalls,
         );
+    }
+
+    /** @return list<Character> */
+    private function charactersOfTwoUsers(): array
+    {
+        $userU1 = $this->user(self::USER_U1);
+        $userU2 = $this->user(self::USER_U2);
+
+        return [
+            $this->character(self::CHARACTER_A1, $userU1, [self::INDUSTRY_JOBS_SCOPE]),
+            $this->character(self::CHARACTER_B1, $userU2, [self::WALLET_SCOPE]),
+            $this->character(self::CHARACTER_A2, $userU1, [self::INDUSTRY_JOBS_SCOPE]),
+            $this->character(self::CHARACTER_A3, $userU1, [self::WALLET_SCOPE, self::INDUSTRY_JOBS_SCOPE]),
+        ];
     }
 
     /** @param list<Character> $characters */
@@ -181,8 +175,16 @@ final class SyncIndustryJobsHandlerTest extends TestCase
         return $syncTracker;
     }
 
+    private function user(?string $userId): User
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn($userId === null ? null : Uuid::fromString($userId));
+
+        return $user;
+    }
+
     /** @param list<string> $grantedScopes */
-    private function character(string $characterId, array $grantedScopes): Character
+    private function character(string $characterId, ?User $user, array $grantedScopes): Character
     {
         $token = $this->createStub(EveToken::class);
         $token->method('hasScope')->willReturnCallback(
@@ -193,6 +195,7 @@ final class SyncIndustryJobsHandlerTest extends TestCase
         $character->method('getId')->willReturn(Uuid::fromString($characterId));
         $character->method('getName')->willReturn('Pilot ' . substr($characterId, -2));
         $character->method('getEveToken')->willReturn($token);
+        $character->method('getUser')->willReturn($user);
 
         return $character;
     }
