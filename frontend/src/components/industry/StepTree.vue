@@ -74,7 +74,7 @@ function stepTotalDuration(step: IndustryProjectStep): number | null {
   return step.timePerRun * step.runs
 }
 
-function isStepWithUnknownDuration(step: IndustryProjectStep): boolean {
+function isStepWithUnknownTimePerRun(step: IndustryProjectStep): boolean {
   return !step.purchased && !step.inStock && step.timePerRun === null
 }
 
@@ -586,11 +586,11 @@ function mergeGroup(stepId: string) {
                     {{ splitGroup.runsCompleted }} {{ t('industry.stepTree.completed') }}
                   </span>
                   <!-- Duration -->
-                  <span v-if="splitGroup.children.some(isStepWithUnknownDuration) || groupTotalDuration(splitGroup.children)" class="text-slate-500 flex items-center gap-1">
+                  <span v-if="splitGroup.children.some(isStepWithUnknownTimePerRun) || groupTotalDuration(splitGroup.children)" class="text-slate-500 flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <UnknownValue v-if="splitGroup.children.some(isStepWithUnknownDuration)" />
+                    <UnknownValue v-if="splitGroup.children.some(isStepWithUnknownTimePerRun)" />
                     <template v-else>{{ formatDuration(groupTotalDuration(splitGroup.children)) }}</template>
                   </span>
                 </span>
@@ -818,11 +818,11 @@ function mergeGroup(stepId: string) {
                   <span v-if="step.manualJobData && !step.esiJobCharacterName" class="text-amber-400">(manuel)</span>
                 </div>
                 <!-- Duration for step -->
-                <div v-if="isStepWithUnknownDuration(step) || (stepTotalDuration(step) && !step.purchased && !step.inStock)" class="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                <div v-if="isStepWithUnknownTimePerRun(step) || (stepTotalDuration(step) && !step.purchased && !step.inStock)" class="flex items-center gap-1 mt-1 text-xs text-slate-500">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <UnknownValue v-if="isStepWithUnknownDuration(step)" />
+                  <UnknownValue v-if="isStepWithUnknownTimePerRun(step)" />
                   <template v-else>
                     {{ formatDuration(stepTotalDuration(step)) }}
                     <span v-if="step.runs > 1" class="text-slate-600">({{ formatDuration(step.timePerRun) }}/run)</span>
