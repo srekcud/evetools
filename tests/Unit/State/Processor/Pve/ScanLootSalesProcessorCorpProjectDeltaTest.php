@@ -173,6 +173,17 @@ final class ScanLootSalesProcessorCorpProjectDeltaTest extends TestCase
         );
     }
 
+    public function testLegacyIdentifierDeclinedBeforeLotTwoIgnoresThePairEvenWithAnUnrecoveredLegacyImportAndReportsNoError(): void
+    {
+        $settings = new UserPveSettings();
+        $settings->addDeclinedLootSaleTransactionId(-abs(crc32('a1b2c3d4-project_2112000001')));
+
+        $result = $this->scanPilotOneContributed(1350, corpProjectImports: [$this->legacyImport(self::EVE_CHARACTER_ID, null)], settings: $settings);
+
+        $this->assertSame([], $this->deltaSummaries($result->detectedSales));
+        $this->assertSame([], $this->errorSummaries($result->corporationProjectErrors));
+    }
+
     public function testCumulLowerThanTheImportedQuantityIsReportedWithoutSale(): void
     {
         $result = $this->scanPilotOneContributed(800, corpProjectImports: [$this->pairedImport(self::EVE_CHARACTER_ID, 1000, 1000)]);

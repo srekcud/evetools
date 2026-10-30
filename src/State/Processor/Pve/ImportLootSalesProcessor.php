@@ -47,7 +47,7 @@ class ImportLootSalesProcessor implements ProcessorInterface
         $rejectedContributions = 0;
 
         $settings = $this->settingsRepository->getOrCreate($user);
-        $accountedQuantities = $this->contributionAccounting->accountedQuantitiesOf($user);
+        $accountedQuantities = $this->contributionAccounting->accountedQuantitiesOf($user, $settings);
         foreach ($data->declined as $item) {
             if ($this->isCorpProjectContribution($item)) {
                 $pendingContribution = $this->pendingContributionOf($item, $accountedQuantities);
@@ -100,6 +100,7 @@ class ImportLootSalesProcessor implements ProcessorInterface
                 $income->setCorpProjectId($pendingContribution['projectId']);
                 $income->setCorpProjectCharacterId($pendingContribution['characterId']);
                 $income->setCorpProjectQuantity($pendingContribution['quantity']);
+                $accountedQuantities->recordImportedQuantity($pendingContribution['projectId'], $pendingContribution['characterId'], $pendingContribution['quantity']);
             }
 
             $this->entityManager->persist($income);
@@ -140,11 +141,13 @@ class ImportLootSalesProcessor implements ProcessorInterface
 
         $projectId = (string) $item['projectId'];
         $characterId = (int) $item['characterId'];
-        if ($accountedQuantities->isLegacyIdentifierDeclined($projectId, $characterId)
+        $quantity = (int) $item['quantity'];
+        if ($quantity <= 0
+            || $accountedQuantities->isLegacyIdentifierDeclined($projectId, $characterId)
             || $accountedQuantities->quantityOf($projectId, $characterId) !== (int) $item['accountedQuantity']) {
             return null;
         }
 
-        return ['projectId' => $projectId, 'characterId' => $characterId, 'quantity' => (int) $item['quantity']];
+        return ['projectId' => $projectId, 'characterId' => $characterId, 'quantity' => $quantity];
     }
 }

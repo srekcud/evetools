@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Pve;
 
 use App\Entity\User;
+use App\Entity\UserPveSettings;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
 
@@ -16,31 +17,20 @@ final readonly class CorpProjectContributionAccounting
     ) {
     }
 
-    public function accountedQuantitiesOf(User $user): CorpProjectAccountedQuantities
+    public function accountedQuantitiesOf(User $user, ?UserPveSettings $settings = null): CorpProjectAccountedQuantities
     {
-        $importedQuantities = [];
-        $legacyQuantities = [];
+        $accountedQuantities = new CorpProjectAccountedQuantities($settings ?? $this->settingsRepository->getOrCreate($user));
 
         foreach ($this->incomeRepository->findCorpProjectImports($user) as $import) {
             $quantity = $import['corpProjectQuantity'];
 
             if ($import['corpProjectId'] !== null && $import['corpProjectCharacterId'] !== null && $quantity !== null) {
-                $pairKey = CorpProjectAccountedQuantities::pairKey($import['corpProjectId'], $import['corpProjectCharacterId']);
-                $importedQuantities[$pairKey] = (array_key_exists($pairKey, $importedQuantities) ? $importedQuantities[$pairKey] : 0) + $quantity;
-                continue;
-            }
-
-            $legacyTransactionId = $import['transactionId'];
-            if ($import['corpProjectId'] === null && $legacyTransactionId !== null) {
-                $previousQuantity = array_key_exists($legacyTransactionId, $legacyQuantities) ? $legacyQuantities[$legacyTransactionId] : 0;
-                $legacyQuantities[$legacyTransactionId] = $previousQuantity === null || $quantity === null ? null : $previousQuantity + $quantity;
+                $accountedQuantities->recordImportedQuantity($import['corpProjectId'], $import['corpProjectCharacterId'], $quantity);
+            } elseif ($import['corpProjectId'] === null && $import['transactionId'] !== null) {
+                $accountedQuantities->recordLegacyQuantity($import['transactionId'], $quantity);
             }
         }
 
-        return new CorpProjectAccountedQuantities(
-            $importedQuantities,
-            $legacyQuantities,
-            $this->settingsRepository->getOrCreate($user),
-        );
+        return $accountedQuantities;
     }
 }

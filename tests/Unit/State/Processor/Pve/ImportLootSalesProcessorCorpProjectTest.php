@@ -20,6 +20,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 
@@ -302,17 +303,172 @@ final class ImportLootSalesProcessorCorpProjectTest extends TestCase
         $this->assertSame([], $this->declinedCorpProjectQuantitiesOf($settings));
     }
 
+    public function testSecondContributionOfTheSamePairInOnePostIsRejectedOnceTheFirstIsImported(): void
+    {
+        $result = $this->import(
+            [
+                $this->contributionSale(self::PILOT_ONE_ID, 1600, 600, 1000, 7500.0),
+                $this->contributionSale(self::PILOT_ONE_ID, 1700, 700, 1000, 8750.0),
+            ],
+            corpProjectImports: [$this->pairedImport(self::PROJECT_ID, self::PILOT_ONE_ID, 1000, 1000)],
+        );
+
+        $this->assertSame([1, 1], [$result->imported, $result->rejectedContributions]);
+        $this->assertSame(
+            [[PveIncomeType::CorpProject, 'Tritanium Drive: 600x Tritanium', 7500.0, self::CONTRIBUTION_DATE, -abs(crc32('a1b2c3d4-project_2112000001_1600')), self::PROJECT_ID, self::PILOT_ONE_ID, 600]],
+            $this->persistedIncomeSummaries(),
+        );
+    }
+
+    public function testSameContributionSentTwiceInOnePostIsImportedOnce(): void
+    {
+        $contribution = $this->contributionSale(self::PILOT_TWO_ID, 1350, 350, 1000, 4375.0);
+
+        $result = $this->import(
+            [$contribution, $contribution],
+            corpProjectImports: [$this->pairedImport(self::PROJECT_ID, self::PILOT_TWO_ID, 1000, 1000)],
+        );
+
+        $this->assertSame(1, $result->imported);
+        $this->assertSame([[self::PROJECT_ID, self::PILOT_TWO_ID, 350]], $this->persistedPairs());
+    }
+
+    public function testSecondDeclineOfTheSamePairInOnePostIsRejectedForAUserWithoutSettings(): void
+    {
+        $result = $this->import(
+            [],
+            declined: [
+                $this->contributionSale(self::PILOT_ONE_ID, 1600, 600, 1000, 7500.0),
+                $this->contributionSale(self::PILOT_ONE_ID, 1700, 700, 1000, 8750.0),
+            ],
+            corpProjectImports: [$this->pairedImport(self::PROJECT_ID, self::PILOT_ONE_ID, 1000, 1000)],
+            userHasSettingsRow: false,
+        );
+
+        $this->assertSame(1, $result->rejectedContributions);
+        $this->assertSame([['a1b2c3d4-project:2112000001' => 600]], $this->persistedDeclinedCorpProjectQuantities());
+    }
+
+    public function testContributionDeclinedInTheSamePostIsRejectedAtImportForAUserWithoutSettings(): void
+    {
+        $result = $this->import(
+            [$this->contributionSale(self::PILOT_ONE_ID, 1700, 700, 1000, 8750.0)],
+            declined: [$this->contributionSale(self::PILOT_ONE_ID, 1600, 600, 1000, 7500.0)],
+            corpProjectImports: [$this->pairedImport(self::PROJECT_ID, self::PILOT_ONE_ID, 1000, 1000)],
+            userHasSettingsRow: false,
+        );
+
+        $this->assertSame([0, 1], [$result->imported, $result->rejectedContributions]);
+        $this->assertSame([], $this->persistedIncomeSummaries());
+        $this->assertSame([['a1b2c3d4-project:2112000001' => 600]], $this->persistedDeclinedCorpProjectQuantities());
+    }
+
+    #[DataProvider('nonPositiveQuantities')]
+    public function testContributionWithANonPositiveQuantityIsRejectedAndNothingIsWritten(int $quantity): void
+    {
+        $result = $this->import([$this->contributionSale(self::PILOT_TWO_ID, 500, $quantity, 0, 6250.0)]);
+
+        $this->assertSame([0, 1], [$result->imported, $result->rejectedContributions]);
+        $this->assertSame([], $this->persistedIncomeSummaries());
+    }
+
+    #[DataProvider('nonPositiveQuantities')]
+    public function testDeclinedContributionWithANonPositiveQuantityIsRejectedAndMemorisesNothing(int $quantity): void
+    {
+        $settings = new UserPveSettings();
+
+        $result = $this->import([], declined: [$this->contributionSale(self::PILOT_TWO_ID, 500, $quantity, 0, 6250.0)], settings: $settings);
+
+        $this->assertSame(1, $result->rejectedContributions);
+        $this->assertSame([], $this->declinedCorpProjectQuantitiesOf($settings));
+        $this->assertSame([], $settings->getDeclinedLootSaleTransactionIds());
+    }
+
+    public static function nonPositiveQuantities(): iterable
+    {
+        yield 'zero' => [0];
+        yield 'negative' => [-300];
+    }
+
+    public function testSalePostPersistsTheSettingsAndFlushesOnce(): void
+    {
+        $settings = new UserPveSettings();
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('flush');
+
+        $this->import([$this->contributionSale(self::PILOT_ONE_ID, 1000, 1000, 0, 12500.0)], settings: $settings, entityManager: $entityManager);
+
+        $this->assertSame([$settings], $this->persistedSettings());
+        $this->assertSame([[self::PROJECT_ID, self::PILOT_ONE_ID, 1000]], $this->persistedPairs());
+    }
+
+    public function testDeclineOnlyPostPersistsTheSettingsAndFlushesOnce(): void
+    {
+        $settings = new UserPveSettings();
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('flush');
+
+        $this->import(
+            [],
+            declined: [$this->contributionSale(self::PILOT_ONE_ID, 1600, 600, 1000, 7500.0)],
+            corpProjectImports: [$this->pairedImport(self::PROJECT_ID, self::PILOT_ONE_ID, 1000, 1000)],
+            settings: $settings,
+            entityManager: $entityManager,
+        );
+
+        $this->assertSame([$settings], $this->persistedSettings());
+        $this->assertSame(['a1b2c3d4-project:2112000001' => 600], $this->declinedCorpProjectQuantitiesOf($settings));
+    }
+
+    public function testAccountedQuantityAboveTheServerOneAfterAnImportWasDeletedIsRejected(): void
+    {
+        $result = $this->import(
+            [$this->contributionSale(self::PILOT_ONE_ID, 1900, 300, 1600, 3750.0)],
+            corpProjectImports: [$this->pairedImport(self::PROJECT_ID, self::PILOT_ONE_ID, 1000, 1000)],
+        );
+
+        $this->assertSame([0, 1], [$result->imported, $result->rejectedContributions]);
+        $this->assertSame([], $this->persistedIncomeSummaries());
+    }
+
+    #[DataProvider('legacyRecoveredQuantitiesWithAnUnknownOne')]
+    public function testTwoLegacyImportsOfTheSameIdentifierWithOneUnrecoveredQuantityLeaveThePairUnknown(?int $firstRecoveredQuantity, ?int $secondRecoveredQuantity): void
+    {
+        $result = $this->import(
+            [$this->contributionSale(self::PILOT_ONE_ID, 1450, 450, 1000, 5625.0)],
+            corpProjectImports: [
+                $this->legacyImport(self::PILOT_ONE_ID, $firstRecoveredQuantity),
+                $this->legacyImport(self::PILOT_ONE_ID, $secondRecoveredQuantity),
+            ],
+        );
+
+        $this->assertSame([0, 1], [$result->imported, $result->rejectedContributions]);
+        $this->assertSame([], $this->persistedIncomeSummaries());
+    }
+
+    public static function legacyRecoveredQuantitiesWithAnUnknownOne(): iterable
+    {
+        yield 'recovered then unrecovered' => [1000, null];
+        yield 'unrecovered then recovered' => [null, 1000];
+    }
+
     private function import(
         array $sales,
         array $declined = [],
         array $corpProjectImports = [],
         UserPveSettings $settings = new UserPveSettings(),
+        bool $userHasSettingsRow = true,
+        (EntityManagerInterface&Stub)|null $entityManager = null,
     ): ImportResultResource {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->createStub(User::class));
 
         $settingsRepository = $this->createStub(UserPveSettingsRepository::class);
-        $settingsRepository->method('getOrCreate')->willReturn($settings);
+        if ($userHasSettingsRow) {
+            $settingsRepository->method('getOrCreate')->willReturn($settings);
+        } else {
+            $settingsRepository->method('getOrCreate')->willReturnCallback(static fn (): UserPveSettings => new UserPveSettings());
+        }
 
         $incomeRepository = $this->createStub(PveIncomeRepository::class);
         $incomeRepository->method('getImportedTransactionIds')->willReturn(array_values(array_filter(
@@ -321,7 +477,7 @@ final class ImportLootSalesProcessorCorpProjectTest extends TestCase
         )));
         $incomeRepository->method('findCorpProjectImports')->willReturn($corpProjectImports);
 
-        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager ??= $this->createStub(EntityManagerInterface::class);
         $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
             $this->persistedEntities[] = $entity;
         });
@@ -415,6 +571,23 @@ final class ImportLootSalesProcessorCorpProjectTest extends TestCase
             static fn (PveIncome $income): array => [$income->getCorpProjectId(), $income->getCorpProjectCharacterId(), $income->getCorpProjectQuantity()],
             $this->persistedIncomes(),
         );
+    }
+
+    private function persistedSettings(): array
+    {
+        $distinctSettings = [];
+        foreach ($this->persistedEntities as $entity) {
+            if ($entity instanceof UserPveSettings) {
+                $distinctSettings[spl_object_id($entity)] = $entity;
+            }
+        }
+
+        return array_values($distinctSettings);
+    }
+
+    private function persistedDeclinedCorpProjectQuantities(): array
+    {
+        return array_map($this->declinedCorpProjectQuantitiesOf(...), $this->persistedSettings());
     }
 
     private function declinedCorpProjectQuantitiesOf(UserPveSettings $settings): array
