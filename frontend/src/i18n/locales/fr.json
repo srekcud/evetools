@@ -2182,7 +2182,6 @@
         "blacklist": "Liste noire",
         "blacklistLabel": "Liste noire",
         "blacklistDesc": "Les items ci-dessous seront achetes, pas fabriques.",
-        "blacklistItemPlaceholder": "Ajouter un item specifique...",
         "blacklistHint": "Defauts issus de vos parametres industrie. Surcharge par projet.",
         "lineRentalInfo": "Tarifs location de ligne :",
         "lineRentalDefault": "Utilise les defauts de vos parametres",

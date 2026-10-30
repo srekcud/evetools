@@ -2182,7 +2182,6 @@
         "blacklist": "Blacklist",
         "blacklistLabel": "Blacklist",
         "blacklistDesc": "Items below will be purchased, not manufactured.",
-        "blacklistItemPlaceholder": "Add specific item...",
         "blacklistHint": "Defaults from your industry settings. Override per project.",
         "lineRentalInfo": "Line Rental Rates:",
         "lineRentalDefault": "Using defaults from your settings",

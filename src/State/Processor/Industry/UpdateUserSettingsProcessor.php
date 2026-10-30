@@ -6,6 +6,7 @@ namespace App\State\Processor\Industry;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
+use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\Industry\UserSettingsResource;
 use App\ApiResource\Input\Industry\UpdateUserSettingsInput;
 use App\Entity\IndustryUserSettings;
@@ -15,6 +16,8 @@ use App\Repository\Sde\MapSolarSystemRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\Validator\ConstraintViolation;
+use Symfony\Component\Validator\ConstraintViolationList;
 
 /**
  * @implements ProcessorInterface<UpdateUserSettingsInput, UserSettingsResource>
@@ -38,6 +41,9 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         }
 
         assert($data instanceof UpdateUserSettingsInput);
+
+        $this->rejectFavoriteSystemAbsentFromSde('favoriteManufacturingSystemId', $data->favoriteManufacturingSystemId);
+        $this->rejectFavoriteSystemAbsentFromSde('favoriteReactionSystemId', $data->favoriteReactionSystemId);
 
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 
@@ -92,5 +98,22 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         }
 
         return $resource;
+    }
+
+    private function rejectFavoriteSystemAbsentFromSde(string $propertyPath, ?int $solarSystemId): void
+    {
+        if ($solarSystemId === null || $solarSystemId <= 0) {
+            return;
+        }
+
+        if ($this->solarSystemRepository->find($solarSystemId) !== null) {
+            return;
+        }
+
+        $message = 'This solar system does not exist.';
+
+        throw new ValidationException(new ConstraintViolationList([
+            new ConstraintViolation($message, $message, [], $solarSystemId, $propertyPath, $solarSystemId),
+        ]));
     }
 }

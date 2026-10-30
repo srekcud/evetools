@@ -136,10 +136,6 @@ const blacklistCategories = ref<BlacklistCategory[]>([
   { id: 'biochem_reactions', label: 'Biochemical Reactions', checked: false },
 ])
 
-// Individual blacklist items
-const blacklistItemSearch = ref('')
-const blacklistItems = ref<{ typeId: number; typeName: string }[]>([])
-
 // Line rental override
 const showLineRentalOverride = ref(false)
 const lineRentalOverrideEnabled = ref(false)
@@ -196,8 +192,6 @@ function resetForm() {
   items.value = []
   projectName.value = ''
   containerName.value = ''
-  blacklistItemSearch.value = ''
-  blacklistItems.value = []
   showLineRentalOverride.value = false
   lineRentalOverrideEnabled.value = false
   lineRentalRates.value.forEach(r => {
@@ -219,10 +213,6 @@ function resetForm() {
 
 function removeItem(index: number) {
   items.value.splice(index, 1)
-}
-
-function removeBlacklistItem(index: number) {
-  blacklistItems.value.splice(index, 1)
 }
 
 function parseBulkText() {
@@ -267,7 +257,6 @@ async function handleCreate() {
     blacklistCategoryKeys: blacklistCategories.value
       .filter(cat => cat.checked)
       .map(cat => cat.id),
-    blacklistTypeIds: blacklistItems.value.map(i => i.typeId),
     lineRentalRatesOverride: lineRentalOverrideEnabled.value
       ? Object.fromEntries(lineRentalRates.value.map(r => [r.key, r.value]))
       : undefined,
@@ -590,37 +579,6 @@ function handleClose() {
           </label>
         </div>
 
-        <!-- Individual items search -->
-        <div class="relative mb-2">
-          <input
-            v-model="blacklistItemSearch"
-            type="text"
-            :aria-label="t('groupIndustry.modals.newProject.blacklistItemPlaceholder')"
-            :placeholder="t('groupIndustry.modals.newProject.blacklistItemPlaceholder')"
-            class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 placeholder-slate-600"
-          />
-          <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-        <div v-if="blacklistItems.length > 0" class="flex flex-wrap gap-2 mb-2">
-          <span
-            v-for="(item, index) in blacklistItems"
-            :key="item.typeId"
-            class="inline-flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-300"
-          >
-            {{ item.typeName }}
-            <button
-              class="text-slate-500 hover:text-red-400 transition-colors"
-              @click="removeBlacklistItem(index)"
-              :aria-label="t('a11y.remove')"
-            >
-              <svg aria-hidden="true" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </span>
-        </div>
         <p class="text-xs text-slate-600">{{ t('groupIndustry.modals.newProject.blacklistHint') }}</p>
       </div>
 
