@@ -311,6 +311,12 @@ class ScanLootSalesProcessor implements ProcessorInterface
             $corpProjectReading->errors,
         );
 
+        $this->logger->info('Loot sale scan finished', [
+            'detectedSales' => count($detectedSales),
+            'scannedProjects' => $resource->scannedProjects,
+            'projectErrors' => count($resource->corporationProjectErrors),
+        ]);
+
         return $resource;
     }
 
