@@ -4,17 +4,29 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\State\Provider\Industry;
 
+use App\Entity\CachedCharacterSkill;
+use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
+use App\Entity\Sde\IndustryActivity;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
+use App\Repository\CachedStructureRepository;
+use App\Repository\IndustryStructureConfigRepository;
+use App\Repository\IndustryUserSettingsRepository;
+use App\Repository\Sde\IndustryActivityRepository;
+use App\Repository\Sde\StaStationRepository;
+use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
+use App\Service\TypeNameResolver;
 use App\State\Provider\Industry\IndustryResourceMapper;
+use Doctrine\ORM\EntityManagerInterface;
 use App\Tests\Unit\Service\Industry\AutowiresByType;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -30,6 +42,9 @@ class IndustryResourceMapperTest extends TestCase
     private const int NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID = 4314;
     private const int ROBOTICS_BLUEPRINT_TYPE_ID = 9849;
     private const int HYDROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID = 4316;
+    private const int NITROGEN_FUEL_BLOCK_BASE_TIME_PER_RUN = 900;
+
+    private array $cachedSkillsByCharacterName = [];
 
     public function testStructureResourceExposesReactionMaterialBonusWithReactionSecurityMultiplier(): void
     {
@@ -427,6 +442,78 @@ class IndustryResourceMapperTest extends TestCase
         self::assertNull($resource->totalCost);
         self::assertSame(97_000.0, $resource->profit);
         self::assertEqualsWithDelta(3233.333333, $resource->profitPercent, 0.000001);
+    }
+
+    #[Group('issue-282')]
+    public function testStepOfAPilotWhoseOnlyCharacterHasNoCachedSkillHasAnUnknownTimePerRunAndNoRecommendedCharacter(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)->setUser($this->pilotWithCachedSkills(['Fresh' => []]));
+        $step = $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 40, 10, 10);
+
+        $resource = $this->mapperOnTheBaseTimeOfTheNitrogenFuelBlockAndTheCachedSkills()->stepToResource($step);
+
+        self::assertSame([null, null], [$resource->timePerRun, $resource->recommendedCharacterName]);
+    }
+
+    #[Group('issue-282')]
+    public function testStepOfAPilotWithAKnownCharacterHasTheTimePerRunOfItsSkills(): void
+    {
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)->setUser($this->pilotWithCachedSkills([
+            'Fresh' => [],
+            'Main' => [CachedCharacterSkill::SKILL_INDUSTRY => 4, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 2],
+        ]));
+        $step = $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 40, 10, 10);
+
+        $resource = $this->mapperOnTheBaseTimeOfTheNitrogenFuelBlockAndTheCachedSkills()->stepToResource($step);
+
+        self::assertSame([640, 'Main'], [$resource->timePerRun, $resource->recommendedCharacterName]);
+    }
+
+    private function pilotWithCachedSkills(array $skillLevelsByCharacterName): User
+    {
+        $pilot = new User();
+        foreach ($skillLevelsByCharacterName as $characterName => $skillLevels) {
+            $character = (new Character())->setName($characterName);
+            $pilot->addCharacter($character);
+            $this->cachedSkillsByCharacterName[$characterName] = array_map(
+                static fn (int $skillId, int $level): CachedCharacterSkill => (new CachedCharacterSkill())->setCharacter($character)->setSkillId($skillId)->setLevel($level),
+                array_keys($skillLevels),
+                array_values($skillLevels),
+            );
+        }
+
+        return $pilot;
+    }
+
+    private function mapperOnTheBaseTimeOfTheNitrogenFuelBlockAndTheCachedSkills(): IndustryResourceMapper
+    {
+        $activityRepository = $this->createStub(IndustryActivityRepository::class);
+        $activityRepository->method('findByTypeIdsAndActivityIds')->willReturn([
+            self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID.'-'.IndustryActivityType::Manufacturing->value => (new IndustryActivity())
+                ->setTypeId(self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID)
+                ->setActivityId(IndustryActivityType::Manufacturing->value)
+                ->setTime(self::NITROGEN_FUEL_BLOCK_BASE_TIME_PER_RUN),
+        ]);
+        $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
+        $skillRepository->method('findAllSkillsForCharacter')->willReturnCallback(
+            fn (Character $character): array => $this->cachedSkillsByCharacterName[$character->getName()],
+        );
+
+        return self::autowired(IndustryResourceMapper::class, [
+            new IndustryCalculationService(
+                new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock()),
+                $this->createStub(IndustryBonusService::class),
+                $this->createStub(IndustryStructureConfigRepository::class),
+                $this->createStub(IndustryUserSettingsRepository::class),
+                $this->createStub(EntityManagerInterface::class),
+                $this->createStub(StaStationRepository::class),
+                $this->createStub(CachedStructureRepository::class),
+                $activityRepository,
+                $skillRepository,
+            ),
+            $this->createStub(CachedIndustryJobRepository::class),
+            $this->createStub(InventionService::class),
+        ]);
     }
 
     private function mapperOnSdeKnowingOnlyNitrogenFuelBlock(): IndustryResourceMapper

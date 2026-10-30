@@ -6,6 +6,7 @@ import StepTree from '@/components/industry/StepTree.vue'
 import type { IndustryProjectStep } from '@/stores/industry/types'
 
 const UNKNOWN_VALUE = `[title="${en.common.unknownValue}"]`
+const RECOMMENDED_CHARACTER_BADGE = `[title="${en.industry.stepTree.recommendedCharacter}"]`
 
 function stepOf(overrides: Partial<IndustryProjectStep>): IndustryProjectStep {
   return {
@@ -144,5 +145,51 @@ describe('StepTree with an unknown time per run', () => {
     ])
 
     expect(unknownValuesOf(wrapper.get('button[aria-expanded]'))).toEqual([])
+  })
+
+  it('shows the total of a split group as an unknown value when one job to build has a known time per run and the other an unknown one', () => {
+    const wrapper = mountStepTree([
+      jobOfASplitGroup(0, { timePerRun: 9000 }),
+      jobOfASplitGroup(1, { timePerRun: null }),
+    ])
+
+    const splitGroupHeader = wrapper.get('button[aria-expanded]')
+    expect(unknownValuesOf(splitGroupHeader)).toEqual(['—'])
+    expect(splitGroupHeader.text()).not.toContain('22h 30m')
+  })
+
+  it('shows no duration line for a step in stock with an unknown time per run', async () => {
+    const wrapper = mountStepTree([stepOf({ id: 'step-282-in-stock', blueprintTypeId: 28241, productTypeId: 28242, productTypeName: 'Stocked Plate', quantity: 5, runs: 5, inStock: true, inStockQuantity: 5, timePerRun: null })])
+
+    const stepRow = await expandedStepRow(wrapper)
+
+    expect(unknownValuesOf(stepRow)).toEqual([])
+    expect(stepRow.text()).not.toContain('/run')
+  })
+
+  it('takes the duration of a step from its runs rather than from its quantity', async () => {
+    const wrapper = mountStepTree([stepOf({ id: 'step-282-batch', blueprintTypeId: 28251, productTypeId: 28252, productTypeName: 'Batch Fuel Block', quantity: 160, runs: 4, timePerRun: 3600 })])
+
+    const stepRow = await expandedStepRow(wrapper)
+
+    expect(stepRow.text()).toContain('4h 0m')
+    expect(stepRow.text()).toContain('(1h 0m/run)')
+    expect(stepRow.text()).not.toContain('6j 16h')
+  })
+
+  it('shows no recommended character badge on a step to build with an unknown time per run', async () => {
+    const wrapper = mountStepTree([stepOf({ timePerRun: null, recommendedCharacterName: null })])
+
+    const stepRow = await expandedStepRow(wrapper)
+
+    expect(stepRow.findAll(RECOMMENDED_CHARACTER_BADGE)).toHaveLength(0)
+  })
+
+  it('shows the recommended character badge on a step to build with a known time per run', async () => {
+    const wrapper = mountStepTree([stepOf({ id: 'step-282-recommended', blueprintTypeId: 28261, productTypeId: 28262, productTypeName: 'Recommended Cruiser', quantity: 3, runs: 3, timePerRun: 7200, recommendedCharacterName: 'Main' })])
+
+    const stepRow = await expandedStepRow(wrapper)
+
+    expect(stepRow.findAll(RECOMMENDED_CHARACTER_BADGE).map(badge => badge.text())).toEqual(['Main'])
   })
 })

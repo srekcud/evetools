@@ -61,6 +61,10 @@ class IndustryCalculationTest extends TestCase
     private const int BLUEPRINT_OF_10000_SECONDS = 999_200_002;
     private const int PRODUCT_OF_16003_SECONDS = 999_100_003;
     private const int BLUEPRINT_OF_16003_SECONDS = 999_200_003;
+    private const int PRODUCT_OF_155_SECONDS = 999_100_004;
+    private const int BLUEPRINT_OF_155_SECONDS = 999_200_004;
+    private const int PRODUCT_OF_3117_SECONDS = 999_100_005;
+    private const int BLUEPRINT_OF_3117_SECONDS = 999_200_005;
     private const int BLUEPRINT_WITHOUT_BASE_TIME = 999_999_999;
     private const int FIRST_SCIENCE_SKILL = 999_000_001;
     private const int SECOND_SCIENCE_SKILL = 999_000_002;
@@ -461,6 +465,38 @@ class IndustryCalculationTest extends TestCase
         self::assertSame(8706, $this->calculationServiceOnSdeActivities()->calculateTimePerRun($step, self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE));
     }
 
+    #[Group('issue-277')]
+    public function testTimePerRunWithATrueFractionOfFourMillionthsOfASecondIsRoundedUp(): void
+    {
+        $step = $this->stepOfAProject(self::PRODUCT_OF_155_SECONDS, self::BLUEPRINT_OF_155_SECONDS, 'manufacturing', 10);
+
+        $timePerRun = $this->calculationServiceOnSdeActivities([
+            self::BLUEPRINT_OF_155_SECONDS.'-'.IndustryActivityType::Manufacturing->value => [self::FIRST_SCIENCE_SKILL],
+        ])->calculateTimePerRun($step, [
+            CachedCharacterSkill::SKILL_INDUSTRY => 2,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 1,
+            self::FIRST_SCIENCE_SKILL => 2,
+        ]);
+
+        self::assertSame(123, $timePerRun);
+    }
+
+    #[Group('issue-277')]
+    public function testTimePerRunWithATrueFractionBelowHalfAMillionthOfASecondIsNotRoundedUp(): void
+    {
+        $step = $this->stepOfAProject(self::PRODUCT_OF_3117_SECONDS, self::BLUEPRINT_OF_3117_SECONDS, 'manufacturing', 6);
+
+        $timePerRun = $this->calculationServiceOnSdeActivities([
+            self::BLUEPRINT_OF_3117_SECONDS.'-'.IndustryActivityType::Manufacturing->value => [self::SECOND_SCIENCE_SKILL],
+        ])->calculateTimePerRun($step, [
+            CachedCharacterSkill::SKILL_INDUSTRY => 3,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 1,
+            self::SECOND_SCIENCE_SKILL => 3,
+        ]);
+
+        self::assertSame(2426, $timePerRun);
+    }
+
     #[Group('issue-126')]
     public function testTimePerRunOfACopyStepIsTheCopyingBaseTimeOfTheBlueprint(): void
     {
@@ -579,6 +615,65 @@ class IndustryCalculationTest extends TestCase
         ]));
     }
 
+    #[Group('issue-282')]
+    public function testGivenSkillLevelsOfTheCharactersAreRetainedWithoutReloadingTheCache(): void
+    {
+        $user = $this->userWithCachedSkills(['Fresh' => [], 'Zero' => []]);
+
+        $bestCharacter = $this->calculationServiceOnSdeActivities()->bestCharacterForStepTime($user, self::RAVEN_BLUEPRINT, 'manufacturing', [
+            ['name' => 'Fresh', 'skills' => null],
+            ['name' => 'Zero', 'skills' => [CachedCharacterSkill::SKILL_INDUSTRY => 0]],
+        ]);
+
+        self::assertSame(['skills' => [CachedCharacterSkill::SKILL_INDUSTRY => 0], 'name' => 'Zero', 'skillsUnknown' => false], $bestCharacter);
+    }
+
+    #[Group('issue-282')]
+    public function testFirstOfTwoCharactersWithTheSameSkillTimeMultiplierIsRetained(): void
+    {
+        $user = $this->userWithCachedSkills([
+            'Builder' => [CachedCharacterSkill::SKILL_INDUSTRY => 4],
+            'Twin' => [CachedCharacterSkill::SKILL_INDUSTRY => 4, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 0],
+        ]);
+
+        self::assertSame(
+            ['skills' => [CachedCharacterSkill::SKILL_INDUSTRY => 4], 'name' => 'Builder', 'skillsUnknown' => false],
+            $this->bestCharacterOfTheLoadedSkillLevels($user, self::CAPITAL_JUMP_DRIVE_BLUEPRINT, 'manufacturing'),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testFastestCharacterAfterACharacterWithUnknownSkillsIsRetained(): void
+    {
+        $user = $this->userWithCachedSkills([
+            'Zero' => [CachedCharacterSkill::SKILL_INDUSTRY => 0],
+            'Fresh' => [],
+            'Main' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4],
+        ]);
+
+        self::assertSame(
+            ['skills' => [CachedCharacterSkill::SKILL_INDUSTRY => 5, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4], 'name' => 'Main', 'skillsUnknown' => false],
+            $this->bestCharacterOfTheLoadedSkillLevels($user, self::CAPITAL_CARGO_BAY_BLUEPRINT, 'manufacturing'),
+        );
+    }
+
+    #[Group('issue-282')]
+    public function testRetainedCharacterFollowsTheActivityOfTheStep(): void
+    {
+        $user = $this->userWithCachedSkills([
+            'Manufacturer' => [CachedCharacterSkill::SKILL_INDUSTRY => 5],
+            'Reactor' => [CachedCharacterSkill::SKILL_REACTIONS => 5],
+        ]);
+
+        self::assertSame(
+            ['manufacturing' => 'Manufacturer', 'reaction' => 'Reactor'],
+            [
+                'manufacturing' => $this->bestCharacterOfTheLoadedSkillLevels($user, self::RAVEN_BLUEPRINT, 'manufacturing')['name'],
+                'reaction' => $this->bestCharacterOfTheLoadedSkillLevels($user, self::REINFORCED_CARBON_FIBER_FORMULA, 'reaction')['name'],
+            ],
+        );
+    }
+
     private function bestCharacterOfTheLoadedSkillLevels(User $user, int $blueprintTypeId, string $activityType): array
     {
         $calculationService = $this->calculationServiceOnSdeActivities();
@@ -616,6 +711,8 @@ class IndustryCalculationTest extends TestCase
             self::BLUEPRINT_OF_19000_SECONDS.'-'.IndustryActivityType::Manufacturing->value => 19000,
             self::BLUEPRINT_OF_10000_SECONDS.'-'.IndustryActivityType::Manufacturing->value => 10000,
             self::BLUEPRINT_OF_16003_SECONDS.'-'.IndustryActivityType::Manufacturing->value => 16003,
+            self::BLUEPRINT_OF_155_SECONDS.'-'.IndustryActivityType::Manufacturing->value => 155,
+            self::BLUEPRINT_OF_3117_SECONDS.'-'.IndustryActivityType::Manufacturing->value => 3117,
         ];
         $connection = $this->createStub(Connection::class);
         $connection->method('fetchOne')->willReturnCallback(

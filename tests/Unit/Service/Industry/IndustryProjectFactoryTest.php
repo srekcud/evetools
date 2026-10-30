@@ -78,6 +78,7 @@ class IndustryProjectFactoryTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private IndustryProjectFactory $factory;
     private array $baseTimeByBlueprintAndActivity = [];
+    private array $bpcMaxRunsByBlueprintTypeId = [];
     private array $skillLevelsByCharacterName = [];
     private array $structuresOfThePilot = [];
     private ?int $favoriteManufacturingSystemId = null;
@@ -124,7 +125,7 @@ class IndustryProjectFactoryTest extends TestCase
             $activityRepository,
             $this->entityManager,
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
-            $this->blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(),
+            $this->blueprintRepositoryWithTheBpcMaxRuns(),
             $this->inventionCatalogOfTheInventedProducts(),
         ]);
     }
@@ -145,11 +146,11 @@ class IndustryProjectFactoryTest extends TestCase
         return $inventionCatalog;
     }
 
-    private function blueprintRepositoryWithBpcMaxRunsAboveTheRunsOfEveryStep(): IndustryBlueprintRepository
+    private function blueprintRepositoryWithTheBpcMaxRuns(): IndustryBlueprintRepository
     {
-        $blueprintOf = static fn (int $blueprintTypeId): IndustryBlueprint => (new IndustryBlueprint())
+        $blueprintOf = fn (int $blueprintTypeId): IndustryBlueprint => (new IndustryBlueprint())
             ->setTypeId($blueprintTypeId)
-            ->setMaxProductionLimit(self::BPC_MAX_RUNS_ABOVE_THE_RUNS_OF_EVERY_STEP);
+            ->setMaxProductionLimit($this->bpcMaxRunsByBlueprintTypeId[$blueprintTypeId] ?? self::BPC_MAX_RUNS_ABOVE_THE_RUNS_OF_EVERY_STEP);
 
         $blueprintRepository = $this->createStub(IndustryBlueprintRepository::class);
         $blueprintRepository->method('find')->willReturnCallback(static fn (mixed $blueprintTypeId): IndustryBlueprint => $blueprintOf((int) $blueprintTypeId));
@@ -1201,6 +1202,76 @@ class IndustryProjectFactoryTest extends TestCase
         $project = $this->factory->createProject($user, 44002, 1000, 10, 2.0, 0);
 
         $this->assertSame([[1000, null, null, null]], $this->displayedJobsOf($project, 'manufacturing'));
+    }
+
+    #[Group('issue-282')]
+    public function testRegenerationMergesTheJobsOfAStepSplitByTheMaximumDurationWhenNoCharacterOfTheUserHasKnownSkills(): void
+    {
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(45001, 45002, 'Merged Hull', 18));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['45001-1' => 10000];
+        $project = $this->projectWithTheJobsOfASplitStep($this->userWithCharacters(['Fresh' => []]), 45001, 45002, [9, 9]);
+
+        $this->factory->regenerateSteps($project);
+
+        $this->assertSame([[18, null, null, null]], $this->displayedJobsOf($project, 'manufacturing'));
+    }
+
+    #[Group('issue-282')]
+    #[DataProvider('regeneratedJobsOfEighteenRunsUnderABpcMaxRunsOfTenByCachedSkillsOfTheCharacters')]
+    public function testRegenerationSplitsAStepOfUnknownTimePerRunByTheBpcMaxRunsOnly(array $skillLevelsByCharacterName, array $expectedDisplayedJobs): void
+    {
+        $this->invTypeRepository->method('find')->willReturn($this->createStub(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(46001, 46002, 'Capped Hull', 18, 1, [], 0, 'manufacturing', true));
+        $this->setupDefaultMocks();
+        $this->baseTimeByBlueprintAndActivity = ['46001-1' => 20000];
+        $this->bpcMaxRunsByBlueprintTypeId = [46001 => 10];
+        $project = $this->projectWithTheJobsOfASplitStep($this->userWithCharacters($skillLevelsByCharacterName), 46001, 46002, [6, 6, 6]);
+
+        $this->factory->regenerateSteps($project);
+
+        $this->assertSame($expectedDisplayedJobs, $this->displayedJobsOf($project, 'manufacturing'));
+    }
+
+    public static function regeneratedJobsOfEighteenRunsUnderABpcMaxRunsOfTenByCachedSkillsOfTheCharacters(): iterable
+    {
+        yield 'only character without cached skill: two jobs under the BPC max runs, unknown time per run' => [
+            ['Fresh' => []],
+            [[9, 18, null, null], [9, 18, null, null]],
+        ];
+        yield 'only character with Industry at level 0: 8 runs of 20000 s per job, three jobs' => [
+            ['Zero' => [CachedCharacterSkill::SKILL_INDUSTRY => 0]],
+            [[6, 18, 20000, 'Zero'], [6, 18, 20000, 'Zero'], [6, 18, 20000, 'Zero']],
+        ];
+    }
+
+    private function projectWithTheJobsOfASplitStep(User $user, int $blueprintTypeId, int $productTypeId, array $runsOfEachJob): IndustryProject
+    {
+        $totalGroupRuns = array_sum($runsOfEachJob);
+        $project = (new IndustryProject())
+            ->setUser($user)
+            ->setProductTypeId($productTypeId)
+            ->setRuns($totalGroupRuns)
+            ->setMeLevel(10)
+            ->setTeLevel(0)
+            ->setMaxJobDurationDays(2.0);
+        foreach ($runsOfEachJob as $splitIndex => $runs) {
+            $project->addStep((new IndustryProjectStep())
+                ->setBlueprintTypeId($blueprintTypeId)
+                ->setProductTypeId($productTypeId)
+                ->setActivityType('manufacturing')
+                ->setDepth(0)
+                ->setRuns($runs)
+                ->setQuantity($runs)
+                ->setMeLevel(10)
+                ->setTeLevel(0)
+                ->setSplitGroupId('split-group-282')
+                ->setSplitIndex($splitIndex)
+                ->setTotalGroupRuns($totalGroupRuns));
+        }
+
+        return $project;
     }
 
     // ===========================================

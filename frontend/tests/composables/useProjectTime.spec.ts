@@ -170,4 +170,23 @@ describe('estimated project time with an unknown time per run', () => {
       ]),
     ).toEqual({ estimatedProjectTime: null, isEstimatedProjectTimeUnknown: false })
   })
+
+  it('sums the durations of the runs of each depth rather than of their quantities', () => {
+    const rootStepOfFourRunsOfTenUnits = stepOf({ id: 'step-282-root-batch', quantity: 40, runs: 4, timePerRun: 3600 })
+    const componentStepOfThreeRunsOfAHundredUnits = stepOf({
+      id: 'step-282-component-batch',
+      blueprintTypeId: 28341,
+      productTypeId: 28342,
+      productTypeName: 'Batch Component',
+      quantity: 300,
+      runs: 3,
+      depth: 1,
+      timePerRun: 1000,
+    })
+
+    expect(estimatedProjectTimeOf([rootStepOfFourRunsOfTenUnits, componentStepOfThreeRunsOfAHundredUnits])).toEqual({
+      estimatedProjectTime: 17400,
+      isEstimatedProjectTimeUnknown: false,
+    })
+  })
 })
