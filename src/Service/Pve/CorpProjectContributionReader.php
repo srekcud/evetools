@@ -129,11 +129,11 @@ final readonly class CorpProjectContributionReader
         $reading = new CorpProjectContributionReading(refusedCharacterIds: $refusedCharacterIds);
 
         foreach ($projects as $project) {
-            if ($project['state'] === 'Deleted') {
-                continue;
-            }
-
             try {
+                if ($this->requiredListedField($project, 'state') === 'Deleted') {
+                    continue;
+                }
+                $this->requiredListedField($project, 'id');
                 $lastModified = $this->parseDate($project['last_modified'] ?? null);
             } catch (\UnexpectedValueException $exception) {
                 $reading = $reading->merge(new CorpProjectContributionReading(
@@ -182,6 +182,8 @@ final readonly class CorpProjectContributionReader
 
         try {
             $contributorIds = $this->cachedContributors($corporationId, $projectId, $readerToken);
+        } catch (EveAuthRequiredException) {
+            return $this->readerRefusedAfterTheList($projectName);
         } catch (EsiApiException|\UnexpectedValueException $exception) {
             if (!$exception instanceof EsiApiException || $exception->statusCode !== self::HTTP_FORBIDDEN) {
                 return new CorpProjectContributionReading(
@@ -223,6 +225,8 @@ final readonly class CorpProjectContributionReader
 
         try {
             $projectDetails = $this->cachedProjectDetails($corporationId, $projectId, $readerToken);
+        } catch (EveAuthRequiredException) {
+            return $this->readerRefusedAfterTheList($projectName);
         } catch (EsiApiException|\UnexpectedValueException $exception) {
             return new CorpProjectContributionReading(
                 errors: [...$errors, $this->readError($corporationName, $projectName, null, $exception)],
@@ -286,6 +290,21 @@ final readonly class CorpProjectContributionReader
         }
 
         return new CorpProjectContributionReading($contributions, $errors, $newlyRefusedCharacterIds, 1);
+    }
+
+    private function readerRefusedAfterTheList(string $projectName): CorpProjectContributionReading
+    {
+        $this->logger->debug("Corp projects: Reader refused while reading project {$projectName}, project skipped");
+
+        return new CorpProjectContributionReading(scannedProjects: 1);
+    }
+
+    /**
+     * @param array<mixed> $project
+     */
+    private function requiredListedField(array $project, string $field): mixed
+    {
+        return $project[$field] ?? throw new \UnexpectedValueException("ESI listed project has no '{$field}'");
     }
 
     private function readError(string $corporationName, ?string $projectName, ?string $characterName, EsiApiException|\UnexpectedValueException $exception): CorporationProjectReadError

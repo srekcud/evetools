@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Pve;
 
 use ApiPlatform\Metadata\Post;
-use App\ApiResource\Pve\DetectedSaleResource;
 use App\State\Processor\Pve\ScanLootSalesProcessor;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -491,14 +490,6 @@ final class ScanLootSalesProcessorCorpProjectErrorsTest extends TestCase
                 static fn (array $request): bool => str_contains($request['key'], '/contribution/'),
             ),
         ));
-    }
-
-    private function contributionSummaries(array $detectedSales): array
-    {
-        return array_map(
-            static fn (DetectedSaleResource $sale): array => [$sale->projectName, $sale->characterName, $sale->quantity, $sale->price],
-            $detectedSales,
-        );
     }
 
     private function warningsOf(BufferingLogger $logger): array

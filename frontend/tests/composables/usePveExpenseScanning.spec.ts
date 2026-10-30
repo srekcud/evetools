@@ -294,4 +294,50 @@ describe('usePveExpenseScanning loot sale scan result', () => {
       ['Pilot Three', 12500, false],
     ])
   })
+
+  it('asks the value of a contribution whose reward is an explicit zero', async () => {
+    respondWith(
+      () => jsonResponse(lootSalesScan({
+        detectedSales: [{ ...CORP_PROJECT_SALE, transactionId: -604311829, characterName: 'Pilot One', typeName: '310x Tritanium', quantity: 310, price: 0 }],
+      })),
+      () => jsonResponse({ scannedContracts: 0, detectedContracts: [] }),
+    )
+    const scanning = mountScanning()
+
+    await scanning.scanLootSales(30)
+
+    expect(scanning.lootScanResults.value?.detectedSales.map(sale => [sale.characterName, sale.quantity, sale.price, sale.needsPriceInput])).toEqual([
+      ['Pilot One', 310, 0, true],
+    ])
+  })
+
+  it('opens the dialog instead of the loot type configuration when only a loot contract was detected without loot types', async () => {
+    const onOpenLootConfig = vi.fn()
+    respondWith(
+      () => jsonResponse(lootSalesScan({ noLootTypesConfigured: true, scannedTransactions: null, scannedContracts: null, scannedProjects: 0 })),
+      () => jsonResponse({
+        scannedContracts: 3,
+        detectedContracts: [{
+          contractId: 214748901,
+          description: '12x Rogue Drone Infestation Data',
+          items: [{ typeId: 60459, typeName: 'Rogue Drone Infestation Data', quantity: 12 }],
+          totalQuantity: 12,
+          contractPrice: 4560000,
+          suggestedPrice: 4400000,
+          date: '2026-10-25',
+          characterName: 'Pilot Two',
+        }],
+      }),
+    )
+    const scanning = mountScanning({ onOpenLootConfig })
+
+    await scanning.scanLootSales(30)
+
+    expect(onOpenLootConfig).not.toHaveBeenCalled()
+    expect(scanning.showLootScanResults.value).toBe(true)
+    expect(scanning.lootScanResults.value?.scannedContracts).toBe(3)
+    expect(scanning.lootScanResults.value?.detectedSales.map(sale => [sale.source, sale.contractId, sale.quantity, sale.price])).toEqual([
+      ['contract', 214748901, 12, 4560000],
+    ])
+  })
 })

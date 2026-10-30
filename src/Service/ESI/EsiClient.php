@@ -82,7 +82,8 @@ class EsiClient
     public function getUnversionedCursorPaginated(string $endpoint, ?EveToken $token, string $compatibilityDate, string $recordsKey): array
     {
         $firstPageEndpoint = $endpoint . (str_contains($endpoint, '?') ? '&' : '?') . 'limit=' . self::CURSOR_PAGE_LIMIT;
-        $recordsById = [];
+        $uniqueRecords = [];
+        $seenIds = [];
         $pageEndpoint = $firstPageEndpoint;
 
         do {
@@ -93,14 +94,21 @@ class EsiClient
             $records = $page[$recordsKey];
 
             foreach ($records as $record) {
-                $recordsById[$record['id']] ??= $record;
+                $recordId = $record['id'] ?? null;
+                if ($recordId !== null) {
+                    if (isset($seenIds[$recordId])) {
+                        continue;
+                    }
+                    $seenIds[$recordId] = true;
+                }
+                $uniqueRecords[] = $record;
             }
 
             $before = $page['cursor']['before'] ?? null;
             $pageEndpoint = $firstPageEndpoint . '&before=' . $before;
         } while ($records !== [] && $before !== null);
 
-        return array_values($recordsById);
+        return $uniqueRecords;
     }
 
     /**

@@ -65,10 +65,14 @@ trait CorpProjectsEsiSimulation
         ArrayAdapter $readerCache = new ArrayAdapter(),
         array $lootTypeIds = [self::TRITANIUM, self::ROGUE_DRONE_INFESTATION_DATA],
         LoggerInterface $readerLogger = new NullLogger(),
+        array $acceptedAccessTokenCallsByCharacterId = [],
+        array $importedTransactionIds = [],
+        array $declinedTransactionIds = [],
+        ?int $days = null,
     ): ScanLootSalesProcessor {
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturnCallback(
-            fn (EveToken $token): string => $this->accessTokenOf($token, $refusedCharacterIds),
+            fn (EveToken $token): string => $this->accessTokenOf($token, $refusedCharacterIds, $acceptedAccessTokenCallsByCharacterId),
         );
 
         $security = $this->createStub(Security::class);
@@ -78,18 +82,21 @@ trait CorpProjectsEsiSimulation
 
         $settings = new UserPveSettings();
         $settings->setLootTypeIds($lootTypeIds);
+        foreach ($declinedTransactionIds as $declinedTransactionId) {
+            $settings->addDeclinedLootSaleTransactionId($declinedTransactionId);
+        }
         $settingsRepository = $this->createStub(UserPveSettingsRepository::class);
         $settingsRepository->method('getOrCreate')->willReturn($settings);
 
         $incomeRepository = $this->createStub(PveIncomeRepository::class);
-        $incomeRepository->method('getImportedTransactionIds')->willReturn([]);
+        $incomeRepository->method('getImportedTransactionIds')->willReturn($importedTransactionIds);
 
         $typesById = array_map(fn (string $typeName): InvType => $this->createInvType($typeName), $knownTypeNamesById);
         $invTypeRepository = $this->createStub(InvTypeRepository::class);
         $invTypeRepository->method('find')->willReturnCallback(static fn (mixed $typeId): ?InvType => $typesById[$typeId] ?? null);
 
         $requestStack = new RequestStack();
-        $requestStack->push(new Request());
+        $requestStack->push(new Request($days === null ? [] : ['days' => (string) $days]));
 
         $esiClient = new EsiClient($this->createSimulatedEsi($corpProjectResponsesByKey), new TagAwareAdapter(new ArrayAdapter()), $tokenManager, 'https://esi.test/latest', new NullLogger());
 
@@ -296,6 +303,14 @@ trait CorpProjectsEsiSimulation
         );
     }
 
+    private function contributionSummaries(array $detectedSales): array
+    {
+        return array_map(
+            static fn (DetectedSaleResource $sale): array => [$sale->projectName, $sale->characterName, $sale->quantity, $sale->price],
+            $detectedSales,
+        );
+    }
+
     private function errorSummaries(array $corporationProjectErrors): array
     {
         return array_map(
@@ -341,11 +356,47 @@ trait CorpProjectsEsiSimulation
         return $responses;
     }
 
-    private function accessTokenOf(EveToken $token, array $refusedCharacterIds): string
+    private function secondCorporationProjectResponses(
+        string $projectId,
+        string $projectName,
+        int $deliveredTypeId,
+        float $rewardPerContribution,
+        int $contributorId,
+        int $contributedQuantity,
+        \DateTimeImmutable $contributedAt,
+    ): array {
+        $projectsPath = '/corporations/' . self::SECOND_CORPORATION_ID . '/projects';
+
+        return [
+            $projectsPath . '?limit=100&state=All' => $this->jsonResponse([
+                'projects' => [$this->projectRecord($projectId, $projectName, 'Active', $contributedAt)],
+                'cursor' => ['after' => 'second-corporation-projects-after'],
+            ]),
+            $projectsPath . '/' . $projectId . '/contributors?limit=100' => $this->jsonResponse([
+                'contributors' => [['id' => $contributorId]],
+                'cursor' => ['after' => 'second-corporation-contributors-after'],
+            ]),
+            $projectsPath . '/' . $projectId => $this->jsonResponse([
+                'configuration' => ['deliver_item' => ['items' => [['type_id' => $deliveredTypeId]]]],
+                'contribution' => ['reward_per_contribution' => $rewardPerContribution],
+            ]),
+            $projectsPath . '/' . $projectId . '/contribution/' . $contributorId => $this->jsonResponse([
+                'contributed' => $contributedQuantity,
+                'last_modified' => $contributedAt->format('c'),
+            ]),
+        ];
+    }
+
+    private function accessTokenOf(EveToken $token, array $refusedCharacterIds, array $acceptedAccessTokenCallsByCharacterId = []): string
     {
         $owner = $this->tokenOwners[spl_object_id($token)];
         $this->accessTokenRequests[] = $owner->getEveCharacterId();
-        if (!$owner->isAuthValid() || in_array($owner->getEveCharacterId(), $refusedCharacterIds, true)) {
+        $accessTokenCallsOfOwner = count(array_keys($this->accessTokenRequests, $owner->getEveCharacterId(), true));
+        if (
+            !$owner->isAuthValid()
+            || in_array($owner->getEveCharacterId(), $refusedCharacterIds, true)
+            || $accessTokenCallsOfOwner > ($acceptedAccessTokenCallsByCharacterId[$owner->getEveCharacterId()] ?? PHP_INT_MAX)
+        ) {
             throw new EveAuthRequiredException((string) $owner->getEveCharacterId());
         }
 

@@ -260,6 +260,15 @@ describe('LootSaleScanDialog corporation project errors', () => {
     expect(importedSales[0][0].price).toBe(9000)
   })
 
+  it('asks the value of a contribution whose reward is an explicit zero before allowing its import', () => {
+    const wrapper = mountDialog(scanResult({
+      detectedSales: [{ ...contributionOfUnknownValue(), typeName: '310x Tritanium', quantity: 310, price: 0 }],
+    }))
+
+    expect(wrapper.findAll('input[aria-label="310x Tritanium"]')).toHaveLength(1)
+    expect(buttonsLabelled(wrapper, 'Add')[0].attributes('disabled')).toBeDefined()
+  })
+
   it('keeps a known contribution price as a fixed amount without value input', () => {
     const wrapper = mountDialog(scanResult({ detectedSales: [veldsparContribution()] }))
 
