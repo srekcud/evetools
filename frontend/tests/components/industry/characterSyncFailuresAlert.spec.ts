@@ -135,6 +135,7 @@ describe('CharacterSyncFailuresAlert', () => {
   it('has the same sync failure keys in english and french', () => {
     const expectedKeys = [
       'jobsTitle',
+      'lastJobsSyncTitle',
       'line',
       'reasons.authentication_required',
       'reasons.esi_error',
