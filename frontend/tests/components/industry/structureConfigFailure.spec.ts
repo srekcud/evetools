@@ -253,6 +253,7 @@ describe('StructureConfig save failure (issue 189)', () => {
     await wrapper.get(`input[placeholder="${namePlaceholder}"]`).setValue('Raitaru Perimeter II')
 
     await clickButton(wrapper, saveLabel)
+    await vi.waitFor(() => expect(alertText(wrapper, 'structure-save-error')).toBe(saveError))
 
     const nameInput = wrapper.find(`input[placeholder="${namePlaceholder}"]`)
     const patchBodies = vi.mocked(apiRequest).mock.calls
