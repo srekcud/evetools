@@ -419,6 +419,14 @@ class TimePerRunCalculatorTest extends TestCase
         ]));
     }
 
+    #[Group('issue-275')]
+    public function testSkillTimeMultiplierOfACopyIsRejectedForSkillsWithoutScience(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->timePerRunCalculatorOnSdeActivities()->calculateSkillTimeMultiplier(self::INDUSTRY_FIVE_AND_ADVANCED_INDUSTRY_FIVE, 'copy');
+    }
+
     #[Group('issue-282')]
     public function testSkillsOfAReactionStepAreUnknownWhenNoCharacterHasCachedSkills(): void
     {

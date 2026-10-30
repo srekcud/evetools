@@ -26,6 +26,7 @@ use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -65,6 +66,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
     private array $esiSkillsByEndpoint = [];
 
     private array $persistedSkillsByCharacterName = [];
+
+    private array $esiResponsesByEndpoint = [];
 
     protected function setUp(): void
     {
@@ -321,6 +324,106 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         );
     }
 
+    #[Group('issue-275')]
+    #[DataProvider('esiSkillsResponsesWithoutAListOfSkills')]
+    public function testWritesNothingAndNamesTheCharacterWhoseEsiSkillsResponseHasNoListOfSkills(array $esiSkillsResponse): void
+    {
+        $science = $this->cachedSkill($this->pilotTwo, CachedCharacterSkill::SKILL_SCIENCE, 3, false, '2026-10-16T13:10:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_TWO] = [$science];
+        $this->esiResponsesByEndpoint[self::PILOT_TWO_SKILLS_ENDPOINT] = $esiSkillsResponse;
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [
+                1,
+                [['characterName' => self::PILOT_TWO, 'reason' => 'sync_failed', 'statusCode' => null]],
+                [],
+                3,
+                '2026-10-16T13:10:00+00:00',
+            ],
+            [
+                $result->syncedCount,
+                $result->failedCharacters,
+                $this->persistedSkillsOf(self::PILOT_TWO),
+                $science->getLevel(),
+                $science->getCachedAt()->format(DATE_ATOM),
+            ],
+        );
+    }
+
+    public static function esiSkillsResponsesWithoutAListOfSkills(): iterable
+    {
+        yield 'without skills key' => [['total_sp' => 48_000_000, 'unallocated_sp' => 120_000]];
+        yield 'skills null' => [['skills' => null, 'total_sp' => 48_000_000]];
+        yield 'skills not an array' => [['skills' => 'unavailable', 'total_sp' => 48_000_000]];
+        yield 'skills keyed by skill id' => [[
+            'skills' => [
+                CachedCharacterSkill::SKILL_SCIENCE => [
+                    'skill_id' => CachedCharacterSkill::SKILL_SCIENCE,
+                    'active_skill_level' => 4,
+                    'trained_skill_level' => 4,
+                    'skillpoints_in_skill' => 45_255,
+                ],
+            ],
+            'total_sp' => 48_000_000,
+        ]];
+    }
+
+    #[Group('issue-275')]
+    public function testWritesNothingAndNamesTheCharacterWhoseEsiSkillHasNoSkillId(): void
+    {
+        $industry = $this->cachedSkill($this->pilotTwo, CachedCharacterSkill::SKILL_INDUSTRY, 4, false, '2026-10-17T10:00:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_TWO] = [$industry];
+        $this->esiSkillsByEndpoint[self::PILOT_TWO_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_INDUSTRY, 5, 5),
+            ['active_skill_level' => 3, 'trained_skill_level' => 3, 'skillpoints_in_skill' => 40_000],
+            $this->esiSkill(CachedCharacterSkill::SKILL_SCIENCE, 2, 2),
+        ];
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [1, [['characterName' => self::PILOT_TWO, 'reason' => 'sync_failed', 'statusCode' => null]], [], 4],
+            [$result->syncedCount, $result->failedCharacters, $this->persistedSkillsOf(self::PILOT_TWO), $industry->getLevel()],
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testWritesNothingAndNamesTheCharacterWhoseEsiSkillHasNoActiveSkillLevel(): void
+    {
+        $science = $this->cachedSkill($this->pilotTwo, CachedCharacterSkill::SKILL_SCIENCE, 2, false, '2026-10-18T21:30:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_TWO] = [$science];
+        $this->esiSkillsByEndpoint[self::PILOT_TWO_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_INDUSTRY, 5, 5),
+            ['skill_id' => CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY, 'trained_skill_level' => 4, 'skillpoints_in_skill' => 135_765],
+        ];
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [1, [['characterName' => self::PILOT_TWO, 'reason' => 'sync_failed', 'statusCode' => null]], [], 2],
+            [$result->syncedCount, $result->failedCharacters, $this->persistedSkillsOf(self::PILOT_TWO), $science->getLevel()],
+        );
+    }
+
+    #[Group('issue-275')]
+    public function testSetsAnExistingEsiLineOfASkillAbsentFromEsiToLevelZero(): void
+    {
+        $advancedIndustry = $this->cachedSkill($this->pilotTwo, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY, 4, false, '2026-10-19T05:50:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_TWO] = [$advancedIndustry];
+        $this->esiSkillsByEndpoint[self::PILOT_TWO_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_SCIENCE, 3, 3),
+        ];
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [[], [[CachedCharacterSkill::SKILL_SCIENCE, 3, false]], 0],
+            [$result->failedCharacters, $this->persistedSkillsOf(self::PILOT_TWO), $advancedIndustry->getLevel()],
+        );
+    }
+
     private function esiSkill(int $skillId, int $activeSkillLevel, int $trainedSkillLevel): array
     {
         return [
@@ -380,7 +483,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 throw $this->skillsEndpointFailures[$endpoint];
             }
 
-            return ['skills' => $this->esiSkillsByEndpoint[$endpoint] ?? []];
+            return $this->esiResponsesByEndpoint[$endpoint] ?? ['skills' => $this->esiSkillsByEndpoint[$endpoint] ?? []];
         });
 
         $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
