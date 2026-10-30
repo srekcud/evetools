@@ -29,9 +29,19 @@ class TimePerRunCalculator
     ) {
     }
 
+    /**
+     * @param list<array{name: string, skills: array<int, int>|null}>|null $characterSkillLevels
+     * @return array{timePerRun: int|null, recommendedCharacterName: string|null}
+     */
     public function timePerRunAndRecommendedCharacterOf(User $user, int $blueprintTypeId, int $productTypeId, string $activityType, int $teLevel, ?IndustryStructureConfig $structureConfig, ?array $characterSkillLevels = null): array
     {
-        throw new \LogicException('Not implemented yet (#283).');
+        $bestCharacter = $this->bestCharacterForStepTime($user, $blueprintTypeId, $activityType, $characterSkillLevels);
+
+        $timePerRun = $bestCharacter['skillsUnknown']
+            ? null
+            : $this->timePerRunOf($user, $blueprintTypeId, $productTypeId, $activityType, $teLevel, $structureConfig, $bestCharacter['skills']);
+
+        return ['timePerRun' => $timePerRun, 'recommendedCharacterName' => $bestCharacter['name']];
     }
 
     /**

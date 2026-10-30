@@ -454,17 +454,15 @@ class IndustryProjectFactory
         $characterSkillLevels = $this->timePerRunCalculator->loadCharacterSkillLevels($user);
 
         foreach ($steps as &$step) {
-            $bestCharacter = $this->timePerRunCalculator->bestCharacterForStepTime($user, $step['blueprintTypeId'], $step['activityType'], $characterSkillLevels);
-
-            $step['timePerRun'] = $bestCharacter['skillsUnknown'] ? null : $this->timePerRunCalculator->timePerRunOf(
+            $step['timePerRun'] = $this->timePerRunCalculator->timePerRunAndRecommendedCharacterOf(
                 $user,
                 $step['blueprintTypeId'],
                 $step['productTypeId'],
                 $step['activityType'],
                 $step['teLevel'],
                 $step['structureConfig'],
-                $bestCharacter['skills'],
-            );
+                $characterSkillLevels,
+            )['timePerRun'];
         }
         unset($step);
     }

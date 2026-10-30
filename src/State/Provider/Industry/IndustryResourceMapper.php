@@ -246,9 +246,16 @@ class IndustryResourceMapper
         $resource->structureTimeBonus = $structureData['timeBonus'];
         $resource->favoriteSystemWithoutSuitableStructure = $structureData['favoriteSystemWithoutSuitableStructure'];
 
-        $bestCharacter = $this->timePerRunCalculator->bestCharacterForStepTime($step->getProject()->getUser(), $step->getBlueprintTypeId(), $step->getActivityType());
-        $resource->timePerRun = $bestCharacter['skillsUnknown'] ? null : $this->timePerRunCalculator->calculateTimePerRun($step, $bestCharacter['skills']);
-        $resource->recommendedCharacterName = $bestCharacter['name'];
+        $timeAndCharacter = $this->timePerRunCalculator->timePerRunAndRecommendedCharacterOf(
+            $step->getProject()->getUser(),
+            $step->getBlueprintTypeId(),
+            $step->getProductTypeId(),
+            $step->getActivityType(),
+            $step->getTeLevel(),
+            $step->getStructureConfig(),
+        );
+        $resource->timePerRun = $timeAndCharacter['timePerRun'];
+        $resource->recommendedCharacterName = $timeAndCharacter['recommendedCharacterName'];
 
         // Job matches
         $resource->jobMatches = [];
