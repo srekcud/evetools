@@ -19,10 +19,12 @@ use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\PveSyncService;
 use App\State\Processor\Pve\SyncPveProcessor;
+use App\Tests\Unit\Service\Sync\CorpProjectReaderWithoutEsi;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -39,6 +41,9 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 class SyncPveProcessorTest extends TestCase
 {
+    use CorpProjectReaderWithoutEsi;
+    use CorpProjectsEsiSimulation;
+
     private const OK_CHARACTER_ID = 11111;
     private const FAILING_CHARACTER_ID = 22222;
     private const PREVIOUS_PVE_SYNC_AT = '2026-01-01 00:00:00';
@@ -64,16 +69,18 @@ class SyncPveProcessorTest extends TestCase
             return 'urn:uuid:test';
         });
 
+        $incomeRepository = $this->createStub(PveIncomeRepository::class);
         $pveSyncService = new PveSyncService(
-            $this->esiClient,
-            $this->createStub(TokenManager::class),
-            $this->createStub(PveIncomeRepository::class),
-            $this->createStub(PveExpenseRepository::class),
-            $this->settingsRepository,
-            $this->createStub(InvTypeRepository::class),
-            $this->createStub(EntityManagerInterface::class),
-            new NullLogger(),
-            new MercurePublisherService($hub, new NullLogger()),
+            esiClient: $this->esiClient,
+            tokenManager: $this->createStub(TokenManager::class),
+            incomeRepository: $incomeRepository,
+            expenseRepository: $this->createStub(PveExpenseRepository::class),
+            settingsRepository: $this->settingsRepository,
+            invTypeRepository: $this->createStub(InvTypeRepository::class),
+            entityManager: $this->createStub(EntityManagerInterface::class),
+            logger: new NullLogger(),
+            mercurePublisher: new MercurePublisherService($hub, new NullLogger()),
+            corpProjectContributionReader: $this->corpProjectReaderWithoutEsi($incomeRepository, $this->settingsRepository),
         );
 
         $this->processor = new SyncPveProcessor($this->security, $pveSyncService, $this->settingsRepository);
@@ -119,7 +126,43 @@ class SyncPveProcessorTest extends TestCase
         $this->assertSame('completed', $this->lastSyncEvent()['status']);
         $this->assertSame('success', $resource->status);
         $this->assertSame('Synced 1 bounties, 0 loot sales, 0 loot contracts, 0 expenses', $resource->message);
-        $this->assertSame(1, $resource->imported['bounties']);
+        $this->assertSame(['bounties' => 1, 'lootSales' => 0, 'lootContracts' => 0, 'corpProjects' => 0, 'expenses' => 0], $resource->imported);
+        $this->assertSame([], $resource->errors);
+    }
+
+    #[Group('issue-243')]
+    public function testSyncReportsImportedCorpProjectContributionsWithoutChangingTheMessage(): void
+    {
+        $pilotOne = $this->character(self::EVE_CHARACTER_ID, 'Pilot One', self::CORPORATION_ID, self::CORPORATION_NAME);
+        $pilotTwo = $this->character(self::PILOT_TWO_ID, 'Pilot Two', self::CORPORATION_ID, self::CORPORATION_NAME);
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::v4());
+        $user->method('getCharacters')->willReturn(new ArrayCollection([$pilotOne, $pilotTwo]));
+        $this->security->method('getUser')->willReturn($user);
+        $settings = new UserPveSettings();
+        $settingsRepository = $this->createStub(UserPveSettingsRepository::class);
+        $settingsRepository->method('findByUser')->willReturn($settings);
+        $processor = new SyncPveProcessor(
+            $this->security,
+            $this->createPveSyncService(
+                $this->tritaniumDriveResponses(
+                    [$this->contributorRecord(self::EVE_CHARACTER_ID, 'Pilot One', 1000), $this->contributorRecord(self::PILOT_TWO_ID, 'Pilot Two', 400)],
+                    [self::EVE_CHARACTER_ID => 1000, self::PILOT_TWO_ID => 400],
+                    new \DateTimeImmutable('-2 days'),
+                ),
+                $this->createStub(PveIncomeRepository::class),
+                $settings,
+                $this->createStub(EntityManagerInterface::class),
+                new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            ),
+            $settingsRepository,
+        );
+
+        $resource = $processor->process(null, new Post());
+
+        $this->assertSame('success', $resource->status);
+        $this->assertSame('Synced 0 bounties, 0 loot sales, 0 loot contracts, 0 expenses', $resource->message);
+        $this->assertSame(['bounties' => 0, 'lootSales' => 0, 'lootContracts' => 0, 'corpProjects' => 2, 'expenses' => 0], $resource->imported);
         $this->assertSame([], $resource->errors);
     }
 

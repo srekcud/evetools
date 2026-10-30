@@ -12,15 +12,19 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Entity\UserPveSettings;
 use App\Exception\EveAuthRequiredException;
+use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Mercure\MercurePublisherService;
 use App\Service\Pve\CorpProjectContributionAccounting;
 use App\Service\Pve\CorpProjectContributionReader;
+use App\Service\Sync\PveSyncService;
 use App\State\Processor\Pve\ScanLootSalesProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -128,6 +132,52 @@ trait CorpProjectsEsiSimulation
         );
     }
 
+    private function createPveSyncService(
+        array $esiResponsesByKey,
+        PveIncomeRepository $incomeRepository,
+        UserPveSettings $settings,
+        EntityManagerInterface $entityManager,
+        MercurePublisherService $mercurePublisher,
+        LoggerInterface $logger = new NullLogger(),
+    ): PveSyncService {
+        $tokenManager = $this->createStub(TokenManager::class);
+        $tokenManager->method('getValidAccessToken')->willReturnCallback(
+            fn (EveToken $token): string => $this->accessTokenOf($token, []),
+        );
+
+        $settingsRepository = $this->createStub(UserPveSettingsRepository::class);
+        $settingsRepository->method('findByUser')->willReturn($settings);
+        $settingsRepository->method('getOrCreate')->willReturn($settings);
+
+        $typesById = array_map(fn (string $typeName): InvType => $this->createInvType($typeName), [self::TRITANIUM => 'Tritanium', self::VELDSPAR => 'Veldspar']);
+        $invTypeRepository = $this->createStub(InvTypeRepository::class);
+        $invTypeRepository->method('find')->willReturnCallback(static fn (mixed $typeId): ?InvType => $typesById[$typeId] ?? null);
+
+        $esiClient = new EsiClient($this->createSimulatedEsi($esiResponsesByKey), new TagAwareAdapter(new ArrayAdapter()), $tokenManager, 'https://esi.test/latest', new NullLogger());
+
+        return new PveSyncService(
+            esiClient: $esiClient,
+            tokenManager: $tokenManager,
+            incomeRepository: $incomeRepository,
+            expenseRepository: $this->createStub(PveExpenseRepository::class),
+            settingsRepository: $settingsRepository,
+            invTypeRepository: $invTypeRepository,
+            entityManager: $entityManager,
+            logger: $logger,
+            mercurePublisher: $mercurePublisher,
+            corpProjectContributionReader: new CorpProjectContributionReader(
+                esiClient: $esiClient,
+                tokenManager: $tokenManager,
+                cache: new ArrayAdapter(),
+                logger: new NullLogger(),
+                contributionAccounting: new CorpProjectContributionAccounting(
+                    incomeRepository: $incomeRepository,
+                    settingsRepository: $settingsRepository,
+                ),
+            ),
+        );
+    }
+
     private function createInvType(string $typeName): InvType
     {
         $invType = $this->createStub(InvType::class);
@@ -138,7 +188,17 @@ trait CorpProjectsEsiSimulation
 
     private function createSimulatedEsi(array $corpProjectResponsesByKey): MockHttpClient
     {
-        return new MockHttpClient(function (string $method, string $url, array $options) use (&$corpProjectResponsesByKey): MockResponse {
+        $takePlannedResponse = static function (string $key) use (&$corpProjectResponsesByKey): ?MockResponse {
+            $plannedResponse = $corpProjectResponsesByKey[$key] ?? null;
+            if (is_array($plannedResponse)) {
+                return array_shift($corpProjectResponsesByKey[$key]);
+            }
+            unset($corpProjectResponsesByKey[$key]);
+
+            return $plannedResponse;
+        };
+
+        return new MockHttpClient(function (string $method, string $url, array $options) use ($takePlannedResponse): MockResponse {
             $origin = (string) preg_replace('#^(https://[^/]+).*$#', '$1', $url);
             $key = $this->requestKey($url);
 
@@ -149,13 +209,7 @@ trait CorpProjectsEsiSimulation
                     'key' => $key,
                     'headers' => $options['normalized_headers'] ?? [],
                 ];
-                $plannedResponse = $corpProjectResponsesByKey[$key] ?? null;
-                if (is_array($plannedResponse)) {
-                    $response = array_shift($corpProjectResponsesByKey[$key]);
-                } else {
-                    $response = $plannedResponse;
-                    unset($corpProjectResponsesByKey[$key]);
-                }
+                $response = $takePlannedResponse($key);
                 if ($response === null) {
                     $this->fail(sprintf('Unexpected ESI request: %s %s', $method, $url));
                 }
@@ -166,7 +220,7 @@ trait CorpProjectsEsiSimulation
             if (str_starts_with($key, '/characters/')) {
                 $this->characterRequests[] = $key;
 
-                return $this->jsonResponse([]);
+                return $takePlannedResponse($key) ?? $this->jsonResponse([]);
             }
 
             $this->fail(sprintf('Unexpected ESI request: %s %s', $method, $url));

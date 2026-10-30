@@ -37,6 +37,8 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 final class PveSyncServiceCharacterizationTest extends TestCase
 {
+    use CorpProjectReaderWithoutEsi;
+
     private const CHARACTER_ID = 90000001;
     private const CHARACTER_NAME = 'Kaelis Varn';
     private const OTHER_ISSUER_ID = 90000777;
@@ -118,15 +120,16 @@ final class PveSyncServiceCharacterizationTest extends TestCase
         $this->user->method('getCharacters')->willReturn(new ArrayCollection([$characterWithoutToken, $character]));
 
         $this->service = new PveSyncService(
-            $this->esiClient,
-            $this->tokenManager,
-            $this->incomeRepository,
-            $this->expenseRepository,
-            $this->settingsRepository,
-            $invTypeRepository,
-            $this->entityManager,
-            new NullLogger(),
-            new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            esiClient: $this->esiClient,
+            tokenManager: $this->tokenManager,
+            incomeRepository: $this->incomeRepository,
+            expenseRepository: $this->expenseRepository,
+            settingsRepository: $this->settingsRepository,
+            invTypeRepository: $invTypeRepository,
+            entityManager: $this->entityManager,
+            logger: new NullLogger(),
+            mercurePublisher: new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            corpProjectContributionReader: $this->corpProjectReaderWithoutEsi($this->incomeRepository, $this->settingsRepository),
         );
     }
 
@@ -392,6 +395,7 @@ final class PveSyncServiceCharacterizationTest extends TestCase
             'bounties' => 0,
             'lootSales' => 1,
             'lootContracts' => 1,
+            'corpProjects' => 0,
             'expenses' => 1,
             'errors' => ['bounties: database unavailable'],
             'failedCharacters' => 0,

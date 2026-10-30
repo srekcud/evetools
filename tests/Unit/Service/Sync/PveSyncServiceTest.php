@@ -35,6 +35,8 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 class PveSyncServiceTest extends TestCase
 {
+    use CorpProjectReaderWithoutEsi;
+
     private EsiClient&Stub $esiClient;
     private TokenManager&Stub $tokenManager;
     private PveIncomeRepository&Stub $incomeRepository;
@@ -67,15 +69,16 @@ class PveSyncServiceTest extends TestCase
         $mercurePublisher = new MercurePublisherService($hub, new NullLogger());
 
         $this->service = new PveSyncService(
-            $this->esiClient,
-            $this->tokenManager,
-            $this->incomeRepository,
-            $this->expenseRepository,
-            $this->settingsRepository,
-            $this->invTypeRepository,
-            $this->em,
-            new NullLogger(),
-            $mercurePublisher,
+            esiClient: $this->esiClient,
+            tokenManager: $this->tokenManager,
+            incomeRepository: $this->incomeRepository,
+            expenseRepository: $this->expenseRepository,
+            settingsRepository: $this->settingsRepository,
+            invTypeRepository: $this->invTypeRepository,
+            entityManager: $this->em,
+            logger: new NullLogger(),
+            mercurePublisher: $mercurePublisher,
+            corpProjectContributionReader: $this->corpProjectReaderWithoutEsi($this->incomeRepository, $this->settingsRepository),
         );
     }
 
@@ -509,7 +512,7 @@ class PveSyncServiceTest extends TestCase
 
         $this->service->syncAll($user);
 
-        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
         $completed = $this->lastSyncEvent();
         $this->assertSame('1 bounties, 0 sales, 0 contracts, 0 expenses (1 of 2 characters failed)', $completed['message']);
         $this->assertSame(1, $completed['data']['bounties']);
@@ -533,7 +536,7 @@ class PveSyncServiceTest extends TestCase
         $result = $this->service->syncAll($user);
 
         $this->assertSame(1, $result['bounties']);
-        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
         $completed = $this->lastSyncEvent();
         $this->assertSame('1 bounties, 0 sales, 0 contracts, 0 expenses (1 of 2 characters failed)', $completed['message']);
         $this->assertSame(1, $completed['data']['failedCharacters']);
@@ -549,7 +552,7 @@ class PveSyncServiceTest extends TestCase
 
         $this->service->syncAll($user);
 
-        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
         $completed = $this->lastSyncEvent();
         $this->assertSame('1 bounties, 0 sales, 0 contracts, 0 expenses', $completed['message']);
         $this->assertSame(1, $completed['data']['bounties']);
@@ -568,7 +571,7 @@ class PveSyncServiceTest extends TestCase
 
         $this->service->syncAll($user);
 
-        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
         $completed = $this->lastSyncEvent();
         $this->assertSame('0 bounties, 0 sales, 0 contracts, 0 expenses', $completed['message']);
         $this->assertSame(0, $completed['data']['failedCharacters']);
@@ -613,7 +616,7 @@ class PveSyncServiceTest extends TestCase
 
         $this->service->syncAll($user);
 
-        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
+        $this->assertSame(['started', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'in_progress', 'completed'], $this->publishedStatuses());
         $completed = $this->lastSyncEvent();
         $this->assertSame('1 bounties, 0 sales, 0 contracts, 0 expenses (1 of 2 characters failed)', $completed['message']);
         $this->assertSame(1, $completed['data']['failedCharacters']);
