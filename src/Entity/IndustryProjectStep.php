@@ -250,6 +250,11 @@ class IndustryProjectStep
         return $this->inStockQuantity >= $this->quantity;
     }
 
+    public function purchasedQuantityOfProduct(): int
+    {
+        return 0;
+    }
+
     public function getMissingQuantity(): int
     {
         return max(0, $this->quantity - $this->inStockQuantity);

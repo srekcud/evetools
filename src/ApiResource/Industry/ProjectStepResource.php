@@ -109,6 +109,8 @@ class ProjectStepResource
 
     public int $inStockQuantity = 0;
 
+    public bool $inStock = false;
+
     public int $meLevel;
 
     public int $teLevel;

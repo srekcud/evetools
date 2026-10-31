@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepPurchase;
 use App\Entity\User;
 use App\Service\Industry\IndustryShoppingListBuilder;
 use App\Service\Industry\ProductionStepNeedsResolver;
@@ -190,6 +191,23 @@ final class IndustryShoppingListBuilderFromStepsTest extends TestCase
             self::sortedByTypeId(self::ONE_RUN_OF_HYDROGEN_FUEL_BLOCK + [self::EVAPORITE_DEPOSITS => 100, self::SILICATES => 100]),
             self::quantitiesByTypeId($shoppingList['materials']),
         );
+    }
+
+    #[Group('issue-182')]
+    public function testShoppingListOfAStepCoveredByThePurchasesOfItsProductEqualsTheListWithoutPurchase(): void
+    {
+        $projectWithPurchase = $this->oneRunOfFerniteCarbide();
+        $ferniteAlloy = $this->onlyStepOf($projectWithPurchase, self::FERNITE_ALLOY);
+        $ferniteAlloy->addPurchase(
+            (new IndustryStepPurchase())
+                ->setTypeId(self::FERNITE_ALLOY)
+                ->setQuantity($ferniteAlloy->getQuantity())
+                ->setUnitPrice(1_450.0)
+                ->setTotalPrice($ferniteAlloy->getQuantity() * 1_450.0)
+                ->setSource('manual'),
+        );
+
+        self::assertSame($this->quantitiesOf($this->oneRunOfFerniteCarbide()), $this->quantitiesOf($projectWithPurchase));
     }
 
     public function testShoppingListWithAPartialStockThatChangesNoRunEqualsTheListWithoutStock(): void

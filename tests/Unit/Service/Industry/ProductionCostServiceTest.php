@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Constant\EveConstants;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -44,6 +45,9 @@ class ProductionCostServiceTest extends TestCase
     private const float NPC_STATION_FACILITY_TAX_PERCENT = 0.25;
     private const int STEP_A_PRODUCT_TYPE_ID = 587;
     private const int STEP_B_PRODUCT_TYPE_ID = 11399;
+    private const float STEP_B_PRODUCT_UNIT_PRICE = 9_800.0;
+    private const int TRITANIUM_TYPE_ID = 34;
+    private const float TRITANIUM_UNIT_PRICE = 4.5;
     private const int TYPE_MISSING_FROM_SDE_ID = 123456;
     private const string TYPE_MISSING_FROM_SDE_REASON = 'Types missing from the SDE: 123456';
     private const int FERNITE_CARBIDE_TYPE_ID = 16673;
@@ -637,28 +641,7 @@ class ProductionCostServiceTest extends TestCase
     #[Group('issue-127')]
     public function testEstimateJobInstallCostsStillCountsAStepPartiallyInStock(): void
     {
-        $config = $this->createStructureConfig(30002510, 2.5);
-        $stepA = $this->createStep('manufacturing', self::STEP_A_PRODUCT_TYPE_ID, 10, $config, 586);
-        $partiallyStockedStepB = (new IndustryProjectStep())
-            ->setProductTypeId(self::STEP_B_PRODUCT_TYPE_ID)
-            ->setBlueprintTypeId(11398)
-            ->setActivityType('manufacturing')
-            ->setRuns(5)
-            ->setQuantity(5)
-            ->setDepth(1)
-            ->setStructureConfig($config)
-            ->setInStockQuantity(3);
-        $project = $this->createProject(self::STEP_A_PRODUCT_TYPE_ID, 10);
-        $project->method('getSteps')->willReturn(new ArrayCollection([$stepA, $partiallyStockedStepB]));
-        $this->materialRepository->method('findMaterialsForBlueprints')
-            ->willReturnCallback(static fn (array $blueprintTypeIds): array => match ($blueprintTypeIds[0]) {
-                586 => [586 => [['materialTypeId' => 34, 'quantity' => 100000]]],
-                11398 => [11398 => [['materialTypeId' => 34, 'quantity' => 20000]]],
-                default => [],
-            });
-        $this->calculationService->method('resolveTypeName')->willReturn('Type');
-        $this->solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0412);
+        $project = $this->projectWithStepAAndManufacturingStepB(runsOfB: 5, quantityOfB: 5, inStockQuantityOfB: 3);
         $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
 
         $result = $this->service->estimateJobInstallCosts($project);
@@ -666,10 +649,131 @@ class ProductionCostServiceTest extends TestCase
         self::assertSame(1500.0, $result['total']);
         self::assertSame([self::STEP_A_PRODUCT_TYPE_ID, self::STEP_B_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
         self::assertSame([1000.0, 500.0], array_column($result['steps'], 'installCost'));
-        self::assertSame([
-            [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', 2.5],
-            [[['materialTypeId' => 34, 'quantity' => 20000]], 5, 30002510, 'manufacturing', 2.5],
-        ], $calls->getArrayCopy());
+        self::assertSame([$this->installCostCallOfStepA(), $this->installCostCallOfStepB()], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsIgnoresAStepCoveredByThePurchasesOfItsProduct(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(5, 5, 0, $this->purchaseOf(self::STEP_B_PRODUCT_TYPE_ID, 5, self::STEP_B_PRODUCT_UNIT_PRICE));
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1000.0, $result['total']);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([$this->installCostCallOfStepA()], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsStillCountsAStepWhosePurchasesAreOfAnotherType(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(5, 5, 0, $this->purchaseOf(self::TRITANIUM_TYPE_ID, 5, self::TRITANIUM_UNIT_PRICE));
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1500.0, $result['total']);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID, self::STEP_B_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([$this->installCostCallOfStepA(), $this->installCostCallOfStepB()], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsIgnoresAStepPartiallyInStockButCoveredByThePurchasesOfItsProduct(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(5, 5, 3, $this->purchaseOf(self::STEP_B_PRODUCT_TYPE_ID, 5, self::STEP_B_PRODUCT_UNIT_PRICE));
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1000.0, $result['total']);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([$this->installCostCallOfStepA()], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsIgnoresAStepCoveredByItsStockDespiteASmallerPurchaseOfItsProduct(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(5, 5, 5, $this->purchaseOf(self::STEP_B_PRODUCT_TYPE_ID, 2, self::STEP_B_PRODUCT_UNIT_PRICE));
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1000.0, $result['total']);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([$this->installCostCallOfStepA()], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsIgnoresAStepOfZeroRunsWithoutRequestingItsEstimate(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(runsOfB: 0, quantityOfB: 0, inStockQuantityOfB: 0);
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1000.0, $result['total']);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([$this->installCostCallOfStepA()], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsCountsAJobOfZeroQuantityWithRunsAndNeitherStockNorPurchase(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(runsOfB: 5, quantityOfB: 0, inStockQuantityOfB: 0);
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1500.0, $result['total']);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID, self::STEP_B_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([$this->installCostCallOfStepA(), $this->installCostCallOfStepB()], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsIgnoresAJobOfZeroQuantityHoldingStock(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(runsOfB: 5, quantityOfB: 0, inStockQuantityOfB: 5);
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1000.0, $result['total']);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([$this->installCostCallOfStepA()], $calls->getArrayCopy());
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateTotalCostIgnoresTheJobInstallCostOfAStepCoveredByThePurchasesOfItsProduct(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(5, 5, 0, $this->purchaseOf(self::STEP_B_PRODUCT_TYPE_ID, 5, self::STEP_B_PRODUCT_UNIT_PRICE));
+        $this->recordInstallCostEstimatesOfStepsAAndB();
+        $this->shoppingListBuilder->method('getShoppingList')->willReturn([
+            'materials' => [['typeId' => self::PYERITE_TYPE_ID, 'typeName' => 'Pyerite', 'quantity' => 2000]],
+            'failedProducts' => [],
+        ]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([self::PYERITE_TYPE_ID => 5.0]);
+
+        $result = $this->service->estimateTotalCost($project);
+
+        self::assertSame(
+            ['materialCost' => 10000.0, 'jobInstallCost' => 1000.0, 'totalCost' => 11000.0, 'perUnit' => 1100.0],
+            array_intersect_key($result, array_flip(['materialCost', 'jobInstallCost', 'totalCost', 'perUnit'])),
+        );
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID], array_column($result['jobInstallSteps'], 'productTypeId'));
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsStillCountsAStepWhoseStockIsBelowItsQuantity(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(runsOfB: 5, quantityOfB: 5, inStockQuantityOfB: 2);
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(1500.0, $result['total']);
+        self::assertSame([self::STEP_A_PRODUCT_TYPE_ID, self::STEP_B_PRODUCT_TYPE_ID], array_column($result['steps'], 'productTypeId'));
+        self::assertSame([$this->installCostCallOfStepA(), $this->installCostCallOfStepB()], $calls->getArrayCopy());
     }
 
     #[Group('issue-127')]
@@ -730,7 +834,57 @@ class ProductionCostServiceTest extends TestCase
 
         $project = $this->createProject(self::STEP_A_PRODUCT_TYPE_ID, 10);
         $project->method('getSteps')->willReturn(new ArrayCollection([$stepA, $stepB]));
+        $this->stubSdeAndCostIndexOfStepsAAndB();
 
+        return $project;
+    }
+
+    private function projectWithStepAAndManufacturingStepB(int $runsOfB, int $quantityOfB, int $inStockQuantityOfB, IndustryStepPurchase ...$purchasesOfB): IndustryProject&MockObject
+    {
+        $config = $this->createStructureConfig(30002510, 2.5);
+        $stepA = $this->createStep('manufacturing', self::STEP_A_PRODUCT_TYPE_ID, 10, $config, 586);
+        $stepB = (new IndustryProjectStep())
+            ->setProductTypeId(self::STEP_B_PRODUCT_TYPE_ID)
+            ->setBlueprintTypeId(11398)
+            ->setActivityType('manufacturing')
+            ->setRuns($runsOfB)
+            ->setQuantity($quantityOfB)
+            ->setDepth(1)
+            ->setStructureConfig($config)
+            ->setInStockQuantity($inStockQuantityOfB);
+        foreach ($purchasesOfB as $purchase) {
+            $stepB->addPurchase($purchase);
+        }
+
+        $project = $this->createProject(self::STEP_A_PRODUCT_TYPE_ID, 10);
+        $project->method('getSteps')->willReturn(new ArrayCollection([$stepA, $stepB]));
+        $this->stubSdeAndCostIndexOfStepsAAndB();
+
+        return $project;
+    }
+
+    private function purchaseOf(int $typeId, int $quantity, float $unitPrice): IndustryStepPurchase
+    {
+        return (new IndustryStepPurchase())
+            ->setTypeId($typeId)
+            ->setQuantity($quantity)
+            ->setUnitPrice($unitPrice)
+            ->setTotalPrice($quantity * $unitPrice)
+            ->setSource('manual');
+    }
+
+    private function installCostCallOfStepA(): array
+    {
+        return [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', 2.5];
+    }
+
+    private function installCostCallOfStepB(): array
+    {
+        return [[['materialTypeId' => 34, 'quantity' => 20000]], 5, 30002510, 'manufacturing', 2.5];
+    }
+
+    private function stubSdeAndCostIndexOfStepsAAndB(): void
+    {
         $this->materialRepository->method('findMaterialsForBlueprints')
             ->willReturnCallback(static fn (array $blueprintTypeIds): array => match ($blueprintTypeIds[0]) {
                 586 => [586 => [['materialTypeId' => 34, 'quantity' => 100000]]],
@@ -748,8 +902,6 @@ class ProductionCostServiceTest extends TestCase
         $outputProduct->setProductTypeId(self::STEP_A_PRODUCT_TYPE_ID);
         $outputProduct->setQuantity(1);
         $this->productRepository->method('findBlueprintForProduct')->willReturn($outputProduct);
-
-        return $project;
     }
 
     private function recordInstallCostEstimatesOfStepsAAndB(): \ArrayObject
