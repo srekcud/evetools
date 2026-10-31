@@ -10,6 +10,7 @@ use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\UpdateStepInput;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
@@ -80,17 +81,25 @@ class UpdateStepProcessor implements ProcessorInterface
     {
         $needsCascade = false;
 
+        if ($data->purchased !== null && $step->getDepth() === 0 && $data->purchased) {
+            throw new BadRequestHttpException('Cannot mark root products as purchased');
+        }
+
+        if ($data->inStockQuantity !== null && $step->getDepth() === 0 && $data->inStockQuantity > 0) {
+            throw new BadRequestHttpException('Cannot mark root products as in stock');
+        }
+
+        if ($data->meLevel !== null && $data->meLevel !== 0 && $step->getActivityType() === 'reaction') {
+            throw new BadRequestHttpException('Cannot set a material efficiency on a reaction step');
+        }
+
+        $structureConfig = $data->structureConfigId === null ? null : $this->structureConfigOfTheUser($project, $data->structureConfigId);
+
         if ($data->purchased !== null) {
-            if ($step->getDepth() === 0 && $data->purchased) {
-                throw new BadRequestHttpException('Cannot mark root products as purchased');
-            }
             $step->setPurchased($data->purchased);
         }
 
         if ($data->inStockQuantity !== null) {
-            if ($step->getDepth() === 0 && $data->inStockQuantity > 0) {
-                throw new BadRequestHttpException('Cannot mark root products as in stock');
-            }
             $step->setInStockQuantity($data->inStockQuantity);
         }
 
@@ -103,12 +112,9 @@ class UpdateStepProcessor implements ProcessorInterface
             $step->setTeLevel($data->teLevel);
         }
 
-        if ($data->structureConfigId !== null) {
-            $structureConfig = $this->structureConfigRepository->find(Uuid::fromString($data->structureConfigId));
-            if ($structureConfig !== $step->getStructureConfig()) {
-                $step->setStructureConfig($structureConfig);
-                $needsCascade = true;
-            }
+        if ($structureConfig !== null && $structureConfig !== $step->getStructureConfig()) {
+            $step->setStructureConfig($structureConfig);
+            $needsCascade = true;
         }
 
         if ($data->jobMatchMode !== null) {
@@ -147,6 +153,17 @@ class UpdateStepProcessor implements ProcessorInterface
         }
 
         return $this->mapper->stepToResource($step);
+    }
+
+    private function structureConfigOfTheUser(IndustryProject $project, string $structureConfigId): IndustryStructureConfig
+    {
+        $structureConfig = $this->structureConfigRepository->find(Uuid::fromString($structureConfigId));
+
+        if ($structureConfig === null || $structureConfig->getUser() !== $project->getUser()) {
+            throw new NotFoundHttpException('Structure not found');
+        }
+
+        return $structureConfig;
     }
 
     private function fixRunsEnteredOnTheJob(IndustryProject $project, IndustryProjectStep $job, int $enteredRuns, int $needRuns, bool $overproduce): int

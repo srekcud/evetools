@@ -13,7 +13,7 @@ class UpdateStepInput
     #[Assert\PositiveOrZero]
     public ?int $inStockQuantity = null;
 
-    #[Assert\Positive]
+    #[Assert\Range(min: 1, max: CreateProjectInput::MAXIMUM_PROJECT_RUNS)]
     public ?int $runs = null;
 
     public ?bool $overproduce = null;

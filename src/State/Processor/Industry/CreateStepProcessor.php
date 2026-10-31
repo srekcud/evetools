@@ -8,9 +8,11 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\CreateStepInput;
+use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
@@ -72,83 +74,29 @@ class CreateStepProcessor implements ProcessorInterface
             throw new BadRequestHttpException('typeId, splitGroupId or stepId is required');
         }
 
-        // If stepId is provided, add a child to a single step (create split group)
         if ($stepId !== null) {
-            $existingStep = $this->stepRepository->find(UuidOrNotFound::of($stepId, 'Step not found'));
+            $referenceStep = $this->stepRepository->find(UuidOrNotFound::of($stepId, 'Step not found'));
 
-            if ($existingStep === null || $existingStep->getProject() !== $project) {
+            if ($referenceStep === null || $referenceStep->getProject() !== $project) {
                 throw new NotFoundHttpException('Step not found');
             }
 
-            $newSplitGroupId = Uuid::v4()->toRfc4122();
-            $totalRuns = $existingStep->getRuns() + $runs;
-
-            $existingStep->setSplitGroupId($newSplitGroupId);
-            $existingStep->setSplitIndex(0);
-            $existingStep->setTotalGroupRuns($totalRuns);
-
-            $step = new IndustryProjectStep();
-            $step->setBlueprintTypeId($existingStep->getBlueprintTypeId());
-            $step->setProductTypeId($existingStep->getProductTypeId());
-            $step->setQuantity($runs);
-            $step->setRuns($runs);
-            $step->setDepth($existingStep->getDepth());
-            $step->setActivityType($existingStep->getActivityType());
-            $step->setSortOrder($existingStep->getSortOrder());
-            $step->setSplitGroupId($newSplitGroupId);
-            $step->setSplitIndex(1);
-            $step->setTotalGroupRuns($totalRuns);
-            $step->setMeLevel($existingStep->getMeLevel());
-            $step->setTeLevel($existingStep->getTeLevel());
-            $step->setStructureConfig($existingStep->getStructureConfig());
-
-            $project->addStep($step);
-            $this->entityManager->flush();
+            $addedJob = $this->addJobToTheGroupOf($project, $referenceStep, $runs);
 
             return [
-                'newStep' => $this->mapper->stepToResource($step),
-                'updatedStep' => $this->mapper->stepToResource($existingStep),
+                'newStep' => $this->mapper->stepToResource($addedJob),
+                'updatedStep' => $this->mapper->stepToResource($referenceStep),
             ];
         }
 
-        // If splitGroupId is provided, add to existing split group
         if ($splitGroupId !== null) {
-            $existingStep = null;
-            $maxSplitIndex = -1;
-            foreach ($project->getSteps() as $s) {
-                if ($s->getSplitGroupId() === $splitGroupId) {
-                    if ($existingStep === null) {
-                        $existingStep = $s;
-                    }
-                    if ($s->getSplitIndex() > $maxSplitIndex) {
-                        $maxSplitIndex = $s->getSplitIndex();
-                    }
-                }
-            }
+            $referenceStep = $this->firstJobOfTheGroup($project, $splitGroupId);
 
-            if ($existingStep === null) {
+            if ($referenceStep === null) {
                 throw new NotFoundHttpException('Split group not found');
             }
 
-            $step = new IndustryProjectStep();
-            $step->setBlueprintTypeId($existingStep->getBlueprintTypeId());
-            $step->setProductTypeId($existingStep->getProductTypeId());
-            $step->setQuantity($runs);
-            $step->setRuns($runs);
-            $step->setDepth($existingStep->getDepth());
-            $step->setActivityType($existingStep->getActivityType());
-            $step->setSortOrder($existingStep->getSortOrder());
-            $step->setSplitGroupId($splitGroupId);
-            $step->setSplitIndex($maxSplitIndex + 1);
-            $step->setTotalGroupRuns($existingStep->getTotalGroupRuns());
-            $step->setMeLevel($existingStep->getMeLevel());
-            $step->setTeLevel($existingStep->getTeLevel());
-            $step->setStructureConfig($existingStep->getStructureConfig());
-
-            $project->addStep($step);
-            $this->entityManager->flush();
-
-            return $this->mapper->stepToResource($step);
+            return $this->mapper->stepToResource($this->addJobToTheGroupOf($project, $referenceStep, $runs));
         }
 
         // Create new step from typeId
@@ -187,12 +135,90 @@ class CreateStepProcessor implements ProcessorInterface
         $step->setDepth(0);
         $step->setActivityType($activityType);
         $step->setSortOrder($maxSortOrder + 1);
-        $step->setMeLevel($meLevel ?? 0);
+        $step->setMeLevel($activityType === 'reaction' ? 0 : ($meLevel ?? 0));
         $step->setTeLevel($teLevel ?? 0);
 
         $project->addStep($step);
         $this->entityManager->flush();
 
         return $this->mapper->stepToResource($step);
+    }
+
+    private function firstJobOfTheGroup(IndustryProject $project, string $splitGroupId): ?IndustryProjectStep
+    {
+        $firstJob = null;
+        foreach ($project->getSteps() as $step) {
+            if ($step->getSplitGroupId() === $splitGroupId && ($firstJob === null || $step->getSplitIndex() < $firstJob->getSplitIndex())) {
+                $firstJob = $step;
+            }
+        }
+
+        return $firstJob;
+    }
+
+    private function addJobToTheGroupOf(IndustryProject $project, IndustryProjectStep $referenceStep, int $runs): IndustryProjectStep
+    {
+        try {
+            $outputPerRun = SplitGroupMaterials::outputPerRunOf($this->activityProductRepository, $referenceStep->getBlueprintTypeId(), $referenceStep->getActivityType());
+            $needRuns = $this->stepCalculator->needRunsOf($project, $referenceStep);
+
+            $addedJob = $this->joinGroupOfTheReferenceStep($project, $referenceStep, $runs, $outputPerRun);
+            $jobsOfTheGroup = $this->jobsOfTheGroup($project, $addedJob->getSplitGroupId());
+            $totalGroupRuns = array_sum(array_map(static fn (IndustryProjectStep $job): int => $job->getRuns(), $jobsOfTheGroup));
+            foreach ($jobsOfTheGroup as $job) {
+                $job->setTotalGroupRuns($totalGroupRuns);
+                if ($needRuns !== null) {
+                    $job->setRunsFixed(true);
+                }
+            }
+
+            $this->stepCalculator->recalculateStepQuantities($project);
+        } catch (BlueprintProductMissingFromSdeException $missingProduct) {
+            throw new BadRequestHttpException($missingProduct->getMessage(), $missingProduct);
+        }
+
+        $this->entityManager->flush();
+
+        return $addedJob;
+    }
+
+    private function joinGroupOfTheReferenceStep(IndustryProject $project, IndustryProjectStep $referenceStep, int $runs, int $outputPerRun): IndustryProjectStep
+    {
+        if ($referenceStep->getSplitGroupId() === null) {
+            $referenceStep->setSplitGroupId(Uuid::v4()->toRfc4122());
+            $referenceStep->setSplitIndex(0);
+        }
+
+        $splitGroupId = $referenceStep->getSplitGroupId();
+        $lastSplitIndex = max($referenceStep->getSplitIndex(), ...array_map(static fn (IndustryProjectStep $job): int => $job->getSplitIndex(), $this->jobsOfTheGroup($project, $splitGroupId)));
+
+        $addedJob = new IndustryProjectStep();
+        $addedJob->setBlueprintTypeId($referenceStep->getBlueprintTypeId());
+        $addedJob->setProductTypeId($referenceStep->getProductTypeId());
+        $addedJob->setQuantity($runs * $outputPerRun);
+        $addedJob->setRuns($runs);
+        $addedJob->setDepth($referenceStep->getDepth());
+        $addedJob->setActivityType($referenceStep->getActivityType());
+        $addedJob->setSortOrder($referenceStep->getSortOrder());
+        $addedJob->setSplitGroupId($splitGroupId);
+        $addedJob->setSplitIndex($lastSplitIndex + 1);
+        $addedJob->setMeLevel($referenceStep->getActivityType() === 'reaction' ? 0 : $referenceStep->getMeLevel());
+        $addedJob->setTeLevel($referenceStep->getTeLevel());
+        $addedJob->setStructureConfig($referenceStep->getStructureConfig());
+
+        $project->addStep($addedJob);
+
+        return $addedJob;
+    }
+
+    /**
+     * @return list<IndustryProjectStep>
+     */
+    private function jobsOfTheGroup(IndustryProject $project, ?string $splitGroupId): array
+    {
+        return array_values(array_filter(
+            $project->getSteps()->toArray(),
+            static fn (IndustryProjectStep $job): bool => $job->getSplitGroupId() === $splitGroupId,
+        ));
     }
 }

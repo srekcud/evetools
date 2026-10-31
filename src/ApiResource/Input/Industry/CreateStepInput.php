@@ -11,7 +11,7 @@ class CreateStepInput
     #[Assert\Positive]
     public ?int $typeId = null;
 
-    #[Assert\Positive]
+    #[Assert\Range(min: 1, max: CreateProjectInput::MAXIMUM_PROJECT_RUNS)]
     public int $runs = 1;
 
     #[Assert\Range(min: 0, max: 10)]
