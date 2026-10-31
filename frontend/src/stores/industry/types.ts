@@ -80,6 +80,7 @@ export interface IndustryProjectStep {
   purchases: StepPurchase[]
   purchasesCost: number | null
   purchasedQuantity: number
+  deletable: boolean
 
   // Backward-compatible computed fields (populated by enrichStep())
   inStock: boolean

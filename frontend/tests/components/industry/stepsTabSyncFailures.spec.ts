@@ -34,6 +34,7 @@ const RIFTER_STEP: IndustryProjectStep = {
   structureMaterialBonus: null,
   structureTimeBonus: null,
   favoriteSystemWithoutSuitableStructure: false,
+  deletable: true,
   timePerRun: null,
   recommendedCharacterName: null,
   splitGroupId: null,

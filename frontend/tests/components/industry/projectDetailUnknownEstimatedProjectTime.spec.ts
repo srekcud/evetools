@@ -58,6 +58,7 @@ function stepOf(overrides: Partial<IndustryProjectStep>): IndustryProjectStep {
     structureMaterialBonus: null,
     structureTimeBonus: null,
     favoriteSystemWithoutSuitableStructure: false,
+    deletable: true,
     timePerRun: 9000,
     recommendedCharacterName: null,
     splitGroupId: null,
