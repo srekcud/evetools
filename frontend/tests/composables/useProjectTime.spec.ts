@@ -191,3 +191,37 @@ describe('estimated project time with an unknown time per run', () => {
     })
   })
 })
+
+describe('estimated project time with the in-stock flag from the server', () => {
+  function componentStepOfFourRunsOf1200Seconds(overrides: Partial<IndustryProjectStep>): IndustryProjectStep {
+    return stepOf({
+      id: 'step-182-component',
+      blueprintTypeId: 18211,
+      productTypeId: 18212,
+      productTypeName: 'Component Covered By Purchases',
+      quantity: 40,
+      runs: 4,
+      depth: 1,
+      timePerRun: 1200,
+      ...overrides,
+    })
+  }
+
+  it('counts a step whose purchased quantity reaches its quantity when the server says it is not in stock', () => {
+    expect(
+      estimatedProjectTimeOf([
+        ROOT_STEP_OF_9000_SECONDS_PER_RUN,
+        componentStepOfFourRunsOf1200Seconds({ purchasedQuantity: 60, inStockQuantity: 0, inStock: false }),
+      ]),
+    ).toEqual({ estimatedProjectTime: 22800, isEstimatedProjectTimeUnknown: false })
+  })
+
+  it('leaves out a step the server says is in stock without stock nor purchased quantity', () => {
+    expect(
+      estimatedProjectTimeOf([
+        ROOT_STEP_OF_9000_SECONDS_PER_RUN,
+        componentStepOfFourRunsOf1200Seconds({ purchasedQuantity: 0, inStockQuantity: 0, inStock: true }),
+      ]),
+    ).toEqual({ estimatedProjectTime: 18000, isEstimatedProjectTimeUnknown: false })
+  })
+})
