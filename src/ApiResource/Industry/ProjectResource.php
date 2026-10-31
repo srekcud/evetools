@@ -73,6 +73,7 @@ use App\State\Provider\Industry\ShoppingListProvider;
         ),
     ],
     security: "is_granted('ROLE_USER')",
+    normalizationContext: ['skip_null_values' => false],
 )]
 class ProjectResource
 {
