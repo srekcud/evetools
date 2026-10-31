@@ -402,6 +402,40 @@ final class PveSyncServiceCorpProjectsTest extends TestCase
         $this->assertSame([$this->utc($projectModifiedAt)], array_column($this->corpProjectIncomeRows(), 'date'));
     }
 
+    #[DataProvider('projectNamesAroundTheDescriptionLimit')]
+    public function testSyncTruncatesTheDescriptionToTheLootContractLimit(string $projectName, string $expectedDescription): void
+    {
+        $contributedAt = new \DateTimeImmutable('-2 days');
+        $service = $this->createService([
+            ...$this->projectListPages([$this->projectRecord(self::PROJECT_ID, $projectName, 'Active', $contributedAt)]),
+            ...$this->contributorPages(self::PROJECT_ID, [$this->contributorRecord(self::EVE_CHARACTER_ID, 'Pilot One', 1000)]),
+            ...$this->projectDetails(self::PROJECT_ID, self::TRITANIUM, self::REWARD_PER_CONTRIBUTION),
+            ...$this->contribution(self::PROJECT_ID, self::EVE_CHARACTER_ID, 1000, $contributedAt),
+        ]);
+
+        $service->syncAll($this->userOf($this->pilotOne()));
+
+        $this->assertSame([$expectedDescription], array_column($this->corpProjectIncomeRows(), 'description'));
+    }
+
+    public static function projectNamesAroundTheDescriptionLimit(): iterable
+    {
+        $longProjectName = str_repeat('Tritanium Drive Phase ', 13) . 'Fourteen Extra';
+
+        yield 'project name of 300 characters' => [
+            $longProjectName,
+            substr($longProjectName, 0, 247) . '...',
+        ];
+        yield 'description of exactly 250 characters' => [
+            str_repeat('T', 233),
+            str_repeat('T', 233) . ': 1000x Tritanium',
+        ];
+        yield 'description of 251 characters' => [
+            str_repeat('V', 234),
+            str_repeat('V', 234) . ': 1000x Trita...',
+        ];
+    }
+
     public function testSyncImportsTheRemainderOfAnImportMadeBeforeQuantityTracking(): void
     {
         $this->initialCorpProjectImports = [$this->legacyImport(self::PROJECT_ID, self::EVE_CHARACTER_ID, 1000)];

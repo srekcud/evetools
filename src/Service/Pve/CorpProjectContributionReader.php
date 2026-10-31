@@ -256,7 +256,7 @@ final readonly class CorpProjectContributionReader
                     self::COMPATIBILITY_DATE,
                 );
 
-                $this->logger->info('Corp projects: Contribution for ' . $character->getName() . ': ' . json_encode($contribution));
+                $this->logger->debug('Corp projects: Contribution of character ' . $characterId . ': ' . json_encode($contribution));
 
                 $contributed = $contribution['contributed'] ?? null;
                 if (!is_int($contributed)) {

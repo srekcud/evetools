@@ -34,6 +34,7 @@ class PveSyncService
 
     private const SYNC_INTERVAL_MINUTES = 15;
     private const DEFAULT_DAYS_TO_SYNC = 30;
+    private const MAX_DESCRIPTION_LENGTH = 250;
 
     /** @var array<int, string> */
     private array $typeNameCache = [];
@@ -503,10 +504,7 @@ class PveSyncService
                     foreach ($lootNames as $name => $qty) {
                         $descParts[] = "{$qty}x {$name}";
                     }
-                    $description = implode(', ', $descParts);
-                    if (strlen($description) > 250) {
-                        $description = substr($description, 0, 247) . '...';
-                    }
+                    $description = $this->truncateDescription(implode(', ', $descParts));
 
                     $income = new PveIncome();
                     $income->setUser($user);
@@ -560,7 +558,7 @@ class PveSyncService
             $income = new PveIncome();
             $income->setUser($user);
             $income->setType(PveIncomeType::CorpProject);
-            $income->setDescription("{$contribution->projectName}: {$contribution->pendingQuantity()}x {$typeName}");
+            $income->setDescription($this->truncateDescription("{$contribution->projectName}: {$contribution->pendingQuantity()}x {$typeName}"));
             $income->setAmount($amount);
             $income->setDate($contribution->contributedAt);
             $income->setTransactionId($contribution->trackingId());
@@ -669,6 +667,15 @@ class PveSyncService
     }
 
     /** Read through a method: the step calls fill the property, which static analysis would otherwise see as still empty */
+    private function truncateDescription(string $description): string
+    {
+        if (strlen($description) > self::MAX_DESCRIPTION_LENGTH) {
+            return substr($description, 0, self::MAX_DESCRIPTION_LENGTH - 3) . '...';
+        }
+
+        return $description;
+    }
+
     private function countFailedCharacters(): int
     {
         return count($this->failedCharacterIds);
