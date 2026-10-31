@@ -24,10 +24,6 @@ export function formatErrorMessage(e: unknown, defaultMessage: string): string {
  * Call this after receiving step data from the API.
  */
 export function enrichStep(step: IndustryProjectStep): IndustryProjectStep {
-  // Effective stock: purchasedQuantity has priority over inStockQuantity (paste)
-  const effectiveStock = step.purchasedQuantity > 0 ? step.purchasedQuantity : step.inStockQuantity
-  step.inStock = effectiveStock >= step.quantity && effectiveStock > 0
-
   // ESI job fields: derived from jobMatches array
   if (step.jobMatches && step.jobMatches.length > 0) {
     const firstMatch = step.jobMatches[0]

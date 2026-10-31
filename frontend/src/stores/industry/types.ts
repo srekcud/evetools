@@ -81,9 +81,9 @@ export interface IndustryProjectStep {
   purchasesCost: number | null
   purchasedQuantity: number
   deletable: boolean
+  inStock: boolean
 
   // Backward-compatible computed fields (populated by enrichStep())
-  inStock: boolean
   esiJobId: number | null
   esiJobCost: number | null
   esiJobStatus: string | null
