@@ -20,7 +20,7 @@ Deux affichages trompent même aujourd'hui :
 
 ### Ce qui manque côté backend (hors périmètre du thread ui-shell)
 
-- **M1 — Aucun endpoint utilisateur.** `SyncTracker::getAll()` n'est lu que par `AdminService` et `TriggerSyncProcessor`.
+- **M1 — Aucun endpoint utilisateur.** `SyncTracker::getAll()` n'est lu que par `AdminService`.
 - **M2 — Pas de date de dernière sync réussie.** `SyncTracker::fail()` écrase `completed_at` avec l'heure de l'échec : `completed_at` est la fin de la dernière exécution, réussie ou non.
 - **M3 — Un échec de la sync Jita est enregistré comme une réussite.** `JitaMarketService::syncJitaMarket()` attrape l'exception et rend `success: false` (`JitaMarketService.php:96-107`) ; `TriggerJitaMarketSyncHandler` appelle `complete()` sans lire `success` (`:28-36`). Le statut `ok` et l'heure de fin sont donc posés même quand aucun prix n'a été lu.
 - **M4 — La méta Jita disparaît avant les prix.** La méta `syncedAt` expire après 2 h, mais `refreshPricesForTypes()` (alertes de prix, toutes les 30 min) réécrit le cache des prix avec un nouveau TTL de 2 h. Après 2 h sans sync Jita réussie, des prix restent en cache et `getLastSyncTime()` rend `null`. La source de l'âge doit donc être `SyncTracker` (état gardé 7 jours), pas cette méta.
@@ -95,7 +95,7 @@ Formateur (R8), locale FR :
 - **Fuseau** : l'API rend des dates ISO 8601 avec décalage (`format('c')`). L'âge ne dépend pas du fuseau ; seule l'infobulle affiche la date dans le fuseau du navigateur.
 - **Locale** : un changement de langue retraduit libellé et âge sans recharger.
 - **Prix à la demande** : un type absent du cache synchronisé est lu à la demande (cache 5 min). Il est donc plus récent que l'âge affiché : l'âge de la sync est une borne pessimiste, acceptée.
-- **Sync Jita en échec enregistrée comme réussie (M3)** : tant que M3 n'est pas corrigé côté backend, E13 et E14 ne peuvent pas se produire pour `market-jita` en production.
+- **Sync Jita en échec (M3, corrigé)** : `TriggerJitaMarketSyncHandler` appelle `fail()` quand `syncJitaMarket()` rend `success: false` (#237) : E13 et E14 peuvent se produire pour `market-jita` en production.
 - **Cost index et adjusted prices périmés** : au-delà de 3 intervalles, leur cache a expiré (`SYNC_INTERVALS_KEPT_IN_CACHE = 3`) et les coûts qui en dépendent sont déjà inconnus. Le niveau périmé est cohérent avec ce coût inconnu.
 
 ## Hors périmètre

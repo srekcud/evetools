@@ -64,9 +64,12 @@ class SyncTracker
 
     public function start(string $type): void
     {
+        $state = $this->getState($type);
+
         $this->saveState($type, [
             'started_at' => (new \DateTimeImmutable())->format('c'),
-            'completed_at' => $this->getState($type)['completed_at'] ?? null,
+            'completed_at' => $state['completed_at'] ?? null,
+            'last_success_at' => $state['last_success_at'] ?? null,
             'status' => 'running',
             'message' => null,
         ]);
@@ -82,6 +85,7 @@ class SyncTracker
         $this->saveState($type, [
             'started_at' => $state['started_at'] ?? $now,
             'completed_at' => $now,
+            'last_success_at' => $now,
             'status' => 'ok',
             'message' => $message,
         ]);
@@ -97,6 +101,7 @@ class SyncTracker
         $this->saveState($type, [
             'started_at' => $state['started_at'] ?? $now,
             'completed_at' => $now,
+            'last_success_at' => $state['last_success_at'] ?? null,
             'status' => 'error',
             'message' => $message,
         ]);
@@ -133,6 +138,23 @@ class SyncTracker
         }
 
         return $result;
+    }
+
+    /** @return array{lastSuccessAt: ?string, lastRunFailed: bool} */
+    public function getFreshness(string $type): array
+    {
+        $state = $this->getState($type);
+
+        return [
+            'lastSuccessAt' => $state['last_success_at'] ?? $this->completedAtOfLegacySuccess($state),
+            'lastRunFailed' => $state['status'] === 'error',
+        ];
+    }
+
+    /** @param array<string, mixed> $state */
+    private function completedAtOfLegacySuccess(array $state): ?string
+    {
+        return $state['status'] === 'ok' ? $state['completed_at'] : null;
     }
 
     /**
@@ -187,7 +209,7 @@ class SyncTracker
 
         return $this->cache->get($key, function (ItemInterface $item): array {
             $item->expiresAfter(self::CACHE_TTL);
-            return ['status' => 'unknown', 'started_at' => null, 'completed_at' => null, 'message' => null];
+            return ['status' => 'unknown', 'started_at' => null, 'completed_at' => null, 'last_success_at' => null, 'message' => null];
         });
     }
 
