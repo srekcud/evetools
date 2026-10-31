@@ -317,7 +317,10 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 
     private function createNitrogenFuelBlockProject(int $runs, int $meLevel, int $teLevel): GroupIndustryProject
     {
-        return $this->service->createProject($this->owner, new CreateProjectData(
+        $owner = $this->em->find(User::class, $this->owner->getId());
+        \assert($owner instanceof User);
+
+        return $this->service->createProject($owner, new CreateProjectData(
             name: 'Fuel run',
             items: [['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'meLevel' => $meLevel, 'teLevel' => $teLevel, 'runs' => $runs]],
         ));

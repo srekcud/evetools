@@ -63,14 +63,13 @@ class IndustryProjectRepository extends ServiceEntityRepository
      */
     public function findIdsInCreationOrder(): array
     {
-        /** @var list<Uuid> $ids */
-        $ids = $this->createQueryBuilder('p')
+        $rawIds = $this->createQueryBuilder('p')
             ->select('p.id')
             ->orderBy('p.createdAt', 'ASC')
             ->addOrderBy('p.id', 'ASC')
             ->getQuery()
             ->getSingleColumnResult();
 
-        return $ids;
+        return array_values(array_map(static fn (mixed $id): Uuid => Uuid::fromString((string) $id), $rawIds));
     }
 }
