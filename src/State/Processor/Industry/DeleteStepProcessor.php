@@ -7,12 +7,15 @@ namespace App\State\Processor\Industry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
+use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Service\Industry\IndustryStepCalculator;
+use App\Service\Industry\SplitGroupQuantities;
 use App\Service\UuidOrNotFound;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -50,8 +53,26 @@ class DeleteStepProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Step not found');
         }
 
-        $project->getSteps()->removeElement($step);
-        $this->entityManager->remove($step);
+        $refusal = $project->refusalToDeleteStep($step);
+
+        if ($refusal !== null) {
+            throw new BadRequestHttpException($refusal);
+        }
+
+        $otherJobs = $project->otherJobsOfGroupOf($step);
+
+        if ($otherJobs !== []) {
+            SplitGroupQuantities::passDeletedJobOnToGroup($step, $otherJobs);
+        }
+
+        $project->removeStep($step);
+
+        try {
+            $this->stepCalculator->recalculateStepQuantities($project);
+        } catch (BlueprintProductMissingFromSdeException $missingProduct) {
+            throw new BadRequestHttpException($missingProduct->getMessage(), $missingProduct);
+        }
+
         $this->entityManager->flush();
     }
 }

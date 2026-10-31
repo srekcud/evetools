@@ -71,7 +71,7 @@ final class SplitGroupQuantities
 
             if (count($keptSteps) === 1) {
                 $keptStep = reset($keptSteps);
-                $keptStep->setSplitGroupId(null)->setSplitIndex(0)->setTotalGroupRuns(null);
+                self::dissolve($keptStep);
                 self::applyNeedToSingleStep($keptStep, $need, $totalRuns, $outputPerRun);
 
                 return new AppliedNeed([$keptStep], $surplusJobs);
@@ -102,6 +102,30 @@ final class SplitGroupQuantities
         }
 
         return new AppliedNeed($changedSteps, $surplusJobs);
+    }
+
+    /**
+     * @param list<IndustryProjectStep> $keptJobs
+     */
+    public static function passDeletedJobOnToGroup(IndustryProjectStep $deletedJob, array $keptJobs): void
+    {
+        self::absorbSurplusJobs($keptJobs, [$deletedJob]);
+
+        if (count($keptJobs) === 1) {
+            self::dissolve($keptJobs[0]);
+
+            return;
+        }
+
+        $totalGroupRuns = array_sum(array_map(static fn (IndustryProjectStep $job): int => $job->getRuns(), $keptJobs));
+        foreach (self::splitIndexesFromZero($keptJobs) as $i => $splitIndex) {
+            $keptJobs[$i]->setSplitIndex($splitIndex)->setTotalGroupRuns($totalGroupRuns);
+        }
+    }
+
+    private static function dissolve(IndustryProjectStep $job): void
+    {
+        $job->setSplitGroupId(null)->setSplitIndex(0)->setTotalGroupRuns(null);
     }
 
     private static function applyNeedToSingleStep(IndustryProjectStep $step, int $need, int $totalRuns, int $outputPerRun): bool

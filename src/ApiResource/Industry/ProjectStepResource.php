@@ -166,5 +166,5 @@ class ProjectStepResource
     /** @var array<int, array<string, mixed>> All ESI jobs with same blueprint (informational, independent of matching) */
     public array $similarJobs = [];
 
-    public bool $deletable = false;
+    public bool $deletable;
 }

@@ -444,6 +444,50 @@ class IndustryProject
         return $this;
     }
 
+    public function refusalToDeleteStep(IndustryProjectStep $step): ?string
+    {
+        if (!$step->getJobMatches()->isEmpty()) {
+            return 'Cannot delete a step linked to an ESI job';
+        }
+
+        if ($this->isLastProductionStepOfProjectProduct($step)) {
+            return 'Cannot delete the last step of the project product';
+        }
+
+        if ($step->isCommitted() && $this->otherJobsOfGroupOf($step) === []) {
+            return 'Cannot delete a step holding purchases, stock or a purchased mark';
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<IndustryProjectStep>
+     */
+    public function otherJobsOfGroupOf(IndustryProjectStep $step): array
+    {
+        if ($step->getSplitGroupId() === null) {
+            return [];
+        }
+
+        return array_values($this->steps->filter(
+            static fn (IndustryProjectStep $other): bool => $other !== $step && $other->getSplitGroupId() === $step->getSplitGroupId(),
+        )->toArray());
+    }
+
+    private function isLastProductionStepOfProjectProduct(IndustryProjectStep $step): bool
+    {
+        if ($step->getActivityType() === 'copy' || $step->getProductTypeId() !== $this->productTypeId) {
+            return false;
+        }
+
+        return $this->steps->filter(
+            static fn (IndustryProjectStep $other): bool => $other !== $step
+                && $other->getActivityType() !== 'copy'
+                && $other->getProductTypeId() === $step->getProductTypeId(),
+        )->isEmpty();
+    }
+
     public function getJobsCost(): float
     {
         $total = 0.0;

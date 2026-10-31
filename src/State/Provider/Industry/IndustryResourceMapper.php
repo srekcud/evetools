@@ -234,6 +234,7 @@ class IndustryResourceMapper
         $resource->meLevel = $step->getMeLevel();
         $resource->teLevel = $step->getTeLevel();
         $resource->jobMatchMode = $step->getJobMatchMode();
+        $resource->deletable = $step->getProject()->refusalToDeleteStep($step) === null;
 
         // Structure config
         $structureConfig = $step->getStructureConfig();
