@@ -12,7 +12,7 @@ Ce qui existe et que la palette réutilise, sans nouvel endpoint ni nouvelle dé
 - **Types** : `GET /api/industry/search?q=` (`ProductSearchProvider`) : produits publiés fabricables ou réactionnables, 20 au plus, triés par nom, `{typeId, typeName, isT2}`, liste vide sous 2 caractères. `GET /api/market/search` existe aussi, mais charge pour chaque type les prix Jita, les volumes et la variation à 30 jours.
 - **Noms de types** : le SDE n'importe que le nom anglais (`SdeImportTrait.php:60`, `name['en']`). Il n'y a pas de nom de type français.
 - **Projets** : `GET /api/industry/projects` (`useProjectsStore().fetchProjects()`) et `GET /api/group-industry/projects` (`fetchMyProjects()`, la liste « Mes projets »). Un projet Group Industry a une route (`/group-industry/:id`) ; un projet Industry n'en a pas : son détail est un état local (`viewingProjectId`, `Industry.vue:78`).
-- **Présélection d'un type dans un onglet d'analyse** : uniquement par `store.navigationIntent`, observé par un `watch` non immédiat dans `Industry.vue:144`. Un intent posé avant le montage d'Industry n'est jamais lu : la palette ne peut pas s'en servir depuis un autre écran.
+- **Présélection d'un type dans un onglet d'analyse** : par `store.navigationIntent`, observé par un `watch` non immédiat dans `Industry.vue:144`, ou par `?typeId=` lu par `Industry.vue:92-95` depuis `ddb1f15c`. Un intent posé avant le montage d'Industry n'est jamais lu : la palette ne peut pas s'en servir depuis un autre écran, elle passe par `?typeId=`.
 
 ## Règles
 

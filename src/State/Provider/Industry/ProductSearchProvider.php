@@ -8,8 +8,8 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\ProductSearchListResource;
 use App\ApiResource\Industry\ProductSearchResource;
-use App\Enum\IndustryActivityType;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Industry\ManufacturableProduct;
+use App\Service\Industry\ManufacturableProductReader;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -17,8 +17,11 @@ use Symfony\Component\HttpFoundation\RequestStack;
  */
 class ProductSearchProvider implements ProviderInterface
 {
+    private const int MINIMUM_QUERY_LENGTH = 2;
+    private const int RESULT_LIMIT = 20;
+
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
+        private readonly ManufacturableProductReader $manufacturableProductReader,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -30,37 +33,18 @@ class ProductSearchProvider implements ProviderInterface
 
         $resource = new ProductSearchListResource();
 
-        if (strlen($query) < 2) {
+        if (strlen($query) < self::MINIMUM_QUERY_LENGTH) {
             return $resource;
         }
 
-        $conn = $this->entityManager->getConnection();
-        $manufacturing = IndustryActivityType::Manufacturing->value;
-        $reaction = IndustryActivityType::Reaction->value;
-        $invention = IndustryActivityType::Invention->value;
-
-        $sql = <<<SQL
-            SELECT DISTINCT t.type_id, t.type_name,
-                CASE WHEN inv.product_type_id IS NOT NULL THEN true ELSE false END AS is_t2
-            FROM sde_inv_types t
-            INNER JOIN sde_industry_activity_products p ON p.product_type_id = t.type_id AND p.activity_id IN ({$manufacturing}, {$reaction})
-            LEFT JOIN sde_industry_activity_products inv ON inv.product_type_id = p.type_id AND inv.activity_id = {$invention}
-            WHERE t.published = true
-              AND LOWER(t.type_name) LIKE LOWER(:query)
-            ORDER BY t.type_name
-            LIMIT 20
-        SQL;
-
-        $results = $conn->fetchAllAssociative($sql, ['query' => "%{$query}%"]);
-
-        $resource->results = array_map(function (array $row) {
+        $resource->results = array_map(function (ManufacturableProduct $product): ProductSearchResource {
             $item = new ProductSearchResource();
-            $item->typeId = (int) $row['type_id'];
-            $item->typeName = $row['type_name'];
-            $item->isT2 = (bool) $row['is_t2'];
+            $item->typeId = $product->typeId;
+            $item->typeName = $product->typeName;
+            $item->isT2 = $product->isT2;
 
             return $item;
-        }, $results);
+        }, $this->manufacturableProductReader->search($query, self::RESULT_LIMIT));
 
         return $resource;
     }

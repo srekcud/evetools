@@ -1373,6 +1373,7 @@
       "dailyVolume": "Volume quotidien",
       "perUnit": "par unite",
       "selectItem": "Recherchez un item pour analyser sa rentabilite",
+      "typeLookupFailed": "Le type {typeId} n'a pas pu etre consulte. L'analyse n'a pas ete lancee.",
       "sellTag": "vente",
       "undercutTag": "sous-enchere",
       "instantSellTag": "vente instantanee",

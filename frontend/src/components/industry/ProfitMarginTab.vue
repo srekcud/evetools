@@ -6,7 +6,6 @@ import { useIndustryStore, type SearchResult, type ProfitMarginResult, type Prof
 import type { ProductionCostUnknownReason } from '@/stores/industry/types'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
-import { useTypeNames } from '@/composables/useTypeNames'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useUnknownInstallCostReasons } from '@/composables/useUnknownInstallCostReasons'
 import { usePartialPriceCoverages } from '@/composables/usePartialPriceCoverages'
@@ -30,16 +29,20 @@ const uid = useId()
 const store = useIndustryStore()
 const { formatIsk, formatIskFull, formatTimeSince } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { typeNameLabel } = useTypeNames()
 
 // Item selection
 const selectedProduct = ref<SearchResult | null>(null)
 const productSearchRef = ref<{ clear: () => void } | null>(null)
 
+const STANDARD_ME_LEVEL = 10
+const STANDARD_TE_LEVEL = 20
+const T2_ME_LEVEL = 2
+const T2_TE_LEVEL = 4
+
 // Config
 const runs = ref(1)
-const meLevel = ref(10)
-const teLevel = ref(20)
+const meLevel = ref(STANDARD_ME_LEVEL)
+const teLevel = ref(STANDARD_TE_LEVEL)
 const selectedSolarSystemId = ref<number | null>(null)
 const selectedDecryptorTypeId = ref<number | null | undefined>(undefined)
 
@@ -53,9 +56,13 @@ const selectedOption = ref<ProfitMarginInventionOption | null>(null)
 const MATERIALS_COLLAPSED_LIMIT = 6
 
 // Computed
-const result = computed((): ProfitMarginResult | null => store.marginResult)
-const loading = computed(() => store.marginLoading)
-const marginError = computed(() => store.marginError)
+const typeLookupLoading = ref(false)
+const typeLookupFailedTypeId = ref<number | null>(null)
+let latestTypeLookupId = 0
+
+const result = computed((): ProfitMarginResult | null => typeLookupFailedTypeId.value === null ? store.marginResult : null)
+const loading = computed(() => store.marginLoading || typeLookupLoading.value)
+const marginError = computed(() => typeLookupFailedTypeId.value === null ? store.marginError : null)
 
 const isT2 = computed(() => selectedProduct.value?.isT2 ?? false)
 
@@ -312,15 +319,21 @@ const bestDecryptorIndex = computed(() => {
 })
 
 // Actions
+function applyDefaultLevels(isProductT2: boolean) {
+  meLevel.value = isProductT2 ? T2_ME_LEVEL : STANDARD_ME_LEVEL
+  teLevel.value = isProductT2 ? T2_TE_LEVEL : STANDARD_TE_LEVEL
+}
+
+function supersedeTypeLookup() {
+  latestTypeLookupId++
+  typeLookupLoading.value = false
+  typeLookupFailedTypeId.value = null
+}
+
 function onProductSelect(product: SearchResult) {
+  supersedeTypeLookup()
   selectedProduct.value = product
-  if (product.isT2) {
-    meLevel.value = 2
-    teLevel.value = 4
-  } else {
-    meLevel.value = 10
-    teLevel.value = 20
-  }
+  applyDefaultLevels(product.isT2)
   // Reset state
   selectedDecryptorTypeId.value = undefined
   selectedOption.value = null
@@ -350,15 +363,33 @@ async function analyze() {
   await analyzeType(selectedProduct.value.typeId)
 }
 
-watch(() => props.initialTypeId, async (typeId) => {
-  if (typeId === undefined) return
-  const analysis = await analyzeType(typeId)
-  if (analysis === null || props.initialTypeId !== typeId) return
-  selectedProduct.value = {
-    typeId,
-    typeName: typeNameLabel(analysis.typeName, typeId),
-    isT2: analysis.isT2,
+async function openType(typeId: number) {
+  supersedeTypeLookup()
+  const lookupId = latestTypeLookupId
+  typeLookupLoading.value = true
+  selectedProduct.value = null
+  let product: SearchResult
+  try {
+    product = await store.fetchManufacturableType(typeId)
+  } catch {
+    if (lookupId !== latestTypeLookupId) return
+    typeLookupLoading.value = false
+    typeLookupFailedTypeId.value = typeId
+    return
   }
+  if (lookupId !== latestTypeLookupId) return
+  onProductSelect(product)
+  await analyzeType(product.typeId)
+}
+
+function retryTypeLookup() {
+  if (typeLookupFailedTypeId.value === null) return
+  return openType(typeLookupFailedTypeId.value)
+}
+
+watch(() => props.initialTypeId, (typeId) => {
+  if (typeId === undefined) return
+  return openType(typeId)
 }, { immediate: true })
 
 function selectDecryptor(option: ProfitMarginInventionOption) {
@@ -501,12 +532,17 @@ store.fetchUserSettings()
       </div>
     </div>
 
+    <div v-if="typeLookupFailedTypeId !== null" data-testid="type-lookup-error" class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 flex items-center justify-between gap-4">
+      <span>{{ t('industry.margins.typeLookupFailed', { typeId: typeLookupFailedTypeId }) }}</span>
+      <button class="px-3 py-1 bg-red-500/30 hover:bg-red-500/40 rounded-lg text-sm" @click="retryTypeLookup">{{ t('common.actions.retry') }}</button>
+    </div>
+
     <div v-if="marginError" data-testid="margin-error" class="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400">
       {{ marginError }}
     </div>
 
     <!-- Empty state -->
-    <div v-if="!result && !loading && !marginError" class="eve-card p-12 text-center">
+    <div v-if="!result && !loading && !marginError && typeLookupFailedTypeId === null" class="eve-card p-12 text-center">
       <svg class="w-12 h-12 text-slate-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>

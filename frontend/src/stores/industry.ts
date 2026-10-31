@@ -105,6 +105,7 @@ export function useIndustryStore() {
     get defaultMaxJobDurationDays() { return projectsStore.defaultMaxJobDurationDays },
     setDefaultMaxJobDurationDays: projectsStore.setDefaultMaxJobDurationDays,
     searchProducts: projectsStore.searchProducts,
+    fetchManufacturableType: projectsStore.fetchManufacturableType,
     createProject: projectsStore.createProject,
     fetchProjects: projectsStore.fetchProjects,
     fetchProject: projectsStore.fetchProject,

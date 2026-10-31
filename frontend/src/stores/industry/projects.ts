@@ -36,6 +36,10 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     }
   }
 
+  async function fetchManufacturableType(typeId: number): Promise<SearchResult> {
+    return apiRequest<SearchResult>(`/industry/types/${typeId}`)
+  }
+
   async function createProject(
     typeId: number,
     runs: number,
@@ -270,6 +274,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     defaultMaxJobDurationDays,
     setDefaultMaxJobDurationDays,
     searchProducts,
+    fetchManufacturableType,
     createProject,
     fetchProjects,
     fetchProject,

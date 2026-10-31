@@ -1373,6 +1373,7 @@
       "dailyVolume": "Daily Volume",
       "perUnit": "Per unit",
       "selectItem": "Search and select an item to analyze profitability",
+      "typeLookupFailed": "Type {typeId} could not be looked up. The analysis was not started.",
       "sellTag": "sell",
       "undercutTag": "undercut",
       "instantSellTag": "instant sell",
