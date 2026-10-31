@@ -27,6 +27,10 @@ final class ManufacturableProductSde
     public const int SVIPUL_INVENTED_BLUEPRINT = 990_017;
     public const int THRASHER_BLUEPRINT = 990_018;
     public const int ABSENT_FROM_SDE = 990_099;
+    public const int SINGLE_DIGIT_PRODUCT_ONE = 1;
+    public const int SINGLE_DIGIT_PRODUCT_SEVEN = 7;
+    private const int SINGLE_DIGIT_PRODUCT_ONE_BLUEPRINT = 990_021;
+    private const int SINGLE_DIGIT_PRODUCT_SEVEN_BLUEPRINT = 990_027;
 
     public const string FEROX_NAME = 'Ferox';
     public const string HECATE_NAME = 'Hecate';
@@ -86,6 +90,19 @@ final class ManufacturableProductSde
         self::activityProduct($em, self::SVIPUL_INVENTED_BLUEPRINT, IndustryActivityType::Manufacturing, self::SVIPUL, 1);
         self::activityProduct($em, self::THRASHER_BLUEPRINT, IndustryActivityType::Invention, self::SVIPUL_INVENTED_BLUEPRINT, 5);
 
+        $em->flush();
+    }
+
+    public static function persistProductsWithSingleDigitTypeIds(EntityManagerInterface $em): void
+    {
+        $products = $em->getReference(InvGroup::class, self::PRODUCT_GROUP_ID);
+        $blueprints = $em->getReference(InvGroup::class, self::BLUEPRINT_GROUP_ID);
+        self::type($em, self::SINGLE_DIGIT_PRODUCT_ONE, 'Fixture Hull One', $products, true);
+        self::type($em, self::SINGLE_DIGIT_PRODUCT_SEVEN, 'Fixture Hull Seven', $products, true);
+        self::type($em, self::SINGLE_DIGIT_PRODUCT_ONE_BLUEPRINT, 'Fixture Hull One Blueprint', $blueprints, true);
+        self::type($em, self::SINGLE_DIGIT_PRODUCT_SEVEN_BLUEPRINT, 'Fixture Hull Seven Blueprint', $blueprints, true);
+        self::activityProduct($em, self::SINGLE_DIGIT_PRODUCT_ONE_BLUEPRINT, IndustryActivityType::Manufacturing, self::SINGLE_DIGIT_PRODUCT_ONE, 4);
+        self::activityProduct($em, self::SINGLE_DIGIT_PRODUCT_SEVEN_BLUEPRINT, IndustryActivityType::Manufacturing, self::SINGLE_DIGIT_PRODUCT_SEVEN, 6);
         $em->flush();
     }
 

@@ -79,28 +79,14 @@ final class ManufacturableTypeApiTest extends WebTestCase
         );
     }
 
-    #[DataProvider('searchedProducts')]
-    public function testTypeLookupAnswersTheSearchRowOfTheSameProduct(string $searchedName, int $typeId): void
+    #[DataProvider('searchedT2Flags')]
+    public function testTypeLookupAnswersTheSearchRowOfTheSameProduct(string $searchedName, array $searchRows): void
     {
         $this->client->loginUser($this->pilot, 'api');
-        $this->client->request('GET', '/api/industry/search?q='.rawurlencode($searchedName), server: ['HTTP_ACCEPT' => 'application/json']);
-        self::assertResponseStatusCodeSame(200);
-        $searchRows = array_values(array_filter(
-            $this->responseJson()['results'],
-            static fn (array $row): bool => $row['typeId'] === $typeId,
-        ));
-
-        $this->requestType((string) $typeId);
+        $this->requestType((string) $searchRows[0]['typeId']);
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame($searchRows, [$this->responseJson()]);
-    }
-
-    public static function searchedProducts(): iterable
-    {
-        yield 'T1 ship' => [ManufacturableProductSde::FEROX_NAME, ManufacturableProductSde::FEROX];
-        yield 'T2 ship' => [ManufacturableProductSde::HECATE_NAME, ManufacturableProductSde::HECATE];
-        yield 'reaction product' => [ManufacturableProductSde::FERNITE_CARBIDE_NAME, ManufacturableProductSde::FERNITE_CARBIDE];
     }
 
     #[DataProvider('searchedT2Flags')]
@@ -162,6 +148,33 @@ final class ManufacturableTypeApiTest extends WebTestCase
         yield 'decimal' => ['1.5'];
         yield 'leading zeros' => ['007'];
         yield 'beyond a PHP integer' => ['99999999999999999999'];
+    }
+
+    #[DataProvider('nonCanonicalTypeIdsOfManufacturableProducts')]
+    public function testSingleDigitTypeIdOfAManufacturableProductIsFound(string $nonCanonicalTypeId, int $manufacturableTypeId): void
+    {
+        ManufacturableProductSde::persistProductsWithSingleDigitTypeIds(self::getContainer()->get(EntityManagerInterface::class));
+        $this->client->loginUser($this->pilot, 'api');
+        $this->requestType((string) $manufacturableTypeId);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame($manufacturableTypeId, $this->responseJson()['typeId']);
+    }
+
+    #[DataProvider('nonCanonicalTypeIdsOfManufacturableProducts')]
+    public function testNonCanonicalTypeIdOfAManufacturableProductIsNotFound(string $nonCanonicalTypeId, int $manufacturableTypeId): void
+    {
+        ManufacturableProductSde::persistProductsWithSingleDigitTypeIds(self::getContainer()->get(EntityManagerInterface::class));
+        $this->client->loginUser($this->pilot, 'api');
+        $this->requestType($nonCanonicalTypeId);
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public static function nonCanonicalTypeIdsOfManufacturableProducts(): iterable
+    {
+        yield 'leading zeros of type 7' => ['007', ManufacturableProductSde::SINGLE_DIGIT_PRODUCT_SEVEN];
+        yield 'decimal truncated to type 1' => ['1.5', ManufacturableProductSde::SINGLE_DIGIT_PRODUCT_ONE];
     }
 
     public function testAnonymousCallIsUnauthorized(): void
