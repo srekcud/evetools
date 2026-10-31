@@ -5,7 +5,7 @@ import en from '@/i18n/locales/en.json'
 import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
 import { useProjectsStore } from '@/stores/industry/projects'
-import type { ProfitMarginResult, UserSettings } from '@/stores/industry/types'
+import type { ProfitMarginResult, SearchResult, UserSettings } from '@/stores/industry/types'
 import { apiOutcomesByPath, awaiting, deferred, rejectWith, respondWith, type ApiOutcome } from '../../deferred'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -17,6 +17,9 @@ const ISHTAR_TYPE_ID = 12005
 const VEXOR_TYPE_ID = 626
 const PRICE_DATA_UNAVAILABLE = 'Price data unavailable (fictif)'
 const ISHTAR_ONLY_MATERIAL = 'Zydrine'
+
+const ISHTAR: SearchResult = { typeId: ISHTAR_TYPE_ID, typeName: 'Ishtar', isT2: false }
+const VEXOR: SearchResult = { typeId: VEXOR_TYPE_ID, typeName: 'Vexor', isT2: false }
 
 const USER_SETTINGS: UserSettings = {
   favoriteManufacturingSystemId: null,
@@ -71,7 +74,12 @@ function respondToMarginOf(typeId: number, outcome: ApiOutcome): void {
   outcomes.respondTo(`/industry/profit-margin/${typeId}`, outcome)
 }
 
+function respondToLookupOf(openedType: SearchResult): void {
+  outcomes.respondTo(`/industry/types/${openedType.typeId}`, respondWith(openedType))
+}
+
 async function mountShowingTheIshtarMargin(): Promise<VueWrapper> {
+  respondToLookupOf(ISHTAR)
   respondToMarginOf(ISHTAR_TYPE_ID, respondWith(ISHTAR_MARGIN))
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   const wrapper = mount(ProfitMarginTab, {
@@ -110,6 +118,7 @@ beforeEach(() => {
 describe('ProfitMarginTab analysis failure (issue 189)', () => {
   it('shows the failure of the Vexor analysis in the tab instead of the Ishtar margin', async () => {
     const wrapper = await mountShowingTheIshtarMargin()
+    respondToLookupOf(VEXOR)
     respondToMarginOf(VEXOR_TYPE_ID, rejectWith(new Error(PRICE_DATA_UNAVAILABLE)))
 
     await analyze(wrapper, VEXOR_TYPE_ID)
@@ -136,8 +145,10 @@ describe('ProfitMarginTab analysis failure (issue 189)', () => {
 
   it('removes the failure and shows the Ishtar margin when the next analysis succeeds', async () => {
     const wrapper = await mountShowingTheIshtarMargin()
+    respondToLookupOf(VEXOR)
     respondToMarginOf(VEXOR_TYPE_ID, rejectWith(new Error(PRICE_DATA_UNAVAILABLE)))
     await analyze(wrapper, VEXOR_TYPE_ID)
+    respondToLookupOf(ISHTAR)
     respondToMarginOf(ISHTAR_TYPE_ID, respondWith(ISHTAR_MARGIN))
 
     await analyze(wrapper, ISHTAR_TYPE_ID)
@@ -148,6 +159,7 @@ describe('ProfitMarginTab analysis failure (issue 189)', () => {
 
   it('keeps the Ishtar margin under the loading line while the Vexor analysis is loading', async () => {
     const wrapper = await mountShowingTheIshtarMargin()
+    respondToLookupOf(VEXOR)
     respondToMarginOf(VEXOR_TYPE_ID, awaiting(deferred<ProfitMarginResult>()))
 
     await analyze(wrapper, VEXOR_TYPE_ID)

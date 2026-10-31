@@ -6,13 +6,14 @@ import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
 import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import { apiRequest } from '@/services/api'
-import type { ProfitMarginResult } from '@/stores/industry/types'
+import type { ProfitMarginResult, SearchResult } from '@/stores/industry/types'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
   apiRequest: vi.fn(),
 }))
 
+const TYPE_LOOKUP_ENDPOINT = '/industry/types/'
 const PROFIT_MARGIN_ENDPOINT = '/industry/profit-margin/'
 const BUY_VS_BUILD_ENDPOINT = '/industry/buy-vs-build/'
 const PIVOT_ADVISOR_ENDPOINT = '/industry/pivot-advisor/'
@@ -24,6 +25,11 @@ const SABRE_TYPE_ID = 22456
 const HULK_TYPE_ID = 22544
 const DRAKE_TYPE_ID = 24698
 const ROKH_TYPE_ID = 24688
+
+const MARGINS_OPENED_TYPES: SearchResult[] = [
+  { typeId: RAVEN_TYPE_ID, typeName: 'Raven', isT2: false },
+  { typeId: DRAKE_TYPE_ID, typeName: 'Drake', isT2: false },
+]
 
 const RAVEN_MARGIN_ANALYSIS: ProfitMarginResult = {
   typeId: RAVEN_TYPE_ID,
@@ -62,6 +68,10 @@ const RAVEN_MARGIN_ANALYSIS: ProfitMarginResult = {
   warnings: [],
 }
 
+function openedTypeLookup(endpoint: string): SearchResult | undefined {
+  return MARGINS_OPENED_TYPES.find(openedType => endpoint === `${TYPE_LOOKUP_ENDPOINT}${openedType.typeId}`)
+}
+
 function isAnalysisRequest(endpoint: string): boolean {
   return ANALYSIS_ENDPOINTS.some(prefix => endpoint.startsWith(prefix))
 }
@@ -87,7 +97,7 @@ beforeEach(() => {
     if (isAnalysisRequest(endpoint)) {
       return new Promise(() => {})
     }
-    return null
+    return openedTypeLookup(endpoint) ?? null
   })
 })
 
@@ -122,7 +132,7 @@ describe('ProfitMarginTab initial type', () => {
   it('shows the initial type as the selected product once its margin is analyzed', async () => {
     vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
       if (endpoint.startsWith(`${PROFIT_MARGIN_ENDPOINT}${RAVEN_TYPE_ID}`)) return RAVEN_MARGIN_ANALYSIS
-      return null
+      return openedTypeLookup(endpoint) ?? null
     })
 
     const wrapper = mount(ProfitMarginTab, { ...mountingOptions(), props: { initialTypeId: RAVEN_TYPE_ID } })
