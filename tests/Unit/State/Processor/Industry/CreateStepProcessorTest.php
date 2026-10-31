@@ -178,6 +178,26 @@ final class CreateStepProcessorTest extends TestCase
         self::assertSame([0, 4, 30_000], [$addedStep->getMeLevel(), $addedStep->getTeLevel(), $addedStep->getQuantity()]);
     }
 
+    #[Group('issue-190')]
+    public function testStepAddedForAManufacturedTypeWithoutMeAndTeLevelsHasLevelsZero(): void
+    {
+        $this->post($this->typeEntered(self::HELIUM_FUEL_BLOCK, runs: 7), $this->productRepositoryWith($this->heliumFuelBlockBlueprint()), $this->createStub(EntityManagerInterface::class));
+
+        $addedStep = $this->addedStep();
+        self::assertSame([0, 0, 280], [$addedStep->getMeLevel(), $addedStep->getTeLevel(), $addedStep->getQuantity()]);
+    }
+
+    #[Group('issue-287')]
+    public function testStepAddedForTheMaximumRunsOfAFormulaOfTenThousandUnitsPerRunCountsOneBillionUnits(): void
+    {
+        $this->post($this->typeEntered(self::FERNITE_CARBIDE, runs: 100_000), $this->productRepositoryWith($this->ferniteCarbideFormula()), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame(
+            [self::FERNITE_CARBIDE_REACTION_FORMULA, self::FERNITE_CARBIDE, 'reaction', 100_000, 1_000_000_000, 0],
+            $this->blueprintProductActivityRunsQuantityAndDepthOf($this->addedStep()),
+        );
+    }
+
     #[Group('issue-280')]
     public function testStepAddedToAProjectWithoutStepsComesFirst(): void
     {

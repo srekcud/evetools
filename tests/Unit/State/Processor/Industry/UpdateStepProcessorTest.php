@@ -447,6 +447,176 @@ final class UpdateStepProcessorTest extends TestCase
         self::assertSame(['Station of the pilot', [1, 490]], [$quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
     }
 
+    #[Group('issue-287')]
+    public function testPatchWithoutStructureKeepsTheStepStructure(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
+        $teLevelEntered = new UpdateStepInput();
+        $teLevelEntered->teLevel = 4;
+
+        $updatedStep = $this->patch($quantumMicroprocessor, $teLevelEntered, $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig()));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame([4, 'Station of the pilot', [1, 490]], [$quantumMicroprocessor->getTeLevel(), $quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
+    }
+
+    #[Group('issue-287')]
+    public function testDeletedStructureOfThePilotIsAttachedToTheStepAndRecalculatesItsMaterialStep(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
+        $deletedRaitaruOfThePilot = $this->structureConfig('Deleted Raitaru of the pilot', 'raitaru', $this->pilot)->setIsDeleted(true);
+
+        $updatedSteps = $this->patch($quantumMicroprocessor, $this->structureEntered($deletedRaitaruOfThePilot->getId()->toRfc4122()), $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig(), $deletedRaitaruOfThePilot));
+
+        self::assertSame(['Deleted Raitaru of the pilot', [1, 485]], [$quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
+        self::assertSame([[self::QUANTUM_MICROPROCESSOR, 32], [self::TITANIUM_CARBIDE, 485]], $this->productAndQuantityOf($updatedSteps));
+    }
+
+    #[Group('issue-190')]
+    public function testMeLevelAndStructureEnteredAsTheyAreRecalculateNothingEvenWhenAMaterialStepIsStale(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
+        $quantumMicroprocessor->setMeLevel(0);
+        $titaniumCarbide->setQuantity(999);
+        $stationOfThePilot = $quantumMicroprocessor->getStructureConfig();
+        self::assertInstanceOf(IndustryStructureConfig::class, $stationOfThePilot);
+        $meLevelAndStructureEntered = $this->structureEntered($stationOfThePilot->getId()->toRfc4122());
+        $meLevelAndStructureEntered->meLevel = 0;
+
+        $updatedStep = $this->patch($quantumMicroprocessor, $meLevelAndStructureEntered, $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($stationOfThePilot));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame([0, 'Station of the pilot', [1, 999]], [$quantumMicroprocessor->getMeLevel(), $quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
+    }
+
+    #[Group('issue-287')]
+    public function testStockOfARootStepIsRefusedBeforeItsMeLevelAndItsStructure(): void
+    {
+        [$ferniteCarbide] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $structureOfAnotherPilot = $this->structureConfig('Athanor of another pilot', 'athanor', new User());
+        $stockMeLevelAndStructureEntered = $this->meLevelEntered(10);
+        $stockMeLevelAndStructureEntered->inStockQuantity = 5_000;
+        $stockMeLevelAndStructureEntered->structureConfigId = $structureOfAnotherPilot->getId()->toRfc4122();
+
+        try {
+            $this->patch($ferniteCarbide, $stockMeLevelAndStructureEntered, $this->entityManagerCountingTheFlushes(), structureConfigRepository: $this->structureConfigRepositoryWith($structureOfAnotherPilot));
+            self::fail('A stock entered on a root step must be refused before its material efficiency and its structure.');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame('Cannot mark root products as in stock', $refusal->getMessage());
+        }
+
+        self::assertSame([0, 0, null, 0], [$ferniteCarbide->getInStockQuantity(), $ferniteCarbide->getMeLevel(), $ferniteCarbide->getStructureConfig(), $this->flushes]);
+    }
+
+    #[Group('issue-287')]
+    public function testZeroStockEnteredOnARootStepIsAccepted(): void
+    {
+        $phenolicComposites = $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, self::PHENOLIC_COMPOSITES + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 3, quantity: 6_600, depth: 0, meLevel: 0);
+        $zeroStockEntered = new UpdateStepInput();
+        $zeroStockEntered->inStockQuantity = 0;
+
+        $updatedStep = $this->patch($phenolicComposites, $zeroStockEntered, $this->createStub(EntityManagerInterface::class));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame([0, [3, 6_600]], [$phenolicComposites->getInStockQuantity(), $this->runsAndQuantityOf($phenolicComposites)]);
+    }
+
+    #[Group('issue-287')]
+    public function testStockEnteredOnAMaterialStepIsKept(): void
+    {
+        [, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $stockEntered = new UpdateStepInput();
+        $stockEntered->inStockQuantity = 1_500;
+
+        $updatedStep = $this->patch($ferniteAlloy, $stockEntered, $this->createStub(EntityManagerInterface::class));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame([1_500, [10, 2_000]], [$ferniteAlloy->getInStockQuantity(), $this->runsAndQuantityOf($ferniteAlloy)]);
+    }
+
+    #[Group('issue-287')]
+    public function testPurchaseMarkEnteredOnAMaterialStepIsKept(): void
+    {
+        [, , $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $purchaseMarkEntered = new UpdateStepInput();
+        $purchaseMarkEntered->purchased = true;
+
+        $updatedStep = $this->patch($hydrogenFuelBlock, $purchaseMarkEntered, $this->createStub(EntityManagerInterface::class));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame([true, [4, 150]], [$hydrogenFuelBlock->isPurchased(), $this->runsAndQuantityOf($hydrogenFuelBlock)]);
+    }
+
+    #[Group('issue-287')]
+    public function testOneRunEnteredOnARootStepGivesItTheUnitsPerRunOfItsFormula(): void
+    {
+        $phenolicComposites = $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, self::PHENOLIC_COMPOSITES + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 3, quantity: 6_600, depth: 0, meLevel: 0);
+
+        $this->patch($phenolicComposites, $this->runsEntered(1), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([1, 2_200], $this->runsAndQuantityOf($phenolicComposites));
+    }
+
+    #[Group('issue-287')]
+    public function testOneHundredThousandRunsEnteredOnARootReactionOfTenThousandUnitsPerRunGiveOneBillionUnits(): void
+    {
+        [$ferniteCarbide, $ferniteAlloy, $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+
+        $this->patch($ferniteCarbide, $this->runsEntered(100_000), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame(
+            [[100_000, 1_000_000_000], [50_000, 10_000_000], [18_750, 750_000]],
+            [$this->runsAndQuantityOf($ferniteCarbide), $this->runsAndQuantityOf($ferniteAlloy), $this->runsAndQuantityOf($hydrogenFuelBlock)],
+        );
+    }
+
+    public function testRunsEnteredAboveTheNeedOfAMaterialStepWithoutOverproductionAreFixedAtTheNeed(): void
+    {
+        [, $ferniteAlloy, $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+
+        $this->patch($ferniteAlloy, $this->runsEntered(15), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[10, 2_000], true, [4, 150]], [$this->runsAndQuantityOf($ferniteAlloy), $ferniteAlloy->isRunsFixed(), $this->runsAndQuantityOf($hydrogenFuelBlock)]);
+    }
+
+    public function testStepOfAProjectOfAnotherPilotIsRefusedAsProjectNotFound(): void
+    {
+        [$quantumMicroprocessor] = $this->quantumMicroprocessorProjectInAStation();
+        $this->project->setUser(new User());
+
+        try {
+            $this->patch($quantumMicroprocessor, $this->meLevelEntered(8), $this->entityManagerCountingTheFlushes());
+            self::fail('A step of a project of another pilot must not be updated.');
+        } catch (NotFoundHttpException $refusal) {
+            self::assertSame('Project not found', $refusal->getMessage());
+        }
+
+        self::assertSame([10, 0], [$quantumMicroprocessor->getMeLevel(), $this->flushes]);
+    }
+
+    public function testStepOfAnotherProjectIsRefusedAsStepNotFound(): void
+    {
+        $this->quantumMicroprocessorProjectInAStation();
+        $ferniteCarbideOfAnotherProject = (new IndustryProjectStep())
+            ->setProductTypeId(self::FERNITE_CARBIDE)
+            ->setBlueprintTypeId(self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET)
+            ->setActivityType('reaction')
+            ->setRuns(7)
+            ->setQuantity(70_000)
+            ->setDepth(0)
+            ->setMeLevel(0);
+        (new IndustryProject())->setUser($this->pilot)->addStep($ferniteCarbideOfAnotherProject);
+
+        try {
+            $this->patch($ferniteCarbideOfAnotherProject, $this->runsEntered(9), $this->entityManagerCountingTheFlushes());
+            self::fail('A step of another project must not be updated through this project.');
+        } catch (NotFoundHttpException $refusal) {
+            self::assertSame('Step not found', $refusal->getMessage());
+        }
+
+        self::assertSame([[7, 70_000], 0], [$this->runsAndQuantityOf($ferniteCarbideOfAnotherProject), $this->flushes]);
+    }
+
     #[Group('issue-200')]
     public function testProjectIdThatIsNotAUuidIsNotFoundWithoutReadingTheProjectsNorTheSteps(): void
     {

@@ -11,6 +11,7 @@ use App\ApiResource\Input\Industry\CreateStepInput;
 use App\ApiResource\Input\Industry\UpdateStepInput;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
@@ -39,7 +40,10 @@ final class CreateStepProcessorAddedJobTest extends TestCase
     private const int PHENOLIC_COMPOSITES = 16680;
     private const int BLUEPRINT_MISSING_FROM_THE_SDE = 999_999_999;
     private const int FORMULA_MISSING_FROM_THE_SDE = 999_999_998;
+    private const int QUANTUM_MICROPROCESSOR = 11540;
+    private const int TITANIUM_CARBIDE = 16671;
     private const string FERNITE_ALLOY_SPLIT_GROUP = 'fernite-alloy';
+    private const string HYDROGEN_FUEL_BLOCK_SPLIT_GROUP = 'hydrogen-fuel-block';
 
     private User $pilot;
     private IndustryProject $project;
@@ -155,6 +159,86 @@ final class CreateStepProcessorAddedJobTest extends TestCase
         }
 
         self::assertSame([1, null, 0], [\count($this->project->getSteps()), $phenolicComposites->getSplitGroupId(), $this->flushes]);
+    }
+
+    #[Group('issue-190')]
+    public function testJobAddedToAManufacturingStepCopiesItsMeLevelAndItsMaterialStepIsRecalculatedJobByJob(): void
+    {
+        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, self::QUANTUM_MICROPROCESSOR + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10, sortOrder: 0)
+            ->setTeLevel(6);
+        $titaniumCarbide = $this->stepOfTheProject(self::TITANIUM_CARBIDE, self::TITANIUM_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 1, quantity: 490, depth: 1, meLevel: 0, sortOrder: 1);
+
+        $this->post($this->stepEntered(runs: 8), $quantumMicroprocessor, $this->createStub(EntityManagerInterface::class));
+
+        $addedJob = $this->addedJob();
+        self::assertSame(
+            [[32, 32, false, 0, 40], [8, 8, false, 1, 40], [10, 6], [1, 613]],
+            [$this->jobValuesOf($quantumMicroprocessor), $this->jobValuesOf($addedJob), [$addedJob->getMeLevel(), $addedJob->getTeLevel()], $this->runsAndQuantityOf($titaniumCarbide)],
+        );
+    }
+
+    public function testJobAddedToASplitGroupCopiesTheJobOfTheSmallestSplitIndexWhateverTheOrderOfTheSteps(): void
+    {
+        $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 10, quantity: 100_000, depth: 0, meLevel: 0, sortOrder: 0);
+        $this->stepOfTheProject(self::FERNITE_ALLOY, self::FERNITE_ALLOY + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 2, quantity: 400, depth: 1, meLevel: 0, sortOrder: 1)
+            ->setTeLevel(14)->setStructureConfig($this->structureConfig('Athanor of the pilot', 'athanor'))
+            ->setSplitGroupId(self::FERNITE_ALLOY_SPLIT_GROUP)->setSplitIndex(1)->setTotalGroupRuns(5);
+        $this->stepOfTheProject(self::FERNITE_ALLOY, self::FERNITE_ALLOY + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 3, quantity: 600, depth: 1, meLevel: 0, sortOrder: 1)
+            ->setTeLevel(12)->setStructureConfig($this->structureConfig('Tatara of the pilot', 'tatara'))
+            ->setSplitGroupId(self::FERNITE_ALLOY_SPLIT_GROUP)->setSplitIndex(0)->setTotalGroupRuns(5);
+
+        $this->post($this->splitGroupEntered(self::FERNITE_ALLOY_SPLIT_GROUP, runs: 4), null, $this->createStub(EntityManagerInterface::class));
+
+        $addedJob = $this->addedJob();
+        self::assertSame(
+            [12, 'Tatara of the pilot', 2],
+            [$addedJob->getTeLevel(), $addedJob->getStructureConfig()?->getName(), $addedJob->getSplitIndex()],
+        );
+    }
+
+    public function testJobAddedThroughAJobThatIsNotTheLastOfASplitGroupWithAGapInItsIndicesComesAfterTheLargestSplitIndex(): void
+    {
+        [, $firstAlloyJob, $lastAlloyJob] = $this->ferniteCarbideProjectOfTenRuns(hydrogenFuelBlockBlueprintTypeId: self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET);
+        $lastAlloyJob->setSplitIndex(5);
+
+        $response = $this->post($this->stepEntered(runs: 4), $firstAlloyJob, $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame(
+            [[self::FERNITE_ALLOY_SPLIT_GROUP, 0], [self::FERNITE_ALLOY_SPLIT_GROUP, 5], [self::FERNITE_ALLOY_SPLIT_GROUP, 6]],
+            array_map(static fn (IndustryProjectStep $job): array => [$job->getSplitGroupId(), $job->getSplitIndex()], [$firstAlloyJob, $lastAlloyJob, $this->addedJob()]),
+        );
+        self::assertIsArray($response);
+        self::assertSame(['newStep' => [4, 6], 'updatedStep' => [3, 0]], array_map($this->runsAndSplitIndexOfResource(...), $response));
+    }
+
+    public function testJobAddedToASplitGroupLeavesTheJobsOfAnotherSplitGroupUnfixed(): void
+    {
+        $ferniteCarbide = $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 10, quantity: 100_000, depth: 0, meLevel: 0, sortOrder: 0);
+        foreach ([[0, 3, 600], [1, 2, 400]] as [$splitIndex, $runs, $quantity]) {
+            $this->stepOfTheProject(self::FERNITE_ALLOY, self::FERNITE_ALLOY + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: $runs, quantity: $quantity, depth: 1, meLevel: 0, sortOrder: 1)
+                ->setSplitGroupId(self::FERNITE_ALLOY_SPLIT_GROUP)->setSplitIndex($splitIndex)->setTotalGroupRuns(5);
+        }
+        $hydrogenFuelBlockJobs = array_map(
+            fn (int $splitIndex): IndustryProjectStep => $this->stepOfTheProject(self::HYDROGEN_FUEL_BLOCK, self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'manufacturing', runs: 1, quantity: 40, depth: 2, meLevel: 10, sortOrder: 2)
+                ->setSplitGroupId(self::HYDROGEN_FUEL_BLOCK_SPLIT_GROUP)->setSplitIndex($splitIndex)->setTotalGroupRuns(2),
+            [0, 1],
+        );
+
+        $this->post($this->splitGroupEntered(self::FERNITE_ALLOY_SPLIT_GROUP, runs: 4), null, $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame(
+            [[10, 100_000, false, 0, null], [2, 80, false, 0, 3], [1, 15, false, 1, 3]],
+            array_map($this->jobValuesOf(...), [$ferniteCarbide, ...$hydrogenFuelBlockJobs]),
+        );
+        self::assertSame(
+            [self::HYDROGEN_FUEL_BLOCK_SPLIT_GROUP, self::HYDROGEN_FUEL_BLOCK_SPLIT_GROUP],
+            array_map(static fn (IndustryProjectStep $job): ?string => $job->getSplitGroupId(), $hydrogenFuelBlockJobs),
+        );
+    }
+
+    private function structureConfig(string $name, string $structureType): IndustryStructureConfig
+    {
+        return (new IndustryStructureConfig())->setName($name)->setStructureType($structureType)->setUser($this->pilot);
     }
 
     private function ferniteCarbideProjectOfFourRuns(): array
