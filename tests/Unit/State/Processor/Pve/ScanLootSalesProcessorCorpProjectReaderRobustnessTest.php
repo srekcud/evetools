@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Pve;
 
 use ApiPlatform\Metadata\Post;
+use App\Service\Pve\CorpProjectContributionReader;
 use App\State\Processor\Pve\ScanLootSalesProcessor;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -13,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 #[CoversClass(ScanLootSalesProcessor::class)]
+#[CoversClass(CorpProjectContributionReader::class)]
 #[AllowMockObjectsWithoutExpectations]
 #[Group('issue-243')]
 final class ScanLootSalesProcessorCorpProjectReaderRobustnessTest extends TestCase

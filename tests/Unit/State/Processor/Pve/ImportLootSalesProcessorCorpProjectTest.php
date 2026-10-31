@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Processor\Pve;
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\Input\Pve\ImportLootSalesInput;
 use App\ApiResource\Pve\ImportResultResource;
+use App\Entity\Character;
 use App\Entity\PveIncome;
 use App\Entity\User;
 use App\Entity\UserPveSettings;
@@ -33,6 +34,7 @@ final class ImportLootSalesProcessorCorpProjectTest extends TestCase
     private const VELDSPAR_PROJECT_ID = 'e5f6a7b8-project';
     private const PILOT_ONE_ID = 2112000001;
     private const PILOT_TWO_ID = 2112000002;
+    private const OTHER_USER_CHARACTER_ID = 2112000099;
     private const CONTRIBUTION_DATE = '2026-10-28';
 
     private array $persistedEntities = [];
@@ -390,6 +392,36 @@ final class ImportLootSalesProcessorCorpProjectTest extends TestCase
         yield 'negative' => [-300];
     }
 
+    public function testContributionOfACharacterOfAnotherUserIsRejectedAndNothingIsWritten(): void
+    {
+        $result = $this->import([$this->contributionSale(self::OTHER_USER_CHARACTER_ID, 900, 900, 0, 11250.0)]);
+
+        $this->assertSame([0, 1], [$result->imported, $result->rejectedContributions]);
+        $this->assertSame([], $this->persistedIncomeSummaries());
+    }
+
+    public function testContributionOfACharacterOfAnotherUserDoesNotBlockTheContributionOfTheUser(): void
+    {
+        $result = $this->import([
+            $this->contributionSale(self::OTHER_USER_CHARACTER_ID, 900, 900, 0, 11250.0),
+            $this->contributionSale(self::PILOT_TWO_ID, 400, 400, 0, 5000.0),
+        ]);
+
+        $this->assertSame([1, 1], [$result->imported, $result->rejectedContributions]);
+        $this->assertSame([[self::PROJECT_ID, self::PILOT_TWO_ID, 400]], $this->persistedPairs());
+    }
+
+    public function testDeclinedContributionOfACharacterOfAnotherUserIsRejectedAndMemorisesNothing(): void
+    {
+        $settings = new UserPveSettings();
+
+        $result = $this->import([], declined: [$this->contributionSale(self::OTHER_USER_CHARACTER_ID, 900, 900, 0, 11250.0)], settings: $settings);
+
+        $this->assertSame(1, $result->rejectedContributions);
+        $this->assertSame([], $this->declinedCorpProjectQuantitiesOf($settings));
+        $this->assertSame([], $settings->getDeclinedLootSaleTransactionIds());
+    }
+
     public function testSalePostPersistsTheSettingsAndFlushesOnce(): void
     {
         $settings = new UserPveSettings();
@@ -461,7 +493,7 @@ final class ImportLootSalesProcessorCorpProjectTest extends TestCase
         (EntityManagerInterface&Stub)|null $entityManager = null,
     ): ImportResultResource {
         $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn($this->createStub(User::class));
+        $security->method('getUser')->willReturn($this->userOwning(self::PILOT_ONE_ID, self::PILOT_TWO_ID));
 
         $settingsRepository = $this->createStub(UserPveSettingsRepository::class);
         if ($userHasSettingsRow) {
@@ -498,6 +530,16 @@ final class ImportLootSalesProcessorCorpProjectTest extends TestCase
         );
 
         return $processor->process($input, new Post());
+    }
+
+    private function userOwning(int ...$eveCharacterIds): User
+    {
+        $user = new User();
+        foreach ($eveCharacterIds as $eveCharacterId) {
+            $user->addCharacter((new Character())->setEveCharacterId($eveCharacterId)->setName('Pilot ' . $eveCharacterId));
+        }
+
+        return $user;
     }
 
     private function contributionSale(

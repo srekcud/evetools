@@ -30,6 +30,8 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -73,9 +75,10 @@ trait CorpProjectsEsiSimulation
         array $acceptedAccessTokenCallsByCharacterId = [],
         array $importedTransactionIds = [],
         array $declinedTransactionIds = [],
-        ?int $days = null,
+        int|string|null $days = null,
         array $corpProjectImports = [],
         UserPveSettings $settings = new UserPveSettings(),
+        ClockInterface $esiClock = new NativeClock(),
     ): ScanLootSalesProcessor {
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturnCallback(
@@ -108,7 +111,7 @@ trait CorpProjectsEsiSimulation
         $requestStack = new RequestStack();
         $requestStack->push(new Request($days === null ? [] : ['days' => (string) $days]));
 
-        $esiClient = new EsiClient($this->createSimulatedEsi($corpProjectResponsesByKey), new TagAwareAdapter(new ArrayAdapter()), $tokenManager, 'https://esi.test/latest', new NullLogger());
+        $esiClient = new EsiClient($this->createSimulatedEsi($corpProjectResponsesByKey), new TagAwareAdapter(new ArrayAdapter()), $tokenManager, 'https://esi.test/latest', new NullLogger(), $esiClock);
 
         return new ScanLootSalesProcessor(
             security: $security,

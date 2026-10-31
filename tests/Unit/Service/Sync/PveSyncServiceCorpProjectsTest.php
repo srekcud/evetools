@@ -35,7 +35,8 @@ final class PveSyncServiceCorpProjectsTest extends TestCase
     private const VELDSPAR_PROJECT_ID = 'e5f6a7b8-project';
     private const VELDSPAR_PROJECT_NAME = 'Veldspar Haul';
     private const VELDSPAR_REWARD_PER_CONTRIBUTION = 7.25;
-    private const PILOT_ONE_JOURNAL_KEY = '/characters/2112000001/wallet/journal/?page=1';
+    private const AMMO_TYPE_ID = 21894;
+    private const PILOT_ONE_JOURNAL_KEY ='/characters/2112000001/wallet/journal/?page=1';
 
     private UserPveSettings $settings;
 
@@ -321,6 +322,60 @@ final class PveSyncServiceCorpProjectsTest extends TestCase
         $this->assertGreaterThanOrEqual($syncStartedAt, $this->settings->getLastSyncAt());
         $this->assertSame('completed', $this->completedEvent()['status']);
         $this->assertSame([10, 35, 60, 75, 85], array_column($this->progressEvents(), 0));
+    }
+
+    public function testRateLimitSurvivingTheReplayStopsTheCorpProjectStepWithOneErrorAndTheSyncGoesOn(): void
+    {
+        $modifiedAt = new \DateTimeImmutable('-2 days');
+        $rateLimited = fn (): MockResponse => new MockResponse('{"error":"rate limited"}', [
+            'http_code' => 429,
+            'response_headers' => ['Content-Type' => 'application/json', 'Retry-After' => '0', 'X-Esi-Error-Limit-Remain' => '100'],
+        ]);
+        $ammoPurchase = fn (): MockResponse => $this->jsonResponse([[
+            'transaction_id' => 8300041,
+            'is_buy' => true,
+            'date' => (new \DateTimeImmutable('-3 days'))->format('c'),
+            'type_id' => self::AMMO_TYPE_ID,
+            'quantity' => 4000,
+            'unit_price' => 125.0,
+        ]]);
+        $this->settings->setAmmoTypeIds([self::AMMO_TYPE_ID]);
+        $service = $this->createService([
+            self::PILOT_ONE_JOURNAL_KEY => $this->jsonResponse([$this->bounty(7300003, 3_150_000.0)]),
+            '/characters/2112000001/wallet/transactions/' => [$ammoPurchase(), $ammoPurchase()],
+            ...$this->tritaniumAndVeldsparListedTogether($modifiedAt),
+            self::PROJECTS_PATH . '/' . self::PROJECT_ID => [$rateLimited(), $rateLimited()],
+            ...$this->projectDetails(self::VELDSPAR_PROJECT_ID, self::VELDSPAR, self::VELDSPAR_REWARD_PER_CONTRIBUTION),
+            ...$this->contributionPasses(self::VELDSPAR_PROJECT_ID, self::EVE_CHARACTER_ID, $modifiedAt, 840),
+            ...$this->secondCorporationProjectResponses('f3a4b5c6-project', 'Scordite Run', 1228, 4.75, self::PILOT_THREE_ID, 240, $modifiedAt),
+        ]);
+
+        $results = $service->syncAll($this->userOf(
+            $this->pilotOne(),
+            $this->character(self::PILOT_THREE_ID, 'Pilot Three', self::SECOND_CORPORATION_ID, self::SECOND_CORPORATION_NAME),
+        ));
+
+        $this->assertSame([
+            'bounties' => 1,
+            'lootSales' => 0,
+            'lootContracts' => 0,
+            'corpProjects' => 0,
+            'expenses' => 1,
+            'errors' => ['corpProjects: Fictional Mining Corp / Tritanium Drive: esi_error (HTTP 429)'],
+            'failedCharacters' => 0,
+            'tokenizedCharacters' => 2,
+        ], $results);
+        $this->assertSame([
+            '/corporations/98000001/projects?limit=100&state=All',
+            '/corporations/98000001/projects?before=projects-cursor-1&limit=100&state=All',
+            '/corporations/98000001/projects/a1b2c3d4-project/contributors?limit=100',
+            '/corporations/98000001/projects/a1b2c3d4-project/contributors?before=contributors-cursor-1&limit=100',
+            '/corporations/98000001/projects/a1b2c3d4-project',
+            '/corporations/98000001/projects/a1b2c3d4-project',
+        ], $this->requestedPaths());
+        $this->assertSame([], $this->corpProjectIncomeRows());
+        $this->assertSame('completed', $this->completedEvent()['status']);
+        $this->assertWarnedOnce('corpProjects: Fictional Mining Corp / Tritanium Drive: esi_error (HTTP 429)');
     }
 
     public function testSyncAnnouncesTheCorpProjectStepBeforeReadingTheProjects(): void

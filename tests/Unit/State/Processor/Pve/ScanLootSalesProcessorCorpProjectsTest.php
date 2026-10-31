@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Processor\Pve;
 
 use ApiPlatform\Metadata\Post;
 use App\Enum\PveIncomeType;
+use App\Service\Pve\CorpProjectContributionReader;
 use App\State\Processor\Pve\ScanLootSalesProcessor;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -16,6 +17,7 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[CoversClass(ScanLootSalesProcessor::class)]
+#[CoversClass(CorpProjectContributionReader::class)]
 #[AllowMockObjectsWithoutExpectations]
 class ScanLootSalesProcessorCorpProjectsTest extends TestCase
 {
