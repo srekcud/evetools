@@ -47,6 +47,7 @@ final class DeleteStepProcessorTest extends TestCase
     private User $pilot;
     private IndustryProject $project;
     private array $projectAtEachFlush = [];
+    private array $removedEntities = [];
 
     protected function setUp(): void
     {
@@ -68,6 +69,7 @@ final class DeleteStepProcessorTest extends TestCase
             [$this->jobValuesOf($ferniteCarbide), [5, 1_000, false, 0, null], $this->jobValuesOf($hydrogenFuelBlock)],
             end($this->projectAtEachFlush),
         );
+        self::assertSame([$secondAlloyJob], $this->removedEntities);
     }
 
     public function testDeletedFixedJobOfASplitGroupOfTwoLeavesTheKeptFixedJobAtItsRunsAndLowersTheNeedOfItsMaterials(): void
@@ -132,6 +134,58 @@ final class DeleteStepProcessorTest extends TestCase
         self::assertSame(
             [[1, 10_000, false, 0, 2], [1, 10_000, false, 1, 2], [1, 200], [1, 15]],
             [$this->jobValuesOf($secondRootJob), $this->jobValuesOf($thirdRootJob), $this->runsAndQuantityOf($ferniteAlloy), $this->runsAndQuantityOf($hydrogenFuelBlock)],
+        );
+    }
+
+    public function testRootJobsKeptAfterADeletedRootJobHaveTheSumOfTheirRunsAsTotalGroupRuns(): void
+    {
+        [$firstRootJob, $secondRootJob, $thirdRootJob] = $this->rootJobsOfFerniteCarbide([[0, 3], [1, 2], [2, 1]]);
+        [$ferniteAlloy, $hydrogenFuelBlock] = $this->materialStepsOfFerniteCarbideProjectOfFourRuns();
+
+        $this->delete($thirdRootJob);
+
+        self::assertSame(
+            [[3, 30_000, false, 0, 5], [2, 20_000, false, 1, 5], [3, 500], [1, 40]],
+            [$this->jobValuesOf($firstRootJob), $this->jobValuesOf($secondRootJob), $this->runsAndQuantityOf($ferniteAlloy), $this->runsAndQuantityOf($hydrogenFuelBlock)],
+        );
+    }
+
+    public function testDeletedJobPassesItsPurchaseStockAndPurchasedMarkToTheKeptJobOfLargestSplitIndexWhateverTheOrderOfTheSteps(): void
+    {
+        $this->project->setRuns(10);
+        $this->stepOfTheProject(self::FERNITE_CARBIDE, 'reaction', runs: 10, quantity: 100_000, depth: 0, meLevel: 0);
+        $lastAlloyJob = $this->alloyJob(splitIndex: 2, runs: 1, totalGroupRuns: 5, runsFixed: false);
+        $firstAlloyJob = $this->alloyJob(splitIndex: 0, runs: 2, totalGroupRuns: 5, runsFixed: false);
+        $middleAlloyJob = $this->alloyJob(splitIndex: 1, runs: 2, totalGroupRuns: 5, runsFixed: false);
+        $hydrogenFuelBlock = $this->stepOfTheProject(self::HYDROGEN_FUEL_BLOCK, 'manufacturing', runs: 2, quantity: 75, depth: 2, meLevel: 10);
+        $purchaseOfFerniteAlloy = $this->purchaseOf(self::FERNITE_ALLOY, quantity: 120, unitPrice: 1_912.25);
+        $middleAlloyJob->setInStockQuantity(120)->setPurchased(true)->addPurchase($purchaseOfFerniteAlloy);
+
+        $this->delete($middleAlloyJob);
+
+        self::assertSame(
+            [[2, 400, false, 1, 5], 120, true, [$purchaseOfFerniteAlloy], [3, 600, false, 0, 5], 0, false, [], [2, 75]],
+            [
+                $this->jobValuesOf($lastAlloyJob), $lastAlloyJob->getInStockQuantity(), $lastAlloyJob->isPurchased(), array_values($lastAlloyJob->getPurchases()->toArray()),
+                $this->jobValuesOf($firstAlloyJob), $firstAlloyJob->getInStockQuantity(), $firstAlloyJob->isPurchased(), array_values($firstAlloyJob->getPurchases()->toArray()),
+                $this->runsAndQuantityOf($hydrogenFuelBlock),
+            ],
+        );
+        self::assertSame($lastAlloyJob, $purchaseOfFerniteAlloy->getStep());
+    }
+
+    public function testDeletedCopyOfTheProjectProductWithoutAnyProductionStepOfItLeavesTheMaterialSteps(): void
+    {
+        $this->project->setProductTypeId(self::QUANTUM_MICROPROCESSOR);
+        $quantumMicroprocessorCopy = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, 'copy', runs: 32, quantity: 1, depth: 0, meLevel: 0);
+        $titaniumCarbide = $this->stepOfTheProject(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1, meLevel: 0);
+        $oxygenFuelBlock = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 5, depth: 2, meLevel: 10);
+
+        $this->delete($quantumMicroprocessorCopy);
+
+        self::assertSame(
+            [[$titaniumCarbide, $oxygenFuelBlock], [[[1, 490, false, 0, null], [1, 5, false, 0, null]]], [$quantumMicroprocessorCopy]],
+            [$this->project->getSteps()->getValues(), $this->projectAtEachFlush, $this->removedEntities],
         );
     }
 
@@ -204,6 +258,8 @@ final class DeleteStepProcessorTest extends TestCase
             array_map($this->runsAndQuantityOf(...), $this->project->getSteps()->getValues()),
         );
         self::assertSame($ferniteCarbideProject, $this->project->getSteps()->getValues());
+        self::assertSame([[[4, 40_000, false, 0, null], [2, 400, false, 0, null], [1, 30, false, 0, null]]], $this->projectAtEachFlush);
+        self::assertSame([$phenolicComposites], $this->removedEntities);
     }
 
     public function testDeletedCopyStepLeavesTheProductionStepsUnchanged(): void
@@ -218,6 +274,8 @@ final class DeleteStepProcessorTest extends TestCase
             array_map($this->runsAndQuantityOf(...), $this->project->getSteps()->getValues()),
         );
         self::assertSame($ferniteCarbideProject, $this->project->getSteps()->getValues());
+        self::assertSame([[[4, 40_000, false, 0, null], [2, 400, false, 0, null], [1, 30, false, 0, null]]], $this->projectAtEachFlush);
+        self::assertSame([$hydrogenFuelBlockCopy], $this->removedEntities);
     }
 
     public function testMaterialStepLeftWithoutConsumerByADeletedStepKeepsItsRunsAndQuantity(): void
@@ -265,6 +323,26 @@ final class DeleteStepProcessorTest extends TestCase
         $this->assertDeletionRefused($ferniteCarbide, self::LAST_STEP_OF_THE_PROJECT_PRODUCT);
 
         self::assertSame([3, []], [\count($this->project->getSteps()), $this->projectAtEachFlush]);
+    }
+
+    public function testLastProductionStepOfTheProjectProductBesideACopyOfItIsRefusedWithoutWritingAnything(): void
+    {
+        $this->project->setProductTypeId(self::QUANTUM_MICROPROCESSOR);
+        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10);
+        $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, 'copy', runs: 32, quantity: 1, depth: 0, meLevel: 0);
+
+        $this->assertDeletionRefused($quantumMicroprocessor, self::LAST_STEP_OF_THE_PROJECT_PRODUCT);
+
+        self::assertSame([2, [], []], [\count($this->project->getSteps()), $this->projectAtEachFlush, $this->removedEntities]);
+    }
+
+    public function testLastStepOfTheProjectProductHoldingStockIsRefusedAsTheLastStepOfTheProjectProductFirst(): void
+    {
+        $ferniteCarbide = $this->stepOfTheProject(self::FERNITE_CARBIDE, 'reaction', runs: 4, quantity: 40_000, depth: 0, meLevel: 0)->setInStockQuantity(100);
+
+        $this->assertDeletionRefused($ferniteCarbide, self::LAST_STEP_OF_THE_PROJECT_PRODUCT);
+
+        self::assertSame([1, 100, []], [\count($this->project->getSteps()), $ferniteCarbide->getInStockQuantity(), $this->projectAtEachFlush]);
     }
 
     #[DataProvider('dataOfASingleStepWithoutAnyOtherJobToTakeThem')]
@@ -475,6 +553,9 @@ final class DeleteStepProcessorTest extends TestCase
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('flush')->willReturnCallback(function (): void {
             $this->projectAtEachFlush[] = array_map($this->jobValuesOf(...), $this->project->getSteps()->getValues());
+        });
+        $entityManager->method('remove')->willReturnCallback(function (object $entity): void {
+            $this->removedEntities[] = $entity;
         });
 
         return $entityManager;
