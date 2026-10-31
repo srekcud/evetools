@@ -163,8 +163,8 @@ export const useStepsStore = defineStore('industry-steps', () => {
   async function deleteStep(projectId: string, stepId: string) {
     try {
       await apiRequest(`/industry/projects/${projectId}/steps/${stepId}`, { method: 'DELETE' })
-      if (projectsStore.currentProject?.id === projectId && projectsStore.currentProject.steps) {
-        projectsStore.currentProject.steps = projectsStore.currentProject.steps.filter(s => s.id !== stepId)
+      if (projectsStore.currentProject?.id === projectId) {
+        await projectsStore.fetchProject(projectId)
       }
     } catch (e) {
       projectsStore.error = e instanceof Error ? e.message : 'Failed to delete step'

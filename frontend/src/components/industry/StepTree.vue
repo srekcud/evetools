@@ -895,7 +895,7 @@ function mergeGroup(stepId: string) {
 
               <!-- Delete button (hidden for ESI-linked steps and readonly mode) -->
               <button
-                v-if="!isLinkedToEsi(step) && !readonly"
+                v-if="step.deletable && !readonly"
                 @click.stop="deleteStep(step.id, typeNameLabel(step.productTypeName, step.productTypeId))"
                 class="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-sm"
                 :title="t('industry.stepTree.deleteStep')"
