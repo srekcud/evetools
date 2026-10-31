@@ -23,7 +23,6 @@ final class SyncTrackerLastSuccessTest extends TestCase
     private const string MARKET_JITA = 'market-jita';
     private const string MARKET_JITA_STATE_KEY = 'sync_tracker_market_jita';
     private const int STATE_TTL = 86400 * 7;
-    private const int ONE_DAY = 86400;
     private const int SIX_DAYS = 86400 * 6;
 
     private const string SUCCESS_AT_TEN = '2026-10-31T10:00:00+00:00';
@@ -206,21 +205,25 @@ final class SyncTrackerLastSuccessTest extends TestCase
         );
     }
 
+    public function testStateAboutToExpireIsForgottenWithoutAnyRun(): void
+    {
+        $this->writeMarketJitaStateExpiringInOneDay($this->elevenDaysOldSuccessFollowedByFailures());
+
+        $this->cacheClock->sleep(self::SIX_DAYS);
+
+        $this->assertSame(
+            ['lastSuccessAt' => null, 'lastRunFailed' => false],
+            $this->syncTracker->getFreshness(self::MARKET_JITA),
+        );
+    }
+
     public function testDailyFailuresKeepTheLastSuccessfulSyncBeyondSevenDays(): void
     {
-        $this->writeMarketJitaState([
-            'started_at' => '2026-10-20T09:55:00+00:00',
-            'completed_at' => '2026-10-20T10:00:00+00:00',
-            'status' => 'ok',
-            'message' => null,
-            'last_success_at' => '2026-10-20T10:00:00+00:00',
-        ]);
+        $this->writeMarketJitaStateExpiringInOneDay($this->elevenDaysOldSuccessFollowedByFailures());
 
-        foreach (range(1, 11) as $day) {
-            $this->cacheClock->sleep(self::ONE_DAY);
-            $this->syncTracker->start(self::MARKET_JITA);
-            $this->syncTracker->fail(self::MARKET_JITA, sprintf('ESI 502 Bad Gateway, day %d', $day));
-        }
+        $this->syncTracker->start(self::MARKET_JITA);
+        $this->syncTracker->fail(self::MARKET_JITA, 'ESI 502 Bad Gateway, day 11');
+        $this->cacheClock->sleep(self::SIX_DAYS);
 
         $this->assertSame(
             ['lastSuccessAt' => '2026-10-20T10:00:00+00:00', 'lastRunFailed' => true],
@@ -232,8 +235,8 @@ final class SyncTrackerLastSuccessTest extends TestCase
     {
         $this->syncTracker->complete(self::MARKET_JITA);
         $lastSuccessAt = $this->recordedCompletedAt(self::MARKET_JITA);
+        $this->writeMarketJitaStateExpiringInOneDay($this->cache->getItem(self::MARKET_JITA_STATE_KEY)->get());
 
-        $this->cacheClock->sleep(self::SIX_DAYS);
         $this->syncTracker->fail(self::MARKET_JITA, 'ESI 502 Bad Gateway');
         $this->cacheClock->sleep(self::SIX_DAYS);
 
@@ -284,6 +287,25 @@ final class SyncTrackerLastSuccessTest extends TestCase
             'status' => 'ok',
             'message' => '4210 prices refreshed',
         ]);
+    }
+
+    private function elevenDaysOldSuccessFollowedByFailures(): array
+    {
+        return [
+            'started_at' => '2026-10-30T10:30:00+00:00',
+            'completed_at' => '2026-10-30T10:30:00+00:00',
+            'status' => 'error',
+            'message' => 'ESI 502 Bad Gateway, day 10',
+            'last_success_at' => '2026-10-20T10:00:00+00:00',
+        ];
+    }
+
+    private function writeMarketJitaStateExpiringInOneDay(array $state): void
+    {
+        $item = $this->cache->getItem(self::MARKET_JITA_STATE_KEY);
+        $item->set($state);
+        $item->expiresAt($this->cacheClock->now()->add(new \DateInterval('P1D')));
+        $this->cache->save($item);
     }
 
     private function writeMarketJitaState(array $state): void

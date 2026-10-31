@@ -96,7 +96,7 @@ final class DataFreshnessApiTest extends WebTestCase
     public function testFailureAfterASuccessFlagsTheLastRunFailedAndKeepsTheLastSuccess(): void
     {
         $this->syncTracker->complete('market-jita');
-        $lastSuccessAt = $this->fetchFreshness()[0]['lastSuccessAt'];
+        $lastSuccessAt = $this->recordedCompletedAt('market-jita');
         self::assertNotNull($lastSuccessAt);
 
         $this->syncTracker->start('market-jita');
@@ -142,7 +142,7 @@ final class DataFreshnessApiTest extends WebTestCase
     public function testRunningSyncAfterASuccessKeepsTheLastSuccess(): void
     {
         $this->syncTracker->complete('market-jita');
-        $lastSuccessAt = $this->fetchFreshness()[0]['lastSuccessAt'];
+        $lastSuccessAt = $this->recordedCompletedAt('market-jita');
         self::assertNotNull($lastSuccessAt);
 
         $this->syncTracker->start('market-jita');
@@ -201,6 +201,17 @@ final class DataFreshnessApiTest extends WebTestCase
         self::assertStringNotContainsString('started', $body);
         self::assertStringNotContainsString('status', $body);
         self::assertStringNotContainsString('message', $body);
+    }
+
+    private function recordedCompletedAt(string $type): ?string
+    {
+        foreach ($this->syncTracker->getAll() as $entry) {
+            if ($entry['type'] === $type) {
+                return $entry['completed_at'];
+            }
+        }
+
+        self::fail(sprintf('No entry for sync type "%s".', $type));
     }
 
     private function writeStateWithoutLastSuccess(string $stateKey, string $status, string $completedAt): void
