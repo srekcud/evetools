@@ -24,6 +24,9 @@ final class ImportLootSalesInputValidationTest extends TestCase
     private const int PILOT_ONE_ID = 2112000001;
     private const int ROGUE_DRONE_INFESTATION_DATA = 60459;
     private const int TRITANIUM = 34;
+    private const int MAXIMUM_TYPE_NAME_LENGTH = 255;
+    private const float MAXIMUM_PRICE = 1e15;
+    private const int MAXIMUM_QUANTITY = 2147483647;
 
     private ValidatorInterface $validator;
 
@@ -74,6 +77,9 @@ final class ImportLootSalesInputValidationTest extends TestCase
         yield 'missing date' => [self::marketLootSaleWithout('dateIssued'), ['sales[1][dateIssued]']];
         yield 'transaction id as text' => [self::marketLootSaleWith(['transactionId' => '8200031']), ['sales[1][transactionId]']];
         yield 'decimal transaction id' => [self::marketLootSaleWith(['transactionId' => 8200031.5]), ['sales[1][transactionId]']];
+        yield 'type name of two hundred fifty-six characters' => [self::marketLootSaleWith(['typeName' => str_repeat('R', self::MAXIMUM_TYPE_NAME_LENGTH + 1)]), ['sales[1][typeName]']];
+        yield 'infinite price' => [self::marketLootSaleWith(['price' => INF]), ['sales[1][price]']];
+        yield 'price of ten quadrillion' => [self::marketLootSaleWith(['price' => 1e16]), ['sales[1][price]']];
     }
 
     #[DataProvider('invalidContributionFields')]
@@ -92,6 +98,22 @@ final class ImportLootSalesInputValidationTest extends TestCase
         yield 'character id as text' => [['characterId' => '2112000001'], ['sales[0][characterId]']];
         yield 'decimal character id' => [['characterId' => 2112000001.5], ['sales[0][characterId]']];
         yield 'null price of a contribution of unknown reward' => [['price' => null], ['sales[0][price]']];
+        yield 'quantity beyond the integer column' => [['quantity' => self::MAXIMUM_QUANTITY + 1], ['sales[0][quantity]']];
+        yield 'negative accounted quantity' => [['accountedQuantity' => -1], ['sales[0][accountedQuantity]']];
+    }
+
+    #[DataProvider('saleFieldsAtTheirBound')]
+    public function testSaleWithAFieldAtItsBoundIsAccepted(array $sale): void
+    {
+        $this->assertSame([], $this->violatedPathsOfTheSales([$sale]));
+    }
+
+    public static function saleFieldsAtTheirBound(): iterable
+    {
+        yield 'type name of two hundred fifty-five characters' => [self::marketLootSaleWith(['typeName' => str_repeat('R', self::MAXIMUM_TYPE_NAME_LENGTH)])];
+        yield 'price of one quadrillion' => [self::marketLootSaleWith(['price' => self::MAXIMUM_PRICE])];
+        yield 'contribution quantity at the integer column maximum' => [self::contributionWith(['quantity' => self::MAXIMUM_QUANTITY])];
+        yield 'contribution with nothing accounted yet' => [self::contributionWith(['accountedQuantity' => 0])];
     }
 
     public function testContributionWithAProjectIdOfThirtySixCharactersIsAccepted(): void
@@ -133,6 +155,20 @@ final class ImportLootSalesInputValidationTest extends TestCase
         yield 'accounted quantity as text' => [self::declinedContributionWith(['accountedQuantity' => '1000']), ['declined[1][accountedQuantity]']];
         yield 'character id as text' => [self::declinedContributionWith(['characterId' => '2112000001']), ['declined[1][characterId]']];
         yield 'transaction id as text' => [['transactionId' => '8200023'], ['declined[1][transactionId]']];
+        yield 'quantity beyond the integer column' => [self::declinedContributionWith(['quantity' => self::MAXIMUM_QUANTITY + 1]), ['declined[1][quantity]']];
+        yield 'negative accounted quantity' => [self::declinedContributionWith(['accountedQuantity' => -1]), ['declined[1][accountedQuantity]']];
+    }
+
+    #[DataProvider('declinedFieldsAtTheirBound')]
+    public function testDeclinedContributionWithAFieldAtItsBoundIsAccepted(array $declinedItem): void
+    {
+        $this->assertSame([], $this->violatedPathsOfTheDeclined([$declinedItem]));
+    }
+
+    public static function declinedFieldsAtTheirBound(): iterable
+    {
+        yield 'quantity at the integer column maximum' => [self::declinedContributionWith(['quantity' => self::MAXIMUM_QUANTITY])];
+        yield 'nothing accounted yet' => [self::declinedContributionWith(['accountedQuantity' => 0])];
     }
 
     public function testFiveHundredDeclinedItemsAreAccepted(): void
@@ -184,6 +220,11 @@ final class ImportLootSalesInputValidationTest extends TestCase
     }
 
     private function contribution(array $changes = []): array
+    {
+        return self::contributionWith($changes);
+    }
+
+    private static function contributionWith(array $changes): array
     {
         return array_merge([
             'type' => 'corp_project',
