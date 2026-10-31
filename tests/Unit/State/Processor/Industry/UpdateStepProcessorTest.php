@@ -10,19 +10,15 @@ use App\ApiResource\Input\Industry\UpdateStepInput;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
-use App\Entity\Sde\IndustryActivityProduct;
+use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
-use App\Repository\IndustryRigCategoryRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\IndustryStepCalculator;
 use App\State\Processor\Industry\UpdateStepProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
-use App\Tests\Unit\Service\Industry\BuildsProjectOnGoldenSde;
-use App\Tests\Unit\Service\Industry\TataraAndRaitaruBonusService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -35,7 +31,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(UpdateStepProcessor::class)]
 final class UpdateStepProcessorTest extends TestCase
 {
-    use BuildsProjectOnGoldenSde;
+    use BuildsStepProcessorsOnGoldenSde;
 
     private const int QUANTUM_MICROPROCESSOR = 11540;
     private const int TITANIUM_CARBIDE = 16671;
@@ -46,9 +42,12 @@ final class UpdateStepProcessorTest extends TestCase
     private const int HYDROGEN_FUEL_BLOCK = 4246;
     private const int BLUEPRINT_MISSING_FROM_THE_SDE = 999_999_999;
     private const int FORMULA_MISSING_FROM_THE_SDE = 999_999_998;
+    private const string UNKNOWN_STRUCTURE_CONFIG_ID = '0192f0c4-7b1e-7a3c-9d2e-287000000003';
+    private const string REACTION_MATERIAL_EFFICIENCY_REFUSAL = 'Cannot set a material efficiency on a reaction step';
 
     private User $pilot;
     private IndustryProject $project;
+    private int $flushes = 0;
 
     protected function setUp(): void
     {
@@ -207,9 +206,9 @@ final class UpdateStepProcessorTest extends TestCase
         $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 4, quantity: 40_000, depth: 0, meLevel: 0);
         $firstAlloyJob = $this->jobOfTheFerniteAlloyGroup(0, runs: 1, totalGroupRuns: 2);
         $secondAlloyJob = $this->jobOfTheFerniteAlloyGroup(1, runs: 1, totalGroupRuns: 2);
-        $alloyJobWithoutRuns = $this->jobOfTheFerniteAlloyGroup(2, runs: 0, totalGroupRuns: 2);
+        $alloyJobWithoutRuns = $this->jobOfTheFerniteAlloyGroup(2, runs: 0, totalGroupRuns: 2)->setMeLevel(2);
         $meLevelEntered = new UpdateStepInput();
-        $meLevelEntered->meLevel = 2;
+        $meLevelEntered->meLevel = 0;
 
         $updatedSteps = $this->patch($alloyJobWithoutRuns, $meLevelEntered, $this->createStub(EntityManagerInterface::class));
 
@@ -265,6 +264,189 @@ final class UpdateStepProcessorTest extends TestCase
         self::assertSame([[self::FERNITE_ALLOY, 200], [self::FERNITE_ALLOY, 200]], $this->productAndQuantityOf($updatedSteps));
     }
 
+    #[Group('issue-190')]
+    public function testMeLevelEnteredOnAReactionStepIsRefusedWithoutChangingItsMaterialSteps(): void
+    {
+        [$ferniteCarbide, $ferniteAlloy, $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $entityManager = $this->entityManagerCountingTheFlushes();
+
+        try {
+            $this->patch($ferniteCarbide, $this->meLevelEntered(10), $entityManager);
+            self::fail('A material efficiency entered on a reaction step must be refused.');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame(self::REACTION_MATERIAL_EFFICIENCY_REFUSAL, $refusal->getMessage());
+        }
+
+        self::assertSame(
+            [0, [10, 2_000], [4, 150], 0],
+            [$ferniteCarbide->getMeLevel(), $this->runsAndQuantityOf($ferniteAlloy), $this->runsAndQuantityOf($hydrogenFuelBlock), $this->flushes],
+        );
+    }
+
+    #[Group('issue-190')]
+    public function testMeLevelEnteredOnAReactionStepWithRunsIsRefusedWithoutApplyingTheRuns(): void
+    {
+        [$ferniteCarbide] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $entityManager = $this->entityManagerCountingTheFlushes();
+        $meLevelAndRunsEntered = $this->meLevelEntered(10);
+        $meLevelAndRunsEntered->runs = 25;
+
+        try {
+            $this->patch($ferniteCarbide, $meLevelAndRunsEntered, $entityManager);
+            self::fail('A material efficiency entered on a reaction step must be refused with the runs entered with it.');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame(self::REACTION_MATERIAL_EFFICIENCY_REFUSAL, $refusal->getMessage());
+        }
+
+        self::assertSame(
+            [20, 200_000, 0, 0],
+            [$ferniteCarbide->getRuns(), $ferniteCarbide->getQuantity(), $ferniteCarbide->getMeLevel(), $this->flushes],
+        );
+    }
+
+    #[Group('issue-190')]
+    public function testMeLevelOfAReactionStepIsRefusedBeforeTheStructureOfAnotherPilot(): void
+    {
+        [$ferniteCarbide] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $structureOfAnotherPilot = $this->structureConfig('Sotiyo of another pilot', 'sotiyo', new User());
+        $meLevelAndStructureEntered = $this->meLevelEntered(10);
+        $meLevelAndStructureEntered->structureConfigId = $structureOfAnotherPilot->getId()->toRfc4122();
+
+        try {
+            $this->patch($ferniteCarbide, $meLevelAndStructureEntered, $this->entityManagerCountingTheFlushes(), structureConfigRepository: $this->structureConfigRepositoryWith($structureOfAnotherPilot));
+            self::fail('A material efficiency entered on a reaction step must be refused before the structure.');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame(self::REACTION_MATERIAL_EFFICIENCY_REFUSAL, $refusal->getMessage());
+        }
+
+        self::assertSame([0, null, 0], [$ferniteCarbide->getMeLevel(), $ferniteCarbide->getStructureConfig(), $this->flushes]);
+    }
+
+    #[Group('issue-190')]
+    public function testPurchaseMarkOfARootReactionStepIsRefusedBeforeItsMeLevel(): void
+    {
+        [$ferniteCarbide] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $purchaseMarkAndMeLevelEntered = $this->meLevelEntered(10);
+        $purchaseMarkAndMeLevelEntered->purchased = true;
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Cannot mark root products as purchased');
+
+        $this->patch($ferniteCarbide, $purchaseMarkAndMeLevelEntered, $this->entityManagerCountingTheFlushes());
+    }
+
+    #[Group('issue-190')]
+    public function testMeLevelZeroEnteredOnAReactionStepWithAnOldMeLevelRecalculatesItsMaterialSteps(): void
+    {
+        [$ferniteCarbide, $ferniteAlloy, $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135);
+
+        $updatedSteps = $this->patch($ferniteCarbide, $this->meLevelEntered(0), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame(
+            [0, [10, 2_000], [4, 150]],
+            [$ferniteCarbide->getMeLevel(), $this->runsAndQuantityOf($ferniteAlloy), $this->runsAndQuantityOf($hydrogenFuelBlock)],
+        );
+        self::assertSame([[self::FERNITE_CARBIDE, 200_000], [self::FERNITE_ALLOY, 2_000], [self::HYDROGEN_FUEL_BLOCK, 150]], $this->productAndQuantityOf($updatedSteps));
+    }
+
+    #[Group('issue-190')]
+    public function testMeLevelZeroEnteredOnAReactionStepAtMeLevelZeroRecalculatesNothing(): void
+    {
+        [$ferniteCarbide, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+
+        $updatedStep = $this->patch($ferniteCarbide, $this->meLevelEntered(0), $this->createStub(EntityManagerInterface::class));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame([[self::FERNITE_CARBIDE, 200_000], [10, 2_000]], [[$updatedStep->productTypeId, $updatedStep->quantity], $this->runsAndQuantityOf($ferniteAlloy)]);
+    }
+
+    #[Group('issue-190')]
+    public function testTeLevelEnteredOnAReactionStepIsKept(): void
+    {
+        [, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $teLevelEntered = new UpdateStepInput();
+        $teLevelEntered->teLevel = 10;
+
+        $updatedStep = $this->patch($ferniteAlloy, $teLevelEntered, $this->createStub(EntityManagerInterface::class));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame([10, 0, 2_000], [$ferniteAlloy->getTeLevel(), $ferniteAlloy->getMeLevel(), $ferniteAlloy->getQuantity()]);
+    }
+
+    #[Group('issue-287')]
+    public function testStructureOfThePilotAttachedToAStepRecalculatesItsMaterialStep(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
+        $raitaruOfThePilot = $this->structureConfig('Raitaru of the pilot', 'raitaru', $this->pilot);
+
+        $updatedSteps = $this->patch($quantumMicroprocessor, $this->structureEntered($raitaruOfThePilot->getId()->toRfc4122()), $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig(), $raitaruOfThePilot));
+
+        self::assertSame(['Raitaru of the pilot', [1, 485]], [$quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
+        self::assertSame([[self::QUANTUM_MICROPROCESSOR, 32], [self::TITANIUM_CARBIDE, 485]], $this->productAndQuantityOf($updatedSteps));
+    }
+
+    #[Group('issue-287')]
+    public function testStructureOfAnotherPilotIsRefusedAsStructureNotFoundAndTheStepKeepsItsStructure(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
+        $structureOfAnotherPilot = $this->structureConfig('Sotiyo of another pilot', 'sotiyo', new User());
+
+        try {
+            $this->patch($quantumMicroprocessor, $this->structureEntered($structureOfAnotherPilot->getId()->toRfc4122()), $this->entityManagerCountingTheFlushes(), structureConfigRepository: $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig(), $structureOfAnotherPilot));
+            self::fail('The structure of another pilot must not be attached to a step.');
+        } catch (NotFoundHttpException $refusal) {
+            self::assertSame('Structure not found', $refusal->getMessage());
+        }
+
+        self::assertSame(['Station of the pilot', [1, 490], 0], [$quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide), $this->flushes]);
+    }
+
+    #[Group('issue-287')]
+    public function testUnknownStructureIsRefusedAsStructureNotFoundAndTheStepKeepsItsStructure(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
+
+        try {
+            $this->patch($quantumMicroprocessor, $this->structureEntered(self::UNKNOWN_STRUCTURE_CONFIG_ID), $this->entityManagerCountingTheFlushes(), structureConfigRepository: $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig()));
+            self::fail('An unknown structure must not remove the structure of the step.');
+        } catch (NotFoundHttpException $refusal) {
+            self::assertSame('Structure not found', $refusal->getMessage());
+        }
+
+        self::assertSame(['Station of the pilot', [1, 490], 0], [$quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide), $this->flushes]);
+    }
+
+    #[Group('issue-287')]
+    public function testStructureOfAnotherPilotEnteredWithAMeLevelIsRefusedWithoutApplyingTheMeLevel(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
+        $structureOfAnotherPilot = $this->structureConfig('Sotiyo of another pilot', 'sotiyo', new User());
+        $meLevelAndStructureEntered = $this->structureEntered($structureOfAnotherPilot->getId()->toRfc4122());
+        $meLevelAndStructureEntered->meLevel = 8;
+
+        try {
+            $this->patch($quantumMicroprocessor, $meLevelAndStructureEntered, $this->entityManagerCountingTheFlushes(), structureConfigRepository: $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig(), $structureOfAnotherPilot));
+            self::fail('The structure of another pilot must be refused with the material efficiency entered with it.');
+        } catch (NotFoundHttpException $refusal) {
+            self::assertSame('Structure not found', $refusal->getMessage());
+        }
+
+        self::assertSame([10, 'Station of the pilot', [1, 490], 0], [$quantumMicroprocessor->getMeLevel(), $quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide), $this->flushes]);
+    }
+
+    #[Group('issue-287')]
+    public function testStructureAlreadyAttachedToTheStepRecalculatesNothing(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
+        $stationOfThePilot = $quantumMicroprocessor->getStructureConfig();
+        self::assertInstanceOf(IndustryStructureConfig::class, $stationOfThePilot);
+
+        $updatedStep = $this->patch($quantumMicroprocessor, $this->structureEntered($stationOfThePilot->getId()->toRfc4122()), $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($stationOfThePilot));
+
+        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
+        self::assertSame(['Station of the pilot', [1, 490]], [$quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
+    }
+
     #[Group('issue-200')]
     public function testProjectIdThatIsNotAUuidIsNotFoundWithoutReadingTheProjectsNorTheSteps(): void
     {
@@ -314,6 +496,74 @@ final class UpdateStepProcessorTest extends TestCase
             ->setTotalGroupRuns($totalGroupRuns);
     }
 
+    private function ferniteCarbideProjectOfTwentyRuns(int $ferniteCarbideMeLevel, int $ferniteAlloyRuns, int $ferniteAlloyQuantity, int $hydrogenFuelBlockQuantity): array
+    {
+        return [
+            $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 20, quantity: 200_000, depth: 0, meLevel: $ferniteCarbideMeLevel),
+            $this->stepOfTheProject(self::FERNITE_ALLOY, self::FERNITE_ALLOY + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: $ferniteAlloyRuns, quantity: $ferniteAlloyQuantity, depth: 1, meLevel: 0),
+            $this->stepOfTheProject(self::HYDROGEN_FUEL_BLOCK, self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'manufacturing', runs: 4, quantity: $hydrogenFuelBlockQuantity, depth: 2, meLevel: 10),
+        ];
+    }
+
+    private function quantumMicroprocessorProjectInAStation(): array
+    {
+        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, self::QUANTUM_MICROPROCESSOR + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10)
+            ->setStructureConfig($this->structureConfig('Station of the pilot', 'station', $this->pilot));
+        $titaniumCarbide = $this->stepOfTheProject(self::TITANIUM_CARBIDE, self::TITANIUM_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 1, quantity: 490, depth: 1, meLevel: 0);
+
+        return [$quantumMicroprocessor, $titaniumCarbide];
+    }
+
+    private function structureConfig(string $name, string $structureType, User $owner): IndustryStructureConfig
+    {
+        return (new IndustryStructureConfig())->setName($name)->setStructureType($structureType)->setUser($owner);
+    }
+
+    private function structureConfigRepositoryWith(?IndustryStructureConfig ...$structureConfigs): IndustryStructureConfigRepository
+    {
+        $structureConfigsById = [];
+        foreach (array_filter($structureConfigs) as $structureConfig) {
+            $structureConfigsById[$structureConfig->getId()->toRfc4122()] = $structureConfig;
+        }
+        $repository = $this->createStub(IndustryStructureConfigRepository::class);
+        $repository->method('find')->willReturnCallback(
+            static fn (mixed $id): ?IndustryStructureConfig => $structureConfigsById[(string) $id] ?? null,
+        );
+
+        return $repository;
+    }
+
+    private function structureEntered(string $structureConfigId): UpdateStepInput
+    {
+        $input = new UpdateStepInput();
+        $input->structureConfigId = $structureConfigId;
+
+        return $input;
+    }
+
+    private function meLevelEntered(int $meLevel): UpdateStepInput
+    {
+        $input = new UpdateStepInput();
+        $input->meLevel = $meLevel;
+
+        return $input;
+    }
+
+    private function runsAndQuantityOf(IndustryProjectStep $step): array
+    {
+        return [$step->getRuns(), $step->getQuantity()];
+    }
+
+    private function entityManagerCountingTheFlushes(): EntityManagerInterface
+    {
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('flush')->willReturnCallback(function (): void {
+            ++$this->flushes;
+        });
+
+        return $entityManager;
+    }
+
     private function runsEntered(int $runs): UpdateStepInput
     {
         $input = new UpdateStepInput();
@@ -329,7 +579,7 @@ final class UpdateStepProcessorTest extends TestCase
         return array_map(static fn (ProjectStepResource $resource): array => [$resource->productTypeId, $resource->quantity], $updatedSteps);
     }
 
-    private function patch(IndustryProjectStep $step, UpdateStepInput $input, EntityManagerInterface $entityManager, ?EntityManagerInterface $calculatorEntityManager = null): ProjectStepResource|array
+    private function patch(IndustryProjectStep $step, UpdateStepInput $input, EntityManagerInterface $entityManager, ?EntityManagerInterface $calculatorEntityManager = null, ?IndustryStructureConfigRepository $structureConfigRepository = null): ProjectStepResource|array
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->pilot);
@@ -345,9 +595,8 @@ final class UpdateStepProcessorTest extends TestCase
 
             return $resource;
         });
-        $structureConfigRepository = $this->createStub(IndustryStructureConfigRepository::class);
+        $structureConfigRepository ??= $this->createStub(IndustryStructureConfigRepository::class);
         $productRepository = $this->productRepositoryOfTheGoldenBlueprints();
-        $calculationService = $this->calculationServiceOnGoldenSde($this->bonusServiceWithoutStructure(), $structureConfigRepository);
 
         $processor = new UpdateStepProcessor(
             $security,
@@ -355,56 +604,10 @@ final class UpdateStepProcessorTest extends TestCase
             $stepRepository,
             $productRepository,
             $structureConfigRepository,
-            new IndustryStepCalculator($calculationService, $this->materialRepositoryOnGoldenSde(), $productRepository, $calculatorEntityManager ?? $entityManager),
+            $this->stepCalculatorOnGoldenSde($productRepository, $structureConfigRepository, $calculatorEntityManager ?? $entityManager),
             $mapper,
             $entityManager,
         );
         return $processor->process($input, new Patch(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
-    }
-
-    private function productRepositoryOfTheGoldenBlueprints(): IndustryActivityProductRepository
-    {
-        $productOf = static function (int $blueprintTypeId, int $activityId): ?IndustryActivityProduct {
-            $productTypeId = $blueprintTypeId - self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET;
-            $recipe = self::goldenRecipes()[$productTypeId] ?? null;
-            if ($recipe === null || self::activityIdOf($recipe['activity']) !== $activityId) {
-                return null;
-            }
-
-            return self::activityProduct($productTypeId, $recipe);
-        };
-        $repository = $this->createStub(IndustryActivityProductRepository::class);
-        $repository->method('findOneBy')->willReturnCallback(
-            static fn (array $criteria): ?IndustryActivityProduct => $productOf($criteria['typeId'], $criteria['activityId']),
-        );
-        $repository->method('findProductsForBlueprints')->willReturnCallback(
-            static function (array $blueprintTypeIds, array $activityIds) use ($productOf): array {
-                $products = [];
-                foreach (array_unique($blueprintTypeIds) as $blueprintTypeId) {
-                    foreach (array_unique($activityIds) as $activityId) {
-                        $product = $productOf($blueprintTypeId, $activityId);
-                        if ($product !== null) {
-                            $products[$blueprintTypeId.'-'.$activityId] = $product;
-                        }
-                    }
-                }
-
-                return $products;
-            },
-        );
-
-        return $repository;
-    }
-
-    private function bonusServiceWithoutStructure(): TataraAndRaitaruBonusService
-    {
-        return new TataraAndRaitaruBonusService(
-            static fn (): bool => false,
-            static fn (int $typeId): bool => (self::goldenRecipes()[$typeId]['activity'] ?? null) === 'reaction',
-            $this->createStub(IndustryRigCategoryRepository::class),
-            $this->createStub(IndustryStructureConfigRepository::class),
-            $this->createStub(InvTypeRepository::class),
-            $this->createStub(IndustryActivityProductRepository::class),
-        );
     }
 }

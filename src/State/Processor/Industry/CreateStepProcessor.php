@@ -16,6 +16,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\IndustryStepCalculator;
 use App\Service\Industry\SplitGroupMaterials;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
@@ -37,6 +38,7 @@ class CreateStepProcessor implements ProcessorInterface
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
+        private readonly IndustryStepCalculator $stepCalculator,
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
     ) {

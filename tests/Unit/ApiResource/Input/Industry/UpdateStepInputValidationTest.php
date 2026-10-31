@@ -23,6 +23,9 @@ final class UpdateStepInputValidationTest extends TestCase
     private const string TE_RANGE_MESSAGE = 'This value should be between 0 and 20.';
     private const int STEP_RUNS = 5;
     private const string STRUCTURE_CONFIG_ID = '0192f0c4-7b1e-7a3c-9d2e-200000000021';
+    private const string RUNS_RANGE_MESSAGE = 'This value should be between 1 and 100000.';
+    private const int MAXIMUM_STEP_RUNS = 100000;
+    private const int STEP_RUNS_ABOVE_THE_MAXIMUM = 100001;
 
     private ValidatorInterface $validator;
 
@@ -96,6 +99,31 @@ final class UpdateStepInputValidationTest extends TestCase
     public function testStructureConfigIdThatIsAUuidV7IsAccepted(): void
     {
         $violations = $this->validator->validatePropertyValue(new UpdateStepInput(), 'structureConfigId', self::STRUCTURE_CONFIG_ID);
+
+        self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-287')]
+    public function testStepRunsAboveTheMaximumAreRejectedWithTheRangeMessage(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateStepInput(), 'runs', self::STEP_RUNS_ABOVE_THE_MAXIMUM);
+
+        self::assertCount(1, $violations);
+        self::assertSame(['runs', self::RUNS_RANGE_MESSAGE], [$violations[0]->getPropertyPath(), $violations[0]->getMessage()]);
+    }
+
+    #[Group('issue-287')]
+    public function testTheMaximumStepRunsAreAccepted(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateStepInput(), 'runs', self::MAXIMUM_STEP_RUNS);
+
+        self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-287')]
+    public function testPatchWithoutRunsHasNoRunsViolation(): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateStepInput(), 'runs', null);
 
         self::assertCount(0, $violations);
     }

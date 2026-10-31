@@ -9,6 +9,7 @@ use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Input\Industry\CreateStepInput;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
+use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
@@ -17,8 +18,11 @@ use App\Enum\IndustryActivityType;
 use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\IndustryCalculationService;
+use App\Service\Industry\IndustryStepCalculator;
 use App\State\Processor\Industry\CreateStepProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,6 +46,8 @@ final class CreateStepProcessorTest extends TestCase
     private const int PRODUCT_MANUFACTURED_AND_REACTED = 990_457;
     private const int BLUEPRINT_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED = 991_457;
     private const int FORMULA_OF_THE_PRODUCT_MANUFACTURED_AND_REACTED = 992_457;
+    private const int PHENOLIC_COMPOSITES = 16680;
+    private const int PHENOLIC_COMPOSITES_REACTION_FORMULA = 46181;
     private const int TRITANIUM = 34;
     private const int TYPE_MISSING_FROM_THE_SDE = 999_999_999;
     private const string FERNITE_CARBIDE_SPLIT_GROUP = '5b0f6c1e-2a7d-4e93-8c41-7f2d9a6b3e15';
@@ -159,6 +165,19 @@ final class CreateStepProcessorTest extends TestCase
         self::assertSame([0, 0], [$addedStep->getMeLevel(), $addedStep->getTeLevel()]);
     }
 
+    #[Group('issue-190')]
+    public function testStepAddedForAReactedTypeHasMeLevelZeroWhateverTheMeLevelEnteredAndKeepsItsTeLevel(): void
+    {
+        $typeEntered = $this->typeEntered(self::FERNITE_CARBIDE, runs: 3);
+        $typeEntered->meLevel = 10;
+        $typeEntered->teLevel = 4;
+
+        $this->post($typeEntered, $this->productRepositoryWith($this->ferniteCarbideFormula()), $this->createStub(EntityManagerInterface::class));
+
+        $addedStep = $this->addedStep();
+        self::assertSame([0, 4, 30_000], [$addedStep->getMeLevel(), $addedStep->getTeLevel(), $addedStep->getQuantity()]);
+    }
+
     #[Group('issue-280')]
     public function testStepAddedToAProjectWithoutStepsComesFirst(): void
     {
@@ -179,13 +198,58 @@ final class CreateStepProcessorTest extends TestCase
     }
 
     #[Group('issue-191')]
-    public function testStepAddedToASingleStepCurrentlyCountsItsRunsAsQuantityIssue191(): void
+    public function testJobAddedToASingleStepCountsTheUnitsPerRunOfItsBlueprint(): void
     {
         $singleStep = $this->heliumFuelBlockStep('manufacturing', runs: 7, quantity: 280);
 
-        $this->post($this->stepEntered(runs: 3), $this->createStub(IndustryActivityProductRepository::class), $this->createStub(EntityManagerInterface::class), $singleStep);
+        $this->post($this->stepEntered(runs: 3), $this->productRepositoryWith($this->heliumFuelBlockBlueprint()), $this->createStub(EntityManagerInterface::class), $singleStep);
 
-        self::assertSame([3, 3], [$this->addedStep()->getRuns(), $this->addedStep()->getQuantity()]);
+        self::assertSame(
+            [[7, 280, false, 0, 10], [3, 120, false, 1, 10]],
+            array_map($this->runsQuantityRunsFixedSplitIndexAndTotalGroupRunsOf(...), [$singleStep, $this->addedStep()]),
+        );
+    }
+
+    #[Group('issue-190')]
+    public function testJobAddedToAReactionStepHasMeLevelZeroAndLeavesTheMeLevelOfTheStep(): void
+    {
+        $reactionStep = (new IndustryProjectStep())
+            ->setBlueprintTypeId(self::FERNITE_CARBIDE_REACTION_FORMULA)
+            ->setProductTypeId(self::FERNITE_CARBIDE)
+            ->setActivityType('reaction')
+            ->setRuns(5)
+            ->setQuantity(50_000)
+            ->setDepth(0)
+            ->setMeLevel(3)
+            ->setTeLevel(6);
+        $this->project->addStep($reactionStep);
+
+        $this->post($this->stepEntered(runs: 2), $this->productRepositoryWith($this->ferniteCarbideFormula()), $this->createStub(EntityManagerInterface::class), $reactionStep);
+
+        self::assertSame(
+            [[3, 6], [0, 6, 20_000]],
+            [[$reactionStep->getMeLevel(), $reactionStep->getTeLevel()], [$this->addedStep()->getMeLevel(), $this->addedStep()->getTeLevel(), $this->addedStep()->getQuantity()]],
+        );
+    }
+
+    #[Group('issue-191')]
+    public function testJobAddedToAStepWithAMatchedJobAPurchaseMarkAndStockStartsWithoutAnyOfThem(): void
+    {
+        $engagedStep = $this->heliumFuelBlockStep('manufacturing', runs: 7, quantity: 280)
+            ->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(7_191_001)->setRuns(7))
+            ->setPurchased(true)
+            ->setInStockQuantity(35)
+            ->setJobMatchMode('manual');
+
+        $this->post($this->stepEntered(runs: 3), $this->productRepositoryWith($this->heliumFuelBlockBlueprint()), $this->createStub(EntityManagerInterface::class), $engagedStep);
+
+        self::assertSame(
+            [[1, true, 35, 'manual'], [0, false, 0, 'auto']],
+            array_map(
+                static fn (IndustryProjectStep $step): array => [\count($step->getJobMatches()), $step->isPurchased(), $step->getInStockQuantity(), $step->getJobMatchMode()],
+                [$engagedStep, $this->addedStep()],
+            ),
+        );
     }
 
     public function testStepAddedToASingleStepFormsWithItASplitGroupOfTheirTotalRuns(): void
@@ -194,7 +258,7 @@ final class CreateStepProcessorTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects($this->once())->method('flush');
 
-        $result = $this->post($this->stepEntered(runs: 3), $this->createStub(IndustryActivityProductRepository::class), $entityManager, $singleStep);
+        $result = $this->post($this->stepEntered(runs: 3), $this->productRepositoryWith($this->heliumFuelBlockBlueprint()), $entityManager, $singleStep);
 
         $addedStep = $this->addedStep();
         self::assertNotNull($singleStep->getSplitGroupId());
@@ -237,32 +301,34 @@ final class CreateStepProcessorTest extends TestCase
     }
 
     #[Group('issue-191')]
-    public function testStepAddedToASplitGroupCurrentlyCountsItsRunsAsQuantityAndKeepsTheTotalGroupRunsIssue191(): void
+    public function testJobAddedToASplitGroupCountsTheUnitsPerRunOfItsFormulaAndAddsItsRunsToTheTotalGroupRuns(): void
     {
         [$firstJob, $secondJob] = $this->ferniteCarbideSplitGroup();
 
-        $this->post($this->splitGroupEntered(self::FERNITE_CARBIDE_SPLIT_GROUP, runs: 4), $this->createStub(IndustryActivityProductRepository::class), $this->createStub(EntityManagerInterface::class));
+        $this->post($this->splitGroupEntered(self::FERNITE_CARBIDE_SPLIT_GROUP, runs: 4), $this->productRepositoryWith($this->ferniteCarbideFormula()), $this->createStub(EntityManagerInterface::class));
 
         self::assertSame(
-            [[6, 60_000, 0, 12], [6, 60_000, 1, 12], [4, 4, 2, 12]],
+            [[6, 60_000, 0, 16], [6, 60_000, 1, 16], [4, 40_000, 2, 16]],
             array_map($this->runsQuantitySplitIndexAndTotalGroupRunsOf(...), [$firstJob, $secondJob, $this->addedStep()]),
         );
     }
 
-    public function testStepAddedToASplitGroupComesAfterItsLastJobAndCopiesItsFirstJob(): void
+    #[Group('issue-190')]
+    public function testJobAddedToASplitGroupComesAfterItsLastJobAndCopiesItsFirstJobExceptTheMeLevelOfAReaction(): void
     {
-        $this->ferniteCarbideSplitGroup();
+        [$firstJob, $secondJob] = $this->ferniteCarbideSplitGroup();
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects($this->once())->method('flush');
 
-        $result = $this->post($this->splitGroupEntered(self::FERNITE_CARBIDE_SPLIT_GROUP, runs: 4), $this->createStub(IndustryActivityProductRepository::class), $entityManager);
+        $result = $this->post($this->splitGroupEntered(self::FERNITE_CARBIDE_SPLIT_GROUP, runs: 4), $this->productRepositoryWith($this->ferniteCarbideFormula()), $entityManager);
 
         $addedStep = $this->addedStep();
         self::assertSame([self::FERNITE_CARBIDE_SPLIT_GROUP, 2], [$addedStep->getSplitGroupId(), $addedStep->getSplitIndex()]);
         self::assertSame(
-            [self::FERNITE_CARBIDE_REACTION_FORMULA, self::FERNITE_CARBIDE, 'reaction', 1, 4, 4, 12, 'Tatara'],
+            [self::FERNITE_CARBIDE_REACTION_FORMULA, self::FERNITE_CARBIDE, 'reaction', 1, 4, 0, 12, 'Tatara'],
             $this->copiedFieldsOf($addedStep),
         );
+        self::assertSame([4, 4], [$firstJob->getMeLevel(), $secondJob->getMeLevel()]);
         self::assertCount(4, $this->project->getSteps());
         self::assertInstanceOf(ProjectStepResource::class, $result);
         self::assertSame([4, 2], $this->runsAndSplitIndexOfResource($result));
@@ -277,6 +343,23 @@ final class CreateStepProcessorTest extends TestCase
         try {
             $this->post($this->splitGroupEntered(self::UNKNOWN_SPLIT_GROUP, runs: 4), $this->createStub(IndustryActivityProductRepository::class), $entityManager);
             self::fail('A step must not be added to an unknown split group.');
+        } catch (NotFoundHttpException $refusal) {
+            self::assertSame('Split group not found', $refusal->getMessage());
+        }
+
+        self::assertCount(3, $this->project->getSteps());
+    }
+
+    #[Group('issue-287')]
+    public function testStepAddedToASplitGroupIdThatIsNotAUuidIsRefusedAsSplitGroupNotFound(): void
+    {
+        $this->ferniteCarbideSplitGroup();
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->post($this->splitGroupEntered('g-1', runs: 4), $this->createStub(IndustryActivityProductRepository::class), $entityManager);
+            self::fail('A step must not be added to a split group id that is not a UUID.');
         } catch (NotFoundHttpException $refusal) {
             self::assertSame('Split group not found', $refusal->getMessage());
         }
@@ -302,7 +385,7 @@ final class CreateStepProcessorTest extends TestCase
         $everythingEntered->typeId = self::FERNITE_CARBIDE;
         $everythingEntered->splitGroupId = self::UNKNOWN_SPLIT_GROUP;
 
-        $this->post($everythingEntered, $this->createStub(IndustryActivityProductRepository::class), $this->createStub(EntityManagerInterface::class), $singleStep);
+        $this->post($everythingEntered, $this->productRepositoryWith($this->heliumFuelBlockBlueprint()), $this->createStub(EntityManagerInterface::class), $singleStep);
 
         self::assertSame([self::HELIUM_FUEL_BLOCK, 1, 10], [$this->addedStep()->getProductTypeId(), $this->addedStep()->getSplitIndex(), $this->addedStep()->getTotalGroupRuns()]);
     }
@@ -396,7 +479,16 @@ final class CreateStepProcessorTest extends TestCase
 
     private function ferniteCarbideSplitGroup(): array
     {
-        $this->project->addStep((new IndustryProjectStep())->setSplitGroupId(self::OTHER_SPLIT_GROUP)->setSplitIndex(3)->setRuns(9)->setTotalGroupRuns(30));
+        $this->project->addStep((new IndustryProjectStep())
+            ->setBlueprintTypeId(self::PHENOLIC_COMPOSITES_REACTION_FORMULA)
+            ->setProductTypeId(self::PHENOLIC_COMPOSITES)
+            ->setActivityType('reaction')
+            ->setRuns(9)
+            ->setQuantity(19_800)
+            ->setDepth(0)
+            ->setSplitGroupId(self::OTHER_SPLIT_GROUP)
+            ->setSplitIndex(3)
+            ->setTotalGroupRuns(30));
         $jobs = [];
         foreach ([0, 1] as $splitIndex) {
             $jobs[] = (new IndustryProjectStep())
@@ -423,6 +515,11 @@ final class CreateStepProcessorTest extends TestCase
     private function runsQuantitySplitIndexAndTotalGroupRunsOf(IndustryProjectStep $step): array
     {
         return [$step->getRuns(), $step->getQuantity(), $step->getSplitIndex(), $step->getTotalGroupRuns()];
+    }
+
+    private function runsQuantityRunsFixedSplitIndexAndTotalGroupRunsOf(IndustryProjectStep $step): array
+    {
+        return [$step->getRuns(), $step->getQuantity(), $step->isRunsFixed(), $step->getSplitIndex(), $step->getTotalGroupRuns()];
     }
 
     private function copiedFieldsOf(IndustryProjectStep $step): array
@@ -501,6 +598,7 @@ final class CreateStepProcessorTest extends TestCase
             $stepRepository,
             $invTypeRepository,
             $productRepository,
+            new IndustryStepCalculator($this->createStub(IndustryCalculationService::class), $this->createStub(IndustryActivityMaterialRepository::class), $productRepository, $entityManager),
             $mapper,
             $entityManager,
         );
