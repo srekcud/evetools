@@ -90,7 +90,7 @@ class ProductionCostService
                 continue;
             }
 
-            if ($step->isPurchased() || $step->isInStock()) {
+            if ($step->isPurchased() || $step->isInStock() || $step->getRuns() === 0) {
                 continue;
             }
 

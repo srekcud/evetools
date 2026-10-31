@@ -231,6 +231,7 @@ class IndustryResourceMapper
         $resource->purchased = $step->isPurchased();
         $resource->runsFixed = $step->isRunsFixed();
         $resource->inStockQuantity = $step->getInStockQuantity();
+        $resource->inStock = $step->isInStock();
         $resource->meLevel = $step->getMeLevel();
         $resource->teLevel = $step->getTeLevel();
         $resource->jobMatchMode = $step->getJobMatchMode();
@@ -319,14 +320,7 @@ class IndustryResourceMapper
         }
         $resource->purchasesCost = $step->getPurchasesCost();
 
-        // Sum purchased quantities (only matching the step's product type)
-        $purchasedQty = 0;
-        foreach ($step->getPurchases() as $purchase) {
-            if ($purchase->getTypeId() === $step->getProductTypeId()) {
-                $purchasedQty += $purchase->getQuantity();
-            }
-        }
-        $resource->purchasedQuantity = $purchasedQty;
+        $resource->purchasedQuantity = $step->purchasedQuantityOfProduct();
 
         // Similar jobs (all ESI jobs with same blueprint, preloaded)
         if ($this->similarJobsByBlueprint !== null) {

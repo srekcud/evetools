@@ -247,17 +247,21 @@ class IndustryProjectStep
 
     public function isInStock(): bool
     {
-        return $this->inStockQuantity >= $this->quantity;
+        $coveredQuantity = max($this->inStockQuantity, $this->purchasedQuantityOfProduct());
+
+        return $coveredQuantity > 0 && $coveredQuantity >= $this->quantity;
     }
 
     public function purchasedQuantityOfProduct(): int
     {
-        return 0;
-    }
+        $purchasedQuantity = 0;
+        foreach ($this->purchases as $purchase) {
+            if ($purchase->getTypeId() === $this->productTypeId) {
+                $purchasedQuantity += $purchase->getQuantity();
+            }
+        }
 
-    public function getMissingQuantity(): int
-    {
-        return max(0, $this->quantity - $this->inStockQuantity);
+        return $purchasedQuantity;
     }
 
     public function getJobMatchMode(): string
