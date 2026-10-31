@@ -9,6 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
+use App\Service\Industry\IndustryStepCalculator;
 use App\Service\UuidOrNotFound;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,6 +25,7 @@ class DeleteStepProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
+        private readonly IndustryStepCalculator $stepCalculator,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
