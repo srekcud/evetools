@@ -27,6 +27,7 @@ use App\Service\Industry\ProjectStepStructureResolver;
 use App\Service\JitaMarketService;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -776,6 +777,54 @@ class ProductionCostServiceTest extends TestCase
         self::assertSame([$this->installCostCallOfStepA(), $this->installCostCallOfStepB()], $calls->getArrayCopy());
     }
 
+    public static function stepBWhoseRunsDifferFromItsQuantityProvider(): iterable
+    {
+        yield '2 runs for 400 units, 200 in stock: counted on its 2 runs' => [2, 400, 200, 0, true];
+        yield '2 runs for 400 units, 400 in stock: ignored' => [2, 400, 400, 0, false];
+        yield '5 runs for 50 units, as many in stock as runs: counted' => [5, 50, 5, 0, true];
+        yield '5 runs for 50 units, as many of its product purchased as runs: counted' => [5, 50, 0, 5, true];
+        yield '5 runs for 50 units, 50 of its product purchased: ignored' => [5, 50, 0, 50, false];
+    }
+
+    #[Group('issue-182')]
+    #[DataProvider('stepBWhoseRunsDifferFromItsQuantityProvider')]
+    public function testEstimateJobInstallCostsComparesTheStockAndPurchasesOfAStepToItsQuantityNotToItsRuns(
+        int $runsOfB,
+        int $quantityOfB,
+        int $inStockQuantityOfB,
+        int $purchasedQuantityOfB,
+        bool $expectedStepBCounted,
+    ): void {
+        $purchasesOfB = $purchasedQuantityOfB > 0
+            ? [$this->purchaseOf(self::STEP_B_PRODUCT_TYPE_ID, $purchasedQuantityOfB, self::STEP_B_PRODUCT_UNIT_PRICE)]
+            : [];
+        $project = $this->projectWithStepAAndManufacturingStepB($runsOfB, $quantityOfB, $inStockQuantityOfB, ...$purchasesOfB);
+        $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        $expected = $expectedStepBCounted
+            ? [1500.0, [self::STEP_A_PRODUCT_TYPE_ID, self::STEP_B_PRODUCT_TYPE_ID], [$this->installCostCallOfStepA(), $this->installCostCallOfStepB($runsOfB)]]
+            : [1000.0, [self::STEP_A_PRODUCT_TYPE_ID], [$this->installCostCallOfStepA()]];
+        self::assertSame($expected, [$result['total'], array_column($result['steps'], 'productTypeId'), $calls->getArrayCopy()]);
+    }
+
+    #[Group('issue-182')]
+    public function testEstimateJobInstallCostsOfAStepOfZeroRunsWhoseEstimateWouldBeUnknownStaysKnown(): void
+    {
+        $project = $this->projectWithStepAAndManufacturingStepB(runsOfB: 0, quantityOfB: 0, inStockQuantityOfB: 0);
+        $calls = $this->recordInstallCostEstimates(fn (array $materials): array => $materials[0]['quantity'] === 100000
+            ? $this->installCostOf(1000.0)
+            : $this->unknownInstallCost('missing_cost_index'));
+
+        $result = $this->service->estimateJobInstallCosts($project);
+
+        self::assertSame(
+            [1000.0, [self::STEP_A_PRODUCT_TYPE_ID], [$this->installCostCallOfStepA()]],
+            [$result['total'], array_column($result['steps'], 'productTypeId'), $calls->getArrayCopy()],
+        );
+    }
+
     #[Group('issue-127')]
     public function testEstimateJobInstallCostsOfAPurchasedStepInASystemWithoutCostIndexStaysKnown(): void
     {
@@ -878,9 +927,9 @@ class ProductionCostServiceTest extends TestCase
         return [[['materialTypeId' => 34, 'quantity' => 100000]], 10, 30002510, 'manufacturing', 2.5];
     }
 
-    private function installCostCallOfStepB(): array
+    private function installCostCallOfStepB(int $runsOfB = 5): array
     {
-        return [[['materialTypeId' => 34, 'quantity' => 20000]], 5, 30002510, 'manufacturing', 2.5];
+        return [[['materialTypeId' => 34, 'quantity' => 20000]], $runsOfB, 30002510, 'manufacturing', 2.5];
     }
 
     private function stubSdeAndCostIndexOfStepsAAndB(): void

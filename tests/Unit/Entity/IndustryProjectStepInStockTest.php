@@ -65,6 +65,72 @@ final class IndustryProjectStepInStockTest extends TestCase
         self::assertSame($expectedPurchasedQuantity, $step->purchasedQuantityOfProduct());
     }
 
+    public function testNegativeStockIsStoredAsZero(): void
+    {
+        $step = (new IndustryProjectStep())->setInStockQuantity(-5);
+
+        self::assertSame(0, $step->getInStockQuantity());
+    }
+
+    public function testStepOfNegativeStockAndQuantityZeroIsNotInStock(): void
+    {
+        $step = $this->ferniteAlloyStep(0, -5, [], false);
+
+        self::assertFalse($step->isInStock());
+    }
+
+    public function testStockOfAStepIsComparedToItsQuantityNotToItsRuns(): void
+    {
+        $stepWithStockOfTwoHundred = $this->ferniteAlloyStep(400, 200, [], false)->setRuns(2);
+        $stepWithStockOfFourHundred = $this->ferniteAlloyStep(400, 400, [], false)->setRuns(2);
+
+        self::assertSame(
+            [false, true],
+            [$stepWithStockOfTwoHundred->isInStock(), $stepWithStockOfFourHundred->isInStock()],
+        );
+    }
+
+    public function testPurchasedQuantityOfAStepIgnoresAMaterialPurchasedAlongsideItsProduct(): void
+    {
+        $step = $this->ferniteAlloyStep(
+            100,
+            0,
+            [[self::FERNITE_ALLOY, 60], [self::HYDROGEN_FUEL_BLOCK, 500]],
+            false,
+        );
+
+        self::assertSame([60, false], [$step->purchasedQuantityOfProduct(), $step->isInStock()]);
+    }
+
+    public function testStepWhosePurchasedQuantityExceedsItsQuantityIsInStock(): void
+    {
+        $step = $this->ferniteAlloyStep(100, 0, [[self::FERNITE_ALLOY, 150]], false);
+
+        self::assertSame([150, true], [$step->purchasedQuantityOfProduct(), $step->isInStock()]);
+    }
+
+    public function testPurchaseOnOneJobOfASplitGroupLeavesTheOtherJobOutOfStock(): void
+    {
+        $firstJob = $this->ferniteAlloyStep(200, 0, [[self::FERNITE_ALLOY, 200]], false)
+            ->setRuns(1)
+            ->setSplitGroupId('fernite-alloy-split')
+            ->setSplitIndex(0)
+            ->setTotalGroupRuns(2);
+        $secondJob = $this->ferniteAlloyStep(200, 0, [], false)
+            ->setRuns(1)
+            ->setSplitGroupId('fernite-alloy-split')
+            ->setSplitIndex(1)
+            ->setTotalGroupRuns(2);
+
+        self::assertSame(
+            [[true, 200], [false, 0]],
+            [
+                [$firstJob->isInStock(), $firstJob->purchasedQuantityOfProduct()],
+                [$secondJob->isInStock(), $secondJob->purchasedQuantityOfProduct()],
+            ],
+        );
+    }
+
     private function ferniteAlloyStep(int $quantity, int $inStockQuantity, array $purchases, bool $markedPurchased): IndustryProjectStep
     {
         $step = (new IndustryProjectStep())
