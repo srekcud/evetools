@@ -66,6 +66,7 @@ class DeleteStepProcessor implements ProcessorInterface
         }
 
         $project->removeStep($step);
+        $this->entityManager->remove($step);
 
         try {
             $this->stepCalculator->recalculateStepQuantities($project);
