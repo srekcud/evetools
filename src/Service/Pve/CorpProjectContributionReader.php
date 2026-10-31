@@ -24,6 +24,8 @@ final readonly class CorpProjectContributionReader
     private const CACHE_TTL_CONTRIBUTORS = 300;
     private const HTTP_FORBIDDEN = 403;
     private const HTTP_NOT_FOUND = 404;
+    private const HTTP_ERROR_LIMITED = 420;
+    private const HTTP_RATE_LIMITED = 429;
     private const NETWORK_ERROR_STATUS = 0;
 
     public function __construct(
@@ -53,6 +55,9 @@ final readonly class CorpProjectContributionReader
             $readCorporationIds[] = $corporationId;
 
             $reading = $reading->merge($this->readCorporation($user, $character, $from, $accountedQuantities));
+            if ($reading->stopped) {
+                break;
+            }
         }
 
         return $reading;
@@ -94,6 +99,7 @@ final readonly class CorpProjectContributionReader
                     errors: [$this->readError($corporationName, null, null, $exception)],
                     refusedCharacterIds: $refusedCharacterIds,
                     scannedProjects: null,
+                    stopped: $this->isThrottling($exception),
                 );
             }
 
@@ -160,6 +166,9 @@ final readonly class CorpProjectContributionReader
                 $reading->refusedCharacterIds,
                 $accountedQuantities,
             ));
+            if ($reading->stopped) {
+                break;
+            }
         }
 
         return $reading;
@@ -194,6 +203,7 @@ final readonly class CorpProjectContributionReader
                 return new CorpProjectContributionReading(
                     errors: [$this->readError($corporationName, $projectName, null, $exception)],
                     scannedProjects: 1,
+                    stopped: $this->isThrottling($exception),
                 );
             }
             $contributorIds = null;
@@ -236,6 +246,7 @@ final readonly class CorpProjectContributionReader
             return new CorpProjectContributionReading(
                 errors: [...$errors, $this->readError($corporationName, $projectName, null, $exception)],
                 scannedProjects: 1,
+                stopped: $this->isThrottling($exception),
             );
         }
 
@@ -245,6 +256,7 @@ final readonly class CorpProjectContributionReader
 
         $contributions = [];
         $newlyRefusedCharacterIds = [];
+        $stopped = false;
 
         foreach ($askedCharacters as $characterId => $token) {
             $character = $corporationCharacters[$characterId];
@@ -309,10 +321,14 @@ final readonly class CorpProjectContributionReader
                     continue;
                 }
                 $errors[] = $this->readError($corporationName, $projectName, $character->getName(), $exception);
+                if ($this->isThrottling($exception)) {
+                    $stopped = true;
+                    break;
+                }
             }
         }
 
-        return new CorpProjectContributionReading($contributions, $errors, $newlyRefusedCharacterIds, 1);
+        return new CorpProjectContributionReading($contributions, $errors, $newlyRefusedCharacterIds, 1, $stopped);
     }
 
     private function readerRefusedAfterTheList(string $projectName): CorpProjectContributionReading
@@ -328,6 +344,12 @@ final readonly class CorpProjectContributionReader
     private function requiredListedField(array $project, string $field): mixed
     {
         return $project[$field] ?? throw new \UnexpectedValueException("ESI listed project has no '{$field}'");
+    }
+
+    private function isThrottling(EsiApiException|\UnexpectedValueException $exception): bool
+    {
+        return $exception instanceof EsiApiException
+            && in_array($exception->statusCode, [self::HTTP_ERROR_LIMITED, self::HTTP_RATE_LIMITED], true);
     }
 
     private function readError(string $corporationName, ?string $projectName, ?string $characterName, EsiApiException|\UnexpectedValueException $exception): CorporationProjectReadError

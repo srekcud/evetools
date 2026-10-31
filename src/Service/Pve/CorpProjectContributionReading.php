@@ -16,6 +16,7 @@ final readonly class CorpProjectContributionReading
         public array $errors = [],
         public array $refusedCharacterIds = [],
         public ?int $scannedProjects = 0,
+        public bool $stopped = false,
     ) {
     }
 
@@ -28,6 +29,7 @@ final readonly class CorpProjectContributionReading
             $this->scannedProjects === null || $other->scannedProjects === null
                 ? null
                 : $this->scannedProjects + $other->scannedProjects,
+            $this->stopped || $other->stopped,
         );
     }
 }

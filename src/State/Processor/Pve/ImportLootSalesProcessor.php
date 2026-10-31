@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Input\Pve\ImportLootSalesInput;
 use App\ApiResource\Pve\ImportResultResource;
+use App\Entity\Character;
 use App\Entity\PveIncome;
 use App\Entity\User;
 use App\Enum\PveIncomeType;
@@ -50,7 +51,7 @@ class ImportLootSalesProcessor implements ProcessorInterface
         $accountedQuantities = $this->contributionAccounting->accountedQuantitiesOf($user, $settings);
         foreach ($data->declined as $item) {
             if ($this->isCorpProjectContribution($item)) {
-                $pendingContribution = $this->pendingContributionOf($item, $accountedQuantities);
+                $pendingContribution = $this->pendingContributionOf($item, $user, $accountedQuantities);
                 if ($pendingContribution === null) {
                     $rejectedContributions++;
                 } else {
@@ -78,7 +79,7 @@ class ImportLootSalesProcessor implements ProcessorInterface
 
             $pendingContribution = null;
             if ($this->isCorpProjectContribution($saleData)) {
-                $pendingContribution = $this->pendingContributionOf($saleData, $accountedQuantities);
+                $pendingContribution = $this->pendingContributionOf($saleData, $user, $accountedQuantities);
                 if ($pendingContribution === null) {
                     $rejectedContributions++;
                     continue;
@@ -133,7 +134,7 @@ class ImportLootSalesProcessor implements ProcessorInterface
      *
      * @return array{projectId: string, characterId: int, quantity: int}|null
      */
-    private function pendingContributionOf(array $item, CorpProjectAccountedQuantities $accountedQuantities): ?array
+    private function pendingContributionOf(array $item, User $user, CorpProjectAccountedQuantities $accountedQuantities): ?array
     {
         if (!isset($item['projectId'], $item['characterId'], $item['quantity'], $item['accountedQuantity'])) {
             return null;
@@ -143,11 +144,19 @@ class ImportLootSalesProcessor implements ProcessorInterface
         $characterId = (int) $item['characterId'];
         $quantity = (int) $item['quantity'];
         if ($quantity <= 0
+            || !$this->isCharacterOf($user, $characterId)
             || $accountedQuantities->isLegacyIdentifierDeclined($projectId, $characterId)
             || $accountedQuantities->quantityOf($projectId, $characterId) !== (int) $item['accountedQuantity']) {
             return null;
         }
 
         return ['projectId' => $projectId, 'characterId' => $characterId, 'quantity' => $quantity];
+    }
+
+    private function isCharacterOf(User $user, int $eveCharacterId): bool
+    {
+        return $user->getCharacters()->exists(
+            static fn (int $key, Character $character): bool => $character->getEveCharacterId() === $eveCharacterId,
+        );
     }
 }
