@@ -701,7 +701,7 @@ function mergeGroup(stepId: string) {
                   <!-- ME/TE (not relevant for copy steps) -->
                   <template v-if="step.activityType !== 'copy'">
                     <template v-if="!readonly && !isLinkedToEsi(step)">
-                      <span class="inline-flex items-center gap-0.5" @click.stop>
+                      <span v-if="step.activityType !== 'reaction'" class="inline-flex items-center gap-0.5" @click.stop>
                         <span class="text-slate-500 text-xs">ME</span>
                         <input
                           type="number"
@@ -730,7 +730,7 @@ function mergeGroup(stepId: string) {
                       </span>
                     </template>
                     <template v-else>
-                      <span class="text-xs text-slate-600">ME{{ step.meLevel }}</span>
+                      <span v-if="step.activityType !== 'reaction'" class="text-xs text-slate-600">ME{{ step.meLevel }}</span>
                       <span class="text-xs text-slate-600">TE{{ step.teLevel }}</span>
                     </template>
                   </template>

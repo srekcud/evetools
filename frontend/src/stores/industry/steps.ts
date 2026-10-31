@@ -143,35 +143,17 @@ export const useStepsStore = defineStore('industry-steps', () => {
       if (splitGroupId) body.splitGroupId = splitGroupId
       else if (stepId) body.stepId = stepId
 
-      if (stepId) {
-        const response = await apiRequest<{ newStep: IndustryProjectStep; updatedStep: IndustryProjectStep }>(
-          `/industry/projects/${projectId}/steps`,
-          {
-            method: 'POST',
-            body: JSON.stringify(body),
-          },
-        )
-        if (projectsStore.currentProject?.id === projectId && projectsStore.currentProject.steps) {
-          const idx = projectsStore.currentProject.steps.findIndex(s => s.id === stepId)
-          if (idx !== -1) {
-            projectsStore.currentProject.steps[idx] = response.updatedStep
-          }
-          projectsStore.currentProject.steps.push(response.newStep)
-        }
-        return response.newStep
-      } else {
-        const step = await apiRequest<IndustryProjectStep>(
-          `/industry/projects/${projectId}/steps`,
-          {
-            method: 'POST',
-            body: JSON.stringify(body),
-          },
-        )
-        if (projectsStore.currentProject?.id === projectId && projectsStore.currentProject.steps) {
-          projectsStore.currentProject.steps.push(step)
-        }
-        return step
+      const response = await apiRequest<IndustryProjectStep | { newStep: IndustryProjectStep; updatedStep: IndustryProjectStep }>(
+        `/industry/projects/${projectId}/steps`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        },
+      )
+      if (projectsStore.currentProject?.id === projectId) {
+        await projectsStore.fetchProject(projectId)
       }
+      return 'newStep' in response ? response.newStep : response
     } catch (e) {
       projectsStore.error = e instanceof Error ? e.message : 'Failed to add child job'
       throw e
