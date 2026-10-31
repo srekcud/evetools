@@ -136,7 +136,7 @@ describe('projects store job matching', () => {
 
     await store.matchJobs(PROJECT_ID)
 
-    expect(store.currentProject?.steps).toEqual([{ ...matchedKestrelStep(), inStock: true }])
+    expect(store.currentProject?.steps).toEqual([matchedKestrelStep()])
     expect(store.currentProject?.jobsCost).toBe(734500.5)
   })
 
