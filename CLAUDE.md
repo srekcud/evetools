@@ -187,7 +187,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Cost indices | 2h |
 | Adjusted prices | 24h |
 | Ansiblex sync | 12h |
-| Purge notifications + historique marché | 1 jour |
+| Purge notifications + historique marché + listes d'achats partagées expirées | 1 jour |
 
 Les assets ne sont pas planifiés : sync à la demande (refresh, ou admin via `TriggerAssetsSync`).
 
