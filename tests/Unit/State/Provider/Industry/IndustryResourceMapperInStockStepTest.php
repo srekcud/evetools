@@ -11,6 +11,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\InventionService;
 use App\State\Provider\Industry\IndustryResourceMapper;
@@ -122,6 +123,7 @@ final class IndustryResourceMapperInStockStepTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
     }
 }

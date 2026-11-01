@@ -40,9 +40,11 @@ final class DeleteStepProcessorTest extends TestCase
     private const int BLUEPRINT_MISSING_FROM_THE_SDE = 999_999_999;
     private const string FERNITE_CARBIDE_SPLIT_GROUP = 'fernite-carbide';
     private const string FERNITE_ALLOY_SPLIT_GROUP = 'fernite-alloy';
+    private const string TITANIUM_CARBIDE_SPLIT_GROUP = 'titanium-carbide';
     private const string LINKED_TO_AN_ESI_JOB = 'Cannot delete a step linked to an ESI job';
     private const string LAST_STEP_OF_THE_PROJECT_PRODUCT = 'Cannot delete the last step of the project product';
     private const string HOLDING_PURCHASES_STOCK_OR_A_PURCHASED_MARK = 'Cannot delete a step holding purchases, stock or a purchased mark';
+    private const string MATERIAL_STEPS_WITHOUT_ANY_OTHER_CONSUMER = 'Cannot delete a step whose material steps have no other consumer; delete them first';
 
     private User $pilot;
     private IndustryProject $project;
@@ -278,18 +280,150 @@ final class DeleteStepProcessorTest extends TestCase
         self::assertSame([$hydrogenFuelBlockCopy], $this->removedEntities);
     }
 
-    public function testMaterialStepLeftWithoutConsumerByADeletedStepKeepsItsRunsAndQuantity(): void
+    public function testStepWhoseMaterialStepWouldBeLeftWithoutAnyOtherConsumerIsRefusedWithoutWritingAnything(): void
     {
-        $this->project->setProductTypeId(self::QUANTUM_MICROPROCESSOR);
-        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10);
-        $titaniumCarbide = $this->stepOfTheProject(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1, meLevel: 0);
-        $oxygenFuelBlock = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 5, depth: 2, meLevel: 10);
+        [$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock] = $this->quantumMicroprocessorProject();
+
+        $this->assertDeletionRefused($titaniumCarbide, self::MATERIAL_STEPS_WITHOUT_ANY_OTHER_CONSUMER);
+
+        self::assertSame(
+            [[$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock], [[32, 32], [1, 490], [1, 5]], [], []],
+            [$this->project->getSteps()->getValues(), array_map($this->runsAndQuantityOf(...), $this->project->getSteps()->getValues()), $this->projectAtEachFlush, $this->removedEntities],
+        );
+    }
+
+    public function testStepWhoseMaterialStepKeepsAnotherConsumerIsDeletedAndTheNeedOfTheMaterialStepIsRecalculated(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide, $phenolicComposites, $oxygenFuelBlock] = $this->quantumMicroprocessorProjectWithPhenolicComposites();
 
         $this->delete($titaniumCarbide);
 
         self::assertSame(
-            [[32, 32], [1, 5], [$quantumMicroprocessor, $oxygenFuelBlock]],
-            [$this->runsAndQuantityOf($quantumMicroprocessor), $this->runsAndQuantityOf($oxygenFuelBlock), $this->project->getSteps()->getValues()],
+            [[$quantumMicroprocessor, $phenolicComposites, $oxygenFuelBlock], [[32, 32], [1, 173], [1, 5]], [$titaniumCarbide]],
+            [$this->project->getSteps()->getValues(), array_map($this->runsAndQuantityOf(...), $this->project->getSteps()->getValues()), $this->removedEntities],
+        );
+    }
+
+    #[DataProvider('stockAndPurchasedMarkOfTheMaterialStep')]
+    public function testMaterialStepHoldingStockOrAPurchasedMarkDoesNotLetItsLastConsumerBeDeleted(int $inStockQuantity, bool $purchased): void
+    {
+        [, $titaniumCarbide, $oxygenFuelBlock] = $this->quantumMicroprocessorProject();
+        $oxygenFuelBlock->setInStockQuantity($inStockQuantity)->setPurchased($purchased);
+
+        $this->assertDeletionRefused($titaniumCarbide, self::MATERIAL_STEPS_WITHOUT_ANY_OTHER_CONSUMER);
+
+        self::assertSame([3, [], []], [\count($this->project->getSteps()), $this->projectAtEachFlush, $this->removedEntities]);
+    }
+
+    public static function stockAndPurchasedMarkOfTheMaterialStep(): iterable
+    {
+        yield 'purchased mark' => [0, true];
+        yield 'stock' => [5, false];
+    }
+
+    public function testProductAddedFromATypeWhoseMaterialStepWouldBeLeftWithoutAnyOtherConsumerIsRefused(): void
+    {
+        $this->ferniteCarbideProjectOfFourRuns();
+        $phenolicComposites = $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, 'reaction', runs: 4, quantity: 8_800, depth: 0, meLevel: 0);
+        $oxygenFuelBlock = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 20, depth: 1, meLevel: 10);
+
+        $this->assertDeletionRefused($phenolicComposites, self::MATERIAL_STEPS_WITHOUT_ANY_OTHER_CONSUMER);
+
+        self::assertSame([5, [1, 20], [], []], [\count($this->project->getSteps()), $this->runsAndQuantityOf($oxygenFuelBlock), $this->projectAtEachFlush, $this->removedEntities]);
+    }
+
+    public function testSingleStepHoldingStockWhoseMaterialStepWouldBeLeftWithoutAnyOtherConsumerIsRefusedForItsStockFirst(): void
+    {
+        [, $titaniumCarbide] = $this->quantumMicroprocessorProject();
+        $titaniumCarbide->setInStockQuantity(100);
+
+        $this->assertDeletionRefused($titaniumCarbide, self::HOLDING_PURCHASES_STOCK_OR_A_PURCHASED_MARK);
+    }
+
+    public function testStepLinkedToAnEsiJobWhoseMaterialStepWouldBeLeftWithoutAnyOtherConsumerIsRefusedForItsMatchedJobFirst(): void
+    {
+        [, $titaniumCarbide] = $this->quantumMicroprocessorProject();
+        $titaniumCarbide->addJobMatch($this->matchedJob(esiJobId: 7_202_401, runs: 1, status: 'active'));
+
+        $this->assertDeletionRefused($titaniumCarbide, self::LINKED_TO_AN_ESI_JOB);
+    }
+
+    #[DataProvider('splitGroupsOfTwoJobsOfTheSameProduct')]
+    public function testDeletedJobOfAProductWhoseOtherJobConsumesTheSameMaterialsIsNotRefused(string $deletedJobSplitGroup, string $keptJobSplitGroup, int $totalGroupRuns): void
+    {
+        $this->project->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
+        $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10);
+        $keptJob = $this->stepOfTheProject(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 245, depth: 1, meLevel: 0)
+            ->setSplitGroupId($keptJobSplitGroup)->setSplitIndex(0)->setTotalGroupRuns($totalGroupRuns);
+        $deletedJob = $this->stepOfTheProject(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 245, depth: 1, meLevel: 0)
+            ->setSplitGroupId($deletedJobSplitGroup)->setSplitIndex($deletedJobSplitGroup === $keptJobSplitGroup ? 1 : 0)->setTotalGroupRuns($totalGroupRuns);
+        $oxygenFuelBlock = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 10, depth: 2, meLevel: 10);
+
+        $this->delete($deletedJob);
+
+        self::assertSame(
+            [[1, 490], [1, 5], 3, [$deletedJob]],
+            [$this->runsAndQuantityOf($keptJob), $this->runsAndQuantityOf($oxygenFuelBlock), \count($this->project->getSteps()), $this->removedEntities],
+        );
+    }
+
+    public static function splitGroupsOfTwoJobsOfTheSameProduct(): iterable
+    {
+        yield 'same split group' => [self::TITANIUM_CARBIDE_SPLIT_GROUP, self::TITANIUM_CARBIDE_SPLIT_GROUP, 2];
+        yield 'another split group of the same product' => ['titanium-carbide-first', 'titanium-carbide-second', 1];
+    }
+
+    public function testOtherConsumerMarkedAsPurchasedKeepsTheMaterialStepConsumed(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide, $phenolicComposites, $oxygenFuelBlock] = $this->quantumMicroprocessorProjectWithPhenolicComposites();
+        $phenolicComposites->setPurchased(true);
+
+        $this->delete($titaniumCarbide);
+
+        self::assertSame(
+            [[$quantumMicroprocessor, $phenolicComposites, $oxygenFuelBlock], [$titaniumCarbide]],
+            [$this->project->getSteps()->getValues(), $this->removedEntities],
+        );
+    }
+
+    public function testCopyOfAMaterialIsNotAMaterialStepAndDoesNotKeepItsLastConsumerFromBeingDeleted(): void
+    {
+        $this->project->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
+        $quantumMicroprocessor = $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10);
+        $titaniumCarbide = $this->stepOfTheProject(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1, meLevel: 0);
+        $oxygenFuelBlockCopy = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, 'copy', runs: 1, quantity: 1, depth: 2, meLevel: 0);
+
+        $this->delete($titaniumCarbide);
+
+        self::assertSame(
+            [[$quantumMicroprocessor, $oxygenFuelBlockCopy], [1, 1], [$titaniumCarbide]],
+            [$this->project->getSteps()->getValues(), $this->runsAndQuantityOf($oxygenFuelBlockCopy), $this->removedEntities],
+        );
+    }
+
+    public function testStepWithoutMaterialsInTheSdeIsNotRefusedForTheStepsOfItsFormerMaterials(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock] = $this->quantumMicroprocessorProject();
+        $titaniumCarbide->setBlueprintTypeId(self::BLUEPRINT_MISSING_FROM_THE_SDE);
+
+        $this->delete($titaniumCarbide);
+
+        self::assertSame(
+            [[$quantumMicroprocessor, $oxygenFuelBlock], [1, 5], [$titaniumCarbide]],
+            [$this->project->getSteps()->getValues(), $this->runsAndQuantityOf($oxygenFuelBlock), $this->removedEntities],
+        );
+    }
+
+    public function testMaterialStepsDeletedFromTheBottomUpLetTheirLastConsumerBeDeleted(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock] = $this->quantumMicroprocessorProject();
+
+        $this->delete($oxygenFuelBlock);
+        $this->delete($titaniumCarbide);
+
+        self::assertSame(
+            [[$quantumMicroprocessor], [32, 32], [$oxygenFuelBlock, $titaniumCarbide]],
+            [$this->project->getSteps()->getValues(), $this->runsAndQuantityOf($quantumMicroprocessor), $this->removedEntities],
         );
     }
 
@@ -422,15 +556,7 @@ final class DeleteStepProcessorTest extends TestCase
         $projectRepository->expects(self::never())->method('find');
         $stepRepository = $this->createMock(IndustryProjectStepRepository::class);
         $stepRepository->expects(self::never())->method('find');
-        $entityManager = $this->entityManagerRecordingTheProjectAtEachFlush();
-        $productRepository = $this->productRepositoryOfTheGoldenBlueprints();
-        $processor = new DeleteStepProcessor(
-            $this->securityOfThePilot(),
-            $projectRepository,
-            $stepRepository,
-            $this->stepCalculatorOnGoldenSde($productRepository, $this->createStub(IndustryStructureConfigRepository::class), $entityManager),
-            $entityManager,
-        );
+        $processor = $this->processor($projectRepository, $stepRepository);
 
         $this->expectExceptionObject(new NotFoundHttpException('Project not found'));
 
@@ -452,6 +578,29 @@ final class DeleteStepProcessorTest extends TestCase
         return [
             $this->stepOfTheProject(self::FERNITE_CARBIDE, 'reaction', runs: 4, quantity: 40_000, depth: 0, meLevel: 0),
             ...$this->materialStepsOfFerniteCarbideProjectOfFourRuns(),
+        ];
+    }
+
+    private function quantumMicroprocessorProject(): array
+    {
+        $this->project->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
+
+        return [
+            $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10),
+            $this->stepOfTheProject(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1, meLevel: 0),
+            $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 5, depth: 2, meLevel: 10),
+        ];
+    }
+
+    private function quantumMicroprocessorProjectWithPhenolicComposites(): array
+    {
+        $this->project->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
+
+        return [
+            $this->stepOfTheProject(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0, meLevel: 10),
+            $this->stepOfTheProject(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1, meLevel: 0),
+            $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, 'reaction', runs: 1, quantity: 173, depth: 1, meLevel: 0),
+            $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 10, depth: 2, meLevel: 10),
         ];
     }
 
@@ -567,18 +716,22 @@ final class DeleteStepProcessorTest extends TestCase
         $projectRepository->method('find')->willReturn($this->project);
         $stepRepository = $this->createStub(IndustryProjectStepRepository::class);
         $stepRepository->method('find')->willReturn($stepFound);
-        $entityManager = $this->entityManagerRecordingTheProjectAtEachFlush();
-        $productRepository = $this->productRepositoryOfTheGoldenBlueprints();
 
-        $processor = new DeleteStepProcessor(
+        $this->processor($projectRepository, $stepRepository)->process(null, new Delete(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+    }
+
+    private function processor(IndustryProjectRepository $projectRepository, IndustryProjectStepRepository $stepRepository): DeleteStepProcessor
+    {
+        $entityManager = $this->entityManagerRecordingTheProjectAtEachFlush();
+
+        return self::autowired(DeleteStepProcessor::class, [
             $this->securityOfThePilot(),
             $projectRepository,
             $stepRepository,
-            $this->stepCalculatorOnGoldenSde($productRepository, $this->createStub(IndustryStructureConfigRepository::class), $entityManager),
+            $this->stepCalculatorOnGoldenSde($this->productRepositoryOfTheGoldenBlueprints(), $this->createStub(IndustryStructureConfigRepository::class), $entityManager),
             $entityManager,
-        );
-
-        $processor->process(null, new Delete(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+            $this->materialRepositoryOnGoldenSde(),
+        ]);
     }
 
     private function securityOfThePilot(): Security

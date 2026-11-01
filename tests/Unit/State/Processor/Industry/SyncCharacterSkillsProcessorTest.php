@@ -15,6 +15,7 @@ use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Industry\IndustryCalculationService;
@@ -23,6 +24,7 @@ use App\Service\Industry\TimePerRunCalculator;
 use App\Service\Sync\CharacterSyncFailure;
 use App\State\Processor\Industry\SyncCharacterSkillsProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
+use App\Tests\Unit\Service\Industry\AutowiresByType;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -37,6 +39,8 @@ use Symfony\Component\ErrorHandler\BufferingLogger;
 #[Group('issue-197')]
 final class SyncCharacterSkillsProcessorTest extends TestCase
 {
+    use AutowiresByType;
+
     private const string SKILLS_SCOPE = 'esi-skills.read_skills.v1';
     private const string JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
     private const string PILOT_ONE = 'Pilot One';
@@ -639,12 +643,13 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             $this->flushedCharacterNames[] = array_keys($this->persistedSkillsByCharacterName);
         });
 
-        $mapper = new IndustryResourceMapper(
+        $mapper = self::autowired(IndustryResourceMapper::class, [
             $this->createStub(IndustryCalculationService::class),
             $this->createStub(TimePerRunCalculator::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
-        );
+            $this->createStub(IndustryActivityMaterialRepository::class),
+        ]);
 
         $processor = new SyncCharacterSkillsProcessor(
             $security,

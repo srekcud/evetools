@@ -304,6 +304,7 @@ class IndustryProjectFactoryTest extends TestCase
             $this->skillRepository,
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
 
         return array_map(

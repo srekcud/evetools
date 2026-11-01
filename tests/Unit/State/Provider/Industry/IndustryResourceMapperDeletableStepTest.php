@@ -11,10 +11,11 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\InventionService;
 use App\State\Provider\Industry\IndustryResourceMapper;
-use App\Tests\Unit\Service\Industry\AutowiresByType;
+use App\Tests\Unit\Service\Industry\BuildsProjectOnGoldenSde;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -25,15 +26,18 @@ use PHPUnit\Framework\TestCase;
 #[Group('issue-202')]
 final class IndustryResourceMapperDeletableStepTest extends TestCase
 {
-    use AutowiresByType;
+    use BuildsProjectOnGoldenSde;
     use ResolvesTypeNamesFromSde;
 
     private const int FERNITE_CARBIDE = 16673;
     private const int FERNITE_ALLOY = 16656;
     private const int PHENOLIC_COMPOSITES = 16680;
-    private const int SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
+    private const int QUANTUM_MICROPROCESSOR = 11540;
+    private const int TITANIUM_CARBIDE = 16671;
+    private const int OXYGEN_FUEL_BLOCK = 4312;
     private const string FERNITE_CARBIDE_SPLIT_GROUP = 'fernite-carbide';
     private const string FERNITE_ALLOY_SPLIT_GROUP = 'fernite-alloy';
+    private const string TITANIUM_CARBIDE_SPLIT_GROUP = 'titanium-carbide';
 
     public function testOnlyTheStepsThatTheApiAcceptsToDeleteAreDeletable(): void
     {
@@ -94,9 +98,62 @@ final class IndustryResourceMapperDeletableStepTest extends TestCase
         self::assertSame([true], $this->deletableOf([$ferniteAlloy]));
     }
 
+    public function testStepWhoseMaterialStepWouldBeLeftWithoutAnyOtherConsumerIsNotDeletable(): void
+    {
+        $project = $this->quantumMicroprocessorProject();
+        $quantumMicroprocessor = $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
+        $titaniumCarbide = $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1);
+        $oxygenFuelBlock = $this->stepOf($project, self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 5, depth: 2);
+
+        self::assertSame([false, false, true], $this->deletableOf([$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock]));
+    }
+
+    public function testStepsWhoseMaterialStepKeepsAnotherConsumerAreDeletable(): void
+    {
+        $project = $this->quantumMicroprocessorProject();
+        $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
+        $titaniumCarbide = $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1);
+        $phenolicComposites = $this->stepOf($project, self::PHENOLIC_COMPOSITES, 'reaction', runs: 1, quantity: 173, depth: 1);
+        $oxygenFuelBlock = $this->stepOf($project, self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 10, depth: 2);
+
+        self::assertSame([true, true, true], $this->deletableOf([$titaniumCarbide, $phenolicComposites, $oxygenFuelBlock]));
+    }
+
+    public function testBothJobsOfASplitStepWhoseMaterialStepHasNoOtherConsumerAreDeletable(): void
+    {
+        $project = $this->quantumMicroprocessorProject();
+        $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
+        $titaniumCarbideJobs = array_map(
+            fn (int $splitIndex): IndustryProjectStep => $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 245, depth: 1)
+                ->setSplitGroupId(self::TITANIUM_CARBIDE_SPLIT_GROUP)->setSplitIndex($splitIndex)->setTotalGroupRuns(2),
+            [0, 1],
+        );
+        $this->stepOf($project, self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 10, depth: 2);
+
+        self::assertSame([true, true], $this->deletableOf($titaniumCarbideJobs));
+    }
+
+    public function testMaterialsOfAllTheStepsOfAProjectAreReadFromTheSdeOnce(): void
+    {
+        $project = $this->quantumMicroprocessorProject();
+        $steps = [
+            $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0),
+            $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1),
+            $this->stepOf($project, self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 5, depth: 2),
+        ];
+        $goldenMaterialRepository = $this->materialRepositoryOnGoldenSde();
+        $materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
+        $materialRepository->expects(self::once())->method('findMaterialEntitiesForBlueprints')->willReturnCallback($goldenMaterialRepository->findMaterialEntitiesForBlueprints(...));
+        $mapper = $this->mapper($materialRepository);
+
+        foreach ($steps as $step) {
+            $mapper->stepToResource($step);
+        }
+    }
+
     private function deletableOf(array $steps): array
     {
-        $mapper = $this->mapper();
+        $mapper = $this->mapper($this->materialRepositoryOnGoldenSde());
 
         return array_map(static fn (IndustryProjectStep $step): bool => $mapper->stepToResource($step)->deletable, $steps);
     }
@@ -104,6 +161,11 @@ final class IndustryResourceMapperDeletableStepTest extends TestCase
     private function ferniteCarbideProject(int $runs): IndustryProject
     {
         return (new IndustryProject())->setUser(new User())->setProductTypeId(self::FERNITE_CARBIDE)->setRuns($runs);
+    }
+
+    private function quantumMicroprocessorProject(): IndustryProject
+    {
+        return (new IndustryProject())->setUser(new User())->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
     }
 
     private function alloyJobOf(IndustryProject $project, int $splitIndex, int $runs): IndustryProjectStep
@@ -128,7 +190,7 @@ final class IndustryResourceMapperDeletableStepTest extends TestCase
         return $step;
     }
 
-    private function mapper(): IndustryResourceMapper
+    private function mapper(IndustryActivityMaterialRepository $materialRepository): IndustryResourceMapper
     {
         return self::autowired(IndustryResourceMapper::class, [
             $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock(),
@@ -137,6 +199,7 @@ final class IndustryResourceMapperDeletableStepTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $materialRepository,
         ]);
     }
 }

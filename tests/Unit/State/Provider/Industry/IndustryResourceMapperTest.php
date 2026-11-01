@@ -19,6 +19,7 @@ use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\StaStationRepository;
 use App\Service\Industry\IndustryBonusService;
@@ -56,6 +57,7 @@ class IndustryResourceMapperTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
 
         $tatara = new IndustryStructureConfig();
@@ -80,6 +82,7 @@ class IndustryResourceMapperTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
 
         $azbel = new IndustryStructureConfig();
@@ -103,6 +106,7 @@ class IndustryResourceMapperTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
 
         $station = new IndustryStructureConfig();
@@ -310,6 +314,7 @@ class IndustryResourceMapperTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
         $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null);
         $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 40, 10, 20);
@@ -522,6 +527,7 @@ class IndustryResourceMapperTest extends TestCase
             new TimePerRunCalculator($calculationService, $activityRepository, $this->createStub(EntityManagerInterface::class), $skillRepository),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
     }
 
@@ -534,6 +540,7 @@ class IndustryResourceMapperTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(CachedIndustryJobRepository::class),
             $this->createStub(InventionService::class),
+            $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
     }
 
