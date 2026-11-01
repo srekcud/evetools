@@ -19,11 +19,11 @@ use App\Service\ESI\TokenManager;
 use App\Service\Pve\CorpProjectContribution;
 use App\Service\Pve\CorpProjectContributionReader;
 use App\Service\Pve\CorporationProjectReadError;
+use App\Service\Pve\RequestedDays;
 use App\Service\UnknownTypeName;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -31,10 +31,6 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class ScanLootSalesProcessor implements ProcessorInterface
 {
-    private const int DEFAULT_SCAN_DAYS = 30;
-    private const int MINIMUM_SCAN_DAYS = 1;
-    private const int MAXIMUM_SCAN_DAYS = 3650;
-
     public function __construct(
         private readonly Security $security,
         private readonly EsiClient $esiClient,
@@ -57,7 +53,7 @@ class ScanLootSalesProcessor implements ProcessorInterface
         }
 
         $request = $this->requestStack->getCurrentRequest();
-        $days = $this->scannedDays($request?->query->get('days', self::DEFAULT_SCAN_DAYS) ?? self::DEFAULT_SCAN_DAYS);
+        $days = RequestedDays::fromRequest($request);
         $from = new \DateTimeImmutable("-{$days} days");
 
         $settings = $this->settingsRepository->getOrCreate($user);
@@ -332,16 +328,5 @@ class ScanLootSalesProcessor implements ProcessorInterface
         }
 
         return $names;
-    }
-
-    private function scannedDays(string|int $requestedDays): int
-    {
-        $days = filter_var($requestedDays, FILTER_VALIDATE_INT, ['options' => ['min_range' => self::MINIMUM_SCAN_DAYS, 'max_range' => self::MAXIMUM_SCAN_DAYS]]);
-
-        if ($days === false) {
-            throw new BadRequestHttpException(sprintf('days must be an integer between %d and %d', self::MINIMUM_SCAN_DAYS, self::MAXIMUM_SCAN_DAYS));
-        }
-
-        return $days;
     }
 }

@@ -15,6 +15,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\UserPveSettingsRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Pve\RequestedDays;
 use App\Service\UnknownTypeName;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -49,7 +50,7 @@ class ScanContractsProcessor implements ProcessorInterface
         }
 
         $request = $this->requestStack->getCurrentRequest();
-        $days = (int) ($request?->query->get('days', 30) ?? 30);
+        $days = RequestedDays::fromRequest($request);
         $from = new \DateTimeImmutable("-{$days} days");
 
         $settings = $this->settingsRepository->getOrCreate($user);

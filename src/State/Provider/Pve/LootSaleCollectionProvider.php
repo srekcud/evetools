@@ -10,6 +10,7 @@ use App\ApiResource\Pve\LootSaleResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
 use App\Repository\PveIncomeRepository;
+use App\Service\Pve\RequestedDays;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -36,7 +37,7 @@ class LootSaleCollectionProvider implements ProviderInterface
         }
 
         $request = $this->requestStack->getCurrentRequest();
-        $days = (int) ($request?->query->get('days', 30) ?? 30);
+        $days = RequestedDays::fromRequest($request);
         $from = new \DateTimeImmutable("-{$days} days");
         $to = new \DateTimeImmutable();
 
