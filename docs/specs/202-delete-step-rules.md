@@ -191,13 +191,15 @@ Restent verts (garde-fous) : `CreateStepProcessorAddedJobTest`, `UpdateStepFixed
 
 ### Q1 — Étapes orphelines après une suppression
 
+**Tranchée le 2026-11-01 par Sylvain : option A (refus, `deletable` à faux).** Règles, exemples et tests : [spec #202 Q1](202-q1-refuse-deleting-the-only-step-of-a-consumed-product.md). Le texte ci-dessous est l'état de la question avant la décision ; le message de refus retenu diffère (la marque « acheté » est refusée en profondeur 0).
+
 Supprimer la seule étape d'un produit laisse sans consommateur les étapes de ses matériaux qui n'en avaient pas d'autre (D-E12). La cascade ne les écrit pas : elles gardent runs et quantité, la liste d'achats achète leurs matériaux et l'arbre les montre comme des racines. Aujourd'hui c'est déjà le cas ; l'issue demande « les besoins des enfants recalculés » sans trancher ce cas. Chaque correction change un montant visible ou supprime des données :
 
 - **Option A (recommandée)** : refuser la suppression qui laisserait une étape de production sans consommateur, 400 `Cannot delete a step whose materials are made only for it; mark it as purchased instead`, rangé après R3. Aucune donnée supprimée, aucun montant changé en silence ; la marque « acheté » fait déjà ce que l'utilisateur cherche (le produit est acheté, ses matériaux ne sont plus fabriqués). Coût : la règle lit les matériaux du SDE (`findMaterialEntitiesForBlueprints`), donc `deletable` ne peut plus se calculer sans requête dans `stepToResource()` ; il faut un préchargement par projet (comme `preloadSimilarJobs()`) ou accepter que le bouton reste visible et que le refus s'affiche dans le bandeau.
 - **Option B** : besoin 0 pour les orphelines (runs 0, quantité 0, propagé à leurs matériaux). Pas de refus, mais des étapes à 0 run restent affichées, « en stock » au sens de `isInStock()` (#182).
 - **Option C** : supprimer les orphelines en cascade (refus si l'une est liée à un job ESI). Supprime des étapes, leurs achats et leur stock.
 
-Dans ce lot : comportement actuel (R10 f), D-E12 garde-fou.
+Dans ce lot : comportement actuel (R10 f), D-E12 garde-fou. Lot suivant : option A, D-E12 devient O-E1 de la spec #202 Q1.
 
 ### Q2 — Job fixé supprimé
 
