@@ -193,8 +193,8 @@ final class IndustryShoppingListBuilderFromStepsTest extends TestCase
         );
     }
 
-    #[Group('issue-182')]
-    public function testShoppingListOfAStepCoveredByThePurchasesOfItsProductEqualsTheListWithoutPurchase(): void
+    #[Group('issue-295')]
+    public function testCurrentlyShoppingListOfAStepCoveredByThePurchasesOfItsProductEqualsTheListWithoutPurchaseIssue295(): void
     {
         $projectWithPurchase = $this->oneRunOfFerniteCarbide();
         $ferniteAlloy = $this->onlyStepOf($projectWithPurchase, self::FERNITE_ALLOY);

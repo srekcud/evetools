@@ -718,8 +718,8 @@ class ProductionCostServiceTest extends TestCase
         self::assertSame([$this->installCostCallOfStepA()], $calls->getArrayCopy());
     }
 
-    #[Group('issue-182')]
-    public function testEstimateJobInstallCostsCountsAJobOfZeroQuantityWithRunsAndNeitherStockNorPurchase(): void
+    #[Group('issue-296')]
+    public function testCurrentlyEstimateJobInstallCostsCountsAJobOfZeroQuantityWithRunsAndNeitherStockNorPurchaseIssue296(): void
     {
         $project = $this->projectWithStepAAndManufacturingStepB(runsOfB: 5, quantityOfB: 0, inStockQuantityOfB: 0);
         $calls = $this->recordInstallCostEstimatesOfStepsAAndB();
