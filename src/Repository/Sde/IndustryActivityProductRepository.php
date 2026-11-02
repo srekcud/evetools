@@ -95,6 +95,15 @@ class IndustryActivityProductRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param int[] $productTypeIds
+     * @return array<int, true>
+     */
+    public function findT2ProductTypeIds(array $productTypeIds): array
+    {
+        return [];
+    }
+
+    /**
      * Bulk-fetch products for multiple blueprints, indexed by "typeId-activityId".
      *
      * Returns one product per (typeId, activityId) pair (the first found).
