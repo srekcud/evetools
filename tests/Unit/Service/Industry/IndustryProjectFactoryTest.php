@@ -218,7 +218,6 @@ class IndustryProjectFactoryTest extends TestCase
         );
         $skillRepository = $this->createStub(CachedCharacterSkillRepository::class);
         $skillRepository->method('findAllSkillsForCharacter')->willReturnCallback($skillsOf);
-        $skillRepository->method('findIndustrySkillsForCharacter')->willReturnCallback($skillsOf);
 
         return $skillRepository;
     }

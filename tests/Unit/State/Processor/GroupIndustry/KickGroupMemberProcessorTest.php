@@ -6,12 +6,14 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Delete;
 use App\Entity\Character;
+use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
@@ -40,7 +42,6 @@ class KickGroupMemberProcessorTest extends TestCase
     private Security&Stub $security;
     private GroupIndustryProjectRepository&Stub $projectRepository;
     private GroupIndustryProjectMemberRepository&Stub $memberRepository;
-    private GroupIndustryContributionRepository&MockObject $contributionRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
     private KickGroupMemberProcessor $processor;
@@ -54,7 +55,6 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->security = $this->createStub(Security::class);
         $this->projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
         $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
-        $this->contributionRepository = $this->createMock(GroupIndustryContributionRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
 
@@ -65,7 +65,6 @@ class KickGroupMemberProcessorTest extends TestCase
             $this->entityManager,
             new GroupProjectAccessChecker($this->memberRepository),
             new MercurePublisherService($this->hub, new NullLogger()),
-            $this->contributionRepository,
         );
 
         $this->owner = $this->createStub(User::class);
@@ -212,7 +211,6 @@ class KickGroupMemberProcessorTest extends TestCase
         $memberId = Uuid::v4();
         $member = $this->acceptedMember($memberId, 'Kicked Pilot');
         $this->memberRepository->method('find')->willReturn($member);
-        $this->contributionRepository->method('countByMember')->willReturn(0);
 
         $this->hub
             ->expects($this->once())
@@ -240,7 +238,6 @@ class KickGroupMemberProcessorTest extends TestCase
         $memberId = Uuid::v4();
         $member = $this->acceptedMember($memberId, 'Kicked Pilot');
         $this->memberRepository->method('find')->willReturn($member);
-        $this->contributionRepository->method('countByMember')->willReturn(0);
 
         $this->hub->expects($this->once())->method('publish');
         $this->entityManager->expects($this->never())->method('remove');
@@ -259,7 +256,7 @@ class KickGroupMemberProcessorTest extends TestCase
         $memberId = Uuid::v4();
         $member = $this->acceptedMember($memberId, 'Contributor Pilot');
         $this->memberRepository->method('find')->willReturn($member);
-        $this->contributionRepository->method('countByMember')->willReturn(1);
+        $contribution = $this->contributionOf($member, ContributionType::Material, 1200, 4_500_000.0, ContributionStatus::Approved);
 
         $this->hub
             ->expects($this->once())
@@ -279,6 +276,13 @@ class KickGroupMemberProcessorTest extends TestCase
 
         self::assertSame('removed', $member->getStatus()->value);
         self::assertSame('member', $member->getRole()->value);
+        self::assertSame($member, $contribution->getMember());
+        self::assertSame(['approved', 'material', 1200, 4_500_000.0], [
+            $contribution->getStatus()->value,
+            $contribution->getType()->value,
+            $contribution->getQuantity(),
+            $contribution->getEstimatedValue(),
+        ]);
     }
 
     public function testAdminSoftRemovesMemberWithContributions(): void
@@ -288,7 +292,11 @@ class KickGroupMemberProcessorTest extends TestCase
         $memberId = Uuid::v4();
         $member = $this->acceptedMember($memberId, 'Contributor Pilot');
         $this->memberRepository->method('find')->willReturn($member);
-        $this->contributionRepository->method('countByMember')->willReturn(3);
+        $contributions = [
+            $this->contributionOf($member, ContributionType::Material, 350, 1_750_000.0, ContributionStatus::Approved),
+            $this->contributionOf($member, ContributionType::JobInstall, 1, 820_000.0, ContributionStatus::Pending),
+            $this->contributionOf($member, ContributionType::Bpc, 10, 2_300_000.0, ContributionStatus::Rejected),
+        ];
 
         $this->hub->expects($this->once())->method('publish');
         $this->entityManager->expects($this->never())->method('remove');
@@ -297,6 +305,17 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->kick($memberId);
 
         self::assertSame('removed', $member->getStatus()->value);
+        self::assertSame([
+            [$member, 'approved', 'material', 350, 1_750_000.0],
+            [$member, 'pending', 'job_install', 1, 820_000.0],
+            [$member, 'rejected', 'bpc', 10, 2_300_000.0],
+        ], array_map(static fn (GroupIndustryContribution $contribution): array => [
+            $contribution->getMember(),
+            $contribution->getStatus()->value,
+            $contribution->getType()->value,
+            $contribution->getQuantity(),
+            $contribution->getEstimatedValue(),
+        ], $contributions));
     }
 
     public function testOwnerSoftRemovesPendingMember(): void
@@ -408,6 +427,22 @@ class KickGroupMemberProcessorTest extends TestCase
         (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($member, $memberId);
 
         return $member;
+    }
+
+    private function contributionOf(
+        GroupIndustryProjectMember $member,
+        ContributionType $type,
+        int $quantity,
+        float $estimatedValue,
+        ContributionStatus $status,
+    ): GroupIndustryContribution {
+        return (new GroupIndustryContribution())
+            ->setProject($this->project)
+            ->setMember($member)
+            ->setType($type)
+            ->setQuantity($quantity)
+            ->setEstimatedValue($estimatedValue)
+            ->setStatus($status);
     }
 
     private function kick(Uuid $memberId): void
