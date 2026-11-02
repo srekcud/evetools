@@ -253,6 +253,22 @@ trait BuildsProjectOnGoldenSde
         return $materialRepository;
     }
 
+    private function materialRepositoryOnGoldenSdeWithoutTheBlueprintOf(int $productTypeId): IndustryActivityMaterialRepository
+    {
+        $goldenMaterialRepository = $this->materialRepositoryOnGoldenSde();
+        $missingBlueprintKeyPrefix = ($productTypeId + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET).'-';
+        $materialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
+        $materialRepository->method('findMaterialEntitiesForBlueprints')->willReturnCallback(
+            static fn (array $blueprintTypeIds, array $activityIds): array => array_filter(
+                $goldenMaterialRepository->findMaterialEntitiesForBlueprints($blueprintTypeIds, $activityIds),
+                static fn (string $blueprintKey): bool => !str_starts_with($blueprintKey, $missingBlueprintKeyPrefix),
+                \ARRAY_FILTER_USE_KEY,
+            ),
+        );
+
+        return $materialRepository;
+    }
+
     private function activityRepositoryOnGoldenSde(): IndustryActivityRepository
     {
         $activityRepository = $this->createStub(IndustryActivityRepository::class);

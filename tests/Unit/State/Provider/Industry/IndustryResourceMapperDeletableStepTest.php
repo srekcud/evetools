@@ -133,6 +133,23 @@ final class IndustryResourceMapperDeletableStepTest extends TestCase
         self::assertSame([true, true], $this->deletableOf($titaniumCarbideJobs));
     }
 
+    public function testNoStepOfAProjectWithABlueprintMissingFromTheSdeIsDeletable(): void
+    {
+        $project = $this->quantumMicroprocessorProject();
+        $steps = [
+            $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0),
+            $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1),
+            $this->stepOf($project, self::PHENOLIC_COMPOSITES, 'reaction', runs: 1, quantity: 173, depth: 1),
+            $this->stepOf($project, self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 10, depth: 2),
+        ];
+        $mapper = $this->mapper($this->materialRepositoryOnGoldenSdeWithoutTheBlueprintOf(self::QUANTUM_MICROPROCESSOR));
+
+        self::assertSame(
+            [false, false, false, false],
+            array_map(static fn (IndustryProjectStep $step): bool => $mapper->stepToResource($step)->deletable, $steps),
+        );
+    }
+
     public function testMaterialsOfAllTheStepsOfAProjectAreReadFromTheSdeOnce(): void
     {
         $project = $this->quantumMicroprocessorProject();

@@ -139,13 +139,6 @@ final class IndustryProjectRefusalToDeleteStepTest extends TestCase
         self::assertSame([null, null], $this->refusalsToDelete([$titaniumCarbide, $oxygenFuelBlockCopy]));
     }
 
-    public function testStepWithoutMaterialsInTheSdeIsNotRefusedForTheStepsOfItsFormerMaterials(): void
-    {
-        [, $titaniumCarbide] = $this->quantumMicroprocessorProject();
-
-        self::assertNull($this->project->refusalToDeleteStep($titaniumCarbide, static fn (IndustryProjectStep $step): array => []));
-    }
-
     private function refusalsToDelete(array $steps): array
     {
         return array_map(

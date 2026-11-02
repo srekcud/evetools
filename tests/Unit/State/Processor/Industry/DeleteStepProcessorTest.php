@@ -10,9 +10,11 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\State\Processor\Industry\DeleteStepProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -45,6 +47,7 @@ final class DeleteStepProcessorTest extends TestCase
     private const string LAST_STEP_OF_THE_PROJECT_PRODUCT = 'Cannot delete the last step of the project product';
     private const string HOLDING_PURCHASES_STOCK_OR_A_PURCHASED_MARK = 'Cannot delete a step holding purchases, stock or a purchased mark';
     private const string MATERIAL_STEPS_WITHOUT_ANY_OTHER_CONSUMER = 'Cannot delete a step whose material steps have no other consumer; delete them first';
+    private const string MATERIALS_OF_A_BLUEPRINT_MISSING_FROM_THE_SDE = 'Cannot delete a step while the materials of a blueprint of the project are missing from the SDE';
 
     private User $pilot;
     private IndustryProject $project;
@@ -401,16 +404,28 @@ final class DeleteStepProcessorTest extends TestCase
         );
     }
 
-    public function testStepWithoutMaterialsInTheSdeIsNotRefusedForTheStepsOfItsFormerMaterials(): void
+    public function testStepWhoseBlueprintIsMissingFromTheSdeIsRefusedWithoutWritingAnything(): void
     {
         [$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock] = $this->quantumMicroprocessorProject();
         $titaniumCarbide->setBlueprintTypeId(self::BLUEPRINT_MISSING_FROM_THE_SDE);
 
-        $this->delete($titaniumCarbide);
+        $this->assertDeletionRefused($titaniumCarbide, self::MATERIALS_OF_A_BLUEPRINT_MISSING_FROM_THE_SDE);
 
         self::assertSame(
-            [[$quantumMicroprocessor, $oxygenFuelBlock], [1, 5], [$titaniumCarbide]],
-            [$this->project->getSteps()->getValues(), $this->runsAndQuantityOf($oxygenFuelBlock), $this->removedEntities],
+            [[$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock], [[32, 32], [1, 490], [1, 5]], [], []],
+            [$this->project->getSteps()->getValues(), array_map($this->runsAndQuantityOf(...), $this->project->getSteps()->getValues()), $this->projectAtEachFlush, $this->removedEntities],
+        );
+    }
+
+    public function testStepIsRefusedWithoutWritingAnythingWhileTheMaterialsOfAnotherBlueprintOfTheProjectAreMissingFromTheSde(): void
+    {
+        [$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock] = $this->quantumMicroprocessorProject();
+
+        $this->assertDeletionRefused($oxygenFuelBlock, self::MATERIALS_OF_A_BLUEPRINT_MISSING_FROM_THE_SDE, $this->materialRepositoryOnGoldenSdeWithoutTheBlueprintOf(self::QUANTUM_MICROPROCESSOR));
+
+        self::assertSame(
+            [[$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock], [[32, 32], [1, 490], [1, 5]], [], []],
+            [$this->project->getSteps()->getValues(), array_map($this->runsAndQuantityOf(...), $this->project->getSteps()->getValues()), $this->projectAtEachFlush, $this->removedEntities],
         );
     }
 
@@ -525,7 +540,7 @@ final class DeleteStepProcessorTest extends TestCase
         [, , $secondAlloyJob, $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTenRuns();
         $hydrogenFuelBlock->setBlueprintTypeId(self::BLUEPRINT_MISSING_FROM_THE_SDE);
 
-        $this->assertDeletionRefused($secondAlloyJob, 'Product of blueprint 999999999 missing from the SDE');
+        $this->assertDeletionRefused($secondAlloyJob, 'Product of blueprint 999999999 missing from the SDE', $this->materialRepositoryOnGoldenSdeGivingTheMaterialsOfHydrogenFuelBlockToTheBlueprintMissingFromTheSde());
 
         self::assertSame([], $this->projectAtEachFlush);
     }
@@ -556,17 +571,17 @@ final class DeleteStepProcessorTest extends TestCase
         $projectRepository->expects(self::never())->method('find');
         $stepRepository = $this->createMock(IndustryProjectStepRepository::class);
         $stepRepository->expects(self::never())->method('find');
-        $processor = $this->processor($projectRepository, $stepRepository);
+        $processor = $this->processor($projectRepository, $stepRepository, $this->materialRepositoryOnGoldenSde());
 
         $this->expectExceptionObject(new NotFoundHttpException('Project not found'));
 
         $processor->process(null, new Delete(), ['id' => 'fernite-carbide', 'stepId' => 'fernite-alloy']);
     }
 
-    private function assertDeletionRefused(IndustryProjectStep $step, string $refusal): void
+    private function assertDeletionRefused(IndustryProjectStep $step, string $refusal, ?IndustryActivityMaterialRepository $materialRepository = null): void
     {
         try {
-            $this->delete($step);
+            $this->delete($step, $materialRepository);
             self::fail(\sprintf('The deletion must be refused with "%s".', $refusal));
         } catch (BadRequestHttpException $exception) {
             self::assertSame($refusal, $exception->getMessage());
@@ -710,17 +725,18 @@ final class DeleteStepProcessorTest extends TestCase
         return $entityManager;
     }
 
-    private function delete(IndustryProjectStep $stepFound): void
+    private function delete(IndustryProjectStep $stepFound, ?IndustryActivityMaterialRepository $materialRepository = null): void
     {
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($this->project);
         $stepRepository = $this->createStub(IndustryProjectStepRepository::class);
         $stepRepository->method('find')->willReturn($stepFound);
 
-        $this->processor($projectRepository, $stepRepository)->process(null, new Delete(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+        $this->processor($projectRepository, $stepRepository, $materialRepository ?? $this->materialRepositoryOnGoldenSde())
+            ->process(null, new Delete(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
     }
 
-    private function processor(IndustryProjectRepository $projectRepository, IndustryProjectStepRepository $stepRepository): DeleteStepProcessor
+    private function processor(IndustryProjectRepository $projectRepository, IndustryProjectStepRepository $stepRepository, IndustryActivityMaterialRepository $materialRepository): DeleteStepProcessor
     {
         $entityManager = $this->entityManagerRecordingTheProjectAtEachFlush();
 
@@ -730,8 +746,22 @@ final class DeleteStepProcessorTest extends TestCase
             $stepRepository,
             $this->stepCalculatorOnGoldenSde($this->productRepositoryOfTheGoldenBlueprints(), $this->createStub(IndustryStructureConfigRepository::class), $entityManager),
             $entityManager,
-            $this->materialRepositoryOnGoldenSde(),
+            $materialRepository,
         ]);
+    }
+
+    private function materialRepositoryOnGoldenSdeGivingTheMaterialsOfHydrogenFuelBlockToTheBlueprintMissingFromTheSde(): IndustryActivityMaterialRepository
+    {
+        $goldenMaterialRepository = $this->materialRepositoryOnGoldenSde();
+        $materialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
+        $materialRepository->method('findMaterialEntitiesForBlueprints')->willReturnCallback(
+            static fn (array $blueprintTypeIds, array $activityIds): array => [
+                ...$goldenMaterialRepository->findMaterialEntitiesForBlueprints($blueprintTypeIds, $activityIds),
+                self::BLUEPRINT_MISSING_FROM_THE_SDE.'-'.IndustryActivityType::Manufacturing->value => self::activityMaterials(self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, IndustryActivityType::Manufacturing->value),
+            ],
+        );
+
+        return $materialRepository;
     }
 
     private function securityOfThePilot(): Security
