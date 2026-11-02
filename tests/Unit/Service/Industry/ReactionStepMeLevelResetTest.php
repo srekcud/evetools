@@ -11,11 +11,15 @@ use App\Entity\IndustryStepPurchase;
 use App\Entity\User;
 use App\Enum\ProjectCorrectionStatus;
 use App\Enum\ProjectStatus;
+use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryStepCalculator;
 use App\Service\Industry\ProjectCorrectionOutcome;
 use App\Service\Industry\ReactionStepMeLevelReset;
 use App\Service\Mercure\MercurePublisherService;
+use Doctrine\DBAL\Driver\PDO\Exception as PdoDriverException;
+use Doctrine\DBAL\Exception\DeadlockException;
+use Doctrine\DBAL\Query;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversMethod;
@@ -44,7 +48,8 @@ final class ReactionStepMeLevelResetTest extends TestCase
     private const int FERNITE_ALLOY_OUTPUT_PER_RUN = 200;
     private const int FERNITE_CARBIDE_OUTPUT_PER_RUN = 10_000;
     private const string FERNITE_ALLOY_SPLIT_GROUP = 'fernite-alloy';
-    private const string FLUSH_FAILURE = 'SQLSTATE[40P01]: Deadlock detected';
+    private const string DEADLOCK_DETECTED_BY_POSTGRESQL = 'SQLSTATE[40P01]: Deadlock detected: 7 ERROR:  deadlock detected DETAIL:  Process 4242 waits for ShareLock on transaction 9001; blocked by process 4343.';
+    private const string NAME_GIVEN_BY_THE_OWNER = '[GOONS] Mittani alt - Keepstar fuel stash';
     private const string FERNITE_CARBIDE_AT_ME_TEN_RESET = '1 reaction steps ME 10 -> 0, 2 steps recalculated, steps 3 -> 3';
 
     private array $stepsAtEachFlush = [];
@@ -68,6 +73,20 @@ final class ReactionStepMeLevelResetTest extends TestCase
         self::assertSame([[[0, 20, 200_000], [0, 10, 2_000], [10, 4, 150]]], $this->stepsAtEachFlush);
         self::assertSame(self::PROJECT_ME_LEVEL, $project->getMeLevel());
         self::assertSame([['/user/'.self::PILOT_ID.'/sync/industry-project', 'completed']], $this->topicsAndStatusesOfThePublishedUpdates());
+    }
+
+    #[Group('issue-301')]
+    public function testProjectNamedByItsOwnerIsReportedUnderTheSdeNameOfItsProductOnly(): void
+    {
+        $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135)
+            ->setName(self::NAME_GIVEN_BY_THE_OWNER);
+
+        $outcomes = $this->resetOf($project)->run(true);
+
+        self::assertSame(
+            [[self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Changed, self::FERNITE_CARBIDE_AT_ME_TEN_RESET, null]],
+            self::summaryOf($outcomes),
+        );
     }
 
     public function testDryRunReportsTheSameLineAndNeitherFlushesNorPublishes(): void
@@ -174,6 +193,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
         self::assertSame([[10, 5, 5], [10, 1, 1]], self::meRunsAndQuantityOfEachStep($rifterProject));
     }
 
+    #[Group('issue-301')]
     public function testProjectWithAChildWithoutProductInTheSdeFailsWithoutFlushAndTheNextProjectIsReset(): void
     {
         $projectWithAChildWithoutProduct = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135, ferniteAlloyBlueprintTypeId: self::BLUEPRINT_MISSING_FROM_THE_SDE);
@@ -183,7 +203,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
 
         self::assertSame(
             [
-                [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, 'Product of blueprint 999999999 missing from the SDE'],
+                [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, BlueprintProductMissingFromSdeException::class.': Product of blueprint 999999999 missing from the SDE'],
                 [self::SECOND_FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Changed, self::FERNITE_CARBIDE_AT_ME_TEN_RESET, null],
             ],
             self::summaryOf($outcomes),
@@ -192,6 +212,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
         self::assertSame([['/user/'.self::PILOT_ID.'/sync/industry-project', 'completed']], $this->topicsAndStatusesOfThePublishedUpdates());
     }
 
+    #[Group('issue-301')]
     public function testDryRunReportsTheFailedAndTheResetProjectWithoutFlushingOrPublishing(): void
     {
         $projectWithAChildWithoutProduct = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135, ferniteAlloyBlueprintTypeId: self::BLUEPRINT_MISSING_FROM_THE_SDE);
@@ -201,7 +222,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
 
         self::assertSame(
             [
-                [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, 'Product of blueprint 999999999 missing from the SDE'],
+                [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, BlueprintProductMissingFromSdeException::class.': Product of blueprint 999999999 missing from the SDE'],
                 [self::SECOND_FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Changed, self::FERNITE_CARBIDE_AT_ME_TEN_RESET, null],
             ],
             self::summaryOf($outcomes),
@@ -210,6 +231,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
         self::assertSame([], $this->topicsAndStatusesOfThePublishedUpdates());
     }
 
+    #[Group('issue-301')]
     public function testFlushClosingTheEntityManagerFailsTheProjectAndLeavesTheNextProjectNotProcessed(): void
     {
         $firstProject = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135);
@@ -220,7 +242,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
 
         self::assertSame(
             [
-                [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, self::FLUSH_FAILURE],
+                [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, DeadlockException::class],
                 [self::SECOND_FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, 'not processed: the entity manager was closed by the failure of project '.self::FERNITE_CARBIDE_PROJECT_ID],
             ],
             self::summaryOf($outcomes),
@@ -337,6 +359,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
         );
     }
 
+    #[Group('issue-301')]
     public function testOwnerWithoutIdentifierFailsTheProjectBeforeAnyFlush(): void
     {
         $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135)
@@ -345,13 +368,14 @@ final class ReactionStepMeLevelResetTest extends TestCase
         $outcomes = $this->resetOf($project)->run(false);
 
         self::assertSame(
-            [[self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, 'A project owner read from the database has no identifier']],
+            [[self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, 'LogicException: A project owner read from the database has no identifier']],
             self::summaryOf($outcomes),
         );
         self::assertSame(['clear'], $this->entityManagerCalls);
         self::assertSame([], $this->topicsAndStatusesOfThePublishedUpdates());
     }
 
+    #[Group('issue-301')]
     public function testProjectWithoutIdentifierFailsBeforeAnyFlush(): void
     {
         $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135);
@@ -360,7 +384,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
         $outcomes = $this->resetReadingEachProjectUnderItsId([self::FERNITE_CARBIDE_PROJECT_ID => $project])->run(false);
 
         self::assertSame(
-            [[self::FERNITE_CARBIDE_PROJECT_ID, 'type 16673 (name missing from the SDE)', 20, ProjectCorrectionStatus::Failed, null, 'A project read from the database has no identifier']],
+            [[self::FERNITE_CARBIDE_PROJECT_ID, 'type 16673 (name missing from the SDE)', 20, ProjectCorrectionStatus::Failed, null, 'LogicException: A project read from the database has no identifier']],
             self::summaryOf($outcomes),
         );
         self::assertSame(['clear'], $this->entityManagerCalls);
@@ -497,7 +521,10 @@ final class ReactionStepMeLevelResetTest extends TestCase
         $entityManager->method('flush')->willReturnCallback(static function () use (&$isOpen): void {
             $isOpen = false;
 
-            throw new \RuntimeException(self::FLUSH_FAILURE);
+            throw new DeadlockException(
+                PdoDriverException::new(new \PDOException(self::DEADLOCK_DETECTED_BY_POSTGRESQL)),
+                new Query('UPDATE industry_project_steps SET me_level = ? WHERE id = ?', [0, 4242], []),
+            );
         });
 
         return $entityManager;

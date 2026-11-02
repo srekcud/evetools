@@ -10,6 +10,8 @@ use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
 use App\Enum\ProjectCorrectionStatus;
 use App\Enum\ProjectStatus;
+use App\Exception\ProducerMissingFromSdeException;
+use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\MultiUnitProjectStepsRegeneration;
 use App\Service\Industry\ProjectCorrectionOutcome;
@@ -177,6 +179,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
         self::assertSame([[1, 25]], self::runsAndQuantityOfEachJob($this->rootJobsOf($project)));
     }
 
+    #[Group('issue-301')]
     public function testProjectWhoseProductHasNoProducerInTheSdeFailsAndTheNextProjectIsRegenerated(): void
     {
         $roboticsProject = $this->identified(
@@ -189,13 +192,14 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
 
         self::assertSame(
             [
-                [self::ROBOTICS_PROJECT_ID, 'Robotics', self::ROBOTICS_RUNS, ProjectCorrectionStatus::Failed, null, 'No blueprint or reaction found for product type ID 9848'],
+                [self::ROBOTICS_PROJECT_ID, 'Robotics', self::ROBOTICS_RUNS, ProjectCorrectionStatus::Failed, null, ProducerMissingFromSdeException::class.': No blueprint or reaction found for product type ID 9848'],
                 [self::NITROGEN_FUEL_BLOCK_PROJECT_ID, 'Nitrogen Fuel Block', self::NITROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Changed, self::NITROGEN_FUEL_BLOCK_CHANGE, null],
             ],
             self::summaryOf($outcomes),
         );
     }
 
+    #[Group('issue-301')]
     public function testProjectWhosePreviewFailsKeepsItsStepsAndTheNextProjectIsRegenerated(): void
     {
         $this->typeIdsMissingFromSde = [self::HYDROGEN_ISOTOPES];
@@ -207,7 +211,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
 
         self::assertSame(
             [
-                [self::HYDROGEN_FUEL_BLOCK_PROJECT_ID, 'Hydrogen Fuel Block', self::HYDROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Failed, null, 'Types missing from the SDE: 17889'],
+                [self::HYDROGEN_FUEL_BLOCK_PROJECT_ID, 'Hydrogen Fuel Block', self::HYDROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Failed, null, TypeMissingFromSdeException::class.': Types missing from the SDE: 17889'],
                 [self::NITROGEN_FUEL_BLOCK_PROJECT_ID, 'Nitrogen Fuel Block', self::NITROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Changed, self::NITROGEN_FUEL_BLOCK_CHANGE, null],
             ],
             self::summaryOf($outcomes),
@@ -351,6 +355,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
         self::assertSame($realOutcome->change, $dryRunOutcome->change);
     }
 
+    #[Group('issue-301')]
     public function testProjectWhosePreviewFailsAfterThePlanChangedItsFixedRunsJobIsClearedBeforeTheNextProjectIsRegenerated(): void
     {
         $this->goldenBlueprintsHaveTheirCopyActivity = true;
@@ -362,7 +367,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
 
         self::assertSame(
             [
-                [self::HYDROGEN_FUEL_BLOCK_PROJECT_ID, 'Hydrogen Fuel Block', self::HYDROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Failed, null, 'No industry blueprint in the SDE for blueprint 1004246: its BPC max runs is unknown'],
+                [self::HYDROGEN_FUEL_BLOCK_PROJECT_ID, 'Hydrogen Fuel Block', self::HYDROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Failed, null, 'RuntimeException: No industry blueprint in the SDE for blueprint 1004246: its BPC max runs is unknown'],
                 [self::NITROGEN_FUEL_BLOCK_PROJECT_ID, 'Nitrogen Fuel Block', self::NITROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Changed, 'root jobs 1, runs 1, units 25 -> jobs 1, runs 25, units 1000; steps 2 -> 2; job matches 0 -> 0, purchases 0 -> 0', null],
             ],
             self::summaryOf($outcomes),
@@ -371,6 +376,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
         self::assertSame(['clear', 'flush', 'clear'], $this->entityManagerCalls);
     }
 
+    #[Group('issue-301')]
     public function testDryRunClearsTheProjectWhosePreviewFailsAfterThePlanChangedItsFixedRunsJobAndThePreviewedProject(): void
     {
         $this->goldenBlueprintsHaveTheirCopyActivity = true;
@@ -382,7 +388,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
 
         self::assertSame(
             [
-                [self::HYDROGEN_FUEL_BLOCK_PROJECT_ID, 'Hydrogen Fuel Block', self::HYDROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Failed, null, 'No industry blueprint in the SDE for blueprint 1004246: its BPC max runs is unknown'],
+                [self::HYDROGEN_FUEL_BLOCK_PROJECT_ID, 'Hydrogen Fuel Block', self::HYDROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Failed, null, 'RuntimeException: No industry blueprint in the SDE for blueprint 1004246: its BPC max runs is unknown'],
                 [self::NITROGEN_FUEL_BLOCK_PROJECT_ID, 'Nitrogen Fuel Block', self::NITROGEN_FUEL_BLOCK_RUNS, ProjectCorrectionStatus::Changed, 'root jobs 1, runs 1, units 25 -> jobs 1, runs 25, units 1000; steps 2 -> 2; job matches 0 -> 0, purchases 0 -> 0', null],
             ],
             self::summaryOf($outcomes),

@@ -12,6 +12,8 @@ use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ProjectCorrectionStatus;
 use App\Enum\ProjectStatus;
+use App\Exception\ProducerMissingFromSdeException;
+use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -22,7 +24,12 @@ use App\Service\Industry\ProjectCorrectionOutcome;
 use App\Service\Industry\ReactionProjectSellPriceRecalculation;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
+use Doctrine\DBAL\Driver\PDO\Exception as PdoDriverException;
+use Doctrine\DBAL\Exception\ConnectionLost;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\Query;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Exception\EntityManagerClosed;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -242,6 +249,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
         self::assertSame([2_400_000.0, 'jita', 72_000.0], self::estimatedSellPriceOf($ferniteCarbideProject));
     }
 
+    #[Group('issue-301')]
     public function testProjectWhoseProductHasNoProducerInTheSdeFailsAndTheNextProjectIsRecalculated(): void
     {
         $roboticsProject = $this->project(self::ROBOTICS_PROJECT_ID, self::ROBOTICS, 6, '2026-10-12T09:00:00+00:00')
@@ -254,7 +262,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
 
         self::assertSame(
             [
-                [self::ROBOTICS_PROJECT_ID, 'Robotics', 6, ProjectCorrectionStatus::Failed, null, 'No blueprint or reaction found for product type ID 9848'],
+                [self::ROBOTICS_PROJECT_ID, 'Robotics', 6, ProjectCorrectionStatus::Failed, null, ProducerMissingFromSdeException::class.': No blueprint or reaction found for product type ID 9848'],
                 [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Changed, self::FERNITE_CARBIDE_CHANGE_AT_JITA, null],
             ],
             self::summaryOf($outcomes),
@@ -263,9 +271,10 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
         self::assertSame([2_400_000.0, 'jita', 72_000.0], self::estimatedSellPriceOf($ferniteCarbideProject));
     }
 
+    #[Group('issue-301')]
     public function testFailedWriteThatClosesTheEntityManagerFailsTheProjectAndLeavesEveryNextProjectNotProcessed(): void
     {
-        $this->flushFailure = new \RuntimeException('SQLSTATE[08006]: connection to the database lost');
+        $this->flushFailure = self::connectionLost('SQLSTATE[08006]: connection to the database lost');
         $ferniteCarbideProject = $this->ferniteCarbideProjectOfTheOldCalculation();
         $secondFerniteCarbideProject = $this->project(self::SECOND_FERNITE_CARBIDE_PROJECT_ID, self::FERNITE_CARBIDE, 4, '2026-10-20T09:00:00+00:00')
             ->setEstimatedSellPrice(120.0)
@@ -276,12 +285,57 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
 
         self::assertSame(
             [
-                [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Failed, null, 'SQLSTATE[08006]: connection to the database lost'],
+                [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Failed, null, ConnectionLost::class],
                 [self::SECOND_FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 4, ProjectCorrectionStatus::Failed, null, 'not processed: the entity manager was closed by the failure of project '.self::FERNITE_CARBIDE_PROJECT_ID],
             ],
             self::summaryOf($outcomes),
         );
         self::assertSame([120.0, 'jita', 3.6], self::estimatedSellPriceOf($secondFerniteCarbideProject));
+    }
+
+    #[Group('issue-301')]
+    public function testWriteRejectedByTheDatabaseIsReportedByItsExceptionClassWithoutItsQueryNorItsValues(): void
+    {
+        $this->flushFailure = new UniqueConstraintViolationException(
+            PdoDriverException::new(new \PDOException('SQLSTATE[23505]: Unique violation: 7 ERROR:  duplicate key value violates unique constraint "uniq_project_name" DETAIL:  Key (name)=([GOONS] Mittani alt stash) already exists.')),
+            new Query('UPDATE industry_projects SET estimated_sell_price = ?, name = ? WHERE id = ?', [2_400_000.0, '[GOONS] Mittani alt stash', self::FERNITE_CARBIDE_PROJECT_ID], []),
+        );
+        $ferniteCarbideProject = $this->ferniteCarbideProjectOfTheOldCalculation();
+
+        $outcomes = $this->recalculationOf($ferniteCarbideProject)->run(new \DateTimeImmutable(self::CREATED_BEFORE), false);
+
+        self::assertSame(
+            [[self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Failed, null, UniqueConstraintViolationException::class]],
+            self::summaryOf($outcomes),
+        );
+    }
+
+    #[Group('issue-301')]
+    public function testFailureMessageOfTheApplicationLongerThanTwoHundredCharactersIsCutAtTwoHundred(): void
+    {
+        $this->flushFailure = new TypeMissingFromSdeException(range(16_633, 16_682));
+        $ferniteCarbideProject = $this->ferniteCarbideProjectOfTheOldCalculation();
+
+        $outcomes = $this->recalculationOf($ferniteCarbideProject)->run(new \DateTimeImmutable(self::CREATED_BEFORE), false);
+
+        self::assertSame(
+            [[self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Failed, null, TypeMissingFromSdeException::class.': Types missing from the SDE: 16633, 16634, 16635, 16636, 16637, 16638, 16639, 16640, 16641, 16642, 16643, 16644, 16645, 16646, 16647, 16648, 16649, 16650, 16651, 16652, 16653, 16654, 16655, 16656, 1665...']],
+            self::summaryOf($outcomes),
+        );
+    }
+
+    #[Group('issue-301')]
+    public function testFailureMessageOfTheApplicationOfTwoHundredCharactersIsKeptWhole(): void
+    {
+        $this->flushFailure = new TypeMissingFromSdeException([3683, ...range(16_633, 16_656)]);
+        $ferniteCarbideProject = $this->ferniteCarbideProjectOfTheOldCalculation();
+
+        $outcomes = $this->recalculationOf($ferniteCarbideProject)->run(new \DateTimeImmutable(self::CREATED_BEFORE), false);
+
+        self::assertSame(
+            [[self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Failed, null, TypeMissingFromSdeException::class.': Types missing from the SDE: 3683, 16633, 16634, 16635, 16636, 16637, 16638, 16639, 16640, 16641, 16642, 16643, 16644, 16645, 16646, 16647, 16648, 16649, 16650, 16651, 16652, 16653, 16654, 16655, 16656']],
+            self::summaryOf($outcomes),
+        );
     }
 
     public function testSamePriceFromAnotherSourceIsChanged(): void
@@ -383,6 +437,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
         );
     }
 
+    #[Group('issue-301')]
     public function testProjectWhoseLoadingFailsOnAClosedEntityManagerIsFailedAndTheRunGoesOn(): void
     {
         $this->projectIdsWhoseLoadingClosesTheEntityManager = [self::FERNITE_ALLOY_PROJECT_ID];
@@ -396,7 +451,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
 
         self::assertSame(
             [
-                [self::FERNITE_ALLOY_PROJECT_ID, ProjectCorrectionStatus::Failed, 'The EntityManager is closed.'],
+                [self::FERNITE_ALLOY_PROJECT_ID, ProjectCorrectionStatus::Failed, EntityManagerClosed::class],
                 [self::FERNITE_CARBIDE_PROJECT_ID, ProjectCorrectionStatus::Failed, 'not processed: the entity manager was closed by the failure of project '.self::FERNITE_ALLOY_PROJECT_ID],
             ],
             array_map(
@@ -408,6 +463,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
         self::assertNotContains('flush', $this->entityManagerCalls);
     }
 
+    #[Group('issue-301')]
     public function testProjectWhoseNameLookupFailsIsFailedUnderTheFallbackLabelAndTheNextProjectIsRecalculated(): void
     {
         $this->typeIdsWhoseNameLookupFails = [self::FERNITE_ALLOY];
@@ -421,7 +477,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
 
         self::assertSame(
             [
-                [self::FERNITE_ALLOY_PROJECT_ID, 'type 16656 (name missing from the SDE)', self::FERNITE_ALLOY_RUNS, ProjectCorrectionStatus::Failed, null, 'SQLSTATE[57P01]: terminating connection due to administrator command'],
+                [self::FERNITE_ALLOY_PROJECT_ID, 'type 16656 (name missing from the SDE)', self::FERNITE_ALLOY_RUNS, ProjectCorrectionStatus::Failed, null, ConnectionLost::class],
                 [self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', self::FERNITE_CARBIDE_RUNS, ProjectCorrectionStatus::Changed, self::FERNITE_CARBIDE_CHANGE_AT_JITA, null],
             ],
             self::summaryOf($outcomes),
@@ -469,7 +525,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
                 if (\in_array((string) $id, $this->projectIdsWhoseLoadingClosesTheEntityManager, true)) {
                     $this->entityManagerIsOpen = false;
 
-                    throw new \RuntimeException('The EntityManager is closed.');
+                    throw EntityManagerClosed::create();
                 }
 
                 return $projectsById[(string) $id] ?? null;
@@ -501,7 +557,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
         $invTypeRepository->method('find')->willReturnCallback(
             function (mixed $typeId) use ($knownTypes): ?InvType {
                 if (\in_array($typeId, $this->typeIdsWhoseNameLookupFails, true)) {
-                    throw new \RuntimeException('SQLSTATE[57P01]: terminating connection due to administrator command');
+                    throw self::connectionLost('SQLSTATE[57P01]: terminating connection due to administrator command');
                 }
 
                 return $knownTypes->find($typeId);
@@ -509,6 +565,11 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
         );
 
         return $this->calculationServiceOnSdeTypeRepository($invTypeRepository);
+    }
+
+    private static function connectionLost(string $driverMessage): ConnectionLost
+    {
+        return new ConnectionLost(PdoDriverException::new(new \PDOException($driverMessage)), null);
     }
 
     private function entityManagerRecordingWrites(): EntityManagerInterface

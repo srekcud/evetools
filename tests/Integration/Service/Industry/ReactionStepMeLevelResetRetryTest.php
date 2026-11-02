@@ -10,6 +10,7 @@ use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Enum\IndustryActivityType;
 use App\Enum\ProjectCorrectionStatus;
+use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -42,7 +43,9 @@ final class ReactionStepMeLevelResetRetryTest extends IntegrationTestCase
     private const int ALLOYS_PER_ALLOY_RUN = 40;
     private const int CARBIDE_ME_LEVEL = 10;
     private const string PROJECT_NAME = 'Carbide of the reaction ME reset retry';
+    private const string LABEL_OF_THE_CARBIDE_TYPE_MISSING_FROM_THE_SDE = 'type 999190101 (name missing from the SDE)';
 
+    #[Group('issue-301')]
     public function testProjectFailedOnAFormulaMissingFromTheSdeKeepsItsMeAndIsResetOnceTheSdeIsFixed(): void
     {
         $this->seedCarbideFormulaWithoutTheProductOfTheAlloyFormula();
@@ -52,7 +55,7 @@ final class ReactionStepMeLevelResetRetryTest extends IntegrationTestCase
         $failedOutcomes = $this->reset()->run(false);
 
         self::assertSame(
-            [[$projectId->toRfc4122(), self::PROJECT_NAME, self::CARBIDE_RUNS, ProjectCorrectionStatus::Failed, null, 'Product of blueprint '.self::ALLOY_FORMULA_TYPE_ID.' missing from the SDE']],
+            [[$projectId->toRfc4122(), self::LABEL_OF_THE_CARBIDE_TYPE_MISSING_FROM_THE_SDE, self::CARBIDE_RUNS, ProjectCorrectionStatus::Failed, null, BlueprintProductMissingFromSdeException::class.': Product of blueprint '.self::ALLOY_FORMULA_TYPE_ID.' missing from the SDE']],
             self::summaryOf($failedOutcomes),
         );
         self::assertSame(
@@ -66,7 +69,7 @@ final class ReactionStepMeLevelResetRetryTest extends IntegrationTestCase
         $retriedOutcomes = $this->reset()->run(false);
 
         self::assertSame(
-            [[$projectId->toRfc4122(), self::PROJECT_NAME, self::CARBIDE_RUNS, ProjectCorrectionStatus::Changed, '1 reaction steps ME 10 -> 0, 1 steps recalculated, steps 2 -> 2', null]],
+            [[$projectId->toRfc4122(), self::LABEL_OF_THE_CARBIDE_TYPE_MISSING_FROM_THE_SDE, self::CARBIDE_RUNS, ProjectCorrectionStatus::Changed, '1 reaction steps ME 10 -> 0, 1 steps recalculated, steps 2 -> 2', null]],
             self::summaryOf($retriedOutcomes),
         );
         self::assertSame(
