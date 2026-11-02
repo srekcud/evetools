@@ -14,6 +14,7 @@ use App\Repository\CachedIndustryJobRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\StepMaterialTypeIdsReader;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use App\Tests\Unit\Service\Industry\BuildsProjectOnGoldenSde;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
@@ -23,6 +24,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(IndustryResourceMapper::class)]
+#[CoversClass(StepMaterialTypeIdsReader::class)]
 #[Group('issue-202')]
 final class IndustryResourceMapperDeletableStepTest extends TestCase
 {

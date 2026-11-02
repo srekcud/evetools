@@ -139,10 +139,85 @@ final class IndustryProjectRefusalToDeleteStepTest extends TestCase
         self::assertSame([null, null], $this->refusalsToDelete([$titaniumCarbide, $oxygenFuelBlockCopy]));
     }
 
-    private function refusalsToDelete(array $steps): array
+    public function testDeletedCopyIsNotRefusedWhenTheSdeGivesItsBlueprintMaterials(): void
     {
+        $this->project = $this->projectOf(self::QUANTUM_MICROPROCESSOR, runs: 32);
+        $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
+        $titaniumCarbideCopy = $this->stepOf(self::TITANIUM_CARBIDE, 'copy', runs: 1, quantity: 1, depth: 1);
+        $this->stepOf(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 5, depth: 2);
+
+        self::assertSame([null], $this->refusalsToDelete([$titaniumCarbideCopy], $this->materialTypeIdsOfTheBlueprintOf(...)));
+    }
+
+    public function testCopyIsNotAConsumerWhenTheSdeGivesItsBlueprintMaterials(): void
+    {
+        $this->project = $this->projectOf(self::QUANTUM_MICROPROCESSOR, runs: 32);
+        $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
+        $titaniumCarbide = $this->stepOf(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1);
+        $this->stepOf(self::TITANIUM_CARBIDE, 'copy', runs: 1, quantity: 1, depth: 1);
+        $this->stepOf(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 5, depth: 2);
+
+        self::assertSame(
+            [self::MATERIAL_STEPS_WITHOUT_ANY_OTHER_CONSUMER],
+            $this->refusalsToDelete([$titaniumCarbide], $this->materialTypeIdsOfTheBlueprintOf(...)),
+        );
+    }
+
+    public function testCopyOfAMaterialIsNotAMaterialStepWhenTheSdeGivesItsBlueprintMaterials(): void
+    {
+        $this->project = $this->projectOf(self::QUANTUM_MICROPROCESSOR, runs: 32);
+        $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
+        $titaniumCarbide = $this->stepOf(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1);
+        $this->stepOf(self::OXYGEN_FUEL_BLOCK, 'copy', runs: 1, quantity: 1, depth: 2);
+
+        self::assertSame([null], $this->refusalsToDelete([$titaniumCarbide], $this->materialTypeIdsOfTheBlueprintOf(...)));
+    }
+
+    public function testOnlyProductionStepOfTheProjectProductBesideACopyOfItIsRefusedAsTheLastStepOfTheProjectProduct(): void
+    {
+        $this->project = $this->projectOf(self::QUANTUM_MICROPROCESSOR, runs: 32);
+        $quantumMicroprocessor = $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
+        $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'copy', runs: 32, quantity: 1, depth: 0);
+        $this->stepOf(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1);
+
+        self::assertSame(
+            [self::LAST_STEP_OF_THE_PROJECT_PRODUCT],
+            $this->refusalsToDelete([$quantumMicroprocessor], $this->materialTypeIdsOfTheBlueprintOf(...)),
+        );
+    }
+
+    public function testJobOfTheProjectProductBesideACopyOfItAndAnotherJobOfItIsNotRefused(): void
+    {
+        $this->project = $this->projectOf(self::QUANTUM_MICROPROCESSOR, runs: 32);
+        $firstQuantumMicroprocessorJob = $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 20, quantity: 20, depth: 0)
+            ->setSplitGroupId('quantum-microprocessor')->setSplitIndex(0)->setTotalGroupRuns(32);
+        $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 12, quantity: 12, depth: 0)
+            ->setSplitGroupId('quantum-microprocessor')->setSplitIndex(1)->setTotalGroupRuns(32);
+        $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'copy', runs: 32, quantity: 1, depth: 0);
+        $this->stepOf(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1);
+
+        self::assertSame([null], $this->refusalsToDelete([$firstQuantumMicroprocessorJob], $this->materialTypeIdsOfTheBlueprintOf(...)));
+    }
+
+    public function testOnlyConsumerOfASplitMaterialStepIsRefused(): void
+    {
+        $this->project = $this->projectOf(self::QUANTUM_MICROPROCESSOR, runs: 32);
+        $this->stepOf(self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
+        $titaniumCarbide = $this->stepOf(self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1);
+        foreach ([[0, 1, 40], [1, 2, 80]] as [$splitIndex, $runs, $quantity]) {
+            $this->stepOf(self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: $runs, quantity: $quantity, depth: 2)
+                ->setSplitGroupId('oxygen-fuel-block')->setSplitIndex($splitIndex)->setTotalGroupRuns(3);
+        }
+
+        self::assertSame([self::MATERIAL_STEPS_WITHOUT_ANY_OTHER_CONSUMER], $this->refusalsToDelete([$titaniumCarbide]));
+    }
+
+    private function refusalsToDelete(array $steps, ?\Closure $materialTypeIdsOf = null): array
+    {
+        $materialTypeIdsOf ??= $this->materialTypeIdsOf(...);
+
         return array_map(
-            fn (IndustryProjectStep $step): ?string => $this->project->refusalToDeleteStep($step, $this->materialTypeIdsOf(...)),
+            fn (IndustryProjectStep $step): ?string => $this->project->refusalToDeleteStep($step, $materialTypeIdsOf),
             $steps,
         );
     }
@@ -153,6 +228,11 @@ final class IndustryProjectRefusalToDeleteStepTest extends TestCase
             return [];
         }
 
+        return $this->materialTypeIdsOfTheBlueprintOf($step);
+    }
+
+    private function materialTypeIdsOfTheBlueprintOf(IndustryProjectStep $step): array
+    {
         return self::MATERIAL_TYPE_IDS_BY_PRODUCT[$step->getProductTypeId()];
     }
 

@@ -15,6 +15,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
+use App\Service\Industry\StepMaterialTypeIdsReader;
 use App\State\Processor\Industry\DeleteStepProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -27,6 +28,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(DeleteStepProcessor::class)]
+#[CoversClass(StepMaterialTypeIdsReader::class)]
 #[Group('issue-202')]
 final class DeleteStepProcessorTest extends TestCase
 {
@@ -427,6 +429,16 @@ final class DeleteStepProcessorTest extends TestCase
             [[$quantumMicroprocessor, $titaniumCarbide, $oxygenFuelBlock], [[32, 32], [1, 490], [1, 5]], [], []],
             [$this->project->getSteps()->getValues(), array_map($this->runsAndQuantityOf(...), $this->project->getSteps()->getValues()), $this->projectAtEachFlush, $this->removedEntities],
         );
+    }
+
+    public function testRefusedDeletionReadsTheMaterialsOfTheProjectFromTheSdeOnce(): void
+    {
+        [, $titaniumCarbide] = $this->quantumMicroprocessorProject();
+        $goldenMaterialRepository = $this->materialRepositoryOnGoldenSde();
+        $materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
+        $materialRepository->expects(self::once())->method('findMaterialEntitiesForBlueprints')->willReturnCallback($goldenMaterialRepository->findMaterialEntitiesForBlueprints(...));
+
+        $this->assertDeletionRefused($titaniumCarbide, self::MATERIAL_STEPS_WITHOUT_ANY_OTHER_CONSUMER, $materialRepository);
     }
 
     public function testMaterialStepsDeletedFromTheBottomUpLetTheirLastConsumerBeDeleted(): void
