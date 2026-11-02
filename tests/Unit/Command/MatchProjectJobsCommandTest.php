@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Command;
 
-use App\Command\ConsoleProjectLabel;
 use App\Command\MatchProjectJobsCommand;
 use App\Entity\IndustryProject;
 use App\Entity\User;
@@ -19,12 +18,12 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 #[CoversClass(MatchProjectJobsCommand::class)]
-#[CoversClass(ConsoleProjectLabel::class)]
 #[Group('issue-115')]
 final class MatchProjectJobsCommandTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
 
+    private const string CUSTOM_PROJECT_NAME = 'Fuel Blocks for Kestrel Mira';
     private const string PROJECT_ID = '0192f0c4-7b1e-7a3c-9d2e-115000004051';
 
     public function testCommandNamesAProjectWhoseProductIsMissingFromTheSdeByItsTypeId(): void
@@ -39,6 +38,24 @@ final class MatchProjectJobsCommandTest extends TestCase
         $output = $this->matchJobsOf($this->projectWithoutCustomName(self::NITROGEN_FUEL_BLOCK_TYPE_ID, 40));
 
         self::assertStringContainsString('Syncing ESI jobs for: Nitrogen Fuel Block', $output);
+    }
+
+    #[Group('issue-303')]
+    public function testCommandNamesAProjectWithACustomNameByTheSdeNameOfItsProduct(): void
+    {
+        $output = $this->matchJobsOf($this->projectWithCustomName(self::NITROGEN_FUEL_BLOCK_TYPE_ID, 12));
+
+        self::assertStringContainsString('Syncing ESI jobs for: Nitrogen Fuel Block', $output);
+        self::assertStringNotContainsString(self::CUSTOM_PROJECT_NAME, $output);
+    }
+
+    #[Group('issue-303')]
+    public function testCommandNamesAProjectWithACustomNameWhoseProductIsMissingFromTheSdeByItsTypeId(): void
+    {
+        $output = $this->matchJobsOf($this->projectWithCustomName(self::ROBOTICS_TYPE_ID, 3));
+
+        self::assertStringContainsString('Syncing ESI jobs for: type 9848 (name missing from the SDE)', $output);
+        self::assertStringNotContainsString(self::CUSTOM_PROJECT_NAME, $output);
     }
 
     private function matchJobsOf(IndustryProject $project): string
@@ -64,5 +81,10 @@ final class MatchProjectJobsCommandTest extends TestCase
             ->setUser(new User())
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
+    }
+
+    private function projectWithCustomName(int $productTypeId, int $runs): IndustryProject
+    {
+        return $this->projectWithoutCustomName($productTypeId, $runs)->setName(self::CUSTOM_PROJECT_NAME);
     }
 }

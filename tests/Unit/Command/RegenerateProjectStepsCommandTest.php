@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Command;
 
-use App\Command\ConsoleProjectLabel;
 use App\Command\RegenerateProjectStepsCommand;
 use App\Entity\IndustryProject;
 use App\Entity\User;
@@ -18,12 +17,12 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 #[CoversClass(RegenerateProjectStepsCommand::class)]
-#[CoversClass(ConsoleProjectLabel::class)]
 #[Group('issue-115')]
 final class RegenerateProjectStepsCommandTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
 
+    private const string CUSTOM_PROJECT_NAME = 'Vexor Navy Issue Run of Aurel';
     private const string PROJECT_ID = '0192f0c4-7b1e-7a3c-9d2e-115000009848';
 
     public function testCommandNamesAProjectWhoseProductIsMissingFromTheSdeByItsTypeId(): void
@@ -38,6 +37,24 @@ final class RegenerateProjectStepsCommandTest extends TestCase
         $output = $this->regenerateStepsOf($this->projectWithoutCustomName(self::NITROGEN_FUEL_BLOCK_TYPE_ID, 40));
 
         self::assertStringContainsString('Regenerating steps for: Nitrogen Fuel Block', $output);
+    }
+
+    #[Group('issue-303')]
+    public function testCommandNamesAProjectWithACustomNameByTheSdeNameOfItsProduct(): void
+    {
+        $output = $this->regenerateStepsOf($this->projectWithCustomName(self::NITROGEN_FUEL_BLOCK_TYPE_ID, 12));
+
+        self::assertStringContainsString('Regenerating steps for: Nitrogen Fuel Block', $output);
+        self::assertStringNotContainsString(self::CUSTOM_PROJECT_NAME, $output);
+    }
+
+    #[Group('issue-303')]
+    public function testCommandNamesAProjectWithACustomNameWhoseProductIsMissingFromTheSdeByItsTypeId(): void
+    {
+        $output = $this->regenerateStepsOf($this->projectWithCustomName(self::ROBOTICS_TYPE_ID, 3));
+
+        self::assertStringContainsString('Regenerating steps for: type 9848 (name missing from the SDE)', $output);
+        self::assertStringNotContainsString(self::CUSTOM_PROJECT_NAME, $output);
     }
 
     private function regenerateStepsOf(IndustryProject $project): string
@@ -62,5 +79,10 @@ final class RegenerateProjectStepsCommandTest extends TestCase
             ->setUser(new User())
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
+    }
+
+    private function projectWithCustomName(int $productTypeId, int $runs): IndustryProject
+    {
+        return $this->projectWithoutCustomName($productTypeId, $runs)->setName(self::CUSTOM_PROJECT_NAME);
     }
 }
