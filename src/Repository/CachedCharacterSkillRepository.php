@@ -20,29 +20,6 @@ class CachedCharacterSkillRepository extends ServiceEntityRepository
     }
 
     /**
-     * Get all industry skills for a character, indexed by skill ID.
-     *
-     * @return array<int, CachedCharacterSkill>
-     */
-    public function findIndustrySkillsForCharacter(Character $character): array
-    {
-        $skills = $this->createQueryBuilder('s')
-            ->where('s.character = :character')
-            ->andWhere('s.skillId IN (:skillIds)')
-            ->setParameter('character', $character)
-            ->setParameter('skillIds', CachedCharacterSkill::INDUSTRY_SKILL_IDS)
-            ->getQuery()
-            ->getResult();
-
-        $indexed = [];
-        foreach ($skills as $skill) {
-            $indexed[$skill->getSkillId()] = $skill;
-        }
-
-        return $indexed;
-    }
-
-    /**
      * Get slot-related skills for a character, indexed by skill ID.
      *
      * @return array<int, CachedCharacterSkill>

@@ -93,16 +93,6 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
         return array_values(array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $bomItemIds));
     }
 
-    public function countByMember(GroupIndustryProjectMember $member): int
-    {
-        return (int) $this->createQueryBuilder('c')
-            ->select('COUNT(c.id)')
-            ->andWhere('c.member = :member')
-            ->setParameter('member', $member)
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
-
     /**
      * Find an existing contribution for a member on a specific BOM item with a given type and matching statuses.
      *
