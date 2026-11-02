@@ -27,7 +27,7 @@ const props = defineProps<{
 const { t } = useI18n()
 const uid = useId()
 const store = useIndustryStore()
-const { formatIsk, formatIskFull, formatTimeSince } = useFormatters()
+const { formatIsk, formatIskFull } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
 // Item selection
@@ -48,7 +48,6 @@ const selectedDecryptorTypeId = ref<number | null | undefined>(undefined)
 
 // UI state
 const materialsExpanded = ref(false)
-const lastFetchedAt = ref<string | null>(null)
 
 // Selected decryptor option (local, no API call on change)
 const selectedOption = ref<ProfitMarginInventionOption | null>(null)
@@ -348,14 +347,12 @@ async function analyzeType(typeId: number): Promise<ProfitMarginResult | null> {
   // Reset local decryptor override before re-fetching
   selectedOption.value = null
   selectedDecryptorTypeId.value = undefined
-  const analysis = await store.analyzeMargin(typeId, {
+  return store.analyzeMargin(typeId, {
     runs: runs.value,
     me: meLevel.value,
     te: teLevel.value,
     solarSystemId: selectedSolarSystemId.value ?? undefined,
   })
-  if (analysis !== null) lastFetchedAt.value = new Date().toISOString()
-  return analysis
 }
 
 async function analyze() {
@@ -874,9 +871,6 @@ store.fetchUserSettings()
             </svg>
             {{ t('industry.margins.refreshPrices') }}
           </button>
-        </div>
-        <div v-if="lastFetchedAt" class="text-xs text-slate-600">
-          {{ t('industry.costEstimation.lastUpdated') }}: {{ formatTimeSince(lastFetchedAt) }}
         </div>
       </div>
 

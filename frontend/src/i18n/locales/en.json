@@ -2375,7 +2375,6 @@
   "market": {
     "title": "Market Browser",
     "subtitle": "Real-time prices, history, and alerts",
-    "syncJita": "Jita synced",
     "syncStructure": "Structure synced",
     "recentSearches": "Recent Searches",
     "clearRecent": "Clear",

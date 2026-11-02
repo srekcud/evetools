@@ -7,7 +7,9 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
+import { JITA_PRICES_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import MainLayout from '@/layouts/MainLayout.vue'
+import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import MarketSearch from '@/components/market/MarketSearch.vue'
 import MarketResultsTable from '@/components/market/MarketResultsTable.vue'
@@ -18,6 +20,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 const { t } = useI18n()
 const route = useRoute()
 const marketStore = useMarketStore()
+const dataFreshnessStore = useDataFreshnessStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
@@ -57,6 +60,7 @@ const filteredSearchResults = computed(() => {
 
 // Load root groups, favorites, alerts and settings on mount
 onMounted(async () => {
+  dataFreshnessStore.fetchDataFreshness()
   marketStore.fetchRootGroups()
   marketStore.fetchFavorites()
   marketStore.fetchAlerts()
@@ -157,10 +161,7 @@ const allButtonLabel = computed(() => {
           <p class="text-sm text-slate-500 mt-1">{{ t('market.subtitle') }}</p>
         </div>
         <div class="flex items-center gap-3">
-          <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-emerald-500/10 border-emerald-500/30 text-xs">
-            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span class="text-emerald-400">{{ t('market.syncJita') }}</span>
-          </div>
+          <DataFreshnessList :sources="JITA_PRICES_SOURCES" />
           <div v-if="structureSystemName" class="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-cyan-500/10 border-cyan-500/30 text-xs">
             <div class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
             <span class="text-cyan-400">{{ structureSystemName }}</span>

@@ -2375,7 +2375,6 @@
   "market": {
     "title": "Navigateur Marche",
     "subtitle": "Prix temps reel, historique et alertes",
-    "syncJita": "Jita synchronise",
     "syncStructure": "Structure synchronisee",
     "recentSearches": "Recherches recentes",
     "clearRecent": "Effacer",

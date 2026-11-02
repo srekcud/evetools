@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, useId } from 'vue'
+import { ref, computed, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
+import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
+import { JITA_PRICES_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import { useFormatters } from '@/composables/useFormatters'
 import AppraisalInputPanel from '@/components/appraisal/AppraisalInputPanel.vue'
 import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
@@ -86,6 +88,11 @@ type FormatType = 'auto' | 'multibuy' | 'cargo_scan' | 'eft' | 'dscan' | 'contra
 const { t } = useI18n()
 const transportCostFieldId = useId()
 const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
+const dataFreshnessStore = useDataFreshnessStore()
+
+onMounted(() => {
+  dataFreshnessStore.fetchDataFreshness()
+})
 
 // -- State --
 
@@ -557,6 +564,7 @@ async function shareAppraisal(): Promise<void> {
               <span class="text-xs text-slate-500">
                 {{ shortStructureName }} {{ t('appraisal.pricesUpdated') }} {{ formatTimeSince(shoppingResult.structureLastSync) }}
               </span>
+              <DataFreshnessList :sources="JITA_PRICES_SOURCES" />
             </div>
 
             <!-- Import KPI sub-row -->

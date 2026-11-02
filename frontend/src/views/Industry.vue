@@ -5,8 +5,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useAdminStore } from '@/stores/admin'
+import { DATA_FRESHNESS_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import MainLayout from '@/layouts/MainLayout.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import ProjectTable from '@/components/industry/ProjectTable.vue'
@@ -33,6 +35,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useIndustryStore()
 const adminStore = useAdminStore()
+const dataFreshnessStore = useDataFreshnessStore()
 const isAdmin = ref(false)
 
 const INVENTED_BLUEPRINT_ME = 2
@@ -105,6 +108,7 @@ watch(() => route.query.project, () => {
 type MainTab = 'dashboard' | 'projects' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile'
 const MAIN_TABS: MainTab[] = ['dashboard', 'projects', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile']
 const mainTab = useTabQuery(MAIN_TABS, 'dashboard')
+const DATA_FRESHNESS_TABS: readonly MainTab[] = ['margins', 'batch', 'buy-vs-build', 'pivot']
 
 // Props for analysis tabs that accept an initial type ID
 const analysisInitialTypeId = ref<number | undefined>(typeIdFromQuery())
@@ -166,6 +170,7 @@ const navGroups: NavGroup[] = [
 ]
 
 onMounted(async () => {
+  dataFreshnessStore.fetchDataFreshness()
   isAdmin.value = await adminStore.checkAccess()
 
   store.fetchProjects()
@@ -369,6 +374,12 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
 
       <!-- Error -->
       <ErrorBanner v-if="store.error" :message="store.error" class="mb-6" @dismiss="store.clearError()" />
+
+      <DataFreshnessList
+        v-if="!viewingProjectId && DATA_FRESHNESS_TABS.includes(mainTab)"
+        :sources="DATA_FRESHNESS_SOURCES"
+        class="mb-4"
+      />
 
       <!-- Detail view -->
       <div v-if="viewingProjectId" key="detail">
