@@ -40,10 +40,11 @@ Un fix reste un rouge puis un vert : jamais `backend-developer` pour un fix, que
 
 1. Rebase sur `main`, puis `/review` : c'est l'unique passage de la batterie complète.
 2. `git -C /home/sdu/Documents/projects/perso/evetools merge --ff-only <branche>`.
-3. Pas de push, pas de fermeture d'issue, pas de commentaire GitHub.
+3. Après la fusion et les gates verts : `git -C /home/sdu/Documents/projects/perso/evetools push origin main` (fast-forward seulement, jamais `--force`, jamais de tag). Si le push est rejeté, ne résous rien : note-le dans le journal et dans le rapport.
+4. Ferme chaque issue dont le correctif est entièrement dans `main` : `zsh -ic 'gh issue close <n> --reason completed --comment "Corrigé dans main (<sha>) : <une ligne>."'` (commentaire en français, sans attribution IA). Une issue partielle, ou dont une décision reste ouverte, reste ouverte avec un commentaire qui dit ce qui reste. Vérifie l'état avec `gh issue view <n> --json state` avant et après (le push d'un autre thread ou une fermeture manuelle est possible).
 
 Les gates 🚦 de `/spec` et `/tdd-red` restent à Sylvain, sauf si le brief du thread indique le mode nuit.
 
 ## 5. Rapport final (10 lignes max, en français)
 
-Une ligne par issue du groupe : fusionnée (commit), caduque (preuve), en attente de décision, bloquée (raison). Puis les actions prod (migration, commande console).
+Une ligne par issue du groupe : fermée (commit), caduque (preuve), en attente de décision, bloquée (raison). Dis si `main` est poussé (dernier commit). Puis les actions prod (migration, commande console).
