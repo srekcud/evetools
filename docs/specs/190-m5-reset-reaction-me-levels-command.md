@@ -41,7 +41,7 @@ Les conventions C1 à C7 de la [spec #278-284](278-284-existing-projects-backfil
 
   En `--dry-run`, les valeurs après viennent du calcul en mémoire. `failed: <message de l'exception>` en cas d'échec (C5). Ce format remplace celui de K1 dans la spec #191-190-287 (ajout des ME avant et du nombre d'étapes).
 - **R10 — Échec d'un projet.** Toute exception pendant R3 ou R4 (blueprint d'un enfant sans produit dans le SDE : `Product of blueprint N missing from the SDE` ; cycle entre produits : `Project <id> has a cycle between the products of its steps: …`) rend le projet `failed` avec le message, rien n'est écrit pour lui, les suivants sont traités, code de sortie `FAILURE`, en `--dry-run` aussi (C3, C6). Un `flush` qui échoue ferme l'`EntityManager` : les projets suivants sont `failed` `not processed: …` (C3). Pas de `catch` silencieux, pas d'arrêt silencieux.
-- **R11 — Pas de publication Mercure** (comme #278) : l'onglet Étapes d'un propriétaire connecté pendant le passage montre les nouvelles valeurs à son prochain chargement. Voir Q1.
+- **R11 — Publication Mercure** (option B de Q1, décision de Sylvain du 2026-11-02) : hors `--dry-run`, après le flush d'un projet `changed`, la commande publie `syncCompleted` du type `industry-project` à son propriétaire, comme `regenerateSteps()` de `IndustryProjectFactory` (`MercurePublisherService::syncCompleted($userId, 'industry-project', ...)`), pour recharger son onglet Étapes. Rien n'est publié en `--dry-run`, ni pour un projet inchangé ni pour un projet en échec.
 - **R12 — Journalisation.** Sortie console seulement, aucune écriture par `LoggerInterface`. La ligne porte l'UUID du projet, son libellé (`ConsoleProjectLabel` : nom du projet, sinon nom SDE du produit) et ses runs ; jamais l'utilisateur, son e-mail, un personnage ou un identifiant EVE.
 - **R13 — Idempotence.** Après un passage réussi, plus aucune réaction du projet n'a un ME non nul : il n'est plus sélectionné. Relancer donne `No project to reset`. Un projet `failed` n'a rien écrit : il est sélectionné de nouveau au passage suivant.
 - **R14 — Ordre avec #284.** `regenerate-multi-unit-steps` saute un projet dont la régénération changerait le ME d'une étape reprise (G4 de #278-284, F7) : une réaction à ME 10 suffit. Lancer M5 d'abord retire cette cause de `skipped`. M5 et #278 sont indépendants (#278 ne lit pas les étapes).
@@ -119,7 +119,7 @@ Sur les projets actifs sélectionnés seulement, au moment du vrai passage :
 
 ## Questions ouvertes
 
-- **Q1 — Publication Mercure après le recalcul d'un projet.** Option A (recommandée) : rien, comme #278 ; le propriétaire voit les nouvelles valeurs au prochain chargement, et le passage se lance au déploiement. Option B : publier `syncCompleted` (type `industry-project`) au propriétaire de chaque projet `changed` hors `--dry-run`, comme `regenerateSteps()` dans #284, pour recharger son onglet Étapes ; ajoute `MercurePublisherService` au service et un cas de test.
+- **Q1 — Publication Mercure : tranchée** le 2026-11-02, option B (R11).
 
 ## Tests existants appelés à casser
 
