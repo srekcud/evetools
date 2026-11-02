@@ -18,13 +18,16 @@ use App\Service\Industry\ReactionStepMeLevelReset;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversMethod;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(ReactionStepMeLevelReset::class)]
+#[CoversMethod(IndustryStepCalculator::class, 'applyStepQuantities')]
 #[Group('issue-190')]
 final class ReactionStepMeLevelResetTest extends TestCase
 {
@@ -316,6 +319,21 @@ final class ReactionStepMeLevelResetTest extends TestCase
                 $ferniteAlloy->getRuns(),
                 $ferniteAlloy->getQuantity(),
             ],
+        );
+    }
+
+    public function testUpdatePublishedToTheOwnerCarriesTheIdOfTheResetProject(): void
+    {
+        $project = $this->ferniteCarbideProjectOfTwentyRuns(self::SECOND_FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135);
+
+        $this->resetOf($project)->run(false);
+
+        self::assertSame(
+            [['/user/'.self::PILOT_ID.'/sync/industry-project', self::SECOND_FERNITE_CARBIDE_PROJECT_ID]],
+            array_map(
+                static fn (Update $update): array => [$update->getTopics()[0], json_decode($update->getData(), true, flags: \JSON_THROW_ON_ERROR)['data']['projectId']],
+                $this->publishedUpdates,
+            ),
         );
     }
 

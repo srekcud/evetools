@@ -15,6 +15,7 @@ use App\Service\Industry\IndustryStepCalculator;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -440,6 +441,96 @@ class IndustryStepCalculatorTest extends TestCase
                 [$firstFixedJob->getRuns(), $firstFixedJob->getQuantity(), $firstFixedJob->getSplitIndex(), $firstFixedJob->getTotalGroupRuns()],
                 [$secondFixedJob->getRuns(), $secondFixedJob->getQuantity(), $secondFixedJob->getSplitIndex(), $secondFixedJob->getTotalGroupRuns()],
             ],
+        );
+    }
+
+    #[Group('issue-190')]
+    public function testApplyStepQuantitiesReturnsTheChangedStepsAndNeverFlushes(): void
+    {
+        $this->givenOneMaterialRecipe(consumerBlueprintTypeId: 100, consumerRuns: 10, consumerMeLevel: 10, materialTypeId: 201, materialQuantityPerRun: 5, needOfTheConsumer: 45, materialBlueprintTypeId: 200, outputPerRun: 1);
+        [$appliedProject, $appliedChild] = $this->consumerOfTenRunsWithAChildOfFiftyRuns();
+        [$recalculatedProject] = $this->consumerOfTenRunsWithAChildOfFiftyRuns();
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $appliedSteps = $this->calculator->applyStepQuantities($appliedProject);
+
+        $this->assertSame([$appliedChild], $appliedSteps);
+        $this->assertSame([201, 45, 45], [$appliedChild->getProductTypeId(), $appliedChild->getRuns(), $appliedChild->getQuantity()]);
+        $this->assertSame(
+            self::productRunsAndQuantityOf($this->calculatorWithoutFlushExpectation()->recalculateStepQuantities($recalculatedProject)),
+            self::productRunsAndQuantityOf($appliedSteps),
+        );
+    }
+
+    #[Group('issue-190')]
+    public function testApplyStepQuantitiesRemovesTheSurplusJobAndNeverFlushes(): void
+    {
+        $this->givenOneMaterialRecipe(consumerBlueprintTypeId: 100, consumerRuns: 10, consumerMeLevel: 10, materialTypeId: 201, materialQuantityPerRun: 11, needOfTheConsumer: 100, materialBlueprintTypeId: 200, outputPerRun: 10);
+        [$appliedProject, $consumer, $firstFixedJob, $secondFixedJob] = $this->consumerWithTwoFixedJobsAndAJobWithoutRuns();
+        [$recalculatedProject] = $this->consumerWithTwoFixedJobsAndAJobWithoutRuns();
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $appliedSteps = $this->calculator->applyStepQuantities($appliedProject);
+
+        $this->assertSame([], $appliedSteps);
+        $this->assertSame([$consumer, $firstFixedJob, $secondFixedJob], array_values($appliedProject->getSteps()->toArray()));
+        $this->assertSame([[6, 60], [4, 40]], [[$firstFixedJob->getRuns(), $firstFixedJob->getQuantity()], [$secondFixedJob->getRuns(), $secondFixedJob->getQuantity()]]);
+        $this->assertSame([], $this->calculatorWithoutFlushExpectation()->recalculateStepQuantities($recalculatedProject));
+        $this->assertCount(3, $recalculatedProject->getSteps());
+    }
+
+    private function givenOneMaterialRecipe(int $consumerBlueprintTypeId, int $consumerRuns, int $consumerMeLevel, int $materialTypeId, int $materialQuantityPerRun, int $needOfTheConsumer, int $materialBlueprintTypeId, int $outputPerRun): void
+    {
+        $material = new \App\Entity\Sde\IndustryActivityMaterial();
+        $material->setTypeId($consumerBlueprintTypeId);
+        $material->setActivityId(IndustryActivityType::Manufacturing->value);
+        $material->setMaterialTypeId($materialTypeId);
+        $material->setQuantity($materialQuantityPerRun);
+        $this->materialRepository->method('findMaterialEntitiesForBlueprints')->willReturn([$consumerBlueprintTypeId.'-1' => [$material]]);
+        $this->calculationService->method('getStructureBonusForStep')->willReturn([
+            'structure' => null,
+            'materialBonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0],
+            'timeBonus' => 0.0,
+            'name' => null,
+        ]);
+        $this->calculationService->method('calculateMaterialQuantity')
+            ->with($materialQuantityPerRun, $consumerRuns, $consumerMeLevel, 0.0, 0.0)
+            ->willReturn($needOfTheConsumer);
+        $product = new IndustryActivityProduct();
+        $product->setTypeId($materialBlueprintTypeId);
+        $product->setActivityId(IndustryActivityType::Manufacturing->value);
+        $product->setProductTypeId($materialTypeId);
+        $product->setQuantity($outputPerRun);
+        $this->productRepository->method('findProductsForBlueprints')->willReturn([$materialBlueprintTypeId.'-1' => $product]);
+    }
+
+    private function consumerOfTenRunsWithAChildOfFiftyRuns(): array
+    {
+        $child = $this->createStep('manufacturing', 200, 201, 50, 50, 1);
+
+        return [$this->createProject([$this->createStep('manufacturing', 100, 101, 10, 10, 0), $child]), $child];
+    }
+
+    private function consumerWithTwoFixedJobsAndAJobWithoutRuns(): array
+    {
+        $consumer = $this->createStep('manufacturing', 100, 101, 10, 10, 0);
+        $firstFixedJob = $this->createStep('manufacturing', 200, 201, 6, 60, 1, 10, 'split-190', 0)->setRunsFixed(true)->setTotalGroupRuns(10);
+        $secondFixedJob = $this->createStep('manufacturing', 200, 201, 4, 40, 1, 10, 'split-190', 1)->setRunsFixed(true)->setTotalGroupRuns(10);
+        $jobWithoutRuns = $this->createStep('manufacturing', 200, 201, 0, 0, 1, 10, 'split-190', 2)->setTotalGroupRuns(10);
+
+        return [$this->createProject([$consumer, $firstFixedJob, $secondFixedJob, $jobWithoutRuns]), $consumer, $firstFixedJob, $secondFixedJob];
+    }
+
+    private function calculatorWithoutFlushExpectation(): IndustryStepCalculator
+    {
+        return new IndustryStepCalculator($this->calculationService, $this->materialRepository, $this->productRepository, $this->createStub(EntityManagerInterface::class));
+    }
+
+    private static function productRunsAndQuantityOf(array $steps): array
+    {
+        return array_map(
+            static fn (IndustryProjectStep $step): array => [$step->getProductTypeId(), $step->getRuns(), $step->getQuantity()],
+            $steps,
         );
     }
 }
