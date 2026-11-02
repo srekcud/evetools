@@ -8,6 +8,7 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
+use App\Entity\User;
 use App\Enum\ProjectCorrectionStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
@@ -318,6 +319,36 @@ final class ReactionStepMeLevelResetTest extends TestCase
         );
     }
 
+    public function testOwnerWithoutIdentifierFailsTheProjectBeforeAnyFlush(): void
+    {
+        $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135)
+            ->setUser(new User());
+
+        $outcomes = $this->resetOf($project)->run(false);
+
+        self::assertSame(
+            [[self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, 'A project owner read from the database has no identifier']],
+            self::summaryOf($outcomes),
+        );
+        self::assertSame(['clear'], $this->entityManagerCalls);
+        self::assertSame([], $this->topicsAndStatusesOfThePublishedUpdates());
+    }
+
+    public function testProjectWithoutIdentifierFailsBeforeAnyFlush(): void
+    {
+        $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135);
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, null);
+
+        $outcomes = $this->resetReadingEachProjectUnderItsId([self::FERNITE_CARBIDE_PROJECT_ID => $project])->run(false);
+
+        self::assertSame(
+            [[self::FERNITE_CARBIDE_PROJECT_ID, 'type 16673 (name missing from the SDE)', 20, ProjectCorrectionStatus::Failed, null, 'A project read from the database has no identifier']],
+            self::summaryOf($outcomes),
+        );
+        self::assertSame(['clear'], $this->entityManagerCalls);
+        self::assertSame([], $this->topicsAndStatusesOfThePublishedUpdates());
+    }
+
     private function ferniteCarbideProject(string $projectId, int $runs): IndustryProject
     {
         $project = (new IndustryProject())
@@ -400,10 +431,16 @@ final class ReactionStepMeLevelResetTest extends TestCase
         foreach ($projectsInCreationOrder as $project) {
             $projectsById[$project->getId()?->toRfc4122()] = $project;
         }
+
+        return $this->resetReadingEachProjectUnderItsId($projectsById);
+    }
+
+    private function resetReadingEachProjectUnderItsId(array $projectsById): ReactionStepMeLevelReset
+    {
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('findIdsInCreationOrder')->willReturn(array_map(
-            static fn (IndustryProject $project): ?Uuid => $project->getId(),
-            array_values($projectsInCreationOrder),
+            static fn (string $projectId): Uuid => Uuid::fromString($projectId),
+            array_keys($projectsById),
         ));
         $projectRepository->method('find')->willReturnCallback(
             static fn (mixed $id): ?IndustryProject => $projectsById[(string) $id] ?? null,
