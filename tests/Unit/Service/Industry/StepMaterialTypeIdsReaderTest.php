@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
-use App\Exception\StepMaterialsMissingFromSdeException;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
+use App\Exception\StepMaterialsMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\Industry\StepMaterialTypeIdsReader;
 use PHPUnit\Framework\Attributes\CoversClass;
