@@ -27,22 +27,31 @@ class IndustryStepCalculator
      */
     public function recalculateStepQuantities(IndustryProject $project): array
     {
+        $stepCountBefore = $project->getSteps()->count();
+        $updatedSteps = $this->applyStepQuantities($project);
+
+        if ($updatedSteps !== [] || $project->getSteps()->count() !== $stepCountBefore) {
+            $this->entityManager->flush();
+        }
+
+        return $updatedSteps;
+    }
+
+    /**
+     * @return IndustryProjectStep[] Steps whose quantity/runs changed, nothing is flushed
+     */
+    public function applyStepQuantities(IndustryProject $project): array
+    {
         $updatedSteps = [];
-        $hasRemovedJob = false;
-        $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use ($project, &$updatedSteps, &$hasRemovedJob): array {
+        $this->walkNeedsFromConsumersToMaterials($project, static function (array $steps, int $need, int $outputPerRun) use ($project, &$updatedSteps): array {
             $appliedNeed = SplitGroupQuantities::applyNeedToSteps($steps, $need, $outputPerRun);
             array_push($updatedSteps, ...$appliedNeed->changedSteps);
             foreach ($appliedNeed->surplusJobs as $surplusJob) {
                 $project->removeStep($surplusJob);
-                $hasRemovedJob = true;
             }
 
             return $appliedNeed->surplusJobs;
         });
-
-        if ($updatedSteps !== [] || $hasRemovedJob) {
-            $this->entityManager->flush();
-        }
 
         return $updatedSteps;
     }
