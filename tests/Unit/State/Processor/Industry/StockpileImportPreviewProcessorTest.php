@@ -38,6 +38,10 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
+use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\Serializer\Serializer;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(StockpileImportPreviewProcessor::class)]
@@ -155,6 +159,29 @@ final class StockpileImportPreviewProcessorTest extends TestCase
         $this->expectExceptionMessage('Type 99999 has no blueprint nor reaction');
 
         $this->preview(self::TYPE_WITHOUT_BLUEPRINT);
+    }
+
+    #[Group('issue-297')]
+    public function testAPreviewRequestedWithATeIsTheSameAsWithoutTe(): void
+    {
+        $this->jitaPrices = [self::WIDGET => 1_000_000.0, self::TRITANIUM => 4.0, self::PYERITE => 9.5];
+
+        $previewWithTe = $this->processor->process($this->deserializedInput(['typeId' => self::WIDGET, 'runs' => 2, 'me' => 10, 'te' => 20]), new Post());
+        $previewWithoutTe = $this->processor->process($this->deserializedInput(['typeId' => self::WIDGET, 'runs' => 2, 'me' => 10]), new Post());
+
+        self::assertSame(2_007_020.0, $previewWithTe->estimatedCost);
+        self::assertSame(2_007_020.0, $previewWithoutTe->estimatedCost);
+        self::assertSame($previewWithoutTe->stages, $previewWithTe->stages);
+        self::assertSame(3, $previewWithTe->totalItems);
+    }
+
+    private function deserializedInput(array $payload): StockpileImportInput
+    {
+        $serializer = new Serializer([new ObjectNormalizer(null, null, null, new ReflectionExtractor())], [new JsonEncoder()]);
+        $input = $serializer->deserialize(json_encode($payload, \JSON_THROW_ON_ERROR), StockpileImportInput::class, 'json');
+        self::assertInstanceOf(StockpileImportInput::class, $input);
+
+        return $input;
     }
 
     private function preview(int $typeId = self::WIDGET): StockpileImportPreviewResource
