@@ -182,7 +182,6 @@ class PivotAdvisorServiceTest extends TestCase
 
         // Not T2 (no invention)
         $this->connection->method('fetchFirstColumn')->willReturn([]);
-        $this->connection->method('fetchOne')->willReturn(0);
 
         // Type names
         $this->typeNameResolver->method('findNames')->willReturn([
@@ -295,7 +294,6 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::BUILDABLE_MAT_A => 'Mat A',
@@ -377,7 +375,6 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::BUILDABLE_MAT_A => 'Mat A',
@@ -459,7 +456,6 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT => 10.0,
         ]);
 
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::RAW_MAT => 'Tritanium',
@@ -529,7 +525,6 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::BUILDABLE_MAT_A => 'Mat A',
@@ -607,7 +602,6 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->typeNameResolver->method('findNames')->willReturn([
             self::SOURCE_PRODUCT => 'Source',
             self::BUILDABLE_MAT_A => 'Mat A',
@@ -861,7 +855,6 @@ class PivotAdvisorServiceTest extends TestCase
             self::CANDIDATE_2 => 3.0,
         ]);
 
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->connection->method('fetchAllAssociative')->willReturn([
             ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Destroyer'],
             ['type_id' => $firstCandidateTypeId, 'group_name' => 'Cruiser'],
@@ -984,6 +977,67 @@ class PivotAdvisorServiceTest extends TestCase
         $this->assertSame(400.0, $result['sourceProduct']['marginPercent']);
     }
 
+    #[Group('issue-293')]
+    public function testSourceProductDeclaredT2ByTheInventionServiceHasAMarginApplyingMe2RoundedUpPerMaterial(): void
+    {
+        $result = $this->analyzeT1T2AndReactionCandidates(self::SOURCE_PRODUCT);
+
+        $this->assertSame(399.03, $result['sourceProduct']['marginPercent']);
+    }
+
+    #[Group('issue-293')]
+    public function testSourceProductBuiltFromRawMaterialsOnlyHasAMarginApplyingMe10WhenTheInventionServiceDoesNotDeclareItT2(): void
+    {
+        $result = $this->analyzeSourceProductBuiltFromRawMaterialsOnly();
+
+        $this->assertSame(931.11, $result['sourceProduct']['marginPercent']);
+    }
+
+    #[Group('issue-293')]
+    public function testSourceProductBuiltFromRawMaterialsOnlyDeclaredT2ByTheInventionServiceHasAMarginApplyingMe2(): void
+    {
+        $result = $this->analyzeSourceProductBuiltFromRawMaterialsOnly(self::SOURCE_PRODUCT);
+
+        $this->assertSame(846.94, $result['sourceProduct']['marginPercent']);
+    }
+
+    private function analyzeSourceProductBuiltFromRawMaterialsOnly(int ...$productTypeIdsDeclaredT2): array
+    {
+        $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => $typeId === self::SOURCE_PRODUCT && $activityId === 1 ? $sourceBlueprint : null,
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            self::SOURCE_BLUEPRINT => [['materialTypeId' => self::RAW_MAT, 'quantity' => 1000]],
+        ]);
+        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::SOURCE_PRODUCT => 50000.0,
+            self::RAW_MAT => 5.0,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([self::SOURCE_PRODUCT => 10.0]);
+        $this->connection->method('fetchAllAssociative')->willReturn([]);
+        $this->givenAJobInstallCostPerRunOf(0.0);
+        $this->givenProductTypeIdsDeclaredT2ByTheInventionService($productTypeIdsDeclaredT2);
+
+        return $this->pivotAdvisorOnSdeKnowing([])->analyze(
+            self::SOURCE_PRODUCT,
+            1,
+            self::SOLAR_SYSTEM_ID,
+            self::BROKER_FEE,
+            self::SALES_TAX,
+            $this->user,
+            self::SOLAR_SYSTEM_ID,
+        );
+    }
+
+    private function givenProductTypeIdsDeclaredT2ByTheInventionService(array $productTypeIdsDeclaredT2): void
+    {
+        $this->inventionService->method('isT2')->willReturnCallback(
+            static fn (int $productTypeId): bool => in_array($productTypeId, $productTypeIdsDeclaredT2, true),
+        );
+    }
+
     public function testInstallCostOfEveryActivityUsesTheNpcStationFacilityTaxWhenTheUserHasNoStructure(): void
     {
         $this->givenManufacturingAndReactionCandidatesOfAManufacturingSource();
@@ -1067,7 +1121,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->assertSame([[30000144, 'reaction', 2.0]], $installCostRequests->requestsWithSolarSystem);
     }
 
-    private function analyzeT1T2AndReactionCandidates(): array
+    private function analyzeT1T2AndReactionCandidates(int ...$productTypeIdsDeclaredT2): array
     {
         $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
         $componentBlueprint = $this->createBlueprintProduct(99001, self::BUILDABLE_MAT_A, 1, 1);
@@ -1120,12 +1174,12 @@ class PivotAdvisorServiceTest extends TestCase
             self::CANDIDATE_2 => 3.0,
             self::REACTION_CANDIDATE => 40.0,
         ]);
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->connection->method('fetchAllAssociative')->willReturn([]);
         $this->givenAJobInstallCostPerRunOf(0.0);
 
         $this->inventionService = $this->createMock(InventionService::class);
         $this->inventionService->method('identifyT2Products')->willReturn([self::CANDIDATE_2 => true]);
+        $this->givenProductTypeIdsDeclaredT2ByTheInventionService($productTypeIdsDeclaredT2);
 
         return $this->pivotAdvisorOnSdeKnowing([])->analyze(
             self::SOURCE_PRODUCT,
@@ -1178,7 +1232,6 @@ class PivotAdvisorServiceTest extends TestCase
             self::CANDIDATE_1 => 9.0,
             self::REACTION_CANDIDATE => 40.0,
         ]);
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->connection->method('fetchAllAssociative')->willReturn([]);
     }
 
@@ -1316,7 +1369,6 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT => 12.0,
             self::CANDIDATE_1 => 9.0,
         ]);
-        $this->connection->method('fetchOne')->willReturn(0);
         $this->connection->method('fetchAllAssociative')->willReturn([]);
         $this->givenAJobInstallCostPerRunOf($jobInstallCostPerRun);
 

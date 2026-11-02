@@ -31,6 +31,12 @@ final class ManufacturableProductSde
     public const int SINGLE_DIGIT_PRODUCT_SEVEN = 7;
     private const int SINGLE_DIGIT_PRODUCT_ONE_BLUEPRINT = 990_021;
     private const int SINGLE_DIGIT_PRODUCT_SEVEN_BLUEPRINT = 990_027;
+    public const int UNPUBLISHED_INVENTED_PRODUCT = 990_031;
+    public const int UNPUBLISHED_INVENTED_PRODUCT_BLUEPRINT = 990_032;
+    private const int UNPUBLISHED_INVENTED_PRODUCT_INVENTOR_BLUEPRINT = 990_033;
+    public const int PRODUCT_OF_AN_INVENTED_REACTION_FORMULA = 990_034;
+    public const int INVENTED_REACTION_FORMULA = 990_035;
+    private const int INVENTED_REACTION_FORMULA_INVENTOR = 990_036;
 
     public const string FEROX_NAME = 'Ferox';
     public const string HECATE_NAME = 'Hecate';
@@ -103,6 +109,23 @@ final class ManufacturableProductSde
         self::type($em, self::SINGLE_DIGIT_PRODUCT_SEVEN_BLUEPRINT, 'Fixture Hull Seven Blueprint', $blueprints, true);
         self::activityProduct($em, self::SINGLE_DIGIT_PRODUCT_ONE_BLUEPRINT, IndustryActivityType::Manufacturing, self::SINGLE_DIGIT_PRODUCT_ONE, 4);
         self::activityProduct($em, self::SINGLE_DIGIT_PRODUCT_SEVEN_BLUEPRINT, IndustryActivityType::Manufacturing, self::SINGLE_DIGIT_PRODUCT_SEVEN, 6);
+        $em->flush();
+    }
+
+    public static function persistUnpublishedInventedProductAndInventedReactionFormula(EntityManagerInterface $em): void
+    {
+        $products = $em->getReference(InvGroup::class, self::PRODUCT_GROUP_ID);
+        $blueprints = $em->getReference(InvGroup::class, self::BLUEPRINT_GROUP_ID);
+        self::type($em, self::UNPUBLISHED_INVENTED_PRODUCT, 'Sabre Prototype Hull', $products, false);
+        self::type($em, self::UNPUBLISHED_INVENTED_PRODUCT_BLUEPRINT, 'Sabre Prototype Hull Blueprint', $blueprints, true);
+        self::type($em, self::UNPUBLISHED_INVENTED_PRODUCT_INVENTOR_BLUEPRINT, 'Thrasher Prototype Blueprint', $blueprints, true);
+        self::type($em, self::PRODUCT_OF_AN_INVENTED_REACTION_FORMULA, 'Fixture Polymer', $products, true);
+        self::type($em, self::INVENTED_REACTION_FORMULA, 'Fixture Polymer Reaction Formula', $blueprints, true);
+        self::type($em, self::INVENTED_REACTION_FORMULA_INVENTOR, 'Fixture Polymer Prototype Formula', $blueprints, true);
+        self::activityProduct($em, self::UNPUBLISHED_INVENTED_PRODUCT_BLUEPRINT, IndustryActivityType::Manufacturing, self::UNPUBLISHED_INVENTED_PRODUCT, 8);
+        self::activityProduct($em, self::UNPUBLISHED_INVENTED_PRODUCT_INVENTOR_BLUEPRINT, IndustryActivityType::Invention, self::UNPUBLISHED_INVENTED_PRODUCT_BLUEPRINT, 12);
+        self::activityProduct($em, self::INVENTED_REACTION_FORMULA, IndustryActivityType::Reaction, self::PRODUCT_OF_AN_INVENTED_REACTION_FORMULA, 200);
+        self::activityProduct($em, self::INVENTED_REACTION_FORMULA_INVENTOR, IndustryActivityType::Invention, self::INVENTED_REACTION_FORMULA, 9);
         $em->flush();
     }
 

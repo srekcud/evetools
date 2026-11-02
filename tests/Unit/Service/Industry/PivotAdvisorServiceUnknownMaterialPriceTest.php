@@ -644,7 +644,6 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         $typeNameResolver->method('findNames')->willReturn(self::TYPE_NAMES);
 
         $connection = $this->createStub(Connection::class);
-        $connection->method('fetchOne')->willReturn(0);
         $connection->method('fetchAllAssociative')->willReturn(array_map(
             static fn (int $typeId, string $groupName): array => ['type_id' => $typeId, 'group_name' => $groupName],
             array_keys(self::GROUP_NAMES),

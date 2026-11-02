@@ -207,39 +207,77 @@ class InventionServiceTest extends TestCase
     // isT2() tests
     // ===========================================
 
+    private const int RIFTER_TYPE_ID = 587;
+    private const int RIFTER_BLUEPRINT_ID = 691;
+    private const int TRITANIUM_TYPE_ID = 34;
+    private const int FULLERIDES_TYPE_ID = 16679;
+    private const int FULLERIDES_REACTION_FORMULA_ID = 17959;
+
+    private function givenT2ProductTypeIdsInTheSde(int ...$t2ProductTypeIds): void
+    {
+        $this->activityProductRepository
+            ->method('findT2ProductTypeIds')
+            ->willReturnCallback(static fn (array $productTypeIds): array => array_intersect_key(
+                array_fill_keys($t2ProductTypeIds, true),
+                array_flip($productTypeIds),
+            ));
+    }
+
+    #[Group('issue-293')]
     public function testIsT2ReturnsTrueForT2Item(): void
     {
-        $this->setupSabreInventionChain();
+        $this->givenT2ProductTypeIdsInTheSde(self::SABRE_TYPE_ID);
 
         $this->assertTrue($this->service->isT2(self::SABRE_TYPE_ID));
     }
 
-    public function testIsT2ReturnsFalseForT1Item(): void
+    public static function productsTheSdeDoesNotDeclareT2(): iterable
     {
-        // T1 item: manufacturing blueprint exists but no invention path
-        $t1Manufacturing = $this->createProduct(586, IndustryActivityType::Manufacturing->value, 587, 1);
-
-        $this->activityProductRepository
-            ->method('findBlueprintForProduct')
-            ->willReturnCallback(function (int $productTypeId, int $activityId) use ($t1Manufacturing): ?IndustryActivityProduct {
-                if ($productTypeId === 587 && $activityId === IndustryActivityType::Manufacturing->value) {
-                    return $t1Manufacturing;
-                }
-                // No invention product for blueprint 586
-                return null;
-            });
-
-        $this->assertFalse($this->service->isT2(587));
+        yield 'T1 manufactured product' => [self::RIFTER_TYPE_ID];
+        yield 'product without manufacturing blueprint' => [self::TRITANIUM_TYPE_ID];
     }
 
-    public function testIsT2ReturnsFalseForNonManufacturedItem(): void
+    #[DataProvider('productsTheSdeDoesNotDeclareT2')]
+    #[Group('issue-293')]
+    public function testIsT2ReturnsFalseForAProductTheSdeDoesNotDeclareT2(int $productTypeId): void
     {
-        // Item with no manufacturing blueprint at all
-        $this->activityProductRepository
-            ->method('findBlueprintForProduct')
-            ->willReturn(null);
+        $this->givenT2ProductTypeIdsInTheSde(self::SABRE_TYPE_ID);
 
-        $this->assertFalse($this->service->isT2(34)); // Tritanium
+        $this->assertFalse($this->service->isT2($productTypeId));
+    }
+
+    #[Group('issue-293')]
+    public function testIsT2OfAProductWithAnInventionChainReadsNoInventionMaterial(): void
+    {
+        $this->setupSabreInventionChain(null, 10);
+        $this->givenT2ProductTypeIdsInTheSde(self::SABRE_TYPE_ID);
+        $this->activityMaterialRepository->expects($this->never())->method('findByBlueprintAndActivity');
+
+        $this->assertTrue($this->service->isT2(self::SABRE_TYPE_ID));
+    }
+
+    #[Group('issue-293')]
+    public function testIdentifyT2ProductsKeepsTheManufacturedProductsTheSdeDeclaresT2(): void
+    {
+        $this->givenT2ProductTypeIdsInTheSde(self::SABRE_TYPE_ID);
+
+        $this->assertSame([self::SABRE_TYPE_ID => true], $this->service->identifyT2Products([
+            ['blueprintTypeId' => self::RIFTER_BLUEPRINT_ID, 'productTypeId' => self::RIFTER_TYPE_ID, 'outputPerRun' => 1, 'activityId' => IndustryActivityType::Manufacturing->value],
+            ['blueprintTypeId' => self::SABRE_BLUEPRINT_ID, 'productTypeId' => self::SABRE_TYPE_ID, 'outputPerRun' => 3, 'activityId' => IndustryActivityType::Manufacturing->value],
+        ]));
+    }
+
+    #[Group('issue-293')]
+    public function testIdentifyT2ProductsIgnoresReactionCandidates(): void
+    {
+        $this->activityProductRepository
+            ->method('findT2ProductTypeIds')
+            ->willReturnCallback(static fn (array $productTypeIds): array => array_fill_keys($productTypeIds, true));
+
+        $this->assertSame([self::SABRE_TYPE_ID => true], $this->service->identifyT2Products([
+            ['blueprintTypeId' => self::FULLERIDES_REACTION_FORMULA_ID, 'productTypeId' => self::FULLERIDES_TYPE_ID, 'outputPerRun' => 3000, 'activityId' => IndustryActivityType::Reaction->value],
+            ['blueprintTypeId' => self::SABRE_BLUEPRINT_ID, 'productTypeId' => self::SABRE_TYPE_ID, 'outputPerRun' => 3, 'activityId' => IndustryActivityType::Manufacturing->value],
+        ]));
     }
 
     // ===========================================
@@ -778,13 +816,6 @@ class InventionServiceTest extends TestCase
         $this->assertNotNull($inventionData);
         $this->assertNull($inventionData['probability']);
         $this->assertSame(10, $inventionData['baseRuns']);
-    }
-
-    public function testIsT2StaysTrueWhenInventionProbabilityIsMissing(): void
-    {
-        $this->setupSabreInventionChain(null, 10);
-
-        $this->assertTrue($this->service->isT2(self::SABRE_TYPE_ID));
     }
 
     public function testCalculateInventionCostWithMissingProbabilityReturnsUnknownCostWithoutDivisionByZero(): void
