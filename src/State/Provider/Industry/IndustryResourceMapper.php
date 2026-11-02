@@ -18,6 +18,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Repository\CachedIndustryJobRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\StepMaterialTypeIdsReader;
 use App\Service\Industry\TimePerRunCalculator;
 
 class IndustryResourceMapper
@@ -33,6 +34,7 @@ class IndustryResourceMapper
         private readonly TimePerRunCalculator $timePerRunCalculator,
         private readonly CachedIndustryJobRepository $industryJobRepository,
         private readonly InventionService $inventionService,
+        private readonly StepMaterialTypeIdsReader $materialTypeIdsReader,
     ) {
     }
 
@@ -235,7 +237,7 @@ class IndustryResourceMapper
         $resource->meLevel = $step->getMeLevel();
         $resource->teLevel = $step->getTeLevel();
         $resource->jobMatchMode = $step->getJobMatchMode();
-        $resource->deletable = $step->getProject()->refusalToDeleteStep($step) === null;
+        $resource->deletable = $step->getProject()->refusalToDeleteStep($step, $this->materialTypeIdsReader->materialTypeIdsOf(...)) === null;
 
         // Structure config
         $structureConfig = $step->getStructureConfig();

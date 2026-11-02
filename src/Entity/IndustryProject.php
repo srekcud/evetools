@@ -444,7 +444,10 @@ class IndustryProject
         return $this;
     }
 
-    public function refusalToDeleteStep(IndustryProjectStep $step): ?string
+    /**
+     * @param \Closure(IndustryProjectStep): list<int> $materialTypeIdsOf
+     */
+    public function refusalToDeleteStep(IndustryProjectStep $step, \Closure $materialTypeIdsOf): ?string
     {
         if (!$step->getJobMatches()->isEmpty()) {
             return 'Cannot delete a step linked to an ESI job';
@@ -456,6 +459,10 @@ class IndustryProject
 
         if ($step->isCommitted() && $this->otherJobsOfGroupOf($step) === []) {
             return 'Cannot delete a step holding purchases, stock or a purchased mark';
+        }
+
+        if ($this->leavesMaterialStepWithoutConsumer($step, $materialTypeIdsOf)) {
+            return 'Cannot delete a step whose material steps have no other consumer; delete them first';
         }
 
         return null;
@@ -473,6 +480,34 @@ class IndustryProject
         return array_values($this->steps->filter(
             static fn (IndustryProjectStep $other): bool => $other !== $step && $other->getSplitGroupId() === $step->getSplitGroupId(),
         )->toArray());
+    }
+
+    /**
+     * @param \Closure(IndustryProjectStep): list<int> $materialTypeIdsOf
+     */
+    private function leavesMaterialStepWithoutConsumer(IndustryProjectStep $step, \Closure $materialTypeIdsOf): bool
+    {
+        if ($step->getActivityType() === 'copy') {
+            return false;
+        }
+
+        $remainingProductionSteps = array_values($this->steps->filter(
+            static fn (IndustryProjectStep $other): bool => $other !== $step && $other->getActivityType() !== 'copy',
+        )->toArray());
+        $remainingProductTypeIds = array_map(static fn (IndustryProjectStep $other): int => $other->getProductTypeId(), $remainingProductionSteps);
+        $materialStepProductTypeIds = array_intersect(array_unique($materialTypeIdsOf($step)), $remainingProductTypeIds);
+
+        foreach ($materialStepProductTypeIds as $materialStepProductTypeId) {
+            $hasOtherConsumer = array_any(
+                $remainingProductionSteps,
+                static fn (IndustryProjectStep $consumer): bool => \in_array($materialStepProductTypeId, $materialTypeIdsOf($consumer), true),
+            );
+            if (!$hasOtherConsumer) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isLastProductionStepOfProjectProduct(IndustryProjectStep $step): bool

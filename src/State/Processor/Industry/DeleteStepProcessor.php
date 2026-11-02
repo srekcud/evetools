@@ -12,6 +12,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Service\Industry\IndustryStepCalculator;
 use App\Service\Industry\SplitGroupQuantities;
+use App\Service\Industry\StepMaterialTypeIdsReader;
 use App\Service\UuidOrNotFound;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -29,6 +30,7 @@ class DeleteStepProcessor implements ProcessorInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly IndustryStepCalculator $stepCalculator,
+        private readonly StepMaterialTypeIdsReader $materialTypeIdsReader,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -53,7 +55,7 @@ class DeleteStepProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Step not found');
         }
 
-        $refusal = $project->refusalToDeleteStep($step);
+        $refusal = $project->refusalToDeleteStep($step, $this->materialTypeIdsReader->materialTypeIdsOf(...));
 
         if ($refusal !== null) {
             throw new BadRequestHttpException($refusal);
