@@ -17,7 +17,6 @@ const stockpileStore = useStockpileStore()
 const selectedProduct = ref<SearchResult | null>(null)
 const runs = ref(1)
 const me = ref(10)
-const te = ref(20)
 
 const STAGE_ORDER = ['raw_material', 'intermediate', 'component', 'final_product'] as const
 
@@ -59,7 +58,6 @@ async function calculate(): Promise<void> {
     selectedProduct.value.typeId,
     runs.value,
     me.value,
-    te.value,
   )
 }
 
@@ -69,7 +67,6 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
     selectedProduct.value.typeId,
     runs.value,
     me.value,
-    te.value,
     mode,
   )
 }
@@ -101,7 +98,7 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                 <span v-if="selectedProduct.isT2" class="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm text-xs font-semibold uppercase">T2</span>
               </div>
             </div>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-2 gap-3">
               <div>
                 <label :for="`${uid}-runs`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
                   {{ t('industry.stockpile.import.runs') }}
@@ -124,19 +121,6 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                   type="number"
                   min="0"
                   max="10"
-                  class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 font-mono focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
-                />
-              </div>
-              <div>
-                <label :for="`${uid}-te`" class="block text-xs uppercase tracking-wider text-slate-500 mb-2">
-                  {{ t('industry.stockpile.import.te') }}
-                </label>
-                <input
-                  v-model.number="te"
-                  :id="`${uid}-te`"
-                  type="number"
-                  min="0"
-                  max="20"
                   class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 font-mono focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
                 />
               </div>

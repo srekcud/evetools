@@ -17,9 +17,6 @@ class StockpileImportInput
     #[Assert\Range(min: 0, max: 10)]
     public int $me = 0;
 
-    #[Assert\Range(min: 0, max: 20)]
-    public int $te = 0;
-
     #[Assert\Choice(choices: ['replace', 'merge'])]
     public string $mode = 'replace';
 }

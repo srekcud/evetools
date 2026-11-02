@@ -55,7 +55,6 @@ export const useStockpileStore = defineStore('industry-stockpile', () => {
     typeId: number,
     runs: number,
     me: number,
-    te: number,
   ): Promise<void> {
     importLoading.value = true
     error.value = null
@@ -64,7 +63,7 @@ export const useStockpileStore = defineStore('industry-stockpile', () => {
         '/industry/stockpile-targets/preview',
         {
           method: 'POST',
-          body: JSON.stringify({ typeId, runs, me, te }),
+          body: JSON.stringify({ typeId, runs, me }),
         },
       )
       importPreview.value = data
@@ -79,7 +78,6 @@ export const useStockpileStore = defineStore('industry-stockpile', () => {
     typeId: number,
     runs: number,
     me: number,
-    te: number,
     mode: 'replace' | 'merge',
   ): Promise<void> {
     importLoading.value = true
@@ -87,7 +85,7 @@ export const useStockpileStore = defineStore('industry-stockpile', () => {
     try {
       await apiRequest<null>('/industry/stockpile-targets/import', {
         method: 'POST',
-        body: JSON.stringify({ typeId, runs, me, te, mode }),
+        body: JSON.stringify({ typeId, runs, me, mode }),
       })
       importPreview.value = null
       await fetchTargets()
