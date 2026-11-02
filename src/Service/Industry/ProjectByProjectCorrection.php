@@ -12,6 +12,9 @@ use Doctrine\ORM\EntityManagerInterface;
 
 abstract class ProjectByProjectCorrection
 {
+    private const MAX_FAILURE_MESSAGE_LENGTH = 200;
+    private const APPLICATION_NAMESPACE_PREFIX = 'App\\';
+
     public function __construct(
         private readonly IndustryProjectRepository $projectRepository,
         protected readonly EntityManagerInterface $entityManager,
@@ -47,7 +50,7 @@ abstract class ProjectByProjectCorrection
                 $outcomes[] = $this->failedOutcomeOf(
                     $projectId->toRfc4122(),
                     $project,
-                    $idOfProjectWhoseFailureClosedTheEntityManager === null ? $failure->getMessage() : self::notProcessedReason($idOfProjectWhoseFailureClosedTheEntityManager),
+                    $idOfProjectWhoseFailureClosedTheEntityManager === null ? self::reasonOf($failure) : self::notProcessedReason($idOfProjectWhoseFailureClosedTheEntityManager),
                 );
                 if (!$this->entityManager->isOpen()) {
                     $idOfProjectWhoseFailureClosedTheEntityManager ??= $projectId->toRfc4122();
@@ -64,7 +67,7 @@ abstract class ProjectByProjectCorrection
     {
         return new ProjectCorrectionOutcome(
             $project->getId()?->toRfc4122() ?? throw new \LogicException('A project read from the database has no identifier'),
-            $this->calculationService->getProjectDisplayName($project) ?? UnknownTypeName::label($project->getProductTypeId()),
+            $this->calculationService->resolveTypeName($project->getProductTypeId()) ?? UnknownTypeName::label($project->getProductTypeId()),
             $project->getRuns(),
             $status,
             $change,
@@ -83,6 +86,22 @@ abstract class ProjectByProjectCorrection
         } catch (\Throwable) {
             return new ProjectCorrectionOutcome($projectId, UnknownTypeName::label($project->getProductTypeId()), $project->getRuns(), ProjectCorrectionStatus::Failed, reason: $reason);
         }
+    }
+
+    private static function reasonOf(\Throwable $failure): string
+    {
+        $class = $failure::class;
+        $isOwnedByApplicationOrPhp = str_starts_with($class, self::APPLICATION_NAMESPACE_PREFIX) || !str_contains($class, '\\');
+        if (!$isOwnedByApplicationOrPhp) {
+            return $class;
+        }
+
+        $message = $failure->getMessage();
+        if (mb_strlen($message) > self::MAX_FAILURE_MESSAGE_LENGTH) {
+            $message = mb_substr($message, 0, self::MAX_FAILURE_MESSAGE_LENGTH).'...';
+        }
+
+        return $class.': '.$message;
     }
 
     private static function notProcessedReason(string $idOfProjectWhoseFailureClosedTheEntityManager): string
