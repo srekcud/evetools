@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Exception\BlueprintProductMissingFromSdeException;
+use App\Exception\StepMaterialsMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Service\Industry\IndustryStepCalculator;
@@ -25,6 +26,8 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class DeleteStepProcessor implements ProcessorInterface
 {
+    private const string MATERIALS_MISSING_FROM_SDE_MESSAGE = 'Cannot delete a step while the materials of a blueprint of the project are missing from the SDE';
+
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
@@ -55,7 +58,11 @@ class DeleteStepProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Step not found');
         }
 
-        $refusal = $project->refusalToDeleteStep($step, $this->materialTypeIdsReader->materialTypeIdsOf(...));
+        try {
+            $refusal = $project->refusalToDeleteStep($step, $this->materialTypeIdsReader->materialTypeIdsOf(...));
+        } catch (StepMaterialsMissingFromSdeException $missingMaterials) {
+            throw new BadRequestHttpException(self::MATERIALS_MISSING_FROM_SDE_MESSAGE, $missingMaterials);
+        }
 
         if ($refusal !== null) {
             throw new BadRequestHttpException($refusal);

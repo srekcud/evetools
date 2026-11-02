@@ -6,6 +6,7 @@ namespace App\Service\Industry;
 
 use App\Entity\IndustryProjectStep;
 use App\Entity\Sde\IndustryActivityMaterial;
+use App\Exception\StepMaterialsMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 
 class StepMaterialTypeIdsReader
@@ -25,9 +26,7 @@ class StepMaterialTypeIdsReader
     {
         $blueprintKey = ProductionStepGraph::blueprintKeyOf($step);
 
-        if (!isset($this->materialTypeIdsByBlueprintKey[$blueprintKey])) {
-            $this->readMissingMaterialsOfProjectOf($step);
-        }
+        $this->readMissingMaterialsOfProjectOf($step);
 
         return $this->materialTypeIdsByBlueprintKey[$blueprintKey];
     }
@@ -43,18 +42,36 @@ class StepMaterialTypeIdsReader
                 }
             }
         }
-        $missingSteps[ProductionStepGraph::blueprintKeyOf($step)] = $step;
+        $stepBlueprintKey = ProductionStepGraph::blueprintKeyOf($step);
+        if (!isset($this->materialTypeIdsByBlueprintKey[$stepBlueprintKey])) {
+            $missingSteps[$stepBlueprintKey] = $step;
+        }
+
+        if ($missingSteps === []) {
+            return;
+        }
 
         $materialsByKey = $this->materialRepository->findMaterialEntitiesForBlueprints(
             array_values(array_map(static fn (IndustryProjectStep $missingStep): int => $missingStep->getBlueprintTypeId(), $missingSteps)),
             array_values(array_map(static fn (IndustryProjectStep $missingStep): int => SplitGroupMaterials::activityIdOf($missingStep->getActivityType()), $missingSteps)),
         );
 
+        $blueprintKeysAbsentFromSde = [];
         foreach (array_keys($missingSteps) as $blueprintKey) {
+            if (!isset($materialsByKey[$blueprintKey])) {
+                $blueprintKeysAbsentFromSde[] = $blueprintKey;
+
+                continue;
+            }
+
             $this->materialTypeIdsByBlueprintKey[$blueprintKey] = array_map(
                 static fn (IndustryActivityMaterial $material): int => $material->getMaterialTypeId(),
-                $materialsByKey[$blueprintKey] ?? [],
+                $materialsByKey[$blueprintKey],
             );
+        }
+
+        if ($blueprintKeysAbsentFromSde !== []) {
+            throw new StepMaterialsMissingFromSdeException($blueprintKeysAbsentFromSde[0]);
         }
     }
 }

@@ -15,6 +15,7 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
+use App\Exception\StepMaterialsMissingFromSdeException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
@@ -237,7 +238,7 @@ class IndustryResourceMapper
         $resource->meLevel = $step->getMeLevel();
         $resource->teLevel = $step->getTeLevel();
         $resource->jobMatchMode = $step->getJobMatchMode();
-        $resource->deletable = $step->getProject()->refusalToDeleteStep($step, $this->materialTypeIdsReader->materialTypeIdsOf(...)) === null;
+        $resource->deletable = $this->isDeletable($step);
 
         // Structure config
         $structureConfig = $step->getStructureConfig();
@@ -330,6 +331,15 @@ class IndustryResourceMapper
         }
 
         return $resource;
+    }
+
+    private function isDeletable(IndustryProjectStep $step): bool
+    {
+        try {
+            return $step->getProject()->refusalToDeleteStep($step, $this->materialTypeIdsReader->materialTypeIdsOf(...)) === null;
+        } catch (StepMaterialsMissingFromSdeException) {
+            return false;
+        }
     }
 
     /**
