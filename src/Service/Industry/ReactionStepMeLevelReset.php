@@ -60,17 +60,22 @@ class ReactionStepMeLevelReset extends ProjectByProjectCorrection
             $project->getSteps()->count(),
         );
 
-        if (!$dryRun) {
-            $this->entityManager->flush();
-            $this->mercurePublisher->syncCompleted(
-                $project->getUser()->getId()?->toRfc4122() ?? throw new \LogicException('A project owner read from the database has no identifier'),
-                self::MERCURE_SYNC_TYPE,
-                'Reaction material efficiency reset',
-                ['projectId' => $project->getId()?->toRfc4122() ?? ''],
-            );
+        if ($dryRun) {
+            return $this->outcomeOf($project, ProjectCorrectionStatus::Changed, $change);
         }
 
-        return $this->outcomeOf($project, ProjectCorrectionStatus::Changed, $change);
+        $ownerId = $project->getUser()->getId()?->toRfc4122() ?? throw new \LogicException('A project owner read from the database has no identifier');
+        $outcome = $this->outcomeOf($project, ProjectCorrectionStatus::Changed, $change);
+
+        $this->entityManager->flush();
+        $this->mercurePublisher->syncCompleted(
+            $ownerId,
+            self::MERCURE_SYNC_TYPE,
+            'Reaction material efficiency reset',
+            ['projectId' => $outcome->projectId],
+        );
+
+        return $outcome;
     }
 
     /**
