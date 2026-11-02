@@ -8,6 +8,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Sync\IndustryJobSyncService;
+use App\Service\UnknownTypeName;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -46,7 +47,7 @@ class MatchProjectJobsCommand extends Command
             return Command::FAILURE;
         }
 
-        $productName = ConsoleProjectLabel::of($project, $this->calculationService->getProjectDisplayName($project));
+        $productName = $this->calculationService->resolveTypeName($project->getProductTypeId()) ?? UnknownTypeName::label($project->getProductTypeId());
         $io->info("Syncing ESI jobs for: {$productName}");
 
         // Sync jobs from ESI first
