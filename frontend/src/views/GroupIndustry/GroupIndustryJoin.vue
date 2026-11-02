@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { joinOutcome } from '@/views/GroupIndustry/joinOutcome'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useGroupProjectStore()
@@ -19,7 +21,7 @@ onMounted(async () => {
   const code = route.params.code as string
   if (!code) {
     state.value = 'error'
-    errorMessage.value = 'Invalid join link'
+    errorMessage.value = t('groupIndustry.join.invalidLink')
     return
   }
 
@@ -35,7 +37,7 @@ onMounted(async () => {
     // Request is pending approval
     state.value = 'pending'
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Failed to join project'
+    const msg = e instanceof Error ? e.message : t('groupIndustry.join.joinFailed')
 
     // If already a member, try to find the project and redirect
     if (msg.toLowerCase().includes('already')) {
@@ -56,8 +58,8 @@ onMounted(async () => {
       <div v-if="state === 'loading'" class="text-center">
         <div class="bg-slate-900/80 rounded-2xl border border-slate-800 p-12">
           <LoadingSpinner size="xl" class="text-cyan-400 mx-auto mb-4" />
-          <h2 class="text-lg font-semibold text-slate-100 mb-2">Joining Project...</h2>
-          <p class="text-sm text-slate-500">Please wait while we process your request</p>
+          <h2 class="text-lg font-semibold text-slate-100 mb-2">{{ t('groupIndustry.join.joining') }}</h2>
+          <p class="text-sm text-slate-500">{{ t('groupIndustry.join.joiningWait') }}</p>
         </div>
       </div>
 
@@ -69,10 +71,9 @@ onMounted(async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 class="text-xl font-bold text-slate-100 mb-2">Request Sent</h2>
+          <h2 class="text-xl font-bold text-slate-100 mb-2">{{ t('groupIndustry.join.requestSent') }}</h2>
           <p class="text-sm text-slate-400 mb-6">
-            Your join request has been sent and is waiting for approval from a project admin.
-            You will be notified once your request is accepted.
+            {{ t('groupIndustry.join.requestSentDescription') }}
           </p>
           <router-link
             :to="{ name: 'group-industry' }"
@@ -81,7 +82,7 @@ onMounted(async () => {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Group Industry
+            {{ t('groupIndustry.join.backToGroupIndustry') }}
           </router-link>
         </div>
       </div>
@@ -94,7 +95,7 @@ onMounted(async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          <h2 class="text-xl font-bold text-slate-100 mb-2">Unable to Join</h2>
+          <h2 class="text-xl font-bold text-slate-100 mb-2">{{ t('groupIndustry.join.unableToJoin') }}</h2>
           <p class="text-sm text-slate-400 mb-6">{{ errorMessage }}</p>
           <router-link
             :to="{ name: 'group-industry' }"
@@ -103,7 +104,7 @@ onMounted(async () => {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Group Industry
+            {{ t('groupIndustry.join.backToGroupIndustry') }}
           </router-link>
         </div>
       </div>

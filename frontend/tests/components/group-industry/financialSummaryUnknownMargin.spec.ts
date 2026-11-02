@@ -58,8 +58,8 @@ function mountFinancialSummary(distribution: Distribution, locale: 'en' | 'fr'):
   return mount(FinancialSummary, { global: { plugins: [i18n] } })
 }
 
-function marginLine(wrapper: VueWrapper): DOMWrapper<Element> {
-  const line = wrapper.findAll('p').find(paragraph => paragraph.text().startsWith('Margin:'))
+function marginLine(wrapper: VueWrapper, label: string): DOMWrapper<Element> {
+  const line = wrapper.findAll('p').find(paragraph => paragraph.text().startsWith(label))
   if (line === undefined) throw new Error('margin line not found')
   return line
 }
@@ -68,8 +68,8 @@ describe('FinancialSummary margin', () => {
   it('shows an unknown margin with the unknown value tooltip when the distribution is impossible', () => {
     const wrapper = mountFinancialSummary(UNDISTRIBUTABLE_SALE, 'fr')
 
-    const margin = marginLine(wrapper)
-    expect(margin.text()).toBe('Margin: —')
+    const margin = marginLine(wrapper, fr.groupIndustry.financialSummary.marginLabel)
+    expect(margin.text()).toBe('Marge : —')
     expect(margin.find(`[title="${fr.common.unknownValue}"]`).exists()).toBe(true)
     expect(wrapper.text()).not.toContain('0.0%')
     expect(wrapper.text()).not.toContain('0,0%')
@@ -84,7 +84,7 @@ describe('FinancialSummary margin', () => {
   it('shows an unknown margin in English', () => {
     const wrapper = mountFinancialSummary(UNDISTRIBUTABLE_SALE, 'en')
 
-    const margin = marginLine(wrapper)
+    const margin = marginLine(wrapper, en.groupIndustry.financialSummary.marginLabel)
     expect(margin.text()).toBe('Margin: —')
     expect(margin.find(`[title="${en.common.unknownValue}"]`).exists()).toBe(true)
     expect(wrapper.text()).toContain('+928.00 K')
@@ -93,7 +93,7 @@ describe('FinancialSummary margin', () => {
   it('shows a known margin as a signed percentage', () => {
     const wrapper = mountFinancialSummary(PROFITABLE_SALE, 'en')
 
-    expect(marginLine(wrapper).text()).toBe('Margin: +58.3%')
+    expect(marginLine(wrapper, en.groupIndustry.financialSummary.marginLabel).text()).toBe('Margin: +58.3%')
     expect(wrapper.find(`[title="${en.common.unknownValue}"]`).exists()).toBe(false)
   })
 })

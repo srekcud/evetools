@@ -1240,7 +1240,19 @@
       "deleteStepConfirm": "Cette etape et ses sous-etapes seront supprimees.",
       "overproduceRuns": "Surproduire {runs} runs",
       "fixedRuns": "Runs fixés",
-      "automaticRuns": "Calcul automatique"
+      "automaticRuns": "Calcul automatique",
+      "jobsCount": "{count} jobs",
+      "runsCount": "{count} runs",
+      "runsProgress": "{actual} / {expected} runs",
+      "runsCovered": "{covered}/{runs} runs",
+      "runsUnit": "runs",
+      "runsLabel": "Runs :",
+      "splitIndex": "Division {index}/{total}",
+      "esiJobsBreakdown": "{delivered} livrés, {active} en cours",
+      "manualJob": "manuel",
+      "perRun": "/run",
+      "structureBonus": "Bonus : {percent}%",
+      "similarJobLine": "{character} : {runs} runs ({status})"
     },
     "structures": {
       "title": "Structures de production",
@@ -1357,7 +1369,9 @@
       "noItemDetected": "Aucun item detecte. Verifiez le format (copier depuis EVE avec Ctrl+A puis Ctrl+C)",
       "loadShoppingError": "Impossible de charger la liste de courses. Reessayez.",
       "weightedPrice": "Prix pondere",
-      "depthWarning": "Seulement {available} sur {total} disponibles"
+      "depthWarning": "Seulement {available} sur {total} disponibles",
+      "marketSyncInProgress": "Synchronisation du marché...",
+      "stockPurchaseWarning": "{name} : {stock} en stock + {purchased} achetés"
     },
     "margins": {
       "analyze": "Analyser",
@@ -1493,6 +1507,26 @@
       "totalOutput": "Production Totale",
       "desiredRuns": "Runs souhaitees",
       "requiredTime": "Temps requis"
+    },
+    "errors": {
+      "fetchProjects": "Échec du chargement des projets",
+      "fetchProject": "Échec du chargement du projet",
+      "createProject": "Échec de création du projet",
+      "updateProject": "Échec de mise à jour du projet",
+      "deleteProject": "Échec de la suppression du projet",
+      "matchJobs": "Échec de l'association des jobs",
+      "fetchShoppingList": "Échec du chargement de la liste d'achats",
+      "fetchBpcKit": "Échec du chargement du kit BPC",
+      "analyzeProfitMargin": "Échec de l'analyse de la marge",
+      "updateStep": "Échec de mise à jour de l'étape",
+      "createStep": "Échec de création de l'étape",
+      "addChildJob": "Échec de l'ajout du job enfant",
+      "deleteStep": "Échec de la suppression de l'étape",
+      "splitStep": "Échec du split",
+      "mergeSteps": "Échec de la fusion",
+      "fetchEsiJobs": "Échec du chargement des jobs ESI",
+      "linkJob": "Échec de la liaison du job",
+      "unlinkJob": "Échec de la suppression du lien"
     }
   },
   "ledger": {
@@ -2083,6 +2117,16 @@
       "bpcCosts": "Couts BPC",
       "lineRentalCosts": "Couts location ligne"
     },
+    "financialSummary": {
+      "title": "Résumé financier",
+      "brokerFeeWithRate": "Frais courtier ({percent}%)",
+      "salesTaxWithRate": "Taxe de vente ({percent}%)",
+      "materials": "Matériaux",
+      "jobInstallAndLineRental": "Installation jobs + location ligne",
+      "bpc": "BPC",
+      "profit": "Profit",
+      "marginLabel": "Marge :"
+    },
     "sales": {
       "title": "Ventes",
       "recordSale": "Enregistrer une vente",
@@ -2134,6 +2178,16 @@
       "rejectRequest": "Rejeter",
       "pendingRequests": "Demandes en attente",
       "noPending": "Aucune demande d'adhesion en attente.",
+      "noPendingHint": "Partagez le lien d'invitation pour inviter de nouveaux membres",
+      "columns": {
+        "character": "Personnage",
+        "corporation": "Corporation",
+        "requested": "Demandé le",
+        "via": "Via",
+        "actions": "Actions"
+      },
+      "corporationNumber": "Corp #{id}",
+      "viaShortLink": "Lien court",
       "totalContributed": "Total contribue",
       "contributionCount": "Contributions",
       "joinedAt": "Rejoint le",
@@ -2255,7 +2309,15 @@
       "joinButton": "Rejoindre le projet",
       "alreadyMember": "Vous etes deja membre de ce projet.",
       "pendingApproval": "Votre demande d'adhesion est en attente d'approbation.",
-      "projectNotFound": "Projet non trouve ou lien expire."
+      "projectNotFound": "Projet non trouve ou lien expire.",
+      "invalidLink": "Lien d'invitation invalide",
+      "joinFailed": "Échec de l'adhésion au projet",
+      "joining": "Adhésion au projet...",
+      "joiningWait": "Veuillez patienter pendant le traitement de votre demande",
+      "requestSent": "Demande envoyée",
+      "requestSentDescription": "Votre demande d'adhésion a été envoyée et attend l'approbation d'un admin du projet. Vous serez notifié dès qu'elle sera acceptée.",
+      "unableToJoin": "Adhésion impossible",
+      "backToGroupIndustry": "Retour à Industrie de groupe"
     },
     "tabs": {
       "myProjects": "Mes projets",

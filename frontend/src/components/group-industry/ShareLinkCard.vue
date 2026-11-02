@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { groupJoinUrl } from '@/views/GroupIndustry/groupJoinUrl'
 
 const props = defineProps<{
   shortLinkCode: string
 }>()
 
+const { t } = useI18n()
 const titleId = useId()
 const copied = ref(false)
 
@@ -34,7 +36,7 @@ async function copyToClipboard(): Promise<void> {
 
 <template>
   <div class="bg-slate-800/60 rounded-xl border border-slate-700/50 p-5">
-    <h4 :id="titleId" class="text-sm font-semibold text-slate-200 mb-3">Share Join Link</h4>
+    <h4 :id="titleId" class="text-sm font-semibold text-slate-200 mb-3">{{ t('groupIndustry.shareLink.title') }}</h4>
     <div class="flex items-center gap-2 mb-3">
       <input
         type="text"
@@ -57,9 +59,9 @@ async function copyToClipboard(): Promise<void> {
         <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
-        {{ copied ? 'Copied!' : 'Copy' }}
+        {{ copied ? t('groupIndustry.shareLink.copied') : t('common.actions.copy') }}
       </button>
     </div>
-    <p class="text-xs text-slate-500">Members from your corporation join instantly. Others require your approval.</p>
+    <p class="text-xs text-slate-500">{{ t('groupIndustry.shareLink.sameCorp') }} {{ t('groupIndustry.shareLink.otherCorp') }}</p>
   </div>
 </template>

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
+import { i18n } from '@/i18n'
 import type { IndustryProjectStep, AvailableJob } from './types'
 import { enrichStep, formatErrorMessage } from './compat'
 import { useProjectsStore } from './projects'
@@ -49,7 +50,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       ))
       updateStepInProject(projectId, updated)
     } catch (e) {
-      projectsStore.error = formatErrorMessage(e, 'Échec de mise à jour de l\'étape')
+      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.updateStep'))
       throw e
     }
   }
@@ -65,7 +66,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       ))
       updateStepInProject(projectId, updated)
     } catch (e) {
-      projectsStore.error = formatErrorMessage(e, 'Échec de mise à jour de l\'étape')
+      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.updateStep'))
       throw e
     }
   }
@@ -94,7 +95,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
         return enriched
       }
     } catch (e) {
-      projectsStore.error = formatErrorMessage(e, 'Échec de mise à jour de l\'étape')
+      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.updateStep'))
       throw e
     }
   }
@@ -132,7 +133,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       }
       return step
     } catch (e) {
-      projectsStore.error = e instanceof Error ? e.message : 'Failed to create step'
+      projectsStore.error = e instanceof Error ? e.message : i18n.global.t('industry.errors.createStep')
       throw e
     }
   }
@@ -155,7 +156,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       }
       return 'newStep' in response ? response.newStep : response
     } catch (e) {
-      projectsStore.error = e instanceof Error ? e.message : 'Failed to add child job'
+      projectsStore.error = e instanceof Error ? e.message : i18n.global.t('industry.errors.addChildJob')
       throw e
     }
   }
@@ -167,7 +168,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
         await projectsStore.fetchProject(projectId)
       }
     } catch (e) {
-      projectsStore.error = e instanceof Error ? e.message : 'Failed to delete step'
+      projectsStore.error = e instanceof Error ? e.message : i18n.global.t('industry.errors.deleteStep')
       throw e
     }
   }
@@ -187,7 +188,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       }
       return steps
     } catch (e) {
-      projectsStore.error = formatErrorMessage(e, 'Échec du split')
+      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.splitStep'))
       throw e
     }
   }
@@ -204,7 +205,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       }
       return step
     } catch (e) {
-      projectsStore.error = formatErrorMessage(e, 'Échec de la fusion')
+      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.mergeSteps'))
       throw e
     }
   }
@@ -216,7 +217,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
         `/industry/projects/${projectId}/available-jobs`,
       )
     } catch (e) {
-      projectsStore.error = formatErrorMessage(e, 'Échec du chargement des jobs ESI')
+      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.fetchEsiJobs'))
     } finally {
       availableJobsLoading.value = false
     }
@@ -236,7 +237,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       await fetchAvailableJobs(projectId)
       return updated
     } catch (e) {
-      projectsStore.error = formatErrorMessage(e, 'Échec de la liaison du job')
+      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.linkJob'))
       throw e
     }
   }
@@ -249,7 +250,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       // Refresh available jobs
       await fetchAvailableJobs(projectId)
     } catch (e) {
-      projectsStore.error = formatErrorMessage(e, 'Échec de la suppression du lien')
+      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.unlinkJob'))
       throw e
     }
   }

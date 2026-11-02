@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
+import { i18n } from '@/i18n'
 import type { CharacterSyncFailure, IndustryProject, SearchResult, ShoppingListResponse, CostEstimation, BpcKit, CopyCosts, ProfitMarginResult } from './types'
 import { enrichProject, enrichStep, formatErrorMessage } from './compat'
 
@@ -58,7 +59,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       projects.value.unshift(project)
       return project
     } catch (e) {
-      error.value = formatErrorMessage(e, 'Échec de création du projet')
+      error.value = formatErrorMessage(e, i18n.global.t('industry.errors.createProject'))
       throw e
     }
   }
@@ -72,7 +73,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       }>('/industry/projects')
       projects.value = data.projects.map(enrichProject)
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch projects'
+      error.value = e instanceof Error ? e.message : i18n.global.t('industry.errors.fetchProjects')
     } finally {
       isLoading.value = false
     }
@@ -85,7 +86,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       currentProject.value =
         enrichProject(await apiRequest<IndustryProject>(`/industry/projects/${id}`))
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch project'
+      error.value = e instanceof Error ? e.message : i18n.global.t('industry.errors.fetchProject')
     } finally {
       isLoading.value = false
     }
@@ -113,7 +114,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       }
       return updated
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to update project'
+      error.value = e instanceof Error ? e.message : i18n.global.t('industry.errors.updateProject')
       throw e
     }
   }
@@ -124,7 +125,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       await apiRequest(`/industry/projects/${id}`, { method: 'DELETE' })
       projects.value = projects.value.filter((p) => p.id !== id)
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to delete project'
+      error.value = e instanceof Error ? e.message : i18n.global.t('industry.errors.deleteProject')
     }
   }
 
@@ -142,7 +143,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       }
       return data.failedCharacters
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to match jobs'
+      error.value = e instanceof Error ? e.message : i18n.global.t('industry.errors.matchJobs')
       return []
     }
   }
@@ -162,7 +163,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       )
       return data
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch shopping list'
+      error.value = e instanceof Error ? e.message : i18n.global.t('industry.errors.fetchShoppingList')
       return null
     }
   }
@@ -192,7 +193,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       bpcKit.value = data
       return data
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch BPC kit'
+      error.value = e instanceof Error ? e.message : i18n.global.t('industry.errors.fetchBpcKit')
       return null
     }
   }
@@ -248,7 +249,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     } catch (e) {
       if (requestId !== latestMarginRequestId) return null
       marginResult.value = null
-      marginError.value = e instanceof Error ? e.message : 'Failed to analyze profit margin'
+      marginError.value = e instanceof Error ? e.message : i18n.global.t('industry.errors.analyzeProfitMargin')
       return null
     } finally {
       if (requestId === latestMarginRequestId) marginLoading.value = false

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 
+const { t } = useI18n()
 const distStore = useGroupDistributionStore()
 const projectStore = useGroupProjectStore()
 const { formatIsk } = useFormatters()
@@ -20,25 +22,25 @@ const isProfit = computed(() => profit.value >= 0)
 
 const brokerFeeLabel = computed(() => {
   const pct = projectStore.currentProject?.brokerFeePercent
-  return pct != null ? `Broker Fee (${pct}%)` : 'Broker Fee'
+  return pct != null ? t('groupIndustry.financialSummary.brokerFeeWithRate', { percent: pct }) : t('groupIndustry.distribution.brokerFee')
 })
 
 const salesTaxLabel = computed(() => {
   const pct = projectStore.currentProject?.salesTaxPercent
-  return pct != null ? `Sales Tax (${pct}%)` : 'Sales Tax'
+  return pct != null ? t('groupIndustry.financialSummary.salesTaxWithRate', { percent: pct }) : t('groupIndustry.distribution.salesTax')
 })
 
 </script>
 
 <template>
   <div v-if="dist" class="mb-8">
-    <h2 class="text-lg font-semibold text-slate-100 mb-4">Financial Summary</h2>
+    <h2 class="text-lg font-semibold text-slate-100 mb-4">{{ t('groupIndustry.financialSummary.title') }}</h2>
     <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-6">
       <div class="grid grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Revenue breakdown -->
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-sm text-slate-400">Total Revenue</span>
+            <span class="text-sm text-slate-400">{{ t('groupIndustry.distribution.totalRevenue') }}</span>
             <span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
               {{ formatIsk(dist.totalRevenue) }}
             </span>
@@ -56,7 +58,7 @@ const salesTaxLabel = computed(() => {
             </span>
           </div>
           <div class="border-t border-slate-700 pt-2 flex items-center justify-between">
-            <span class="text-sm font-semibold text-slate-300">Net Revenue</span>
+            <span class="text-sm font-semibold text-slate-300">{{ t('groupIndustry.distribution.netRevenue') }}</span>
             <span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
               {{ formatIsk(dist.netRevenue) }}
             </span>
@@ -66,25 +68,25 @@ const salesTaxLabel = computed(() => {
         <!-- Cost breakdown -->
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-sm text-slate-400">Total Project Cost</span>
+            <span class="text-sm text-slate-400">{{ t('groupIndustry.distribution.totalCost') }}</span>
             <span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
               {{ formatIsk(dist.totalProjectCost) }}
             </span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-slate-500">Materials</span>
+            <span class="text-sm text-slate-500">{{ t('groupIndustry.financialSummary.materials') }}</span>
             <span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
               {{ formatIsk(dist.members.reduce((s, m) => s + m.materialCosts, 0)) }}
             </span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-slate-500">Job Install + Line Rental</span>
+            <span class="text-sm text-slate-500">{{ t('groupIndustry.financialSummary.jobInstallAndLineRental') }}</span>
             <span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
               {{ formatIsk(dist.members.reduce((s, m) => s + m.jobInstallCosts + m.lineRentalCosts, 0)) }}
             </span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-sm text-slate-500">BPC</span>
+            <span class="text-sm text-slate-500">{{ t('groupIndustry.financialSummary.bpc') }}</span>
             <span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
               {{ formatIsk(dist.members.reduce((s, m) => s + m.bpcCosts, 0)) }}
             </span>
@@ -99,7 +101,7 @@ const salesTaxLabel = computed(() => {
           <p
             class="text-xs uppercase tracking-wider mb-1"
             :class="isProfit ? 'text-emerald-400/60' : 'text-red-400/60'"
-          >Profit</p>
+          >{{ t('groupIndustry.financialSummary.profit') }}</p>
           <p
             class="text-3xl font-mono font-bold"
             :class="isProfit ? 'text-emerald-400' : 'text-red-400'"
@@ -108,7 +110,7 @@ const salesTaxLabel = computed(() => {
           <p
             class="text-sm font-mono mt-1"
             :class="isProfit ? 'text-emerald-400/80' : 'text-red-400/80'"
-          >Margin: <UnknownValue v-if="dist.marginPercent === null" /><template v-else>{{ isProfit ? '+' : '' }}{{ dist.marginPercent.toFixed(1) }}%</template></p>
+          >{{ t('groupIndustry.financialSummary.marginLabel') }} <UnknownValue v-if="dist.marginPercent === null" /><template v-else>{{ isProfit ? '+' : '' }}{{ dist.marginPercent.toFixed(1) }}%</template></p>
         </div>
       </div>
     </div>

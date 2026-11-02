@@ -1240,7 +1240,19 @@
       "deleteStepConfirm": "This step and its sub-steps will be deleted.",
       "overproduceRuns": "Overproduce {runs} runs",
       "fixedRuns": "Fixed runs",
-      "automaticRuns": "Automatic calculation"
+      "automaticRuns": "Automatic calculation",
+      "jobsCount": "{count} jobs",
+      "runsCount": "{count} runs",
+      "runsProgress": "{actual} / {expected} runs",
+      "runsCovered": "{covered}/{runs} runs",
+      "runsUnit": "runs",
+      "runsLabel": "Runs:",
+      "splitIndex": "Split {index}/{total}",
+      "esiJobsBreakdown": "{delivered} delivered, {active} in progress",
+      "manualJob": "manual",
+      "perRun": "/run",
+      "structureBonus": "Bonus: {percent}%",
+      "similarJobLine": "{character}: {runs} runs ({status})"
     },
     "structures": {
       "title": "Production structures",
@@ -1357,7 +1369,9 @@
       "noItemDetected": "No item detected. Check the format (copy from EVE with Ctrl+A then Ctrl+C)",
       "loadShoppingError": "Unable to load the shopping list. Please try again.",
       "weightedPrice": "Weighted price",
-      "depthWarning": "Only {available} of {total} available"
+      "depthWarning": "Only {available} of {total} available",
+      "marketSyncInProgress": "Syncing the market...",
+      "stockPurchaseWarning": "{name}: {stock} in stock + {purchased} purchased"
     },
     "margins": {
       "analyze": "Analyze",
@@ -1493,6 +1507,26 @@
       "totalOutput": "Total Output",
       "desiredRuns": "Desired Runs",
       "requiredTime": "Required Time"
+    },
+    "errors": {
+      "fetchProjects": "Failed to fetch projects",
+      "fetchProject": "Failed to fetch the project",
+      "createProject": "Failed to create the project",
+      "updateProject": "Failed to update the project",
+      "deleteProject": "Failed to delete the project",
+      "matchJobs": "Failed to match jobs",
+      "fetchShoppingList": "Failed to fetch the shopping list",
+      "fetchBpcKit": "Failed to fetch the BPC kit",
+      "analyzeProfitMargin": "Failed to analyze the profit margin",
+      "updateStep": "Failed to update the step",
+      "createStep": "Failed to create the step",
+      "addChildJob": "Failed to add the child job",
+      "deleteStep": "Failed to delete the step",
+      "splitStep": "Failed to split the step",
+      "mergeSteps": "Failed to merge the steps",
+      "fetchEsiJobs": "Failed to load the ESI jobs",
+      "linkJob": "Failed to link the job",
+      "unlinkJob": "Failed to unlink the job"
     }
   },
   "ledger": {
@@ -2083,6 +2117,16 @@
       "bpcCosts": "BPC Costs",
       "lineRentalCosts": "Line Rental Costs"
     },
+    "financialSummary": {
+      "title": "Financial Summary",
+      "brokerFeeWithRate": "Broker Fee ({percent}%)",
+      "salesTaxWithRate": "Sales Tax ({percent}%)",
+      "materials": "Materials",
+      "jobInstallAndLineRental": "Job Install + Line Rental",
+      "bpc": "BPC",
+      "profit": "Profit",
+      "marginLabel": "Margin:"
+    },
     "sales": {
       "title": "Sales",
       "recordSale": "Record Sale",
@@ -2134,6 +2178,16 @@
       "rejectRequest": "Reject",
       "pendingRequests": "Pending Requests",
       "noPending": "No pending membership requests.",
+      "noPendingHint": "Share the join link to invite new members",
+      "columns": {
+        "character": "Character",
+        "corporation": "Corporation",
+        "requested": "Requested",
+        "via": "Via",
+        "actions": "Actions"
+      },
+      "corporationNumber": "Corp #{id}",
+      "viaShortLink": "Short Link",
       "totalContributed": "Total Contributed",
       "contributionCount": "Contributions",
       "joinedAt": "Joined",
@@ -2255,7 +2309,15 @@
       "joinButton": "Join Project",
       "alreadyMember": "You are already a member of this project.",
       "pendingApproval": "Your membership request is pending approval.",
-      "projectNotFound": "Project not found or link expired."
+      "projectNotFound": "Project not found or link expired.",
+      "invalidLink": "Invalid join link",
+      "joinFailed": "Failed to join the project",
+      "joining": "Joining Project...",
+      "joiningWait": "Please wait while we process your request",
+      "requestSent": "Request Sent",
+      "requestSentDescription": "Your join request has been sent and is waiting for approval from a project admin. You will be notified once your request is accepted.",
+      "unableToJoin": "Unable to Join",
+      "backToGroupIndustry": "Back to Group Industry"
     },
     "tabs": {
       "myProjects": "My Projects",

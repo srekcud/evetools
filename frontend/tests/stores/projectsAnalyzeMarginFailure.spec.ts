@@ -1,5 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { apiRequest } from '@/services/api'
+import { i18n } from '@/i18n'
+import en from '@/i18n/locales/en.json'
 import { useProjectsStore } from '@/stores/industry/projects'
 import type { ProfitMarginResult } from '@/stores/industry/types'
 import { apiOutcomesByPath, awaiting, deferred, rejectWith, respondWith, type ApiOutcome } from '../deferred'
@@ -76,6 +78,7 @@ function respondToMarginOf(typeId: number, outcome: ApiOutcome): void {
 }
 
 beforeEach(() => {
+  i18n.global.locale.value = 'en'
   setActivePinia(createPinia())
   outcomes.clear()
   vi.mocked(apiRequest).mockReset()
@@ -117,7 +120,7 @@ describe('projects store margin analysis failure (issue 189)', () => {
     await store.analyzeMargin(VEXOR_TYPE_ID)
 
     expect({ marginError: store.marginError, pageError: store.error })
-      .toEqual({ marginError: 'Failed to analyze profit margin', pageError: null })
+      .toEqual({ marginError: en.industry.errors.analyzeProfitMargin, pageError: null })
   })
 
   it('replaces the margin and clears the margin error when the next analysis succeeds', async () => {

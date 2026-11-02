@@ -233,7 +233,7 @@ const missingVolumeTypeNamesText = computed(() => missingVolumeTypeNames(shoppin
 const missingPriceTypeNamesText = computed(() => missingVolumeTypeNames(shoppingList.value, missingPriceTypeIds.value))
 
 const displayStructureName = computed(() => {
-  return shoppingStructureName.value || selectedStructure.value.name || 'Structure'
+  return shoppingStructureName.value || selectedStructure.value.name || t('industry.shoppingTab.structure')
 })
 
 const jitaItems = computed(() => {
@@ -359,7 +359,7 @@ async function syncStructureMarket() {
     })
     await loadShoppingList()
   } catch (e) {
-    shoppingPriceError.value = e instanceof Error ? e.message : 'Sync failed'
+    shoppingPriceError.value = e instanceof Error ? e.message : t('common.errors.syncFailed')
   } finally {
     shoppingSyncing.value = false
   }
@@ -534,7 +534,7 @@ defineExpose({
       >
         <LoadingSpinner size="md" class="text-cyan-400 shrink-0" />
         <div class="flex-1">
-          <div class="text-sm text-cyan-300">{{ marketStructureProgress.message || 'Synchronisation du marche...' }}</div>
+          <div class="text-sm text-cyan-300">{{ marketStructureProgress.message || t('industry.shoppingTab.marketSyncInProgress') }}</div>
           <div v-if="marketStructureProgress.progress !== null" class="mt-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
             <div
               class="h-full bg-cyan-500 transition-all duration-300"
@@ -592,7 +592,7 @@ defineExpose({
             <p class="text-sm font-medium">{{ t('industry.shoppingTab.duplicateWarning') }}</p>
             <ul class="mt-1 text-xs text-amber-400/80 space-y-0.5">
               <li v-for="w in stock.stockPurchaseWarnings.value" :key="w.name">
-                {{ w.name }} : {{ w.stockQty.toLocaleString() }} en stock + {{ w.purchasedQty.toLocaleString() }} achetes
+                {{ t('industry.shoppingTab.stockPurchaseWarning', { name: w.name, stock: w.stockQty.toLocaleString(), purchased: w.purchasedQty.toLocaleString() }) }}
               </li>
             </ul>
             <p class="mt-1 text-xs text-amber-400/60">{{ t('industry.shoppingTab.duplicateHint') }}</p>

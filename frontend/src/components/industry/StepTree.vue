@@ -296,7 +296,7 @@ const groupedSteps = computed<StepGroup[]>(() => {
 })
 
 function groupLabel(step: IndustryProjectStep): string {
-  const type = step.activityType === 'reaction' ? t('industry.stepTree.reactions') : step.activityType === 'copy' ? t('industry.stepTree.copies') : 'Manufacturing'
+  const type = step.activityType === 'reaction' ? t('industry.stepTree.reactions') : step.activityType === 'copy' ? t('industry.stepTree.copies') : t('industry.activity.manufacturing')
   return `${t('industry.stepTree.depth')} ${step.depth} — ${type}`
 }
 
@@ -322,7 +322,7 @@ function formatSimilarJobsWarning(similarJobs: SimilarJob[]): string {
   return similarJobs.map(j => {
     const status = j.status === 'active' ? t('industry.stepStatus.active') : t('industry.stepStatus.completed')
     const facility = j.facilityName ? ` @ ${j.facilityName}` : ''
-    return `${j.characterName}: ${j.runs} runs (${status})${facility}`
+    return `${t('industry.stepTree.similarJobLine', { character: j.characterName, runs: j.runs, status })}${facility}`
   }).join('\n')
 }
 
@@ -347,7 +347,7 @@ function stepStatusLabel(step: IndustryProjectStep): string {
   if (step.inStock) return t('industry.step.inStock')
   if (step.inStockQuantity > 0) {
     const runsCovered = getRunsCoveredByStock(step)
-    return runsCovered >= step.runs ? t('industry.step.inStock') : `${runsCovered}/${step.runs} runs`
+    return runsCovered >= step.runs ? t('industry.step.inStock') : t('industry.stepTree.runsCovered', { covered: runsCovered, runs: step.runs })
   }
   if (step.purchased) return t('industry.step.purchased')
   if (step.esiJobStatus === 'active') return t('industry.stepStatus.active')
@@ -521,7 +521,7 @@ function mergeGroup(stepId: string) {
               <span class="block flex-1 min-w-0">
                 <span class="flex items-center gap-2 flex-wrap">
                   <span class="font-medium text-slate-200">{{ splitGroup.productTypeName }}</span>
-                  <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">({{ splitGroup.children.length }} jobs)</span>
+                  <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">({{ t('industry.stepTree.jobsCount', { count: splitGroup.children.length }) }})</span>
                   <span :class="['text-xs px-1.5 py-0.5 rounded-sm', activityBadgeClass(splitGroup.activityType)]">
                     {{ activityLabel(splitGroup.activityType) }}
                   </span>
@@ -529,7 +529,7 @@ function mergeGroup(stepId: string) {
                   <span
                     v-if="splitGroup.recommendedStructureName"
                     class="text-xs text-slate-500 flex items-center gap-1"
-                    :title="`Bonus: ${splitGroup.structureBonus}%`"
+                    :title="t('industry.stepTree.structureBonus', { percent: splitGroup.structureBonus })"
                   >
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -570,7 +570,7 @@ function mergeGroup(stepId: string) {
                       splitGroup.isValid ? 'text-slate-400' : 'text-red-400'
                     ]"
                   >
-                    {{ splitGroup.actualTotalRuns }} / {{ splitGroup.totalExpectedRuns }} runs
+                    {{ t('industry.stepTree.runsProgress', { actual: splitGroup.actualTotalRuns, expected: splitGroup.totalExpectedRuns }) }}
                   </span>
                   <span v-if="!splitGroup.isValid" class="text-red-400">
                     ({{ splitGroup.actualTotalRuns > splitGroup.totalExpectedRuns ? '+' : '' }}{{ splitGroup.actualTotalRuns - splitGroup.totalExpectedRuns }})
@@ -661,7 +661,7 @@ function mergeGroup(stepId: string) {
                         @click.stop
                         v-focus-on-mount
                       />
-                      <span class="text-xs text-slate-600">runs)</span>
+                      <span class="text-xs text-slate-600">{{ t('industry.stepTree.runsUnit') }})</span>
                     </span>
                     <span
                       v-else
@@ -673,11 +673,11 @@ function mergeGroup(stepId: string) {
                       class="text-xs text-slate-600 cursor-pointer hover:text-cyan-400"
                       :title="t('industry.table.doubleClickEdit')"
                     >
-                      ({{ step.runs }} runs)
+                      ({{ t('industry.stepTree.runsCount', { count: step.runs }) }})
                     </span>
                   </template>
                   <span v-else class="text-xs text-slate-600" :title="isLinkedToEsi(step) ? t('industry.stepTree.linkedToEsi') : t('industry.table.projectCompleted')">
-                    ({{ step.runs }} runs)
+                    ({{ t('industry.stepTree.runsCount', { count: step.runs }) }})
                   </span>
                   <button
                     v-if="overproduceOffers?.[step.id] !== undefined"
@@ -697,7 +697,7 @@ function mergeGroup(stepId: string) {
                     class="text-xs px-1.5 py-0.5 rounded-sm bg-slate-700/50 text-slate-300 hover:bg-slate-700 border border-slate-600"
                   >{{ t('industry.stepTree.automaticRuns') }}</button>
                   <!-- Split index -->
-                  <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">Split {{ stepIdx + 1 }}/{{ splitGroup.children.length }}</span>
+                  <span v-if="splitGroup.children.length > 1" class="text-xs text-slate-500">{{ t('industry.stepTree.splitIndex', { index: stepIdx + 1, total: splitGroup.children.length }) }}</span>
                   <!-- ME/TE (not relevant for copy steps) -->
                   <template v-if="step.activityType !== 'copy'">
                     <template v-if="!readonly && !isLinkedToEsi(step)">
@@ -799,7 +799,7 @@ function mergeGroup(stepId: string) {
                     v-if="step.esiJobsCount && step.esiJobsCount > 1"
                     class="text-slate-600"
                   >
-                    ({{ step.esiJobsCount }} jobs)
+                    ({{ t('industry.stepTree.jobsCount', { count: step.esiJobsCount }) }})
                   </span>
                   <span
                     :class="[
@@ -807,15 +807,15 @@ function mergeGroup(stepId: string) {
                       step.esiJobsTotalRuns && step.esiJobsTotalRuns >= step.runs ? 'text-emerald-400' : 'text-amber-400'
                     ]"
                   >
-                    {{ step.esiJobsTotalRuns || step.esiJobRuns || 0 }} / {{ step.runs }} runs
+                    {{ t('industry.stepTree.runsProgress', { actual: step.esiJobsTotalRuns || step.esiJobRuns || 0, expected: step.runs }) }}
                   </span>
                   <span
                     v-if="step.esiJobsActiveRuns || step.esiJobsDeliveredRuns"
                     class="text-slate-500"
                   >
-                    ({{ step.esiJobsDeliveredRuns || 0 }} livrés, {{ step.esiJobsActiveRuns || 0 }} en cours)
+                    ({{ t('industry.stepTree.esiJobsBreakdown', { delivered: step.esiJobsDeliveredRuns || 0, active: step.esiJobsActiveRuns || 0 }) }})
                   </span>
-                  <span v-if="step.manualJobData && !step.esiJobCharacterName" class="text-amber-400">(manuel)</span>
+                  <span v-if="step.manualJobData && !step.esiJobCharacterName" class="text-amber-400">({{ t('industry.stepTree.manualJob') }})</span>
                 </div>
                 <!-- Duration for step -->
                 <div v-if="isStepWithUnknownTimePerRun(step) || (stepTotalDuration(step) && !step.purchased && !step.inStock)" class="flex items-center gap-1 mt-1 text-xs text-slate-500">
@@ -825,7 +825,7 @@ function mergeGroup(stepId: string) {
                   <UnknownValue v-if="isStepWithUnknownTimePerRun(step)" />
                   <template v-else>
                     {{ formatDuration(stepTotalDuration(step)) }}
-                    <span v-if="step.runs > 1" class="text-slate-600">({{ formatDuration(step.timePerRun) }}/run)</span>
+                    <span v-if="step.runs > 1" class="text-slate-600">({{ formatDuration(step.timePerRun) }}{{ t('industry.stepTree.perRun') }})</span>
                   </template>
                 </div>
               </div>
@@ -916,7 +916,7 @@ function mergeGroup(stepId: string) {
             >
               <template v-if="addingChildToGroup === splitGroup.splitGroupId">
                 <div class="flex items-center gap-2 flex-1">
-                  <span class="text-sm text-slate-400">Runs :</span>
+                  <span class="text-sm text-slate-400">{{ t('industry.stepTree.runsLabel') }}</span>
                   <input
                     v-model.number="addChildRunsValue"
                     :aria-label="t('industry.createProject.runs')"

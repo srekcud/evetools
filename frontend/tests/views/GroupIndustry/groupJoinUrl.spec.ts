@@ -1,4 +1,7 @@
 import { mount } from '@vue/test-utils'
+import { createI18n } from 'vue-i18n'
+import en from '@/i18n/locales/en.json'
+import fr from '@/i18n/locales/fr.json'
 import router from '@/router'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import { groupJoinUrl } from '@/views/GroupIndustry/groupJoinUrl'
@@ -21,7 +24,10 @@ describe('groupJoinUrl', () => {
 
 describe('ShareLinkCard', () => {
   it('shows the same join link as groupJoinUrl', () => {
-    const wrapper = mount(ShareLinkCard, { props: { shortLinkCode: 'P3ZR8N' } })
+    const wrapper = mount(ShareLinkCard, {
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })] },
+      props: { shortLinkCode: 'P3ZR8N' },
+    })
 
     expect(wrapper.get('input').element.value).toBe(groupJoinUrl(window.location.origin, 'P3ZR8N'))
   })
