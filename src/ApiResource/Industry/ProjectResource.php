@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
@@ -60,12 +61,18 @@ use App\State\Provider\Industry\ShoppingListProvider;
         ),
         new Get(
             uriTemplate: '/industry/projects/{id}/shopping-list',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+            ],
             provider: ShoppingListProvider::class,
             output: ShoppingListResource::class,
             openapi: new Model\Operation(summary: 'Get shopping list', description: 'Returns materials needed with price comparison', tags: ['Industry - Projects']),
         ),
         new Post(
             uriTemplate: '/industry/projects/{id}/match-jobs',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+            ],
             processor: MatchJobsProcessor::class,
             input: EmptyInput::class,
             output: MatchJobsResultResource::class,

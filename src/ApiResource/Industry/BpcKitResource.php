@@ -7,6 +7,7 @@ namespace App\ApiResource\Industry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\BpcKitProvider;
 
@@ -16,6 +17,9 @@ use App\State\Provider\Industry\BpcKitProvider;
     operations: [
         new Get(
             uriTemplate: '/industry/projects/{id}/bpc-kit',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+            ],
             provider: BpcKitProvider::class,
             openapi: new Model\Operation(summary: 'Get BPC kit breakdown', description: 'Returns invention costs with all decryptor options and summary totals', tags: ['Industry - Projects']),
         ),

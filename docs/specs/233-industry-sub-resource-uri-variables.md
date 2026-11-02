@@ -23,7 +23,7 @@ Opérations concernées (templates avec une variable suivie d'un autre segment) 
   - `id` : `new Link(fromClass: ProjectResource::class)` ;
   - `stepId` : `new Link(fromClass: ProjectStepResource::class)` ;
   - `purchaseId` : `new Link(fromClass: self::class)`.
-- **R2 : Comportement inchangé.** Aucune route, méthode, format, sécurité ni contenu de réponse ne change : la table des routes (`debug:router`) et l'export OpenAPI sont identiques avant et après, aux seules différences de description des paramètres de chemin que l'export pourrait porter.
+- **R2 : Comportement inchangé.** Aucune route, méthode, format, sécurité ni contenu de réponse ne change : la table des routes (`debug:router`) et l'export OpenAPI sont identiques avant et après, aux seules différences de description des paramètres de chemin que l'export pourrait porter. Seule exception constatée, voulue : le `@id` JSON-LD de la réponse du PATCH d'étape (et du DELETE) portait l'identifiant de l'étape à la place de celui du projet (`/industry/projects/<stepId>/steps/<stepId>`) ; avec `id` lié à `ProjectResource` il devient `/industry/projects/<projectId>/steps/<stepId>`. Le frontend ignore `@id` (`utils/jsonld.ts`).
 - **R3 : Test d'architecture.** Un test unitaire lit les attributs d'opération (réflexion sur les classes de `src/ApiResource/Industry/`, `newInstance()` de chaque attribut d'opération) et échoue pour toute opération qui viole R1, en nommant la classe et le template. Il ne s'appuie pas sur les métadonnées API Platform résolues (elles remplissent `uriVariables` d'office, le test ne verrait jamais d'écart).
 
 ## Exemples

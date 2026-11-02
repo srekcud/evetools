@@ -6,6 +6,7 @@ namespace App\ApiResource\Industry;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\AvailableJobsProvider;
 
@@ -15,6 +16,9 @@ use App\State\Provider\Industry\AvailableJobsProvider;
     operations: [
         new GetCollection(
             uriTemplate: '/industry/projects/{id}/available-jobs',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+            ],
             provider: AvailableJobsProvider::class,
             openapi: new Model\Operation(summary: 'Available ESI jobs', description: 'Lists ESI jobs matching the project blueprints, with link status', tags: ['Industry - Projects']),
         ),

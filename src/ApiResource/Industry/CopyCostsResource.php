@@ -7,6 +7,7 @@ namespace App\ApiResource\Industry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\CopyCostsProvider;
 
@@ -16,6 +17,9 @@ use App\State\Provider\Industry\CopyCostsProvider;
     operations: [
         new Get(
             uriTemplate: '/industry/projects/{id}/copy-costs',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+            ],
             provider: CopyCostsProvider::class,
             openapi: new Model\Operation(summary: 'Get copy costs', description: 'Returns T1 BPC copy costs for all project steps', tags: ['Industry - Projects']),
         ),

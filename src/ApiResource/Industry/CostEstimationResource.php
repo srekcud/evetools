@@ -7,6 +7,7 @@ namespace App\ApiResource\Industry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\CostEstimationProvider;
 
@@ -16,6 +17,9 @@ use App\State\Provider\Industry\CostEstimationProvider;
     operations: [
         new Get(
             uriTemplate: '/industry/projects/{id}/cost-estimation',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+            ],
             provider: CostEstimationProvider::class,
             openapi: new Model\Operation(summary: 'Get cost estimation', description: 'Returns material costs, job install costs, and total production cost breakdown', tags: ['Industry - Projects']),
         ),

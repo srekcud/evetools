@@ -7,6 +7,7 @@ namespace App\ApiResource\Industry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Industry\CreatePurchaseInput;
@@ -20,12 +21,21 @@ use App\State\Provider\Industry\StepPurchaseDeleteProvider;
     operations: [
         new Post(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}/purchases',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+                'stepId' => new Link(fromClass: ProjectStepResource::class),
+            ],
             processor: CreatePurchaseProcessor::class,
             input: CreatePurchaseInput::class,
             openapi: new Model\Operation(summary: 'Create purchase', description: 'Links a purchase (ESI wallet or manual) to a step', tags: ['Industry - Projects']),
         ),
         new Delete(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}/purchases/{purchaseId}',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+                'stepId' => new Link(fromClass: ProjectStepResource::class),
+                'purchaseId' => new Link(fromClass: self::class),
+            ],
             provider: StepPurchaseDeleteProvider::class,
             processor: DeletePurchaseProcessor::class,
             openapi: new Model\Operation(summary: 'Delete purchase', description: 'Removes a purchase link from a step', tags: ['Industry - Projects']),

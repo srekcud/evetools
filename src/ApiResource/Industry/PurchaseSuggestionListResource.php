@@ -7,6 +7,7 @@ namespace App\ApiResource\Industry;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
 use App\State\Provider\Industry\PurchaseSuggestionProvider;
 
@@ -16,6 +17,9 @@ use App\State\Provider\Industry\PurchaseSuggestionProvider;
     operations: [
         new Get(
             uriTemplate: '/industry/projects/{id}/purchase-suggestions',
+            uriVariables: [
+                'id' => new Link(fromClass: ProjectResource::class),
+            ],
             provider: PurchaseSuggestionProvider::class,
             openapi: new Model\Operation(summary: 'Get purchase suggestions', description: 'Returns wallet transactions matching project materials', tags: ['Industry - Projects']),
         ),
