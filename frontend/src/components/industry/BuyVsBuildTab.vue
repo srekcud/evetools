@@ -38,6 +38,7 @@ const stageFilter = ref<'all' | 'T2 Component' | 'T1 Component' | 'Reaction'>('a
 const userOverrides = ref<Map<number, 'build' | 'buy'>>(new Map())
 
 const favoriteSystems = useFavoriteSystems()
+industryStore.fetchUserSettings()
 
 function onProductSelect(result: SearchResult): void {
   selectedProduct.value = result

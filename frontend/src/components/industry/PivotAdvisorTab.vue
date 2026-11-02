@@ -29,6 +29,7 @@ const selectedSystemId = ref<number | null>(null)
 const sortBy = ref<string>('score')
 
 const favoriteSystems = useFavoriteSystems()
+industryStore.fetchUserSettings()
 
 const result = computed(() => scannerStore.pivotResult)
 const loading = computed(() => scannerStore.pivotLoading)
