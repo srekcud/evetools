@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository\Sde;
 
 use App\Entity\Sde\IndustryActivityProduct;
+use App\Enum\IndustryActivityType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
@@ -100,7 +101,33 @@ class IndustryActivityProductRepository extends ServiceEntityRepository
      */
     public function findT2ProductTypeIds(array $productTypeIds): array
     {
-        return [];
+        if (empty($productTypeIds)) {
+            return [];
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+        $placeholders = implode(',', array_fill(0, count($productTypeIds), '?'));
+        $manufacturing = IndustryActivityType::Manufacturing->value;
+        $invention = IndustryActivityType::Invention->value;
+
+        $sql = <<<SQL
+            SELECT DISTINCT manufacturing.product_type_id
+            FROM sde_industry_activity_products manufacturing
+            JOIN sde_industry_activity_products invention
+                ON invention.product_type_id = manufacturing.type_id
+                AND invention.activity_id = {$invention}
+            WHERE manufacturing.activity_id = {$manufacturing}
+              AND manufacturing.product_type_id IN ({$placeholders})
+        SQL;
+
+        $rows = $conn->fetchFirstColumn($sql, array_values($productTypeIds));
+
+        $result = [];
+        foreach ($rows as $productTypeId) {
+            $result[(int) $productTypeId] = true;
+        }
+
+        return $result;
     }
 
     /**

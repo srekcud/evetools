@@ -86,47 +86,30 @@ class InventionService
     }
 
     /**
-     * Check if a product type is T2 (has an invention path in the SDE).
+     * Check if a product type is T2 (one of its manufacturing blueprints is produced via invention).
      */
     public function isT2(int $productTypeId): bool
     {
-        return $this->getInventionData($productTypeId) !== null;
+        return isset($this->activityProductRepository->findT2ProductTypeIds([$productTypeId])[$productTypeId]);
     }
 
     /**
-     * Identify T2 products from a batch list by checking invention paths.
-     *
-     * A product is T2 if its manufacturing blueprint is produced via invention (activity_id=8).
-     * Uses a single batch query for efficiency.
+     * Identify T2 products from a batch list: manufactured products with an invented manufacturing blueprint.
+     * Reaction candidates are never T2.
      *
      * @param list<array{blueprintTypeId: int, productTypeId: int, outputPerRun: int, activityId: int}> $products
      * @return array<int, true> Set of T2 product type IDs
      */
     public function identifyT2Products(array $products): array
     {
-        $manufacturingBlueprintIds = [];
-        $blueprintToProduct = [];
+        $manufacturedProductTypeIds = [];
         foreach ($products as $product) {
             if ($product['activityId'] === IndustryActivityType::Manufacturing->value) {
-                $manufacturingBlueprintIds[] = $product['blueprintTypeId'];
-                $blueprintToProduct[$product['blueprintTypeId']] = $product['productTypeId'];
+                $manufacturedProductTypeIds[] = $product['productTypeId'];
             }
         }
 
-        if (empty($manufacturingBlueprintIds)) {
-            return [];
-        }
-
-        $t2BlueprintIds = $this->activityProductRepository->findInventedBlueprintIds($manufacturingBlueprintIds);
-
-        $t2ProductIds = [];
-        foreach ($t2BlueprintIds as $bpId => $_) {
-            if (isset($blueprintToProduct[$bpId])) {
-                $t2ProductIds[$blueprintToProduct[$bpId]] = true;
-            }
-        }
-
-        return $t2ProductIds;
+        return $this->activityProductRepository->findT2ProductTypeIds($manufacturedProductTypeIds);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Enum\IndustryActivityType;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class ManufacturableProductReader
@@ -13,6 +14,7 @@ class ManufacturableProductReader
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly IndustryActivityProductRepository $activityProductRepository,
     ) {
     }
 
@@ -26,7 +28,7 @@ class ManufacturableProductReader
             ['query' => "%{$query}%"],
         );
 
-        return array_map($this->toProduct(...), $rows);
+        return $this->toProducts($rows);
     }
 
     public function findByTypeId(int $typeId): ?ManufacturableProduct
@@ -44,7 +46,7 @@ class ManufacturableProductReader
             return null;
         }
 
-        $products = array_map($this->toProduct(...), $rows);
+        $products = $this->toProducts($rows);
 
         return new ManufacturableProduct(
             typeId: $products[0]->typeId,
@@ -57,28 +59,33 @@ class ManufacturableProductReader
     {
         $manufacturing = IndustryActivityType::Manufacturing->value;
         $reaction = IndustryActivityType::Reaction->value;
-        $invention = IndustryActivityType::Invention->value;
 
         return <<<SQL
-            SELECT DISTINCT t.type_id, t.type_name,
-                CASE WHEN inv.product_type_id IS NOT NULL THEN true ELSE false END AS is_t2
+            SELECT DISTINCT t.type_id, t.type_name
             FROM sde_inv_types t
             INNER JOIN sde_industry_activity_products p ON p.product_type_id = t.type_id AND p.activity_id IN ({$manufacturing}, {$reaction})
-            LEFT JOIN sde_industry_activity_products inv ON inv.product_type_id = p.type_id AND inv.activity_id = {$invention}
             WHERE t.published = true
               AND {$condition}
         SQL;
     }
 
     /**
-     * @param array<string, mixed> $row
+     * @param list<array<string, mixed>> $rows
+     * @return list<ManufacturableProduct>
      */
-    private function toProduct(array $row): ManufacturableProduct
+    private function toProducts(array $rows): array
     {
-        return new ManufacturableProduct(
-            typeId: (int) $row['type_id'],
-            typeName: $row['type_name'],
-            isT2: (bool) $row['is_t2'],
+        $t2ProductTypeIds = $this->activityProductRepository->findT2ProductTypeIds(
+            array_map(static fn (array $row): int => (int) $row['type_id'], $rows),
+        );
+
+        return array_map(
+            static fn (array $row): ManufacturableProduct => new ManufacturableProduct(
+                typeId: (int) $row['type_id'],
+                typeName: $row['type_name'],
+                isT2: isset($t2ProductTypeIds[(int) $row['type_id']]),
+            ),
+            $rows,
         );
     }
 }
