@@ -6,6 +6,7 @@ import type { LocationQuery } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
+import ProjectDetail from '@/components/industry/ProjectDetail.vue'
 import { ApiError, apiRequest } from '@/services/api'
 import { useProjectsStore } from '@/stores/industry/projects'
 import { useAdminStore } from '@/stores/admin'
@@ -130,6 +131,26 @@ describe('Industry data freshness (issue 292)', () => {
       shown: [JITA_PRICES_UNKNOWN, COST_INDICES_UNKNOWN, ADJUSTED_PRICES_UNKNOWN],
       errorBannerShown: false,
     })
+  })
+
+  it('shows no data freshness on a project detail opened from the margins tab', async () => {
+    outcomes.respondTo(DATA_FRESHNESS_ENDPOINT, respondWith(TYPICAL_DATA_FRESHNESS_RESPONSE))
+
+    const wrapper = await mountIndustryWithQuery({ tab: 'margins', project: 'p1' })
+
+    expect({ projectDetailShown: wrapper.findComponent(ProjectDetail).exists(), shown: shownFreshness(wrapper) })
+      .toEqual({ projectDetailShown: true, shown: [] })
+  })
+
+  it('reads the data freshness again when the screen is mounted again', async () => {
+    outcomes.respondTo(DATA_FRESHNESS_ENDPOINT, respondWith(TYPICAL_DATA_FRESHNESS_RESPONSE))
+    outcomes.respondTo(DATA_FRESHNESS_ENDPOINT, respondWith(TYPICAL_DATA_FRESHNESS_RESPONSE))
+    const firstScreen = await mountIndustryWithQuery({ tab: 'margins' })
+    firstScreen.unmount()
+
+    const secondScreen = await mountIndustryWithQuery({ tab: 'margins' })
+
+    expect({ requests: requestCount(), shown: shownFreshness(secondScreen) }).toEqual({ requests: 2, shown: TYPICAL_RESPONSE_SHOWN })
   })
 
   it('W8: reads the data freshness once when going from the margins tab to the pivot tab', async () => {

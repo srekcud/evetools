@@ -4,10 +4,13 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import Appraisal from '@/views/Appraisal.vue'
 import AppraisalInputPanel from '@/components/appraisal/AppraisalInputPanel.vue'
-import { apiRequest, authFetch } from '@/services/api'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
+import { ApiError, apiRequest, authFetch } from '@/services/api'
+import { rejectWith, respondWith, type ApiOutcome } from '../deferred'
 import {
   DATA_FRESHNESS_ENDPOINT,
   JITA_PRICES_42_MIN_AGO_FRESH,
+  JITA_PRICES_UNKNOWN,
   NOW,
   TYPICAL_DATA_FRESHNESS_RESPONSE,
   dataFreshnessRequestCount,
@@ -23,6 +26,8 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const PASTED_ITEMS = 'Tritanium 12000\nPyerite 4500'
 const STRUCTURE_NAME = 'C-J6MT - 1st Taj Mahgoon'
 const SHORT_STRUCTURE_NAME = 'C-J6MT'
+
+let dataFreshnessOutcome: ApiOutcome
 
 const APPRAISAL_RESPONSE = {
   items: [
@@ -108,9 +113,10 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
   vi.setSystemTime(new Date(NOW))
   setActivePinia(createPinia())
+  dataFreshnessOutcome = respondWith(TYPICAL_DATA_FRESHNESS_RESPONSE)
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
-    if (endpoint === DATA_FRESHNESS_ENDPOINT) return TYPICAL_DATA_FRESHNESS_RESPONSE
+    if (endpoint === DATA_FRESHNESS_ENDPOINT) return dataFreshnessOutcome()
     throw new Error(`Unexpected request ${endpoint}`)
   })
   vi.mocked(authFetch).mockReset()
@@ -138,6 +144,22 @@ describe('Appraisal data freshness (issue 292)', () => {
       requests: 1,
       nextToStructurePricesLine: [JITA_PRICES_42_MIN_AGO_FRESH],
       shown: [JITA_PRICES_42_MIN_AGO_FRESH],
+    })
+  })
+
+  it('W3: shows the Jita prices with an unknown date next to the structure prices line and no error banner when the endpoint fails', async () => {
+    dataFreshnessOutcome = rejectWith(new ApiError('API error: 500', 500))
+
+    const wrapper = await mountAppraisedWithStructure()
+
+    expect({
+      nextToStructurePricesLine: freshnessNextToStructurePricesLine(wrapper),
+      shown: shownFreshness(wrapper),
+      errorBannerShown: wrapper.findComponent(ErrorBanner).exists(),
+    }).toEqual({
+      nextToStructurePricesLine: [JITA_PRICES_UNKNOWN],
+      shown: [JITA_PRICES_UNKNOWN],
+      errorBannerShown: false,
     })
   })
 })

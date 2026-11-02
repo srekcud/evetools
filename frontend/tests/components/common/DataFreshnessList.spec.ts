@@ -1,9 +1,10 @@
-import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import DataFreshness from '@/components/common/DataFreshness.vue'
 import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
+import { apiRequest } from '@/services/api'
 import { DATA_FRESHNESS_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import type { DataFreshnessSource } from '@/utils/dataFreshness'
 import {
@@ -13,9 +14,16 @@ import {
   JITA_PRICES_42_MIN_AGO_FRESH,
   JITA_PRICES_INTERVAL,
   NOW,
+  TYPICAL_DATA_FRESHNESS_RESPONSE,
   TYPICAL_RESPONSE_SHOWN,
+  dataFreshnessRequestCount,
   shownFreshness,
 } from '../../dataFreshnessResponses'
+
+vi.mock(import('@/services/api'), async importOriginal => ({
+  ...(await importOriginal()),
+  apiRequest: vi.fn(),
+}))
 
 function mountList(sources: readonly DataFreshnessSource[]) {
   const pinia = createPinia()
@@ -32,8 +40,10 @@ function mountList(sources: readonly DataFreshnessSource[]) {
 enableAutoUnmount(afterEach)
 
 beforeEach(() => {
-  vi.useFakeTimers()
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
   vi.setSystemTime(new Date(NOW))
+  vi.mocked(apiRequest).mockReset()
+  vi.mocked(apiRequest).mockResolvedValue(TYPICAL_DATA_FRESHNESS_RESPONSE)
 })
 
 afterEach(() => {
@@ -67,5 +77,12 @@ describe('DataFreshnessList (issue 292)', () => {
     const wrapper = mountList([])
 
     expect(shownFreshness(wrapper)).toEqual([])
+  })
+
+  it('R6: reads no data freshness itself, the screen does', async () => {
+    mountList(DATA_FRESHNESS_SOURCES)
+    await flushPromises()
+
+    expect(dataFreshnessRequestCount(vi.mocked(apiRequest).mock.calls)).toBe(0)
   })
 })
