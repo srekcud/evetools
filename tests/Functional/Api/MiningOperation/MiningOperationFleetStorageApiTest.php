@@ -339,11 +339,12 @@ final class MiningOperationFleetStorageApiTest extends WebTestCase
     public function testFleetStorageLineIsMarkedByTheRecipientOrTheOwnerButNotByAnotherMember(): void
     {
         $this->fs2Frozen();
+        $paymentId = $this->paymentIdAt(1);
         $outcomes = [];
 
         foreach ([$this->brann, $this->aria, $this->cyra] as $marker) {
             $this->as($marker);
-            $this->request('PATCH', sprintf('/api/mining-operations/%s/payments/%s', $this->spodumain->getId(), $this->paymentIdAt(1)), ['paid' => true]);
+            $this->request('PATCH', sprintf('/api/mining-operations/%s/payments/%s', $this->spodumain->getId(), $paymentId), ['paid' => true]);
             $outcomes[] = $this->client->getResponse()->getStatusCode();
         }
 

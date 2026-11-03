@@ -321,7 +321,9 @@ final class MiningFleetStorageFreezeTest extends TestCase
 
     public function testEachForThemselvesParticipantsKeepTheirMinedValueAndHaveNoDebt(): void
     {
-        $valuation = $this->valuation($this->e1Operation(splitMode: MiningSplitMode::EachForThemselves));
+        $operation = $this->e1Operation(splitMode: MiningSplitMode::EachForThemselves);
+        $operation->updateValuationSettings(valuationSide: MarketSide::Sell, boosterCutPercent: 0, corporationCutPercent: 0, boosterMember: null);
+        $valuation = $this->valuation($operation);
 
         self::assertSame(
             [

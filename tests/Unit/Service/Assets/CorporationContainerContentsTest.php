@@ -36,7 +36,7 @@ final class CorporationContainerContentsTest extends TestCase
             $this->item(self::VELDSPAR, 2_500, self::OPS_HAUL_ITEM_ID),
         ]);
 
-        self::assertSame([self::COMPRESSED_VELDSPAR => 60_000, self::VELDSPAR => 42_500], $this->sortedByType($quantities));
+        self::assertSame([self::VELDSPAR => 42_500, self::COMPRESSED_VELDSPAR => 60_000], $this->sortedByType($quantities));
     }
 
     public function testEveryContainerOfThatNameIsCounted(): void
@@ -72,7 +72,7 @@ final class CorporationContainerContentsTest extends TestCase
             $this->item(self::VELDSPAR, 100_000, self::BIN_ITEM_ID),
         ]);
 
-        self::assertSame([self::STATION_CONTAINER => 1, self::VELDSPAR => 100_000], $this->sortedByType($quantities));
+        self::assertSame([self::VELDSPAR => 100_000, self::STATION_CONTAINER => 1], $this->sortedByType($quantities));
     }
 
     public function testAssetListedTwiceIsCountedOnce(): void
