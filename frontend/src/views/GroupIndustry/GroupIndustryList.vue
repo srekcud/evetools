@@ -13,6 +13,7 @@ import AvailableProjectCard from '@/components/group-industry/AvailableProjectCa
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
 import LineRentalModal from '@/components/group-industry/LineRentalModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { joinOutcome } from '@/views/GroupIndustry/joinOutcome'
 import type { GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
 
 const router = useRouter()
@@ -27,6 +28,7 @@ const myProjects = ref<GroupProject[]>([])
 const availableProjects = ref<GroupProject[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
+const joinNotice = ref<string | null>(null)
 
 // --- Tabs ---
 
@@ -84,11 +86,16 @@ function navigateToProject(project: GroupProject) {
 }
 
 async function handleJoinProject(shortLinkCode: string) {
+  joinNotice.value = null
   try {
     const project = await groupProjectStore.joinProject(shortLinkCode)
-    if (project) {
+    if (!project) return
+    if (joinOutcome(project) === 'redirect') {
       router.push({ name: 'group-industry-detail', params: { id: project.id } })
+      return
     }
+    await fetchProjects()
+    joinNotice.value = t('groupIndustry.join.pendingApproval')
   } catch {
     error.value = 'Failed to join project'
   }
@@ -208,6 +215,10 @@ onMounted(() => {
             </span>
           </button>
         </div>
+      </div>
+
+      <div v-if="joinNotice" class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 text-center">
+        <p class="text-amber-400 text-sm">{{ joinNotice }}</p>
       </div>
 
       <!-- Loading state -->
