@@ -23,9 +23,7 @@ class GroupIndustryProject
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
-    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
-    #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
-    private ?Uuid $id = null;
+    private Uuid $id;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -92,6 +90,7 @@ class GroupIndustryProject
 
     public function __construct()
     {
+        $this->id = Uuid::v7();
         $this->createdAt = new \DateTimeImmutable();
         $this->shortLinkCode = self::generateShortLinkCode();
         $this->items = new ArrayCollection();
@@ -106,7 +105,7 @@ class GroupIndustryProject
         return substr(bin2hex(random_bytes(5)), 0, 10);
     }
 
-    public function getId(): ?Uuid
+    public function getId(): Uuid
     {
         return $this->id;
     }

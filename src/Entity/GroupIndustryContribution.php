@@ -20,9 +20,7 @@ class GroupIndustryContribution
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
-    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
-    #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
-    private ?Uuid $id = null;
+    private Uuid $id;
 
     #[ORM\ManyToOne(targetEntity: GroupIndustryProject::class, inversedBy: 'contributions')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -72,10 +70,11 @@ class GroupIndustryContribution
 
     public function __construct()
     {
+        $this->id = Uuid::v7();
         $this->createdAt = new \DateTimeImmutable();
     }
 
-    public function getId(): ?Uuid
+    public function getId(): Uuid
     {
         return $this->id;
     }
