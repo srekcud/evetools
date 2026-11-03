@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Industry\StepPurchaseResource;
@@ -24,9 +25,51 @@ use PHPUnit\Framework\TestCase;
 final class IndustrySubResourceUriVariablesTest extends TestCase
 {
     private const string INDUSTRY_API_RESOURCE_NAMESPACE = 'App\\ApiResource\\Industry\\';
+    private const string GROUP_INDUSTRY_API_RESOURCE_NAMESPACE = 'App\\ApiResource\\GroupIndustry\\';
 
     #[DataProvider('industrySubResourceOperations')]
     public function testIndustrySubResourceOperationDeclaresEveryUriVariableAsLink(string $resourceShortName, HttpOperation $operation): void
+    {
+        $this->assertEveryUriVariableIsDeclaredAsLink($resourceShortName, $operation);
+    }
+
+    #[DataProvider('groupIndustrySubResourceOperations')]
+    #[Group('issue-206')]
+    public function testGroupIndustrySubResourceOperationDeclaresEveryUriVariableAsLink(string $resourceShortName, HttpOperation $operation): void
+    {
+        $this->assertEveryUriVariableIsDeclaredAsLink($resourceShortName, $operation);
+    }
+
+    public static function industrySubResourceOperations(): iterable
+    {
+        return self::subResourceOperationsOf('Industry', self::INDUSTRY_API_RESOURCE_NAMESPACE);
+    }
+
+    public static function groupIndustrySubResourceOperations(): iterable
+    {
+        return self::subResourceOperationsOf('GroupIndustry', self::GROUP_INDUSTRY_API_RESOURCE_NAMESPACE);
+    }
+
+    private static function subResourceOperationsOf(string $apiResourceDirectory, string $apiResourceNamespace): iterable
+    {
+        $detector = new SubResourceUriVariablesDetector();
+
+        foreach (glob(\dirname(__DIR__, 3).'/src/ApiResource/'.$apiResourceDirectory.'/*.php') ?: [] as $resourceFile) {
+            $resourceClass = new \ReflectionClass($apiResourceNamespace.basename($resourceFile, '.php'));
+
+            foreach ($resourceClass->getAttributes(ApiResource::class) as $apiResourceAttribute) {
+                foreach ($apiResourceAttribute->newInstance()->getOperations() ?? [] as $operation) {
+                    if ($operation instanceof HttpOperation && $detector->isSubResource($operation)) {
+                        $caseName = \sprintf('%s %s %s', $resourceClass->getShortName(), $operation->getMethod(), $operation->getUriTemplate());
+
+                        yield $caseName => [$resourceClass->getShortName(), $operation];
+                    }
+                }
+            }
+        }
+    }
+
+    private function assertEveryUriVariableIsDeclaredAsLink(string $resourceShortName, HttpOperation $operation): void
     {
         $undeclaredUriVariables = (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation);
 
@@ -40,25 +83,6 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
                 implode('}, {', $undeclaredUriVariables),
             ),
         );
-    }
-
-    public static function industrySubResourceOperations(): iterable
-    {
-        $detector = new SubResourceUriVariablesDetector();
-
-        foreach (glob(\dirname(__DIR__, 3).'/src/ApiResource/Industry/*.php') ?: [] as $resourceFile) {
-            $resourceClass = new \ReflectionClass(self::INDUSTRY_API_RESOURCE_NAMESPACE.basename($resourceFile, '.php'));
-
-            foreach ($resourceClass->getAttributes(ApiResource::class) as $apiResourceAttribute) {
-                foreach ($apiResourceAttribute->newInstance()->getOperations() ?? [] as $operation) {
-                    if ($operation instanceof HttpOperation && $detector->isSubResource($operation)) {
-                        $caseName = \sprintf('%s %s %s', $resourceClass->getShortName(), $operation->getMethod(), $operation->getUriTemplate());
-
-                        yield $caseName => [$resourceClass->getShortName(), $operation];
-                    }
-                }
-            }
-        }
     }
 
     public function testStepPatchWithoutUriVariablesLeavesProjectAndStepUndeclared(): void
@@ -156,6 +180,17 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     public function testRequirementVariableFollowedBySegmentIsSubResource(): void
     {
         $operation = new Post(uriTemplate: '/industry/projects/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}/steps');
+
+        $this->assertSame(['id'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
+    }
+
+    #[Group('issue-206')]
+    public function testGroupMemberPatchDeclaringOnlyProjectLinkLeavesFinalRequirementMemberUndeclared(): void
+    {
+        $operation = new Patch(
+            uriTemplate: '/group-industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriVariables: ['projectId' => new Link(fromClass: GroupIndustryProjectResource::class)],
+        );
 
         $this->assertSame(['id'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
     }
