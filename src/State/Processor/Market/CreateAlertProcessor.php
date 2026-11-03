@@ -90,11 +90,11 @@ class CreateAlertProcessor implements ProcessorInterface
             AlertPriceSource::JitaSell => $this->jitaMarketService->getPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
             AlertPriceSource::JitaBuy => $this->jitaMarketService->getBuyPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
             AlertPriceSource::StructureSell => $this->structureMarketService->getLowestSellPrice(
-                $user->getPreferredMarketStructureId(),
+                $user->getPreferredMarketStructureId() ?? throw new \LogicException('Structure price alert without preferred market structure'),
                 $data->typeId,
             ),
             AlertPriceSource::StructureBuy => $this->structureMarketService->getHighestBuyPrice(
-                $user->getPreferredMarketStructureId(),
+                $user->getPreferredMarketStructureId() ?? throw new \LogicException('Structure price alert without preferred market structure'),
                 $data->typeId,
             ),
         };
