@@ -11,6 +11,8 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 class DeclareMiningFleetStorageInput
 {
     private const int MAX_QUANTITY_LINES = 50;
+    private const int MAX_QUANTITY = 1_000_000_000;
+    private const int MAX_TYPE_ID = 2_147_483_647;
 
     #[Assert\NotNull]
     #[Assert\Choice(choices: ['none', 'all', 'partial'])]
@@ -39,8 +41,8 @@ class DeclareMiningFleetStorageInput
 
         $typeIds = [];
         foreach ($quantities as $line) {
-            $typeId = self::positiveIntegerOf($line, 'typeId');
-            if ($typeId === null || self::positiveIntegerOf($line, 'quantity') === null || isset($typeIds[$typeId])) {
+            $typeId = self::positiveIntegerOf($line, 'typeId', self::MAX_TYPE_ID);
+            if ($typeId === null || self::positiveIntegerOf($line, 'quantity', self::MAX_QUANTITY) === null || isset($typeIds[$typeId])) {
                 $context->buildViolation('Each line needs a distinct positive typeId and a positive quantity')->atPath('quantities')->addViolation();
 
                 return;
@@ -49,10 +51,10 @@ class DeclareMiningFleetStorageInput
         }
     }
 
-    private static function positiveIntegerOf(mixed $line, string $field): ?int
+    private static function positiveIntegerOf(mixed $line, string $field, int $upperBound): ?int
     {
         $value = is_array($line) ? ($line[$field] ?? null) : null;
 
-        return is_int($value) && $value > 0 ? $value : null;
+        return is_int($value) && $value > 0 && $value <= $upperBound ? $value : null;
     }
 }
