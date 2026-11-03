@@ -65,6 +65,8 @@ describe('useNavigationEntries', () => {
       ['/group-industry?tab=available', 'Group Industry › Available', true],
       ['/appraisal', 'Appraisal', false],
       ['/planetary', 'PI', false],
+      ['/mining-operations', 'Mining operations', false],
+      ['/mining-operations?tab=available', 'Mining operations › Available', true],
       ['/market', 'Market', false],
       ['/market?tab=alerts', 'Market › Alerts', true],
       ['/assets', 'Inventory', false],
@@ -103,6 +105,8 @@ describe('useNavigationEntries', () => {
       ['Industrie de groupe › Disponibles', 'Group Industry › Available'],
       ['Appraisal', 'Appraisal'],
       ['PI', 'PI'],
+      ['Opérations de minage', 'Mining operations'],
+      ['Opérations de minage › Disponibles', 'Mining operations › Available'],
       ['Marche', 'Market'],
       ['Marche › Alertes', 'Market › Alerts'],
       ['Inventaire', 'Inventory'],
@@ -125,8 +129,8 @@ describe('useNavigationEntries', () => {
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(24)
-    expect(entries[23]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(26)
+    expect(entries[25]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -150,6 +154,8 @@ describe('useNavigationEntries', () => {
       '/group-industry?tab=available',
       '/appraisal',
       '/planetary',
+      '/mining-operations',
+      '/mining-operations?tab=available',
       '/assets',
       '/assets?tab=contracts',
       '/characters',
@@ -173,6 +179,6 @@ describe('useNavigationEntries', () => {
     hideModules(['planetary'])
 
     expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/planetary')
-    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(22)
+    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(24)
   })
 })

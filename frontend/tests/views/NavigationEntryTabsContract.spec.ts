@@ -12,6 +12,7 @@ import Industry from '@/views/Industry.vue'
 import Ledger from '@/views/Ledger.vue'
 import MarketBrowser from '@/views/MarketBrowser.vue'
 import GroupIndustryList from '@/views/GroupIndustry/GroupIndustryList.vue'
+import MiningOperationList from '@/views/MiningOperation/MiningOperationList.vue'
 
 const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/', params: {}, query: {} })
 
@@ -35,6 +36,7 @@ const VIEWS_BY_ROUTE: Record<string, Component> = {
   '/ledger': Ledger,
   '/industry': Industry,
   '/group-industry': GroupIndustryList,
+  '/mining-operations': MiningOperationList,
   '/market': MarketBrowser,
   '/assets': Assets,
 }

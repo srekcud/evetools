@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Mercure;
 
 use App\Service\Mercure\MercurePublisherService;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -573,6 +574,7 @@ class MercurePublisherServiceTest extends TestCase
             '/user/user-uuid-123/alerts/planetary-expiry',
             '/user/user-uuid-123/alerts/market-price',
             '/user/user-uuid-123/notifications',
+            '/user/user-uuid-123/mining-operations',
         ];
 
         $this->assertSame($expectedTopics, $topics);
@@ -582,7 +584,70 @@ class MercurePublisherServiceTest extends TestCase
     {
         $topics = MercurePublisherService::getTopicsForUser('any-user');
 
-        $this->assertCount(15, $topics);
+        $this->assertCount(16, $topics);
+    }
+
+    #[Group('issue-262')]
+    public function testGetTopicsForUserGrantsTheMiningOperationsTopicOfTheUser(): void
+    {
+        $this->assertContains('/user/user-uuid-123/mining-operations', MercurePublisherService::getTopicsForUser('user-uuid-123'));
+    }
+
+    #[Group('issue-262')]
+    public function testPublishMiningOperationEventSendsOnePrivateMessagePerUserTopic(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishMiningOperationEvent(
+            ['user-aria', 'user-brann', 'user-cyra'],
+            '4d2f8a61-3b7c-4e95-a0d8-6c1e9f2b7a53',
+            'member_joined',
+            ['memberId' => 'member-cyra', 'status' => 'pending'],
+        );
+
+        $this->assertSame(
+            [['/user/user-aria/mining-operations'], ['/user/user-brann/mining-operations'], ['/user/user-cyra/mining-operations']],
+            array_map(static fn (Update $update): array => $update->getTopics(), $publishedUpdates->getArrayCopy()),
+        );
+        foreach ($publishedUpdates as $update) {
+            $this->assertTrue($update->isPrivate());
+            $payload = json_decode($update->getData(), true);
+            $payloadKeys = array_keys($payload);
+            sort($payloadKeys);
+            $this->assertSame(['action', 'data', 'operationId', 'timestamp'], $payloadKeys);
+            $this->assertSame('member_joined', $payload['action']);
+            $this->assertSame('4d2f8a61-3b7c-4e95-a0d8-6c1e9f2b7a53', $payload['operationId']);
+            $this->assertSame(['memberId' => 'member-cyra', 'status' => 'pending'], $payload['data']);
+            $this->assertNotFalse(\DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $payload['timestamp']));
+        }
+    }
+
+    #[Group('issue-262')]
+    public function testPublishMiningOperationEventSendsASingleMessageToAUserListedTwice(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishMiningOperationEvent(['user-aria', 'user-brann', 'user-aria'], 'operation-o', 'member_removed', ['memberId' => 'member-brann']);
+
+        $this->assertSame(
+            [['/user/user-aria/mining-operations'], ['/user/user-brann/mining-operations']],
+            array_map(static fn (Update $update): array => $update->getTopics(), $publishedUpdates->getArrayCopy()),
+        );
+    }
+
+    #[Group('issue-262')]
+    public function testPublishMiningOperationEventLogsAWarningWhenTheHubIsDown(): void
+    {
+        $this->hub->method('publish')->willThrowException(new \RuntimeException('Hub down'));
+
+        $this->logger
+            ->expects($this->atLeastOnce())
+            ->method('warning')
+            ->with($this->isString(), $this->callback(static fn (array $context): bool => $context['operationId'] === 'operation-o'
+                && $context['action'] === 'join_code_renewed'
+                && $context['error'] === 'Hub down'));
+
+        $this->service->publishMiningOperationEvent(['user-aria'], 'operation-o', 'join_code_renewed', []);
     }
 
     /**
