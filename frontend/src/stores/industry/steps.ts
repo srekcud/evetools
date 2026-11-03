@@ -36,68 +36,40 @@ export const useStepsStore = defineStore('industry-steps', () => {
     const wasInASplitGroup = (answeredStep: IndustryProjectStep) => stepsInTheStore.some(s => s.id === answeredStep.id && s.splitGroupId !== null)
 
     return !answeredSteps.some(answeredStep => answeredStep.id === stepId)
-      || answeredSteps.some(answeredStep => answeredStep.splitGroupId !== null || wasInASplitGroup(answeredStep))
+      || (answeredSteps.length > 1 && answeredSteps.some(answeredStep => answeredStep.splitGroupId !== null || wasInASplitGroup(answeredStep)))
   }
 
-  async function toggleStepPurchased(projectId: string, stepId: string, purchased: boolean) {
+  async function patchStep(projectId: string, stepId: string, data: Record<string, unknown>) {
     try {
-      const updated = enrichStep(await apiRequest<IndustryProjectStep>(
-        `/industry/projects/${projectId}/steps/${stepId}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ purchased }),
-        },
-      ))
-      updateStepInProject(projectId, updated)
-    } catch (e) {
-      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.updateStep'))
-      throw e
-    }
-  }
-
-  async function toggleStepInStock(projectId: string, stepId: string, inStockQuantity: number) {
-    try {
-      const updated = enrichStep(await apiRequest<IndustryProjectStep>(
-        `/industry/projects/${projectId}/steps/${stepId}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ inStockQuantity }),
-        },
-      ))
-      updateStepInProject(projectId, updated)
-    } catch (e) {
-      projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.updateStep'))
-      throw e
-    }
-  }
-
-  async function updateStep(projectId: string, stepId: string, data: Record<string, unknown>) {
-    try {
-      const result = await apiRequest<IndustryProjectStep | IndustryProjectStep[]>(
+      const answeredSteps = (await apiRequest<IndustryProjectStep[]>(
         `/industry/projects/${projectId}/steps/${stepId}`,
         {
           method: 'PATCH',
           body: JSON.stringify(data),
         },
-      )
-      // API may return single step or array (when cascade recalculation occurs)
-      if (Array.isArray(result)) {
-        const enriched = result.map(enrichStep)
-        if (stepsOfTheResponseNeedTheProject(projectId, stepId, enriched)) {
-          await projectsStore.fetchProject(projectId)
-        } else {
-          updateMultipleStepsInProject(projectId, enriched)
-        }
-        return enriched.find(answeredStep => answeredStep.id === stepId)
+      )).map(enrichStep)
+      if (stepsOfTheResponseNeedTheProject(projectId, stepId, answeredSteps)) {
+        await projectsStore.fetchProject(projectId)
       } else {
-        const enriched = enrichStep(result)
-        updateStepInProject(projectId, enriched)
-        return enriched
+        updateMultipleStepsInProject(projectId, answeredSteps)
       }
+      return answeredSteps.find(answeredStep => answeredStep.id === stepId)
     } catch (e) {
       projectsStore.error = formatErrorMessage(e, i18n.global.t('industry.errors.updateStep'))
       throw e
     }
+  }
+
+  async function toggleStepPurchased(projectId: string, stepId: string, purchased: boolean) {
+    await patchStep(projectId, stepId, { purchased })
+  }
+
+  async function toggleStepInStock(projectId: string, stepId: string, inStockQuantity: number) {
+    await patchStep(projectId, stepId, { inStockQuantity })
+  }
+
+  async function updateStep(projectId: string, stepId: string, data: Record<string, unknown>) {
+    return patchStep(projectId, stepId, data)
   }
 
   async function updateStepRuns(projectId: string, stepId: string, runs: number, overproduce = false) {

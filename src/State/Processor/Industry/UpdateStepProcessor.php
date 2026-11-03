@@ -30,7 +30,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @implements ProcessorInterface<UpdateStepInput, ProjectStepResource|array>
+ * @implements ProcessorInterface<UpdateStepInput, list<ProjectStepResource>>
  */
 class UpdateStepProcessor implements ProcessorInterface
 {
@@ -46,8 +46,8 @@ class UpdateStepProcessor implements ProcessorInterface
     ) {
     }
 
-    /** @return ProjectStepResource|list<ProjectStepResource> */
-    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): ProjectStepResource|array
+    /** @return list<ProjectStepResource> */
+    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): array
     {
         $user = $this->security->getUser();
 
@@ -76,8 +76,8 @@ class UpdateStepProcessor implements ProcessorInterface
         }
     }
 
-    /** @return ProjectStepResource|list<ProjectStepResource> */
-    private function update(IndustryProject $project, IndustryProjectStep $step, UpdateStepInput $data): ProjectStepResource|array
+    /** @return list<ProjectStepResource> */
+    private function update(IndustryProject $project, IndustryProjectStep $step, UpdateStepInput $data): array
     {
         $needsCascade = false;
 
@@ -141,18 +141,14 @@ class UpdateStepProcessor implements ProcessorInterface
 
         $isEditedStepRemoved = !$project->getSteps()->contains($step);
 
-        if (!empty($cascadedSteps) || $isEditedStepRemoved) {
-            $stepsOfTheResponse = $isEditedStepRemoved ? [] : [$step];
-            foreach ($cascadedSteps as $updatedStep) {
-                if ($updatedStep !== $step) {
-                    $stepsOfTheResponse[] = $updatedStep;
-                }
+        $stepsOfTheResponse = $isEditedStepRemoved ? [] : [$step];
+        foreach ($cascadedSteps as $updatedStep) {
+            if ($updatedStep !== $step) {
+                $stepsOfTheResponse[] = $updatedStep;
             }
-
-            return array_map(fn (IndustryProjectStep $stepOfTheResponse): ProjectStepResource => $this->mapper->stepToResource($stepOfTheResponse), $stepsOfTheResponse);
         }
 
-        return $this->mapper->stepToResource($step);
+        return array_map(fn (IndustryProjectStep $stepOfTheResponse): ProjectStepResource => $this->mapper->stepToResource($stepOfTheResponse), $stepsOfTheResponse);
     }
 
     private function structureConfigOfTheUser(IndustryProject $project, string $structureConfigId): IndustryStructureConfig
