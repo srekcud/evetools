@@ -12,6 +12,7 @@ use App\ApiResource\MiningOperation\MiningOperationInvitationResource;
 use App\ApiResource\MiningOperation\MiningOperationLedgerResource;
 use App\ApiResource\MiningOperation\MiningOperationMemberResource;
 use App\ApiResource\MiningOperation\MiningOperationResource;
+use App\ApiResource\MiningOperation\MiningOperationStockpileCoverageResource;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -51,6 +52,7 @@ final class MiningOperationSubResourceUriVariablesTest extends TestCase
         yield 'POST end' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/end', ['id']];
         yield 'POST depart' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/depart', ['id']];
         yield 'GET ledger' => [MiningOperationLedgerResource::class, 'GET', '/mining-operations/'.$operationId.'/ledger', ['operationId']];
+        yield 'GET stockpile coverage' => [MiningOperationStockpileCoverageResource::class, 'GET', '/mining-operations/'.$operationId.'/stockpile-coverage', ['operationId']];
         yield 'POST snapshot retry' => [MiningOperationCharacterResource::class, 'POST', '/mining-operations/'.$operationId.'/characters/'.$id.'/snapshot-retry', ['operationId', 'id']];
         yield 'POST quantity correction' => [MiningOperationCharacterResource::class, 'POST', '/mining-operations/'.$operationId.'/characters/'.$id.'/quantity-corrections', ['operationId', 'id']];
     }

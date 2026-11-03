@@ -26,6 +26,7 @@ import {
   spodumainOperation,
   startedSpodumainOperation,
 } from './miningOperationLedgerFixtures'
+import { COVERAGE_PATH, stockpileCoverage } from '../../components/mining-operation/stockpileCoverageHarness'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 
@@ -47,6 +48,7 @@ function answer(operation: MiningOperation, operationLedger: MiningOperationLedg
     if (endpoint === DETAIL_PATH) return operation as never
     if (endpoint === MEMBERS_PATH) return MEMBERS as never
     if (endpoint === LEDGER_PATH) return operationLedger as never
+    if (endpoint === COVERAGE_PATH) return stockpileCoverage() as never
     if (endpoint.startsWith('/sde/solar-systems')) return ALDRANETTE_SEARCH as never
     return operation as never
   })
