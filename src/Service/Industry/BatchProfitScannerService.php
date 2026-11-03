@@ -505,15 +505,15 @@ class BatchProfitScannerService
             }
 
             // T2 filtering
-            if (isset($categoryDef['excludeT2']) && $categoryDef['excludeT2'] && $isT2) {
+            if (isset($categoryDef['excludeT2']) && $isT2) {
                 return false;
             }
-            if (isset($categoryDef['onlyT2']) && $categoryDef['onlyT2'] && !$isT2) {
+            if (isset($categoryDef['onlyT2']) && !$isT2) {
                 return false;
             }
 
             // Capital filtering (group ID-based)
-            if (isset($categoryDef['capitalOnly']) && $categoryDef['capitalOnly']) {
+            if (isset($categoryDef['capitalOnly'])) {
                 if ($meta === null || !in_array($meta['groupId'], self::CAPITAL_GROUP_IDS, true)) {
                     return false;
                 }

@@ -33,7 +33,7 @@ class SyncJitaMarketCommand extends Command
         $result = $this->jitaMarketService->syncJitaMarket();
 
         if (!$result['success']) {
-            $io->error('Sync failed: ' . ($result['error'] ?? 'Unknown error'));
+            $io->error('Sync failed: ' . $result['error']);
             return Command::FAILURE;
         }
 

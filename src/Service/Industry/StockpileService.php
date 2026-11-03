@@ -249,17 +249,13 @@ class StockpileService
             $stages[$stageName] = [
                 'items' => $items,
                 'totalValue' => $stageTotalValue === null ? null : round($stageTotalValue, 2),
-                'healthPercent' => count($items) > 0
-                    ? round(($stageMet / count($items)) * 100, 1)
-                    : 100.0,
+                'healthPercent' => round(($stageMet / count($items)) * 100, 1),
             ];
         }
 
         // KPI: pipeline health
         $totalTargets = count($targets);
-        $pipelineHealth = $totalTargets > 0
-            ? round(($metCount / $totalTargets) * 100, 1)
-            : 100.0;
+        $pipelineHealth = round(($metCount / $totalTargets) * 100, 1);
 
         // KPI: bottleneck
         $bottleneck = null;
