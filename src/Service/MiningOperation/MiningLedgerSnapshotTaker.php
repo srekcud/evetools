@@ -32,6 +32,7 @@ final readonly class MiningLedgerSnapshotTaker
         private MercurePublisherService $mercurePublisher,
         private LoggerInterface $logger,
         private ClockInterface $clock,
+        private MiningOperationNotifier $notifier,
     ) {
     }
 

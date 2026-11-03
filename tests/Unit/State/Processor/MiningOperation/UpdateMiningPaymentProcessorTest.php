@@ -22,6 +22,7 @@ use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
 use App\Tests\Unit\Service\MiningOperation\BuildsMiningPayments;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
 use App\Tests\Unit\Service\MiningOperation\BuildsValuedSpodumainOperation;
+use App\Tests\Unit\Service\MiningOperation\RecordsMiningOperationNotifications;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -49,6 +50,7 @@ final class UpdateMiningPaymentProcessorTest extends TestCase
     use BuildsOreValueServiceOnSdeOres;
     use BuildsValuedSpodumainOperation;
     use BuildsMiningPayments;
+    use RecordsMiningOperationNotifications;
 
     private Security&Stub $security;
     private EntityManagerInterface&MockObject $entityManager;
@@ -202,6 +204,7 @@ final class UpdateMiningPaymentProcessorTest extends TestCase
             new MiningOperationSettlement($this->entityManager, $this->clock),
             new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, $logger ?? new NullLogger()),
+            $this->notifierRecording(),
         );
 
         return $processor->process($input, new Patch(), [

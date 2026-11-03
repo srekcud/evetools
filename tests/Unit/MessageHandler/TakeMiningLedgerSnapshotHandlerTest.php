@@ -17,6 +17,7 @@ use App\Service\MiningOperation\MiningLedgerSnapshotDispatcher;
 use App\Service\MiningOperation\MiningLedgerSnapshotTaker;
 use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
+use App\Tests\Unit\Service\MiningOperation\RecordsMiningOperationNotifications;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -35,6 +36,7 @@ final class TakeMiningLedgerSnapshotHandlerTest extends TestCase
 {
     use BuildsSpodumainOperation;
     use BuildsLedgerSnapshots;
+    use RecordsMiningOperationNotifications;
 
     private array $snapshotsById = [];
     private int $esiCalls = 0;
@@ -98,6 +100,7 @@ final class TakeMiningLedgerSnapshotHandlerTest extends TestCase
                 new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
                 new NullLogger(),
                 $clock,
+                $this->notifierRecording(),
             ),
             $this->logger,
         );

@@ -34,11 +34,13 @@ use Symfony\Component\Mercure\Update;
 
 #[CoversClass(MiningLedgerSnapshotTaker::class)]
 #[Group('issue-263')]
+#[Group('issue-271')]
 #[AllowMockObjectsWithoutExpectations]
 final class MiningLedgerSnapshotTakerTest extends TestCase
 {
     use BuildsSpodumainOperation;
     use BuildsLedgerSnapshots;
+    use RecordsMiningOperationNotifications;
 
     private const string READY_AT = '2026-11-05T21:37:17+00:00';
 
@@ -350,6 +352,58 @@ final class MiningLedgerSnapshotTakerTest extends TestCase
         );
     }
 
+    public function testEndSnapshotTakenLastTellsTheParticipantsTheLedgerIsReady(): void
+    {
+        $this->operation = $this->endedOperationWhereBrannHoltStartedAt12000();
+        $end = $this->waitingEndSnapshot('Brann Holt', self::READY_AT);
+        $this->clock->modify(self::READY_AT);
+
+        $this->takerReading(new PaginatedEsiResponse([$this->ledgerRow('2026-11-05', self::SPODUMAIN, self::S1, 47_500)], new \DateTimeImmutable('2026-11-05T21:47:17+00:00')))->take($end);
+
+        self::assertSame(['Aria Solberg', 'Brann Holt'], $this->recipientsTitled('Mining ledger ready'));
+        self::assertSame('success', $this->notificationTitled('Mining ledger ready', 'Brann Holt')['level']);
+    }
+
+    public function testEndSnapshotThatNeedsReconnectingTellsTheParticipantsTheLedgerIsReadyWithAWarning(): void
+    {
+        $this->operation = $this->endedOperationWhereBrannHoltStartedAt12000();
+        $end = $this->waitingEndSnapshot('Brann Holt', self::READY_AT);
+        $this->clock->modify(self::READY_AT);
+
+        $this->takerFailingWith(new EveAuthRequiredException((string) $this->character('Brann Holt')->getEveCharacterId()), throughTokenManager: true)->take($end);
+
+        self::assertSame(['Aria Solberg', 'Brann Holt'], $this->recipientsTitled('Mining ledger ready'));
+        $aria = $this->notificationTitled('Mining ledger ready', 'Aria Solberg');
+        self::assertSame('warning', $aria['level']);
+        self::assertMatchesRegularExpression('/\b1\b/', $aria['message']);
+    }
+
+    public function testStartSnapshotSettledNeverNotifiesTheParticipants(): void
+    {
+        $this->operation = $this->startedSpodumainOperation();
+        $taken = $this->identify($this->enrolmentOf('Brann Holt')->scheduleStartSnapshot(new \DateTimeImmutable(self::STARTED_AT)));
+        $failed = $this->identify($this->enrolmentOf('Brann II')->scheduleStartSnapshot(new \DateTimeImmutable(self::STARTED_AT)));
+
+        $this->takerReading(new PaginatedEsiResponse([$this->ledgerRow('2026-11-05', self::SPODUMAIN, self::S1, 12_000)], null))->take($taken);
+        $notifiedWhenTaken = $this->dispatchedNotifications->getArrayCopy();
+        $this->takerFailingWith(EsiApiException::fromResponse(502, 'ESI server error'))->take($failed);
+
+        self::assertSame(
+            [['taken', []], ['failed', []]],
+            [[$taken->getStatus()->value, $notifiedWhenTaken], [$failed->getStatus()->value, $this->dispatchedNotifications->getArrayCopy()]],
+        );
+    }
+
+    public function testReplayedMessageOfASettledEndSnapshotDoesNotNotifyAgain(): void
+    {
+        $this->operation = $this->endedOperationWhereBrannHoltStartedAt12000();
+        $end = $this->takenEndSnapshot('Brann Holt', [$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 47_500)]);
+
+        $this->takerReading(new PaginatedEsiResponse([$this->ledgerRow('2026-11-05', self::SPODUMAIN, self::S1, 49_000)], null))->take($end);
+
+        self::assertSame([], $this->dispatchedNotifications->getArrayCopy());
+    }
+
     private function endedOperationWhereBrannHoltStartedAt12000(): MiningOperation
     {
         $operation = $this->startedSpodumainOperation();
@@ -413,6 +467,7 @@ final class MiningLedgerSnapshotTakerTest extends TestCase
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->logger,
             $this->clock,
+            $this->notifierRecording(),
         );
     }
 

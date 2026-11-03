@@ -20,6 +20,7 @@ use App\State\Processor\MiningOperation\JoinMiningOperationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
+use App\Tests\Unit\Service\MiningOperation\RecordsMiningOperationNotifications;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -45,6 +46,7 @@ final class JoinMiningOperationProcessorTest extends TestCase
 {
     use BuildsSpodumainOperation;
     use BuildsLedgerSnapshots;
+    use RecordsMiningOperationNotifications;
 
     private Security&Stub $security;
     private EntityManagerInterface&MockObject $entityManager;
@@ -194,6 +196,7 @@ final class JoinMiningOperationProcessorTest extends TestCase
             new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, $logger),
             $this->lifecycleWith($this->entityManager, $this->dispatched, $this->clock),
+            $this->notifierRecording(),
         );
     }
 

@@ -19,6 +19,7 @@ use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
 use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
 use App\Tests\Unit\Service\MiningOperation\BuildsValuedSpodumainOperation;
+use App\Tests\Unit\Service\MiningOperation\RecordsMiningOperationNotifications;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -43,6 +44,7 @@ final class FreezeMiningSharesProcessorTest extends TestCase
     use BuildsLedgerSnapshots;
     use BuildsOreValueServiceOnSdeOres;
     use BuildsValuedSpodumainOperation;
+    use RecordsMiningOperationNotifications;
 
     private Security&Stub $security;
     private EntityManagerInterface&MockObject $entityManager;
@@ -116,6 +118,7 @@ final class FreezeMiningSharesProcessorTest extends TestCase
             ),
             new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, $logger),
+            $this->notifierRecording(),
         );
     }
 
