@@ -6,6 +6,7 @@ import type { MiningInvitationValuationSettings, MiningSplitMode } from '@/store
 const props = defineProps<{
   settings: MiningInvitationValuationSettings
   splitMode: MiningSplitMode
+  fleetStorageRecipientName: string | null
 }>()
 
 const { t } = useI18n()
@@ -26,6 +27,10 @@ const boosterText = computed(() => {
   const cut = `${props.settings.boosterCutPercent} %`
   return props.settings.boosterCharacterName === null ? cut : `${cut} (${props.settings.boosterCharacterName})`
 })
+const fleetStorageText = computed(() => {
+  if (props.splitMode === 'each_for_themselves') return t('miningOperation.fleetStorage.eachForThemselves')
+  return props.fleetStorageRecipientName ?? t('miningOperation.fleetStorage.none')
+})
 </script>
 
 <template>
@@ -44,5 +49,9 @@ const boosterText = computed(() => {
         <dd class="text-slate-200">{{ settings.corporationCutPercent }} %</dd>
       </div>
     </template>
+    <div class="flex flex-wrap gap-x-2">
+      <dt class="text-slate-400">{{ t('miningOperation.rules.fleetStorage') }} :</dt>
+      <dd class="min-w-0 truncate text-slate-200" :title="fleetStorageText">{{ fleetStorageText }}</dd>
+    </div>
   </dl>
 </template>

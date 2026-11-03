@@ -9,6 +9,7 @@ use App\Entity\MiningOperation;
 use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
 use App\Enum\MinedQuantityState;
+use App\Enum\MiningFleetStorageDelivery;
 use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningLedgerSnapshotStatus;
 use App\Enum\MiningOperationMemberStatus;
@@ -18,7 +19,7 @@ use App\Enum\MiningSplitMode;
 use Psr\Clock\ClockInterface;
 
 /**
- * @phpstan-type ParticipantEntry array{member: ?MiningOperationMember, name: ?string, quantity: ?MinedQuantity, minedValue: ?int, characters: list<MiningCharacterValuation>}
+ * @phpstan-type ParticipantEntry array{member: ?MiningOperationMember, name: ?string, quantity: ?MinedQuantity, minedValue: ?int, keeping: MiningFleetStorageKeeping, characters: list<MiningCharacterValuation>}
  */
 final readonly class MiningOperationValuator
 {
@@ -73,7 +74,7 @@ final readonly class MiningOperationValuator
                 $frozenMinedValue->getMember(),
                 $frozenMinedValue->getParticipantName(),
                 $unitPrices,
-                (int) $frozenMinedValue->getMinedValue(),
+                $frozenMinedValue,
             ),
             $frozenMinedValues,
         );
@@ -108,21 +109,34 @@ final readonly class MiningOperationValuator
      *
      * @return ParticipantEntry
      */
-    private function participantOf(?MiningOperationMember $member, ?string $name, array $unitPrices, ?int $frozenMinedValue): array
+    private function participantOf(?MiningOperationMember $member, ?string $name, array $unitPrices, ?MiningFrozenMinedValue $frozen): array
     {
+        $frozenMinedValue = $frozen === null ? null : (int) $frozen->getMinedValue();
         if ($member === null) {
-            return ['member' => null, 'name' => $name, 'quantity' => null, 'minedValue' => $frozenMinedValue, 'characters' => []];
+            return ['member' => null, 'name' => $name, 'quantity' => null, 'minedValue' => $frozenMinedValue, 'keeping' => $this->frozenKeepingOf($frozen), 'characters' => []];
         }
 
         $quantity = $this->quantityCalculator->ofParticipant($member);
+        $minedValue = $frozenMinedValue ?? $this->minedValueOf($quantity, $unitPrices);
 
         return [
             'member' => $member,
             'name' => $name,
             'quantity' => $quantity,
-            'minedValue' => $frozenMinedValue ?? $this->minedValueOf($quantity, $unitPrices),
+            'minedValue' => $minedValue,
+            'keeping' => $frozen === null
+                ? MiningFleetStorageKeeping::of($quantity, $minedValue, $member->getFleetStorageDelivery(), $member->getFleetStorageQuantities(), $unitPrices)
+                : $this->frozenKeepingOf($frozen),
             'characters' => $this->charactersOf($member, $unitPrices),
         ];
+    }
+
+    private function frozenKeepingOf(?MiningFrozenMinedValue $frozen): MiningFleetStorageKeeping
+    {
+        $frozen ??= throw new \LogicException('A participant without a member has frozen values');
+        $deliveredValue = (int) $frozen->getDeliveredValue();
+
+        return new MiningFleetStorageKeeping((int) $frozen->getMinedValue() - $deliveredValue, $deliveredValue);
     }
 
     /**
@@ -188,6 +202,9 @@ final readonly class MiningOperationValuator
         );
         $totalValue = $split->totalValue;
 
+        $debts = $eachForThemselves ? null : $this->fleetStorageDebtsOf($operation, $participants, $split);
+        $recipient = $operation->getFleetStorageRecipient();
+
         $valuedParticipants = [];
         foreach ($participants as $index => $participant) {
             $minedValue = $participant['minedValue'];
@@ -203,6 +220,11 @@ final readonly class MiningOperationValuator
                 $durationSeconds,
                 $this->iskPerHourOf($minedValue, $durationSeconds),
                 $participant['characters'],
+                $participant['member']?->getFleetStorageDelivery(),
+                $participant['member'] !== null && $participant['member'] === $recipient,
+                $participant['keeping']->deliveredValue,
+                $participant['keeping']->keptValue,
+                $debts[$index] ?? null,
             );
         }
 
@@ -227,6 +249,42 @@ final readonly class MiningOperationValuator
             $frozen ? [] : $this->freezeBlockersOf($operation, $valuedParticipants, $missingPriceTypeIds),
             $completionBlockers,
         );
+    }
+
+    /**
+     * @param list<ParticipantEntry> $participants
+     *
+     * @return list<int>|null
+     */
+    private function fleetStorageDebtsOf(MiningOperation $operation, array $participants, MiningShareSplit $split): ?array
+    {
+        $minedValues = [];
+        $keptValues = [];
+        $shares = [];
+        $recipientPosition = null;
+        $deliversSomething = false;
+        foreach ($participants as $position => $participant) {
+            $minedValue = $participant['minedValue'];
+            $keptValue = $participant['keeping']->keptValue;
+            $share = $split->shares[$position];
+            if ($minedValue === null || $keptValue === null || $share === null) {
+                return null;
+            }
+
+            $minedValues[] = $minedValue;
+            $keptValues[] = $keptValue;
+            $shares[] = $share;
+            $deliversSomething = $deliversSomething || $keptValue < $minedValue;
+            if ($participant['member'] !== null && $participant['member'] === $operation->getFleetStorageRecipient()) {
+                $recipientPosition = $position;
+            }
+        }
+
+        if ($recipientPosition === null && $deliversSomething) {
+            return null;
+        }
+
+        return $this->fleetStorageCalculator->settle($minedValues, $keptValues, $recipientPosition, $shares)->debts;
     }
 
     /**
@@ -255,6 +313,13 @@ final readonly class MiningOperationValuator
         $booster = $operation->getBoosterMember();
         if ($operation->getBoosterCutPercent() > 0 && ($booster === null || $booster->getStatus() !== MiningOperationMemberStatus::Accepted)) {
             $blockers[] = MiningShareBlocker::BoosterMissing;
+        }
+        $recipient = $operation->getFleetStorageRecipient();
+        if ($this->hasDelivery($participants) && ($recipient === null || $recipient->getStatus() !== MiningOperationMemberStatus::Accepted)) {
+            $blockers[] = MiningShareBlocker::FleetStorageRecipientMissing;
+        }
+        if (array_any($participants, static fn (MiningParticipantValuation $participant): bool => $participant->deliversMoreThanMined())) {
+            $blockers[] = MiningShareBlocker::FleetStorageExceedsMined;
         }
 
         return $blockers;
@@ -293,6 +358,14 @@ final readonly class MiningOperationValuator
         }
 
         return false;
+    }
+
+    /**
+     * @param list<MiningParticipantValuation> $participants
+     */
+    private function hasDelivery(array $participants): bool
+    {
+        return array_any($participants, static fn (MiningParticipantValuation $participant): bool => $participant->member !== null && $participant->member->getFleetStorageDelivery() !== MiningFleetStorageDelivery::None);
     }
 
     private function durationSecondsOf(MiningOperation $operation, MiningOperationMember $member): ?int

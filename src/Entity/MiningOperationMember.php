@@ -50,9 +50,11 @@ class MiningOperationMember
     #[ORM\OneToMany(targetEntity: MiningOperationCharacter::class, mappedBy: 'member', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $characters;
 
+    #[ORM\Column(type: 'string', length: 10, enumType: MiningFleetStorageDelivery::class, options: ['default' => 'none'])]
     private MiningFleetStorageDelivery $fleetStorageDelivery = MiningFleetStorageDelivery::None;
 
     /** @var array<int, int>|null */
+    #[ORM\Column(type: 'json', nullable: true)]
     private ?array $fleetStorageQuantities = null;
 
     public function __construct()
@@ -189,5 +191,7 @@ class MiningOperationMember
      */
     public function declareFleetStorage(MiningFleetStorageDelivery $delivery, ?array $quantitiesByTypeId): void
     {
+        $this->fleetStorageDelivery = $delivery;
+        $this->fleetStorageQuantities = $delivery === MiningFleetStorageDelivery::Partial ? $quantitiesByTypeId : null;
     }
 }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { MiningOperationValuation, MiningValuationParticipant } from '@/stores/miningOperation'
+import type { MiningFleetStorageDeclaration, MiningOperationValuation, MiningValuationParticipant } from '@/stores/miningOperation'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import { formatPercent, formatWhole } from '@/views/MiningOperation/miningOperationQuantity'
 import { formatEveClock, formatEveDateTime } from '@/views/MiningOperation/miningOperationTime'
 
@@ -13,6 +14,7 @@ const props = defineProps<{
   showShares: boolean
   ownMemberId: string | null
   marketLabel: string
+  declarations: MiningFleetStorageDeclaration[]
 }>()
 
 const emit = defineEmits<{
@@ -29,6 +31,8 @@ const quantityTotal = computed(() =>
   participants.value.some(participant => participant.quantityState !== 'known') ? null : sumOrNull(participants.value.map(participant => participant.totalQuantity)),
 )
 const minedValueTotal = computed(() => props.valuation.totalValue)
+const depositorsCount = computed(() => participants.value.filter(participant => participant.fleetStorageDelivery === 'all' || participant.fleetStorageDelivery === 'partial').length)
+const recipientName = computed(() => props.valuation.fleetStorageRecipientName ?? t('miningOperation.unknownPilot'))
 const syncedText = computed(() => (props.valuation.pricesSyncedAt === null ? t('miningOperation.quantities.unknown') : formatEveClock(props.valuation.pricesSyncedAt)))
 const pricesFootnote = computed(() => {
   if (props.valuation.frozen && props.valuation.sharesFrozenAt !== null) {
@@ -92,6 +96,11 @@ function quantityClass(state: MiningValuationParticipant['quantityState']): stri
   return state === 'known' ? 'text-slate-100' : 'text-amber-300'
 }
 
+function deliveredQuantitiesOf(participant: MiningValuationParticipant): string {
+  const declaration = props.declarations.find(candidate => candidate.memberId === participant.memberId)
+  return (declaration?.quantities ?? []).map(line => `${line.typeName ?? line.typeId} ${formatWhole(line.quantity, locale.value)} u`).join(', ')
+}
+
 function percentOf(participant: MiningValuationParticipant): string {
   return participant.valuePercent === null ? t('miningOperation.quantities.unknown') : `${formatPercent(participant.valuePercent, locale.value)} %`
 }
@@ -106,7 +115,7 @@ function rateOf(participant: MiningValuationParticipant): string {
     <h2 class="mb-3 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ title }}</h2>
 
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[40rem] table-fixed text-sm">
+      <table class="w-full min-w-[46rem] table-fixed text-sm">
         <thead>
           <tr class="border-b border-slate-700 text-left font-mono text-xs uppercase tracking-wider text-slate-400">
             <th class="w-2/5 py-2 pr-2 font-normal">{{ t('miningOperation.shares.columns.participant') }}</th>
@@ -114,7 +123,8 @@ function rateOf(participant: MiningValuationParticipant): string {
             <th class="py-2 pr-2 text-right font-normal">{{ t('miningOperation.shares.columns.minedValue') }}</th>
             <th v-if="showShares" class="py-2 pr-2 text-right font-normal">{{ t('miningOperation.shares.columns.valuePercent') }}</th>
             <th v-if="showShares" class="py-2 pr-2 text-right font-normal">{{ t('miningOperation.shares.columns.share') }}</th>
-            <th class="py-2 text-right font-normal">{{ t('miningOperation.shares.columns.iskPerHour') }}</th>
+            <th class="py-2 pr-2 text-right font-normal">{{ t('miningOperation.shares.columns.iskPerHour') }}</th>
+            <th class="py-2 font-normal">{{ t('miningOperation.shares.columns.holder') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -147,7 +157,20 @@ function rateOf(participant: MiningValuationParticipant): string {
                   <span v-if="valuation.boosterRoundingAdjustment === 1" class="text-cyan-300" :title="t('miningOperation.shares.roundingMark')">+1</span>
                 </span>
               </td>
-              <td class="py-2 text-right font-mono" :class="amountClass(participant.iskPerHour)">{{ rateOf(participant) }}</td>
+              <td class="py-2 pr-2 text-right font-mono" :class="amountClass(participant.iskPerHour)">{{ rateOf(participant) }}</td>
+              <td class="min-w-0 py-2 text-xs">
+                <span v-if="participant.isFleetStorageRecipient" class="rounded-sm border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-cyan-300">{{ t('miningOperation.fleetStorage.holder.recipient') }}</span>
+                <UnknownValue v-else-if="participant.fleetStorageDelivery === null" />
+                <span v-else-if="participant.fleetStorageDelivery === 'none'" class="text-slate-400">{{ t('miningOperation.fleetStorage.holder.self') }}</span>
+                <template v-else>
+                  <span class="flex min-w-0 items-center gap-1.5">
+                    <span class="min-w-0 truncate text-sm text-slate-100" :title="recipientName">{{ recipientName }}</span>
+                    <span class="shrink-0 rounded-sm border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-cyan-300">{{ t('miningOperation.fleetStorage.holder.recipient') }}</span>
+                  </span>
+                  <span v-if="participant.fleetStorageDelivery === 'all'" class="block text-slate-400">{{ t('miningOperation.fleetStorage.holder.all') }}</span>
+                  <span v-else-if="deliveredQuantitiesOf(participant) !== ''" class="block text-slate-400">{{ t('miningOperation.fleetStorage.holder.partial', { quantities: deliveredQuantitiesOf(participant) }) }}</span>
+                </template>
+              </td>
             </tr>
             <template v-if="isExpanded(keyOf(participant, index))">
               <tr v-for="character in participant.characters" :key="character.id" class="border-b border-slate-800/60 text-xs text-slate-400">
@@ -155,7 +178,7 @@ function rateOf(participant: MiningValuationParticipant): string {
                 <td class="py-1 pr-2 text-right font-mono">{{ quantityOf(character.quantityState, character.totalQuantity) }}</td>
                 <td class="py-1 pr-2 text-right font-mono" :class="character.minedValue === null ? 'text-amber-300' : ''">{{ amountOf(character.minedValue) }}</td>
                 <td v-if="showShares" colspan="2" />
-                <td />
+                <td colspan="2" />
               </tr>
             </template>
           </template>
@@ -167,7 +190,8 @@ function rateOf(participant: MiningValuationParticipant): string {
             <td class="py-2 pr-2 text-right" :class="amountClass(minedValueTotal)">{{ amountOf(minedValueTotal) }}</td>
             <td v-if="showShares" class="py-2 pr-2 text-right" :class="amountClass(minedValueTotal)">{{ minedValueTotal === null ? t('miningOperation.quantities.unknown') : `${formatPercent(FULL_PERCENT, locale)} %` }}</td>
             <td v-if="showShares" class="py-2 pr-2 text-right" :class="amountClass(sharesTotal)">{{ amountOf(sharesTotal) }}</td>
-            <td class="py-2 text-right" :class="amountClass(valuation.iskPerHour)">{{ valuation.iskPerHour === null ? t('miningOperation.quantities.unknown') : formatWhole(valuation.iskPerHour, locale) }}</td>
+            <td class="py-2 pr-2 text-right" :class="amountClass(valuation.iskPerHour)">{{ valuation.iskPerHour === null ? t('miningOperation.quantities.unknown') : formatWhole(valuation.iskPerHour, locale) }}</td>
+            <td class="py-2 text-xs font-normal text-slate-400">{{ showShares && depositorsCount > 0 ? t('miningOperation.fleetStorage.totalDepositors', { count: depositorsCount }) : '' }}</td>
           </tr>
         </tfoot>
       </table>

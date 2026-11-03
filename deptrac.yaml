@@ -197,6 +197,8 @@ deptrac:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\Entity\MiningLedgerSnapshot:
       - App\Service\MiningOperation\MiningLedgerReading
+    App\State\Processor\MiningOperation\DeclareMiningFleetStorageProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\DepartMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\EndMiningOperationProcessor:
@@ -210,6 +212,8 @@ deptrac:
     App\State\Processor\MiningOperation\SettleMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\StartMiningOperationProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\UpdateMiningFleetStorageProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\UpdateMiningOperationMemberProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper

@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use App\Entity\Sde\MapSolarSystem;
 use App\Enum\MarketSide;
+use App\Enum\MiningFleetStorageDelivery;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
@@ -131,8 +132,11 @@ class MiningOperation
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $archivedByName = null;
 
+    #[ORM\ManyToOne(targetEntity: MiningOperationMember::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?MiningOperationMember $fleetStorageRecipient = null;
 
+    #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $fleetStorageContainerName = null;
 
     public function __construct()
@@ -558,5 +562,8 @@ class MiningOperation
 
     public function assignFleetStorage(?MiningOperationMember $recipient, ?string $containerName): void
     {
+        $recipient?->declareFleetStorage(MiningFleetStorageDelivery::None, null);
+        $this->fleetStorageRecipient = $recipient;
+        $this->fleetStorageContainerName = $containerName;
     }
 }

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MiningOperationValuation, MiningShareBlocker } from '@/stores/miningOperation'
-import { missingTypeNames, unknownParticipantNames } from '@/views/MiningOperation/miningOperationValuation'
+import { exceedingParticipantNames, missingTypeNames, unknownParticipantNames } from '@/views/MiningOperation/miningOperationValuation'
 
 const props = defineProps<{
   valuation: MiningOperationValuation
@@ -15,10 +15,11 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const unknownNames = computed(() => unknownParticipantNames(props.valuation, t('miningOperation.unknownPilot')))
+const exceedingNames = computed(() => exceedingParticipantNames(props.valuation, t('miningOperation.unknownPilot')))
 const missingTypes = computed(() => missingTypeNames(props.valuation))
 
 function blockerText(blocker: MiningShareBlocker): string {
-  return t(`miningOperation.freeze.blockers.${blocker}`, { names: unknownNames.value, types: missingTypes.value })
+  return t(`miningOperation.freeze.blockers.${blocker}`, { names: blocker === 'fleet_storage_exceeds_mined' ? exceedingNames.value : unknownNames.value, types: missingTypes.value })
 }
 </script>
 

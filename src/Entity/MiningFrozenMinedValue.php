@@ -32,6 +32,7 @@ class MiningFrozenMinedValue
         private int $position,
         #[ORM\Column(type: 'float')]
         private float $minedValue,
+        #[ORM\Column(type: 'float', options: ['default' => 0])]
         private float $deliveredValue = 0.0,
     ) {
     }

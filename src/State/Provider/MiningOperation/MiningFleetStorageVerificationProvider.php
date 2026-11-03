@@ -10,6 +10,7 @@ use App\ApiResource\MiningOperation\MiningFleetStorageVerificationResource;
 use App\Repository\MiningOperationRepository;
 use App\Service\MiningOperation\MiningFleetStorageVerifier;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningOperationRequest;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
@@ -28,6 +29,12 @@ final readonly class MiningFleetStorageVerificationProvider implements ProviderI
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): MiningFleetStorageVerificationResource
     {
-        return new MiningFleetStorageVerificationResource();
+        $user = MiningOperationRequest::userOf($this->security);
+
+        $miningOperation = MiningOperationRequest::operationOf($this->operationRepository, $uriVariables['operationId']);
+
+        $this->access->assertCanReadResults($user, $miningOperation);
+
+        return $this->mapper->verificationToResource($miningOperation, $this->verifier->verify($miningOperation, $user));
     }
 }

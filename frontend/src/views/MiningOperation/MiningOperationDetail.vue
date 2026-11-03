@@ -8,6 +8,7 @@ import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import MiningClosingLedger from '@/components/mining-operation/MiningClosingLedger.vue'
 import MiningCompleteOperation from '@/components/mining-operation/MiningCompleteOperation.vue'
 import MiningCorrectionModal from '@/components/mining-operation/MiningCorrectionModal.vue'
+import MiningFleetStorage from '@/components/mining-operation/MiningFleetStorage.vue'
 import MiningFreezeShares from '@/components/mining-operation/MiningFreezeShares.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
 import MiningMinedQuantities from '@/components/mining-operation/MiningMinedQuantities.vue'
@@ -26,7 +27,13 @@ import MiningUnitPrices from '@/components/mining-operation/MiningUnitPrices.vue
 import MiningValuationRules from '@/components/mining-operation/MiningValuationRules.vue'
 import MiningValuationSettings from '@/components/mining-operation/MiningValuationSettings.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useMiningOperationStore, type MiningOperationMember, type UpdateMiningValuationInput } from '@/stores/miningOperation'
+import {
+  useMiningOperationStore,
+  type DeclareMiningFleetStorageInput,
+  type MiningOperationMember,
+  type UpdateMiningFleetStorageInput,
+  type UpdateMiningValuationInput,
+} from '@/stores/miningOperation'
 import { useSyncStore } from '@/stores/sync'
 import { formatWhole } from './miningOperationQuantity'
 import { formatDuration, formatEveClock, formatEveDateTime } from './miningOperationTime'
@@ -49,6 +56,8 @@ const MEMBER_ACTIONS_RELOADING_THE_OPERATION = [
 ]
 const VALUATION_ACTION = 'valuation_updated'
 const PAYMENT_ACTION = 'payment_updated'
+const FLEET_STORAGE_ACTION = 'fleet_storage_updated'
+const CORPORATION_ASSETS_SYNC_COMPLETED = 'completed'
 const PAYMENT_STATUSES = ['shares', 'settled']
 const FULL_PERCENT = 100
 const SNAPSHOT_SYNC_TYPE = 'mining-operation-snapshot'
@@ -73,6 +82,7 @@ const correctionModalOpen = ref(false)
 const correctionFailure = ref<string | null>(null)
 const submitting = ref(false)
 const savingSettings = ref(false)
+const awaitingAssetsSync = ref(false)
 const now = ref(Date.now())
 let clockTicker: ReturnType<typeof setInterval> | null = null
 
@@ -93,6 +103,11 @@ const canEnd = computed(() => canAdminister.value && operation.value?.status ===
 const canDepart = computed(() => participates.value && operation.value?.status === 'in_progress' && operation.value.myDepartedAt === null)
 const showsStockpileCoverage = computed(() => participates.value && (operation.value?.status === 'closing' || operation.value?.status === 'completed'))
 const valuation = computed(() => (store.valuation?.operationId === operationId.value ? store.valuation : null))
+const fleetStorage = computed(() => (store.fleetStorage?.operationId === operationId.value ? store.fleetStorage : null))
+const fleetStorageVerification = computed(() => (store.fleetStorageVerification?.operationId === operationId.value ? store.fleetStorageVerification : null))
+const showsFleetStorage = computed(() => participates.value && fleetStorage.value?.available === true && !archived.value)
+const checksFleetStorageContainer = computed(() => operation.value?.status === 'closing' || operation.value?.status === 'shares')
+const rulesFleetStorageRecipientName = computed(() => (fleetStorage.value === null ? (operation.value?.fleetStorageRecipientName ?? null) : fleetStorage.value.recipientName))
 const eachForThemselves = computed(() => operation.value?.splitMode === 'each_for_themselves')
 const showsPayments = computed(() => participates.value && PAYMENT_STATUSES.includes(operation.value?.status ?? ''))
 const paidPaymentsCount = computed(() => store.payments.filter(payment => payment.paid).length)
@@ -167,6 +182,12 @@ async function load(): Promise<void> {
       await loadStockpileCoverage(operationId.value)
     }
     await store.fetchValuation(operationId.value)
+    if (!archived.value) {
+      await store.fetchFleetStorage(operationId.value)
+    }
+    if (checksFleetStorageContainer.value) {
+      await store.fetchFleetStorageVerification(operationId.value)
+    }
     if (showsPayments.value) {
       await store.fetchPayments(operationId.value)
     }
@@ -273,6 +294,29 @@ async function saveSettings(patch: UpdateMiningValuationInput): Promise<void> {
   savingSettings.value = false
 }
 
+async function reloadFleetStorageFigures(): Promise<void> {
+  await store.fetchValuation(operationId.value)
+  if (checksFleetStorageContainer.value) await store.fetchFleetStorageVerification(operationId.value)
+}
+
+const saveFleetStorage = (patch: UpdateMiningFleetStorageInput) =>
+  runAction(async () => {
+    await store.updateFleetStorage(operationId.value, patch)
+    await reloadFleetStorageFigures()
+  })
+
+const declareFleetStorage = (memberId: string, declaration: DeclareMiningFleetStorageInput) =>
+  runAction(async () => {
+    await store.declareFleetStorage(operationId.value, memberId, declaration)
+    await reloadFleetStorageFigures()
+  })
+
+async function refreshCorporationAssets(): Promise<void> {
+  awaitingAssetsSync.value = true
+  await runAction(() => store.refreshCorporationAssets())
+  if (actionFailure.value !== null) awaitingAssetsSync.value = false
+}
+
 const rereadPrices = () => runAction(() => store.fetchValuation(operationId.value))
 
 const markPayment = (paymentId: string, paid: boolean) => runAction(() => store.markPayment(operationId.value, paymentId, paid))
@@ -308,6 +352,20 @@ watch(
       store.fetchValuation(operationId.value)
     } else if (event.action === PAYMENT_ACTION) {
       store.fetchPayments(operationId.value)
+    } else if (event.action === FLEET_STORAGE_ACTION) {
+      store.fetchFleetStorage(operationId.value)
+      store.fetchValuation(operationId.value)
+      if (checksFleetStorageContainer.value) store.fetchFleetStorageVerification(operationId.value)
+    }
+  },
+)
+
+watch(
+  () => syncStore.corporationAssetsProgress?.status,
+  (status) => {
+    if (status === CORPORATION_ASSETS_SYNC_COMPLETED && awaitingAssetsSync.value) {
+      awaitingAssetsSync.value = false
+      store.fetchFleetStorageVerification(operationId.value)
     }
   },
 )
@@ -318,6 +376,8 @@ onMounted(async () => {
   store.ledger = null
   store.valuation = null
   store.payments = []
+  store.fleetStorage = null
+  store.fleetStorageVerification = null
   clockTicker = setInterval(() => {
     now.value = Date.now()
   }, CLOCK_TICK_MILLISECONDS)
@@ -394,6 +454,20 @@ onBeforeUnmount(() => {
           @save="saveSettings"
         />
 
+        <MiningFleetStorage
+          v-if="showsFleetStorage && fleetStorage !== null && acceptsParticipants"
+          :fleet-storage="fleetStorage"
+          :valuation="valuation"
+          :ledger="operationLedger"
+          :verification="null"
+          :ended-at="operation.endedAt"
+          :can-administer="canAdminister"
+          :refreshing="awaitingAssetsSync"
+          @update="saveFleetStorage"
+          @declare="declareFleetStorage"
+          @refresh="refreshCorporationAssets"
+        />
+
         <div v-if="operation.status === 'closing'" class="grid gap-5 lg:grid-cols-3">
           <div class="space-y-5 lg:col-span-2">
             <template v-if="valuation !== null">
@@ -405,6 +479,7 @@ onBeforeUnmount(() => {
                 :show-shares="!eachForThemselves"
                 :own-member-id="ownMemberId"
                 :market-label="marketLabel"
+                :declarations="fleetStorage?.declarations ?? []"
                 @reread="rereadPrices"
               />
             </template>
@@ -423,6 +498,19 @@ onBeforeUnmount(() => {
               :corporation-known="operation.corporationId !== null"
               :saving="savingSettings"
               @save="saveSettings"
+            />
+            <MiningFleetStorage
+              v-if="showsFleetStorage && fleetStorage !== null"
+              :fleet-storage="fleetStorage"
+              :valuation="valuation"
+              :ledger="operationLedger"
+              :verification="fleetStorageVerification"
+              :ended-at="operation.endedAt"
+              :can-administer="canAdminister"
+              :refreshing="awaitingAssetsSync"
+              @update="saveFleetStorage"
+              @declare="declareFleetStorage"
+              @refresh="refreshCorporationAssets"
             />
             <MiningFreezeShares v-if="valuation !== null && canAdminister && !eachForThemselves" :valuation="valuation" @freeze="confirmation = 'freeze'" />
             <MiningCompleteOperation v-if="valuation !== null && canAdminister && eachForThemselves" :valuation="valuation" @complete="confirmation = 'complete'" />
@@ -463,6 +551,7 @@ onBeforeUnmount(() => {
                 :show-shares="true"
                 :own-member-id="ownMemberId"
                 :market-label="marketLabel"
+                :declarations="fleetStorage?.declarations ?? []"
                 @reread="rereadPrices"
               />
               <MiningPayments
@@ -479,6 +568,19 @@ onBeforeUnmount(() => {
             <div class="space-y-5">
               <MiningSettleOperation v-if="operation.status === 'shares' && canAdminister" :payments="store.payments" @settle="confirmation = 'settle'" />
               <MiningOperationRecap v-if="operation.status === 'settled'" :operation="operation" :valuation="valuation" :payments="store.payments" :market-label="marketLabel" />
+              <MiningFleetStorage
+                v-if="showsFleetStorage && fleetStorage !== null"
+                :fleet-storage="fleetStorage"
+                :valuation="valuation"
+                :ledger="operationLedger"
+                :verification="fleetStorageVerification"
+                :ended-at="operation.endedAt"
+                :can-administer="canAdminister"
+                :refreshing="awaitingAssetsSync"
+                @update="saveFleetStorage"
+                @declare="declareFleetStorage"
+                @refresh="refreshCorporationAssets"
+              />
               <MiningUnitPrices :title="t('miningOperation.shares.unitPricesFrozen')" :unit-prices="valuation.unitPrices" />
             </div>
           </div>
@@ -500,6 +602,7 @@ onBeforeUnmount(() => {
                 :show-shares="false"
                 :own-member-id="ownMemberId"
                 :market-label="marketLabel"
+                :declarations="fleetStorage?.declarations ?? []"
                 @reread="rereadPrices"
               />
             </div>
@@ -524,7 +627,7 @@ onBeforeUnmount(() => {
           <section class="eve-card p-5">
             <h2 class="mb-2 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperation.detail.rules') }}</h2>
             <p class="text-sm text-slate-200"><span class="text-slate-400">{{ t('miningOperation.detail.split') }} :</span> {{ t(`miningOperation.splitMode.${operation.splitMode}`) }}</p>
-            <MiningValuationRules v-if="rulesSettings !== null" class="mt-2" :settings="rulesSettings" :split-mode="operation.splitMode" />
+            <MiningValuationRules v-if="rulesSettings !== null" class="mt-2" :settings="rulesSettings" :split-mode="operation.splitMode" :fleet-storage-recipient-name="rulesFleetStorageRecipientName" />
           </section>
         </div>
 

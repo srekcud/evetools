@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\State\Provider\MiningOperation;
 
+use App\ApiResource\MiningOperation\MiningFleetStorageResource;
+use App\ApiResource\MiningOperation\MiningFleetStorageVerificationResource;
 use App\ApiResource\MiningOperation\MiningOperationInvitationResource;
 use App\ApiResource\MiningOperation\MiningOperationMemberResource;
 use App\ApiResource\MiningOperation\MiningOperationResource;
@@ -13,9 +15,13 @@ use App\Entity\MiningOperation;
 use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
 use App\Entity\MiningPayment;
+use App\Entity\User;
 use App\Enum\MiningShareBlocker;
+use App\Enum\MiningSplitMode;
 use App\Service\MiningOperation\CharacterEligibility;
 use App\Service\MiningOperation\MiningCharacterValuation;
+use App\Service\MiningOperation\MiningFleetStorageVerification;
+use App\Service\MiningOperation\MiningFleetStorageVerificationLine;
 use App\Service\MiningOperation\MiningOperationValuation;
 use App\Service\MiningOperation\MiningParticipantValuation;
 use App\Service\MiningOperation\PersistedUuid;
@@ -52,6 +58,7 @@ final readonly class MiningOperationResourceMapper
         $resource->sharesFrozenAt = $this->inEveTimeOrNull($operation->getSharesFrozenAt());
         $resource->archivedAt = $this->inEveTimeOrNull($operation->getArchivedAt());
         $resource->archivedByName = $operation->getArchivedByName();
+        $resource->fleetStorageRecipientName = $this->fleetStorageRecipientNameOf($operation);
 
         return $resource;
     }
@@ -115,6 +122,9 @@ final readonly class MiningOperationResourceMapper
         $resource->completionBlockers = $completionBlockers === null
             ? null
             : array_map(static fn (MiningShareBlocker $blocker): string => $blocker->value, $completionBlockers);
+        $fleetStorageRecipient = $operation->getFleetStorageRecipient();
+        $resource->fleetStorageRecipientMemberId = $fleetStorageRecipient === null ? null : PersistedUuid::of($fleetStorageRecipient->getId());
+        $resource->fleetStorageRecipientName = $this->fleetStorageRecipientNameOf($operation);
 
         return $resource;
     }
@@ -179,6 +189,7 @@ final readonly class MiningOperationResourceMapper
         $resource->splitMode = $operation->getSplitMode()->value;
         $resource->participantsCount = count($operation->acceptedMembers());
         $resource->valuationSettings = array_diff_key($this->valuationSettingsOf($operation), ['boosterMemberId' => true]);
+        $resource->fleetStorageRecipientName = $this->fleetStorageRecipientNameOf($operation);
         $resource->autoAccepted = $autoAccepted;
         $resource->myRole = $viewerMembership?->getRole()->value;
         $resource->myStatus = $viewerMembership?->getStatus()->value;
@@ -192,6 +203,92 @@ final readonly class MiningOperationResourceMapper
         ], $eligibilities);
 
         return $resource;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function fleetStorageTypeIdsOf(MiningOperation $operation): array
+    {
+        $typeIds = [];
+        foreach ($operation->participantsInLedgerOrder() as $member) {
+            foreach (array_keys($member->getFleetStorageQuantities() ?? []) as $typeId) {
+                $typeIds[$typeId] = $typeId;
+            }
+        }
+
+        return array_values($typeIds);
+    }
+
+    /**
+     * @param array<int, string> $typeNames
+     */
+    public function fleetStorageToResource(MiningOperation $operation, User $viewer, bool $canAdminister, array $typeNames): MiningFleetStorageResource
+    {
+        $available = $operation->getSplitMode() !== MiningSplitMode::EachForThemselves;
+        $editable = $available && $operation->getStatus()->isOpen();
+        $recipient = $operation->getFleetStorageRecipient();
+
+        $resource = new MiningFleetStorageResource();
+        $resource->operationId = PersistedUuid::of($operation->getId());
+        $resource->available = $available;
+        $resource->editable = $editable;
+        $resource->recipientMemberId = $recipient === null ? null : PersistedUuid::of($recipient->getId());
+        $resource->recipientName = $this->fleetStorageRecipientNameOf($operation);
+        $resource->containerName = $operation->getFleetStorageContainerName();
+        $resource->declarations = array_map(
+            fn (MiningOperationMember $member): array => [
+                'memberId' => PersistedUuid::of($member->getId()),
+                'characterName' => $member->getUser()->getMainCharacter()?->getName(),
+                'delivery' => $member->getFleetStorageDelivery()->value,
+                'quantities' => $this->declaredQuantitiesOf($member, $typeNames),
+                'canDeclare' => $editable && $member !== $recipient && ($canAdminister || $member->getUser() === $viewer),
+            ],
+            $operation->participantsInLedgerOrder(),
+        );
+
+        return $resource;
+    }
+
+    public function verificationToResource(MiningOperation $operation, MiningFleetStorageVerification $verification): MiningFleetStorageVerificationResource
+    {
+        $resource = new MiningFleetStorageVerificationResource();
+        $resource->operationId = PersistedUuid::of($operation->getId());
+        $resource->status = $verification->status->value;
+        $resource->unknownReason = $verification->unknownReason?->value;
+        $resource->containerName = $verification->containerName;
+        $resource->assetsReadAt = $this->inEveTimeOrNull($verification->assetsReadAt);
+        $resource->lines = array_map(static fn (MiningFleetStorageVerificationLine $line): array => [
+            'typeId' => $line->typeId,
+            'typeName' => $line->typeName,
+            'expectedQuantity' => $line->expectedQuantity,
+            'foundQuantity' => $line->foundQuantity,
+            'missingQuantity' => $line->missingQuantity,
+            'status' => $line->status->value,
+        ], $verification->lines);
+
+        return $resource;
+    }
+
+    private function fleetStorageRecipientNameOf(MiningOperation $operation): ?string
+    {
+        return $operation->getFleetStorageRecipient()?->getUser()->getMainCharacter()?->getName();
+    }
+
+    /**
+     * @param array<int, string> $typeNames
+     *
+     * @return list<array{typeId: int, typeName: string, quantity: int}>
+     */
+    private function declaredQuantitiesOf(MiningOperationMember $member, array $typeNames): array
+    {
+        $quantities = [];
+        foreach ($member->getFleetStorageQuantities() ?? [] as $typeId => $quantity) {
+            $quantities[] = ['typeId' => $typeId, 'typeName' => $typeNames[$typeId] ?? sprintf('Type %d', $typeId), 'quantity' => $quantity];
+        }
+        usort($quantities, static fn (array $left, array $right): int => $left['typeName'] <=> $right['typeName']);
+
+        return $quantities;
     }
 
     /**
@@ -237,6 +334,11 @@ final readonly class MiningOperationResourceMapper
                 'totalQuantity' => $character->quantity->totalQuantity(),
                 'minedValue' => $character->minedValue,
             ], $participant->characters),
+            'fleetStorageDelivery' => $participant->fleetStorageDelivery?->value,
+            'isFleetStorageRecipient' => $participant->isFleetStorageRecipient,
+            'deliveredValue' => $participant->deliveredValue,
+            'keptValue' => $participant->keptValue,
+            'fleetStorageDebt' => $participant->fleetStorageDebt,
         ];
     }
 

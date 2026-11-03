@@ -628,19 +628,64 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
-  async function fetchFleetStorage(_id: string): Promise<void> {}
-
-  async function updateFleetStorage(_id: string, _patch: UpdateMiningFleetStorageInput): Promise<MiningFleetStorage | null> {
-    return null
+  async function fetchFleetStorage(id: string): Promise<void> {
+    error.value = null
+    try {
+      fleetStorage.value = await apiRequest<MiningFleetStorage>(`/mining-operations/${id}/fleet-storage`)
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the fleet storage')
+    }
   }
 
-  async function declareFleetStorage(_id: string, _memberId: string, _declaration: DeclareMiningFleetStorageInput): Promise<MiningFleetStorage | null> {
-    return null
+  async function updateFleetStorage(id: string, patch: UpdateMiningFleetStorageInput): Promise<MiningFleetStorage | null> {
+    error.value = null
+    try {
+      fleetStorage.value = await apiRequest<MiningFleetStorage>(`/mining-operations/${id}/fleet-storage`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      })
+      return fleetStorage.value
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to update the fleet storage')
+      throw cause
+    }
   }
 
-  async function fetchFleetStorageVerification(_id: string): Promise<void> {}
+  async function declareFleetStorage(id: string, memberId: string, declaration: DeclareMiningFleetStorageInput): Promise<MiningFleetStorage | null> {
+    error.value = null
+    try {
+      fleetStorage.value = await apiRequest<MiningFleetStorage>(`/mining-operations/${id}/fleet-storage/declarations/${memberId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(declaration),
+      })
+      return fleetStorage.value
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to declare the fleet storage')
+      throw cause
+    }
+  }
 
-  async function refreshCorporationAssets(): Promise<void> {}
+  async function fetchFleetStorageVerification(id: string): Promise<void> {
+    error.value = null
+    try {
+      fleetStorageVerification.value = await apiRequest<MiningFleetStorageVerification>(`/mining-operations/${id}/fleet-storage/verification`)
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to check the fleet storage container')
+    }
+  }
+
+  async function refreshCorporationAssets(): Promise<void> {
+    error.value = null
+    try {
+      await apiRequest<unknown>('/me/corporation/assets/refresh', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to refresh the corporation assets')
+      throw cause
+    }
+  }
 
   return {
     myOperations,

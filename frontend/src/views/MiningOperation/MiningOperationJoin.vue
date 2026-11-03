@@ -129,7 +129,7 @@ onMounted(loadInvitation)
           <section class="eve-card p-5">
             <h2 class="mb-3 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperation.join.rules') }}</h2>
             <p class="text-sm text-slate-200">{{ t(`miningOperation.splitMode.${invitation.splitMode}`) }}</p>
-            <MiningValuationRules class="mt-2" :settings="invitation.valuationSettings" :split-mode="invitation.splitMode" />
+            <MiningValuationRules class="mt-2" :settings="invitation.valuationSettings" :split-mode="invitation.splitMode" :fleet-storage-recipient-name="invitation.fleetStorageRecipientName" />
             <p class="mt-2 text-xs text-slate-400">
               {{ invitation.autoAccepted ? t('miningOperation.join.autoAccepted') : t('miningOperation.join.needsApproval') }}
             </p>

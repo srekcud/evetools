@@ -21,6 +21,7 @@ const emit = defineEmits<{
 const { t, locale } = useI18n()
 
 const paidCount = computed(() => props.payments.filter(payment => payment.paid).length)
+const showsFleetStorageRule = computed(() => props.payments.some(payment => payment.kind === 'fleet_storage_share'))
 const ruleText = computed(() => t(props.boosterCutPercent > 0 ? 'miningOperation.payments.rule' : 'miningOperation.payments.ruleCorporationOnly'))
 
 function payerOf(payment: MiningPayment): string {
@@ -69,6 +70,7 @@ function onTick(payment: MiningPayment, event: Event): void {
       <p class="font-mono text-xs text-slate-400">{{ t('miningOperation.payments.count', { paid: paidCount, total: payments.length }) }}</p>
     </div>
     <p class="mb-3 text-sm text-slate-300">{{ ruleText }}</p>
+    <p v-if="showsFleetStorageRule" class="mb-3 text-sm text-slate-300">{{ t('miningOperation.payments.ruleFleetStorage') }}</p>
     <p v-if="payments.length === 0" class="text-sm text-slate-400">{{ t('miningOperation.archive.nothingToSettle') }}</p>
     <ul v-else class="divide-y divide-slate-800/60">
       <li v-for="payment in payments" :key="payment.id" class="flex items-start gap-3 py-3">
