@@ -17,6 +17,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 #[CoversClass(OreValueTableProvider::class)]
 #[Group('issue-268')]
@@ -87,12 +88,36 @@ final class OreValueTableProviderTest extends TestCase
     public static function invalidQueries(): iterable
     {
         yield 'structure market without structureId' => [['market' => 'structure', 'side' => 'sell']];
+        yield 'structureId of zero' => [['market' => 'structure', 'side' => 'sell', 'structureId' => '0']];
+        yield 'negative structureId' => [['market' => 'structure', 'side' => 'sell', 'structureId' => '-1022734985679']];
         yield 'unknown market' => [['market' => 'foo', 'side' => 'sell']];
         yield 'unknown side' => [['market' => 'jita', 'side' => 'foo']];
         yield 'reprocess yield above one' => [['market' => 'jita', 'reprocessYield' => '1.5']];
         yield 'reprocess yield of zero' => [['market' => 'jita', 'reprocessYield' => '0']];
         yield 'negative reprocess yield' => [['market' => 'jita', 'reprocessYield' => '-0.1']];
         yield 'reprocess yield that is not a number' => [['market' => 'jita', 'reprocessYield' => 'abc']];
+    }
+
+    public function testAnAnonymousVisitorIsUnauthorized(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(null);
+        $requestStack = new RequestStack();
+        $requestStack->push(new Request(['market' => 'jita']));
+
+        $this->expectException(UnauthorizedHttpException::class);
+
+        (new OreValueTableProvider($security, $requestStack, $this->createOreValueTableService([], [])))->provide(new Get());
+    }
+
+    public function testAProvideCallOutsideAnHttpRequestIsABadRequest(): void
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+
+        $this->expectException(BadRequestHttpException::class);
+
+        (new OreValueTableProvider($security, new RequestStack(), $this->createOreValueTableService([], [])))->provide(new Get());
     }
 
     private function provideFor(array $query): OreValueTableResource

@@ -352,6 +352,56 @@ final class OreValueTableServiceTest extends TestCase
         $this->assertNull($veldspar['gapToBestPercent']);
     }
 
+    public function testARowWithAnUnknownValueHasNoGapToTheBestValueOfTheTable(): void
+    {
+        $rows = $this->createOreValueTableService(
+            [self::FULLERITE_C50 => 2741.0, self::COMPRESSED_FULLERITE_C50 => 2813.0],
+            [self::BITUMENS, self::FULLERITE_C50],
+        )->build('jita', MarketSide::Sell, null, null);
+
+        $this->assertSame([self::FULLERITE_C50, self::BITUMENS], array_column($rows, 'typeId'));
+        $this->assertSame(0.0, $rows[0]['gapToBestPercent']);
+        $this->assertNull($rows[1]['bestIskPerM3']);
+        $this->assertNull($rows[1]['gapToBestPercent']);
+    }
+
+    public function testARowWorthZeroIsSortedBeforeARowWithAnUnknownValueEvenWhenItsNameComesLater(): void
+    {
+        $rows = $this->createOreValueTableService(
+            [self::VELDSPAR => 0.0],
+            [self::BITUMENS, self::VELDSPAR],
+        )->build('jita', MarketSide::Sell, null, null);
+
+        $this->assertSame([self::VELDSPAR, self::BITUMENS], array_column($rows, 'typeId'));
+        $this->assertSame(0.0, $rows[0]['bestIskPerM3']);
+        $this->assertNull($rows[1]['bestIskPerM3']);
+    }
+
+    #[DataProvider('portionSizesThatCannotBeReprocessed')]
+    public function testMineralQuantitiesPerUnitAreUnknownWithoutAPositiveSdePortionSize(?int $portionSize): void
+    {
+        $sdeTypes = $this->sdeTypes();
+        $sdeTypes[self::VELDSPAR]['portionSize'] = $portionSize;
+
+        $veldspar = $this->onlyRow(
+            $this->createOreValueTableService([self::VELDSPAR => 18.37], [self::VELDSPAR], sdeTypes: $sdeTypes)
+                ->build('jita', MarketSide::Sell, null, self::REPROCESS_YIELD),
+        );
+
+        $this->assertTrue($veldspar['reprocessable']);
+        $this->assertSame(
+            [['typeId' => self::TRITANIUM, 'typeName' => 'Tritanium', 'quantityPerUnit' => null]],
+            $veldspar['minerals'],
+        );
+        $this->assertEqualsWithDelta(183.7, $veldspar['rawIskPerM3'], self::VALUE_DELTA);
+    }
+
+    public static function portionSizesThatCannotBeReprocessed(): iterable
+    {
+        yield 'portion size missing from the SDE' => [null];
+        yield 'portion size of zero' => [0];
+    }
+
     public function testCompressedOresAreNotRowsButOreVariantsAre(): void
     {
         $jitaSellPrices = $this->jitaSellPricesOfTheSpecExamples() + [self::CONCENTRATED_VELDSPAR => 19.3, self::BATCH_COMPRESSED_VELDSPAR => 1975.0];
