@@ -96,4 +96,9 @@ class MiningOperationValuationResource
 
     /** @var list<string> */
     public array $freezeBlockers = [];
+
+    public bool $canComplete = false;
+
+    /** @var list<string>|null */
+    public ?array $completionBlockers = null;
 }

@@ -15,6 +15,7 @@ use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
 use App\ApiResource\Input\MiningOperation\CreateMiningOperationInput;
 use App\ApiResource\Input\MiningOperation\StartMiningOperationInput;
+use App\State\Processor\MiningOperation\CompleteMiningOperationProcessor;
 use App\State\Processor\MiningOperation\CreateMiningOperationProcessor;
 use App\State\Processor\MiningOperation\DeleteMiningOperationProcessor;
 use App\State\Processor\MiningOperation\DepartMiningOperationProcessor;
@@ -22,7 +23,9 @@ use App\State\Processor\MiningOperation\EndMiningOperationProcessor;
 use App\State\Processor\MiningOperation\FreezeMiningSharesProcessor;
 use App\State\Processor\MiningOperation\LeaveMiningOperationProcessor;
 use App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor;
+use App\State\Processor\MiningOperation\SettleMiningOperationProcessor;
 use App\State\Processor\MiningOperation\StartMiningOperationProcessor;
+use App\State\Provider\MiningOperation\ArchivedMiningOperationsProvider;
 use App\State\Provider\MiningOperation\AvailableMiningOperationsProvider;
 use App\State\Provider\MiningOperation\MiningOperationDeleteProvider;
 use App\State\Provider\MiningOperation\MiningOperationProvider;
@@ -47,6 +50,15 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             openapi: new Model\Operation(
                 summary: 'List available mining operations',
                 description: 'Returns the open corporation operations of the user corporation the user has no membership in',
+                tags: ['Mining Operations'],
+            ),
+        ),
+        new GetCollection(
+            uriTemplate: '/mining-operations/archive',
+            provider: ArchivedMiningOperationsProvider::class,
+            openapi: new Model\Operation(
+                summary: 'List archived mining operations',
+                description: 'Returns the settled or completed operations the current user can read, latest archive first',
                 tags: ['Mining Operations'],
             ),
         ),
@@ -170,6 +182,34 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
                 tags: ['Mining Operations'],
             ),
         ),
+        new Post(
+            uriTemplate: '/mining-operations/{id}/settle',
+            uriVariables: [
+                'id' => new Link(fromClass: self::class),
+            ],
+            processor: SettleMiningOperationProcessor::class,
+            input: EmptyInput::class,
+            status: 200,
+            openapi: new Model\Operation(
+                summary: 'Settle a mining operation',
+                description: 'Moves an operation whose payments are all marked paid to settled and to the archive (owner or admin)',
+                tags: ['Mining Operations'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/mining-operations/{id}/complete',
+            uriVariables: [
+                'id' => new Link(fromClass: self::class),
+            ],
+            processor: CompleteMiningOperationProcessor::class,
+            input: EmptyInput::class,
+            status: 200,
+            openapi: new Model\Operation(
+                summary: 'Complete an each-for-themselves mining operation',
+                description: 'Freezes the prices and mined values of a closing each-for-themselves operation, which moves to completed and to the archive (owner or admin)',
+                tags: ['Mining Operations'],
+            ),
+        ),
     ],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: false,
@@ -219,4 +259,11 @@ class MiningOperationResource
     public ?array $valuationSettings = null;
 
     public ?\DateTimeImmutable $sharesFrozenAt = null;
+
+    public ?\DateTimeImmutable $archivedAt = null;
+
+    public ?string $archivedByName = null;
+
+    /** @var array<string, mixed>|null */
+    public ?array $archiveSummary = null;
 }

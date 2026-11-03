@@ -7,6 +7,7 @@ namespace App\Service\MiningOperation;
 use App\Entity\MiningFrozenMinedValue;
 use App\Entity\MiningFrozenUnitPrice;
 use App\Entity\MiningOperation;
+use App\Entity\User;
 use App\Enum\MinedQuantityState;
 use App\Enum\MiningOperationStatus;
 use App\Enum\MiningShareBlocker;
@@ -28,6 +29,7 @@ final readonly class MiningShareFreezer
         private TypeNameResolver $typeNameResolver,
         private EntityManagerInterface $entityManager,
         private ClockInterface $clock,
+        private MiningPaymentPlanner $paymentPlanner = new MiningPaymentPlanner(),
     ) {
     }
 
@@ -61,6 +63,10 @@ final readonly class MiningShareFreezer
 
         $operation->freezeShares($this->clock->now(), $valuation->pricesSyncedAt, $unitPrices, $minedValues);
         $this->entityManager->flush();
+    }
+
+    public function complete(MiningOperation $operation, User $completedBy): void
+    {
     }
 
     private function refusalOf(MiningShareBlocker $blocker, MiningOperationValuation $valuation): string

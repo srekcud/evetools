@@ -2609,6 +2609,7 @@
   "miningOperation": {
     "title": "Mining operations",
     "tabs": {
+      "archive": "Archive",
       "mine": "My operations",
       "available": "Available"
     },
@@ -2622,6 +2623,7 @@
       "join": "Join"
     },
     "status": {
+      "settled": "Settled",
       "planned": "Planned",
       "in_progress": "In progress",
       "closing": "Closing",
@@ -2732,6 +2734,7 @@
       "confirm": "Your end snapshot will be taken now. You cannot come back."
     },
     "snapshot": {
+      "noEndSnapshot": "✗ no end snapshot · quantity unknown",
       "startOk": "✓ start {taken}/{total}",
       "startMissing": "✗ start {taken}/{total}",
       "departedRead": "left {time} · end read",
@@ -2868,6 +2871,7 @@
       "noPrice": "no price",
       "eachForThemselvesBanner": "Everyone keeps their own ore: no share, no payment. Prices are read now.",
       "kpi": {
+        "payments": "Payments",
         "total": "Total value G",
         "booster": "Booster cut, {percent} %",
         "toShare": "To share, {percent} %",
@@ -2887,6 +2891,77 @@
         "prices_missing": "No price on the basis: {types}",
         "booster_missing": "Choose the booster who receives the booster cut."
       }
+    },
+    "archive": {
+      "columns": {
+        "operation": "Operation",
+        "archivedAt": "Archived on",
+        "system": "Solar system",
+        "participants": "Participants",
+        "totalValue": "Total value G",
+        "myShare": "My share",
+        "payments": "Payments",
+        "status": "Status"
+      },
+      "myValue": "my value · everyone keeps their own",
+      "notParticipant": "not a participant",
+      "nothingToSettle": "nothing to settle",
+      "paymentsCount": "{paid} / {total} paid",
+      "empty": "No settled or completed operation yet.",
+      "hint": "The archive lists the settled or completed operations you took part in, and your corporation's operations open to the corporation."
+    },
+    "payments": {
+      "title": "Payments",
+      "count": "{paid} / {total} paid",
+      "rule": "Everyone keeps their ore and gives the booster the difference between their mined value and their share. The booster passes the corporation cut on. An owner or admin ticks the line once the ISK is given in game.",
+      "ruleCorporationOnly": "Everyone keeps their ore and gives the corporation the difference between their mined value and their share.",
+      "line": "{payer} owes {amount} ISK to {beneficiary}",
+      "kind": {
+        "booster_cut": "booster and corporation cuts on their mined value",
+        "corporation_cut": "corporation cut on their mined value",
+        "collected_corporation_cut": "corporation cut collected by the booster ({percent} % of G)"
+      },
+      "corporation": "the corporation",
+      "paid": "paid",
+      "pending": "pending",
+      "paidTrace": "marked paid by {name} on {date} at {time}",
+      "pendingTrace": "waiting for the ISK to be given in game",
+      "markLabel": "{payer} paid {amount} ISK to {beneficiary}"
+    },
+    "settle": {
+      "title": "Mark settled",
+      "action": "Mark settled",
+      "hint": "Available once every payment is marked paid. The operation then moves to the archive, read only.",
+      "confirm": "Mark the operation settled? Nothing can change afterwards.",
+      "left": "{count} payment(s) not marked paid yet",
+      "banner": "Operation settled on {date} EVE. Every payment is marked paid. Quantities, prices, shares and payments no longer change."
+    },
+    "complete": {
+      "title": "Mark completed",
+      "action": "Mark completed",
+      "hint": "Current prices and each participant's mined value are copied into the operation, which moves to the archive, read only. Nothing to settle.",
+      "confirm": "Mark the operation completed? Current prices are frozen.",
+      "blockers": {
+        "not_closing": "The operation must be closing.",
+        "quantities_not_known": "Unknown or still measured quantity: {names}",
+        "prices_missing": "No price on the basis: {types}"
+      },
+      "banner": "Operation completed on {date} EVE · everyone keeps their own. Nothing to settle. Prices and mined values are frozen."
+    },
+    "recap": {
+      "title": "Summary",
+      "period": "Period",
+      "system": "Solar system",
+      "participants": "Participants",
+      "totalValue": "Total value",
+      "iskPerHour": "ISK/h",
+      "basis": "Basis",
+      "booster": "Booster",
+      "corporation": "Corporation",
+      "payments": "Payments",
+      "settledBy": "{date} by {name}",
+      "completedBy": "{date} by {name}",
+      "participantsCount": "{participants} · {characters} characters"
     }
   }
 }

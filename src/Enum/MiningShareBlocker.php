@@ -11,4 +11,5 @@ enum MiningShareBlocker: string
     case QuantitiesNotKnown = 'quantities_not_known';
     case PricesMissing = 'prices_missing';
     case BoosterMissing = 'booster_missing';
+    case NotEachForThemselves = 'not_each_for_themselves';
 }

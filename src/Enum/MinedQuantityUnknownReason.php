@@ -10,4 +10,5 @@ enum MinedQuantityUnknownReason: string
     case ReadFailed = 'read_failed';
     case OutOfWindow = 'out_of_window';
     case LedgerInconsistent = 'ledger_inconsistent';
+    case NoEndSnapshot = 'no_end_snapshot';
 }

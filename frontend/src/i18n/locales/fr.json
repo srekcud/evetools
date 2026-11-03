@@ -2609,6 +2609,7 @@
   "miningOperation": {
     "title": "Opérations de minage",
     "tabs": {
+      "archive": "Archive",
       "mine": "Mes opérations",
       "available": "Disponibles"
     },
@@ -2622,6 +2623,7 @@
       "join": "Rejoindre"
     },
     "status": {
+      "settled": "Réglée",
       "planned": "Planifiée",
       "in_progress": "En cours",
       "closing": "Clôture",
@@ -2732,6 +2734,7 @@
       "confirm": "Votre instantané de fin sera pris maintenant. Vous ne pourrez pas revenir."
     },
     "snapshot": {
+      "noEndSnapshot": "✗ pas d'instantané de fin · quantité inconnue",
       "startOk": "✓ début {taken}/{total}",
       "startMissing": "✗ début {taken}/{total}",
       "departedRead": "parti {time} · fin lue",
@@ -2868,6 +2871,7 @@
       "noPrice": "sans prix",
       "eachForThemselvesBanner": "Chacun pour soi : chacun garde son minerai, pas de part, pas de paiement. Les prix sont lus maintenant.",
       "kpi": {
+        "payments": "Paiements",
         "total": "Valeur totale G",
         "booster": "Part du booster, {percent} %",
         "toShare": "À répartir, {percent} %",
@@ -2887,6 +2891,77 @@
         "prices_missing": "Sans prix sur la base : {types}",
         "booster_missing": "Choisissez le booster qui reçoit la part du booster."
       }
+    },
+    "archive": {
+      "columns": {
+        "operation": "Opération",
+        "archivedAt": "Archivée le",
+        "system": "Système",
+        "participants": "Participants",
+        "totalValue": "Valeur G",
+        "myShare": "Ma part",
+        "payments": "Paiements",
+        "status": "Statut"
+      },
+      "myValue": "ma valeur · chacun pour soi",
+      "notParticipant": "non participant",
+      "nothingToSettle": "rien à régler",
+      "paymentsCount": "{paid} / {total} payés",
+      "empty": "Aucune opération réglée ou terminée pour l'instant.",
+      "hint": "L'archive montre les opérations réglées ou terminées auxquelles vous avez participé, et celles de votre corporation ouvertes à la corporation."
+    },
+    "payments": {
+      "title": "Paiements",
+      "count": "{paid} / {total} payés",
+      "rule": "Chacun garde son minerai et verse au booster la différence entre sa valeur minée et sa part. Le booster reverse la part corporation. Un Owner ou un Admin coche la ligne quand le don est fait en jeu.",
+      "ruleCorporationOnly": "Chacun garde son minerai et verse à la corporation la différence entre sa valeur minée et sa part.",
+      "line": "{payer} doit {amount} ISK à {beneficiary}",
+      "kind": {
+        "booster_cut": "part du booster et part corporation sur sa valeur minée",
+        "corporation_cut": "part corporation sur sa valeur minée",
+        "collected_corporation_cut": "part corporation collectée par le booster ({percent} % de G)"
+      },
+      "corporation": "la corporation",
+      "paid": "payé",
+      "pending": "en attente",
+      "paidTrace": "marqué payé par {name} le {date} à {time}",
+      "pendingTrace": "en attente du don en jeu",
+      "markLabel": "{payer} a payé {amount} ISK à {beneficiary}"
+    },
+    "settle": {
+      "title": "Marquer réglée",
+      "action": "Marquer réglée",
+      "hint": "Possible quand tous les paiements sont marqués payés. L'opération passe ensuite en archive, en lecture seule.",
+      "confirm": "Marquer l'opération réglée ? Plus rien ne pourra changer.",
+      "left": "{count} paiement(s) pas encore marqué(s) payé(s)",
+      "banner": "Opération réglée le {date} EVE. Tous les paiements sont marqués payés. Quantités, prix, parts et paiements ne changent plus."
+    },
+    "complete": {
+      "title": "Marquer terminée",
+      "action": "Marquer terminée",
+      "hint": "Les prix du moment et la valeur minée de chacun sont copiés dans l'opération, qui passe en archive, en lecture seule. Rien n'est à régler.",
+      "confirm": "Marquer l'opération terminée ? Les prix du moment sont figés.",
+      "blockers": {
+        "not_closing": "L'opération doit être en clôture.",
+        "quantities_not_known": "Quantité inconnue ou en mesure : {names}",
+        "prices_missing": "Sans prix sur la base : {types}"
+      },
+      "banner": "Opération terminée le {date} EVE · chacun pour soi. Chacun garde son minerai : rien à régler. Les prix et les valeurs minées sont figés."
+    },
+    "recap": {
+      "title": "Récapitulatif",
+      "period": "Période",
+      "system": "Système",
+      "participants": "Participants",
+      "totalValue": "Valeur totale",
+      "iskPerHour": "ISK/h",
+      "basis": "Base",
+      "booster": "Booster",
+      "corporation": "Corporation",
+      "payments": "Paiements",
+      "settledBy": "{date} par {name}",
+      "completedBy": "{date} par {name}",
+      "participantsCount": "{participants} · {characters} personnages"
     }
   }
 }

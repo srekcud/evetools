@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
 
-export type MiningOperationStatus = 'planned' | 'in_progress' | 'closing' | 'shares' | 'completed'
+export type MiningOperationStatus = 'planned' | 'in_progress' | 'closing' | 'shares' | 'settled' | 'completed'
 export type MiningOperationVisibility = 'private' | 'corporation'
 export type MiningSplitMode = 'value_prorata' | 'each_for_themselves'
 export type MiningOperationMemberRole = 'owner' | 'admin' | 'member'
@@ -30,6 +30,32 @@ export type MiningInvitationValuationSettings = Omit<MiningValuationSettings, 'b
 
 export type UpdateMiningValuationInput = Partial<Omit<MiningValuationSettings, 'boosterCharacterName'>>
 
+export interface MiningArchiveSummary {
+  archivedAt: string
+  archivedByName: string | null
+  totalValue: number | null
+  myMinedValue: number | null
+  myShare: number | null
+  paymentsCount: number
+  paidPaymentsCount: number
+}
+
+export type MiningPaymentKind = 'booster_cut' | 'corporation_cut' | 'collected_corporation_cut'
+
+export interface MiningPayment {
+  id: string
+  position: number
+  kind: MiningPaymentKind
+  payerMemberId: string | null
+  payerName: string | null
+  beneficiaryMemberId: string | null
+  beneficiaryName: string | null
+  amount: number
+  paid: boolean
+  paidAt: string | null
+  paidByName: string | null
+}
+
 export interface MiningOperation {
   id: string
   label: string
@@ -52,6 +78,9 @@ export interface MiningOperation {
   myDepartedAt: string | null
   valuationSettings: MiningValuationSettings
   sharesFrozenAt: string | null
+  archivedAt: string | null
+  archivedByName: string | null
+  archiveSummary: MiningArchiveSummary | null
 }
 
 export interface MiningOperationMemberCharacter {
@@ -73,7 +102,7 @@ export interface MiningOperationMember {
 
 export type MiningLedgerSnapshotStatus = 'scheduling' | 'waiting' | 'taken' | 'reconnect_required' | 'failed' | 'out_of_window'
 export type MinedQuantityState = 'measuring' | 'known' | 'unknown'
-export type MinedQuantityUnknownReason = 'reconnect_required' | 'read_failed' | 'out_of_window' | 'ledger_inconsistent'
+export type MinedQuantityUnknownReason = 'reconnect_required' | 'read_failed' | 'out_of_window' | 'ledger_inconsistent' | 'no_end_snapshot'
 
 export interface MiningLedgerSnapshot {
   status: MiningLedgerSnapshotStatus
@@ -215,6 +244,8 @@ export interface MiningOperationValuation {
   participants: MiningValuationParticipant[]
   canFreeze: boolean
   freezeBlockers: MiningShareBlocker[]
+  canComplete: boolean
+  completionBlockers: MiningShareBlocker[] | null
 }
 
 export interface CreateMiningOperationInput {
@@ -238,6 +269,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const invitation = ref<MiningOperationInvitation | null>(null)
   const ledger = ref<MiningOperationLedger | null>(null)
   const valuation = ref<MiningOperationValuation | null>(null)
+  const payments = ref<MiningPayment[]>([])
+  const archivedOperations = ref<MiningOperation[]>([])
   const error = ref<string | null>(null)
 
   function messageOf(cause: unknown, fallback: string): string {
@@ -479,6 +512,22 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
+  async function fetchPayments(_id: string): Promise<void> {}
+
+  async function markPayment(_operationId: string, _paymentId: string, _paid: boolean): Promise<MiningPayment | null> {
+    return null
+  }
+
+  async function settle(_id: string): Promise<MiningOperation | null> {
+    return null
+  }
+
+  async function complete(_id: string): Promise<MiningOperation | null> {
+    return null
+  }
+
+  async function fetchArchive(): Promise<void> {}
+
   return {
     myOperations,
     availableOperations,
@@ -487,6 +536,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     invitation,
     ledger,
     valuation,
+    payments,
+    archivedOperations,
     error,
     fetchMine,
     fetchAvailable,
@@ -509,5 +560,10 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     fetchValuation,
     updateValuation,
     freezeShares,
+    fetchPayments,
+    markPayment,
+    settle,
+    complete,
+    fetchArchive,
   }
 })

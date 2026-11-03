@@ -78,6 +78,14 @@ class MiningOperationRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return list<MiningOperation>
+     */
+    public function findArchivedReadableBy(User $user): array
+    {
+        return [];
+    }
+
     private function withOwner(QueryBuilder $queryBuilder): QueryBuilder
     {
         return $queryBuilder

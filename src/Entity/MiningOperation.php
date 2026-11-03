@@ -121,11 +121,19 @@ class MiningOperation
     #[ORM\OneToMany(targetEntity: MiningFrozenMinedValue::class, mappedBy: 'operation', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $frozenMinedValues;
 
+    /** @var Collection<int, MiningPayment> */
+    private Collection $payments;
+
+    private ?\DateTimeImmutable $archivedAt = null;
+
+    private ?string $archivedByName = null;
+
     public function __construct()
     {
         $this->members = new ArrayCollection();
         $this->frozenUnitPrices = new ArrayCollection();
         $this->frozenMinedValues = new ArrayCollection();
+        $this->payments = new ArrayCollection();
         $this->joinCode = self::generateJoinCode();
         $this->createdAt = new \DateTimeImmutable();
         $this->plannedStartAt = $this->createdAt;
@@ -486,5 +494,39 @@ class MiningOperation
     public function getFrozenMinedValues(): Collection
     {
         return $this->frozenMinedValues;
+    }
+
+    /**
+     * @return Collection<int, MiningPayment>
+     */
+    public function getPayments(): Collection
+    {
+        return $this->payments;
+    }
+
+    public function getArchivedAt(): ?\DateTimeImmutable
+    {
+        return $this->archivedAt;
+    }
+
+    public function getArchivedByName(): ?string
+    {
+        return $this->archivedByName;
+    }
+
+    public function settle(\DateTimeImmutable $settledAt, ?string $settledByName): void
+    {
+    }
+
+    /**
+     * @param list<MiningFrozenUnitPrice>  $unitPrices
+     * @param list<MiningFrozenMinedValue> $minedValues
+     */
+    public function complete(\DateTimeImmutable $completedAt, ?\DateTimeImmutable $pricesSyncedAt, array $unitPrices, array $minedValues, ?string $completedByName): void
+    {
+    }
+
+    public function transferOwnershipTo(MiningOperationMember $successor): void
+    {
     }
 }
