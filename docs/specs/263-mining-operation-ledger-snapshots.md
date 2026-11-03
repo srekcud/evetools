@@ -376,5 +376,4 @@ Termes proposés, à ajouter au glossaire après validation (non ajoutés ici) :
 | 19 | Pas de nouvelle maquette : la v4 fait foi, écrans réduits à ce lot | refaire une maquette #263 | Même choix que #262 (décision 21) : une seconde version risquerait de diverger de la maquette retenue. |
 | 20 | Horloge `Psr\Clock\ClockInterface` injectée dans le cycle de vie, le handler et le dispatcher ; les entités reçoivent l'heure en paramètre | `new \DateTimeImmutable()` dans les entités (#262) | Toutes les règles de ce lot dépendent de l'heure ; #262 n'en avait aucune. |
 | 21 | Modale de correction limitée aux types déjà mesurés dans l'opération ; l'API accepte tout `typeId` du SDE | ajouter une recherche de type SDE | Aucun endpoint de recherche de type générique (`/pve/search-types` est propre au PVE) ; le cas courant est la correction d'un type mesuré. |
-
 | 22 | Retrait d'un membre refusé hors Planifiée (409), départ via « Je pars » | supprimer ses instantanés avec lui (proposition initiale de l'architecte) | Ne supprime aucune donnée ; décision de l'orchestrateur en mode nuit, à relire par Sylvain. |
