@@ -60,6 +60,8 @@ final readonly class RemoveMiningOperationMemberProcessor implements ProcessorIn
             throw new ConflictHttpException('Mining operation already started: use departure instead');
         }
 
+        MiningOperationRequest::assertNotArchived($miningOperation);
+
         $member->remove();
         $this->entityManager->flush();
 

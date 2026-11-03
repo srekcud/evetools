@@ -52,6 +52,18 @@ function snapshotText(snapshot: MiningLedgerSnapshot | null): string {
   }
 }
 
+function hasNoEndSnapshot(character: MiningLedgerCharacter): boolean {
+  return character.state === 'unknown' && character.unknownReason === 'no_end_snapshot'
+}
+
+function endSnapshotText(character: MiningLedgerCharacter): string {
+  return hasNoEndSnapshot(character) ? t('miningOperation.snapshot.noEndSnapshot') : snapshotText(snapshotShown(character))
+}
+
+function endSnapshotClass(character: MiningLedgerCharacter): string {
+  return hasNoEndSnapshot(character) ? 'text-amber-300' : snapshotClass(snapshotShown(character))
+}
+
 function snapshotClass(snapshot: MiningLedgerSnapshot | null): string {
   if (snapshot === null) return 'text-slate-500'
   if (snapshot.status === 'taken') return 'text-emerald-300'
@@ -105,8 +117,8 @@ function quantityText(character: MiningLedgerCharacter): string {
               <tr v-for="character in participant.characters" :key="character.id" class="border-b border-slate-800/60">
                 <td class="max-w-40 truncate py-2 pr-3 text-slate-100" :title="character.name">{{ character.name }}</td>
                 <td class="max-w-40 truncate py-2 pr-3 text-slate-300" :title="participantName(participant)">{{ participantName(participant) }}</td>
-                <td class="py-2 pr-3 font-mono text-xs" :class="snapshotClass(snapshotShown(character))">
-                  <span>{{ snapshotText(snapshotShown(character)) }}</span>
+                <td class="py-2 pr-3 font-mono text-xs" :class="endSnapshotClass(character)">
+                  <span>{{ endSnapshotText(character) }}</span>
                   <button v-if="character.canRetry" type="button" class="ml-2 rounded-md border border-amber-500/40 px-2 py-0.5 text-xs text-amber-200 hover:bg-amber-500/10" @click="emit('retry', character.id)">{{ t('miningOperation.snapshot.retry') }}</button>
                 </td>
                 <td class="py-2 text-right font-mono text-xs" :class="character.state === 'unknown' ? 'text-amber-300' : 'text-slate-200'">{{ quantityText(character) }}</td>

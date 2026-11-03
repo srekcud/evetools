@@ -191,6 +191,8 @@ deptrac:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\Service\MiningOperation\MiningOperationEnrolment:
       - App\ApiResource\Input\MiningOperation\CreateMiningOperationInput
+    App\State\Processor\MiningOperation\CompleteMiningOperationProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\CreateMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\Entity\MiningLedgerSnapshot:
@@ -205,11 +207,15 @@ deptrac:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\SettleMiningOperationProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\StartMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\UpdateMiningOperationMemberProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\UpdateMiningOperationValuationProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\UpdateMiningPaymentProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\Notification\MarkReadProcessor:
       - App\State\Provider\Notification\NotificationResourceMapper

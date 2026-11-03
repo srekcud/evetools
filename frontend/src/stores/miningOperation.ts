@@ -419,7 +419,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
-  async function postLifecycleAction(id: string, action: 'start' | 'end' | 'depart', body: object, failureMessage: string): Promise<MiningOperation | null> {
+  async function postLifecycleAction(id: string, action: 'start' | 'end' | 'depart' | 'settle' | 'complete', body: object, failureMessage: string): Promise<MiningOperation | null> {
     error.value = null
     try {
       currentOperation.value = await apiRequest<MiningOperation>(`/mining-operations/${id}/${action}`, {
@@ -512,21 +512,42 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
-  async function fetchPayments(_id: string): Promise<void> {}
-
-  async function markPayment(_operationId: string, _paymentId: string, _paid: boolean): Promise<MiningPayment | null> {
-    return null
+  async function fetchPayments(id: string): Promise<void> {
+    error.value = null
+    try {
+      payments.value = await apiRequest<MiningPayment[]>(`/mining-operations/${id}/payments`)
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the payments')
+    }
   }
 
-  async function settle(_id: string): Promise<MiningOperation | null> {
-    return null
+  async function markPayment(operationId: string, paymentId: string, paid: boolean): Promise<MiningPayment | null> {
+    error.value = null
+    try {
+      const marked = await apiRequest<MiningPayment>(`/mining-operations/${operationId}/payments/${paymentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ paid }),
+      })
+      payments.value = payments.value.map(line => (line.id === paymentId ? marked : line))
+      return marked
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to mark the payment')
+      throw cause
+    }
   }
 
-  async function complete(_id: string): Promise<MiningOperation | null> {
-    return null
-  }
+  const settle = (id: string) => postLifecycleAction(id, 'settle', {}, 'Failed to settle the mining operation')
 
-  async function fetchArchive(): Promise<void> {}
+  const complete = (id: string) => postLifecycleAction(id, 'complete', {}, 'Failed to complete the mining operation')
+
+  async function fetchArchive(): Promise<void> {
+    error.value = null
+    try {
+      archivedOperations.value = await apiRequest<MiningOperation[]>('/mining-operations/archive')
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the archive')
+    }
+  }
 
   return {
     myOperations,

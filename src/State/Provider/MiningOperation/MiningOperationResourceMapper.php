@@ -8,9 +8,11 @@ use App\ApiResource\MiningOperation\MiningOperationInvitationResource;
 use App\ApiResource\MiningOperation\MiningOperationMemberResource;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\ApiResource\MiningOperation\MiningOperationValuationResource;
+use App\ApiResource\MiningOperation\MiningPaymentResource;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
+use App\Entity\MiningPayment;
 use App\Enum\MiningShareBlocker;
 use App\Service\MiningOperation\CharacterEligibility;
 use App\Service\MiningOperation\MiningCharacterValuation;
@@ -48,6 +50,29 @@ final readonly class MiningOperationResourceMapper
         $resource->myDepartedAt = $this->inEveTimeOrNull($viewerMembership?->getDepartedAt());
         $resource->valuationSettings = $this->valuationSettingsOf($operation);
         $resource->sharesFrozenAt = $this->inEveTimeOrNull($operation->getSharesFrozenAt());
+        $resource->archivedAt = $this->inEveTimeOrNull($operation->getArchivedAt());
+        $resource->archivedByName = $operation->getArchivedByName();
+
+        return $resource;
+    }
+
+    public function paymentToResource(MiningPayment $payment): MiningPaymentResource
+    {
+        $payerMember = $payment->getPayerMember();
+        $beneficiaryMember = $payment->getBeneficiaryMember();
+
+        $resource = new MiningPaymentResource();
+        $resource->id = PersistedUuid::of($payment->getId());
+        $resource->position = $payment->getPosition();
+        $resource->kind = $payment->getKind()->value;
+        $resource->payerMemberId = $payerMember === null ? null : PersistedUuid::of($payerMember->getId());
+        $resource->payerName = $payment->getPayerName();
+        $resource->beneficiaryMemberId = $beneficiaryMember === null ? null : PersistedUuid::of($beneficiaryMember->getId());
+        $resource->beneficiaryName = $payment->getBeneficiaryName();
+        $resource->amount = (int) $payment->getAmount();
+        $resource->paid = $payment->isPaid();
+        $resource->paidAt = $this->inEveTimeOrNull($payment->getPaidAt());
+        $resource->paidByName = $payment->getPaidByName();
 
         return $resource;
     }
@@ -85,6 +110,11 @@ final readonly class MiningOperationResourceMapper
         );
         $resource->canFreeze = $canAdminister && $freezeBlockers === [];
         $resource->freezeBlockers = array_map(static fn (MiningShareBlocker $blocker): string => $blocker->value, $freezeBlockers);
+        $completionBlockers = $valuation->completionBlockers;
+        $resource->canComplete = $canAdminister && !$valuation->frozen && $completionBlockers === [];
+        $resource->completionBlockers = $completionBlockers === null
+            ? null
+            : array_map(static fn (MiningShareBlocker $blocker): string => $blocker->value, $completionBlockers);
 
         return $resource;
     }

@@ -41,6 +41,7 @@ use App\State\Provider\MiningOperation\MiningPaymentItemProvider;
             provider: MiningPaymentItemProvider::class,
             processor: UpdateMiningPaymentProcessor::class,
             input: UpdateMiningPaymentInput::class,
+            collectDenormalizationErrors: true,
             openapi: new Model\Operation(
                 summary: 'Mark a payment paid or unpaid',
                 description: 'Marks a payment paid or unpaid while the shares are frozen (payer, owner or admin)',

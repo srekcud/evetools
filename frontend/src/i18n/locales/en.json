@@ -2872,6 +2872,7 @@
       "eachForThemselvesBanner": "Everyone keeps their own ore: no share, no payment. Prices are read now.",
       "kpi": {
         "payments": "Payments",
+        "duration": "Duration",
         "total": "Total value G",
         "booster": "Booster cut, {percent} %",
         "toShare": "To share, {percent} %",

@@ -7,8 +7,10 @@ namespace App\State\Provider\MiningOperation;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningOperation\MiningOperationResource;
+use App\Entity\MiningOperation;
 use App\Repository\MiningOperationRepository;
 use App\Service\MiningOperation\MiningOperationArchive;
+use App\Service\MiningOperation\MiningOperationRequest;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
@@ -29,6 +31,16 @@ final readonly class ArchivedMiningOperationsProvider implements ProviderInterfa
      */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
-        return [];
+        $user = MiningOperationRequest::userOf($this->security);
+
+        return array_map(
+            function (MiningOperation $archived) use ($user): MiningOperationResource {
+                $resource = $this->mapper->operationToResource($archived, $archived->activeMembershipOf($user));
+                $resource->archiveSummary = $this->archive->summaryOf($archived, $user);
+
+                return $resource;
+            },
+            $this->operationRepository->findArchivedReadableBy($user),
+        );
     }
 }

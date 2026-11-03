@@ -72,6 +72,8 @@ final readonly class UpdateMiningOperationMemberProcessor implements ProcessorIn
             throw new BadRequestHttpException('This operation is no longer accepting participants');
         }
 
+        MiningOperationRequest::assertNotArchived($miningOperation);
+
         if ($newRole !== null) {
             $member->setRole($newRole);
         }

@@ -71,8 +71,10 @@ class MiningOperationRepository extends ServiceEntityRepository
 
         return $this->withOwner($this->createQueryBuilder('operation'))
             ->where(sprintf('operation.owner = :user OR EXISTS (%s)', $activeMembershipOfUser))
+            ->andWhere('operation.status NOT IN (:archivedStatuses)')
             ->setParameter('user', $user)
             ->setParameter('memberStatuses', [MiningOperationMemberStatus::Pending, MiningOperationMemberStatus::Accepted])
+            ->setParameter('archivedStatuses', $this->archivedStatuses())
             ->orderBy('operation.plannedStartAt', 'DESC')
             ->getQuery()
             ->getResult();
@@ -83,7 +85,42 @@ class MiningOperationRepository extends ServiceEntityRepository
      */
     public function findArchivedReadableBy(User $user): array
     {
-        return [];
+        $acceptedMembershipOfUser = $this->getEntityManager()->createQueryBuilder()
+            ->select('1')
+            ->from(MiningOperationMember::class, 'membership')
+            ->where('membership.operation = operation')
+            ->andWhere('membership.user = :user')
+            ->andWhere('membership.status = :acceptedStatus')
+            ->getDQL();
+
+        $queryBuilder = $this->withOwner($this->createQueryBuilder('operation'))
+            ->where('operation.status IN (:archivedStatuses)')
+            ->setParameter('archivedStatuses', $this->archivedStatuses())
+            ->setParameter('user', $user)
+            ->setParameter('acceptedStatus', MiningOperationMemberStatus::Accepted)
+            ->orderBy('operation.archivedAt', 'DESC');
+
+        $readableBy = ['operation.owner = :user', sprintf('EXISTS (%s)', $acceptedMembershipOfUser)];
+        $corporationId = $user->getCorporationId();
+        if ($corporationId !== null) {
+            $readableBy[] = '(operation.visibility = :corporationVisibility AND operation.corporationId = :corporationId)';
+            $queryBuilder
+                ->setParameter('corporationVisibility', MiningOperationVisibility::Corporation)
+                ->setParameter('corporationId', $corporationId);
+        }
+
+        return $queryBuilder
+            ->andWhere(implode(' OR ', $readableBy))
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return list<MiningOperationStatus>
+     */
+    private function archivedStatuses(): array
+    {
+        return array_values(array_filter(MiningOperationStatus::cases(), static fn (MiningOperationStatus $status): bool => $status->isArchived()));
     }
 
     private function withOwner(QueryBuilder $queryBuilder): QueryBuilder

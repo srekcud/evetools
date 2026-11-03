@@ -2872,6 +2872,7 @@
       "eachForThemselvesBanner": "Chacun pour soi : chacun garde son minerai, pas de part, pas de paiement. Les prix sont lus maintenant.",
       "kpi": {
         "payments": "Paiements",
+        "duration": "Durée",
         "total": "Valeur totale G",
         "booster": "Part du booster, {percent} %",
         "toShare": "À répartir, {percent} %",

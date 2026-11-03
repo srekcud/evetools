@@ -122,10 +122,13 @@ class MiningOperation
     private Collection $frozenMinedValues;
 
     /** @var Collection<int, MiningPayment> */
+    #[ORM\OneToMany(targetEntity: MiningPayment::class, mappedBy: 'operation', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $payments;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $archivedAt = null;
 
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $archivedByName = null;
 
     public function __construct()
@@ -516,6 +519,9 @@ class MiningOperation
 
     public function settle(\DateTimeImmutable $settledAt, ?string $settledByName): void
     {
+        $this->status = MiningOperationStatus::Settled;
+        $this->archivedAt = $settledAt;
+        $this->archivedByName = $settledByName;
     }
 
     /**
@@ -524,9 +530,15 @@ class MiningOperation
      */
     public function complete(\DateTimeImmutable $completedAt, ?\DateTimeImmutable $pricesSyncedAt, array $unitPrices, array $minedValues, ?string $completedByName): void
     {
+        $this->freezeShares($completedAt, $pricesSyncedAt, $unitPrices, $minedValues);
+        $this->status = MiningOperationStatus::Completed;
+        $this->archivedAt = $completedAt;
+        $this->archivedByName = $completedByName;
     }
 
     public function transferOwnershipTo(MiningOperationMember $successor): void
     {
+        $successor->setRole(MiningOperationMemberRole::Owner);
+        $this->owner = $successor->getUser();
     }
 }

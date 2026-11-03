@@ -8,11 +8,15 @@ use App\Entity\GroupIndustryContribution;
 use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\IndustryStructureConfig;
+use App\Entity\MiningOperation;
+use App\Entity\MiningOperationMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberStatus;
+use App\Enum\MiningOperationStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Repository\MiningOperationMemberRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\EveSsoTokenRevoker;
 use App\Service\ESI\TokenManager;
@@ -35,6 +39,7 @@ class AccountDeletionService
         $cacheTags = $this->esiCacheTags($user);
 
         $this->entityManager->wrapInTransaction(function () use ($user): void {
+            $this->handOverStartedMiningOperations($user);
             $deletedProjects = $this->handOverOwnedProjects($user);
             $this->anonymizeMemberships($user, $deletedProjects);
             $this->structureConfigRepository()->removeUserFromHiddenByUsers($this->idOf($user));
@@ -84,6 +89,25 @@ class AccountDeletionService
         }
 
         return $cacheTags;
+    }
+
+    private function handOverStartedMiningOperations(User $user): void
+    {
+        $memberRepository = $this->entityManager->getRepository(MiningOperationMember::class);
+        if (!$memberRepository instanceof MiningOperationMemberRepository) {
+            throw new \LogicException(sprintf('%s must be the repository of %s.', MiningOperationMemberRepository::class, MiningOperationMember::class));
+        }
+
+        foreach ($this->entityManager->getRepository(MiningOperation::class)->findBy(['owner' => $user]) as $operation) {
+            if ($operation->getStatus() === MiningOperationStatus::Planned) {
+                continue;
+            }
+
+            $successor = $memberRepository->findOwnershipSuccessor($operation, $user);
+            if ($successor !== null) {
+                $operation->transferOwnershipTo($successor);
+            }
+        }
     }
 
     /**

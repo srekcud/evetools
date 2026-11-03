@@ -12,6 +12,7 @@ use App\Enum\MinedQuantityState;
 use App\Enum\MinedQuantityUnknownReason;
 use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningLedgerSnapshotStatus;
+use App\Enum\MiningOperationStatus;
 
 final readonly class MinedQuantityCalculator
 {
@@ -46,7 +47,12 @@ final readonly class MinedQuantityCalculator
         }
 
         $end = $operationCharacter->snapshotOf(MiningLedgerSnapshotKind::End);
-        if ($end === null || !$end->getStatus()->isSettled()) {
+        if ($end === null) {
+            return $this->hasEnded($operationCharacter)
+                ? new MinedQuantity(MinedQuantityState::Unknown, MinedQuantityUnknownReason::NoEndSnapshot)
+                : new MinedQuantity(MinedQuantityState::Measuring);
+        }
+        if (!$end->getStatus()->isSettled()) {
             return new MinedQuantity(MinedQuantityState::Measuring);
         }
         if ($end->getStatus() !== MiningLedgerSnapshotStatus::Taken) {
@@ -124,6 +130,15 @@ final readonly class MinedQuantityCalculator
     private function keyOf(MiningLedgerSnapshotLine $line): string
     {
         return sprintf('%s|%d|%d', $line->getDate()->format('Y-m-d'), $line->getTypeId(), $line->getSolarSystemId());
+    }
+
+    private function hasEnded(MiningOperationCharacter $operationCharacter): bool
+    {
+        $member = $operationCharacter->getMember();
+
+        $status = $member->getOperation()->getStatus();
+
+        return $member->getDepartedAt() !== null || ($status !== MiningOperationStatus::Planned && $status !== MiningOperationStatus::InProgress);
     }
 
     private function unknownBecauseOf(MiningLedgerSnapshotStatus $status): MinedQuantity

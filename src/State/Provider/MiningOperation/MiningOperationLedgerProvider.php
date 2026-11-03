@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningOperation\MiningOperationLedgerResource;
 use App\Entity\MiningLedgerSnapshot;
-use App\Entity\MiningOperation;
 use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
 use App\Entity\User;
@@ -66,7 +65,7 @@ final readonly class MiningOperationLedgerProvider implements ProviderInterface
         $ledger->endSnapshotsPending = array_filter($endSnapshots, static fn (MiningLedgerSnapshot $snapshot): bool => $snapshot->getStatus() === MiningLedgerSnapshotStatus::Scheduling) !== [];
         $ledger->endSnapshotsSettled = count(array_filter($endSnapshots, static fn (MiningLedgerSnapshot $snapshot): bool => $snapshot->getStatus()->isSettled()));
         $ledger->endSnapshotsTotal = count($endSnapshots);
-        $ledger->participants = array_map(fn (MiningOperationMember $member): array => $this->participantToArray($member, $miningOperation, $user), $participants);
+        $ledger->participants = array_map(fn (MiningOperationMember $member): array => $this->participantToArray($member, $user), $participants);
 
         return $ledger;
     }
@@ -94,7 +93,7 @@ final readonly class MiningOperationLedgerProvider implements ProviderInterface
     /**
      * @return array<string, mixed>
      */
-    private function participantToArray(MiningOperationMember $member, MiningOperation $miningOperation, User $viewer): array
+    private function participantToArray(MiningOperationMember $member, User $viewer): array
     {
         $quantity = $this->calculator->ofParticipant($member);
 
@@ -106,7 +105,7 @@ final readonly class MiningOperationLedgerProvider implements ProviderInterface
             'totalQuantity' => $quantity->totalQuantity(),
             'quantities' => $this->quantitiesToArray($quantity),
             'characters' => array_map(
-                fn (MiningOperationCharacter $operationCharacter): array => $this->characterToArray($operationCharacter, $miningOperation, $viewer),
+                fn (MiningOperationCharacter $operationCharacter): array => $this->characterToArray($operationCharacter, $viewer),
                 $this->charactersByName($member),
             ),
         ];
@@ -126,7 +125,7 @@ final readonly class MiningOperationLedgerProvider implements ProviderInterface
     /**
      * @return array<string, mixed>
      */
-    private function characterToArray(MiningOperationCharacter $operationCharacter, MiningOperation $miningOperation, User $viewer): array
+    private function characterToArray(MiningOperationCharacter $operationCharacter, User $viewer): array
     {
         $quantity = $this->calculator->ofCharacter($operationCharacter);
         $measured = $this->calculator->measuredOf($operationCharacter);
@@ -160,7 +159,7 @@ final readonly class MiningOperationLedgerProvider implements ProviderInterface
             'startSnapshot' => $this->snapshotToArray($operationCharacter->snapshotOf(MiningLedgerSnapshotKind::Start)),
             'endSnapshot' => $this->snapshotToArray($operationCharacter->snapshotOf(MiningLedgerSnapshotKind::End)),
             'canRetry' => $this->lifecycle->canRetrySnapshot($operationCharacter)
-                && ($operationCharacter->getMember()->getUser() === $viewer || $this->access->canAdminister($viewer, $miningOperation)),
+                && $this->access->canRetrySnapshotOf($viewer, $operationCharacter),
             'quantities' => $quantities,
         ];
     }

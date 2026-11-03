@@ -4,10 +4,14 @@ function twoDigits(value: number): string {
   return String(value).padStart(2, '0')
 }
 
+export function formatEveDate(isoDateTime: string): string {
+  const moment = new Date(isoDateTime)
+  return `${moment.getUTCFullYear()}-${twoDigits(moment.getUTCMonth() + 1)}-${twoDigits(moment.getUTCDate())}`
+}
+
 export function formatEveDateTime(isoDateTime: string): string {
   const moment = new Date(isoDateTime)
-  const date = `${moment.getUTCFullYear()}-${twoDigits(moment.getUTCMonth() + 1)}-${twoDigits(moment.getUTCDate())}`
-  return `${date} ${twoDigits(moment.getUTCHours())}:${twoDigits(moment.getUTCMinutes())}`
+  return `${formatEveDate(isoDateTime)} ${twoDigits(moment.getUTCHours())}:${twoDigits(moment.getUTCMinutes())}`
 }
 
 export function eveInputToIso(inputValue: string): string {
@@ -24,6 +28,7 @@ export function nextFullHourAsEveInput(now: Date): string {
 
 const MILLISECONDS_PER_SECOND = 1000
 const SECONDS_PER_MINUTE = 60
+const SECONDS_PER_HOUR = 3600
 
 export function formatEveClock(isoDateTime: string): string {
   const moment = new Date(isoDateTime)
@@ -33,4 +38,10 @@ export function formatEveClock(isoDateTime: string): string {
 export function formatCountdown(remainingMilliseconds: number): string {
   const remainingSeconds = Math.max(0, Math.ceil(remainingMilliseconds / MILLISECONDS_PER_SECOND))
   return `${twoDigits(Math.floor(remainingSeconds / SECONDS_PER_MINUTE))}:${twoDigits(remainingSeconds % SECONDS_PER_MINUTE)}`
+}
+
+export function formatDuration(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / SECONDS_PER_HOUR)
+  const minutes = Math.floor((totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE)
+  return hours > 0 ? `${hours} h ${twoDigits(minutes)}` : `${minutes} min`
 }

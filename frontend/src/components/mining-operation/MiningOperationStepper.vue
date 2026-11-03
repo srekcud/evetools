@@ -19,8 +19,10 @@ const currentIndex = computed(() => {
   return steps.value.indexOf(props.status)
 })
 
+const archived = computed(() => props.status === 'settled' || props.status === 'completed')
+
 function stateOf(index: number): 'done' | 'current' | 'todo' {
-  if (index < currentIndex.value) return 'done'
+  if (index < currentIndex.value || (archived.value && index === currentIndex.value)) return 'done'
   return index === currentIndex.value ? 'current' : 'todo'
 }
 
@@ -38,7 +40,7 @@ const STATE_CLASS = {
       :key="step"
       class="rounded-sm border px-2.5 py-1 font-mono text-xs uppercase tracking-wider"
       :class="STATE_CLASS[stateOf(index)]"
-      :aria-current="stateOf(index) === 'current' ? 'step' : undefined"
+      :aria-current="index === currentIndex ? 'step' : undefined"
     >{{ t(`miningOperation.steps.${step}`) }}</li>
   </ol>
 </template>

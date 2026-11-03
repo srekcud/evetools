@@ -6,12 +6,16 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import MiningClosingLedger from '@/components/mining-operation/MiningClosingLedger.vue'
+import MiningCompleteOperation from '@/components/mining-operation/MiningCompleteOperation.vue'
 import MiningCorrectionModal from '@/components/mining-operation/MiningCorrectionModal.vue'
 import MiningFreezeShares from '@/components/mining-operation/MiningFreezeShares.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
 import MiningMinedQuantities from '@/components/mining-operation/MiningMinedQuantities.vue'
 import MiningOperationMembers from '@/components/mining-operation/MiningOperationMembers.vue'
+import MiningOperationRecap from '@/components/mining-operation/MiningOperationRecap.vue'
 import MiningOperationStepper from '@/components/mining-operation/MiningOperationStepper.vue'
+import MiningPayments from '@/components/mining-operation/MiningPayments.vue'
+import MiningSettleOperation from '@/components/mining-operation/MiningSettleOperation.vue'
 import MiningShareTable from '@/components/mining-operation/MiningShareTable.vue'
 import MiningStartModal from '@/components/mining-operation/MiningStartModal.vue'
 import MiningStartSnapshots from '@/components/mining-operation/MiningStartSnapshots.vue'
@@ -25,10 +29,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useMiningOperationStore, type MiningOperationMember, type UpdateMiningValuationInput } from '@/stores/miningOperation'
 import { useSyncStore } from '@/stores/sync'
 import { formatWhole } from './miningOperationQuantity'
-import { formatEveClock, formatEveDateTime } from './miningOperationTime'
+import { formatDuration, formatEveClock, formatEveDateTime } from './miningOperationTime'
 import { missingTypeNames, unknownParticipantNames } from './miningOperationValuation'
 
-type PendingConfirmation = 'renew' | 'delete' | 'end' | 'depart' | 'freeze' | null
+type PendingConfirmation = 'renew' | 'delete' | 'end' | 'depart' | 'freeze' | 'settle' | 'complete' | null
 
 const MEMBER_ACTIONS_RELOADING_THE_OPERATION = [
   'member_joined',
@@ -40,8 +44,12 @@ const MEMBER_ACTIONS_RELOADING_THE_OPERATION = [
   'member_departed',
   'quantity_corrected',
   'shares_frozen',
+  'operation_settled',
+  'operation_completed',
 ]
 const VALUATION_ACTION = 'valuation_updated'
+const PAYMENT_ACTION = 'payment_updated'
+const PAYMENT_STATUSES = ['shares', 'settled']
 const FULL_PERCENT = 100
 const SNAPSHOT_SYNC_TYPE = 'mining-operation-snapshot'
 const CLOCK_TICK_MILLISECONDS = 1000
@@ -71,11 +79,12 @@ let clockTicker: ReturnType<typeof setInterval> | null = null
 const participates = computed(() => operation.value?.myStatus === 'accepted')
 const isOwner = computed(() => operation.value?.myRole === 'owner')
 const canAdminister = computed(() => participates.value && (isOwner.value || operation.value?.myRole === 'admin'))
+const archived = computed(() => operation.value?.status === 'settled' || operation.value?.status === 'completed')
 const acceptsParticipants = computed(() => operation.value?.status === 'planned' || operation.value?.status === 'in_progress')
 const canLeave = computed(() => {
   const current = operation.value
   if (current === null || isOwner.value) return false
-  if (current.myStatus === 'pending') return current.status !== 'completed'
+  if (current.myStatus === 'pending') return !archived.value
   return current.myStatus === 'accepted' && current.status === 'planned'
 })
 const canDelete = computed(() => isOwner.value && operation.value?.status === 'planned')
@@ -85,6 +94,9 @@ const canDepart = computed(() => participates.value && operation.value?.status =
 const showsStockpileCoverage = computed(() => participates.value && (operation.value?.status === 'closing' || operation.value?.status === 'completed'))
 const valuation = computed(() => (store.valuation?.operationId === operationId.value ? store.valuation : null))
 const eachForThemselves = computed(() => operation.value?.splitMode === 'each_for_themselves')
+const showsPayments = computed(() => participates.value && PAYMENT_STATUSES.includes(operation.value?.status ?? ''))
+const paidPaymentsCount = computed(() => store.payments.filter(payment => payment.paid).length)
+const paymentsKpiClass = computed(() => (paidPaymentsCount.value === store.payments.length ? 'text-emerald-300' : 'text-amber-300'))
 const rulesSettings = computed(() => valuation.value?.settings ?? operation.value?.valuationSettings ?? null)
 const marketLabel = computed(() => {
   const settings = rulesSettings.value
@@ -111,6 +123,17 @@ const sharesFrozenKpis = computed(() => {
     { label: t('miningOperation.shares.kpi.booster', { percent: settings.boosterCutPercent }), value: current.boosterCut },
     { label: t('miningOperation.shares.kpi.toShare', { percent: FULL_PERCENT - settings.boosterCutPercent - settings.corporationCutPercent }), value: toShare },
     { label: t('miningOperation.shares.kpi.iskPerHour'), value: current.iskPerHour },
+  ]
+})
+const completedKpis = computed(() => {
+  const current = valuation.value
+  const currentOperation = operation.value
+  if (current === null || currentOperation === null) return []
+  return [
+    { label: t('miningOperation.shares.kpi.total'), value: current.totalValue === null ? null : formatWhole(current.totalValue, locale.value) },
+    { label: t('miningOperation.shares.kpi.iskPerHour'), value: current.iskPerHour === null ? null : formatWhole(current.iskPerHour, locale.value) },
+    { label: t('miningOperation.shares.kpi.duration'), value: current.durationSeconds === null ? null : formatDuration(current.durationSeconds) },
+    { label: t('miningOperation.detail.participants'), value: String(currentOperation.participantsCount) },
   ]
 })
 const operationLedger = computed(() => (store.ledger?.operationId === operationId.value ? store.ledger : null))
@@ -144,6 +167,9 @@ async function load(): Promise<void> {
       await loadStockpileCoverage(operationId.value)
     }
     await store.fetchValuation(operationId.value)
+    if (showsPayments.value) {
+      await store.fetchPayments(operationId.value)
+    }
   }
 }
 
@@ -177,6 +203,12 @@ async function confirmPending(): Promise<void> {
       await load()
     } else if (pending === 'freeze') {
       await store.freezeShares(operationId.value)
+      await load()
+    } else if (pending === 'settle') {
+      await store.settle(operationId.value)
+      await load()
+    } else if (pending === 'complete') {
+      await store.complete(operationId.value)
       await load()
     }
   })
@@ -243,6 +275,8 @@ async function saveSettings(patch: UpdateMiningValuationInput): Promise<void> {
 
 const rereadPrices = () => runAction(() => store.fetchValuation(operationId.value))
 
+const markPayment = (paymentId: string, paid: boolean) => runAction(() => store.markPayment(operationId.value, paymentId, paid))
+
 function amountText(amount: number | null): string {
   return amount === null ? t('miningOperation.quantities.unknown') : formatWhole(amount, locale.value)
 }
@@ -272,6 +306,8 @@ watch(
       load()
     } else if (event.action === VALUATION_ACTION) {
       store.fetchValuation(operationId.value)
+    } else if (event.action === PAYMENT_ACTION) {
+      store.fetchPayments(operationId.value)
     }
   },
 )
@@ -281,6 +317,7 @@ onMounted(async () => {
   store.members = []
   store.ledger = null
   store.valuation = null
+  store.payments = []
   clockTicker = setInterval(() => {
     now.value = Date.now()
   }, CLOCK_TICK_MILLISECONDS)
@@ -388,6 +425,7 @@ onBeforeUnmount(() => {
               @save="saveSettings"
             />
             <MiningFreezeShares v-if="valuation !== null && canAdminister && !eachForThemselves" :valuation="valuation" @freeze="confirmation = 'freeze'" />
+            <MiningCompleteOperation v-if="valuation !== null && canAdminister && eachForThemselves" :valuation="valuation" @complete="confirmation = 'complete'" />
             <MiningUnitPrices v-if="valuation !== null" :title="t('miningOperation.shares.unitPricesRead')" :unit-prices="valuation.unitPrices" />
             <template v-if="operationLedger !== null">
               <section class="eve-card p-5">
@@ -404,16 +442,21 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div v-else-if="operation.status === 'shares' && valuation !== null" class="space-y-5">
-          <p v-if="operation.sharesFrozenAt !== null" class="rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200" role="status">{{ t('miningOperation.freeze.frozenBanner', { date: formatEveDateTime(operation.sharesFrozenAt) }) }}</p>
-          <dl class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div v-else-if="(operation.status === 'shares' || operation.status === 'settled') && valuation !== null" class="space-y-5">
+          <p v-if="operation.status === 'settled' && operation.archivedAt !== null" class="rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200" role="status">{{ t('miningOperation.settle.banner', { date: formatEveDateTime(operation.archivedAt) }) }}</p>
+          <p v-else-if="operation.sharesFrozenAt !== null" class="rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200" role="status">{{ t('miningOperation.freeze.frozenBanner', { date: formatEveDateTime(operation.sharesFrozenAt) }) }}</p>
+          <dl class="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <div v-for="kpi in sharesFrozenKpis" :key="kpi.label" class="eve-card p-4">
               <dt class="truncate text-xs uppercase tracking-wider text-slate-400" :title="kpi.label">{{ kpi.label }}</dt>
               <dd class="mt-1 font-mono text-lg" :class="kpi.value === null ? 'text-amber-300' : 'text-cyan-200'">{{ amountText(kpi.value) }}</dd>
             </div>
+            <div v-if="showsPayments" class="eve-card p-4">
+              <dt class="truncate text-xs uppercase tracking-wider text-slate-400">{{ t('miningOperation.shares.kpi.payments') }}</dt>
+              <dd class="mt-1 font-mono text-lg" :class="paymentsKpiClass">{{ paidPaymentsCount }} / {{ store.payments.length }}</dd>
+            </div>
           </dl>
           <div class="grid gap-5 lg:grid-cols-3">
-            <div class="lg:col-span-2">
+            <div class="space-y-5 lg:col-span-2">
               <MiningShareTable
                 :valuation="valuation"
                 :title="t('miningOperation.shares.title')"
@@ -422,8 +465,48 @@ onBeforeUnmount(() => {
                 :market-label="marketLabel"
                 @reread="rereadPrices"
               />
+              <MiningPayments
+                v-if="showsPayments"
+                :payments="store.payments"
+                :booster-cut-percent="valuation.settings.boosterCutPercent"
+                :corporation-cut-percent="valuation.settings.corporationCutPercent"
+                :can-administer="canAdminister"
+                :own-member-id="ownMemberId"
+                :read-only="operation.status === 'settled'"
+                @mark="markPayment"
+              />
             </div>
-            <MiningUnitPrices :title="t('miningOperation.shares.unitPricesFrozen')" :unit-prices="valuation.unitPrices" />
+            <div class="space-y-5">
+              <MiningSettleOperation v-if="operation.status === 'shares' && canAdminister" :payments="store.payments" @settle="confirmation = 'settle'" />
+              <MiningOperationRecap v-if="operation.status === 'settled'" :operation="operation" :valuation="valuation" :payments="store.payments" :market-label="marketLabel" />
+              <MiningUnitPrices :title="t('miningOperation.shares.unitPricesFrozen')" :unit-prices="valuation.unitPrices" />
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="operation.status === 'completed' && valuation !== null" class="space-y-5">
+          <p v-if="operation.archivedAt !== null" class="rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200" role="status">{{ t('miningOperation.complete.banner', { date: formatEveDateTime(operation.archivedAt) }) }}</p>
+          <dl class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div v-for="kpi in completedKpis" :key="kpi.label" class="eve-card p-4">
+              <dt class="truncate text-xs uppercase tracking-wider text-slate-400" :title="kpi.label">{{ kpi.label }}</dt>
+              <dd class="mt-1 font-mono text-lg" :class="kpi.value === null ? 'text-amber-300' : 'text-cyan-200'">{{ kpi.value ?? t('miningOperation.quantities.unknown') }}</dd>
+            </div>
+          </dl>
+          <div class="grid gap-5 lg:grid-cols-3">
+            <div class="lg:col-span-2">
+              <MiningShareTable
+                :valuation="valuation"
+                :title="t('miningOperation.shares.valueTitle')"
+                :show-shares="false"
+                :own-member-id="ownMemberId"
+                :market-label="marketLabel"
+                @reread="rereadPrices"
+              />
+            </div>
+            <div class="space-y-5">
+              <MiningOperationRecap :operation="operation" :valuation="valuation" :payments="store.payments" :market-label="marketLabel" />
+              <MiningUnitPrices :title="t('miningOperation.shares.unitPricesFrozen')" :unit-prices="valuation.unitPrices" />
+            </div>
           </div>
         </div>
 
@@ -481,6 +564,28 @@ onBeforeUnmount(() => {
       :title="t('miningOperation.freeze.title')"
       :message="t('miningOperation.freeze.confirm')"
       :confirm-label="t('miningOperation.freeze.action')"
+      :is-loading="confirming"
+      confirm-color="cyan"
+      icon="check"
+      @confirm="confirmPending"
+      @cancel="confirmation = null"
+    />
+    <ConfirmModal
+      :show="confirmation === 'settle'"
+      :title="t('miningOperation.settle.title')"
+      :message="t('miningOperation.settle.confirm')"
+      :confirm-label="t('miningOperation.settle.action')"
+      :is-loading="confirming"
+      confirm-color="cyan"
+      icon="check"
+      @confirm="confirmPending"
+      @cancel="confirmation = null"
+    />
+    <ConfirmModal
+      :show="confirmation === 'complete'"
+      :title="t('miningOperation.complete.title')"
+      :message="t('miningOperation.complete.confirm')"
+      :confirm-label="t('miningOperation.complete.action')"
       :is-loading="confirming"
       confirm-color="cyan"
       icon="check"

@@ -50,6 +50,8 @@ final readonly class LeaveMiningOperationProcessor implements ProcessorInterface
             throw new BadRequestHttpException('Only a planned operation can be left');
         }
 
+        MiningOperationRequest::assertNotArchived($miningOperation);
+
         $membership->remove();
         $this->entityManager->flush();
 

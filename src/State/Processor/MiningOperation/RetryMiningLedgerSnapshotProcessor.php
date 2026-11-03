@@ -6,6 +6,7 @@ namespace App\State\Processor\MiningOperation;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
+use App\Enum\MiningOperationStatus;
 use App\Repository\MiningOperationCharacterRepository;
 use App\Repository\MiningOperationRepository;
 use App\Service\MiningOperation\MiningOperationAccess;
@@ -35,8 +36,12 @@ final readonly class RetryMiningLedgerSnapshotProcessor implements ProcessorInte
         $miningOperation = MiningOperationRequest::operationOf($this->operationRepository, $uriVariables['operationId']);
         $operationCharacter = MiningOperationRequest::operationCharacterOf($this->operationCharacterRepository, $miningOperation, $uriVariables['id']);
 
-        if ($operationCharacter->getMember()->getUser() !== $user && !$this->access->canAdminister($user, $miningOperation)) {
-            throw new AccessDeniedHttpException('Only the character owner or an admin can retry its snapshot');
+        if (!$this->access->canRetrySnapshotOf($user, $operationCharacter)) {
+            throw new AccessDeniedHttpException(
+                $miningOperation->getStatus() === MiningOperationStatus::Closing
+                    ? 'Only the operation owner or an admin can retry an end snapshot'
+                    : 'Only the character owner or an admin can retry its snapshot',
+            );
         }
 
         $this->lifecycle->retrySnapshot($operationCharacter);

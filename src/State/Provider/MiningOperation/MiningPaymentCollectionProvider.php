@@ -7,8 +7,10 @@ namespace App\State\Provider\MiningOperation;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningOperation\MiningPaymentResource;
+use App\Entity\MiningPayment;
 use App\Repository\MiningOperationRepository;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningOperationRequest;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
@@ -29,6 +31,15 @@ final readonly class MiningPaymentCollectionProvider implements ProviderInterfac
      */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
-        return [];
+        $user = MiningOperationRequest::userOf($this->security);
+
+        $miningOperation = MiningOperationRequest::operationOf($this->operationRepository, $uriVariables['operationId']);
+
+        $this->access->assertCanReadResults($user, $miningOperation);
+
+        $payments = array_values($miningOperation->getPayments()->toArray());
+        usort($payments, static fn (MiningPayment $left, MiningPayment $right): int => $left->getPosition() <=> $right->getPosition());
+
+        return array_map($this->mapper->paymentToResource(...), $payments);
     }
 }

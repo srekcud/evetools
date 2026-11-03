@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Service\MiningOperation;
 
 use App\Entity\MiningOperation;
+use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
 use App\Entity\User;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
+use App\Enum\MiningOperationStatus;
 use App\Enum\MiningOperationVisibility;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
@@ -41,11 +43,32 @@ final readonly class MiningOperationAccess
             && $membership->getRole() === MiningOperationMemberRole::Admin;
     }
 
+    public function canRetrySnapshotOf(User $user, MiningOperationCharacter $operationCharacter): bool
+    {
+        $operation = $operationCharacter->getMember()->getOperation();
+        if ($this->canAdminister($user, $operation)) {
+            return true;
+        }
+
+        return $operation->getStatus() !== MiningOperationStatus::Closing && $operationCharacter->getMember()->getUser() === $user;
+    }
+
     public function assertCanRead(User $user, MiningOperation $operation): void
     {
         if (!$this->canRead($user, $operation)) {
             throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
         }
+    }
+
+    public function assertCanReadResults(User $user, MiningOperation $operation): void
+    {
+        if ($operation->getStatus()->isArchived()) {
+            $this->assertCanRead($user, $operation);
+
+            return;
+        }
+
+        $this->assertCanParticipate($user, $operation);
     }
 
     public function assertCanParticipate(User $user, MiningOperation $operation): void

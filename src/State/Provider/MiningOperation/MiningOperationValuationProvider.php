@@ -39,7 +39,7 @@ final readonly class MiningOperationValuationProvider implements ProviderInterfa
         if ($operation instanceof Patch) {
             $this->access->assertCanAdminister($user, $miningOperation);
         } else {
-            $this->access->assertCanParticipate($user, $miningOperation);
+            $this->access->assertCanReadResults($user, $miningOperation);
         }
 
         $valuation = $this->valuator->value($miningOperation);

@@ -205,6 +205,11 @@ final readonly class MiningOperationValuator
             );
         }
 
+        $completionBlockers = null;
+        if ($eachForThemselves) {
+            $completionBlockers = $frozen ? [] : $this->completionBlockersOf($operation, $valuedParticipants, $missingPriceTypeIds);
+        }
+
         $operationDurationSeconds = $this->operationDurationSecondsOf($operation);
 
         return new MiningOperationValuation(
@@ -219,6 +224,7 @@ final readonly class MiningOperationValuator
             $this->iskPerHourOf($totalValue, $operationDurationSeconds),
             $valuedParticipants,
             $frozen ? [] : $this->freezeBlockersOf($operation, $valuedParticipants, $missingPriceTypeIds),
+            $completionBlockers,
         );
     }
 
@@ -236,12 +242,11 @@ final readonly class MiningOperationValuator
         }
         if ($operation->getSplitMode() === MiningSplitMode::EachForThemselves) {
             $blockers[] = MiningShareBlocker::EachForThemselves;
+
+            return $blockers;
         }
-        foreach ($participants as $participant) {
-            if ($participant->quantity?->state !== MinedQuantityState::Known) {
-                $blockers[] = MiningShareBlocker::QuantitiesNotKnown;
-                break;
-            }
+        if ($this->hasUnknownQuantity($participants)) {
+            $blockers[] = MiningShareBlocker::QuantitiesNotKnown;
         }
         if ($missingPriceTypeIds !== []) {
             $blockers[] = MiningShareBlocker::PricesMissing;
@@ -252,6 +257,41 @@ final readonly class MiningOperationValuator
         }
 
         return $blockers;
+    }
+
+    /**
+     * @param list<MiningParticipantValuation> $participants
+     * @param list<int>                        $missingPriceTypeIds
+     *
+     * @return list<MiningShareBlocker>
+     */
+    private function completionBlockersOf(MiningOperation $operation, array $participants, array $missingPriceTypeIds): array
+    {
+        $blockers = [];
+        if ($operation->getStatus() !== MiningOperationStatus::Closing) {
+            $blockers[] = MiningShareBlocker::NotClosing;
+        }
+        if ($this->hasUnknownQuantity($participants)) {
+            $blockers[] = MiningShareBlocker::QuantitiesNotKnown;
+        } elseif ($missingPriceTypeIds !== []) {
+            $blockers[] = MiningShareBlocker::PricesMissing;
+        }
+
+        return $blockers;
+    }
+
+    /**
+     * @param list<MiningParticipantValuation> $participants
+     */
+    private function hasUnknownQuantity(array $participants): bool
+    {
+        foreach ($participants as $participant) {
+            if ($participant->quantity?->state !== MinedQuantityState::Known) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function durationSecondsOf(MiningOperation $operation, MiningOperationMember $member): ?int

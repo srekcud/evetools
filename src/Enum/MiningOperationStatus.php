@@ -20,7 +20,7 @@ enum MiningOperationStatus: string
 
     public function isArchived(): bool
     {
-        return false;
+        return $this === self::Settled || $this === self::Completed;
     }
 
     public function acceptsParticipants(): bool
