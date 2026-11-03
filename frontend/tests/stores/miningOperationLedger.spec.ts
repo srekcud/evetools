@@ -48,6 +48,7 @@ const STARTED_SPODUMAIN: MiningOperation = {
   archivedAt: null,
   archivedByName: null,
   archiveSummary: null,
+  fleetStorageRecipientName: null,
 }
 
 const CLOSING_LEDGER: MiningOperationLedger = {

@@ -34,6 +34,7 @@ import {
   g1Valuation,
   settledG1Operation,
 } from './miningOperationPaymentFixtures'
+import { answerWithoutFleetStorage } from './miningOperationFleetStorageFixtures'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 
@@ -56,6 +57,8 @@ const events = reactive<Record<string, MiningOperationEvent | null>>({})
 
 function answer(operation: MiningOperation, valuation: MiningOperationValuation, payments: MiningPayment[] = [], operationLedger: MiningOperationLedger = ledger({ status: operation.status, endedAt: operation.endedAt })): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    const fleetStorageAnswer = answerWithoutFleetStorage(endpoint)
+    if (fleetStorageAnswer !== undefined) return fleetStorageAnswer as never
     if (endpoint === DETAIL_PATH) return operation as never
     if (endpoint === MEMBERS_PATH) return MEMBERS_WITH_CYRA as never
     if (endpoint === LEDGER_PATH) return operationLedger as never

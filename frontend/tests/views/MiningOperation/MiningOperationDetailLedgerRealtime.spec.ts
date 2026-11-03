@@ -9,6 +9,7 @@ import { apiRequest } from '@/services/api'
 import { useSyncStore, type MiningOperationEvent, type SyncProgress } from '@/stores/sync'
 import { DETAIL_PATH, LEDGER_PATH, MEMBERS, MEMBERS_PATH, OPERATION_O, OPERATION_P2, ledger, startedSpodumainOperation } from './miningOperationLedgerFixtures'
 import { VALUATION_PATH, unmeasuredValuation } from './miningOperationValuationFixtures'
+import { answerWithoutFleetStorage } from './miningOperationFleetStorageFixtures'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 
@@ -72,6 +73,8 @@ beforeEach(() => {
   Object.keys(events).forEach(operationId => delete events[operationId])
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    const fleetStorageAnswer = answerWithoutFleetStorage(endpoint)
+    if (fleetStorageAnswer !== undefined) return fleetStorageAnswer as never
     if (endpoint === MEMBERS_PATH) return MEMBERS as never
     if (endpoint === LEDGER_PATH) return ledger() as never
     if (endpoint === VALUATION_PATH) return unmeasuredValuation('in_progress') as never

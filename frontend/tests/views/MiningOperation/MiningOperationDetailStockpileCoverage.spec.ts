@@ -10,6 +10,7 @@ import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import type { MiningOperation, MiningOperationStatus } from '@/stores/miningOperation'
 import { COVERAGE_PATH, ISOGEN_TYPE_ID, MEXALLON_TYPE_ID, PYERITE_TYPE_ID, TRITANIUM_TYPE_ID, stockpileCoverage } from '../../components/mining-operation/stockpileCoverageHarness'
 import { DETAIL_PATH, ENDED_AT, LEDGER_PATH, MEMBERS, MEMBERS_PATH, OPERATION_O, ledger, spodumainOperation, startedSpodumainOperation } from './miningOperationLedgerFixtures'
+import { answerWithoutFleetStorage } from './miningOperationFleetStorageFixtures'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 
@@ -34,6 +35,8 @@ function operationIn(status: MiningOperationStatus, overrides: Partial<MiningOpe
 
 function answer(operation: MiningOperation): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    const fleetStorageAnswer = answerWithoutFleetStorage(endpoint)
+    if (fleetStorageAnswer !== undefined) return fleetStorageAnswer as never
     if (endpoint === DETAIL_PATH) return operation as never
     if (endpoint === MEMBERS_PATH) return MEMBERS as never
     if (endpoint === LEDGER_PATH) return ledger({ status: operation.status, endedAt: operation.endedAt }) as never

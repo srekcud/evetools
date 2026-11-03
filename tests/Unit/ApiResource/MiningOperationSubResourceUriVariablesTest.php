@@ -7,6 +7,9 @@ namespace App\Tests\Unit\ApiResource;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Link;
+use App\ApiResource\MiningOperation\MiningFleetStorageDeclarationResource;
+use App\ApiResource\MiningOperation\MiningFleetStorageResource;
+use App\ApiResource\MiningOperation\MiningFleetStorageVerificationResource;
 use App\ApiResource\MiningOperation\MiningOperationCharacterResource;
 use App\ApiResource\MiningOperation\MiningOperationInvitationResource;
 use App\ApiResource\MiningOperation\MiningOperationLedgerResource;
@@ -23,6 +26,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversNothing]
 #[Group('issue-262')]
 #[Group('issue-265')]
+#[Group('issue-266')]
 final class MiningOperationSubResourceUriVariablesTest extends TestCase
 {
     private const string ROUTE_REQUIREMENT_PATTERN = '/<[^>]*>/';
@@ -65,6 +69,10 @@ final class MiningOperationSubResourceUriVariablesTest extends TestCase
         yield 'PATCH payment' => [MiningPaymentResource::class, 'PATCH', '/mining-operations/'.$operationId.'/payments/'.$id, ['operationId', 'id']];
         yield 'POST settle' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/settle', ['id']];
         yield 'POST complete' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/complete', ['id']];
+        yield 'GET fleet storage' => [MiningFleetStorageResource::class, 'GET', '/mining-operations/'.$operationId.'/fleet-storage', ['operationId']];
+        yield 'PATCH fleet storage' => [MiningFleetStorageResource::class, 'PATCH', '/mining-operations/'.$operationId.'/fleet-storage', ['operationId']];
+        yield 'PATCH fleet storage declaration' => [MiningFleetStorageDeclarationResource::class, 'PATCH', '/mining-operations/'.$operationId.'/fleet-storage/declarations/{memberId}', ['operationId', 'memberId']];
+        yield 'GET fleet storage verification' => [MiningFleetStorageVerificationResource::class, 'GET', '/mining-operations/'.$operationId.'/fleet-storage/verification', ['operationId']];
     }
 
     private function operationOf(string $resourceClass, string $method, string $uriTemplate): ?HttpOperation

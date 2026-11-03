@@ -61,6 +61,7 @@ const BRANN_PREVIEW: MiningOperationInvitation = {
     corporationCutPercent: 0,
     boosterCharacterName: null,
   },
+  fleetStorageRecipientName: null,
 }
 
 function answerInvitation(preview: MiningOperationInvitation | ApiError, joined?: MiningOperationInvitation): void {
@@ -170,6 +171,24 @@ describe('MiningOperationJoin', () => {
 
     const rules = wrapper.findAll('section').find(section => section.text().includes('Operation rules'))?.text() ?? ''
     expect(['Compressed, Jita Sell', 'Booster cut', 'Cyra Lune'].every(text => rules.includes(text))).toBe(true)
+  })
+
+  it('names the fleet storage recipient in the operation rules', async () => {
+    answerInvitation({ ...BRANN_PREVIEW, fleetStorageRecipientName: 'Brann Holt' })
+
+    const wrapper = await mountJoin()
+
+    const rules = wrapper.findAll('section').find(section => section.text().includes('Operation rules'))?.text() ?? ''
+    expect(['Fleet storage', 'Brann Holt'].every(text => rules.includes(text))).toBe(true)
+  })
+
+  it('says the operation has no fleet storage recipient in the operation rules', async () => {
+    answerInvitation(BRANN_PREVIEW)
+
+    const wrapper = await mountJoin()
+
+    const rules = wrapper.findAll('section').find(section => section.text().includes('Operation rules'))?.text() ?? ''
+    expect(rules.includes('Fleet storage') && rules.includes('none')).toBe(true)
   })
 
   it('tells that the link is invalid or renewed when the code is not found', async () => {

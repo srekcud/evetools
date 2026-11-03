@@ -33,6 +33,7 @@ import {
   frozenE1Valuation,
 } from './miningOperationValuationFixtures'
 import { PAYMENTS_PATH } from './miningOperationPaymentFixtures'
+import { answerWithoutFleetStorage } from './miningOperationFleetStorageFixtures'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 
@@ -62,6 +63,8 @@ function frozenOperation(): MiningOperation {
 
 function answer(operation: MiningOperation, valuation: MiningOperationValuation, reprocessYield: number | null = null): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    const fleetStorageAnswer = answerWithoutFleetStorage(endpoint)
+    if (fleetStorageAnswer !== undefined) return fleetStorageAnswer as never
     if (endpoint === DETAIL_PATH) return operation as never
     if (endpoint === MEMBERS_PATH) return MEMBERS_WITH_CYRA as never
     if (endpoint === LEDGER_PATH) return ledger({ status: operation.status, endedAt: operation.endedAt }) as never

@@ -111,7 +111,8 @@ final class MiningOperationValuationProviderTest extends TestCase
         );
     }
 
-    public function testEachParticipantComesInLedgerOrderWithItsValueShareRateAndCharacters(): void
+    #[Group('issue-266')]
+    public function testEachParticipantComesInLedgerOrderWithItsValueShareRateCharactersAndFleetStorage(): void
     {
         $this->closingE1();
         $this->actAs($this->aria);
@@ -137,6 +138,11 @@ final class MiningOperationValuationProviderTest extends TestCase
                         ['id' => $this->enrolmentOf('Aria II')->getId()->toRfc4122(), 'name' => 'Aria II', 'quantityState' => 'known', 'totalQuantity' => 3_333, 'minedValue' => 738_093],
                         ['id' => $this->enrolmentOf('Aria Solberg')->getId()->toRfc4122(), 'name' => 'Aria Solberg', 'quantityState' => 'known', 'totalQuantity' => 100_000, 'minedValue' => 1_961_000],
                     ],
+                    'fleetStorageDelivery' => 'none',
+                    'isFleetStorageRecipient' => false,
+                    'deliveredValue' => 0,
+                    'keptValue' => self::ARIA_MINED_VALUE,
+                    'fleetStorageDebt' => 0,
                 ],
                 [
                     'memberId' => $this->memberIdOf($this->brann),
@@ -155,6 +161,11 @@ final class MiningOperationValuationProviderTest extends TestCase
                         ['id' => $this->enrolmentOf('Brann Holt')->getId()->toRfc4122(), 'name' => 'Brann Holt', 'quantityState' => 'known', 'totalQuantity' => 10_001, 'minedValue' => 2_214_721],
                         ['id' => $this->enrolmentOf('Brann II')->getId()->toRfc4122(), 'name' => 'Brann II', 'quantityState' => 'known', 'totalQuantity' => 33_337, 'minedValue' => 653_739],
                     ],
+                    'fleetStorageDelivery' => 'none',
+                    'isFleetStorageRecipient' => false,
+                    'deliveredValue' => 0,
+                    'keptValue' => self::BRANN_MINED_VALUE,
+                    'fleetStorageDebt' => 0,
                 ],
                 [
                     'memberId' => $this->memberIdOf($this->cyra),
@@ -172,6 +183,11 @@ final class MiningOperationValuationProviderTest extends TestCase
                     'characters' => [
                         ['id' => $this->enrolmentOf('Cyra Lune')->getId()->toRfc4122(), 'name' => 'Cyra Lune', 'quantityState' => 'known', 'totalQuantity' => 9, 'minedValue' => 176],
                     ],
+                    'fleetStorageDelivery' => 'none',
+                    'isFleetStorageRecipient' => false,
+                    'deliveredValue' => 0,
+                    'keptValue' => self::CYRA_MINED_VALUE,
+                    'fleetStorageDebt' => 0,
                 ],
             ],
             $participants,

@@ -44,6 +44,11 @@ export function valuedParticipant(memberId: string, characterName: string, overr
     durationSeconds: null,
     departedAt: null,
     characters: [],
+    fleetStorageDelivery: 'none',
+    isFleetStorageRecipient: false,
+    deliveredValue: 0,
+    keptValue: null,
+    fleetStorageDebt: null,
     ...overrides,
   }
 }
@@ -53,6 +58,8 @@ export function e1Participants(): MiningValuationParticipant[] {
     valuedParticipant('member-aria', 'Aria Solberg', {
       totalQuantity: 103_333,
       minedValue: 2_699_093,
+      keptValue: 2_699_093,
+      fleetStorageDebt: 0,
       valuePercent: 48.47744924366829,
       share: 2_429_184,
       roundingAdjustment: 1,
@@ -66,6 +73,8 @@ export function e1Participants(): MiningValuationParticipant[] {
     valuedParticipant('member-brann', 'Brann Holt', {
       totalQuantity: 43_338,
       minedValue: 2_868_460,
+      keptValue: 2_868_460,
+      fleetStorageDebt: 0,
       valuePercent: 51.51938968293896,
       share: 2_581_614,
       roundingAdjustment: 0,
@@ -81,6 +90,8 @@ export function e1Participants(): MiningValuationParticipant[] {
       isBooster: true,
       totalQuantity: 9,
       minedValue: 176,
+      keptValue: 176,
+      fleetStorageDebt: 0,
       valuePercent: 0.003161073392760316,
       share: 158,
       roundingAdjustment: 0,
@@ -119,13 +130,15 @@ export function e1Valuation(overrides: Partial<MiningOperationValuation> = {}): 
     freezeBlockers: [],
     canComplete: false,
     completionBlockers: null,
+    fleetStorageRecipientMemberId: null,
+    fleetStorageRecipientName: null,
     ...overrides,
   }
 }
 
 export function e1ValuationWithBrannUnknown(): MiningOperationValuation {
   const [aria, brann, cyra] = e1Participants()
-  const unknownShare = { valuePercent: null, share: null, roundingAdjustment: null }
+  const unknownShare = { valuePercent: null, share: null, roundingAdjustment: null, fleetStorageDebt: null }
   return e1Valuation({
     totalValue: null,
     boosterCut: null,
@@ -138,7 +151,7 @@ export function e1ValuationWithBrannUnknown(): MiningOperationValuation {
     freezeBlockers: ['quantities_not_known'],
     participants: [
       { ...aria, ...unknownShare },
-      { ...brann, ...unknownShare, quantityState: 'unknown', totalQuantity: null, minedValue: null, iskPerHour: null },
+      { ...brann, ...unknownShare, quantityState: 'unknown', totalQuantity: null, minedValue: null, iskPerHour: null, deliveredValue: null, keptValue: null },
       { ...cyra, ...unknownShare },
     ],
   })
@@ -155,7 +168,7 @@ export function eachForThemselvesE1Valuation(): MiningOperationValuation {
     corporationRoundingAdjustment: null,
     canFreeze: false,
     freezeBlockers: ['each_for_themselves'],
-    participants: e1Participants().map(participant => ({ ...participant, isBooster: false, valuePercent: null, share: null, roundingAdjustment: null })),
+    participants: e1Participants().map(participant => ({ ...participant, isBooster: false, valuePercent: null, share: null, roundingAdjustment: null, fleetStorageDebt: null })),
   })
 }
 

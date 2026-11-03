@@ -28,6 +28,7 @@ import {
 } from './miningOperationLedgerFixtures'
 import { COVERAGE_PATH, stockpileCoverage } from '../../components/mining-operation/stockpileCoverageHarness'
 import { VALUATION_PATH, unmeasuredValuation } from './miningOperationValuationFixtures'
+import { answerWithoutFleetStorage } from './miningOperationFleetStorageFixtures'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 
@@ -46,6 +47,8 @@ const ALDRANETTE_SEARCH = [{ solarSystemId: S1, solarSystemName: 'Aldranette', s
 
 function answer(operation: MiningOperation, operationLedger: MiningOperationLedger): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    const fleetStorageAnswer = answerWithoutFleetStorage(endpoint)
+    if (fleetStorageAnswer !== undefined) return fleetStorageAnswer as never
     if (endpoint === DETAIL_PATH) return operation as never
     if (endpoint === MEMBERS_PATH) return MEMBERS as never
     if (endpoint === LEDGER_PATH) return operationLedger as never
