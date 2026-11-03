@@ -135,7 +135,8 @@
     "admin": "Administration",
     "openMenu": "Ouvrir le menu de navigation",
     "closeMenu": "Fermer le menu de navigation",
-    "menu": "Menu de navigation"
+    "menu": "Menu de navigation",
+    "account": "Compte"
   },
   "commandPalette": {
     "open": "Ouvrir la palette de commandes (Ctrl+K)",
@@ -210,7 +211,8 @@
     "rateLimitBanner": "Rate limit ESI atteint - Actions ESI bloquees pendant {seconds}s",
     "releaseNotes": "Notes de version",
     "releaseNotesLoadError": "Impossible de charger les notes de version.",
-    "viewReleaseNotes": "Voir les notes de version"
+    "viewReleaseNotes": "Voir les notes de version",
+    "accountMenu": "Menu du compte"
   },
   "dashboard": {
     "title": "Tableau de bord",

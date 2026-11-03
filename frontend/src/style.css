@@ -216,6 +216,10 @@
            hover:bg-eve-accent/30 hover:border-eve-accent hover:shadow-[0_0_10px_rgba(0,212,255,0.3)];
 }
 
+@utility hud-hex {
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
 @utility eve-glow {
   @apply shadow-[0_0_10px_rgba(0,212,255,0.2)];
 }

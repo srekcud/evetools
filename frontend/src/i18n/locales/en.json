@@ -135,7 +135,8 @@
     "admin": "Administration",
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
-    "menu": "Navigation menu"
+    "menu": "Navigation menu",
+    "account": "Account"
   },
   "commandPalette": {
     "open": "Open command palette (Ctrl+K)",
@@ -210,7 +211,8 @@
     "rateLimitBanner": "ESI rate limit reached - ESI actions blocked for {seconds}s",
     "releaseNotes": "Release Notes",
     "releaseNotesLoadError": "Unable to load release notes.",
-    "viewReleaseNotes": "View release notes"
+    "viewReleaseNotes": "View release notes",
+    "accountMenu": "Account menu"
   },
   "dashboard": {
     "title": "Dashboard",

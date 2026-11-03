@@ -12,6 +12,7 @@ import { useStructuresStore } from '@/stores/industry/structures'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CommandPalette from '@/components/common/CommandPalette.vue'
+import AccountMenu from '@/components/layout/AccountMenu.vue'
 import {
   adminNavItem,
   allNavEntries,
@@ -147,6 +148,17 @@ function isGroupExpanded(group: NavGroup): boolean {
 }
 
 const NAVIGATION_DRAWER_ID = 'navigation-drawer'
+const NAV_SECTION_HEADING_CLASS = 'w-full flex items-center gap-2 px-3 pb-1 font-display text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 hover:text-slate-200 transition-colors'
+const NAV_LINK_BASE_CLASS = 'w-full flex items-center gap-3 px-3 py-2 rounded-md border-l-2 font-display text-base font-semibold tracking-wide transition-colors'
+
+function navLinkClass(isActive: boolean): string[] {
+  return [
+    NAV_LINK_BASE_CLASS,
+    isActive
+      ? 'border-cyan-400 bg-cyan-400/10 text-slate-50'
+      : 'border-transparent text-slate-300 hover:bg-slate-800/60 hover:text-slate-50',
+  ]
+}
 const isWideScreen = useMediaQuery('(min-width: 1024px)')
 const isDrawerOpen = ref(false)
 const menuButton = ref<HTMLButtonElement | null>(null)
@@ -401,29 +413,13 @@ watch(showSettings, (opened) => {
 
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 font-sans">
-    <!-- Animated background -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-radial from-cyan-900/20 via-transparent to-transparent animate-pulse-slow"></div>
-      <div class="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-radial from-indigo-900/15 via-transparent to-transparent animate-pulse-slower"></div>
+    <div class="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      <div class="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-radial from-cyan-900/20 via-transparent to-transparent opacity-40"></div>
+      <div class="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-radial from-indigo-900/15 via-transparent to-transparent opacity-30"></div>
       <div class="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-size-[50px_50px]"></div>
     </div>
 
-    <!-- Rate Limit Banner -->
-    <Transition name="slide-down">
-      <div
-        v-if="rateLimitStore.isRateLimited"
-        class="fixed top-0 left-0 right-0 z-50 bg-amber-600 text-white px-4 py-2 text-center text-sm font-medium shadow-lg"
-      >
-        <div class="flex items-center justify-center gap-2">
-          <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <span>{{ t('header.rateLimitBanner', { seconds: rateLimitStore.remainingSeconds }) }}</span>
-        </div>
-      </div>
-    </Transition>
-
-    <div class="relative flex h-screen" :class="{ 'pt-10': rateLimitStore.isRateLimited }">
+    <div class="relative flex h-screen">
       <div
         v-if="isDrawerOpen"
         data-testid="navigation-drawer-backdrop"
@@ -432,7 +428,6 @@ watch(showSettings, (opened) => {
         @click="closeDrawerAndFocusMenuButton"
       ></div>
 
-      <!-- Sidebar (persistent on wide screens, modal drawer otherwise) -->
       <aside
         v-show="isWideScreen || isDrawerOpen"
         :id="isWideScreen ? undefined : NAVIGATION_DRAWER_ID"
@@ -440,180 +435,114 @@ watch(showSettings, (opened) => {
         :aria-modal="isWideScreen ? undefined : 'true'"
         :aria-label="isWideScreen ? undefined : t('nav.menu')"
         :class="[
-          'w-64 bg-slate-900 border-r border-cyan-500/20 flex flex-col',
+          'w-60 bg-slate-950/95 border-r border-slate-800 flex flex-col',
           isWideScreen ? '' : 'fixed inset-y-0 left-0 z-40 max-w-[85vw]'
         ]"
       >
-        <!-- Logo -->
-        <div class="p-6 border-b border-cyan-500/20">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-              </svg>
-            </div>
-            <div>
-              <h1 class="text-lg font-bold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-blue-400">EVE Tools</h1>
-              <p class="text-xs text-slate-500 tracking-widest uppercase">Utilities</p>
-            </div>
-            <button
-              v-if="!isWideScreen"
-              ref="drawerCloseButton"
-              type="button"
-              class="ml-auto p-1 hover:bg-slate-800 rounded-lg transition-colors"
-              :aria-label="t('nav.closeMenu')"
-              @click="closeDrawerAndFocusMenuButton"
-            >
-              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
+        <div class="h-14 px-4 flex items-center gap-3 border-b border-slate-800 shrink-0">
+          <div class="hud-hex w-8 h-8 shrink-0 grid place-items-center bg-linear-to-br from-cyan-300 to-blue-600 text-slate-950 font-display font-bold text-sm" aria-hidden="true">ET</div>
+          <h1 class="font-display font-bold text-lg uppercase tracking-[0.14em] text-slate-100">EVE <span class="text-cyan-400">Tools</span></h1>
+          <button
+            v-if="!isWideScreen"
+            ref="drawerCloseButton"
+            type="button"
+            class="ml-auto p-1 hover:bg-slate-800 rounded-md transition-colors"
+            :aria-label="t('nav.closeMenu')"
+            @click="closeDrawerAndFocusMenuButton"
+          >
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
 
-        <!-- Navigation -->
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto min-h-0">
+        <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto min-h-0">
           <template v-for="entry in filteredNavEntries" :key="entry.id">
-            <!-- Collapsible group -->
-            <div v-if="'collapsible' in entry && entry.collapsible">
-              <!-- Group header -->
+            <div v-if="'collapsible' in entry && entry.collapsible" class="pt-3">
               <button
                 @click="toggleGroup(entry.id)"
                 :aria-expanded="isGroupExpanded(entry as NavGroup)"
-                class="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5"
+                :class="NAV_SECTION_HEADING_CLASS"
               >
-                <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
-                <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="entry.icon"/>
-                </svg>
-                <span class="font-medium relative">{{ t(entry.labelKey) }}</span>
+                <span>{{ t(entry.labelKey) }}</span>
                 <svg
-                  class="w-4 h-4 ml-auto relative transition-transform duration-200"
+                  class="w-3.5 h-3.5 ml-auto transition-transform duration-200"
                   :class="{ 'rotate-90': isGroupExpanded(entry as NavGroup) }"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"
                 >
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
               </button>
-              <!-- Group children -->
-              <div
-                v-if="isGroupExpanded(entry as NavGroup)"
-                class="mt-1 space-y-0.5 pl-4"
-              >
+              <div v-if="isGroupExpanded(entry as NavGroup)" class="mt-0.5 space-y-0.5">
                 <RouterLink
                   v-for="child in (entry as NavGroup).children"
                   :key="child.id"
                   :to="child.route"
                   :aria-current="isActiveRoute(child) ? 'page' : undefined"
                   @click="closeDrawerOnNavigationClick"
-                  :class="[
-                    'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 group relative overflow-hidden border text-sm',
-                    isActiveRoute(child)
-                      ? 'bg-linear-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 shadow-lg shadow-cyan-500/10 border-cyan-500/30'
-                      : 'text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 hover:-translate-y-0.5'
-                  ]"
+                  :class="navLinkClass(isActiveRoute(child))"
                 >
-                  <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
-                  <svg class="w-4 h-4 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="child.icon"/>
                   </svg>
-                  <span class="font-medium relative">{{ t(child.labelKey) }}</span>
-                  <div v-if="isActiveRoute(child)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
+                  <span class="truncate">{{ t(child.labelKey) }}</span>
                 </RouterLink>
               </div>
             </div>
 
-            <!-- Simple nav item -->
             <RouterLink
               v-else
               :to="(entry as NavItem).route"
               :aria-current="isActiveRoute(entry as NavItem) ? 'page' : undefined"
               @click="closeDrawerOnNavigationClick"
-              :class="[
-                'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group relative overflow-hidden border',
-                isActiveRoute(entry as NavItem)
-                  ? 'bg-linear-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 shadow-lg shadow-cyan-500/10 border-cyan-500/30'
-                  : 'text-slate-400 border-transparent hover:bg-slate-800/50 hover:text-slate-200 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 hover:-translate-y-0.5'
-              ]"
+              :class="navLinkClass(isActiveRoute(entry as NavItem))"
             >
-              <div class="absolute inset-0 bg-linear-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
-              <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="(entry as NavItem).icon"/>
               </svg>
-              <span class="font-medium relative">{{ t((entry as NavItem).labelKey) }}</span>
-              <div v-if="isActiveRoute(entry as NavItem)" class="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse relative"></div>
+              <span class="truncate">{{ t((entry as NavItem).labelKey) }}</span>
             </RouterLink>
           </template>
-        </nav>
 
-        <!-- User card -->
-        <div class="p-4 border-t border-cyan-500/20">
-          <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-            <!-- Clickable user info -->
-            <div
-              role="button"
-              tabindex="0"
-              @click="showSettings = true"
-              @keydown.enter.self.prevent="showSettings = true"
-              @keydown.space.self.prevent="showSettings = true"
-              class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-              :title="t('auth.openSettings')"
-            >
-              <div class="relative">
-                <img
-                  v-if="mainCharacter"
-                  :src="`https://images.evetech.net/characters/${mainCharacter.eveCharacterId}/portrait?size=64`"
-                  :alt="mainCharacter.name"
-                  class="w-12 h-12 rounded-lg ring-2 ring-cyan-500/50"
-                />
-                <div v-else class="w-12 h-12 rounded-lg ring-2 ring-cyan-500/50 bg-slate-700 animate-pulse"></div>
-                <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-800"></div>
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-slate-100 truncate">{{ mainCharacter?.name || t('common.actions.loading') }}</p>
-                <p class="text-xs text-cyan-400 truncate">{{ mainCharacter?.corporationName || '' }}</p>
-              </div>
-              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              </svg>
-            </div>
-            <div class="mt-4 flex flex-col gap-1.5">
-              <!-- Row 1: Characters button (full width) -->
+          <div class="pt-3">
+            <p :class="NAV_SECTION_HEADING_CLASS">{{ t('nav.account') }}</p>
+            <div class="mt-0.5 space-y-0.5">
               <RouterLink
                 to="/characters"
-                class="w-full py-2 px-3 bg-slate-700/50 hover:bg-cyan-500/20 rounded-lg text-sm text-slate-400 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2"
+                :aria-current="router.currentRoute.value.path === '/characters' ? 'page' : undefined"
+                @click="closeDrawerOnNavigationClick"
+                :class="navLinkClass(router.currentRoute.value.path === '/characters')"
               >
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                 </svg>
                 <span class="truncate">{{ t('nav.characters') }}</span>
               </RouterLink>
-              <!-- Row 2: Logout + Version -->
-              <div class="flex items-center gap-1.5">
-                <button
-                  @click="logout"
-                  :disabled="isLoggingOut"
-                  class="flex-1 min-w-0 py-2 px-3 bg-slate-700/50 hover:bg-red-500/20 rounded-lg text-sm text-slate-400 hover:text-red-400 transition-colors flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg v-if="isLoggingOut" class="w-4 h-4 shrink-0 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                  </svg>
-                  <svg v-else class="w-4 h-4 shrink-0 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                  </svg>
-                  <span class="truncate">{{ isLoggingOut ? t('auth.loggingOut') : t('auth.logout') }}</span>
-                </button>
-                <button
-                  @click="openReleaseNotes"
-                  class="shrink-0 p-2 bg-slate-700/50 hover:bg-cyan-500/20 rounded-lg text-xs text-slate-500 hover:text-cyan-400 transition-colors font-mono"
-                  :title="t('header.viewReleaseNotes')"
-                >
-                  v{{ APP_VERSION }}
-                </button>
-              </div>
+              <button
+                type="button"
+                :title="t('auth.openSettings')"
+                :class="navLinkClass(false)"
+                @click="showSettings = true"
+              >
+                <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="truncate">{{ t('settings.title') }}</span>
+              </button>
             </div>
           </div>
+        </nav>
+
+        <div class="px-4 py-3 border-t border-slate-800 shrink-0">
+          <button
+            type="button"
+            class="text-xs text-slate-400 hover:text-cyan-300 transition-colors font-mono"
+            :title="t('header.viewReleaseNotes')"
+            @click="openReleaseNotes"
+          >
+            v{{ APP_VERSION }} · {{ t('header.releaseNotes') }}
+          </button>
         </div>
       </aside>
 
@@ -854,91 +783,65 @@ watch(showSettings, (opened) => {
         </div>
       </BaseModal>
 
-      <!-- Main content -->
       <main class="flex-1 min-w-0 overflow-auto" :inert="isDrawerOpen">
-        <!-- Header -->
-        <header class="sticky top-0 z-10 bg-slate-900 border-b border-cyan-500/10 px-4 md:px-8 py-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0">
-              <button
-                v-if="!isWideScreen"
-                ref="menuButton"
-                type="button"
-                class="shrink-0 p-2 hover:bg-slate-800 rounded-lg transition-colors"
-                :aria-label="t('nav.openMenu')"
-                :aria-controls="NAVIGATION_DRAWER_ID"
-                :aria-expanded="isDrawerOpen"
-                @click="openDrawer"
-              >
-                <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                </svg>
-              </button>
-              <div class="min-w-0">
-                <h2 class="text-lg md:text-2xl font-bold text-slate-100 truncate">{{ currentPageTitle }}</h2>
-                <p class="hidden md:block text-sm text-slate-500 mt-1">{{ t('header.welcomeBack') }}</p>
-              </div>
+        <header class="sticky top-0 z-10 h-14 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-3 md:px-6 flex items-center gap-2 md:gap-3">
+          <button
+            v-if="!isWideScreen"
+            ref="menuButton"
+            type="button"
+            class="shrink-0 p-2 hover:bg-slate-800 rounded-md transition-colors"
+            :aria-label="t('nav.openMenu')"
+            :aria-controls="NAVIGATION_DRAWER_ID"
+            :aria-expanded="isDrawerOpen"
+            @click="openDrawer"
+          >
+            <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+          <h2 class="min-w-24 truncate font-display font-bold uppercase tracking-[0.08em] text-lg text-slate-100">{{ currentPageTitle }}</h2>
+
+          <div class="ml-auto flex items-center gap-1.5 md:gap-3 min-w-0">
+            <button
+              type="button"
+              class="flex items-center gap-2 h-9 px-2.5 xl:w-72 rounded-md border border-slate-700 bg-slate-900/70 text-sm text-slate-400 hover:border-cyan-500/50 hover:text-slate-200 transition-colors"
+              :aria-label="t('commandPalette.open')"
+              @click="isCommandPaletteOpen = true"
+            >
+              <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <span class="hidden xl:inline truncate">{{ t('commandPalette.placeholder') }}</span>
+              <kbd class="hidden md:inline ml-auto shrink-0 px-1.5 py-0.5 rounded border border-slate-700 font-mono text-xs text-slate-400">Ctrl K</kbd>
+            </button>
+
+            <div
+              class="hidden xl:flex items-center gap-2 h-8 px-3 rounded-md border border-slate-800 bg-slate-900/60 text-xs"
+              :title="esiError ? t('header.esiUnavailable') : esiRateLimited ? t('header.esiRateLimitedTitle') : t('header.esiOkTitle', { players: esiStatus?.players?.toLocaleString() || '0' })"
+            >
+              <span
+                :class="['w-2 h-2 rotate-45 shrink-0', esiError ? 'bg-red-400' : esiRateLimited ? 'bg-amber-400' : 'bg-emerald-400']"
+                aria-hidden="true"
+              ></span>
+              <span class="font-display font-semibold uppercase tracking-wider text-slate-200">Tranquility</span>
+              <span v-if="esiError" class="text-red-300">{{ t('header.esiUnavailable') }}</span>
+              <span v-else-if="esiRateLimited" class="text-amber-300">{{ t('header.esiRateLimitedTitle') }}</span>
+              <span v-else-if="esiStatus?.players" class="font-mono text-slate-400">{{ esiStatus.players.toLocaleString() }}</span>
             </div>
-            <div class="flex items-center gap-2 md:gap-4 shrink-0">
-              <button
-                type="button"
-                class="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-300"
-                :aria-label="t('commandPalette.open')"
-                :title="t('commandPalette.open')"
-                @click="isCommandPaletteOpen = true"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/>
-                </svg>
-              </button>
-              <!-- Notification Bell -->
-              <NotificationBell />
-              <!-- ESI Status -->
-              <div
-                :class="[
-                  'flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-lg border text-xs',
-                  esiError
-                    ? 'bg-red-500/10 border-red-500/30'
-                    : esiRateLimited
-                      ? 'bg-amber-500/10 border-amber-500/30'
-                      : 'bg-emerald-500/10 border-emerald-500/30'
-                ]"
-                :title="esiError ? t('header.esiUnavailable') : esiRateLimited ? t('header.esiRateLimitedTitle') : t('header.esiOkTitle', { players: esiStatus?.players?.toLocaleString() || '0' })"
-              >
-                <div
-                  :class="[
-                    'w-2 h-2 rounded-full',
-                    esiError ? 'bg-red-500' : esiRateLimited ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'
-                  ]"
-                ></div>
-                <span :class="['hidden md:inline', esiError ? 'text-red-400' : esiRateLimited ? 'text-amber-400' : 'text-emerald-400']">
-                  ESI {{ esiError ? 'DOWN' : esiRateLimited ? 'RATE LIMITED' : 'OK' }}
-                </span>
-                <span v-if="esiStatus?.players && !esiError && !esiRateLimited" class="hidden md:inline text-slate-500">
-                  {{ (esiStatus.players / 1000).toFixed(1) }}k
-                </span>
-              </div>
-              <!-- Alliance badge -->
-              <div v-if="mainCharacter?.allianceId" class="hidden md:flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
-                <img
-                  :src="`https://images.evetech.net/alliances/${mainCharacter.allianceId}/logo?size=32`"
-                  alt=""
-                  class="w-6 h-6"
-                />
-                <span class="text-amber-400 text-sm font-medium">{{ mainCharacter.allianceName }}</span>
-              </div>
-              <!-- Corporation badge -->
-              <div v-if="mainCharacter?.corporationId" class="hidden md:flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30">
-                <img
-                  :src="`https://images.evetech.net/corporations/${mainCharacter.corporationId}/logo?size=32`"
-                  alt=""
-                  class="w-6 h-6"
-                />
-                <span class="text-cyan-400 text-sm font-medium">{{ mainCharacter.corporationName }}</span>
-              </div>
-            </div>
+
+            <NotificationBell />
+
+            <AccountMenu
+              :character="mainCharacter"
+              :is-logging-out="isLoggingOut"
+              @open-settings="showSettings = true"
+              @open-release-notes="openReleaseNotes"
+              @logout="logout"
+            />
           </div>
         </header>
+
+        <div role="status" class="empty:hidden mx-4 md:mx-8 mt-4 flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-200"><template v-if="rateLimitStore.isRateLimited"><svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg><span>{{ t('header.rateLimitBanner', { seconds: rateLimitStore.remainingSeconds }) }}</span></template></div>
 
         <!-- Page content -->
         <div class="p-4 md:p-8">
@@ -965,24 +868,6 @@ watch(showSettings, (opened) => {
   background: radial-gradient(circle, var(--tw-gradient-from) 0%, var(--tw-gradient-via) 50%, var(--tw-gradient-to) 100%);
 }
 
-@keyframes pulse-slow {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.1); }
-}
-
-@keyframes pulse-slower {
-  0%, 100% { opacity: 0.2; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(1.15); }
-}
-
-.animate-pulse-slow {
-  animation: pulse-slow 8s ease-in-out infinite;
-}
-
-.animate-pulse-slower {
-  animation: pulse-slower 12s ease-in-out infinite;
-}
-
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -999,18 +884,6 @@ watch(showSettings, (opened) => {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(6, 182, 212, 0.5);
-}
-
-/* Rate limit banner transition */
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.slide-down-enter-from,
-.slide-down-leave-to {
-  transform: translateY(-100%);
-  opacity: 0;
 }
 
 /* Fade transition for save feedback */
