@@ -97,6 +97,22 @@ final class ManufacturableProductReaderTest extends IntegrationTestCase
         );
     }
 
+    #[Group('issue-293')]
+    public function testSearchReturnsEachProductWithItsOwnT2Flag(): void
+    {
+        ManufacturableProductSde::persistFixtureHullsOfMixedT2Status($this->em);
+        $this->em->clear();
+
+        self::assertEquals(
+            [
+                new ManufacturableProduct(typeId: ManufacturableProductSde::FIXTURE_HULL_A, typeName: ManufacturableProductSde::FIXTURE_HULL_A_NAME, isT2: false),
+                new ManufacturableProduct(typeId: ManufacturableProductSde::FIXTURE_HULL_B, typeName: ManufacturableProductSde::FIXTURE_HULL_B_NAME, isT2: true),
+                new ManufacturableProduct(typeId: ManufacturableProductSde::FIXTURE_HULL_C, typeName: ManufacturableProductSde::FIXTURE_HULL_C_NAME, isT2: true),
+            ],
+            $this->reader->search(ManufacturableProductSde::FIXTURE_HULL_SEARCH, self::SEARCH_LIMIT),
+        );
+    }
+
     private function fixtureProductsFound(string $searchedName): array
     {
         return array_values(array_filter(

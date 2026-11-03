@@ -37,6 +37,23 @@ final class ManufacturableProductSde
     public const int PRODUCT_OF_AN_INVENTED_REACTION_FORMULA = 990_034;
     public const int INVENTED_REACTION_FORMULA = 990_035;
     private const int INVENTED_REACTION_FORMULA_INVENTOR = 990_036;
+    public const int PRODUCT_WHOSE_BLUEPRINT_IS_MANUFACTURED_AND_REACTED = 990_037;
+    private const int BLUEPRINT_PRODUCED_BY_MANUFACTURING_AND_REACTION = 990_038;
+    private const int BLUEPRINT_MANUFACTURER = 990_039;
+    private const int BLUEPRINT_REACTION_FORMULA = 990_040;
+    public const int FIXTURE_HULL_B = 990_041;
+    public const int FIXTURE_HULL_C = 990_042;
+    public const int FIXTURE_HULL_A = 990_043;
+    private const int FIXTURE_HULL_A_BLUEPRINT = 990_053;
+    private const int FIXTURE_HULL_B_BLUEPRINT = 990_051;
+    private const int FIXTURE_HULL_B_INVENTED_BLUEPRINT = 990_054;
+    private const int FIXTURE_HULL_C_INVENTED_BLUEPRINT = 990_052;
+    private const int FIXTURE_HULL_INVENTOR_BLUEPRINT = 990_055;
+
+    public const string FIXTURE_HULL_SEARCH = 'Fixture Hull';
+    public const string FIXTURE_HULL_A_NAME = 'Fixture Hull A';
+    public const string FIXTURE_HULL_B_NAME = 'Fixture Hull B';
+    public const string FIXTURE_HULL_C_NAME = 'Fixture Hull C';
 
     public const string FEROX_NAME = 'Ferox';
     public const string HECATE_NAME = 'Hecate';
@@ -126,6 +143,41 @@ final class ManufacturableProductSde
         self::activityProduct($em, self::UNPUBLISHED_INVENTED_PRODUCT_INVENTOR_BLUEPRINT, IndustryActivityType::Invention, self::UNPUBLISHED_INVENTED_PRODUCT_BLUEPRINT, 12);
         self::activityProduct($em, self::INVENTED_REACTION_FORMULA, IndustryActivityType::Reaction, self::PRODUCT_OF_AN_INVENTED_REACTION_FORMULA, 200);
         self::activityProduct($em, self::INVENTED_REACTION_FORMULA_INVENTOR, IndustryActivityType::Invention, self::INVENTED_REACTION_FORMULA, 9);
+        $em->flush();
+    }
+
+    public static function persistProductWhoseBlueprintIsProducedByManufacturingAndReaction(EntityManagerInterface $em): void
+    {
+        $products = $em->getReference(InvGroup::class, self::PRODUCT_GROUP_ID);
+        $blueprints = $em->getReference(InvGroup::class, self::BLUEPRINT_GROUP_ID);
+        self::type($em, self::PRODUCT_WHOSE_BLUEPRINT_IS_MANUFACTURED_AND_REACTED, 'Fixture Frigate', $products, true);
+        self::type($em, self::BLUEPRINT_PRODUCED_BY_MANUFACTURING_AND_REACTION, 'Fixture Frigate Blueprint', $blueprints, true);
+        self::type($em, self::BLUEPRINT_MANUFACTURER, 'Fixture Blueprint Press Blueprint', $blueprints, true);
+        self::type($em, self::BLUEPRINT_REACTION_FORMULA, 'Fixture Blueprint Reaction Formula', $blueprints, true);
+        self::activityProduct($em, self::BLUEPRINT_PRODUCED_BY_MANUFACTURING_AND_REACTION, IndustryActivityType::Manufacturing, self::PRODUCT_WHOSE_BLUEPRINT_IS_MANUFACTURED_AND_REACTED, 14);
+        self::activityProduct($em, self::BLUEPRINT_MANUFACTURER, IndustryActivityType::Manufacturing, self::BLUEPRINT_PRODUCED_BY_MANUFACTURING_AND_REACTION, 15);
+        self::activityProduct($em, self::BLUEPRINT_REACTION_FORMULA, IndustryActivityType::Reaction, self::BLUEPRINT_PRODUCED_BY_MANUFACTURING_AND_REACTION, 16);
+        $em->flush();
+    }
+
+    public static function persistFixtureHullsOfMixedT2Status(EntityManagerInterface $em): void
+    {
+        $products = $em->getReference(InvGroup::class, self::PRODUCT_GROUP_ID);
+        $blueprints = $em->getReference(InvGroup::class, self::BLUEPRINT_GROUP_ID);
+        self::type($em, self::FIXTURE_HULL_B, self::FIXTURE_HULL_B_NAME, $products, true);
+        self::type($em, self::FIXTURE_HULL_C, self::FIXTURE_HULL_C_NAME, $products, true);
+        self::type($em, self::FIXTURE_HULL_A, self::FIXTURE_HULL_A_NAME, $products, true);
+        self::type($em, self::FIXTURE_HULL_B_BLUEPRINT, 'Fixture Blueprint of Hull B', $blueprints, true);
+        self::type($em, self::FIXTURE_HULL_C_INVENTED_BLUEPRINT, 'Fixture Blueprint of Hull C', $blueprints, true);
+        self::type($em, self::FIXTURE_HULL_A_BLUEPRINT, 'Fixture Blueprint of Hull A', $blueprints, true);
+        self::type($em, self::FIXTURE_HULL_B_INVENTED_BLUEPRINT, 'Fixture Advanced Blueprint of Hull B', $blueprints, true);
+        self::type($em, self::FIXTURE_HULL_INVENTOR_BLUEPRINT, 'Fixture Inventor Blueprint', $blueprints, true);
+        self::activityProduct($em, self::FIXTURE_HULL_A_BLUEPRINT, IndustryActivityType::Manufacturing, self::FIXTURE_HULL_A, 17);
+        self::activityProduct($em, self::FIXTURE_HULL_B_BLUEPRINT, IndustryActivityType::Manufacturing, self::FIXTURE_HULL_B, 19);
+        self::activityProduct($em, self::FIXTURE_HULL_B_INVENTED_BLUEPRINT, IndustryActivityType::Manufacturing, self::FIXTURE_HULL_B, 18);
+        self::activityProduct($em, self::FIXTURE_HULL_C_INVENTED_BLUEPRINT, IndustryActivityType::Manufacturing, self::FIXTURE_HULL_C, 21);
+        self::activityProduct($em, self::FIXTURE_HULL_INVENTOR_BLUEPRINT, IndustryActivityType::Invention, self::FIXTURE_HULL_B_INVENTED_BLUEPRINT, 22);
+        self::activityProduct($em, self::FIXTURE_HULL_INVENTOR_BLUEPRINT, IndustryActivityType::Invention, self::FIXTURE_HULL_C_INVENTED_BLUEPRINT, 23);
         $em->flush();
     }
 

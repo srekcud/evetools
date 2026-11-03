@@ -65,6 +65,14 @@ final class IndustryActivityProductRepositoryTest extends IntegrationTestCase
         yield 'type absent from the SDE' => [ManufacturableProductSde::ABSENT_FROM_SDE];
     }
 
+    public function testProductWhoseBlueprintIsProducedByANonInventionActivityIsNotT2(): void
+    {
+        ManufacturableProductSde::persistProductWhoseBlueprintIsProducedByManufacturingAndReaction($this->em);
+        $this->em->clear();
+
+        self::assertSame([], $this->t2ProductTypeIdsAmong(ManufacturableProductSde::PRODUCT_WHOSE_BLUEPRINT_IS_MANUFACTURED_AND_REACTED));
+    }
+
     public function testNoProductTypeIdsHaveNoT2ProductTypeIds(): void
     {
         self::assertSame([], $this->repository->findT2ProductTypeIds([]));
