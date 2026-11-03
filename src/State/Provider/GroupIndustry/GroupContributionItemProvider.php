@@ -10,6 +10,7 @@ use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\Entity\User;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectRepository;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -43,7 +44,7 @@ class GroupContributionItemProvider implements ProviderInterface
             throw new NotFoundHttpException('Contribution not found');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($projectId));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }

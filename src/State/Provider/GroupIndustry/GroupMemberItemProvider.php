@@ -10,6 +10,7 @@ use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\User;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -43,7 +44,7 @@ class GroupMemberItemProvider implements ProviderInterface
             throw new NotFoundHttpException('Member not found');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($projectId));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }

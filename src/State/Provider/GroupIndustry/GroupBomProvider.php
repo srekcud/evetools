@@ -11,10 +11,10 @@ use App\Entity\GroupIndustryBomItem;
 use App\Entity\User;
 use App\Repository\GroupIndustryBomItemRepository;
 use App\Repository\GroupIndustryProjectRepository;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProviderInterface<GroupIndustryBomResource>
@@ -45,7 +45,7 @@ class GroupBomProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($projectId));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }

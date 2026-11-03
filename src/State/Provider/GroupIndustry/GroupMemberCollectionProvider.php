@@ -14,10 +14,10 @@ use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProviderInterface<GroupIndustryMemberResource>
@@ -50,7 +50,7 @@ class GroupMemberCollectionProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($projectId));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }

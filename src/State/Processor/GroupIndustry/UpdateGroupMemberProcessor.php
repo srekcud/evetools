@@ -13,6 +13,7 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
 use App\Repository\GroupIndustryProjectRepository;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
@@ -55,7 +56,7 @@ class UpdateGroupMemberProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Member not found');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($projectId));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }

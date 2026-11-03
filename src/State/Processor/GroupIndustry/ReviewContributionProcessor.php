@@ -16,6 +16,7 @@ use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -57,7 +58,7 @@ class ReviewContributionProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Contribution not found');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($projectId));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }

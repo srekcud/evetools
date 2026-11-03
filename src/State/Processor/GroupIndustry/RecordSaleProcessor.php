@@ -13,13 +13,13 @@ use App\Entity\User;
 use App\Repository\GroupIndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSellerOfUser;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProcessorInterface<RecordSaleInput, GroupIndustrySaleResource>
@@ -52,7 +52,7 @@ class RecordSaleProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($projectId));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }

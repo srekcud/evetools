@@ -17,6 +17,7 @@ use App\Repository\GroupIndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\UuidOrNotFound;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -56,7 +57,7 @@ class SubmitContributionProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $project = $this->projectRepository->find(Uuid::fromString($projectId));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
         if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }
