@@ -586,7 +586,7 @@ class MercurePublisherServiceTest extends TestCase
     {
         $topics = MercurePublisherService::getTopicsForUser('any-user');
 
-        $this->assertCount(17, $topics);
+        $this->assertCount(18, $topics);
     }
 
     #[Group('issue-262')]
