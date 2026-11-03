@@ -47,6 +47,7 @@ export const useSyncStore = defineStore('sync', () => {
   const connectionError = ref<string | null>(null)
   const syncStatus = ref<Record<string, SyncProgress>>({})
   const groupProjectEvents = ref<Record<string, GroupProjectEvent>>({})
+  const miningOperationEvents = ref<Record<string, MiningOperationEvent>>({})
   const alertMessages = ref<Record<string, AlertMessage>>({})
   const reconnectAttempts = ref(0)
 
@@ -159,6 +160,14 @@ export const useSyncStore = defineStore('sync', () => {
             return
           }
 
+          if (data.action && data.operationId && !data.syncType && !data.projectId) {
+            miningOperationEvents.value = {
+              ...miningOperationEvents.value,
+              [data.operationId]: { action: data.action, data: data.data, timestamp: data.timestamp },
+            }
+            return
+          }
+
           if (data.alertType && !data.syncType) {
             alertMessages.value = {
               ...alertMessages.value,
@@ -236,8 +245,8 @@ export const useSyncStore = defineStore('sync', () => {
     return groupProjectEvents.value[projectId] ?? null
   }
 
-  function getMiningOperationEvent(_operationId: string): MiningOperationEvent | null {
-    return null
+  function getMiningOperationEvent(operationId: string): MiningOperationEvent | null {
+    return miningOperationEvents.value[operationId] ?? null
   }
 
   function isLoading(syncType: string): boolean {

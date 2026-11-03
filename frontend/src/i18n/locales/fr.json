@@ -132,6 +132,8 @@
     "market": "Marche",
     "appraisal": "Appraisal",
     "groupIndustry": "Industrie de groupe",
+    "mining": "Minage",
+    "miningOperations": "Opérations de minage",
     "admin": "Administration",
     "openMenu": "Ouvrir le menu de navigation",
     "closeMenu": "Fermer le menu de navigation",
@@ -2535,5 +2537,109 @@
       "90d": "90j",
       "365d": "1 an"
     }
+  },
+  "miningOperation": {
+    "title": "Opérations de minage",
+    "tabs": {
+      "mine": "Mes opérations",
+      "available": "Disponibles"
+    },
+    "list": {
+      "new": "Nouvelle opération",
+      "emptyMine": "Aucune opération. Créez-en une ou rejoignez-en une par son lien.",
+      "emptyAvailable": "Aucune opération ouverte dans votre corporation.",
+      "noCorporation": "Corporation inconnue : seules les opérations reçues par lien sont accessibles.",
+      "participants": "{count} inscrits",
+      "open": "Ouvrir",
+      "join": "Rejoindre"
+    },
+    "status": {
+      "planned": "Planifiée",
+      "in_progress": "En cours",
+      "closing": "Clôture",
+      "completed": "Terminée"
+    },
+    "visibility": {
+      "private": "Privée (lien)",
+      "corporation": "Ma corporation"
+    },
+    "splitMode": {
+      "value_prorata": "Prorata de la valeur",
+      "weighted_time": "Temps pondéré",
+      "each_for_themselves": "Chacun pour soi",
+      "soon": "bientôt",
+      "hint": {
+        "value_prorata": "Les parts seront calculées au prorata de la valeur minée par chacun.",
+        "each_for_themselves": "Chacun garde son minerai : pas de part, pas de paiement."
+      }
+    },
+    "create": {
+      "title": "Nouvelle opération de minage",
+      "label": "Libellé",
+      "start": "Début (EVE time)",
+      "visibility": "Visibilité",
+      "splitMode": "Répartition",
+      "characters": "Vos personnages",
+      "corporationUnavailable": "Corporation inconnue : visibilité privée seulement.",
+      "submit": "Créer l'opération"
+    },
+    "created": {
+      "title": "Opération créée",
+      "planned": "L'opération est planifiée.",
+      "open": "Ouvrir l'opération"
+    },
+    "invite": {
+      "title": "Lien d'invitation",
+      "copied": "Copié !",
+      "hint": "Les membres de votre corporation rejoignent directement. Les autres attendent votre validation.",
+      "renew": "Renouveler le lien",
+      "renewConfirm": "L'ancien lien ne fonctionnera plus."
+    },
+    "join": {
+      "title": "Rejoindre « {label} »",
+      "subtitle": "Invitation de {owner} · {start} EVE",
+      "whichCharacters": "Quels personnages minent ?",
+      "main": "main",
+      "eligibility": {
+        "eligible": "prêt",
+        "reconnect_required": "à reconnecter",
+        "in_another_operation": "déjà dans « {label} »"
+      },
+      "reconnect": "Reconnecter",
+      "oneOpenOperation": "Un personnage ne peut être que dans une seule opération ouverte. Sans token valide, sa quantité serait inconnue : reconnectez-le avant de le cocher.",
+      "rules": "Règles de l'opération",
+      "autoAccepted": "Même corporation : demande acceptée automatiquement.",
+      "needsApproval": "Le propriétaire validera votre demande.",
+      "submit": "Rejoindre avec {count} personnage | Rejoindre avec {count} personnages",
+      "pendingTitle": "Demande envoyée",
+      "pendingDescription": "Le propriétaire ou un admin doit l'accepter.",
+      "alreadyMember": "Vous participez déjà à cette opération.",
+      "closed": "Cette opération n'accepte plus de participants.",
+      "invalidLink": "Lien invalide ou renouvelé."
+    },
+    "detail": {
+      "participants": "Inscrits",
+      "summary": "{participants} participants · {characters} personnages",
+      "start": "Démarrage",
+      "rules": "Règles",
+      "split": "Répartition",
+      "pending": "demande en attente",
+      "you": "vous",
+      "accept": "Accepter",
+      "refuse": "Refuser",
+      "remove": "Retirer",
+      "promote": "Nommer admin",
+      "demote": "Retirer admin",
+      "leave": "Quitter l'opération",
+      "delete": "Supprimer l'opération",
+      "deleteConfirm": "Les inscrits et leurs personnages seront retirés.",
+      "deleted": "Cette opération a été supprimée."
+    },
+    "role": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Membre"
+    },
+    "unknownPilot": "Pilote inconnu"
   }
 }

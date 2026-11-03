@@ -128,6 +128,24 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/mining-operations',
+      name: 'mining-operations',
+      component: () => import('@/views/MiningOperation/MiningOperationList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/mining-operations/:id([0-9a-fA-F-]{36})',
+      name: 'mining-operation-detail',
+      component: () => import('@/views/MiningOperation/MiningOperationDetail.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/mining-operations/join/:code',
+      name: 'mining-operation-join',
+      component: () => import('@/views/MiningOperation/MiningOperationJoin.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/Admin.vue'),

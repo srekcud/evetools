@@ -4,40 +4,68 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
 use App\Enum\MiningOperationVisibility;
 use App\Enum\MiningSplitMode;
+use App\Repository\MiningOperationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
+#[ORM\Entity(repositoryClass: MiningOperationRepository::class)]
+#[ORM\Table(name: 'mining_operations')]
+#[ORM\Index(columns: ['owner_id'])]
+#[ORM\Index(columns: ['visibility', 'corporation_id', 'status'])]
+#[ORM\UniqueConstraint(columns: ['join_code'])]
 class MiningOperation
 {
+    private const int JOIN_CODE_RANDOM_BYTES = 5;
+
+    #[ORM\Id]
+    #[ORM\Column(type: UuidType::NAME, unique: true)]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
     private ?Uuid $id = null;
 
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $owner;
 
+    #[ORM\Column(type: 'string', length: 100)]
     private string $label = '';
 
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $plannedStartAt;
 
+    #[ORM\Column(type: 'string', length: 20, enumType: MiningOperationStatus::class)]
     private MiningOperationStatus $status = MiningOperationStatus::Planned;
 
+    #[ORM\Column(type: 'string', length: 20, enumType: MiningOperationVisibility::class)]
     private MiningOperationVisibility $visibility = MiningOperationVisibility::Private;
 
+    #[ORM\Column(type: 'string', length: 30, enumType: MiningSplitMode::class)]
     private MiningSplitMode $splitMode = MiningSplitMode::ValueProrata;
 
+    #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $corporationId = null;
 
-    private string $joinCode = '';
+    #[ORM\Column(type: 'string', length: 10)]
+    private string $joinCode;
 
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+    /** @var Collection<int, MiningOperationMember> */
+    #[ORM\OneToMany(targetEntity: MiningOperationMember::class, mappedBy: 'operation', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $members;
 
     public function __construct()
     {
         $this->members = new ArrayCollection();
+        $this->joinCode = self::generateJoinCode();
         $this->createdAt = new \DateTimeImmutable();
         $this->plannedStartAt = $this->createdAt;
     }
@@ -145,7 +173,18 @@ class MiningOperation
 
     public function renewJoinCode(): static
     {
+        do {
+            $renewedCode = self::generateJoinCode();
+        } while ($renewedCode === $this->joinCode);
+
+        $this->joinCode = $renewedCode;
+
         return $this;
+    }
+
+    private static function generateJoinCode(): string
+    {
+        return bin2hex(random_bytes(self::JOIN_CODE_RANDOM_BYTES));
     }
 
     public function getCreatedAt(): \DateTimeImmutable
@@ -153,6 +192,9 @@ class MiningOperation
         return $this->createdAt;
     }
 
+    /**
+     * @return Collection<int, MiningOperationMember>
+     */
     public function getMembers(): Collection
     {
         return $this->members;
@@ -170,6 +212,44 @@ class MiningOperation
 
     public function membershipOf(User $user): ?MiningOperationMember
     {
+        foreach ($this->members as $member) {
+            if ($member->getUser() === $user) {
+                return $member;
+            }
+        }
+
         return null;
+    }
+
+    public function activeMembershipOf(User $user): ?MiningOperationMember
+    {
+        $membership = $this->membershipOf($user);
+
+        return $membership?->getStatus() === MiningOperationMemberStatus::Removed ? null : $membership;
+    }
+
+    /**
+     * @return list<MiningOperationMember>
+     */
+    public function acceptedMembers(): array
+    {
+        return array_values($this->members->filter(
+            static fn (MiningOperationMember $member): bool => $member->getStatus() === MiningOperationMemberStatus::Accepted,
+        )->toArray());
+    }
+
+    /**
+     * @return list<User>
+     */
+    public function notifiedUsers(): array
+    {
+        $users = [spl_object_id($this->owner) => $this->owner];
+        foreach ($this->members as $member) {
+            if ($member->getStatus() !== MiningOperationMemberStatus::Removed) {
+                $users[spl_object_id($member->getUser())] = $member->getUser();
+            }
+        }
+
+        return array_values($users);
     }
 }

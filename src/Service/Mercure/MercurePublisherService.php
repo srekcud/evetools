@@ -216,8 +216,30 @@ final readonly class MercurePublisherService
         }
     }
 
+    /**
+     * @param list<string> $userIds
+     * @param array<string, mixed> $data
+     */
     public function publishMiningOperationEvent(array $userIds, string $operationId, string $action, array $data = []): void
     {
+        $payload = json_encode([
+            'action' => $action,
+            'operationId' => $operationId,
+            'data' => $data,
+            'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+        ], JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
+
+        foreach (array_unique($userIds) as $userId) {
+            try {
+                $this->hub->publish(new Update(sprintf('/user/%s/mining-operations', $userId), $payload, private: true));
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to publish mining operation Mercure update', [
+                    'operationId' => $operationId,
+                    'action' => $action,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**
@@ -296,6 +318,7 @@ final readonly class MercurePublisherService
             sprintf('/user/%s/alerts/planetary-expiry', $userId),
             sprintf('/user/%s/alerts/market-price', $userId),
             sprintf('/user/%s/notifications', $userId),
+            sprintf('/user/%s/mining-operations', $userId),
         ];
     }
 

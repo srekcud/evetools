@@ -9,8 +9,12 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningOperation\MiningOperationInvitationResource;
 use App\Repository\MiningOperationRepository;
 use App\Service\MiningOperation\MiningOperationEnrolment;
+use App\Service\MiningOperation\MiningOperationRequest;
 use Symfony\Bundle\SecurityBundle\Security;
 
+/**
+ * @implements ProviderInterface<MiningOperationInvitationResource>
+ */
 final readonly class MiningOperationInvitationProvider implements ProviderInterface
 {
     public function __construct(
@@ -23,6 +27,15 @@ final readonly class MiningOperationInvitationProvider implements ProviderInterf
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): MiningOperationInvitationResource
     {
-        return new MiningOperationInvitationResource();
+        $user = MiningOperationRequest::userOf($this->security);
+
+        $miningOperation = MiningOperationRequest::operationByJoinCodeOf($this->operationRepository, $uriVariables['code']);
+
+        return $this->mapper->invitationToResource(
+            $miningOperation,
+            $miningOperation->membershipOf($user),
+            $this->enrolment->autoAccepts($user, $miningOperation),
+            $this->enrolment->eligibilityOf($user),
+        );
     }
 }

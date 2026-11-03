@@ -13,11 +13,11 @@ enum MiningOperationStatus: string
 
     public function isOpen(): bool
     {
-        return false;
+        return $this !== self::Completed;
     }
 
     public function acceptsParticipants(): bool
     {
-        return false;
+        return $this === self::Planned || $this === self::InProgress;
     }
 }

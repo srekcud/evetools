@@ -189,5 +189,15 @@ deptrac:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\UpdateStructureProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
+    App\Service\MiningOperation\MiningOperationEnrolment:
+      - App\ApiResource\Input\MiningOperation\CreateMiningOperationInput
+    App\State\Processor\MiningOperation\CreateMiningOperationProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\JoinMiningOperationProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\UpdateMiningOperationMemberProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\Notification\MarkReadProcessor:
       - App\State\Provider\Notification\NotificationResourceMapper

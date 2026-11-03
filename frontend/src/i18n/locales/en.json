@@ -132,6 +132,8 @@
     "market": "Market",
     "appraisal": "Appraisal",
     "groupIndustry": "Group Industry",
+    "mining": "Mining",
+    "miningOperations": "Mining operations",
     "admin": "Administration",
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
@@ -2535,5 +2537,109 @@
       "90d": "90d",
       "365d": "1 year"
     }
+  },
+  "miningOperation": {
+    "title": "Mining operations",
+    "tabs": {
+      "mine": "My operations",
+      "available": "Available"
+    },
+    "list": {
+      "new": "New operation",
+      "emptyMine": "No operation yet. Create one or join one from its link.",
+      "emptyAvailable": "No open operation in your corporation.",
+      "noCorporation": "Unknown corporation: only operations shared by link are reachable.",
+      "participants": "{count} participants",
+      "open": "Open",
+      "join": "Join"
+    },
+    "status": {
+      "planned": "Planned",
+      "in_progress": "In progress",
+      "closing": "Closing",
+      "completed": "Completed"
+    },
+    "visibility": {
+      "private": "Private (link)",
+      "corporation": "My corporation"
+    },
+    "splitMode": {
+      "value_prorata": "Value prorata",
+      "weighted_time": "Weighted time",
+      "each_for_themselves": "Each for themselves",
+      "soon": "soon",
+      "hint": {
+        "value_prorata": "Shares will follow the value each participant mined.",
+        "each_for_themselves": "Everyone keeps their own ore: no share, no payment."
+      }
+    },
+    "create": {
+      "title": "New mining operation",
+      "label": "Label",
+      "start": "Start (EVE time)",
+      "visibility": "Visibility",
+      "splitMode": "Split",
+      "characters": "Your characters",
+      "corporationUnavailable": "Unknown corporation: private visibility only.",
+      "submit": "Create operation"
+    },
+    "created": {
+      "title": "Operation created",
+      "planned": "The operation is planned.",
+      "open": "Open operation"
+    },
+    "invite": {
+      "title": "Invitation link",
+      "copied": "Copied!",
+      "hint": "Members of your corporation join right away. Others wait for your approval.",
+      "renew": "Renew link",
+      "renewConfirm": "The previous link will stop working."
+    },
+    "join": {
+      "title": "Join “{label}”",
+      "subtitle": "Invitation from {owner} · {start} EVE",
+      "whichCharacters": "Which characters are mining?",
+      "main": "main",
+      "eligibility": {
+        "eligible": "ready",
+        "reconnect_required": "reconnect needed",
+        "in_another_operation": "already in “{label}”"
+      },
+      "reconnect": "Reconnect",
+      "oneOpenOperation": "A character can only be in one open operation. Without a valid token its quantity would be unknown: reconnect it before ticking it.",
+      "rules": "Operation rules",
+      "autoAccepted": "Same corporation: request accepted automatically.",
+      "needsApproval": "The owner will review your request.",
+      "submit": "Join with {count} character | Join with {count} characters",
+      "pendingTitle": "Request sent",
+      "pendingDescription": "The owner or an admin must accept it.",
+      "alreadyMember": "You already take part in this operation.",
+      "closed": "This operation no longer accepts participants.",
+      "invalidLink": "Invalid or renewed link."
+    },
+    "detail": {
+      "participants": "Participants",
+      "summary": "{participants} participants · {characters} characters",
+      "start": "Start",
+      "rules": "Rules",
+      "split": "Split",
+      "pending": "pending request",
+      "you": "you",
+      "accept": "Accept",
+      "refuse": "Refuse",
+      "remove": "Remove",
+      "promote": "Make admin",
+      "demote": "Remove admin",
+      "leave": "Leave operation",
+      "delete": "Delete operation",
+      "deleteConfirm": "Participants and their characters will be removed.",
+      "deleted": "This operation was deleted."
+    },
+    "role": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Member"
+    },
+    "unknownPilot": "Unknown pilot"
   }
 }

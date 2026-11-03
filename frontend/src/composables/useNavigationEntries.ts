@@ -46,6 +46,9 @@ const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
   'group-industry': [
     { query: 'available', labelKey: 'groupIndustry.tabs.available' },
   ],
+  'mining-operations': [
+    { query: 'available', labelKey: 'miningOperation.tabs.available' },
+  ],
   market: [
     { query: 'alerts', labelKey: 'market.tabs.alerts' },
   ],

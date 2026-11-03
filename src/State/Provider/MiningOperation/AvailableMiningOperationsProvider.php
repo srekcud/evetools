@@ -7,9 +7,14 @@ namespace App\State\Provider\MiningOperation;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningOperation\MiningOperationResource;
+use App\Entity\MiningOperation;
 use App\Repository\MiningOperationRepository;
+use App\Service\MiningOperation\MiningOperationRequest;
 use Symfony\Bundle\SecurityBundle\Security;
 
+/**
+ * @implements ProviderInterface<MiningOperationResource>
+ */
 final readonly class AvailableMiningOperationsProvider implements ProviderInterface
 {
     public function __construct(
@@ -19,8 +24,21 @@ final readonly class AvailableMiningOperationsProvider implements ProviderInterf
     ) {
     }
 
+    /**
+     * @return list<MiningOperationResource>
+     */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
     {
-        return [];
+        $user = MiningOperationRequest::userOf($this->security);
+
+        $corporationId = $user->getCorporationId();
+        if ($corporationId === null) {
+            return [];
+        }
+
+        return array_map(
+            fn (MiningOperation $available): MiningOperationResource => $this->mapper->operationToResource($available, null, true),
+            $this->operationRepository->findAvailableForCorporation($corporationId, $user),
+        );
     }
 }

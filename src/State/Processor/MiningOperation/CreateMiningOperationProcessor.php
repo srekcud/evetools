@@ -6,11 +6,16 @@ namespace App\State\Processor\MiningOperation;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
+use App\ApiResource\Input\MiningOperation\CreateMiningOperationInput;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\Service\MiningOperation\MiningOperationEnrolment;
+use App\Service\MiningOperation\MiningOperationRequest;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
 
+/**
+ * @implements ProcessorInterface<CreateMiningOperationInput, MiningOperationResource>
+ */
 final readonly class CreateMiningOperationProcessor implements ProcessorInterface
 {
     public function __construct(
@@ -22,6 +27,12 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): MiningOperationResource
     {
-        return new MiningOperationResource();
+        $user = MiningOperationRequest::userOf($this->security);
+
+        \assert($data instanceof CreateMiningOperationInput);
+
+        $miningOperation = $this->enrolment->create($user, $data);
+
+        return $this->mapper->operationToResource($miningOperation, $miningOperation->membershipOf($user), true);
     }
 }
