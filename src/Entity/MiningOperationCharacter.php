@@ -27,6 +27,15 @@ class MiningOperationCharacter
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $enrolledAt;
 
+    /** @var Collection<int, MiningLedgerSnapshot> */
+    #[ORM\OneToMany(targetEntity: MiningLedgerSnapshot::class, mappedBy: 'operationCharacter', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $snapshots;
+
+    /** @var Collection<int, MiningQuantityCorrection> */
+    #[ORM\OneToMany(targetEntity: MiningQuantityCorrection::class, mappedBy: 'operationCharacter', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['correctedAt' => 'ASC', 'id' => 'ASC'])]
+    private Collection $corrections;
+
     public function __construct(
         #[ORM\ManyToOne(targetEntity: MiningOperationMember::class, inversedBy: 'characters')]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -36,6 +45,8 @@ class MiningOperationCharacter
         private Character $character,
     ) {
         $this->enrolledAt = new \DateTimeImmutable();
+        $this->snapshots = new ArrayCollection();
+        $this->corrections = new ArrayCollection();
     }
 
     public function getId(): ?Uuid
@@ -63,22 +74,35 @@ class MiningOperationCharacter
      */
     public function getSnapshots(): Collection
     {
-        return new ArrayCollection();
+        return $this->snapshots;
     }
 
     public function snapshotOf(MiningLedgerSnapshotKind $kind): ?MiningLedgerSnapshot
     {
+        foreach ($this->snapshots as $snapshot) {
+            if ($snapshot->getKind() === $kind) {
+                return $snapshot;
+            }
+        }
+
         return null;
     }
 
     public function scheduleStartSnapshot(\DateTimeImmutable $referenceAt): MiningLedgerSnapshot
     {
-        return new MiningLedgerSnapshot($this, MiningLedgerSnapshotKind::Start, $referenceAt);
+        $snapshot = new MiningLedgerSnapshot($this, MiningLedgerSnapshotKind::Start, $referenceAt);
+        $snapshot->schedule($referenceAt);
+        $this->snapshots->add($snapshot);
+
+        return $snapshot;
     }
 
     public function scheduleEndSnapshot(\DateTimeImmutable $referenceAt): MiningLedgerSnapshot
     {
-        return new MiningLedgerSnapshot($this, MiningLedgerSnapshotKind::End, $referenceAt);
+        $snapshot = new MiningLedgerSnapshot($this, MiningLedgerSnapshotKind::End, $referenceAt);
+        $this->snapshots->add($snapshot);
+
+        return $snapshot;
     }
 
     /**
@@ -86,11 +110,35 @@ class MiningOperationCharacter
      */
     public function getCorrections(): Collection
     {
-        return new ArrayCollection();
+        return $this->corrections;
+    }
+
+    /**
+     * @return array<int, MiningQuantityCorrection> latest correction of each type, by type id
+     */
+    public function latestCorrections(): array
+    {
+        $latest = [];
+        foreach ($this->corrections as $correction) {
+            $latest[$correction->getTypeId()] = $correction;
+        }
+
+        return $latest;
     }
 
     public function correct(int $typeId, ?int $originalQuantity, int $correctedQuantity, ?User $correctedBy, \DateTimeImmutable $correctedAt): MiningQuantityCorrection
     {
-        return new MiningQuantityCorrection($this, $typeId, $originalQuantity, $correctedQuantity, $correctedBy, null, $correctedAt);
+        $correction = new MiningQuantityCorrection(
+            $this,
+            $typeId,
+            $originalQuantity,
+            $correctedQuantity,
+            $correctedBy,
+            $correctedBy?->getMainCharacter()?->getName(),
+            $correctedAt,
+        );
+        $this->corrections->add($correction);
+
+        return $correction;
     }
 }

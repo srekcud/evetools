@@ -193,9 +193,17 @@ deptrac:
       - App\ApiResource\Input\MiningOperation\CreateMiningOperationInput
     App\State\Processor\MiningOperation\CreateMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\Entity\MiningLedgerSnapshot:
+      - App\Service\MiningOperation\MiningLedgerReading
+    App\State\Processor\MiningOperation\DepartMiningOperationProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\EndMiningOperationProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\JoinMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\StartMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\UpdateMiningOperationMemberProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper

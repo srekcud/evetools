@@ -21,6 +21,6 @@ final readonly class MinedQuantity
 
     public function totalQuantity(): ?int
     {
-        return null;
+        return $this->state === MinedQuantityState::Known ? array_sum($this->quantitiesByTypeId) : null;
     }
 }

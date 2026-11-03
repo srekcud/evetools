@@ -42,6 +42,7 @@ final readonly class JoinMiningOperationProcessor implements ProcessorInterface
         $miningOperation = MiningOperationRequest::operationByJoinCodeOf($this->operationRepository, $uriVariables['code']);
 
         $membership = $this->enrolment->join($user, $miningOperation, $data->characterIds);
+        $this->lifecycle->snapshotLateParticipant($membership);
 
         $this->mercurePublisher->publishMiningOperationEvent(
             MiningOperationAudience::userIdsOf($miningOperation),

@@ -15,6 +15,9 @@ enum MiningLedgerSnapshotStatus: string
 
     public function isSettled(): bool
     {
-        return false;
+        return match ($this) {
+            self::Scheduling, self::Waiting => false,
+            self::Taken, self::ReconnectRequired, self::Failed, self::OutOfWindow => true,
+        };
     }
 }

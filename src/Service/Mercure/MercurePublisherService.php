@@ -70,9 +70,10 @@ final readonly class MercurePublisherService
     /**
      * Publish a sync started event.
      */
+    /** @param array<string, mixed>|null $data */
     public function syncStarted(string $userId, string $syncType, ?string $message = null, ?array $data = null): void
     {
-        $this->publishSyncProgress($userId, $syncType, 'started', 0, $message ?? 'Starting...');
+        $this->publishSyncProgress($userId, $syncType, 'started', 0, $message ?? 'Starting...', $data);
     }
 
     /**
@@ -96,9 +97,10 @@ final readonly class MercurePublisherService
     /**
      * Publish a sync error event.
      */
+    /** @param array<string, mixed>|null $data */
     public function syncError(string $userId, string $syncType, string $errorMessage, ?array $data = null): void
     {
-        $this->publishSyncProgress($userId, $syncType, 'error', null, $errorMessage);
+        $this->publishSyncProgress($userId, $syncType, 'error', null, $errorMessage, $data);
     }
 
     /**
@@ -316,6 +318,7 @@ final readonly class MercurePublisherService
             sprintf('/user/%s/sync/market-structure', $userId),
             sprintf('/user/%s/sync/planetary', $userId),
             sprintf('/user/%s/sync/admin-sync', $userId),
+            sprintf('/user/%s/sync/mining-operation-snapshot', $userId),
             sprintf('/user/%s/alerts/planetary-expiry', $userId),
             sprintf('/user/%s/alerts/market-price', $userId),
             sprintf('/user/%s/notifications', $userId),

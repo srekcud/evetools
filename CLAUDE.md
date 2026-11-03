@@ -164,7 +164,7 @@ new Patch(
 - Backend : `MercurePublisherService` (syncStarted → syncProgress → syncCompleted/syncError)
 - Frontend : `stores/sync.ts` (EventSource + token via `/api/mercure/token`)
 - Topics : `/user/{userId}/sync/{syncType}`
-- Types sync (`MercurePublisherService::getTopicsForUser()`) : character-assets, corporation-assets, ansiblex, industry-jobs, industry-job-completed, industry-project, pve, mining, corporation-mining-extractions, wallet-transactions, market-structure, planetary, public-contracts, admin-sync
+- Types sync (`MercurePublisherService::getTopicsForUser()`) : character-assets, corporation-assets, ansiblex, industry-jobs, industry-job-completed, industry-project, pve, mining, corporation-mining-extractions, wallet-transactions, market-structure, planetary, public-contracts, admin-sync, mining-operation-snapshot
 - Autres topics utilisateur : `/user/{userId}/alerts/planetary-expiry`, `/user/{userId}/alerts/market-price`, `/user/{userId}/notifications`, `/user/{userId}/mining-operations`
 - Les syncs globales (market-jita, alert-prices, cost-indices, adjusted-prices…) n'ont pas de topic dédié : `SyncTracker` les suit et notifie via `admin-sync`
 

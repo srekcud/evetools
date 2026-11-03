@@ -68,6 +68,9 @@ final readonly class UpdateMiningOperationMemberProcessor implements ProcessorIn
         if ($accepts && $member->getStatus() !== MiningOperationMemberStatus::Pending) {
             throw new BadRequestHttpException('Only pending members can be accepted');
         }
+        if ($accepts && !$miningOperation->getStatus()->acceptsParticipants()) {
+            throw new BadRequestHttpException('This operation is no longer accepting participants');
+        }
 
         if ($newRole !== null) {
             $member->setRole($newRole);
@@ -76,6 +79,7 @@ final readonly class UpdateMiningOperationMemberProcessor implements ProcessorIn
             $member->setStatus(MiningOperationMemberStatus::Accepted);
         }
         $this->entityManager->flush();
+        $this->lifecycle->snapshotLateParticipant($member);
 
         $this->mercurePublisher->publishMiningOperationEvent(
             MiningOperationAudience::userIdsOf($miningOperation, $member->getUser()),

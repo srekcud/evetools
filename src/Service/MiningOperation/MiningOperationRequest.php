@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Service\MiningOperation;
 
 use App\Entity\MiningOperation;
+use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
 use App\Entity\User;
+use App\Repository\MiningOperationCharacterRepository;
 use App\Repository\MiningOperationMemberRepository;
 use App\Repository\MiningOperationRepository;
 use App\Service\UuidOrNotFound;
@@ -18,6 +20,7 @@ final class MiningOperationRequest
 {
     private const string OPERATION_NOT_FOUND_MESSAGE = 'Mining operation not found';
     private const string MEMBER_NOT_FOUND_MESSAGE = 'Member not found';
+    private const string CHARACTER_NOT_FOUND_MESSAGE = 'Character not found';
 
     public static function userOf(Security $security): User
     {
@@ -49,5 +52,15 @@ final class MiningOperationRequest
         }
 
         return $member;
+    }
+
+    public static function operationCharacterOf(MiningOperationCharacterRepository $repository, MiningOperation $operation, string $identifier): MiningOperationCharacter
+    {
+        $operationCharacter = $repository->find(UuidOrNotFound::of($identifier, self::CHARACTER_NOT_FOUND_MESSAGE));
+        if ($operationCharacter === null || $operationCharacter->getMember()->getOperation() !== $operation) {
+            throw new NotFoundHttpException(self::CHARACTER_NOT_FOUND_MESSAGE);
+        }
+
+        return $operationCharacter;
     }
 }

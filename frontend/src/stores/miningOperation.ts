@@ -307,23 +307,61 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
-  async function start(_id: string, _solarSystemId: number | null): Promise<MiningOperation | null> {
-    return null
+  async function postLifecycleAction(id: string, action: 'start' | 'end' | 'depart', body: object, failureMessage: string): Promise<MiningOperation | null> {
+    error.value = null
+    try {
+      currentOperation.value = await apiRequest<MiningOperation>(`/mining-operations/${id}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      return currentOperation.value
+    } catch (cause) {
+      error.value = messageOf(cause, failureMessage)
+      throw cause
+    }
   }
 
-  async function end(_id: string): Promise<MiningOperation | null> {
-    return null
+  const start = (id: string, solarSystemId: number | null) =>
+    postLifecycleAction(id, 'start', { solarSystemId }, 'Failed to start the mining operation')
+
+  const end = (id: string) => postLifecycleAction(id, 'end', {}, 'Failed to end the mining operation')
+
+  const depart = (id: string) => postLifecycleAction(id, 'depart', {}, 'Failed to leave the mining operation early')
+
+  async function fetchLedger(id: string): Promise<void> {
+    error.value = null
+    try {
+      ledger.value = await apiRequest<MiningOperationLedger>(`/mining-operations/${id}/ledger`)
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the ledger')
+    }
   }
 
-  async function depart(_id: string): Promise<MiningOperation | null> {
-    return null
+  async function retrySnapshot(operationId: string, operationCharacterId: string): Promise<void> {
+    error.value = null
+    try {
+      await apiRequest<null>(`/mining-operations/${operationId}/characters/${operationCharacterId}/snapshot-retry`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to retry the snapshot')
+      throw cause
+    }
   }
 
-  async function fetchLedger(_id: string): Promise<void> {}
-
-  async function retrySnapshot(_operationId: string, _operationCharacterId: string): Promise<void> {}
-
-  async function correctQuantity(_operationId: string, _operationCharacterId: string, _typeId: number, _quantity: number): Promise<void> {}
+  async function correctQuantity(operationId: string, operationCharacterId: string, typeId: number, quantity: number): Promise<void> {
+    error.value = null
+    try {
+      await apiRequest<null>(`/mining-operations/${operationId}/characters/${operationCharacterId}/quantity-corrections`, {
+        method: 'POST',
+        body: JSON.stringify({ typeId, quantity }),
+      })
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to correct the quantity')
+      throw cause
+    }
+  }
 
   return {
     myOperations,

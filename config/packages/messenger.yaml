@@ -43,6 +43,7 @@ framework:
             App\Message\PurgeOldNotifications: async
             App\Message\PurgeExpiredSharedLists: async
             App\Message\WarmupStructureOwnersMessage: async
+            App\Message\TakeMiningLedgerSnapshot: async
 
 when@test:
     framework:

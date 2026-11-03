@@ -36,6 +36,11 @@ final readonly class MiningOperationResourceMapper
         $resource->myRole = $viewerMembership?->getRole()->value;
         $resource->myStatus = $viewerMembership?->getStatus()->value;
         $resource->createdAt = $this->inEveTime($operation->getCreatedAt());
+        $resource->startedAt = $this->inEveTimeOrNull($operation->getStartedAt());
+        $resource->endedAt = $this->inEveTimeOrNull($operation->getEndedAt());
+        $resource->solarSystemId = $operation->getSolarSystemId();
+        $resource->solarSystemName = $operation->getSolarSystemName();
+        $resource->myDepartedAt = $this->inEveTimeOrNull($viewerMembership?->getDepartedAt());
 
         return $resource;
     }
@@ -50,6 +55,7 @@ final readonly class MiningOperationResourceMapper
         $resource->role = $member->getRole()->value;
         $resource->status = $member->getStatus()->value;
         $resource->joinedAt = $this->inEveTime($member->getJoinedAt());
+        $resource->departedAt = $this->inEveTimeOrNull($member->getDepartedAt());
 
         $enrolments = array_values($member->getCharacters()->toArray());
         usort($enrolments, static fn (MiningOperationCharacter $left, MiningOperationCharacter $right): int => $left->getCharacter()->getName() <=> $right->getCharacter()->getName());
@@ -95,5 +101,10 @@ final readonly class MiningOperationResourceMapper
     private function inEveTime(\DateTimeImmutable $moment): \DateTimeImmutable
     {
         return $moment->setTimezone(new \DateTimeZone('UTC'));
+    }
+
+    private function inEveTimeOrNull(?\DateTimeImmutable $moment): ?\DateTimeImmutable
+    {
+        return $moment === null ? null : $this->inEveTime($moment);
     }
 }

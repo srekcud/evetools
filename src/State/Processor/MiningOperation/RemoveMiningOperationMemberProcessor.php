@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
+use App\Enum\MiningOperationStatus;
 use App\Repository\MiningOperationMemberRepository;
 use App\Repository\MiningOperationRepository;
 use App\Service\Mercure\MercurePublisherService;
@@ -18,6 +19,7 @@ use App\Service\MiningOperation\PersistedUuid;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * @implements ProcessorInterface<null, null>
@@ -52,6 +54,10 @@ final readonly class RemoveMiningOperationMemberProcessor implements ProcessorIn
 
         if ($member->getStatus() === MiningOperationMemberStatus::Removed) {
             throw new BadRequestHttpException('Member already removed');
+        }
+
+        if ($member->getStatus() === MiningOperationMemberStatus::Accepted && $miningOperation->getStatus() !== MiningOperationStatus::Planned) {
+            throw new ConflictHttpException('Mining operation already started: use departure instead');
         }
 
         $member->remove();

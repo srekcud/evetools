@@ -42,6 +42,7 @@ class MiningOperationMember
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $joinedAt;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $departedAt = null;
 
     /** @var Collection<int, MiningOperationCharacter> */
@@ -119,6 +120,8 @@ class MiningOperationMember
 
     public function depart(\DateTimeImmutable $departedAt): static
     {
+        $this->departedAt = $departedAt;
+
         return $this;
     }
 

@@ -22,5 +22,13 @@ final readonly class TakeMiningLedgerSnapshotHandler
 
     public function __invoke(TakeMiningLedgerSnapshot $message): void
     {
+        $snapshot = $this->snapshotRepository->find($message->snapshotId);
+        if ($snapshot === null) {
+            $this->logger->warning('Mining ledger snapshot no longer exists: message ignored', ['snapshotId' => $message->snapshotId]);
+
+            return;
+        }
+
+        $this->taker->take($snapshot);
     }
 }

@@ -59,12 +59,16 @@ class MiningOperation
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $startedAt = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $endedAt = null;
 
+    #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $solarSystemId = null;
 
+    #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $solarSystemName = null;
 
     /** @var Collection<int, MiningOperationMember> */
@@ -218,11 +222,19 @@ class MiningOperation
 
     public function start(\DateTimeImmutable $startedAt, ?MapSolarSystem $solarSystem): static
     {
+        $this->status = MiningOperationStatus::InProgress;
+        $this->startedAt = $startedAt;
+        $this->solarSystemId = $solarSystem?->getSolarSystemId();
+        $this->solarSystemName = $solarSystem?->getSolarSystemName();
+
         return $this;
     }
 
     public function end(\DateTimeImmutable $endedAt): static
     {
+        $this->status = MiningOperationStatus::Closing;
+        $this->endedAt = $endedAt;
+
         return $this;
     }
 

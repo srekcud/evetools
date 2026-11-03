@@ -21,3 +21,16 @@ export function nextFullHourAsEveInput(now: Date): string {
   const nextHour = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours() + 1))
   return `${nextHour.getUTCFullYear()}-${twoDigits(nextHour.getUTCMonth() + 1)}-${twoDigits(nextHour.getUTCDate())}T${twoDigits(nextHour.getUTCHours())}:00`
 }
+
+const MILLISECONDS_PER_SECOND = 1000
+const SECONDS_PER_MINUTE = 60
+
+export function formatEveClock(isoDateTime: string): string {
+  const moment = new Date(isoDateTime)
+  return `${twoDigits(moment.getUTCHours())}:${twoDigits(moment.getUTCMinutes())}`
+}
+
+export function formatCountdown(remainingMilliseconds: number): string {
+  const remainingSeconds = Math.max(0, Math.ceil(remainingMilliseconds / MILLISECONDS_PER_SECOND))
+  return `${twoDigits(Math.floor(remainingSeconds / SECONDS_PER_MINUTE))}:${twoDigits(remainingSeconds % SECONDS_PER_MINUTE)}`
+}
