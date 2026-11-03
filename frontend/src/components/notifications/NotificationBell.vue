@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNotificationsStore } from '@/stores/notifications'
 import NotificationDropdown from './NotificationDropdown.vue'
 import NotificationSettings from './NotificationSettings.vue'
 
+const { t } = useI18n()
 const store = useNotificationsStore()
 
 const isOpen = ref(false)
@@ -36,6 +38,8 @@ onMounted(() => {
     <!-- Bell button -->
     <button
       id="notification-bell-btn"
+      :aria-label="t('notificationHub.title')"
+      :aria-expanded="isOpen"
       @click="toggleDropdown"
       class="relative p-2 rounded-lg hover:bg-slate-800/50 transition-colors group"
       :class="isOpen ? 'bg-slate-800/50' : ''"
