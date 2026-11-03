@@ -279,6 +279,8 @@ class SlotTrackerService
 
     /**
      * Map an ESI activity ID to a slot category.
+     *
+     * @return 'manufacturing'|'reaction'|'science'|null
      */
     public static function getSlotCategory(int $activityId): ?string
     {
@@ -384,7 +386,7 @@ class SlotTrackerService
             }
         }
 
-        if ($worstTarget === null) {
+        if ($worstTarget === null || $worstCoverage === null) {
             return null;
         }
 

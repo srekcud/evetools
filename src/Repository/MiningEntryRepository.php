@@ -210,7 +210,7 @@ class MiningEntryRepository extends ServiceEntityRepository
     {
         $conn = $this->getEntityManager()->getConnection();
 
-        return $conn->executeStatement(
+        return (int) $conn->executeStatement(
             'UPDATE mining_entries SET unit_price = :unitPrice, total_value = quantity * :unitPrice WHERE user_id = :userId AND type_id = :typeId',
             [
                 'unitPrice' => $unitPrice,
