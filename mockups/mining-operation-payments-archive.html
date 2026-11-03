@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<!--
+  Maquette #265 · paiements marqués payés, opération réglée ou terminée, archive.
+  Référence visuelle : mockups/grouped-mining-v4.html (branche docs/mining-specs), renderShares(), payLine(), renderSoloResults(), renderHistory().
+  Tokens repris de mockups/mining-operation-shares.html (#264).
+  Écarts assumés par la spec docs/specs/265-mining-operation-close-payments-archive.md : pas de vérification par le wallet ni de motif OP-xxxx,
+  pas de fleet storage (#266), case « payé » réservée à l'Owner et aux Admins, « Marquer réglée » explicite, récapitulatif sans partage (#316).
+  Données fictives = exemples S2 et PA de la spec (booster 10 % Cyra Lune, corporation 5 %).
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opération de minage · paiements et archive (#265)</title>
+<style>
+:root {
+  --s950:#020617; --s900:#0f172a; --s800:#1e293b; --s700:#334155; --s600:#475569; --s500:#64748b; --s400:#94a3b8; --s300:#cbd5e1; --s200:#e2e8f0; --s100:#f1f5f9;
+  --c400:#22d3ee; --c500:#06b6d4; --e400:#34d399; --e500:#10b981; --a400:#fbbf24; --a500:#f59e0b; --v400:#a78bfa; --r400:#f87171;
+  --mono: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--s950); color: var(--s100); font: 14px/1.45 ui-sans-serif, system-ui, sans-serif; }
+body::before { content: ''; position: fixed; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(6,182,212,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,.03) 1px, transparent 1px); background-size: 50px 50px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.mockbar { position: relative; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 16px; border-bottom: 2px dashed rgba(167,139,250,.5); background: #120c1e; color: #c4b5fd; font-size: 12px; }
+.mockbar button { background: rgba(167,139,250,.08); color: #ddd6fe; border: 1px dashed rgba(167,139,250,.45); border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+.mockbar button[aria-pressed="true"] { background: rgba(167,139,250,.3); border-style: solid; color: #fff; }
+.mockbar button:focus-visible, .btn:focus-visible, input:focus-visible, .tab:focus-visible { outline: 2px solid var(--c400); outline-offset: 2px; }
+.page { position: relative; max-width: 80rem; margin: 0 auto; padding: 28px 24px 64px; display: flex; flex-direction: column; gap: 20px; }
+.card { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; }
+.pad { padding: 20px 24px; }
+h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--s100); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--s200); }
+.row { display: flex; align-items: center; gap: 12px; }
+.sb { justify-content: space-between; }
+.wrapf { flex-wrap: wrap; }
+.hint { color: var(--s500); font-size: 13px; }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 12px; border: 1px solid; white-space: nowrap; }
+.b-amber { color: var(--a400); border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.1); }
+.b-violet { color: var(--v400); border-color: rgba(167,139,250,.4); background: rgba(167,139,250,.1); }
+.b-em { color: var(--e400); border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.1); }
+.b-cyan { color: var(--c400); border-color: rgba(6,182,212,.4); background: rgba(6,182,212,.1); }
+.b-slate { color: var(--s300); border-color: var(--s600); background: var(--s800); }
+.stepper { display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.stp { display: flex; align-items: center; gap: 8px; color: var(--s500); font-size: 13px; }
+.stp .n { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--s700); display: grid; place-items: center; font-family: var(--mono); font-size: 12px; }
+.stp.done { color: var(--e400); } .stp.done .n { border-color: var(--e500); background: rgba(16,185,129,.15); }
+.stp.cur { color: var(--c400); } .stp.cur .n { border-color: var(--c400); background: rgba(6,182,212,.15); box-shadow: 0 0 12px rgba(34,211,238,.35); }
+.stl { flex: 0 0 28px; height: 1px; background: var(--s700); } .stl.done { background: var(--e500); }
+.grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+.btn { border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; border: 1px solid var(--s700); background: var(--s800); color: var(--s200); }
+.btn.pri { background: linear-gradient(to right, #0891b2, #2563eb); border-color: transparent; color: #fff; }
+.btn.em { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.5); color: var(--e400); }
+:disabled { opacity: .45; cursor: not-allowed; }
+.banner { display: flex; gap: 12px; padding: 14px 18px; border-radius: 12px; border: 1px solid; }
+.banner.amber { border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.08); color: #fde68a; }
+.banner.em { border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.08); color: #a7f3d0; }
+.banner.cyan { border-color: rgba(6,182,212,.35); background: rgba(6,182,212,.06); color: #a5f3fc; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 500; font-size: 12px; color: var(--s500); padding: 10px 14px; border-bottom: 1px solid var(--s800); white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid rgba(30,41,59,.6); vertical-align: top; }
+th.r, td.r { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.tot td { font-weight: 600; color: var(--s200); border-bottom: 0; background: rgba(30,41,59,.4); }
+.name { display: inline-block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: var(--s200); }
+.unk { color: var(--a400); font-style: italic; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 760px) { .kpis { grid-template-columns: 1fr 1fr; } }
+.kpi { padding: 16px 18px; }
+.kpi p { margin: 0; }
+.kpi .v { font-family: var(--mono); font-size: 24px; margin-top: 8px; }
+.c-em { color: var(--e400); } .c-violet { color: var(--v400); } .c-cyan { color: var(--c400); } .c-amber { color: var(--a400); } .c-white { color: #fff; }
+.blockers { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--a400); }
+.dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 13px; margin: 12px 0 0; }
+.dl dt { color: var(--s500); } .dl dd { margin: 0; color: var(--s300); }
+
+/* Lignes de paiement : un rail vertical relie le payeur au bénéficiaire, la ligne s'allume en émeraude une fois payée. */
+.pays { display: flex; flex-direction: column; margin-top: 8px; }
+.pay { display: grid; grid-template-columns: 22px 1fr auto; gap: 14px; align-items: start; padding: 12px 0; border-top: 1px solid var(--s800); }
+.pay input { width: 16px; height: 16px; margin-top: 3px; accent-color: #10b981; }
+.pay .who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
+.pay .amt { font-family: var(--mono); font-size: 16px; color: #fff; }
+.pay .why { color: var(--s500); font-size: 12px; margin-top: 2px; }
+.pay .trace { color: var(--s400); font-size: 12px; margin-top: 2px; }
+.pay.paid { border-left: 2px solid var(--e500); padding-left: 10px; margin-left: -12px; }
+.pay.paid .amt { color: var(--e400); }
+.tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--s800); }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 0 2px 12px; color: var(--s400); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--s100); border-color: var(--c400); }
+.count { margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: var(--s800); font-family: var(--mono); font-size: 12px; color: var(--s300); }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="mockbar" role="toolbar" aria-label="États de la maquette">
+  <strong>Maquette #265</strong>
+  <button data-state="paying" aria-pressed="true">Parts · paiements en cours</button>
+  <button data-state="allpaid" aria-pressed="false">Parts · tout payé</button>
+  <button data-state="settled" aria-pressed="false">Réglée</button>
+  <button data-state="soloclosing" aria-pressed="false">Chacun pour soi · clôture</button>
+  <button data-state="completed" aria-pressed="false">Terminée</button>
+  <button data-state="archive" aria-pressed="false">Archive</button>
+  <button data-long aria-pressed="false">Noms longs</button>
+  <button data-member aria-pressed="false">Vu par Brann (membre)</button>
+</div>
+
+<main class="page" data-detail>
+  <section class="card pad" aria-labelledby="op-title">
+    <div class="row sb wrapf">
+      <div style="min-width:0;flex:1">
+        <div class="row" style="min-width:0"><h1 id="op-title" data-op-label>Anomalie Spodumain — 20:00</h1><span class="badge" data-status></span><span class="badge b-violet">Ma corporation</span></div>
+        <p class="hint" style="margin:4px 0 0"><span class="mono">20:00 → 21:30</span> EVE (1 h 30) · Compressé, Jita vente · <span data-cut-meta></span></p>
+      </div>
+      <div class="row" data-header-actions></div>
+    </div>
+    <div class="stepper" data-stepper aria-label="Étapes de l'opération"></div>
+  </section>
+
+  <div class="banner em" data-settled-banner hidden role="status"><div><b>Opération réglée le jeu. 05/11 23:35 EVE.</b> Tous les paiements sont marqués payés. Quantités, prix, parts et paiements ne changent plus.</div></div>
+  <div class="banner em" data-completed-banner hidden role="status"><div><b>Opération terminée le jeu. 05/11 21:58 EVE · chacun pour soi.</b> Chacun garde son minerai : rien à régler. Les prix et les valeurs minées sont figés.</div></div>
+  <div class="banner amber" data-solo-unknown hidden role="status"><div><b>Valeur totale inconnue.</b> Rien n'est compté pour 0. Brann II : instantané de début non lu (token invalide). Un Owner ou un Admin peut corriger sa quantité ; l'opération se termine ensuite.</div></div>
+
+  <div class="kpis" data-kpis></div>
+
+  <div class="grid">
+    <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+      <section class="card" style="overflow-x:auto" aria-labelledby="split-title">
+        <div class="pad row sb wrapf" style="padding-bottom:12px"><h2 id="split-title" data-table-title></h2><span class="hint" data-prices-hint></span></div>
+        <table><thead data-head></thead><tbody data-rows></tbody></table>
+      </section>
+
+      <section class="card pad" data-payments aria-labelledby="pay-title">
+        <div class="row sb wrapf"><h2 id="pay-title">Paiements</h2><span class="hint" data-pay-count></span></div>
+        <p class="hint" style="margin:8px 0 0">Chacun garde son minerai et verse au booster la différence entre sa valeur minée et sa part. Le booster reverse la part corporation. Un Owner ou un Admin coche la ligne quand le don est fait en jeu.</p>
+        <div class="pays" data-pays></div>
+      </section>
+    </div>
+
+    <aside style="display:flex;flex-direction:column;gap:20px">
+      <section class="card pad" data-settle aria-labelledby="settle-title">
+        <h2 id="settle-title">Marquer réglée</h2>
+        <p class="hint" style="margin:8px 0 12px">Possible quand tous les paiements sont marqués payés. L'opération passe ensuite en archive, en lecture seule.</p>
+        <button class="btn pri" data-settle-btn>Marquer réglée</button>
+        <ul class="blockers" data-settle-blockers></ul>
+      </section>
+
+      <section class="card pad" data-complete aria-labelledby="complete-title">
+        <h2 id="complete-title">Marquer terminée</h2>
+        <p class="hint" style="margin:8px 0 12px">Les prix du moment et la valeur minée de chacun sont copiés dans l'opération, qui passe en archive, en lecture seule. Rien n'est à régler.</p>
+        <button class="btn pri" data-complete-btn disabled>Marquer terminée</button>
+        <ul class="blockers"><li>Quantité inconnue ou en mesure : Brann Holt</li></ul>
+      </section>
+
+      <section class="card pad" data-recap aria-labelledby="recap-title">
+        <h2 id="recap-title">Récapitulatif</h2>
+        <dl class="dl" data-recap-list></dl>
+      </section>
+
+      <section class="card pad" aria-labelledby="prices-title">
+        <h2 id="prices-title">Prix unitaires figés</h2>
+        <dl class="dl"><dt>Veldspar</dt><dd class="mono">19,61 ISK/u</dd><dt>Bitumens</dt><dd class="mono">221,45 ISK/u</dd></dl>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<main class="page" data-archive hidden>
+  <div class="row sb wrapf"><h1>Opérations de minage</h1><button class="btn pri">Nouvelle opération</button></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="false">Mes opérations<span class="count">1</span></button>
+    <button class="tab" role="tab" aria-selected="false">Disponibles<span class="count">0</span></button>
+    <button class="tab" role="tab" aria-selected="true">Archive<span class="count">3</span></button>
+  </div>
+  <section class="card" style="overflow-x:auto" aria-label="Opérations archivées">
+    <table>
+      <thead><tr><th scope="col">Opération</th><th scope="col">Archivée le</th><th scope="col">Système</th><th scope="col" class="r">Participants</th><th scope="col" class="r">Valeur G</th><th scope="col" class="r">Ma part</th><th scope="col">Paiements</th><th scope="col">Statut</th></tr></thead>
+      <tbody data-archive-rows></tbody>
+    </table>
+  </section>
+  <p class="hint" style="margin:0">L'archive montre les opérations réglées ou terminées auxquelles vous avez participé, et celles de votre corporation ouvertes à la corporation.</p>
+</main>
+
+<script>
+const LONG = ' Longnom-Exemple de la Corpo Exemple';
+const S = { state: 'paying', long: false, member: false };
+const nf = new Intl.NumberFormat('fr-FR');
+const isk = v => v === null ? '<span class="unk">inconnue</span>' : nf.format(v);
+const $ = s => document.querySelector(s);
+const nm = n => n + (S.long ? LONG : '');
+const people = [
+  { name: 'Aria Solberg', tag: 'Owner · vous', units: 103333, value: 2699093, pct: '48,5 %', share: 2294229, iskH: 1799395, dur: '1 h 30' },
+  { name: 'Brann Holt', tag: 'parti 21:05', units: 43338, value: 2868460, pct: '51,5 %', share: 2438191, iskH: 2647809, dur: '1 h 05' },
+  { name: 'Cyra Lune', tag: 'booster', units: 9, value: 176, pct: '0,0 %', share: 150, plus: true, iskH: 117, dur: '1 h 30' }
+];
+const payments = [
+  { from: 'Aria Solberg', to: 'Cyra Lune', amount: 404864, why: 'part du booster et part corporation sur sa valeur minée', paidBy: 'Aria Solberg', at: '22:24' },
+  { from: 'Brann Holt', to: 'Cyra Lune', amount: 430269, why: 'part du booster et part corporation sur sa valeur minée', paidBy: 'Cyra Lune', at: '22:51' },
+  { from: 'Cyra Lune', to: 'Corpo Exemple', amount: 278386, why: 'part corporation collectée par le booster (5 % de G)', paidBy: 'Aria Solberg', at: '23:30' }
+];
+const solo = () => S.state === 'soloclosing' || S.state === 'completed';
+
+function paidOf(i) { return S.state === 'paying' ? i === 0 : ['allpaid', 'settled'].includes(S.state); }
+
+function render() {
+  const archive = S.state === 'archive';
+  $('[data-detail]').hidden = archive;
+  $('[data-archive]').hidden = !archive;
+  if (archive) return renderArchive();
+
+  const settled = S.state === 'settled', completed = S.state === 'completed', soloClosing = S.state === 'soloclosing';
+  const admin = !S.member;
+  const steps = solo() ? ['Planifiée', 'En cours', 'Clôture', 'Terminée'] : ['Planifiée', 'En cours', 'Clôture', 'Parts', 'Réglée'];
+  const cur = settled ? 4 : completed ? 3 : soloClosing ? 2 : 3;
+  const allDone = settled || completed;
+  $('[data-stepper]').innerHTML = steps.map((l, i) => {
+    const done = i < cur || (allDone && i === cur);
+    return `${i ? `<div class="stl ${i <= cur ? 'done' : ''}"></div>` : ''}<div class="stp ${done ? 'done' : i === cur ? 'cur' : ''}" ${i === cur ? 'aria-current="step"' : ''}><span class="n">${done ? '✓' : i + 1}</span>${l}</div>`;
+  }).join('');
+  const st = $('[data-status]');
+  const statusLabel = settled ? ['Réglée', 'b-em'] : completed ? ['Terminée', 'b-em'] : soloClosing ? ['Clôture', 'b-amber'] : ['Parts', 'b-violet'];
+  st.textContent = statusLabel[0]; st.className = 'badge ' + statusLabel[1];
+  $('[data-op-label]').textContent = 'Anomalie Spodumain — 20:00' + (S.long ? ', opération récurrente de la Corpo Exemple' : '');
+  $('[data-cut-meta]').textContent = solo() ? 'chacun pour soi · boost sans part' : `booster 10 % (${nm('Cyra Lune')}) · corporation 5 %`;
+  $('[data-header-actions]').innerHTML = '';
+
+  $('[data-settled-banner]').hidden = !settled;
+  $('[data-completed-banner]').hidden = !completed;
+  $('[data-solo-unknown]').hidden = !soloClosing;
+  $('[data-payments]').hidden = solo();
+  $('[data-settle]').hidden = solo() || settled || !admin;
+  $('[data-complete]').hidden = !soloClosing || !admin;
+  $('[data-recap]').hidden = !(settled || completed);
+
+  const paidN = payments.filter((_, i) => paidOf(i)).length;
+  $('[data-kpis]').innerHTML = solo()
+    ? kpi('Valeur totale G', soloClosing ? null : 5567729, 'c-em') + kpi('ISK/h de l\'opération', soloClosing ? null : 3711819, 'c-white') + kpiTxt('Durée', '1 h 30', 'c-cyan') + kpiTxt('Participants', '3 · 5 persos', 'c-white')
+    : kpi('Valeur totale G', 5567729, 'c-em') + kpi('Part du booster, 10 %', 556773, 'c-violet') + kpi('À répartir, 85 %', 4732570, 'c-cyan') + kpiTxt('Paiements', `${paidN} / ${payments.length}`, paidN === payments.length ? 'c-em' : 'c-amber');
+
+  $('[data-table-title]').textContent = solo() ? 'Valeur minée par participant' : 'Répartition au prorata de la valeur';
+  $('[data-prices-hint]').innerHTML = soloClosing ? 'prix lus à <span class="mono">21:52</span> · recalculé à chaque lecture' : `prix figés le <span class="mono">05/11 ${completed ? '21:58' : '21:52'}</span> · sync Jita <span class="mono">21:00</span>`;
+  $('[data-head]').innerHTML = `<tr><th scope="col">Participant</th><th scope="col" class="r">Quantité (u)</th><th scope="col" class="r">Valeur minée</th>${solo() ? '' : '<th scope="col" class="r">% de G</th><th scope="col" class="r">Part</th>'}<th scope="col" class="r">ISK/h</th></tr>`;
+  $('[data-rows]').innerHTML = people.map(p => {
+    const unknown = soloClosing && p.name === 'Brann Holt';
+    const badge = p.name === 'Cyra Lune' && !solo() ? '<span class="badge b-violet">Booster</span>' : `<span class="hint">${p.tag}</span>`;
+    const shareCells = solo() ? '' : `<td class="r">${p.pct}</td><td class="r c-white">${nf.format(p.share)}${p.plus ? '<span class="c-em" style="font-size:11px;margin-left:4px" title="reste d\'arrondi">+1</span>' : ''}${p.name === 'Cyra Lune' ? `<div class="hint">+ booster ${nf.format(556773)}</div>` : ''}</td>`;
+    return `<tr><td><span class="name" title="${nm(p.name)}">${nm(p.name)}</span> ${badge}</td><td class="r">${unknown ? '<span class="unk">inconnue</span>' : nf.format(p.units)}</td><td class="r">${isk(unknown ? null : p.value)}</td>${shareCells}<td class="r">${unknown ? '<span class="unk">inconnu</span>' : nf.format(p.iskH) + '/h'}<div class="hint">${p.dur}</div></td></tr>`;
+  }).join('') + `<tr class="tot"><td>Total</td><td class="r">${soloClosing ? '<span class="unk">inconnue</span>' : nf.format(146680)}</td><td class="r">${isk(soloClosing ? null : 5567729)}</td>${solo() ? '' : `<td class="r">100 %</td><td class="r">${nf.format(4732570)}</td>`}<td class="r">${soloClosing ? '<span class="unk">inconnu</span>' : nf.format(3711819) + '/h'}</td></tr>`;
+
+  $('[data-pay-count]').textContent = `${paidN} / ${payments.length} payés`;
+  $('[data-pays]').innerHTML = payments.map((p, i) => {
+    const paid = paidOf(i);
+    const editable = admin && !settled;
+    const trace = paid ? `marqué payé par ${nm(p.paidBy)} le 05/11 à <span class="mono">${p.at}</span>` : 'en attente du don en jeu';
+    return `<label class="pay ${paid ? 'paid' : ''}" style="cursor:${editable ? 'pointer' : 'default'}">
+      <input type="checkbox" ${paid ? 'checked' : ''} ${editable ? '' : 'disabled'} aria-label="${nm(p.from)} a payé ${nf.format(p.amount)} ISK à ${nm(p.to)}">
+      <span style="min-width:0"><span class="who"><span class="name" title="${nm(p.from)}">${nm(p.from)}</span><span class="hint">doit</span><span class="amt">${nf.format(p.amount)}</span><span class="hint">ISK à</span><span class="name" title="${nm(p.to)}">${nm(p.to)}</span></span>
+        <div class="why">${p.why}</div><div class="trace">${trace}</div></span>
+      <span class="badge ${paid ? 'b-em' : 'b-amber'}">${paid ? 'payé' : 'en attente'}</span></label>`;
+  }).join('');
+
+  const left = payments.length - paidN;
+  $('[data-settle-btn]').disabled = left > 0;
+  $('[data-settle-blockers]').innerHTML = left > 0 ? `<li>${left} paiement${left > 1 ? 's' : ''} pas encore marqué${left > 1 ? 's' : ''} payé${left > 1 ? 's' : ''}</li>` : '';
+
+  $('[data-recap-list]').innerHTML = completed
+    ? dl([['Période', '<span class="mono">20:00 → 21:30</span> EVE, 1 h 30'], ['Système', 'Système A'], ['Participants', '3 · 5 personnages'], ['Valeur totale', '<span class="mono">5 567 729</span> ISK'], ['ISK/h', '<span class="mono">3 711 819</span>'], ['Base', 'Compressé, Jita vente'], ['Terminée', '05/11 21:58 par Aria Solberg']])
+    : dl([['Période', '<span class="mono">20:00 → 21:30</span> EVE, 1 h 30'], ['Système', 'Système A'], ['Participants', '3 · 5 personnages'], ['Valeur totale', '<span class="mono">5 567 729</span> ISK'], ['ISK/h', '<span class="mono">3 711 819</span>'], ['Base', 'Compressé, Jita vente'], ['Booster', `10 % · <span class="mono">556 773</span> à ${nm('Cyra Lune')}`], ['Corporation', '5 % · <span class="mono">278 386</span>'], ['Paiements', '3 / 3 payés'], ['Réglée', '05/11 23:35 par Aria Solberg']]);
+}
+function kpi(label, v, cls) { return `<div class="card kpi"><p class="hint">${label}</p><p class="v ${v === null ? 'unk' : cls}">${v === null ? 'inconnue' : nf.format(v)}</p></div>`; }
+function kpiTxt(label, v, cls) { return `<div class="card kpi"><p class="hint">${label}</p><p class="v ${cls}">${v}</p></div>`; }
+function dl(items) { return items.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join(''); }
+
+function renderArchive() {
+  const rows = [
+    { label: 'Anomalie Spodumain — 20:00', at: '05/11 23:35', sys: 'Système A', n: 3, g: 5567729, mine: 2294229, note: '', pay: '3 / 3 payés', status: ['Réglée', 'b-em'] },
+    { label: 'Ice belt — dimanche', at: '01/11 19:40', sys: 'Système D', n: 4, g: 3120450, mine: 812300, note: 'ma valeur · chacun pour soi', pay: 'rien à régler', status: ['Terminée', 'b-em'] },
+    { label: 'Gravimétrique — samedi', at: '31/10 23:52', sys: 'Système C', n: 4, g: 215700000, mine: null, note: 'opération de la corporation', pay: '4 / 4 payés', status: ['Réglée', 'b-em'] }
+  ];
+  $('[data-archive-rows]').innerHTML = rows.map(r => `<tr><td><span class="name" title="${nm(r.label)}">${nm(r.label)}</span></td><td class="mono">${r.at}</td><td>${r.sys}</td><td class="r">${r.n}</td><td class="r">${nf.format(r.g)}</td><td class="r">${r.mine === null ? '<span class="hint" style="font-family:inherit">non participant</span>' : nf.format(r.mine)}${r.note && r.mine !== null ? `<div class="hint" style="font-family:inherit">${r.note}</div>` : ''}</td><td>${r.pay}</td><td><span class="badge ${r.status[1]}">${r.status[0]}</span></td></tr>`).join('');
+}
+
+document.querySelectorAll('[data-state]').forEach(b => b.addEventListener('click', () => {
+  S.state = b.dataset.state;
+  document.querySelectorAll('[data-state]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  render();
+}));
+document.querySelector('[data-long]').addEventListener('click', e => { S.long = !S.long; e.currentTarget.setAttribute('aria-pressed', String(S.long)); render(); });
+document.querySelector('[data-member]').addEventListener('click', e => { S.member = !S.member; e.currentTarget.setAttribute('aria-pressed', String(S.member)); render(); });
+render();
+</script>
+</body>
+</html>
