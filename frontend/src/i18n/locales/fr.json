@@ -2625,6 +2625,7 @@
       "planned": "Planifiée",
       "in_progress": "En cours",
       "closing": "Clôture",
+      "shares": "Parts",
       "completed": "Terminée"
     },
     "visibility": {
@@ -2795,6 +2796,94 @@
       "measuring": "Quantités en cours de mesure",
       "unknown": "Quantités inconnues",
       "error": "La couverture du Stockpile n'a pas pu être chargée"
+    },
+    "steps": {
+      "planned": "Planifiée",
+      "in_progress": "En cours",
+      "closing": "Clôture",
+      "shares": "Parts",
+      "settled": "Réglée",
+      "completed": "Terminée"
+    },
+    "valuation": {
+      "title": "Valorisation",
+      "form": {
+        "label": "Base de valorisation",
+        "raw": "Brut",
+        "compressed": "Compressé",
+        "reprocessed": "Retraité"
+      },
+      "market": {
+        "label": "Marché",
+        "jita": "Jita",
+        "structure": "Structure suivie"
+      },
+      "side": {
+        "label": "Côté",
+        "buy": "Achat (buy)",
+        "sell": "Vente (sell)"
+      },
+      "basis": "{form}, {market} {side}",
+      "yield": "Rendement de retraitement",
+      "yieldFromProfile": "pré-rempli depuis votre profil de retraitement",
+      "boosterCut": "Part du booster",
+      "corporationCut": "Part corporation",
+      "booster": "Booster",
+      "noBooster": "Aucun",
+      "noCutEachForThemselves": "sans part en chacun pour soi",
+      "corporationUnknown": "Corporation inconnue : pas de part corporation.",
+      "rule": "G = Σ quantités × prix unitaire de la base. Booster : G × {booster} %. Corporation : G × {corporation} %. Chaque participant : sa valeur × {rest} %, à l'ISK près ; le reste d'arrondi va aux plus grandes fractions.",
+      "ruleEachForThemselves": "Valeur minée = Σ quantités × prix unitaire de la base, pour chacun. Aucune part, aucun paiement.",
+      "save": "Enregistrer les réglages"
+    },
+    "shares": {
+      "previewTitle": "Aperçu de la répartition au prorata de la valeur",
+      "title": "Répartition au prorata de la valeur",
+      "valueTitle": "Valeur minée par participant",
+      "columns": {
+        "participant": "Participant",
+        "quantity": "Quantité (u)",
+        "minedValue": "Valeur minée",
+        "valuePercent": "% de G",
+        "share": "Part",
+        "iskPerHour": "ISK/h"
+      },
+      "total": "Total",
+      "boosterBadge": "Booster",
+      "plusBooster": "+ booster {amount}",
+      "pricesRead": "prix lus à {time} · sync {market} {synced} · recalculé à chaque lecture",
+      "pricesFrozen": "prix figés le {date} · sync {market} {synced}",
+      "reread": "Relire les prix",
+      "check": "Σ parts {shares} + booster {booster} + corporation {corporation} = {total} = G ✓",
+      "checkRemainder": "reste d'arrondi {remainder} ISK",
+      "checkUnknown": "contrôle impossible : G inconnue",
+      "checkEachForThemselves": "Σ valeurs minées {total} = G ✓ · aucune part calculée",
+      "roundingMark": "reste d'arrondi",
+      "unknownBanner": "Valeur totale et parts inconnues. Rien n'est compté pour 0. Causes : {causes}.",
+      "unitPricesRead": "Prix unitaires lus",
+      "unitPricesFrozen": "Prix unitaires figés",
+      "noPrice": "sans prix",
+      "eachForThemselvesBanner": "Chacun pour soi : chacun garde son minerai, pas de part, pas de paiement. Les prix sont lus maintenant.",
+      "kpi": {
+        "total": "Valeur totale G",
+        "booster": "Part du booster, {percent} %",
+        "toShare": "À répartir, {percent} %",
+        "iskPerHour": "ISK/h de l'opération"
+      }
+    },
+    "freeze": {
+      "title": "Figer les parts",
+      "action": "Figer les parts",
+      "hint": "Les prix du moment sont copiés dans l'opération et les parts ne changent plus. Les paiements viennent ensuite.",
+      "confirm": "Figer les parts maintenant ? Les réglages ne pourront plus changer.",
+      "frozenBanner": "Parts figées le {date} EVE. Quantités, prix et parts ne bougent plus.",
+      "blockers": {
+        "not_closing": "L'opération doit être en clôture.",
+        "each_for_themselves": "Chacun pour soi : pas de parts.",
+        "quantities_not_known": "Quantité inconnue ou en mesure : {names}",
+        "prices_missing": "Sans prix sur la base : {types}",
+        "booster_missing": "Choisissez le booster qui reçoit la part du booster."
+      }
     }
   }
 }

@@ -2,12 +2,33 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
 
-export type MiningOperationStatus = 'planned' | 'in_progress' | 'closing' | 'completed'
+export type MiningOperationStatus = 'planned' | 'in_progress' | 'closing' | 'shares' | 'completed'
 export type MiningOperationVisibility = 'private' | 'corporation'
 export type MiningSplitMode = 'value_prorata' | 'each_for_themselves'
 export type MiningOperationMemberRole = 'owner' | 'admin' | 'member'
 export type MiningOperationMemberStatus = 'pending' | 'accepted' | 'removed'
 export type MiningCharacterEligibility = 'eligible' | 'reconnect_required' | 'in_another_operation'
+export type MiningValuationForm = 'raw' | 'compressed' | 'reprocessed'
+export type MiningValuationMarket = 'jita' | 'structure'
+export type MiningValuationSide = 'buy' | 'sell'
+export type MiningShareBlocker = 'not_closing' | 'each_for_themselves' | 'quantities_not_known' | 'prices_missing' | 'booster_missing'
+
+export interface MiningValuationSettings {
+  valuationForm: MiningValuationForm
+  valuationMarket: MiningValuationMarket
+  valuationSide: MiningValuationSide
+  structureId: number | null
+  structureName: string | null
+  reprocessYield: number | null
+  boosterCutPercent: number
+  corporationCutPercent: number
+  boosterMemberId: string | null
+  boosterCharacterName: string | null
+}
+
+export type MiningInvitationValuationSettings = Omit<MiningValuationSettings, 'boosterMemberId'>
+
+export type UpdateMiningValuationInput = Partial<Omit<MiningValuationSettings, 'boosterCharacterName'>>
 
 export interface MiningOperation {
   id: string
@@ -29,6 +50,8 @@ export interface MiningOperation {
   solarSystemId: number | null
   solarSystemName: string | null
   myDepartedAt: string | null
+  valuationSettings: MiningValuationSettings
+  sharesFrozenAt: string | null
 }
 
 export interface MiningOperationMemberCharacter {
@@ -137,6 +160,61 @@ export interface MiningOperationInvitation {
   myRole: MiningOperationMemberRole | null
   myStatus: MiningOperationMemberStatus | null
   characters: MiningOperationInvitationCharacter[]
+  valuationSettings: MiningInvitationValuationSettings
+}
+
+export interface MiningUnitPrice {
+  typeId: number
+  typeName: string | null
+  unitPrice: number | null
+}
+
+export interface MiningValuationCharacter {
+  id: string
+  name: string
+  quantityState: MinedQuantityState
+  totalQuantity: number | null
+  minedValue: number | null
+}
+
+export interface MiningValuationParticipant {
+  memberId: string | null
+  characterName: string | null
+  isBooster: boolean
+  quantityState: MinedQuantityState | null
+  totalQuantity: number | null
+  minedValue: number | null
+  valuePercent: number | null
+  share: number | null
+  roundingAdjustment: number | null
+  iskPerHour: number | null
+  durationSeconds: number | null
+  departedAt: string | null
+  characters: MiningValuationCharacter[]
+}
+
+export interface MiningOperationValuation {
+  operationId: string
+  status: MiningOperationStatus
+  splitMode: MiningSplitMode
+  frozen: boolean
+  sharesFrozenAt: string | null
+  pricesReadAt: string | null
+  pricesSyncedAt: string | null
+  settings: MiningValuationSettings
+  unitPrices: MiningUnitPrice[]
+  missingPriceTypeIds: number[]
+  totalValue: number | null
+  boosterCut: number | null
+  corporationCut: number | null
+  iskPerHour: number | null
+  durationSeconds: number | null
+  roundingRemainder: number | null
+  boosterRoundingAdjustment: number | null
+  corporationRoundingAdjustment: number | null
+  participants: MiningValuationParticipant[]
+  canFreeze: boolean
+  freezeBlockers: MiningShareBlocker[]
 }
 
 export interface CreateMiningOperationInput {
@@ -159,6 +237,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const members = ref<MiningOperationMember[]>([])
   const invitation = ref<MiningOperationInvitation | null>(null)
   const ledger = ref<MiningOperationLedger | null>(null)
+  const valuation = ref<MiningOperationValuation | null>(null)
   const error = ref<string | null>(null)
 
   function messageOf(cause: unknown, fallback: string): string {
@@ -363,6 +442,16 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
+  async function fetchValuation(_id: string): Promise<void> {}
+
+  async function updateValuation(_id: string, _patch: UpdateMiningValuationInput): Promise<MiningOperationValuation | null> {
+    return null
+  }
+
+  async function freezeShares(_id: string): Promise<MiningOperation | null> {
+    return null
+  }
+
   return {
     myOperations,
     availableOperations,
@@ -370,6 +459,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     members,
     invitation,
     ledger,
+    valuation,
     error,
     fetchMine,
     fetchAvailable,
@@ -389,5 +479,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     fetchLedger,
     retrySnapshot,
     correctQuantity,
+    fetchValuation,
+    updateValuation,
+    freezeShares,
   }
 })

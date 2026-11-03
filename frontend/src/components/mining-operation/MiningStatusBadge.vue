@@ -12,6 +12,7 @@ const STATUS_BADGE_CLASS: Record<MiningOperationStatus, string> = {
   planned: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
   in_progress: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
   closing: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
+  shares: 'border-slate-600 bg-slate-800 text-slate-300',
   completed: 'border-slate-600 bg-slate-800 text-slate-300',
 }
 </script>

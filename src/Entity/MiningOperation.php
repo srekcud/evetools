@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Entity\Sde\MapSolarSystem;
+use App\Enum\MarketSide;
 use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
 use App\Enum\MiningOperationVisibility;
 use App\Enum\MiningSplitMode;
+use App\Enum\MiningValuationForm;
+use App\Enum\MiningValuationMarket;
 use App\Repository\MiningOperationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -75,9 +78,39 @@ class MiningOperation
     #[ORM\OneToMany(targetEntity: MiningOperationMember::class, mappedBy: 'operation', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $members;
 
+    private MiningValuationForm $valuationForm = MiningValuationForm::Compressed;
+
+    private MiningValuationMarket $valuationMarket = MiningValuationMarket::Jita;
+
+    private MarketSide $valuationSide = MarketSide::Buy;
+
+    private ?int $valuationStructureId = null;
+
+    private ?string $valuationStructureName = null;
+
+    private ?float $reprocessYield = null;
+
+    private int $boosterCutPercent = 0;
+
+    private int $corporationCutPercent = 0;
+
+    private ?MiningOperationMember $boosterMember = null;
+
+    private ?\DateTimeImmutable $sharesFrozenAt = null;
+
+    private ?\DateTimeImmutable $pricesSyncedAt = null;
+
+    /** @var Collection<int, MiningFrozenUnitPrice> */
+    private Collection $frozenUnitPrices;
+
+    /** @var Collection<int, MiningFrozenMinedValue> */
+    private Collection $frozenMinedValues;
+
     public function __construct()
     {
         $this->members = new ArrayCollection();
+        $this->frozenUnitPrices = new ArrayCollection();
+        $this->frozenMinedValues = new ArrayCollection();
         $this->joinCode = self::generateJoinCode();
         $this->createdAt = new \DateTimeImmutable();
         $this->plannedStartAt = $this->createdAt;
@@ -315,5 +348,89 @@ class MiningOperation
         }
 
         return array_values($users);
+    }
+
+    public function getValuationForm(): MiningValuationForm
+    {
+        return $this->valuationForm;
+    }
+
+    public function getValuationMarket(): MiningValuationMarket
+    {
+        return $this->valuationMarket;
+    }
+
+    public function getValuationSide(): MarketSide
+    {
+        return $this->valuationSide;
+    }
+
+    public function getValuationStructureId(): ?int
+    {
+        return $this->valuationStructureId;
+    }
+
+    public function getValuationStructureName(): ?string
+    {
+        return $this->valuationStructureName;
+    }
+
+    public function getReprocessYield(): ?float
+    {
+        return $this->reprocessYield;
+    }
+
+    public function getBoosterCutPercent(): int
+    {
+        return $this->boosterCutPercent;
+    }
+
+    public function getCorporationCutPercent(): int
+    {
+        return $this->corporationCutPercent;
+    }
+
+    public function getBoosterMember(): ?MiningOperationMember
+    {
+        return $this->boosterMember;
+    }
+
+    public function updateValuationSettings(
+        MiningValuationForm $valuationForm = MiningValuationForm::Compressed,
+        MiningValuationMarket $valuationMarket = MiningValuationMarket::Jita,
+        MarketSide $valuationSide = MarketSide::Buy,
+        ?int $structureId = null,
+        ?string $structureName = null,
+        ?float $reprocessYield = null,
+        int $boosterCutPercent = 0,
+        int $corporationCutPercent = 0,
+        ?MiningOperationMember $boosterMember = null,
+    ): void {
+    }
+
+    public function getSharesFrozenAt(): ?\DateTimeImmutable
+    {
+        return $this->sharesFrozenAt;
+    }
+
+    public function getPricesSyncedAt(): ?\DateTimeImmutable
+    {
+        return $this->pricesSyncedAt;
+    }
+
+    /**
+     * @return Collection<int, MiningFrozenUnitPrice>
+     */
+    public function getFrozenUnitPrices(): Collection
+    {
+        return $this->frozenUnitPrices;
+    }
+
+    /**
+     * @return Collection<int, MiningFrozenMinedValue>
+     */
+    public function getFrozenMinedValues(): Collection
+    {
+        return $this->frozenMinedValues;
     }
 }

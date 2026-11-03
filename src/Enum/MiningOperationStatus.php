@@ -9,6 +9,7 @@ enum MiningOperationStatus: string
     case Planned = 'planned';
     case InProgress = 'in_progress';
     case Closing = 'closing';
+    case Shares = 'shares';
     case Completed = 'completed';
 
     public function isOpen(): bool

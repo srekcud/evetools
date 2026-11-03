@@ -77,4 +77,7 @@ class MiningOperationInvitationResource
 
     /** @var list<array{id: string, eveCharacterId: int, name: string, isMain: bool, eligibility: string, busyOperationLabel: ?string}> */
     public array $characters = [];
+
+    /** @var array<string, mixed>|null */
+    public ?array $valuationSettings = null;
 }

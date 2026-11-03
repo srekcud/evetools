@@ -2625,6 +2625,7 @@
       "planned": "Planned",
       "in_progress": "In progress",
       "closing": "Closing",
+      "shares": "Shares",
       "completed": "Completed"
     },
     "visibility": {
@@ -2795,6 +2796,94 @@
       "measuring": "Quantities being measured",
       "unknown": "Quantities unknown",
       "error": "The Stockpile coverage could not be loaded"
+    },
+    "steps": {
+      "planned": "Planned",
+      "in_progress": "In progress",
+      "closing": "Closing",
+      "shares": "Shares",
+      "settled": "Settled",
+      "completed": "Completed"
+    },
+    "valuation": {
+      "title": "Valuation",
+      "form": {
+        "label": "Valuation basis",
+        "raw": "Raw",
+        "compressed": "Compressed",
+        "reprocessed": "Reprocessed"
+      },
+      "market": {
+        "label": "Market",
+        "jita": "Jita",
+        "structure": "Tracked structure"
+      },
+      "side": {
+        "label": "Side",
+        "buy": "Buy",
+        "sell": "Sell"
+      },
+      "basis": "{form}, {market} {side}",
+      "yield": "Reprocessing yield",
+      "yieldFromProfile": "prefilled from your reprocessing profile",
+      "boosterCut": "Booster cut",
+      "corporationCut": "Corporation cut",
+      "booster": "Booster",
+      "noBooster": "None",
+      "noCutEachForThemselves": "no cut when everyone keeps their own",
+      "corporationUnknown": "Unknown corporation: no corporation cut.",
+      "rule": "G = Σ quantities × unit price of the basis. Booster: G × {booster} %. Corporation: G × {corporation} %. Each participant: their value × {rest} %, to the ISK; the rounding remainder goes to the largest fractions.",
+      "ruleEachForThemselves": "Mined value = Σ quantities × unit price of the basis, for each participant. No share, no payment.",
+      "save": "Save settings"
+    },
+    "shares": {
+      "previewTitle": "Value prorata split preview",
+      "title": "Value prorata split",
+      "valueTitle": "Mined value by participant",
+      "columns": {
+        "participant": "Participant",
+        "quantity": "Quantity (u)",
+        "minedValue": "Mined value",
+        "valuePercent": "% of G",
+        "share": "Share",
+        "iskPerHour": "ISK/h"
+      },
+      "total": "Total",
+      "boosterBadge": "Booster",
+      "plusBooster": "+ booster {amount}",
+      "pricesRead": "prices read at {time} · {market} sync {synced} · recomputed on every read",
+      "pricesFrozen": "prices frozen on {date} · {market} sync {synced}",
+      "reread": "Re-read prices",
+      "check": "Σ shares {shares} + booster {booster} + corporation {corporation} = {total} = G ✓",
+      "checkRemainder": "rounding remainder {remainder} ISK",
+      "checkUnknown": "check impossible: G unknown",
+      "checkEachForThemselves": "Σ mined values {total} = G ✓ · no share computed",
+      "roundingMark": "rounding remainder",
+      "unknownBanner": "Total value and shares unknown. Nothing is counted as 0. Causes: {causes}.",
+      "unitPricesRead": "Unit prices read",
+      "unitPricesFrozen": "Frozen unit prices",
+      "noPrice": "no price",
+      "eachForThemselvesBanner": "Everyone keeps their own ore: no share, no payment. Prices are read now.",
+      "kpi": {
+        "total": "Total value G",
+        "booster": "Booster cut, {percent} %",
+        "toShare": "To share, {percent} %",
+        "iskPerHour": "Operation ISK/h"
+      }
+    },
+    "freeze": {
+      "title": "Freeze shares",
+      "action": "Freeze shares",
+      "hint": "Current prices are copied into the operation and the shares stop changing. Payments come next.",
+      "confirm": "Freeze the shares now? Settings can no longer change.",
+      "frozenBanner": "Shares frozen on {date} EVE. Quantities, prices and shares no longer change.",
+      "blockers": {
+        "not_closing": "The operation must be closing.",
+        "each_for_themselves": "Everyone keeps their own: no shares.",
+        "quantities_not_known": "Unknown or still measured quantity: {names}",
+        "prices_missing": "No price on the basis: {types}",
+        "booster_missing": "Choose the booster who receives the booster cut."
+      }
     }
   }
 }

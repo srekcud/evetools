@@ -19,6 +19,7 @@ use App\State\Processor\MiningOperation\CreateMiningOperationProcessor;
 use App\State\Processor\MiningOperation\DeleteMiningOperationProcessor;
 use App\State\Processor\MiningOperation\DepartMiningOperationProcessor;
 use App\State\Processor\MiningOperation\EndMiningOperationProcessor;
+use App\State\Processor\MiningOperation\FreezeMiningSharesProcessor;
 use App\State\Processor\MiningOperation\LeaveMiningOperationProcessor;
 use App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor;
 use App\State\Processor\MiningOperation\StartMiningOperationProcessor;
@@ -155,6 +156,20 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
                 tags: ['Mining Operations'],
             ),
         ),
+        new Post(
+            uriTemplate: '/mining-operations/{id}/freeze-shares',
+            uriVariables: [
+                'id' => new Link(fromClass: self::class),
+            ],
+            processor: FreezeMiningSharesProcessor::class,
+            input: EmptyInput::class,
+            status: 200,
+            openapi: new Model\Operation(
+                summary: 'Freeze the shares of a mining operation',
+                description: 'Copies the current unit prices and the mined value of each participant into a closing operation, which moves to shares (owner or admin)',
+                tags: ['Mining Operations'],
+            ),
+        ),
     ],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: false,
@@ -199,4 +214,9 @@ class MiningOperationResource
     public ?string $solarSystemName = null;
 
     public ?\DateTimeImmutable $myDepartedAt = null;
+
+    /** @var array<string, mixed>|null */
+    public ?array $valuationSettings = null;
+
+    public ?\DateTimeImmutable $sharesFrozenAt = null;
 }
