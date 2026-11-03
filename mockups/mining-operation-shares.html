@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<!--
+  Maquette #264 · valorisation et répartition d'une opération de minage.
+  Référence visuelle : mockups/grouped-mining-v4.html (branche docs/mining-specs), écrans renderShares() et renderSoloResults().
+  Écarts assumés par la spec docs/specs/264-mining-operation-valuation-split.md : réglages de valorisation dans une carte du détail
+  (pas à la création), aperçu recalculé en clôture, bouton « Figer les parts », pas de paiements (#265) ni de fleet storage (#266).
+  Données fictives = exemples S1, P1, Q1, E1 de la spec.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opération de minage · parts (#264)</title>
+<style>
+:root {
+  --s950:#020617; --s900:#0f172a; --s800:#1e293b; --s700:#334155; --s600:#475569; --s500:#64748b; --s400:#94a3b8; --s300:#cbd5e1; --s200:#e2e8f0; --s100:#f1f5f9;
+  --c400:#22d3ee; --c500:#06b6d4; --e400:#34d399; --e500:#10b981; --a400:#fbbf24; --a500:#f59e0b; --v400:#a78bfa; --r400:#f87171;
+  --mono: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--s950); color: var(--s100); font: 14px/1.45 ui-sans-serif, system-ui, sans-serif; }
+body::before { content: ''; position: fixed; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(6,182,212,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,.03) 1px, transparent 1px); background-size: 50px 50px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.mockbar { position: relative; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 16px; border-bottom: 2px dashed rgba(167,139,250,.5); background: #120c1e; color: #c4b5fd; font-size: 12px; }
+.mockbar button { background: rgba(167,139,250,.08); color: #ddd6fe; border: 1px dashed rgba(167,139,250,.45); border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+.mockbar button[aria-pressed="true"] { background: rgba(167,139,250,.3); border-style: solid; color: #fff; }
+.mockbar button:focus-visible, .btn:focus-visible, select:focus-visible, input:focus-visible, .radio label:focus-within { outline: 2px solid var(--c400); outline-offset: 2px; }
+.page { position: relative; max-width: 80rem; margin: 0 auto; padding: 28px 24px 64px; display: flex; flex-direction: column; gap: 20px; }
+.card { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; }
+.pad { padding: 20px 24px; }
+h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--s100); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--s200); }
+.row { display: flex; align-items: center; gap: 12px; }
+.sb { justify-content: space-between; }
+.wrapf { flex-wrap: wrap; }
+.hint { color: var(--s500); font-size: 13px; }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 12px; border: 1px solid; white-space: nowrap; }
+.b-amber { color: var(--a400); border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.1); }
+.b-violet { color: var(--v400); border-color: rgba(167,139,250,.4); background: rgba(167,139,250,.1); }
+.b-em { color: var(--e400); border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.1); }
+.b-cyan { color: var(--c400); border-color: rgba(6,182,212,.4); background: rgba(6,182,212,.1); }
+.stepper { display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.stp { display: flex; align-items: center; gap: 8px; color: var(--s500); font-size: 13px; }
+.stp .n { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--s700); display: grid; place-items: center; font-family: var(--mono); font-size: 12px; }
+.stp.done { color: var(--e400); } .stp.done .n { border-color: var(--e500); background: rgba(16,185,129,.15); }
+.stp.cur { color: var(--c400); } .stp.cur .n { border-color: var(--c400); background: rgba(6,182,212,.15); box-shadow: 0 0 12px rgba(34,211,238,.35); }
+.stl { flex: 0 0 28px; height: 1px; background: var(--s700); } .stl.done { background: var(--e500); }
+.grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.fl { font-size: 12px; color: var(--s400); }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 560px) { .fields { grid-template-columns: 1fr; } }
+select, input { background: var(--s950); color: var(--s100); border: 1px solid var(--s700); border-radius: 8px; padding: 8px 10px; font: inherit; }
+input.pct { width: 72px; font-family: var(--mono); text-align: right; }
+:disabled { opacity: .45; cursor: not-allowed; }
+.radio { display: flex; border: 1px solid var(--s700); border-radius: 8px; overflow: hidden; }
+.radio label { flex: 1; padding: 7px 10px; text-align: center; color: var(--s400); cursor: pointer; font-size: 13px; }
+.radio label + label { border-left: 1px solid var(--s700); }
+.radio input { position: absolute; opacity: 0; }
+.radio label:has(input:checked) { background: rgba(6,182,212,.15); color: var(--c400); }
+.btn { border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; border: 1px solid var(--s700); background: var(--s800); color: var(--s200); }
+.btn.pri { background: linear-gradient(to right, #0891b2, #2563eb); border-color: transparent; color: #fff; }
+.btn.sm { padding: 5px 10px; font-size: 12px; font-weight: 500; }
+.banner { display: flex; gap: 12px; padding: 14px 18px; border-radius: 12px; border: 1px solid; }
+.banner.amber { border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.08); color: #fde68a; }
+.banner.em { border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.08); color: #a7f3d0; }
+.banner.cyan { border-color: rgba(6,182,212,.35); background: rgba(6,182,212,.06); color: #a5f3fc; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 500; font-size: 12px; color: var(--s500); padding: 10px 14px; border-bottom: 1px solid var(--s800); white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid rgba(30,41,59,.6); vertical-align: top; }
+th.r, td.r { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.sub td { color: var(--s400); font-size: 13px; padding-top: 4px; padding-bottom: 4px; }
+tr.sub td:first-child { padding-left: 40px; }
+tr.tot td { font-weight: 600; color: var(--s200); border-bottom: 0; background: rgba(30,41,59,.4); }
+.name { display: inline-block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: var(--s200); }
+.unk { color: var(--a400); font-style: italic; }
+.share { color: #fff; }
+.plus1 { color: var(--e400); font-size: 11px; margin-left: 4px; }
+.check { padding: 12px 24px; border-top: 1px solid var(--s800); font-family: var(--mono); font-size: 13px; color: var(--s300); }
+.check.ok { color: var(--e400); }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 760px) { .kpis { grid-template-columns: 1fr 1fr; } }
+.kpi { padding: 16px 18px; }
+.kpi p { margin: 0; }
+.kpi .v { font-family: var(--mono); font-size: 24px; margin-top: 8px; }
+.c-em { color: var(--e400); } .c-violet { color: var(--v400); } .c-cyan { color: var(--c400); } .c-white { color: #fff; }
+.blockers { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--a400); }
+.dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 13px; }
+.dl dt { color: var(--s500); } .dl dd { margin: 0; color: var(--s300); }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="mockbar" role="toolbar" aria-label="États de la maquette">
+  <strong>Maquette #264</strong>
+  <button data-state="closing" aria-pressed="true">Clôture · aperçu</button>
+  <button data-state="unknown" aria-pressed="false">Clôture · quantité inconnue</button>
+  <button data-state="frozen" aria-pressed="false">Parts figées</button>
+  <button data-state="solo" aria-pressed="false">Chacun pour soi</button>
+  <button data-long aria-pressed="false">Noms longs</button>
+</div>
+
+<main class="page">
+  <section class="card pad" aria-labelledby="op-title">
+    <div class="row sb wrapf">
+      <div style="min-width:0;flex:1">
+        <div class="row" style="min-width:0"><h1 id="op-title" data-op-label>Anomalie Spodumain — 20:00</h1><span class="badge b-amber" data-status>Clôture</span><span class="badge b-violet">Ma corporation</span></div>
+        <p class="hint" style="margin:4px 0 0"><span class="mono">20:00 → 21:30</span> EVE (1 h 30) · <span data-basis-meta>Compressé, Jita vente</span> · <span data-cut-meta>booster 10 % (Cyra Lune) · corporation 0 %</span></p>
+      </div>
+      <div class="row" data-header-actions>
+        <button class="btn">Corriger une quantité</button>
+      </div>
+    </div>
+    <div class="stepper" data-stepper aria-label="Étapes de l'opération"></div>
+  </section>
+
+  <div class="banner amber" data-unknown-banner hidden role="status">
+    <div><b>Valeur totale et parts inconnues.</b> Rien n'est compté pour 0. Brann II : instantané de début non lu (token invalide). Un Owner ou un Admin peut corriger sa quantité ; les parts se figent ensuite.</div>
+  </div>
+  <div class="banner em" data-frozen-banner hidden role="status">
+    <div><b>Parts figées le jeu. 05/11 21:52 EVE.</b> Prix de la sync Jita de 21:00, base Compressé, Jita vente. Quantités, prix et parts ne bougent plus.</div>
+  </div>
+  <div class="banner cyan" data-solo-banner hidden role="status">
+    <div><b>Chacun pour soi.</b> Chacun garde son minerai : pas de part, pas de booster rémunéré, pas de paiement. Les valeurs ci-dessous viennent du ledger de fin de chaque personnage, au prix lu maintenant.</div>
+  </div>
+
+  <div class="kpis" data-kpis hidden>
+    <div class="card kpi"><p class="hint">Valeur totale G</p><p class="v c-em" data-kpi-g>5 567 729</p></div>
+    <div class="card kpi" data-kpi-booster><p class="hint">Part du booster, 10 %</p><p class="v c-violet">556 773</p></div>
+    <div class="card kpi" data-kpi-share><p class="hint">À répartir, 90 %</p><p class="v c-cyan">5 010 956</p></div>
+    <div class="card kpi"><p class="hint">ISK/h de l'opération</p><p class="v c-white">3 711 819</p></div>
+  </div>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="split-title" style="overflow-x:auto">
+      <div class="pad row sb wrapf" style="padding-bottom:12px">
+        <h2 id="split-title" data-table-title>Aperçu de la répartition au prorata de la valeur</h2>
+        <span class="hint" data-prices-hint>prix lus à <span class="mono">21:42</span> · sync Jita <span class="mono">21:00</span> · recalculé à chaque lecture</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th scope="col">Participant</th><th scope="col" class="r">Quantité (u)</th><th scope="col" class="r">Valeur minée</th><th scope="col" class="r">% de G</th><th scope="col" class="r" data-col-share>Part</th><th scope="col" class="r">ISK/h</th>
+        </tr></thead>
+        <tbody data-rows></tbody>
+      </table>
+      <div class="check ok" data-check></div>
+    </section>
+
+    <aside style="display:flex;flex-direction:column;gap:20px">
+      <section class="card pad" aria-labelledby="val-title" data-settings>
+        <div class="row sb"><h2 id="val-title">Valorisation</h2><span class="hint">Owner ou Admin</span></div>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+          <div class="field"><span class="fl" id="f-form">Base de valorisation</span>
+            <div class="radio" role="radiogroup" aria-labelledby="f-form">
+              <label><input type="radio" name="form" value="raw">Brut</label>
+              <label><input type="radio" name="form" value="compressed" checked>Compressé</label>
+              <label><input type="radio" name="form" value="reprocessed">Retraité</label>
+            </div>
+          </div>
+          <div class="fields">
+            <div class="field"><label class="fl" for="f-market">Marché</label><select id="f-market"><option>Jita</option><option>Structure suivie</option></select></div>
+            <div class="field"><label class="fl" for="f-side">Côté</label><select id="f-side"><option>Achat (buy)</option><option selected>Vente (sell)</option></select></div>
+          </div>
+          <div class="field" data-yield hidden><label class="fl" for="f-yield">Rendement de retraitement</label><div class="row"><input id="f-yield" class="pct" value="72,36"><span class="hint">% · pré-rempli depuis votre profil de retraitement</span></div></div>
+          <div class="fields">
+            <div class="field"><label class="fl" for="f-boost">Part du booster</label><div class="row" style="gap:6px"><input id="f-boost" class="pct" value="10" inputmode="numeric"><span class="hint" data-boost-hint>%</span></div></div>
+            <div class="field"><label class="fl" for="f-corp">Part corporation</label><div class="row" style="gap:6px"><input id="f-corp" class="pct" value="0" inputmode="numeric"><span class="hint">%</span></div></div>
+          </div>
+          <div class="field"><label class="fl" for="f-booster">Booster</label><select id="f-booster"><option>Aucun</option><option data-person="aria">Aria Solberg</option><option data-person="brann">Brann Holt</option><option selected data-person="cyra">Cyra Lune</option></select></div>
+          <p class="hint" style="margin:0" data-rule>G = Σ quantités × prix unitaire de la base. Booster : G × 10 %. Corporation : G × 0 %. Chaque participant : sa valeur × 90 %, à l'ISK près ; le reste d'arrondi va aux plus grandes fractions.</p>
+          <button class="btn sm" style="align-self:flex-start">Enregistrer les réglages</button>
+        </div>
+      </section>
+
+      <section class="card pad" aria-labelledby="freeze-title" data-freeze>
+        <h2 id="freeze-title">Figer les parts</h2>
+        <p class="hint" style="margin:8px 0 12px">Les prix du moment sont copiés dans l'opération et les parts ne changent plus. Les paiements viennent ensuite.</p>
+        <button class="btn pri" data-freeze-btn>Figer les parts</button>
+        <ul class="blockers" data-blockers hidden>
+          <li>Quantité inconnue : Brann Holt (Brann II)</li>
+        </ul>
+      </section>
+
+      <section class="card pad" aria-labelledby="prices-title">
+        <h2 id="prices-title" data-prices-title>Prix unitaires lus</h2>
+        <dl class="dl" style="margin-top:12px">
+          <dt>Veldspar</dt><dd class="mono">19,61 ISK/u</dd>
+          <dt>Bitumens</dt><dd class="mono">221,45 ISK/u</dd>
+        </dl>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<script>
+const LONG = ' Longnom-Exemple de la Corpo Exemple';
+const S = { state: 'closing', long: false };
+const people = [
+  { id: 'aria', name: 'Aria Solberg', tag: 'Owner · vous', units: 103333, value: 2699093, pct: '48,5 %', share: 2429184, plus: true, iskH: 1799395, dur: '1 h 30',
+    chars: [['Aria Solberg', 'Veldspar 100 000', 1961000], ['Aria II', 'Bitumens 3 333', 738093]] },
+  { id: 'brann', name: 'Brann Holt', tag: 'parti 21:05', units: 43338, value: 2868460, pct: '51,5 %', share: 2581614, iskH: 2647809, dur: '1 h 05',
+    chars: [['Brann Holt', 'Bitumens 10 001', 2214721], ['Brann II', 'Veldspar 33 337', 653739]] },
+  { id: 'cyra', name: 'Cyra Lune', tag: 'booster', units: 9, value: 176, pct: '0,0 %', share: 158, iskH: 117, dur: '1 h 30',
+    chars: [['Cyra Lune', 'Veldspar 9', 176]] }
+];
+const nf = new Intl.NumberFormat('fr-FR');
+const isk = v => v === null ? '<span class="unk">inconnue</span>' : nf.format(v);
+const steps = solo => solo ? ['Planifiée', 'En cours', 'Clôture', 'Terminée'] : ['Planifiée', 'En cours', 'Clôture', 'Parts', 'Réglée'];
+const $ = s => document.querySelector(s);
+
+function render() {
+  const solo = S.state === 'solo', frozen = S.state === 'frozen', unknown = S.state === 'unknown';
+  const cur = frozen ? 3 : 2;
+  $('[data-stepper]').innerHTML = steps(solo).map((l, i) => `${i ? `<div class="stl ${i <= cur ? 'done' : ''}"></div>` : ''}<div class="stp ${i < cur ? 'done' : i === cur ? 'cur' : ''}" ${i === cur ? 'aria-current="step"' : ''}><span class="n">${i < cur ? '✓' : i + 1}</span>${l}</div>`).join('');
+  const st = $('[data-status]');
+  st.textContent = frozen ? 'Parts' : 'Clôture';
+  st.className = 'badge ' + (frozen ? 'b-violet' : 'b-amber');
+  $('[data-op-label]').textContent = 'Anomalie Spodumain — 20:00' + (S.long ? ', opération récurrente de la Corpo Exemple' : '');
+  $('[data-cut-meta]').innerHTML = solo ? 'chacun pour soi · boost de Cyra Lune sans part' : `booster 10 % (Cyra Lune${S.long ? LONG : ''}) · corporation 0 %`;
+  $('[data-header-actions]').innerHTML = frozen ? '<button class="btn">Exporter CSV</button>' : '<button class="btn">Corriger une quantité</button>';
+  $('[data-unknown-banner]').hidden = !unknown;
+  $('[data-frozen-banner]').hidden = !frozen;
+  $('[data-solo-banner]').hidden = !solo;
+  $('[data-kpis]').hidden = !frozen;
+  $('[data-settings]').hidden = frozen;
+  $('[data-freeze]').hidden = frozen || solo;
+  $('[data-blockers]').hidden = !unknown;
+  $('[data-freeze-btn]').disabled = unknown;
+  $('[data-col-share]').hidden = solo;
+  ['#f-boost', '#f-corp', '#f-booster'].forEach(sel => { $(sel).disabled = solo; if (solo && sel !== '#f-booster') $(sel).value = 0; else if (sel === '#f-boost') $(sel).value = 10; });
+  $('[data-boost-hint]').textContent = solo ? '% · sans part en chacun pour soi' : '%';
+  $('[data-rule]').textContent = solo
+    ? 'Valeur minée = Σ quantités × prix unitaire de la base, pour chacun. Aucune part, aucun paiement.'
+    : 'G = Σ quantités × prix unitaire de la base. Booster : G × 10 %. Corporation : G × 0 %. Chaque participant : sa valeur × 90 %, à l\'ISK près ; le reste d\'arrondi va aux plus grandes fractions.';
+  $('[data-table-title]').textContent = frozen ? 'Répartition au prorata de la valeur' : solo ? 'Valeur minée par participant' : 'Aperçu de la répartition au prorata de la valeur';
+  $('[data-prices-hint]').innerHTML = frozen ? 'prix figés le <span class="mono">05/11 21:52</span> · sync Jita <span class="mono">21:00</span>' : 'prix lus à <span class="mono">21:42</span> · sync Jita <span class="mono">21:00</span> · recalculé à chaque lecture';
+  $('[data-prices-title]').textContent = frozen ? 'Prix unitaires figés' : 'Prix unitaires lus';
+
+  const rows = people.map(p => {
+    const brannUnknown = unknown && p.id === 'brann';
+    const value = brannUnknown ? null : p.value;
+    const share = solo || unknown ? null : p.share;
+    const name = p.name + (S.long ? LONG : '');
+    const badge = p.id === 'cyra' ? '<span class="badge b-violet">Booster</span>' : `<span class="hint">${p.tag}</span>`;
+    const shareCell = solo ? '' : `<td class="r share">${isk(share)}${frozen && p.plus ? '<span class="plus1" title="reste d\'arrondi">+1</span>' : ''}${p.id === 'cyra' && !unknown ? `<div class="hint">+ booster ${nf.format(556773)}</div>` : ''}</td>`;
+    const main = `<tr><td><span class="name" title="${name}">${name}</span> ${badge}</td><td class="r">${brannUnknown ? '<span class="unk">inconnue</span>' : nf.format(p.units)}</td><td class="r">${isk(value)}</td><td class="r">${unknown ? '<span class="unk">inconnu</span>' : p.pct}</td>${shareCell}<td class="r">${value === null ? '<span class="unk">inconnu</span>' : nf.format(p.iskH) + '/h'}<div class="hint">${p.dur}</div></td></tr>`;
+    const subs = p.chars.map(([n, q, v]) => {
+      const charUnknown = brannUnknown && n === 'Brann II';
+      const cn = n + (S.long ? LONG : '');
+      return `<tr class="sub"><td><span class="name" title="${cn}">${cn}</span> — ${charUnknown ? 'instantané de début non lu' : q}</td><td class="r"></td><td class="r">${charUnknown ? '<span class="unk">inconnue</span>' : nf.format(v)}</td><td></td>${solo ? '' : '<td></td>'}<td></td></tr>`;
+    }).join('');
+    return main + subs;
+  }).join('');
+  const gKnown = !unknown;
+  const tot = `<tr class="tot"><td>Total</td><td class="r">${unknown ? '<span class="unk">inconnue</span>' : nf.format(146680)}</td><td class="r">${isk(gKnown ? 5567729 : null)}</td><td class="r">${gKnown ? '100 %' : '<span class="unk">inconnu</span>'}</td>${solo ? '' : `<td class="r">${isk(gKnown ? 5010956 : null)}</td>`}<td class="r">${gKnown ? nf.format(3711819) + '/h' : '<span class="unk">inconnu</span>'}</td></tr>`;
+  $('[data-rows]').innerHTML = rows + tot;
+  const check = $('[data-check]');
+  check.className = 'check ' + (gKnown ? 'ok' : '');
+  check.innerHTML = solo
+    ? 'Σ valeurs minées 5 567 729 = G ✓ · aucune part calculée'
+    : gKnown
+      ? `Σ parts 5 010 956 + booster 556 773 + corporation 0 = 5 567 729 = G ✓ · reste d'arrondi 2 ISK : booster +1, Aria Solberg +1`
+      : '<span class="unk">contrôle impossible : G inconnue</span>';
+}
+document.querySelectorAll('[data-state]').forEach(b => b.addEventListener('click', () => {
+  S.state = b.dataset.state;
+  document.querySelectorAll('[data-state]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  render();
+}));
+document.querySelector('[data-long]').addEventListener('click', e => { S.long = !S.long; e.currentTarget.setAttribute('aria-pressed', String(S.long)); render(); });
+document.querySelectorAll('input[name="form"]').forEach(r => r.addEventListener('change', () => { $('[data-yield]').hidden = r.value !== 'reprocessed' || !r.checked; }));
+render();
+</script>
+</body>
+</html>
