@@ -13,6 +13,9 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class InvTypeRepository extends ServiceEntityRepository
 {
+    private const int ASTEROID_CATEGORY_ID = 25;
+    private const int HARVESTABLE_CLOUD_GROUP_ID = 711;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, InvType::class);
@@ -137,6 +140,19 @@ class InvTypeRepository extends ServiceEntityRepository
      */
     public function findMineableCandidates(): array
     {
-        return [];
+        return $this->createQueryBuilder('t')
+            ->innerJoin('t.group', 'g')
+            ->addSelect('g')
+            ->innerJoin('g.category', 'c')
+            ->addSelect('c')
+            ->where('t.published = :published')
+            ->andWhere('t.marketGroup IS NOT NULL')
+            ->andWhere('c.categoryId = :asteroidCategoryId OR g.groupId = :harvestableCloudGroupId')
+            ->setParameter('published', true)
+            ->setParameter('asteroidCategoryId', self::ASTEROID_CATEGORY_ID)
+            ->setParameter('harvestableCloudGroupId', self::HARVESTABLE_CLOUD_GROUP_ID)
+            ->orderBy('t.typeName', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 }

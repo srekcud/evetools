@@ -72,12 +72,16 @@ class OreValueService
         $allTypeIds = array_unique(array_merge($allTypeIds, $mineralTypeIds));
 
         // Batch fetch Jita prices
-        $jitaPrices = $this->jitaMarketService->getPrices($allTypeIds);
+        $jitaPrices = $side === MarketSide::Buy
+            ? $this->jitaMarketService->getBuyPrices($allTypeIds)
+            : $this->jitaMarketService->getPrices($allTypeIds);
 
         // Batch fetch structure prices if needed
         $structurePrices = [];
         if ($structureId !== null && $this->structureMarketService !== null) {
-            $structurePrices = $this->structureMarketService->getLowestSellPrices($structureId, $allTypeIds);
+            $structurePrices = $side === MarketSide::Buy
+                ? $this->structureMarketService->getHighestBuyPrices($structureId, $allTypeIds)
+                : $this->structureMarketService->getLowestSellPrices($structureId, $allTypeIds);
         }
 
         // Build results

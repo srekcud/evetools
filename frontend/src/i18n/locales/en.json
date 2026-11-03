@@ -1605,6 +1605,42 @@
         "corpProject": "Corp project",
         "industry": "Industry",
         "unknown": "Uncategorized"
+      },
+      "subTabs": {
+        "label": "Mining views",
+        "entries": "Entries",
+        "oreValue": "Value per m³"
+      },
+      "oreValue": {
+        "title": "Value per mined m³",
+        "subtitle": "ISK per m³ extracted by the laser, for each ore, ice and gas, sold raw, compressed or reprocessed.",
+        "marketLabel": "Market",
+        "jitaBuy": "Jita buy",
+        "jitaSell": "Jita sell",
+        "structureBuy": "Structure buy",
+        "structureSell": "Structure sell",
+        "structureRequired": "Pick a structure above to compare its market",
+        "yieldKnown": "Reprocessing yield: {percent} %",
+        "yieldUnknown": "No reprocessing yield stored: reprocessed values are unknown. Change the yield above to store one.",
+        "familyLabel": "Family",
+        "allFamilies": "All",
+        "ore": "Ore",
+        "ice": "Ice",
+        "gas": "Gas",
+        "unit": "ISK/m³",
+        "volume": "Volume (m³)",
+        "raw": "Raw",
+        "compressed": "Compressed",
+        "reprocessed": "Reprocessed",
+        "best": "Best",
+        "bestOption": "Best option",
+        "gap": "Gap to best",
+        "sortBy": "Sort by {column}",
+        "notReprocessable": "Cannot be reprocessed",
+        "mineral": "{name} ×{quantity}",
+        "unknownMineral": "#{typeId} ×{quantity}",
+        "loadError": "Could not load the value per m³ table.",
+        "empty": "No ore to compare."
       }
     },
     "pve": {

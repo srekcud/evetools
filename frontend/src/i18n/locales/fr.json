@@ -1605,6 +1605,42 @@
         "corpProject": "Projet corp",
         "industry": "Industrie",
         "unknown": "Non categorise"
+      },
+      "subTabs": {
+        "label": "Vues du minage",
+        "entries": "Entrées",
+        "oreValue": "Valeur au m³"
+      },
+      "oreValue": {
+        "title": "Valeur au m³ extrait",
+        "subtitle": "ISK par m³ extrait par le laser, pour chaque minerai, glace et gaz, vendu brut, compressé ou retraité.",
+        "marketLabel": "Marché",
+        "jitaBuy": "Jita achat",
+        "jitaSell": "Jita vente",
+        "structureBuy": "Structure achat",
+        "structureSell": "Structure vente",
+        "structureRequired": "Choisissez une structure ci-dessus pour comparer son marché",
+        "yieldKnown": "Rendement de retraitement : {percent} %",
+        "yieldUnknown": "Aucun rendement de retraitement enregistré : les valeurs retraitées sont inconnues. Modifiez le rendement ci-dessus pour en enregistrer un.",
+        "familyLabel": "Famille",
+        "allFamilies": "Toutes",
+        "ore": "Minerai",
+        "ice": "Glace",
+        "gas": "Gaz",
+        "unit": "ISK/m³",
+        "volume": "Volume (m³)",
+        "raw": "Brut",
+        "compressed": "Compressé",
+        "reprocessed": "Retraité",
+        "best": "Meilleur",
+        "bestOption": "Meilleure option",
+        "gap": "Écart au meilleur",
+        "sortBy": "Trier par {column}",
+        "notReprocessable": "Ne peut pas être retraité",
+        "mineral": "{name} ×{quantity}",
+        "unknownMineral": "#{typeId} ×{quantity}",
+        "loadError": "Impossible de charger la table de valeur au m³.",
+        "empty": "Aucun minerai à comparer."
       }
     },
     "pve": {

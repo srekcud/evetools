@@ -7,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useMiningPricing } from '@/composables/useMiningPricing'
 import MiningStatsCards from './MiningStatsCards.vue'
 import MiningEntriesTable from './MiningEntriesTable.vue'
+import OreValueTab from './OreValueTab.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const props = defineProps<{
@@ -21,6 +22,10 @@ const { t } = useI18n()
 const ledgerStore = useLedgerStore()
 const authStore = useAuthStore()
 const { formatDateTime } = useFormatters()
+
+type MiningView = 'entries' | 'oreValue'
+const miningViews: MiningView[] = ['entries', 'oreValue']
+const activeMiningView = ref<MiningView>('entries')
 
 // Structure selection for mining prices
 interface StructureSearchResult {
@@ -385,24 +390,48 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Stats Cards -->
-    <MiningStatsCards
-      :mining-by-usage="miningByUsage"
-      :isk-per-active-day="iskPerActiveDay"
-      :active-days="activeDays"
-      :mining-stats="miningStats"
-      :loading="ledgerStore.isLoading"
-      :main-system="mainSystem"
-      :missing-price-type-labels="missingPriceTypeLabels"
-    />
+    <div class="flex gap-2" role="group" :aria-label="t('ledger.mining.subTabs.label')">
+      <button
+        v-for="view in miningViews"
+        :key="view"
+        type="button"
+        :aria-pressed="activeMiningView === view"
+        :class="[
+          'px-4 py-1.5 rounded-sm border text-xs font-medium uppercase tracking-wider transition-colors',
+          activeMiningView === view ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200',
+        ]"
+        @click="activeMiningView = view"
+      >
+        {{ t(`ledger.mining.subTabs.${view}`) }}
+      </button>
+    </div>
 
-    <!-- Entries Table -->
-    <MiningEntriesTable
-      ref="tableRef"
-      :entries="miningEntries"
-      :selected-structure-id="selectedStructureId"
-      :reprocess-yield="reprocessYield"
-      @update-usage="handleUpdateUsage"
+    <template v-if="activeMiningView === 'entries'">
+      <!-- Stats Cards -->
+      <MiningStatsCards
+        :mining-by-usage="miningByUsage"
+        :isk-per-active-day="iskPerActiveDay"
+        :active-days="activeDays"
+        :mining-stats="miningStats"
+        :loading="ledgerStore.isLoading"
+        :main-system="mainSystem"
+        :missing-price-type-labels="missingPriceTypeLabels"
+      />
+
+      <!-- Entries Table -->
+      <MiningEntriesTable
+        ref="tableRef"
+        :entries="miningEntries"
+        :selected-structure-id="selectedStructureId"
+        :reprocess-yield="reprocessYield"
+        @update-usage="handleUpdateUsage"
+      />
+    </template>
+
+    <OreValueTab
+      v-else
+      :structure-id="selectedStructureId"
+      :reprocess-yield-percent="reprocessYield"
     />
   </div>
 </template>

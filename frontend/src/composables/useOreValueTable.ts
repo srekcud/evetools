@@ -7,7 +7,7 @@ export type OreValueOption = 'raw' | 'compressed' | 'reprocessed'
 export interface OreValueMineral {
   typeId: number
   typeName: string | null
-  quantityPerUnit: number
+  quantityPerUnit: number | null
 }
 
 export interface OreValueRow {
@@ -26,6 +26,18 @@ export interface OreValueRow {
   minerals: OreValueMineral[]
 }
 
+export type OreValueMarket = 'jita' | 'structure'
+
+export type OreValueSide = 'buy' | 'sell'
+
+export interface OreValueTableResponse {
+  market: OreValueMarket
+  side: OreValueSide
+  structureId: number | null
+  reprocessYieldKnown: boolean
+  rows: OreValueRow[]
+}
+
 export type OreValueSortColumn =
   | 'typeName'
   | 'volume'
@@ -37,15 +49,42 @@ export type OreValueSortColumn =
 
 export type SortDirection = 'asc' | 'desc'
 
+const REPROCESS_YIELD_STORAGE_KEY = 'miningReprocessYield'
+const PERCENT = 100
+
 export function readStoredReprocessYield(): number | null {
-  return -1
+  const stored = localStorage.getItem(REPROCESS_YIELD_STORAGE_KEY)
+  if (stored === null) return null
+  const percent = Number(stored)
+  if (!Number.isFinite(percent) || percent <= 0) return null
+  return percent / PERCENT
+}
+
+function compareKnownFirst(a: number | null, b: number | null, direction: SortDirection): number {
+  if (a === null || b === null) return Number(a === null) - Number(b === null)
+  return direction === 'asc' ? a - b : b - a
 }
 
 export function useOreValueTable(rows: Ref<OreValueRow[]>) {
   const sortColumn = ref<OreValueSortColumn | null>(null)
   const sortDirection = ref<SortDirection>('desc')
   const kindFilter = ref<OreKind | null>(null)
-  const visibleRows = computed(() => rows.value)
+
+  const visibleRows = computed(() => {
+    const filtered = kindFilter.value === null
+      ? rows.value
+      : rows.value.filter(row => row.kind === kindFilter.value)
+    const column = sortColumn.value
+    if (column === null) return filtered
+    const direction = sortDirection.value
+    return [...filtered].sort((a, b) => {
+      if (column === 'typeName') {
+        const order = a.typeName.localeCompare(b.typeName)
+        return direction === 'asc' ? order : -order
+      }
+      return compareKnownFirst(a[column], b[column], direction)
+    })
+  })
 
   return { sortColumn, sortDirection, kindFilter, visibleRows }
 }
