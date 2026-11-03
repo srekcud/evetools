@@ -10,6 +10,7 @@ use App\Entity\MiningOperationMember;
 use App\Entity\User;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
+use App\Enum\MiningOperationStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\State\Processor\MiningOperation\RemoveMiningOperationMemberProcessor;
@@ -177,6 +178,24 @@ final class RemoveMiningOperationMemberProcessorTest extends TestCase
             [ConflictHttpException::class, 'Mining operation already started: use departure instead', MiningOperationMemberStatus::Accepted, ['Brann Holt', 'Brann II']],
             [$refusal === null ? null : $refusal::class, $refusal?->getMessage(), $this->brannMembership->getStatus(), $this->enrolledNamesOf($this->brannMembership)],
         );
+    }
+
+    #[Group('issue-265')]
+    public function testPendingRequestOfAnArchivedOperationCannotBeRefused(): void
+    {
+        $this->operation->setStatus(MiningOperationStatus::Settled);
+        $this->actAs($this->aria);
+        $this->expectNothingChanged();
+
+        try {
+            $this->remove($this->cyraMembership);
+            self::fail('The removal was not refused');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame(
+                ['This operation is archived', MiningOperationMemberStatus::Pending],
+                [$refusal->getMessage(), $this->cyraMembership->getStatus()],
+            );
+        }
     }
 
     private function actAs(User $user): void

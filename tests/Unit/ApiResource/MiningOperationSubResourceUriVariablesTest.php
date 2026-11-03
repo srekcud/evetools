@@ -14,6 +14,7 @@ use App\ApiResource\MiningOperation\MiningOperationMemberResource;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\ApiResource\MiningOperation\MiningOperationStockpileCoverageResource;
 use App\ApiResource\MiningOperation\MiningOperationValuationResource;
+use App\ApiResource\MiningOperation\MiningPaymentResource;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -21,6 +22,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversNothing]
 #[Group('issue-262')]
+#[Group('issue-265')]
 final class MiningOperationSubResourceUriVariablesTest extends TestCase
 {
     private const string ROUTE_REQUIREMENT_PATTERN = '/<[^>]*>/';
@@ -59,6 +61,10 @@ final class MiningOperationSubResourceUriVariablesTest extends TestCase
         yield 'GET valuation' => [MiningOperationValuationResource::class, 'GET', '/mining-operations/'.$operationId.'/valuation', ['operationId']];
         yield 'PATCH valuation' => [MiningOperationValuationResource::class, 'PATCH', '/mining-operations/'.$operationId.'/valuation', ['operationId']];
         yield 'POST freeze shares' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/freeze-shares', ['id']];
+        yield 'GET payments' => [MiningPaymentResource::class, 'GET', '/mining-operations/'.$operationId.'/payments', ['operationId']];
+        yield 'PATCH payment' => [MiningPaymentResource::class, 'PATCH', '/mining-operations/'.$operationId.'/payments/'.$id, ['operationId', 'id']];
+        yield 'POST settle' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/settle', ['id']];
+        yield 'POST complete' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/complete', ['id']];
     }
 
     private function operationOf(string $resourceClass, string $method, string $uriTemplate): ?HttpOperation

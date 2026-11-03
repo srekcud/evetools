@@ -12,12 +12,13 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(MiningOperationStatus::class)]
 #[Group('issue-262')]
 #[Group('issue-264')]
+#[Group('issue-265')]
 final class MiningOperationStatusTest extends TestCase
 {
-    public function testEveryStatusButSharesAndCompletedIsAnOpenOperation(): void
+    public function testEveryStatusButSharesSettledAndCompletedIsAnOpenOperation(): void
     {
         self::assertSame(
-            ['planned' => true, 'in_progress' => true, 'closing' => true, 'shares' => false, 'completed' => false],
+            ['planned' => true, 'in_progress' => true, 'closing' => true, 'shares' => false, 'settled' => false, 'completed' => false],
             $this->byStatus(static fn (MiningOperationStatus $status): bool => $status->isOpen()),
         );
     }
@@ -25,8 +26,16 @@ final class MiningOperationStatusTest extends TestCase
     public function testOnlyPlannedAndInProgressOperationsAcceptParticipants(): void
     {
         self::assertSame(
-            ['planned' => true, 'in_progress' => true, 'closing' => false, 'shares' => false, 'completed' => false],
+            ['planned' => true, 'in_progress' => true, 'closing' => false, 'shares' => false, 'settled' => false, 'completed' => false],
             $this->byStatus(static fn (MiningOperationStatus $status): bool => $status->acceptsParticipants()),
+        );
+    }
+
+    public function testOnlySettledAndCompletedOperationsAreArchived(): void
+    {
+        self::assertSame(
+            ['planned' => false, 'in_progress' => false, 'closing' => false, 'shares' => false, 'settled' => true, 'completed' => true],
+            $this->byStatus(static fn (MiningOperationStatus $status): bool => $status->isArchived()),
         );
     }
 

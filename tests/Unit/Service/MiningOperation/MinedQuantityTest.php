@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\MiningOperation;
 
 use App\Entity\MiningOperation;
+use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningLedgerSnapshotStatus;
+use App\Enum\MiningOperationMemberRole;
+use App\Enum\MiningOperationMemberStatus;
 use App\Service\MiningOperation\MinedQuantity;
 use App\Service\MiningOperation\MinedQuantityCalculator;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -226,6 +229,85 @@ final class MinedQuantityTest extends TestCase
             ['state' => 'known', 'unknownReason' => null, 'quantities' => [self::SPODUMAIN => 35_500, self::BISTOT => 1_000], 'totalQuantity' => 36_500],
             $this->quantityOf($this->calculator->ofCharacter($this->enrolmentOf('Brann Holt'))),
         );
+    }
+
+    #[Group('issue-265')]
+    public function testCharacterAcceptedJustBeforeTheEndWhoseStartIsReadAfterTheEndIsUnknownWithoutEndSnapshot(): void
+    {
+        $this->cyraAcceptedJustBeforeTheEnd();
+        $this->operation->end(new \DateTimeImmutable(self::ENDED_AT));
+        $this->enrolmentOf('Cyra Lune')->snapshotOf(MiningLedgerSnapshotKind::Start)
+            ?->take(new \DateTimeImmutable('2026-11-05T21:30:05+00:00'), $this->reading([$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 400)]));
+
+        self::assertSame(
+            [
+                'Cyra Lune' => ['state' => 'unknown', 'unknownReason' => 'no_end_snapshot'] + self::UNKNOWN_WITHOUT_QUANTITY,
+                'Cyra' => ['state' => 'unknown', 'unknownReason' => 'no_end_snapshot'] + self::UNKNOWN_WITHOUT_QUANTITY,
+            ],
+            [
+                'Cyra Lune' => $this->quantityOf($this->calculator->ofCharacter($this->enrolmentOf('Cyra Lune'))),
+                'Cyra' => $this->quantityOf($this->calculator->ofParticipant($this->membershipOf($this->operation, $this->cyra))),
+            ],
+        );
+    }
+
+    #[Group('issue-265')]
+    public function testCharacterAcceptedJustBeforeTheEndIsMeasuringWhileItsStartSnapshotIsStillWaiting(): void
+    {
+        $this->cyraAcceptedJustBeforeTheEnd();
+        $this->operation->end(new \DateTimeImmutable(self::ENDED_AT));
+
+        self::assertSame('measuring', $this->calculator->ofCharacter($this->enrolmentOf('Cyra Lune'))->state->value);
+    }
+
+    #[Group('issue-265')]
+    public function testCorrectedCharacterWithoutEndSnapshotBecomesKnownWithItsCorrectedQuantity(): void
+    {
+        $this->cyraAcceptedJustBeforeTheEnd();
+        $this->operation->end(new \DateTimeImmutable(self::ENDED_AT));
+        $cyraLune = $this->enrolmentOf('Cyra Lune');
+        $cyraLune->snapshotOf(MiningLedgerSnapshotKind::Start)
+            ?->take(new \DateTimeImmutable('2026-11-05T21:30:05+00:00'), $this->reading([$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 400)]));
+
+        $cyraLune->correct(self::SPODUMAIN, null, 0, $this->aria, new \DateTimeImmutable('2026-11-05T21:50:00+00:00'));
+
+        self::assertSame(
+            [
+                'corrected' => ['state' => 'known', 'unknownReason' => null, 'quantities' => [self::SPODUMAIN => 0], 'totalQuantity' => 0],
+                'measured' => ['state' => 'unknown', 'unknownReason' => 'no_end_snapshot'] + self::UNKNOWN_WITHOUT_QUANTITY,
+            ],
+            [
+                'corrected' => $this->quantityOf($this->calculator->ofCharacter($cyraLune)),
+                'measured' => $this->quantityOf($this->calculator->measuredOf($cyraLune)),
+            ],
+        );
+    }
+
+    #[Group('issue-265')]
+    public function testDepartedCharacterWhoseStartIsReadAfterTheDepartureIsUnknownWithoutEndSnapshotWhileTheOperationGoesOn(): void
+    {
+        $this->brannHoltMinedQ1('2026-11-05T21:05:00+00:00');
+        $brannII = $this->identify($this->enrolmentOf('Brann II')->scheduleStartSnapshot(new \DateTimeImmutable('2026-11-05T21:04:00+00:00')));
+        $this->membershipOf($this->operation, $this->brann)->depart(new \DateTimeImmutable('2026-11-05T21:05:00+00:00'));
+        $brannII->take(new \DateTimeImmutable('2026-11-05T21:06:00+00:00'), $this->reading([$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 3_000)]));
+
+        self::assertSame(
+            [
+                'Brann II' => ['state' => 'unknown', 'unknownReason' => 'no_end_snapshot'] + self::UNKNOWN_WITHOUT_QUANTITY,
+                'operation' => 'in_progress',
+            ],
+            [
+                'Brann II' => $this->quantityOf($this->calculator->ofCharacter($brannII->getOperationCharacter())),
+                'operation' => $this->operation->getStatus()->value,
+            ],
+        );
+    }
+
+    private function cyraAcceptedJustBeforeTheEnd(): void
+    {
+        $this->addMembership($this->operation, $this->cyra, MiningOperationMemberRole::Member, MiningOperationMemberStatus::Accepted, ['Cyra Lune']);
+        $this->identifyEnrolments();
+        $this->identify($this->enrolmentOf('Cyra Lune')->scheduleStartSnapshot(new \DateTimeImmutable('2026-11-05T21:29:00+00:00')));
     }
 
     private function brannHoltMinedQ1(string $referenceAt = self::ENDED_AT): void

@@ -253,6 +253,45 @@ final class MiningOperationLedgerProviderTest extends TestCase
         );
     }
 
+    #[Group('issue-265')]
+    public function testFailedEndSnapshotIsRetryableByTheOwnerButNotByTheCharacterOwnerWhoIsAPlainMember(): void
+    {
+        $this->closedWithEveryStartTaken();
+        foreach (['Aria Solberg', 'Aria II', 'Brann Holt'] as $characterName) {
+            $this->takenEndSnapshot($characterName, [$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 15_000)]);
+        }
+        $this->failedEndSnapshot('Brann II', MiningLedgerSnapshotStatus::Failed);
+        $canRetry = static fn (array $character): bool => $character['canRetry'];
+
+        $this->actAs($this->brann);
+        $seenByBrann = $this->characterRows($this->ledger(), $canRetry)['Brann II'] ?? null;
+        $this->actAs($this->aria);
+        $seenByAria = $this->characterRows($this->ledger(), $canRetry)['Brann II'] ?? null;
+
+        self::assertSame(['brann' => false, 'aria' => true], ['brann' => $seenByBrann, 'aria' => $seenByAria]);
+    }
+
+    #[Group('issue-265')]
+    public function testCharacterWhoseStartWasReadAfterTheEndIsUnknownWithoutEndSnapshot(): void
+    {
+        $this->operation->start(new \DateTimeImmutable(self::STARTED_AT), $this->s1());
+        foreach (['Aria Solberg', 'Aria II', 'Brann Holt'] as $characterName) {
+            $this->takenStartSnapshot($characterName, [$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 12_000)]);
+        }
+        $brannII = $this->identify($this->enrolmentOf('Brann II')->scheduleStartSnapshot(new \DateTimeImmutable('2026-11-05T21:29:00+00:00')));
+        $this->operation->end(new \DateTimeImmutable(self::ENDED_AT));
+        foreach (['Aria Solberg', 'Aria II', 'Brann Holt'] as $characterName) {
+            $this->takenEndSnapshot($characterName, [$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 15_000)]);
+        }
+        $brannII->take(new \DateTimeImmutable('2026-11-05T21:30:05+00:00'), $this->reading([$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 12_000)]));
+        $this->actAs($this->aria);
+
+        self::assertSame(
+            ['unknown', 'no_end_snapshot', null],
+            $this->characterRows($this->ledger(), static fn (array $character): array => [$character['state'], $character['unknownReason'], $character['totalQuantity']])['Brann II'] ?? null,
+        );
+    }
+
     private function closedWithEveryStartTaken(): void
     {
         $this->operation->start(new \DateTimeImmutable(self::STARTED_AT), $this->s1());

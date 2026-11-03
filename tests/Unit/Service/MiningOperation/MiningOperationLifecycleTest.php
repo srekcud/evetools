@@ -373,6 +373,17 @@ final class MiningOperationLifecycleTest extends TestCase
         self::assertSame([], $this->journal->getArrayCopy());
     }
 
+    #[Group('issue-265')]
+    public function testFailedEndSnapshotCannotBeRetriedOnceTheOperationIsSettled(): void
+    {
+        $this->closingOperationWhereBrannHoltStarted();
+        $this->failedEndSnapshot('Brann Holt', MiningLedgerSnapshotStatus::Failed);
+        $this->operation->setStatus(MiningOperationStatus::Settled);
+
+        $this->assertRefused(BadRequestHttpException::class, 'This snapshot cannot be retried', fn () => $this->lifecycle->retrySnapshot($this->enrolmentOf('Brann Holt')));
+        self::assertSame([], $this->journal->getArrayCopy());
+    }
+
     public function testRetryIsOfferedOnlyForASnapshotThatCanBeRetriedNow(): void
     {
         $this->closingOperationWhereBrannHoltStarted();

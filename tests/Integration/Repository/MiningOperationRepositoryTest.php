@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Repository;
 
 use App\Entity\MiningOperation;
+use App\Entity\User;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
@@ -49,7 +50,8 @@ final class MiningOperationRepositoryTest extends IntegrationTestCase
         self::assertSame(['O5', 'O1'], $this->labelsOf($this->repository->findAvailableForCorporation(self::C1, $brann)));
     }
 
-    public function testBrannFindsTheOperationsHeOwnsOrIsPendingOrAcceptedInByPlannedStartDescending(): void
+    #[Group('issue-265')]
+    public function testBrannFindsTheOperationsHeOwnsOrIsPendingOrAcceptedInExceptTheArchivedOnesByPlannedStartDescending(): void
     {
         $aria = $this->persistMiningPilot($this->em, 'Aria Solberg', self::C1);
         $brann = $this->persistMiningPilot($this->em, 'Brann Holt', self::C1);
@@ -66,7 +68,50 @@ final class MiningOperationRepositoryTest extends IntegrationTestCase
         $this->flushAndClear();
         $brann = $this->em->find($brann::class, $brann->getId());
 
-        self::assertSame(['O8', 'O1', 'O6', 'O3'], $this->labelsOf($this->repository->findForParticipant($brann)));
+        self::assertSame(['O8', 'O1', 'O6'], $this->labelsOf($this->repository->findForParticipant($brann)));
+    }
+
+    #[Group('issue-265')]
+    public function testBrannFindsTheArchivedOperationsHeTookPartInOrHisCorporationMayReadLatestArchiveFirst(): void
+    {
+        $aria = $this->persistMiningPilot($this->em, 'Aria Solberg', self::C1);
+        $brann = $this->persistMiningPilot($this->em, 'Brann Holt', self::C1);
+        $cyra = $this->persistMiningPilot($this->em, 'Cyra Lune', self::C2);
+        $a1 = $this->archivedOperation($aria, 'A1', MiningOperationStatus::Settled, '2026-11-05T23:35:00+00:00');
+        $this->addMiningMembership($a1, $brann, MiningOperationMemberRole::Member, MiningOperationMemberStatus::Accepted, []);
+        $this->archivedOperation($brann, 'A2', MiningOperationStatus::Completed, '2026-11-04T22:10:00+00:00');
+        $a3 = $this->archivedOperation($cyra, 'A3', MiningOperationStatus::Settled, '2026-11-05T22:00:00+00:00', MiningOperationVisibility::Private, self::C2);
+        $this->addMiningMembership($a3, $brann, MiningOperationMemberRole::Member, MiningOperationMemberStatus::Pending, []);
+        $a4 = $this->archivedOperation($cyra, 'A4', MiningOperationStatus::Settled, '2026-11-05T21:00:00+00:00', MiningOperationVisibility::Private, self::C2);
+        $this->addMiningMembership($a4, $brann, MiningOperationMemberRole::Member, MiningOperationMemberStatus::Removed, []);
+        $this->archivedOperation($aria, 'A5', MiningOperationStatus::Completed, '2026-11-03T21:00:00+00:00');
+        $this->archivedOperation($aria, 'A6', MiningOperationStatus::Completed, '2026-11-05T20:00:00+00:00', MiningOperationVisibility::Private);
+        $this->archivedOperation($cyra, 'A7', MiningOperationStatus::Settled, '2026-11-05T20:30:00+00:00', corporationId: self::C2);
+        $a8 = $this->persistMiningOperation($this->em, $aria, 'A8', '2026-11-05T20:00:00+00:00', MiningOperationStatus::Shares);
+        $this->addMiningMembership($a8, $brann, MiningOperationMemberRole::Member, MiningOperationMemberStatus::Accepted, []);
+        $this->flushAndClear();
+        $brann = $this->em->find($brann::class, $brann->getId());
+
+        self::assertSame(['A1', 'A2', 'A5'], $this->labelsOf($this->repository->findArchivedReadableBy($brann)));
+    }
+
+    private function archivedOperation(
+        User $owner,
+        string $label,
+        MiningOperationStatus $status,
+        string $archivedAt,
+        MiningOperationVisibility $visibility = MiningOperationVisibility::Corporation,
+        int $corporationId = self::C1,
+    ): MiningOperation {
+        $operation = $this->persistMiningOperation($this->em, $owner, $label, '2026-11-01T20:00:00+00:00', visibility: $visibility, corporationId: $corporationId);
+        if ($status === MiningOperationStatus::Settled) {
+            $operation->settle(new \DateTimeImmutable($archivedAt), $owner->getMainCharacter()?->getName());
+        } else {
+            $operation->complete(new \DateTimeImmutable($archivedAt), null, [], [], $owner->getMainCharacter()?->getName());
+        }
+        $operation->setStatus($status);
+
+        return $operation;
     }
 
     public function testRenewedJoinCodeFindsTheOperationAndThePreviousOneNoLonger(): void

@@ -59,6 +59,9 @@ export function spodumainOperation(overrides: Partial<MiningOperation> = {}): Mi
     myDepartedAt: null,
     valuationSettings: valuationSettings(),
     sharesFrozenAt: null,
+    archivedAt: null,
+    archivedByName: null,
+    archiveSummary: null,
     ...overrides,
   }
 }

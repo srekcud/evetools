@@ -32,6 +32,7 @@ import {
   eachForThemselvesE1Valuation,
   frozenE1Valuation,
 } from './miningOperationValuationFixtures'
+import { PAYMENTS_PATH } from './miningOperationPaymentFixtures'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 
@@ -65,6 +66,7 @@ function answer(operation: MiningOperation, valuation: MiningOperationValuation,
     if (endpoint === MEMBERS_PATH) return MEMBERS_WITH_CYRA as never
     if (endpoint === LEDGER_PATH) return ledger({ status: operation.status, endedAt: operation.endedAt }) as never
     if (endpoint === VALUATION_PATH) return valuation as never
+    if (endpoint === PAYMENTS_PATH) return [] as never
     if (endpoint === REPROCESSING_PROFILE_PATH) return { configured: reprocessYield !== null, reprocessYield, oreProcessingSkills: [] } as never
     return operation as never
   })

@@ -45,6 +45,9 @@ const STARTED_SPODUMAIN: MiningOperation = {
     boosterCharacterName: null,
   },
   sharesFrozenAt: null,
+  archivedAt: null,
+  archivedByName: null,
+  archiveSummary: null,
 }
 
 const CLOSING_LEDGER: MiningOperationLedger = {

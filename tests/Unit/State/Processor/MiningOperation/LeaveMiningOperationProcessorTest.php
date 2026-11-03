@@ -139,6 +139,25 @@ final class LeaveMiningOperationProcessorTest extends TestCase
         $this->leave($operation);
     }
 
+    #[Group('issue-265')]
+    public function testPendingRequestCannotBeWithdrawnFromACompletedOperation(): void
+    {
+        $operation = $this->spodumainOperation(MiningOperationStatus::Completed);
+        $cyraMembership = $this->addMembership($operation, $this->cyra, MiningOperationMemberRole::Member, MiningOperationMemberStatus::Pending, ['Cyra Lune']);
+        $this->actAs($this->cyra);
+        $this->expectNothingChanged();
+
+        try {
+            $this->leave($operation);
+            self::fail('The withdrawal was not refused');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame(
+                ['This operation is archived', MiningOperationMemberStatus::Pending],
+                [$refusal->getMessage(), $cyraMembership->getStatus()],
+            );
+        }
+    }
+
     private function actAs(User $user): void
     {
         $this->security->method('getUser')->willReturn($user);

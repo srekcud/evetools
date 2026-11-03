@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
+use App\Enum\MiningOperationStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\State\Processor\MiningOperation\UpdateMiningOperationMemberProcessor;
@@ -152,6 +153,24 @@ final class UpdateMiningOperationMemberProcessorTest extends TestCase
 
         self::assertSame('admin', $resource->role);
         self::assertSame(MiningOperationMemberRole::Admin, $this->brannMembership->getRole());
+    }
+
+    #[Group('issue-265')]
+    public function testRoleOfAMemberOfAnArchivedOperationCannotChange(): void
+    {
+        $this->operation->setStatus(MiningOperationStatus::Settled);
+        $this->actAs($this->aria);
+        $this->expectNothingChanged();
+
+        try {
+            $this->update($this->brannMembership, role: 'admin');
+            self::fail('The role change was not refused');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame(
+                ['This operation is archived', MiningOperationMemberRole::Member],
+                [$refusal->getMessage(), $this->brannMembership->getRole()],
+            );
+        }
     }
 
     public function testAdminCannotPromoteAMemberToAdmin(): void

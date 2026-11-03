@@ -147,6 +147,71 @@ final class RetryMiningLedgerSnapshotProcessorTest extends TestCase
         ]);
     }
 
+    #[Group('issue-265')]
+    public function testPlainMemberCannotRetryTheFailedEndSnapshotOfHisOwnCharacter(): void
+    {
+        $this->closeWithTheEndOfBrannII(MiningLedgerSnapshotStatus::Failed);
+        $this->actAs($this->brann);
+        $this->entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->retry($this->enrolmentOf('Brann II'));
+            self::fail('The end snapshot retry was not refused');
+        } catch (AccessDeniedHttpException $refusal) {
+            self::assertSame(
+                ['refusal' => 'Only the operation owner or an admin can retry an end snapshot', 'end' => 'failed', 'dispatched' => 0],
+                [
+                    'refusal' => $refusal->getMessage(),
+                    'end' => $this->enrolmentOf('Brann II')->snapshotOf(MiningLedgerSnapshotKind::End)?->getStatus()->value,
+                    'dispatched' => count($this->dispatched),
+                ],
+            );
+        }
+    }
+
+    #[Group('issue-265')]
+    public function testOwnerRetriesTheFailedEndSnapshotOfAnotherPilotFromNow(): void
+    {
+        $this->closeWithTheEndOfBrannII(MiningLedgerSnapshotStatus::Failed);
+        $this->actAs($this->aria);
+        $this->identifyingOnFlush($this->entityManager);
+
+        $this->retry($this->enrolmentOf('Brann II'));
+
+        self::assertSame(
+            ['status' => 'waiting', 'readyAt' => self::RETRIED_AT, 'dispatched' => 1],
+            [
+                'status' => $this->enrolmentOf('Brann II')->snapshotOf(MiningLedgerSnapshotKind::End)?->getStatus()->value,
+                'readyAt' => $this->enrolmentOf('Brann II')->snapshotOf(MiningLedgerSnapshotKind::End)?->getReadyAt()?->format(\DateTimeInterface::ATOM),
+                'dispatched' => count($this->dispatched),
+            ],
+        );
+    }
+
+    #[Group('issue-265')]
+    public function testPlainMemberIsRefusedTheEndSnapshotRetryBeforeTheSnapshotIsFoundNotRetryable(): void
+    {
+        $this->closeWithTheEndOfBrannII(MiningLedgerSnapshotStatus::Taken);
+        $this->actAs($this->brann);
+
+        $this->expectRefusal(AccessDeniedHttpException::class, 'Only the operation owner or an admin can retry an end snapshot');
+
+        $this->retry($this->enrolmentOf('Brann II'));
+    }
+
+    private function closeWithTheEndOfBrannII(MiningLedgerSnapshotStatus $endStatus): void
+    {
+        $start = $this->enrolmentOf('Brann II')->snapshotOf(MiningLedgerSnapshotKind::Start);
+        $start?->take(new \DateTimeImmutable(self::STARTED_AT), $this->reading([$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 3_000)]));
+        $this->operation->end(new \DateTimeImmutable(self::ENDED_AT));
+        if ($endStatus === MiningLedgerSnapshotStatus::Taken) {
+            $this->takenEndSnapshot('Brann II', [$this->entry('2026-11-05', self::SPODUMAIN, self::S1, 9_000)]);
+
+            return;
+        }
+        $this->failedEndSnapshot('Brann II', $endStatus);
+    }
+
     private function actAs(User $user): void
     {
         $this->security->method('getUser')->willReturn($user);

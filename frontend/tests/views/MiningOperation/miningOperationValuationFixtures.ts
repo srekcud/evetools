@@ -117,6 +117,8 @@ export function e1Valuation(overrides: Partial<MiningOperationValuation> = {}): 
     participants: e1Participants(),
     canFreeze: true,
     freezeBlockers: [],
+    canComplete: false,
+    completionBlockers: null,
     ...overrides,
   }
 }

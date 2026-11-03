@@ -46,6 +46,9 @@ const SPODUMAIN: MiningOperation = {
     boosterCharacterName: null,
   },
   sharesFrozenAt: null,
+  archivedAt: null,
+  archivedByName: null,
+  archiveSummary: null,
 }
 
 const ICE_BELT: MiningOperation = { ...SPODUMAIN, id: 'b7e4c2a9-1d63-4f58-8a0e-5c9d3f7b2e14', label: 'Ice belt — dimanche', participantsCount: 3, charactersCount: 5 }

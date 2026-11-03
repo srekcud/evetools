@@ -1,14 +1,18 @@
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { reactive } from 'vue'
+import { nextTick, reactive } from 'vue'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import MiningOperationList from '@/views/MiningOperation/MiningOperationList.vue'
 import { apiRequest } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import type { MiningOperation } from '@/stores/miningOperation'
+import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import type { User } from '@/types'
 import { expectOnlyLocaleTexts, TEST_LOCALES, type TestLocale } from '../../localeTexts'
+import { OPERATION_O } from './miningOperationLedgerFixtures'
+import { ARCHIVE_PATH, P2_LABEL, completedP2Operation, g1Operation, settledArchiveSummary, settledG1Operation } from './miningOperationPaymentFixtures'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: {}, query: {} })
 
@@ -66,8 +70,29 @@ function radio(wrapper: VueWrapper, value: string) {
   return input
 }
 
+const MINE_PATH = '/mining-operations'
+const LONG_OPERATION_LABEL = 'Anomalie Spodumain du dimanche soir dans la ceinture la plus lointaine'
+const events = reactive<Record<string, MiningOperationEvent | null>>({})
+
+function answerLists(mine: MiningOperation[], archive: MiningOperation[]): void {
+  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    if (endpoint === MINE_PATH) return mine as never
+    if (endpoint === ARCHIVE_PATH) return archive as never
+    return [] as never
+  })
+}
+
+function archiveRowOf(wrapper: VueWrapper, label: string) {
+  return wrapper.findAll('tr').find(row => row.text().includes(label))
+}
+
+function callsTo(path: string): number {
+  return vi.mocked(apiRequest).mock.calls.filter(call => call[0] === path).length
+}
+
 beforeEach(() => {
   setActivePinia(createPinia())
+  Object.keys(events).forEach(operationId => delete events[operationId])
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockResolvedValue([] as never)
   route.query = {}
@@ -143,6 +168,92 @@ describe('MiningOperationList', () => {
       'miningOperation.splitMode.value_prorata',
       'miningOperation.splitMode.weighted_time',
       'miningOperation.splitMode.each_for_themselves',
+    ])
+  })
+})
+
+describe('MiningOperationList, archive', () => {
+  it('lists the settled and completed operations with their value, my share and their payments', async () => {
+    route.query = { tab: 'archive' }
+    answerLists([], [settledG1Operation(), completedP2Operation()])
+
+    const wrapper = await mountList(ARIA_OF_C1)
+
+    const settledRow = archiveRowOf(wrapper, 'Anomalie Spodumain — 20:00')?.text() ?? ''
+    const completedRow = archiveRowOf(wrapper, P2_LABEL)?.text() ?? ''
+    expect({
+      archiveTab: wrapper.findAll('[role="tab"]').map(tab => tab.text().replace(/\s+\d+$/, '').trim()),
+      settled: ['5,567,729', '2,294,229', '3 / 3 paid', 'Settled', 'Aldranette'].every(text => settledRow.includes(text)),
+      completed: ['812,300', 'my value · everyone keeps their own', 'nothing to settle', 'Completed'].every(text => completedRow.includes(text)),
+    }).toEqual({
+      archiveTab: ['My operations', 'Available', 'Archive'],
+      settled: true,
+      completed: true,
+    })
+  })
+
+  it('says that a corporation member who did not take part has no share', async () => {
+    route.query = { tab: 'archive' }
+    answerLists([], [settledG1Operation({ myRole: null, myStatus: null, archiveSummary: settledArchiveSummary({ myMinedValue: null, myShare: null }) })])
+
+    const wrapper = await mountList(ARIA_OF_C1)
+
+    expect(archiveRowOf(wrapper, 'Anomalie Spodumain — 20:00')?.text().includes('not a participant')).toBe(true)
+  })
+
+  it('says that nothing is settled or completed yet', async () => {
+    route.query = { tab: 'archive' }
+    answerLists([], [])
+
+    const wrapper = await mountList(ARIA_OF_C1)
+
+    expect(wrapper.text()).toContain('No settled or completed operation yet.')
+  })
+
+  it('keeps a long operation label truncated with a tooltip in the archive', async () => {
+    route.query = { tab: 'archive' }
+    answerLists([], [settledG1Operation({ label: LONG_OPERATION_LABEL })])
+
+    const wrapper = await mountList(ARIA_OF_C1)
+
+    const labelCell = archiveRowOf(wrapper, '5,567,729')?.find(`[title="${LONG_OPERATION_LABEL}"]`)
+    expect([labelCell?.exists() ?? false, labelCell?.classes().includes('truncate') ?? false]).toEqual([true, true])
+  })
+
+  it.each(['operation_settled', 'operation_completed'])('reloads my operations and the archive on %s of a listed operation', async action => {
+    answerLists([g1Operation()], [])
+    vi.spyOn(useSyncStore(), 'getMiningOperationEvent').mockImplementation((operationId: string) => events[operationId] ?? null)
+    await mountList(ARIA_OF_C1)
+    vi.mocked(apiRequest).mockClear()
+
+    events[OPERATION_O] = { action, data: {}, timestamp: '2026-11-05T23:35:01+00:00' }
+    await nextTick()
+    await flushPromises()
+
+    expect([callsTo(MINE_PATH), callsTo(ARCHIVE_PATH)]).toEqual([1, 1])
+  })
+
+  it.each(TEST_LOCALES)('shows only %s texts in the archive', async (locale) => {
+    route.query = { tab: 'archive' }
+    answerLists([], [settledG1Operation(), completedP2Operation()])
+
+    const wrapper = await mountList(ARIA_OF_C1, locale)
+
+    expectOnlyLocaleTexts(wrapper.text(), locale, [
+      'miningOperation.tabs.archive',
+      'miningOperation.archive.hint',
+      'miningOperation.archive.columns.operation',
+      'miningOperation.archive.columns.archivedAt',
+      'miningOperation.archive.columns.system',
+      'miningOperation.archive.columns.participants',
+      'miningOperation.archive.columns.totalValue',
+      'miningOperation.archive.columns.myShare',
+      'miningOperation.archive.columns.payments',
+      'miningOperation.archive.columns.status',
+      'miningOperation.archive.myValue',
+      'miningOperation.archive.nothingToSettle',
+      'miningOperation.status.settled',
+      'miningOperation.status.completed',
     ])
   })
 })

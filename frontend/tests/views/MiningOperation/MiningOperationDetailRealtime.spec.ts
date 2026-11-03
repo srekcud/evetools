@@ -63,6 +63,9 @@ const SPODUMAIN: MiningOperation = {
     boosterCharacterName: null,
   },
   sharesFrozenAt: null,
+  archivedAt: null,
+  archivedByName: null,
+  archiveSummary: null,
 }
 
 const MEMBERS: MiningOperationMember[] = [
