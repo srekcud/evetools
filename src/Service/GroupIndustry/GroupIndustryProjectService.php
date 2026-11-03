@@ -164,7 +164,7 @@ class GroupIndustryProjectService
     private function reconcileBomLines(GroupIndustryProject $project, array $plannedLines): void
     {
         $contributedLineIds = $this->contributedLineIdsOf($project);
-        $carriesContribution = static fn (GroupIndustryBomItem $line): bool => $line->getId() !== null && isset($contributedLineIds[$line->getId()->toRfc4122()]);
+        $carriesContribution = static fn (GroupIndustryBomItem $line): bool => isset($contributedLineIds[$line->getId()->toRfc4122()]);
 
         $existingByKey = $this->groupByLineKey(array_values($project->getBomItems()->toArray()));
         foreach ($existingByKey as &$existingLines) {

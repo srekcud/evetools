@@ -17,9 +17,7 @@ class GroupIndustryBomItem
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
-    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
-    #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
-    private ?Uuid $id = null;
+    private Uuid $id;
 
     #[ORM\ManyToOne(targetEntity: GroupIndustryProject::class, inversedBy: 'bomItems')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -65,7 +63,12 @@ class GroupIndustryBomItem
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $runs = null;
 
-    public function getId(): ?Uuid
+    public function __construct()
+    {
+        $this->id = Uuid::v7();
+    }
+
+    public function getId(): Uuid
     {
         return $this->id;
     }

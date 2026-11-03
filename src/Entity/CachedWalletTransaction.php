@@ -19,9 +19,7 @@ class CachedWalletTransaction
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
-    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
-    #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
-    private ?Uuid $id = null;
+    private Uuid $id;
 
     #[ORM\ManyToOne(targetEntity: Character::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -56,10 +54,11 @@ class CachedWalletTransaction
 
     public function __construct()
     {
+        $this->id = Uuid::v7();
         $this->cachedAt = new \DateTimeImmutable();
     }
 
-    public function getId(): ?Uuid
+    public function getId(): Uuid
     {
         return $this->id;
     }
