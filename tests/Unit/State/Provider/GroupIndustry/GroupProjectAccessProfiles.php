@@ -45,23 +45,7 @@ trait GroupProjectAccessProfiles
 
     private array $sabreBatchMemberships = [];
 
-    public static function readAccessMatrix(): iterable
-    {
-        yield 'A1 owner' => [self::OWNER, self::GRANTED];
-        yield 'A2 accepted admin' => [self::ACCEPTED_ADMIN, self::GRANTED];
-        yield 'A3 accepted member' => [self::ACCEPTED_MEMBER, self::GRANTED];
-        yield 'A4 pending member' => [self::PENDING_MEMBER, self::NO_ACCESS];
-        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::GRANTED];
-        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, self::GRANTED];
-        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::GRANTED];
-        yield 'A8 removed member' => [self::REMOVED_MEMBER, self::NO_ACCESS];
-        yield 'A9 stranger' => [self::STRANGER, self::NO_ACCESS];
-        yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::NO_ACCESS];
-        yield 'A12 accepted admin of a completed project' => [self::ACCEPTED_ADMIN_OF_COMPLETED_PROJECT, self::GRANTED];
-        yield 'A13 stranger to a completed project' => [self::STRANGER_TO_COMPLETED_PROJECT, self::NO_ACCESS];
-    }
-
-    public static function participationAccessMatrix(): iterable
+    public static function acceptedMemberAccessMatrix(): iterable
     {
         yield 'A1 owner' => [self::OWNER, self::GRANTED];
         yield 'A2 accepted admin' => [self::ACCEPTED_ADMIN, self::GRANTED];

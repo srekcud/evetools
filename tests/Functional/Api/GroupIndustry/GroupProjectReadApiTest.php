@@ -26,6 +26,70 @@ final class GroupProjectReadApiTest extends WebTestCase
         $this->setUpIshtarGroupProject();
     }
 
+    public function testOwnerReadsTheProjectDetailWithHisOwnerRole(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->projectUri($this->ishtarBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['Ishtar batch', 'Aria Solberg', 'ISHTAR-206', 'owner', 'accepted'], $this->projectDetailRow());
+    }
+
+    public function testAcceptedMemberReadsTheProjectDetailWithHisMemberRole(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->projectUri($this->ishtarBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['Ishtar batch', 'Aria Solberg', 'ISHTAR-206', 'member', 'accepted'], $this->projectDetailRow());
+    }
+
+    #[DataProvider('projectReadRoutes')]
+    public function testCorpmateOfTheOwnerWhoIsNotAMemberIsRefusedTheProjectReadRoute(string $uriAfterTheProject): void
+    {
+        $this->client->loginUser($this->ownerCorpmate, 'api');
+        $this->request('GET', $this->projectUri($this->ishtarBatch).$uriAfterTheProject);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
+    }
+
+    #[DataProvider('projectReadRoutes')]
+    public function testPendingMemberIsRefusedTheProjectReadRoute(string $uriAfterTheProject): void
+    {
+        $this->client->loginUser($this->pendingMember, 'api');
+        $this->request('GET', $this->projectUri($this->ishtarBatch).$uriAfterTheProject);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
+    }
+
+    #[DataProvider('projectReadRoutesForTheOwnerAndTheAcceptedMember')]
+    public function testOwnerAndAcceptedMemberReadTheProjectReadRoute(string $pilot, string $uriAfterTheProject): void
+    {
+        $this->client->loginUser($pilot === 'owner' ? $this->owner : $this->member, 'api');
+        $this->request('GET', $this->projectUri($this->ishtarBatch).$uriAfterTheProject);
+
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public static function projectReadRoutes(): iterable
+    {
+        yield 'detail' => [''];
+        yield 'bom' => ['/bom'];
+        yield 'sales' => ['/sales'];
+        yield 'distribution' => ['/distribution'];
+    }
+
+    public static function projectReadRoutesForTheOwnerAndTheAcceptedMember(): iterable
+    {
+        foreach (['owner', 'accepted member'] as $pilot) {
+            foreach (self::projectReadRoutes() as $route => [$uriAfterTheProject]) {
+                yield $pilot.' '.$route => [$pilot, $uriAfterTheProject];
+            }
+        }
+    }
+
     public function testAcceptedMemberReadsTheBomWithMaterialLinesInUnitsAndJobLinesInRunsAndUnits(): void
     {
         $this->client->loginUser($this->member, 'api');
@@ -44,27 +108,9 @@ final class GroupProjectReadApiTest extends WebTestCase
         );
     }
 
-    public function testCorpmateOfTheOwnerWhoIsNotAMemberReadsTheBom(): void
-    {
-        $this->client->loginUser($this->ownerCorpmate, 'api');
-        $this->request('GET', $this->projectUri($this->ishtarBatch).'/bom');
-
-        self::assertResponseStatusCodeSame(200);
-        self::assertCount(5, $this->responseJson());
-    }
-
     public function testOutsiderIsRefusedTheBom(): void
     {
         $this->client->loginUser($this->outsider, 'api');
-        $this->request('GET', $this->projectUri($this->ishtarBatch).'/bom');
-
-        self::assertResponseStatusCodeSame(403);
-        self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
-    }
-
-    public function testPendingMemberOutsideTheOwnerCorporationIsRefusedTheBom(): void
-    {
-        $this->client->loginUser($this->pendingMember, 'api');
         $this->request('GET', $this->projectUri($this->ishtarBatch).'/bom');
 
         self::assertResponseStatusCodeSame(403);
@@ -101,18 +147,6 @@ final class GroupProjectReadApiTest extends WebTestCase
                 ],
                 $this->rowsSortedBy('characterName', $distribution['members']),
             ),
-        );
-    }
-
-    public function testCorpmateOfTheOwnerWhoIsNotAMemberReadsTheDistributionAndItsPayouts(): void
-    {
-        $this->client->loginUser($this->ownerCorpmate, 'api');
-        $this->request('GET', $this->projectUri($this->ishtarBatch).'/distribution');
-
-        self::assertResponseStatusCodeSame(200);
-        self::assertSame(
-            [2_497_500.0, 277_500.0],
-            array_map(static fn (array $member): float => (float) $member['payoutTotal'], $this->rowsSortedBy('characterName', $this->responseJson()['members'])),
         );
     }
 
@@ -239,6 +273,13 @@ final class GroupProjectReadApiTest extends WebTestCase
         yield 'distribution' => ['GET', '/distribution', null];
         yield 'container verification' => ['GET', '/container-verification', null];
         yield 'sales' => ['GET', '/sales', null];
+    }
+
+    private function projectDetailRow(): array
+    {
+        $project = $this->responseJson();
+
+        return [$project['name'], $project['ownerCharacterName'], $project['containerName'], $project['myRole'], $project['myStatus']];
     }
 
     private function containerVerificationUri(): string

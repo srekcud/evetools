@@ -87,8 +87,8 @@ class GroupDistributionProviderTest extends TestCase
         );
     }
 
-    #[DataProvider('readAccessMatrix')]
-    public function testDistributionIsReadByTheOwnerAcceptedMembersAndTheOwnerCorporation(string $profile, string $expectedOutcome): void
+    #[DataProvider('acceptedMemberAccessMatrix')]
+    public function testDistributionIsReadByTheOwnerAndAcceptedMembersOnly(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
 

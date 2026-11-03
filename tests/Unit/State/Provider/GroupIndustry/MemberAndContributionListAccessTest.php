@@ -56,7 +56,7 @@ class MemberAndContributionListAccessTest extends TestCase
         );
     }
 
-    #[DataProvider('participationAccessMatrix')]
+    #[DataProvider('acceptedMemberAccessMatrix')]
     public function testMemberListIsReservedToTheOwnerAndAcceptedMembers(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
@@ -64,7 +64,7 @@ class MemberAndContributionListAccessTest extends TestCase
         self::assertSame($expectedOutcome, $this->outcomeOf(fn () => $this->memberListProvider->provide(new GetCollection(), $this->sabreBatchUriVariables())));
     }
 
-    #[DataProvider('participationAccessMatrix')]
+    #[DataProvider('acceptedMemberAccessMatrix')]
     public function testContributionListIsReservedToTheOwnerAndAcceptedMembers(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));

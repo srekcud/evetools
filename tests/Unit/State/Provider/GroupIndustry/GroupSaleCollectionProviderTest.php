@@ -51,8 +51,8 @@ class GroupSaleCollectionProviderTest extends TestCase
         );
     }
 
-    #[DataProvider('readAccessMatrix')]
-    public function testSalesAreReadByTheOwnerAcceptedMembersAndTheOwnerCorporation(string $profile, string $expectedOutcome): void
+    #[DataProvider('acceptedMemberAccessMatrix')]
+    public function testSalesAreReadByTheOwnerAndAcceptedMembersOnly(string $profile, string $expectedOutcome): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
 

@@ -90,22 +90,7 @@ class GroupProjectAccessCheckerTest extends TestCase
         self::assertSame(self::NO_ACCESS, $this->outcomeOf(fn () => $this->accessChecker->assertAcceptedMember($user, $this->sabreBatch)));
     }
 
-    public function testAcceptedMemberOfAnotherProjectCannotReadThisProject(): void
-    {
-        $user = $this->sabreBatchMemberOfAnotherProject(self::FOREIGN_CORPORATION_ID, GroupMemberRole::Member, GroupMemberStatus::Accepted);
-
-        self::assertSame(self::NO_ACCESS, $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($user, $this->sabreBatch)));
-    }
-
-    #[DataProvider('readAccessMatrix')]
-    public function testReadAccessIsOpenToTheOwnerAcceptedMembersAndTheOwnerCorporation(string $profile, string $expectedOutcome): void
-    {
-        $user = $this->userWithProfile($profile);
-
-        self::assertSame($expectedOutcome, $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($user, $this->sabreBatch)));
-    }
-
-    #[DataProvider('participationAccessMatrix')]
+    #[DataProvider('acceptedMemberAccessMatrix')]
     public function testParticipationIsOpenToTheOwnerAndAcceptedMembersOnly(string $profile, string $expectedOutcome): void
     {
         $user = $this->userWithProfile($profile);
@@ -128,31 +113,30 @@ class GroupProjectAccessCheckerTest extends TestCase
         $owner = $this->sabreBatchOwner;
 
         self::assertSame(
-            [self::GRANTED, self::GRANTED, self::GRANTED],
+            [self::GRANTED, self::GRANTED],
             [
-                $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($owner, $this->sabreBatch)),
                 $this->outcomeOf(fn () => $this->accessChecker->assertAcceptedMember($owner, $this->sabreBatch)),
                 $this->outcomeOf(fn () => $this->accessChecker->assertAdminOrOwner($owner, $this->sabreBatch)),
             ],
         );
     }
 
-    public function testUserWithoutCorporationCannotReadTheProjectOfAnOwnerWithoutCorporation(): void
+    public function testUserWithoutCorporationHasNoAccessToTheProjectOfAnOwnerWithoutCorporation(): void
     {
         $this->sabreBatchMemberships = [];
         $this->createSabreBatch(ownerCorporationId: null);
         $user = $this->userOfCorporation(null);
 
-        self::assertSame(self::NO_ACCESS, $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($user, $this->sabreBatch)));
+        self::assertSame(self::NO_ACCESS, $this->outcomeOf(fn () => $this->accessChecker->assertAcceptedMember($user, $this->sabreBatch)));
     }
 
-    public function testAcceptedMemberWithoutCorporationReadsTheProjectOfAnOwnerWithoutCorporation(): void
+    public function testAcceptedMemberWithoutCorporationHasAccessToTheProjectOfAnOwnerWithoutCorporation(): void
     {
         $this->sabreBatchMemberships = [];
         $this->createSabreBatch(ownerCorporationId: null);
         $user = $this->sabreBatchMember(null, GroupMemberRole::Member, GroupMemberStatus::Accepted);
 
-        self::assertSame(self::GRANTED, $this->outcomeOf(fn () => $this->accessChecker->assertCanRead($user, $this->sabreBatch)));
+        self::assertSame(self::GRANTED, $this->outcomeOf(fn () => $this->accessChecker->assertAcceptedMember($user, $this->sabreBatch)));
     }
 
     public function testOwnerManagesAnAcceptedAdmin(): void

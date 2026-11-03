@@ -68,14 +68,11 @@ class GroupProjectProviderTest extends TestCase
         $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
     }
 
-    public function testRemovedMemberFromOwnerCorporationSeesProjectWithoutRole(): void
+    public function testRemovedMemberFromOwnerCorporationIsDenied(): void
     {
         $this->actAs($this->sabreBatchMember(self::OWNER_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Removed));
 
-        $resource = $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
-
-        self::assertSame('Sabre batch', $resource->name);
-        self::assertNull($resource->myRole);
+        self::assertSame(self::NO_ACCESS, $this->readSabreBatch($this->sabreBatch->getId()));
     }
 
     public function testAcceptedMemberSeesAcceptedStatus(): void
@@ -87,21 +84,18 @@ class GroupProjectProviderTest extends TestCase
         self::assertSame('accepted', $resource->myStatus);
     }
 
-    public function testSameCorporationNonMemberHasNoStatus(): void
+    public function testCorpmateOfTheOwnerWhoIsNotAMemberIsDenied(): void
     {
         $this->actAs($this->userOfCorporation(self::OWNER_CORPORATION_ID));
 
-        $resource = $this->provider->provide(new Get(), ['id' => $this->sabreBatch->getId()->toRfc4122()]);
-
-        self::assertNull($resource->myStatus);
-        self::assertNull($resource->myRole);
+        self::assertSame(self::NO_ACCESS, $this->readSabreBatch($this->sabreBatch->getId()));
     }
 
-    public function testAcceptedAdminOfAnotherProjectFromTheOwnerCorporationSeesThisProjectWithoutRoleNorStatus(): void
+    public function testAcceptedAdminOfAnotherProjectFromTheOwnerCorporationIsDeniedThisProject(): void
     {
         $this->actAs($this->sabreBatchMemberOfAnotherProject(self::OWNER_CORPORATION_ID, GroupMemberRole::Admin, GroupMemberStatus::Accepted));
 
-        self::assertSame('Sabre batch -/-', $this->readSabreBatch($this->sabreBatch->getId()));
+        self::assertSame(self::NO_ACCESS, $this->readSabreBatch($this->sabreBatch->getId()));
     }
 
     public static function projectReadMatrix(): iterable
@@ -110,9 +104,9 @@ class GroupProjectProviderTest extends TestCase
         yield 'A2 accepted admin' => [self::ACCEPTED_ADMIN, 'Sabre batch admin/accepted'];
         yield 'A3 accepted member' => [self::ACCEPTED_MEMBER, 'Sabre batch member/accepted'];
         yield 'A4 pending member' => [self::PENDING_MEMBER, self::NO_ACCESS];
-        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, 'Sabre batch -/-'];
-        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, 'Sabre batch -/-'];
-        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, 'Sabre batch -/-'];
+        yield 'A5 owner corporation without membership' => [self::OWNER_CORPORATION_NON_MEMBER, self::NO_ACCESS];
+        yield 'A6 owner corporation pending member' => [self::OWNER_CORPORATION_PENDING_MEMBER, self::NO_ACCESS];
+        yield 'A7 owner corporation removed former admin' => [self::OWNER_CORPORATION_REMOVED_FORMER_ADMIN, self::NO_ACCESS];
         yield 'A8 removed member' => [self::REMOVED_MEMBER, self::NO_ACCESS];
         yield 'A9 stranger' => [self::STRANGER, self::NO_ACCESS];
         yield 'A10 user without corporation' => [self::USER_WITHOUT_CORPORATION, self::NO_ACCESS];
@@ -121,7 +115,7 @@ class GroupProjectProviderTest extends TestCase
     }
 
     #[DataProvider('projectReadMatrix')]
-    public function testProjectIsReadWithTheRoleAndStatusOfTheAcceptedMembershipOnly(string $profile, string $expectedOutcome): void
+    public function testProjectIsReadByTheOwnerAndAcceptedMembersOnlyWithTheirRoleAndStatus(string $profile, string $expectedOutcome): void
     {
         $this->actAs($this->userWithProfile($profile));
 

@@ -137,12 +137,12 @@ class GroupBomProviderTest extends TestCase
         $this->assertSame([], $result);
     }
 
-    public function testSameCorpUserCanAccessBom(): void
+    public function testCorpmateOfTheOwnerWhoIsNotAMemberIsRefusedTheBom(): void
     {
         $owner = $this->createUserStub(98000001);
-        $user = $this->createUserStub(98000001); // Same corp
+        $corpmate = $this->createUserStub(98000001);
 
-        $this->security->method('getUser')->willReturn($user);
+        $this->security->method('getUser')->willReturn($corpmate);
 
         $project = new GroupIndustryProject();
         $project->setOwner($owner);
@@ -150,9 +150,10 @@ class GroupBomProviderTest extends TestCase
         $this->memberRepository->method('findOneBy')->willReturn(null);
         $this->bomItemRepository->method('findBy')->willReturn([]);
 
-        $result = $this->provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()]);
+        $this->expectException(AccessDeniedHttpException::class);
+        $this->expectExceptionMessage('You do not have access to this project');
 
-        $this->assertSame([], $result);
+        $this->provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()]);
     }
 
     // ===========================================
@@ -234,8 +235,8 @@ class GroupBomProviderTest extends TestCase
         $this->assertNull($result[0]->estimatedTotal);
     }
 
-    #[DataProvider('readAccessMatrix')]
-    public function testBomIsReadByTheOwnerAcceptedMembersAndTheOwnerCorporation(string $profile, string $expectedOutcome): void
+    #[DataProvider('acceptedMemberAccessMatrix')]
+    public function testBomIsReadByTheOwnerAndAcceptedMembersOnly(string $profile, string $expectedOutcome): void
     {
         $this->createSabreBatch();
         $this->security->method('getUser')->willReturn($this->userWithProfile($profile));
