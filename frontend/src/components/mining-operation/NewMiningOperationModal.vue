@@ -5,12 +5,28 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import MiningCharacterPicker, { type PickableCharacter } from '@/components/mining-operation/MiningCharacterPicker.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
+import { useCorporationMiningExtractions } from '@/composables/useCorporationMiningExtractions'
 import { useKnownCorporation } from '@/composables/useKnownCorporation'
 import { useAuthStore } from '@/stores/auth'
-import { useMiningOperationStore, type MiningOperation, type MiningOperationVisibility, type MiningSplitMode } from '@/stores/miningOperation'
+import {
+  useMiningOperationStore,
+  type MiningOperation,
+  type MiningOperationRecurrenceInput,
+  type MiningOperationVisibility,
+  type MiningSplitMode,
+} from '@/stores/miningOperation'
 import { eveInputToIso, nextFullHourAsEveInput } from '@/views/MiningOperation/miningOperationTime'
 
 type Step = 'form' | 'created'
+
+type RecurrenceChoice = 'once' | 'weekly' | 'chunk'
+
+interface Refinery {
+  structureId: number
+  name: string
+}
+
+const RECURRENCE_CHOICES = ['once', 'weekly', 'chunk'] as const satisfies readonly RecurrenceChoice[]
 
 const props = defineProps<{
   show: boolean
@@ -21,7 +37,7 @@ const emit = defineEmits<{
   open: [operationId: string]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const store = useMiningOperationStore()
 const fieldId = useId()
@@ -36,7 +52,36 @@ const submitting = ref(false)
 const failure = ref<string | null>(null)
 const created = ref<MiningOperation | null>(null)
 
+const recurrenceChoice = ref<RecurrenceChoice>('once')
+const recurrenceStructureId = ref<number | null>(null)
+
 const hasKnownCorporation = useKnownCorporation()
+const extractions = useCorporationMiningExtractions()
+
+const refineries = computed<Refinery[]>(() => {
+  const corporationId = authStore.user?.corporationId
+  const known = new Map<number, Refinery>()
+  for (const corporation of extractions.corporations.value) {
+    if (corporation.corporationId !== corporationId) continue
+    for (const extraction of corporation.extractions) {
+      known.set(extraction.structureId, { structureId: extraction.structureId, name: extraction.structureName ?? String(extraction.structureId) })
+    }
+  }
+  return [...known.values()]
+})
+
+const availableRecurrenceChoices = computed(() =>
+  RECURRENCE_CHOICES.filter(choice => choice !== 'chunk' || refineries.value.length > 0),
+)
+
+const startWeekday = computed(() => {
+  const start = new Date(`${startInput.value}:00+00:00`)
+  if (Number.isNaN(start.getTime())) return null
+  return {
+    day: new Intl.DateTimeFormat(locale.value, { weekday: 'long', timeZone: 'UTC' }).format(start),
+    time: startInput.value.slice(startInput.value.indexOf('T') + 1),
+  }
+})
 
 const pickableCharacters = computed<PickableCharacter[]>(() =>
   [...(authStore.user?.characters ?? [])]
@@ -50,7 +95,15 @@ const pickableCharacters = computed<PickableCharacter[]>(() =>
     })),
 )
 
-const canSubmit = computed(() => label.value.trim().length > 0 && tickedCharacterIds.value.length > 0 && !submitting.value)
+const recurrenceInput = computed<MiningOperationRecurrenceInput | undefined>(() => {
+  if (recurrenceChoice.value === 'weekly') return { kind: 'weekly' }
+  if (recurrenceChoice.value === 'chunk' && recurrenceStructureId.value !== null) return { kind: 'chunk', structureId: recurrenceStructureId.value }
+  return undefined
+})
+
+const recurrenceComplete = computed(() => recurrenceChoice.value !== 'chunk' || recurrenceStructureId.value !== null)
+
+const canSubmit = computed(() => label.value.trim().length > 0 && tickedCharacterIds.value.length > 0 && recurrenceComplete.value && !submitting.value)
 
 function resetForm(): void {
   step.value = 'form'
@@ -59,6 +112,8 @@ function resetForm(): void {
   visibility.value = hasKnownCorporation.value ? 'corporation' : 'private'
   splitMode.value = 'value_prorata'
   tickedCharacterIds.value = pickableCharacters.value.filter(character => character.isMain && character.eligibility === 'eligible').map(character => character.id)
+  recurrenceChoice.value = 'once'
+  recurrenceStructureId.value = null
   failure.value = null
   created.value = null
 }
@@ -73,6 +128,7 @@ async function submit(): Promise<void> {
       visibility: visibility.value,
       splitMode: splitMode.value,
       characterIds: tickedCharacterIds.value,
+      ...(recurrenceInput.value === undefined ? {} : { recurrence: recurrenceInput.value }),
     })
     step.value = 'created'
   } catch (cause) {
@@ -82,8 +138,14 @@ async function submit(): Promise<void> {
   }
 }
 
+watch(recurrenceChoice, (choice) => {
+  if (choice === 'chunk' && recurrenceStructureId.value === null) recurrenceStructureId.value = refineries.value[0]?.structureId ?? null
+})
+
 watch(() => props.show, (show) => {
-  if (show) resetForm()
+  if (!show) return
+  resetForm()
+  if (hasKnownCorporation.value) void extractions.load()
 }, { immediate: true })
 </script>
 
@@ -139,6 +201,33 @@ watch(() => props.show, (show) => {
           </label>
         </div>
         <p class="mt-1 text-xs text-slate-400">{{ t(`miningOperation.splitMode.hint.${splitMode}`) }}</p>
+      </fieldset>
+
+      <fieldset>
+        <legend class="mb-1 text-sm font-medium text-slate-300">{{ t('miningOperation.recurrence.field.legend') }}</legend>
+        <div class="flex flex-wrap gap-4">
+          <label v-for="choice in availableRecurrenceChoices" :key="choice" class="flex items-center gap-2 text-sm text-slate-200">
+            <input v-model="recurrenceChoice" type="radio" :name="`${fieldId}-recurrence`" :value="choice" class="accent-cyan-500" />
+            <span v-if="choice !== 'once'" class="text-violet-300" aria-hidden="true">↻</span>
+            {{ t(`miningOperation.recurrence.field.${choice}`) }}
+          </label>
+        </div>
+        <p v-if="recurrenceChoice === 'weekly'" class="mt-1 text-xs text-slate-400">
+          {{ t('miningOperation.recurrence.field.weeklyHint') }}
+          <span v-if="startWeekday !== null" class="font-mono text-cyan-200">{{ t('miningOperation.recurrence.rule.weekly', startWeekday) }}</span>
+        </p>
+        <div v-else-if="recurrenceChoice === 'chunk'" class="mt-2">
+          <label :for="`${fieldId}-refinery`" class="mb-1 block text-xs font-medium text-slate-300">{{ t('miningOperation.recurrence.field.refinery') }}</label>
+          <select
+            :id="`${fieldId}-refinery`"
+            v-model.number="recurrenceStructureId"
+            data-testid="recurrence-structure"
+            class="w-full max-w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+          >
+            <option v-for="refinery in refineries" :key="refinery.structureId" :value="refinery.structureId">{{ refinery.name }}</option>
+          </select>
+          <p class="mt-1 text-xs text-slate-400">{{ t('miningOperation.recurrence.field.chunkHint') }}</p>
+        </div>
       </fieldset>
 
       <fieldset>

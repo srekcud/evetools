@@ -65,6 +65,10 @@ final readonly class MiningOperationResourceMapper
         $resource->archivedAt = $this->inEveTimeOrNull($operation->getArchivedAt());
         $resource->archivedByName = $operation->getArchivedByName();
         $resource->fleetStorageRecipientName = $this->fleetStorageRecipientNameOf($operation);
+        $recurrence = $operation->getRecurrence();
+        $resource->recurrenceId = $recurrence === null ? null : PersistedUuid::of($recurrence->getId());
+        $chunk = $operation->getChunk();
+        $resource->chunkId = $chunk === null ? null : PersistedUuid::of($chunk->getId());
 
         return $resource;
     }

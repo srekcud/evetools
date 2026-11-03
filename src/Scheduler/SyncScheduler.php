@@ -13,6 +13,7 @@ use App\Message\SyncCostIndices;
 use App\Message\SyncPublicContracts;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerCorporationMiningExtractionsSync;
+use App\Message\TriggerMiningOperationRecurrences;
 use App\Message\SyncIndustryJobs;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
@@ -96,6 +97,9 @@ class SyncScheduler implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::every('30 minutes', new TriggerCorporationMiningExtractionsSync())
+            )
+            ->add(
+                RecurringMessage::every('30 minutes', new TriggerMiningOperationRecurrences())
             )
             // Purge old notifications daily
             ->add(

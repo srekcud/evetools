@@ -44,6 +44,8 @@ framework:
             App\Message\PurgeExpiredSharedLists: async
             App\Message\WarmupStructureOwnersMessage: async
             App\Message\TakeMiningLedgerSnapshot: async
+            App\Message\TriggerMiningOperationRecurrences: async
+            App\Message\CreateRecurringMiningOperations: async
 
 when@test:
     framework:

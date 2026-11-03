@@ -6,12 +6,15 @@ namespace App\Service\MiningOperation;
 
 use App\ApiResource\Input\MiningOperation\CreateMiningOperationInput;
 use App\Entity\Character;
+use App\Entity\CorporationMiningExtraction;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
+use App\Entity\MiningOperationRecurrence;
 use App\Entity\User;
 use App\Enum\MiningCharacterEligibility;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
+use App\Enum\MiningOperationRecurrenceKind;
 use App\Enum\MiningOperationVisibility;
 use App\Enum\MiningSplitMode;
 use App\Repository\MiningOperationCharacterRepository;
@@ -38,14 +41,48 @@ final readonly class MiningOperationEnrolment
         }
 
         $plannedStartAt = $input->plannedStartAt ?? throw new BadRequestHttpException('plannedStartAt is required');
+        $plannedStartAt = $plannedStartAt->setTimezone(new \DateTimeZone('UTC'));
         $characters = $this->tickedCharactersOf($owner, $input->characterIds);
 
+        $operation = $this->plan(
+            $owner,
+            trim($input->label),
+            $plannedStartAt,
+            $visibility,
+            MiningSplitMode::from($input->splitMode),
+            $corporationId,
+            $characters,
+        );
+
+        if ($input->recurrence !== null) {
+            $recurrence = $this->recurrenceOf($operation, $input->recurrence->kind, $input->recurrence->structureId);
+            $operation->setRecurrence($recurrence);
+            $this->entityManager->persist($recurrence);
+        }
+        $this->entityManager->persist($operation);
+        $this->entityManager->flush();
+
+        return $operation;
+    }
+
+    /**
+     * @param list<Character> $characters
+     */
+    public function plan(
+        User $owner,
+        string $label,
+        \DateTimeImmutable $plannedStartAt,
+        MiningOperationVisibility $visibility,
+        MiningSplitMode $splitMode,
+        ?int $corporationId,
+        array $characters,
+    ): MiningOperation {
         $operation = (new MiningOperation())
             ->setOwner($owner)
-            ->setLabel(trim($input->label))
-            ->setPlannedStartAt($plannedStartAt->setTimezone(new \DateTimeZone('UTC')))
+            ->setLabel($label)
+            ->setPlannedStartAt($plannedStartAt)
             ->setVisibility($visibility)
-            ->setSplitMode(MiningSplitMode::from($input->splitMode))
+            ->setSplitMode($splitMode)
             ->setCorporationId($corporationId);
         $ownerMembership = (new MiningOperationMember())
             ->setUser($owner)
@@ -55,9 +92,6 @@ final readonly class MiningOperationEnrolment
             $ownerMembership->enrol($character);
         }
         $operation->addMember($ownerMembership);
-
-        $this->entityManager->persist($operation);
-        $this->entityManager->flush();
 
         return $operation;
     }
@@ -127,6 +161,53 @@ final readonly class MiningOperationEnrolment
         $corporationId = $user->getCorporationId();
 
         return $corporationId !== null && $corporationId === $operation->getCorporationId();
+    }
+
+    /**
+     * @return list<Character>
+     */
+    public function eligibleCharactersOf(User $user): array
+    {
+        return array_values(array_map(
+            static fn (CharacterEligibility $eligibility): Character => $eligibility->character,
+            array_filter(
+                $this->eligibilityOf($user),
+                static fn (CharacterEligibility $eligibility): bool => $eligibility->eligibility === MiningCharacterEligibility::Eligible,
+            ),
+        ));
+    }
+
+    private function recurrenceOf(MiningOperation $operation, string $kindValue, ?int $structureId): MiningOperationRecurrence
+    {
+        $kind = MiningOperationRecurrenceKind::from($kindValue);
+        $corporationId = $operation->getCorporationId();
+        $recurrence = (new MiningOperationRecurrence())
+            ->setOwner($operation->getOwner())
+            ->setKind($kind)
+            ->setLabel($operation->getLabel())
+            ->setVisibility($operation->getVisibility())
+            ->setSplitMode($operation->getSplitMode())
+            ->setCorporationId($corporationId)
+            ->setAnchorAt($operation->getPlannedStartAt());
+
+        if ($kind === MiningOperationRecurrenceKind::Weekly) {
+            return $recurrence;
+        }
+
+        if ($structureId === null) {
+            throw new BadRequestHttpException('A chunk recurrence needs a refinery');
+        }
+        if ($corporationId === null) {
+            throw new BadRequestHttpException('A chunk recurrence needs a known corporation');
+        }
+        $extraction = $this->entityManager->getRepository(CorporationMiningExtraction::class)->findOneBy(
+            ['corporationId' => $corporationId, 'structureId' => $structureId],
+            ['chunkArrivalTime' => 'DESC'],
+        ) ?? throw new BadRequestHttpException('This refinery has no extraction for your corporation');
+
+        return $recurrence
+            ->setStructureId($structureId)
+            ->setStructureName($extraction->getStructureName());
     }
 
     /**

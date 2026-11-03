@@ -2654,6 +2654,30 @@
       "corporationUnavailable": "Unknown corporation: private visibility only.",
       "submit": "Create operation"
     },
+    "recurrence": {
+      "title": "Recurrences",
+      "empty": "No active recurrence.",
+      "next": "Next:",
+      "nextChunk": "at each chunk arrival",
+      "stop": "Stop",
+      "stopConfirm": "Stop this recurrence? Existing operations are kept.",
+      "stopConfirmAction": "Stop the recurrence",
+      "rule": {
+        "weekly": "Every {day} at {time} EVE",
+        "weeklyUnknown": "Every week",
+        "chunk": "At each chunk of {refinery}"
+      },
+      "field": {
+        "legend": "Recurrence",
+        "once": "Once",
+        "weekly": "Every week",
+        "chunk": "At each chunk of a refinery",
+        "refinery": "Refinery",
+        "weeklyHint": "Same day and time in EVE time as the start above.",
+        "chunkHint": "One operation per extraction, at the chunk arrival."
+      },
+      "icon": "Recurring operation"
+    },
     "created": {
       "title": "Operation created",
       "planned": "The operation is planned.",

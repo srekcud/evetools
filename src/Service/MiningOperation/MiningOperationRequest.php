@@ -7,10 +7,12 @@ namespace App\Service\MiningOperation;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
+use App\Entity\MiningOperationRecurrence;
 use App\Entity\MiningPayment;
 use App\Entity\User;
 use App\Repository\MiningOperationCharacterRepository;
 use App\Repository\MiningOperationMemberRepository;
+use App\Repository\MiningOperationRecurrenceRepository;
 use App\Repository\MiningOperationRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -23,6 +25,7 @@ final class MiningOperationRequest
     private const string OPERATION_NOT_FOUND_MESSAGE = 'Mining operation not found';
     private const string MEMBER_NOT_FOUND_MESSAGE = 'Member not found';
     private const string CHARACTER_NOT_FOUND_MESSAGE = 'Character not found';
+    private const string RECURRENCE_NOT_FOUND_MESSAGE = 'Mining operation recurrence not found';
     private const string ARCHIVED_MESSAGE = 'This operation is archived';
     private const string PAYMENT_NOT_FOUND_MESSAGE = 'Payment not found';
 
@@ -40,6 +43,12 @@ final class MiningOperationRequest
     {
         return $repository->find(UuidOrNotFound::of($identifier, self::OPERATION_NOT_FOUND_MESSAGE))
             ?? throw new NotFoundHttpException(self::OPERATION_NOT_FOUND_MESSAGE);
+    }
+
+    public static function activeRecurrenceOf(MiningOperationRecurrenceRepository $repository, User $owner, string $identifier): MiningOperationRecurrence
+    {
+        return $repository->findActiveOwnedById($owner, UuidOrNotFound::of($identifier, self::RECURRENCE_NOT_FOUND_MESSAGE))
+            ?? throw new NotFoundHttpException(self::RECURRENCE_NOT_FOUND_MESSAGE);
     }
 
     public static function operationByJoinCodeOf(MiningOperationRepository $repository, string $joinCode): MiningOperation

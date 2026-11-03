@@ -6,13 +6,21 @@ namespace App\Service\MiningOperation;
 
 final readonly class MiningOperationRecurrenceSchedule
 {
+    private const string WEEK = '+7 days';
+    private const string CREATION_LEAD = '-7 days';
+
     public function nextWeeklyStartAt(\DateTimeImmutable $lastPlannedStartAt, \DateTimeImmutable $now): \DateTimeImmutable
     {
-        return $lastPlannedStartAt;
+        $nextStartAt = $lastPlannedStartAt->setTimezone(new \DateTimeZone('UTC'))->modify(self::WEEK);
+        while ($nextStartAt < $now) {
+            $nextStartAt = $nextStartAt->modify(self::WEEK);
+        }
+
+        return $nextStartAt;
     }
 
     public function isDue(\DateTimeImmutable $nextStartAt, \DateTimeImmutable $now): bool
     {
-        return false;
+        return $now >= $nextStartAt->modify(self::CREATION_LEAD);
     }
 }

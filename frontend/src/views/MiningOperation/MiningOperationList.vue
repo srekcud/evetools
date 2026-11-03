@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import MiningOperationRecurrencesPanel from '@/components/mining-operation/MiningOperationRecurrencesPanel.vue'
 import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.vue'
 import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
 import { useTabQuery } from '@/composables/useTabQuery'
@@ -17,6 +18,7 @@ type ListTab = 'mine' | 'available' | 'archive'
 
 const LIST_TABS = ['mine', 'available', 'archive'] as const satisfies readonly ListTab[]
 const ARCHIVING_ACTIONS = ['operation_settled', 'operation_completed']
+const RECURRENCE_CREATED_ACTION = 'recurrence_created'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -88,6 +90,11 @@ async function reloadMineAndArchive(): Promise<void> {
   rememberCurrentEvents()
 }
 
+async function reloadMineAndRecurrences(): Promise<void> {
+  await Promise.all([store.fetchMine(), store.fetchRecurrences()])
+  rememberCurrentEvents()
+}
+
 function hasNewArchivingEvent(): boolean {
   return listedOperationIds.value.some(operationId => {
     const event = syncStore.getMiningOperationEvent(operationId)
@@ -99,6 +106,13 @@ watch(
   () => listedOperationIds.value.map(operationId => syncStore.getMiningOperationEvent(operationId)),
   () => {
     if (hasNewArchivingEvent()) reloadMineAndArchive()
+  },
+)
+
+watch(
+  () => syncStore.miningOperationIdsWithAction(RECURRENCE_CREATED_ACTION).length,
+  (announced, previouslyAnnounced) => {
+    if (announced > previouslyAnnounced) void reloadMineAndRecurrences()
   },
 )
 
@@ -184,7 +198,9 @@ onMounted(async () => {
               <tr v-for="operation in shownOperations" :key="operation.id" class="cursor-pointer border-b border-slate-800/60 hover:bg-slate-800/40" @click="openDetail(operation)">
                 <td class="max-w-56 px-3 py-2.5">
                   <router-link :to="detailTarget(operation)" class="block text-slate-100 hover:text-cyan-200" @click.stop>
-                    <span class="block truncate font-display font-semibold" :title="operation.label">{{ operation.label }}</span>
+                    <span class="block truncate font-display font-semibold" :title="operation.label">
+                      <span v-if="operation.recurrenceId !== null" class="mr-1 text-violet-300" role="img" :aria-label="t('miningOperation.recurrence.icon')">↻</span>{{ operation.label }}
+                    </span>
                   </router-link>
                 </td>
                 <td class="px-3 py-2.5 font-mono text-xs text-cyan-200">{{ operation.archivedAt === null ? t('miningOperation.quantities.unknown') : formatEveDateTime(operation.archivedAt) }}</td>
@@ -213,7 +229,9 @@ onMounted(async () => {
       <ul v-else class="grid gap-4 md:grid-cols-2">
         <li v-for="operation in shownOperations" :key="operation.id" class="eve-card flex flex-col gap-3 p-5">
           <div class="flex items-start justify-between gap-3">
-            <h2 class="min-w-0 truncate font-display text-lg font-semibold text-slate-100" :title="operation.label">{{ operation.label }}</h2>
+            <h2 class="min-w-0 truncate font-display text-lg font-semibold text-slate-100" :title="operation.label">
+              <span v-if="operation.recurrenceId !== null" class="mr-1 text-violet-300" role="img" :aria-label="t('miningOperation.recurrence.icon')">↻</span>{{ operation.label }}
+            </h2>
             <MiningStatusBadge :status="operation.status" />
           </div>
           <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -235,6 +253,8 @@ onMounted(async () => {
           </div>
         </li>
       </ul>
+
+      <MiningOperationRecurrencesPanel v-if="activeTab === 'mine' && !loading" class="mt-8" />
     </div>
 
     <NewMiningOperationModal :show="showCreation" @close="showCreation = false" @open="openCreatedOperation" />

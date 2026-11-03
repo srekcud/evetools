@@ -283,4 +283,8 @@ class MiningOperationResource
     public ?array $archiveSummary = null;
 
     public ?string $fleetStorageRecipientName = null;
+
+    public ?string $recurrenceId = null;
+
+    public ?string $chunkId = null;
 }

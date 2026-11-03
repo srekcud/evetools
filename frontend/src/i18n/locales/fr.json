@@ -2654,6 +2654,30 @@
       "corporationUnavailable": "Corporation inconnue : visibilité privée seulement.",
       "submit": "Créer l'opération"
     },
+    "recurrence": {
+      "title": "Récurrences",
+      "empty": "Aucune récurrence active.",
+      "next": "Prochaine :",
+      "nextChunk": "à chaque arrivée de chunk",
+      "stop": "Arrêter",
+      "stopConfirm": "Arrêter cette récurrence ? Les opérations existantes sont conservées.",
+      "stopConfirmAction": "Arrêter la récurrence",
+      "rule": {
+        "weekly": "Chaque {day} à {time} EVE",
+        "weeklyUnknown": "Chaque semaine",
+        "chunk": "À chaque chunk de {refinery}"
+      },
+      "field": {
+        "legend": "Récurrence",
+        "once": "Une seule fois",
+        "weekly": "Chaque semaine",
+        "chunk": "À chaque chunk d'une raffinerie",
+        "refinery": "Raffinerie",
+        "weeklyHint": "Même jour et même heure EVE que le début ci-dessus.",
+        "chunkHint": "Une opération par extraction, à l'arrivée du chunk."
+      },
+      "icon": "Opération récurrente"
+    },
     "created": {
       "title": "Opération créée",
       "planned": "L'opération est planifiée.",

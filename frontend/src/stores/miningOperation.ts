@@ -331,12 +331,27 @@ export interface MiningOperationValuation {
   fleetStorageRecipientName: string | null
 }
 
+export type MiningOperationRecurrenceKind = 'weekly' | 'chunk'
+
+export type MiningOperationRecurrenceInput = { kind: 'weekly' } | { kind: 'chunk'; structureId: number }
+
+export interface MiningOperationRecurrence {
+  id: string
+  kind: MiningOperationRecurrenceKind
+  label: string
+  structureId: number | null
+  structureName: string | null
+  nextOccurrenceAt: string | null
+  createdAt: string
+}
+
 export interface CreateMiningOperationInput {
   label: string
   plannedStartAt: string
   visibility: MiningOperationVisibility
   splitMode: MiningSplitMode
   characterIds: string[]
+  recurrence?: MiningOperationRecurrenceInput
 }
 
 export interface UpdateMiningOperationMemberInput {
@@ -354,6 +369,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const valuation = ref<MiningOperationValuation | null>(null)
   const payments = ref<MiningPayment[]>([])
   const archivedOperations = ref<MiningOperation[]>([])
+  const recurrences = ref<MiningOperationRecurrence[]>([])
   const fleetStorage = ref<MiningFleetStorage | null>(null)
   const fleetStorageVerification = ref<MiningFleetStorageVerification | null>(null)
   const error = ref<string | null>(null)
@@ -407,6 +423,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
         body: JSON.stringify(input),
       })
       myOperations.value = [created, ...myOperations.value]
+      if (input.recurrence !== undefined) await fetchRecurrences()
       return created
     } catch (cause) {
       error.value = messageOf(cause, 'Failed to create the mining operation')
@@ -463,6 +480,26 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
       myOperations.value = myOperations.value.filter(operation => operation.id !== id)
     } catch (cause) {
       error.value = messageOf(cause, 'Failed to leave the mining operation')
+      throw cause
+    }
+  }
+
+  async function fetchRecurrences(): Promise<void> {
+    error.value = null
+    try {
+      recurrences.value = await apiRequest<MiningOperationRecurrence[]>('/mining-operations/recurrences')
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the mining operation recurrences')
+    }
+  }
+
+  async function stopRecurrence(id: string): Promise<void> {
+    error.value = null
+    try {
+      await apiRequest<null>(`/mining-operations/recurrences/${id}`, { method: 'DELETE' })
+      recurrences.value = recurrences.value.filter(recurrence => recurrence.id !== id)
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to stop the recurrence')
       throw cause
     }
   }
@@ -720,6 +757,9 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     fetchDetail,
     fetchMembers,
     create,
+    recurrences,
+    fetchRecurrences,
+    stopRecurrence,
     fetchInvitation,
     join,
     renewJoinCode,

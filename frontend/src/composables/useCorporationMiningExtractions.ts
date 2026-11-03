@@ -138,6 +138,7 @@ export function useCorporationMiningExtractions() {
     isLoading.value = true
     try {
       const response = await apiRequest<CorporationMiningExtractionsResponse>(EXTRACTIONS_ENDPOINT)
+      if (!Array.isArray(response.corporations)) throw new Error('Unexpected corporation moon chunks payload')
       corporations.value = response.corporations
       hasError.value = false
     } catch (e) {

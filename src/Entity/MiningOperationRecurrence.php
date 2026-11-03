@@ -7,11 +7,12 @@ namespace App\Entity;
 use App\Enum\MiningOperationRecurrenceKind;
 use App\Enum\MiningOperationVisibility;
 use App\Enum\MiningSplitMode;
+use App\Repository\MiningOperationRecurrenceRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: MiningOperationRecurrenceRepository::class)]
 #[ORM\Table(name: 'mining_operation_recurrences')]
 #[ORM\Index(columns: ['owner_id'])]
 class MiningOperationRecurrence
@@ -46,6 +47,9 @@ class MiningOperationRecurrence
 
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $structureName = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $anchorAt = null;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
@@ -155,6 +159,18 @@ class MiningOperationRecurrence
     public function setStructureName(?string $structureName): static
     {
         $this->structureName = $structureName;
+
+        return $this;
+    }
+
+    public function getAnchorAt(): ?\DateTimeImmutable
+    {
+        return $this->anchorAt;
+    }
+
+    public function setAnchorAt(?\DateTimeImmutable $anchorAt): static
+    {
+        $this->anchorAt = $anchorAt;
 
         return $this;
     }

@@ -250,6 +250,12 @@ export const useSyncStore = defineStore('sync', () => {
     return miningOperationEvents.value[operationId] ?? null
   }
 
+  function miningOperationIdsWithAction(action: string): string[] {
+    return Object.entries(miningOperationEvents.value)
+      .filter(([, event]) => event.action === action)
+      .map(([operationId]) => operationId)
+  }
+
   function isLoading(syncType: string): boolean {
     const status = syncStatus.value[syncType]
     return status?.status === 'started' || status?.status === 'in_progress'
@@ -311,6 +317,7 @@ export const useSyncStore = defineStore('sync', () => {
     getSyncProgress,
     getGroupProjectEvent,
     getMiningOperationEvent,
+    miningOperationIdsWithAction,
     isLoading,
     clearSyncStatus,
     clearAllSyncStatus,

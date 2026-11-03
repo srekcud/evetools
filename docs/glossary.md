@@ -217,6 +217,8 @@ Termes proposés pour le minage groupé (#261), en attente de validation : seuls
 | **ETA d'épuisement** | Depletion ETA | Instant estimé où un type de minerai, ou un site, est vide. Une par débit (récent, tendance). Inconnue quand le débit est nul ou négatif, ou avec un seul scan (spec #267). | à venir (#267) |
 | **Type épuisé** | Depleted type | Type de minerai présent dans un scan de site et absent de tous les scans suivants (spec #267). | à venir (#267) |
 | **Taxe lunaire** | Moon mining tax | Taxe due au propriétaire d'une raffinerie par chaque personnage qui a miné sur ses lunes, d'après le ledger de la raffinerie (#273). | à venir (#273) |
+| **Récurrence** | Recurrence | Règle qui crée une opération de minage chaque semaine (`weekly`) ou à chaque chunk d'une raffinerie (`chunk`), avec les mêmes règles (spec #310). | à venir (#310) |
+| **Occurrence** | Occurrence | Opération de minage créée par une récurrence (spec #310). | à venir (#310) |
 
 ## Ambiguïtés connues
 

@@ -185,6 +185,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Alert prices check | 30 min |
 | Public contracts (The Forge) | 30 min |
 | Corporation moon chunks (extractions) | 30 min |
+| Opérations de minage récurrentes (occurrences `weekly` et `chunk`) | 30 min |
 | Cost indices | 2h |
 | Adjusted prices | 24h |
 | Ansiblex sync | 12h |

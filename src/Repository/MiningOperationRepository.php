@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
+use App\Entity\MiningOperationRecurrence;
 use App\Entity\User;
 use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
@@ -22,6 +23,11 @@ class MiningOperationRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, MiningOperation::class);
+    }
+
+    public function findLatestOf(MiningOperationRecurrence $recurrence): ?MiningOperation
+    {
+        return $this->findOneBy(['recurrence' => $recurrence], ['plannedStartAt' => 'DESC']);
     }
 
     public function findOneByJoinCode(string $joinCode): ?MiningOperation
