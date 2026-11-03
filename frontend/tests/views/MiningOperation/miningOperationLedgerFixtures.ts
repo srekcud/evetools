@@ -5,6 +5,7 @@ import type {
   MiningOperation,
   MiningOperationLedger,
   MiningOperationMember,
+  MiningValuationSettings,
 } from '@/stores/miningOperation'
 
 export const OPERATION_O = '4d2f8a61-3b7c-4e95-a0d8-6c1e9f2b7a53'
@@ -18,6 +19,22 @@ export const BRANN_II_ENROLMENT_ID = '6a2d9f4e-1c83-4b57-9e20-7f3c5a1d8b64'
 
 export const STARTED_AT = '2026-11-05T20:00:00+00:00'
 export const ENDED_AT = '2026-11-05T21:30:00+00:00'
+
+export function valuationSettings(overrides: Partial<MiningValuationSettings> = {}): MiningValuationSettings {
+  return {
+    valuationForm: 'compressed',
+    valuationMarket: 'jita',
+    valuationSide: 'buy',
+    structureId: null,
+    structureName: null,
+    reprocessYield: null,
+    boosterCutPercent: 0,
+    corporationCutPercent: 0,
+    boosterMemberId: null,
+    boosterCharacterName: null,
+    ...overrides,
+  }
+}
 
 export function spodumainOperation(overrides: Partial<MiningOperation> = {}): MiningOperation {
   return {
@@ -40,6 +57,8 @@ export function spodumainOperation(overrides: Partial<MiningOperation> = {}): Mi
     solarSystemId: null,
     solarSystemName: null,
     myDepartedAt: null,
+    valuationSettings: valuationSettings(),
+    sharesFrozenAt: null,
     ...overrides,
   }
 }

@@ -32,6 +32,19 @@ const STARTED_SPODUMAIN: MiningOperation = {
   solarSystemId: S1,
   solarSystemName: 'Aldranette',
   myDepartedAt: null,
+  valuationSettings: {
+    valuationForm: 'compressed',
+    valuationMarket: 'jita',
+    valuationSide: 'buy',
+    structureId: null,
+    structureName: null,
+    reprocessYield: null,
+    boosterCutPercent: 0,
+    corporationCutPercent: 0,
+    boosterMemberId: null,
+    boosterCharacterName: null,
+  },
+  sharesFrozenAt: null,
 }
 
 const CLOSING_LEDGER: MiningOperationLedger = {

@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Get;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\Entity\MiningOperation;
 use App\Entity\User;
+use App\Enum\MarketSide;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Service\MiningOperation\MiningOperationAccess;
@@ -69,6 +70,54 @@ final class MiningOperationProviderTest extends TestCase
         self::assertSame(self::JOIN_CODE, $resource->joinCode);
         self::assertSame(2, $resource->participantsCount);
         self::assertSame(4, $resource->charactersCount);
+    }
+
+    #[Group('issue-264')]
+    public function testNewOperationIsValuedOnCompressedJitaBuyWithoutAnyCut(): void
+    {
+        $this->actAs($this->aria);
+
+        $resource = $this->read($this->operation->getId()->toRfc4122());
+
+        self::assertSame(
+            [
+                'valuationSettings' => [
+                    'valuationForm' => 'compressed',
+                    'valuationMarket' => 'jita',
+                    'valuationSide' => 'buy',
+                    'structureId' => null,
+                    'structureName' => null,
+                    'reprocessYield' => null,
+                    'boosterCutPercent' => 0,
+                    'corporationCutPercent' => 0,
+                    'boosterMemberId' => null,
+                    'boosterCharacterName' => null,
+                ],
+                'sharesFrozenAt' => null,
+            ],
+            ['valuationSettings' => $resource->valuationSettings, 'sharesFrozenAt' => $resource->sharesFrozenAt],
+        );
+    }
+
+    #[Group('issue-264')]
+    public function testOperationCarriesItsBoosterAndCorporationCuts(): void
+    {
+        $brannMembership = $this->addMembership($this->operation, $this->brann, MiningOperationMemberRole::Member, MiningOperationMemberStatus::Accepted, ['Brann Holt']);
+        $this->operation->updateValuationSettings(valuationSide: MarketSide::Sell, boosterCutPercent: 10, corporationCutPercent: 5, boosterMember: $brannMembership);
+        $this->actAs($this->brann);
+
+        $resource = $this->read($this->operation->getId()->toRfc4122());
+
+        self::assertSame(
+            ['sell', 10, 5, $brannMembership->getId()->toRfc4122(), 'Brann Holt'],
+            [
+                $resource->valuationSettings['valuationSide'] ?? null,
+                $resource->valuationSettings['boosterCutPercent'] ?? null,
+                $resource->valuationSettings['corporationCutPercent'] ?? null,
+                $resource->valuationSettings['boosterMemberId'] ?? null,
+                $resource->valuationSettings['boosterCharacterName'] ?? null,
+            ],
+        );
     }
 
     public function testPendingMemberOfAnotherCorporationCannotRead(): void

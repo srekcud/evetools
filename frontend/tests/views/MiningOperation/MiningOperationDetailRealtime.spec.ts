@@ -8,6 +8,7 @@ import MiningOperationDetail from '@/views/MiningOperation/MiningOperationDetail
 import { apiRequest } from '@/services/api'
 import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import type { MiningOperation, MiningOperationLedger, MiningOperationMember } from '@/stores/miningOperation'
+import { VALUATION_PATH, unmeasuredValuation } from './miningOperationValuationFixtures'
 
 const OPERATION_O = '4d2f8a61-3b7c-4e95-a0d8-6c1e9f2b7a53'
 const OPERATION_P2 = 'b7e4c2a9-1d63-4f58-8a0e-5c9d3f7b2e14'
@@ -49,6 +50,19 @@ const SPODUMAIN: MiningOperation = {
   solarSystemId: null,
   solarSystemName: null,
   myDepartedAt: null,
+  valuationSettings: {
+    valuationForm: 'compressed',
+    valuationMarket: 'jita',
+    valuationSide: 'buy',
+    structureId: null,
+    structureName: null,
+    reprocessYield: null,
+    boosterCutPercent: 0,
+    corporationCutPercent: 0,
+    boosterMemberId: null,
+    boosterCharacterName: null,
+  },
+  sharesFrozenAt: null,
 }
 
 const MEMBERS: MiningOperationMember[] = [
@@ -108,7 +122,12 @@ beforeEach(() => {
   Object.keys(events).forEach(operationId => delete events[operationId])
   push.mockReset()
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => (endpoint === MEMBERS_PATH ? MEMBERS : endpoint === LEDGER_PATH ? PLANNED_LEDGER : SPODUMAIN) as never)
+  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    if (endpoint === MEMBERS_PATH) return MEMBERS as never
+    if (endpoint === LEDGER_PATH) return PLANNED_LEDGER as never
+    if (endpoint === VALUATION_PATH) return unmeasuredValuation('planned') as never
+    return SPODUMAIN as never
+  })
 })
 
 enableAutoUnmount(afterEach)

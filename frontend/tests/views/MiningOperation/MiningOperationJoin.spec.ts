@@ -50,6 +50,17 @@ const BRANN_PREVIEW: MiningOperationInvitation = {
     { id: BRANN_III_ID, eveCharacterId: 2_112_262_203, name: 'Brann III', isMain: false, eligibility: 'reconnect_required', busyOperationLabel: null },
     { id: BRANN_IV_ID, eveCharacterId: 2_112_262_204, name: 'Brann IV', isMain: false, eligibility: 'in_another_operation', busyOperationLabel: 'Ice belt — dimanche' },
   ],
+  valuationSettings: {
+    valuationForm: 'compressed',
+    valuationMarket: 'jita',
+    valuationSide: 'buy',
+    structureId: null,
+    structureName: null,
+    reprocessYield: null,
+    boosterCutPercent: 0,
+    corporationCutPercent: 0,
+    boosterCharacterName: null,
+  },
 }
 
 function answerInvitation(preview: MiningOperationInvitation | ApiError, joined?: MiningOperationInvitation): void {
@@ -150,6 +161,15 @@ describe('MiningOperationJoin', () => {
 
     expect(wrapper.text()).toContain('This operation no longer accepts participants.')
     expect(joinButton(wrapper)).toBeUndefined()
+  })
+
+  it('shows the valuation basis, the booster cut and the booster in the operation rules', async () => {
+    answerInvitation({ ...BRANN_PREVIEW, valuationSettings: { ...BRANN_PREVIEW.valuationSettings, valuationSide: 'sell', boosterCutPercent: 10, boosterCharacterName: 'Cyra Lune' } })
+
+    const wrapper = await mountJoin()
+
+    const rules = wrapper.findAll('section').find(section => section.text().includes('Operation rules'))?.text() ?? ''
+    expect(['Compressed, Jita Sell', 'Booster cut', 'Cyra Lune'].every(text => rules.includes(text))).toBe(true)
   })
 
   it('tells that the link is invalid or renewed when the code is not found', async () => {

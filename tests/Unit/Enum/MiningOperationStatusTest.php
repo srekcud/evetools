@@ -11,12 +11,13 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(MiningOperationStatus::class)]
 #[Group('issue-262')]
+#[Group('issue-264')]
 final class MiningOperationStatusTest extends TestCase
 {
-    public function testEveryStatusButCompletedIsAnOpenOperation(): void
+    public function testEveryStatusButSharesAndCompletedIsAnOpenOperation(): void
     {
         self::assertSame(
-            ['planned' => true, 'in_progress' => true, 'closing' => true, 'completed' => false],
+            ['planned' => true, 'in_progress' => true, 'closing' => true, 'shares' => false, 'completed' => false],
             $this->byStatus(static fn (MiningOperationStatus $status): bool => $status->isOpen()),
         );
     }
@@ -24,7 +25,7 @@ final class MiningOperationStatusTest extends TestCase
     public function testOnlyPlannedAndInProgressOperationsAcceptParticipants(): void
     {
         self::assertSame(
-            ['planned' => true, 'in_progress' => true, 'closing' => false, 'completed' => false],
+            ['planned' => true, 'in_progress' => true, 'closing' => false, 'shares' => false, 'completed' => false],
             $this->byStatus(static fn (MiningOperationStatus $status): bool => $status->acceptsParticipants()),
         );
     }

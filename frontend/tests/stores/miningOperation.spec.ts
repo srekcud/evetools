@@ -33,6 +33,19 @@ const SPODUMAIN: MiningOperation = {
   solarSystemId: null,
   solarSystemName: null,
   myDepartedAt: null,
+  valuationSettings: {
+    valuationForm: 'compressed',
+    valuationMarket: 'jita',
+    valuationSide: 'buy',
+    structureId: null,
+    structureName: null,
+    reprocessYield: null,
+    boosterCutPercent: 0,
+    corporationCutPercent: 0,
+    boosterMemberId: null,
+    boosterCharacterName: null,
+  },
+  sharesFrozenAt: null,
 }
 
 const ICE_BELT: MiningOperation = { ...SPODUMAIN, id: 'b7e4c2a9-1d63-4f58-8a0e-5c9d3f7b2e14', label: 'Ice belt — dimanche', participantsCount: 3, charactersCount: 5 }
@@ -51,6 +64,17 @@ const BRANN_INVITATION: MiningOperationInvitation = {
   myRole: 'member',
   myStatus: 'accepted',
   characters: [],
+  valuationSettings: {
+    valuationForm: 'compressed',
+    valuationMarket: 'jita',
+    valuationSide: 'buy',
+    structureId: null,
+    structureName: null,
+    reprocessYield: null,
+    boosterCutPercent: 0,
+    corporationCutPercent: 0,
+    boosterCharacterName: null,
+  },
 }
 
 const CYRA_MEMBER: MiningOperationMember = {

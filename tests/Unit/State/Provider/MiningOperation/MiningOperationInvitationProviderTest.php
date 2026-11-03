@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Provider\MiningOperation;
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\MiningOperation\MiningOperationInvitationResource;
 use App\Entity\User;
+use App\Enum\MarketSide;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
@@ -78,6 +79,32 @@ final class MiningOperationInvitationProviderTest extends TestCase
         self::assertSame(
             ['id', 'eveCharacterId', 'name', 'isMain', 'eligibility', 'busyOperationLabel'],
             array_keys($invitation->characters[0]),
+        );
+    }
+
+    #[Group('issue-264')]
+    public function testInvitationShowsTheValuationRulesWithoutTheBoosterMembership(): void
+    {
+        $operation = $this->spodumainOperation();
+        $ariaMembership = $this->membershipOf($operation, $this->aria);
+        $operation->updateValuationSettings(valuationSide: MarketSide::Sell, boosterCutPercent: 10, boosterMember: $ariaMembership);
+        $this->actAs($this->brann);
+
+        $invitation = $this->preview(self::JOIN_CODE);
+
+        self::assertSame(
+            [
+                'valuationForm' => 'compressed',
+                'valuationMarket' => 'jita',
+                'valuationSide' => 'sell',
+                'structureId' => null,
+                'structureName' => null,
+                'reprocessYield' => null,
+                'boosterCutPercent' => 10,
+                'corporationCutPercent' => 0,
+                'boosterCharacterName' => 'Aria Solberg',
+            ],
+            $invitation->valuationSettings,
         );
     }
 

@@ -13,6 +13,7 @@ use App\ApiResource\MiningOperation\MiningOperationLedgerResource;
 use App\ApiResource\MiningOperation\MiningOperationMemberResource;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\ApiResource\MiningOperation\MiningOperationStockpileCoverageResource;
+use App\ApiResource\MiningOperation\MiningOperationValuationResource;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -55,6 +56,9 @@ final class MiningOperationSubResourceUriVariablesTest extends TestCase
         yield 'GET stockpile coverage' => [MiningOperationStockpileCoverageResource::class, 'GET', '/mining-operations/'.$operationId.'/stockpile-coverage', ['operationId']];
         yield 'POST snapshot retry' => [MiningOperationCharacterResource::class, 'POST', '/mining-operations/'.$operationId.'/characters/'.$id.'/snapshot-retry', ['operationId', 'id']];
         yield 'POST quantity correction' => [MiningOperationCharacterResource::class, 'POST', '/mining-operations/'.$operationId.'/characters/'.$id.'/quantity-corrections', ['operationId', 'id']];
+        yield 'GET valuation' => [MiningOperationValuationResource::class, 'GET', '/mining-operations/'.$operationId.'/valuation', ['operationId']];
+        yield 'PATCH valuation' => [MiningOperationValuationResource::class, 'PATCH', '/mining-operations/'.$operationId.'/valuation', ['operationId']];
+        yield 'POST freeze shares' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/freeze-shares', ['id']];
     }
 
     private function operationOf(string $resourceClass, string $method, string $uriTemplate): ?HttpOperation

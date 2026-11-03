@@ -11,6 +11,7 @@ use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningLedgerSnapshotStatus;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
+use App\Enum\MiningOperationStatus;
 use App\Service\MiningOperation\MiningLedgerSnapshotDispatcher;
 use App\Service\MiningOperation\MiningOperationLifecycle;
 use Doctrine\ORM\EntityManagerInterface;
@@ -359,6 +360,17 @@ final class MiningOperationLifecycleTest extends TestCase
         $this->failedStartSnapshot('Brann II', MiningLedgerSnapshotStatus::Failed);
 
         $this->assertRefused(BadRequestHttpException::class, 'This snapshot cannot be retried', fn () => $this->lifecycle->retrySnapshot($this->enrolmentOf('Brann II')));
+    }
+
+    #[Group('issue-264')]
+    public function testFailedEndSnapshotCannotBeRetriedOnceTheSharesAreFrozen(): void
+    {
+        $this->closingOperationWhereBrannHoltStarted();
+        $this->failedEndSnapshot('Brann Holt', MiningLedgerSnapshotStatus::Failed);
+        $this->operation->setStatus(MiningOperationStatus::Shares);
+
+        $this->assertRefused(BadRequestHttpException::class, 'This snapshot cannot be retried', fn () => $this->lifecycle->retrySnapshot($this->enrolmentOf('Brann Holt')));
+        self::assertSame([], $this->journal->getArrayCopy());
     }
 
     public function testRetryIsOfferedOnlyForASnapshotThatCanBeRetriedNow(): void
