@@ -7,7 +7,6 @@ namespace App\ApiResource\Input\MiningOperation;
 use App\Enum\MiningBoostShip;
 use App\Enum\MiningCompressorKind;
 use Symfony\Component\Validator\Constraints as Assert;
-use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 class CreateMiningOperationInput
 {
@@ -40,14 +39,6 @@ class CreateMiningOperationInput
     #[Assert\Unique]
     #[Assert\All([new Assert\Choice(callback: [MiningCompressorKind::class, 'values'])])]
     public array $mountedCompressorKinds = [];
-
-    #[Assert\Callback]
-    public function validateMountedCompressorKinds(ExecutionContextInterface $context): void
-    {
-        if (null === $this->boostShipTypeId && [] !== $this->mountedCompressorKinds) {
-            $context->buildViolation('Compressors can only be mounted on a declared boost ship')->atPath('mountedCompressorKinds')->addViolation();
-        }
-    }
 
     public function declaredBoostShip(): ?MiningBoostShip
     {

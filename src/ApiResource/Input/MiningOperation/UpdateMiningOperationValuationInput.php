@@ -56,8 +56,5 @@ class UpdateMiningOperationValuationInput
         if ($boostShipProvided && null !== $this->boostShipTypeId && !$kindsProvided) {
             $context->buildViolation('The mounted compressors are required with a boost ship')->atPath('mountedCompressorKinds')->addViolation();
         }
-        if ($boostShipProvided && null === $this->boostShipTypeId && $kindsProvided && [] !== $this->mountedCompressorKinds) {
-            $context->buildViolation('Compressors can only be mounted on a declared boost ship')->atPath('mountedCompressorKinds')->addViolation();
-        }
     }
 }

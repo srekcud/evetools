@@ -33,10 +33,7 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
 
         \assert($data instanceof CreateMiningOperationInput);
 
-        $boostShip = $data->declaredBoostShip();
-        if (null !== $boostShip) {
-            $this->boostFit->assertMountable($boostShip, $data->declaredCompressorKinds());
-        }
+        $this->boostFit->assertConsistent($data->declaredBoostShip(), $data->declaredCompressorKinds());
 
         $miningOperation = $this->enrolment->create($user, $data);
 
