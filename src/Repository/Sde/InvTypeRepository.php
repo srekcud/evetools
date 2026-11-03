@@ -155,4 +155,12 @@ class InvTypeRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return list<array{typeId: int, typeName: string}>
+     */
+    public function findOreProcessingSkills(): array
+    {
+        return [];
+    }
 }

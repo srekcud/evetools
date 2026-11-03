@@ -18,7 +18,7 @@ const PERCENT = 100
 
 const props = defineProps<{
   structureId: number | null
-  reprocessYieldPercent: number
+  reprocessYieldPercent?: number
 }>()
 
 type MarketChoiceId = 'jitaBuy' | 'jitaSell' | 'structureBuy' | 'structureSell'

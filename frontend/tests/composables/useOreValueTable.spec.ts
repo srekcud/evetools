@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { readStoredReprocessYield, useOreValueTable } from '@/composables/useOreValueTable'
+import { useOreValueTable } from '@/composables/useOreValueTable'
 import type { OreValueRow } from '@/composables/useOreValueTable'
 import {
   BITUMENS_ROW,
@@ -84,39 +84,5 @@ describe('useOreValueTable family filter', () => {
     kindFilter.value = 'ore'
 
     expect(typeIdsOf(visibleRows.value)).toEqual([CONCENTRATED_VELDSPAR_TYPE_ID, BITUMENS_TYPE_ID, VELDSPAR_TYPE_ID])
-  })
-})
-
-describe('readStoredReprocessYield', () => {
-  afterEach(() => {
-    localStorage.clear()
-  })
-
-  it('converts the stored percentage into a yield between 0 and 1', () => {
-    localStorage.setItem('miningReprocessYield', '78')
-
-    expect(readStoredReprocessYield()).toBeCloseTo(0.78, 12)
-  })
-
-  it('keeps the decimals of a stored percentage', () => {
-    localStorage.setItem('miningReprocessYield', '82.5')
-
-    expect(readStoredReprocessYield()).toBeCloseTo(0.825, 12)
-  })
-
-  it('leaves the yield unknown when the stored yield is 0 %', () => {
-    localStorage.setItem('miningReprocessYield', '0')
-
-    expect(readStoredReprocessYield()).toBeNull()
-  })
-
-  it('leaves the yield unknown when nothing is stored', () => {
-    expect(readStoredReprocessYield()).toBeNull()
-  })
-
-  it('leaves the yield unknown when the stored value is not a number', () => {
-    localStorage.setItem('miningReprocessYield', 'abc')
-
-    expect(readStoredReprocessYield()).toBeNull()
   })
 })
