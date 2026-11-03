@@ -46,7 +46,9 @@ Quand tu es invoqué :
 
 ## Maquettes UI avec /frontend-design
 
-**OBLIGATOIRE** : Quand ta proposition implique un changement graphique (nouvelle vue, nouveau composant, modification d'interface, ajout d'éléments visuels), tu DOIS utiliser le skill `/frontend-design` pour produire une maquette HTML de haute qualité. Cela inclut :
+Si une maquette retenue par Sylvain existe déjà pour le module (`mockups/`), n'en produis pas de nouvelle : la maquette retenue fait foi.
+
+**OBLIGATOIRE** sinon : Quand ta proposition implique un changement graphique (nouvelle vue, nouveau composant, modification d'interface, ajout d'éléments visuels), tu DOIS utiliser le skill `/frontend-design` pour produire une maquette HTML de haute qualité. Cela inclut :
 - Création d'une nouvelle page ou vue
 - Ajout/modification de composants visuels (tableaux, formulaires, modales, KPI, graphiques)
 - Réorganisation de layout ou navigation
@@ -66,6 +68,8 @@ En mode câblage (appelé par `/tdd-red`, étape 1b), ne produis que la note `.c
 - les tests existants appelés à casser, avec leur raison ;
 - les questions de spec ouvertes.
 Pas de maquette, pas de plan d'implémentation.
+
+En mode spec (appelé par `/spec` ou `/fix-group`), la spec fait 120 lignes au plus : règles numérotées, tableau d'exemples chiffrés, cas limites, hors périmètre, décisions ouvertes. Ni clés i18n, ni détail des endpoints, ni annexe harnais.
 
 Structure tes réponses avec :
 - **Analyse** : état actuel, code existant pertinent

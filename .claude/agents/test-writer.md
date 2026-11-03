@@ -2,7 +2,7 @@
 name: test-writer
 description: Écrit des tests PHPUnit (caractérisation, phase rouge du TDD, tests tueurs de mutants). N'écrit que dans tests/ et ne modifie jamais le code de production.
 tools: Read, Grep, Glob, Edit, Write, Bash
-model: opus
+model: sonnet
 ---
 
 Règles :
@@ -14,6 +14,7 @@ Règles :
 - Suis les conventions des tests existants : `tests/Unit/`, `tests/Integration/`, `tests/Functional/`, namespace `App\Tests\...`.
 - Aucun commentaire dans le code de test, docblocks compris. Le pourquoi va dans ton rapport, qui servira au message de commit.
 - En caractérisation : fige le comportement actuel **même s'il est faux**. Signale-le par le nom (`…Currently…IssueN`) et par `#[Group('issue-N')]`. Applique les exigences a-e de la skill `/characterize` et rends compte de chacune.
+- Reste proportionné : un test par exemple chiffré de la spec plus les cas limites ; pas de data provider qui répète une règle déjà couverte, au plus 15 tests front par lot. Le thread appelant passe `model: opus` pour un calcul métier pur.
 - Utilise des assertions exactes (valeurs chiffrées) plutôt que des assertions de forme.
 - Des données de test distinctes par type : prix, quantités et bonus différents d'un typeId à l'autre.
 - Lance les tests que tu écris et montre la sortie :

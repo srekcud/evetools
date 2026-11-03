@@ -15,6 +15,7 @@ Issue : $ARGUMENTS
    - l'accès : pour chaque identifiant reçu d'un autre périmètre (`structureId`, `corporationId`, id d'opération) et chaque donnée de corporation, le contrôle d'appartenance exact et la fraîcheur de sa source (ex. `Character.corporationId` ne se rafraîchit qu'à la connexion). Un défaut d'accès préexistant que la spec reprend est écrit comme tel, avec l'issue ou la décision qui le traite ;
    - les termes du glossaire : s'il en manque un, propose une définition.
 3. Rédige `docs/specs/$ARGUMENTS-<slug>.md` :
+   - **120 lignes au plus** : tout ce qui dépasse (clés i18n, détail des endpoints, décisions mineures) est laissé à l'implémentation ;
    - contexte (anonymisé) ;
    - règles métier ;
    - exemples chiffrés sous forme de tableau (ce seront les tests rouges) ;

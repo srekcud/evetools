@@ -11,9 +11,10 @@ Entrée : une spec validée dans `docs/specs/$ARGUMENTS-*.md`. Sans spec validé
 
 1. Lis la spec et `docs/glossary.md`. N'utilise que les termes du glossaire.
 1b. **Câblage avant les tests**, obligatoire en `circuit:l` (migration vers le noyau, nouvelle dépendance), à sauter en `circuit:m` : délègue à `architect` une note `.claude/tasks/<lot>-wiring.md`. Elle liste, pour l'implémentation cible, chaque dépendance (service, VO, config, données SDE ou ESI), la façon dont le harnais de test la fournit (fixture, mock aux frontières, golden), et les tests existants qui casseront à cause d'un changement de comportement voulu. Le `test-writer` reçoit cette note avec la spec.
-2. Délègue à l'agent `test-writer` l'écriture des tests :
+2. Délègue à l'agent `test-writer` l'écriture des tests (modèle Sonnet par défaut ; `model: opus` seulement pour un calcul métier pur : répartition, dette, quantité, prix) :
    - Domain et Application en priorité, sans base de données ;
-   - un test par exemple chiffré de la spec, plus les cas limites.
+   - un test par exemple chiffré de la spec, plus les cas limites ;
+   - **proportionnés** : pas de data provider qui répète une règle déjà couverte (routes, `uriVariables`, un cas de sécurité par processor), les contrôles d'accès par un seul test fonctionnel par rôle ; au plus 15 tests front par lot, sur les comportements visibles.
 3. Lance les tests : `docker compose exec app php vendor/bin/phpunit --no-coverage --filter <...>`.
 4. **Prouve que chaque test échoue pour la bonne raison** : une assertion métier, pas une erreur de syntaxe ni une classe manquante imprévue. Montre la sortie. Si une classe ou une méthode n'existe pas encore, crée seulement le squelette minimal nécessaire pour que le test échoue sur l'assertion. Signale-le.
 5. Vérifie que les autres tests du module touché sont toujours verts (son dossier de tests, plus les tests trouvés par la recherche des formes figées du `test-writer`). La suite complète tourne dans `/review`.

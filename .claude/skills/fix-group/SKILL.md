@@ -5,7 +5,7 @@ disable-model-invocation: true
 argument-hint: <label group:…>
 ---
 
-Groupe : `$ARGUMENTS`. Un thread traite un groupe, dans son worktree. Les groupes partagent une cause racine ou les mêmes fichiers : le contexte se charge une fois pour tout le groupe.
+Groupe : `$ARGUMENTS`. Les issues d'un groupe partagent une cause racine ou les mêmes fichiers. **Un thread traite UNE issue du groupe** (la première non traitée, dans l'ordre du tri), puis s'arrête après la fusion, la fermeture et le journal : le contexte d'un thread grossit à chaque agent lancé et se relit à chaque tour, donc l'issue suivante part dans un nouveau thread, qui relit le journal et `docs/specs/` pour retrouver l'état. Exception : plusieurs issues sur une même règle (étape 1.5) restent dans le même thread.
 
 ## 1. Tri du groupe
 
@@ -58,6 +58,14 @@ Elle se calcule sur le diff de la branche (`git diff main...HEAD`), jamais sur l
 4. Si la technicité l'autorise, ferme chaque issue dont le correctif est entièrement dans `main` : `zsh -ic 'gh issue close <n> --reason completed --comment "Corrigé dans main (<sha>) : <une ligne>."'` (commentaire en français, sans attribution IA). Une issue partielle, ou dont une décision reste ouverte, reste ouverte avec un commentaire qui dit ce qui reste. Vérifie l'état avec `gh issue view <n> --json state` avant et après (le push d'un autre thread ou une fermeture manuelle est possible).
 
 Les gates 🚦 de `/spec` et `/tdd-red` restent à Sylvain, sauf si le brief du thread indique le mode nuit.
+
+## 4b. Budget de tokens
+
+Décision de Sylvain (2026-11-04) : une issue coûtait environ 1,2 M de tokens de sous-agents (spec 200 à 280 k, rouge 330 à 440 k, vert 350 à 410 k, revue 80 à 130 k).
+- **Spec : 120 lignes au plus** (règles numérotées, tableau d'exemples chiffrés, cas limites, hors périmètre, décisions ouvertes). Ni tableau de clés i18n, ni liste d'endpoints détaillée, ni annexe harnais : l'implementer tranche. Pas de nouvelle maquette quand une maquette retenue existe.
+- **Tests : proportionnés** (voir `/tdd-red` étape 2). `test-writer` en Sonnet par défaut ; `model: opus` seulement pour un calcul métier pur (répartition, dette, quantité, prix).
+- **Revue sécurité : une par groupe**, pas une par issue (voir `/review`).
+- Le rapport de chaque sous-agent donne ses tokens ; le thread les reporte par phase dans le journal pour mesurer l'écart.
 
 ## 6. Rapport final (10 lignes max, en français)
 
