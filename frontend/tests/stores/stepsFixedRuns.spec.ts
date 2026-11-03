@@ -79,7 +79,7 @@ function bodyOfTheStepPatch(): unknown {
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockResolvedValue(fusionReactorUnitStep(CAPPED_RUNS, true))
+  vi.mocked(apiRequest).mockResolvedValue([fusionReactorUnitStep(CAPPED_RUNS, true)])
 })
 
 describe('steps store fixed step runs', () => {

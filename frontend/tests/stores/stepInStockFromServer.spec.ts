@@ -169,7 +169,7 @@ describe('in-stock flag of a step read from the server', () => {
   it('takes the in-stock flag of the patched step from the server answer', async () => {
     const projectsStore = useProjectsStore()
     projectsStore.currentProject = projectWith([ferniteAlloyStep(0, false)])
-    vi.mocked(apiRequest).mockResolvedValue(ferniteAlloyStep(100, true))
+    vi.mocked(apiRequest).mockResolvedValue([ferniteAlloyStep(100, true)])
 
     await useStepsStore().toggleStepInStock(PROJECT_ID, 'step-182-fernite-alloy', 100)
 

@@ -523,6 +523,31 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         self::assertNull($this->stepOfProduct($project, self::PLATING_TYPE_ID)->getSplitGroupId());
     }
 
+    #[Group('issue-233')]
+    public function testResponseToRunsEnteredOnAStepThatIsNotSplitIsAListOfThatStepAlone(): void
+    {
+        $project = $this->projectWithAPlatingStepThatIsNotSplit();
+        $platingStepId = $this->idOf($this->stepOfProduct($project, self::PLATING_TYPE_ID));
+
+        $response = $this->patchResponse($project, $platingStepId, ['runs' => 15]);
+
+        self::assertSame([[$platingStepId, 15, 15, true]], $this->idRunsQuantityAndRunsFixedOf($response));
+    }
+
+    #[Group('issue-233')]
+    public function testResponseToAPurchaseMarkOnAStepIsAListOfThatStepAlone(): void
+    {
+        $project = $this->projectWithAPlatingStepThatIsNotSplit();
+        $platingStepId = $this->idOf($this->stepOfProduct($project, self::PLATING_TYPE_ID));
+
+        $response = $this->patchResponse($project, $platingStepId, ['purchased' => true]);
+
+        self::assertSame(
+            [[$platingStepId, true, 18, 18]],
+            array_map(static fn (ProjectStepResource $step): array => [$step->id, $step->purchased, $step->runs, $step->quantity], $response),
+        );
+    }
+
     public function testRunsEnteredOnTheRootStepAreAppliedWithoutBeingFixed(): void
     {
         $project = $this->projectWithAPlatingStepThatIsNotSplit();
@@ -665,7 +690,14 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
         $projectId = $project->getId();
         self::assertNotNull($projectId);
         $response = $this->processor->process($input, new Patch(), ['id' => $projectId->toRfc4122(), 'stepId' => $stepId]);
-        return \is_array($response) ? $response : [$response];
+        self::assertIsList($response);
+
+        return $response;
+    }
+
+    private function idRunsQuantityAndRunsFixedOf(array $updatedSteps): array
+    {
+        return array_map(static fn (ProjectStepResource $step): array => [$step->id, $step->runs, $step->quantity, $step->runsFixed], $updatedSteps);
     }
 
     /**

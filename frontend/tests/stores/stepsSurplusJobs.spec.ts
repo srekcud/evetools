@@ -162,7 +162,7 @@ function project(steps: IndustryProjectStep[]): IndustryProject {
   }
 }
 
-function serverAnswers(patchResponse: IndustryProjectStep | IndustryProjectStep[], reloadedSteps: IndustryProjectStep[]) {
+function serverAnswers(patchResponse: IndustryProjectStep[], reloadedSteps: IndustryProjectStep[]) {
   vi.mocked(apiRequest).mockImplementation(async (_path: string, options?: RequestInit) =>
     options?.method === 'PATCH' ? patchResponse : project(reloadedSteps))
 }
@@ -288,7 +288,7 @@ describe('steps store after the removal of surplus jobs', () => {
 
   it('replaces a split job answered alone without reloading the project', async () => {
     useProjectsStore().currentProject = project([carrierStep(CARRIER_RUNS_BEFORE), ...fuelBlockGroupOfFourJobs()])
-    serverAnswers({ ...fuelBlockGroupOfFourJobs()[1], teLevel: 14 }, [])
+    serverAnswers([{ ...fuelBlockGroupOfFourJobs()[1], teLevel: 14 }], [])
 
     await useStepsStore().updateStepTeLevel(PROJECT_ID, FUEL_BLOCK_JOB_IDS[1], 14)
 

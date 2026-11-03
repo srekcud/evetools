@@ -157,14 +157,14 @@ final class UpdateStepProcessorTest extends TestCase
     }
 
     #[Group('issue-137')]
-    public function testRunsEnteredOnAStepWithoutMaterialStepReturnTheResourceOfThatStepAlone(): void
+    #[Group('issue-233')]
+    public function testRunsEnteredOnAStepWithoutMaterialStepAnswerAListOfThatStepAlone(): void
     {
         $phenolicComposites = $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, self::PHENOLIC_COMPOSITES + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 2, quantity: 4_400, depth: 0, meLevel: 0);
 
-        $updatedStep = $this->patch($phenolicComposites, $this->runsEntered(5), $this->createStub(EntityManagerInterface::class));
+        $updatedSteps = $this->patch($phenolicComposites, $this->runsEntered(5), $this->createStub(EntityManagerInterface::class));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame([self::PHENOLIC_COMPOSITES, 11_000], [$updatedStep->productTypeId, $updatedStep->quantity]);
+        self::assertSame([[self::PHENOLIC_COMPOSITES, 11_000]], $this->productAndQuantityOf($updatedSteps));
     }
 
     public function testResponseToRunsEnteredOnTheRootStepListsTheKeptJobsOfItsSplitChildGroupWithoutTheSurplusJob(): void
@@ -350,27 +350,27 @@ final class UpdateStepProcessorTest extends TestCase
     }
 
     #[Group('issue-190')]
+    #[Group('issue-233')]
     public function testMeLevelZeroEnteredOnAReactionStepAtMeLevelZeroRecalculatesNothing(): void
     {
         [$ferniteCarbide, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
 
-        $updatedStep = $this->patch($ferniteCarbide, $this->meLevelEntered(0), $this->createStub(EntityManagerInterface::class));
+        $updatedSteps = $this->patch($ferniteCarbide, $this->meLevelEntered(0), $this->createStub(EntityManagerInterface::class));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame([[self::FERNITE_CARBIDE, 200_000], [10, 2_000]], [[$updatedStep->productTypeId, $updatedStep->quantity], $this->runsAndQuantityOf($ferniteAlloy)]);
+        self::assertSame([[[self::FERNITE_CARBIDE, 200_000]], [10, 2_000]], [$this->productAndQuantityOf($updatedSteps), $this->runsAndQuantityOf($ferniteAlloy)]);
     }
 
     #[Group('issue-190')]
+    #[Group('issue-233')]
     public function testTeLevelEnteredOnAReactionStepIsKept(): void
     {
         [, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
         $teLevelEntered = new UpdateStepInput();
         $teLevelEntered->teLevel = 10;
 
-        $updatedStep = $this->patch($ferniteAlloy, $teLevelEntered, $this->createStub(EntityManagerInterface::class));
+        $updatedSteps = $this->patch($ferniteAlloy, $teLevelEntered, $this->createStub(EntityManagerInterface::class));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame([10, 0, 2_000], [$ferniteAlloy->getTeLevel(), $ferniteAlloy->getMeLevel(), $ferniteAlloy->getQuantity()]);
+        self::assertSame([[[self::FERNITE_ALLOY, 2_000]], [10, 0, 2_000]], [$this->productAndQuantityOf($updatedSteps), [$ferniteAlloy->getTeLevel(), $ferniteAlloy->getMeLevel(), $ferniteAlloy->getQuantity()]]);
     }
 
     #[Group('issue-287')]
@@ -435,29 +435,29 @@ final class UpdateStepProcessorTest extends TestCase
     }
 
     #[Group('issue-287')]
+    #[Group('issue-233')]
     public function testStructureAlreadyAttachedToTheStepRecalculatesNothing(): void
     {
         [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
         $stationOfThePilot = $quantumMicroprocessor->getStructureConfig();
         self::assertInstanceOf(IndustryStructureConfig::class, $stationOfThePilot);
 
-        $updatedStep = $this->patch($quantumMicroprocessor, $this->structureEntered($stationOfThePilot->getId()->toRfc4122()), $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($stationOfThePilot));
+        $updatedSteps = $this->patch($quantumMicroprocessor, $this->structureEntered($stationOfThePilot->getId()->toRfc4122()), $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($stationOfThePilot));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame(['Station of the pilot', [1, 490]], [$quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
+        self::assertSame([[[self::QUANTUM_MICROPROCESSOR, 32]], 'Station of the pilot', [1, 490]], [$this->productAndQuantityOf($updatedSteps), $quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
     }
 
     #[Group('issue-287')]
+    #[Group('issue-233')]
     public function testPatchWithoutStructureKeepsTheStepStructure(): void
     {
         [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
         $teLevelEntered = new UpdateStepInput();
         $teLevelEntered->teLevel = 4;
 
-        $updatedStep = $this->patch($quantumMicroprocessor, $teLevelEntered, $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig()));
+        $updatedSteps = $this->patch($quantumMicroprocessor, $teLevelEntered, $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig()));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame([4, 'Station of the pilot', [1, 490]], [$quantumMicroprocessor->getTeLevel(), $quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
+        self::assertSame([[[self::QUANTUM_MICROPROCESSOR, 32]], 4, 'Station of the pilot', [1, 490]], [$this->productAndQuantityOf($updatedSteps), $quantumMicroprocessor->getTeLevel(), $quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
     }
 
     #[Group('issue-287')]
@@ -473,6 +473,7 @@ final class UpdateStepProcessorTest extends TestCase
     }
 
     #[Group('issue-190')]
+    #[Group('issue-233')]
     public function testMeLevelAndStructureEnteredAsTheyAreRecalculateNothingEvenWhenAMaterialStepIsStale(): void
     {
         [$quantumMicroprocessor, $titaniumCarbide] = $this->quantumMicroprocessorProjectInAStation();
@@ -483,10 +484,9 @@ final class UpdateStepProcessorTest extends TestCase
         $meLevelAndStructureEntered = $this->structureEntered($stationOfThePilot->getId()->toRfc4122());
         $meLevelAndStructureEntered->meLevel = 0;
 
-        $updatedStep = $this->patch($quantumMicroprocessor, $meLevelAndStructureEntered, $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($stationOfThePilot));
+        $updatedSteps = $this->patch($quantumMicroprocessor, $meLevelAndStructureEntered, $this->createStub(EntityManagerInterface::class), structureConfigRepository: $this->structureConfigRepositoryWith($stationOfThePilot));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame([0, 'Station of the pilot', [1, 999]], [$quantumMicroprocessor->getMeLevel(), $quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
+        self::assertSame([[[self::QUANTUM_MICROPROCESSOR, 32]], 0, 'Station of the pilot', [1, 999]], [$this->productAndQuantityOf($updatedSteps), $quantumMicroprocessor->getMeLevel(), $quantumMicroprocessor->getStructureConfig()?->getName(), $this->runsAndQuantityOf($titaniumCarbide)]);
     }
 
     #[Group('issue-287')]
@@ -509,42 +509,42 @@ final class UpdateStepProcessorTest extends TestCase
     }
 
     #[Group('issue-287')]
+    #[Group('issue-233')]
     public function testZeroStockEnteredOnARootStepIsAccepted(): void
     {
         $phenolicComposites = $this->stepOfTheProject(self::PHENOLIC_COMPOSITES, self::PHENOLIC_COMPOSITES + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 3, quantity: 6_600, depth: 0, meLevel: 0);
         $zeroStockEntered = new UpdateStepInput();
         $zeroStockEntered->inStockQuantity = 0;
 
-        $updatedStep = $this->patch($phenolicComposites, $zeroStockEntered, $this->createStub(EntityManagerInterface::class));
+        $updatedSteps = $this->patch($phenolicComposites, $zeroStockEntered, $this->createStub(EntityManagerInterface::class));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame([0, [3, 6_600]], [$phenolicComposites->getInStockQuantity(), $this->runsAndQuantityOf($phenolicComposites)]);
+        self::assertSame([[[self::PHENOLIC_COMPOSITES, 6_600]], 0, [3, 6_600]], [$this->productAndQuantityOf($updatedSteps), $phenolicComposites->getInStockQuantity(), $this->runsAndQuantityOf($phenolicComposites)]);
     }
 
     #[Group('issue-287')]
+    #[Group('issue-233')]
     public function testStockEnteredOnAMaterialStepIsKept(): void
     {
         [, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
         $stockEntered = new UpdateStepInput();
         $stockEntered->inStockQuantity = 1_500;
 
-        $updatedStep = $this->patch($ferniteAlloy, $stockEntered, $this->createStub(EntityManagerInterface::class));
+        $updatedSteps = $this->patch($ferniteAlloy, $stockEntered, $this->createStub(EntityManagerInterface::class));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame([1_500, [10, 2_000]], [$ferniteAlloy->getInStockQuantity(), $this->runsAndQuantityOf($ferniteAlloy)]);
+        self::assertSame([[[self::FERNITE_ALLOY, 2_000]], 1_500, [10, 2_000]], [$this->productAndQuantityOf($updatedSteps), $ferniteAlloy->getInStockQuantity(), $this->runsAndQuantityOf($ferniteAlloy)]);
     }
 
     #[Group('issue-287')]
-    public function testPurchaseMarkEnteredOnAMaterialStepIsKept(): void
+    #[Group('issue-233')]
+    public function testPurchaseMarkEnteredOnAMaterialStepIsKeptAndAnswersAListOfThatStepAlone(): void
     {
         [, , $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
         $purchaseMarkEntered = new UpdateStepInput();
         $purchaseMarkEntered->purchased = true;
 
-        $updatedStep = $this->patch($hydrogenFuelBlock, $purchaseMarkEntered, $this->createStub(EntityManagerInterface::class));
+        $updatedSteps = $this->patch($hydrogenFuelBlock, $purchaseMarkEntered, $this->createStub(EntityManagerInterface::class));
 
-        self::assertInstanceOf(ProjectStepResource::class, $updatedStep);
-        self::assertSame([true, [4, 150]], [$hydrogenFuelBlock->isPurchased(), $this->runsAndQuantityOf($hydrogenFuelBlock)]);
+        self::assertSame([[[self::HYDROGEN_FUEL_BLOCK, 150]], true, [4, 150]], [$this->productAndQuantityOf($updatedSteps), $hydrogenFuelBlock->isPurchased(), $this->runsAndQuantityOf($hydrogenFuelBlock)]);
     }
 
     #[Group('issue-287')]
