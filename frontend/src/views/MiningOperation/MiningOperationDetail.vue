@@ -14,6 +14,7 @@ import MiningInvitationLink from '@/components/mining-operation/MiningInvitation
 import MiningMinedQuantities from '@/components/mining-operation/MiningMinedQuantities.vue'
 import MiningOperationMembers from '@/components/mining-operation/MiningOperationMembers.vue'
 import MiningOperationRecap from '@/components/mining-operation/MiningOperationRecap.vue'
+import MiningOperationShareRecap from '@/components/mining-operation/MiningOperationShareRecap.vue'
 import MiningOperationStepper from '@/components/mining-operation/MiningOperationStepper.vue'
 import MiningPayments from '@/components/mining-operation/MiningPayments.vue'
 import MiningSettleOperation from '@/components/mining-operation/MiningSettleOperation.vue'
@@ -95,6 +96,7 @@ let presenceMembersTicker: ReturnType<typeof setInterval> | null = null
 const participates = computed(() => operation.value?.myStatus === 'accepted')
 const isOwner = computed(() => operation.value?.myRole === 'owner')
 const canAdminister = computed(() => participates.value && (isOwner.value || operation.value?.myRole === 'admin'))
+const showsShareRecap = computed(() => participates.value && (operation.value?.status === 'closing' || operation.value?.status === 'shares' || operation.value?.status === 'settled' || operation.value?.status === 'completed'))
 const archived = computed(() => operation.value?.status === 'settled' || operation.value?.status === 'completed')
 const acceptsParticipants = computed(() => operation.value?.status === 'planned' || operation.value?.status === 'in_progress')
 const canLeave = computed(() => {
@@ -642,6 +644,8 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </div>
+
+        <MiningOperationShareRecap v-if="showsShareRecap && valuation !== null && operationLedger !== null" :operation="operation" :valuation="valuation" :ledger="operationLedger" :market-label="marketLabel" />
 
         <template v-if="showsStockpileCoverage">
           <MiningStockpileCoverage v-if="stockpileCoverage !== null" :coverage="stockpileCoverage" />

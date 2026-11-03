@@ -3081,6 +3081,33 @@
       "settledBy": "{date} par {name}",
       "completedBy": "{date} par {name}",
       "participantsCount": "{participants} · {characters} personnages"
+    },
+    "shareRecap": {
+      "title": "Récapitulatif à partager",
+      "hint": "à coller dans Discord, aucun webhook",
+      "noNames": "aucun nom de participant dans le texte",
+      "copyText": "Copier le texte",
+      "copyImage": "Copier l'image",
+      "copied": "Copié",
+      "copyFailed": "Copie impossible : le navigateur a refusé l'accès au presse-papiers",
+      "imageHint": "aperçu PNG généré dans le navigateur",
+      "imageUnavailable": "La copie d'image n'est pas disponible dans ce navigateur",
+      "previewKicker": "EVE Tools · minage",
+      "text": {
+        "value": "Valeur : {value} ISK",
+        "valueUnknown": "Valeur : inconnue ({causes})",
+        "iskPerHour": "ISK/h : {value}/h",
+        "iskPerHourUnknown": "ISK/h : inconnu",
+        "duration": "durée {duration}",
+        "durationUnknown": "durée inconnue",
+        "participants": "{count} participant | {count} participants",
+        "topOres": "Top minerais : {ores}",
+        "topOresUnknown": "Top minerais : inconnu",
+        "boosterShare": "Part du booster {percent} % : {amount}",
+        "eachForThemselves": "Chacun pour soi : pas de parts",
+        "footer": "evetools · {reference}",
+        "footerEachForThemselves": "evetools · chacun pour soi"
+      }
     }
   }
 }

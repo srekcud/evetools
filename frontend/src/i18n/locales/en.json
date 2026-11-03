@@ -3081,6 +3081,33 @@
       "settledBy": "{date} by {name}",
       "completedBy": "{date} by {name}",
       "participantsCount": "{participants} · {characters} characters"
+    },
+    "shareRecap": {
+      "title": "Summary to share",
+      "hint": "paste it into Discord, no webhook",
+      "noNames": "no participant name in the text",
+      "copyText": "Copy the text",
+      "copyImage": "Copy the image",
+      "copied": "Copied",
+      "copyFailed": "Copy failed: the browser refused access to the clipboard",
+      "imageHint": "PNG preview generated in the browser",
+      "imageUnavailable": "Copying an image is not available in this browser",
+      "previewKicker": "EVE Tools · mining",
+      "text": {
+        "value": "Value: {value} ISK",
+        "valueUnknown": "Value: unknown ({causes})",
+        "iskPerHour": "ISK/h: {value}/h",
+        "iskPerHourUnknown": "ISK/h: unknown",
+        "duration": "duration {duration}",
+        "durationUnknown": "duration unknown",
+        "participants": "{count} participant | {count} participants",
+        "topOres": "Top ores: {ores}",
+        "topOresUnknown": "Top ores: unknown",
+        "boosterShare": "Booster share {percent} %: {amount}",
+        "eachForThemselves": "Each for themselves: no shares",
+        "footer": "evetools · {reference}",
+        "footerEachForThemselves": "evetools · each for themselves"
+      }
     }
   }
 }
