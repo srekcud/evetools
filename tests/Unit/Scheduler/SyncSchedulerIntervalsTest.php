@@ -14,6 +14,7 @@ use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerAnsiblexSync;
+use App\Message\TriggerCorporationMiningExtractionsSync;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
 use App\Message\TriggerPlanetarySync;
@@ -53,6 +54,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         SyncAdjustedPrices::class => 'adjusted-prices',
         SyncCostIndices::class => 'cost-indices',
         SyncPublicContracts::class => 'public-contracts',
+        TriggerCorporationMiningExtractionsSync::class => 'corporation-mining-extractions',
     ];
 
     /** Maintenance planifiée dont les handlers n'utilisent pas le SyncTracker. */
@@ -82,6 +84,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'adjusted-prices' => 86400,
             'alert-prices' => 1800,
             'ansiblex' => 43200,
+            'corporation-mining-extractions' => 1800,
             'cost-indices' => 7200,
             'industry' => 1800,
             'market-jita' => 3600,
