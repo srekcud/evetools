@@ -26,8 +26,8 @@ Opérations concernées (templates avec une variable suivie d'un autre segment) 
 - **R2 : Comportement inchangé.** Aucune route, méthode, format, sécurité ni contenu de réponse ne change : la table des routes (`debug:router`) et l'export OpenAPI sont identiques avant et après, aux seules différences de description des paramètres de chemin que l'export pourrait porter. Seule exception constatée, voulue : le `@id` JSON-LD de la réponse du PATCH d'étape (et du DELETE) portait l'identifiant de l'étape à la place de celui du projet (`/industry/projects/<stepId>/steps/<stepId>`) ; avec `id` lié à `ProjectResource` il devient `/industry/projects/<projectId>/steps/<stepId>`. Le frontend ignore `@id` (`utils/jsonld.ts`).
 - **R3 : Test d'architecture.** Un test unitaire lit les attributs d'opération (réflexion sur les classes de `src/ApiResource/Industry/`, `newInstance()` de chaque attribut d'opération) et échoue pour toute opération qui viole R1, en nommant la classe et le template. Il ne s'appuie pas sur les métadonnées API Platform résolues (elles remplissent `uriVariables` d'office, le test ne verrait jamais d'écart).
 
-- **R4 : Réponse unique du PATCH d'étape.** `PATCH /industry/projects/{id}/steps/{stepId}` renvoie toujours une liste de `ProjectStepResource` : l'étape modifiée en tête quand elle existe encore, puis les autres étapes recalculées par la cascade, sans doublon. Liste vide si la cascade a supprimé l'étape modifiée. Plus jamais un objet seul.
-- **R5 : Front.** `updateStep` et `toggleStepPurchased` (`frontend/src/stores/industry/steps.ts`) lisent uniquement une liste. La règle de rechargement du projet (étape modifiée absente de la réponse, ou étape de groupe scindé dans la réponse) est inchangée ; le retour de `updateStep` reste l'étape modifiée ou `undefined` si elle a disparu.
+- **R4 : Réponse unique du PATCH d'étape.** `PATCH /industry/projects/{id}/steps/{stepId}` renvoie toujours une liste de `ProjectStepResource` : l'étape modifiée en tête quand elle existe encore, puis les autres étapes recalculées par la cascade, sans doublon. Si la cascade a supprimé l'étape modifiée, elle est absente de la liste (liste vide quand aucune autre étape ne change). Plus jamais un objet seul.
+- **R5 : Front.** `updateStep` et `toggleStepPurchased` (`frontend/src/stores/industry/steps.ts`) lisent uniquement une liste. Règle de rechargement du projet, identique à celle d'avant pour chaque cas : rechargement si l'étape modifiée est absente de la réponse, ou si la réponse compte plusieurs étapes dont une appartient (ou appartenait) à un groupe scindé ; une réponse d'une seule étape, même de groupe scindé, met l'étape à jour sans recharger ; le retour de `updateStep` reste l'étape modifiée ou `undefined` si elle a disparu.
 - **R6 : Reste inchangé.** Routes, sécurité, corps de requête, calcul de la cascade, autres opérations de `ProjectStepResource`.
 
 ## Exemples
@@ -42,9 +42,10 @@ Opérations concernées (templates avec une variable suivie d'un autre segment) 
 
 | P1 | PATCH `runs` sans cascade | liste d'une étape : l'étape modifiée |
 | P2 | PATCH `runs` avec cascade qui recalcule d'autres étapes | liste : étape modifiée en tête, puis les autres, sans doublon |
-| P3 | PATCH dont la cascade supprime l'étape modifiée | liste vide |
+| P3 | PATCH dont la cascade supprime l'étape modifiée sans autre étape recalculée | liste vide, le store recharge le projet |
 | P4 | PATCH `purchased` (bascule d'achat) | liste d'une étape ; le store met l'étape à jour sans recharger le projet |
-| P5 | réponse contenant une étape de groupe scindé | le store recharge le projet (comportement actuel conservé) |
+| P5 | réponse de plusieurs étapes dont une de groupe scindé | le store recharge le projet |
+| P6 | réponse d'une seule étape de groupe scindé (ex. PATCH TE d'un job) | le store met l'étape à jour sans recharger le projet |
 
 ## Décisions
 
