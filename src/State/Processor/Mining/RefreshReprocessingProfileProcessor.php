@@ -9,8 +9,8 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Mining\ReprocessingProfileResource;
 use App\Entity\User;
 use App\Repository\ReprocessingProfileRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Service\Mining\ReprocessingProfileRecalculator;
-use App\State\Provider\Mining\ReprocessingProfileResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -25,7 +25,7 @@ final readonly class RefreshReprocessingProfileProcessor implements ProcessorInt
         private Security $security,
         private ReprocessingProfileRepository $profileRepository,
         private ReprocessingProfileRecalculator $recalculator,
-        private ReprocessingProfileResourceMapper $resourceMapper,
+        private InvTypeRepository $invTypeRepository,
         private EntityManagerInterface $entityManager,
     ) {
     }
@@ -43,6 +43,6 @@ final readonly class RefreshReprocessingProfileProcessor implements ProcessorInt
         $this->recalculator->recalculate($profile);
         $this->entityManager->flush();
 
-        return $this->resourceMapper->fromProfile($profile);
+        return ReprocessingProfileResource::fromProfile($profile, $this->invTypeRepository->findOreProcessingSkills());
     }
 }

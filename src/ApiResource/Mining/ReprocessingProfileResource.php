@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use App\ApiResource\Input\EmptyInput;
 use App\ApiResource\Input\Mining\ReprocessingProfileInput;
+use App\Entity\ReprocessingProfile;
 use App\State\Processor\Mining\RefreshReprocessingProfileProcessor;
 use App\State\Processor\Mining\SaveReprocessingProfileProcessor;
 use App\State\Provider\Mining\ReprocessingProfileProvider;
@@ -65,4 +66,33 @@ class ReprocessingProfileResource
 
     /** @var list<array{typeId: int, typeName: string}> */
     public array $oreProcessingSkills = [];
+
+    /**
+     * @param list<array{typeId: int, typeName: string}> $oreProcessingSkills
+     */
+    public static function fromProfile(?ReprocessingProfile $profile, array $oreProcessingSkills): self
+    {
+        $resource = new self();
+        $resource->oreProcessingSkills = $oreProcessingSkills;
+
+        if ($profile === null) {
+            return $resource;
+        }
+
+        $resource->configured = true;
+        $resource->characterId = $profile->getCharacter()->getEveCharacterId();
+        $resource->oreProcessingSkillTypeId = $profile->getOreProcessingSkillTypeId();
+        $resource->location = $profile->getLocation()->value;
+        $resource->rigTier = $profile->getRigTier()?->value;
+        $resource->security = $profile->getSecurity()?->value;
+        $resource->implantPercent = $profile->getImplantPercent();
+        $resource->reprocessingLevel = $profile->getReprocessingLevel();
+        $resource->reprocessingEfficiencyLevel = $profile->getReprocessingEfficiencyLevel();
+        $resource->oreProcessingLevel = $profile->getOreProcessingLevel();
+        $resource->reprocessYield = $profile->getReprocessYield();
+        $resource->failure = $profile->getFailure()?->value;
+        $resource->computedAt = $profile->getComputedAt();
+
+        return $resource;
+    }
 }

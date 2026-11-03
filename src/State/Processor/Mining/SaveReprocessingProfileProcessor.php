@@ -17,7 +17,6 @@ use App\Enum\ReprocessingSecurity;
 use App\Repository\ReprocessingProfileRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Mining\ReprocessingProfileRecalculator;
-use App\State\Provider\Mining\ReprocessingProfileResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -36,7 +35,6 @@ final readonly class SaveReprocessingProfileProcessor implements ProcessorInterf
         private ReprocessingProfileRepository $profileRepository,
         private InvTypeRepository $invTypeRepository,
         private ReprocessingProfileRecalculator $recalculator,
-        private ReprocessingProfileResourceMapper $resourceMapper,
         private EntityManagerInterface $entityManager,
     ) {
     }
@@ -73,7 +71,7 @@ final readonly class SaveReprocessingProfileProcessor implements ProcessorInterf
         }
         $this->entityManager->flush();
 
-        return $this->resourceMapper->fromProfile($profile);
+        return ReprocessingProfileResource::fromProfile($profile, $this->invTypeRepository->findOreProcessingSkills());
     }
 
     private function oreProcessingSkillTypeIdOf(ReprocessingProfileInput $input): int
