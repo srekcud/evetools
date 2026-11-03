@@ -24,6 +24,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Mercure\HubInterface;
@@ -387,7 +388,7 @@ final class MiningLedgerSnapshotTakerTest extends TestCase
             new MiningLedgerReader($esiClient, $tokenManager),
             $this->entityManager,
             new MiningLedgerSnapshotDispatcher($this->busCapturing($this->dispatched), $this->clock),
-            new MercurePublisherService($this->hub, new BufferingLogger()),
+            new MercurePublisherService($this->hub, new NullLogger()),
             $this->logger,
             $this->clock,
         );

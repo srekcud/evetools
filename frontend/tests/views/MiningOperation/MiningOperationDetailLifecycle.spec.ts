@@ -247,7 +247,7 @@ describe('MiningOperationDetail, closing', () => {
 
     const correctedMark = wrapper.findAll('[title]').find(element => element.text().includes('corrected'))
     expect(correctedMark).toBeDefined()
-    expect(correctedMark?.attributes('title') ?? '').toMatch(/^Aria Solberg, 21:52 · measured: 35[\s,.  ]?500$/)
+    expect(correctedMark?.attributes('title') ?? '').toMatch(/^Aria Solberg, 21:52 · measured: 35[\s,.\u00a0\u202f]?500$/)
   })
 })
 
