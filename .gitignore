@@ -44,3 +44,5 @@ Thumbs.db
 
 # Claude Code runtime state (TDD phase lock)
 .claude/state/
+/.deployed-version
+/.deploy.lock

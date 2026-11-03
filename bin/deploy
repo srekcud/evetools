@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+main() {
+    local version="${1:-${SSH_ORIGINAL_COMMAND:-}}"
+    if [[ ! "$version" =~ ^V[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+        echo "usage: bin/deploy V<major>.<minor>[.<patch>] (got '${version}')" >&2
+        exit 64
+    fi
+
+    cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.."
+    local deploy_dir="$PWD"
+    local backup_dir="${BACKUP_DIR:-$HOME/backups/evetools}"
+    local backups_kept="${BACKUPS_KEPT:-10}"
+    local image_repository="ghcr.io/srekcud"
+
+    exec 9> "$deploy_dir/.deploy.lock"
+    flock --nonblock 9 || { echo "another deploy is running" >&2; exit 75; }
+
+    local previous_version
+    previous_version="$(cat .deployed-version 2>/dev/null || echo none)"
+    echo "==> deploying ${version} (currently ${previous_version})"
+
+    git fetch --quiet --force --tags origin
+    git checkout --quiet --detach "refs/tags/${version}"
+
+    docker pull "${image_repository}/evetools-app:${version}"
+    docker pull "${image_repository}/evetools-proxy:${version}"
+
+    local prod=(docker compose -f docker-compose.yaml -f docker-compose.prod.yml)
+    export APP_VERSION="$version"
+
+    mkdir -p "$backup_dir"
+    local backup_file
+    backup_file="${backup_dir}/evetools-$(date -u +%Y%m%dT%H%M%SZ)-before-${version}.dump"
+    echo "==> backing up the database to ${backup_file}"
+    "${prod[@]}" exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' > "$backup_file"
+    ls -1t "$backup_dir"/evetools-*.dump | tail -n +"$((backups_kept + 1))" | xargs -r rm --
+
+    echo "==> stopping worker and app (the proxy serves the maintenance page)"
+    "${prod[@]}" stop worker app
+
+    echo "==> running migrations"
+    if ! "${prod[@]}" run --rm --no-deps --entrypoint php app \
+        bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration; then
+        echo "!! migrations failed: restarting ${previous_version} containers" >&2
+        echo "!! a migration may be partially applied; backup: ${backup_file}" >&2
+        if [[ "$previous_version" != none ]]; then
+            git checkout --quiet --detach "refs/tags/${previous_version}"
+        fi
+        "${prod[@]}" start app worker
+        exit 1
+    fi
+
+    echo "==> starting ${version}"
+    "${prod[@]}" up -d --no-build --pull never --force-recreate --remove-orphans --wait --wait-timeout 180 app worker
+    "${prod[@]}" up -d --no-build --pull never --force-recreate --wait proxy
+
+    echo "$version" > .deployed-version
+    docker image prune --force > /dev/null
+    echo "==> ${version} deployed (previous: ${previous_version}, backup: ${backup_file})"
+}
+
+main "$@"
+exit

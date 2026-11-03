@@ -1,4 +1,4 @@
-.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test test-unit test-integration test-db install sde-import base-build deploy deploy-full infection infection-core deptrac
+.PHONY: help build up down logs shell db-create db-migrate db-diff jwt-keys test test-unit test-integration test-db install sde-import base-build deploy infection infection-core deptrac
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -90,27 +90,5 @@ base-build: ## Build base image (run when PHP version or extensions change)
 	docker build -f Dockerfile.base -t evetools-base:latest .
 
 # ─── Production deployment ───
-PROD=docker compose -f docker-compose.yaml -f docker-compose.prod.yml
-
-deploy: ## Deploy to production (build + migrate + restart)
-	git pull origin main
-	$(PROD) build
-	@# 1. Restart app+worker first (proxy stays up → serves maintenance page)
-	$(PROD) up -d --force-recreate --remove-orphans app worker
-	@echo "Waiting for app to be healthy..."
-	@timeout=60; while [ $$timeout -gt 0 ]; do \
-		if $(PROD) exec -T app curl -sf http://localhost:80/health > /dev/null 2>&1; then \
-			echo "App is healthy!"; break; \
-		fi; \
-		sleep 2; timeout=$$((timeout - 2)); \
-	done
-	$(PROD) exec app php bin/console doctrine:migrations:migrate --no-interaction
-	$(PROD) exec app php bin/console cache:clear
-	$(PROD) exec app php bin/console cache:warmup
-	$(PROD) exec worker php bin/console cache:clear
-	$(PROD) exec worker php bin/console cache:warmup
-	$(PROD) restart worker
-	@# 2. Update proxy last (new frontend + Caddyfile, app already ready)
-	$(PROD) up -d --force-recreate proxy
-
-deploy-full: base-build deploy ## Full deploy (rebuild base image + deploy)
+deploy: ## Deploy a released version on the production server (usage: make deploy VERSION=V0.14), normally run by the Release workflow
+	bin/deploy $(VERSION)

@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags: ['V*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Already built version to (re)deploy, e.g. V0.13
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/${{ github.repository_owner }}
+  VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+
+jobs:
+  ci:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    name: Images
+    needs: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Log in to GHCR
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the base image
+        run: docker build --file Dockerfile.base --tag evetools-base:latest .
+
+      - name: Build the app image
+        run: >-
+          docker build
+          --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"
+          --label "org.opencontainers.image.version=${VERSION}"
+          --tag "${IMAGE_REPOSITORY}/evetools-app:${VERSION}" .
+
+      - name: Build the proxy image
+        run: >-
+          docker build --file proxy/Dockerfile
+          --build-arg "VITE_VAPID_PUBLIC_KEY=${VITE_VAPID_PUBLIC_KEY}"
+          --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"
+          --label "org.opencontainers.image.version=${VERSION}"
+          --tag "${IMAGE_REPOSITORY}/evetools-proxy:${VERSION}" .
+        env:
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
+
+      - name: Check the app image starts its console
+        run: docker run --rm --entrypoint php "${IMAGE_REPOSITORY}/evetools-app:${VERSION}" bin/console about --env=prod
+
+      - name: Push the images
+        run: |
+          docker push "${IMAGE_REPOSITORY}/evetools-app:${VERSION}"
+          docker push "${IMAGE_REPOSITORY}/evetools-proxy:${VERSION}"
+
+  deploy:
+    name: Deploy
+    needs: [ci, images]
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.images.result == 'success') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+
+      - name: Deploy on the server
+        run: ssh -i ~/.ssh/deploy_key -o BatchMode=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "$VERSION"
+        env:
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}

@@ -77,15 +77,14 @@ make deptrac            # rapport de couches (n'échoue jamais)
 # Messenger
 make messenger
 
-# Deploy
-make deploy          # Standard
-make deploy-full     # Rebuild image base + deploy
-make base-build      # Rebuild image base uniquement
+# Deploy : pousser un tag V0.x lance .github/workflows/release.yml (CI → images GHCR → bin/deploy en SSH)
+make deploy VERSION=V0.x   # sur le serveur uniquement, voir docs/deploy.md
+make base-build            # image de base locale (dev)
 ```
 
 **Architecture Docker** :
-- `evetools-base:latest` — Image de base (PHP, extensions, Composer). Rebuild rare.
-- `evetools-app` — Image applicative. `app` et `worker` partagent la même image.
+- `evetools-base:latest` — Image de base (PHP, extensions, Composer). Construite en CI à chaque release, en local via `make base-build`.
+- `evetools-app` — Image applicative. `app` et `worker` partagent la même image. En prod : `ghcr.io/srekcud/evetools-app:V0.x` (et `evetools-proxy`), sans `.env` ni clés JWT.
 
 **IMPORTANT**: Lors de changements impliquant des seeds, fixtures ou commandes console, toujours rappeler à l'utilisateur d'exécuter ces commandes en production après le déploiement.
 
@@ -109,6 +108,7 @@ make base-build      # Rebuild image base uniquement
 - [`docs/glossary.md`](docs/glossary.md) — langage ubiquitaire (FR + EN)
 - [`docs/adr/`](docs/adr/) — décisions d'architecture
 - [`docs/quality/baseline.md`](docs/quality/baseline.md) — métriques de qualité de référence
+- [`docs/deploy.md`](docs/deploy.md) — mise en production (release par tag, `bin/deploy`, rollback, mise en place)
 - [`docs/modules/industry.md`](docs/modules/industry.md) — carte du module Industry (classes, appelants, tests, où chercher une règle)
 
 ### Règles

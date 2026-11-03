@@ -7,6 +7,7 @@ x-logging: &default-logging
 
 services:
   proxy:
+    image: ghcr.io/srekcud/evetools-proxy:${APP_VERSION:?set APP_VERSION, e.g. V0.14}
     build:
       context: .
       dockerfile: proxy/Dockerfile
@@ -33,6 +34,9 @@ services:
           memory: 256M
 
   app:
+    image: ghcr.io/srekcud/evetools-app:${APP_VERSION:?set APP_VERSION, e.g. V0.14}
+    volumes:
+      - ./config/jwt:/app/config/jwt:ro
     environment:
       - APP_ENV=prod
       - APP_SECRET=${APP_SECRET}
@@ -50,6 +54,7 @@ services:
           memory: 512M
 
   worker:
+    image: ghcr.io/srekcud/evetools-app:${APP_VERSION:?set APP_VERSION, e.g. V0.14}
     environment:
       - APP_ENV=prod
       - APP_SECRET=${APP_SECRET}

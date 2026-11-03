@@ -9,6 +9,7 @@ RUN composer install --prefer-dist --no-dev --no-autoloader --no-scripts --no-pr
 
 # Application code
 COPY . .
+RUN touch .env
 
 # Autoloader + bundle assets (assets:install does not need DATABASE_URL)
 RUN composer dump-autoload --optimize && \

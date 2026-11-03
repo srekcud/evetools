@@ -5,3 +5,5 @@ frontend/node_modules/
 .env.local
 docker-compose.override.yml
 vendor/
+.env
+config/jwt/*.pem
