@@ -161,7 +161,7 @@ Les processors restent minces. Le mapping vers la ressource passe par `MiningOpe
 
 ## 5. Écrans (front)
 
-Direction : HUD EVE de la v4 et maquette complémentaire `file:///home/sdu/.t3/worktrees/evetools/fix-night-mining-ops/mockups/mining-operation-shares.html` (quatre états commutables, noms longs). Montants au format `fr-FR` / `en-US` en ISK entiers, `% de G` à une décimale, ISK/h à l'ISK. Une valeur `null` s'affiche « inconnue » en ambre via `UnknownValue` (jamais « 0 », jamais « – » pour une donnée manquante). Noms tronqués avec infobulle.
+Direction : HUD EVE de la v4 et maquette complémentaire `mockups/mining-operation-shares.html` (quatre états commutables, noms longs). Montants au format `fr-FR` / `en-US` en ISK entiers, `% de G` à une décimale, ISK/h à l'ISK. Une valeur `null` s'affiche « inconnue » en ambre via `UnknownValue` (jamais « 0 », jamais « – » pour une donnée manquante). Noms tronqués avec infobulle.
 
 | Où | Contenu |
 |---|---|
