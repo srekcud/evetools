@@ -26,4 +26,7 @@ class CreateMiningOperationInput
     #[Assert\Unique]
     #[Assert\All([new Assert\Uuid()])]
     public array $characterIds = [];
+
+    #[Assert\Valid]
+    public ?MiningOperationRecurrenceInput $recurrence = null;
 }

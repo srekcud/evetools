@@ -139,6 +139,14 @@ class MiningOperation
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $fleetStorageContainerName = null;
 
+    #[ORM\ManyToOne(targetEntity: MiningOperationRecurrence::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?MiningOperationRecurrence $recurrence = null;
+
+    #[ORM\ManyToOne(targetEntity: CorporationMiningExtraction::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?CorporationMiningExtraction $chunk = null;
+
     public function __construct()
     {
         $this->members = new ArrayCollection();
@@ -565,5 +573,29 @@ class MiningOperation
         $recipient?->declareFleetStorage(MiningFleetStorageDelivery::None, null);
         $this->fleetStorageRecipient = $recipient;
         $this->fleetStorageContainerName = $containerName;
+    }
+
+    public function getRecurrence(): ?MiningOperationRecurrence
+    {
+        return $this->recurrence;
+    }
+
+    public function setRecurrence(?MiningOperationRecurrence $recurrence): static
+    {
+        $this->recurrence = $recurrence;
+
+        return $this;
+    }
+
+    public function getChunk(): ?CorporationMiningExtraction
+    {
+        return $this->chunk;
+    }
+
+    public function setChunk(?CorporationMiningExtraction $chunk): static
+    {
+        $this->chunk = $chunk;
+
+        return $this;
     }
 }

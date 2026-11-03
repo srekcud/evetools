@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Config;
 
+use App\Message\CreateRecurringMiningOperations;
 use App\Message\SyncCorporationMiningExtractions;
 use App\Message\TriggerCorporationMiningExtractionsSync;
+use App\Message\TriggerMiningOperationRecurrences;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -25,6 +27,17 @@ final class CorporationMiningMessengerRoutingTest extends TestCase
     public function testTheCorporationSyncIsRoutedToTheAsyncTransport(): void
     {
         self::assertSame('async', $this->messengerRouting()[SyncCorporationMiningExtractions::class] ?? null);
+    }
+
+    #[Group('issue-310')]
+    public function testTheRecurrenceTriggerAndTheOccurrenceCreationAreRoutedToTheAsyncTransport(): void
+    {
+        $routing = $this->messengerRouting();
+
+        self::assertSame(
+            ['async', 'async'],
+            [$routing[TriggerMiningOperationRecurrences::class] ?? null, $routing[CreateRecurringMiningOperations::class] ?? null],
+        );
     }
 
     private function messengerRouting(): array

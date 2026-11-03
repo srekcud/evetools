@@ -68,6 +68,8 @@ const SPODUMAIN: MiningOperation = {
   archivedByName: null,
   archiveSummary: null,
   fleetStorageRecipientName: null,
+  recurrenceId: null,
+  chunkId: null,
 }
 
 const MEMBERS: MiningOperationMember[] = [

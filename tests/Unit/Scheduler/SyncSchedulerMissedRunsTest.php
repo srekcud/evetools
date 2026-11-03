@@ -9,6 +9,7 @@ use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
 use App\Message\TriggerCorporationMiningExtractionsSync;
+use App\Message\TriggerMiningOperationRecurrences;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
@@ -56,6 +57,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
                 CheckAlertPrices::class,
                 SyncPublicContracts::class,
                 TriggerCorporationMiningExtractionsSync::class,
+                TriggerMiningOperationRecurrences::class,
                 TriggerStructureMarketSync::class,
                 TriggerJitaMarketSync::class,
                 TriggerPveSync::class,

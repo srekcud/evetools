@@ -16,6 +16,7 @@ use App\Message\SyncWalletTransactions;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerCorporationMiningExtractionsSync;
 use App\Message\TriggerJitaMarketSync;
+use App\Message\TriggerMiningOperationRecurrences;
 use App\Message\TriggerMiningSync;
 use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerPveSync;
@@ -23,6 +24,7 @@ use App\Message\TriggerStructureMarketSync;
 use App\Scheduler\SyncScheduler;
 use App\Service\Admin\SyncTracker;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Lock\LockFactory;
@@ -63,6 +65,12 @@ class SyncSchedulerIntervalsTest extends TestCase
         PurgeOldMarketHistory::class,
         PurgeExpiredSharedLists::class,
     ];
+
+    private const UNTRACKED_RECURRING_MESSAGES = [
+        TriggerMiningOperationRecurrences::class,
+    ];
+
+    private const THIRTY_MINUTES_IN_SECONDS = 1800;
 
     private const ONE_DAY_IN_SECONDS = 86400;
 
@@ -111,6 +119,15 @@ class SyncSchedulerIntervalsTest extends TestCase
         $this->assertSame($expectedDailyPurges, $scheduledPurges);
     }
 
+    #[Group('issue-310')]
+    public function testMiningOperationRecurrencesAreTriggeredEveryThirtyMinutes(): void
+    {
+        $this->assertSame(
+            self::THIRTY_MINUTES_IN_SECONDS,
+            $this->scheduledIntervalsByMessageClass()[TriggerMiningOperationRecurrences::class] ?? null,
+        );
+    }
+
     /** @return array<class-string, int> */
     private function scheduledIntervalsByMessageClass(): array
     {
@@ -153,7 +170,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             );
 
             foreach ($recurringMessage->getMessages($context) as $message) {
-                if (\in_array($message::class, self::UNTRACKED_HOUSEKEEPING_MESSAGES, true)) {
+                if (\in_array($message::class, [...self::UNTRACKED_HOUSEKEEPING_MESSAGES, ...self::UNTRACKED_RECURRING_MESSAGES], true)) {
                     continue;
                 }
 

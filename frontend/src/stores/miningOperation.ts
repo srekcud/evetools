@@ -150,6 +150,8 @@ export interface MiningOperation {
   archivedByName: string | null
   archiveSummary: MiningArchiveSummary | null
   fleetStorageRecipientName: string | null
+  recurrenceId: string | null
+  chunkId: string | null
 }
 
 export interface MiningOperationMemberCharacter {
