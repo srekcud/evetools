@@ -14,6 +14,7 @@ import {
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import OreValueTable from './OreValueTable.vue'
+import OreSalePanel from './OreSalePanel.vue'
 import ReprocessingProfilePanel from './ReprocessingProfilePanel.vue'
 
 const PERCENT = 100
@@ -143,5 +144,7 @@ onMounted(async () => {
       {{ t('ledger.mining.oreValue.empty') }}
     </p>
     <OreValueTable v-else-if="rows.length > 0" :rows="rows" :class="{ 'opacity-60': isLoading }" />
+
+    <OreSalePanel />
   </div>
 </template>

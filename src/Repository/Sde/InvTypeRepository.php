@@ -17,6 +17,8 @@ class InvTypeRepository extends ServiceEntityRepository
 {
     private const int ASTEROID_CATEGORY_ID = 25;
     private const int HARVESTABLE_CLOUD_GROUP_ID = 711;
+    private const int COMPRESSED_GAS_GROUP_ID = 4168;
+    private const string COMPRESSED_TYPE_NAME_PATTERN = 'Compressed %';
     private const int REPROCESSING_SKILL_TYPE_ATTRIBUTE_ID = 790;
 
     public function __construct(ManagerRegistry $registry)
@@ -157,7 +159,19 @@ class InvTypeRepository extends ServiceEntityRepository
      */
     public function findCompressedMineableTypes(array $typeIds): array
     {
-        return [];
+        if ($typeIds === []) {
+            return [];
+        }
+
+        return $this->asteroidCategoryOrGroupQuery($this->createQueryBuilder('t'), 't', self::COMPRESSED_GAS_GROUP_ID)
+            ->addSelect('g')
+            ->addSelect('c')
+            ->andWhere('t.typeId IN (:typeIds)')
+            ->andWhere('t.typeName LIKE :compressedTypeNamePattern')
+            ->setParameter('typeIds', $typeIds)
+            ->setParameter('compressedTypeNamePattern', self::COMPRESSED_TYPE_NAME_PATTERN)
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -183,14 +197,19 @@ class InvTypeRepository extends ServiceEntityRepository
 
     private function mineableCandidatesQuery(QueryBuilder $queryBuilder, string $typeAlias): QueryBuilder
     {
+        return $this->asteroidCategoryOrGroupQuery($queryBuilder, $typeAlias, self::HARVESTABLE_CLOUD_GROUP_ID)
+            ->andWhere($typeAlias . '.marketGroup IS NOT NULL');
+    }
+
+    private function asteroidCategoryOrGroupQuery(QueryBuilder $queryBuilder, string $typeAlias, int $groupId): QueryBuilder
+    {
         return $queryBuilder
             ->innerJoin($typeAlias . '.group', 'g')
             ->innerJoin('g.category', 'c')
             ->where($typeAlias . '.published = :published')
-            ->andWhere($typeAlias . '.marketGroup IS NOT NULL')
-            ->andWhere('c.categoryId = :asteroidCategoryId OR g.groupId = :harvestableCloudGroupId')
+            ->andWhere('c.categoryId = :asteroidCategoryId OR g.groupId = :groupId')
             ->setParameter('published', true)
             ->setParameter('asteroidCategoryId', self::ASTEROID_CATEGORY_ID)
-            ->setParameter('harvestableCloudGroupId', self::HARVESTABLE_CLOUD_GROUP_ID);
+            ->setParameter('groupId', $groupId);
     }
 }

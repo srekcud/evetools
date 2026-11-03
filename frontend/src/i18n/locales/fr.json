@@ -1727,6 +1727,31 @@
         "unknownMineral": "#{typeId} ×{quantity}",
         "loadError": "Impossible de charger la table de valeur au m³.",
         "empty": "Aucun minerai à comparer."
+      },
+      "oreSale": {
+        "title": "Vendre mon minerai",
+        "subtitle": "Minerai, glace et gaz compressés détenus par vos personnages, valorisés au meilleur prix connu, avec un résumé à coller dans un contrat.",
+        "quantity": "Quantité",
+        "volume": "Volume (m³)",
+        "jitaBuy": "Achat Jita",
+        "jitaSell": "Vente Jita",
+        "structureBuy": "Achat structure",
+        "structureSell": "Vente structure",
+        "bestPrice": "Meilleur prix",
+        "bestSource": "Source",
+        "value": "Valeur (ISK)",
+        "totals": "Total",
+        "sources": {
+          "jita_buy": "Achat Jita",
+          "jita_sell": "Vente Jita",
+          "structure_buy": "Achat structure",
+          "structure_sell": "Vente structure"
+        },
+        "empty": "Aucun minerai compressé détenu.",
+        "loadError": "Impossible de charger l'aide à la vente.",
+        "copy": "Copier le résumé",
+        "copied": "Résumé copié",
+        "copyFailed": "Impossible de copier le résumé"
       }
     },
     "pve": {

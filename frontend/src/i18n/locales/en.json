@@ -1727,6 +1727,31 @@
         "unknownMineral": "#{typeId} ×{quantity}",
         "loadError": "Could not load the value per m³ table.",
         "empty": "No ore to compare."
+      },
+      "oreSale": {
+        "title": "Sell my ore",
+        "subtitle": "Compressed ore, ice and gas held by your characters, valued at the best known price, with a summary to paste into a contract.",
+        "quantity": "Quantity",
+        "volume": "Volume (m³)",
+        "jitaBuy": "Jita buy",
+        "jitaSell": "Jita sell",
+        "structureBuy": "Structure buy",
+        "structureSell": "Structure sell",
+        "bestPrice": "Best price",
+        "bestSource": "Source",
+        "value": "Value (ISK)",
+        "totals": "Total",
+        "sources": {
+          "jita_buy": "Jita buy",
+          "jita_sell": "Jita sell",
+          "structure_buy": "Structure buy",
+          "structure_sell": "Structure sell"
+        },
+        "empty": "No compressed ore held.",
+        "loadError": "Could not load the ore sale.",
+        "copy": "Copy summary",
+        "copied": "Summary copied",
+        "copyFailed": "Could not copy the summary"
       }
     },
     "pve": {
