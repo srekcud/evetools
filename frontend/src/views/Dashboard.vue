@@ -9,12 +9,14 @@ import { useNotificationFeed } from '@/composables/useNotificationFeed'
 import { useTodoItems, type TodoLevel } from '@/composables/useTodoItems'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
 const syncStore = useSyncStore()
 const { formatIsk } = useFormatters()
 const { notifications, unreadCount, clearAll, removeNotification } = useNotificationFeed()
+const activityUpdated = useUpdateFlash(() => notifications.value.map(notification => notification.id).join())
 
 const { items: todoItems, isLoading: isTodoLoading, isAllCaughtUp } = useTodoItems()
 
@@ -230,7 +232,7 @@ onMounted(() => {
 
       <!-- Right column: Activity Feed -->
       <div class="lg:col-span-1">
-        <div class="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden sticky top-4">
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden sticky top-4" :class="{ 'hud-updated': activityUpdated }">
           <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800">
             <div class="flex items-center gap-2">
               <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">{{ t('dashboard.activity') }}</h3>

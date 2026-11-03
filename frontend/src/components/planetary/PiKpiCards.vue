@@ -14,13 +14,14 @@ defineProps<{
   totalExtractors: number | null
   expiringExtractors: number | null
   estimatedDailyIsk: number
+  updated?: boolean
 }>()
 </script>
 
 <template>
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
     <!-- Colonies -->
-    <div class="relative bg-slate-900 rounded-xl p-5 border border-slate-800 overflow-hidden scan-line">
+    <div class="relative bg-slate-900 rounded-xl p-5 border border-slate-800 overflow-hidden scan-line" :class="{ 'hud-updated': updated }">
       <div class="flex items-center justify-between">
         <span class="text-slate-400 text-sm font-medium uppercase tracking-wider">{{ t('pi.kpi.colonies') }}</span>
         <svg class="w-5 h-5 text-cyan-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,7 +33,7 @@ defineProps<{
     </div>
 
     <!-- Extracteurs actifs -->
-    <div class="relative bg-slate-900 rounded-xl p-5 border border-emerald-500/20 overflow-hidden">
+    <div class="relative bg-slate-900 rounded-xl p-5 border border-emerald-500/20 overflow-hidden" :class="{ 'hud-updated': updated }">
       <div class="flex items-center justify-between">
         <span class="text-emerald-400 text-sm font-medium uppercase tracking-wider">{{ t('pi.kpi.activeExtractors') }}</span>
         <svg class="w-5 h-5 text-emerald-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +56,7 @@ defineProps<{
     </div>
 
     <!-- Expirent bientot -->
-    <div class="relative bg-slate-900 rounded-xl p-5 border border-amber-500/20 overflow-hidden">
+    <div class="relative bg-slate-900 rounded-xl p-5 border border-amber-500/20 overflow-hidden" :class="{ 'hud-updated': updated }">
       <div class="flex items-center justify-between">
         <span class="text-amber-400 text-sm font-medium uppercase tracking-wider">{{ t('pi.kpi.expiringSoon') }}</span>
         <svg class="w-5 h-5 text-amber-400/60 timer-urgent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +71,7 @@ defineProps<{
     </div>
 
     <!-- Production theorique -->
-    <div class="relative bg-slate-900 rounded-xl p-5 border border-cyan-500/20 overflow-hidden">
+    <div class="relative bg-slate-900 rounded-xl p-5 border border-cyan-500/20 overflow-hidden" :class="{ 'hud-updated': updated }">
       <div class="flex items-center justify-between">
         <span class="text-cyan-400 text-sm font-medium uppercase tracking-wider">{{ t('pi.kpi.theoreticalProduction') }}</span>
         <svg class="w-5 h-5 text-cyan-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">

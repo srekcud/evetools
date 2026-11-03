@@ -12,10 +12,12 @@ import { projectProfitTotal } from '@/utils/projectProfitTotal'
 import { CHART_COLORS } from '@/utils/chartColors'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import type { IndustryProject } from '@/stores/industry/types'
+import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
 const store = useIndustryStore()
 const slotsStore = useSlotsStore()
+const kpisUpdated = useUpdateFlash(() => slotsStore.data)
 const stockpileStore = useStockpileStore()
 const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -292,7 +294,7 @@ function cleanTypeName(name: string): string {
   <!-- KPI Cards -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <!-- KPI 1: Active Projects -->
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <div class="flex items-center justify-between mb-3">
         <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.dashboard.activeProjects') }}</p>
         <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
@@ -303,7 +305,7 @@ function cleanTypeName(name: string): string {
     </div>
 
     <!-- KPI 2: Estimated Profit -->
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <div class="flex items-center justify-between mb-3">
         <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.dashboard.estimatedProfit') }}</p>
         <svg class="w-4 h-4 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,7 +327,7 @@ function cleanTypeName(name: string): string {
     </div>
 
     <!-- KPI 3: Slots Used -->
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.slotsUsed') }}</p>
       <div v-if="slotsData" class="flex items-center gap-3">
         <div class="relative w-12 h-12 flex-shrink-0" :class="slotsGlowClass">
@@ -357,7 +359,7 @@ function cleanTypeName(name: string): string {
     </div>
 
     <!-- KPI 4: Pipeline Health -->
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+    <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.pipelineHealth') }}</p>
       <p v-if="pipelineHealth === null" class="text-2xl font-bold text-slate-500"><UnknownValue /></p>
       <div v-else-if="hasStockpileTargets" class="flex items-center gap-3">

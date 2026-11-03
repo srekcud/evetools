@@ -12,9 +12,11 @@ import PiProductionTable from '@/components/planetary/PiProductionTable.vue'
 import PiColonyCard from '@/components/planetary/PiColonyCard.vue'
 import PiTierLegend from '@/components/planetary/PiTierLegend.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
 const planetaryStore = usePlanetaryStore()
+const coloniesUpdated = useUpdateFlash(() => planetaryStore.colonies)
 const syncStore = useSyncStore()
 const { formatTimeSince } = useFormatters()
 
@@ -169,6 +171,7 @@ async function toggleColony(colonyId: string): Promise<void> {
           :total-extractors="statsData?.totalExtractors ?? null"
           :expiring-extractors="statsData?.expiringExtractors ?? null"
           :estimated-daily-isk="statsData?.estimatedDailyIsk ?? planetaryStore.totalDailyIsk"
+          :updated="coloniesUpdated"
         />
 
         <PiAlertsBanner
