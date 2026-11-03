@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use App\Entity\Sde\MapSolarSystem;
 use App\Enum\MarketSide;
+use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
 use App\Enum\MiningOperationVisibility;
@@ -78,32 +79,46 @@ class MiningOperation
     #[ORM\OneToMany(targetEntity: MiningOperationMember::class, mappedBy: 'operation', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $members;
 
+    #[ORM\Column(type: 'string', length: 20, enumType: MiningValuationForm::class, options: ['default' => 'compressed'])]
     private MiningValuationForm $valuationForm = MiningValuationForm::Compressed;
 
+    #[ORM\Column(type: 'string', length: 20, enumType: MiningValuationMarket::class, options: ['default' => 'jita'])]
     private MiningValuationMarket $valuationMarket = MiningValuationMarket::Jita;
 
+    #[ORM\Column(type: 'string', length: 10, enumType: MarketSide::class, options: ['default' => 'buy'])]
     private MarketSide $valuationSide = MarketSide::Buy;
 
+    #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $valuationStructureId = null;
 
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $valuationStructureName = null;
 
+    #[ORM\Column(type: 'float', nullable: true)]
     private ?float $reprocessYield = null;
 
+    #[ORM\Column(type: 'smallint', options: ['default' => 0])]
     private int $boosterCutPercent = 0;
 
+    #[ORM\Column(type: 'smallint', options: ['default' => 0])]
     private int $corporationCutPercent = 0;
 
+    #[ORM\ManyToOne(targetEntity: MiningOperationMember::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?MiningOperationMember $boosterMember = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $sharesFrozenAt = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $pricesSyncedAt = null;
 
     /** @var Collection<int, MiningFrozenUnitPrice> */
+    #[ORM\OneToMany(targetEntity: MiningFrozenUnitPrice::class, mappedBy: 'operation', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $frozenUnitPrices;
 
     /** @var Collection<int, MiningFrozenMinedValue> */
+    #[ORM\OneToMany(targetEntity: MiningFrozenMinedValue::class, mappedBy: 'operation', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $frozenMinedValues;
 
     public function __construct()
@@ -406,6 +421,45 @@ class MiningOperation
         int $corporationCutPercent = 0,
         ?MiningOperationMember $boosterMember = null,
     ): void {
+        $onStructure = $valuationMarket === MiningValuationMarket::Structure;
+
+        $this->valuationForm = $valuationForm;
+        $this->valuationMarket = $valuationMarket;
+        $this->valuationSide = $valuationSide;
+        $this->valuationStructureId = $onStructure ? $structureId : null;
+        $this->valuationStructureName = $onStructure ? $structureName : null;
+        $this->reprocessYield = $valuationForm === MiningValuationForm::Reprocessed ? $reprocessYield : null;
+        $this->boosterCutPercent = $boosterCutPercent;
+        $this->corporationCutPercent = $corporationCutPercent;
+        $this->boosterMember = $boosterMember;
+    }
+
+    /**
+     * @param list<MiningFrozenUnitPrice>  $unitPrices
+     * @param list<MiningFrozenMinedValue> $minedValues
+     */
+    public function freezeShares(\DateTimeImmutable $frozenAt, ?\DateTimeImmutable $pricesSyncedAt, array $unitPrices, array $minedValues): void
+    {
+        $this->status = MiningOperationStatus::Shares;
+        $this->sharesFrozenAt = $frozenAt;
+        $this->pricesSyncedAt = $pricesSyncedAt;
+        foreach ($unitPrices as $unitPrice) {
+            $this->frozenUnitPrices->add($unitPrice);
+        }
+        foreach ($minedValues as $minedValue) {
+            $this->frozenMinedValues->add($minedValue);
+        }
+    }
+
+    /**
+     * @return list<MiningOperationMember> the owner first, then the accepted members by arrival
+     */
+    public function participantsInLedgerOrder(): array
+    {
+        $participants = $this->acceptedMembers();
+        usort($participants, static fn (MiningOperationMember $left, MiningOperationMember $right): int => [$left->getRole() !== MiningOperationMemberRole::Owner, $left->getJoinedAt(), (string) $left->getId()] <=> [$right->getRole() !== MiningOperationMemberRole::Owner, $right->getJoinedAt(), (string) $right->getId()]);
+
+        return $participants;
     }
 
     public function getSharesFrozenAt(): ?\DateTimeImmutable

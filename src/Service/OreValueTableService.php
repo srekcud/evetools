@@ -7,6 +7,8 @@ namespace App\Service;
 use App\Entity\Sde\InvType;
 use App\Entity\Sde\InvTypeMaterial;
 use App\Enum\MarketSide;
+use App\Enum\MiningValuationForm;
+use App\Enum\MiningValuationMarket;
 use App\Repository\Sde\InvTypeMaterialRepository;
 use App\Repository\Sde\InvTypeRepository;
 
@@ -19,16 +21,6 @@ final readonly class OreValueTableService
     private const int HARVESTABLE_CLOUD_GROUP_ID = 711;
     private const float UNUSED_REPROCESS_YIELD = 1.0;
     private const array COMPRESSED_NAME_PREFIXES = ['Compressed ', 'Batch Compressed '];
-    private const array JITA_PRICE_KEYS = [
-        'raw' => 'rawUnitPrice',
-        'compressed' => 'compressedEquivalentPrice',
-        'reprocessed' => 'reprocessValue',
-    ];
-    private const array STRUCTURE_PRICE_KEYS = [
-        'raw' => 'structureUnitPrice',
-        'compressed' => 'structureCompressedEquivalentPrice',
-        'reprocessed' => 'structureReprocessValue',
-    ];
     private const array BEST_OPTION_TIE_ORDER = ['compressed', 'reprocessed', 'raw'];
 
     public function __construct(
@@ -58,14 +50,14 @@ final readonly class OreValueTableService
             $side,
         );
         $materials = $this->invTypeMaterialRepository->findByTypeIds($typeIds);
-        $priceKeys = $onStructure ? self::STRUCTURE_PRICE_KEYS : self::JITA_PRICE_KEYS;
+        $priceMarket = $onStructure ? MiningValuationMarket::Structure : MiningValuationMarket::Jita;
 
         $rows = array_map(
             fn (InvType $type): array => $this->rowOf(
                 $type,
                 $prices[$type->getTypeId()],
                 array_values($materials[$type->getTypeId()] ?? []),
-                $priceKeys,
+                $priceMarket,
                 $reprocessYield !== null,
             ),
             $oreTypes,
@@ -88,10 +80,9 @@ final readonly class OreValueTableService
     /**
      * @param array<string, mixed> $prices
      * @param list<InvTypeMaterial> $materials
-     * @param array<string, string> $priceKeys
      * @return array<string, mixed>
      */
-    private function rowOf(InvType $type, array $prices, array $materials, array $priceKeys, bool $reprocessYieldKnown): array
+    private function rowOf(InvType $type, array $prices, array $materials, MiningValuationMarket $priceMarket, bool $reprocessYieldKnown): array
     {
         $volume = $type->getVolume();
         $perCubicMetre = static fn (?float $unitValue): ?float => $unitValue === null || $volume === null || $volume <= 0.0
@@ -99,9 +90,9 @@ final readonly class OreValueTableService
             : $unitValue / $volume;
 
         $iskPerM3 = [
-            'raw' => $perCubicMetre($prices[$priceKeys['raw']]),
-            'compressed' => $perCubicMetre($prices[$priceKeys['compressed']]),
-            'reprocessed' => $reprocessYieldKnown ? $perCubicMetre($prices[$priceKeys['reprocessed']]) : null,
+            'raw' => $perCubicMetre($prices[MiningValuationForm::Raw->priceKeyOn($priceMarket)]),
+            'compressed' => $perCubicMetre($prices[MiningValuationForm::Compressed->priceKeyOn($priceMarket)]),
+            'reprocessed' => $reprocessYieldKnown ? $perCubicMetre($prices[MiningValuationForm::Reprocessed->priceKeyOn($priceMarket)]) : null,
         ];
         $bestOption = $this->bestOptionOf($iskPerM3);
 

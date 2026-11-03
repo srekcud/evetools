@@ -2834,7 +2834,8 @@
       "corporationUnknown": "Corporation inconnue : pas de part corporation.",
       "rule": "G = Σ quantités × prix unitaire de la base. Booster : G × {booster} %. Corporation : G × {corporation} %. Chaque participant : sa valeur × {rest} %, à l'ISK près ; le reste d'arrondi va aux plus grandes fractions.",
       "ruleEachForThemselves": "Valeur minée = Σ quantités × prix unitaire de la base, pour chacun. Aucune part, aucun paiement.",
-      "save": "Enregistrer les réglages"
+      "save": "Enregistrer les réglages",
+      "structureSearch": "Rechercher une structure"
     },
     "shares": {
       "previewTitle": "Aperçu de la répartition au prorata de la valeur",
@@ -2859,6 +2860,8 @@
       "checkUnknown": "contrôle impossible : G inconnue",
       "checkEachForThemselves": "Σ valeurs minées {total} = G ✓ · aucune part calculée",
       "roundingMark": "reste d'arrondi",
+      "left": "parti {time}",
+      "showCharacters": "Afficher les personnages de {name}",
       "unknownBanner": "Valeur totale et parts inconnues. Rien n'est compté pour 0. Causes : {causes}.",
       "unitPricesRead": "Prix unitaires lus",
       "unitPricesFrozen": "Prix unitaires figés",

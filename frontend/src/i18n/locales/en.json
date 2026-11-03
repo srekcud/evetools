@@ -2834,7 +2834,8 @@
       "corporationUnknown": "Unknown corporation: no corporation cut.",
       "rule": "G = Σ quantities × unit price of the basis. Booster: G × {booster} %. Corporation: G × {corporation} %. Each participant: their value × {rest} %, to the ISK; the rounding remainder goes to the largest fractions.",
       "ruleEachForThemselves": "Mined value = Σ quantities × unit price of the basis, for each participant. No share, no payment.",
-      "save": "Save settings"
+      "save": "Save settings",
+      "structureSearch": "Search a structure"
     },
     "shares": {
       "previewTitle": "Value prorata split preview",
@@ -2859,6 +2860,8 @@
       "checkUnknown": "check impossible: G unknown",
       "checkEachForThemselves": "Σ mined values {total} = G ✓ · no share computed",
       "roundingMark": "rounding remainder",
+      "left": "left {time}",
+      "showCharacters": "Show the characters of {name}",
       "unknownBanner": "Total value and shares unknown. Nothing is counted as 0. Causes: {causes}.",
       "unitPricesRead": "Unit prices read",
       "unitPricesFrozen": "Frozen unit prices",

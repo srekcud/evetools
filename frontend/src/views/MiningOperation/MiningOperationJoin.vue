@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import MiningCharacterPicker from '@/components/mining-operation/MiningCharacterPicker.vue'
+import MiningValuationRules from '@/components/mining-operation/MiningValuationRules.vue'
 import { ApiError } from '@/services/api'
 import { useMiningOperationStore } from '@/stores/miningOperation'
 import { formatEveDateTime } from './miningOperationTime'
@@ -35,7 +36,7 @@ const state = computed<JoinState>(() => {
   if (loadFailure.value !== null || current === null) return 'failed'
   if (current.myStatus === 'accepted') return 'alreadyMember'
   if (current.myStatus === 'pending') return 'pending'
-  if (current.status === 'closing' || current.status === 'completed') return 'closed'
+  if (current.status !== 'planned' && current.status !== 'in_progress') return 'closed'
   return 'form'
 })
 
@@ -128,6 +129,7 @@ onMounted(loadInvitation)
           <section class="eve-card p-5">
             <h2 class="mb-3 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperation.join.rules') }}</h2>
             <p class="text-sm text-slate-200">{{ t(`miningOperation.splitMode.${invitation.splitMode}`) }}</p>
+            <MiningValuationRules class="mt-2" :settings="invitation.valuationSettings" :split-mode="invitation.splitMode" />
             <p class="mt-2 text-xs text-slate-400">
               {{ invitation.autoAccepted ? t('miningOperation.join.autoAccepted') : t('miningOperation.join.needsApproval') }}
             </p>

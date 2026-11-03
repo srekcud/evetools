@@ -15,7 +15,6 @@ use App\Entity\User;
 use App\Enum\MinedQuantityState;
 use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningLedgerSnapshotStatus;
-use App\Enum\MiningOperationMemberRole;
 use App\Repository\MiningOperationRepository;
 use App\Service\MiningOperation\MinedQuantity;
 use App\Service\MiningOperation\MinedQuantityCalculator;
@@ -49,7 +48,7 @@ final readonly class MiningOperationLedgerProvider implements ProviderInterface
 
         $this->access->assertCanParticipate($user, $miningOperation);
 
-        $participants = $this->participantsOf($miningOperation);
+        $participants = $miningOperation->participantsInLedgerOrder();
         $endSnapshots = $this->endSnapshotsOf($participants);
         $waitingReadTimes = array_map(
             static fn (MiningLedgerSnapshot $snapshot): \DateTimeImmutable => $snapshot->getReadyAt() ?? throw new \LogicException('A waiting snapshot has a read time'),
@@ -70,17 +69,6 @@ final readonly class MiningOperationLedgerProvider implements ProviderInterface
         $ledger->participants = array_map(fn (MiningOperationMember $member): array => $this->participantToArray($member, $miningOperation, $user), $participants);
 
         return $ledger;
-    }
-
-    /**
-     * @return list<MiningOperationMember> the owner first, then the accepted members by arrival
-     */
-    private function participantsOf(MiningOperation $miningOperation): array
-    {
-        $participants = $miningOperation->acceptedMembers();
-        usort($participants, static fn (MiningOperationMember $left, MiningOperationMember $right): int => [$left->getRole() !== MiningOperationMemberRole::Owner, $left->getJoinedAt()] <=> [$right->getRole() !== MiningOperationMemberRole::Owner, $right->getJoinedAt()]);
-
-        return $participants;
     }
 
     /**

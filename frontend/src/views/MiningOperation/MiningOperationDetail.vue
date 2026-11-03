@@ -7,20 +7,28 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import MiningClosingLedger from '@/components/mining-operation/MiningClosingLedger.vue'
 import MiningCorrectionModal from '@/components/mining-operation/MiningCorrectionModal.vue'
+import MiningFreezeShares from '@/components/mining-operation/MiningFreezeShares.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
 import MiningMinedQuantities from '@/components/mining-operation/MiningMinedQuantities.vue'
 import MiningOperationMembers from '@/components/mining-operation/MiningOperationMembers.vue'
+import MiningOperationStepper from '@/components/mining-operation/MiningOperationStepper.vue'
+import MiningShareTable from '@/components/mining-operation/MiningShareTable.vue'
 import MiningStartModal from '@/components/mining-operation/MiningStartModal.vue'
 import MiningStartSnapshots from '@/components/mining-operation/MiningStartSnapshots.vue'
 import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.vue'
 import MiningStockpileCoverage from '@/components/mining-operation/MiningStockpileCoverage.vue'
 import { useStockpileCoverage } from '@/composables/useStockpileCoverage'
+import MiningUnitPrices from '@/components/mining-operation/MiningUnitPrices.vue'
+import MiningValuationRules from '@/components/mining-operation/MiningValuationRules.vue'
+import MiningValuationSettings from '@/components/mining-operation/MiningValuationSettings.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useMiningOperationStore, type MiningOperationMember } from '@/stores/miningOperation'
+import { useMiningOperationStore, type MiningOperationMember, type UpdateMiningValuationInput } from '@/stores/miningOperation'
 import { useSyncStore } from '@/stores/sync'
+import { formatWhole } from './miningOperationQuantity'
 import { formatEveClock, formatEveDateTime } from './miningOperationTime'
+import { missingTypeNames, unknownParticipantNames } from './miningOperationValuation'
 
-type PendingConfirmation = 'renew' | 'delete' | 'end' | 'depart' | null
+type PendingConfirmation = 'renew' | 'delete' | 'end' | 'depart' | 'freeze' | null
 
 const MEMBER_ACTIONS_RELOADING_THE_OPERATION = [
   'member_joined',
@@ -31,11 +39,14 @@ const MEMBER_ACTIONS_RELOADING_THE_OPERATION = [
   'operation_ended',
   'member_departed',
   'quantity_corrected',
+  'shares_frozen',
 ]
+const VALUATION_ACTION = 'valuation_updated'
+const FULL_PERCENT = 100
 const SNAPSHOT_SYNC_TYPE = 'mining-operation-snapshot'
 const CLOCK_TICK_MILLISECONDS = 1000
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useMiningOperationStore()
@@ -53,6 +64,7 @@ const startModalOpen = ref(false)
 const correctionModalOpen = ref(false)
 const correctionFailure = ref<string | null>(null)
 const submitting = ref(false)
+const savingSettings = ref(false)
 const now = ref(Date.now())
 let clockTicker: ReturnType<typeof setInterval> | null = null
 
@@ -71,6 +83,36 @@ const canStart = computed(() => canAdminister.value && operation.value?.status =
 const canEnd = computed(() => canAdminister.value && operation.value?.status === 'in_progress')
 const canDepart = computed(() => participates.value && operation.value?.status === 'in_progress' && operation.value.myDepartedAt === null)
 const showsStockpileCoverage = computed(() => participates.value && (operation.value?.status === 'closing' || operation.value?.status === 'completed'))
+const valuation = computed(() => (store.valuation?.operationId === operationId.value ? store.valuation : null))
+const eachForThemselves = computed(() => operation.value?.splitMode === 'each_for_themselves')
+const rulesSettings = computed(() => valuation.value?.settings ?? operation.value?.valuationSettings ?? null)
+const marketLabel = computed(() => {
+  const settings = rulesSettings.value
+  return settings?.valuationMarket === 'structure' ? (settings.structureName ?? t('miningOperation.valuation.market.structure')) : t('miningOperation.valuation.market.jita')
+})
+const ownMemberId = computed(() => store.members.find(member => member.characters.some(character => ownCharacterIds.value.includes(character.id)))?.id ?? null)
+const unknownCauses = computed(() => {
+  const current = valuation.value
+  if (current === null) return ''
+  const causes: string[] = []
+  const names = unknownParticipantNames(current, t('miningOperation.unknownPilot'))
+  if (names !== '') causes.push(t('miningOperation.freeze.blockers.quantities_not_known', { names }))
+  const types = missingTypeNames(current)
+  if (types !== '') causes.push(t('miningOperation.freeze.blockers.prices_missing', { types }))
+  return causes.join(' ; ')
+})
+const sharesFrozenKpis = computed(() => {
+  const current = valuation.value
+  const settings = current?.settings
+  if (current === null || settings === undefined) return []
+  const toShare = current.participants.reduce<number | null>((sum, participant) => (sum === null || participant.share === null ? null : sum + participant.share), 0)
+  return [
+    { label: t('miningOperation.shares.kpi.total'), value: current.totalValue },
+    { label: t('miningOperation.shares.kpi.booster', { percent: settings.boosterCutPercent }), value: current.boosterCut },
+    { label: t('miningOperation.shares.kpi.toShare', { percent: FULL_PERCENT - settings.boosterCutPercent - settings.corporationCutPercent }), value: toShare },
+    { label: t('miningOperation.shares.kpi.iskPerHour'), value: current.iskPerHour },
+  ]
+})
 const operationLedger = computed(() => (store.ledger?.operationId === operationId.value ? store.ledger : null))
 const departures = computed(() =>
   (operationLedger.value?.participants ?? []).flatMap(participant =>
@@ -101,6 +143,7 @@ async function load(): Promise<void> {
     if (showsStockpileCoverage.value) {
       await loadStockpileCoverage(operationId.value)
     }
+    await store.fetchValuation(operationId.value)
   }
 }
 
@@ -131,6 +174,9 @@ async function confirmPending(): Promise<void> {
       await load()
     } else if (pending === 'depart') {
       await store.depart(operationId.value)
+      await load()
+    } else if (pending === 'freeze') {
+      await store.freezeShares(operationId.value)
       await load()
     }
   })
@@ -189,6 +235,18 @@ async function correctQuantity(operationCharacterId: string, typeId: number, qua
   }
 }
 
+async function saveSettings(patch: UpdateMiningValuationInput): Promise<void> {
+  savingSettings.value = true
+  await runAction(() => store.updateValuation(operationId.value, patch))
+  savingSettings.value = false
+}
+
+const rereadPrices = () => runAction(() => store.fetchValuation(operationId.value))
+
+function amountText(amount: number | null): string {
+  return amount === null ? t('miningOperation.quantities.unknown') : formatWhole(amount, locale.value)
+}
+
 function openCorrection(): void {
   correctionFailure.value = null
   correctionModalOpen.value = true
@@ -199,6 +257,7 @@ watch(
   (progress) => {
     if (progress?.data?.operationId === operationId.value) {
       store.fetchLedger(operationId.value)
+      store.fetchValuation(operationId.value)
     }
   },
 )
@@ -211,6 +270,8 @@ watch(
       goBackToList('deleted')
     } else if (MEMBER_ACTIONS_RELOADING_THE_OPERATION.includes(event.action)) {
       load()
+    } else if (event.action === VALUATION_ACTION) {
+      store.fetchValuation(operationId.value)
     }
   },
 )
@@ -219,6 +280,7 @@ onMounted(async () => {
   store.currentOperation = null
   store.members = []
   store.ledger = null
+  store.valuation = null
   clockTicker = setInterval(() => {
     now.value = Date.now()
   }, CLOCK_TICK_MILLISECONDS)
@@ -253,6 +315,8 @@ onBeforeUnmount(() => {
           </div>
         </header>
 
+        <MiningOperationStepper :status="operation.status" :split-mode="operation.splitMode" />
+
         <p v-if="actionFailure !== null" class="text-sm text-red-400" role="alert">{{ actionFailure }}</p>
 
         <MiningInvitationLink
@@ -282,22 +346,84 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <div v-if="operation.status === 'closing' && operationLedger !== null" class="grid gap-5 lg:grid-cols-3">
+        <MiningValuationSettings
+          v-if="valuation !== null && participates && acceptsParticipants"
+          :settings="valuation.settings"
+          :split-mode="operation.splitMode"
+          :members="store.members"
+          :editable="canAdminister"
+          :corporation-known="operation.corporationId !== null"
+          :saving="savingSettings"
+          @save="saveSettings"
+        />
+
+        <div v-if="operation.status === 'closing'" class="grid gap-5 lg:grid-cols-3">
           <div class="space-y-5 lg:col-span-2">
-            <MiningClosingLedger :ledger="operationLedger" :now="now" @retry="retrySnapshot" />
-            <MiningMinedQuantities :ledger="operationLedger" />
+            <template v-if="valuation !== null">
+              <p v-if="eachForThemselves" class="rounded-sm border border-cyan-500/30 bg-cyan-500/5 px-3 py-1.5 text-xs text-cyan-200">{{ t('miningOperation.shares.eachForThemselvesBanner') }}</p>
+              <p v-if="valuation.totalValue === null" class="rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-200" role="alert">{{ t('miningOperation.shares.unknownBanner', { causes: unknownCauses }) }}</p>
+              <MiningShareTable
+                :valuation="valuation"
+                :title="eachForThemselves ? t('miningOperation.shares.valueTitle') : t('miningOperation.shares.previewTitle')"
+                :show-shares="!eachForThemselves"
+                :own-member-id="ownMemberId"
+                :market-label="marketLabel"
+                @reread="rereadPrices"
+              />
+            </template>
+            <template v-if="operationLedger !== null">
+              <MiningClosingLedger :ledger="operationLedger" :now="now" @retry="retrySnapshot" />
+              <MiningMinedQuantities :ledger="operationLedger" />
+            </template>
           </div>
           <div class="space-y-5">
-            <section class="eve-card p-5">
-              <h2 class="mb-2 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperation.closing.departures') }}</h2>
-              <p v-if="departures.length === 0" class="text-sm text-slate-400">{{ t('miningOperation.closing.noDeparture') }}</p>
-              <p v-for="departure in departures" :key="departure.memberId" class="text-sm text-slate-300">{{ t('miningOperation.closing.departed', { name: departure.name, time: departure.time }) }}</p>
-            </section>
-            <section class="eve-card p-5">
-              <h2 class="mb-2 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperation.correction.title') }}</h2>
-              <p class="mb-3 text-sm text-slate-300">{{ t('miningOperation.correction.card') }}</p>
-              <button v-if="canAdminister" type="button" class="rounded-md border border-cyan-500/40 px-4 py-2 text-sm text-cyan-200 hover:bg-cyan-500/10" @click="openCorrection">{{ t('miningOperation.correction.action') }}</button>
-            </section>
+            <MiningValuationSettings
+              v-if="valuation !== null && participates"
+              :settings="valuation.settings"
+              :split-mode="operation.splitMode"
+              :members="store.members"
+              :editable="canAdminister"
+              :corporation-known="operation.corporationId !== null"
+              :saving="savingSettings"
+              @save="saveSettings"
+            />
+            <MiningFreezeShares v-if="valuation !== null && canAdminister && !eachForThemselves" :valuation="valuation" @freeze="confirmation = 'freeze'" />
+            <MiningUnitPrices v-if="valuation !== null" :title="t('miningOperation.shares.unitPricesRead')" :unit-prices="valuation.unitPrices" />
+            <template v-if="operationLedger !== null">
+              <section class="eve-card p-5">
+                <h2 class="mb-2 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperation.closing.departures') }}</h2>
+                <p v-if="departures.length === 0" class="text-sm text-slate-400">{{ t('miningOperation.closing.noDeparture') }}</p>
+                <p v-for="departure in departures" :key="departure.memberId" class="text-sm text-slate-300">{{ t('miningOperation.closing.departed', { name: departure.name, time: departure.time }) }}</p>
+              </section>
+              <section class="eve-card p-5">
+                <h2 class="mb-2 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperation.correction.title') }}</h2>
+                <p class="mb-3 text-sm text-slate-300">{{ t('miningOperation.correction.card') }}</p>
+                <button v-if="canAdminister" type="button" class="rounded-md border border-cyan-500/40 px-4 py-2 text-sm text-cyan-200 hover:bg-cyan-500/10" @click="openCorrection">{{ t('miningOperation.correction.action') }}</button>
+              </section>
+            </template>
+          </div>
+        </div>
+
+        <div v-else-if="operation.status === 'shares' && valuation !== null" class="space-y-5">
+          <p v-if="operation.sharesFrozenAt !== null" class="rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200" role="status">{{ t('miningOperation.freeze.frozenBanner', { date: formatEveDateTime(operation.sharesFrozenAt) }) }}</p>
+          <dl class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div v-for="kpi in sharesFrozenKpis" :key="kpi.label" class="eve-card p-4">
+              <dt class="truncate text-xs uppercase tracking-wider text-slate-400" :title="kpi.label">{{ kpi.label }}</dt>
+              <dd class="mt-1 font-mono text-lg" :class="kpi.value === null ? 'text-amber-300' : 'text-cyan-200'">{{ amountText(kpi.value) }}</dd>
+            </div>
+          </dl>
+          <div class="grid gap-5 lg:grid-cols-3">
+            <div class="lg:col-span-2">
+              <MiningShareTable
+                :valuation="valuation"
+                :title="t('miningOperation.shares.title')"
+                :show-shares="true"
+                :own-member-id="ownMemberId"
+                :market-label="marketLabel"
+                @reread="rereadPrices"
+              />
+            </div>
+            <MiningUnitPrices :title="t('miningOperation.shares.unitPricesFrozen')" :unit-prices="valuation.unitPrices" />
           </div>
         </div>
 
@@ -315,6 +441,7 @@ onBeforeUnmount(() => {
           <section class="eve-card p-5">
             <h2 class="mb-2 font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperation.detail.rules') }}</h2>
             <p class="text-sm text-slate-200"><span class="text-slate-400">{{ t('miningOperation.detail.split') }} :</span> {{ t(`miningOperation.splitMode.${operation.splitMode}`) }}</p>
+            <MiningValuationRules v-if="rulesSettings !== null" class="mt-2" :settings="rulesSettings" :split-mode="operation.splitMode" />
           </section>
         </div>
 
@@ -343,6 +470,17 @@ onBeforeUnmount(() => {
       :title="t('miningOperation.end.title')"
       :message="t('miningOperation.end.hint')"
       :confirm-label="endSubmitLabel"
+      :is-loading="confirming"
+      confirm-color="cyan"
+      icon="check"
+      @confirm="confirmPending"
+      @cancel="confirmation = null"
+    />
+    <ConfirmModal
+      :show="confirmation === 'freeze'"
+      :title="t('miningOperation.freeze.title')"
+      :message="t('miningOperation.freeze.confirm')"
+      :confirm-label="t('miningOperation.freeze.action')"
       :is-loading="confirming"
       confirm-color="cyan"
       icon="check"

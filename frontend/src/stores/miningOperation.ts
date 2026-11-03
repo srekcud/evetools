@@ -442,14 +442,41 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
-  async function fetchValuation(_id: string): Promise<void> {}
-
-  async function updateValuation(_id: string, _patch: UpdateMiningValuationInput): Promise<MiningOperationValuation | null> {
-    return null
+  async function fetchValuation(id: string): Promise<void> {
+    error.value = null
+    try {
+      valuation.value = await apiRequest<MiningOperationValuation>(`/mining-operations/${id}/valuation`)
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the valuation')
+    }
   }
 
-  async function freezeShares(_id: string): Promise<MiningOperation | null> {
-    return null
+  async function updateValuation(id: string, patch: UpdateMiningValuationInput): Promise<MiningOperationValuation | null> {
+    error.value = null
+    try {
+      valuation.value = await apiRequest<MiningOperationValuation>(`/mining-operations/${id}/valuation`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      })
+      return valuation.value
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to update the valuation settings')
+      throw cause
+    }
+  }
+
+  async function freezeShares(id: string): Promise<MiningOperation | null> {
+    error.value = null
+    try {
+      currentOperation.value = await apiRequest<MiningOperation>(`/mining-operations/${id}/freeze-shares`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+      return currentOperation.value
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to freeze the shares')
+      throw cause
+    }
   }
 
   return {

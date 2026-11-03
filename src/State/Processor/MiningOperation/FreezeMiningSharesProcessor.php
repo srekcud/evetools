@@ -10,7 +10,10 @@ use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\Repository\MiningOperationRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningOperationAudience;
+use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningOperation\MiningShareFreezer;
+use App\Service\MiningOperation\PersistedUuid;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
 
@@ -31,6 +34,20 @@ final readonly class FreezeMiningSharesProcessor implements ProcessorInterface
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): MiningOperationResource
     {
-        return new MiningOperationResource();
+        $user = MiningOperationRequest::userOf($this->security);
+
+        $miningOperation = MiningOperationRequest::operationOf($this->operationRepository, $uriVariables['id']);
+
+        $this->access->assertCanAdminister($user, $miningOperation);
+
+        $this->freezer->freeze($miningOperation);
+
+        $this->mercurePublisher->publishMiningOperationEvent(
+            MiningOperationAudience::participantIdsOf($miningOperation),
+            PersistedUuid::of($miningOperation->getId()),
+            'shares_frozen',
+        );
+
+        return $this->mapper->operationToResource($miningOperation, $miningOperation->activeMembershipOf($user), true);
     }
 }

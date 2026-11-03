@@ -131,7 +131,7 @@ final readonly class MiningOperationLifecycle
         $retryable = match ($operationCharacter->getMember()->getOperation()->getStatus()) {
             MiningOperationStatus::InProgress => $operationCharacter->snapshotOf(MiningLedgerSnapshotKind::Start),
             MiningOperationStatus::Closing => $operationCharacter->snapshotOf(MiningLedgerSnapshotKind::End),
-            MiningOperationStatus::Planned, MiningOperationStatus::Completed => null,
+            MiningOperationStatus::Planned, MiningOperationStatus::Shares, MiningOperationStatus::Completed => null,
         };
 
         if ($retryable === null) {

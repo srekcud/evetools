@@ -14,7 +14,7 @@ enum MiningOperationStatus: string
 
     public function isOpen(): bool
     {
-        return $this !== self::Completed;
+        return $this === self::Planned || $this === self::InProgress || $this === self::Closing;
     }
 
     public function acceptsParticipants(): bool

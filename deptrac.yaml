@@ -199,6 +199,8 @@ deptrac:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\EndMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\FreezeMiningSharesProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\JoinMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor:
@@ -206,6 +208,8 @@ deptrac:
     App\State\Processor\MiningOperation\StartMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\UpdateMiningOperationMemberProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\UpdateMiningOperationValuationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\Notification\MarkReadProcessor:
       - App\State\Provider\Notification\NotificationResourceMapper
