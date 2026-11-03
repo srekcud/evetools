@@ -54,13 +54,13 @@ final class MiningOperationRecurrenceApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         $created = $this->responseJson();
         self::assertIsString($created['recurrenceId'] ?? null);
-        self::assertNull($created['chunkId'] ?? 'missing');
+        self::assertNull($created['chunkId'] ?? null);
         self::assertSame([self::C1, 'weekly'], [(int) $this->recurrenceRow($created['recurrenceId'])['corporation_id'], $this->recurrenceRow($created['recurrenceId'])['kind']]);
         $listed = $this->listedRecurrences();
         self::assertCount(1, $listed);
         self::assertSame(
             [$created['recurrenceId'], 'weekly', self::LABEL, null, '2099-11-12T20:00:00+00:00'],
-            [$listed[0]['id'] ?? null, $listed[0]['kind'] ?? null, $listed[0]['label'] ?? null, $listed[0]['structureId'] ?? 'missing', $listed[0]['nextOccurrenceAt'] ?? 'missing'],
+            [$listed[0]['id'] ?? null, $listed[0]['kind'] ?? null, $listed[0]['label'] ?? null, $listed[0]['structureId'] ?? null, $listed[0]['nextOccurrenceAt'] ?? null],
         );
         self::assertArrayHasKey('createdAt', $listed[0]);
     }
@@ -76,7 +76,7 @@ final class MiningOperationRecurrenceApiTest extends WebTestCase
         self::assertCount(1, $listed);
         self::assertSame(
             ['chunk', self::ATHANOR_STRUCTURE_ID, 'Athanor Ilyra', null],
-            [$listed[0]['kind'] ?? null, $listed[0]['structureId'] ?? null, $listed[0]['structureName'] ?? null, $listed[0]['nextOccurrenceAt'] ?? 'missing'],
+            [$listed[0]['kind'] ?? null, $listed[0]['structureId'] ?? null, $listed[0]['structureName'] ?? null, $listed[0]['nextOccurrenceAt'] ?? null],
         );
     }
 
@@ -108,7 +108,7 @@ final class MiningOperationRecurrenceApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         $created = $this->responseJson();
-        self::assertSame([null, null, 0], [$created['recurrenceId'] ?? 'missing', $created['chunkId'] ?? 'missing', $this->countOwnedBy('mining_operation_recurrences', $this->aria)]);
+        self::assertSame([null, null, 0], [$created['recurrenceId'] ?? null, $created['chunkId'] ?? null, $this->countOwnedBy('mining_operation_recurrences', $this->aria)]);
     }
 
     public function testBrannNeitherSeesNorStopsTheRecurrenceOfAria(): void

@@ -184,7 +184,7 @@ describe('MiningOperationList, occurrences', () => {
 
     const wrapper = await mountList()
 
-    const rowOf = (label: string) => wrapper.findAll('tr').find(row => row.text().includes(label))?.text() ?? ''
+    const rowOf = (label: string) => wrapper.findAll('li, tr').find(row => row.text().includes(label))?.text() ?? ''
     expect([rowOf(THURSDAY_LABEL).includes('↻'), rowOf(ONE_OFF_LABEL).includes('↻')]).toEqual([true, false])
   })
 })
