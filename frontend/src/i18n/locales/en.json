@@ -1611,6 +1611,47 @@
         "entries": "Entries",
         "oreValue": "Value per m³"
       },
+      "reprocessingProfile": {
+        "title": "Reprocessing yield",
+        "subtitle": "Computed from the skills of a character and the place where you reprocess.",
+        "character": "Character",
+        "oreProcessingSkill": "Ore processing skill",
+        "chooseSkill": "Choose a skill",
+        "location": "Location",
+        "locations": {
+          "npc_station": "NPC station",
+          "athanor": "Athanor",
+          "tatara": "Tatara"
+        },
+        "rigTier": "Reprocessing rig",
+        "rigTiers": {
+          "none": "No rig",
+          "t1": "T1 rig",
+          "t2": "T2 rig"
+        },
+        "security": "Security",
+        "securities": {
+          "highsec": "High security",
+          "lowsec": "Low security",
+          "nullsec": "Null security and wormholes"
+        },
+        "implant": "Implant",
+        "yield": "Yield",
+        "levels": {
+          "reprocessing": "Reprocessing",
+          "reprocessingEfficiency": "Reprocessing Efficiency",
+          "oreProcessing": "Ore processing"
+        },
+        "failures": {
+          "missing_token": "The character has no valid ESI token: the skills cannot be read.",
+          "missing_scope": "The ESI token of the character lacks the skills scope: log in again to grant it.",
+          "esi_error": "ESI did not return the skills: recompute later."
+        },
+        "computedAt": "Computed on {date}",
+        "save": "Save",
+        "refresh": "Recompute",
+        "requestError": "The reprocessing profile could not be reached."
+      },
       "oreValue": {
         "title": "Value per mined m³",
         "subtitle": "ISK per m³ extracted by the laser, for each ore, ice and gas, sold raw, compressed or reprocessed.",
@@ -1621,7 +1662,7 @@
         "structureSell": "Structure sell",
         "structureRequired": "Pick a structure above to compare its market",
         "yieldKnown": "Reprocessing yield: {percent} %",
-        "yieldUnknown": "No reprocessing yield stored: reprocessed values are unknown. Change the yield above to store one.",
+        "yieldUnknown": "No reprocessing yield computed: reprocessed values are unknown. Fill in the reprocessing yield panel to compute one.",
         "familyLabel": "Family",
         "allFamilies": "All",
         "ore": "Ore",

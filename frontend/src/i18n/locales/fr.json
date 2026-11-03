@@ -1611,6 +1611,47 @@
         "entries": "Entrées",
         "oreValue": "Valeur au m³"
       },
+      "reprocessingProfile": {
+        "title": "Rendement de retraitement",
+        "subtitle": "Calculé depuis les compétences d'un personnage et le lieu où vous retraitez.",
+        "character": "Personnage",
+        "oreProcessingSkill": "Compétence de retraitement du minerai",
+        "chooseSkill": "Choisir une compétence",
+        "location": "Lieu",
+        "locations": {
+          "npc_station": "Station NPC",
+          "athanor": "Athanor",
+          "tatara": "Tatara"
+        },
+        "rigTier": "Rig de retraitement",
+        "rigTiers": {
+          "none": "Aucun rig",
+          "t1": "Rig T1",
+          "t2": "Rig T2"
+        },
+        "security": "Sécurité",
+        "securities": {
+          "highsec": "Sécurité haute",
+          "lowsec": "Sécurité basse",
+          "nullsec": "Sécurité nulle et trous de ver"
+        },
+        "implant": "Implant",
+        "yield": "Rendement",
+        "levels": {
+          "reprocessing": "Reprocessing",
+          "reprocessingEfficiency": "Reprocessing Efficiency",
+          "oreProcessing": "Retraitement du minerai"
+        },
+        "failures": {
+          "missing_token": "Le personnage n'a pas de jeton ESI valide : les compétences ne peuvent pas être lues.",
+          "missing_scope": "Le jeton ESI du personnage n'a pas le scope des compétences : reconnectez-vous pour l'accorder.",
+          "esi_error": "L'ESI n'a pas renvoyé les compétences : recalculez plus tard."
+        },
+        "computedAt": "Calculé le {date}",
+        "save": "Enregistrer",
+        "refresh": "Recalculer",
+        "requestError": "Le profil de retraitement est inaccessible."
+      },
       "oreValue": {
         "title": "Valeur au m³ extrait",
         "subtitle": "ISK par m³ extrait par le laser, pour chaque minerai, glace et gaz, vendu brut, compressé ou retraité.",
@@ -1621,7 +1662,7 @@
         "structureSell": "Structure vente",
         "structureRequired": "Choisissez une structure ci-dessus pour comparer son marché",
         "yieldKnown": "Rendement de retraitement : {percent} %",
-        "yieldUnknown": "Aucun rendement de retraitement enregistré : les valeurs retraitées sont inconnues. Modifiez le rendement ci-dessus pour en enregistrer un.",
+        "yieldUnknown": "Aucun rendement de retraitement calculé : les valeurs retraitées sont inconnues. Renseignez le panneau de rendement de retraitement pour en calculer un.",
         "familyLabel": "Famille",
         "allFamilies": "Toutes",
         "ore": "Minerai",

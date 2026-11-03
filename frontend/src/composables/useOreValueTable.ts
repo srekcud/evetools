@@ -49,17 +49,6 @@ export type OreValueSortColumn =
 
 export type SortDirection = 'asc' | 'desc'
 
-const REPROCESS_YIELD_STORAGE_KEY = 'miningReprocessYield'
-const PERCENT = 100
-
-export function readStoredReprocessYield(): number | null {
-  const stored = localStorage.getItem(REPROCESS_YIELD_STORAGE_KEY)
-  if (stored === null) return null
-  const percent = Number(stored)
-  if (!Number.isFinite(percent) || percent <= 0) return null
-  return percent / PERCENT
-}
-
 function compareKnownFirst(a: number | null, b: number | null, direction: SortDirection): number {
   if (a === null || b === null) return Number(a === null) - Number(b === null)
   return direction === 'asc' ? a - b : b - a

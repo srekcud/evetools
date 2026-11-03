@@ -2,9 +2,10 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiRequest } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
+import { useReprocessingProfile } from '@/composables/useReprocessingProfile'
 import {
-  readStoredReprocessYield,
   type OreValueMarket,
   type OreValueRow,
   type OreValueSide,
@@ -13,12 +14,12 @@ import {
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import OreValueTable from './OreValueTable.vue'
+import ReprocessingProfilePanel from './ReprocessingProfilePanel.vue'
 
 const PERCENT = 100
 
 const props = defineProps<{
   structureId: number | null
-  reprocessYieldPercent?: number
 }>()
 
 type MarketChoiceId = 'jitaBuy' | 'jitaSell' | 'structureBuy' | 'structureSell'
@@ -39,15 +40,19 @@ const marketChoices = Object.values(marketChoicesById)
 
 const { t } = useI18n()
 const { formatNumber } = useFormatters()
+const authStore = useAuthStore()
+const { profile, reprocessYield, hasError: hasProfileError, load: loadProfile, save: saveProfile, refresh: refreshProfile } = useReprocessingProfile()
 
 const selectedChoiceId = ref<MarketChoiceId>('jitaSell')
 const rows = ref<OreValueRow[]>([])
 const usedReprocessYield = ref<number | null>(null)
 const isLoading = ref(false)
+const isProfileSettled = ref(false)
 const errorMessage = ref<string | null>(null)
 let latestRequest = 0
 
 const selectedChoice = computed(() => marketChoicesById[selectedChoiceId.value])
+const characters = computed(() => authStore.user?.characters ?? [])
 
 function isAvailable(market: OreValueMarket): boolean {
   return market === 'jita' || props.structureId !== null
@@ -59,10 +64,10 @@ async function load() {
     selectedChoiceId.value = 'jitaSell'
     return
   }
-  const reprocessYield = readStoredReprocessYield()
+  const requestedYield = reprocessYield.value
   const query = new URLSearchParams({ market: choice.market, side: choice.side })
   if (choice.market === 'structure' && props.structureId !== null) query.set('structureId', String(props.structureId))
-  if (reprocessYield !== null) query.set('reprocessYield', String(reprocessYield))
+  if (requestedYield !== null) query.set('reprocessYield', String(requestedYield))
 
   const request = ++latestRequest
   isLoading.value = true
@@ -71,7 +76,7 @@ async function load() {
     const response = await apiRequest<OreValueTableResponse>(`/mining/ore-values?${query.toString()}`)
     if (request !== latestRequest) return
     rows.value = response.rows
-    usedReprocessYield.value = response.reprocessYieldKnown ? reprocessYield : null
+    usedReprocessYield.value = response.reprocessYieldKnown ? requestedYield : null
   } catch (e) {
     if (request !== latestRequest) return
     console.error('Failed to load the ore value table:', e)
@@ -82,8 +87,13 @@ async function load() {
   }
 }
 
-watch([selectedChoiceId, () => props.structureId, () => props.reprocessYieldPercent], load)
-onMounted(load)
+watch([selectedChoiceId, () => props.structureId, reprocessYield, isProfileSettled], () => {
+  if (isProfileSettled.value) load()
+})
+onMounted(async () => {
+  await loadProfile()
+  isProfileSettled.value = true
+})
 </script>
 
 <template>
@@ -115,13 +125,16 @@ onMounted(load)
       <p v-if="usedReprocessYield !== null" class="text-xs text-slate-400">
         {{ t('ledger.mining.oreValue.yieldKnown', { percent: formatNumber(usedReprocessYield * PERCENT) }) }}
       </p>
-      <p v-else-if="!isLoading && errorMessage === null" class="text-xs text-amber-500">
-        {{ t('ledger.mining.oreValue.yieldUnknown') }}
+      <p v-else-if="isProfileSettled && !isLoading && errorMessage === null" data-reprocess-yield-missing class="text-xs text-amber-500">
+        <span aria-hidden="true">⚠ </span>{{ t('ledger.mining.oreValue.yieldUnknown') }}
       </p>
       <span class="text-xs text-slate-500">{{ t('ledger.mining.oreValue.unit') }}</span>
     </div>
 
     <ErrorBanner v-if="errorMessage !== null" :message="errorMessage" @dismiss="errorMessage = null" />
+    <ErrorBanner v-if="hasProfileError" :message="t('ledger.mining.reprocessingProfile.requestError')" />
+
+    <ReprocessingProfilePanel :profile="profile" :characters="characters" @save="saveProfile" @refresh="refreshProfile" />
 
     <div v-if="isLoading && rows.length === 0" class="flex justify-center py-12">
       <LoadingSpinner size="lg" class="text-cyan-500" />

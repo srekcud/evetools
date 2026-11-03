@@ -431,7 +431,6 @@ defineExpose({
     <OreValueTab
       v-else
       :structure-id="selectedStructureId"
-      :reprocess-yield-percent="reprocessYield"
     />
   </div>
 </template>

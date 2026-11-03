@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Repository\Sde;
 
+use App\Entity\Sde\DgmTypeAttribute;
 use App\Entity\Sde\InvType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -15,6 +17,7 @@ class InvTypeRepository extends ServiceEntityRepository
 {
     private const int ASTEROID_CATEGORY_ID = 25;
     private const int HARVESTABLE_CLOUD_GROUP_ID = 711;
+    private const int REPROCESSING_SKILL_TYPE_ATTRIBUTE_ID = 790;
 
     public function __construct(ManagerRegistry $registry)
     {
@@ -140,17 +143,9 @@ class InvTypeRepository extends ServiceEntityRepository
      */
     public function findMineableCandidates(): array
     {
-        return $this->createQueryBuilder('t')
-            ->innerJoin('t.group', 'g')
+        return $this->mineableCandidatesQuery($this->createQueryBuilder('t'), 't')
             ->addSelect('g')
-            ->innerJoin('g.category', 'c')
             ->addSelect('c')
-            ->where('t.published = :published')
-            ->andWhere('t.marketGroup IS NOT NULL')
-            ->andWhere('c.categoryId = :asteroidCategoryId OR g.groupId = :harvestableCloudGroupId')
-            ->setParameter('published', true)
-            ->setParameter('asteroidCategoryId', self::ASTEROID_CATEGORY_ID)
-            ->setParameter('harvestableCloudGroupId', self::HARVESTABLE_CLOUD_GROUP_ID)
             ->orderBy('t.typeName', 'ASC')
             ->getQuery()
             ->getResult();
@@ -161,6 +156,32 @@ class InvTypeRepository extends ServiceEntityRepository
      */
     public function findOreProcessingSkills(): array
     {
-        return [];
+        $queryBuilder = $this->createQueryBuilder('ore')
+            ->select('skill.typeId AS typeId', 'skill.typeName AS typeName')
+            ->distinct()
+            ->innerJoin(DgmTypeAttribute::class, 'attribute', 'WITH', 'attribute.typeId = ore.typeId AND attribute.attributeId = :reprocessingSkillAttributeId')
+            ->innerJoin(InvType::class, 'skill', 'WITH', 'skill.typeId = attribute.valueInt')
+            ->setParameter('reprocessingSkillAttributeId', self::REPROCESSING_SKILL_TYPE_ATTRIBUTE_ID)
+            ->orderBy('skill.typeName', 'ASC');
+
+        /** @var list<array{typeId: int, typeName: string}> $skills */
+        $skills = $this->mineableCandidatesQuery($queryBuilder, 'ore')
+            ->getQuery()
+            ->getArrayResult();
+
+        return $skills;
+    }
+
+    private function mineableCandidatesQuery(QueryBuilder $queryBuilder, string $typeAlias): QueryBuilder
+    {
+        return $queryBuilder
+            ->innerJoin($typeAlias . '.group', 'g')
+            ->innerJoin('g.category', 'c')
+            ->where($typeAlias . '.published = :published')
+            ->andWhere($typeAlias . '.marketGroup IS NOT NULL')
+            ->andWhere('c.categoryId = :asteroidCategoryId OR g.groupId = :harvestableCloudGroupId')
+            ->setParameter('published', true)
+            ->setParameter('asteroidCategoryId', self::ASTEROID_CATEGORY_ID)
+            ->setParameter('harvestableCloudGroupId', self::HARVESTABLE_CLOUD_GROUP_ID);
     }
 }

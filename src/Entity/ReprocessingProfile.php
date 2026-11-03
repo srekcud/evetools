@@ -15,7 +15,6 @@ use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: ReprocessingProfileRepository::class)]
 #[ORM\Table(name: 'user_reprocessing_profiles')]
-#[ORM\UniqueConstraint(columns: ['user_id'])]
 class ReprocessingProfile
 {
     #[ORM\Id]
