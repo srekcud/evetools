@@ -13,6 +13,7 @@ use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
 use App\Enum\MiningOperationVisibility;
 use App\Service\MiningOperation\MiningOperationEnrolment;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Provider\MiningOperation\MiningOperationInvitationProvider;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
@@ -23,6 +24,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 #[CoversClass(MiningOperationInvitationProvider::class)]
@@ -44,7 +46,7 @@ final class MiningOperationInvitationProviderTest extends TestCase
             $this->security,
             $this->operationRepositoryReadingOperations(),
             new MiningOperationEnrolment($this->characterRepositoryReadingOpenEnrolments(), $this->createStub(EntityManagerInterface::class)),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
     }
 

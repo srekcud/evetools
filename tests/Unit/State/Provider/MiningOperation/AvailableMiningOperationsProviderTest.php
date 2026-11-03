@@ -9,6 +9,7 @@ use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\Entity\User;
 use App\Enum\MiningOperationStatus;
 use App\Repository\MiningOperationRepository;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Provider\MiningOperation\AvailableMiningOperationsProvider;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
@@ -16,6 +17,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 
 #[CoversClass(AvailableMiningOperationsProvider::class)]
 #[Group('issue-262')]
@@ -61,6 +63,6 @@ final class AvailableMiningOperationsProviderTest extends TestCase
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
 
-        return new AvailableMiningOperationsProvider($security, $repository, new MiningOperationResourceMapper());
+        return new AvailableMiningOperationsProvider($security, $repository, new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())));
     }
 }

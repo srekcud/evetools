@@ -16,6 +16,7 @@ use App\Enum\MiningOperationVisibility;
 use App\Enum\MiningSplitMode;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\UpdateMiningOperationValuationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
@@ -69,7 +70,7 @@ final class UpdateMiningOperationValuationProcessorTest extends TestCase
             new MiningOperationAccess(),
             $this->valuatorOn($this->jitaMarketSyncedAt($this->jitaSellPrices()), new MockClock(self::READ_AT)),
             $this->typeNameResolverOfSdeOres(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
         );

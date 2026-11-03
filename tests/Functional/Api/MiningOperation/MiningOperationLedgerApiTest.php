@@ -218,6 +218,32 @@ final class MiningOperationLedgerApiTest extends WebTestCase
         self::assertSame([400, 'Only an operation in progress can be left early'], $this->errorDetail());
     }
 
+    #[Group('issue-307')]
+    public function testBrannBeatsOnceTheOperationIsInProgressAndAriaSeesHimOnlineWithoutTheRawTimestamp(): void
+    {
+        $this->as($this->dorn);
+        $this->post('presence');
+        self::assertSame([404, 'Membership not found'], $this->errorDetail());
+
+        $this->startedByAria();
+        self::mockTime(new \DateTimeImmutable('2026-11-05T20:10:00+00:00'));
+        $this->as($this->brann);
+        $this->post('presence');
+        self::assertResponseStatusCodeSame(200);
+
+        $this->as($this->aria);
+        $this->request('GET', $this->operationUri() . '/members');
+        $members = array_column($this->responseJson(), null, 'characterName');
+
+        self::assertSame(
+            [['online', 0, false], [null, null, false]],
+            [
+                [$members['Brann Holt']['presence'] ?? 'missing', $members['Brann Holt']['presenceIdleMinutes'] ?? 'missing', array_key_exists('lastSeenAt', $members['Brann Holt'] ?? [])],
+                [$members['Cyra Lune']['presence'] ?? 'missing', $members['Cyra Lune']['presenceIdleMinutes'] ?? 'missing', array_key_exists('lastSeenAt', $members['Cyra Lune'] ?? [])],
+            ],
+        );
+    }
+
     public function testOwnerCannotRemoveAParticipantOnceTheOperationHasStarted(): void
     {
         $this->startedByAria();

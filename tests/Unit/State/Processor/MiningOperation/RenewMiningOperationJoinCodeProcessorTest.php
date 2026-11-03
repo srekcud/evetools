@@ -13,6 +13,7 @@ use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
@@ -25,6 +26,7 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Mercure\HubInterface;
@@ -51,7 +53,7 @@ final class RenewMiningOperationJoinCodeProcessorTest extends TestCase
             $this->security,
             $this->operationRepositoryReadingOperations(),
             new MiningOperationAccess(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
         );

@@ -15,6 +15,7 @@ use App\Enum\MiningSplitMode;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationSettlement;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\SettleMiningOperationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
@@ -160,7 +161,7 @@ final class SettleMiningOperationProcessorTest extends TestCase
             $this->operationRepositoryReadingOperations(),
             new MiningOperationAccess(),
             new MiningOperationSettlement($this->entityManager, new MockClock(self::SETTLED_AT)),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, new NullLogger()),
         );
 

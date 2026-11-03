@@ -80,6 +80,8 @@ export const MEMBERS: MiningOperationMember[] = [
     status: 'accepted',
     joinedAt: '2026-11-03T18:00:00+00:00',
     departedAt: null,
+    presence: null,
+    presenceIdleMinutes: null,
     characters: [
       { id: 'character-aria-ii', eveCharacterId: 2_112_262_101, name: 'Aria II' },
       { id: 'character-aria', eveCharacterId: 2_112_262_102, name: 'Aria Solberg' },
@@ -93,6 +95,8 @@ export const MEMBERS: MiningOperationMember[] = [
     status: 'accepted',
     joinedAt: '2026-11-04T08:15:00+00:00',
     departedAt: null,
+    presence: null,
+    presenceIdleMinutes: null,
     characters: [
       { id: 'character-brann-holt', eveCharacterId: 2_112_262_103, name: 'Brann Holt' },
       { id: 'character-brann-ii', eveCharacterId: 2_112_262_104, name: 'Brann II' },

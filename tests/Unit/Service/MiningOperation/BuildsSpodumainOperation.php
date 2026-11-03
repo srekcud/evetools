@@ -164,6 +164,11 @@ trait BuildsSpodumainOperation
         return $member;
     }
 
+    private function lastSeenAt(?MiningOperationMember $member, string $seenAt): void
+    {
+        (new \ReflectionProperty(MiningOperationMember::class, 'lastSeenAt'))->setValue($member, new \DateTimeImmutable($seenAt));
+    }
+
     private function holdInOpenOperation(string $characterName, MiningOperation $operation): void
     {
         $this->openEnrolments[$this->idOf($characterName)] = $operation;

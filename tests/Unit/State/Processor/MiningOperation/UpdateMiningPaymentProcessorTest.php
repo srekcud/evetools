@@ -14,6 +14,7 @@ use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationSettlement;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\UpdateMiningPaymentProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
@@ -199,7 +200,7 @@ final class UpdateMiningPaymentProcessorTest extends TestCase
             $this->security,
             $this->operationRepositoryReadingOperations(),
             new MiningOperationSettlement($this->entityManager, $this->clock),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, $logger ?? new NullLogger()),
         );
 

@@ -11,6 +11,7 @@ use App\Entity\MiningOperation;
 use App\Entity\User;
 use App\Enum\MiningLedgerSnapshotKind;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\DepartMiningOperationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
@@ -61,7 +62,7 @@ final class DepartMiningOperationProcessorTest extends TestCase
             $this->security,
             $this->operationRepositoryReadingOperations(),
             $this->lifecycleWith($this->entityManager, $this->dispatched, new MockClock(self::DEPARTED_AT)),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, new NullLogger()),
         );
     }

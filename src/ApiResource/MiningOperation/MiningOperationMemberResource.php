@@ -83,6 +83,10 @@ class MiningOperationMemberResource
 
     public ?\DateTimeImmutable $departedAt = null;
 
+    public ?string $presence = null;
+
+    public ?int $presenceIdleMinutes = null;
+
     /** @var list<array{id: string, eveCharacterId: int, name: string}> */
     public array $characters = [];
 }

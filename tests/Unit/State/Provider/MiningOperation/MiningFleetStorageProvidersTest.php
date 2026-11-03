@@ -14,6 +14,7 @@ use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningSplitMode;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationEnrolment;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\Service\MiningOperation\MiningShareFreezer;
 use App\State\Provider\MiningOperation\MiningFleetStorageDeclarationProvider;
 use App\State\Provider\MiningOperation\MiningFleetStorageProvider;
@@ -286,13 +287,13 @@ final class MiningFleetStorageProvidersTest extends TestCase
     {
         $this->actAs($this->brann);
 
-        $operation = (new MiningOperationProvider($this->security, $this->operationRepositoryReadingOperations(), new MiningOperationAccess(), new MiningOperationResourceMapper()))
+        $operation = (new MiningOperationProvider($this->security, $this->operationRepositoryReadingOperations(), new MiningOperationAccess(), new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock()))))
             ->provide(new Get(), ['id' => $this->operation->getId()->toRfc4122()]);
         $invitation = (new MiningOperationInvitationProvider(
             $this->security,
             $this->operationRepositoryReadingOperations(),
             new MiningOperationEnrolment($this->characterRepositoryReadingOpenEnrolments(), $this->createStub(EntityManagerInterface::class)),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         ))->provide(new Get(), ['code' => self::JOIN_CODE]);
 
         self::assertSame(['Brann Holt', 'Brann Holt'], [$operation->fleetStorageRecipientName, $invitation->fleetStorageRecipientName]);
@@ -315,7 +316,7 @@ final class MiningFleetStorageProvidersTest extends TestCase
             $this->operationRepositoryReadingOperations(),
             new MiningOperationAccess(),
             $this->typeNameResolverOfSdeOres(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         ))->provide($apiOperation, ['operationId' => $this->operation->getId()->toRfc4122()]);
     }
 
@@ -327,7 +328,7 @@ final class MiningFleetStorageProvidersTest extends TestCase
             $this->memberRepositoryReadingOperations(),
             new MiningOperationAccess(),
             $this->typeNameResolverOfSdeOres(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         ))->provide(new Patch(), ['operationId' => $this->operation->getId()->toRfc4122(), 'memberId' => $memberId]);
     }
 
@@ -338,7 +339,7 @@ final class MiningFleetStorageProvidersTest extends TestCase
             $this->operationRepositoryReadingOperations(),
             new MiningOperationAccess(),
             $this->verifier(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
     }
 
@@ -350,7 +351,7 @@ final class MiningFleetStorageProvidersTest extends TestCase
             new MiningOperationAccess(),
             $this->valuatorOn($this->jitaMarketSyncedAt($this->jitaSellPrices()), $this->clock),
             $this->typeNameResolverOfSdeOres(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
     }
 

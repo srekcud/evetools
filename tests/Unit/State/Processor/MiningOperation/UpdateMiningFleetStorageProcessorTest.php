@@ -18,6 +18,7 @@ use App\Enum\MiningSplitMode;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningFleetStorageDeclarations;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\UpdateMiningFleetStorageProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
@@ -34,6 +35,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Mercure\Exception\RuntimeException;
 use Symfony\Component\Mercure\HubInterface;
@@ -230,7 +232,7 @@ final class UpdateMiningFleetStorageProcessorTest extends TestCase
             new MiningFleetStorageDeclarations($this->entityManager),
             new MiningOperationAccess(),
             $this->typeNameResolverOfSdeOres(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, $logger ?? new NullLogger()),
         );
 

@@ -14,6 +14,7 @@ use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningSplitMode;
 use App\Repository\MiningOperationRepository;
 use App\Service\MiningOperation\MiningOperationArchive;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\Service\MiningOperation\MiningShareCalculator;
 use App\State\Provider\MiningOperation\ArchivedMiningOperationsProvider;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -26,6 +27,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 
 #[CoversClass(ArchivedMiningOperationsProvider::class)]
 #[CoversClass(MiningOperationArchive::class)]
@@ -153,7 +155,7 @@ final class ArchivedMiningOperationsProviderTest extends TestCase
             $security,
             $repository,
             new MiningOperationArchive(new MiningShareCalculator()),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
 
         return $provider->provide(new GetCollection());

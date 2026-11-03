@@ -14,6 +14,7 @@ use App\Enum\MiningOperationVisibility;
 use App\Enum\MiningSplitMode;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationValuator;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\Service\MiningOperation\MiningShareFreezer;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\State\Provider\MiningOperation\MiningOperationValuationProvider;
@@ -161,7 +162,7 @@ final class MiningOperationValuationCompletionProviderTest extends TestCase
             new MiningOperationAccess(),
             $this->valuator,
             $this->typeNameResolverOfSdeOres(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
 
         return $provider->provide(new Get(), ['operationId' => $operation->getId()?->toRfc4122()]);

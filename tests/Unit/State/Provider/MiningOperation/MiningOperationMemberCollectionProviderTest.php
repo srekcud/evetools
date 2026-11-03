@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Provider\MiningOperation\MiningOperationMemberCollectionProvider;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 #[CoversClass(MiningOperationMemberCollectionProvider::class)]
@@ -47,7 +49,7 @@ final class MiningOperationMemberCollectionProviderTest extends TestCase
             $this->security,
             $this->operationRepositoryReadingOperations(),
             new MiningOperationAccess(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock('2026-11-05T20:00:00+00:00'))),
         );
     }
 
@@ -84,6 +86,36 @@ final class MiningOperationMemberCollectionProviderTest extends TestCase
                 array_map(static fn (MiningOperationMemberResource $member): ?string => $member->characterName, $this->members()),
                 array_map(static fn (MiningOperationMemberResource $member): ?string => $member->departedAt?->format(\DateTimeInterface::ATOM), $this->members()),
             ),
+        );
+    }
+
+    #[Group('issue-307')]
+    public function testAcceptedParticipantsOfAnOperationInProgressCarryTheirPresenceAndPendingMembersNone(): void
+    {
+        $this->operation->start(new \DateTimeImmutable('2026-11-05T19:00:00+00:00'), null);
+        $this->lastSeenAt($this->membershipOf($this->operation, $this->aria), '2026-11-05T19:59:30+00:00');
+        $this->lastSeenAt($this->membershipOf($this->operation, $this->brann), '2026-11-05T19:48:00+00:00');
+        $this->lastSeenAt($this->membershipOf($this->operation, $this->cyra), '2026-11-05T19:59:30+00:00');
+        $this->actAs($this->aria);
+
+        self::assertSame(
+            ['Aria Solberg' => ['online', 0], 'Brann Holt' => ['afk', 12], 'Cyra Lune' => [null, null]],
+            $this->presenceByCharacterName(),
+        );
+    }
+
+    #[Group('issue-307')]
+    public function testNoParticipantCarriesAPresenceOutsideAnOperationInProgress(): void
+    {
+        $this->operation->start(new \DateTimeImmutable('2026-11-05T19:00:00+00:00'), null);
+        $this->lastSeenAt($this->membershipOf($this->operation, $this->brann), '2026-11-05T19:59:30+00:00');
+        $this->actAs($this->aria);
+        $whileInProgress = $this->presenceByCharacterName()['Brann Holt'];
+        $this->operation->end(new \DateTimeImmutable('2026-11-05T19:59:45+00:00'));
+
+        self::assertSame(
+            [['online', 0], ['Aria Solberg' => [null, null], 'Brann Holt' => [null, null], 'Cyra Lune' => [null, null]]],
+            [$whileInProgress, $this->presenceByCharacterName()],
         );
     }
 
@@ -138,6 +170,14 @@ final class MiningOperationMemberCollectionProviderTest extends TestCase
     private function members(): array
     {
         return $this->provider->provide(new GetCollection(), ['operationId' => $this->operation->getId()->toRfc4122()]);
+    }
+
+    private function presenceByCharacterName(): array
+    {
+        return array_combine(
+            array_map(static fn (MiningOperationMemberResource $member): ?string => $member->characterName, $this->members()),
+            array_map(static fn (MiningOperationMemberResource $member): array => [$member->presence, $member->presenceIdleMinutes], $this->members()),
+        );
     }
 
     private function joinedAt(?MiningOperationMember $member, string $joinedAt): void

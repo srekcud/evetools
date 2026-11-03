@@ -14,6 +14,7 @@ use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationValuator;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\Service\MiningOperation\MiningShareFreezer;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\State\Provider\MiningOperation\MiningOperationValuationProvider;
@@ -59,7 +60,7 @@ final class MiningOperationValuationProviderTest extends TestCase
             new MiningOperationAccess(),
             $this->valuator,
             $this->typeNameResolverOfSdeOres(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
     }
 

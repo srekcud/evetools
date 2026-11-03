@@ -10,6 +10,7 @@ use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\Entity\User;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationEnrolment;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\CreateMiningOperationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 #[CoversClass(CreateMiningOperationProcessor::class)]
@@ -39,7 +41,7 @@ final class CreateMiningOperationProcessorTest extends TestCase
         $this->processor = new CreateMiningOperationProcessor(
             $this->security,
             new MiningOperationEnrolment($this->characterRepositoryReadingOpenEnrolments(), $this->createMock(EntityManagerInterface::class)),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
     }
 

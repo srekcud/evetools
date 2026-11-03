@@ -14,6 +14,7 @@ use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
 use App\Enum\MiningOperationVisibility;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\State\Provider\MiningOperation\MiningPaymentCollectionProvider;
 use App\State\Provider\MiningOperation\MiningPaymentItemProvider;
@@ -26,6 +27,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -186,7 +188,7 @@ final class MiningPaymentProvidersTest extends TestCase
             $this->security($user),
             $this->operationRepositoryReadingOperations(),
             new MiningOperationAccess(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
 
         return $provider->provide(new GetCollection(), ['operationId' => ($operation ?? $this->operation)->getId()?->toRfc4122()]);
@@ -198,7 +200,7 @@ final class MiningPaymentProvidersTest extends TestCase
             $this->security($user),
             $this->operationRepositoryReadingOperations(),
             new MiningOperationAccess(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
         );
 
         return $provider->provide(new Patch(), ['operationId' => $this->operation->getId()?->toRfc4122(), 'id' => $paymentId]);

@@ -13,6 +13,7 @@ use App\Enum\MarketSide;
 use App\Enum\MiningSplitMode;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\Service\MiningOperation\MiningShareFreezer;
 use App\State\Processor\MiningOperation\CompleteMiningOperationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -113,7 +114,7 @@ final class CompleteMiningOperationProcessorTest extends TestCase
                 $this->entityManager,
                 $clock,
             ),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, new NullLogger()),
         );
 

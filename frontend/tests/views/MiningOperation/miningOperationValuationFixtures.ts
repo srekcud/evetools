@@ -22,6 +22,8 @@ export const CYRA_MEMBER: MiningOperationMember = {
   status: 'accepted',
   joinedAt: '2026-11-04T09:30:00+00:00',
   departedAt: null,
+  presence: null,
+  presenceIdleMinutes: null,
   characters: [{ id: 'character-cyra', eveCharacterId: 2_112_262_105, name: 'Cyra Lune' }],
 }
 

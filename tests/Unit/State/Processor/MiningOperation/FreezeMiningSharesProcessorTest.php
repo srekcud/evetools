@@ -11,6 +11,7 @@ use App\Entity\MiningOperation;
 use App\Entity\User;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\Service\MiningOperation\MiningShareFreezer;
 use App\State\Processor\MiningOperation\FreezeMiningSharesProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -113,7 +114,7 @@ final class FreezeMiningSharesProcessorTest extends TestCase
                 $this->entityManager,
                 $clock,
             ),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, $logger),
         );
     }

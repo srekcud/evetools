@@ -46,6 +46,9 @@ class MiningOperationMember
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $departedAt = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $lastSeenAt = null;
+
     /** @var Collection<int, MiningOperationCharacter> */
     #[ORM\OneToMany(targetEntity: MiningOperationCharacter::class, mappedBy: 'member', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $characters;
@@ -130,6 +133,16 @@ class MiningOperationMember
     {
         $this->departedAt = $departedAt;
 
+        return $this;
+    }
+
+    public function getLastSeenAt(): ?\DateTimeImmutable
+    {
+        return $this->lastSeenAt;
+    }
+
+    public function markSeen(\DateTimeImmutable $seenAt): static
+    {
         return $this;
     }
 

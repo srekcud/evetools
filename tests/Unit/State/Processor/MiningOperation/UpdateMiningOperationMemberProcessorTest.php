@@ -16,6 +16,7 @@ use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\UpdateMiningOperationMemberProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
@@ -73,7 +74,7 @@ final class UpdateMiningOperationMemberProcessorTest extends TestCase
             $this->operationRepositoryReadingOperations(),
             $this->memberRepositoryReadingOperations(),
             new MiningOperationAccess(),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->lifecycleWith($this->entityManager, $this->dispatched, new MockClock('2026-11-05T20:13:00+00:00')),

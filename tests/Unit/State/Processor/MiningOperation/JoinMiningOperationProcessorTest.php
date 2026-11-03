@@ -15,6 +15,7 @@ use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningOperationMemberStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationEnrolment;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\State\Processor\MiningOperation\JoinMiningOperationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
@@ -190,7 +191,7 @@ final class JoinMiningOperationProcessorTest extends TestCase
             $this->security,
             $this->operationRepositoryReadingOperations(),
             new MiningOperationEnrolment($this->characterRepositoryReadingOpenEnrolments(), $this->entityManager),
-            new MiningOperationResourceMapper(),
+            new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MercurePublisherService($this->hub, $logger),
             $this->lifecycleWith($this->entityManager, $this->dispatched, $this->clock),
         );
