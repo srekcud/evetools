@@ -239,7 +239,7 @@ final class MiningOperationLedgerApiTest extends WebTestCase
             [['online', 0, false], [null, null, false]],
             [
                 [$members['Brann Holt']['presence'] ?? 'missing', $members['Brann Holt']['presenceIdleMinutes'] ?? 'missing', array_key_exists('lastSeenAt', $members['Brann Holt'] ?? [])],
-                [$members['Cyra Lune']['presence'], $members['Cyra Lune']['presenceIdleMinutes'], array_key_exists('lastSeenAt', $members['Cyra Lune'] ?? [])],
+                [$members['Cyra Lune']['presence'] ?? null, $members['Cyra Lune']['presenceIdleMinutes'] ?? null, array_key_exists('lastSeenAt', $members['Cyra Lune'] ?? [])],
             ],
         );
     }
