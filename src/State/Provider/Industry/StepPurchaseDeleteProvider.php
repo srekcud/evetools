@@ -12,7 +12,6 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStepPurchaseRepository;
 use App\Service\UuidOrNotFound;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -28,7 +27,6 @@ class StepPurchaseDeleteProvider implements ProviderInterface
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly IndustryStepPurchaseRepository $purchaseRepository,
         private readonly IndustryResourceMapper $mapper,
-        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -58,10 +56,6 @@ class StepPurchaseDeleteProvider implements ProviderInterface
             throw new NotFoundHttpException('Purchase not found');
         }
 
-        $resource = $this->mapper->purchaseToResource($purchase);
-
-        $this->entityManager->remove($purchase);
-
-        return $resource;
+        return $this->mapper->purchaseToResource($purchase);
     }
 }
