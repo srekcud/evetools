@@ -143,6 +143,8 @@ class MiningOperationMember
 
     public function markSeen(\DateTimeImmutable $seenAt): static
     {
+        $this->lastSeenAt = $seenAt;
+
         return $this;
     }
 

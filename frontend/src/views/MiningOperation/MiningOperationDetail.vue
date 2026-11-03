@@ -62,6 +62,10 @@ const PAYMENT_STATUSES = ['shares', 'settled']
 const FULL_PERCENT = 100
 const SNAPSHOT_SYNC_TYPE = 'mining-operation-snapshot'
 const CLOCK_TICK_MILLISECONDS = 1000
+const PRESENCE_HEARTBEAT_SECONDS = 30
+const PRESENCE_MEMBERS_RELOAD_SECONDS = 60
+const MILLISECONDS_PER_SECOND = 1000
+const PRESENCE_CHANGED_ACTION = 'presence_changed'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -85,6 +89,8 @@ const savingSettings = ref(false)
 const awaitingAssetsSync = ref(false)
 const now = ref(Date.now())
 let clockTicker: ReturnType<typeof setInterval> | null = null
+let presenceHeartbeatTicker: ReturnType<typeof setInterval> | null = null
+let presenceMembersTicker: ReturnType<typeof setInterval> | null = null
 
 const participates = computed(() => operation.value?.myStatus === 'accepted')
 const isOwner = computed(() => operation.value?.myRole === 'owner')
@@ -101,6 +107,8 @@ const canDelete = computed(() => isOwner.value && operation.value?.status === 'p
 const canStart = computed(() => canAdminister.value && operation.value?.status === 'planned')
 const canEnd = computed(() => canAdminister.value && operation.value?.status === 'in_progress')
 const canDepart = computed(() => participates.value && operation.value?.status === 'in_progress' && operation.value.myDepartedAt === null)
+const tracksPresence = computed(() => participates.value && operation.value?.status === 'in_progress')
+const sendsHeartbeat = computed(() => tracksPresence.value && operation.value?.myDepartedAt === null)
 const showsStockpileCoverage = computed(() => participates.value && (operation.value?.status === 'closing' || operation.value?.status === 'completed'))
 const valuation = computed(() => (store.valuation?.operationId === operationId.value ? store.valuation : null))
 const fleetStorage = computed(() => (store.fleetStorage?.operationId === operationId.value ? store.fleetStorage : null))
@@ -348,6 +356,8 @@ watch(
       goBackToList('deleted')
     } else if (MEMBER_ACTIONS_RELOADING_THE_OPERATION.includes(event.action)) {
       load()
+    } else if (event.action === PRESENCE_CHANGED_ACTION) {
+      store.fetchMembers(operationId.value)
     } else if (event.action === VALUATION_ACTION) {
       store.fetchValuation(operationId.value)
     } else if (event.action === PAYMENT_ACTION) {
@@ -359,6 +369,24 @@ watch(
     }
   },
 )
+
+function stopTicker(ticker: ReturnType<typeof setInterval> | null): null {
+  if (ticker !== null) clearInterval(ticker)
+  return null
+}
+
+watch(sendsHeartbeat, (sends) => {
+  presenceHeartbeatTicker = stopTicker(presenceHeartbeatTicker)
+  if (!sends) return
+  store.recordPresence(operationId.value)
+  presenceHeartbeatTicker = setInterval(() => store.recordPresence(operationId.value), PRESENCE_HEARTBEAT_SECONDS * MILLISECONDS_PER_SECOND)
+})
+
+watch(tracksPresence, (tracks) => {
+  presenceMembersTicker = stopTicker(presenceMembersTicker)
+  if (!tracks) return
+  presenceMembersTicker = setInterval(() => store.fetchMembers(operationId.value), PRESENCE_MEMBERS_RELOAD_SECONDS * MILLISECONDS_PER_SECOND)
+})
 
 watch(
   () => syncStore.corporationAssetsProgress?.status,
@@ -387,6 +415,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (clockTicker !== null) clearInterval(clockTicker)
+  presenceHeartbeatTicker = stopTicker(presenceHeartbeatTicker)
+  presenceMembersTicker = stopTicker(presenceMembersTicker)
 })
 </script>
 

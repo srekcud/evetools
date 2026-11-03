@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { MiningOperationMember } from '@/stores/miningOperation'
+import type { MiningOperationMember, MiningPresenceState } from '@/stores/miningOperation'
 
 const props = defineProps<{
   members: MiningOperationMember[]
@@ -34,6 +34,17 @@ function canManage(member: MiningOperationMember): boolean {
   return props.isOwner || member.role !== 'admin'
 }
 
+const PRESENCE_DOT_CLASS: Record<MiningPresenceState, string> = {
+  online: 'bg-emerald-400',
+  afk: 'bg-amber-400',
+  left: 'bg-slate-600',
+  unknown: 'border border-slate-500',
+}
+
+function presenceLabel(member: MiningOperationMember): string {
+  return member.presence === 'afk' ? t('miningOperation.presence.afk', { minutes: member.presenceIdleMinutes }) : t(`miningOperation.presence.${member.presence}`)
+}
+
 const ROLE_BADGE_CLASS: Record<string, string> = {
   owner: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
   admin: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
@@ -44,7 +55,9 @@ const ROLE_BADGE_CLASS: Record<string, string> = {
   <ul class="divide-y divide-slate-800">
     <li v-for="member in members" :key="member.id" class="py-3">
       <div class="flex flex-wrap items-center gap-2">
+        <div v-if="member.presence" class="h-2 w-2 shrink-0 rounded-full" :class="PRESENCE_DOT_CLASS[member.presence]" aria-hidden="true"></div>
         <span class="min-w-0 max-w-full truncate font-display text-base font-semibold text-slate-100" :title="memberName(member)">{{ memberName(member) }}</span>
+        <span v-if="member.presence" class="shrink-0 font-mono text-xs text-slate-400">{{ presenceLabel(member) }}</span>
         <span
           v-if="member.role !== 'member'"
           class="shrink-0 rounded-sm border px-1.5 py-0.5 font-mono text-xs uppercase tracking-wider"

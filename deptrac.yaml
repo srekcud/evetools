@@ -203,6 +203,8 @@ deptrac:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\EndMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\RecordMiningPresenceProcessor:
+      - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\FreezeMiningSharesProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\JoinMiningOperationProcessor:

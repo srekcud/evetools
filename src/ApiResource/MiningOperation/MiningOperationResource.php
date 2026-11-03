@@ -22,6 +22,7 @@ use App\State\Processor\MiningOperation\DepartMiningOperationProcessor;
 use App\State\Processor\MiningOperation\EndMiningOperationProcessor;
 use App\State\Processor\MiningOperation\FreezeMiningSharesProcessor;
 use App\State\Processor\MiningOperation\LeaveMiningOperationProcessor;
+use App\State\Processor\MiningOperation\RecordMiningPresenceProcessor;
 use App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor;
 use App\State\Processor\MiningOperation\SettleMiningOperationProcessor;
 use App\State\Processor\MiningOperation\StartMiningOperationProcessor;
@@ -151,6 +152,20 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             openapi: new Model\Operation(
                 summary: 'End a mining operation',
                 description: 'Moves an operation in progress to closing and schedules the end ledger snapshot of each character (owner or admin)',
+                tags: ['Mining Operations'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/mining-operations/{id}/presence',
+            uriVariables: [
+                'id' => new Link(fromClass: self::class),
+            ],
+            processor: RecordMiningPresenceProcessor::class,
+            input: EmptyInput::class,
+            status: 200,
+            openapi: new Model\Operation(
+                summary: 'Record the presence of the current participant',
+                description: 'Heartbeat sent while the operation page is open: stores the time of the last activity of the current participant, only while the operation is in progress',
                 tags: ['Mining Operations'],
             ),
         ),

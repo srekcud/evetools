@@ -158,6 +158,8 @@ export interface MiningOperationMemberCharacter {
   name: string
 }
 
+export type MiningPresenceState = 'online' | 'afk' | 'left' | 'unknown'
+
 export interface MiningOperationMember {
   id: string
   characterName: string | null
@@ -166,6 +168,8 @@ export interface MiningOperationMember {
   status: MiningOperationMemberStatus
   joinedAt: string
   departedAt: string | null
+  presence: MiningPresenceState | null
+  presenceIdleMinutes: number | null
   characters: MiningOperationMemberCharacter[]
 }
 
@@ -519,6 +523,15 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
 
   const depart = (id: string) => postLifecycleAction(id, 'depart', {}, 'Failed to leave the mining operation early')
 
+  async function recordPresence(id: string): Promise<void> {
+    error.value = null
+    try {
+      await apiRequest<MiningOperation>(`/mining-operations/${id}/presence`, { method: 'POST', body: JSON.stringify({}) })
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to record the presence')
+    }
+  }
+
   async function fetchLedger(id: string): Promise<void> {
     error.value = null
     try {
@@ -715,6 +728,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     start,
     end,
     depart,
+    recordPresence,
     fetchLedger,
     retrySnapshot,
     correctQuantity,

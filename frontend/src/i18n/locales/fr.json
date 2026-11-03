@@ -2688,6 +2688,12 @@
       "closed": "Cette opération n'accepte plus de participants.",
       "invalidLink": "Lien invalide ou renouvelé."
     },
+    "presence": {
+      "online": "En ligne",
+      "afk": "AFK · {minutes} min",
+      "left": "Parti",
+      "unknown": "Pas encore vu"
+    },
     "detail": {
       "participants": "Inscrits",
       "summary": "{participants} participants · {characters} personnages",

@@ -24,10 +24,16 @@ use App\Service\MiningOperation\MiningFleetStorageVerification;
 use App\Service\MiningOperation\MiningFleetStorageVerificationLine;
 use App\Service\MiningOperation\MiningOperationValuation;
 use App\Service\MiningOperation\MiningParticipantValuation;
+use App\Service\MiningOperation\MiningPresenceResolver;
 use App\Service\MiningOperation\PersistedUuid;
 
 final readonly class MiningOperationResourceMapper
 {
+    public function __construct(
+        private MiningPresenceResolver $presenceResolver,
+    ) {
+    }
+
     public function operationToResource(MiningOperation $operation, ?MiningOperationMember $viewerMembership, bool $revealJoinCode = false): MiningOperationResource
     {
         $resource = new MiningOperationResource();
@@ -161,6 +167,10 @@ final readonly class MiningOperationResourceMapper
         $resource->status = $member->getStatus()->value;
         $resource->joinedAt = $this->inEveTime($member->getJoinedAt());
         $resource->departedAt = $this->inEveTimeOrNull($member->getDepartedAt());
+
+        $presence = $this->presenceResolver->resolve($member);
+        $resource->presence = $presence?->state->value;
+        $resource->presenceIdleMinutes = $presence?->idleMinutes;
 
         $enrolments = array_values($member->getCharacters()->toArray());
         usort($enrolments, static fn (MiningOperationCharacter $left, MiningOperationCharacter $right): int => $left->getCharacter()->getName() <=> $right->getCharacter()->getName());
