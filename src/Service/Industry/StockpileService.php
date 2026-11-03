@@ -199,7 +199,7 @@ class StockpileService
             $totalInvested = $stockValue === null || $totalInvested === null ? null : $totalInvested + $stockValue;
 
             $item = [
-                'id' => $target->getId()?->toRfc4122(),
+                'id' => $target->getId()->toRfc4122(),
                 'typeId' => $tid,
                 'typeName' => $target->getTypeName(),
                 'targetQuantity' => $target->getTargetQuantity(),
