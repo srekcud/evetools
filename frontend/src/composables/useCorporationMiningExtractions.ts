@@ -162,7 +162,6 @@ export function useCorporationMiningExtractions() {
   watch(() => syncStore.corporationMiningExtractionsProgress, progress => {
     if (progress?.status === 'completed') {
       isRefreshing.value = false
-      void load()
     } else if (progress?.status === 'error') {
       isRefreshing.value = false
     }

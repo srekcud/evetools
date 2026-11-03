@@ -2083,8 +2083,7 @@
       "mining": "Ledger minage",
       "walletTransactions": "Transactions wallet",
       "marketStructure": "Prix marche",
-      "planetary": "Colonies PI",
-      "corporationMiningExtractions": "Chunks lunaires de la corporation"
+      "planetary": "Colonies PI"
     },
     "syncCompleted": "Synchronisation terminee",
     "syncError": "Erreur de synchronisation",

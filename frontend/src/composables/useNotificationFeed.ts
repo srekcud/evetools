@@ -43,8 +43,9 @@ const SYNC_TITLE_KEYS: Record<string, string> = {
   'wallet-transactions': 'notifications.syncTitles.walletTransactions',
   'market-structure': 'notifications.syncTitles.marketStructure',
   'planetary': 'notifications.syncTitles.planetary',
-  'corporation-mining-extractions': 'notifications.syncTitles.corporationMiningExtractions',
 }
+
+const SILENT_SYNC_TYPES = new Set(['corporation-mining-extractions'])
 
 export function useNotificationFeed() {
   const syncStore = useSyncStore()
@@ -60,6 +61,7 @@ export function useNotificationFeed() {
     () => syncStore.syncStatus,
     (newStatus, oldStatus) => {
       for (const [syncType, progress] of Object.entries(newStatus)) {
+        if (SILENT_SYNC_TYPES.has(syncType)) continue
         const prev = oldStatus?.[syncType]
         if (!prev || prev.status === progress.status) continue
 

@@ -56,6 +56,7 @@ class CorporationMiningExtractionSyncService
 
         try {
             $failure = $this->synchronize($corporationId, $characters);
+            $state = $this->recordOutcome($corporationId, $failure);
         } catch (\Throwable $e) {
             foreach ($userIds as $userId) {
                 $this->mercurePublisher->syncError($userId, self::SYNC_TYPE, $e->getMessage());
@@ -64,7 +65,6 @@ class CorporationMiningExtractionSyncService
             throw $e;
         }
 
-        $state = $this->recordOutcome($corporationId, $failure);
         foreach ($userIds as $userId) {
             if ($failure === null) {
                 $this->mercurePublisher->syncCompleted($userId, self::SYNC_TYPE, 'Moon extractions up to date');

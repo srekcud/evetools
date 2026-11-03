@@ -2083,8 +2083,7 @@
       "mining": "Mining ledger",
       "walletTransactions": "Wallet transactions",
       "marketStructure": "Market prices",
-      "planetary": "PI colonies",
-      "corporationMiningExtractions": "Corporation moon chunks"
+      "planetary": "PI colonies"
     },
     "syncCompleted": "Sync completed",
     "syncError": "Sync error",
