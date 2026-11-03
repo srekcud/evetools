@@ -131,4 +131,12 @@ class InvTypeRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return InvType[]
+     */
+    public function findMineableCandidates(): array
+    {
+        return [];
+    }
 }

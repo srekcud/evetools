@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Enum\MarketSide;
 use App\Repository\Sde\InvTypeMaterialRepository;
 use App\Repository\Sde\InvTypeRepository;
 
@@ -35,7 +36,7 @@ class OreValueService
      * @param float $exportTax Export tax in ISK/m³ to subtract from Jita prices
      * @return array<int, array<string, mixed>> typeId => price data
      */
-    public function getBatchOrePrices(array $typeIds, ?int $structureId = null, float $reprocessYield = self::DEFAULT_REPROCESS_YIELD, float $exportTax = 0.0): array
+    public function getBatchOrePrices(array $typeIds, ?int $structureId = null, float $reprocessYield = self::DEFAULT_REPROCESS_YIELD, float $exportTax = 0.0, MarketSide $side = MarketSide::Sell): array
     {
         if (empty($typeIds)) {
             return [];

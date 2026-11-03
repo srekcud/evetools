@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Mining;
 
+use App\Entity\Sde\InvCategory;
+use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Entity\Sde\InvTypeMaterial;
 use App\Repository\Sde\InvTypeMaterialRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
 use App\Service\OreValueService;
+use App\Service\OreValueTableService;
 use App\Service\StructureMarketService;
 
 trait BuildsOreValueServiceOnSdeOres
@@ -112,18 +115,82 @@ trait BuildsOreValueServiceOnSdeOres
         return $jitaSellPrices;
     }
 
+    private function sdeGroups(): array
+    {
+        return [
+            self::VELDSPAR => [462, 'Veldspar', 25],
+            self::COMPRESSED_VELDSPAR => [462, 'Veldspar', 25],
+            self::BITUMENS => [1884, 'Ubiquitous Moon Asteroids', 25],
+            self::COMPRESSED_BITUMENS => [1884, 'Ubiquitous Moon Asteroids', 25],
+            self::CLEAR_ICICLE => [465, 'Ice', 25],
+            self::COMPRESSED_CLEAR_ICICLE => [465, 'Ice', 25],
+            self::FULLERITE_C50 => [711, 'Harvestable Cloud', 2],
+            self::COMPRESSED_FULLERITE_C50 => [4168, 'Compressed Gas', 2],
+            self::TRITANIUM => [18, 'Mineral', 4],
+            self::PYERITE => [18, 'Mineral', 4],
+            self::MEXALLON => [18, 'Mineral', 4],
+            self::HYDROCARBONS => [427, 'Moon Materials', 4],
+            self::HEAVY_WATER => [423, 'Ice Product', 4],
+            self::LIQUID_OZONE => [423, 'Ice Product', 4],
+            self::HELIUM_ISOTOPES => [423, 'Ice Product', 4],
+            self::STRONTIUM_CLATHRATES => [423, 'Ice Product', 4],
+        ];
+    }
+
     private function createOreValueService(
         array $jitaSellPrices,
         ?StructureMarketService $structureMarketService = null,
         ?array $sdeTypes = null,
     ): OreValueService {
+        return new OreValueService(
+            $this->sdeInvTypeRepository($sdeTypes ?? $this->sdeTypes(), []),
+            $this->sdeInvTypeMaterialRepository($this->sdeReprocessMaterials()),
+            $this->jitaMarket($jitaSellPrices, []),
+            $structureMarketService,
+        );
+    }
+
+    private function createOreValueTableService(
+        array $jitaSellPrices,
+        array $mineableCandidateIds,
+        array $jitaBuyPrices = [],
+        ?StructureMarketService $structureMarketService = null,
+        ?array $sdeTypes = null,
+        ?array $reprocessMaterials = null,
+    ): OreValueTableService {
+        $invTypeRepository = $this->sdeInvTypeRepository($sdeTypes ?? $this->sdeTypes(), $mineableCandidateIds);
+        $invTypeMaterialRepository = $this->sdeInvTypeMaterialRepository($reprocessMaterials ?? $this->sdeReprocessMaterials());
+
+        return new OreValueTableService(
+            new OreValueService(
+                $invTypeRepository,
+                $invTypeMaterialRepository,
+                $this->jitaMarket($jitaSellPrices, $jitaBuyPrices),
+                $structureMarketService,
+            ),
+            $invTypeRepository,
+            $invTypeMaterialRepository,
+        );
+    }
+
+    private function sdeInvTypeRepository(array $sdeTypes, array $mineableCandidateIds): InvTypeRepository
+    {
+        $sdeGroups = $this->sdeGroups();
         $invTypes = [];
-        foreach ($sdeTypes ?? $this->sdeTypes() as $typeId => $sdeType) {
+        foreach ($sdeTypes as $typeId => $sdeType) {
+            [$groupId, $groupName, $categoryId] = $sdeType['group'] ?? $sdeGroups[$typeId] ?? [0, 'Unclassified', 0];
             $invTypes[$typeId] = (new InvType())
                 ->setTypeId($typeId)
                 ->setTypeName($sdeType['name'])
                 ->setVolume($sdeType['volume'])
-                ->setPortionSize($sdeType['portionSize']);
+                ->setPortionSize($sdeType['portionSize'])
+                ->setPublished(true)
+                ->setGroup(
+                    (new InvGroup())
+                        ->setGroupId($groupId)
+                        ->setGroupName($groupName)
+                        ->setCategory((new InvCategory())->setCategoryId($categoryId)->setCategoryName('Category ' . $categoryId)),
+                );
         }
 
         $invTypeRepository = $this->createStub(InvTypeRepository::class);
@@ -141,8 +208,15 @@ trait BuildsOreValueServiceOnSdeOres
                 return null;
             },
         );
+        $invTypeRepository->method('findMineableCandidates')->willReturn(
+            array_map(static fn (int $typeId): InvType => $invTypes[$typeId], $mineableCandidateIds),
+        );
 
-        $reprocessMaterials = $this->sdeReprocessMaterials();
+        return $invTypeRepository;
+    }
+
+    private function sdeInvTypeMaterialRepository(array $reprocessMaterials): InvTypeMaterialRepository
+    {
         $invTypeMaterialRepository = $this->createStub(InvTypeMaterialRepository::class);
         $invTypeMaterialRepository->method('findByTypeIds')->willReturnCallback(
             static function (array $typeIds) use ($reprocessMaterials): array {
@@ -159,20 +233,38 @@ trait BuildsOreValueServiceOnSdeOres
                 return $materialsByType;
             },
         );
-
-        $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturnCallback(
-            static fn (array $typeIds): array => array_combine(
-                $typeIds,
-                array_map(static fn (int $typeId): ?float => $jitaSellPrices[$typeId] ?? null, $typeIds),
+        $invTypeMaterialRepository->method('findByTypeId')->willReturnCallback(
+            static fn (int $typeId): array => array_map(
+                static fn (int $materialTypeId, int $quantity): InvTypeMaterial => (new InvTypeMaterial())
+                    ->setTypeId($typeId)
+                    ->setMaterialTypeId($materialTypeId)
+                    ->setQuantity($quantity),
+                array_keys($reprocessMaterials[$typeId] ?? []),
+                array_values($reprocessMaterials[$typeId] ?? []),
             ),
         );
 
-        return new OreValueService(
-            $invTypeRepository,
-            $invTypeMaterialRepository,
-            $jitaMarketService,
-            $structureMarketService,
+        return $invTypeMaterialRepository;
+    }
+
+    private function jitaMarket(array $jitaSellPrices, array $jitaBuyPrices): JitaMarketService
+    {
+        $jitaMarketService = $this->createStub(JitaMarketService::class);
+        $jitaMarketService->method('getPrices')->willReturnCallback(
+            static fn (array $typeIds): array => self::pricesOf($typeIds, $jitaSellPrices),
+        );
+        $jitaMarketService->method('getBuyPrices')->willReturnCallback(
+            static fn (array $typeIds): array => self::pricesOf($typeIds, $jitaBuyPrices),
+        );
+
+        return $jitaMarketService;
+    }
+
+    private static function pricesOf(array $typeIds, array $prices): array
+    {
+        return array_combine(
+            $typeIds,
+            array_map(static fn (int $typeId): ?float => $prices[$typeId] ?? null, $typeIds),
         );
     }
 
@@ -205,6 +297,19 @@ trait BuildsOreValueServiceOnSdeOres
                 ),
             ),
         );
+
+        return $structureMarketService;
+    }
+
+    private function structureMarketTrading(int $structureId, array $structureSellPrices, array $structureBuyPrices): StructureMarketService
+    {
+        $pricesAt = static fn (array $prices): \Closure => static fn (int $requestedStructureId, array $typeIds): array => self::pricesOf(
+            $typeIds,
+            $requestedStructureId === $structureId ? $prices : [],
+        );
+        $structureMarketService = $this->createStub(StructureMarketService::class);
+        $structureMarketService->method('getLowestSellPrices')->willReturnCallback($pricesAt($structureSellPrices));
+        $structureMarketService->method('getHighestBuyPrices')->willReturnCallback($pricesAt($structureBuyPrices));
 
         return $structureMarketService;
     }
