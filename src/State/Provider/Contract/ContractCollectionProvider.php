@@ -194,7 +194,7 @@ class ContractCollectionProvider implements ProviderInterface
 
     /**
      * @param array<string, mixed> $contract
-     * @param list<array<string, mixed>> $items
+     * @param array<array<string, mixed>> $items
      * @param array<int, float|null> $jitaPrices
      * @param array<int, array{price: float, volume: float}>|null $publicContracts null when the comparison is unavailable
      */

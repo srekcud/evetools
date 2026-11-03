@@ -65,7 +65,7 @@ class GroupDistributionProvider implements ProviderInterface
         $resource->netRevenue = $result->netRevenue;
         $resource->totalProjectCost = $result->totalProjectCost;
         $resource->marginPercent = $result->marginPercent;
-        $resource->members = array_map(
+        $resource->members = array_values(array_map(
             fn (MemberDistribution $member) => [
                 'memberId' => $member->memberId,
                 'characterName' => $member->characterName,
@@ -79,7 +79,7 @@ class GroupDistributionProvider implements ProviderInterface
                 'payoutTotal' => $member->payoutTotal,
             ],
             $result->members,
-        );
+        ));
 
         return $resource;
     }

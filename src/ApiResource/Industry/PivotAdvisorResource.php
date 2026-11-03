@@ -36,10 +36,13 @@ class PivotAdvisorResource
     #[ApiProperty(identifier: true)]
     public int $typeId;
 
+    /** @var array<string, mixed> */
     public array $sourceProduct = [];
 
+    /** @var list<array<string, mixed>> */
     public array $matrix = [];
 
+    /** @var list<array<string, mixed>> */
     public array $candidates = [];
 
     /** @var list<int> */
