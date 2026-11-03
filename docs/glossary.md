@@ -209,6 +209,9 @@ Termes proposés pour le minage groupé (#261), en attente de validation : seuls
 | **Présence** | Presence | État d'écran d'un participant pendant une opération en cours (`online`, `afk` avec ses minutes, `left`, `unknown`), calculé d'après son dernier battement dans evetools (`lastSeenAt`) ou son départ anticipé ; ce n'est pas l'état en jeu, que l'ESI ne donne pas (spec #307). | `MiningPresenceResolver`, `MiningPresence`, `MiningOperationMember::$lastSeenAt` |
 | **Part** | Share | Montant dû à un participant après répartition de la valeur d'une opération. | à venir (#264) |
 | **Part du booster** | Booster cut | Pourcentage de la valeur d'une opération réservé au booster avant répartition. | à venir (#264) |
+| **Vaisseau de boost** | Boost ship | Coque du booster de l'opération : Porpoise, Orca ou Rorqual. | à venir (#311) |
+| **Compresseur monté** | Mounted compressor | Genre de compresseur (minerai d'astéroïde, gaz, glace, mercoxit, minerai lunaire) monté sur le vaisseau de boost. | à venir (#311) |
+| **Compressible sur place** | Compressible on site | Un type miné dont le genre a un compresseur monté sur le vaisseau de boost. | à venir (#311) |
 | **Fleet storage** | Fleet storage | Minerai versé par un participant à un destinataire pendant l'opération ; il crée une dette du destinataire envers le participant. | à venir (#266) |
 | **Scan de site** | Site scan | Relevé horodaté du restant, par type de minerai, d'une belt ou d'une anomalie, lu dans le collage du Mining Survey Chipset (spec #267). | à venir (#267) |
 | **Site de minage** | Mining site | Belt ou anomalie suivie par des scans de site, avec son historique de métriques ; le texte collé n'est jamais enregistré (spec #267). | à venir (#267) |
