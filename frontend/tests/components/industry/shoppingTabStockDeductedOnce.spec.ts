@@ -328,7 +328,7 @@ describe('ShoppingTab stock deduction', () => {
       [ROOT_STEP, intermediateStep({})],
       [shoppingLine(INTERMEDIATE_TYPE_ID, INTERMEDIATE_NAME, 100, 1_320_000), shoppingLine(RAW_MATERIAL_TYPE_ID, RAW_MATERIAL_NAME, 900, 4.25)],
       (_url, options) => {
-        if (options?.method === 'PATCH') return { ...stepWithPastedStock }
+        if (options?.method === 'PATCH') return [{ ...stepWithPastedStock }]
         return project([ROOT_STEP, { ...stepWithPastedStock }])
       },
     )
