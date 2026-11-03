@@ -13,6 +13,7 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAudience;
 use App\Service\MiningOperation\MiningOperationEnrolment;
 use App\Service\MiningOperation\MiningOperationLifecycle;
+use App\Service\MiningOperation\MiningOperationNotifier;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningOperation\PersistedUuid;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -30,6 +31,7 @@ final readonly class JoinMiningOperationProcessor implements ProcessorInterface
         private MiningOperationResourceMapper $mapper,
         private MercurePublisherService $mercurePublisher,
         private MiningOperationLifecycle $lifecycle,
+        private MiningOperationNotifier $notifier,
     ) {
     }
 
@@ -50,6 +52,7 @@ final readonly class JoinMiningOperationProcessor implements ProcessorInterface
             'member_joined',
             ['memberId' => PersistedUuid::of($membership->getId()), 'status' => $membership->getStatus()->value],
         );
+        $this->notifier->joinRequested($miningOperation, $membership);
 
         return $this->mapper->invitationToResource(
             $miningOperation,

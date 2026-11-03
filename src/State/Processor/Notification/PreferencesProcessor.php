@@ -27,6 +27,7 @@ class PreferencesProcessor implements ProcessorInterface
         Notification::CATEGORY_ESCALATION,
         Notification::CATEGORY_ESI,
         Notification::CATEGORY_PRICE,
+        Notification::CATEGORY_MINING_OPERATION,
     ];
 
     public function __construct(

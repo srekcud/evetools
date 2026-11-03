@@ -21,6 +21,7 @@ class UserNotificationPreferenceRepository extends ServiceEntityRepository
         Notification::CATEGORY_ESCALATION,
         Notification::CATEGORY_ESI,
         Notification::CATEGORY_PRICE,
+        Notification::CATEGORY_MINING_OPERATION,
     ];
 
     private const DEFAULT_THRESHOLDS = [

@@ -11,6 +11,7 @@ use App\Repository\MiningOperationRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationAudience;
+use App\Service\MiningOperation\MiningOperationNotifier;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningOperation\MiningShareFreezer;
 use App\Service\MiningOperation\PersistedUuid;
@@ -29,6 +30,7 @@ final readonly class FreezeMiningSharesProcessor implements ProcessorInterface
         private MiningShareFreezer $freezer,
         private MiningOperationResourceMapper $mapper,
         private MercurePublisherService $mercurePublisher,
+        private MiningOperationNotifier $notifier,
     ) {
     }
 
@@ -47,6 +49,7 @@ final readonly class FreezeMiningSharesProcessor implements ProcessorInterface
             PersistedUuid::of($miningOperation->getId()),
             'shares_frozen',
         );
+        $this->notifier->sharesFrozen($miningOperation);
 
         return $this->mapper->operationToResource($miningOperation, $miningOperation->activeMembershipOf($user), true);
     }

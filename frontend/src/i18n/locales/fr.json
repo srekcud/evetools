@@ -2138,7 +2138,8 @@
       "industry": "Industrie",
       "escalation": "Escalations",
       "esi": "Notifications EVE",
-      "price": "Alertes prix"
+      "price": "Alertes prix",
+      "mining_operation": "Opérations de minage"
     },
     "settingsModal": {
       "title": "Preferences de notifications",

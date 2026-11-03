@@ -30,6 +30,7 @@ const categories: { key: NotificationCategory | undefined; labelKey: string }[] 
   { key: 'escalation', labelKey: 'notificationHub.categories.escalation' },
   { key: 'esi', labelKey: 'notificationHub.categories.esi' },
   { key: 'price', labelKey: 'notificationHub.categories.price' },
+  { key: 'mining_operation', labelKey: 'notificationHub.categories.mining_operation' },
 ]
 
 function setCategory(category: NotificationCategory | undefined): void {

@@ -89,6 +89,7 @@ final readonly class MiningLedgerSnapshotTaker
         $snapshot->take($now, $reading);
         $this->entityManager->flush();
         $this->publishCompleted($snapshot);
+        $this->notifyWhenEndLedgerSettled($snapshot);
     }
 
     private function settleWithoutLedger(MiningLedgerSnapshot $snapshot, MiningLedgerSnapshotStatus $status, string $reason): void
@@ -107,6 +108,14 @@ final readonly class MiningLedgerSnapshotTaker
         ]);
 
         $this->publishError($snapshot, $reason);
+        $this->notifyWhenEndLedgerSettled($snapshot);
+    }
+
+    private function notifyWhenEndLedgerSettled(MiningLedgerSnapshot $snapshot): void
+    {
+        if ($snapshot->getKind() === MiningLedgerSnapshotKind::End) {
+            $this->notifier->endLedgerSettled($snapshot->getOperationCharacter()->getMember()->getOperation());
+        }
     }
 
     private function isBeyondLedgerRetention(MiningOperation $operation, \DateTimeImmutable $readAt): bool

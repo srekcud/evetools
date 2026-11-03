@@ -6,6 +6,7 @@ export const categoryIcons: Record<NotificationCategory, string> = {
   escalation: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z',
   esi: 'M13 10V3L4 14h7v7l9-11h-7z',
   price: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  mining_operation: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
 }
 
 export const categoryColors: Record<NotificationCategory, string> = {
@@ -14,4 +15,5 @@ export const categoryColors: Record<NotificationCategory, string> = {
   escalation: 'text-purple-400',
   esi: 'text-cyan-400',
   price: 'text-amber-400',
+  mining_operation: 'text-orange-400',
 }

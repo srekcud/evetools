@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiRequest } from '@/services/api'
 
-export type NotificationCategory = 'planetary' | 'industry' | 'escalation' | 'esi' | 'price'
+export type NotificationCategory = 'planetary' | 'industry' | 'escalation' | 'esi' | 'price' | 'mining_operation'
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error' | 'critical'
 
 export interface AppNotification {

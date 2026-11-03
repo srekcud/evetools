@@ -11,6 +11,7 @@ use App\ApiResource\MiningOperation\MiningPaymentResource;
 use App\Repository\MiningOperationRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAudience;
+use App\Service\MiningOperation\MiningOperationNotifier;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningOperation\MiningOperationSettlement;
 use App\Service\MiningOperation\PersistedUuid;
@@ -28,6 +29,7 @@ final readonly class UpdateMiningPaymentProcessor implements ProcessorInterface
         private MiningOperationSettlement $settlement,
         private MiningOperationResourceMapper $mapper,
         private MercurePublisherService $mercurePublisher,
+        private MiningOperationNotifier $notifier,
     ) {
     }
 
@@ -40,7 +42,10 @@ final readonly class UpdateMiningPaymentProcessor implements ProcessorInterface
         $miningOperation = MiningOperationRequest::operationOf($this->operationRepository, $uriVariables['operationId']);
         $payment = MiningOperationRequest::paymentOf($miningOperation, $uriVariables['id']);
 
-        $this->settlement->mark($payment, $data->paid ?? throw new \LogicException('The paid flag is validated before the processor runs'), $user);
+        $paid = $data->paid ?? throw new \LogicException('The paid flag is validated before the processor runs');
+        $wasPaid = $payment->isPaid();
+
+        $this->settlement->mark($payment, $paid, $user);
 
         $this->mercurePublisher->publishMiningOperationEvent(
             MiningOperationAudience::userIdsOf($miningOperation),
@@ -48,6 +53,10 @@ final readonly class UpdateMiningPaymentProcessor implements ProcessorInterface
             'payment_updated',
             ['paymentId' => PersistedUuid::of($payment->getId()), 'paid' => $payment->isPaid()],
         );
+
+        if ($paid && !$wasPaid) {
+            $this->notifier->paymentMarkedPaid($payment, $user);
+        }
 
         return $this->mapper->paymentToResource($payment);
     }
