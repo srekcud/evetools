@@ -70,15 +70,15 @@ case "$mode" in
     )
     ;;
   integration)
-    if ! git -C "$worktree" diff --quiet "$(git -C "$main_repo" rev-parse main)" -- migrations/; then
-      echo "Le worktree modifie migrations/ : la base eve_app_test partagée ne correspond pas. Lancement par la session principale." >&2
+    if [[ -z "${TEST_TOKEN:-}" ]] && ! git -C "$worktree" diff --quiet "$(git -C "$main_repo" rev-parse main)" -- migrations/; then
+      echo "Le worktree modifie migrations/ : la base eve_app_test partagée ne correspond pas. Lancement par la session principale, ou avec TEST_TOKEN=<jeton> pour une base eve_app_test<jeton> isolée." >&2
       exit 66
     fi
     DATABASE_URL="$(docker compose -f "$main_repo/docker-compose.yaml" exec -T app printenv DATABASE_URL)" \
       || { echo "DATABASE_URL illisible dans le conteneur app (stack arrêtée ?)" >&2; exit 67; }
     [[ -n "$DATABASE_URL" ]] || { echo "DATABASE_URL vide dans le conteneur app" >&2; exit 67; }
     export DATABASE_URL
-    run_args+=(--network "$compose_network" -e APP_ENV=test -e DATABASE_URL -e REDIS_URL=redis://redis:6379)
+    run_args+=(--network "$compose_network" -e APP_ENV=test -e DATABASE_URL -e REDIS_URL=redis://redis:6379 -e TEST_TOKEN="${TEST_TOKEN:-}")
     ;;
   *) usage ;;
 esac
