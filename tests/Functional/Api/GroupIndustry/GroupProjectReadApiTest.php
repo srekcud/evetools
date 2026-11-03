@@ -214,15 +214,14 @@ final class GroupProjectReadApiTest extends WebTestCase
         self::assertSame([403, 'Only project owner or admin can perform this action'], $this->errorDetail());
     }
 
-    #[Group('issue-206')]
     #[DataProvider('projectRoutes')]
-    public function testProjectRouteOnAProjectIdentifierThatIsNotAUuidCurrentlyAnswersAServerErrorIssue206(string $method, string $uriAfterTheProject, ?array $body): void
+    public function testProjectRouteOnAProjectIdentifierThatIsNotAUuidIsNotFound(string $method, string $uriAfterTheProject, ?array $body): void
     {
         $this->client->loginUser($this->owner, 'api');
         $this->request($method, '/api/group-industry/projects/'.self::NOT_A_UUID.$uriAfterTheProject, $body);
 
-        self::assertResponseStatusCodeSame(500);
-        self::assertSame([500, 'Invalid UUID.'], $this->errorDetail());
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame([404, 'Project not found'], $this->errorDetail());
     }
 
     public static function projectRoutes(): iterable
