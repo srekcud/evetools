@@ -37,7 +37,7 @@ class StockpileTargetCollectionProvider implements ProviderInterface
 
         $targets = $this->targetRepository->findByUser($user);
 
-        return array_map([$this, 'mapToResource'], $targets);
+        return array_values(array_map([$this, 'mapToResource'], $targets));
     }
 
     private function mapToResource(IndustryStockpileTarget $target): StockpileTargetResource

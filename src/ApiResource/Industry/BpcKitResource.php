@@ -33,9 +33,9 @@ class BpcKitResource
 
     public bool $isT2 = false;
 
-    /** @var list<array{productTypeId: int, productName: string|null, baseProbability: ?float, unknownReason: ?string, desiredSuccesses: int, datacores: array, decryptorOptions: array}> */
+    /** @var list<array{productTypeId: int, productName: string|null, baseProbability: ?float, unknownReason: ?string, desiredSuccesses: int, datacores: list<array<string, mixed>>, decryptorOptions: list<array<string, mixed>>}> */
     public array $inventions = [];
 
-    /** @var array{totalInventionCost: ?float, bestDecryptorTypeId: ?int, totalBpcKitCost: ?float} */
+    /** @var array{totalInventionCost: ?float, bestDecryptorTypeId: ?int, totalBpcKitCost: ?float}|array{} */
     public array $summary = [];
 }

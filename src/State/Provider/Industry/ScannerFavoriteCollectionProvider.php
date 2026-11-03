@@ -37,7 +37,7 @@ class ScannerFavoriteCollectionProvider implements ProviderInterface
 
         $entities = $this->favoriteRepository->findByUser($user);
 
-        return array_map([$this, 'mapToResource'], $entities);
+        return array_values(array_map([$this, 'mapToResource'], $entities));
     }
 
     private function mapToResource(IndustryScannerFavorite $entity): ScannerFavoriteResource

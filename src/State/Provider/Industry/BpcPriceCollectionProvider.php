@@ -37,7 +37,7 @@ class BpcPriceCollectionProvider implements ProviderInterface
 
         $entities = $this->bpcPriceRepository->findByUser($user);
 
-        return array_map([$this, 'mapToResource'], $entities);
+        return array_values(array_map([$this, 'mapToResource'], $entities));
     }
 
     private function mapToResource(IndustryBpcPrice $entity): BpcPriceResource
