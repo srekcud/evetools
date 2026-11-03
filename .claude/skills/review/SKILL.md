@@ -18,7 +18,7 @@ Base de comparaison : `$ARGUMENTS` (si vide : `main`).
    - `docker compose exec app php vendor/bin/phpunit --no-coverage` ;
    - `docker compose exec app php vendor/bin/phpstan analyse` ;
    - `docker compose exec app php vendor/bin/deptrac analyse` ;
-   - `docker compose exec app php vendor/bin/infection --threads=max --filter=<fichiers src/ touchés>` : le MSI ne baisse ni sous `docs/quality/baseline.md` ni sous le seuil d'`infection.json5` ;
+   - `docker compose exec app php vendor/bin/infection --threads=max --filter=<fichiers src/ touchés>` : le MSI ne baisse ni sous `docs/quality/baseline.md` ni sous le seuil d'`infection.json5`. Dans un worktree : `.claude/scripts/wt-php.sh <worktree> unit vendor/bin/infection --threads=4 --no-progress --filter=<fichiers> --test-framework-options="--testsuite=Unit"` (l'option s'écrit avec le tiret après `test`) ;
    - si le frontend est touché : `npm --prefix frontend run lint`, `npm --prefix frontend run test` et `npm --prefix frontend run build`, puis restaurer `frontend/dist` et `frontend/tsconfig.tsbuildinfo`.
    Si `main` avance entre ces gates et la fusion, rebase et relance seulement PHPUnit.
 4. Consolide : dédoublonne les constats et classe-les par sévérité (bloquant, à corriger, suggestion). Chaque constat donne `fichier:ligne`, le problème et la correction proposée.
