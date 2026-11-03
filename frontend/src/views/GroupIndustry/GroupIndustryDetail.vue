@@ -27,6 +27,7 @@ import type { BomItem, GroupProject, GroupProjectStatus } from '@/stores/group-i
 import { nextProjectStatus } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
 import { groupProjectRefreshes, type GroupProjectRefresh } from './groupProjectRefreshes'
+import { useFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
 const editNameFieldId = useId()
@@ -108,13 +109,14 @@ const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<v
   distribution: distributionStore.fetchDistribution,
 }
 
+const { isFlashing: projectUpdated, flash: flashProject } = useFlash()
+
 watch(
   () => syncStore.getGroupProjectEvent(projectId.value),
   (event) => {
     if (!event) return
-    for (const refresh of groupProjectRefreshes(event.action)) {
-      refreshGroupProject[refresh](projectId.value)
-    }
+    const refreshes = groupProjectRefreshes(event.action).map(refresh => refreshGroupProject[refresh](projectId.value))
+    Promise.all(refreshes).then(flashProject)
   },
 )
 
@@ -402,7 +404,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <!-- Tab Content: Materials & Jobs -->
-      <div v-if="activeTab === 'bom'">
+      <div v-if="activeTab === 'bom'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <!-- BOM description -->
         <p class="text-xs text-slate-500 mb-4">
           Leaf materials for {{ project.items.length }} items
@@ -430,7 +432,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <!-- Tab Content: Contributions -->
-      <div v-else-if="activeTab === 'contributions'">
+      <div v-else-if="activeTab === 'contributions'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <ContributionTable :project-id="projectId" :is-admin="isOwnerOrAdmin">
           <template #actions>
             <button
@@ -448,7 +450,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <!-- Tab Content: Distribution -->
-      <div v-else-if="activeTab === 'distribution'">
+      <div v-else-if="activeTab === 'distribution'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <SalesTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
         <SaleSuggestionsPanel v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
         <FinancialSummary />
@@ -456,7 +458,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <!-- Tab Content: Members -->
-      <div v-else-if="activeTab === 'members'">
+      <div v-else-if="activeTab === 'members'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <!-- Header with member summary and copy link button -->
         <div class="flex items-center justify-between mb-6">
           <p class="text-sm text-slate-400">

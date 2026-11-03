@@ -10,6 +10,7 @@ import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { CHART_COLORS } from '@/utils/chartColors'
 import type { SlotActivity, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
+import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const emit = defineEmits<{
   'open-config': [section: 'skills']
@@ -19,6 +20,7 @@ const { t } = useI18n()
 const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 const slotsStore = useSlotsStore()
+const slotsUpdated = useUpdateFlash(() => slotsStore.data)
 
 function navigateToSettings() {
   emit('open-config', 'skills')
@@ -311,8 +313,8 @@ onMounted(() => {
       <div
         v-for="activity in SLOT_ACTIVITIES"
         :key="activity"
-        class="eve-card p-5"
-        :class="kpiColor(slotsStore.data.globalKpis[activity].percent).border"
+        class="relative eve-card p-5"
+        :class="[kpiColor(slotsStore.data.globalKpis[activity].percent).border, { 'hud-updated': slotsUpdated }]"
       >
         <div class="flex items-center gap-5">
           <!-- Ring chart -->
@@ -364,7 +366,8 @@ onMounted(() => {
     <div
       v-for="(char, charIdx) in slotsStore.data.characters"
       :key="char.characterId"
-      class="eve-card overflow-hidden card-enter"
+      class="relative eve-card overflow-hidden card-enter"
+      :class="{ 'hud-updated': slotsUpdated }"
       :style="{ animationDelay: `${160 + charIdx * 80}ms` }"
     >
       <!-- Character header -->
@@ -539,7 +542,8 @@ onMounted(() => {
     <!-- TIMELINE / GANTT VIEW -->
     <div
       v-if="slotsStore.data.timeline.length > 0"
-      class="eve-card overflow-hidden card-enter"
+      class="relative eve-card overflow-hidden card-enter"
+      :class="{ 'hud-updated': slotsUpdated }"
       :style="{ animationDelay: `${160 + slotsStore.data.characters.length * 80 + 80}ms` }"
     >
       <!-- Section header -->

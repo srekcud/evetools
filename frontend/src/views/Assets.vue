@@ -16,6 +16,7 @@ import ContractsTab from '@/components/assets/ContractsTab.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import type { Asset, CorpAssetVisibility } from '@/types'
+import { useFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
 const { pilotName } = usePilotName()
@@ -293,13 +294,14 @@ const currentSyncType = computed(() =>
 const currentSyncProgress = computed(() =>
   syncStore.getSyncProgress(currentSyncType.value)
 )
+const { isFlashing: assetsUpdated, flash: flashAssets } = useFlash()
 
 watch(
   () => currentSyncProgress.value,
   (progress) => {
     if (!progress) return
     if (progress.status === 'completed') {
-      fetchAssets()
+      fetchAssets().then(flashAssets)
       isRefreshing.value = false
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'error') {
@@ -585,7 +587,7 @@ watch([selectedCharacterId, viewMode], () => {
           </div>
 
           <!-- Assets by location -->
-          <div v-else class="space-y-4">
+          <div v-else class="relative rounded-xl space-y-4" :class="{ 'hud-updated': assetsUpdated }">
             <AssetLocationGroup
               v-for="location in assetsByLocation"
               :key="location.locationName"

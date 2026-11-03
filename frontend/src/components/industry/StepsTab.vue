@@ -14,6 +14,7 @@ import SyncErrorAlert from './SyncErrorAlert.vue'
 import StepTree from './StepTree.vue'
 import StepHierarchyTree from './StepHierarchyTree.vue'
 import ShoppingFailedProductsWarning from './shopping/ShoppingFailedProductsWarning.vue'
+import { useFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
 
@@ -39,10 +40,11 @@ const productNamesByTypeId = useStepProductNames(computed(() => store.currentPro
 
 // Mercure sync progress
 const industryProjectProgress = computed(() => syncStore.getSyncProgress('industry-project'))
+const { isFlashing: stepsUpdated, flash: flashSteps } = useFlash()
 
 watch(industryProjectProgress, (progress) => {
   if (progress?.status === 'completed') {
-    store.fetchProject(props.projectId)
+    store.fetchProject(props.projectId).then(flashSteps)
   } else if (progress?.status === 'error') {
     regenerationErrors.value = [...regenerationErrors.value, progress.message || t('notifications.syncError')]
   }
@@ -58,6 +60,7 @@ const {
     const reloads = [store.fetchProject(props.projectId)]
     if (showAvailableJobs.value) reloads.push(stepsStore.fetchAvailableJobs(props.projectId))
     await Promise.all(reloads)
+    await flashSteps()
   },
   () => matchJobsLoading.value,
 )
@@ -247,7 +250,7 @@ defineExpose({
     </div>
 
     <!-- Available ESI Jobs Panel -->
-    <div v-if="showAvailableJobs" class="mb-4 eve-card p-4">
+    <div v-if="showAvailableJobs" class="relative mb-4 eve-card p-4" :class="{ 'hud-updated': stepsUpdated }">
       <div class="flex items-center justify-between mb-3">
         <h4 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
           <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -359,7 +362,7 @@ defineExpose({
     />
 
     <!-- Steps list (flat view) -->
-    <div v-if="stepsViewMode === 'flat'">
+    <div v-if="stepsViewMode === 'flat'" class="relative rounded-xl" :class="{ 'hud-updated': stepsUpdated }">
       <div v-if="store.currentProject?.steps && store.currentProject.steps.length > 0">
         <StepTree
           :steps="store.currentProject.steps"
@@ -384,7 +387,7 @@ defineExpose({
     </div>
 
     <!-- Steps tree (hierarchy view) -->
-    <div v-else-if="stepsViewMode === 'tree'">
+    <div v-else-if="stepsViewMode === 'tree'" class="relative rounded-xl" :class="{ 'hud-updated': stepsUpdated }">
       <div v-if="store.currentProject?.tree && store.currentProject?.steps">
         <StepHierarchyTree
           :tree="store.currentProject.tree"

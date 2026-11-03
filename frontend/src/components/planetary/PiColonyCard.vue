@@ -6,6 +6,7 @@ import { usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
 import { usePlanetaryHelpers, TIER_CONFIG } from '@/composables/usePlanetaryHelpers'
 import { useTypeNames } from '@/composables/useTypeNames'
 import type { Colony } from '@/stores/planetary'
+import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
 const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
@@ -32,10 +33,12 @@ const {
   getColonyProduction,
 } = usePlanetaryHelpers()
 
-defineProps<{
+const props = defineProps<{
   colony: Colony
   expanded: boolean
 }>()
+
+const colonyUpdated = useUpdateFlash(() => JSON.stringify(props.colony))
 
 defineEmits<{
   toggle: []
@@ -44,8 +47,8 @@ defineEmits<{
 
 <template>
   <div
-    class="colony-card bg-slate-900 rounded-xl overflow-hidden cursor-pointer"
-    :class="[getColonyBorderClass(colony), expanded ? 'expanded' : '']"
+    class="relative colony-card bg-slate-900 rounded-xl overflow-hidden cursor-pointer"
+    :class="[getColonyBorderClass(colony), expanded ? 'expanded' : '', { 'hud-updated': colonyUpdated }]"
     style="border-width: 1px;"
   >
     <!-- Colony Header Row -->

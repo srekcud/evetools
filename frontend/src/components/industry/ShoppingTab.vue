@@ -18,6 +18,7 @@ import ShoppingFailedProductsWarning from './shopping/ShoppingFailedProductsWarn
 import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
 import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
 import type { ShoppingListFailedProduct, ShoppingListItem, ShoppingListTotals } from '@/stores/industry/types'
+import { useFlash } from '@/composables/useUpdateFlash'
 
 const HTTP_NOT_FOUND = 404
 const HTTP_CONFLICT = 409
@@ -94,10 +95,11 @@ const stock = useShoppingStockAnalysis(
 
 // Mercure sync progress
 const marketStructureProgress = computed(() => syncStore.getSyncProgress('market-structure'))
+const { isFlashing: shoppingUpdated, flash: flashShopping } = useFlash()
 
 watch(marketStructureProgress, (progress) => {
   if (progress?.status === 'completed') {
-    loadShoppingList()
+    loadShoppingList().then(flashShopping)
   }
 })
 
@@ -506,7 +508,7 @@ defineExpose({
     </div>
 
     <!-- Main content -->
-    <div v-else class="space-y-4">
+    <div v-else class="relative rounded-xl space-y-4" :class="{ 'hud-updated': shoppingUpdated }">
       <!-- Header: 3-column config -->
       <ShoppingConfigPanel
         v-if="store.currentProject?.status !== 'completed'"

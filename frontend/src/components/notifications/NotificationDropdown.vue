@@ -6,10 +6,12 @@ import { useNotificationsStore } from '@/stores/notifications'
 import type { AppNotification, NotificationCategory } from '@/stores/notifications'
 import NotificationItem from './NotificationItem.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
 const router = useRouter()
 const store = useNotificationsStore()
+const listUpdated = useUpdateFlash(() => store.notifications.map(notification => notification.id).join())
 
 const emit = defineEmits<{
   close: []
@@ -84,6 +86,7 @@ onUnmounted(() => {
   <div
     ref="dropdownRef"
     class="absolute right-0 top-full mt-2 w-96 bg-slate-900 rounded-xl border border-cyan-500/20 shadow-2xl shadow-black/50 z-50 flex flex-col max-h-[32rem] overflow-hidden"
+    :class="{ 'hud-updated': listUpdated }"
   >
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800 shrink-0">

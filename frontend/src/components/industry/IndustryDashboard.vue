@@ -393,7 +393,7 @@ function cleanTypeName(name: string): string {
   </div>
 
   <!-- Alerts Section -->
-  <div class="bg-slate-900 rounded-xl border border-slate-800 mb-6">
+  <div class="relative bg-slate-900 rounded-xl border border-slate-800 mb-6" :class="{ 'hud-updated': kpisUpdated }">
     <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useFlash } from '@/composables/useUpdateFlash'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminStore } from '@/stores/admin'
@@ -143,6 +144,8 @@ function handleMaintenanceAction(name: string, actionKey: string) {
   }
 }
 
+const { isFlashing: statsUpdated, flash: flashStats } = useFlash()
+
 // Watch for Mercure admin-sync events
 watch(
   () => syncStore.adminSyncProgress,
@@ -158,7 +161,7 @@ watch(
         type: 'success',
         text: `${t('admin.sync.syncCompleted', { type: syncType || '' })} : ${progress.message || 'OK'}`,
       }
-      adminStore.fetchStats()
+      adminStore.fetchStats().then(flashStats)
       syncStore.clearSyncStatus('admin-sync')
       setTimeout(() => { actionMessage.value = null }, 5000)
     } else if (progress.status === 'error') {
@@ -226,7 +229,9 @@ watch(
       </Transition>
 
       <!-- KPI Grid (3 rows) -->
-      <AdminKpiGrid :stats="stats" :queues="queues" />
+      <div class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
+        <AdminKpiGrid :stats="stats" :queues="queues" />
+      </div>
 
       <!-- Scheduler Health + Maintenance Actions -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

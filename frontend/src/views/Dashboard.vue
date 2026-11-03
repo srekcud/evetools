@@ -19,6 +19,7 @@ const { notifications, unreadCount, clearAll, removeNotification } = useNotifica
 const activityUpdated = useUpdateFlash(() => notifications.value.map(notification => notification.id).join())
 
 const { items: todoItems, isLoading: isTodoLoading, isAllCaughtUp } = useTodoItems()
+const todoUpdated = useUpdateFlash(() => JSON.stringify(todoItems.value))
 
 const user = computed(() => authStore.user)
 
@@ -102,7 +103,7 @@ onMounted(() => {
 <template>
   <MainLayout>
     <div class="space-y-6">
-    <section data-testid="dashboard-todo" class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+    <section data-testid="dashboard-todo" class="relative bg-slate-900 rounded-2xl p-5 border border-slate-800" :class="{ 'hud-updated': todoUpdated }">
       <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3">{{ t('dashboard.todo.title') }}</h3>
       <ul v-if="todoItems.length > 0" class="space-y-2">
         <li v-for="todoItem in todoItems" :key="todoItem.labelKey">
