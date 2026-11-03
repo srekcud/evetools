@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Scheduler;
 use App\Message\CheckAlertPrices;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
+use App\Message\TriggerCorporationMiningExtractionsSync;
 use App\Message\TriggerPlanetarySync;
 use App\Scheduler\SyncScheduler;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -73,7 +74,7 @@ class SyncSchedulerLockTest extends TestCase
         ];
 
         $this->assertSame(
-            [SyncIndustryJobs::class, TriggerPlanetarySync::class, CheckAlertPrices::class, SyncPublicContracts::class],
+            [SyncIndustryJobs::class, TriggerPlanetarySync::class, CheckAlertPrices::class, SyncPublicContracts::class, TriggerCorporationMiningExtractionsSync::class],
             $firstConsumerMessageClasses,
         );
         $this->assertSame([], $secondConsumerMessageClasses);
