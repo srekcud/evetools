@@ -11,7 +11,7 @@ export type MiningCharacterEligibility = 'eligible' | 'reconnect_required' | 'in
 export type MiningValuationForm = 'raw' | 'compressed' | 'reprocessed'
 export type MiningValuationMarket = 'jita' | 'structure'
 export type MiningValuationSide = 'buy' | 'sell'
-export type MiningShareBlocker = 'not_closing' | 'each_for_themselves' | 'quantities_not_known' | 'prices_missing' | 'booster_missing'
+export type MiningShareBlocker = 'not_closing' | 'each_for_themselves' | 'quantities_not_known' | 'prices_missing' | 'booster_missing' | 'fleet_storage_recipient_missing' | 'fleet_storage_exceeds_mined'
 
 export interface MiningValuationSettings {
   valuationForm: MiningValuationForm
@@ -40,7 +40,75 @@ export interface MiningArchiveSummary {
   paidPaymentsCount: number
 }
 
-export type MiningPaymentKind = 'booster_cut' | 'corporation_cut' | 'collected_corporation_cut'
+export type MiningPaymentKind = 'booster_cut' | 'corporation_cut' | 'collected_corporation_cut' | 'fleet_storage_share'
+
+export type MiningFleetStorageDelivery = 'none' | 'all' | 'partial'
+
+export interface MiningFleetStorageQuantity {
+  typeId: number
+  typeName: string | null
+  quantity: number
+}
+
+export interface MiningFleetStorageDeclaration {
+  memberId: string
+  characterName: string | null
+  delivery: MiningFleetStorageDelivery
+  quantities: MiningFleetStorageQuantity[]
+  canDeclare: boolean
+}
+
+export interface MiningFleetStorage {
+  operationId: string
+  available: boolean
+  editable: boolean
+  recipientMemberId: string | null
+  recipientName: string | null
+  containerName: string | null
+  declarations: MiningFleetStorageDeclaration[]
+}
+
+export interface UpdateMiningFleetStorageInput {
+  recipientMemberId?: string | null
+  containerName?: string | null
+}
+
+export interface DeclareMiningFleetStorageInput {
+  delivery: MiningFleetStorageDelivery
+  quantities?: { typeId: number; quantity: number }[]
+}
+
+export type MiningFleetStorageCheck = 'verified' | 'short' | 'unknown' | 'nothing_delivered'
+
+export type MiningFleetStorageUnknownReason =
+  | 'operation_not_ended'
+  | 'operation_archived'
+  | 'no_container_name'
+  | 'no_corporation'
+  | 'not_corporation_member'
+  | 'corporation_assets_not_synced'
+  | 'no_visible_division'
+  | 'assets_synced_before_end'
+  | 'container_not_found'
+  | 'delivered_quantity_unknown'
+
+export interface MiningFleetStorageVerificationLine {
+  typeId: number
+  typeName: string | null
+  expectedQuantity: number
+  foundQuantity: number | null
+  missingQuantity: number | null
+  status: Exclude<MiningFleetStorageCheck, 'nothing_delivered'>
+}
+
+export interface MiningFleetStorageVerification {
+  operationId: string
+  status: MiningFleetStorageCheck
+  unknownReason: MiningFleetStorageUnknownReason | null
+  containerName: string | null
+  assetsReadAt: string | null
+  lines: MiningFleetStorageVerificationLine[]
+}
 
 export interface MiningPayment {
   id: string
@@ -81,6 +149,7 @@ export interface MiningOperation {
   archivedAt: string | null
   archivedByName: string | null
   archiveSummary: MiningArchiveSummary | null
+  fleetStorageRecipientName: string | null
 }
 
 export interface MiningOperationMemberCharacter {
@@ -190,6 +259,7 @@ export interface MiningOperationInvitation {
   myStatus: MiningOperationMemberStatus | null
   characters: MiningOperationInvitationCharacter[]
   valuationSettings: MiningInvitationValuationSettings
+  fleetStorageRecipientName: string | null
 }
 
 export interface MiningUnitPrice {
@@ -220,6 +290,11 @@ export interface MiningValuationParticipant {
   durationSeconds: number | null
   departedAt: string | null
   characters: MiningValuationCharacter[]
+  fleetStorageDelivery: MiningFleetStorageDelivery | null
+  isFleetStorageRecipient: boolean
+  deliveredValue: number | null
+  keptValue: number | null
+  fleetStorageDebt: number | null
 }
 
 export interface MiningOperationValuation {
@@ -246,6 +321,8 @@ export interface MiningOperationValuation {
   freezeBlockers: MiningShareBlocker[]
   canComplete: boolean
   completionBlockers: MiningShareBlocker[] | null
+  fleetStorageRecipientMemberId: string | null
+  fleetStorageRecipientName: string | null
 }
 
 export interface CreateMiningOperationInput {
@@ -271,6 +348,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const valuation = ref<MiningOperationValuation | null>(null)
   const payments = ref<MiningPayment[]>([])
   const archivedOperations = ref<MiningOperation[]>([])
+  const fleetStorage = ref<MiningFleetStorage | null>(null)
+  const fleetStorageVerification = ref<MiningFleetStorageVerification | null>(null)
   const error = ref<string | null>(null)
 
   function messageOf(cause: unknown, fallback: string): string {
@@ -549,6 +628,20 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
+  async function fetchFleetStorage(_id: string): Promise<void> {}
+
+  async function updateFleetStorage(_id: string, _patch: UpdateMiningFleetStorageInput): Promise<MiningFleetStorage | null> {
+    return null
+  }
+
+  async function declareFleetStorage(_id: string, _memberId: string, _declaration: DeclareMiningFleetStorageInput): Promise<MiningFleetStorage | null> {
+    return null
+  }
+
+  async function fetchFleetStorageVerification(_id: string): Promise<void> {}
+
+  async function refreshCorporationAssets(): Promise<void> {}
+
   return {
     myOperations,
     availableOperations,
@@ -559,6 +652,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     valuation,
     payments,
     archivedOperations,
+    fleetStorage,
+    fleetStorageVerification,
     error,
     fetchMine,
     fetchAvailable,
@@ -586,5 +681,10 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     settle,
     complete,
     fetchArchive,
+    fetchFleetStorage,
+    updateFleetStorage,
+    declareFleetStorage,
+    fetchFleetStorageVerification,
+    refreshCorporationAssets,
   }
 })

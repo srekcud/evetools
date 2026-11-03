@@ -2850,7 +2850,8 @@
         "minedValue": "Valeur minée",
         "valuePercent": "% de G",
         "share": "Part",
-        "iskPerHour": "ISK/h"
+        "iskPerHour": "ISK/h",
+        "holder": "Minerai détenu par"
       },
       "total": "Total",
       "boosterBadge": "Booster",
@@ -2890,7 +2891,9 @@
         "each_for_themselves": "Chacun pour soi : pas de parts.",
         "quantities_not_known": "Quantité inconnue ou en mesure : {names}",
         "prices_missing": "Sans prix sur la base : {types}",
-        "booster_missing": "Choisissez le booster qui reçoit la part du booster."
+        "booster_missing": "Choisissez le booster qui reçoit la part du booster.",
+        "fleet_storage_recipient_missing": "Choisissez le destinataire du fleet storage.",
+        "fleet_storage_exceeds_mined": "Quantité versée supérieure au minage : {names}"
       }
     },
     "archive": {
@@ -2916,11 +2919,13 @@
       "count": "{paid} / {total} payés",
       "rule": "Chacun garde son minerai et verse au booster la différence entre sa valeur minée et sa part. Le booster reverse la part corporation. Un Owner ou un Admin coche la ligne quand le don est fait en jeu.",
       "ruleCorporationOnly": "Chacun garde son minerai et verse à la corporation la différence entre sa valeur minée et sa part.",
+      "ruleFleetStorage": "Le destinataire du fleet storage doit à chaque déposant sa part moins ce qu'il a gardé.",
       "line": "{payer} doit {amount} ISK à {beneficiary}",
       "kind": {
         "booster_cut": "part du booster et part corporation sur sa valeur minée",
         "corporation_cut": "part corporation sur sa valeur minée",
-        "collected_corporation_cut": "part corporation collectée par le booster ({percent} % de G)"
+        "collected_corporation_cut": "part corporation collectée par le booster ({percent} % de G)",
+        "fleet_storage_share": "fleet storage : détient le minerai versé, lui doit sa part moins ce qu'il a gardé"
       },
       "corporation": "la corporation",
       "paid": "payé",
@@ -2948,6 +2953,63 @@
         "prices_missing": "Sans prix sur la base : {types}"
       },
       "banner": "Opération terminée le {date} EVE · chacun pour soi. Chacun garde son minerai : rien à régler. Les prix et les valeurs minées sont figés."
+    },
+    "fleetStorage": {
+      "title": "Fleet storage",
+      "recipient": "Destinataire du fleet storage",
+      "noRecipient": "Aucun",
+      "container": "Container corpo à vérifier (facultatif)",
+      "containerHint": "nom exact du container en jeu",
+      "delivery": {
+        "none": "Garde tout",
+        "all": "Verse tout",
+        "partial": "Verse une partie"
+      },
+      "quantity": "{delivered} / {mined} u",
+      "exceedsMined": "dépasse le minage ({mined} u)",
+      "debt": "{recipient} lui doit {amount} ISK",
+      "debtDetail": "part {share} − valeur gardée {kept}",
+      "keeps": "garde son minerai",
+      "hold": "Hold du destinataire",
+      "holdDetail": "son minerai {own} + versé {delivered}",
+      "rule": "Chaque participant déclare s'il verse son minerai au destinataire. Le destinataire doit à chacun sa part moins ce qu'il a gardé, et verse la part du booster de tout le minerai qu'il détient.",
+      "none": "aucun",
+      "eachForThemselves": "aucun (chacun pour soi)",
+      "holder": {
+        "self": "lui-même",
+        "recipient": "destinataire",
+        "all": "tout versé",
+        "partial": "versé : {quantities}"
+      },
+      "totalDepositors": "fleet storage : {count} déposant(s)",
+      "verification": {
+        "title": "Container corpo « {name} »",
+        "assetsReadAt": "assets corpo lus à {time}",
+        "line": "{found} / {expected} u",
+        "refresh": "Actualiser les assets corpo",
+        "status": {
+          "verified": "vérifié",
+          "short": "écart de {missing} u",
+          "unknown": "inconnu",
+          "nothing_delivered": "rien à vérifier"
+        },
+        "reason": {
+          "operation_not_ended": "La vérification commence à la fin de l'opération.",
+          "operation_archived": "Opération archivée : le container a pu être vidé.",
+          "no_container_name": "Aucun container à vérifier.",
+          "no_corporation": "Opération sans corporation.",
+          "not_corporation_member": "Les assets corpo ne sont visibles que des membres de la corporation.",
+          "corporation_assets_not_synced": "Assets corpo jamais synchronisés.",
+          "no_visible_division": "Aucune division corpo partagée.",
+          "assets_synced_before_end": "Assets corpo lus à {time}, avant la fin de l'opération ({end}).",
+          "container_not_found": "Aucun container « {name} » dans les divisions partagées.",
+          "delivered_quantity_unknown": "Quantité versée inconnue : {names}."
+        },
+        "noEffect": "Le constat n'empêche pas de figer les parts : la dette reste celle déclarée."
+      }
+    },
+    "rules": {
+      "fleetStorage": "Fleet storage"
     },
     "recap": {
       "title": "Récapitulatif",

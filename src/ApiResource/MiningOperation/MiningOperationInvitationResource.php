@@ -80,4 +80,6 @@ class MiningOperationInvitationResource
 
     /** @var array<string, mixed>|null */
     public ?array $valuationSettings = null;
+
+    public ?string $fleetStorageRecipientName = null;
 }

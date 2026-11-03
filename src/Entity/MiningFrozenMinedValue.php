@@ -32,6 +32,7 @@ class MiningFrozenMinedValue
         private int $position,
         #[ORM\Column(type: 'float')]
         private float $minedValue,
+        private float $deliveredValue = 0.0,
     ) {
     }
 
@@ -63,5 +64,10 @@ class MiningFrozenMinedValue
     public function getMinedValue(): float
     {
         return $this->minedValue;
+    }
+
+    public function getDeliveredValue(): float
+    {
+        return $this->deliveredValue;
     }
 }

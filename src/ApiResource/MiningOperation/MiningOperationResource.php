@@ -266,4 +266,6 @@ class MiningOperationResource
 
     /** @var array<string, mixed>|null */
     public ?array $archiveSummary = null;
+
+    public ?string $fleetStorageRecipientName = null;
 }

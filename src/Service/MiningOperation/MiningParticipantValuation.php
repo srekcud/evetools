@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\MiningOperation;
 
 use App\Entity\MiningOperationMember;
+use App\Enum\MiningFleetStorageDelivery;
 
 final readonly class MiningParticipantValuation
 {
@@ -22,6 +23,11 @@ final readonly class MiningParticipantValuation
         public ?int $durationSeconds,
         public ?float $iskPerHour,
         public array $characters,
+        public ?MiningFleetStorageDelivery $fleetStorageDelivery = null,
+        public bool $isFleetStorageRecipient = false,
+        public ?int $deliveredValue = null,
+        public ?int $keptValue = null,
+        public ?int $fleetStorageDebt = null,
     ) {
     }
 }

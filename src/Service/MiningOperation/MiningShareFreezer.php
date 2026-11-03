@@ -38,6 +38,7 @@ final readonly class MiningShareFreezer
         private EntityManagerInterface $entityManager,
         private ClockInterface $clock,
         private MiningPaymentPlanner $paymentPlanner = new MiningPaymentPlanner(),
+        private MiningFleetStorageCalculator $fleetStorageCalculator = new MiningFleetStorageCalculator(),
     ) {
     }
 

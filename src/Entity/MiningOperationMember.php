@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\MiningFleetStorageDelivery;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Repository\MiningOperationMemberRepository;
@@ -48,6 +49,11 @@ class MiningOperationMember
     /** @var Collection<int, MiningOperationCharacter> */
     #[ORM\OneToMany(targetEntity: MiningOperationCharacter::class, mappedBy: 'member', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $characters;
+
+    private MiningFleetStorageDelivery $fleetStorageDelivery = MiningFleetStorageDelivery::None;
+
+    /** @var array<int, int>|null */
+    private ?array $fleetStorageQuantities = null;
 
     public function __construct()
     {
@@ -163,5 +169,25 @@ class MiningOperationMember
         }
 
         return $this;
+    }
+
+    public function getFleetStorageDelivery(): MiningFleetStorageDelivery
+    {
+        return $this->fleetStorageDelivery;
+    }
+
+    /**
+     * @return array<int, int>|null
+     */
+    public function getFleetStorageQuantities(): ?array
+    {
+        return $this->fleetStorageQuantities;
+    }
+
+    /**
+     * @param array<int, int>|null $quantitiesByTypeId
+     */
+    public function declareFleetStorage(MiningFleetStorageDelivery $delivery, ?array $quantitiesByTypeId): void
+    {
     }
 }

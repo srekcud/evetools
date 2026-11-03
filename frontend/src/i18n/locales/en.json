@@ -2850,7 +2850,8 @@
         "minedValue": "Mined value",
         "valuePercent": "% of G",
         "share": "Share",
-        "iskPerHour": "ISK/h"
+        "iskPerHour": "ISK/h",
+        "holder": "Ore held by"
       },
       "total": "Total",
       "boosterBadge": "Booster",
@@ -2890,7 +2891,9 @@
         "each_for_themselves": "Everyone keeps their own: no shares.",
         "quantities_not_known": "Unknown or still measured quantity: {names}",
         "prices_missing": "No price on the basis: {types}",
-        "booster_missing": "Choose the booster who receives the booster cut."
+        "booster_missing": "Choose the booster who receives the booster cut.",
+        "fleet_storage_recipient_missing": "Choose the fleet storage recipient.",
+        "fleet_storage_exceeds_mined": "Delivered quantity above what was mined: {names}"
       }
     },
     "archive": {
@@ -2916,11 +2919,13 @@
       "count": "{paid} / {total} paid",
       "rule": "Everyone keeps their ore and gives the booster the difference between their mined value and their share. The booster passes the corporation cut on. An owner or admin ticks the line once the ISK is given in game.",
       "ruleCorporationOnly": "Everyone keeps their ore and gives the corporation the difference between their mined value and their share.",
+      "ruleFleetStorage": "The fleet storage recipient owes each depositor their share minus what they kept.",
       "line": "{payer} owes {amount} ISK to {beneficiary}",
       "kind": {
         "booster_cut": "booster and corporation cuts on their mined value",
         "corporation_cut": "corporation cut on their mined value",
-        "collected_corporation_cut": "corporation cut collected by the booster ({percent} % of G)"
+        "collected_corporation_cut": "corporation cut collected by the booster ({percent} % of G)",
+        "fleet_storage_share": "fleet storage: holds the delivered ore, owes their share minus what they kept"
       },
       "corporation": "the corporation",
       "paid": "paid",
@@ -2948,6 +2953,63 @@
         "prices_missing": "No price on the basis: {types}"
       },
       "banner": "Operation completed on {date} EVE · everyone keeps their own. Nothing to settle. Prices and mined values are frozen."
+    },
+    "fleetStorage": {
+      "title": "Fleet storage",
+      "recipient": "Fleet storage recipient",
+      "noRecipient": "None",
+      "container": "Corporation container to check (optional)",
+      "containerHint": "exact container name in game",
+      "delivery": {
+        "none": "Keeps everything",
+        "all": "Delivers everything",
+        "partial": "Delivers part"
+      },
+      "quantity": "{delivered} / {mined} u",
+      "exceedsMined": "more than mined ({mined} u)",
+      "debt": "{recipient} owes them {amount} ISK",
+      "debtDetail": "share {share} − kept value {kept}",
+      "keeps": "keeps their ore",
+      "hold": "Recipient hold",
+      "holdDetail": "own ore {own} + delivered {delivered}",
+      "rule": "Each participant declares whether they deliver their ore to the recipient. The recipient owes each of them their share minus what they kept, and pays the booster cut on all the ore they hold.",
+      "none": "none",
+      "eachForThemselves": "none (everyone keeps their own)",
+      "holder": {
+        "self": "themselves",
+        "recipient": "recipient",
+        "all": "everything delivered",
+        "partial": "delivered: {quantities}"
+      },
+      "totalDepositors": "fleet storage: {count} depositor(s)",
+      "verification": {
+        "title": "Corporation container “{name}”",
+        "assetsReadAt": "corporation assets read at {time}",
+        "line": "{found} / {expected} u",
+        "refresh": "Refresh corporation assets",
+        "status": {
+          "verified": "verified",
+          "short": "{missing} u missing",
+          "unknown": "unknown",
+          "nothing_delivered": "nothing to check"
+        },
+        "reason": {
+          "operation_not_ended": "Checking starts once the operation has ended.",
+          "operation_archived": "Archived operation: the container may have been emptied.",
+          "no_container_name": "No container to check.",
+          "no_corporation": "Operation without a corporation.",
+          "not_corporation_member": "Corporation assets are only shown to corporation members.",
+          "corporation_assets_not_synced": "Corporation assets never synced.",
+          "no_visible_division": "No shared corporation division.",
+          "assets_synced_before_end": "Corporation assets read at {time}, before the operation ended ({end}).",
+          "container_not_found": "No “{name}” container in the shared divisions.",
+          "delivered_quantity_unknown": "Delivered quantity unknown: {names}."
+        },
+        "noEffect": "This check does not block freezing the shares: the debt follows the declaration."
+      }
+    },
+    "rules": {
+      "fleetStorage": "Fleet storage"
     },
     "recap": {
       "title": "Summary",

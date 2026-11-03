@@ -101,4 +101,8 @@ class MiningOperationValuationResource
 
     /** @var list<string>|null */
     public ?array $completionBlockers = null;
+
+    public ?string $fleetStorageRecipientMemberId = null;
+
+    public ?string $fleetStorageRecipientName = null;
 }

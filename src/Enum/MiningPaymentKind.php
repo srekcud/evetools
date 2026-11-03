@@ -9,4 +9,5 @@ enum MiningPaymentKind: string
     case BoosterCut = 'booster_cut';
     case CorporationCut = 'corporation_cut';
     case CollectedCorporationCut = 'collected_corporation_cut';
+    case FleetStorageShare = 'fleet_storage_share';
 }

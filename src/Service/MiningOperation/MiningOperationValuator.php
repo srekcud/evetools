@@ -30,6 +30,7 @@ final readonly class MiningOperationValuator
         private MiningOperationUnitPrices $unitPrices,
         private MiningShareCalculator $shareCalculator,
         private ClockInterface $clock,
+        private MiningFleetStorageCalculator $fleetStorageCalculator = new MiningFleetStorageCalculator(),
     ) {
     }
 

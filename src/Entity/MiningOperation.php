@@ -131,6 +131,10 @@ class MiningOperation
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $archivedByName = null;
 
+    private ?MiningOperationMember $fleetStorageRecipient = null;
+
+    private ?string $fleetStorageContainerName = null;
+
     public function __construct()
     {
         $this->members = new ArrayCollection();
@@ -540,5 +544,19 @@ class MiningOperation
     {
         $successor->setRole(MiningOperationMemberRole::Owner);
         $this->owner = $successor->getUser();
+    }
+
+    public function getFleetStorageRecipient(): ?MiningOperationMember
+    {
+        return $this->fleetStorageRecipient;
+    }
+
+    public function getFleetStorageContainerName(): ?string
+    {
+        return $this->fleetStorageContainerName;
+    }
+
+    public function assignFleetStorage(?MiningOperationMember $recipient, ?string $containerName): void
+    {
     }
 }
