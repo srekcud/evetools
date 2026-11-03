@@ -44,7 +44,7 @@ class GroupProjectProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertCanRead($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $membership = $this->memberRepository->findOneBy([
             'project' => $project,

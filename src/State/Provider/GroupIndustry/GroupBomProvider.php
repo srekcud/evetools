@@ -50,7 +50,7 @@ class GroupBomProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertCanRead($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $bomItems = $this->bomItemRepository->findBy(['project' => $project]);
 

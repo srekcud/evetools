@@ -21,15 +21,6 @@ class GroupProjectAccessChecker
     ) {
     }
 
-    public function assertCanRead(User $user, GroupIndustryProject $project): void
-    {
-        if ($this->isOwnerOrAcceptedMember($user, $project) || $this->isInOwnerCorporation($user, $project)) {
-            return;
-        }
-
-        throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
-    }
-
     /**
      * Verify the user is an accepted member of the project (or the owner).
      *
@@ -88,13 +79,5 @@ class GroupProjectAccessChecker
             'user' => $user,
             'status' => GroupMemberStatus::Accepted,
         ]) !== null;
-    }
-
-    private function isInOwnerCorporation(User $user, GroupIndustryProject $project): bool
-    {
-        $userCorporationId = $user->getCorporationId();
-        $ownerCorporationId = $project->getOwner()->getCorporationId();
-
-        return $userCorporationId !== null && $userCorporationId === $ownerCorporationId;
     }
 }

@@ -49,7 +49,7 @@ class GroupSaleCollectionProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertCanRead($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         $sales = $this->saleRepository->findByProjectForListing($project);
 
