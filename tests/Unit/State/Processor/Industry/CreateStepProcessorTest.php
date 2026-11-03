@@ -77,6 +77,13 @@ final class CreateStepProcessorTest extends TestCase
         );
     }
 
+    public function testStepAddedForATypeIsTheOnlyStepOfTheResponse(): void
+    {
+        $response = $this->post($this->typeEntered(self::HELIUM_FUEL_BLOCK, runs: 5), $this->productRepositoryWith($this->heliumFuelBlockBlueprint()), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[5, 0]], $this->runsAndSplitIndexOfTheResponse($response));
+    }
+
     #[Group('issue-280')]
     public function testStepAddedForAReactedTypeIsMadeByItsReactionFormulaAndCountsItsUnitsPerRun(): void
     {
@@ -286,8 +293,7 @@ final class CreateStepProcessorTest extends TestCase
         self::assertSame([7, 280, 0, 10], $this->runsQuantitySplitIndexAndTotalGroupRunsOf($singleStep));
         self::assertSame([3, 1, 10], [$addedStep->getRuns(), $addedStep->getSplitIndex(), $addedStep->getTotalGroupRuns()]);
         self::assertCount(2, $this->project->getSteps());
-        self::assertIsArray($result);
-        self::assertSame(['newStep' => [3, 1], 'updatedStep' => [7, 0]], array_map($this->runsAndSplitIndexOfResource(...), $result));
+        self::assertSame([[3, 1], [7, 0]], $this->runsAndSplitIndexOfTheResponse($result));
     }
 
     public function testStepAddedToASingleCopyStepCountsOneBlueprintCopyPerRunAndCopiesItsBlueprintProductActivityDepthSortOrderLevelsAndStructure(): void
@@ -350,8 +356,7 @@ final class CreateStepProcessorTest extends TestCase
         );
         self::assertSame([4, 4], [$firstJob->getMeLevel(), $secondJob->getMeLevel()]);
         self::assertCount(4, $this->project->getSteps());
-        self::assertInstanceOf(ProjectStepResource::class, $result);
-        self::assertSame([4, 2], $this->runsAndSplitIndexOfResource($result));
+        self::assertSame([[4, 2]], $this->runsAndSplitIndexOfTheResponse($result));
     }
 
     public function testStepAddedToAnUnknownSplitGroupIsRefusedAsSplitGroupNotFound(): void
@@ -556,9 +561,11 @@ final class CreateStepProcessorTest extends TestCase
         ];
     }
 
-    private function runsAndSplitIndexOfResource(ProjectStepResource $resource): array
+    private function runsAndSplitIndexOfTheResponse(ProjectStepResource|array $response): array
     {
-        return [$resource->runs, $resource->splitIndex];
+        self::assertIsList($response);
+
+        return array_map(static fn (ProjectStepResource $resource): array => [$resource->runs, $resource->splitIndex], $response);
     }
 
     private function ferniteCarbideFormula(): IndustryActivityProduct

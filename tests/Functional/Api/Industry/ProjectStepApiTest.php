@@ -30,21 +30,22 @@ final class ProjectStepApiTest extends WebTestCase
         $this->setUpCarrierProjectWithFuelBlockStep();
     }
 
-    public function testAddingAStepFromTheFuelBlockTypeAnswersTheNewStepAtFortyUnitsPerRun(): void
+    public function testAddingAStepFromTheFuelBlockTypeAnswersAListOfTheNewStepAtFortyUnitsPerRun(): void
     {
         $this->client->loginUser($this->owner, 'api');
         $this->request('POST', $this->projectUri().'/steps', ['typeId' => self::FUEL_BLOCK_TYPE_ID, 'runs' => 3, 'meLevel' => 4, 'teLevel' => 6]);
 
         self::assertResponseStatusCodeSame(201);
+        $newStep = $this->onlyStepOf($this->responseJson());
         self::assertSame(
             [self::FUEL_BLOCK_BLUEPRINT_TYPE_ID, self::FUEL_BLOCK_TYPE_ID, 'Test Fuel Block', 3, 120, 0, 'manufacturing', 2, 4, 6],
-            $this->stepFieldsOf($this->responseJson(), ['blueprintTypeId', 'productTypeId', 'productTypeName', 'runs', 'quantity', 'depth', 'activityType', 'sortOrder', 'meLevel', 'teLevel']),
+            $this->stepFieldsOf($newStep, ['blueprintTypeId', 'productTypeId', 'productTypeName', 'runs', 'quantity', 'depth', 'activityType', 'sortOrder', 'meLevel', 'teLevel']),
         );
-        self::assertSame(['splitGroupId', 'totalGroupRuns'], $this->absentFieldsOf($this->responseJson(), ['splitGroupId', 'totalGroupRuns']));
+        self::assertSame(['splitGroupId', 'totalGroupRuns'], $this->absentFieldsOf($newStep, ['splitGroupId', 'totalGroupRuns']));
         self::assertSame([[6, 240, 0, null, false], [3, 120, 0, null, false]], $this->storedJobsOfProduct(self::FUEL_BLOCK_TYPE_ID));
     }
 
-    public function testAddingAStepFromThePolymerTypeAnswersAReactionAtMeZeroAndTwoHundredUnitsPerRun(): void
+    public function testAddingAStepFromThePolymerTypeAnswersAListOfAReactionAtMeZeroAndTwoHundredUnitsPerRun(): void
     {
         $this->client->loginUser($this->owner, 'api');
         $this->request('POST', $this->projectUri().'/steps', ['typeId' => self::POLYMER_TYPE_ID, 'runs' => 3, 'meLevel' => 4]);
@@ -52,29 +53,30 @@ final class ProjectStepApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertSame(
             [self::POLYMER_FORMULA_TYPE_ID, self::POLYMER_TYPE_ID, 3, 600, 'reaction', 0, 0],
-            $this->stepFieldsOf($this->responseJson(), ['blueprintTypeId', 'productTypeId', 'runs', 'quantity', 'activityType', 'meLevel', 'teLevel']),
+            $this->stepFieldsOf($this->onlyStepOf($this->responseJson()), ['blueprintTypeId', 'productTypeId', 'runs', 'quantity', 'activityType', 'meLevel', 'teLevel']),
         );
         self::assertSame([[3, 600, 0, null, false]], $this->storedJobsOfProduct(self::POLYMER_TYPE_ID));
     }
 
-    public function testAddingAJobToTheFuelBlockStepAnswersTheNewJobAndTheUpdatedStep(): void
+    public function testAddingAJobToTheFuelBlockStepAnswersAListOfTheNewJobThenTheUpdatedStep(): void
     {
         $this->client->loginUser($this->owner, 'api');
         $this->request('POST', $this->projectUri().'/steps', ['stepId' => $this->idOf($this->fuelBlockStep), 'runs' => 2]);
 
         self::assertResponseStatusCodeSame(201);
         $response = $this->responseJson();
-        self::assertSame(['newStep', 'updatedStep'], array_keys($response));
-        self::assertSame([2, 80, 1, 8, true], $this->stepFieldsOf($response['newStep'], ['runs', 'quantity', 'splitIndex', 'totalGroupRuns', 'runsFixed']));
+        self::assertSame([0, 1], array_keys($response));
+        [$newJob, $updatedStep] = $response;
+        self::assertSame([2, 80, 1, 8, true], $this->stepFieldsOf($newJob, ['runs', 'quantity', 'splitIndex', 'totalGroupRuns', 'runsFixed']));
         self::assertSame(
             [$this->idOf($this->fuelBlockStep), 6, 240, 0, 8, true],
-            $this->stepFieldsOf($response['updatedStep'], ['id', 'runs', 'quantity', 'splitIndex', 'totalGroupRuns', 'runsFixed']),
+            $this->stepFieldsOf($updatedStep, ['id', 'runs', 'quantity', 'splitIndex', 'totalGroupRuns', 'runsFixed']),
         );
-        self::assertSame($response['newStep']['splitGroupId'], $response['updatedStep']['splitGroupId']);
+        self::assertSame($newJob['splitGroupId'], $updatedStep['splitGroupId']);
         self::assertSame([[6, 240, 0, 8, true], [2, 80, 1, 8, true]], $this->storedJobsOfProduct(self::FUEL_BLOCK_TYPE_ID));
     }
 
-    public function testAddingAJobToTheFuelBlockSplitGroupAnswersTheNewJobAlone(): void
+    public function testAddingAJobToTheFuelBlockSplitGroupAnswersAListOfTheNewJobAlone(): void
     {
         $this->splitTheFuelBlockStepInTwoJobs();
 
@@ -84,7 +86,7 @@ final class ProjectStepApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertSame(
             [self::FUEL_BLOCK_SPLIT_GROUP_ID, 1, 40, 2, 7, true],
-            $this->stepFieldsOf($this->responseJson(), ['splitGroupId', 'runs', 'quantity', 'splitIndex', 'totalGroupRuns', 'runsFixed']),
+            $this->stepFieldsOf($this->onlyStepOf($this->responseJson()), ['splitGroupId', 'runs', 'quantity', 'splitIndex', 'totalGroupRuns', 'runsFixed']),
         );
         self::assertSame([[4, 160, 0, 7, true], [2, 80, 1, 7, true], [1, 40, 2, 7, true]], $this->storedJobsOfProduct(self::FUEL_BLOCK_TYPE_ID));
     }
@@ -349,6 +351,14 @@ final class ProjectStepApiTest extends WebTestCase
     private function stepFieldsOf(array $step, array $fields): array
     {
         return array_map(static fn (string $field): mixed => $step[$field], $fields);
+    }
+
+    private function onlyStepOf(array $response): array
+    {
+        self::assertIsList($response);
+        self::assertCount(1, $response);
+
+        return $response[0];
     }
 
     private function absentFieldsOf(array $step, array $fields): array

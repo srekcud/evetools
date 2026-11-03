@@ -67,8 +67,7 @@ final class CreateStepProcessorAddedJobTest extends TestCase
             [[2, 400, true, 0, 5], [3, 600, true, 1, 5], [2, 45]],
             [$this->jobValuesOf($ferniteAlloy), $this->jobValuesOf($addedJob), $this->runsAndQuantityOf($hydrogenFuelBlock)],
         );
-        self::assertIsArray($response);
-        self::assertSame(['newStep' => [3, 1], 'updatedStep' => [2, 0]], array_map($this->runsAndSplitIndexOfResource(...), $response));
+        self::assertSame([[3, 1], [2, 0]], $this->runsAndSplitIndexOfTheResponse($response));
     }
 
     public function testJobAddedToTheRootStepIsNotFixedAndItsRunsReachTheMaterialSteps(): void
@@ -93,8 +92,7 @@ final class CreateStepProcessorAddedJobTest extends TestCase
             [[3, 600, true, 0, 9], [2, 400, true, 1, 9], [4, 800, true, 2, 9], [3, 95]],
             [$this->jobValuesOf($firstAlloyJob), $this->jobValuesOf($secondAlloyJob), $this->jobValuesOf($this->addedJob()), $this->runsAndQuantityOf($hydrogenFuelBlock)],
         );
-        self::assertInstanceOf(ProjectStepResource::class, $response);
-        self::assertSame([4, 2], $this->runsAndSplitIndexOfResource($response));
+        self::assertSame([[4, 2]], $this->runsAndSplitIndexOfTheResponse($response));
     }
 
     public function testJobAddedThroughAJobOfASplitGroupJoinsThatGroupInsteadOfSplittingItInTwo(): void
@@ -112,8 +110,7 @@ final class CreateStepProcessorAddedJobTest extends TestCase
             [[3, 600, true, 0, 9], [2, 400, true, 1, 9], [4, 800, true, 2, 9], [3, 95]],
             [$this->jobValuesOf($firstAlloyJob), $this->jobValuesOf($secondAlloyJob), $this->jobValuesOf($addedJob), $this->runsAndQuantityOf($hydrogenFuelBlock)],
         );
-        self::assertIsArray($response);
-        self::assertSame(['newStep' => [4, 2], 'updatedStep' => [3, 0]], array_map($this->runsAndSplitIndexOfResource(...), $response));
+        self::assertSame([[4, 2], [3, 0]], $this->runsAndSplitIndexOfTheResponse($response));
     }
 
     public function testJobsOfASplitGroupReleasedAfterAnAddedJobShareTheNeedAgainWithoutRemovingAnyJob(): void
@@ -207,8 +204,7 @@ final class CreateStepProcessorAddedJobTest extends TestCase
             [[self::FERNITE_ALLOY_SPLIT_GROUP, 0], [self::FERNITE_ALLOY_SPLIT_GROUP, 5], [self::FERNITE_ALLOY_SPLIT_GROUP, 6]],
             array_map(static fn (IndustryProjectStep $job): array => [$job->getSplitGroupId(), $job->getSplitIndex()], [$firstAlloyJob, $lastAlloyJob, $this->addedJob()]),
         );
-        self::assertIsArray($response);
-        self::assertSame(['newStep' => [4, 6], 'updatedStep' => [3, 0]], array_map($this->runsAndSplitIndexOfResource(...), $response));
+        self::assertSame([[4, 6], [3, 0]], $this->runsAndSplitIndexOfTheResponse($response));
     }
 
     public function testJobAddedToASplitGroupLeavesTheJobsOfAnotherSplitGroupUnfixed(): void
@@ -314,9 +310,11 @@ final class CreateStepProcessorAddedJobTest extends TestCase
         return [$step->getRuns(), $step->getQuantity()];
     }
 
-    private function runsAndSplitIndexOfResource(ProjectStepResource $resource): array
+    private function runsAndSplitIndexOfTheResponse(ProjectStepResource|array $response): array
     {
-        return [$resource->runs, $resource->splitIndex];
+        self::assertIsList($response);
+
+        return array_map(static fn (ProjectStepResource $resource): array => [$resource->runs, $resource->splitIndex], $response);
     }
 
     private function entityManagerCountingTheFlushes(): EntityManagerInterface

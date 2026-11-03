@@ -18,6 +18,9 @@ const ADDED_JOB_ID = 'job-fernite-alloy-added'
 const HYDROGEN_FUEL_BLOCK_STEP_ID = 'step-hydrogen-fuel-block'
 const FERNITE_ALLOY_SPLIT_GROUP_ID = 'fernite-alloy'
 const ADDED_RUNS = 4
+const HELIUM_FUEL_BLOCK_STEP_ID = 'step-helium-fuel-block'
+const HELIUM_FUEL_BLOCK_TYPE_ID = 4247
+const HELIUM_FUEL_BLOCK_RUNS = 5
 
 function step(overrides: Partial<IndustryProjectStep> & Pick<IndustryProjectStep, 'id' | 'blueprintTypeId' | 'productTypeId' | 'productTypeName' | 'quantity' | 'runs' | 'depth' | 'activityType'>): IndustryProjectStep {
   return {
@@ -120,6 +123,20 @@ function stepsBeforeTheAddedJob(): IndustryProjectStep[] {
   ]
 }
 
+function heliumFuelBlockStep(): IndustryProjectStep {
+  return step({
+    id: HELIUM_FUEL_BLOCK_STEP_ID,
+    blueprintTypeId: 4312,
+    productTypeId: HELIUM_FUEL_BLOCK_TYPE_ID,
+    productTypeName: 'Helium Fuel Block',
+    quantity: HELIUM_FUEL_BLOCK_RUNS * 40,
+    runs: HELIUM_FUEL_BLOCK_RUNS,
+    depth: 0,
+    activityType: 'manufacturing',
+    sortOrder: 4,
+  })
+}
+
 function addedJob(): IndustryProjectStep {
   return ferniteAlloyJob(ADDED_JOB_ID, 2, ADDED_RUNS, 9, true)
 }
@@ -189,9 +206,9 @@ beforeEach(() => {
 })
 
 describe('steps store after a job is added', () => {
-  it('reloads the project after a job added through a step and returns the new step', async () => {
+  it('reloads the project after a job added through a step answered with the new job then the reference step and returns the new job', async () => {
     useProjectsStore().currentProject = project(PROJECT_ID, stepsBeforeTheAddedJob())
-    serverAnswers({ newStep: addedJob(), updatedStep: ferniteAlloyJob(FERNITE_ALLOY_JOB_IDS[0], 0, 3, 9, true) }, stepsAfterTheAddedJob())
+    serverAnswers([addedJob(), ferniteAlloyJob(FERNITE_ALLOY_JOB_IDS[0], 0, 3, 9, true)], stepsAfterTheAddedJob())
 
     const returnedStep = await useStepsStore().addChildJob(PROJECT_ID, null, FERNITE_ALLOY_JOB_IDS[0], ADDED_RUNS)
 
@@ -206,9 +223,9 @@ describe('steps store after a job is added', () => {
     expect([returnedStep?.id, returnedStep?.runs, returnedStep?.splitIndex]).toEqual([ADDED_JOB_ID, 4, 2])
   })
 
-  it('reloads the project after a job added to a split group and returns the added job', async () => {
+  it('reloads the project after a job added to a split group answered with a list of the added job and returns the added job', async () => {
     useProjectsStore().currentProject = project(PROJECT_ID, stepsBeforeTheAddedJob())
-    serverAnswers(addedJob(), stepsAfterTheAddedJob())
+    serverAnswers([addedJob()], stepsAfterTheAddedJob())
 
     const returnedStep = await useStepsStore().addChildJob(PROJECT_ID, FERNITE_ALLOY_SPLIT_GROUP_ID, null, ADDED_RUNS)
 
@@ -225,7 +242,7 @@ describe('steps store after a job is added', () => {
 
   it('does not reload a project that is not the current one', async () => {
     useProjectsStore().currentProject = project(OTHER_PROJECT_ID, [hydrogenFuelBlockStep(7, 270)])
-    serverAnswers(addedJob(), stepsAfterTheAddedJob())
+    serverAnswers([addedJob()], stepsAfterTheAddedJob())
 
     await useStepsStore().addChildJob(PROJECT_ID, FERNITE_ALLOY_SPLIT_GROUP_ID, null, ADDED_RUNS)
 
@@ -250,5 +267,24 @@ describe('steps store after a job is added', () => {
       [FERNITE_ALLOY_JOB_IDS[1], 2],
       [HYDROGEN_FUEL_BLOCK_STEP_ID, 2],
     ])
+  })
+})
+
+describe('steps store after a step is created from a type', () => {
+  it('adds the new step of a list answer to the current project without reloading it and returns it', async () => {
+    useProjectsStore().currentProject = project(PROJECT_ID, stepsBeforeTheAddedJob())
+    serverAnswers([heliumFuelBlockStep()], stepsAfterTheAddedJob())
+
+    const createdStep = await useStepsStore().createStep(PROJECT_ID, HELIUM_FUEL_BLOCK_TYPE_ID, HELIUM_FUEL_BLOCK_RUNS)
+
+    expect(requestsSent()).toEqual([`POST ${PROJECT_PATH}/steps`])
+    expect(stepsInTheStore().map(([id, runs, quantity]) => [id, runs, quantity])).toEqual([
+      [FERNITE_CARBIDE_STEP_ID, 10, 100000],
+      [FERNITE_ALLOY_JOB_IDS[0], 3, 600],
+      [FERNITE_ALLOY_JOB_IDS[1], 2, 400],
+      [HYDROGEN_FUEL_BLOCK_STEP_ID, 2, 75],
+      [HELIUM_FUEL_BLOCK_STEP_ID, 5, 200],
+    ])
+    expect([createdStep?.id, createdStep?.runs, createdStep?.quantity]).toEqual([HELIUM_FUEL_BLOCK_STEP_ID, 5, 200])
   })
 })
