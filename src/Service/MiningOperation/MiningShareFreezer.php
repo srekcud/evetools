@@ -21,6 +21,8 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final readonly class MiningShareFreezer
 {
+    use LocksMiningOperation;
+
     private const string NOT_CLOSING_MESSAGE = 'Only a closing operation can have its shares frozen';
     private const string EACH_FOR_THEMSELVES_MESSAGE = 'An each-for-themselves operation has no shares';
     private const string QUANTITIES_NOT_KNOWN_MESSAGE = 'Every mined quantity must be known before freezing the shares: %s';
@@ -41,45 +43,49 @@ final readonly class MiningShareFreezer
 
     public function freeze(MiningOperation $operation): void
     {
-        if ($operation->getStatus() !== MiningOperationStatus::Closing) {
-            throw new BadRequestHttpException(self::NOT_CLOSING_MESSAGE);
-        }
+        $this->underLockOf($operation, function () use ($operation): void {
+            if ($operation->getStatus() !== MiningOperationStatus::Closing) {
+                throw new BadRequestHttpException(self::NOT_CLOSING_MESSAGE);
+            }
 
-        $valuation = $this->valuator->value($operation);
-        $blocker = $valuation->freezeBlockers[0] ?? null;
-        if ($blocker !== null) {
-            throw new BadRequestHttpException($this->refusalOf($blocker, $valuation, self::QUANTITIES_NOT_KNOWN_MESSAGE));
-        }
+            $valuation = $this->valuator->value($operation);
+            $blocker = $valuation->freezeBlockers[0] ?? null;
+            if ($blocker !== null) {
+                throw new BadRequestHttpException($this->refusalOf($blocker, $valuation, self::QUANTITIES_NOT_KNOWN_MESSAGE));
+            }
 
-        $minedValues = $this->frozenMinedValuesOf($operation, $valuation);
-        $operation->freezeShares($this->clock->now(), $valuation->pricesSyncedAt, $this->frozenUnitPricesOf($operation, $valuation), $minedValues);
-        $this->planPaymentsOf($operation, $valuation, $minedValues);
-        $this->entityManager->flush();
+            $minedValues = $this->frozenMinedValuesOf($operation, $valuation);
+            $operation->freezeShares($this->clock->now(), $valuation->pricesSyncedAt, $this->frozenUnitPricesOf($operation, $valuation), $minedValues);
+            $this->planPaymentsOf($operation, $valuation, $minedValues);
+            $this->entityManager->flush();
+        });
     }
 
     public function complete(MiningOperation $operation, User $completedBy): void
     {
-        if ($operation->getStatus() !== MiningOperationStatus::Closing) {
-            throw new BadRequestHttpException(self::NOT_CLOSING_FOR_COMPLETION_MESSAGE);
-        }
-        if ($operation->getSplitMode() !== MiningSplitMode::EachForThemselves) {
-            throw new BadRequestHttpException(self::NOT_EACH_FOR_THEMSELVES_MESSAGE);
-        }
+        $this->underLockOf($operation, function () use ($operation, $completedBy): void {
+            if ($operation->getStatus() !== MiningOperationStatus::Closing) {
+                throw new BadRequestHttpException(self::NOT_CLOSING_FOR_COMPLETION_MESSAGE);
+            }
+            if ($operation->getSplitMode() !== MiningSplitMode::EachForThemselves) {
+                throw new BadRequestHttpException(self::NOT_EACH_FOR_THEMSELVES_MESSAGE);
+            }
 
-        $valuation = $this->valuator->value($operation);
-        $blocker = ($valuation->completionBlockers ?? throw new \LogicException('An each-for-themselves operation has completion blockers'))[0] ?? null;
-        if ($blocker !== null) {
-            throw new BadRequestHttpException($this->refusalOf($blocker, $valuation, self::QUANTITIES_NOT_KNOWN_FOR_COMPLETION_MESSAGE));
-        }
+            $valuation = $this->valuator->value($operation);
+            $blocker = ($valuation->completionBlockers ?? throw new \LogicException('An each-for-themselves operation has completion blockers'))[0] ?? null;
+            if ($blocker !== null) {
+                throw new BadRequestHttpException($this->refusalOf($blocker, $valuation, self::QUANTITIES_NOT_KNOWN_FOR_COMPLETION_MESSAGE));
+            }
 
-        $operation->complete(
-            $this->clock->now(),
-            $valuation->pricesSyncedAt,
-            $this->frozenUnitPricesOf($operation, $valuation),
-            $this->frozenMinedValuesOf($operation, $valuation),
-            $completedBy->getMainCharacter()?->getName(),
-        );
-        $this->entityManager->flush();
+            $operation->complete(
+                $this->clock->now(),
+                $valuation->pricesSyncedAt,
+                $this->frozenUnitPricesOf($operation, $valuation),
+                $this->frozenMinedValuesOf($operation, $valuation),
+                $completedBy->getMainCharacter()?->getName(),
+            );
+            $this->entityManager->flush();
+        });
     }
 
     /**
