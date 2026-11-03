@@ -19,4 +19,15 @@ final class MiningOperationAudience
             [...$operation->notifiedUsers(), ...$additionalUsers],
         )));
     }
+
+    /**
+     * @return list<string> ids of the users who take part in the operation: owner and accepted members
+     */
+    public static function participantIdsOf(MiningOperation $operation): array
+    {
+        return array_map(
+            static fn (User $user): string => PersistedUuid::of($user->getId()),
+            $operation->participantUsers(),
+        );
+    }
 }

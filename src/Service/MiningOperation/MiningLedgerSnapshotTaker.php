@@ -160,7 +160,7 @@ final readonly class MiningLedgerSnapshotTaker
      */
     private function audienceOf(MiningLedgerSnapshot $snapshot): array
     {
-        return MiningOperationAudience::userIdsOf($snapshot->getOperationCharacter()->getMember()->getOperation());
+        return MiningOperationAudience::participantIdsOf($snapshot->getOperationCharacter()->getMember()->getOperation());
     }
 
     private function messageAbout(MiningLedgerSnapshot $snapshot): string

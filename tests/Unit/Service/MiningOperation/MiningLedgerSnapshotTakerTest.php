@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Service\MiningOperation;
 
 use App\Entity\MiningLedgerSnapshot;
 use App\Entity\MiningOperation;
+use App\Enum\MiningOperationMemberRole;
+use App\Enum\MiningOperationMemberStatus;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
@@ -61,6 +63,11 @@ final class MiningLedgerSnapshotTakerTest extends TestCase
         $this->clock = new MockClock('2026-11-05T20:00:02+00:00');
     }
 
+    protected function tearDown(): void
+    {
+        $this->logger->cleanLogs();
+    }
+
     public function testStartSnapshotDueIsTakenWithEveryLedgerEntryAndItsProgressIsPublishedToTheAudience(): void
     {
         $this->operation = $this->startedSpodumainOperation();
@@ -106,6 +113,21 @@ final class MiningLedgerSnapshotTakerTest extends TestCase
             ],
             $this->lastPublishedDataOn($this->snapshotTopicOf($this->aria)),
         );
+    }
+
+    public function testPendingMemberDoesNotReceiveTheSnapshotProgressOfTheParticipants(): void
+    {
+        $this->operation = $this->startedSpodumainOperation();
+        $this->addMembership($this->operation, $this->elia, MiningOperationMemberRole::Member, MiningOperationMemberStatus::Pending, ['Elia Varr']);
+        $brannHolt = $this->identify($this->enrolmentOf('Brann Holt')->scheduleStartSnapshot(new \DateTimeImmutable(self::STARTED_AT)));
+
+        $this->takerReading(new PaginatedEsiResponse([
+            $this->ledgerRow('2026-11-05', self::SPODUMAIN, self::S1, 12_000),
+        ], new \DateTimeImmutable('2026-11-05T20:09:40+00:00')))->take($brannHolt);
+
+        $expectedTopics = [$this->snapshotTopicOf($this->aria), $this->snapshotTopicOf($this->brann)];
+        sort($expectedTopics);
+        self::assertSame($expectedTopics, array_keys($this->publishedStatusesByTopic()));
     }
 
     public function testEndSnapshotFirstReadOnlyLearnsItsReadTimeFromTheEsiCacheExpiry(): void

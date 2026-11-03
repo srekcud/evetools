@@ -35,6 +35,28 @@ final class CorrectMinedQuantityInputValidationTest extends TestCase
         );
     }
 
+    public function testQuantityAboveOneBillionUnitsIsRejectedOnTheQuantity(): void
+    {
+        self::assertSame(
+            [[], ['quantity']],
+            [
+                $this->violatedFieldsOf($this->correcting(self::SPODUMAIN, 1_000_000_000)),
+                $this->violatedFieldsOf($this->correcting(self::SPODUMAIN, 1_000_000_001)),
+            ],
+        );
+    }
+
+    public function testTypeIdBeyondTheThirtyTwoBitColumnIsRejectedOnTheTypeId(): void
+    {
+        self::assertSame(
+            [[], ['typeId']],
+            [
+                $this->violatedFieldsOf($this->correcting(2_147_483_647, 20_000)),
+                $this->violatedFieldsOf($this->correcting(2_147_483_648, 20_000)),
+            ],
+        );
+    }
+
     private function correcting(?int $typeId, ?int $quantity): CorrectMinedQuantityInput
     {
         $input = new CorrectMinedQuantityInput();

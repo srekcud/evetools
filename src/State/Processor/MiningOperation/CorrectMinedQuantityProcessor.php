@@ -73,7 +73,7 @@ final readonly class CorrectMinedQuantityProcessor implements ProcessorInterface
         $this->entityManager->flush();
 
         $this->mercurePublisher->publishMiningOperationEvent(
-            MiningOperationAudience::userIdsOf($miningOperation),
+            MiningOperationAudience::participantIdsOf($miningOperation),
             PersistedUuid::of($miningOperation->getId()),
             'quantity_corrected',
             ['operationCharacterId' => PersistedUuid::of($operationCharacter->getId()), 'typeId' => $data->typeId],

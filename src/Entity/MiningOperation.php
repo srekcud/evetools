@@ -303,4 +303,17 @@ class MiningOperation
 
         return array_values($users);
     }
+
+    /**
+     * @return list<User>
+     */
+    public function participantUsers(): array
+    {
+        $users = [spl_object_id($this->owner) => $this->owner];
+        foreach ($this->acceptedMembers() as $member) {
+            $users[spl_object_id($member->getUser())] = $member->getUser();
+        }
+
+        return array_values($users);
+    }
 }
