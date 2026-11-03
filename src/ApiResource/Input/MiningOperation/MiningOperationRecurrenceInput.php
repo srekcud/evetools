@@ -11,5 +11,6 @@ class MiningOperationRecurrenceInput
     #[Assert\Choice(choices: ['weekly', 'chunk'])]
     public string $kind = '';
 
+    #[Assert\Positive]
     public ?int $structureId = null;
 }
