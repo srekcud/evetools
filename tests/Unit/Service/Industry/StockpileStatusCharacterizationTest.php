@@ -389,13 +389,16 @@ final class StockpileStatusCharacterizationTest extends TestCase
         self::assertSame([0, [], 0.0, 'critical', 0.0, 1200.0], [$item['stock'], $item['locations'], $item['percent'], $item['status'], $item['stockValue'], $item['deficitCost']]);
     }
 
-    public function testTargetNotYetPersistedHasNoId(): void
+    public function testNewTargetExposesItsGeneratedId(): void
     {
-        $this->targets[] = (new IndustryStockpileTarget())->setTypeId(38)->setTypeName('Nocxium')->setTargetQuantity(5)->setStage('raw_material');
+        $target = (new IndustryStockpileTarget())->setTypeId(38)->setTypeName('Nocxium')->setTargetQuantity(5)->setStage('raw_material');
+        $this->targets[] = $target;
 
         $status = $this->service->getStockpileStatus($this->pilot);
 
-        self::assertNull($status['stages']['raw_material']['items'][0]['id']);
+        $exposedId = $status['stages']['raw_material']['items'][0]['id'];
+        self::assertMatchesRegularExpression('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', (string) $exposedId);
+        self::assertSame((string) $target->getId(), $exposedId);
     }
 
     public function testBottleneckBlocksEveryFinalProductImportedFromTheSameSource(): void
