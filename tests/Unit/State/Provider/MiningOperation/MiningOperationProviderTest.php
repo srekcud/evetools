@@ -94,6 +94,8 @@ final class MiningOperationProviderTest extends TestCase
                     'corporationCutPercent' => 0,
                     'boosterMemberId' => null,
                     'boosterCharacterName' => null,
+                    'boostShipTypeId' => null,
+                    'mountedCompressorKinds' => [],
                 ],
                 'sharesFrozenAt' => null,
             ],

@@ -668,6 +668,8 @@ final class MiningOperationValuationApiTest extends WebTestCase
             'corporationCutPercent' => 0,
             'boosterMemberId' => null,
             'boosterCharacterName' => null,
+            'boostShipTypeId' => null,
+            'mountedCompressorKinds' => [],
         ], $changes);
     }
 

@@ -105,6 +105,8 @@ final class MiningOperationInvitationProviderTest extends TestCase
                 'boosterCutPercent' => 10,
                 'corporationCutPercent' => 0,
                 'boosterCharacterName' => 'Aria Solberg',
+                'boostShipTypeId' => null,
+                'mountedCompressorKinds' => [],
             ],
             $invitation->valuationSettings,
         );

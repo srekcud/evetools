@@ -60,6 +60,8 @@ const BRANN_PREVIEW: MiningOperationInvitation = {
     boosterCutPercent: 0,
     corporationCutPercent: 0,
     boosterCharacterName: null,
+    boostShipTypeId: null,
+    mountedCompressorKinds: [],
   },
   fleetStorageRecipientName: null,
 }

@@ -1,4 +1,5 @@
 import type {
+  MiningBoostShipOption,
   MiningFleetStorage,
   MiningFleetStorageDeclaration,
   MiningFleetStorageVerification,
@@ -7,7 +8,7 @@ import type {
   MiningOperationValuation,
   MiningPayment,
 } from '@/stores/miningOperation'
-import { ENDED_AT, OPERATION_O, ledger, ledgerCharacter, participant, startedSpodumainOperation } from './miningOperationLedgerFixtures'
+import { BOOST_SHIPS_PATH, ENDED_AT, OPERATION_O, boostShipCatalogue, ledger, ledgerCharacter, participant, startedSpodumainOperation } from './miningOperationLedgerFixtures'
 import { BITUMENS_TYPE_ID, CYRA_BOOSTING_ON_JITA_SELL, FROZEN_AT, VELDSPAR_TYPE_ID, e1Participants, e1Valuation } from './miningOperationValuationFixtures'
 import { payment } from './miningOperationPaymentFixtures'
 
@@ -175,7 +176,8 @@ export function nothingDeliveredVerification(): MiningFleetStorageVerification {
   return verification({ status: 'nothing_delivered', containerName: null, assetsReadAt: null, lines: [] })
 }
 
-export function answerWithoutFleetStorage(endpoint: string): MiningFleetStorage | MiningFleetStorageVerification | undefined {
+export function answerWithoutFleetStorage(endpoint: string): MiningFleetStorage | MiningFleetStorageVerification | MiningBoostShipOption[] | undefined {
+  if (endpoint === BOOST_SHIPS_PATH) return boostShipCatalogue()
   if (endpoint === FLEET_STORAGE_PATH) return fleetStorage()
   if (endpoint === VERIFICATION_PATH) return nothingDeliveredVerification()
   return undefined

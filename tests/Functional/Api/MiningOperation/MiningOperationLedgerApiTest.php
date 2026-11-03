@@ -38,6 +38,7 @@ final class MiningOperationLedgerApiTest extends WebTestCase
 {
     use ClockSensitiveTrait;
     use PersistsMiningOperations;
+    use SeedsBoostShipSde;
 
     private const string SPODUMAIN_LABEL = 'Anomalie Spodumain — 20:00';
     private const string STARTED_AT = '2026-11-05T20:00:00+00:00';
@@ -346,6 +347,135 @@ final class MiningOperationLedgerApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-311')]
+    public function testPorpoiseWithAsteroidAndGasCompressorsCompressesSpodumainOnSiteButNeitherZeolitesNorBlueIce(): void
+    {
+        $this->declaredBoost(self::PORPOISE, ['asteroid', 'gas']);
+        $this->startedByAria();
+        $this->endedWithTheFinalReadingOfBrannHolt([['2026-11-05', self::SPODUMAIN, self::S1, 17_000], ['2026-11-05', self::ZEOLITES, self::S1, 2_000], ['2026-11-05', self::BLUE_ICE, self::S1, 400]]);
+        $this->as($this->brann);
+        $this->request('GET', $this->operationUri() . '/ledger');
+        self::assertSame(
+            [['Blue Ice', 400], ['Spodumain', 5_000], ['Zeolites', 2_000]],
+            array_map(static fn (array $quantity): array => [$quantity['typeName'], $quantity['quantity']], $this->characterOf($this->responseJson(), 'Brann Holt')['quantities'] ?? []),
+        );
+
+        self::assertSame(
+            [
+                'boostShipTypeId' => self::PORPOISE,
+                'boostShipName' => 'Porpoise',
+                'mountedCompressors' => [
+                    ['kind' => 'asteroid', 'typeId' => 62622, 'typeName' => 'Medium Asteroid Ore Compressor I'],
+                    ['kind' => 'gas', 'typeId' => 62624, 'typeName' => 'Medium Gas Compressor I'],
+                ],
+                'types' => [
+                    ['typeId' => self::SPODUMAIN, 'compressible' => true, 'status' => 'on_site'],
+                    ['typeId' => self::BLUE_ICE, 'compressible' => false, 'status' => 'no_hull_compressor'],
+                    ['typeId' => self::ZEOLITES, 'compressible' => false, 'status' => 'no_hull_compressor'],
+                ],
+                'gaps' => ['noHull' => ['ice', 'moon'], 'notMounted' => []],
+            ],
+            $this->compressionReadBy($this->brann),
+        );
+    }
+
+    #[Group('issue-311')]
+    public function testBlueIceIsNotMountedOnTheOrcaWithOnlyAnAsteroidCompressorAndSpodumainWithoutMinedQuantityIsNotListed(): void
+    {
+        $this->declaredBoost(self::ORCA, ['asteroid']);
+        $this->startedByAria();
+        $this->endedWithTheFinalReadingOfBrannHolt([['2026-11-05', self::SPODUMAIN, self::S1, 12_000], ['2026-11-05', self::BLUE_ICE, self::S1, 400]]);
+
+        $compression = $this->compressionReadBy($this->aria);
+
+        self::assertSame(
+            [
+                [['typeId' => self::BLUE_ICE, 'compressible' => false, 'status' => 'not_mounted']],
+                ['noHull' => [], 'notMounted' => ['ice']],
+            ],
+            [$compression['types'] ?? null, $compression['gaps'] ?? null],
+        );
+    }
+
+    #[Group('issue-311')]
+    public function testTypeAbsentFromTheSdeIsUnknownOreKindEvenWithEveryCompressorMountedOnTheOrca(): void
+    {
+        $this->declaredBoost(self::ORCA, ['asteroid', 'gas', 'ice', 'mercoxit', 'moon']);
+        $this->startedByAria();
+        $this->endedWithTheFinalReadingOfBrannHolt([['2026-11-05', self::SPODUMAIN, self::S1, 12_000], ['2026-11-05', self::UNKNOWN_TYPE, self::S1, 700]]);
+
+        $compression = $this->compressionReadBy($this->aria);
+
+        self::assertSame(
+            [
+                [['typeId' => self::UNKNOWN_TYPE, 'compressible' => null, 'status' => 'unknown_ore_kind']],
+                ['noHull' => [], 'notMounted' => []],
+            ],
+            [$compression['types'] ?? null, $compression['gaps'] ?? null],
+        );
+    }
+
+    #[Group('issue-311')]
+    public function testOperationWithoutBoostShipTellsNothingAboutCompression(): void
+    {
+        $this->startedByAria();
+        $this->endedWithTheFinalReadingOfBrannHolt([['2026-11-05', self::SPODUMAIN, self::S1, 17_000]]);
+
+        self::assertSame(
+            [
+                'boostShipTypeId' => null,
+                'boostShipName' => null,
+                'mountedCompressors' => [],
+                'types' => [['typeId' => self::SPODUMAIN, 'compressible' => null, 'status' => 'no_boost_ship']],
+                'gaps' => ['noHull' => [], 'notMounted' => []],
+            ],
+            $this->compressionReadBy($this->brann),
+        );
+    }
+
+    #[Group('issue-311')]
+    public function testBlueIceOfAnOwnerCorrectionCountsAmongTheTypesOfTheOperation(): void
+    {
+        $this->declaredBoost(self::ORCA, ['asteroid']);
+        $this->ledgersByEveCharacterId[$this->eveIdOf('Brann II')] = EsiApiException::fromResponse(403, 'Access forbidden');
+        $this->startedByAria();
+        $this->endedByAriaAt(self::ENDED_AT);
+        $this->as($this->aria);
+        $this->post(sprintf('characters/%s/quantity-corrections', $this->enrolmentIdOf('Brann II')), ['typeId' => self::BLUE_ICE, 'quantity' => 20_000]);
+        self::assertResponseStatusCodeSame(204);
+
+        $compression = $this->compressionReadBy($this->aria);
+
+        self::assertSame(
+            [[['typeId' => self::BLUE_ICE, 'compressible' => false, 'status' => 'not_mounted']], ['noHull' => [], 'notMounted' => ['ice']]],
+            [$compression['types'] ?? null, $compression['gaps'] ?? null],
+        );
+    }
+
+    private function endedWithTheFinalReadingOfBrannHolt(array $rows): void
+    {
+        $this->ledgerOf('Brann Holt', $rows, 'Thu, 05 Nov 2026 21:37:12 GMT');
+        $this->endedByAriaAt(self::ENDED_AT);
+        $this->ledgerOf('Brann Holt', $rows, 'Thu, 05 Nov 2026 21:47:17 GMT');
+        $this->deliverSentSnapshotsAt('2026-11-05T21:37:17+00:00');
+    }
+
+    private function declaredBoost(int $boostShipTypeId, array $mountedCompressorKinds): void
+    {
+        $this->as($this->aria);
+        $this->request('PATCH', $this->operationUri() . '/valuation', ['boostShipTypeId' => $boostShipTypeId, 'mountedCompressorKinds' => $mountedCompressorKinds]);
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    private function compressionReadBy(User $user): array
+    {
+        $this->as($user);
+        $this->request('GET', $this->operationUri() . '/ledger');
+        self::assertResponseStatusCodeSame(200);
+
+        return $this->responseJson()['compression'] ?? [];
+    }
+
     private function startedByAria(): void
     {
         self::mockTime(new \DateTimeImmutable(self::STARTED_AT));
@@ -446,6 +576,7 @@ final class MiningOperationLedgerApiTest extends WebTestCase
         }
         $this->em->persist((new InvType())->setTypeId(self::SPODUMAIN)->setTypeName('Spodumain')->setGroup($spodumainGroup));
         $this->em->persist((new InvType())->setTypeId(self::BISTOT)->setTypeName('Bistot')->setGroup($bistotGroup));
+        $this->seedBoostShipSde($this->em);
     }
 
     private function eveIdOf(string $characterName): int

@@ -91,6 +91,8 @@ final class MiningOperationValuationProviderTest extends TestCase
                     'corporationCutPercent' => 0,
                     'boosterMemberId' => $this->memberIdOf($this->cyra),
                     'boosterCharacterName' => 'Cyra Lune',
+                    'boostShipTypeId' => null,
+                    'mountedCompressorKinds' => [],
                 ],
                 'unitPrices' => [
                     ['typeId' => self::BITUMENS, 'typeName' => 'Bitumens', 'unitPrice' => 221.45],

@@ -15,8 +15,10 @@ use App\Enum\MiningOperationStatus;
 use App\Enum\MiningOperationVisibility;
 use App\Enum\MiningSplitMode;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\MiningOperation\MiningBoostFit;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningPresenceResolver;
+use App\Service\MiningOperation\MountableCompressorCatalog;
 use App\State\Processor\MiningOperation\UpdateMiningOperationValuationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
@@ -73,6 +75,7 @@ final class UpdateMiningOperationValuationProcessorTest extends TestCase
             new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
+            new MiningBoostFit($this->createStub(MountableCompressorCatalog::class)),
         );
     }
 
@@ -314,6 +317,8 @@ final class UpdateMiningOperationValuationProcessorTest extends TestCase
             'corporationCutPercent' => 0,
             'boosterMemberId' => null,
             'boosterCharacterName' => null,
+            'boostShipTypeId' => null,
+            'mountedCompressorKinds' => [],
         ], $changes);
     }
 

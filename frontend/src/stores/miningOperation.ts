@@ -11,6 +11,8 @@ export type MiningCharacterEligibility = 'eligible' | 'reconnect_required' | 'in
 export type MiningValuationForm = 'raw' | 'compressed' | 'reprocessed'
 export type MiningValuationMarket = 'jita' | 'structure'
 export type MiningValuationSide = 'buy' | 'sell'
+export type MiningCompressorKind = 'asteroid' | 'gas' | 'ice' | 'mercoxit' | 'moon'
+export type MiningCompressionStatus = 'on_site' | 'no_hull_compressor' | 'not_mounted' | 'unknown_ore_kind' | 'no_boost_ship'
 export type MiningShareBlocker = 'not_closing' | 'each_for_themselves' | 'quantities_not_known' | 'prices_missing' | 'booster_missing' | 'fleet_storage_recipient_missing' | 'fleet_storage_exceeds_mined'
 
 export interface MiningValuationSettings {
@@ -24,6 +26,22 @@ export interface MiningValuationSettings {
   corporationCutPercent: number
   boosterMemberId: string | null
   boosterCharacterName: string | null
+  boostShipTypeId: number | null
+  mountedCompressorKinds: MiningCompressorKind[]
+}
+
+export interface MiningBoostShipOption {
+  typeId: number
+  name: string
+  compressors: { kind: MiningCompressorKind; typeId: number; name: string }[]
+}
+
+export interface MiningCompression {
+  boostShipTypeId: number | null
+  boostShipName: string | null
+  mountedCompressors: { kind: MiningCompressorKind; typeId: number; typeName: string }[]
+  types: { typeId: number; compressible: boolean | null; status: MiningCompressionStatus }[]
+  gaps: { noHull: MiningCompressorKind[]; notMounted: MiningCompressorKind[] }
 }
 
 export type MiningInvitationValuationSettings = Omit<MiningValuationSettings, 'boosterMemberId'>
@@ -239,6 +257,7 @@ export interface MiningOperationLedger {
   endSnapshotsSettled: number
   endSnapshotsTotal: number
   participants: MiningLedgerParticipant[]
+  compression: MiningCompression
 }
 
 export interface MiningOperationInvitationCharacter {
@@ -352,6 +371,8 @@ export interface CreateMiningOperationInput {
   splitMode: MiningSplitMode
   characterIds: string[]
   recurrence?: MiningOperationRecurrenceInput
+  boostShipTypeId?: number | null
+  mountedCompressorKinds?: MiningCompressorKind[]
 }
 
 export interface UpdateMiningOperationMemberInput {

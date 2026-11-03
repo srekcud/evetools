@@ -62,6 +62,8 @@ const SPODUMAIN: MiningOperation = {
     corporationCutPercent: 0,
     boosterMemberId: null,
     boosterCharacterName: null,
+    boostShipTypeId: null,
+    mountedCompressorKinds: [],
   },
   sharesFrozenAt: null,
   archivedAt: null,
@@ -99,6 +101,7 @@ const PLANNED_LEDGER: MiningOperationLedger = {
   endSnapshotsSettled: 0,
   endSnapshotsTotal: 0,
   participants: [],
+  compression: { boostShipTypeId: null, boostShipName: null, mountedCompressors: [], types: [], gaps: { noHull: [], notMounted: [] } },
 }
 
 const events = reactive<Record<string, MiningOperationEvent | null>>({})

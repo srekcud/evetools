@@ -44,6 +44,8 @@ const SPODUMAIN: MiningOperation = {
     corporationCutPercent: 0,
     boosterMemberId: null,
     boosterCharacterName: null,
+    boostShipTypeId: null,
+    mountedCompressorKinds: [],
   },
   sharesFrozenAt: null,
   archivedAt: null,
@@ -80,6 +82,8 @@ const BRANN_INVITATION: MiningOperationInvitation = {
     boosterCutPercent: 0,
     corporationCutPercent: 0,
     boosterCharacterName: null,
+    boostShipTypeId: null,
+    mountedCompressorKinds: [],
   },
   fleetStorageRecipientName: null,
 }
