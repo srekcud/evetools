@@ -80,6 +80,8 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    App\Service\MiningOperation\MountableCompressorCatalog: '@App\Service\MiningOperation\SdeMountableCompressorCatalog'
+
     # Industry engine: SDE adapters of the Domain ports (ADR-0009)
     App\Industry\Domain\BlueprintCatalog: '@App\Industry\Infrastructure\Sde\SdeBlueprintCatalog'
     App\Industry\Application\InventionCatalog: '@App\Industry\Infrastructure\Sde\SdeInventionCatalog'

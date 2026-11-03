@@ -232,7 +232,10 @@ final class MiningOperationBoostShipApiTest extends WebTestCase
 
     private function boostOf(array $settings): array
     {
-        return [$settings['boostShipTypeId'] ?? 'missing', $settings['mountedCompressorKinds'] ?? 'missing'];
+        return [
+            array_key_exists('boostShipTypeId', $settings) ? $settings['boostShipTypeId'] : 'missing',
+            array_key_exists('mountedCompressorKinds', $settings) ? $settings['mountedCompressorKinds'] : 'missing',
+        ];
     }
 
     private function valuationUri(): string

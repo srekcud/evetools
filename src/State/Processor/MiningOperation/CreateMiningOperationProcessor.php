@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Input\MiningOperation\CreateMiningOperationInput;
 use App\ApiResource\MiningOperation\MiningOperationResource;
+use App\Service\MiningOperation\MiningBoostFit;
 use App\Service\MiningOperation\MiningOperationEnrolment;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -22,6 +23,7 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
         private Security $security,
         private MiningOperationEnrolment $enrolment,
         private MiningOperationResourceMapper $mapper,
+        private MiningBoostFit $boostFit,
     ) {
     }
 
@@ -30,6 +32,11 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
         $user = MiningOperationRequest::userOf($this->security);
 
         \assert($data instanceof CreateMiningOperationInput);
+
+        $boostShip = $data->declaredBoostShip();
+        if (null !== $boostShip) {
+            $this->boostFit->assertMountable($boostShip, $data->declaredCompressorKinds());
+        }
 
         $miningOperation = $this->enrolment->create($user, $data);
 

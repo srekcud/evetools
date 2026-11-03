@@ -195,6 +195,27 @@ class InvTypeRepository extends ServiceEntityRepository
         return $skills;
     }
 
+    /**
+     * @return list<array{typeId: int, typeName: string, shipTypeId: int, kindListTypeId: int}>
+     */
+    public function findCompressorsWithFit(int $compressorsGroupId, int $canFitShipAttributeId, int $kindListAttributeId): array
+    {
+        /** @var list<array{typeId: int, typeName: string, shipTypeId: int, kindListTypeId: int}> $compressors */
+        $compressors = $this->createQueryBuilder('compressor')
+            ->select('compressor.typeId AS typeId', 'compressor.typeName AS typeName', 'fit.valueInt AS shipTypeId', 'kindList.valueInt AS kindListTypeId')
+            ->innerJoin(DgmTypeAttribute::class, 'fit', 'WITH', 'fit.typeId = compressor.typeId AND fit.attributeId = :canFitShipAttributeId')
+            ->innerJoin(DgmTypeAttribute::class, 'kindList', 'WITH', 'kindList.typeId = compressor.typeId AND kindList.attributeId = :kindListAttributeId')
+            ->where('IDENTITY(compressor.group) = :compressorsGroupId')
+            ->setParameter('compressorsGroupId', $compressorsGroupId)
+            ->setParameter('canFitShipAttributeId', $canFitShipAttributeId)
+            ->setParameter('kindListAttributeId', $kindListAttributeId)
+            ->orderBy('compressor.typeId', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        return $compressors;
+    }
+
     private function mineableCandidatesQuery(QueryBuilder $queryBuilder, string $typeAlias): QueryBuilder
     {
         return $this->asteroidCategoryOrGroupQuery($queryBuilder, $typeAlias, self::HARVESTABLE_CLOUD_GROUP_ID)

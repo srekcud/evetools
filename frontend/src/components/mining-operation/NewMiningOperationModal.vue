@@ -3,6 +3,7 @@ import { computed, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import MiningBoostFitField, { type MiningBoostFit } from '@/components/mining-operation/MiningBoostFitField.vue'
 import MiningCharacterPicker, { type PickableCharacter } from '@/components/mining-operation/MiningCharacterPicker.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
 import { useCorporationMiningExtractions } from '@/composables/useCorporationMiningExtractions'
@@ -47,6 +48,7 @@ const label = ref('')
 const startInput = ref(nextFullHourAsEveInput(new Date()))
 const visibility = ref<MiningOperationVisibility>('private')
 const splitMode = ref<MiningSplitMode>('value_prorata')
+const boostFit = ref<MiningBoostFit>({ boostShipTypeId: null, mountedCompressorKinds: [] })
 const tickedCharacterIds = ref<string[]>([])
 const submitting = ref(false)
 const failure = ref<string | null>(null)
@@ -111,6 +113,7 @@ function resetForm(): void {
   startInput.value = nextFullHourAsEveInput(new Date())
   visibility.value = hasKnownCorporation.value ? 'corporation' : 'private'
   splitMode.value = 'value_prorata'
+  boostFit.value = { boostShipTypeId: null, mountedCompressorKinds: [] }
   tickedCharacterIds.value = pickableCharacters.value.filter(character => character.isMain && character.eligibility === 'eligible').map(character => character.id)
   recurrenceChoice.value = 'once'
   recurrenceStructureId.value = null
@@ -129,6 +132,8 @@ async function submit(): Promise<void> {
       splitMode: splitMode.value,
       characterIds: tickedCharacterIds.value,
       ...(recurrenceInput.value === undefined ? {} : { recurrence: recurrenceInput.value }),
+      boostShipTypeId: boostFit.value.boostShipTypeId,
+      mountedCompressorKinds: boostFit.value.mountedCompressorKinds,
     })
     step.value = 'created'
   } catch (cause) {
@@ -202,6 +207,8 @@ watch(() => props.show, (show) => {
         </div>
         <p class="mt-1 text-xs text-slate-400">{{ t(`miningOperation.splitMode.hint.${splitMode}`) }}</p>
       </fieldset>
+
+      <MiningBoostFitField v-model="boostFit" />
 
       <fieldset>
         <legend class="mb-1 text-sm font-medium text-slate-300">{{ t('miningOperation.recurrence.field.legend') }}</legend>

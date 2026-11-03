@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
-use App\State\Provider\MiningOperation\MiningOperationLedgerProvider;
+use App\State\Provider\MiningOperation\MiningOperationLedgerCompressionProvider;
 
 #[ApiResource(
     shortName: 'MiningOperationLedger',
@@ -19,7 +19,7 @@ use App\State\Provider\MiningOperation\MiningOperationLedgerProvider;
             uriVariables: [
                 'operationId' => new Link(fromClass: MiningOperationResource::class),
             ],
-            provider: MiningOperationLedgerProvider::class,
+            provider: MiningOperationLedgerCompressionProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get the ledger of a mining operation',
                 description: 'Returns the ledger snapshots and mined quantities by participant, character and type (participants only)',
@@ -54,4 +54,7 @@ class MiningOperationLedgerResource
 
     /** @var list<array<string, mixed>> */
     public array $participants = [];
+
+    /** @var array<string, mixed> */
+    public array $compression = [];
 }

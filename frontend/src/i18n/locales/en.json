@@ -2819,6 +2819,31 @@
       "corrected": "corrected",
       "trace": "{author}, {time} · measured: {value}"
     },
+    "boostFit": {
+      "label": "Boost ship and compressors",
+      "notDeclared": "Not declared",
+      "kind": {
+        "asteroid": "Asteroid ore",
+        "gas": "Gas",
+        "ice": "Ice",
+        "mercoxit": "Mercoxit",
+        "moon": "Moon ore"
+      },
+      "badge": {
+        "onSite": "on site",
+        "none": "none",
+        "unknown": "unknown"
+      },
+      "badgeHint": {
+        "on_site": "Compressible on site by a mounted compressor",
+        "no_hull_compressor": "No compressor of this kind exists for this hull",
+        "not_mounted": "The hull can mount it, but no such compressor is declared as mounted",
+        "unknown_ore_kind": "Ore kind unknown: not compressible as far as the SDE tells"
+      },
+      "noHullBanner": "The {ship} cannot compress {kinds}: gross volume to haul.",
+      "notMountedBanner": "No compressor mounted for {kinds}: gross volume to haul.",
+      "sharesUnchanged": "The value of the shares does not change: one raw unit counts as one compressed unit."
+    },
     "stockpileCoverage": {
       "title": "Your Stockpile",
       "intro": "Share of the deficit of each mineral in your Stockpile that this operation covers, from your own mined ore reprocessed at your yield.",

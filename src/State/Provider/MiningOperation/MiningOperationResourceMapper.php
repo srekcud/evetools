@@ -16,6 +16,7 @@ use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
 use App\Entity\MiningPayment;
 use App\Entity\User;
+use App\Enum\MiningCompressorKind;
 use App\Enum\MiningShareBlocker;
 use App\Enum\MiningSplitMode;
 use App\Service\MiningOperation\CharacterEligibility;
@@ -157,6 +158,11 @@ final readonly class MiningOperationResourceMapper
             'corporationCutPercent' => $operation->getCorporationCutPercent(),
             'boosterMemberId' => $boosterMember === null ? null : PersistedUuid::of($boosterMember->getId()),
             'boosterCharacterName' => $boosterMember?->getUser()->getMainCharacter()?->getName(),
+            'boostShipTypeId' => $operation->getBoostShip()?->value,
+            'mountedCompressorKinds' => array_map(
+                static fn (MiningCompressorKind $kind): string => $kind->value,
+                $operation->getMountedCompressorKinds(),
+            ),
         ];
     }
 

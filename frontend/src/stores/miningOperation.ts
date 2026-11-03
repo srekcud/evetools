@@ -393,6 +393,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const recurrences = ref<MiningOperationRecurrence[]>([])
   const fleetStorage = ref<MiningFleetStorage | null>(null)
   const fleetStorageVerification = ref<MiningFleetStorageVerification | null>(null)
+  const boostShips = ref<MiningBoostShipOption[]>([])
   const error = ref<string | null>(null)
 
   function messageOf(cause: unknown, fallback: string): string {
@@ -747,6 +748,15 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
+  async function fetchBoostShips(): Promise<void> {
+    error.value = null
+    try {
+      boostShips.value = await apiRequest<MiningBoostShipOption[]>('/mining-boost-ships')
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the boost ships')
+    }
+  }
+
   async function refreshCorporationAssets(): Promise<void> {
     error.value = null
     try {
@@ -772,6 +782,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     archivedOperations,
     fleetStorage,
     fleetStorageVerification,
+    boostShips,
     error,
     fetchMine,
     fetchAvailable,
@@ -807,6 +818,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     updateFleetStorage,
     declareFleetStorage,
     fetchFleetStorageVerification,
+    fetchBoostShips,
     refreshCorporationAssets,
   }
 })

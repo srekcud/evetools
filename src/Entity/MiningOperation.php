@@ -6,6 +6,8 @@ namespace App\Entity;
 
 use App\Entity\Sde\MapSolarSystem;
 use App\Enum\MarketSide;
+use App\Enum\MiningBoostShip;
+use App\Enum\MiningCompressorKind;
 use App\Enum\MiningFleetStorageDelivery;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
@@ -146,6 +148,12 @@ class MiningOperation
     #[ORM\ManyToOne(targetEntity: CorporationMiningExtraction::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?CorporationMiningExtraction $chunk = null;
+    #[ORM\Column(name: 'boost_ship_type_id', type: 'integer', nullable: true, enumType: MiningBoostShip::class)]
+    private ?MiningBoostShip $boostShip = null;
+
+    /** @var list<string> */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $mountedCompressorKinds = [];
 
     public function __construct()
     {
@@ -437,6 +445,9 @@ class MiningOperation
         return $this->boosterMember;
     }
 
+    /**
+     * @param list<MiningCompressorKind> $mountedCompressorKinds
+     */
     public function updateValuationSettings(
         MiningValuationForm $valuationForm = MiningValuationForm::Compressed,
         MiningValuationMarket $valuationMarket = MiningValuationMarket::Jita,
@@ -447,6 +458,8 @@ class MiningOperation
         int $boosterCutPercent = 0,
         int $corporationCutPercent = 0,
         ?MiningOperationMember $boosterMember = null,
+        ?MiningBoostShip $boostShip = null,
+        array $mountedCompressorKinds = [],
     ): void {
         $onStructure = $valuationMarket === MiningValuationMarket::Structure;
 
@@ -459,6 +472,34 @@ class MiningOperation
         $this->boosterCutPercent = $boosterCutPercent;
         $this->corporationCutPercent = $corporationCutPercent;
         $this->boosterMember = $boosterMember;
+        $this->declareBoostFit($boostShip, $mountedCompressorKinds);
+    }
+
+    /**
+     * @param list<MiningCompressorKind> $mountedCompressorKinds
+     */
+    public function declareBoostFit(?MiningBoostShip $boostShip, array $mountedCompressorKinds): static
+    {
+        $this->boostShip = $boostShip;
+        $this->mountedCompressorKinds = null === $boostShip ? [] : array_map(
+            static fn (MiningCompressorKind $kind): string => $kind->value,
+            $mountedCompressorKinds,
+        );
+
+        return $this;
+    }
+
+    public function getBoostShip(): ?MiningBoostShip
+    {
+        return $this->boostShip;
+    }
+
+    /**
+     * @return list<MiningCompressorKind>
+     */
+    public function getMountedCompressorKinds(): array
+    {
+        return array_map(MiningCompressorKind::from(...), $this->mountedCompressorKinds);
     }
 
     /**

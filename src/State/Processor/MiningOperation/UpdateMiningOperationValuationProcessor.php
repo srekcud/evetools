@@ -6,11 +6,14 @@ namespace App\State\Processor\MiningOperation;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
+use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\Input\MiningOperation\UpdateMiningOperationValuationInput;
 use App\ApiResource\MiningOperation\MiningOperationValuationResource;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
 use App\Enum\MarketSide;
+use App\Enum\MiningBoostShip;
+use App\Enum\MiningCompressorKind;
 use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningSplitMode;
 use App\Enum\MiningValuationForm;
@@ -18,6 +21,7 @@ use App\Enum\MiningValuationMarket;
 use App\Repository\MiningOperationMemberRepository;
 use App\Repository\MiningOperationRepository;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\MiningOperation\MiningBoostFit;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationAudience;
 use App\Service\MiningOperation\MiningOperationRequest;
@@ -28,6 +32,8 @@ use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\Validator\ConstraintViolation;
+use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -47,6 +53,7 @@ final readonly class UpdateMiningOperationValuationProcessor implements Processo
         private MiningOperationResourceMapper $mapper,
         private EntityManagerInterface $entityManager,
         private MercurePublisherService $mercurePublisher,
+        private MiningBoostFit $boostFit,
     ) {
     }
 
@@ -74,9 +81,18 @@ final readonly class UpdateMiningOperationValuationProcessor implements Processo
         $corporationCutPercent = $data->corporationCutPercent ?? $miningOperation->getCorporationCutPercent();
         $boosterMember = $this->isProvided($data, 'boosterMemberId') ? $this->memberChosenAs($data->boosterMemberId, $miningOperation) : $miningOperation->getBoosterMember();
 
+        $boostShipProvided = $this->isProvided($data, 'boostShipTypeId');
+        $boostShip = $boostShipProvided ? $this->boostShipChosenAs($data->boostShipTypeId) : $miningOperation->getBoostShip();
+        $compressorKinds = match (true) {
+            $this->isProvided($data, 'mountedCompressorKinds') => $this->compressorKindsChosenAs($data->mountedCompressorKinds),
+            $boostShipProvided => [],
+            default => $miningOperation->getMountedCompressorKinds(),
+        };
+        $this->assertBoostFitConsistent($boostShip, $compressorKinds);
+
         $this->assertConsistent($miningOperation, $form, $market, $structureId, $structureName, $reprocessYield, $boosterCutPercent, $corporationCutPercent, $boosterMember);
 
-        $miningOperation->updateValuationSettings($form, $market, $side, $structureId, $structureName, $reprocessYield, $boosterCutPercent, $corporationCutPercent, $boosterMember);
+        $miningOperation->updateValuationSettings($form, $market, $side, $structureId, $structureName, $reprocessYield, $boosterCutPercent, $corporationCutPercent, $boosterMember, $boostShip, $compressorKinds);
         $this->entityManager->flush();
 
         $this->mercurePublisher->publishMiningOperationEvent(
@@ -98,6 +114,41 @@ final readonly class UpdateMiningOperationValuationProcessor implements Processo
     private function isProvided(UpdateMiningOperationValuationInput $input, string $field): bool
     {
         return (new \ReflectionProperty($input, $field))->isInitialized($input);
+    }
+
+    private function boostShipChosenAs(?int $boostShipTypeId): ?MiningBoostShip
+    {
+        return null === $boostShipTypeId ? null : MiningBoostShip::from($boostShipTypeId);
+    }
+
+    /**
+     * @param list<string> $kindValues
+     *
+     * @return list<MiningCompressorKind>
+     */
+    private function compressorKindsChosenAs(array $kindValues): array
+    {
+        return array_map(MiningCompressorKind::from(...), $kindValues);
+    }
+
+    /**
+     * @param list<MiningCompressorKind> $compressorKinds
+     */
+    private function assertBoostFitConsistent(?MiningBoostShip $boostShip, array $compressorKinds): void
+    {
+        if (null === $boostShip) {
+            if ([] !== $compressorKinds) {
+                $message = 'Compressors can only be mounted on a declared boost ship';
+
+                throw new ValidationException(new ConstraintViolationList([
+                    new ConstraintViolation($message, $message, [], $compressorKinds, 'mountedCompressorKinds', $compressorKinds),
+                ]));
+            }
+
+            return;
+        }
+
+        $this->boostFit->assertMountable($boostShip, $compressorKinds);
     }
 
     private function memberChosenAs(?string $memberId, MiningOperation $miningOperation): ?MiningOperationMember

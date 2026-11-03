@@ -53,6 +53,7 @@ final readonly class MiningOperationEnrolment
             $corporationId,
             $characters,
         );
+        $operation->declareBoostFit($input->declaredBoostShip(), $input->declaredCompressorKinds());
 
         if ($input->recurrence !== null) {
             $recurrence = $this->recurrenceOf($operation, $input->recurrence->kind, $input->recurrence->structureId);

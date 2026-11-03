@@ -2819,6 +2819,31 @@
       "corrected": "corrigé",
       "trace": "{author}, {time} · mesuré : {value}"
     },
+    "boostFit": {
+      "label": "Vaisseau de boost et compresseurs",
+      "notDeclared": "Non déclaré",
+      "kind": {
+        "asteroid": "Minerai d'astéroïde",
+        "gas": "Gaz",
+        "ice": "Glace",
+        "mercoxit": "Mercoxit",
+        "moon": "Minerai lunaire"
+      },
+      "badge": {
+        "onSite": "sur place",
+        "none": "aucun",
+        "unknown": "inconnu"
+      },
+      "badgeHint": {
+        "on_site": "Compressible sur place par un compresseur monté",
+        "no_hull_compressor": "Aucun compresseur de ce genre n'existe pour cette coque",
+        "not_mounted": "La coque peut le monter, mais aucun compresseur de ce genre n'est déclaré monté",
+        "unknown_ore_kind": "Genre de minerai inconnu : non compressible d'après le SDE"
+      },
+      "noHullBanner": "Le {ship} ne peut pas compresser {kinds} : volume brut à transporter.",
+      "notMountedBanner": "Aucun compresseur monté pour {kinds} : volume brut à transporter.",
+      "sharesUnchanged": "La valeur des parts ne change pas : une unité brute compte comme une unité compressée."
+    },
     "stockpileCoverage": {
       "title": "Ton Stockpile",
       "intro": "Part du déficit de chaque minéral de ton Stockpile que cette opération couvre, avec ton minerai miné retraité à ton rendement.",

@@ -6,6 +6,7 @@ namespace App\Service\MiningOperation;
 
 use App\Enum\MiningBoostShip;
 use App\Enum\MiningCompressorKind;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final readonly class MiningBoostFit
 {
@@ -18,6 +19,15 @@ final readonly class MiningBoostFit
      */
     public function assertMountable(MiningBoostShip $ship, array $kinds): void
     {
-        throw new \LogicException('not implemented');
+        if ([] === $kinds) {
+            return;
+        }
+
+        $mountable = $this->catalog->kindsMountableOn($ship);
+        foreach ($kinds as $kind) {
+            if (!in_array($kind, $mountable, true)) {
+                throw new BadRequestHttpException(sprintf('The %s compressor cannot be mounted on a %s', $kind->value, $ship->name));
+            }
+        }
     }
 }

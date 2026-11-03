@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\MiningOperation;
 
+use App\Enum\MiningBoostShip;
+use App\Enum\MiningCompressorKind;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 class UpdateMiningOperationValuationInput
 {
@@ -35,4 +38,26 @@ class UpdateMiningOperationValuationInput
 
     #[Assert\Uuid]
     public ?string $boosterMemberId;
+
+    #[Assert\Choice(callback: [MiningBoostShip::class, 'values'])]
+    public ?int $boostShipTypeId;
+
+    /** @var list<string> */
+    #[Assert\Unique]
+    #[Assert\All([new Assert\Choice(callback: [MiningCompressorKind::class, 'values'])])]
+    public array $mountedCompressorKinds;
+
+    #[Assert\Callback]
+    public function validateMountedCompressorKinds(ExecutionContextInterface $context): void
+    {
+        $boostShipProvided = (new \ReflectionProperty($this, 'boostShipTypeId'))->isInitialized($this);
+        $kindsProvided = (new \ReflectionProperty($this, 'mountedCompressorKinds'))->isInitialized($this);
+
+        if ($boostShipProvided && null !== $this->boostShipTypeId && !$kindsProvided) {
+            $context->buildViolation('The mounted compressors are required with a boost ship')->atPath('mountedCompressorKinds')->addViolation();
+        }
+        if ($boostShipProvided && null === $this->boostShipTypeId && $kindsProvided && [] !== $this->mountedCompressorKinds) {
+            $context->buildViolation('Compressors can only be mounted on a declared boost ship')->atPath('mountedCompressorKinds')->addViolation();
+        }
+    }
 }

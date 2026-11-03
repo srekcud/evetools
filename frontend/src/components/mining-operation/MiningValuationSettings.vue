@@ -2,6 +2,7 @@
 import { computed, reactive, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import MiningBoostFitField, { type MiningBoostFit } from '@/components/mining-operation/MiningBoostFitField.vue'
 import { useReprocessingProfile } from '@/composables/useReprocessingProfile'
 import { authFetch, safeJsonParse } from '@/services/api'
 import type {
@@ -54,6 +55,8 @@ const form = reactive({
   boosterCutPercent: props.settings.boosterCutPercent,
   corporationCutPercent: props.settings.corporationCutPercent,
   boosterMemberId: props.settings.boosterMemberId,
+  boostShipTypeId: props.settings.boostShipTypeId,
+  mountedCompressorKinds: [...props.settings.mountedCompressorKinds],
 })
 const yieldText = ref('')
 const yieldEdited = ref(false)
@@ -99,7 +102,18 @@ const patch = computed<UpdateMiningValuationInput>(() => {
   if (form.boosterCutPercent !== current.boosterCutPercent) changes.boosterCutPercent = form.boosterCutPercent
   if (form.corporationCutPercent !== current.corporationCutPercent) changes.corporationCutPercent = form.corporationCutPercent
   if (form.boosterMemberId !== current.boosterMemberId) changes.boosterMemberId = form.boosterMemberId
+  if (form.boostShipTypeId !== current.boostShipTypeId || form.mountedCompressorKinds.join() !== current.mountedCompressorKinds.join()) {
+    changes.boostShipTypeId = form.boostShipTypeId
+    changes.mountedCompressorKinds = form.mountedCompressorKinds
+  }
   return changes
+})
+const boostFit = computed<MiningBoostFit>({
+  get: () => ({ boostShipTypeId: form.boostShipTypeId, mountedCompressorKinds: form.mountedCompressorKinds }),
+  set: (fit) => {
+    form.boostShipTypeId = fit.boostShipTypeId
+    form.mountedCompressorKinds = fit.mountedCompressorKinds
+  },
 })
 const complete = computed(() => {
   if (form.valuationMarket === 'structure' && (form.structureId === null || form.structureName === null)) return false
@@ -119,6 +133,8 @@ function resetFromSettings(): void {
     boosterCutPercent: props.settings.boosterCutPercent,
     corporationCutPercent: props.settings.corporationCutPercent,
     boosterMemberId: props.settings.boosterMemberId,
+    boostShipTypeId: props.settings.boostShipTypeId,
+    mountedCompressorKinds: [...props.settings.mountedCompressorKinds],
   })
   yieldEdited.value = false
 }
@@ -226,6 +242,8 @@ watch(structureQuery, (query) => {
         </label>
       </div>
     </fieldset>
+
+    <MiningBoostFitField v-model="boostFit" :disabled="!editable" />
 
     <div v-if="form.valuationForm === 'reprocessed'" class="space-y-1">
       <label :for="ids.yield" class="block text-xs uppercase tracking-wider text-slate-400">{{ t('miningOperation.valuation.yield') }}</label>
