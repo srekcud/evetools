@@ -12,6 +12,7 @@ Le repo est **public**. Vérifie :
   - les divisions d'assets corpo visibles aux membres sont limitées à celles choisies par le Director ;
   - un projet collaboratif n'est accessible qu'à ses membres approuvés.
 - **Identifiants** : accès par identifiant prévisible sans contrôle d'appartenance (IDOR).
+- **Défaut d'accès recopié** : un contrôle absent qu'un nouveau provider ou processor reprend du code existant (ex. `structureId` lu dans le cache de marché sans vérifier que l'utilisateur la suit) est un constat « à corriger » du lot, pas « inchangé » ; liste les providers qui partagent le défaut.
 - **Rôles** : une action réservée (owner, admin, director) est vérifiée côté serveur, pas seulement masquée côté frontend.
 - **Secrets** : aucun secret, token, clé ou mot de passe en dur, dans les logs, les exceptions, les fixtures ou les fichiers versionnés. Les tokens ESI sont chiffrés au repos.
 - **Données personnelles** : RGPD (export et suppression), aucune donnée inutile conservée.
