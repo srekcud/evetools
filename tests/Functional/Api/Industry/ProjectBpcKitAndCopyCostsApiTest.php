@@ -92,8 +92,8 @@ final class ProjectBpcKitAndCopyCostsApiTest extends WebTestCase
         );
     }
 
-    #[Group('issue-206')]
-    public function testBpcKitCurrentlyReadsADesiredBpcCountOfZeroAsOneCopyIssue206(): void
+    #[Group('issue-331')]
+    public function testBpcKitCurrentlyReadsADesiredBpcCountOfZeroAsOneCopyIssue331(): void
     {
         $this->seedCarrierInventionFromTheT1CarrierBlueprint();
         $this->seedInventionPricesAndCostIndices();
@@ -115,6 +115,7 @@ final class ProjectBpcKitAndCopyCostsApiTest extends WebTestCase
         $this->request('GET', $this->projectUri().'/bpc-kit?desired_bpc_count=abc');
 
         self::assertResponseStatusCodeSame(400);
+        self::assertSame([400, 'Input value "desired_bpc_count" is invalid and flag "FILTER_NULL_ON_FAILURE" was not set.'], $this->errorDetail());
     }
 
     public function testCopyCostsChargeTheSixRunsOfTheFuelBlockBlueprintCopyInJita(): void
@@ -136,8 +137,8 @@ final class ProjectBpcKitAndCopyCostsApiTest extends WebTestCase
         self::assertSame([], $this->esiRequests);
     }
 
-    #[Group('issue-206')]
-    public function testCopyCostsCurrentlyChargeNothingWithoutTheJitaCopyingCostIndexIssue206(): void
+    #[Group('issue-331')]
+    public function testCopyCostsCurrentlyChargeNothingWithoutTheJitaCopyingCostIndexIssue331(): void
     {
         $this->addSixRunCopyOfTheFuelBlockBlueprint();
         $this->seedAdjustedPrices([self::FUEL_BLOCK_TYPE_ID => self::FUEL_BLOCK_ADJUSTED_PRICE]);

@@ -8,6 +8,7 @@ use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
+use App\Entity\IndustryStructureConfig;
 use App\Enum\IndustryActivityType;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -140,6 +141,81 @@ final class ProjectStepApiTest extends WebTestCase
         );
         self::assertCount(2, $this->responseJson());
         self::assertSame([[3, 120, 0, 6, false], [3, 120, 1, 6, false]], $this->storedJobsOfProduct(self::FUEL_BLOCK_TYPE_ID));
+    }
+
+    public function testSplittingTheFuelBlockStepCopiesItsEfficienciesStructureAndJobMatchModeToEveryJob(): void
+    {
+        $raitaru = (new IndustryStructureConfig())->setUser($this->owner)->setName('Test Raitaru 206')->setStructureType('raitaru')->setSecurityType('highsec');
+        $this->em->persist($raitaru);
+        $this->fuelBlockStep->setMeLevel(8)->setTeLevel(12)->setStructureConfig($raitaru)->setJobMatchMode('manual');
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->stepUri($this->fuelBlockStep).'/split', ['numberOfJobs' => 2]);
+
+        self::assertResponseStatusCodeSame(201);
+        $raitaruId = (string) $raitaru->getId();
+        self::assertSame(
+            [[8, 12, $raitaruId, 'manual'], [8, 12, $raitaruId, 'manual']],
+            array_map(fn (array $job): array => $this->stepFieldsOf($job, ['meLevel', 'teLevel', 'structureConfigId', 'jobMatchMode']), $this->responseJson()),
+        );
+    }
+
+    public function testSplittingSevenFuelBlockRunsInTwoJobsGivesFourRunsToTheFirstJobAndThreeToTheSecond(): void
+    {
+        $this->fuelBlockStep->setRuns(7)->setQuantity(280);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->stepUri($this->fuelBlockStep).'/split', ['numberOfJobs' => 2]);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(
+            [[4, 160, 0, 7], [3, 120, 1, 7]],
+            array_map(fn (array $job): array => $this->stepFieldsOf($job, ['runs', 'quantity', 'splitIndex', 'totalGroupRuns']), $this->responseJson()),
+        );
+        self::assertSame([[4, 160, 0, 7, false], [3, 120, 1, 7, false]], $this->storedJobsOfProduct(self::FUEL_BLOCK_TYPE_ID));
+    }
+
+    public function testSplittingSixFuelBlockRunsInSevenJobsIsABadRequestAndKeepsTheStep(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->stepUri($this->fuelBlockStep).'/split', ['numberOfJobs' => 7]);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame([400, 'Cannot split 6 runs into 7 jobs'], $this->errorDetail());
+        self::assertSame([[6, 240, 0, null, false]], $this->storedJobsOfProduct(self::FUEL_BLOCK_TYPE_ID));
+    }
+
+    public function testSplittingAJobOfTheFuelBlockSplitGroupAgainIsABadRequestAndKeepsTheGroup(): void
+    {
+        [$firstJob] = $this->splitTheFuelBlockStepInTwoJobs();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->stepUri($firstJob).'/split', ['numberOfJobs' => 2]);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame([400, 'Step is already split. Merge first before re-splitting.'], $this->errorDetail());
+        self::assertSame([[4, 160, 0, 6, false], [2, 80, 1, 6, false]], $this->storedJobsOfProduct(self::FUEL_BLOCK_TYPE_ID));
+    }
+
+    public function testMergingTheFuelBlockSplitGroupMovesTheJobMatchOfTheSecondJobToTheFirstJob(): void
+    {
+        [$firstJob, $secondJob] = $this->splitTheFuelBlockStepInTwoJobs();
+        $secondJob->addJobMatch((new IndustryStepJobMatch())->setEsiJobId(self::ESI_JOB_ID)->setRuns(self::SECOND_FUEL_BLOCK_JOB_RUNS)->setCharacterName('Aria Solberg'));
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('POST', $this->stepUri($firstJob).'/merge', []);
+
+        self::assertResponseStatusCodeSame(201);
+        $response = $this->responseJson();
+        self::assertSame([$this->idOf($firstJob), 6, 240], $this->stepFieldsOf($response, ['id', 'runs', 'quantity']));
+        self::assertSame(
+            [[self::ESI_JOB_ID, 2, 'Aria Solberg']],
+            array_map(static fn (array $match): array => [$match['esiJobId'], $match['runs'], $match['characterName']], $response['jobMatches']),
+        );
+        self::assertSame(1, $this->storedJobMatchCount());
     }
 
     public function testMergingTheFuelBlockSplitGroupAnswersTheFirstJobWithTheRunsQuantityAndPurchasesOfTheGroup(): void

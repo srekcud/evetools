@@ -35,6 +35,7 @@ final class ProjectEsiJobsAndWalletPurchasesApiTest extends WebTestCase
     private const int ISOTOPE_BUY_ID = 8_206_003;
     private const int FUEL_BLOCK_SALE_ID = 8_206_004;
     private const int FUEL_BLOCK_BUY_LINKED_TO_ANOTHER_PROJECT_ID = 8_206_005;
+    private const int FUEL_BLOCK_BUY_OF_THE_INTRUDER_ID = 8_206_006;
 
     protected function setUp(): void
     {
@@ -92,7 +93,7 @@ final class ProjectEsiJobsAndWalletPurchasesApiTest extends WebTestCase
         self::assertSame([], $this->esiRequests);
     }
 
-    public function testPurchaseSuggestionsListTheFuelBlockBuysOfTheOwnerNotLinkedToAnotherProject(): void
+    public function testPurchaseSuggestionsListTheFuelBlockBuysOfTheOwnerNotLinkedToAnotherProjectAndLeaveOutTheBuysOfAnotherUser(): void
     {
         $this->persistWalletTransactions();
 
@@ -144,7 +145,10 @@ final class ProjectEsiJobsAndWalletPurchasesApiTest extends WebTestCase
     private function persistWalletTransactions(): void
     {
         $owner = $this->owner->getMainCharacter();
+        $intruder = $this->intruder->getMainCharacter();
         self::assertNotNull($owner);
+        self::assertNotNull($intruder);
+        $this->walletTransaction($intruder, self::FUEL_BLOCK_BUY_OF_THE_INTRUDER_ID, self::FUEL_BLOCK_TYPE_ID, 60, 14_900.0, true, '2026-11-02T13:00:00+00:00');
         $this->walletTransaction($owner, self::UNLINKED_FUEL_BLOCK_BUY_ID, self::FUEL_BLOCK_TYPE_ID, 80, 15_100.0, true, '2026-11-02T09:00:00+00:00');
         $linkedToThisProject = $this->walletTransaction($owner, self::FUEL_BLOCK_BUY_LINKED_TO_THIS_PROJECT_ID, self::FUEL_BLOCK_TYPE_ID, 40, 15_400.0, true, '2026-11-01T09:00:00+00:00');
         $this->walletTransaction($owner, self::ISOTOPE_BUY_ID, self::ISOTOPE_TYPE_ID, 500, 612.5, true, '2026-11-02T10:00:00+00:00');

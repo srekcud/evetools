@@ -67,6 +67,23 @@ final class ProjectStepPurchaseApiTest extends WebTestCase
         self::assertSame([], $this->storedPurchasesOfTheFuelBlockStep());
     }
 
+    public function testDeletingTheIsotopePurchaseKeepsTheFuelBlockPurchaseOfTheSameStep(): void
+    {
+        $this->fuelBlockStep->addPurchase((new IndustryStepPurchase())
+            ->setTypeId(self::FUEL_BLOCK_TYPE_ID)
+            ->setQuantity(self::PURCHASED_FUEL_BLOCKS)
+            ->setUnitPrice(self::FUEL_BLOCK_UNIT_PRICE)
+            ->setTotalPrice(self::PURCHASED_FUEL_BLOCKS * self::FUEL_BLOCK_UNIT_PRICE)
+            ->setSource('manual'));
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('DELETE', $this->isotopePurchaseUri());
+
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame([[self::FUEL_BLOCK_TYPE_ID, 120, 1_830_060.0]], $this->storedPurchasesOfTheFuelBlockStep());
+    }
+
     #[DataProvider('purchaseOperations')]
     public function testPurchaseOperationOnAProjectOfAnotherUserIsNotFoundAndKeepsThePurchases(string $method, string $uriAfterTheStep, ?array $body): void
     {

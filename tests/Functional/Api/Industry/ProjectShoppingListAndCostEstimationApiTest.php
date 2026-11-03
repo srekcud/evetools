@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry;
 
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
 use App\Entity\Sde\InvType;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -20,6 +22,8 @@ final class ProjectShoppingListAndCostEstimationApiTest extends WebTestCase
     private const float ISOTOPE_ADJUSTED_PRICE = 580.0;
     private const float FUEL_BLOCK_ADJUSTED_PRICE = 14_250.0;
     private const float JITA_MANUFACTURING_COST_INDEX = 0.0625;
+    private const float JITA_REACTION_COST_INDEX = 0.0375;
+    private const int POLYMER_REACTION_RUNS = 3;
     private const int DEFAULT_MARKET_STRUCTURE_ID = 1_049_588_174_021;
     private const string DEFAULT_MARKET_STRUCTURE_NAME = 'C-J6MT - 1st Taj Mahgoon (Keepstar)';
     private const array MATERIAL_FIELDS = ['typeId', 'typeName', 'quantity', 'volume', 'totalVolume', 'jitaUnitPrice', 'jitaTotal', 'importCost', 'jitaWithImport', 'structureUnitPrice', 'structureTotal', 'bestLocation', 'bestPrice', 'savings', 'purchasedQuantity', 'extraQuantity', 'jitaWeightedUnitPrice', 'jitaWeightedTotal', 'jitaCoverage', 'isInventionMaterial'];
@@ -69,8 +73,8 @@ final class ProjectShoppingListAndCostEstimationApiTest extends WebTestCase
         self::assertSame([250.0, 6_750.0, 39_825.0], [$shoppingList['transportCostPerM3'], $shoppingList['totals']['import'], $shoppingList['totals']['jitaWithImport']]);
     }
 
-    #[Group('issue-206')]
-    public function testShoppingListCurrentlyReadsATransportCostThatIsNotANumberAsZeroIssue206(): void
+    #[Group('issue-331')]
+    public function testShoppingListCurrentlyReadsATransportCostThatIsNotANumberAsZeroIssue331(): void
     {
         $this->seedIsotopeSellOrders();
 
@@ -82,8 +86,8 @@ final class ProjectShoppingListAndCostEstimationApiTest extends WebTestCase
         self::assertSame([0.0, 0.0, 33_075.0], [$shoppingList['transportCostPerM3'], $shoppingList['totals']['import'], $shoppingList['totals']['jitaWithImport']]);
     }
 
-    #[Group('issue-206')]
-    public function testShoppingListCurrentlyReadsAStructureIdThatIsNotANumberAsStructureZeroIssue206(): void
+    #[Group('issue-331')]
+    public function testShoppingListCurrentlyReadsAStructureIdThatIsNotANumberAsStructureZeroIssue331(): void
     {
         $this->seedIsotopeSellOrders();
 
@@ -122,8 +126,52 @@ final class ProjectShoppingListAndCostEstimationApiTest extends WebTestCase
         self::assertSame([], $this->esiRequests);
     }
 
-    #[Group('issue-206')]
-    public function testCostEstimationWithoutTheJitaManufacturingCostIndexCurrentlyOmitsTheUnknownInstallAndTotalCostsFromTheBodyIssue206(): void
+    public function testCostEstimationOfThreePolymerReactionRunsProducesSixHundredUnitsAtTheJitaReactionCostIndex(): void
+    {
+        $this->seedIsotopeSellOrders();
+        $this->seedAdjustedPrices([self::FUEL_BLOCK_TYPE_ID => self::FUEL_BLOCK_ADJUSTED_PRICE, self::ISOTOPE_TYPE_ID => self::ISOTOPE_ADJUSTED_PRICE]);
+        $this->seedJitaCostIndex('manufacturing', self::JITA_MANUFACTURING_COST_INDEX);
+        $this->seedJitaCostIndex('reaction', self::JITA_REACTION_COST_INDEX);
+        $polymerStep = $this->polymerProjectOfThreeReactionRuns();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->projectUri().'/cost-estimation');
+
+        self::assertResponseStatusCodeSame(200);
+        $estimation = $this->responseJson();
+        self::assertSame(
+            [[self::ISOTOPE_TYPE_ID, 300, 612.5, 183_750.0]],
+            array_map(fn (array $material): array => $this->fieldsOf($material, ['typeId', 'quantity', 'unitPrice', 'totalPrice']), $estimation['materials']),
+        );
+        self::assertSame(
+            [[$this->idOf($polymerStep), self::POLYMER_TYPE_ID, 'Test Polymer', 0.0375, 3, null]],
+            array_map(fn (array $job): array => $this->fieldsOf($job, ['stepId', 'productTypeId', 'productName', 'costIndex', 'runs', 'unknownReason']), $estimation['jobInstallSteps']),
+        );
+        self::assertEqualsWithDelta([13_920.0], array_column($estimation['jobInstallSteps'], 'installCost'), 0.000_001);
+        self::assertSame(600, $estimation['outputQuantity']);
+        self::assertEqualsWithDelta([197_670.0, 329.45], [$estimation['totalCost'], $estimation['perUnit']], 0.000_001);
+    }
+
+    public function testCostEstimationRoundsUpTheIsotopesOfSixFuelBlockRunsAtMaterialEfficiencyTen(): void
+    {
+        $this->seedIsotopeSellOrders();
+        $this->fuelBlockStep->setMeLevel(10);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->projectUri().'/cost-estimation');
+
+        self::assertResponseStatusCodeSame(200);
+        $estimation = $this->responseJson();
+        self::assertSame(
+            [[self::ISOTOPE_TYPE_ID, 49, 612.5, 30_012.5]],
+            array_map(fn (array $material): array => $this->fieldsOf($material, ['typeId', 'quantity', 'unitPrice', 'totalPrice']), $estimation['materials']),
+        );
+        self::assertSame(30_012.5, $estimation['materialCost']);
+    }
+
+    #[Group('issue-331')]
+    public function testCostEstimationWithoutTheJitaManufacturingCostIndexCurrentlyOmitsTheUnknownInstallAndTotalCostsFromTheBodyIssue331(): void
     {
         $this->seedIsotopeSellOrders();
         $this->seedAdjustedPrices([self::FUEL_BLOCK_TYPE_ID => self::FUEL_BLOCK_ADJUSTED_PRICE, self::ISOTOPE_TYPE_ID => self::ISOTOPE_ADJUSTED_PRICE]);
@@ -140,8 +188,8 @@ final class ProjectShoppingListAndCostEstimationApiTest extends WebTestCase
         self::assertSame([33_075.0, 'absent', 'absent', 'absent'], $this->fieldsOf($estimation, ['materialCost', 'jobInstallCost', 'totalCost', 'perUnit']));
     }
 
-    #[Group('issue-206')]
-    public function testCostEstimationCurrentlyPricesIsotopesWithoutAnyJitaSellOrderAtZeroIssue206(): void
+    #[Group('issue-331')]
+    public function testCostEstimationCurrentlyPricesIsotopesWithoutAnyJitaSellOrderAtZeroIssue331(): void
     {
         $this->seedJitaSellOrderBooks([]);
         $this->seedNoJitaSellOrderFor(self::ISOTOPE_TYPE_ID);
@@ -157,6 +205,21 @@ final class ProjectShoppingListAndCostEstimationApiTest extends WebTestCase
         self::assertSame(0.0, $estimation['materialCost']);
         self::assertEqualsWithDelta(362_388.6, $estimation['totalCost'], 0.000_001);
         self::assertSame([], $this->esiRequests);
+    }
+
+    private function polymerProjectOfThreeReactionRuns(): IndustryProjectStep
+    {
+        $this->project = (new IndustryProject())
+            ->setUser($this->owner)
+            ->setProductTypeId(self::POLYMER_TYPE_ID)
+            ->setRuns(self::POLYMER_REACTION_RUNS)
+            ->setMeLevel(0);
+        $this->em->persist($this->project);
+        $polymerStep = $this->step(self::POLYMER_FORMULA_TYPE_ID, self::POLYMER_TYPE_ID, self::POLYMER_REACTION_RUNS, self::POLYMER_REACTION_RUNS * self::POLYMERS_PER_REACTION_RUN, 0)
+            ->setActivityType('reaction');
+        $this->em->flush();
+
+        return $polymerStep;
     }
 
     private function seedIsotopeSellOrders(): void
