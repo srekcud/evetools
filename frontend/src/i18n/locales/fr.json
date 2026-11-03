@@ -1611,7 +1611,50 @@
       "subTabs": {
         "label": "Vues du minage",
         "entries": "Entrées",
-        "oreValue": "Valeur au m³"
+        "oreValue": "Valeur au m³",
+        "moonChunks": "Chunks lunaires"
+      },
+      "moonChunks": {
+        "title": "Chunks lunaires",
+        "subtitle": "Extractions des raffineries de la corporation. Les heures sont en EVE time (UTC), avec une conversion en heure locale possible.",
+        "corporation": "Corporation {id}",
+        "viewLabel": "Affichage",
+        "timeLabel": "Fuseau horaire",
+        "views": {
+          "list": "Liste",
+          "week": "Semaine",
+          "month": "Mois"
+        },
+        "timeModes": {
+          "eve": "EVE time",
+          "local": "Heure locale"
+        },
+        "refresh": "Rafraîchir",
+        "syncing": "Synchronisation...",
+        "syncProgress": "Synchronisation {percent} %",
+        "loadError": "Impossible de charger les chunks lunaires.",
+        "unknownName": "nom inconnu",
+        "lastSuccess": "dernière synchronisation réussie",
+        "empty": "Aucune extraction",
+        "access": {
+          "never_synced": "Pas encore synchronisé",
+          "denied": "Accès refusé : rôle Station_Manager requis",
+          "error": "Lecture ESI en échec"
+        },
+        "columns": {
+          "moon": "Lune",
+          "structure": "Raffinerie",
+          "system": "Système",
+          "arrival": "Arrivée du chunk",
+          "decay": "Décroissance naturelle",
+          "countdown": "Compte à rebours",
+          "status": "Statut"
+        },
+        "status": {
+          "extracting": "Extraction",
+          "ready": "Prêt",
+          "exploded": "Explosé"
+        }
       },
       "reprocessingProfile": {
         "title": "Rendement de retraitement",
@@ -2040,7 +2083,8 @@
       "mining": "Ledger minage",
       "walletTransactions": "Transactions wallet",
       "marketStructure": "Prix marche",
-      "planetary": "Colonies PI"
+      "planetary": "Colonies PI",
+      "corporationMiningExtractions": "Chunks lunaires de la corporation"
     },
     "syncCompleted": "Synchronisation terminee",
     "syncError": "Erreur de synchronisation",

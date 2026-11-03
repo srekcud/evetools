@@ -43,6 +43,7 @@ const SYNC_TITLE_KEYS: Record<string, string> = {
   'wallet-transactions': 'notifications.syncTitles.walletTransactions',
   'market-structure': 'notifications.syncTitles.marketStructure',
   'planetary': 'notifications.syncTitles.planetary',
+  'corporation-mining-extractions': 'notifications.syncTitles.corporationMiningExtractions',
 }
 
 export function useNotificationFeed() {

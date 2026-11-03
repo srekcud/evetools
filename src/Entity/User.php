@@ -80,6 +80,19 @@ class User implements UserInterface
         return $this->characters;
     }
 
+    /**
+     * @return list<int>
+     */
+    public function getCharacterCorporationIds(): array
+    {
+        $corporationIds = array_unique($this->characters->map(
+            static fn (Character $character): int => $character->getCorporationId(),
+        )->toArray());
+        sort($corporationIds);
+
+        return $corporationIds;
+    }
+
     public function addCharacter(Character $character): static
     {
         if (!$this->characters->contains($character)) {

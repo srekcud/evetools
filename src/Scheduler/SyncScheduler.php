@@ -12,6 +12,7 @@ use App\Message\SyncAdjustedPrices;
 use App\Message\SyncCostIndices;
 use App\Message\SyncPublicContracts;
 use App\Message\TriggerAnsiblexSync;
+use App\Message\TriggerCorporationMiningExtractionsSync;
 use App\Message\SyncIndustryJobs;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
@@ -92,6 +93,9 @@ class SyncScheduler implements ScheduleProviderInterface
             // Public contract prices sync every 30 minutes
             ->add(
                 RecurringMessage::every('30 minutes', new SyncPublicContracts())
+            )
+            ->add(
+                RecurringMessage::every('30 minutes', new TriggerCorporationMiningExtractionsSync())
             )
             // Purge old notifications daily
             ->add(

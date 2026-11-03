@@ -8,6 +8,7 @@ import { useMiningPricing } from '@/composables/useMiningPricing'
 import MiningStatsCards from './MiningStatsCards.vue'
 import MiningEntriesTable from './MiningEntriesTable.vue'
 import OreValueTab from './OreValueTab.vue'
+import MoonChunksTab from './MoonChunksTab.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const props = defineProps<{
@@ -23,8 +24,8 @@ const ledgerStore = useLedgerStore()
 const authStore = useAuthStore()
 const { formatDateTime } = useFormatters()
 
-type MiningView = 'entries' | 'oreValue'
-const miningViews: MiningView[] = ['entries', 'oreValue']
+type MiningView = 'entries' | 'oreValue' | 'moonChunks'
+const miningViews: MiningView[] = ['entries', 'oreValue', 'moonChunks']
 const activeMiningView = ref<MiningView>('entries')
 
 // Structure selection for mining prices
@@ -395,6 +396,7 @@ defineExpose({
         v-for="view in miningViews"
         :key="view"
         type="button"
+        :data-mining-view="view"
         :aria-pressed="activeMiningView === view"
         :class="[
           'px-4 py-1.5 rounded-sm border text-xs font-medium uppercase tracking-wider transition-colors',
@@ -429,8 +431,10 @@ defineExpose({
     </template>
 
     <OreValueTab
-      v-else
+      v-else-if="activeMiningView === 'oreValue'"
       :structure-id="selectedStructureId"
     />
+
+    <MoonChunksTab v-else />
   </div>
 </template>

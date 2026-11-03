@@ -1611,7 +1611,50 @@
       "subTabs": {
         "label": "Mining views",
         "entries": "Entries",
-        "oreValue": "Value per m³"
+        "oreValue": "Value per m³",
+        "moonChunks": "Moon chunks"
+      },
+      "moonChunks": {
+        "title": "Moon chunks",
+        "subtitle": "Extractions of the corporation refineries. Times are in EVE time (UTC) unless you switch to local time.",
+        "corporation": "Corporation {id}",
+        "viewLabel": "Display",
+        "timeLabel": "Time zone",
+        "views": {
+          "list": "List",
+          "week": "Week",
+          "month": "Month"
+        },
+        "timeModes": {
+          "eve": "EVE time",
+          "local": "Local time"
+        },
+        "refresh": "Refresh",
+        "syncing": "Syncing...",
+        "syncProgress": "Sync {percent} %",
+        "loadError": "The moon chunks could not be loaded.",
+        "unknownName": "unknown name",
+        "lastSuccess": "last successful sync",
+        "empty": "No extraction",
+        "access": {
+          "never_synced": "Not synced yet",
+          "denied": "Access denied: Station_Manager role required",
+          "error": "ESI read failed"
+        },
+        "columns": {
+          "moon": "Moon",
+          "structure": "Refinery",
+          "system": "System",
+          "arrival": "Chunk arrival",
+          "decay": "Natural decay",
+          "countdown": "Countdown",
+          "status": "Status"
+        },
+        "status": {
+          "extracting": "Extracting",
+          "ready": "Ready",
+          "exploded": "Exploded"
+        }
       },
       "reprocessingProfile": {
         "title": "Reprocessing yield",
@@ -2040,7 +2083,8 @@
       "mining": "Mining ledger",
       "walletTransactions": "Wallet transactions",
       "marketStructure": "Market prices",
-      "planetary": "PI colonies"
+      "planetary": "PI colonies",
+      "corporationMiningExtractions": "Corporation moon chunks"
     },
     "syncCompleted": "Sync completed",
     "syncError": "Sync error",

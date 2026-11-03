@@ -72,6 +72,7 @@ export const useSyncStore = defineStore('sync', () => {
   const industryProjectProgress = computed(() => syncStatus.value['industry-project'] ?? null)
   const industryJobCompletedProgress = computed(() => syncStatus.value['industry-job-completed'] ?? null)
   const miningProgress = computed(() => getSyncProgress('mining'))
+  const corporationMiningExtractionsProgress = computed(() => getSyncProgress('corporation-mining-extractions'))
   const walletTransactionsProgress = computed(() => getSyncProgress('wallet-transactions'))
   const planetaryProgress = computed(() => getSyncProgress('planetary'))
   const adminSyncProgress = computed(() => getSyncProgress('admin-sync'))
@@ -298,6 +299,7 @@ export const useSyncStore = defineStore('sync', () => {
     industryProjectProgress,
     industryJobCompletedProgress,
     miningProgress,
+    corporationMiningExtractionsProgress,
     walletTransactionsProgress,
     planetaryProgress,
     adminSyncProgress,

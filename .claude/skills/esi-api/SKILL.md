@@ -594,6 +594,7 @@ Current schedule intervals (`src/Scheduler/SyncScheduler.php`):
 | Adjusted prices | `SyncAdjustedPrices` | 24 hours |
 | System cost indices | `SyncCostIndices` | 2 hours |
 | Public contracts (The Forge) | `SyncPublicContracts` | 30 minutes |
+| Corporation moon chunks | `TriggerCorporationMiningExtractionsSync` | 30 minutes |
 | Purge old notifications | `PurgeOldNotifications` | 1 day |
 | Purge old market history | `PurgeOldMarketHistory` | 1 day |
 

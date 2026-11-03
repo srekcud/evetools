@@ -12,6 +12,10 @@ enum MoonChunkStatus: string
 
     public static function fromTimes(\DateTimeImmutable $now, \DateTimeImmutable $chunkArrival, \DateTimeImmutable $naturalDecay): self
     {
-        return self::Extracting;
+        if ($now < $chunkArrival) {
+            return self::Extracting;
+        }
+
+        return $now < $naturalDecay ? self::Ready : self::Exploded;
     }
 }
