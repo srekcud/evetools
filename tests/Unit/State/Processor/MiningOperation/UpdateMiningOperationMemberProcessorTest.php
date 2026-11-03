@@ -167,7 +167,10 @@ final class UpdateMiningOperationMemberProcessorTest extends TestCase
 
         $this->expectRefusal(NotFoundHttpException::class, 'Member not found');
 
-        $this->update($dornMembership, status: 'accepted');
+        $this->processor->process($this->input(null, 'accepted'), new Patch(), [
+            'operationId' => $this->operation->getId()->toRfc4122(),
+            'id' => $dornMembership->getId()->toRfc4122(),
+        ]);
     }
 
     public function testUnknownMemberIsNotFound(): void

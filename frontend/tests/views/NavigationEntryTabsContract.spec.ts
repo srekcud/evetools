@@ -104,6 +104,7 @@ describe('navigation entry tabs contract', () => {
       '/industry?tab=slots',
       '/industry?tab=stockpile',
       '/group-industry?tab=available',
+      '/mining-operations?tab=available',
       '/market?tab=alerts',
       '/assets?tab=contracts',
     ])

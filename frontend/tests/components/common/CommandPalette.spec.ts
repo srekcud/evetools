@@ -46,6 +46,7 @@ const appRoutes = [
   '/group-industry',
   '/appraisal',
   '/planetary',
+  '/mining-operations',
   '/market',
   '/assets',
   '/characters',
@@ -201,7 +202,7 @@ describe('CommandPalette', () => {
       expect(activeOption.id).not.toBe('')
       expect(input.getAttribute('aria-activedescendant')).toBe(activeOption.id)
       expect(optionElements().map(option => option.getAttribute('aria-selected'))).toEqual([
-        'false', 'true', 'false', 'false', 'false', 'false', 'false', 'false', 'false',
+        'false', 'true', 'false', 'false', 'false', 'false', 'false', 'false', 'false', 'false',
       ])
       expect(groups.map(accessibleName)).toEqual(['Navigation'])
     })
@@ -218,27 +219,19 @@ describe('CommandPalette', () => {
         'Group Industry',
         'Appraisal',
         'PI',
+        'Mining operations',
         'Market',
         'Inventory',
         'Characters',
       ])
     })
 
-    it('adds the admin screen last for an administrator', async () => {
+    it('offers the admin screen to an administrator who searches for it', async () => {
       await mountOpenPalette({ isAdmin: true })
 
-      expect(optionLabels()).toEqual([
-        'Dashboard',
-        'Revenue',
-        'Industry',
-        'Group Industry',
-        'Appraisal',
-        'PI',
-        'Market',
-        'Inventory',
-        'Characters',
-        'Administration',
-      ])
+      await typeQuery('admin')
+
+      expect(optionLabels()).toEqual(['Administration'])
     })
 
     it.each([
@@ -280,14 +273,14 @@ describe('CommandPalette', () => {
       expect(optionLabels()).toEqual([
         'Appraisal',
         'Group Industry › Available',
+        'Mining operations › Available',
         'Market › Alerts',
         'Dashboard',
         'Revenue › Escalations',
         'Industry › Margins',
         'Industry › Batch Scan',
+        'Mining operations',
         'Market',
-        'Inventory › Contracts',
-        'Characters',
       ])
     })
 
@@ -360,6 +353,7 @@ describe('CommandPalette', () => {
         'Group Industry',
         'Appraisal',
         'PI',
+        'Mining operations',
         'Inventory',
         'Characters',
       ])
@@ -412,7 +406,7 @@ describe('CommandPalette', () => {
 
     it('navigates to a screen without a tab query', async () => {
       const { router } = await mountOpenPalette()
-      await pressArrowDown(6)
+      await pressArrowDown(7)
 
       await pressKey('Enter')
 

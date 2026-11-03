@@ -146,10 +146,11 @@ final class MiningOperationApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $renewedJoinCode = (string) ($this->responseJson()['joinCode'] ?? '');
 
-        $this->client->loginUser($this->brann, 'api');
+        $this->loginWithAFreshClient($this->brann);
         $this->request('POST', '/api/mining-operations/join/' . self::JOIN_CODE, ['characterIds' => [$this->characterId('Brann Holt')]]);
         self::assertSame([404, 'Mining operation not found'], $this->errorDetail());
 
+        $this->loginWithAFreshClient($this->brann);
         $this->request('POST', '/api/mining-operations/join/' . $renewedJoinCode, ['characterIds' => [$this->characterId('Brann Holt')]]);
         self::assertResponseStatusCodeSame(200);
         self::assertSame('accepted', $this->responseJson()['myStatus'] ?? null);
@@ -197,6 +198,16 @@ final class MiningOperationApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(204);
         self::assertSame(0, $this->countWhereIn('mining_operation_characters', 'character_id', [$this->characterId('Brann Holt')]));
+    }
+
+    private function loginWithAFreshClient(User $user): void
+    {
+        self::ensureKernelShutdown();
+        $this->client = self::createClient();
+        $this->client->disableReboot();
+        self::getContainer()->set('logger', new NullLogger());
+        $this->em = self::getContainer()->get(EntityManagerInterface::class);
+        $this->client->loginUser($this->em->find(User::class, $user->getId()), 'api');
     }
 
     private function creation(string $plannedStartAt, array $characterNames): array
