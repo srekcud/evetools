@@ -180,6 +180,19 @@ final class OreValueServiceCompressedEquivalentPriceTest extends TestCase
         $this->assertSame(1100.0, $veldspar['structureCompressedUnitPrice']);
     }
 
+    public function testCompressedEquivalentPriceOfFulleriteC50IsUnknownWhenTheRawPortionSizeIsZero(): void
+    {
+        $sdeTypes = $this->sdeTypes();
+        $sdeTypes[self::FULLERITE_C50]['portionSize'] = 0;
+        $oreValueService = $this->createOreValueService($this->jitaSellPrices(), null, $sdeTypes);
+
+        $fulleriteC50 = $oreValueService->getBatchOrePrices([self::FULLERITE_C50])[self::FULLERITE_C50];
+
+        $this->assertSame(2813.0, $fulleriteC50['compressedUnitPrice']);
+        $this->assertNull($fulleriteC50['compressedEquivalentPrice']);
+        $this->assertSame(2741.0, $fulleriteC50['rawUnitPrice']);
+    }
+
     private function jitaSellPricesWithCompressedVeldsparAtOneThousand(): array
     {
         $jitaSellPrices = $this->jitaSellPrices();
