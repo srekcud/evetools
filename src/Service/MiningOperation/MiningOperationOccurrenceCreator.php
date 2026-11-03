@@ -34,6 +34,13 @@ final readonly class MiningOperationOccurrenceCreator
             return [];
         }
 
+        if ($recurrence->getOwner()->getCorporationId() !== $recurrence->getCorporationId()) {
+            $recurrence->stop($now);
+            $this->entityManager->flush();
+
+            return [];
+        }
+
         return match ($recurrence->getKind()) {
             MiningOperationRecurrenceKind::Weekly => $this->createDueWeeklyOccurrence($recurrence, $now),
             MiningOperationRecurrenceKind::Chunk => $this->createChunkOccurrences($recurrence, $now),

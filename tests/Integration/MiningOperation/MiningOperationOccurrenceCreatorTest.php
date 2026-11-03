@@ -194,6 +194,18 @@ final class MiningOperationOccurrenceCreatorTest extends IntegrationTestCase
         self::assertSame([1, $recurrence], [$this->operationsCountOf($recurrence), $initial->getRecurrence()]);
     }
 
+    public function testRecurrenceIsStoppedAndCreatesNothingWhenItsOwnerLeftTheCorporationItWasCreatedFor(): void
+    {
+        $recurrence = $this->chunkRecurrence('2026-11-01T12:00:00+00:00');
+        $this->extraction(self::C1, self::ATHANOR_STRUCTURE_ID, 11, '2026-11-02T18:00:00+00:00', '2099-11-05T20:00:00+00:00');
+        $this->aria->getMainCharacter()?->setCorporationId(self::C2);
+        $this->em->flush();
+
+        $created = $this->createDueAt($recurrence, '2026-11-03T12:00:00+00:00');
+
+        self::assertSame([[], false, 0], [$created, $recurrence->isActive(), $this->operationsCountOf($recurrence)]);
+    }
+
     public function testOccurrenceCopiesTheValuationOfTheLatestOperationAndMakesTheOwnerTheBoosterWhenHeWas(): void
     {
         $recurrence = $this->weeklyRecurrence('2026-11-05T18:00:00+00:00');
