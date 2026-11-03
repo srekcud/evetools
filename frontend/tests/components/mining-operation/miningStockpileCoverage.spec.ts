@@ -59,7 +59,7 @@ describe('MiningStockpileCoverage', () => {
     expect(found(tritanium, '[data-coverage-percent]').text()).toMatch(/^56\.65\s?%$/)
     expect(found(tritanium, '[data-coverage-mineral-name]').text()).toBe('Tritanium')
     expect(found(mineralRow(wrapper, PYERITE_TYPE_ID), '[data-coverage-percent]').text()).toMatch(/^100\s?%$/)
-    expect(found(mineralRow(wrapper, PYERITE_TYPE_ID), '[data-produced-quantity]').text()).toMatch(/^3[\s,.  ]?600$/)
+    expect(found(mineralRow(wrapper, PYERITE_TYPE_ID), '[data-produced-quantity]').text()).toMatch(/^3[\s,.\u00a0\u202f]?600$/)
   })
 
   it('says a mineral without deficit has none in the Stockpile and shows no percentage', () => {
