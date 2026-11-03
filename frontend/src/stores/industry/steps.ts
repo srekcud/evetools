@@ -93,13 +93,14 @@ export const useStepsStore = defineStore('industry-steps', () => {
       const body: Record<string, unknown> = { typeId, runs }
       if (meLevel !== undefined) body.meLevel = meLevel
       if (teLevel !== undefined) body.teLevel = teLevel
-      const step = enrichStep(await apiRequest<IndustryProjectStep>(
+      const [createdStep] = await apiRequest<IndustryProjectStep[]>(
         `/industry/projects/${projectId}/steps`,
         {
           method: 'POST',
           body: JSON.stringify(body),
         },
-      ))
+      )
+      const step = enrichStep(createdStep)
       if (projectsStore.currentProject?.id === projectId && projectsStore.currentProject.steps) {
         projectsStore.currentProject.steps.push(step)
       }
@@ -116,7 +117,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       if (splitGroupId) body.splitGroupId = splitGroupId
       else if (stepId) body.stepId = stepId
 
-      const response = await apiRequest<IndustryProjectStep | { newStep: IndustryProjectStep; updatedStep: IndustryProjectStep }>(
+      const [newStep] = await apiRequest<IndustryProjectStep[]>(
         `/industry/projects/${projectId}/steps`,
         {
           method: 'POST',
@@ -126,7 +127,7 @@ export const useStepsStore = defineStore('industry-steps', () => {
       if (projectsStore.currentProject?.id === projectId) {
         await projectsStore.fetchProject(projectId)
       }
-      return 'newStep' in response ? response.newStep : response
+      return newStep
     } catch (e) {
       projectsStore.error = e instanceof Error ? e.message : i18n.global.t('industry.errors.addChildJob')
       throw e

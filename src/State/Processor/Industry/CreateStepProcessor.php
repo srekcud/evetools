@@ -30,7 +30,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @implements ProcessorInterface<CreateStepInput, ProjectStepResource|array>
+ * @implements ProcessorInterface<CreateStepInput, list<ProjectStepResource>>
  */
 class CreateStepProcessor implements ProcessorInterface
 {
@@ -46,8 +46,8 @@ class CreateStepProcessor implements ProcessorInterface
     ) {
     }
 
-    /** @return ProjectStepResource|array<string, mixed> */
-    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): ProjectStepResource|array
+    /** @return list<ProjectStepResource> */
+    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): array
     {
         $user = $this->security->getUser();
 
@@ -84,8 +84,8 @@ class CreateStepProcessor implements ProcessorInterface
             $addedJob = $this->addJobToTheGroupOf($project, $referenceStep, $runs);
 
             return [
-                'newStep' => $this->mapper->stepToResource($addedJob),
-                'updatedStep' => $this->mapper->stepToResource($referenceStep),
+                $this->mapper->stepToResource($addedJob),
+                $this->mapper->stepToResource($referenceStep),
             ];
         }
 
@@ -96,10 +96,9 @@ class CreateStepProcessor implements ProcessorInterface
                 throw new NotFoundHttpException('Split group not found');
             }
 
-            return $this->mapper->stepToResource($this->addJobToTheGroupOf($project, $referenceStep, $runs));
+            return [$this->mapper->stepToResource($this->addJobToTheGroupOf($project, $referenceStep, $runs))];
         }
 
-        // Create new step from typeId
         if ($typeId === null) {
             throw new BadRequestHttpException('typeId is required for new step');
         }
@@ -141,7 +140,7 @@ class CreateStepProcessor implements ProcessorInterface
         $project->addStep($step);
         $this->entityManager->flush();
 
-        return $this->mapper->stepToResource($step);
+        return [$this->mapper->stepToResource($step)];
     }
 
     private function firstJobOfTheGroup(IndustryProject $project, string $splitGroupId): ?IndustryProjectStep
