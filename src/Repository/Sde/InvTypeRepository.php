@@ -152,6 +152,15 @@ class InvTypeRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<int> $typeIds
+     * @return list<InvType>
+     */
+    public function findCompressedMineableTypes(array $typeIds): array
+    {
+        return [];
+    }
+
+    /**
      * @return list<array{typeId: int, typeName: string}>
      */
     public function findOreProcessingSkills(): array
