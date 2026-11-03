@@ -89,7 +89,7 @@ final class StockpileStatusProviderTest extends TestCase
         $resource = $this->provider->provide(new Get());
 
         $tritanium = [
-            'id' => null,
+            'id' => (string) $this->targets[0]->getId(),
             'typeId' => 34,
             'typeName' => 'Tritanium',
             'targetQuantity' => 1000,
