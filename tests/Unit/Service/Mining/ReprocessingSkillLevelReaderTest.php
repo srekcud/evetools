@@ -177,6 +177,13 @@ final class ReprocessingSkillLevelReaderTest extends TestCase
             ['skill_id' => self::REPROCESSING, 'active_skill_level' => 4],
             ['skill_id' => self::REPROCESSING_EFFICIENCY, 'trained_skill_level' => 3],
         ]]];
+        yield 'a level given as a string' => [['skills' => [
+            ['skill_id' => self::REPROCESSING, 'active_skill_level' => '4'],
+        ]]];
+        yield 'a skill id given as a float' => [['skills' => [
+            ['skill_id' => 3385.0, 'active_skill_level' => 4],
+        ]]];
+        yield 'an entry that is not an object' => [['skills' => [4]]];
     }
 
     private function skill(int $skillId, int $activeLevel): array

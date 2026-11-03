@@ -71,7 +71,7 @@ final readonly class ReprocessingSkillLevelReader
 
         $activeLevelsBySkillId = [];
         foreach ($skills as $skill) {
-            if (!isset($skill['skill_id'], $skill['active_skill_level'])) {
+            if (!is_array($skill) || !is_int($skill['skill_id'] ?? null) || !is_int($skill['active_skill_level'] ?? null)) {
                 return null;
             }
             $activeLevelsBySkillId[$skill['skill_id']] = $skill['active_skill_level'];
