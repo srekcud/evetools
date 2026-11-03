@@ -20,6 +20,12 @@ export interface GroupProjectEvent {
   timestamp: string
 }
 
+export interface MiningOperationEvent {
+  action: string
+  data: Record<string, unknown> | null
+  timestamp: string
+}
+
 export interface AlertMessage {
   alertType: string
   data: Record<string, unknown> | null
@@ -230,6 +236,10 @@ export const useSyncStore = defineStore('sync', () => {
     return groupProjectEvents.value[projectId] ?? null
   }
 
+  function getMiningOperationEvent(_operationId: string): MiningOperationEvent | null {
+    return null
+  }
+
   function isLoading(syncType: string): boolean {
     const status = syncStatus.value[syncType]
     return status?.status === 'started' || status?.status === 'in_progress'
@@ -289,6 +299,7 @@ export const useSyncStore = defineStore('sync', () => {
     disconnect,
     getSyncProgress,
     getGroupProjectEvent,
+    getMiningOperationEvent,
     isLoading,
     clearSyncStatus,
     clearAllSyncStatus,

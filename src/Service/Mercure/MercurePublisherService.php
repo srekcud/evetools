@@ -216,6 +216,10 @@ final readonly class MercurePublisherService
         }
     }
 
+    public function publishMiningOperationEvent(array $userIds, string $operationId, string $action, array $data = []): void
+    {
+    }
+
     /**
      * Publish an escalation event to group topics (corp/alliance).
      */
