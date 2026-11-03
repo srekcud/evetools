@@ -439,7 +439,7 @@ async function shareAppraisal(): Promise<void> {
           <p class="text-[22px] font-bold text-cyan-400 font-mono">{{ formatIsk(sellValue) }}</p>
           <p
             v-if="appraisalResult?.totals.sellTotalWeighted != null"
-            class="text-table-cell text-slate-600 font-mono mt-0.5"
+            class="text-table-cell text-slate-500 font-mono mt-0.5"
           >
             {{ t('appraisal.bestPrice') }}: {{ formatIsk(sellValueBest) }}
           </p>
@@ -457,7 +457,7 @@ async function shareAppraisal(): Promise<void> {
           <p class="text-[22px] font-bold text-amber-500 font-mono">{{ formatIsk(buyValue) }}</p>
           <p
             v-if="appraisalResult?.totals.buyTotalWeighted != null"
-            class="text-table-cell text-slate-600 font-mono mt-0.5"
+            class="text-table-cell text-slate-500 font-mono mt-0.5"
           >
             {{ t('appraisal.bestPrice') }}: {{ formatIsk(buyValueBest) }}
           </p>

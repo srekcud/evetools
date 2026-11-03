@@ -257,11 +257,11 @@ onMounted(() => {
 
         <!-- Empty state -->
         <div v-else class="bg-slate-900/80 rounded-xl border border-dashed border-slate-700 p-12 text-center">
-          <svg class="w-12 h-12 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-12 h-12 mx-auto text-slate-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
           <p class="text-slate-400 text-sm mb-2">{{ t('groupIndustry.empty.title') }}</p>
-          <p class="text-slate-600 text-xs mb-4">{{ t('groupIndustry.empty.description') }}</p>
+          <p class="text-slate-500 text-xs mb-4">{{ t('groupIndustry.empty.description') }}</p>
           <button
             class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium inline-flex items-center gap-2"
             @click="openNewProjectModal"
@@ -298,11 +298,11 @@ onMounted(() => {
 
         <!-- Empty state -->
         <div v-else class="bg-slate-900/80 rounded-xl border border-dashed border-slate-700 p-12 text-center">
-          <svg class="w-12 h-12 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-12 h-12 mx-auto text-slate-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           <p class="text-slate-400 text-sm mb-2">{{ t('groupIndustry.available.empty') }}</p>
-          <p class="text-slate-600 text-xs">{{ t('groupIndustry.available.emptyHint') }}</p>
+          <p class="text-slate-500 text-xs">{{ t('groupIndustry.available.emptyHint') }}</p>
         </div>
       </div>
 

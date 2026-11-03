@@ -230,7 +230,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
                   <span class="text-cyan-300">{{ formatNumber(displaySellWeighted(item)!) }}</span>
                 </div>
-                <div v-if="item.sellPriceWeighted != null && item.sellPrice != null" class="text-xs text-slate-600 mt-0.5 text-right">
+                <div v-if="item.sellPriceWeighted != null && item.sellPrice != null" class="text-xs text-slate-500 mt-0.5 text-right">
                   {{ formatNumber(item.sellPrice) }}
                 </div>
                 <!-- Buy row -->
@@ -238,7 +238,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
                   <span class="text-amber-300">{{ displayBuyWeighted(item) != null ? formatNumber(displayBuyWeighted(item)!) : '-' }}</span>
                 </div>
-                <div v-if="item.buyPriceWeighted != null && item.buyPrice != null" class="text-xs text-slate-600 mt-0.5 text-right">
+                <div v-if="item.buyPriceWeighted != null && item.buyPrice != null" class="text-xs text-slate-500 mt-0.5 text-right">
                   {{ formatNumber(item.buyPrice) }}
                 </div>
                 <!-- Daily volume -->
@@ -264,7 +264,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
                   <span class="text-cyan-400 font-semibold">{{ formatNumber(displaySellTotalWeighted(item)!) }}</span>
                 </div>
-                <div v-if="item.sellTotalWeighted != null && item.sellTotal != null" class="text-xs text-slate-600 mt-0.5 text-right">
+                <div v-if="item.sellTotalWeighted != null && item.sellTotal != null" class="text-xs text-slate-500 mt-0.5 text-right">
                   {{ formatNumber(item.sellTotal) }}
                 </div>
                 <!-- Buy total -->
@@ -272,7 +272,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
                   <span class="text-amber-500 font-semibold">{{ displayBuyTotalWeighted(item) != null ? formatNumber(displayBuyTotalWeighted(item)!) : '-' }}</span>
                 </div>
-                <div v-if="item.buyTotalWeighted != null && item.buyTotal != null" class="text-xs text-slate-600 mt-0.5 text-right">
+                <div v-if="item.buyTotalWeighted != null && item.buyTotal != null" class="text-xs text-slate-500 mt-0.5 text-right">
                   {{ formatNumber(item.buyTotal) }}
                 </div>
               </div>
@@ -332,7 +332,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                   ></div>
                 </div>
               </div>
-              <span v-else class="text-slate-600">--</span>
+              <span v-else class="text-slate-500">--</span>
             </td>
 
             <!-- Buy at -->
@@ -349,7 +349,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
               >
                 {{ props.shortStructureName }}
               </span>
-              <span v-else class="text-slate-600">-</span>
+              <span v-else class="text-slate-500">-</span>
             </td>
           </tr>
         </tbody>
@@ -377,14 +377,14 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                 <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
                 <span class="text-cyan-400 font-bold text-sm">{{ formatIsk(props.sellValue) }}</span>
               </div>
-              <div v-if="props.hasSellTotalWeighted" class="text-xs text-slate-600 mt-0.5 text-right">
+              <div v-if="props.hasSellTotalWeighted" class="text-xs text-slate-500 mt-0.5 text-right">
                 {{ formatIsk(props.sellValueBest) }}
               </div>
               <div class="flex items-center justify-end gap-1.5 mt-1.5">
                 <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
                 <span class="text-amber-500 font-bold text-sm">{{ formatIsk(props.buyValue) }}</span>
               </div>
-              <div v-if="props.hasBuyTotalWeighted" class="text-xs text-slate-600 mt-0.5 text-right">
+              <div v-if="props.hasBuyTotalWeighted" class="text-xs text-slate-500 mt-0.5 text-right">
                 {{ formatIsk(props.buyValueBest) }}
               </div>
             </td>

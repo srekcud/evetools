@@ -80,7 +80,7 @@ defineProps<{
       <div class="mt-2 text-3xl font-bold text-cyan-400 font-mono-tech">{{ formatIsk(estimatedDailyIsk) }}</div>
       <div class="mt-1 text-xs text-slate-500 flex items-center gap-1">
         {{ t('pi.kpi.iskPerDay') }}
-        <span class="text-slate-600 cursor-help border-b border-dotted border-slate-600" :title="t('pi.production.jitaSellPriceTooltip')">{{ t('pi.kpi.sellPriceJita') }}</span>
+        <span class="text-slate-500 cursor-help border-b border-dotted border-slate-600" :title="t('pi.production.jitaSellPriceTooltip')">{{ t('pi.kpi.sellPriceJita') }}</span>
       </div>
     </div>
   </div>

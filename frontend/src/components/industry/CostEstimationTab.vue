@@ -217,19 +217,19 @@ defineExpose({ activate, loadCostEstimation })
         <div class="eve-card p-4">
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.costEstimation.materialCost') }}</p>
           <p class="text-xl font-mono text-slate-100 font-semibold">{{ formatCost(costData.materialCost) }}</p>
-          <p class="text-xs text-slate-600 mt-1">{{ t('industry.costEstimation.fromShoppingTab') }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ t('industry.costEstimation.fromShoppingTab') }}</p>
         </div>
         <!-- Job Install Cost -->
         <div class="eve-card p-4">
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.costEstimation.jobInstallCost') }}</p>
           <p class="text-xl font-mono text-slate-100 font-semibold">{{ formatCost(costData.jobInstallCost) }}</p>
-          <p class="text-xs text-slate-600 mt-1">{{ t('industry.costEstimation.estimatedFromEsi') }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ t('industry.costEstimation.estimatedFromEsi') }}</p>
         </div>
         <!-- Invention Cost (only for T2) -->
         <div v-if="project?.isT2" class="eve-card p-4">
           <p class="text-xs text-slate-500 uppercase tracking-wider mb-2">{{ t('industry.costEstimation.inventionCost') }}</p>
           <p class="text-xl font-mono text-slate-100 font-semibold">{{ costData.bpoCost.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</p>
-          <p class="text-xs text-slate-600 mt-1">{{ t('industry.costEstimation.fromInventionTab') }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ t('industry.costEstimation.fromInventionTab') }}</p>
         </div>
         <!-- Total Production Cost -->
         <div class="eve-card p-4 border-cyan-500/30">
@@ -254,7 +254,7 @@ defineExpose({ activate, loadCostEstimation })
             </svg>
             <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.costEstimation.materialCostBreakdown') }}</h4>
           </div>
-          <span class="text-xs text-slate-600">{{ t('industry.costEstimation.pricesFromJita') }}</span>
+          <span class="text-xs text-slate-500">{{ t('industry.costEstimation.pricesFromJita') }}</span>
         </div>
 
         <DataTable>
@@ -359,7 +359,7 @@ defineExpose({ activate, loadCostEstimation })
                 :key="step.stepId"
                 class="hover:bg-slate-800/50"
               >
-                <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-table-cell tabular-nums">{{ index + 1 }}</td>
+                <td class="py-2.5 px-3 text-center text-slate-500 font-mono text-table-cell tabular-nums">{{ index + 1 }}</td>
                 <td class="py-2.5 px-3">
                   <div class="flex items-center gap-2">
                     <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
@@ -512,7 +512,7 @@ defineExpose({ activate, loadCostEstimation })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.costEstimation.sellPriceComparison') }}</h4>
-          <span class="text-xs text-slate-600 ml-2">{{ costData.outputQuantity.toLocaleString() }} unit{{ costData.outputQuantity > 1 ? 's' : '' }}</span>
+          <span class="text-xs text-slate-500 ml-2">{{ costData.outputQuantity.toLocaleString() }} unit{{ costData.outputQuantity > 1 ? 's' : '' }}</span>
         </div>
 
         <div class="p-4">
@@ -524,7 +524,7 @@ defineExpose({ activate, loadCostEstimation })
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.sellPriceLabel') }}</div>
               <div class="font-mono text-slate-200 text-lg">{{ sellPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) }}</div>
-              <div v-if="costData.outputQuantity > 1" class="text-table-cell text-slate-600 font-mono">{{ sellPricePerUnit === null ? t('industry.costEstimation.unknown') : t('industry.costEstimation.perUnitShort', { price: formatIsk(sellPricePerUnit) }) }}</div>
+              <div v-if="costData.outputQuantity > 1" class="text-table-cell text-slate-500 font-mono">{{ sellPricePerUnit === null ? t('industry.costEstimation.unknown') : t('industry.costEstimation.perUnitShort', { price: formatIsk(sellPricePerUnit) }) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.profitLabel') }}</div>
@@ -619,7 +619,7 @@ defineExpose({ activate, loadCostEstimation })
             {{ t('industry.costEstimation.refreshPrices') }}
           </button>
         </div>
-        <div v-if="lastFetchedAt" class="text-xs text-slate-600">
+        <div v-if="lastFetchedAt" class="text-xs text-slate-500">
           {{ t('industry.costEstimation.lastUpdated') }}: {{ formatTimeSince(lastFetchedAt) }}
         </div>
       </div>

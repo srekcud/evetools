@@ -125,7 +125,7 @@ function handleShareDiscord(): void {
           @click="showShareDropdown = !showShareDropdown"
           :disabled="shareableCount === 0"
           class="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-          :class="shareableCount > 0 ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-800 text-slate-600 cursor-not-allowed'"
+          :class="shareableCount > 0 ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-800 text-slate-500 cursor-not-allowed'"
           :title="t('escalations.shareAll')"
           :aria-label="t('escalations.shareAll')"
         >

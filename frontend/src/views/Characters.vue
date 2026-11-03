@@ -309,7 +309,7 @@ async function reauthorize(character: Character) {
 
           <!-- No main -->
           <div v-else class="bg-slate-900/50 rounded-2xl border border-dashed border-slate-700 p-12 text-center">
-            <svg class="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-16 h-16 mx-auto text-slate-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
             </svg>
             <p class="text-slate-500">{{ t('characters.noMainCharacter') }}</p>
@@ -368,7 +368,7 @@ async function reauthorize(character: Character) {
 
         <!-- Empty state -->
         <div v-if="altCharacters.length === 0" class="text-center py-16 bg-slate-900/30 rounded-2xl border border-dashed border-slate-700">
-          <svg class="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-16 h-16 mx-auto text-slate-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
           </svg>
           <p class="text-slate-500 mb-4">{{ t('characters.noAlts') }}</p>

@@ -124,7 +124,7 @@ function onDeleteTarget(targetId: string): void {
               </span>
               <div class="flex items-center gap-1.5">
                 <button
-                  class="text-slate-600 hover:text-red-400 opacity-0 group-hover/item:opacity-100 lg:opacity-0 max-lg:opacity-100 transition-opacity p-0.5"
+                  class="text-slate-500 hover:text-red-400 opacity-0 group-hover/item:opacity-100 lg:opacity-0 max-lg:opacity-100 transition-opacity p-0.5"
                   :title="t('common.actions.delete')"
                   @click="onDeleteTarget(item.id)"
                   :aria-label="t('common.actions.delete')"
@@ -151,7 +151,7 @@ function onDeleteTarget(targetId: string): void {
             <div class="flex items-center justify-between">
               <div class="relative group/loc font-mono text-xs text-slate-500" :class="{ 'cursor-help underline decoration-dotted decoration-slate-600': item.locations?.length > 1 }">
                 {{ formatNumber(item.stock, 0) }} / {{ formatNumber(item.remainingTargetQuantity, 0) }}
-                <span v-if="item.remainingTargetQuantity !== item.targetQuantity" class="text-slate-600">({{ formatNumber(item.targetQuantity, 0) }})</span>
+                <span v-if="item.remainingTargetQuantity !== item.targetQuantity" class="text-slate-500">({{ formatNumber(item.targetQuantity, 0) }})</span>
                 <!-- Location tooltip -->
                 <div
                   v-if="item.locations?.length > 0"

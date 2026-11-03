@@ -174,7 +174,7 @@ onMounted(async () => {
   <!-- Empty state: no targets -->
   <div v-else-if="!hasTargets && !stockpileStore.statusLoading" class="space-y-6">
     <div class="bg-slate-900 rounded-xl border border-slate-800 p-8 text-center">
-      <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-12 h-12 text-slate-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
       <h3 class="text-lg font-semibold text-slate-300 mb-2">{{ t('industry.stockpile.empty.title') }}</h3>

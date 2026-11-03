@@ -68,7 +68,7 @@ function getExpenseTypeColor(type: string): string {
       <!-- Selection controls -->
       <div class="flex items-center gap-3 mb-4">
         <button @click="emit('selectAll')" class="text-sm text-cyan-400 hover:text-cyan-300">{{ t('pve.selectAll') }}</button>
-        <span class="text-slate-600">|</span>
+        <span class="text-slate-500">|</span>
         <button @click="emit('deselectAll')" class="text-sm text-slate-400 hover:text-slate-300">{{ t('pve.deselectAll') }}</button>
       </div>
 

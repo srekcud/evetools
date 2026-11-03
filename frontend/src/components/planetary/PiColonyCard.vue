@@ -81,7 +81,7 @@ defineEmits<{
             </div>
             <div class="flex items-center gap-1.5 text-xs text-slate-500">
               <span>{{ colony.solarSystemName || t('pi.colony.unknown') }}</span>
-              <span class="text-slate-600">|</span>
+              <span class="text-slate-500">|</span>
               <span :class="getSecurityColorClass(colony.solarSystemSecurity)" class="font-medium">{{ formatSecurity(colony.solarSystemSecurity) }}</span>
             </div>
           </div>

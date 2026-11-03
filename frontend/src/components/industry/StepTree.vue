@@ -647,7 +647,7 @@ function mergeGroup(stepId: string) {
                   <!-- Inline runs editing (disabled for ESI-linked steps and readonly mode) -->
                   <template v-if="!isLinkedToEsi(step) && !readonly">
                     <span v-if="editingRunsStepId === step.id" class="inline-flex items-center gap-1">
-                      <span class="text-xs text-slate-600">(</span>
+                      <span class="text-xs text-slate-500">(</span>
                       <input
                         v-model.number="editRunsValue"
                         type="number"
@@ -661,7 +661,7 @@ function mergeGroup(stepId: string) {
                         @click.stop
                         v-focus-on-mount
                       />
-                      <span class="text-xs text-slate-600">{{ t('industry.stepTree.runsUnit') }})</span>
+                      <span class="text-xs text-slate-500">{{ t('industry.stepTree.runsUnit') }})</span>
                     </span>
                     <span
                       v-else
@@ -670,13 +670,13 @@ function mergeGroup(stepId: string) {
                       @dblclick.stop="startEditRuns(step)"
                       @keydown.enter.stop="startEditRuns(step)"
                       @keydown.space.stop.prevent="startEditRuns(step)"
-                      class="text-xs text-slate-600 cursor-pointer hover:text-cyan-400"
+                      class="text-xs text-slate-500 cursor-pointer hover:text-cyan-400"
                       :title="t('industry.table.doubleClickEdit')"
                     >
                       ({{ t('industry.stepTree.runsCount', { count: step.runs }) }})
                     </span>
                   </template>
-                  <span v-else class="text-xs text-slate-600" :title="isLinkedToEsi(step) ? t('industry.stepTree.linkedToEsi') : t('industry.table.projectCompleted')">
+                  <span v-else class="text-xs text-slate-500" :title="isLinkedToEsi(step) ? t('industry.stepTree.linkedToEsi') : t('industry.table.projectCompleted')">
                     ({{ t('industry.stepTree.runsCount', { count: step.runs }) }})
                   </span>
                   <button
@@ -730,8 +730,8 @@ function mergeGroup(stepId: string) {
                       </span>
                     </template>
                     <template v-else>
-                      <span v-if="step.activityType !== 'reaction'" class="text-xs text-slate-600">ME{{ step.meLevel }}</span>
-                      <span class="text-xs text-slate-600">TE{{ step.teLevel }}</span>
+                      <span v-if="step.activityType !== 'reaction'" class="text-xs text-slate-500">ME{{ step.meLevel }}</span>
+                      <span class="text-xs text-slate-500">TE{{ step.teLevel }}</span>
                     </template>
                   </template>
                   <!-- Structure display -->
@@ -797,7 +797,7 @@ function mergeGroup(stepId: string) {
                 <div v-if="step.esiJobId || step.manualJobData" class="flex items-center gap-2 mt-1 text-table-cell flex-wrap">
                   <span
                     v-if="step.esiJobsCount && step.esiJobsCount > 1"
-                    class="text-slate-600"
+                    class="text-slate-500"
                   >
                     ({{ t('industry.stepTree.jobsCount', { count: step.esiJobsCount }) }})
                   </span>
@@ -825,7 +825,7 @@ function mergeGroup(stepId: string) {
                   <UnknownValue v-if="isStepWithUnknownTimePerRun(step)" />
                   <template v-else>
                     {{ formatDuration(stepTotalDuration(step)) }}
-                    <span v-if="step.runs > 1" class="text-slate-600">({{ formatDuration(step.timePerRun) }}{{ t('industry.stepTree.perRun') }})</span>
+                    <span v-if="step.runs > 1" class="text-slate-500">({{ formatDuration(step.timePerRun) }}{{ t('industry.stepTree.perRun') }})</span>
                   </template>
                 </div>
               </div>

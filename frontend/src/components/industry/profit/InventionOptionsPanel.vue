@@ -91,7 +91,7 @@ function selectedDecryptorName(): string {
         </div>
         <div class="flex items-center gap-4 text-xs text-slate-500">
           <span>{{ t('industry.bpcKitTab.baseProbability') }}: <span class="text-cyan-400 font-mono">{{ formatProbability(props.baseProbability) }}</span></span>
-          <span class="text-slate-700">|</span>
+          <span class="text-slate-500">|</span>
           <span>{{ t('industry.bpcKitTab.datacoresLabel') }}: <span class="text-slate-400">{{ props.datacores.map(name => name ?? t('common.unknownName')).join(' + ') }}</span></span>
         </div>
       </div>

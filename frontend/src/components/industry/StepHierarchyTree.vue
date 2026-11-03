@@ -87,7 +87,7 @@ function onToggle(step: IndustryProjectStep) {
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-medium text-slate-200">{{ tree.productTypeName }}</span>
             <span class="text-xs text-slate-500">×{{ tree.quantity.toLocaleString() }}</span>
-            <span class="text-xs text-slate-600">({{ tree.runs }} runs)</span>
+            <span class="text-xs text-slate-500">({{ tree.runs }} runs)</span>
             <span :class="['text-xs px-1.5 py-0.5 rounded-sm', activityBadgeClass(tree.activityType)]">
               {{ activityLabel(tree.activityType) }}
             </span>
@@ -172,7 +172,7 @@ function onToggle(step: IndustryProjectStep) {
             />
             <span class="text-sm text-slate-400">{{ mat.typeName }}</span>
             <span class="text-xs text-slate-500">×{{ mat.quantity.toLocaleString() }}</span>
-            <span class="text-xs text-slate-600 italic ml-auto">{{ t('industry.step.seeAbove') }}</span>
+            <span class="text-xs text-slate-500 italic ml-auto">{{ t('industry.step.seeAbove') }}</span>
           </div>
         </div>
       </div>

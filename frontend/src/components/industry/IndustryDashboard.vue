@@ -318,7 +318,7 @@ function cleanTypeName(name: string): string {
         <template v-if="estimatedProfit !== 0">{{ formatIsk(estimatedProfit) }}</template>
         <template v-else>&mdash;</template>
       </p>
-      <p class="text-xs text-slate-600 mt-1">{{ t('industry.dashboard.acrossActiveProjects') }}</p>
+      <p class="text-xs text-slate-500 mt-1">{{ t('industry.dashboard.acrossActiveProjects') }}</p>
       <p v-if="activeProfitTotal.unknownProfitCount > 0" class="text-xs text-slate-500 mt-1">
         {{ t('industry.dashboard.unknownProfitExcluded', { count: activeProfitTotal.unknownProfitCount }, activeProfitTotal.unknownProfitCount) }}
       </p>
@@ -381,7 +381,7 @@ function cleanTypeName(name: string): string {
           <p class="text-2xl font-bold font-mono" :class="pipelineTextColor" style="font-variant-numeric: tabular-nums;">
             {{ pipelineHealth }}%
           </p>
-          <p class="text-xs text-slate-600">
+          <p class="text-xs text-slate-500">
             {{ t('industry.dashboard.targetsMet', { met: targetsMet, total: totalStockpileTargets }) }}
           </p>
         </div>
@@ -460,7 +460,7 @@ function cleanTypeName(name: string): string {
         </div>
 
         <!-- Chevron -->
-        <svg class="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
       </div>

@@ -107,9 +107,9 @@ function ringStrokeColor(percent: number): string {
               <th class="text-right py-2.5 px-6">
                 <div class="flex items-center justify-end gap-1">
                   {{ t('groupIndustry.bom.estCost') }}
-                  <svg class="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
-                <div class="text-xs text-slate-600 font-normal normal-case tracking-normal mt-0.5">(Jita 5% avg)</div>
+                <div class="text-xs text-slate-500 font-normal normal-case tracking-normal mt-0.5">(Jita 5% avg)</div>
               </th>
             </tr>
           </thead>
@@ -193,7 +193,7 @@ function ringStrokeColor(percent: number): string {
                   <!-- Lock icon for fully fulfilled -->
                   <svg
                     v-if="item.isFulfilled"
-                    class="w-3 h-3 text-slate-600 inline ml-1"
+                    class="w-3 h-3 text-slate-500 inline ml-1"
                     fill="none" stroke="currentColor" viewBox="0 0 24 24"
                   >
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -255,7 +255,7 @@ function ringStrokeColor(percent: number): string {
         </div>
       </div>
     </div>
-    <p class="text-xs text-slate-600 mt-3">
+    <p class="text-xs text-slate-500 mt-3">
       Prices: <span class="text-cyan-400/60">Jita top 5%</span> sell avg
     </p>
   </div>

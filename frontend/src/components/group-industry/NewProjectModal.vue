@@ -337,7 +337,7 @@ function handleClose() {
                 type="text"
                 :aria-label="t('groupIndustry.modals.newProject.searchPlaceholder')"
                 :placeholder="t('groupIndustry.modals.newProject.searchPlaceholder')"
-                class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600"
+                class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500"
                 @input="onSearchInput"
                 @focus="onSearchFocus"
                 @blur="onSearchBlur"
@@ -404,7 +404,7 @@ function handleClose() {
               {{ t('groupIndustry.modals.newProject.addToList') }}
             </button>
           </div>
-          <div class="flex gap-10 mt-1.5 ml-0 text-xs text-slate-600 uppercase tracking-wider">
+          <div class="flex gap-10 mt-1.5 ml-0 text-xs text-slate-500 uppercase tracking-wider">
             <span class="flex-1 pl-4">{{ t('groupIndustry.modals.newProject.columnItem') }}</span>
             <span class="w-16 text-center">ME</span>
             <span class="w-16 text-center">TE</span>
@@ -420,10 +420,10 @@ function handleClose() {
             :aria-label="t('groupIndustry.modals.newProject.itemsLabel')"
             rows="5"
             :placeholder="t('groupIndustry.modals.newProject.bulkPlaceholder')"
-            class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-sm text-slate-200 font-mono placeholder-slate-600 resize-none"
+            class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-sm text-slate-200 font-mono placeholder-slate-500 resize-none"
             style="font-variant-numeric: tabular-nums;"
           ></textarea>
-          <p class="text-xs text-slate-600 mt-1.5">
+          <p class="text-xs text-slate-500 mt-1.5">
             {{ t('groupIndustry.modals.newProject.bulkFormat') }}
             <span class="font-mono text-slate-500">ItemName ME TE xRuns</span>
           </p>
@@ -444,11 +444,11 @@ function handleClose() {
       <div>
         <!-- Empty state -->
         <div v-if="items.length === 0" class="bg-slate-800/30 rounded-xl border border-dashed border-slate-700 p-8 text-center">
-          <svg class="w-8 h-8 mx-auto text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-8 h-8 mx-auto text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
           <p class="text-sm text-slate-500">{{ t('groupIndustry.modals.newProject.noItems') }}</p>
-          <p class="text-xs text-slate-600 mt-1">{{ t('groupIndustry.modals.newProject.noItemsHint') }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.modals.newProject.noItemsHint') }}</p>
         </div>
 
         <!-- Filled table -->
@@ -515,7 +515,7 @@ function handleClose() {
                   </td>
                   <td class="py-2 px-3 text-center">
                     <button
-                      class="text-slate-600 hover:text-red-400 transition-colors"
+                      class="text-slate-500 hover:text-red-400 transition-colors"
                       :title="t('common.actions.delete')"
                       @click="removeItem(index)"
                       :aria-label="t('common.actions.delete')"
@@ -542,14 +542,14 @@ function handleClose() {
       <div>
         <label :for="projectNameFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
           {{ t('groupIndustry.modals.newProject.nameLabel') }}
-          <span class="text-slate-600 font-normal">({{ t('groupIndustry.modals.newProject.optional') }})</span>
+          <span class="text-slate-500 font-normal">({{ t('groupIndustry.modals.newProject.optional') }})</span>
         </label>
         <input
           :id="projectNameFieldId"
           v-model="projectName"
           type="text"
           :placeholder="t('groupIndustry.modals.newProject.namePlaceholder')"
-          class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600"
+          class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500"
         />
       </div>
 
@@ -579,21 +579,21 @@ function handleClose() {
           </label>
         </div>
 
-        <p class="text-xs text-slate-600">{{ t('groupIndustry.modals.newProject.blacklistHint') }}</p>
+        <p class="text-xs text-slate-500">{{ t('groupIndustry.modals.newProject.blacklistHint') }}</p>
       </div>
 
       <!-- Corp Container (Optional) -->
       <div>
         <label :for="containerNameFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
           {{ t('groupIndustry.modals.newProject.containerLabel') }}
-          <span class="text-slate-600 font-normal">({{ t('groupIndustry.modals.newProject.optional') }})</span>
+          <span class="text-slate-500 font-normal">({{ t('groupIndustry.modals.newProject.optional') }})</span>
         </label>
         <input
           :id="containerNameFieldId"
           v-model="containerName"
           type="text"
           :placeholder="t('groupIndustry.modals.newProject.containerPlaceholder')"
-          class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600"
+          class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500"
         />
         <p class="text-xs text-slate-500 mt-1.5">{{ t('groupIndustry.modals.newProject.containerHint') }}</p>
       </div>
@@ -664,7 +664,7 @@ function handleClose() {
             </table>
           </DataTable>
           <div class="px-4 py-2 border-t border-slate-700/50">
-            <p class="text-xs text-slate-600">{{ t('groupIndustry.modals.newProject.lineRentalOverrideHint') }}</p>
+            <p class="text-xs text-slate-500">{{ t('groupIndustry.modals.newProject.lineRentalOverrideHint') }}</p>
           </div>
         </div>
       </div>

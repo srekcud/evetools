@@ -227,7 +227,7 @@ onMounted(() => {
   <!-- Empty state: no characters / no jobs -->
   <div v-else-if="slotsStore.data && slotsStore.data.characters.length === 0" class="space-y-6">
     <div class="bg-slate-900 rounded-xl border border-slate-800 p-12 text-center">
-      <svg class="w-16 h-16 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-16 h-16 mx-auto mb-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <h3 class="text-lg font-semibold text-slate-300 mb-2">{{ t('industry.slots.title') }}</h3>
@@ -380,7 +380,7 @@ onMounted(() => {
             <h2 class="text-lg font-bold text-white">{{ char.characterName }}</h2>
             <div class="flex items-center gap-3 text-xs mt-0.5">
               <template v-for="(activity, actIdx) in SLOT_ACTIVITIES" :key="activity">
-                <span class="text-slate-600" v-if="actIdx > 0">|</span>
+                <span class="text-slate-500" v-if="actIdx > 0">|</span>
                 <span
                   class="flex items-center gap-1.5"
                   :class="isSlotActive(char, activity) ? SLOT_ACTIVITY_COLORS[activity].text : 'text-slate-400'"
@@ -510,7 +510,7 @@ onMounted(() => {
             </span>
           </div>
           <template v-if="entry.suggestion != null">
-            <span class="text-slate-600">|</span>
+            <span class="text-slate-500">|</span>
             <div class="flex items-center gap-1.5 text-sm">
               <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />

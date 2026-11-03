@@ -109,7 +109,7 @@ function cancelEditStock() {
                   type="button"
                   @click="startEditStock(item)"
                   class="font-mono text-xs cursor-pointer hover:text-cyan-400 min-w-8"
-                  :class="item.inStock > 0 ? 'text-slate-300' : 'text-slate-600'"
+                  :class="item.inStock > 0 ? 'text-slate-300' : 'text-slate-500'"
                   :title="t('industry.projectDetail.clickToEdit')"
                 >
                   {{ item.inStock > 0 ? item.inStock.toLocaleString() : '-' }}
@@ -141,7 +141,7 @@ function cancelEditStock() {
                     {{ formatIsk(item.missingJitaWeighted ?? item.missingJita) }}
                   </span>
                 </div>
-                <div v-if="item.missingJitaWeighted !== null && item.missingJita !== null" class="text-xs text-slate-600 mt-0.5">
+                <div v-if="item.missingJitaWeighted !== null && item.missingJita !== null" class="text-xs text-slate-500 mt-0.5">
                   {{ formatIsk(item.missingJita) }}
                 </div>
               </div>

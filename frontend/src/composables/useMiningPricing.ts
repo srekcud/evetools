@@ -18,7 +18,7 @@ interface PriceSource {
 type PricedSource = PriceSource & { value: number }
 
 const FALLBACK_PRICE_COLOR = 'text-slate-400'
-const NO_PRICE_COLOR = 'text-slate-600'
+const NO_PRICE_COLOR = 'text-slate-500'
 
 function addKnownValues(left: number | null, right: number | null): number | null {
   return left === null || right === null ? null : left + right

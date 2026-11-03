@@ -747,7 +747,7 @@ const SUMMARY_LIST_LIMIT = 5
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
                 <p class="text-xs text-emerald-400 uppercase tracking-wider font-semibold">{{ t('industry.scanner.buyVsBuild.recommendedBuild') }}</p>
-                <span class="text-table-cell text-slate-600 font-mono">{{ buildList.length }} {{ t('industry.scanner.buyVsBuild.items') }}</span>
+                <span class="text-table-cell text-slate-500 font-mono">{{ buildList.length }} {{ t('industry.scanner.buyVsBuild.items') }}</span>
               </div>
               <div class="space-y-2">
                 <div
@@ -780,7 +780,7 @@ const SUMMARY_LIST_LIMIT = 5
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
                 </svg>
                 <p class="text-xs text-amber-400 uppercase tracking-wider font-semibold">{{ t('industry.scanner.buyVsBuild.recommendedBuy') }}</p>
-                <span class="text-table-cell text-slate-600 font-mono">{{ buyList.length }} {{ t('industry.scanner.buyVsBuild.items') }}</span>
+                <span class="text-table-cell text-slate-500 font-mono">{{ buyList.length }} {{ t('industry.scanner.buyVsBuild.items') }}</span>
               </div>
               <div class="space-y-2">
                 <div
@@ -860,7 +860,7 @@ const SUMMARY_LIST_LIMIT = 5
 
     <!-- Empty state (no result yet) -->
     <div v-else-if="!loading" class="bg-slate-900 rounded-xl border border-slate-800 p-8 text-center">
-      <svg class="w-12 h-12 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-12 h-12 mx-auto mb-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
       </svg>
       <p class="text-slate-500">{{ t('industry.scanner.buyVsBuild.noResult') }}</p>

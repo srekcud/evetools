@@ -621,14 +621,14 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
           <div v-if="productsToAdd.length > 0 || projectName">
             <label :for="projectNameFieldId" class="block text-sm text-slate-400 mb-1.5">
               {{ t('industry.createProject.projectName') }}
-              <span class="text-slate-600">({{ t('industry.createProject.optional') }})</span>
+              <span class="text-slate-500">({{ t('industry.createProject.optional') }})</span>
             </label>
             <input
               :id="projectNameFieldId"
               v-model="projectName"
               type="text"
               :placeholder="t('industry.createProject.projectNamePlaceholder')"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-hidden focus:border-cyan-500 placeholder-slate-600 transition-colors"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-hidden focus:border-cyan-500 placeholder-slate-500 transition-colors"
             />
           </div>
 

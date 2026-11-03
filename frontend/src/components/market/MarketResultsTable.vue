@@ -127,13 +127,13 @@ function formatVolume(value: number | null | undefined): string {
               >
                 0.0%
               </span>
-              <span v-else class="text-slate-600 text-xs font-mono">---</span>
+              <span v-else class="text-slate-500 text-xs font-mono">---</span>
             </td>
             <td class="px-4 py-3 text-center">
               <button
                 @click.stop="toggleFavorite(item.typeId)"
                 class="transition-colors"
-                :class="isFavorite(item.typeId) ? 'text-amber-400 hover:text-amber-300' : 'text-slate-600 hover:text-amber-400'"
+                :class="isFavorite(item.typeId) ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'"
                 :title="isFavorite(item.typeId) ? t('market.favorite.remove') : t('market.favorite.add')"
                 :aria-label="isFavorite(item.typeId) ? t('market.favorite.remove') : t('market.favorite.add')"
               >

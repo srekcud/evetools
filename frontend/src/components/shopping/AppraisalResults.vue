@@ -131,7 +131,7 @@ function copyTable() {
           {{ t('appraisal.sellValue') }}
         </p>
         <p class="text-[22px] font-bold text-cyan-400 font-mono">{{ formatIsk(totals.sellTotalWeighted ?? totals.sellTotal) }}</p>
-        <p v-if="totals.sellTotalWeighted !== null && totals.sellTotalWeighted !== undefined" class="text-table-cell text-slate-600 font-mono mt-0.5">
+        <p v-if="totals.sellTotalWeighted !== null && totals.sellTotalWeighted !== undefined" class="text-table-cell text-slate-500 font-mono mt-0.5">
           {{ t('appraisal.bestPrice') }}: {{ formatIsk(totals.sellTotal) }}
         </p>
         <p class="text-xs text-slate-500 mt-1">{{ t('appraisal.sellValueDesc') }}</p>
@@ -146,7 +146,7 @@ function copyTable() {
           {{ t('appraisal.buyValue') }}
         </p>
         <p class="text-[22px] font-bold text-amber-400 font-mono">{{ formatIsk(totals.buyTotalWeighted ?? totals.buyTotal) }}</p>
-        <p v-if="totals.buyTotalWeighted !== null && totals.buyTotalWeighted !== undefined" class="text-table-cell text-slate-600 font-mono mt-0.5">
+        <p v-if="totals.buyTotalWeighted !== null && totals.buyTotalWeighted !== undefined" class="text-table-cell text-slate-500 font-mono mt-0.5">
           {{ t('appraisal.bestPrice') }}: {{ formatIsk(totals.buyTotal) }}
         </p>
         <p class="text-xs text-slate-500 mt-1">{{ t('appraisal.buyValueDesc') }}</p>
@@ -174,7 +174,7 @@ function copyTable() {
           {{ t('appraisal.splitValue') }}
         </p>
         <p class="text-[22px] font-bold text-emerald-400 font-mono">{{ formatIsk(totals.splitTotalWeighted ?? totals.splitTotal) }}</p>
-        <p v-if="totals.splitTotalWeighted !== null && totals.splitTotalWeighted !== undefined" class="text-table-cell text-slate-600 font-mono mt-0.5">
+        <p v-if="totals.splitTotalWeighted !== null && totals.splitTotalWeighted !== undefined" class="text-table-cell text-slate-500 font-mono mt-0.5">
           {{ t('appraisal.bestPrice') }}: {{ formatIsk(totals.splitTotal) }}
         </p>
         <p class="text-xs text-slate-500 mt-1">{{ t('appraisal.splitValueDesc') }}</p>
@@ -273,7 +273,7 @@ function copyTable() {
                     </span>
                     <span class="text-cyan-300">{{ formatNumber(displayPrice(item.sellPriceWeighted, item.sellPrice)!) }}</span>
                   </div>
-                  <div v-if="item.sellPriceWeighted !== null && item.sellPrice !== null" class="text-xs text-slate-600 mt-0.5">
+                  <div v-if="item.sellPriceWeighted !== null && item.sellPrice !== null" class="text-xs text-slate-500 mt-0.5">
                     {{ formatNumber(item.sellPrice) }}
                   </div>
                   <div
@@ -291,7 +291,7 @@ function copyTable() {
               <td class="px-4 py-2.5 text-right font-mono">
                 <div v-if="displayPrice(item.sellTotalWeighted, item.sellTotal) !== null">
                   <span class="text-cyan-400 font-semibold">{{ formatNumber(displayPrice(item.sellTotalWeighted, item.sellTotal)!) }}</span>
-                  <div v-if="item.sellTotalWeighted !== null && item.sellTotal !== null" class="text-xs text-slate-600 mt-0.5">
+                  <div v-if="item.sellTotalWeighted !== null && item.sellTotal !== null" class="text-xs text-slate-500 mt-0.5">
                     {{ formatNumber(item.sellTotal) }}
                   </div>
                 </div>
@@ -313,7 +313,7 @@ function copyTable() {
                     </span>
                     <span class="text-amber-300">{{ formatNumber(displayPrice(item.buyPriceWeighted, item.buyPrice)!) }}</span>
                   </div>
-                  <div v-if="item.buyPriceWeighted !== null && item.buyPrice !== null" class="text-xs text-slate-600 mt-0.5">
+                  <div v-if="item.buyPriceWeighted !== null && item.buyPrice !== null" class="text-xs text-slate-500 mt-0.5">
                     {{ formatNumber(item.buyPrice) }}
                   </div>
                 </div>
@@ -323,7 +323,7 @@ function copyTable() {
               <td class="px-4 py-2.5 text-right font-mono">
                 <div v-if="displayPrice(item.buyTotalWeighted, item.buyTotal) !== null">
                   <span class="text-amber-400 font-semibold">{{ formatNumber(displayPrice(item.buyTotalWeighted, item.buyTotal)!) }}</span>
-                  <div v-if="item.buyTotalWeighted !== null && item.buyTotal !== null" class="text-xs text-slate-600 mt-0.5">
+                  <div v-if="item.buyTotalWeighted !== null && item.buyTotal !== null" class="text-xs text-slate-500 mt-0.5">
                     {{ formatNumber(item.buyTotal) }}
                   </div>
                 </div>
@@ -333,7 +333,7 @@ function copyTable() {
               <td class="px-4 py-2.5 text-right font-mono">
                 <div v-if="displayPrice(item.splitPriceWeighted, item.splitPrice) !== null">
                   <span class="text-emerald-300">{{ formatNumber(displayPrice(item.splitPriceWeighted, item.splitPrice)!) }}</span>
-                  <div v-if="item.splitPriceWeighted !== null && item.splitPrice !== null" class="text-xs text-slate-600 mt-0.5">
+                  <div v-if="item.splitPriceWeighted !== null && item.splitPrice !== null" class="text-xs text-slate-500 mt-0.5">
                     {{ formatNumber(item.splitPrice) }}
                   </div>
                 </div>
@@ -343,7 +343,7 @@ function copyTable() {
               <td class="px-4 py-2.5 text-right font-mono">
                 <div v-if="displayPrice(item.splitTotalWeighted, item.splitTotal) !== null">
                   <span class="text-emerald-400 font-semibold">{{ formatNumber(displayPrice(item.splitTotalWeighted, item.splitTotal)!) }}</span>
-                  <div v-if="item.splitTotalWeighted !== null && item.splitTotal !== null" class="text-xs text-slate-600 mt-0.5">
+                  <div v-if="item.splitTotalWeighted !== null && item.splitTotal !== null" class="text-xs text-slate-500 mt-0.5">
                     {{ formatNumber(item.splitTotal) }}
                   </div>
                 </div>
@@ -362,21 +362,21 @@ function copyTable() {
               <td class="px-4 py-3 text-right text-slate-500 text-[13px]">--</td>
               <td class="px-4 py-3 text-right font-mono text-sm">
                 <span class="text-cyan-400 font-bold">{{ formatNumber(totals.sellTotalWeighted ?? totals.sellTotal) }}</span>
-                <div v-if="totals.sellTotalWeighted !== null && totals.sellTotalWeighted !== undefined" class="text-xs text-slate-600 mt-0.5">
+                <div v-if="totals.sellTotalWeighted !== null && totals.sellTotalWeighted !== undefined" class="text-xs text-slate-500 mt-0.5">
                   {{ formatNumber(totals.sellTotal) }}
                 </div>
               </td>
               <td class="px-4 py-3 text-right text-slate-500 text-[13px]">--</td>
               <td class="px-4 py-3 text-right font-mono text-sm">
                 <span class="text-amber-400 font-bold">{{ formatNumber(totals.buyTotalWeighted ?? totals.buyTotal) }}</span>
-                <div v-if="totals.buyTotalWeighted !== null && totals.buyTotalWeighted !== undefined" class="text-xs text-slate-600 mt-0.5">
+                <div v-if="totals.buyTotalWeighted !== null && totals.buyTotalWeighted !== undefined" class="text-xs text-slate-500 mt-0.5">
                   {{ formatNumber(totals.buyTotal) }}
                 </div>
               </td>
               <td class="px-4 py-3 text-right text-slate-500 text-[13px]">--</td>
               <td class="px-4 py-3 text-right font-mono text-sm">
                 <span class="text-emerald-400 font-bold">{{ formatNumber(totals.splitTotalWeighted ?? totals.splitTotal) }}</span>
-                <div v-if="totals.splitTotalWeighted !== null && totals.splitTotalWeighted !== undefined" class="text-xs text-slate-600 mt-0.5">
+                <div v-if="totals.splitTotalWeighted !== null && totals.splitTotalWeighted !== undefined" class="text-xs text-slate-500 mt-0.5">
                   {{ formatNumber(totals.splitTotal) }}
                 </div>
               </td>

@@ -204,7 +204,7 @@ onMounted(async () => {
               :aria-label="t('a11y.zoneC.notifications.thresholdInput', { category: t(`notificationHub.categories.${pref.category}`) })"
               :placeholder="t('notificationHub.settingsModal.threshold')"
             />
-            <span v-else class="text-xs text-slate-600">-</span>
+            <span v-else class="text-xs text-slate-500">-</span>
           </div>
         </div>
       </div>

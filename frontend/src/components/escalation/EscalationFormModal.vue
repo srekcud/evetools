@@ -555,7 +555,7 @@ function resetForm(): void {
       <div>
         <label :for="notesFieldId" class="block text-sm font-medium text-slate-400 mb-1.5">
           {{ t('escalations.modal.notes') }}
-          <span class="text-slate-600 font-normal ml-1">({{ t('escalations.modal.optional') }})</span>
+          <span class="text-slate-500 font-normal ml-1">({{ t('escalations.modal.optional') }})</span>
         </label>
         <input
           :id="notesFieldId"
@@ -624,7 +624,7 @@ function resetForm(): void {
 
     <!-- Footer -->
     <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
-      <p v-if="!isEditMode" class="text-xs text-slate-600">{{ t('escalations.modal.expiresIn72h') }}</p>
+      <p v-if="!isEditMode" class="text-xs text-slate-500">{{ t('escalations.modal.expiresIn72h') }}</p>
       <span v-else></span>
       <div class="flex items-center gap-3">
         <button

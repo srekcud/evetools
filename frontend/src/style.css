@@ -8,6 +8,12 @@
   }
 }
 
+@layer base {
+  body {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 /* Rajdhani - self-hosted (GDPR compliance, no Google Fonts) */
 /* latin-ext */
 @font-face {
@@ -142,6 +148,9 @@
 @theme {
   --font-display: Rajdhani, sans-serif;
   --font-mono: Share Tech Mono, monospace;
+
+  --color-slate-500: #8796a6;
+  --color-cyan-600: #007595;
 
   --text-body: 0.875rem;
   --text-body--line-height: 1.25rem;

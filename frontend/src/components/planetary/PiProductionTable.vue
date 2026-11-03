@@ -68,7 +68,7 @@ function toggleTier(tier: string): void {
             >
               <td class="py-2.5 pr-1">
                 <svg
-                  :class="['w-4 h-4 transition-transform duration-200', tier.items.length === 0 ? 'text-slate-600' : 'text-slate-500']"
+                  :class="['w-4 h-4 transition-transform duration-200', tier.items.length === 0 ? 'text-slate-500' : 'text-slate-500']"
                   :style="expandedTiers.has(tier.tier) ? 'transform: rotate(90deg)' : ''"
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
                 >
@@ -121,7 +121,7 @@ function toggleTier(tier: string): void {
                         <span class="w-1.5 h-1.5 rounded-full" :class="TIER_CONFIG[tier.tier]?.badgeText?.replace('text-', 'bg-') || 'bg-cyan-400'"></span>
                         <span class="text-slate-300">{{ typeNameLabel(item.typeName, item.typeId) }}</span>
                         <OpenInGameButton type="market" :targetId="item.typeId" />
-                        <span v-if="item.inputs?.length" class="text-slate-600 text-xs">
+                        <span v-if="item.inputs?.length" class="text-slate-500 text-xs">
                           &larr; {{ item.inputs.map(i => typeNameLabel(i.typeName, i.typeId)).join(' + ') }}
                         </span>
                       </div>

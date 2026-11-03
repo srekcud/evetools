@@ -254,7 +254,7 @@ const allButtonLabel = computed(() => {
                   type="button"
                   @click="marketStore.removeRecentSearch(entry.typeId)"
                   :aria-label="t('a11y.zoneB.market.removeRecentSearch', { name: entry.typeName })"
-                  class="ml-1 text-slate-600 hover:text-red-400 transition-colors"
+                  class="ml-1 text-slate-500 hover:text-red-400 transition-colors"
                 ><span aria-hidden="true">&times;</span></button>
               </div>
             </div>
@@ -327,7 +327,7 @@ const allButtonLabel = computed(() => {
           class="flex items-center justify-center py-16"
         >
           <div class="text-center">
-            <svg class="w-16 h-16 text-slate-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-16 h-16 text-slate-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
             <p class="text-slate-500 text-sm">{{ t('market.search.placeholder') }}</p>

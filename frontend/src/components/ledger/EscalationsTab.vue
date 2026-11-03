@@ -372,12 +372,12 @@ onUnmounted(() => {
 
     <!-- Empty State -->
     <div v-else-if="filteredEscalations.length === 0" class="bg-slate-900 rounded-xl border border-slate-800 p-12 text-center">
-      <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+      <svg class="w-12 h-12 text-slate-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/>
         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
       </svg>
       <p class="text-slate-400 mb-2">{{ t('escalations.noEscalations') }}</p>
-      <p class="text-sm text-slate-600 mb-4">{{ t('escalations.noEscalationsHint') }}</p>
+      <p class="text-sm text-slate-500 mb-4">{{ t('escalations.noEscalationsHint') }}</p>
       <button @click="openModal" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors">
         {{ t('escalations.addEscalation') }}
       </button>
@@ -427,7 +427,7 @@ onUnmounted(() => {
             @click="currentPage = 1"
             :disabled="currentPage === 1"
             class="px-2 py-1 rounded-sm text-sm transition-colors"
-            :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            :class="currentPage === 1 ? 'text-slate-500 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
             :aria-label="t('a11y.pagination.first')"
           >
             <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"/></svg>
@@ -436,7 +436,7 @@ onUnmounted(() => {
             @click="currentPage--"
             :disabled="currentPage === 1"
             class="px-2 py-1 rounded-sm text-sm transition-colors"
-            :class="currentPage === 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            :class="currentPage === 1 ? 'text-slate-500 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
             :aria-label="t('a11y.pagination.previous')"
           >
             <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
@@ -452,14 +452,14 @@ onUnmounted(() => {
             </button>
             <span
               v-else-if="page === currentPage - 2 || page === currentPage + 2"
-              class="text-slate-600 px-1"
+              class="text-slate-500 px-1"
             >...</span>
           </template>
           <button
             @click="currentPage++"
             :disabled="currentPage === totalPages"
             class="px-2 py-1 rounded-sm text-sm transition-colors"
-            :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            :class="currentPage === totalPages ? 'text-slate-500 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
             :aria-label="t('a11y.pagination.next')"
           >
             <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
@@ -468,7 +468,7 @@ onUnmounted(() => {
             @click="currentPage = totalPages"
             :disabled="currentPage === totalPages"
             class="px-2 py-1 rounded-sm text-sm transition-colors"
-            :class="currentPage === totalPages ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+            :class="currentPage === totalPages ? 'text-slate-500 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
             :aria-label="t('a11y.pagination.last')"
           >
             <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5"/></svg>

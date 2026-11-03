@@ -159,7 +159,7 @@ defineExpose({ resetLinkingId })
                   </template>
                   <template v-else>{{ t('industry.shoppingTab.link') }}</template>
                 </button>
-                <span v-else class="text-xs text-slate-600">-</span>
+                <span v-else class="text-xs text-slate-500">-</span>
               </td>
             </tr>
           </tbody>

@@ -298,7 +298,7 @@ onMounted(() => {
                 {{ t('industry.bpcKitTab.baseProbability') }}:
                 <span class="text-cyan-400 font-mono">{{ formatProbability(selectedInvention.baseProbability) }}</span>
               </span>
-              <span class="text-slate-700">|</span>
+              <span class="text-slate-500">|</span>
               <span>
                 {{ t('industry.bpcKitTab.datacoresLabel') }}:
                 <span class="text-slate-400">

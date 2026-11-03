@@ -433,9 +433,9 @@ onBeforeUnmount(() => {
             <div class="w-9 h-5 bg-slate-700 rounded-full opacity-40 cursor-not-allowed"></div>
             <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-slate-500 rounded-full opacity-40"></div>
           </div>
-          <label for="buildableToggle" class="text-xs text-slate-600 cursor-not-allowed select-none">
+          <label for="buildableToggle" class="text-xs text-slate-500 cursor-not-allowed select-none">
             {{ t('industry.scanner.batch.buildableOnly') }}
-            <span class="ml-1 text-xs px-1.5 py-0.5 bg-slate-800 text-slate-600 rounded uppercase tracking-wider">{{ t('industry.scanner.batch.buildableSoon') }}</span>
+            <span class="ml-1 text-xs px-1.5 py-0.5 bg-slate-800 text-slate-500 rounded uppercase tracking-wider">{{ t('industry.scanner.batch.buildableSoon') }}</span>
           </label>
         </div>
       </div>
@@ -467,7 +467,7 @@ onBeforeUnmount(() => {
             <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.batch.itemsScanned') }}</p>
           </div>
           <p class="text-2xl font-mono text-slate-100 font-bold">{{ formatNumber(scannerStore.scanResults.length, 0) }}</p>
-          <p class="text-table-cell text-slate-600 font-mono mt-1">{{ t('industry.scanner.batch.allManufacturable') }}</p>
+          <p class="text-table-cell text-slate-500 font-mono mt-1">{{ t('industry.scanner.batch.allManufacturable') }}</p>
         </div>
 
         <!-- Profitable -->
@@ -482,7 +482,7 @@ onBeforeUnmount(() => {
             <p class="text-2xl font-mono text-emerald-400 font-bold">{{ formatNumber(profitableCount, 0) }}</p>
             <span class="text-sm font-mono text-emerald-400/60">({{ profitablePercent }}%)</span>
           </div>
-          <p class="text-table-cell text-slate-600 font-mono mt-1">{{ t('industry.scanner.batch.profitableDesc') }}</p>
+          <p class="text-table-cell text-slate-500 font-mono mt-1">{{ t('industry.scanner.batch.profitableDesc') }}</p>
         </div>
 
         <!-- Best Margin -->
@@ -629,7 +629,7 @@ onBeforeUnmount(() => {
                 ]"
                 :style="idx === 0 && currentPage === 1 ? 'box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.05)' : ''"
               >
-                <td class="py-3 px-2 text-center font-mono text-table-cell text-slate-600">{{ (currentPage - 1) * PAGE_SIZE + idx + 1 }}</td>
+                <td class="py-3 px-2 text-center font-mono text-table-cell text-slate-500">{{ (currentPage - 1) * PAGE_SIZE + idx + 1 }}</td>
                 <td class="py-3 px-3">
                   <img
                     :src="getTypeIconUrl(item.typeId, 32)"
@@ -644,7 +644,7 @@ onBeforeUnmount(() => {
                     <button
                       @click="toggleFavorite($event, item.typeId)"
                       class="shrink-0 transition-colors"
-                      :class="scannerStore.isFavorite(item.typeId) ? 'text-amber-400 hover:text-amber-300' : 'text-slate-700 hover:text-amber-400'"
+                      :class="scannerStore.isFavorite(item.typeId) ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'"
                       :title="scannerStore.isFavorite(item.typeId) ? t('industry.scanner.batch.removeFavorite') : t('industry.scanner.batch.addFavorite')"
                       :aria-label="scannerStore.isFavorite(item.typeId) ? t('industry.scanner.batch.removeFavorite') : t('industry.scanner.batch.addFavorite')"
                     >
@@ -809,12 +809,12 @@ onBeforeUnmount(() => {
               :class="[
                 'px-2.5 py-1 border rounded text-table-cell font-mono transition-colors',
                 currentPage === 1
-                  ? 'bg-slate-800/50 border-slate-700/50 text-slate-600 cursor-not-allowed'
+                  ? 'bg-slate-800/50 border-slate-700/50 text-slate-500 cursor-not-allowed'
                   : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-cyan-500/30 hover:text-cyan-400',
               ]"
             >&laquo;</button>
             <template v-for="page in visiblePages" :key="page">
-              <span v-if="page === '...'" class="text-xs text-slate-600 px-1">...</span>
+              <span v-if="page === '...'" class="text-xs text-slate-500 px-1">...</span>
               <button
                 v-else
                 @click="currentPage = page"
@@ -832,7 +832,7 @@ onBeforeUnmount(() => {
               :class="[
                 'px-2.5 py-1 border rounded text-table-cell transition-colors',
                 currentPage === totalPages
-                  ? 'bg-slate-800/50 border-slate-700/50 text-slate-600 cursor-not-allowed'
+                  ? 'bg-slate-800/50 border-slate-700/50 text-slate-500 cursor-not-allowed'
                   : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-cyan-500/30',
               ]"
             >&raquo;</button>
@@ -857,7 +857,7 @@ onBeforeUnmount(() => {
 
     <!-- Empty state -->
     <div v-else-if="!scannerStore.scanLoading" class="bg-slate-900 rounded-xl border border-slate-800 p-8 text-center">
-      <svg class="w-12 h-12 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-12 h-12 mx-auto mb-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
       </svg>
       <p class="text-slate-500">{{ t('industry.scanner.batch.noResults') }}</p>

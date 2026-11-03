@@ -37,12 +37,12 @@ function formatDifference(structurePrice: number | null, jitaPrice: number | nul
 }
 
 const diffSellColor = computed(() => {
-  if (props.structureSell === null || props.jitaSell === null) return 'text-slate-600'
+  if (props.structureSell === null || props.jitaSell === null) return 'text-slate-500'
   return props.structureSell > props.jitaSell ? 'text-red-400' : 'text-emerald-400'
 })
 
 const diffBuyColor = computed(() => {
-  if (props.structureBuy === null || props.jitaBuy === null) return 'text-slate-600'
+  if (props.structureBuy === null || props.jitaBuy === null) return 'text-slate-500'
   return props.structureBuy > props.jitaBuy ? 'text-emerald-400' : 'text-red-400'
 })
 
@@ -57,10 +57,10 @@ const displayStructureName = computed(() => {
       <table class="w-full">
         <thead>
           <tr class="border-b border-slate-800/50">
-            <th class="text-left px-4 py-2.5 text-xs text-slate-600 font-medium">Source</th>
-            <th class="text-right px-4 py-2.5 text-xs text-slate-600 font-medium">{{ t('market.detail.sell') }}</th>
-            <th class="text-right px-4 py-2.5 text-xs text-slate-600 font-medium">{{ t('market.detail.buy') }}</th>
-            <th class="text-right px-4 py-2.5 text-xs text-slate-600 font-medium">{{ t('market.detail.spread') }}</th>
+            <th class="text-left px-4 py-2.5 text-xs text-slate-500 font-medium">Source</th>
+            <th class="text-right px-4 py-2.5 text-xs text-slate-500 font-medium">{{ t('market.detail.sell') }}</th>
+            <th class="text-right px-4 py-2.5 text-xs text-slate-500 font-medium">{{ t('market.detail.buy') }}</th>
+            <th class="text-right px-4 py-2.5 text-xs text-slate-500 font-medium">{{ t('market.detail.spread') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800/30">
@@ -74,11 +74,11 @@ const displayStructureName = computed(() => {
             </td>
             <td class="px-4 py-3 text-right font-mono text-sm text-cyan-400">
               <template v-if="jitaSell !== null">{{ formatIsk(jitaSell) }}</template>
-              <template v-else><span class="text-slate-600">--</span></template>
+              <template v-else><span class="text-slate-500">--</span></template>
             </td>
             <td class="px-4 py-3 text-right font-mono text-sm text-amber-400">
               <template v-if="jitaBuy !== null">{{ formatIsk(jitaBuy) }}</template>
-              <template v-else><span class="text-slate-600">--</span></template>
+              <template v-else><span class="text-slate-500">--</span></template>
             </td>
             <td class="px-4 py-3 text-right font-mono text-sm text-slate-400">{{ jitaSpread }}</td>
           </tr>
@@ -94,13 +94,13 @@ const displayStructureName = computed(() => {
               <template v-if="structureSell !== null">
                 <span class="text-cyan-400">{{ formatIsk(structureSell) }}</span>
               </template>
-              <template v-else><span class="text-slate-600 text-xs italic">{{ t('market.detail.noOrders') }}</span></template>
+              <template v-else><span class="text-slate-500 text-xs italic">{{ t('market.detail.noOrders') }}</span></template>
             </td>
             <td class="px-4 py-3 text-right font-mono text-sm">
               <template v-if="structureBuy !== null">
                 <span class="text-amber-400">{{ formatIsk(structureBuy) }}</span>
               </template>
-              <template v-else><span class="text-slate-600 text-xs italic">{{ t('market.detail.noOrders') }}</span></template>
+              <template v-else><span class="text-slate-500 text-xs italic">{{ t('market.detail.noOrders') }}</span></template>
             </td>
             <td class="px-4 py-3 text-right font-mono text-sm text-slate-400">{{ structureSpread }}</td>
           </tr>
@@ -115,7 +115,7 @@ const displayStructureName = computed(() => {
             <td class="px-4 py-3 text-right font-mono text-sm" :class="diffBuyColor">
               {{ formatDifference(structureBuy, jitaBuy) }}
             </td>
-            <td class="px-4 py-3 text-right font-mono text-sm text-slate-600"></td>
+            <td class="px-4 py-3 text-right font-mono text-sm text-slate-500"></td>
           </tr>
         </tbody>
       </table>

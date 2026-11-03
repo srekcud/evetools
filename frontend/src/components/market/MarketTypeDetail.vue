@@ -134,7 +134,7 @@ const price30dAgo = computed(() => {
             class="transition-colors"
             :class="detail.isFavorite
               ? 'text-amber-400 hover:text-amber-300'
-              : 'text-slate-600 hover:text-amber-400'"
+              : 'text-slate-500 hover:text-amber-400'"
             :aria-label="detail.isFavorite ? t('market.favorite.remove') : t('market.favorite.add')"
           >
             <svg
@@ -152,9 +152,9 @@ const price30dAgo = computed(() => {
         <!-- Breadcrumb -->
         <div class="flex items-center gap-2 text-xs text-slate-500 mt-1">
           <span>{{ detail.categoryName }}</span>
-          <span class="text-slate-700">&rsaquo;</span>
+          <span class="text-slate-500">&rsaquo;</span>
           <span>{{ detail.groupName }}</span>
-          <span class="text-slate-700">&rsaquo;</span>
+          <span class="text-slate-500">&rsaquo;</span>
           <span class="text-slate-400">{{ detail.typeName }}</span>
           <span class="ml-2 px-1.5 py-0.5 bg-slate-800/50 border border-slate-700/50 rounded text-slate-500 font-mono">ID: {{ detail.typeId }}</span>
         </div>
@@ -257,7 +257,7 @@ const price30dAgo = computed(() => {
             {{ t('market.detail.structureSell') }}
           </span>
         </div>
-        <div class="text-lg font-bold font-mono" :class="detail.structureSell !== null ? 'text-cyan-400' : 'text-slate-600'">
+        <div class="text-lg font-bold font-mono" :class="detail.structureSell !== null ? 'text-cyan-400' : 'text-slate-500'">
           <template v-if="detail.structureSell !== null">
             {{ formatIsk(detail.structureSell) }}
             <span class="text-xs text-slate-500">ISK</span>
@@ -275,7 +275,7 @@ const price30dAgo = computed(() => {
             {{ t('market.detail.structureBuy') }}
           </span>
         </div>
-        <div class="text-lg font-bold font-mono" :class="detail.structureBuy !== null ? 'text-amber-400' : 'text-slate-600'">
+        <div class="text-lg font-bold font-mono" :class="detail.structureBuy !== null ? 'text-amber-400' : 'text-slate-500'">
           <template v-if="detail.structureBuy !== null">
             {{ formatIsk(detail.structureBuy) }}
             <span class="text-xs text-slate-500">ISK</span>

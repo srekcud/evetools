@@ -48,7 +48,7 @@ async function handleReject(member: GroupMember): Promise<void> {
       class="bg-slate-900/80 rounded-xl border border-slate-800 p-8 text-center"
     >
       <p class="text-sm text-slate-500">{{ t('groupIndustry.members.noPending') }}</p>
-      <p class="text-xs text-slate-600 mt-1">{{ t('groupIndustry.members.noPendingHint') }}</p>
+      <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.members.noPendingHint') }}</p>
     </div>
 
     <!-- Pending table -->
@@ -104,7 +104,7 @@ async function handleReject(member: GroupMember): Promise<void> {
                     @click="handleReject(member)"
                   >{{ t('groupIndustry.members.rejectRequest') }}</button>
                 </div>
-                <span v-else class="text-xs text-slate-600">--</span>
+                <span v-else class="text-xs text-slate-500">--</span>
               </td>
             </tr>
           </tbody>

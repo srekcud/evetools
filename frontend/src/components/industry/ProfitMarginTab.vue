@@ -470,7 +470,7 @@ store.fetchUserSettings()
                 isT2 ? 'opacity-50 cursor-not-allowed' : '',
               ]"
             />
-            <svg v-if="isT2" class="absolute right-2 top-2 w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-if="isT2" class="absolute right-2 top-2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
@@ -491,7 +491,7 @@ store.fetchUserSettings()
                 isT2 ? 'opacity-50 cursor-not-allowed' : '',
               ]"
             />
-            <svg v-if="isT2" class="absolute right-2 top-2 w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-if="isT2" class="absolute right-2 top-2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
@@ -540,7 +540,7 @@ store.fetchUserSettings()
 
     <!-- Empty state -->
     <div v-if="!result && !loading && !marginError && typeLookupFailedTypeId === null" class="eve-card p-12 text-center">
-      <svg class="w-12 h-12 text-slate-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-12 h-12 text-slate-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>
       <p class="text-sm text-slate-500">{{ t('industry.margins.selectItem') }}</p>
@@ -623,7 +623,7 @@ store.fetchUserSettings()
             </svg>
             <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.margins.materialCostBreakdown') }}</h4>
           </div>
-          <span class="text-xs text-slate-600">{{ t('industry.costEstimation.pricesFromJita') }}</span>
+          <span class="text-xs text-slate-500">{{ t('industry.costEstimation.pricesFromJita') }}</span>
         </div>
 
         <DataTable>
@@ -729,7 +729,7 @@ store.fetchUserSettings()
                 :key="`${step.productTypeId}-${index}`"
                 class="hover:bg-slate-800/50"
               >
-                <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-xs tabular-nums">{{ index + 1 }}</td>
+                <td class="py-2.5 px-3 text-center text-slate-500 font-mono text-xs tabular-nums">{{ index + 1 }}</td>
                 <td class="py-2.5 px-3">
                   <div class="flex items-center gap-2">
                     <div class="w-5 h-5 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden shrink-0">
@@ -809,17 +809,17 @@ store.fetchUserSettings()
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.materials') }}</div>
               <div class="font-mono text-slate-200 text-lg">{{ formatCost(result.materialCost) }}</div>
-              <div class="text-xs text-slate-600 font-mono">{{ formatPercent(materialPercent) }}</div>
+              <div class="text-xs text-slate-500 font-mono">{{ formatPercent(materialPercent) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.jobInstall') }}</div>
               <div class="font-mono text-slate-200 text-lg">{{ formatCost(result.jobInstallCost) }}</div>
-              <div class="text-xs text-slate-600 font-mono">{{ formatPercent(jobInstallPercent) }}</div>
+              <div class="text-xs text-slate-500 font-mono">{{ formatPercent(jobInstallPercent) }}</div>
             </div>
             <div v-if="result.isT2">
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.margins.inventionCostLabel') }}</div>
               <div class="font-mono text-slate-200 text-lg">{{ formatCost(effectiveInventionCost) }}</div>
-              <div class="text-xs text-slate-600 font-mono">{{ formatPercent(inventionPercent) }}</div>
+              <div class="text-xs text-slate-500 font-mono">{{ formatPercent(inventionPercent) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.margins.totalProductionCost') }}</div>

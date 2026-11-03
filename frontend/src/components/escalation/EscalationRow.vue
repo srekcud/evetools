@@ -184,10 +184,10 @@ function visDescFor(vis: string): string {
               :class="timerTextColor"
             >{{ timerInfo.text }}</span>
           </template>
-          <span v-else class="text-xs font-mono text-slate-600">{{ t('escalations.timer.expired') }}</span>
+          <span v-else class="text-xs font-mono text-slate-500">{{ t('escalations.timer.expired') }}</span>
         </div>
         <div v-else class="flex items-center gap-3 mt-2">
-          <span class="text-xs font-mono text-slate-600">{{ t('escalations.finished') }}</span>
+          <span class="text-xs font-mono text-slate-500">{{ t('escalations.finished') }}</span>
         </div>
       </div>
 
@@ -243,7 +243,7 @@ function visDescFor(vis: string): string {
         <!-- Edit button (owner only) -->
         <button
           v-if="escalation.isOwner"
-          class="p-2 rounded-lg text-slate-600 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+          class="p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
           :title="t('common.actions.edit')"
           @click="emit('edit', escalation)"
           :aria-label="t('common.actions.edit')"
@@ -254,7 +254,7 @@ function visDescFor(vis: string): string {
         <!-- Delete button (owner only) -->
         <button
           v-if="escalation.isOwner"
-          class="p-2 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          class="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
           :title="t('common.actions.delete')"
           @click="emit('delete', escalation)"
           :aria-label="t('common.actions.delete')"

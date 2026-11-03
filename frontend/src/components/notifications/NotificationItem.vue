@@ -82,7 +82,7 @@ function handleDelete(): void {
             {{ notification.title }}
           </button>
           <div class="flex items-center gap-1.5 shrink-0">
-            <span class="text-xs text-slate-600 whitespace-nowrap group-hover/item:hidden group-focus-within/item:hidden">
+            <span class="text-xs text-slate-500 whitespace-nowrap group-hover/item:hidden group-focus-within/item:hidden">
               {{ timeAgo }}
             </span>
             <button

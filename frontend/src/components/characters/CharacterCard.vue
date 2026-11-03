@@ -100,7 +100,7 @@ const isCorp = props.variant === 'corp'
           isCorp ? 'text-slate-100 group-hover:text-cyan-300' : 'text-slate-200 group-hover:text-slate-100'
         ]">{{ props.character.name }}</h4>
         <p :class="['text-sm truncate', isCorp ? 'text-slate-400' : 'text-slate-500']">{{ props.character.corporationName }}</p>
-        <p v-if="!isCorp && props.character.allianceName" class="text-xs text-slate-600 truncate">{{ props.character.allianceName }}</p>
+        <p v-if="!isCorp && props.character.allianceName" class="text-xs text-slate-500 truncate">{{ props.character.allianceName }}</p>
 
         <div class="flex items-center gap-2 mt-2">
           <span :class="[

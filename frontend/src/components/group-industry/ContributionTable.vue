@@ -128,11 +128,11 @@ onMounted(() => {
     v-else-if="filteredContributions.length === 0"
     class="bg-slate-900/80 rounded-xl border border-slate-800 p-12 text-center"
   >
-    <svg class="w-10 h-10 mx-auto text-slate-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class="w-10 h-10 mx-auto text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
     </svg>
     <p class="text-sm text-slate-500">No contributions yet</p>
-    <p class="text-xs text-slate-600 mt-1">Contributions will appear here once members start contributing</p>
+    <p class="text-xs text-slate-500 mt-1">Contributions will appear here once members start contributing</p>
   </div>
 
   <!-- Contributions Table -->
@@ -255,7 +255,7 @@ onMounted(() => {
                     @click="handleReject(contrib.id)"
                   >Reject</button>
                 </div>
-                <span v-else class="text-xs text-slate-600">--</span>
+                <span v-else class="text-xs text-slate-500">--</span>
               </td>
             </tr>
           </tbody>

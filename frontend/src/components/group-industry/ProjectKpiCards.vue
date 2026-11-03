@@ -39,7 +39,7 @@ const unknownBomValueCount = computed(() =>
       <p class="text-3xl font-bold text-cyan-400 font-mono value-reveal" style="animation-delay: 300ms; font-variant-numeric: tabular-nums;">
         {{ activeCount }}
       </p>
-      <p class="text-xs text-slate-600 mt-1">{{ t('groupIndustry.kpis.activeDesc') }}</p>
+      <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.kpis.activeDesc') }}</p>
     </div>
 
     <!-- Total Contributions -->
@@ -53,7 +53,7 @@ const unknownBomValueCount = computed(() =>
       <p class="text-3xl font-bold text-emerald-400 font-mono value-reveal" style="animation-delay: 360ms; font-variant-numeric: tabular-nums;">
         {{ formatIsk(totalContributions, 1) }}
       </p>
-      <p class="text-xs text-slate-600 mt-1">{{ t('groupIndustry.kpis.contributionsDesc') }}</p>
+      <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.kpis.contributionsDesc') }}</p>
     </div>
 
     <!-- Pending Approvals -->
@@ -67,7 +67,7 @@ const unknownBomValueCount = computed(() =>
       <p class="text-3xl font-bold text-amber-400 font-mono value-reveal" style="animation-delay: 420ms; font-variant-numeric: tabular-nums;">
         0
       </p>
-      <p class="text-xs text-slate-600 mt-1">{{ t('groupIndustry.kpis.approvalsDesc') }}</p>
+      <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.kpis.approvalsDesc') }}</p>
     </div>
 
     <!-- Pipeline Value -->
@@ -81,7 +81,7 @@ const unknownBomValueCount = computed(() =>
       <p class="text-3xl font-bold text-white font-mono value-reveal" style="animation-delay: 480ms; font-variant-numeric: tabular-nums;">
         {{ formatIsk(pipelineValue, 1) }}
       </p>
-      <p class="text-xs text-slate-600 mt-1">{{ t('groupIndustry.kpis.pipelineDesc') }}</p>
+      <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.kpis.pipelineDesc') }}</p>
       <p v-if="unknownBomValueCount > 0" class="text-xs text-slate-500 mt-1">
         {{ t('groupIndustry.kpis.unknownValueExcluded', { count: unknownBomValueCount }, unknownBomValueCount) }}
       </p>

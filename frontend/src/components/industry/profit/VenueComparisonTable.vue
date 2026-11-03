@@ -36,7 +36,7 @@ const { formatIsk } = useFormatters()
         </svg>
         <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.margins.sellComparison') }}</h4>
       </div>
-      <span class="text-xs text-slate-600">{{ runs }} runs &middot; {{ t('industry.margins.brokerFeeLabel') }} {{ (brokerFeeRate * 100).toFixed(1) }}%</span>
+      <span class="text-xs text-slate-500">{{ runs }} runs &middot; {{ t('industry.margins.brokerFeeLabel') }} {{ (brokerFeeRate * 100).toFixed(1) }}%</span>
     </div>
 
     <DataTable>

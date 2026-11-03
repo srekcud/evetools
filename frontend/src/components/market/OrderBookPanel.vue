@@ -42,8 +42,8 @@ function extractSystemName(name?: string): string {
         <table class="w-full">
           <thead>
             <tr class="border-b border-slate-800/30">
-              <th class="text-right px-3 py-1.5 text-xs text-slate-600">Price</th>
-              <th class="text-right px-3 py-1.5 text-xs text-slate-600">Volume</th>
+              <th class="text-right px-3 py-1.5 text-xs text-slate-500">Price</th>
+              <th class="text-right px-3 py-1.5 text-xs text-slate-500">Volume</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/20">
@@ -57,7 +57,7 @@ function extractSystemName(name?: string): string {
             </tr>
             <tr v-if="sellOrders.length === 0">
               <td colspan="2" class="text-center py-4">
-                <span class="text-xs text-slate-600">---</span>
+                <span class="text-xs text-slate-500">---</span>
               </td>
             </tr>
           </tbody>
@@ -77,8 +77,8 @@ function extractSystemName(name?: string): string {
         <table class="w-full">
           <thead>
             <tr class="border-b border-slate-800/30">
-              <th class="text-right px-3 py-1.5 text-xs text-slate-600">Price</th>
-              <th class="text-right px-3 py-1.5 text-xs text-slate-600">Volume</th>
+              <th class="text-right px-3 py-1.5 text-xs text-slate-500">Price</th>
+              <th class="text-right px-3 py-1.5 text-xs text-slate-500">Volume</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/20">
@@ -92,7 +92,7 @@ function extractSystemName(name?: string): string {
             </tr>
             <tr v-if="buyOrders.length === 0">
               <td colspan="2" class="text-center py-4">
-                <span class="text-xs text-slate-600">---</span>
+                <span class="text-xs text-slate-500">---</span>
               </td>
             </tr>
           </tbody>
@@ -111,8 +111,8 @@ function extractSystemName(name?: string): string {
         <table class="w-full">
           <thead>
             <tr class="border-b border-slate-800/30">
-              <th class="text-right px-3 py-1.5 text-xs text-slate-600">Price</th>
-              <th class="text-right px-3 py-1.5 text-xs text-slate-600">Volume</th>
+              <th class="text-right px-3 py-1.5 text-xs text-slate-500">Price</th>
+              <th class="text-right px-3 py-1.5 text-xs text-slate-500">Volume</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/20">
@@ -126,7 +126,7 @@ function extractSystemName(name?: string): string {
             </tr>
             <tr v-if="!structureSellOrders || structureSellOrders.length === 0">
               <td colspan="2" class="text-center py-4">
-                <span class="text-xs text-slate-600">{{ t('market.detail.noOrders') }}</span>
+                <span class="text-xs text-slate-500">{{ t('market.detail.noOrders') }}</span>
               </td>
             </tr>
           </tbody>
@@ -145,8 +145,8 @@ function extractSystemName(name?: string): string {
         <table class="w-full">
           <thead>
             <tr class="border-b border-slate-800/30">
-              <th class="text-right px-3 py-1.5 text-xs text-slate-600">Price</th>
-              <th class="text-right px-3 py-1.5 text-xs text-slate-600">Volume</th>
+              <th class="text-right px-3 py-1.5 text-xs text-slate-500">Price</th>
+              <th class="text-right px-3 py-1.5 text-xs text-slate-500">Volume</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/20">
@@ -160,7 +160,7 @@ function extractSystemName(name?: string): string {
             </tr>
             <tr v-if="!structureBuyOrders || structureBuyOrders.length === 0">
               <td colspan="2" class="text-center py-4">
-                <span class="text-xs text-slate-600">{{ t('market.detail.noOrders') }}</span>
+                <span class="text-xs text-slate-500">{{ t('market.detail.noOrders') }}</span>
               </td>
             </tr>
           </tbody>

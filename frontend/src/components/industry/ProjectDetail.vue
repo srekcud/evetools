@@ -254,7 +254,7 @@ onMounted(async () => {
               <span v-if="isEstimatedProjectTimeUnknown" class="text-cyan-400 font-mono"><UnknownValue /></span>
               <span v-else-if="estimatedProjectTime" class="text-cyan-400 font-mono">{{ formatDuration(estimatedProjectTime) }}</span>
               <!-- Jobs start date -->
-              <span class="text-slate-600">·</span>
+              <span class="text-slate-500">·</span>
               <label class="flex items-center gap-1 text-xs text-slate-500">
                 <span>{{ t('industry.projectDetail.start') }}:</span>
                 <input
@@ -282,7 +282,7 @@ onMounted(async () => {
               </div>
               <div class="flex items-center gap-2 mt-1">
                 <p>{{ totalRootStepCount }} steps - {{ t('industry.projectDetail.createdOn') }} {{ formatDateTime(store.currentProject.createdAt) }}</p>
-                <span class="text-slate-600">·</span>
+                <span class="text-slate-500">·</span>
                 <label class="flex items-center gap-1 text-xs text-slate-500">
                   <span>{{ t('industry.projectDetail.start') }}:</span>
                   <input
@@ -457,7 +457,7 @@ onMounted(async () => {
             <p class="text-sm font-mono text-slate-400">
               {{ store.currentProject.estimatedSellPrice != null ? formatIsk(store.currentProject.estimatedSellPrice) : '-' }}
             </p>
-            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-xs text-slate-600 mt-0.5">
+            <p v-if="store.currentProject.estimatedSellPriceSource" class="text-xs text-slate-500 mt-0.5">
               {{ store.currentProject.estimatedSellPriceSource === 'jita' ? 'Jita' : t('industry.costs.structure') }}
             </p>
           </div>
@@ -485,7 +485,7 @@ onMounted(async () => {
                 {{ store.currentProject.profitPercent?.toFixed(1) }}%
               </p>
             </template>
-            <p v-else class="text-lg font-mono text-slate-600">—</p>
+            <p v-else class="text-lg font-mono text-slate-500">—</p>
           </div>
         </div>
       </div>
@@ -518,7 +518,7 @@ onMounted(async () => {
           :class="[
             'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
             store.currentProject?.status === 'completed'
-              ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+              ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
               : activeTab === 'shopping' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200',
           ]"
           :title="store.currentProject?.status === 'completed' ? t('industry.projectDetail.completedTooltip') : ''"

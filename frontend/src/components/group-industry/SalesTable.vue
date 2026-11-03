@@ -165,11 +165,11 @@ onMounted(() => {
       v-else-if="store.sales.length === 0 && !showSaleForm"
       class="bg-slate-900/80 rounded-xl border border-slate-800 p-12 text-center"
     >
-      <svg class="w-10 h-10 mx-auto text-slate-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-10 h-10 mx-auto text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <p class="text-sm text-slate-500">No sales recorded yet</p>
-      <p class="text-xs text-slate-600 mt-1">Record sales once items have been sold on the market</p>
+      <p class="text-xs text-slate-500 mt-1">Record sales once items have been sold on the market</p>
     </div>
 
     <!-- Sales Table -->
@@ -222,7 +222,7 @@ onMounted(() => {
                     v-if="sale.venue"
                     class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20"
                   >{{ sale.venue }}</span>
-                  <span v-else class="text-xs text-slate-600">--</span>
+                  <span v-else class="text-xs text-slate-500">--</span>
                 </td>
                 <td v-if="isAdmin" class="py-3 px-6 text-right whitespace-nowrap">
                   <button
@@ -268,7 +268,7 @@ onMounted(() => {
               v-model="saleForm.typeName"
               type="text"
               placeholder="e.g. Ishtar"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-cyan-500 focus:outline-none"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
             />
           </div>
           <div>
@@ -299,7 +299,7 @@ onMounted(() => {
               v-model="saleForm.venue"
               type="text"
               placeholder="e.g. Jita 4-4"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:border-cyan-500 focus:outline-none"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
             />
           </div>
           <div>

@@ -265,13 +265,13 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
               <span v-if="entry.compressedEquivalentPrice" class="text-cyan-400" :title="`${entry.compressedTypeName}: ${formatNumber(entry.compressedUnitPrice || 0, 0)} ISK/u`">
                 {{ formatNumber(entry.compressedEquivalentPrice, 1) }}
               </span>
-              <span v-else class="text-slate-600">-</span>
+              <span v-else class="text-slate-500">-</span>
             </td>
             <td class="px-3 py-3 text-sm text-right">
               <span v-if="entry.reprocessValue" class="text-purple-400" :title="`Valeur reprocess par unite (${reprocessYield.toFixed(2)}% yield)`">
                 {{ formatNumber(entry.reprocessValue, 2) }}
               </span>
-              <span v-else class="text-slate-600">-</span>
+              <span v-else class="text-slate-500">-</span>
             </td>
             <td v-if="selectedStructureId" class="px-3 py-3 text-sm text-right">
               <span v-if="entry.structureCompressedEquivalentPrice" class="text-emerald-400" :title="`Compresse: ${formatNumber(entry.structureCompressedUnitPrice, 0)} ISK/u`">
@@ -280,10 +280,10 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
               <span v-else-if="entry.structureUnitPrice" class="text-slate-400">
                 {{ formatNumber(entry.structureUnitPrice, 0) }}
               </span>
-              <span v-else class="text-slate-600">-</span>
+              <span v-else class="text-slate-500">-</span>
             </td>
             <td class="px-3 py-3 text-sm text-right">
-              <span v-if="getEntryValue(entry) === null" class="text-slate-600"><UnknownValue /></span>
+              <span v-if="getEntryValue(entry) === null" class="text-slate-500"><UnknownValue /></span>
               <span
                 v-else-if="getEntryValue(entry) !== 0"
                 :class="getBestPrice(entry).color"
@@ -292,7 +292,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
               >
                 {{ formatIskShort(getEntryValue(entry)) }}
               </span>
-              <span v-else class="text-slate-600">-</span>
+              <span v-else class="text-slate-500">-</span>
             </td>
             <td class="px-3 py-3 text-sm">
               <span :class="getUsageColor(entry.usage)" class="text-xs font-medium">

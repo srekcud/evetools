@@ -314,7 +314,7 @@ defineExpose({
                 <span v-if="job.linkedToStepId" class="text-xs text-blue-400">
                   {{ typeNameLabel(job.linkedToStepName, job.productTypeId) }}
                 </span>
-                <span v-else class="text-xs text-slate-600">—</span>
+                <span v-else class="text-xs text-slate-500">—</span>
               </td>
               <td class="py-2 px-2 text-center">
                 <!-- Linked: show unlink button -->
@@ -342,7 +342,7 @@ defineExpose({
                     {{ typeNameLabel(step.productTypeName, step.productTypeId) }} ({{ step.runs }} runs)
                   </option>
                 </select>
-                <span v-else class="text-xs text-slate-600">—</span>
+                <span v-else class="text-xs text-slate-500">—</span>
               </td>
             </tr>
           </tbody>

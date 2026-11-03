@@ -400,7 +400,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                     </span>
                   </div>
                   <!-- None / Not required -->
-                  <span v-else class="text-slate-600">&mdash;</span>
+                  <span v-else class="text-slate-500">&mdash;</span>
                 </td>
               </tr>
             </tbody>
@@ -577,7 +577,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
 
     <!-- Empty state (no result yet) -->
     <div v-if="!result && !loading && !error" class="bg-slate-900 rounded-xl border border-slate-800 p-8 text-center">
-      <svg class="w-12 h-12 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-12 h-12 mx-auto mb-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
       </svg>
       <p class="text-slate-500">{{ t('industry.scanner.pivotAdvisor.selectProduct') }}</p>

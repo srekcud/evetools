@@ -136,12 +136,12 @@ function isJobDimmed(job: BomItem): boolean {
       <h2 class="text-lg font-semibold text-slate-100">{{ t('groupIndustry.jobs.title') }}</h2>
       <div class="flex items-center gap-2 text-xs">
         <span class="text-slate-400">{{ statusCounts.toLaunch }} to launch</span>
-        <span class="text-slate-700">&middot;</span>
+        <span class="text-slate-500">&middot;</span>
         <span class="text-cyan-400">{{ statusCounts.active }} active</span>
-        <span class="text-slate-700">&middot;</span>
+        <span class="text-slate-500">&middot;</span>
         <span class="text-emerald-400">{{ statusCounts.delivered }} delivered</span>
         <template v-if="statusCounts.bpcContributed > 0">
-          <span class="text-slate-700">&middot;</span>
+          <span class="text-slate-500">&middot;</span>
           <span class="text-violet-400">{{ statusCounts.bpcContributed }} BPC contributed</span>
         </template>
       </div>

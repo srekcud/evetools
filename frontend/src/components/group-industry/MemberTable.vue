@@ -222,7 +222,7 @@ onMounted(() => {
                   @click="confirmLeave"
                 >{{ t('groupIndustry.members.leaveProject') }}</button>
               </div>
-              <span v-else class="text-xs text-slate-600">--</span>
+              <span v-else class="text-xs text-slate-500">--</span>
             </td>
           </tr>
         </tbody>

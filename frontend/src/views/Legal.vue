@@ -19,9 +19,9 @@ import { APP_VERSION } from '@/version'
         </RouterLink>
         <nav class="flex items-center gap-4 text-sm">
           <a href="#legal-notice" class="text-slate-400 hover:text-slate-200 transition-colors">Legal Notice</a>
-          <span class="text-slate-700">|</span>
+          <span class="text-slate-500">|</span>
           <a href="#privacy-policy" class="text-slate-400 hover:text-slate-200 transition-colors">Privacy Policy</a>
-          <span class="text-slate-700">|</span>
+          <span class="text-slate-500">|</span>
           <a href="#ccp-disclaimer" class="text-slate-400 hover:text-slate-200 transition-colors">CCP Disclaimer</a>
         </nav>
       </div>
@@ -224,7 +224,7 @@ import { APP_VERSION } from '@/version'
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-600">
+    <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
       <p>EVE Tools v{{ APP_VERSION }}</p>
     </footer>
   </div>

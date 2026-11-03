@@ -345,14 +345,14 @@ async function submit(): Promise<void> {
         <!-- Notes -->
         <div>
           <label :for="noteFieldId" class="text-sm font-medium text-slate-300 mb-1.5 block">
-            {{ t('groupIndustry.contribute.notes') }} <span class="text-slate-600 font-normal">({{ t('groupIndustry.contribute.optional') }})</span>
+            {{ t('groupIndustry.contribute.notes') }} <span class="text-slate-500 font-normal">({{ t('groupIndustry.contribute.optional') }})</span>
           </label>
           <textarea
             :id="noteFieldId"
             v-model="note"
             :placeholder="t('groupIndustry.contribute.notesPlaceholder')"
             rows="2"
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-400 resize-none placeholder-slate-600 focus:border-cyan-500 focus:outline-none transition-colors"
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-400 resize-none placeholder-slate-500 focus:border-cyan-500 focus:outline-none transition-colors"
           ></textarea>
         </div>
 

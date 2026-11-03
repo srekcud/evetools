@@ -412,7 +412,7 @@ function formatRootProducts(project: IndustryProject): string {
                     @keydown.enter="saveMeTe(project)"
                     @keydown.escape="cancelMeTe"
                   />
-                  <span class="text-slate-600">/</span>
+                  <span class="text-slate-500">/</span>
                   <input
                     v-model="editTeValue"
                     :aria-label="t('industry.createProject.te')"
@@ -448,7 +448,7 @@ function formatRootProducts(project: IndustryProject): string {
             <!-- Materials (merged actual/estimated) -->
             <td class="py-3.5 px-2 text-right">
               <span class="font-mono" :class="getMergedValue(project.materialCost, project.estimatedMaterialCost).isEstimated ? 'italic text-slate-500' : 'text-slate-300'">
-                <span v-if="getMergedValue(project.materialCost, project.estimatedMaterialCost).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-600 mr-0.5">est.</span>
+                <span v-if="getMergedValue(project.materialCost, project.estimatedMaterialCost).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-500 mr-0.5">est.</span>
                 {{ formatValue(getMergedValue(project.materialCost, project.estimatedMaterialCost).value) }}
               </span>
             </td>
@@ -456,7 +456,7 @@ function formatRootProducts(project: IndustryProject): string {
             <!-- Job Cost (merged actual/estimated) -->
             <td class="py-3.5 px-2 text-right">
               <span class="font-mono" :class="getMergedValue(project.jobsCost, project.estimatedJobCost).isEstimated ? 'italic text-slate-500' : 'text-slate-300'">
-                <span v-if="getMergedValue(project.jobsCost, project.estimatedJobCost).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-600 mr-0.5">est.</span>
+                <span v-if="getMergedValue(project.jobsCost, project.estimatedJobCost).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-500 mr-0.5">est.</span>
                 {{ formatValue(getMergedValue(project.jobsCost, project.estimatedJobCost).value) }}
               </span>
             </td>
@@ -464,11 +464,11 @@ function formatRootProducts(project: IndustryProject): string {
             <!-- Taxes (merged actual/estimated, or N/A for personal use) -->
             <td class="py-3.5 px-2 text-right">
               <template v-if="project.personalUse">
-                <span class="text-slate-600 font-mono">N/A</span>
+                <span class="text-slate-500 font-mono">N/A</span>
               </template>
               <template v-else>
                 <span class="font-mono" :class="getMergedValue(project.taxAmount, project.estimatedTaxAmount).isEstimated ? 'italic text-slate-500' : 'text-slate-300'">
-                  <span v-if="getMergedValue(project.taxAmount, project.estimatedTaxAmount).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-600 mr-0.5">est.</span>
+                  <span v-if="getMergedValue(project.taxAmount, project.estimatedTaxAmount).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-500 mr-0.5">est.</span>
                   {{ formatValue(getMergedValue(project.taxAmount, project.estimatedTaxAmount).value) }}
                 </span>
               </template>
@@ -476,7 +476,7 @@ function formatRootProducts(project: IndustryProject): string {
 
             <!-- Sell Price (editable, merged actual/estimated, or N/A for personal use) -->
             <td class="py-3.5 px-2 text-right">
-              <span v-if="project.personalUse" class="text-slate-600 font-mono">N/A</span>
+              <span v-if="project.personalUse" class="text-slate-500 font-mono">N/A</span>
               <input
                 v-else-if="isEditing(project.id, 'sellPrice')"
                 v-model="editValue"
@@ -499,7 +499,7 @@ function formatRootProducts(project: IndustryProject): string {
                 :class="getMergedValue(project.sellPrice, project.estimatedSellPrice).isEstimated ? 'italic text-slate-500' : 'text-slate-300'"
                 :title="t('industry.table.doubleClickEdit')"
               >
-                <span v-if="getMergedValue(project.sellPrice, project.estimatedSellPrice).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-600 mr-0.5 not-italic">est.</span>
+                <span v-if="getMergedValue(project.sellPrice, project.estimatedSellPrice).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-500 mr-0.5 not-italic">est.</span>
                 {{ formatValue(getMergedValue(project.sellPrice, project.estimatedSellPrice).value) }}
                 <span class="pencil-icon">
                   <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -513,17 +513,17 @@ function formatRootProducts(project: IndustryProject): string {
                 class="font-mono"
                 :class="getMergedValue(project.sellPrice, project.estimatedSellPrice).isEstimated ? 'italic text-slate-500' : 'text-slate-500'"
               >
-                <span v-if="getMergedValue(project.sellPrice, project.estimatedSellPrice).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-600 mr-0.5 not-italic">est.</span>
+                <span v-if="getMergedValue(project.sellPrice, project.estimatedSellPrice).isEstimated" class="text-[9px] uppercase tracking-wide text-slate-500 mr-0.5 not-italic">est.</span>
                 {{ formatValue(getMergedValue(project.sellPrice, project.estimatedSellPrice).value) }}
               </span>
               <!-- No price -->
-              <span v-else class="font-mono text-slate-600">-</span>
+              <span v-else class="font-mono text-slate-500">-</span>
             </td>
 
             <!-- Profit (merged amount + percentage) -->
             <td class="py-3.5 px-3 text-right">
               <template v-if="project.personalUse">
-                <span class="text-slate-600 font-mono">N/A</span>
+                <span class="text-slate-500 font-mono">N/A</span>
               </template>
               <template v-else-if="project.profit != null">
                 <div class="flex items-center justify-end gap-1.5">
@@ -536,7 +536,7 @@ function formatRootProducts(project: IndustryProject): string {
                 </div>
               </template>
               <template v-else>
-                <span class="font-mono text-slate-600">-</span>
+                <span class="font-mono text-slate-500">-</span>
               </template>
             </td>
           </template>
@@ -617,7 +617,7 @@ function formatRootProducts(project: IndustryProject): string {
         <span>= {{ t('industry.table.legendEditableDesc') }}</span>
       </div>
       <div class="flex items-center gap-2">
-        <span class="italic text-slate-500 text-xs"><span class="text-[9px] uppercase tracking-wide text-slate-600 not-italic">est.</span>value</span>
+        <span class="italic text-slate-500 text-xs"><span class="text-[9px] uppercase tracking-wide text-slate-500 not-italic">est.</span>value</span>
         <span>= {{ t('industry.table.legendEstimatedDesc') }}</span>
       </div>
       <div class="flex items-center gap-2">
