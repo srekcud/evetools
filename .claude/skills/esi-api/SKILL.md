@@ -411,6 +411,8 @@ public static function getTopicsForUser(string $userId): array
 }
 ```
 
+**Scheduled sync** (Scheduler → Trigger): add its syncType to `SILENT_SYNC_TYPES` in `frontend/src/composables/useNotificationFeed.ts` and give it no `syncTitles` key, otherwise the notification feed gets one entry per cycle. The final state write (flush) stays inside the `try` that publishes `syncError`, and the red phase includes a test where that flush fails.
+
 ### Throttling Between Calls
 
 When making multiple ESI calls in a loop (e.g., per-colony detail fetch), add delays:
