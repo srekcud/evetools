@@ -7,7 +7,9 @@ namespace App\Tests\Unit\ApiResource;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Link;
+use App\ApiResource\MiningOperation\MiningOperationCharacterResource;
 use App\ApiResource\MiningOperation\MiningOperationInvitationResource;
+use App\ApiResource\MiningOperation\MiningOperationLedgerResource;
 use App\ApiResource\MiningOperation\MiningOperationMemberResource;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use PHPUnit\Framework\Attributes\CoversNothing;
@@ -45,6 +47,12 @@ final class MiningOperationSubResourceUriVariablesTest extends TestCase
         yield 'GET members' => [MiningOperationMemberResource::class, 'GET', '/mining-operations/'.$operationId.'/members', ['operationId']];
         yield 'PATCH member' => [MiningOperationMemberResource::class, 'PATCH', '/mining-operations/'.$operationId.'/members/'.$id, ['operationId', 'id']];
         yield 'DELETE member' => [MiningOperationMemberResource::class, 'DELETE', '/mining-operations/'.$operationId.'/members/'.$id, ['operationId', 'id']];
+        yield 'POST start' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/start', ['id']];
+        yield 'POST end' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/end', ['id']];
+        yield 'POST depart' => [MiningOperationResource::class, 'POST', '/mining-operations/'.$id.'/depart', ['id']];
+        yield 'GET ledger' => [MiningOperationLedgerResource::class, 'GET', '/mining-operations/'.$operationId.'/ledger', ['operationId']];
+        yield 'POST snapshot retry' => [MiningOperationCharacterResource::class, 'POST', '/mining-operations/'.$operationId.'/characters/'.$id.'/snapshot-retry', ['operationId', 'id']];
+        yield 'POST quantity correction' => [MiningOperationCharacterResource::class, 'POST', '/mining-operations/'.$operationId.'/characters/'.$id.'/quantity-corrections', ['operationId', 'id']];
     }
 
     private function operationOf(string $resourceClass, string $method, string $uriTemplate): ?HttpOperation

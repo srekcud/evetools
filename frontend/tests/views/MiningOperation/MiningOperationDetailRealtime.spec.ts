@@ -7,12 +7,13 @@ import fr from '@/i18n/locales/fr.json'
 import MiningOperationDetail from '@/views/MiningOperation/MiningOperationDetail.vue'
 import { apiRequest } from '@/services/api'
 import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
-import type { MiningOperation, MiningOperationMember } from '@/stores/miningOperation'
+import type { MiningOperation, MiningOperationLedger, MiningOperationMember } from '@/stores/miningOperation'
 
 const OPERATION_O = '4d2f8a61-3b7c-4e95-a0d8-6c1e9f2b7a53'
 const OPERATION_P2 = 'b7e4c2a9-1d63-4f58-8a0e-5c9d3f7b2e14'
 const DETAIL_PATH = `/mining-operations/${OPERATION_O}`
 const MEMBERS_PATH = `/mining-operations/${OPERATION_O}/members`
+const LEDGER_PATH = `/mining-operations/${OPERATION_O}/ledger`
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: OPERATION_O }, query: {} })
 const push = vi.fn()
@@ -43,6 +44,11 @@ const SPODUMAIN: MiningOperation = {
   myRole: 'owner',
   myStatus: 'accepted',
   createdAt: '2026-11-03T18:00:00+00:00',
+  startedAt: null,
+  endedAt: null,
+  solarSystemId: null,
+  solarSystemName: null,
+  myDepartedAt: null,
 }
 
 const MEMBERS: MiningOperationMember[] = [
@@ -53,9 +59,24 @@ const MEMBERS: MiningOperationMember[] = [
     role: 'owner',
     status: 'accepted',
     joinedAt: '2026-11-03T18:00:00+00:00',
+    departedAt: null,
     characters: [{ id: 'character-aria', eveCharacterId: 2_112_262_102, name: 'Aria Solberg' }],
   },
 ]
+
+const PLANNED_LEDGER: MiningOperationLedger = {
+  operationId: OPERATION_O,
+  status: 'planned',
+  startedAt: null,
+  endedAt: null,
+  solarSystemId: null,
+  solarSystemName: null,
+  endSnapshotsReadyAt: null,
+  endSnapshotsPending: false,
+  endSnapshotsSettled: 0,
+  endSnapshotsTotal: 0,
+  participants: [],
+}
 
 const events = reactive<Record<string, MiningOperationEvent | null>>({})
 
@@ -87,7 +108,7 @@ beforeEach(() => {
   Object.keys(events).forEach(operationId => delete events[operationId])
   push.mockReset()
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => (endpoint === MEMBERS_PATH ? MEMBERS : SPODUMAIN) as never)
+  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => (endpoint === MEMBERS_PATH ? MEMBERS : endpoint === LEDGER_PATH ? PLANNED_LEDGER : SPODUMAIN) as never)
 })
 
 enableAutoUnmount(afterEach)

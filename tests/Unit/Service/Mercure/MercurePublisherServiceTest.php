@@ -572,6 +572,7 @@ class MercurePublisherServiceTest extends TestCase
             '/user/user-uuid-123/sync/market-structure',
             '/user/user-uuid-123/sync/planetary',
             '/user/user-uuid-123/sync/admin-sync',
+            '/user/user-uuid-123/sync/mining-operation-snapshot',
             '/user/user-uuid-123/alerts/planetary-expiry',
             '/user/user-uuid-123/alerts/market-price',
             '/user/user-uuid-123/notifications',
@@ -592,6 +593,34 @@ class MercurePublisherServiceTest extends TestCase
     public function testGetTopicsForUserGrantsTheMiningOperationsTopicOfTheUser(): void
     {
         $this->assertContains('/user/user-uuid-123/mining-operations', MercurePublisherService::getTopicsForUser('user-uuid-123'));
+    }
+
+    #[Group('issue-263')]
+    public function testGetTopicsForUserGrantsTheMiningOperationSnapshotTopicOfTheUser(): void
+    {
+        $this->assertContains('/user/user-uuid-123/sync/mining-operation-snapshot', MercurePublisherService::getTopicsForUser('user-uuid-123'));
+    }
+
+    #[Group('issue-263')]
+    public function testSyncStartedAndSyncErrorCarryTheGivenData(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+        $snapshotData = ['operationId' => 'operation-o', 'characterName' => 'Brann II', 'kind' => 'start', 'settled' => 0, 'total' => 4];
+
+        $this->service->syncStarted('user-brann', 'mining-operation-snapshot', 'Reading the mining ledger', $snapshotData);
+        $this->service->syncError('user-brann', 'mining-operation-snapshot', 'Brann II needs reconnecting', ['status' => 'reconnect_required'] + $snapshotData);
+
+        $this->assertSame(
+            [
+                ['/user/user-brann/sync/mining-operation-snapshot', 'started', $snapshotData],
+                ['/user/user-brann/sync/mining-operation-snapshot', 'error', ['status' => 'reconnect_required'] + $snapshotData],
+            ],
+            array_map(static function (Update $update): array {
+                $payload = json_decode($update->getData(), true);
+
+                return [$update->getTopics()[0], $payload['status'], $payload['data']];
+            }, $publishedUpdates->getArrayCopy()),
+        );
     }
 
     #[Group('issue-262')]

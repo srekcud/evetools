@@ -25,11 +25,13 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Mercure\HubInterface;
 
 #[CoversClass(RemoveMiningOperationMemberProcessor::class)]
 #[Group('issue-262')]
+#[Group('issue-263')]
 #[AllowMockObjectsWithoutExpectations]
 final class RemoveMiningOperationMemberProcessorTest extends TestCase
 {
@@ -156,6 +158,25 @@ final class RemoveMiningOperationMemberProcessorTest extends TestCase
             'operationId' => $this->operation->getId()->toRfc4122(),
             'id' => $dornMembership->getId()->toRfc4122(),
         ]);
+    }
+
+    public function testOwnerCannotRemoveAParticipantOnceTheOperationHasStarted(): void
+    {
+        $this->operation->start(new \DateTimeImmutable('2026-11-05T20:00:00+00:00'), null);
+        $this->actAs($this->aria);
+        $this->expectNothingChanged();
+
+        $refusal = null;
+        try {
+            $this->remove($this->brannMembership);
+        } catch (\Throwable $raised) {
+            $refusal = $raised;
+        }
+
+        self::assertSame(
+            [ConflictHttpException::class, 'Mining operation already started: use departure instead', MiningOperationMemberStatus::Accepted, ['Brann Holt', 'Brann II']],
+            [$refusal === null ? null : $refusal::class, $refusal?->getMessage(), $this->brannMembership->getStatus(), $this->enrolledNamesOf($this->brannMembership)],
+        );
     }
 
     private function actAs(User $user): void

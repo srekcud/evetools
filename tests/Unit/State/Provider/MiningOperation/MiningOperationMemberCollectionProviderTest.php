@@ -71,6 +71,22 @@ final class MiningOperationMemberCollectionProviderTest extends TestCase
         );
     }
 
+    #[Group('issue-263')]
+    public function testParticipantWhoLeftEarlyCarriesItsDepartureTime(): void
+    {
+        $this->operation->start(new \DateTimeImmutable('2026-11-05T20:00:00+00:00'), null);
+        $this->membershipOf($this->operation, $this->brann)->depart(new \DateTimeImmutable('2026-11-05T21:05:00+02:00'));
+        $this->actAs($this->aria);
+
+        self::assertSame(
+            ['Aria Solberg' => null, 'Brann Holt' => '2026-11-05T19:05:00+00:00', 'Cyra Lune' => null],
+            array_combine(
+                array_map(static fn (MiningOperationMemberResource $member): ?string => $member->characterName, $this->members()),
+                array_map(static fn (MiningOperationMemberResource $member): ?string => $member->departedAt?->format(\DateTimeInterface::ATOM), $this->members()),
+            ),
+        );
+    }
+
     public function testEachEnrolledCharacterCarriesItsIdentifierAndEveCharacterId(): void
     {
         $this->actAs($this->aria);

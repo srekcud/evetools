@@ -28,6 +28,11 @@ const SPODUMAIN: MiningOperation = {
   myRole: 'owner',
   myStatus: 'accepted',
   createdAt: '2026-11-03T18:00:00+00:00',
+  startedAt: null,
+  endedAt: null,
+  solarSystemId: null,
+  solarSystemName: null,
+  myDepartedAt: null,
 }
 
 const ICE_BELT: MiningOperation = { ...SPODUMAIN, id: 'b7e4c2a9-1d63-4f58-8a0e-5c9d3f7b2e14', label: 'Ice belt — dimanche', participantsCount: 3, charactersCount: 5 }
@@ -55,6 +60,7 @@ const CYRA_MEMBER: MiningOperationMember = {
   role: 'member',
   status: 'accepted',
   joinedAt: '2026-11-04T09:30:00+00:00',
+  departedAt: null,
   characters: [{ id: 'c4a1e8d2-7b36-4f9c-a2e5-1d8b6f3c9a70', eveCharacterId: 2_112_262_105, name: 'Cyra Lune' }],
 }
 

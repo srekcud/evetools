@@ -11,11 +11,13 @@ use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
 use App\Entity\User;
 use App\Enum\MiningOperationMemberRole;
+use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningOperationMemberStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationEnrolment;
 use App\State\Processor\MiningOperation\JoinMiningOperationProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
+use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -27,6 +29,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Mercure\Exception\RuntimeException;
@@ -35,15 +38,19 @@ use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(JoinMiningOperationProcessor::class)]
 #[Group('issue-262')]
+#[Group('issue-263')]
 #[AllowMockObjectsWithoutExpectations]
 final class JoinMiningOperationProcessorTest extends TestCase
 {
     use BuildsSpodumainOperation;
+    use BuildsLedgerSnapshots;
 
     private Security&Stub $security;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
     private MiningOperation $operation;
+    private \ArrayObject $dispatched;
+    private MockClock $clock;
 
     protected function setUp(): void
     {
@@ -59,8 +66,11 @@ final class JoinMiningOperationProcessorTest extends TestCase
                     }
                 }
             }
+            $this->identifyEnrolments();
         });
         $this->hub = $this->createMock(HubInterface::class);
+        $this->dispatched = new \ArrayObject();
+        $this->clock = new MockClock('2026-11-05T20:20:00+00:00');
     }
 
     public function testBrannFromTheCorporationJoinsAsAcceptedSecondParticipant(): void
@@ -74,6 +84,25 @@ final class JoinMiningOperationProcessorTest extends TestCase
         self::assertSame('accepted', $invitation->myStatus);
         self::assertSame(2, $invitation->participantsCount);
         self::assertSame(4, $this->enrolledCharactersCountOfAcceptedMembers($this->operation));
+        self::assertSame([[], []], [$this->snapshotStatesOf($this->operation, MiningLedgerSnapshotKind::Start), $this->dispatched->getArrayCopy()]);
+    }
+
+    public function testBrannAcceptedOnJoiningAnOperationInProgressGetsTheStartSnapshotOfHisCharactersAtOnce(): void
+    {
+        $this->operation->start(new \DateTimeImmutable(self::STARTED_AT), $this->s1());
+        $this->actAs($this->brann);
+
+        $invitation = $this->join(self::JOIN_CODE, ['Brann Holt', 'Brann II']);
+
+        self::assertSame(['in_progress', 'accepted'], [$invitation->status, $invitation->myStatus]);
+        self::assertSame(
+            array_fill_keys(['Brann Holt', 'Brann II'], ['kind' => 'start', 'status' => 'waiting', 'referenceAt' => '2026-11-05T20:20:00+00:00', 'readyAt' => '2026-11-05T20:20:00+00:00']),
+            $this->snapshotStatesOf($this->operation, MiningLedgerSnapshotKind::Start),
+        );
+        self::assertSame(
+            [null, null],
+            array_column($this->dispatchedSnapshots($this->dispatched), 'delay'),
+        );
     }
 
     public function testCyraFromAnotherCorporationJoinsAsPendingAndOwnerParticipantsAndCyraAreNotified(): void
@@ -163,6 +192,7 @@ final class JoinMiningOperationProcessorTest extends TestCase
             new MiningOperationEnrolment($this->characterRepositoryReadingOpenEnrolments(), $this->entityManager),
             new MiningOperationResourceMapper(),
             new MercurePublisherService($this->hub, $logger),
+            $this->lifecycleWith($this->entityManager, $this->dispatched, $this->clock),
         );
     }
 

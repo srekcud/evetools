@@ -10,12 +10,14 @@ use App\ApiResource\MiningOperation\MiningOperationMemberResource;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
 use App\Entity\User;
+use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningOperationMemberRole;
 use App\Enum\MiningOperationMemberStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\State\Processor\MiningOperation\UpdateMiningOperationMemberProcessor;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
+use App\Tests\Unit\Service\MiningOperation\BuildsLedgerSnapshots;
 use App\Tests\Unit\Service\MiningOperation\BuildsSpodumainOperation;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -26,6 +28,7 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -35,10 +38,12 @@ use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(UpdateMiningOperationMemberProcessor::class)]
 #[Group('issue-262')]
+#[Group('issue-263')]
 #[AllowMockObjectsWithoutExpectations]
 final class UpdateMiningOperationMemberProcessorTest extends TestCase
 {
     use BuildsSpodumainOperation;
+    use BuildsLedgerSnapshots;
 
     private Security&Stub $security;
     private EntityManagerInterface&MockObject $entityManager;
@@ -48,6 +53,7 @@ final class UpdateMiningOperationMemberProcessorTest extends TestCase
     private MiningOperationMember $brannMembership;
     private MiningOperationMember $cyraMembership;
     private UpdateMiningOperationMemberProcessor $processor;
+    private \ArrayObject $dispatched;
 
     protected function setUp(): void
     {
@@ -60,6 +66,7 @@ final class UpdateMiningOperationMemberProcessorTest extends TestCase
         $this->security = $this->createStub(Security::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
+        $this->dispatched = new \ArrayObject();
         $this->processor = new UpdateMiningOperationMemberProcessor(
             $this->security,
             $this->operationRepositoryReadingOperations(),
@@ -68,6 +75,7 @@ final class UpdateMiningOperationMemberProcessorTest extends TestCase
             new MiningOperationResourceMapper(),
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
+            $this->lifecycleWith($this->entityManager, $this->dispatched, new MockClock('2026-11-05T20:13:00+00:00')),
         );
     }
 
@@ -84,6 +92,7 @@ final class UpdateMiningOperationMemberProcessorTest extends TestCase
         self::assertSame('member', $resource->role);
         self::assertSame(MiningOperationMemberStatus::Accepted, $this->cyraMembership->getStatus());
         self::assertCount(3, $this->acceptedMembersOf($this->operation));
+        self::assertSame([], $this->dispatched->getArrayCopy());
         self::assertSame(
             $this->expectedMessages([$this->aria, $this->brann, $this->cyra], $this->operation, 'member_updated', [
                 'memberId' => $this->cyraMembership->getId()->toRfc4122(),
@@ -92,6 +101,37 @@ final class UpdateMiningOperationMemberProcessorTest extends TestCase
             ]),
             $this->publishedMessages($publishedUpdates),
         );
+    }
+
+    public function testOwnerAcceptingCyraWhileTheOperationIsInProgressTakesHerStartSnapshotAtOnce(): void
+    {
+        $this->operation->start(new \DateTimeImmutable(self::STARTED_AT), $this->s1());
+        $this->actAs($this->aria);
+        $this->identifyingOnFlush($this->entityManager);
+
+        $resource = $this->update($this->cyraMembership, status: 'accepted');
+
+        self::assertSame('accepted', $resource->status);
+        self::assertSame(
+            ['kind' => 'start', 'status' => 'waiting', 'referenceAt' => '2026-11-05T20:13:00+00:00', 'readyAt' => '2026-11-05T20:13:00+00:00'],
+            $this->snapshotStateOf($this->enrolmentOf('Cyra Lune')->snapshotOf(MiningLedgerSnapshotKind::Start)),
+        );
+        self::assertSame(
+            [['snapshotId' => $this->enrolmentOf('Cyra Lune')->snapshotOf(MiningLedgerSnapshotKind::Start)?->getId()?->toRfc4122(), 'delay' => null]],
+            $this->dispatchedSnapshots($this->dispatched),
+        );
+    }
+
+    public function testClosingOperationNoLongerAcceptsAPendingRequest(): void
+    {
+        $this->operation->start(new \DateTimeImmutable(self::STARTED_AT), $this->s1());
+        $this->operation->end(new \DateTimeImmutable(self::ENDED_AT));
+        $this->actAs($this->aria);
+        $this->expectNothingChanged();
+
+        $this->expectRefusal(BadRequestHttpException::class, 'This operation is no longer accepting participants');
+
+        $this->update($this->cyraMembership, status: 'accepted');
     }
 
     public function testPlainMemberCannotAcceptAPendingRequest(): void
