@@ -120,6 +120,7 @@ final class MiningOperationSettlementApiTest extends WebTestCase
     public function testAdminMarksThePaymentOfAnotherParticipant(): void
     {
         $this->g1();
+        $this->spodumain = $this->reloadedOperation();
         $this->cyraMembership = $this->membershipNamed('Cyra Lune')->setRole(MiningOperationMemberRole::Admin);
         $this->em->flush();
 
