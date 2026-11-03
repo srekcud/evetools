@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<!--
+  Maquette #266 · fleet storage déclaré, dettes du destinataire, vérification par container corpo.
+  Référence visuelle : mockups/grouped-mining-v4.html (branche docs/mining-specs) : colonne « Minerai détenu par », carte « Fleet storage », champ « Destinataire du fleet storage ».
+  Tokens repris de mockups/mining-operation-payments-archive.html (#265).
+  Écarts assumés par la spec docs/specs/266-mining-operation-fleet-storage.md : le destinataire est toujours un participant
+  (le container corpo n'est qu'un lieu de vérification), déclaration « garde tout / verse tout / verse une partie »,
+  dette = part − valeur gardée, vérification sur les assets corpo partagés (pas les assets du personnage).
+  Données fictives = exemples FS2 et VC de la spec (booster 10 % Cyra Lune, destinataire Brann Holt, Aria verse 100 000 Veldspar).
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opération de minage · fleet storage (#266)</title>
+<style>
+:root {
+  --s950:#020617; --s900:#0f172a; --s800:#1e293b; --s700:#334155; --s600:#475569; --s500:#64748b; --s400:#94a3b8; --s300:#cbd5e1; --s200:#e2e8f0; --s100:#f1f5f9;
+  --c400:#22d3ee; --c500:#06b6d4; --e400:#34d399; --e500:#10b981; --a400:#fbbf24; --a500:#f59e0b; --v400:#a78bfa; --r400:#f87171;
+  --mono: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--s950); color: var(--s100); font: 14px/1.45 ui-sans-serif, system-ui, sans-serif; }
+body::before { content: ''; position: fixed; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(6,182,212,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,.03) 1px, transparent 1px); background-size: 50px 50px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.mockbar { position: relative; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 16px; border-bottom: 2px dashed rgba(167,139,250,.5); background: #120c1e; color: #c4b5fd; font-size: 12px; }
+.mockbar button { background: rgba(167,139,250,.08); color: #ddd6fe; border: 1px dashed rgba(167,139,250,.45); border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+.mockbar button[aria-pressed="true"] { background: rgba(167,139,250,.3); border-style: solid; color: #fff; }
+.mockbar button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--c400); outline-offset: 2px; }
+.page { position: relative; max-width: 80rem; margin: 0 auto; padding: 28px 24px 64px; display: flex; flex-direction: column; gap: 20px; }
+.card { background: var(--s900); border: 1px solid var(--s800); border-radius: 12px; }
+.pad { padding: 20px 24px; }
+h1 { margin: 0; font-size: 20px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--s200); }
+.row { display: flex; align-items: center; gap: 12px; }
+.sb { justify-content: space-between; }
+.wrapf { flex-wrap: wrap; }
+.hint { color: var(--s500); font-size: 13px; }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 12px; border: 1px solid; white-space: nowrap; }
+.b-amber { color: var(--a400); border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.1); }
+.b-violet { color: var(--v400); border-color: rgba(167,139,250,.4); background: rgba(167,139,250,.1); }
+.b-em { color: var(--e400); border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.1); }
+.b-cyan { color: var(--c400); border-color: rgba(6,182,212,.4); background: rgba(6,182,212,.1); }
+.b-slate { color: var(--s300); border-color: var(--s600); background: var(--s800); }
+.grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+.btn { border-radius: 8px; padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer; border: 1px solid var(--s700); background: var(--s800); color: var(--s200); }
+.btn.pri { background: linear-gradient(to right, #0891b2, #2563eb); border-color: transparent; color: #fff; }
+.btn.sm { padding: 5px 10px; font-size: 12px; }
+:disabled { opacity: .45; cursor: not-allowed; }
+.banner { display: flex; gap: 12px; padding: 14px 18px; border-radius: 12px; border: 1px solid; }
+.banner.cyan { border-color: rgba(6,182,212,.35); background: rgba(6,182,212,.06); color: #a5f3fc; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 500; font-size: 12px; color: var(--s500); padding: 10px 14px; border-bottom: 1px solid var(--s800); white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid rgba(30,41,59,.6); vertical-align: top; }
+th.r, td.r { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.tot td { font-weight: 600; color: var(--s200); border-bottom: 0; background: rgba(30,41,59,.4); }
+.name { display: inline-block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: var(--s200); }
+.unk { color: var(--a400); font-style: italic; }
+.c-em { color: var(--e400); } .c-violet { color: var(--v400); } .c-cyan { color: var(--c400); } .c-amber { color: var(--a400); } .c-white { color: #fff; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.field label { font-size: 12px; color: var(--s400); }
+.input, select { background: var(--s950); border: 1px solid var(--s700); border-radius: 8px; color: var(--s200); padding: 8px 10px; font: inherit; }
+.seg { display: inline-flex; border: 1px solid var(--s700); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; border: 0; color: var(--s400); padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--s700); }
+.seg button[aria-pressed="true"] { background: rgba(6,182,212,.15); color: var(--c400); }
+.seg button:disabled { cursor: not-allowed; }
+
+/* Le flux : chaque déposant est relié au hold du destinataire par un rail ; la dette remonte le rail en sens inverse. */
+.flow { margin-top: 16px; display: flex; flex-direction: column; gap: 0; }
+.dep { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 10px 0 10px 16px; border-left: 2px solid var(--s700); position: relative; }
+.dep::before { content: ''; position: absolute; left: -2px; top: 22px; width: 12px; height: 2px; background: var(--s700); }
+.dep.gives { border-left-color: var(--c500); } .dep.gives::before { background: var(--c500); }
+.dep .debt { grid-column: 1 / -1; font-family: var(--mono); font-size: 13px; color: var(--v400); }
+.dep .qty { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--s400); }
+.dep .qty input { width: 110px; text-align: right; font-family: var(--mono); }
+.hold { padding: 12px 14px; border: 1px solid rgba(6,182,212,.45); border-radius: 10px; background: rgba(6,182,212,.06); }
+.hold .t { font-size: 12px; color: var(--c400); }
+.verif { margin-top: 14px; border-top: 1px solid var(--s800); padding-top: 14px; }
+.vline { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline; padding: 6px 0; font-size: 13px; }
+.pays { display: flex; flex-direction: column; margin-top: 8px; }
+.pay { display: grid; grid-template-columns: 22px 1fr auto; gap: 14px; align-items: start; padding: 12px 0; border-top: 1px solid var(--s800); }
+.pay input { width: 16px; height: 16px; margin-top: 3px; accent-color: #10b981; }
+.pay .amt { font-family: var(--mono); font-size: 16px; color: #fff; }
+.pay .why { color: var(--s500); font-size: 12px; margin-top: 2px; }
+.pay.fleet .amt { color: var(--c400); }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="mockbar" role="toolbar" aria-label="États de la maquette">
+  <strong>Maquette #266</strong>
+  <button data-state="closing" aria-pressed="true">Clôture · déclarations</button>
+  <button data-state="shares" aria-pressed="false">Parts · paiements</button>
+  <button data-state="solo" aria-pressed="false">Chacun pour soi</button>
+  <span style="margin-left:8px">Vérification :</span>
+  <button data-verif="verified" aria-pressed="true">vérifié</button>
+  <button data-verif="short" aria-pressed="false">écart</button>
+  <button data-verif="unknown" aria-pressed="false">inconnu</button>
+  <button data-long aria-pressed="false">Noms longs</button>
+  <button data-member aria-pressed="false">Vu par Cyra (membre)</button>
+</div>
+
+<main class="page">
+  <section class="card pad">
+    <div class="row" style="min-width:0"><h1 data-op-label>Anomalie Spodumain — 20:00</h1><span class="badge" data-status></span></div>
+    <p class="hint" style="margin:4px 0 0"><span class="mono">20:00 → 21:30</span> EVE (1 h 30) · Compressé, Jita vente · <span data-cut-meta></span></p>
+  </section>
+
+  <div class="banner cyan" data-solo-banner hidden role="status"><div><b>Chacun pour soi.</b> Chacun garde son minerai : pas de fleet storage, pas de dette, pas de paiement.</div></div>
+
+  <div class="grid">
+    <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+      <section class="card" style="overflow-x:auto" aria-labelledby="split-title">
+        <div class="pad row sb wrapf" style="padding-bottom:12px"><h2 id="split-title" data-table-title></h2><span class="hint" data-prices-hint></span></div>
+        <table><thead data-head></thead><tbody data-rows></tbody></table>
+      </section>
+      <section class="card pad" data-payments aria-labelledby="pay-title" hidden>
+        <div class="row sb wrapf"><h2 id="pay-title">Paiements</h2><span class="hint">0 / 2 payés</span></div>
+        <p class="hint" style="margin:8px 0 0">Chacun verse au booster la différence entre le minerai qu'il détient et sa part. Le destinataire du fleet storage doit à chaque déposant sa part moins ce qu'il a gardé.</p>
+        <div class="pays" data-pays></div>
+      </section>
+    </div>
+
+    <aside style="display:flex;flex-direction:column;gap:20px">
+      <section class="card pad" data-fleet aria-labelledby="fleet-title">
+        <div class="row sb"><h2 id="fleet-title">Fleet storage</h2><span data-fleet-badge></span></div>
+        <div class="field" data-admin-only>
+          <label for="recipient">Destinataire du fleet storage</label>
+          <select id="recipient" data-recipient-select><option data-brann-opt>Brann Holt</option><option>Aria Solberg</option><option>Cyra Lune</option><option>Aucun</option></select>
+        </div>
+        <div class="field" data-admin-only>
+          <label for="container">Container corpo à vérifier (facultatif)</label>
+          <input id="container" class="input" value="OPS-HAUL" maxlength="100">
+        </div>
+        <p class="hint" data-readonly-recipient hidden style="margin:12px 0 0">Destinataire : <span class="name" data-brann>Brann Holt</span> · container « OPS-HAUL »</p>
+        <div class="flow" data-flow></div>
+        <div class="verif" data-verif-block></div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<script>
+const S = { state: 'closing', verif: 'verified', long: false, member: false, aria: 'partial' };
+const LONG = { aria: 'Aria Solberg-Vantablack of the Eternal Spodumain Haulers', brann: 'Brann Holt the Very Patient Orca Pilot of Outer Ring' };
+const n = v => v.toLocaleString('fr-FR').replace(/ /g, ' ');
+const nm = k => S.long ? LONG[k] ?? ({ cyra: 'Cyra Lune' })[k] : ({ aria: 'Aria Solberg', brann: 'Brann Holt', cyra: 'Cyra Lune' })[k];
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const nameEl = k => `<span class="name" title="${esc(nm(k))}">${esc(nm(k))}</span>`;
+
+function participants() {
+  const ariaDelivered = S.aria === 'all' ? 2699093 : S.aria === 'partial' ? 1961000 : 0;
+  const ariaDebt = S.aria === 'none' ? null : 2429184 - (2699093 - ariaDelivered);
+  return [
+    { k: 'aria', units: 103333, value: 2699093, pct: '48,5', share: 2429184, holder: S.aria === 'none' ? 'self' : 'brann', delivered: ariaDelivered, debt: ariaDebt },
+    { k: 'brann', units: 43338, value: 2868460, pct: '51,5', share: 2581614, holder: 'recipient' },
+    { k: 'cyra', units: 9, value: 176, pct: '0,0', share: 158, holder: 'self', booster: true },
+  ];
+}
+
+function holderCell(p) {
+  if (S.state === 'solo' || p.holder === 'self') return '<span class="hint">lui-même</span>';
+  if (p.holder === 'recipient') return `<span class="badge b-cyan">destinataire</span>`;
+  return `${nameEl('brann')}<div class="hint">${S.aria === 'all' ? 'tout versé' : 'versé : Veldspar 100 000 u'}</div>`;
+}
+
+function render() {
+  const solo = S.state === 'solo', shares = S.state === 'shares';
+  document.querySelector('[data-op-label]').textContent = S.long ? 'Anomalie Spodumain très longue de la ceinture extérieure — 20:00' : 'Anomalie Spodumain — 20:00';
+  const st = document.querySelector('[data-status]');
+  st.textContent = shares ? 'Parts' : 'Clôture'; st.className = 'badge ' + (shares ? 'b-violet' : 'b-amber');
+  document.querySelector('[data-cut-meta]').textContent = solo ? 'chacun pour soi · boost sans part' : `booster 10 % (Cyra Lune) · corporation 0 % · fleet storage : ${nm('brann')}`;
+  document.querySelector('[data-solo-banner]').hidden = !solo;
+  document.querySelector('[data-fleet]').hidden = solo;
+  document.querySelector('[data-payments]').hidden = !shares;
+  document.querySelector('[data-table-title]').textContent = solo ? 'Valeur minée par participant' : shares ? 'Répartition au prorata de la valeur' : 'Aperçu de la répartition au prorata de la valeur';
+  document.querySelector('[data-prices-hint]').textContent = shares ? 'prix figés le 05/11 21:52' : 'prix lus à 21:48 · sync Jita 21:00';
+  document.querySelector('[data-head]').innerHTML = `<tr><th>Participant</th><th class="r">Quantité (u)</th><th class="r">Valeur minée</th>${solo ? '' : '<th class="r">% de G</th><th class="r">Part</th>'}<th>Minerai détenu par</th></tr>`;
+  const ps = participants();
+  document.querySelector('[data-rows]').innerHTML = ps.map(p => `<tr><td>${nameEl(p.k)} ${p.booster && !solo ? '<span class="badge b-violet">Booster</span>' : ''}</td><td class="r">${n(p.units)}</td><td class="r">${n(p.value)}</td>${solo ? '' : `<td class="r">${p.pct} %</td><td class="r c-white">${n(p.share)}${p.booster ? '<div class="hint">+ booster 556 773</div>' : ''}</td>`}<td>${holderCell(p)}</td></tr>`).join('')
+    + `<tr class="tot"><td>Total</td><td class="r">146 680</td><td class="r">5 567 729</td>${solo ? '' : '<td class="r">100 %</td><td class="r">5 010 956</td>'}<td class="hint" style="font-weight:400">${solo ? '' : 'fleet storage : ' + (S.aria === 'none' ? 'aucun versement' : '1 déposant')}</td></tr>`;
+
+  const admin = !S.member && !shares;
+  document.querySelectorAll('[data-admin-only]').forEach(e => e.hidden = !admin);
+  document.querySelector('[data-readonly-recipient]').hidden = admin;
+  document.querySelectorAll('[data-brann],[data-brann-opt]').forEach(e => e.textContent = nm('brann'));
+  const aria = ps[0];
+  const canDeclare = !shares && (!S.member);
+  const seg = k => `<div class="seg" role="group" aria-label="Déclaration de ${esc(nm(k))}">${['none', 'all', 'partial'].map(m => `<button data-decl="${m}" aria-pressed="${S.aria === m}" ${canDeclare ? '' : 'disabled'}>${({ none: 'Garde tout', all: 'Verse tout', partial: 'Verse une partie' })[m]}</button>`).join('')}</div>`;
+  document.querySelector('[data-flow]').innerHTML = `
+    <div class="dep ${S.aria === 'none' ? '' : 'gives'}">
+      <div>${nameEl('aria')}</div><div>${seg('aria')}</div>
+      ${S.aria === 'partial' ? `<div class="qty"><label>Veldspar <input class="input" value="100 000" ${canDeclare ? '' : 'disabled'} aria-label="Veldspar versé"> / 100 000 u</label><label>Bitumens <input class="input" value="0" ${canDeclare ? '' : 'disabled'} aria-label="Bitumens versé"> / 3 333 u</label></div>` : ''}
+      ${aria.debt === null ? '<div class="hint" style="grid-column:1/-1">garde son minerai : verse au booster ce qui dépasse sa part</div>' : `<div class="debt">${esc(nm('brann'))} lui doit ${n(aria.debt)} ISK</div><div class="hint" style="grid-column:1/-1">part ${n(aria.share)} − valeur gardée ${n(aria.value - aria.delivered)}</div>`}
+    </div>
+    <div class="dep">
+      <div>${nameEl('cyra')} <span class="badge b-violet">Booster</span></div><div><div class="seg"><button aria-pressed="true" ${canDeclare && !S.member ? '' : 'disabled'}>Garde tout</button><button aria-pressed="false" disabled>Verse tout</button><button aria-pressed="false" disabled>Verse une partie</button></div></div>
+      <div class="hint" style="grid-column:1/-1">${S.member ? 'votre déclaration : vous pouvez la changer jusqu\'au gel des parts' : 'garde son minerai'}</div>
+    </div>
+    <div class="hold"><div class="t">Hold du destinataire</div><div class="row sb"><span>${nameEl('brann')}</span><span class="mono">${n(2868460 + aria.delivered)} ISK</span></div><div class="hint">son minerai ${n(2868460)} + versé ${n(aria.delivered)}</div></div>`;
+
+  const v = document.querySelector('[data-verif-block]');
+  const badge = document.querySelector('[data-fleet-badge]');
+  if (S.aria === 'none') { v.innerHTML = '<p class="hint" style="margin:0">Aucun minerai versé : rien à vérifier.</p>'; badge.innerHTML = ''; }
+  else if (S.verif === 'verified') {
+    badge.innerHTML = '<span class="badge b-em">vérifié</span>';
+    v.innerHTML = `<div class="row sb"><h2 style="font-size:13px">Container corpo « OPS-HAUL »</h2><span class="hint">assets corpo lus à 21:41</span></div>
+      <div class="vline"><span>Veldspar</span><span class="mono">100 000 / 100 000 u</span><span class="badge b-em">vérifié</span></div>
+      <p class="hint" style="margin:4px 0 0">dont Compressed Veldspar 100 000 u, compté une unité pour une unité brute.</p>`;
+  } else if (S.verif === 'short') {
+    badge.innerHTML = '<span class="badge b-amber">écart</span>';
+    v.innerHTML = `<div class="row sb"><h2 style="font-size:13px">Container corpo « OPS-HAUL »</h2><span class="hint">assets corpo lus à 21:41</span></div>
+      <div class="vline"><span>Veldspar</span><span class="mono">96 400 / 100 000 u</span><span class="badge b-amber">écart de 3 600 u</span></div>
+      <p class="hint" style="margin:4px 0 0">Le constat n'empêche pas de figer les parts : la dette reste celle déclarée.</p>
+      <button class="btn sm" style="margin-top:10px">Actualiser les assets corpo</button>`;
+  } else {
+    badge.innerHTML = '<span class="badge b-amber">inconnu</span>';
+    v.innerHTML = `<div class="row sb"><h2 style="font-size:13px">Container corpo « OPS-HAUL »</h2></div>
+      <div class="vline"><span>Veldspar</span><span class="mono">— / 100 000 u</span><span class="badge b-amber">inconnu</span></div>
+      <p class="hint c-amber" style="margin:4px 0 0">Assets corpo lus à 20:40, avant la fin de l'opération (21:30). Rien n'est compté pour 0.</p>
+      <button class="btn sm" style="margin-top:10px">Actualiser les assets corpo</button>`;
+  }
+
+  document.querySelector('[data-pays]').innerHTML = shares ? `
+    <div class="pay"><input type="checkbox" aria-label="${esc(nm('brann'))} a payé 556 755 ISK à Cyra Lune"><div><div>${nameEl('brann')} doit <span class="amt">556 755</span> ISK à Cyra Lune</div><div class="why">part du booster et part corporation sur le minerai qu'il détient</div><div class="why">en attente du don en jeu</div></div><span class="badge b-amber">en attente</span></div>
+    <div class="pay fleet"><input type="checkbox" aria-label="${esc(nm('brann'))} a payé 1 691 091 ISK à ${esc(nm('aria'))}"><div><div>${nameEl('brann')} doit <span class="amt">1 691 091</span> ISK à ${nameEl('aria')}</div><div class="why">fleet storage : détient le minerai versé, lui doit sa part moins ce qu'elle a gardé</div><div class="why">en attente du don en jeu</div></div><span class="badge b-amber">en attente</span></div>` : '';
+
+  document.querySelectorAll('[data-decl]').forEach(b => b.onclick = () => { S.aria = b.dataset.decl; render(); });
+  document.querySelectorAll('[data-state]').forEach(b => b.setAttribute('aria-pressed', b.dataset.state === S.state));
+  document.querySelectorAll('[data-verif]').forEach(b => b.setAttribute('aria-pressed', b.dataset.verif === S.verif));
+  document.querySelector('[data-long]').setAttribute('aria-pressed', S.long);
+  document.querySelector('[data-member]').setAttribute('aria-pressed', S.member);
+}
+document.querySelectorAll('[data-state]').forEach(b => b.onclick = () => { S.state = b.dataset.state; if (S.state === 'shares') S.aria = 'partial'; render(); });
+document.querySelectorAll('[data-verif]').forEach(b => b.onclick = () => { S.verif = b.dataset.verif; render(); });
+document.querySelector('[data-long]').onclick = () => { S.long = !S.long; render(); };
+document.querySelector('[data-member]').onclick = () => { S.member = !S.member; render(); };
+render();
+</script>
+</body>
+</html>
