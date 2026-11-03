@@ -2784,6 +2784,17 @@
       "submit": "Corriger",
       "corrected": "corrigé",
       "trace": "{author}, {time} · mesuré : {value}"
+    },
+    "stockpileCoverage": {
+      "title": "Ton Stockpile",
+      "intro": "Part du déficit de chaque minéral de ton Stockpile que cette opération couvre, avec ton minerai miné retraité à ton rendement.",
+      "noDeficit": "Sans déficit dans ton Stockpile",
+      "wholeDeficit": "Déficit couvert en entier",
+      "yieldUnknown": "Rendement inconnu : configure ton rendement de retraitement",
+      "nothingToReprocess": "Aucun minerai retraitable miné dans cette opération",
+      "measuring": "Quantités en cours de mesure",
+      "unknown": "Quantités inconnues",
+      "error": "La couverture du Stockpile n'a pas pu être chargée"
     }
   }
 }

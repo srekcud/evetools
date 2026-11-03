@@ -2784,6 +2784,17 @@
       "submit": "Correct",
       "corrected": "corrected",
       "trace": "{author}, {time} · measured: {value}"
+    },
+    "stockpileCoverage": {
+      "title": "Your Stockpile",
+      "intro": "Share of the deficit of each mineral in your Stockpile that this operation covers, from your own mined ore reprocessed at your yield.",
+      "noDeficit": "No deficit in your Stockpile",
+      "wholeDeficit": "Whole deficit covered",
+      "yieldUnknown": "Reprocessing yield unknown: configure your reprocessing yield",
+      "nothingToReprocess": "No reprocessable ore mined in this operation",
+      "measuring": "Quantities being measured",
+      "unknown": "Quantities unknown",
+      "error": "The Stockpile coverage could not be loaded"
     }
   }
 }

@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { apiRequest } from '@/services/api'
 import type { MinedQuantityState, MinedQuantityUnknownReason } from '@/stores/miningOperation'
 
 export type StockpileCoverageUnknownReason = 'portion_size_unknown'
@@ -28,7 +29,19 @@ export function useStockpileCoverage() {
   const isLoading = ref(false)
   const hasError = ref(false)
 
-  async function load(_operationId: string): Promise<void> {}
+  async function load(operationId: string): Promise<void> {
+    isLoading.value = true
+    hasError.value = false
+    try {
+      coverage.value = await apiRequest<StockpileCoverage>(`/mining-operations/${operationId}/stockpile-coverage`)
+    } catch (e) {
+      console.error('Failed to load the Stockpile coverage:', e)
+      coverage.value = null
+      hasError.value = true
+    } finally {
+      isLoading.value = false
+    }
+  }
 
   return { coverage, isLoading, hasError, load }
 }

@@ -10,6 +10,7 @@ use App\ApiResource\MiningOperation\MiningOperationStockpileCoverageResource;
 use App\Repository\MiningOperationRepository;
 use App\Service\Mining\OreStockpileCoverageService;
 use App\Service\MiningOperation\MiningOperationAccess;
+use App\Service\MiningOperation\MiningOperationRequest;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
@@ -27,6 +28,23 @@ final readonly class MiningOperationStockpileCoverageProvider implements Provide
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): MiningOperationStockpileCoverageResource
     {
-        return new MiningOperationStockpileCoverageResource();
+        $user = MiningOperationRequest::userOf($this->security);
+
+        $miningOperation = MiningOperationRequest::operationOf($this->operationRepository, $uriVariables['operationId']);
+
+        $this->access->assertCanParticipate($user, $miningOperation);
+
+        $member = $miningOperation->membershipOf($user) ?? throw new \LogicException('A participant has a membership');
+        $coverage = $this->coverageService->coverageOf($user, $member);
+
+        $resource = new MiningOperationStockpileCoverageResource();
+        $resource->operationId = $coverage['operationId'];
+        $resource->state = $coverage['state'];
+        $resource->unknownReason = $coverage['unknownReason'];
+        $resource->yieldKnown = $coverage['yieldKnown'];
+        $resource->reprocessYield = $coverage['reprocessYield'];
+        $resource->minerals = $coverage['minerals'];
+
+        return $resource;
     }
 }

@@ -13,6 +13,8 @@ import MiningOperationMembers from '@/components/mining-operation/MiningOperatio
 import MiningStartModal from '@/components/mining-operation/MiningStartModal.vue'
 import MiningStartSnapshots from '@/components/mining-operation/MiningStartSnapshots.vue'
 import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.vue'
+import MiningStockpileCoverage from '@/components/mining-operation/MiningStockpileCoverage.vue'
+import { useStockpileCoverage } from '@/composables/useStockpileCoverage'
 import { useAuthStore } from '@/stores/auth'
 import { useMiningOperationStore, type MiningOperationMember } from '@/stores/miningOperation'
 import { useSyncStore } from '@/stores/sync'
@@ -38,6 +40,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useMiningOperationStore()
 const authStore = useAuthStore()
+const { coverage: stockpileCoverage, hasError: stockpileCoverageFailed, load: loadStockpileCoverage } = useStockpileCoverage()
 const syncStore = useSyncStore()
 
 const operationId = computed(() => String(route.params.id))
@@ -67,6 +70,7 @@ const canDelete = computed(() => isOwner.value && operation.value?.status === 'p
 const canStart = computed(() => canAdminister.value && operation.value?.status === 'planned')
 const canEnd = computed(() => canAdminister.value && operation.value?.status === 'in_progress')
 const canDepart = computed(() => participates.value && operation.value?.status === 'in_progress' && operation.value.myDepartedAt === null)
+const showsStockpileCoverage = computed(() => participates.value && (operation.value?.status === 'closing' || operation.value?.status === 'completed'))
 const operationLedger = computed(() => (store.ledger?.operationId === operationId.value ? store.ledger : null))
 const departures = computed(() =>
   (operationLedger.value?.participants ?? []).flatMap(participant =>
@@ -93,6 +97,9 @@ async function load(): Promise<void> {
     await store.fetchMembers(operationId.value)
     if (operation.value?.status !== 'planned') {
       await store.fetchLedger(operationId.value)
+    }
+    if (showsStockpileCoverage.value) {
+      await loadStockpileCoverage(operationId.value)
     }
   }
 }
@@ -293,6 +300,11 @@ onBeforeUnmount(() => {
             </section>
           </div>
         </div>
+
+        <template v-if="showsStockpileCoverage">
+          <MiningStockpileCoverage v-if="stockpileCoverage !== null" :coverage="stockpileCoverage" />
+          <p v-else-if="stockpileCoverageFailed" class="text-sm text-red-400" role="alert">{{ t('miningOperation.stockpileCoverage.error') }}</p>
+        </template>
 
         <div class="grid gap-5 md:grid-cols-2">
           <section class="eve-card p-5">
