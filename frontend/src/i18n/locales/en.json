@@ -2683,6 +2683,82 @@
       "admin": "Admin",
       "member": "Member"
     },
-    "unknownPilot": "Unknown pilot"
+    "unknownPilot": "Unknown pilot",
+    "start": {
+      "action": "Start operation",
+      "title": "Start “{label}”",
+      "system": "Solar system (optional)",
+      "systemNone": "All systems",
+      "hint": "Each character's start ledger snapshot is taken at start. A late participant gets theirs when accepted.",
+      "submit": "Start"
+    },
+    "running": {
+      "meta": "{system} · started {time} EVE"
+    },
+    "end": {
+      "action": "End operation",
+      "title": "End the operation?",
+      "hint": "Each character's end snapshot is read once the ESI cache expires (10 min at most). Anything mined afterwards does not count.",
+      "submit": "End at {time}"
+    },
+    "depart": {
+      "action": "I'm leaving",
+      "confirm": "Your end snapshot will be taken now. You cannot come back."
+    },
+    "snapshot": {
+      "startOk": "✓ start {taken}/{total}",
+      "startMissing": "✗ start {taken}/{total}",
+      "departedRead": "left {time} · end read",
+      "departedWaiting": "left {time} · end at {ready}",
+      "reconnectStart": "{name} needs reconnecting: start snapshot not read, quantity unknown",
+      "retry": "Retry",
+      "queued": "queued",
+      "readyAt": "ready at {time}",
+      "read": "✓ read {time}",
+      "reconnect": "✗ invalid token · quantity unknown",
+      "failed": "✗ read failed",
+      "outOfWindow": "✗ beyond the 30-day ledger"
+    },
+    "closing": {
+      "waitingTitle": "Waiting for the end ledger",
+      "waitingText": "The operation ended at {end}. ESI caches the mining ledger for 10 min: each character's end snapshot will be read at {ready}.",
+      "nothingEstimated": "Nothing is estimated in the meantime.",
+      "readIn": "read in",
+      "computingReadyAt": "working out the read time…",
+      "progress": "Reading end snapshots",
+      "progressCount": "{settled} / {total} characters",
+      "snapshots": "End snapshots",
+      "snapshotsHint": "ESI ledger per character · end minus start",
+      "columns": {
+        "character": "Character",
+        "participant": "Participant",
+        "endSnapshot": "End snapshot",
+        "quantity": "Quantity"
+      },
+      "departures": "Early departure",
+      "noDeparture": "Nobody left this operation early.",
+      "departed": "{name} left at {time}: their characters' end snapshots were taken when they left."
+    },
+    "quantities": {
+      "title": "Mined quantities",
+      "unknown": "unknown",
+      "measuring": "measuring",
+      "unknownBanner": "{name} has an unknown quantity: it is not counted as 0. An owner or admin can correct it.",
+      "systemFilter": "Counted in {system} only",
+      "allSystems": "Counted in every system: mining outside the operation during the window is included",
+      "units": "{count} u"
+    },
+    "correction": {
+      "action": "Correct a quantity",
+      "title": "Correct a quantity",
+      "card": "The owner or an admin can correct a quantity (forgotten alt, mining off site). The correction is tracked: who, when, original value.",
+      "character": "Character",
+      "type": "Type",
+      "quantity": "Quantity",
+      "measured": "Measured: {value}",
+      "submit": "Correct",
+      "corrected": "corrected",
+      "trace": "{author}, {time} · measured: {value}"
+    }
   }
 }

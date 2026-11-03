@@ -70,7 +70,7 @@ final readonly class MercurePublisherService
     /**
      * Publish a sync started event.
      */
-    public function syncStarted(string $userId, string $syncType, ?string $message = null): void
+    public function syncStarted(string $userId, string $syncType, ?string $message = null, ?array $data = null): void
     {
         $this->publishSyncProgress($userId, $syncType, 'started', 0, $message ?? 'Starting...');
     }
@@ -96,7 +96,7 @@ final readonly class MercurePublisherService
     /**
      * Publish a sync error event.
      */
-    public function syncError(string $userId, string $syncType, string $errorMessage): void
+    public function syncError(string $userId, string $syncType, string $errorMessage, ?array $data = null): void
     {
         $this->publishSyncProgress($userId, $syncType, 'error', null, $errorMessage);
     }

@@ -24,6 +24,11 @@ export interface MiningOperation {
   myRole: MiningOperationMemberRole | null
   myStatus: MiningOperationMemberStatus | null
   createdAt: string
+  startedAt: string | null
+  endedAt: string | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+  myDepartedAt: string | null
 }
 
 export interface MiningOperationMemberCharacter {
@@ -39,7 +44,74 @@ export interface MiningOperationMember {
   role: MiningOperationMemberRole
   status: MiningOperationMemberStatus
   joinedAt: string
+  departedAt: string | null
   characters: MiningOperationMemberCharacter[]
+}
+
+export type MiningLedgerSnapshotStatus = 'scheduling' | 'waiting' | 'taken' | 'reconnect_required' | 'failed' | 'out_of_window'
+export type MinedQuantityState = 'measuring' | 'known' | 'unknown'
+export type MinedQuantityUnknownReason = 'reconnect_required' | 'read_failed' | 'out_of_window' | 'ledger_inconsistent'
+
+export interface MiningLedgerSnapshot {
+  status: MiningLedgerSnapshotStatus
+  referenceAt: string
+  readyAt: string | null
+  takenAt: string | null
+}
+
+export interface MiningQuantityCorrection {
+  originalQuantity: number | null
+  correctedQuantity: number
+  correctedByName: string | null
+  correctedAt: string
+}
+
+export interface MinedTypeQuantity {
+  typeId: number
+  typeName: string
+  quantity: number
+}
+
+export interface MiningLedgerCharacterQuantity extends MinedTypeQuantity {
+  measuredQuantity: number | null
+  correction: MiningQuantityCorrection | null
+}
+
+export interface MiningLedgerCharacter {
+  id: string
+  eveCharacterId: number
+  name: string
+  state: MinedQuantityState
+  unknownReason: MinedQuantityUnknownReason | null
+  totalQuantity: number | null
+  startSnapshot: MiningLedgerSnapshot | null
+  endSnapshot: MiningLedgerSnapshot | null
+  canRetry: boolean
+  quantities: MiningLedgerCharacterQuantity[]
+}
+
+export interface MiningLedgerParticipant {
+  memberId: string
+  characterName: string | null
+  departedAt: string | null
+  state: MinedQuantityState
+  totalQuantity: number | null
+  quantities: MinedTypeQuantity[]
+  characters: MiningLedgerCharacter[]
+}
+
+export interface MiningOperationLedger {
+  operationId: string
+  status: MiningOperationStatus
+  startedAt: string | null
+  endedAt: string | null
+  solarSystemId: number | null
+  solarSystemName: string | null
+  endSnapshotsReadyAt: string | null
+  endSnapshotsPending: boolean
+  endSnapshotsSettled: number
+  endSnapshotsTotal: number
+  participants: MiningLedgerParticipant[]
 }
 
 export interface MiningOperationInvitationCharacter {
@@ -86,6 +158,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const currentOperation = ref<MiningOperation | null>(null)
   const members = ref<MiningOperationMember[]>([])
   const invitation = ref<MiningOperationInvitation | null>(null)
+  const ledger = ref<MiningOperationLedger | null>(null)
   const error = ref<string | null>(null)
 
   function messageOf(cause: unknown, fallback: string): string {
@@ -234,12 +307,31 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
+  async function start(_id: string, _solarSystemId: number | null): Promise<MiningOperation | null> {
+    return null
+  }
+
+  async function end(_id: string): Promise<MiningOperation | null> {
+    return null
+  }
+
+  async function depart(_id: string): Promise<MiningOperation | null> {
+    return null
+  }
+
+  async function fetchLedger(_id: string): Promise<void> {}
+
+  async function retrySnapshot(_operationId: string, _operationCharacterId: string): Promise<void> {}
+
+  async function correctQuantity(_operationId: string, _operationCharacterId: string, _typeId: number, _quantity: number): Promise<void> {}
+
   return {
     myOperations,
     availableOperations,
     currentOperation,
     members,
     invitation,
+    ledger,
     error,
     fetchMine,
     fetchAvailable,
@@ -253,5 +345,11 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     deleteOperation,
     updateMember,
     removeMember,
+    start,
+    end,
+    depart,
+    fetchLedger,
+    retrySnapshot,
+    correctQuantity,
   }
 })

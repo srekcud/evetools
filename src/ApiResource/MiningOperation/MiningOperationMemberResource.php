@@ -81,6 +81,8 @@ class MiningOperationMemberResource
 
     public ?\DateTimeImmutable $joinedAt = null;
 
+    public ?\DateTimeImmutable $departedAt = null;
+
     /** @var list<array{id: string, eveCharacterId: int, name: string}> */
     public array $characters = [];
 }

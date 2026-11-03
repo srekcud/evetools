@@ -14,10 +14,14 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
 use App\ApiResource\Input\MiningOperation\CreateMiningOperationInput;
+use App\ApiResource\Input\MiningOperation\StartMiningOperationInput;
 use App\State\Processor\MiningOperation\CreateMiningOperationProcessor;
 use App\State\Processor\MiningOperation\DeleteMiningOperationProcessor;
+use App\State\Processor\MiningOperation\DepartMiningOperationProcessor;
+use App\State\Processor\MiningOperation\EndMiningOperationProcessor;
 use App\State\Processor\MiningOperation\LeaveMiningOperationProcessor;
 use App\State\Processor\MiningOperation\RenewMiningOperationJoinCodeProcessor;
+use App\State\Processor\MiningOperation\StartMiningOperationProcessor;
 use App\State\Provider\MiningOperation\AvailableMiningOperationsProvider;
 use App\State\Provider\MiningOperation\MiningOperationDeleteProvider;
 use App\State\Provider\MiningOperation\MiningOperationProvider;
@@ -109,6 +113,48 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
                 tags: ['Mining Operations'],
             ),
         ),
+        new Post(
+            uriTemplate: '/mining-operations/{id}/start',
+            uriVariables: [
+                'id' => new Link(fromClass: self::class),
+            ],
+            processor: StartMiningOperationProcessor::class,
+            input: StartMiningOperationInput::class,
+            status: 200,
+            openapi: new Model\Operation(
+                summary: 'Start a mining operation',
+                description: 'Moves a planned operation to in progress and takes the start ledger snapshot of each accepted character (owner or admin)',
+                tags: ['Mining Operations'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/mining-operations/{id}/end',
+            uriVariables: [
+                'id' => new Link(fromClass: self::class),
+            ],
+            processor: EndMiningOperationProcessor::class,
+            input: EmptyInput::class,
+            status: 200,
+            openapi: new Model\Operation(
+                summary: 'End a mining operation',
+                description: 'Moves an operation in progress to closing and schedules the end ledger snapshot of each character (owner or admin)',
+                tags: ['Mining Operations'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/mining-operations/{id}/depart',
+            uriVariables: [
+                'id' => new Link(fromClass: self::class),
+            ],
+            processor: DepartMiningOperationProcessor::class,
+            input: EmptyInput::class,
+            status: 200,
+            openapi: new Model\Operation(
+                summary: 'Leave a mining operation early',
+                description: 'Ends the operation for the current participant only: the end ledger snapshots of their characters are scheduled',
+                tags: ['Mining Operations'],
+            ),
+        ),
     ],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: false,
@@ -143,4 +189,14 @@ class MiningOperationResource
     public ?string $myStatus = null;
 
     public ?\DateTimeImmutable $createdAt = null;
+
+    public ?\DateTimeImmutable $startedAt = null;
+
+    public ?\DateTimeImmutable $endedAt = null;
+
+    public ?int $solarSystemId = null;
+
+    public ?string $solarSystemName = null;
+
+    public ?\DateTimeImmutable $myDepartedAt = null;
 }

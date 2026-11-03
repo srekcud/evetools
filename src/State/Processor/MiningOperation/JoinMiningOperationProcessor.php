@@ -12,6 +12,7 @@ use App\Repository\MiningOperationRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAudience;
 use App\Service\MiningOperation\MiningOperationEnrolment;
+use App\Service\MiningOperation\MiningOperationLifecycle;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningOperation\PersistedUuid;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -28,6 +29,7 @@ final readonly class JoinMiningOperationProcessor implements ProcessorInterface
         private MiningOperationEnrolment $enrolment,
         private MiningOperationResourceMapper $mapper,
         private MercurePublisherService $mercurePublisher,
+        private MiningOperationLifecycle $lifecycle,
     ) {
     }
 

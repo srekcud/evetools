@@ -42,6 +42,8 @@ class MiningOperationMember
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $joinedAt;
 
+    private ?\DateTimeImmutable $departedAt = null;
+
     /** @var Collection<int, MiningOperationCharacter> */
     #[ORM\OneToMany(targetEntity: MiningOperationCharacter::class, mappedBy: 'member', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $characters;
@@ -108,6 +110,16 @@ class MiningOperationMember
     public function getJoinedAt(): \DateTimeImmutable
     {
         return $this->joinedAt;
+    }
+
+    public function getDepartedAt(): ?\DateTimeImmutable
+    {
+        return $this->departedAt;
+    }
+
+    public function depart(\DateTimeImmutable $departedAt): static
+    {
+        return $this;
     }
 
     /**

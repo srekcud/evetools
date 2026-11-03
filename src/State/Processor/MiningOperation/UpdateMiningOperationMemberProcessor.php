@@ -15,6 +15,7 @@ use App\Repository\MiningOperationRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationAudience;
+use App\Service\MiningOperation\MiningOperationLifecycle;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningOperation\PersistedUuid;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -36,6 +37,7 @@ final readonly class UpdateMiningOperationMemberProcessor implements ProcessorIn
         private MiningOperationResourceMapper $mapper,
         private EntityManagerInterface $entityManager,
         private MercurePublisherService $mercurePublisher,
+        private MiningOperationLifecycle $lifecycle,
     ) {
     }
 

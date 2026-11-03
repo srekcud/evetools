@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Sde\MapSolarSystem;
 use App\Enum\MiningOperationMemberStatus;
 use App\Enum\MiningOperationStatus;
 use App\Enum\MiningOperationVisibility;
@@ -57,6 +58,14 @@ class MiningOperation
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
+
+    private ?\DateTimeImmutable $startedAt = null;
+
+    private ?\DateTimeImmutable $endedAt = null;
+
+    private ?int $solarSystemId = null;
+
+    private ?string $solarSystemName = null;
 
     /** @var Collection<int, MiningOperationMember> */
     #[ORM\OneToMany(targetEntity: MiningOperationMember::class, mappedBy: 'operation', cascade: ['persist', 'remove'], orphanRemoval: true)]
@@ -185,6 +194,36 @@ class MiningOperation
     private static function generateJoinCode(): string
     {
         return bin2hex(random_bytes(self::JOIN_CODE_RANDOM_BYTES));
+    }
+
+    public function getStartedAt(): ?\DateTimeImmutable
+    {
+        return $this->startedAt;
+    }
+
+    public function getEndedAt(): ?\DateTimeImmutable
+    {
+        return $this->endedAt;
+    }
+
+    public function getSolarSystemId(): ?int
+    {
+        return $this->solarSystemId;
+    }
+
+    public function getSolarSystemName(): ?string
+    {
+        return $this->solarSystemName;
+    }
+
+    public function start(\DateTimeImmutable $startedAt, ?MapSolarSystem $solarSystem): static
+    {
+        return $this;
+    }
+
+    public function end(\DateTimeImmutable $endedAt): static
+    {
+        return $this;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

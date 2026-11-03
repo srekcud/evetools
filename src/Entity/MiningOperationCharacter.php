@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\MiningLedgerSnapshotKind;
 use App\Repository\MiningOperationCharacterRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -53,5 +56,41 @@ class MiningOperationCharacter
     public function getEnrolledAt(): \DateTimeImmutable
     {
         return $this->enrolledAt;
+    }
+
+    /**
+     * @return Collection<int, MiningLedgerSnapshot>
+     */
+    public function getSnapshots(): Collection
+    {
+        return new ArrayCollection();
+    }
+
+    public function snapshotOf(MiningLedgerSnapshotKind $kind): ?MiningLedgerSnapshot
+    {
+        return null;
+    }
+
+    public function scheduleStartSnapshot(\DateTimeImmutable $referenceAt): MiningLedgerSnapshot
+    {
+        return new MiningLedgerSnapshot($this, MiningLedgerSnapshotKind::Start, $referenceAt);
+    }
+
+    public function scheduleEndSnapshot(\DateTimeImmutable $referenceAt): MiningLedgerSnapshot
+    {
+        return new MiningLedgerSnapshot($this, MiningLedgerSnapshotKind::End, $referenceAt);
+    }
+
+    /**
+     * @return Collection<int, MiningQuantityCorrection>
+     */
+    public function getCorrections(): Collection
+    {
+        return new ArrayCollection();
+    }
+
+    public function correct(int $typeId, ?int $originalQuantity, int $correctedQuantity, ?User $correctedBy, \DateTimeImmutable $correctedAt): MiningQuantityCorrection
+    {
+        return new MiningQuantityCorrection($this, $typeId, $originalQuantity, $correctedQuantity, $correctedBy, null, $correctedAt);
     }
 }

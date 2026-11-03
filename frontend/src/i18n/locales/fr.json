@@ -2683,6 +2683,82 @@
       "admin": "Admin",
       "member": "Membre"
     },
-    "unknownPilot": "Pilote inconnu"
+    "unknownPilot": "Pilote inconnu",
+    "start": {
+      "action": "Démarrer l'opération",
+      "title": "Démarrer « {label} »",
+      "system": "Système (facultatif)",
+      "systemNone": "Tous les systèmes",
+      "hint": "L'instantané de début du ledger de chaque personnage est pris au démarrage. Un inscrit en retard a son instantané à l'acceptation.",
+      "submit": "Démarrer"
+    },
+    "running": {
+      "meta": "{system} · démarrée {time} EVE"
+    },
+    "end": {
+      "action": "Terminer l'opération",
+      "title": "Terminer l'opération ?",
+      "hint": "Chaque personnage a son instantané de fin lu après l'expiration du cache ESI (10 min au plus). Ce qui est miné ensuite ne compte pas.",
+      "submit": "Terminer à {time}"
+    },
+    "depart": {
+      "action": "Je pars",
+      "confirm": "Votre instantané de fin sera pris maintenant. Vous ne pourrez pas revenir."
+    },
+    "snapshot": {
+      "startOk": "✓ début {taken}/{total}",
+      "startMissing": "✗ début {taken}/{total}",
+      "departedRead": "parti {time} · fin lue",
+      "departedWaiting": "parti {time} · fin à {ready}",
+      "reconnectStart": "{name} à reconnecter : instantané de début non lu, quantité inconnue",
+      "retry": "Relancer",
+      "queued": "en file",
+      "readyAt": "prêt à {time}",
+      "read": "✓ lu {time}",
+      "reconnect": "✗ token invalide · quantité inconnue",
+      "failed": "✗ lecture impossible",
+      "outOfWindow": "✗ hors des 30 jours du ledger"
+    },
+    "closing": {
+      "waitingTitle": "En attente du ledger de fin",
+      "waitingText": "L'opération est terminée à {end}. L'ESI met le ledger de minage en cache 10 min : l'instantané de fin de chaque personnage sera lu à {ready}.",
+      "nothingEstimated": "Rien n'est estimé en attendant.",
+      "readIn": "lecture dans",
+      "computingReadyAt": "calcul de l'heure de lecture…",
+      "progress": "Lecture des instantanés de fin",
+      "progressCount": "{settled} / {total} personnages",
+      "snapshots": "Instantanés de fin",
+      "snapshotsHint": "ledger ESI par personnage · différence fin − début",
+      "columns": {
+        "character": "Personnage",
+        "participant": "Participant",
+        "endSnapshot": "Instantané de fin",
+        "quantity": "Quantité"
+      },
+      "departures": "Départ anticipé",
+      "noDeparture": "Aucun départ sur cette opération.",
+      "departed": "{name} est parti à {time} : l'instantané de fin de ses personnages a été pris à son départ."
+    },
+    "quantities": {
+      "title": "Quantités minées",
+      "unknown": "inconnue",
+      "measuring": "en mesure",
+      "unknownBanner": "{name} a une quantité inconnue : elle n'est pas comptée comme 0. Un Owner ou un Admin peut la corriger.",
+      "systemFilter": "Compté dans {system} seulement",
+      "allSystems": "Compté dans tous les systèmes : le minage hors opération pendant la fenêtre est inclus",
+      "units": "{count} u"
+    },
+    "correction": {
+      "action": "Corriger une quantité",
+      "title": "Corriger une quantité",
+      "card": "L'Owner ou un Admin peut corriger une quantité (alt oublié, minage hors site). La correction est tracée : qui, quand, valeur d'origine.",
+      "character": "Personnage",
+      "type": "Type",
+      "quantity": "Quantité",
+      "measured": "Mesuré : {value}",
+      "submit": "Corriger",
+      "corrected": "corrigé",
+      "trace": "{author}, {time} · mesuré : {value}"
+    }
   }
 }
