@@ -70,7 +70,7 @@ case "$mode" in
     )
     ;;
   integration)
-    if [[ -z "${TEST_TOKEN:-}" ]] && ! git -C "$worktree" diff --quiet "$(git -C "$main_repo" rev-parse main)" -- migrations/; then
+    if [[ -z "${TEST_TOKEN:-}" ]] && { ! git -C "$worktree" diff --quiet "$(git -C "$main_repo" rev-parse main)" -- migrations/ || [[ -n "$(git -C "$worktree" ls-files --others --exclude-standard -- migrations/)" ]]; }; then
       echo "Le worktree modifie migrations/ : la base eve_app_test partagée ne correspond pas. Lancement par la session principale, ou avec TEST_TOKEN=<jeton> pour une base eve_app_test<jeton> isolée." >&2
       exit 66
     fi
