@@ -176,7 +176,10 @@ export function nothingDeliveredVerification(): MiningFleetStorageVerification {
   return verification({ status: 'nothing_delivered', containerName: null, assetsReadAt: null, lines: [] })
 }
 
-export function answerWithoutFleetStorage(endpoint: string): MiningFleetStorage | MiningFleetStorageVerification | MiningBoostShipOption[] | undefined {
+const OPERATION_SITES_PATH_PREFIX = '/mining-sites?operationId='
+
+export function answerWithoutFleetStorage(endpoint: string): MiningFleetStorage | MiningFleetStorageVerification | MiningBoostShipOption[] | never[] | undefined {
+  if (endpoint.startsWith(OPERATION_SITES_PATH_PREFIX)) return []
   if (endpoint === BOOST_SHIPS_PATH) return boostShipCatalogue()
   if (endpoint === FLEET_STORAGE_PATH) return fleetStorage()
   if (endpoint === VERIFICATION_PATH) return nothingDeliveredVerification()

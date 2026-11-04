@@ -63,6 +63,7 @@ export interface MiningSiteScan {
 export interface CreateMiningSiteInput {
   label: string
   solarSystemId?: number | null
+  operationId?: string | null
 }
 
 export interface MiningSiteScanLine {
@@ -80,6 +81,7 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
   const sites = ref<MiningSite[]>([])
   const currentSite = ref<MiningSite | null>(null)
   const scans = ref<MiningSiteScan[]>([])
+  const operationSites = ref<MiningSite[]>([])
   const error = ref<string | null>(null)
 
   async function fetchSites(): Promise<void> {
@@ -89,6 +91,10 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     } catch (cause) {
       error.value = messageOf(cause, 'Failed to fetch the mining sites')
     }
+  }
+
+  async function fetchOperationSites(operationId: string): Promise<void> {
+    void operationId
   }
 
   async function fetchSite(siteId: string): Promise<void> {
@@ -148,5 +154,5 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     }
   }
 
-  return { sites, currentSite, scans, error, fetchSites, fetchSite, fetchScans, create, recordScan, close }
+  return { sites, currentSite, scans, operationSites, error, fetchSites, fetchOperationSites, fetchSite, fetchScans, create, recordScan, close }
 })

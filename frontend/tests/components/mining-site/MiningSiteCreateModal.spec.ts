@@ -1,8 +1,8 @@
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { apiRequest } from '@/services/api'
+import { ApiError, apiRequest } from '@/services/api'
 import MiningSiteCreateModal from '@/components/mining-site/MiningSiteCreateModal.vue'
-import { ALDRANETTE, SITE_ID, SITES_PATH, SOLAR_SYSTEMS_PATH, found, i18nFor, siteOf } from '../../views/MiningSite/miningSiteFixtures'
+import { ALDRANETTE, OPERATION_ID, SITE_ID, SITES_PATH, SOLAR_SYSTEMS_PATH, found, i18nFor, siteOf } from '../../views/MiningSite/miningSiteFixtures'
 
 const push = vi.fn()
 
@@ -21,10 +21,10 @@ const ALDRANETTE_SEARCH = [{ solarSystemId: ALDRANETTE, solarSystemName: 'Aldran
 const SEARCH_DEBOUNCE_MS = 300
 const LABEL_MAX_LENGTH = '100'
 
-async function mountModal() {
+async function mountModal(operationId?: string) {
   const i18n = i18nFor('en')
   const wrapper = mount(MiningSiteCreateModal, {
-    props: { show: true },
+    props: { show: true, operationId },
     global: { plugins: [i18n], stubs: { teleport: true, LoadingSpinner: true } },
   })
   await flushPromises()
@@ -96,6 +96,32 @@ describe('MiningSiteCreateModal', () => {
       postedWithoutSystem: { label: 'Anomalie Spodumain', solarSystemId: null },
       pushedWithSystem: 1,
       pushed: [expect.objectContaining({ name: 'mining-site-detail', params: { id: SITE_ID } }), expect.objectContaining({ name: 'mining-site-detail', params: { id: SITE_ID } })],
+    })
+  })
+
+  it('sends the operation with the new site and, when the server refuses it, shows the refusal in the window which stays open', async () => {
+    vi.mocked(apiRequest).mockRejectedValueOnce(new ApiError('The operation is archived', 400))
+    const { wrapper } = await mountModal(OPERATION_ID)
+    await found(wrapper, 'input[name="label"]').setValue('Anomalie Spodumain')
+
+    await submit(wrapper)
+    const refusal = wrapper.find('[data-testid="create-error"]').exists() ? wrapper.find('[data-testid="create-error"]').text() : null
+    const afterRefusal = { closed: wrapper.emitted('close')?.length ?? 0, pushed: push.mock.calls.length }
+    await submit(wrapper)
+
+    expect({
+      refusal,
+      afterRefusal,
+      posted: postedSites(),
+      closedAfterSuccess: wrapper.emitted('close')?.length ?? 0,
+    }).toEqual({
+      refusal: expect.stringContaining('The operation is archived'),
+      afterRefusal: { closed: 0, pushed: 0 },
+      posted: [
+        { label: 'Anomalie Spodumain', solarSystemId: null, operationId: OPERATION_ID },
+        { label: 'Anomalie Spodumain', solarSystemId: null, operationId: OPERATION_ID },
+      ],
+      closedAfterSuccess: 1,
     })
   })
 })
