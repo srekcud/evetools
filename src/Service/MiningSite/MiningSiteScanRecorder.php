@@ -43,13 +43,13 @@ final readonly class MiningSiteScanRecorder
      */
     public function record(MiningSite $site, array $lines, User $author): MiningSiteScan
     {
-        return $this->entityManager->wrapInTransaction(fn (): MiningSiteScan => $this->recordInTransaction($site, $lines));
+        return $this->entityManager->wrapInTransaction(fn (): MiningSiteScan => $this->recordInTransaction($site, $lines, $author));
     }
 
     /**
      * @param list<ScanLine> $lines
      */
-    private function recordInTransaction(MiningSite $site, array $lines): MiningSiteScan
+    private function recordInTransaction(MiningSite $site, array $lines, User $author): MiningSiteScan
     {
         $this->entityManager->refresh($site, LockMode::PESSIMISTIC_WRITE);
         if ($site->getStatus() === MiningSiteStatus::Closed) {
@@ -77,6 +77,7 @@ final readonly class MiningSiteScanRecorder
 
         $scan = (new MiningSiteScan())
             ->setSite($site)
+            ->setAuthor($author)
             ->setScannedAt($scannedAt)
             ->setTotalUnits(array_sum($unitsByTypeId))
             ->setTotalVolumeM3($this->totalVolumeOf($estimate))

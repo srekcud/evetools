@@ -45,6 +45,16 @@ final class MiningOperationRequest
             ?? throw new NotFoundHttpException(self::OPERATION_NOT_FOUND_MESSAGE);
     }
 
+    public static function participatedOperationOf(MiningOperationRepository $repository, MiningOperationAccess $access, User $user, string $identifier): MiningOperation
+    {
+        $operation = self::operationOf($repository, $identifier);
+        if (!$access->canParticipate($user, $operation)) {
+            throw new NotFoundHttpException(self::OPERATION_NOT_FOUND_MESSAGE);
+        }
+
+        return $operation;
+    }
+
     public static function activeRecurrenceOf(MiningOperationRecurrenceRepository $repository, User $owner, string $identifier): MiningOperationRecurrence
     {
         return $repository->findActiveOwnedById($owner, UuidOrNotFound::of($identifier, self::RECURRENCE_NOT_FOUND_MESSAGE))

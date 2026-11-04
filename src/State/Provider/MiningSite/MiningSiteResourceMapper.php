@@ -14,6 +14,8 @@ use App\Service\MiningSite\MiningSiteHistorySummarizer;
 
 final readonly class MiningSiteResourceMapper
 {
+    private const string PRESENT_TYPE = 'present';
+
     public function __construct(
         private MiningSiteScanRepository $scanRepository,
         private MiningSiteHistorySummarizer $summarizer,
@@ -24,6 +26,7 @@ final readonly class MiningSiteResourceMapper
     {
         $resource = new MiningSiteResource();
         $resource->id = PersistedUuid::of($site->getId());
+        $resource->operationId = $site->getOperation() === null ? null : PersistedUuid::of($site->getOperation()->getId());
         $resource->label = $site->getLabel();
         $resource->solarSystemId = $site->getSolarSystemId();
         $resource->status = $site->getStatus()->value;
@@ -46,14 +49,39 @@ final readonly class MiningSiteResourceMapper
         $resource->missingPriceTypeIds = $last->getMissingPriceTypeIds();
         $resource->recentEta = $this->inEveTimeOrNull($last->getRecentEta());
         $resource->trendEta = $this->inEveTimeOrNull($last->getTrendEta());
+        $resource->lastScanNumber = $this->scanRepository->countUpTo($site, $last->getScannedAt());
+        $resource->lastScanAuthorName = $this->authorNameOf($last);
 
         return $resource;
     }
 
     public function scanToResource(MiningSiteScan $scan): MiningSiteScanResource
     {
+        return $this->numberedScanToResource($scan, $this->scanRepository->countUpTo($scan->getSite(), $scan->getScannedAt()));
+    }
+
+    /**
+     * @param list<MiningSiteScan> $chronologicalScans
+     *
+     * @return list<MiningSiteScanResource>
+     */
+    public function scansToResources(array $chronologicalScans): array
+    {
+        $resources = [];
+        foreach ($chronologicalScans as $index => $scan) {
+            $resources[] = $this->numberedScanToResource($scan, $index + 1);
+        }
+
+        return $resources;
+    }
+
+    private function numberedScanToResource(MiningSiteScan $scan, int $number): MiningSiteScanResource
+    {
         $resource = new MiningSiteScanResource();
         $resource->id = PersistedUuid::of($scan->getId());
+        $resource->number = $number;
+        $resource->authorName = $this->authorNameOf($scan);
+        $resource->typeCount = \count(array_filter($scan->getTypes(), static fn (array $entry): bool => $entry['status'] === self::PRESENT_TYPE));
         $resource->site = new MiningSiteResource();
         $resource->site->id = PersistedUuid::of($scan->getSite()->getId());
         $resource->scannedAt = $this->inEveTime($scan->getScannedAt());
@@ -66,6 +94,11 @@ final readonly class MiningSiteResourceMapper
         $resource->types = $scan->getTypes();
 
         return $resource;
+    }
+
+    private function authorNameOf(MiningSiteScan $scan): ?string
+    {
+        return $scan->getAuthor()?->getMainCharacter()?->getName();
     }
 
     private function inEveTime(\DateTimeImmutable $moment): \DateTimeImmutable

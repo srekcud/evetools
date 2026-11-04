@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\MiningOperation;
 use App\Entity\MiningSite;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<MiningSite>
@@ -33,8 +33,16 @@ class MiningSiteRepository extends ServiceEntityRepository
         return $this->findBy($criteria, ['createdAt' => 'DESC']);
     }
 
-    public function findOwnedById(User $owner, Uuid $id): ?MiningSite
+    /**
+     * @return list<MiningSite>
+     */
+    public function findOfOperation(MiningOperation $operation, ?int $solarSystemId): array
     {
-        return $this->findOneBy(['id' => $id, 'owner' => $owner]);
+        $criteria = ['operation' => $operation];
+        if ($solarSystemId !== null) {
+            $criteria['solarSystemId'] = $solarSystemId;
+        }
+
+        return $this->findBy($criteria, ['createdAt' => 'DESC']);
     }
 }

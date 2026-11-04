@@ -10,7 +10,9 @@ use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\Input\MiningSite\CreateMiningSiteInput;
 use App\ApiResource\MiningSite\MiningSiteResource;
 use App\Entity\MiningSite;
+use App\Repository\MiningOperationRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\State\Provider\MiningSite\MiningSiteResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,6 +30,8 @@ final readonly class CreateMiningSiteProcessor implements ProcessorInterface
 
     public function __construct(
         private Security $security,
+        private MiningOperationRepository $operationRepository,
+        private MiningOperationAccess $access,
         private EntityManagerInterface $entityManager,
         private MapSolarSystemRepository $solarSystemRepository,
         private MiningSiteResourceMapper $mapper,
@@ -47,8 +51,16 @@ final readonly class CreateMiningSiteProcessor implements ProcessorInterface
             ]));
         }
 
+        $linkedOperation = $data->operationId === null
+            ? null
+            : MiningOperationRequest::participatedOperationOf($this->operationRepository, $this->access, $user, $data->operationId);
+        if ($linkedOperation !== null) {
+            MiningOperationRequest::assertNotArchived($linkedOperation);
+        }
+
         $site = (new MiningSite())
             ->setOwner($user)
+            ->setOperation($linkedOperation)
             ->setLabel(trim($data->label))
             ->setSolarSystemId($data->solarSystemId)
             ->setCreatedAt($this->clock->now());

@@ -43,6 +43,18 @@ class MiningSiteScanRepository extends ServiceEntityRepository
         return $this->findOneBy(['id' => $id, 'site' => $site]);
     }
 
+    public function countUpTo(MiningSite $site, \DateTimeImmutable $instant): int
+    {
+        return (int) $this->createQueryBuilder('scan')
+            ->select('COUNT(scan.id)')
+            ->where('scan.site = :site')
+            ->andWhere('scan.scannedAt <= :instant')
+            ->setParameter('site', $site)
+            ->setParameter('instant', $instant)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function existsAt(MiningSite $site, \DateTimeImmutable $instant): bool
     {
         return $this->findOneBy(['site' => $site, 'scannedAt' => $instant]) !== null;

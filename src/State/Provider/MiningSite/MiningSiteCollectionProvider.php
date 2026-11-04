@@ -7,7 +7,9 @@ namespace App\State\Provider\MiningSite;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningSite\MiningSiteResource;
+use App\Repository\MiningOperationRepository;
 use App\Repository\MiningSiteRepository;
+use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationRequest;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\InputBag;
@@ -21,6 +23,8 @@ final readonly class MiningSiteCollectionProvider implements ProviderInterface
 {
     public function __construct(
         private Security $security,
+        private MiningOperationRepository $operationRepository,
+        private MiningOperationAccess $access,
         private RequestStack $requestStack,
         private MiningSiteRepository $siteRepository,
         private MiningSiteResourceMapper $mapper,
@@ -39,7 +43,15 @@ final readonly class MiningSiteCollectionProvider implements ProviderInterface
             throw new BadRequestHttpException('No current request.');
         }
 
-        return array_map($this->mapper->siteToResource(...), $this->siteRepository->findOwnedBy($user, $this->solarSystemIdOf($request->query)));
+        $solarSystemId = $this->solarSystemIdOf($request->query);
+        $sites = $request->query->has('operationId')
+            ? $this->siteRepository->findOfOperation(
+                MiningOperationRequest::participatedOperationOf($this->operationRepository, $this->access, $user, (string) $request->query->get('operationId')),
+                $solarSystemId,
+            )
+            : $this->siteRepository->findOwnedBy($user, $solarSystemId);
+
+        return array_map($this->mapper->siteToResource(...), $sites);
     }
 
     /**

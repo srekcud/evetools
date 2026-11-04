@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningSite\MiningSiteScanResource;
 use App\Repository\MiningSiteRepository;
 use App\Repository\MiningSiteScanRepository;
+use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningSite\MiningSiteRequest;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -20,6 +21,7 @@ final readonly class MiningSiteScanCollectionProvider implements ProviderInterfa
 {
     public function __construct(
         private Security $security,
+        private MiningOperationAccess $access,
         private MiningSiteRepository $siteRepository,
         private MiningSiteScanRepository $scanRepository,
         private MiningSiteResourceMapper $mapper,
@@ -33,8 +35,8 @@ final readonly class MiningSiteScanCollectionProvider implements ProviderInterfa
     {
         $user = MiningOperationRequest::userOf($this->security);
 
-        $site = MiningSiteRequest::siteOf($this->siteRepository, $user, $uriVariables['siteId']);
+        $site = MiningSiteRequest::siteOf($this->siteRepository, $this->access, $user, $uriVariables['siteId']);
 
-        return array_map($this->mapper->scanToResource(...), $this->scanRepository->findBySiteChronological($site));
+        return $this->mapper->scansToResources($this->scanRepository->findBySiteChronological($site));
     }
 }
