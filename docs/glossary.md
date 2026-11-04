@@ -222,6 +222,9 @@ Termes proposés pour le minage groupé (#261), en attente de validation : seuls
 | **Taxe lunaire** | Moon mining tax | Taxe due au propriétaire d'une raffinerie par chaque personnage qui a miné sur ses lunes, d'après le ledger de la raffinerie (#273). | à venir (#273) |
 | **Récurrence** | Recurrence | Règle qui crée une opération de minage chaque semaine (`weekly`) ou à chaque chunk d'une raffinerie (`chunk`), avec les mêmes règles (spec #310). | à venir (#310) |
 | **Occurrence** | Occurrence | Opération de minage créée par une récurrence (spec #310). | à venir (#310) |
+| **Saison** | Season | Agrégat sur une période des opérations de minage de la corporation de l'utilisateur (spec #317). | `MiningSeasonSummary`, `MiningSeasonResource` |
+| **Valeur connue** | Known value | Somme des valeurs figées des opérations dont les parts sont gelées ; une opération non gelée est inconnue, jamais comptée pour 0 (spec #317). | `MiningSeasonSummary::$knownValue` |
+| **Heures minées** | Mined hours | Minutes de présence d'un joueur, du premier instantané de début lu à sa fin (spec #317). | `MiningSeasonParticipant::$minutes` |
 
 ## Ambiguïtés connues
 

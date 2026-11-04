@@ -122,6 +122,32 @@ class MiningOperationRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return list<MiningOperation>
+     */
+    public function findOfSeason(int $corporationId, ?\DateTimeImmutable $endedSince): array
+    {
+        $queryBuilder = $this->withOwner($this->createQueryBuilder('operation'))
+            ->addSelect('seasonMember', 'memberUser', 'memberMainCharacter')
+            ->leftJoin('operation.members', 'seasonMember')
+            ->leftJoin('seasonMember.user', 'memberUser')
+            ->leftJoin('memberUser.mainCharacter', 'memberMainCharacter')
+            ->where('operation.visibility = :corporationVisibility')
+            ->andWhere('operation.corporationId = :corporationId')
+            ->andWhere('operation.status IN (:statuses)')
+            ->andWhere('operation.endedAt IS NOT NULL')
+            ->setParameter('corporationVisibility', MiningOperationVisibility::Corporation)
+            ->setParameter('corporationId', $corporationId)
+            ->setParameter('statuses', [MiningOperationStatus::Closing, MiningOperationStatus::Shares, MiningOperationStatus::Settled, MiningOperationStatus::Completed])
+            ->orderBy('operation.endedAt', 'DESC');
+
+        if ($endedSince !== null) {
+            $queryBuilder->andWhere('operation.endedAt >= :endedSince')->setParameter('endedSince', $endedSince);
+        }
+
+        return $queryBuilder->getQuery()->getResult();
+    }
+
+    /**
      * @return list<MiningOperationStatus>
      */
     private function archivedStatuses(): array

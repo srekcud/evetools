@@ -2612,7 +2612,8 @@
     "tabs": {
       "archive": "Archive",
       "mine": "Mes opérations",
-      "available": "Disponibles"
+      "available": "Disponibles",
+      "season": "Saison"
     },
     "list": {
       "new": "Nouvelle opération",
@@ -2969,6 +2970,38 @@
       "paymentsCount": "{paid} / {total} payés",
       "empty": "Aucune opération réglée ou terminée pour l'instant.",
       "hint": "L'archive montre les opérations réglées ou terminées auxquelles vous avez participé, et celles de votre corporation ouvertes à la corporation."
+    },
+    "season": {
+      "hint": "Opérations de votre corporation terminées sur la période. Les heures sont la présence de chaque joueur, de son premier instantané de début lu à la fin de l'opération.",
+      "period": "Période",
+      "periods": {
+        "30d": "30 jours",
+        "90d": "90 jours",
+        "all": "Tout"
+      },
+      "kpi": {
+        "operations": "Opérations",
+        "withoutPrice": "{count} sans prix",
+        "knownValue": "Valeur connue",
+        "minedHours": "Heures minées",
+        "players": "{count} joueur | {count} joueurs",
+        "iskPerHour": "ISK/h moyen"
+      },
+      "unknownBanner": {
+        "title": "Valeur de la saison inconnue",
+        "text": "{count} opération n'a pas encore de valeur figée : ses heures sont comptées, pas son ISK. La valeur connue et l'ISK/h l'excluent. | {count} opérations n'ont pas encore de valeur figée : leurs heures sont comptées, pas leur ISK. La valeur connue et l'ISK/h les excluent."
+      },
+      "players": {
+        "title": "Heures minées par joueur",
+        "columns": {
+          "player": "Joueur",
+          "operations": "Opérations",
+          "hours": "Heures minées",
+          "minedValue": "Valeur minée connue"
+        },
+        "plusUnknown": "+ inconnu"
+      },
+      "empty": "Aucune opération de votre corporation terminée sur cette période."
     },
     "payments": {
       "title": "Paiements",

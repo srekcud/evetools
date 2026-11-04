@@ -725,8 +725,13 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   }
 
   async function fetchSeason(period: MiningSeasonPeriod): Promise<void> {
-    season.value = null
-    void period
+    error.value = null
+    if (season.value?.period !== period) season.value = null
+    try {
+      season.value = await apiRequest<MiningSeason>(`/mining-operations/season?period=${period}`)
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the season')
+    }
   }
 
   async function fetchFleetStorage(id: string): Promise<void> {

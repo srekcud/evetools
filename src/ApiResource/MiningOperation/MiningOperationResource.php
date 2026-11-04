@@ -30,6 +30,7 @@ use App\State\Provider\MiningOperation\ArchivedMiningOperationsProvider;
 use App\State\Provider\MiningOperation\AvailableMiningOperationsProvider;
 use App\State\Provider\MiningOperation\MiningOperationDeleteProvider;
 use App\State\Provider\MiningOperation\MiningOperationProvider;
+use App\State\Provider\MiningOperation\MiningSeasonProvider;
 use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
 
 #[ApiResource(
@@ -60,6 +61,17 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             openapi: new Model\Operation(
                 summary: 'List archived mining operations',
                 description: 'Returns the settled or completed operations the current user can read, latest archive first',
+                tags: ['Mining Operations'],
+            ),
+        ),
+        new Get(
+            uriTemplate: '/mining-operations/season',
+            class: MiningSeasonResource::class,
+            provider: MiningSeasonProvider::class,
+            normalizationContext: ['skip_null_values' => false],
+            openapi: new Model\Operation(
+                summary: 'Get the season of the user corporation',
+                description: 'Aggregates the corporation operations ended within the period (30d by default, 90d or all): operations, known value, mined hours per player and ISK per hour',
                 tags: ['Mining Operations'],
             ),
         ),

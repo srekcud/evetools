@@ -2612,7 +2612,8 @@
     "tabs": {
       "archive": "Archive",
       "mine": "My operations",
-      "available": "Available"
+      "available": "Available",
+      "season": "Season"
     },
     "list": {
       "new": "New operation",
@@ -2969,6 +2970,38 @@
       "paymentsCount": "{paid} / {total} paid",
       "empty": "No settled or completed operation yet.",
       "hint": "The archive lists the settled or completed operations you took part in, and your corporation's operations open to the corporation."
+    },
+    "season": {
+      "hint": "Operations of your corporation that ended within the period. Hours are the presence of each player, from their first start snapshot read to the end of the operation.",
+      "period": "Period",
+      "periods": {
+        "30d": "30 days",
+        "90d": "90 days",
+        "all": "All"
+      },
+      "kpi": {
+        "operations": "Operations",
+        "withoutPrice": "{count} without price",
+        "knownValue": "Known value",
+        "minedHours": "Mined hours",
+        "players": "{count} player | {count} players",
+        "iskPerHour": "Average ISK/h"
+      },
+      "unknownBanner": {
+        "title": "Season value unknown",
+        "text": "{count} operation has no frozen value yet: its hours are counted, its ISK is not. The known value and the ISK/h leave it out. | {count} operations have no frozen value yet: their hours are counted, their ISK is not. The known value and the ISK/h leave them out."
+      },
+      "players": {
+        "title": "Mined hours per player",
+        "columns": {
+          "player": "Player",
+          "operations": "Operations",
+          "hours": "Mined hours",
+          "minedValue": "Known mined value"
+        },
+        "plusUnknown": "+ unknown"
+      },
+      "empty": "No operation of your corporation ended within this period."
     },
     "payments": {
       "title": "Payments",
