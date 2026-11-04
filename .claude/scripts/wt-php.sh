@@ -43,7 +43,7 @@ mode="$2"
 shift 2
 
 [[ "$worktree" != "$main_repo" ]] || { echo "$worktree est le dépôt principal : utiliser docker compose exec" >&2; exit 65; }
-git -C "$main_repo" worktree list --porcelain | grep -qx "worktree $worktree" \
+git -C "$main_repo" worktree list --porcelain | grep -x "worktree $worktree" >/dev/null \
   || { echo "$worktree n'est pas un worktree de $main_repo" >&2; exit 65; }
 
 write_placeholder_env "$worktree"
