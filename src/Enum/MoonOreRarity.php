@@ -14,6 +14,13 @@ enum MoonOreRarity: string
 
     public static function fromGroupId(int $groupId): ?self
     {
-        return null;
+        return match ($groupId) {
+            1884 => self::R4,
+            1920 => self::R8,
+            1921 => self::R16,
+            1922 => self::R32,
+            1923 => self::R64,
+            default => null,
+        };
     }
 }
