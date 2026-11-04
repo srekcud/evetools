@@ -157,6 +157,23 @@ final class MiningSiteSharedScansApiTest extends WebTestCase
         );
     }
 
+    public function testOwnerOfASiteLinkedToTheOperationWhoLeavesItCannotScanNorReadItAnymore(): void
+    {
+        $cyraSite = $this->persistSite($this->cyra, $this->spodumain, 'Cyra belt', '2026-11-04 19:00:00');
+        $cyraSiteId = $cyraSite->getId()->toRfc4122();
+        $this->removeMembershipOf($this->cyra);
+
+        $this->as($this->cyra);
+        $this->request('GET', '/api/mining-sites/'.$cyraSiteId);
+        $read = $this->errorDetail();
+        $this->request('POST', $this->scansUri($cyraSiteId), ['lines' => [['typeId' => self::VELDSPAR, 'units' => 30_000]]]);
+
+        self::assertSame(
+            [[404, self::SITE_NOT_FOUND_MESSAGE], 404, 0],
+            [$read, $this->client->getResponse()->getStatusCode(), $this->storedScanCountOf($cyraSiteId)],
+        );
+    }
+
     public function testParticipantCannotScanASiteTheOwnerClosed(): void
     {
         $this->as($this->aria);

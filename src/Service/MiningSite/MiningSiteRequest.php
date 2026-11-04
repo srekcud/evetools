@@ -22,12 +22,12 @@ final class MiningSiteRequest
     {
         $site = $repository->find(UuidOrNotFound::of($identifier, self::SITE_NOT_FOUND_MESSAGE))
             ?? throw new NotFoundHttpException(self::SITE_NOT_FOUND_MESSAGE);
-        if ($site->getOwner() === $user) {
-            return $site;
+        $operation = $site->getOperation();
+        if ($operation === null) {
+            return $site->getOwner() === $user ? $site : throw new NotFoundHttpException(self::SITE_NOT_FOUND_MESSAGE);
         }
 
-        $operation = $site->getOperation();
-        if ($operation === null || !$access->canParticipate($user, $operation)) {
+        if (!$access->canParticipate($user, $operation)) {
             throw new NotFoundHttpException(self::SITE_NOT_FOUND_MESSAGE);
         }
 
