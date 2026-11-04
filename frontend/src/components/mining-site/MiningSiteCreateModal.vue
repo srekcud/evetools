@@ -30,7 +30,11 @@ async function submit(): Promise<void> {
   failure.value = null
   submitting.value = true
   try {
-    const created = await store.create({ label: trimmedLabel, solarSystemId: system.value === null ? null : system.value.solarSystemId })
+    const created = await store.create({
+      label: trimmedLabel,
+      solarSystemId: system.value === null ? null : system.value.solarSystemId,
+      operationId: props.operationId,
+    })
     emit('close')
     await router.push({ name: 'mining-site-detail', params: { id: created.id } })
   } catch (cause) {
