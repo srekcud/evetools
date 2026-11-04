@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\MoonOreRarity;
 use App\Enum\MoonTaxPeriodKind;
 use App\Repository\MoonTaxRefinerySettingRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -174,5 +175,19 @@ class MoonTaxRefinerySetting
         $this->walletDivision = $walletDivision;
 
         return $this;
+    }
+
+    /**
+     * @return array<string, float> keyed by MoonOreRarity::value
+     */
+    public function ratesPercentByRarity(): array
+    {
+        return [
+            MoonOreRarity::R4->value => $this->rateR4,
+            MoonOreRarity::R8->value => $this->rateR8,
+            MoonOreRarity::R16->value => $this->rateR16,
+            MoonOreRarity::R32->value => $this->rateR32,
+            MoonOreRarity::R64->value => $this->rateR64,
+        ];
     }
 }
