@@ -40,8 +40,8 @@ final class SplitGroupMaterialNeeds
                 continue;
             }
 
-            $changeOfNeed = SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRunsAfter, $consumer->getMeLevel(), $materialBonus)
-                - SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRunsBefore, $consumer->getMeLevel(), $materialBonus);
+            $changeOfNeed = SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRunsAfter, $consumer->getMaterialEfficiencyLevelApplied(), $materialBonus)
+                - SplitGroupMaterials::materialsOfJobs($this->calculationService, $material->getQuantity(), $jobRunsBefore, $consumer->getMaterialEfficiencyLevelApplied(), $materialBonus);
             if ($changeOfNeed === 0) {
                 continue;
             }
