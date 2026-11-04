@@ -94,7 +94,13 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
   }
 
   async function fetchOperationSites(operationId: string): Promise<void> {
-    void operationId
+    error.value = null
+    try {
+      operationSites.value = await apiRequest<MiningSite[]>(`${SITES_PATH}?operationId=${operationId}`)
+    } catch (cause) {
+      operationSites.value = []
+      error.value = messageOf(cause, 'Failed to fetch the sites of the mining operation')
+    }
   }
 
   async function fetchSite(siteId: string): Promise<void> {
@@ -114,6 +120,20 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     } catch (cause) {
       scans.value = []
       error.value = messageOf(cause, 'Failed to fetch the scans of the mining site')
+    }
+  }
+
+  async function reloadSiteAndScans(siteId: string): Promise<void> {
+    error.value = null
+    try {
+      const [reloadedSite, reloadedScans] = await Promise.all([
+        apiRequest<MiningSite>(`${SITES_PATH}/${siteId}`),
+        apiRequest<MiningSiteScan[]>(`${SITES_PATH}/${siteId}/scans`),
+      ])
+      currentSite.value = reloadedSite
+      scans.value = reloadedScans
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to reload the mining site')
     }
   }
 
@@ -154,5 +174,5 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     }
   }
 
-  return { sites, currentSite, scans, operationSites, error, fetchSites, fetchOperationSites, fetchSite, fetchScans, create, recordScan, close }
+  return { sites, currentSite, scans, operationSites, error, fetchSites, fetchOperationSites, fetchSite, fetchScans, reloadSiteAndScans, create, recordScan, close }
 })

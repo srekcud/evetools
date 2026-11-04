@@ -14,6 +14,7 @@ import MiningInvitationLink from '@/components/mining-operation/MiningInvitation
 import MiningMinedQuantities from '@/components/mining-operation/MiningMinedQuantities.vue'
 import MiningOperationMembers from '@/components/mining-operation/MiningOperationMembers.vue'
 import MiningOperationRecap from '@/components/mining-operation/MiningOperationRecap.vue'
+import MiningOperationSites from '@/components/mining-operation/MiningOperationSites.vue'
 import MiningOperationShareRecap from '@/components/mining-operation/MiningOperationShareRecap.vue'
 import MiningOperationStepper from '@/components/mining-operation/MiningOperationStepper.vue'
 import MiningPayments from '@/components/mining-operation/MiningPayments.vue'
@@ -35,6 +36,7 @@ import {
   type UpdateMiningFleetStorageInput,
   type UpdateMiningValuationInput,
 } from '@/stores/miningOperation'
+import { useMiningSiteStore } from '@/stores/miningSite'
 import { useSyncStore } from '@/stores/sync'
 import { formatWhole } from './miningOperationQuantity'
 import { formatDuration, formatEveClock, formatEveDateTime } from './miningOperationTime'
@@ -58,6 +60,7 @@ const MEMBER_ACTIONS_RELOADING_THE_OPERATION = [
 const VALUATION_ACTION = 'valuation_updated'
 const PAYMENT_ACTION = 'payment_updated'
 const FLEET_STORAGE_ACTION = 'fleet_storage_updated'
+const SITE_SCAN_ACTION = 'site_scan_recorded'
 const CORPORATION_ASSETS_SYNC_COMPLETED = 'completed'
 const PAYMENT_STATUSES = ['shares', 'settled']
 const FULL_PERCENT = 100
@@ -75,6 +78,7 @@ const store = useMiningOperationStore()
 const authStore = useAuthStore()
 const { coverage: stockpileCoverage, hasError: stockpileCoverageFailed, load: loadStockpileCoverage } = useStockpileCoverage()
 const syncStore = useSyncStore()
+const siteStore = useMiningSiteStore()
 
 const operationId = computed(() => String(route.params.id))
 const operation = computed(() => store.currentOperation)
@@ -88,6 +92,7 @@ const correctionFailure = ref<string | null>(null)
 const submitting = ref(false)
 const savingSettings = ref(false)
 const awaitingAssetsSync = ref(false)
+const sitesFailure = ref<string | null>(null)
 const now = ref(Date.now())
 let clockTicker: ReturnType<typeof setInterval> | null = null
 let presenceHeartbeatTicker: ReturnType<typeof setInterval> | null = null
@@ -98,6 +103,7 @@ const isOwner = computed(() => operation.value?.myRole === 'owner')
 const canAdminister = computed(() => participates.value && (isOwner.value || operation.value?.myRole === 'admin'))
 const showsShareRecap = computed(() => participates.value && (operation.value?.status === 'closing' || operation.value?.status === 'shares' || operation.value?.status === 'settled' || operation.value?.status === 'completed'))
 const archived = computed(() => operation.value?.status === 'settled' || operation.value?.status === 'completed')
+const canCreateSite = computed(() => participates.value && !archived.value)
 const acceptsParticipants = computed(() => operation.value?.status === 'planned' || operation.value?.status === 'in_progress')
 const canLeave = computed(() => {
   const current = operation.value
@@ -181,10 +187,16 @@ const endSubmitLabel = computed(() => t('miningOperation.end.submit', { time: fo
 const ownCharacterIds = computed(() => (authStore.user?.characters ?? []).map(character => character.id))
 const ownerName = computed(() => operation.value?.ownerCharacterName ?? t('miningOperation.unknownPilot'))
 
+async function loadSites(): Promise<void> {
+  await siteStore.fetchOperationSites(operationId.value)
+  sitesFailure.value = siteStore.error
+}
+
 async function load(): Promise<void> {
   await store.fetchDetail(operationId.value)
   if (participates.value) {
     await store.fetchMembers(operationId.value)
+    await loadSites()
     if (operation.value?.status !== 'planned') {
       await store.fetchLedger(operationId.value)
     }
@@ -364,6 +376,8 @@ watch(
       store.fetchValuation(operationId.value)
     } else if (event.action === PAYMENT_ACTION) {
       store.fetchPayments(operationId.value)
+    } else if (event.action === SITE_SCAN_ACTION) {
+      loadSites()
     } else if (event.action === FLEET_STORAGE_ACTION) {
       store.fetchFleetStorage(operationId.value)
       store.fetchValuation(operationId.value)
@@ -408,6 +422,7 @@ onMounted(async () => {
   store.payments = []
   store.fleetStorage = null
   store.fleetStorageVerification = null
+  siteStore.operationSites = []
   clockTicker = setInterval(() => {
     now.value = Date.now()
   }, CLOCK_TICK_MILLISECONDS)
@@ -474,6 +489,15 @@ onBeforeUnmount(() => {
             <MiningStartSnapshots :participants="operationLedger.participants" @retry="retrySnapshot" />
           </div>
         </section>
+
+        <MiningOperationSites
+          v-if="participates"
+          :operation-id="operationId"
+          :sites="siteStore.operationSites"
+          :failure="sitesFailure"
+          :can-create="canCreateSite"
+          :now="now"
+        />
 
         <MiningValuationSettings
           v-if="valuation !== null && participates && acceptsParticipants"
