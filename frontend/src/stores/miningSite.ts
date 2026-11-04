@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { apiRequest } from '@/services/api'
 
 export type MiningSiteStatus = 'active' | 'closed'
 export type MiningSiteScanTypeStatus = 'present' | 'depleted'
@@ -69,7 +70,11 @@ export interface MiningSiteScanLine {
   units: number
 }
 
-const NOT_IMPLEMENTED = 'not implemented'
+const SITES_PATH = '/mining-sites'
+
+function messageOf(cause: unknown, fallback: string): string {
+  return cause instanceof Error ? cause.message : fallback
+}
 
 export const useMiningSiteStore = defineStore('miningSite', () => {
   const sites = ref<MiningSite[]>([])
@@ -77,22 +82,70 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
   const scans = ref<MiningSiteScan[]>([])
   const error = ref<string | null>(null)
 
-  async function fetchSites(): Promise<void> {}
-
-  async function fetchSite(_siteId: string): Promise<void> {}
-
-  async function fetchScans(_siteId: string): Promise<void> {}
-
-  async function create(_input: CreateMiningSiteInput): Promise<MiningSite> {
-    throw new Error(NOT_IMPLEMENTED)
+  async function fetchSites(): Promise<void> {
+    error.value = null
+    try {
+      sites.value = await apiRequest<MiningSite[]>(SITES_PATH)
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to fetch the mining sites')
+    }
   }
 
-  async function recordScan(_siteId: string, _lines: MiningSiteScanLine[]): Promise<MiningSiteScan> {
-    throw new Error(NOT_IMPLEMENTED)
+  async function fetchSite(siteId: string): Promise<void> {
+    error.value = null
+    try {
+      currentSite.value = await apiRequest<MiningSite>(`${SITES_PATH}/${siteId}`)
+    } catch (cause) {
+      currentSite.value = null
+      error.value = messageOf(cause, 'Failed to fetch the mining site')
+    }
   }
 
-  async function close(_siteId: string): Promise<MiningSite> {
-    throw new Error(NOT_IMPLEMENTED)
+  async function fetchScans(siteId: string): Promise<void> {
+    error.value = null
+    try {
+      scans.value = await apiRequest<MiningSiteScan[]>(`${SITES_PATH}/${siteId}/scans`)
+    } catch (cause) {
+      scans.value = []
+      error.value = messageOf(cause, 'Failed to fetch the scans of the mining site')
+    }
+  }
+
+  async function create(input: CreateMiningSiteInput): Promise<MiningSite> {
+    error.value = null
+    try {
+      const created = await apiRequest<MiningSite>(SITES_PATH, { method: 'POST', body: JSON.stringify(input) })
+      sites.value = [created, ...sites.value]
+      return created
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to create the mining site')
+      throw cause
+    }
+  }
+
+  async function recordScan(siteId: string, lines: MiningSiteScanLine[]): Promise<MiningSiteScan> {
+    error.value = null
+    try {
+      const recorded = await apiRequest<MiningSiteScan>(`${SITES_PATH}/${siteId}/scans`, { method: 'POST', body: JSON.stringify({ lines }) })
+      scans.value = [...scans.value, recorded]
+      return recorded
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to record the scan')
+      throw cause
+    }
+  }
+
+  async function close(siteId: string): Promise<MiningSite> {
+    error.value = null
+    try {
+      const closed = await apiRequest<MiningSite>(`${SITES_PATH}/${siteId}/close`, { method: 'POST', body: JSON.stringify({}) })
+      sites.value = sites.value.map(site => (site.id === closed.id ? closed : site))
+      if (currentSite.value?.id === closed.id) currentSite.value = closed
+      return closed
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to close the mining site')
+      throw cause
+    }
   }
 
   return { sites, currentSite, scans, error, fetchSites, fetchSite, fetchScans, create, recordScan, close }
