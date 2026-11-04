@@ -60,6 +60,8 @@ class MiningSiteResource
     #[ApiProperty(identifier: true)]
     public ?string $id = null;
 
+    public ?string $operationId = null;
+
     public ?string $label = null;
 
     public ?int $solarSystemId = null;
@@ -88,4 +90,8 @@ class MiningSiteResource
     public ?\DateTimeImmutable $recentEta = null;
 
     public ?\DateTimeImmutable $trendEta = null;
+
+    public ?int $lastScanNumber = null;
+
+    public ?string $lastScanAuthorName = null;
 }

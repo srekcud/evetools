@@ -41,6 +41,6 @@ final readonly class RecordMiningSiteScanProcessor implements ProcessorInterface
             $data->lines,
         );
 
-        return $this->mapper->scanToResource($this->recorder->record($site, $lines));
+        return $this->mapper->scanToResource($this->recorder->record($site, $lines, $user));
     }
 }

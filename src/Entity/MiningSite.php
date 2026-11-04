@@ -25,6 +25,10 @@ class MiningSite
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $owner;
 
+    #[ORM\ManyToOne(targetEntity: MiningOperation::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?MiningOperation $operation = null;
+
     #[ORM\Column(type: 'string', length: 100)]
     private string $label = '';
 
@@ -55,6 +59,18 @@ class MiningSite
     public function setOwner(User $owner): static
     {
         $this->owner = $owner;
+
+        return $this;
+    }
+
+    public function getOperation(): ?MiningOperation
+    {
+        return $this->operation;
+    }
+
+    public function setOperation(?MiningOperation $operation): static
+    {
+        $this->operation = $operation;
 
         return $this;
     }

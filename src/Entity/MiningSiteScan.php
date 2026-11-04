@@ -24,6 +24,10 @@ class MiningSiteScan
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private MiningSite $site;
 
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $author = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $scannedAt;
 
@@ -63,6 +67,18 @@ class MiningSiteScan
     public function setSite(MiningSite $site): static
     {
         $this->site = $site;
+
+        return $this;
+    }
+
+    public function getAuthor(): ?User
+    {
+        return $this->author;
+    }
+
+    public function setAuthor(?User $author): static
+    {
+        $this->author = $author;
 
         return $this;
     }

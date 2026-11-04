@@ -58,6 +58,12 @@ class MiningSiteScanResource
     #[ApiProperty(readable: false, writable: false)]
     public ?MiningSiteResource $site = null;
 
+    public ?int $number = null;
+
+    public ?string $authorName = null;
+
+    public ?int $typeCount = null;
+
     public ?\DateTimeImmutable $scannedAt = null;
 
     public ?int $totalUnits = null;

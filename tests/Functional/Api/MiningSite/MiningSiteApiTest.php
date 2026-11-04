@@ -116,7 +116,7 @@ final class MiningSiteApiTest extends WebTestCase
                 [18_000, 1_800.0, 270_000.0, [], '20:45:43', '20:50:33'],
                 ['maxDeviationPercent', 'maxDeviationUnits', 'recentEta', 'recentRate', 'remainingValue', 'status', 'trendEta', 'trendRate', 'typeId', 'unitPrice', 'units', 'volumeM3'],
                 [self::VELDSPAR, 'present', 18_000, 700.0, '20:45:43', 600.0, '20:50:33', 666.67, 2.22],
-                ['id', 'missingPriceTypeIds', 'recentEta', 'remainingValue', 'scannedAt', 'totalUnits', 'totalVolumeM3', 'trendEta', 'types'],
+                ['id', 'missingPriceTypeIds', 'number', 'recentEta', 'remainingValue', 'scannedAt', 'totalUnits', 'totalVolumeM3', 'trendEta', 'typeCount', 'types'],
             ],
             [
                 array_column($responses, 'status'),

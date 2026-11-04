@@ -7,6 +7,7 @@ namespace App\Service\MiningSite;
 use ApiPlatform\Validator\Exception\ValidationException;
 use App\Entity\MiningSite;
 use App\Entity\MiningSiteScan;
+use App\Entity\User;
 use App\Enum\MiningSiteStatus;
 use App\Repository\MiningSiteScanRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -40,7 +41,7 @@ final readonly class MiningSiteScanRecorder
     /**
      * @param list<ScanLine> $lines
      */
-    public function record(MiningSite $site, array $lines): MiningSiteScan
+    public function record(MiningSite $site, array $lines, User $author): MiningSiteScan
     {
         return $this->entityManager->wrapInTransaction(fn (): MiningSiteScan => $this->recordInTransaction($site, $lines));
     }

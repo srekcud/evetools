@@ -6,6 +6,7 @@ namespace App\Tests\Integration\MiningSite;
 
 use ApiPlatform\Validator\Exception\ValidationException;
 use App\Entity\MiningSite;
+use App\Entity\User;
 use App\Enum\MiningSiteStatus;
 use App\Service\MiningSite\MiningSiteScanRecorder;
 use App\Service\MiningSite\ScanLine;
@@ -26,6 +27,7 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
 
     private MiningSiteScanRecorder $recorder;
     private MiningSite $site;
+    private User $owner;
 
     protected function setUp(): void
     {
@@ -33,7 +35,8 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
         parent::setUp();
         $this->replaceJitaBuyMarket();
         $this->seedMiningSiteSde($this->em);
-        $this->site = (new MiningSite())->setOwner($this->createUser())->setLabel('Belt Aldranette')->setSolarSystemId(self::ALDRANETTE);
+        $this->owner = $this->createUser();
+        $this->site = (new MiningSite())->setOwner($this->owner)->setLabel('Belt Aldranette')->setSolarSystemId(self::ALDRANETTE);
         $this->em->persist($this->site);
         $this->em->flush();
         $this->recorder = self::getContainer()->get(MiningSiteScanRecorder::class);
@@ -215,6 +218,7 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
         $this->recorder->record(
             $this->site,
             array_map(static fn (int $typeId, int $units): ScanLine => new ScanLine($typeId, $units), array_keys($unitsByTypeId), $unitsByTypeId),
+            $this->owner,
         );
     }
 

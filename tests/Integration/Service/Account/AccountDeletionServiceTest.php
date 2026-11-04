@@ -147,6 +147,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'market_favorites.user_id' => 1,
             'market_price_alerts.user_id' => 1,
             'mining_entries.user_id' => 1,
+            'mining_site_scans.author_id' => 1,
             'mining_sites.owner_id' => 1,
             'moon_compositions.recorded_by_id' => 1,
             'notifications.user_id' => 1,
@@ -1116,6 +1117,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $this->em->persist($site);
         $this->em->persist((new MiningSiteScan())
             ->setSite($site)
+            ->setAuthor($user)
             ->setScannedAt($start)
             ->setTotalUnits(30_000 * $seed)
             ->setTotalVolumeM3(3_000.0 * $seed)
