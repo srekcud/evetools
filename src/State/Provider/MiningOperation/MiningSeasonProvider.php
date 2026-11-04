@@ -10,6 +10,7 @@ use App\ApiResource\MiningOperation\MiningSeasonResource;
 use App\Enum\MiningSeasonPeriod;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningOperation\MiningSeasonReader;
+use App\Service\TypeNameResolver;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
@@ -23,6 +24,7 @@ final readonly class MiningSeasonProvider implements ProviderInterface
     public function __construct(
         private Security $security,
         private MiningSeasonReader $reader,
+        private TypeNameResolver $typeNameResolver,
     ) {
     }
 
@@ -46,6 +48,20 @@ final readonly class MiningSeasonProvider implements ProviderInterface
         $resource->playedMinutes = $summary->playedMinutes;
         $resource->iskPerHour = $summary->iskPerHour;
         $resource->players = $summary->players;
+        $shipNames = $this->typeNameResolver->findNames(array_column($summary->ships, 'shipTypeId'));
+        $resource->ships = array_map(
+            static fn (array $ship): array => [
+                'shipTypeId' => $ship['shipTypeId'],
+                'shipName' => $shipNames[$ship['shipTypeId']] ?? sprintf('Type %d', $ship['shipTypeId']),
+                'charactersCount' => $ship['charactersCount'],
+                'minutes' => $ship['minutes'],
+                'minedValue' => $ship['minedValue'],
+                'iskPerHour' => $ship['iskPerHour'],
+                'isBooster' => $ship['isBooster'],
+            ],
+            $summary->ships,
+        );
+        $resource->unknownShipCharactersCount = $summary->unknownShipCharactersCount;
 
         return $resource;
     }

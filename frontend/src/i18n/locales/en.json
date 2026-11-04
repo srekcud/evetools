@@ -2805,6 +2805,7 @@
     },
     "snapshot": {
       "noEndSnapshot": "✗ no end snapshot · quantity unknown",
+      "shipUnknown": "Unknown ship",
       "startOk": "✓ start {taken}/{total}",
       "startMissing": "✗ start {taken}/{total}",
       "departedRead": "left {time} · end read",
@@ -3038,6 +3039,19 @@
           "minedValue": "Known mined value"
         },
         "plusUnknown": "+ unknown"
+      },
+      "ships": {
+        "title": "ISK/h per ship",
+        "columns": {
+          "ship": "Ship",
+          "characters": "Characters",
+          "hours": "Hours",
+          "minedValue": "Value",
+          "iskPerHour": "ISK/h"
+        },
+        "booster": "booster, does not mine",
+        "empty": "No character with a known ship in the operations with a frozen value.",
+        "unknownCharacters": "{count} character without a known ship, left out of this table | {count} characters without a known ship, left out of this table"
       },
       "empty": "No operation of your corporation ended within this period."
     },

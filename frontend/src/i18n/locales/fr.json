@@ -2810,6 +2810,7 @@
       "departedRead": "parti {time} · fin lue",
       "departedWaiting": "parti {time} · fin à {ready}",
       "reconnectStart": "{name} à reconnecter : instantané de début non lu, quantité inconnue",
+      "shipUnknown": "Vaisseau inconnu",
       "retry": "Relancer",
       "queued": "en file",
       "readyAt": "prêt à {time}",
@@ -3038,6 +3039,19 @@
           "minedValue": "Valeur minée connue"
         },
         "plusUnknown": "+ inconnu"
+      },
+      "ships": {
+        "title": "ISK/h par vaisseau",
+        "columns": {
+          "ship": "Vaisseau",
+          "characters": "Persos",
+          "hours": "Heures",
+          "minedValue": "Valeur",
+          "iskPerHour": "ISK/h"
+        },
+        "booster": "booster, ne mine pas",
+        "empty": "Aucun personnage avec un vaisseau connu dans les opérations à valeur figée.",
+        "unknownCharacters": "{count} personnage sans vaisseau connu, hors de ce tableau | {count} personnages sans vaisseau connu, hors de ce tableau"
       },
       "empty": "Aucune opération de votre corporation terminée sur cette période."
     },
