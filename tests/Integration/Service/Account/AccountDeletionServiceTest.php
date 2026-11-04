@@ -28,6 +28,8 @@ use App\Entity\IndustryUserSettings;
 use App\Entity\MarketFavorite;
 use App\Entity\MarketPriceAlert;
 use App\Entity\MiningEntry;
+use App\Entity\MiningSite;
+use App\Entity\MiningSiteScan;
 use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
 use App\Entity\PushSubscription;
@@ -144,6 +146,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'market_favorites.user_id' => 1,
             'market_price_alerts.user_id' => 1,
             'mining_entries.user_id' => 1,
+            'mining_sites.owner_id' => 1,
             'notifications.user_id' => 1,
             'planetary_colonies.character_id' => 1,
             'push_subscriptions.user_id' => 1,
@@ -1107,6 +1110,14 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setSolarSystemName('Aldranette')
             ->setQuantity(12_000 * $seed)
             ->setUnitPrice(18.0 * $seed));
+        $site = (new MiningSite())->setOwner($user)->setLabel(sprintf('Belt %d', $seed))->setSolarSystemId(30_003_504);
+        $this->em->persist($site);
+        $this->em->persist((new MiningSiteScan())
+            ->setSite($site)
+            ->setScannedAt($start)
+            ->setTotalUnits(30_000 * $seed)
+            ->setTotalVolumeM3(3_000.0 * $seed)
+            ->setRemainingValue(450_000.0 * $seed));
         $this->em->persist((new PveIncome())
             ->setUser($user)
             ->setType(PveIncomeType::Bounty)
