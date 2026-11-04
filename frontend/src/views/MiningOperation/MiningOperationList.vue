@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import MiningOperationRecurrencesPanel from '@/components/mining-operation/MiningOperationRecurrencesPanel.vue'
+import MiningSiteHistory from '@/components/mining-site/MiningSiteHistory.vue'
 import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.vue'
 import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
 import { useTabQuery } from '@/composables/useTabQuery'
@@ -15,9 +16,10 @@ import { formatWhole } from './miningOperationQuantity'
 import { formatEveDateTime } from './miningOperationTime'
 import MiningSeasonPanel from './MiningSeasonPanel.vue'
 
-type ListTab = 'mine' | 'available' | 'archive' | 'season'
+type ListTab = 'mine' | 'available' | 'archive' | 'season' | 'sites'
 
-const LIST_TABS = ['mine', 'available', 'archive', 'season'] as const satisfies readonly ListTab[]
+const LIST_TABS = ['mine', 'available', 'archive', 'season', 'sites'] as const satisfies readonly ListTab[]
+const TABS_WITHOUT_OPERATIONS: readonly ListTab[] = ['season', 'sites']
 const ARCHIVING_ACTIONS = ['operation_settled', 'operation_completed']
 const RECURRENCE_CREATED_ACTION = 'recurrence_created'
 
@@ -39,6 +41,7 @@ const OPERATIONS_BY_TAB = {
   available: () => store.availableOperations,
   archive: () => store.archivedOperations,
   season: () => [],
+  sites: () => [],
 } as const satisfies Record<ListTab, () => MiningOperation[]>
 
 const shownOperations = computed(() => OPERATIONS_BY_TAB[activeTab.value]())
@@ -168,7 +171,7 @@ onMounted(async () => {
           @click="activeTab = tab"
         >
           {{ t(`miningOperation.tabs.${tab}`) }}
-          <span v-if="tab !== 'season'" class="ml-1.5 rounded-sm bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-slate-300">{{ tabCount(tab) }}</span>
+          <span v-if="!TABS_WITHOUT_OPERATIONS.includes(tab)" class="ml-1.5 rounded-sm bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-slate-300">{{ tabCount(tab) }}</span>
         </button>
       </div>
 
@@ -176,11 +179,13 @@ onMounted(async () => {
         <LoadingSpinner size="xl" class="text-cyan-400" />
       </div>
 
-      <p v-else-if="store.error !== null && activeTab !== 'season' && shownOperations.length === 0" class="eve-card p-6 text-sm text-red-400" role="alert">{{ store.error }}</p>
+      <p v-else-if="store.error !== null && !TABS_WITHOUT_OPERATIONS.includes(activeTab) && shownOperations.length === 0" class="eve-card p-6 text-sm text-red-400" role="alert">{{ store.error }}</p>
 
       <p v-else-if="activeTab === 'available' && !hasKnownCorporation" class="eve-card p-6 text-sm text-slate-300">{{ t('miningOperation.list.noCorporation') }}</p>
 
       <MiningSeasonPanel v-else-if="activeTab === 'season'" ref="seasonPanel" />
+
+      <MiningSiteHistory v-else-if="activeTab === 'sites'" />
 
       <template v-else-if="activeTab === 'archive'">
         <p class="mb-4 text-sm text-slate-400">{{ t('miningOperation.archive.hint') }}</p>
