@@ -40,6 +40,7 @@ use App\State\Provider\Ledger\LedgerDailyStatsProvider;
         ),
     ],
     security: "is_granted('ROLE_USER')",
+    normalizationContext: ['skip_null_values' => false],
 )]
 class LedgerDashboardResource
 {
