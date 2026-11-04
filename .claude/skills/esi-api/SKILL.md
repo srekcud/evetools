@@ -770,7 +770,7 @@ https://esi.evetech.net/latest
 
 ## 10. OAuth2 Scopes Reference
 
-All 27 scopes requested during authentication (defined in `AuthenticationService::REQUIRED_SCOPES`):
+All 28 scopes requested during authentication (defined in `AuthenticationService::REQUIRED_SCOPES`):
 
 ### Assets & Corporation
 | Scope | Endpoint | Description |
@@ -785,6 +785,7 @@ All 27 scopes requested during authentication (defined in `AuthenticationService
 | Scope | Endpoint | Description |
 |---|---|---|
 | `esi-wallet.read_character_wallet.v1` | `/characters/{id}/wallet/` | Balance + journal + transactions |
+| `esi-wallet.read_corporation_wallets.v1` | `/corporations/{id}/wallets/{division}/journal/` | Corp wallet journal (moon tax donations) |
 | `esi-contracts.read_character_contracts.v1` | `/characters/{id}/contracts/` | Personal contracts |
 
 ### Industry & Mining

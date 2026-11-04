@@ -17,6 +17,7 @@ use App\Message\TriggerMiningOperationRecurrences;
 use App\Message\SyncIndustryJobs;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
+use App\Message\TriggerMoonTaxSync;
 use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerPveSync;
 use App\Message\SyncWalletTransactions;
@@ -74,6 +75,10 @@ class SyncScheduler implements ScheduleProviderInterface
             // Wallet transactions sync every hour
             ->add(
                 RecurringMessage::every('1 hour', new SyncWalletTransactions())
+            )
+            // Moon tax ledger and wallet journal sync every hour
+            ->add(
+                RecurringMessage::every('1 hour', new TriggerMoonTaxSync())
             )
             // Planetary colonies sync every 30 minutes
             ->add(
