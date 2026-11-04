@@ -58,8 +58,8 @@ export function isEverythingDepleted(scan: MiningSiteScan): boolean {
 }
 
 export function etaTierOf(status: MiningSiteStatus, lastScan: MiningSiteScan, now: Date): EtaTier | null {
-  if (status === 'closed') return null
   if (isEverythingDepleted(lastScan)) return 'depleted'
+  if (status === 'closed') return null
   if (lastScan.trendEta === null || lastScan.trendEta === undefined) return 'unknown'
 
   const remainingMinutes = (new Date(lastScan.trendEta).getTime() - now.getTime()) / MILLISECONDS_PER_MINUTE
