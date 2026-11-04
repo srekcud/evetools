@@ -4,7 +4,7 @@ Mode nuit : spec validée en autonomie (circuit:m, aucune décision produit ouve
 
 ## Contexte
 
-`MaterialQuantityFormula::forJob` applique le ME qu'on lui passe. Une réaction n'a pas de ME (glossaire : « Une étape de réaction a toujours ME 0 »). Trois appelants forcent déjà 0 (`PivotAdvisorService` aux lignes 174, 209 et 427, `BatchProfitScannerService::312`, `IndustryTreeService::buildNode` par `$applyMe`). Quatre chemins lisent le ME stocké de l'étape ou du job sans regarder l'activité :
+`MaterialQuantityFormula::forJob` applique le ME qu'on lui passe. Une réaction n'a pas de ME (glossaire : « Une étape de réaction a toujours ME 0 »). Trois appelants forcent déjà 0 (`PivotAdvisorService` aux lignes 174, 209 et 427, `BatchProfitScannerService::312`, `IndustryTreeService::buildNode` par `$applyMe`). Trois chemins lisent (le quatrième, `IndustryProjectFactory::addNeedOfJobs`, reçoit toujours ME 0 pour une réaction : `collectStepsFromTree` le pose et `withSettingsOfExistingStep` ne recopie le ME stocké que pour une fabrication ; il reste un garde vert) le ME stocké de l'étape ou du job sans regarder l'activité :
 
 | Chemin | Lieu |
 |---|---|
