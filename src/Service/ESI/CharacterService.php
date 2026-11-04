@@ -62,6 +62,25 @@ class CharacterService
         return $data['roles'] ?? [];
     }
 
+    /**
+     * @return list<string>
+     */
+    public function readCorporationRoles(Character $character): array
+    {
+        $token = $character->getEveToken();
+        $characterId = $character->getEveCharacterId();
+        if ($token === null) {
+            throw new \UnexpectedValueException("Character {$characterId} has no token to read its corporation roles");
+        }
+
+        $roles = $this->esiClient->get("/characters/{$characterId}/roles/", $token)['roles'] ?? null;
+        if (!is_array($roles) || !array_is_list($roles) || array_filter($roles, static fn (mixed $role): bool => !is_string($role)) !== []) {
+            throw new \UnexpectedValueException("ESI roles response for character {$characterId} has no list of role names");
+        }
+
+        return $roles;
+    }
+
     public function hasRole(Character $character, string $role): bool
     {
         $roles = $this->getCharacterRoles($character);
