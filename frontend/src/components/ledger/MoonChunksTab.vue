@@ -22,6 +22,7 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import MoonChunkName from './MoonChunkName.vue'
 import MoonChunkValueCell from './MoonChunkValueCell.vue'
 import MoonChunkValueDetail from './MoonChunkValueDetail.vue'
+import MoonChunkValuePanel from './MoonChunkValuePanel.vue'
 
 const CLOCK_TICK_MS = 30_000
 
@@ -59,6 +60,14 @@ function chunksByArrival(extractions: CorporationMiningExtraction[]): Corporatio
 
 function chunksOfDay(entry: CorporationMiningExtractions, day: string): CorporationMiningExtraction[] {
   return chunksByArrival(entry.extractions).filter(extraction => chunkDay(extraction.chunkArrivalTime, timeZone.value) === day)
+}
+
+function openCalendarDetails(entry: CorporationMiningExtractions): CorporationMiningExtraction[] {
+  return chunksByArrival(entry.extractions).filter(extraction =>
+    extraction.chunkValue !== null
+    && openDetailIds.value.has(extraction.id)
+    && days.value.includes(chunkDay(extraction.chunkArrivalTime, timeZone.value)),
+  )
 }
 
 function corporationLabel(corporationId: number): string {
@@ -262,7 +271,26 @@ onUnmounted(() => {
               <span class="block uppercase tracking-wider">
                 <span aria-hidden="true">{{ statusGlyphs[statusOf(extraction)] }} </span>{{ t(`ledger.mining.moonChunks.status.${statusOf(extraction)}`) }}
               </span>
+              <MoonChunkValueCell
+                v-if="extraction.chunkValue !== null"
+                as="div"
+                :value="extraction.chunkValue"
+                :expanded="openDetailIds.has(extraction.id)"
+                @toggle="toggleDetail(extraction.id)"
+              />
             </div>
+          </div>
+        </div>
+        <div class="mt-3 space-y-3">
+          <div v-for="extraction in openCalendarDetails(entry)" :key="extraction.id" :data-detail="extraction.id">
+            <MoonChunkValuePanel
+              v-if="extraction.chunkValue !== null"
+              :corporation-id="entry.corporationId"
+              :extraction="extraction"
+              :value="extraction.chunkValue"
+              :time-zone="timeZone"
+              @recorded="load"
+            />
           </div>
         </div>
       </div>

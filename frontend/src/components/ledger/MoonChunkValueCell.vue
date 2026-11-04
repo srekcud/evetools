@@ -6,10 +6,13 @@ import { formatWhole } from '@/views/MiningOperation/miningOperationQuantity'
 
 const ROW_PARTICIPANT_COUNT = 6
 
-const props = defineProps<{
+const CELL_CLASSES = { td: 'px-3 py-2 text-sm max-w-[22rem]', div: 'mt-1 text-xs' }
+
+const props = withDefaults(defineProps<{
   value: MoonChunkValue | null
   expanded: boolean
-}>()
+  as?: 'td' | 'div'
+}>(), { as: 'td' })
 
 defineEmits<{ toggle: [] }>()
 
@@ -30,12 +33,13 @@ const summary = computed(() => {
 </script>
 
 <template>
-  <td
+  <component
+    :is="as"
     v-if="value !== null && summary !== null"
     data-cell="value"
     :data-value-status="value.status"
     :data-unknown-reason="value.reason ?? undefined"
-    class="px-3 py-2 text-sm max-w-[22rem]"
+    :class="CELL_CLASSES[as]"
   >
     <button
       type="button"
@@ -48,6 +52,6 @@ const summary = computed(() => {
       <span aria-hidden="true">{{ expanded ? '▾' : '▸' }}{{ value.status === 'known' ? '' : ' ⚠' }}</span>
       <span>{{ summary }}</span>
     </button>
-  </td>
+  </component>
   <td v-else data-cell="value" class="px-3 py-2 text-sm text-slate-500" :title="t('ledger.mining.moonChunks.value.notEstimated')">—</td>
 </template>
