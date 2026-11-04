@@ -13,6 +13,7 @@ use App\Entity\CachedCharacterSkill;
 use App\Entity\CachedIndustryJob;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
+use App\Entity\CorporationWalletDonation;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\Escalation;
 use App\Entity\EveToken;
@@ -31,6 +32,7 @@ use App\Entity\MiningEntry;
 use App\Entity\MiningSite;
 use App\Entity\MiningSiteScan;
 use App\Entity\MoonComposition;
+use App\Entity\MoonTaxStatement;
 use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
 use App\Entity\PushSubscription;
@@ -138,6 +140,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'cached_industry_jobs.character_id' => 1,
             'cached_wallet_transactions.character_id' => 1,
             'characters.user_id' => 2,
+            'corporation_wallet_donations.attributed_by_user_id' => 1,
             'escalations.user_id' => 1,
             'eve_tokens.character_id' => 2,
             'group_industry_sales.seller_character_id' => 1,
@@ -149,6 +152,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'mining_entries.user_id' => 1,
             'mining_sites.owner_id' => 1,
             'moon_compositions.recorded_by_id' => 1,
+            'moon_tax_statements.acted_by_user_id' => 1,
             'notifications.user_id' => 1,
             'planetary_colonies.character_id' => 1,
             'push_subscriptions.user_id' => 1,
@@ -163,6 +167,25 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             array_intersect_key($brannRowsBefore, $seededColumns),
         );
         self::assertSame($brannRowsBefore, $this->rowsReferencing($brannIds));
+    }
+
+    #[Group('issue-273')]
+    public function testMoonTaxStatementAndDonationHandledByTheDeletedAccountAreKeptWithoutTheAuthor(): void
+    {
+        $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
+        $this->seedPersonalData($kaelen, $this->mainCharacterOf($kaelen), 1);
+        $this->em->flush();
+
+        $this->deleteAccount((string) $kaelen->getId());
+
+        $connection = $this->connection();
+        self::assertSame(
+            [[640_000.0, null], [4_000_000.0, null]],
+            [
+                [(float) $connection->fetchOne('SELECT tax FROM moon_tax_statements'), $connection->fetchOne('SELECT acted_by_user_id FROM moon_tax_statements') ?: null],
+                [(float) $connection->fetchOne('SELECT amount FROM corporation_wallet_donations'), $connection->fetchOne('SELECT attributed_by_user_id FROM corporation_wallet_donations') ?: null],
+            ],
+        );
     }
 
     public function testOwnershipGoesToTheOldestAcceptedAdmin(): void
@@ -1126,6 +1149,25 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setRecordedBy($user)
             ->setRecordedAt($start)
             ->setLines([['typeId' => 45_490 + $seed, 'share' => 1.0]]));
+        $this->em->persist((new MoonTaxStatement())
+            ->setCorporationId(98_000_273)
+            ->setStructureId(1_035_000_000_100 + $seed)
+            ->setCharacterId(2_112_000_100 + $seed)
+            ->setPeriodStart($start)
+            ->setPeriodEnd($start->modify('+7 days'))
+            ->setReference(sprintf('TAX-2026-W10-%04d', $seed))
+            ->setTax(640_000.0 * $seed)
+            ->setActedBy($user)
+            ->setActedAt($start));
+        $this->em->persist((new CorporationWalletDonation())
+            ->setCorporationId(98_000_273)
+            ->setJournalId(7_000 + $seed)
+            ->setFirstPartyId(2_112_000_100 + $seed)
+            ->setAmount(4_000_000.0 * $seed)
+            ->setDate($start)
+            ->setAttributedCharacterId(2_112_000_100 + $seed)
+            ->setAttributedBy($user)
+            ->setAttributedAt($start));
         $this->em->persist((new PveIncome())
             ->setUser($user)
             ->setType(PveIncomeType::Bounty)
