@@ -5,7 +5,10 @@ import type { MiningSite, MiningSiteScan, MiningSiteScanType } from '@/stores/mi
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import type { TestLocale } from '../../localeTexts'
+import { OPERATION_O } from '../MiningOperation/miningOperationLedgerFixtures'
 
+export const OPERATION_ID = OPERATION_O
+export const OTHER_SITE_ID = '0198f1e0-7c1a-7a52-9d3e-5b6a1c2d3e51'
 export const SITE_ID = '0198f1e0-7c1a-7a52-9d3e-5b6a1c2d3e4f'
 export const SITES_PATH = '/mining-sites'
 export const SITE_PATH = `${SITES_PATH}/${SITE_ID}`
@@ -104,6 +107,31 @@ export function siteOf(overrides: Partial<MiningSite> = {}): MiningSite {
   }
 }
 
+export function hasAmberText(parent: DOMWrapper<Element>, text: string): boolean {
+  return parent.findAll('*').some(element => element.text() === text && element.classes().some(name => name.includes('amber')))
+}
+
+export function alphaBravoCharlieScans(): MiningSiteScan[] {
+  return [
+    scanOf(1, at('20:00:00'), [presentType(VELDSPAR, 30_000, { volumeM3: 3_000 })], { authorName: 'Alpha' }),
+    scanOf(2, at('20:10:00'), [presentType(VELDSPAR, 24_000, { volumeM3: 2_400 })], { authorName: 'Bravo' }),
+    scanOf(3, at('20:20:00'), [presentType(VELDSPAR, 18_000, { volumeM3: 1_800, trendEta: at('20:50:33') })], { authorName: 'Charlie', trendEta: at('20:50:33') }),
+  ]
+}
+
+export function siteAfterCharlieScan(overrides: Partial<MiningSite> = {}): MiningSite {
+  return siteOf({
+    operationId: OPERATION_ID,
+    firstScanAt: at('20:00:00'),
+    lastScanAt: at('20:20:00'),
+    observedSeconds: 1_200,
+    trendEta: at('20:50:33'),
+    lastScanNumber: 3,
+    lastScanAuthorName: 'Charlie',
+    ...overrides,
+  })
+}
+
 export function veldsparAndScorditeScans(): MiningSiteScan[] {
   return [
     scanOf(1, at('20:00:00'), [
@@ -163,6 +191,10 @@ export const MINING_SITE_REQUIRED_KEYS = [
   'miningSite.scan.errors.noLines',
   'miningSite.scan.errors.unitsInvalid',
   'miningSite.scan.errors.duplicate',
+  'miningSite.feed.unknownAuthor',
+  'miningSite.feed.shared',
+  'miningSite.lastScan.justNow',
+  'miningOperationSites.empty',
   'miningSite.create.labelRequired',
   'miningSite.history.empty',
   'miningSite.history.estimate',

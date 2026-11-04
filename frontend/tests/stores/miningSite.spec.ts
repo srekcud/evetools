@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { ApiError, apiRequest } from '@/services/api'
 import { useMiningSiteStore } from '@/stores/miningSite'
-import { ALDRANETTE, CLOSE_PATH, SCANS_PATH, SITES_PATH, SITE_ID, SITE_PATH, VELDSPAR, SCORDITE, at, presentType, scanOf, siteAfterThreeScans, siteOf, veldsparAndScorditeScans } from '../views/MiningSite/miningSiteFixtures'
+import { ALDRANETTE, CLOSE_PATH, OPERATION_ID, SCANS_PATH, SITES_PATH, SITE_ID, SITE_PATH, VELDSPAR, SCORDITE, at, presentType, scanOf, siteAfterThreeScans, siteOf, veldsparAndScorditeScans } from '../views/MiningSite/miningSiteFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -115,6 +115,44 @@ describe('mining site store', () => {
       errorAfterRefusal: 'A scan at the same instant already exists for this site',
       errorAfterNotFound: 'Mining site not found',
       currentSite: null,
+    })
+  })
+
+  it('loads the sites of an operation whoever owns them and creates a site linked to the operation', async () => {
+    const ownSite = siteAfterThreeScans({ operationId: OPERATION_ID })
+    const colleagueSite = siteOf({ id: ANOMALY_ID, operationId: OPERATION_ID, label: 'Anomalie Spodumain', solarSystemId: null, solarSystemName: null })
+    const operationSitesPath = `${SITES_PATH}?operationId=${OPERATION_ID}`
+    vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
+      if (endpoint === operationSitesPath) return [colleagueSite, ownSite] as never
+      if (endpoint === SITES_PATH && options?.method === 'POST') return colleagueSite as never
+      throw new Error(`Unexpected request ${endpoint}`)
+    })
+    const store = useMiningSiteStore()
+
+    await store.fetchOperationSites(OPERATION_ID)
+    await store.create({ label: 'Anomalie Spodumain', solarSystemId: null, operationId: OPERATION_ID })
+
+    expect({
+      operationSites: store.operationSites,
+      createBody: postedBody(SITES_PATH),
+      error: store.error,
+    }).toEqual({
+      operationSites: [colleagueSite, ownSite],
+      createBody: { label: 'Anomalie Spodumain', solarSystemId: null, operationId: OPERATION_ID },
+      error: null,
+    })
+  })
+
+  it('empties the sites of the operation and keeps the message of the server when they cannot be loaded', async () => {
+    vi.mocked(apiRequest).mockRejectedValueOnce(new ApiError('Mining operation not found', 404))
+    const store = useMiningSiteStore()
+    store.operationSites = [siteAfterThreeScans({ operationId: OPERATION_ID })]
+
+    await store.fetchOperationSites(OPERATION_ID)
+
+    expect({ operationSites: store.operationSites, error: store.error }).toEqual({
+      operationSites: [],
+      error: 'Mining operation not found',
     })
   })
 })

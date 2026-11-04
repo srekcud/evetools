@@ -9,7 +9,7 @@ import { useMiningSiteStore } from '@/stores/miningSite'
 
 const LABEL_MAX_LENGTH = 100
 
-const props = defineProps<{ show: boolean }>()
+const props = defineProps<{ show: boolean; operationId?: string }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
