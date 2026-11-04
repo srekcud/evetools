@@ -8,6 +8,7 @@ use App\Entity\MoonTaxStatement;
 use App\Entity\User;
 use App\Repository\MoonTaxStatementRepository;
 use App\Service\UuidOrNotFound;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -32,6 +33,22 @@ final readonly class MoonTaxStatementActions
 
     public function markPaid(MoonTaxStatement $statement, User $actor): void
     {
+        $this->entityManager->wrapInTransaction(function () use ($statement, $actor): void {
+            $this->entityManager->refresh($statement, LockMode::PESSIMISTIC_WRITE);
+            $this->applyMarkPaid($statement, $actor);
+        });
+    }
+
+    public function cancel(MoonTaxStatement $statement, User $actor): void
+    {
+        $this->entityManager->wrapInTransaction(function () use ($statement, $actor): void {
+            $this->entityManager->refresh($statement, LockMode::PESSIMISTIC_WRITE);
+            $this->applyCancel($statement, $actor);
+        });
+    }
+
+    private function applyMarkPaid(MoonTaxStatement $statement, User $actor): void
+    {
         if ($statement->getCancelledAt() !== null) {
             throw new ConflictHttpException('A cancelled moon tax statement cannot be marked as paid');
         }
@@ -43,7 +60,7 @@ final readonly class MoonTaxStatementActions
         $this->trace($statement, $actor);
     }
 
-    public function cancel(MoonTaxStatement $statement, User $actor): void
+    private function applyCancel(MoonTaxStatement $statement, User $actor): void
     {
         if ($statement->getMarkedPaidAt() !== null) {
             throw new ConflictHttpException('A moon tax statement marked as paid cannot be cancelled');
