@@ -155,10 +155,8 @@ const bestVenue = computed(() => {
     let best: { key: string; margin: number; revenue: number; profit: number; fees: number; unitPrice: number } | null = null
     for (const [key, entry] of Object.entries(r.margins)) {
       if (entry != null && entry.margin != null && (best == null || entry.margin > best.margin)) {
-        const unitPrice = key === 'jitaSell' ? (r.sellPrices.jitaSell ?? 0)
-          : key === 'structureSell' ? (r.sellPrices.structureSell ?? 0)
-          : key === 'contractSell' ? (r.sellPrices.contractSell ?? 0)
-          : (r.sellPrices.structureBuy ?? 0)
+        const unitPrice = r.sellPrices[key as SellVenue]
+        if (unitPrice == null) continue
         best = { key, margin: entry.margin, revenue: entry.revenue, profit: entry.profit, fees: entry.fees, unitPrice }
       }
     }
@@ -186,7 +184,7 @@ const bestVenue = computed(() => {
 const productionCostUnknown = computed(() => result.value != null && effectiveTotalCost.value == null)
 
 const bestSellRevenue = computed((): number | null => bestVenue.value?.revenue ?? null)
-const bestProfit = computed((): number | null => productionCostUnknown.value ? null : (bestVenue.value?.profit ?? 0))
+const bestProfit = computed((): number | null => productionCostUnknown.value ? null : (bestVenue.value?.profit ?? null))
 const bestMargin = computed((): number | null => bestVenue.value?.margin ?? null)
 const bestUnitPrice = computed((): number | null => bestVenue.value?.unitPrice ?? null)
 
@@ -195,10 +193,9 @@ const bestVenueLabel = computed(() => {
   return venueLabel(bestVenue.value.key, result.value.sellPrices.structureName, t)
 })
 
-const profitPerRun = computed((): number | null => {
-  if (!result.value || result.value.runs === 0) return 0
-  if (bestProfit.value == null) return null
-  return bestProfit.value / result.value.runs
+const profitPerUnit = computed((): number | null => {
+  if (!result.value || bestProfit.value == null || result.value.outputQuantity === 0) return null
+  return bestProfit.value / result.value.outputQuantity
 })
 
 const sellRows = computed((): SellRow[] => {
@@ -595,7 +592,7 @@ store.fetchUserSettings()
         :best-sell-revenue="bestSellRevenue"
         :best-unit-price="bestUnitPrice"
         :best-profit="bestProfit"
-        :profit-per-run="profitPerRun"
+        :profit-per-unit="profitPerUnit"
         :best-margin="bestMargin"
         :best-venue-label="bestVenueLabel"
       />

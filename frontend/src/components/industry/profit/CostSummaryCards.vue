@@ -8,7 +8,7 @@ const props = defineProps<{
   bestSellRevenue: number | null
   bestUnitPrice: number | null
   bestProfit: number | null
-  profitPerRun: number | null
+  profitPerUnit: number | null
   bestMargin: number | null
   bestVenueLabel: string
 }>()
@@ -58,7 +58,7 @@ function profitColor(value: number | null, muted: boolean = false): string {
       <p
         class="text-xs font-mono mt-1"
         :class="profitColor(props.bestProfit, true)"
-      >{{ t('industry.margins.perUnit') }}: <span :class="profitColor(props.bestProfit)">{{ signedCost(props.profitPerRun) }}<template v-if="props.profitPerRun != null"> ISK</template></span></p>
+      >{{ t('industry.margins.perUnit') }}: <span :class="profitColor(props.bestProfit)">{{ signedCost(props.profitPerUnit) }}<template v-if="props.profitPerUnit != null"> ISK</template></span></p>
     </div>
     <!-- Margin % -->
     <div class="eve-card p-4 border-cyan-500/30">
