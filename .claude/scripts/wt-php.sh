@@ -7,7 +7,7 @@ readonly compose_network="evetools_evetools_net"
 readonly dev_image="evetools-app-dev"
 
 usage() {
-  echo "usage: $0 <worktree> unit|integration <php args...>" >&2
+  echo "usage: $0 <worktree> unit|integration <php args...> | $0 <worktree> phpstan [phpstan args...]" >&2
   exit 64
 }
 
@@ -37,10 +37,11 @@ LOCK_DSN=flock
 ENV
 }
 
-[[ $# -ge 3 ]] || usage
+[[ $# -ge 2 ]] || usage
 worktree="$(cd "$1" && pwd)"
 mode="$2"
 shift 2
+[[ "$mode" == "phpstan" || $# -ge 1 ]] || usage
 
 [[ "$worktree" != "$main_repo" ]] || { echo "$worktree est le dépôt principal : utiliser docker compose exec" >&2; exit 65; }
 git -C "$main_repo" worktree list --porcelain | grep -x "worktree $worktree" >/dev/null \
@@ -63,7 +64,7 @@ run_args=(
 )
 
 case "$mode" in
-  unit)
+  unit|phpstan)
     run_args+=(
       -e DATABASE_URL='postgresql://unit:unit@127.0.0.1:1/unit?serverVersion=16'
       -e REDIS_URL=redis://127.0.0.1:1
@@ -82,5 +83,14 @@ case "$mode" in
     ;;
   *) usage ;;
 esac
+
+if [[ "$mode" == "phpstan" ]]; then
+  docker run "${run_args[@]}" "$dev_image" bin/console cache:warmup --env=dev --quiet
+  exec docker run "${run_args[@]}" "$dev_image" vendor/bin/phpstan analyse --no-progress --memory-limit=-1 "$@"
+fi
+
+if [[ "$mode" == "unit" && "$*" == *bin/phpunit* && "$*" != *--testsuite* && "$*" != *tests/* ]]; then
+  set -- "$@" --testsuite=Unit
+fi
 
 exec docker run "${run_args[@]}" "$dev_image" "$@"
