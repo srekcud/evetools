@@ -62,6 +62,16 @@ function departureText(participant: MiningLedgerParticipant, departedAt: string)
         >{{ t(charactersWithUnreadStart(participant).length === 0 ? 'miningOperation.snapshot.startOk' : 'miningOperation.snapshot.startMissing', { taken: takenStarts(participant), total: participant.characters.length }) }}</span>
         <span v-if="participant.departedAt !== null" class="shrink-0 font-mono text-xs text-slate-400">{{ departureText(participant, participant.departedAt) }}</span>
       </div>
+      <ul class="mt-2 space-y-1">
+        <li v-for="character in participant.characters" :key="character.id" class="flex flex-wrap items-baseline gap-x-2 text-xs" data-testid="snapshot-character">
+          <span class="min-w-0 font-mono text-slate-300 [overflow-wrap:anywhere]">{{ character.name }}</span>
+          <span
+            class="min-w-0 font-mono [overflow-wrap:anywhere]"
+            :class="character.shipName === null ? 'text-slate-500' : 'text-cyan-200'"
+            data-testid="snapshot-character-ship"
+          >{{ character.shipName ?? t('miningOperation.snapshot.shipUnknown') }}</span>
+        </li>
+      </ul>
       <p
         v-for="character in charactersWithUnreadStart(participant)"
         :key="character.id"

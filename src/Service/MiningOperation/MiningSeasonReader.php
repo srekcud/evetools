@@ -8,6 +8,7 @@ use App\Entity\MiningFrozenMinedValue;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
 use App\Entity\User;
+use App\Enum\MiningBoostShip;
 use App\Enum\MiningLedgerSnapshotKind;
 use App\Enum\MiningSeasonPeriod;
 use App\Repository\MiningOperationRepository;
@@ -20,6 +21,7 @@ final readonly class MiningSeasonReader
     public function __construct(
         private MiningOperationRepository $operationRepository,
         private MiningSeasonCalculator $calculator,
+        private MiningOperationValuator $valuator,
         private ClockInterface $clock,
     ) {
     }
@@ -64,7 +66,43 @@ final readonly class MiningSeasonReader
             $this->minutesBetween($startedAt, $endedAt),
             $isKnown ? array_sum(array_map(static fn (MiningFrozenMinedValue $frozen): int => (int) $frozen->getMinedValue(), $operation->getFrozenMinedValues()->toArray())) : null,
             $participants,
+            $isKnown ? $this->charactersOf($operation, $endedAt) : [],
         );
+    }
+
+    /**
+     * @return list<MiningSeasonCharacter>
+     */
+    private function charactersOf(MiningOperation $operation, \DateTimeImmutable $endedAt): array
+    {
+        $minedValues = [];
+        foreach ($this->valuator->value($operation)->participants as $participant) {
+            foreach ($participant->characters as $valuation) {
+                $minedValues[$valuation->operationCharacter->getCharacter()->getEveCharacterId()] = $valuation->minedValue;
+            }
+        }
+
+        $characters = [];
+        foreach ($operation->acceptedMembers() as $member) {
+            foreach ($member->getCharacters() as $enrolment) {
+                $startedAt = $enrolment->snapshotOf(MiningLedgerSnapshotKind::Start)?->getTakenAt();
+                if ($startedAt === null) {
+                    continue;
+                }
+                $eveCharacterId = $enrolment->getCharacter()->getEveCharacterId();
+                $shipTypeId = $enrolment->getShipTypeId();
+                $isBooster = $shipTypeId !== null && in_array($shipTypeId, MiningBoostShip::values(), true);
+                $characters[] = new MiningSeasonCharacter(
+                    (string) $eveCharacterId,
+                    $shipTypeId,
+                    max(0, $this->minutesBetween($startedAt, $member->getDepartedAt() ?? $endedAt)),
+                    $isBooster ? null : ($minedValues[$eveCharacterId] ?? null),
+                    $isBooster,
+                );
+            }
+        }
+
+        return $characters;
     }
 
     private function earliestStartSnapshotOf(MiningOperationMember $member): ?\DateTimeImmutable

@@ -79,6 +79,7 @@ class MiningOperationCharacter
 
     public function recordShip(?int $shipTypeId): void
     {
+        $this->shipTypeId = $shipTypeId;
     }
 
     /**

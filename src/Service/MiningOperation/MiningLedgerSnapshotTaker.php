@@ -88,9 +88,28 @@ final readonly class MiningLedgerSnapshotTaker
         }
 
         $snapshot->take($now, $reading);
+        $shipData = $snapshot->getKind() === MiningLedgerSnapshotKind::Start ? ['shipTypeId' => $this->recordShipOf($snapshot)] : [];
         $this->entityManager->flush();
-        $this->publishCompleted($snapshot);
+        $this->publishCompleted($snapshot, $shipData);
         $this->notifyWhenEndLedgerSettled($snapshot);
+    }
+
+    private function recordShipOf(MiningLedgerSnapshot $snapshot): ?int
+    {
+        $operationCharacter = $snapshot->getOperationCharacter();
+        $character = $operationCharacter->getCharacter();
+        $shipTypeId = $this->shipReader->read($character);
+        $operationCharacter->recordShip($shipTypeId);
+
+        if ($shipTypeId === null) {
+            $this->logger->warning('Ship of a mining operation character could not be read', [
+                'operationId' => PersistedUuid::of($operationCharacter->getMember()->getOperation()->getId()),
+                'character' => $character->getName(),
+                'eveCharacterId' => $character->getEveCharacterId(),
+            ]);
+        }
+
+        return $shipTypeId;
     }
 
     private function settleWithoutLedger(MiningLedgerSnapshot $snapshot, MiningLedgerSnapshotStatus $status, string $reason): void
@@ -152,10 +171,13 @@ final readonly class MiningLedgerSnapshotTaker
         }
     }
 
-    private function publishCompleted(MiningLedgerSnapshot $snapshot): void
+    /**
+     * @param array<string, mixed> $extraData
+     */
+    private function publishCompleted(MiningLedgerSnapshot $snapshot, array $extraData): void
     {
         foreach ($this->audienceOf($snapshot) as $userId) {
-            $this->mercurePublisher->syncCompleted($userId, self::SYNC_TYPE, $this->messageAbout($snapshot), $this->progressDataOf($snapshot));
+            $this->mercurePublisher->syncCompleted($userId, self::SYNC_TYPE, $this->messageAbout($snapshot), [...$this->progressDataOf($snapshot), ...$extraData]);
         }
     }
 

@@ -8,6 +8,7 @@ import { formatWhole } from './miningOperationQuantity'
 
 const SEASON_PERIODS = ['30d', '90d', 'all'] as const satisfies readonly MiningSeasonPeriod[]
 const PERCENT_MAX = 100
+const NOT_APPLICABLE = '–'
 
 const { t, locale } = useI18n()
 const store = useMiningOperationStore()
@@ -15,6 +16,7 @@ const store = useMiningOperationStore()
 const period = ref<MiningSeasonPeriod>('30d')
 const season = computed(() => store.season)
 const longestPlayerMinutes = computed(() => Math.max(0, ...(season.value?.players ?? []).map(player => player.minutes)))
+const bestShipIskPerHour = computed(() => Math.max(0, ...(season.value?.ships ?? []).flatMap(ship => (ship.iskPerHour === null ? [] : [ship.iskPerHour]))))
 
 function amountText(amount: number | null): string {
   return amount === null ? t('miningOperation.quantities.unknown') : formatWhole(amount, locale.value)
@@ -22,6 +24,10 @@ function amountText(amount: number | null): string {
 
 function barWidth(minutes: number): string {
   return `${longestPlayerMinutes.value === 0 ? 0 : Math.round((minutes / longestPlayerMinutes.value) * PERCENT_MAX)}%`
+}
+
+function shipBarWidth(iskPerHour: number): string {
+  return `${bestShipIskPerHour.value === 0 ? 0 : Math.round((iskPerHour / bestShipIskPerHour.value) * PERCENT_MAX)}%`
 }
 
 async function reload(): Promise<void> {
@@ -93,34 +99,70 @@ onMounted(reload)
 
     <p v-if="season.operationsCount === 0" class="eve-card p-6 text-sm text-slate-300">{{ t('miningOperation.season.empty') }}</p>
 
-    <div v-else class="eve-card overflow-x-auto p-2">
-      <h2 class="px-3 py-2 font-display text-base font-semibold text-slate-100">{{ t('miningOperation.season.players.title') }}</h2>
-      <table class="w-full text-left text-sm">
-        <thead>
-          <tr class="border-b border-slate-800 font-mono text-xs uppercase tracking-wider text-slate-400">
-            <th class="px-3 py-2 font-medium">{{ t('miningOperation.season.players.columns.player') }}</th>
-            <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.players.columns.operations') }}</th>
-            <th class="w-1/3 px-3 py-2 font-medium">{{ t('miningOperation.season.players.columns.hours') }}</th>
-            <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.players.columns.minedValue') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="player in season.players" :key="player.name" class="border-b border-slate-800/60" data-testid="season-player-row">
-            <td class="max-w-56 px-3 py-2.5 font-display font-semibold text-slate-100 [overflow-wrap:anywhere]" data-testid="season-player-name">{{ player.name }}</td>
-            <td class="px-3 py-2.5 text-right font-mono text-slate-300">{{ player.operationsCount }}</td>
-            <td class="px-3 py-2.5">
-              <span class="block font-mono text-xs text-cyan-200">{{ formatSeasonDuration(player.minutes) }}</span>
-              <span class="mt-1 block h-1.5 rounded-sm bg-slate-800" aria-hidden="true">
-                <span class="block h-full rounded-sm bg-cyan-400" :style="{ width: barWidth(player.minutes) }" />
-              </span>
-            </td>
-            <td class="px-3 py-2.5 text-right font-mono">
-              <span :class="player.minedValue === null ? 'text-amber-300' : 'text-slate-100'">{{ amountText(player.minedValue) }}</span>
-              <span v-if="player.hasUnknownValue" class="block text-xs text-amber-300">{{ t('miningOperation.season.players.plusUnknown') }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-else class="grid items-start gap-4 lg:grid-cols-2">
+      <div class="eve-card overflow-x-auto p-2" data-testid="season-ships">
+        <h2 class="px-3 py-2 font-display text-base font-semibold text-slate-100">{{ t('miningOperation.season.ships.title') }}</h2>
+        <p v-if="season.ships.length === 0" class="px-3 py-4 text-sm text-slate-300" data-testid="season-ships-empty">{{ t('miningOperation.season.ships.empty') }}</p>
+        <table v-else class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b border-slate-800 font-mono text-xs uppercase tracking-wider text-slate-400">
+              <th class="px-3 py-2 font-medium">{{ t('miningOperation.season.ships.columns.ship') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.ships.columns.characters') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.ships.columns.hours') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.ships.columns.minedValue') }}</th>
+              <th class="w-1/4 px-3 py-2 font-medium">{{ t('miningOperation.season.ships.columns.iskPerHour') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="ship in season.ships" :key="ship.shipTypeId" class="border-b border-slate-800/60" data-testid="season-ship-row">
+              <td class="max-w-56 px-3 py-2.5">
+                <span class="block font-display font-semibold text-slate-100 [overflow-wrap:anywhere]" data-testid="season-ship-name">{{ ship.shipName }}</span>
+                <span v-if="ship.isBooster" class="block text-xs text-slate-400">{{ t('miningOperation.season.ships.booster') }}</span>
+              </td>
+              <td class="px-3 py-2.5 text-right font-mono text-slate-300">{{ ship.charactersCount }}</td>
+              <td class="px-3 py-2.5 text-right font-mono text-xs text-cyan-200">{{ formatSeasonDuration(ship.minutes) }}</td>
+              <td class="px-3 py-2.5 text-right font-mono text-slate-100" data-testid="season-ship-value">{{ ship.isBooster ? NOT_APPLICABLE : amountText(ship.minedValue) }}</td>
+              <td class="px-3 py-2.5 font-mono">
+                <span class="block text-slate-100" data-testid="season-ship-isk-per-hour">{{ ship.isBooster ? NOT_APPLICABLE : amountText(ship.iskPerHour) }}</span>
+                <span v-if="ship.iskPerHour !== null" class="mt-1 block h-1.5 rounded-sm bg-slate-800" aria-hidden="true">
+                  <span class="block h-full rounded-sm bg-cyan-400" :style="{ width: shipBarWidth(ship.iskPerHour) }" data-testid="season-ship-bar" />
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="season.unknownShipCharactersCount > 0" class="px-3 py-2 text-xs text-amber-300" data-testid="season-unknown-ships">{{ t('miningOperation.season.ships.unknownCharacters', { count: season.unknownShipCharactersCount }) }}</p>
+      </div>
+
+      <div class="eve-card overflow-x-auto p-2">
+        <h2 class="px-3 py-2 font-display text-base font-semibold text-slate-100">{{ t('miningOperation.season.players.title') }}</h2>
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b border-slate-800 font-mono text-xs uppercase tracking-wider text-slate-400">
+              <th class="px-3 py-2 font-medium">{{ t('miningOperation.season.players.columns.player') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.players.columns.operations') }}</th>
+              <th class="w-1/3 px-3 py-2 font-medium">{{ t('miningOperation.season.players.columns.hours') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.players.columns.minedValue') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="player in season.players" :key="player.name" class="border-b border-slate-800/60" data-testid="season-player-row">
+              <td class="max-w-56 px-3 py-2.5 font-display font-semibold text-slate-100 [overflow-wrap:anywhere]" data-testid="season-player-name">{{ player.name }}</td>
+              <td class="px-3 py-2.5 text-right font-mono text-slate-300">{{ player.operationsCount }}</td>
+              <td class="px-3 py-2.5">
+                <span class="block font-mono text-xs text-cyan-200">{{ formatSeasonDuration(player.minutes) }}</span>
+                <span class="mt-1 block h-1.5 rounded-sm bg-slate-800" aria-hidden="true">
+                  <span class="block h-full rounded-sm bg-cyan-400" :style="{ width: barWidth(player.minutes) }" />
+                </span>
+              </td>
+              <td class="px-3 py-2.5 text-right font-mono">
+                <span :class="player.minedValue === null ? 'text-amber-300' : 'text-slate-100'">{{ amountText(player.minedValue) }}</span>
+                <span v-if="player.hasUnknownValue" class="block text-xs text-amber-300">{{ t('miningOperation.season.players.plusUnknown') }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>

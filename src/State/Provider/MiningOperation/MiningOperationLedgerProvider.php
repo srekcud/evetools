@@ -149,10 +149,14 @@ final readonly class MiningOperationLedgerProvider implements ProviderInterface
         }
         usort($quantities, static fn (array $left, array $right): int => $left['typeName'] <=> $right['typeName']);
 
+        $shipTypeId = $operationCharacter->getShipTypeId();
+
         return [
             'id' => PersistedUuid::of($operationCharacter->getId()),
             'eveCharacterId' => $operationCharacter->getCharacter()->getEveCharacterId(),
             'name' => $operationCharacter->getCharacter()->getName(),
+            'shipTypeId' => $shipTypeId,
+            'shipName' => $shipTypeId === null ? null : $this->typeNameOf($shipTypeId),
             'state' => $quantity->state->value,
             'unknownReason' => $quantity->unknownReason?->value,
             'totalQuantity' => $quantity->totalQuantity(),

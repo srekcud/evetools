@@ -228,6 +228,8 @@ Termes proposés pour le minage groupé (#261), en attente de validation : seuls
 | **Saison** | Season | Agrégat sur une période des opérations de minage de la corporation de l'utilisateur (spec #317). | `MiningSeasonSummary`, `MiningSeasonResource` |
 | **Valeur connue** | Known value | Somme des valeurs figées des opérations dont les parts sont gelées ; une opération non gelée est inconnue, jamais comptée pour 0 (spec #317). | `MiningSeasonSummary::$knownValue` |
 | **Heures minées** | Mined hours | Minutes de présence d'un joueur, du premier instantané de début lu à sa fin (spec #317). | `MiningSeasonParticipant::$minutes` |
+| **Vaisseau d'un personnage** | Character ship | Type de vaisseau lu à l'ESI à l'instantané de début d'un personnage inscrit ; inconnu si illisible, jamais un défaut (spec #364). | `MiningCharacterShipReader`, `MiningOperationCharacter::$shipTypeId` |
+| **ISK/h par vaisseau** | ISK per hour by ship | Valeur figée des personnages d'un type de vaisseau sur la saison, divisée par leurs heures de présence ; vaisseau de booster sans valeur (spec #364). | `MiningSeasonSummary::$ships` |
 
 ## Ambiguïtés connues
 
