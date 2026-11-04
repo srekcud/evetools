@@ -295,6 +295,7 @@ class IndustryBonusServiceTest extends TestCase
     // Multiple Rigs Tests
     // ===========================================
 
+    #[Group('issue-249')]
     public function testMultipleRigsStack(): void
     {
         $structure = $this->createStructure(
@@ -307,12 +308,96 @@ class IndustryBonusServiceTest extends TestCase
             ]
         );
 
-        // Base 1%, Rigs ((2.0% + 2.4%) × 2.1) = 9.24%
-        // Multiplicative: 1 - (1 - 0.01) × (1 - 0.0924) = 1 - 0.99 × 0.9076 = 1 - 0.898524 = 10.1476%
         $bonus = $this->bonusService->calculateStructureBonusForCategory($structure, 'basic_capital_component');
         $this->assertSame(1.0, $bonus['base']);
-        $this->assertSame(9.24, $bonus['rig']);
-        $this->assertSame(10.15, $bonus['total']);
+        $this->assertSame(9.02832, $bonus['rig']);
+        $this->assertSame(9.94, $bonus['total']);
+    }
+
+    #[Group('issue-249')]
+    public function testTwoIdenticalRigsAreMultipliedInsteadOfAdded(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', [
+            'Standup XL-Set Structure and Component Manufacturing Efficiency II',
+            'Standup XL-Set Structure and Component Manufacturing Efficiency II',
+        ]);
+
+        $this->assertSame(
+            ['total' => 10.73, 'base' => 1.0, 'rig' => 9.825984],
+            $this->bonusService->calculateStructureBonusForCategory($raitaru, 'basic_capital_component'),
+        );
+    }
+
+    #[Group('issue-249')]
+    public function testThreeIdenticalRigsAreMultipliedInsteadOfAdded(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', [
+            'Standup XL-Set Structure and Component Manufacturing Efficiency II',
+            'Standup XL-Set Structure and Component Manufacturing Efficiency II',
+            'Standup XL-Set Structure and Component Manufacturing Efficiency II',
+        ]);
+
+        $this->assertSame(
+            ['total' => 15.23, 'base' => 1.0, 'rig' => 14.3707544064],
+            $this->bonusService->calculateStructureBonusForCategory($raitaru, 'basic_capital_component'),
+        );
+    }
+
+    #[Group('issue-249')]
+    public function testTierOneAndTierTwoRigsAreMultipliedWithoutStructureBase(): void
+    {
+        $station = $this->createStructure('Test Station', 'station', 'nullsec', [
+            'Standup XL-Set Structure and Component Manufacturing Efficiency I',
+            'Standup XL-Set Structure and Component Manufacturing Efficiency II',
+        ]);
+
+        $this->assertSame(
+            ['total' => 9.03, 'base' => 0.0, 'rig' => 9.02832],
+            $this->bonusService->calculateStructureBonusForCategory($station, 'basic_capital_component'),
+        );
+    }
+
+    #[Group('issue-249')]
+    public function testStackedRigsKeepTheLowsecSecurityMultiplier(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'lowsec', [
+            'Standup M-Set Basic Capital Component Manufacturing Material Efficiency II',
+            'Standup M-Set Basic Capital Component Manufacturing Material Efficiency II',
+        ]);
+
+        $this->assertSame(
+            ['total' => 9.82, 'base' => 1.0, 'rig' => 8.912064],
+            $this->bonusService->calculateStructureBonusForCategory($raitaru, 'basic_capital_component'),
+        );
+    }
+
+    #[Group('issue-249')]
+    public function testRigOfAnotherCategoryIsIgnoredNextToTwoApplicableRigs(): void
+    {
+        $raitaru = $this->createStructure('Test Raitaru', 'raitaru', 'nullsec', [
+            'Standup M-Set Basic Large Ship Manufacturing Material Efficiency II',
+            'Standup M-Set Basic Capital Component Manufacturing Material Efficiency II',
+            'Standup M-Set Basic Capital Component Manufacturing Material Efficiency II',
+        ]);
+
+        $this->assertSame(
+            ['total' => 10.73, 'base' => 1.0, 'rig' => 9.825984],
+            $this->bonusService->calculateStructureBonusForCategory($raitaru, 'basic_capital_component'),
+        );
+    }
+
+    #[Group('issue-249')]
+    public function testTwoReactionRigsAreMultipliedInsteadOfAdded(): void
+    {
+        $athanor = $this->createStructure('Test Athanor', 'athanor', 'nullsec', [
+            'Standup L-Set Reactor Efficiency II',
+            'Standup L-Set Reactor Efficiency II',
+        ]);
+
+        $this->assertSame(
+            ['total' => 5.21, 'base' => 0.0, 'rig' => 5.210304],
+            $this->bonusService->calculateStructureBonusForCategory($athanor, 'composite_reaction'),
+        );
     }
 
     public function testRigsOnlyApplyToMatchingCategory(): void
