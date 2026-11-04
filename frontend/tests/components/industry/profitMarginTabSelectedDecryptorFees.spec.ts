@@ -69,6 +69,7 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
     structureBuy: 4_000,
     contractSell: null,
     contractCount: null,
+    jitaSellCoveragePercent: null,
     structureId: 1_035_466_617_946,
     structureName: STRUCTURE_NAME,
   },

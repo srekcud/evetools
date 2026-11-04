@@ -51,6 +51,7 @@ const HERON_MARGIN: ProfitMarginResult = {
     structureBuy: 571_500,
     contractSell: null,
     contractCount: null,
+    jitaSellCoveragePercent: null,
     structureId: 1_046_664_001_931,
     structureName: 'Raitaru Heron Works',
   },

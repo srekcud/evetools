@@ -55,6 +55,7 @@ const ISHTAR_MARGIN: ProfitMarginResult = {
     structureBuy: 241_000_000,
     contractSell: null,
     contractCount: null,
+    jitaSellCoveragePercent: null,
     structureId: 1_035_466_617_946,
     structureName: 'Tatara Alpha',
   },

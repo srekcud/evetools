@@ -71,6 +71,7 @@ const SABRE_WITH_PARTIAL_PRICES: ProfitMarginResult = {
     structureBuy: 5_800,
     contractSell: null,
     contractCount: null,
+    jitaSellCoveragePercent: null,
     structureId: 1_035_466_617_946,
     structureName: 'Tatara Alpha',
   },

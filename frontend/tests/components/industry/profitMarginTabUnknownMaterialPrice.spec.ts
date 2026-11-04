@@ -78,6 +78,7 @@ const SABRE_WITH_UNPRICED_MATERIALS: ProfitMarginResult = {
     structureBuy: 4_000,
     contractSell: null,
     contractCount: null,
+    jitaSellCoveragePercent: null,
     structureId: 1_035_466_617_946,
     structureName: 'Tatara Alpha',
   },

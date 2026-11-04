@@ -48,6 +48,7 @@ const HAIL_L_MARGIN_RESULT: ProfitMarginResult = {
     structureBuy: 36.9,
     contractSell: null,
     contractCount: null,
+    jitaSellCoveragePercent: null,
     structureId: 1_035_466_617_946,
     structureName: 'Tatara Alpha',
   },

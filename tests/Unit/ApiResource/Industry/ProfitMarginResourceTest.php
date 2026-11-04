@@ -13,6 +13,14 @@ use PHPUnit\Framework\TestCase;
 #[Group('issue-217')]
 final class ProfitMarginResourceTest extends TestCase
 {
+    public function testJitaSellCoveragePercentIsUnknownByDefault(): void
+    {
+        $resource = new ProfitMarginResource();
+
+        $this->assertArrayHasKey('jitaSellCoveragePercent', $resource->sellPrices);
+        $this->assertNull($resource->sellPrices['jitaSellCoveragePercent']);
+    }
+
     public function testContractCountIsUnknownByDefault(): void
     {
         $resource = new ProfitMarginResource();

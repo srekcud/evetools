@@ -364,6 +364,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertSame(self::SALES_TAX_RATE, $result['salesTaxRate']);
         $this->assertSame([
             'jitaSell' => 4500.0,
+            'jitaSellCoveragePercent' => null,
             'structureSell' => 4400.0,
             'structureBuy' => 4000.0,
             'contractSell' => 4300.0,

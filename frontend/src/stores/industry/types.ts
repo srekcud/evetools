@@ -368,6 +368,7 @@ export interface ProfitMarginJobStep {
 
 export interface ProfitMarginSellPrices {
   jitaSell: number | null
+  jitaSellCoveragePercent: number | null
   structureSell: number | null
   structureBuy: number | null
   contractSell: number | null

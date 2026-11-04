@@ -50,6 +50,8 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
     private const float TRITANIUM_COVERAGE = 0.30;
     private const float MEXALLON_COVERAGE = 0.9375;
 
+    private const array FULL_JITA_SELL_DATA = ['weightedPrice' => self::AMMUNITION_JITA_SELL_PRICE, 'coverage' => 1.0, 'ordersUsed' => 2];
+
     private const float FLOAT_TOLERANCE = 1e-6;
 
     private const array AMMUNITION_MATERIALS = [self::TRITANIUM => 1000, self::PYERITE => 150, self::MEXALLON => 500];
@@ -131,9 +133,96 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
         $this->assertSame([], $analysis['warnings']);
     }
 
-    private function analyze(array $coverages, array $additionalMaterials = []): array
+    public function testPartialJitaSellCoverageIsReportedWhileTheRevenueAndTheMarginStayDisplayed(): void
     {
-        return $this->profitMarginService($coverages, $additionalMaterials)->analyze(
+        $analysis = $this->analyze([], [], $this->jitaSellDataCovering(0.30));
+
+        $this->assertSame(150.0, $analysis['sellPrices']['jitaSell']);
+        $this->assertSame(30.0, $analysis['sellPrices']['jitaSellCoveragePercent']);
+        $this->assertEqualsWithDelta(15000.0, $analysis['margins']['jitaSell']['revenue'], self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(1125.0, $analysis['margins']['jitaSell']['fees'], self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(1074.15, $analysis['margins']['jitaSell']['profit'], self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(8.39123964, $analysis['margins']['jitaSell']['margin'], self::FLOAT_TOLERANCE);
+        $this->assertSame([], $analysis['warnings']);
+    }
+
+    public function testFullJitaSellCoverageHasNoCoveragePercent(): void
+    {
+        $analysis = $this->analyze([]);
+
+        $this->assertSame(150.0, $analysis['sellPrices']['jitaSell']);
+        $this->assertNull($analysis['sellPrices']['jitaSellCoveragePercent']);
+    }
+
+    public function testJitaSellCoverageJustBelowFullIsRoundedDownToNinetyNinePointSeven(): void
+    {
+        $analysis = $this->analyze([], [], $this->jitaSellDataCovering(300 / 301));
+
+        $this->assertSame(99.7, $analysis['sellPrices']['jitaSellCoveragePercent']);
+    }
+
+    public function testJitaSellCoverageRoundingToFullIsCappedAtNinetyNinePointNine(): void
+    {
+        $analysis = $this->analyze([], [], $this->jitaSellDataCovering(0.99999));
+
+        $this->assertSame(99.9, $analysis['sellPrices']['jitaSellCoveragePercent']);
+    }
+
+    public function testJitaSellCoverageRoundingToZeroIsRaisedToPointOne(): void
+    {
+        $analysis = $this->analyze([], [], $this->jitaSellDataCovering(0.00004));
+
+        $this->assertSame(0.1, $analysis['sellPrices']['jitaSellCoveragePercent']);
+    }
+
+    public function testMissingJitaSellPriceHasNoCoveragePercent(): void
+    {
+        $analysis = $this->analyze([], [], null);
+
+        $this->assertNull($analysis['sellPrices']['jitaSell']);
+        $this->assertNull($analysis['sellPrices']['jitaSellCoveragePercent']);
+        $this->assertNull($analysis['margins']['jitaSell']);
+    }
+
+    public function testJitaSellPriceWithoutCoverageIsUnknownRatherThanComplete(): void
+    {
+        $analysis = $this->analyze([], [], ['weightedPrice' => self::AMMUNITION_JITA_SELL_PRICE, 'ordersUsed' => 2]);
+
+        $this->assertNull($analysis['sellPrices']['jitaSell']);
+        $this->assertNull($analysis['sellPrices']['jitaSellCoveragePercent']);
+        $this->assertNull($analysis['margins']['jitaSell']);
+    }
+
+    public function testJitaSellPriceWithZeroCoverageIsUnknownRatherThanComplete(): void
+    {
+        $analysis = $this->analyze([], [], $this->jitaSellDataCovering(0.0));
+
+        $this->assertNull($analysis['sellPrices']['jitaSell']);
+        $this->assertNull($analysis['sellPrices']['jitaSellCoveragePercent']);
+        $this->assertNull($analysis['margins']['jitaSell']);
+    }
+
+    public function testPartialMaterialPriceAndPartialJitaSellCoverageAreReportedSeparately(): void
+    {
+        $analysis = $this->analyze([self::TRITANIUM => self::TRITANIUM_COVERAGE], [], $this->jitaSellDataCovering(0.45));
+
+        $this->assertSame(
+            [['reason' => 'partial_market_depth', 'typeId' => self::TRITANIUM, 'coveragePercent' => 30.0]],
+            $analysis['warnings'],
+        );
+        $this->assertSame(45.0, $analysis['sellPrices']['jitaSellCoveragePercent']);
+        $this->assertEqualsWithDelta(12800.85, $analysis['totalCost'], self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(1074.15, $analysis['margins']['jitaSell']['profit'], self::FLOAT_TOLERANCE);
+    }
+
+    private function jitaSellDataCovering(float $coverage): array
+    {
+        return ['weightedPrice' => self::AMMUNITION_JITA_SELL_PRICE, 'coverage' => $coverage, 'ordersUsed' => 2];
+    }
+
+    private function analyze(array $coverages, array $additionalMaterials = [], ?array $jitaSellData = self::FULL_JITA_SELL_DATA): array
+    {
+        return $this->profitMarginService($coverages, $additionalMaterials, $jitaSellData)->analyze(
             self::AMMUNITION,
             self::RUNS,
             0,
@@ -148,13 +237,13 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
         );
     }
 
-    private function profitMarginService(array $coverages, array $additionalMaterials): ProfitMarginService
+    private function profitMarginService(array $coverages, array $additionalMaterials, ?array $jitaSellData): ProfitMarginService
     {
         $decryptors = $this->createStub(Decryptors::class);
         $decryptors->method('all')->willReturn([]);
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getWeightedSellPrice')->willReturn(['weightedPrice' => self::AMMUNITION_JITA_SELL_PRICE, 'coverage' => 1.0, 'ordersUsed' => 2]);
+        $jitaMarketService->method('getWeightedSellPrice')->willReturn($jitaSellData);
         $jitaMarketService->method('getAverageDailyVolumes')->willReturn([self::AMMUNITION => 420.0]);
 
         $typeNameResolver = $this->createStub(TypeNameResolver::class);
