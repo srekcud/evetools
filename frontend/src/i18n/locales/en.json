@@ -1690,7 +1690,9 @@
             "placeholder": "Bitumens  25.81 %\nChromite  30.10 %",
             "submit": "Save the composition",
             "recording": "Saving...",
-            "failure": "The composition could not be saved."
+            "failure": "The composition could not be saved.",
+            "forbidden": "Only the author of the scan or a Director or Station Manager of the corporation can replace it.",
+            "roles_unavailable": "Your corporation roles could not be read, try again later."
           }
         }
       },

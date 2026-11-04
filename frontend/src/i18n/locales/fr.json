@@ -1690,7 +1690,9 @@
             "placeholder": "Bitumens  25,81 %\nChromite  30,10 %",
             "submit": "Enregistrer la composition",
             "recording": "Enregistrement...",
-            "failure": "La composition n'a pas pu être enregistrée."
+            "failure": "La composition n'a pas pu être enregistrée.",
+            "forbidden": "Seuls l'auteur du scan, un Director ou un Station Manager de la corporation peuvent le remplacer.",
+            "roles_unavailable": "Vos rôles de corporation n'ont pas pu être lus, réessayez plus tard."
           }
         }
       },

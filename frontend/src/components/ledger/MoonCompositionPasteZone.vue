@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ValidationError } from '@/services/api'
+import { ApiError, ValidationError } from '@/services/api'
 import { recordMoonComposition } from '@/composables/useCorporationMiningExtractions'
 
 const LINE_ERROR_PATH = /^scan\[(\d+)\]$/
 const SCAN_ERROR_KEY = 'scan'
+const FORBIDDEN_STATUS = 403
+const UNAVAILABLE_STATUS = 503
+
+type PasteFailure = 'failure' | 'forbidden' | 'roles_unavailable'
+
+const FAILURE_BY_STATUS: Record<number, PasteFailure> = {
+  [FORBIDDEN_STATUS]: 'forbidden',
+  [UNAVAILABLE_STATUS]: 'roles_unavailable',
+}
 
 const props = defineProps<{
   corporationId: number
@@ -19,7 +28,7 @@ const { t } = useI18n()
 const scan = ref('')
 const isRecording = ref(false)
 const refusals = ref<Array<{ key: string; message: string }>>([])
-const hasFailed = ref(false)
+const failure = ref<PasteFailure | null>(null)
 
 const canRecord = computed(() => scan.value.trim() !== '' && !isRecording.value)
 
@@ -30,7 +39,7 @@ function refusalKey(propertyPath: string): string {
 async function record(): Promise<void> {
   isRecording.value = true
   refusals.value = []
-  hasFailed.value = false
+  failure.value = null
   try {
     await recordMoonComposition(props.corporationId, props.moonId, scan.value)
     scan.value = ''
@@ -38,9 +47,11 @@ async function record(): Promise<void> {
   } catch (e) {
     if (e instanceof ValidationError) {
       refusals.value = e.violations.map(violation => ({ key: refusalKey(violation.propertyPath), message: violation.message }))
+    } else if (e instanceof ApiError && e.status in FAILURE_BY_STATUS) {
+      failure.value = FAILURE_BY_STATUS[e.status]
     } else {
       console.error('Failed to record the moon composition:', e)
-      hasFailed.value = true
+      failure.value = 'failure'
     }
   } finally {
     isRecording.value = false
@@ -73,8 +84,8 @@ async function record(): Promise<void> {
         <span aria-hidden="true">✕ </span>{{ refusal.message }}
       </li>
     </ul>
-    <p v-if="hasFailed" data-scan-failure role="alert" class="rounded-sm border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-sm text-red-300">
-      <span aria-hidden="true">✕ </span>{{ t('ledger.mining.moonChunks.value.paste.failure') }}
+    <p v-if="failure !== null" :data-scan-failure="failure" role="alert" class="rounded-sm border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-sm text-red-300">
+      <span aria-hidden="true">✕ </span>{{ t(`ledger.mining.moonChunks.value.paste.${failure}`) }}
     </p>
     <button
       type="button"
