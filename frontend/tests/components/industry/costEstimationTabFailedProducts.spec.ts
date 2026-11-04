@@ -158,7 +158,7 @@ describe('CostEstimationTab', () => {
     expect(totalCostCard.find('p:nth-of-type(2)').text()).toBe('14,700')
     expect(totalCostCard.find('p:nth-of-type(3)').text()).toBe(`${labels.perUnit}: 7,350 ISK`)
     expect(wrapper.text()).toContain('+35,300')
-    expect(wrapper.text()).toContain('70.6%')
+    expect(wrapper.text()).toContain('240.1%')
     expect(wrapper.text()).toContain('59.2%')
     expect(wrapper.text()).toContain('34.0%')
     expect(wrapper.text()).toContain('6.8%')

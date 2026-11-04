@@ -106,8 +106,9 @@ const profitAmount = computed(() => {
 })
 
 const profitMargin = computed(() => {
-  if (sellPrice.value == null || sellPrice.value === 0 || profitAmount.value == null) return null
-  return (profitAmount.value / sellPrice.value) * 100
+  const totalCost = costData.value?.totalCost
+  if (profitAmount.value == null || totalCost == null || totalCost <= 0) return null
+  return (profitAmount.value / totalCost) * 100
 })
 
 async function loadCostEstimation() {
