@@ -7,7 +7,7 @@ import fr from '@/i18n/locales/fr.json'
 import MiningOperationList from '@/views/MiningOperation/MiningOperationList.vue'
 import { apiRequest } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
-import type { MiningOperation } from '@/stores/miningOperation'
+import type { MiningOperation, MiningSeason } from '@/stores/miningOperation'
 import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import type { User } from '@/types'
 import { expectOnlyLocaleTexts, TEST_LOCALES, type TestLocale } from '../../localeTexts'
@@ -71,6 +71,17 @@ function radio(wrapper: VueWrapper, value: string) {
 }
 
 const MINE_PATH = '/mining-operations'
+const SEASON_PATH_30_DAYS = '/mining-operations/season?period=30d'
+const SEASON_OF_ONE_KNOWN_OPERATION: MiningSeason = {
+  period: '30d',
+  operationsCount: 1,
+  unknownValueOperationsCount: 0,
+  knownValue: 150_000_000,
+  knownOperationMinutes: 180,
+  playedMinutes: 180,
+  iskPerHour: 50_000_000,
+  players: [{ name: 'Aria Solberg', operationsCount: 1, minutes: 180, minedValue: 150_000_000, hasUnknownValue: false }],
+}
 const LONG_OPERATION_LABEL = 'Anomalie Spodumain du dimanche soir dans la ceinture la plus lointaine'
 const events = reactive<Record<string, MiningOperationEvent | null>>({})
 
@@ -186,7 +197,7 @@ describe('MiningOperationList, archive', () => {
       settled: ['5,567,729', '2,294,229', '3 / 3 paid', 'Settled', 'Aldranette'].every(text => settledRow.includes(text)),
       completed: ['812,300', 'my value · everyone keeps their own', 'nothing to settle', 'Completed'].every(text => completedRow.includes(text)),
     }).toEqual({
-      archiveTab: ['My operations', 'Available', 'Archive'],
+      archiveTab: ['My operations', 'Available', 'Archive', 'Season'],
       settled: true,
       completed: true,
     })
@@ -255,5 +266,22 @@ describe('MiningOperationList, archive', () => {
       'miningOperation.status.settled',
       'miningOperation.status.completed',
     ])
+  })
+})
+
+describe('MiningOperationList, season', () => {
+  it('opens the season tab, which loads the season of the last 30 days and shows its indicators', async () => {
+    vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+      if (endpoint === SEASON_PATH_30_DAYS) return SEASON_OF_ONE_KNOWN_OPERATION as never
+      return [] as never
+    })
+    const wrapper = await mountList(ARIA_OF_C1)
+
+    const seasonTab = wrapper.findAll('[role="tab"]').find(tab => tab.text().startsWith('Season'))
+    expect(seasonTab, 'season tab').toBeDefined()
+    await seasonTab?.trigger('click')
+    await flushPromises()
+
+    expect([callsTo(SEASON_PATH_30_DAYS) > 0, wrapper.text().includes('150,000,000')]).toEqual([true, true])
   })
 })

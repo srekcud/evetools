@@ -48,6 +48,27 @@ export type MiningInvitationValuationSettings = Omit<MiningValuationSettings, 'b
 
 export type UpdateMiningValuationInput = Partial<Omit<MiningValuationSettings, 'boosterCharacterName'>>
 
+export type MiningSeasonPeriod = '30d' | '90d' | 'all'
+
+export interface MiningSeasonPlayer {
+  name: string
+  operationsCount: number
+  minutes: number
+  minedValue: number | null
+  hasUnknownValue: boolean
+}
+
+export interface MiningSeason {
+  period: MiningSeasonPeriod
+  operationsCount: number
+  unknownValueOperationsCount: number
+  knownValue: number | null
+  knownOperationMinutes: number
+  playedMinutes: number
+  iskPerHour: number | null
+  players: MiningSeasonPlayer[]
+}
+
 export interface MiningArchiveSummary {
   archivedAt: string
   archivedByName: string | null
@@ -390,6 +411,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const valuation = ref<MiningOperationValuation | null>(null)
   const payments = ref<MiningPayment[]>([])
   const archivedOperations = ref<MiningOperation[]>([])
+  const season = ref<MiningSeason | null>(null)
   const recurrences = ref<MiningOperationRecurrence[]>([])
   const fleetStorage = ref<MiningFleetStorage | null>(null)
   const fleetStorageVerification = ref<MiningFleetStorageVerification | null>(null)
@@ -702,6 +724,11 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
+  async function fetchSeason(period: MiningSeasonPeriod): Promise<void> {
+    season.value = null
+    void period
+  }
+
   async function fetchFleetStorage(id: string): Promise<void> {
     error.value = null
     try {
@@ -780,6 +807,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     valuation,
     payments,
     archivedOperations,
+    season,
     fleetStorage,
     fleetStorageVerification,
     boostShips,
@@ -814,6 +842,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     settle,
     complete,
     fetchArchive,
+    fetchSeason,
     fetchFleetStorage,
     updateFleetStorage,
     declareFleetStorage,
