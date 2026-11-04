@@ -19,6 +19,8 @@ final readonly class MoonCompositionRecorder
 {
     private const int ASTEROID_CATEGORY_ID = 25;
     private const string SCAN_PROPERTY = 'scan';
+    private const string LOCK_QUERY = 'SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))';
+    private const string LOCK_KEY_FORMAT = 'moon-composition:%d:%d';
     private const string UNKNOWN_ORE_MESSAGE = 'Scan rejected at line %d: %s is not a published ore of the SDE';
 
     public function __construct(
@@ -34,6 +36,16 @@ final readonly class MoonCompositionRecorder
     {
         $scanLines = $this->parsed($scan);
         $lines = $this->resolved($scanLines);
+
+        return $this->entityManager->wrapInTransaction(fn (): MoonComposition => $this->recordInTransaction($user, $corporationId, $moonId, $lines));
+    }
+
+    /**
+     * @param list<array{typeId: int, share: float}> $lines
+     */
+    private function recordInTransaction(User $user, int $corporationId, int $moonId, array $lines): MoonComposition
+    {
+        $this->entityManager->getConnection()->executeQuery(self::LOCK_QUERY, ['key' => sprintf(self::LOCK_KEY_FORMAT, $corporationId, $moonId)]);
 
         $composition = $this->compositionRepository->findOneBy(['corporationId' => $corporationId, 'moonId' => $moonId])
             ?? (new MoonComposition())->setCorporationId($corporationId)->setMoonId($moonId);

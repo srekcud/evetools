@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
 use App\State\Processor\Mining\RecordMoonCompositionProcessor;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ApiResource(
     shortName: 'MoonComposition',
@@ -18,12 +19,15 @@ use App\State\Processor\Mining\RecordMoonCompositionProcessor;
 )]
 class MoonCompositionResource
 {
-    public int $corporationId;
+    #[Assert\Positive]
+    public int $corporationId = 0;
 
-    public int $moonId;
+    #[Assert\Positive]
+    public int $moonId = 0;
 
     #[ApiProperty(readable: false)]
-    public string $scan;
+    #[Assert\NotBlank]
+    public string $scan = '';
 
     public ?\DateTimeImmutable $recordedAt = null;
 
