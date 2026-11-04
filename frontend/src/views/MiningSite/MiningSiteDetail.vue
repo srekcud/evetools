@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import MiningSiteCurve from '@/components/mining-site/MiningSiteCurve.vue'
+import MiningSiteScanFeed from '@/components/mining-site/MiningSiteScanFeed.vue'
 import MiningSiteScanForm from '@/components/mining-site/MiningSiteScanForm.vue'
 import { UNKNOWN_DASH, useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
 import { useMiningSiteOreTypes } from '@/composables/useMiningSiteOreTypes'
 import { useMiningSiteStore, type MiningSiteScanType } from '@/stores/miningSite'
+import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import { formatCountdown, formatEveClock } from '@/views/MiningOperation/miningOperationTime'
 import {
   RESCAN_MINUTES_MAX,
@@ -27,6 +29,7 @@ import {
 } from './miningSiteEstimate'
 
 const COUNTDOWN_TICK_MS = 1000
+const SITE_SCAN_RECORDED_ACTION = 'site_scan_recorded'
 const PERCENT_MAX = 100
 const RING_RADIUS = 34
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
@@ -45,8 +48,9 @@ const TYPE_COLUMNS = ['type', 'remaining', 'recentRate', 'recentEta', 'trendRate
 const { t } = useI18n()
 const route = useRoute()
 const store = useMiningSiteStore()
+const syncStore = useSyncStore()
 const oreTypes = useMiningSiteOreTypes()
-const { etaText, dateTimeText, wholeText, valueText } = useMiningSiteFormat()
+const { etaText, dateTimeText, wholeText, valueText, lastScanText } = useMiningSiteFormat()
 
 const siteId = String(route.params.id)
 const loading = ref(true)
@@ -62,6 +66,10 @@ const site = computed(() => store.currentSite)
 const orderedScans = computed(() => [...store.scans].sort((first, second) => first.number - second.number))
 const lastScan = computed(() => orderedScans.value[orderedScans.value.length - 1] ?? null)
 const isActive = computed(() => site.value?.status === 'active')
+const operationId = computed(() => (loading.value ? null : (site.value?.operationId ?? null)))
+const isShared = computed(() => operationId.value !== null)
+const operationEvent = computed(() => (operationId.value === null ? null : syncStore.getMiningOperationEvent(operationId.value)))
+const lastScanLine = computed(() => (isActive.value && site.value !== null ? lastScanText(site.value, now.value.getTime()) : null))
 const tier = computed(() => (site.value === null || lastScan.value === null ? null : etaTierOf(site.value.status, lastScan.value, now.value)))
 const showsCountdown = computed(() => tier.value !== null && COUNTING_TIERS.includes(tier.value))
 const countdown = computed(() => {
@@ -114,6 +122,10 @@ async function reloadSite(): Promise<void> {
   await store.fetchSite(siteId)
 }
 
+function isScanRecordedOnThisSite(event: MiningOperationEvent | null): boolean {
+  return event !== null && event.action === SITE_SCAN_RECORDED_ACTION && event.data?.siteId === siteId
+}
+
 async function closeSite(): Promise<void> {
   closing.value = true
   closeFailure.value = null
@@ -126,6 +138,12 @@ async function closeSite(): Promise<void> {
     confirmingClose.value = false
   }
 }
+
+watch(operationEvent, async (event) => {
+  if (!isScanRecordedOnThisSite(event)) return
+  await store.reloadSiteAndScans(siteId)
+  loadFailure.value = store.error ?? oreTypes.error.value
+})
 
 onMounted(async () => {
   countdownTimer = setInterval(() => {
@@ -225,6 +243,8 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <p v-if="lastScanLine !== null" class="mt-4 font-mono text-sm text-slate-300" data-testid="site-last-scan">{{ lastScanLine }}</p>
+
           <div v-if="rescanDue && site !== null" class="mt-4 rounded-sm border border-orange-400/40 bg-orange-500/5 px-3 py-2 text-sm text-orange-200" role="status" data-testid="site-rescan">
             <span class="mr-2 rounded-sm border border-orange-400/50 px-2 py-0.5 font-mono text-xs uppercase">{{ t('miningSite.rescan.due') }}</span>
             <span v-if="site.lastScanAuthorName !== null && site.lastScanAuthorName !== undefined" class="mr-2">{{ t('miningSite.rescan.by', { author: site.lastScanAuthorName }) }}</span>
@@ -300,6 +320,8 @@ onBeforeUnmount(() => {
         </section>
 
         <MiningSiteCurve v-if="lastScan !== null" :scans="orderedScans" :type-names="typeNames" />
+
+        <MiningSiteScanFeed v-if="lastScan !== null" :scans="orderedScans" :shared="isShared" />
 
         <section v-if="evolution.length > 0" class="eve-card p-2">
           <h2 class="px-3 pt-3 font-display text-lg font-semibold text-slate-100">{{ t('miningSite.evolution.title') }}</h2>

@@ -3184,6 +3184,17 @@
   }
 ,
   "miningSite": {
+    "feed": {
+      "title": "Fil des scans",
+      "shared": "partagé en direct avec la flotte",
+      "unknownAuthor": "auteur inconnu",
+      "types": "{count} type | {count} types"
+    },
+    "lastScan": {
+      "text": "Dernier scan #{number} par {author}, {age}",
+      "ago": "il y a {minutes} min",
+      "justNow": "à l'instant"
+    },
     "status": {
       "active": "Actif",
       "closed": "Clôturé"
@@ -3324,5 +3335,11 @@
     "unit": {
       "perMinute": "{rate} u/min"
     }
+  },
+  "miningOperationSites": {
+    "title": "Sites de minage",
+    "create": "Nouveau site",
+    "empty": "Aucun site pour cette opération. Créez-en un pour partager vos scans avec la flotte.",
+    "noScan": "aucun scan"
   }
 }

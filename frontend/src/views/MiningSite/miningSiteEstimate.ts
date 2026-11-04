@@ -115,6 +115,10 @@ export function isRescanDue(site: MiningSite, now: Date, delayMinutes: number): 
   return now.getTime() - new Date(site.lastScanAt).getTime() > delayMinutes * MILLISECONDS_PER_MINUTE
 }
 
+export function scanAgeMinutesOf(scannedAt: string, now: number): number {
+  return Math.floor((now - new Date(scannedAt).getTime()) / MILLISECONDS_PER_MINUTE)
+}
+
 export function clampRescanMinutes(minutes: number): number {
   return Math.min(RESCAN_MINUTES_MAX, Math.max(RESCAN_MINUTES_MIN, minutes))
 }
