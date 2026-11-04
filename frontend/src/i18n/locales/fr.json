@@ -1648,12 +1648,48 @@
           "arrival": "Arrivée du chunk",
           "decay": "Décroissance naturelle",
           "countdown": "Compte à rebours",
-          "status": "Statut"
+          "status": "Statut",
+          "value": "Valeur"
         },
         "status": {
           "extracting": "Extraction",
           "ready": "Prêt",
           "exploded": "Explosé"
+        },
+        "value": {
+          "rowKnown": "≈ {total} ISK · {share} ISK / pers. à {count}",
+          "unknown": {
+            "no_scan": "valeur inconnue · coller le scan de la lune",
+            "no_price": "valeur inconnue · prix manquant",
+            "no_volume": "valeur inconnue · volume du minerai manquant"
+          },
+          "explanation": {
+            "no_price": "Au moins un minerai du scan n'a pas de prix d'achat Jita compressé. Le chunk n'est pas valorisé plutôt que valorisé partiellement.",
+            "no_volume": "Au moins un minerai du scan n'a pas de volume dans les données statiques. Le chunk n'est pas valorisé plutôt que valorisé partiellement."
+          },
+          "notEstimated": "Pas d'estimation pour un chunk explosé",
+          "showDetail": "Afficher le détail de la valeur",
+          "hideDetail": "Masquer le détail de la valeur",
+          "estimatedValue": "Valeur estimée",
+          "basis": "Prix d'achat Jita du minerai compressé, avant booster et taxe",
+          "sharePerCount": "À {count} participants",
+          "columns": {
+            "ore": "Minerai",
+            "share": "Part",
+            "units": "Unités",
+            "value": "Valeur"
+          },
+          "formula": "volume ≈ {hours} h × {rate} m³/h = {volume} m³",
+          "scanRecordedAt": "Scan de la lune enregistré le",
+          "repaste": "Coller un nouveau scan",
+          "paste": {
+            "label": "Scan de la lune",
+            "hint": "Colle le résultat de la Moon Survey Probe : un minerai par ligne, son nom puis sa part, séparés par une tabulation ou deux espaces.",
+            "placeholder": "Bitumens  25,81 %\nChromite  30,10 %",
+            "submit": "Enregistrer la composition",
+            "recording": "Enregistrement...",
+            "failure": "La composition n'a pas pu être enregistrée."
+          }
         }
       },
       "reprocessingProfile": {

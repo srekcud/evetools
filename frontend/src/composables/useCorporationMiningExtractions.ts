@@ -64,6 +64,7 @@ export interface CorporationMiningExtractionsResponse {
 }
 
 const EXTRACTIONS_ENDPOINT = '/mining/corporation-extractions'
+const COMPOSITIONS_ENDPOINT = '/mining/moon-compositions'
 const EVE_TIME_ZONE = 'UTC'
 const MS_PER_MINUTE = 60_000
 const MINUTES_PER_HOUR = 60
@@ -72,6 +73,10 @@ const DAYS_PER_WEEK = 7
 const DAY_LENGTH = 'YYYY-MM-DD'.length
 const MONTH_LENGTH = 'YYYY-MM'.length
 const CLOCK_START = DAY_LENGTH + 1
+
+export async function recordMoonComposition(corporationId: number, moonId: number, scan: string): Promise<void> {
+  await apiRequest(COMPOSITIONS_ENDPOINT, { method: 'POST', body: JSON.stringify({ corporationId, moonId, scan }) })
+}
 
 export function moonChunkStatusAt(extraction: CorporationMiningExtraction, now: Date): MoonChunkStatus {
   const instant = now.getTime()

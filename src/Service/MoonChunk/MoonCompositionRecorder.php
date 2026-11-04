@@ -4,13 +4,108 @@ declare(strict_types=1);
 
 namespace App\Service\MoonChunk;
 
+use ApiPlatform\Validator\Exception\ValidationException;
 use App\Entity\MoonComposition;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
+use App\Repository\MoonCompositionRepository;
+use App\Repository\Sde\InvTypeRepository;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\Validator\ConstraintViolation;
+use Symfony\Component\Validator\ConstraintViolationList;
 
 final readonly class MoonCompositionRecorder
 {
+    private const int ASTEROID_CATEGORY_ID = 25;
+    private const string SCAN_PROPERTY = 'scan';
+    private const string UNKNOWN_ORE_MESSAGE = 'Scan rejected at line %d: %s is not a published ore of the SDE';
+
+    public function __construct(
+        private EntityManagerInterface $entityManager,
+        private MoonCompositionRepository $compositionRepository,
+        private InvTypeRepository $invTypeRepository,
+        private MoonScanParser $parser,
+        private ClockInterface $clock,
+    ) {
+    }
+
     public function record(User $user, int $corporationId, int $moonId, string $scan): MoonComposition
     {
-        return new MoonComposition();
+        $scanLines = $this->parsed($scan);
+        $lines = $this->resolved($scanLines);
+
+        $composition = $this->compositionRepository->findOneBy(['corporationId' => $corporationId, 'moonId' => $moonId])
+            ?? (new MoonComposition())->setCorporationId($corporationId)->setMoonId($moonId);
+        $composition
+            ->setRecordedBy($user)
+            ->setRecordedAt($this->clock->now())
+            ->setLines($lines);
+        $this->entityManager->persist($composition);
+        $this->entityManager->flush();
+
+        return $composition;
+    }
+
+    /**
+     * @return list<MoonScanLine>
+     */
+    private function parsed(string $scan): array
+    {
+        try {
+            return $this->parser->parse($scan);
+        } catch (MoonScanException $rejection) {
+            throw $this->refusal([[$rejection->getMessage(), $rejection->lineNumber]]);
+        }
+    }
+
+    /**
+     * @param list<MoonScanLine> $scanLines
+     *
+     * @return list<array{typeId: int, share: float}>
+     */
+    private function resolved(array $scanLines): array
+    {
+        $typesByName = $this->invTypeRepository->findByNames(array_map(static fn (MoonScanLine $line): string => $line->name, $scanLines));
+
+        $lines = [];
+        $unknownOres = [];
+        foreach ($scanLines as $line) {
+            $type = $typesByName[$line->name] ?? null;
+            if ($type === null || !$this->isPublishedOre($type)) {
+                $unknownOres[] = [sprintf(self::UNKNOWN_ORE_MESSAGE, $line->lineNumber, $line->name), $line->lineNumber];
+                continue;
+            }
+            $lines[] = ['typeId' => $type->getTypeId(), 'share' => $line->share];
+        }
+
+        if ($unknownOres !== []) {
+            throw $this->refusal($unknownOres);
+        }
+
+        return $lines;
+    }
+
+    private function isPublishedOre(InvType $type): bool
+    {
+        return $type->isPublished() && $type->getGroup()->getCategory()->getCategoryId() === self::ASTEROID_CATEGORY_ID;
+    }
+
+    /**
+     * @param non-empty-list<array{0: string, 1: ?int}> $faults
+     */
+    private function refusal(array $faults): ValidationException
+    {
+        return new ValidationException(new ConstraintViolationList(array_map(
+            static fn (array $fault): ConstraintViolation => new ConstraintViolation(
+                $fault[0],
+                $fault[0],
+                [],
+                null,
+                $fault[1] === null ? self::SCAN_PROPERTY : sprintf('%s[%d]', self::SCAN_PROPERTY, $fault[1]),
+                null,
+            ),
+            $faults,
+        )));
     }
 }

@@ -1648,12 +1648,48 @@
           "arrival": "Chunk arrival",
           "decay": "Natural decay",
           "countdown": "Countdown",
-          "status": "Status"
+          "status": "Status",
+          "value": "Value"
         },
         "status": {
           "extracting": "Extracting",
           "ready": "Ready",
           "exploded": "Exploded"
+        },
+        "value": {
+          "rowKnown": "≈ {total} ISK · {share} ISK / person at {count}",
+          "unknown": {
+            "no_scan": "value unknown · paste the moon scan",
+            "no_price": "value unknown · price missing",
+            "no_volume": "value unknown · ore volume missing"
+          },
+          "explanation": {
+            "no_price": "At least one ore of the scan has no compressed Jita buy price. The chunk is left unvalued rather than partially valued.",
+            "no_volume": "At least one ore of the scan has no volume in the static data. The chunk is left unvalued rather than partially valued."
+          },
+          "notEstimated": "No estimate for an exploded chunk",
+          "showDetail": "Show the value detail",
+          "hideDetail": "Hide the value detail",
+          "estimatedValue": "Estimated value",
+          "basis": "Jita buy price of the compressed ore, before booster and tax",
+          "sharePerCount": "At {count} participants",
+          "columns": {
+            "ore": "Ore",
+            "share": "Share",
+            "units": "Units",
+            "value": "Value"
+          },
+          "formula": "volume ≈ {hours} h × {rate} m³/h = {volume} m³",
+          "scanRecordedAt": "Moon scan recorded on",
+          "repaste": "Paste a new scan",
+          "paste": {
+            "label": "Moon scan",
+            "hint": "Paste the result of the Moon Survey Probe: one ore per line, its name then its share, separated by a tab or two spaces.",
+            "placeholder": "Bitumens  25.81 %\nChromite  30.10 %",
+            "submit": "Save the composition",
+            "recording": "Saving...",
+            "failure": "The composition could not be saved."
+          }
         }
       },
       "reprocessingProfile": {

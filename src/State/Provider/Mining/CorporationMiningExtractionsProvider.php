@@ -14,6 +14,7 @@ use App\Enum\CorporationMiningSyncFailure;
 use App\Enum\MoonChunkStatus;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\CorporationMiningSyncStateRepository;
+use App\Service\MoonChunk\MoonChunkValueReader;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -30,6 +31,7 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
         private CorporationMiningExtractionRepository $extractionRepository,
         private CorporationMiningSyncStateRepository $syncStateRepository,
         private ClockInterface $clock,
+        private MoonChunkValueReader $chunkValueReader,
     ) {
     }
 
@@ -41,35 +43,53 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
         }
 
         $now = $this->clock->now();
+        $visibleExtractions = [];
+        foreach ($user->getCharacterCorporationIds() as $corporationId) {
+            $visibleExtractions[$corporationId] = $this->visibleExtractions($corporationId, $now);
+        }
+        $chunkValues = $this->chunkValueReader->read(array_merge(...array_values($visibleExtractions)), $now);
+
         $resource = new CorporationMiningExtractionsResource();
         $resource->corporations = array_map(
-            fn (int $corporationId): array => $this->corporationEntry($corporationId, $now),
-            $user->getCharacterCorporationIds(),
+            fn (int $corporationId, array $extractions): array => $this->corporationEntry($corporationId, $now, $extractions, $chunkValues),
+            array_keys($visibleExtractions),
+            $visibleExtractions,
         );
 
         return $resource;
     }
 
     /**
-     * @return array{corporationId: int, access: string, lastSuccessAt: ?string, extractions: list<array<string, int|string|null>>}
+     * @return list<CorporationMiningExtraction>
      */
-    private function corporationEntry(int $corporationId, \DateTimeImmutable $now): array
+    private function visibleExtractions(int $corporationId, \DateTimeImmutable $now): array
     {
-        $state = $this->syncStateRepository->findOneBy(['corporationId' => $corporationId]);
         $oldestVisibleDecay = $now->modify('-' . self::HISTORY_WINDOW);
-        $extractions = array_filter(
+
+        return array_values(array_filter(
             $this->extractionRepository->findBy(['corporationId' => $corporationId], ['chunkArrivalTime' => 'ASC']),
             static fn (CorporationMiningExtraction $extraction): bool => $extraction->getNaturalDecayTime() >= $oldestVisibleDecay,
-        );
+        ));
+    }
+
+    /**
+     * @param list<CorporationMiningExtraction> $extractions
+     * @param \SplObjectStorage<CorporationMiningExtraction, array<string, mixed>> $chunkValues
+     *
+     * @return array{corporationId: int, access: string, lastSuccessAt: ?string, extractions: list<array<string, mixed>>}
+     */
+    private function corporationEntry(int $corporationId, \DateTimeImmutable $now, array $extractions, \SplObjectStorage $chunkValues): array
+    {
+        $state = $this->syncStateRepository->findOneBy(['corporationId' => $corporationId]);
 
         return [
             'corporationId' => $corporationId,
             'access' => $this->access($state),
             'lastSuccessAt' => $this->formatTime($state?->getLastSuccessAt()),
-            'extractions' => array_values(array_map(
-                fn (CorporationMiningExtraction $extraction): array => $this->extractionView($extraction, $now),
+            'extractions' => array_map(
+                fn (CorporationMiningExtraction $extraction): array => $this->extractionView($extraction, $now, $chunkValues),
                 $extractions,
-            )),
+            ),
         ];
     }
 
@@ -87,9 +107,11 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
     }
 
     /**
-     * @return array<string, int|string|null>
+     * @param \SplObjectStorage<CorporationMiningExtraction, array<string, mixed>> $chunkValues
+     *
+     * @return array<string, mixed>
      */
-    private function extractionView(CorporationMiningExtraction $extraction, \DateTimeImmutable $now): array
+    private function extractionView(CorporationMiningExtraction $extraction, \DateTimeImmutable $now, \SplObjectStorage $chunkValues): array
     {
         return [
             'id' => $extraction->getId()?->toRfc4122(),
@@ -103,6 +125,7 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
             'chunkArrivalTime' => $this->formatTime($extraction->getChunkArrivalTime()),
             'naturalDecayTime' => $this->formatTime($extraction->getNaturalDecayTime()),
             'status' => MoonChunkStatus::fromTimes($now, $extraction->getChunkArrivalTime(), $extraction->getNaturalDecayTime())->value,
+            'chunkValue' => $chunkValues[$extraction] ?? null,
         ];
     }
 

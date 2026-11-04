@@ -20,8 +20,12 @@ import {
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import MoonChunkName from './MoonChunkName.vue'
+import MoonChunkValueCell from './MoonChunkValueCell.vue'
+import MoonChunkValueDetail from './MoonChunkValueDetail.vue'
 
 const CLOCK_TICK_MS = 30_000
+
+const LIST_COLUMNS = ['moon', 'structure', 'system', 'arrival', 'decay', 'countdown', 'status', 'value']
 
 const views: ChunkView[] = ['list', 'week', 'month']
 const timeModes: ChunkTimeMode[] = ['eve', 'local']
@@ -37,6 +41,7 @@ const authStore = useAuthStore()
 const { corporations, isLoading, hasError, isRefreshing, syncProgress, timeMode, load, refresh } = useCorporationMiningExtractions()
 
 const view = ref<ChunkView>('list')
+const openDetailIds = ref<Set<string>>(new Set())
 const now = ref(new Date())
 let clockTimer: ReturnType<typeof setInterval> | null = null
 
@@ -67,6 +72,12 @@ function dayLabel(day: string): string {
 
 function statusOf(extraction: CorporationMiningExtraction): MoonChunkStatus {
   return moonChunkStatusAt(extraction, now.value)
+}
+
+function toggleDetail(extractionId: string): void {
+  const next = new Set(openDetailIds.value)
+  if (!next.delete(extractionId)) next.add(extractionId)
+  openDetailIds.value = next
 }
 
 function toggleClasses(active: boolean): string[] {
@@ -175,7 +186,7 @@ onUnmounted(() => {
           <thead class="bg-slate-900/50">
             <tr>
               <th
-                v-for="column in ['moon', 'structure', 'system', 'arrival', 'decay', 'countdown', 'status']"
+                v-for="column in LIST_COLUMNS"
                 :key="column"
                 scope="col"
                 class="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap"
@@ -185,36 +196,46 @@ onUnmounted(() => {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800">
-            <tr
-              v-for="extraction in chunksByArrival(entry.extractions)"
-              :key="extraction.id"
-              :data-extraction-id="extraction.id"
-              class="hover:bg-slate-900/30 transition-colors"
-            >
-              <td data-cell="moon" class="px-3 py-2 text-sm text-white max-w-[16rem]">
-                <MoonChunkName :name="extraction.moonName" :id="extraction.moonId" />
-              </td>
-              <td data-cell="structure" class="px-3 py-2 text-sm text-slate-300 max-w-[20rem]">
-                <MoonChunkName :name="extraction.structureName" :id="extraction.structureId" />
-              </td>
-              <td data-cell="system" class="px-3 py-2 text-sm text-slate-300">
-                <MoonChunkName :name="extraction.solarSystemName" :id="extraction.solarSystemId" />
-              </td>
-              <td data-cell="arrival" class="px-3 py-2 text-sm text-slate-300 whitespace-nowrap">
-                {{ formatChunkTime(extraction.chunkArrivalTime, timeZone) }}
-              </td>
-              <td data-cell="decay" class="px-3 py-2 text-sm text-slate-400 whitespace-nowrap">
-                {{ formatChunkTime(extraction.naturalDecayTime, timeZone) }}
-              </td>
-              <td data-cell="countdown" class="px-3 py-2 text-sm text-slate-300 whitespace-nowrap">
-                {{ chunkCountdown(extraction, now) ?? '—' }}
-              </td>
-              <td data-cell="status" :data-status="statusOf(extraction)" class="px-3 py-2 whitespace-nowrap">
-                <span :class="['rounded-sm border px-2 py-0.5 text-xs font-medium uppercase tracking-wider', statusClasses[statusOf(extraction)]]">
-                  <span aria-hidden="true">{{ statusGlyphs[statusOf(extraction)] }} </span>{{ t(`ledger.mining.moonChunks.status.${statusOf(extraction)}`) }}
-                </span>
-              </td>
-            </tr>
+            <template v-for="extraction in chunksByArrival(entry.extractions)" :key="extraction.id">
+              <tr
+                :data-extraction-id="extraction.id"
+                class="hover:bg-slate-900/30 transition-colors"
+              >
+                <td data-cell="moon" class="px-3 py-2 text-sm text-white max-w-[16rem]">
+                  <MoonChunkName :name="extraction.moonName" :id="extraction.moonId" />
+                </td>
+                <td data-cell="structure" class="px-3 py-2 text-sm text-slate-300 max-w-[20rem]">
+                  <MoonChunkName :name="extraction.structureName" :id="extraction.structureId" />
+                </td>
+                <td data-cell="system" class="px-3 py-2 text-sm text-slate-300">
+                  <MoonChunkName :name="extraction.solarSystemName" :id="extraction.solarSystemId" />
+                </td>
+                <td data-cell="arrival" class="px-3 py-2 text-sm text-slate-300 whitespace-nowrap">
+                  {{ formatChunkTime(extraction.chunkArrivalTime, timeZone) }}
+                </td>
+                <td data-cell="decay" class="px-3 py-2 text-sm text-slate-400 whitespace-nowrap">
+                  {{ formatChunkTime(extraction.naturalDecayTime, timeZone) }}
+                </td>
+                <td data-cell="countdown" class="px-3 py-2 text-sm text-slate-300 whitespace-nowrap">
+                  {{ chunkCountdown(extraction, now) ?? '—' }}
+                </td>
+                <td data-cell="status" :data-status="statusOf(extraction)" class="px-3 py-2 whitespace-nowrap">
+                  <span :class="['rounded-sm border px-2 py-0.5 text-xs font-medium uppercase tracking-wider', statusClasses[statusOf(extraction)]]">
+                    <span aria-hidden="true">{{ statusGlyphs[statusOf(extraction)] }} </span>{{ t(`ledger.mining.moonChunks.status.${statusOf(extraction)}`) }}
+                  </span>
+                </td>
+                <MoonChunkValueCell :value="extraction.chunkValue" :expanded="openDetailIds.has(extraction.id)" @toggle="toggleDetail(extraction.id)" />
+              </tr>
+              <MoonChunkValueDetail
+                v-if="extraction.chunkValue !== null && openDetailIds.has(extraction.id)"
+                :corporation-id="entry.corporationId"
+                :extraction="extraction"
+                :value="extraction.chunkValue"
+                :time-zone="timeZone"
+                :column-count="LIST_COLUMNS.length"
+                @recorded="load"
+              />
+            </template>
           </tbody>
         </table>
       </div>
