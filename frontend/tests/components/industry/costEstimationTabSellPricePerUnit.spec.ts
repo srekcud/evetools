@@ -29,6 +29,7 @@ const EIGHT_RUNS_OF_FERNITE_CARBIDE: ProducedProduct = { productTypeId: FERNITE_
 const ONE_RUN_OF_HELIUM_FUEL_BLOCK: ProducedProduct = { productTypeId: HELIUM_FUEL_BLOCK_TYPE_ID, productTypeName: 'Helium Fuel Block', runs: 1, sellPrice: 100_000 }
 const TWO_RUNS_OF_RIFTER: ProducedProduct = { productTypeId: RIFTER_TYPE_ID, productTypeName: 'Rifter', runs: 2, sellPrice: 50_000 }
 const ONE_RUN_OF_RIFTER: ProducedProduct = { productTypeId: RIFTER_TYPE_ID, productTypeName: 'Rifter', runs: 1, sellPrice: 50_000 }
+const TWO_RUNS_OF_RIFTER_SOLD_FOR_10_000: ProducedProduct = { productTypeId: RIFTER_TYPE_ID, productTypeName: 'Rifter', runs: 2, sellPrice: 10_000 }
 const TWO_RUNS_OF_RIFTER_WITHOUT_SELL_PRICE: ProducedProduct = { productTypeId: RIFTER_TYPE_ID, productTypeName: 'Rifter', runs: 2, sellPrice: null }
 
 function projectProducing(product: ProducedProduct): IndustryProject {
@@ -168,5 +169,41 @@ describe('CostEstimationTab sell price per unit', () => {
 
     expect(sellPriceComparisonSections(wrapper, en.industry.costEstimation.sellPriceComparison)).toHaveLength(0)
     expect(wrapper.text()).not.toContain('@ 0 / unit')
+  })
+})
+
+function costEstimationCardValue(wrapper: LoadedCostEstimationTab, label: string) {
+  const labelElement = wrapper.findAll('div').find(element => element.text() === label && element.classes().includes('uppercase'))
+  expect(labelElement).toBeDefined()
+  return labelElement!.element.nextElementSibling!.textContent!.trim()
+}
+
+describe('CostEstimationTab margin', () => {
+  it('divides the profit by the total cost, like the margin of the project and of Profit Margins', async () => {
+    const wrapper = await mountLoadedCostEstimationTab(TWO_RUNS_OF_RIFTER_SOLD_FOR_10_000, costEstimationOf(8_000, 2))
+
+    expect(costEstimationCardValue(wrapper, en.industry.costEstimation.profitLabel)).toBe('+2,000')
+    expect(costEstimationCardValue(wrapper, en.industry.costEstimation.marginLabel)).toBe('25.0%')
+  })
+
+  it('shows a negative margin relative to the total cost when the sell price is below it', async () => {
+    const wrapper = await mountLoadedCostEstimationTab(TWO_RUNS_OF_RIFTER_SOLD_FOR_10_000, costEstimationOf(12_500, 2))
+
+    expect(costEstimationCardValue(wrapper, en.industry.costEstimation.profitLabel)).toBe('-2,500')
+    expect(costEstimationCardValue(wrapper, en.industry.costEstimation.marginLabel)).toBe('-20.0%')
+  })
+
+  it('shows an unknown margin, not 100%, when the total cost is zero', async () => {
+    const wrapper = await mountLoadedCostEstimationTab(TWO_RUNS_OF_RIFTER_SOLD_FOR_10_000, costEstimationOf(0, 2))
+
+    expect(costEstimationCardValue(wrapper, en.industry.costEstimation.profitLabel)).toBe('+10,000')
+    expect(costEstimationCardValue(wrapper, en.industry.costEstimation.marginLabel)).toBe('---')
+  })
+
+  it('shows an unknown profit and margin when the total cost is unknown', async () => {
+    const wrapper = await mountLoadedCostEstimationTab(TWO_RUNS_OF_RIFTER_SOLD_FOR_10_000, { ...costEstimationOf(8_000, 2), totalCost: null })
+
+    expect(costEstimationCardValue(wrapper, en.industry.costEstimation.profitLabel)).toBe('---')
+    expect(costEstimationCardValue(wrapper, en.industry.costEstimation.marginLabel)).toBe('---')
   })
 })
