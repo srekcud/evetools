@@ -18,6 +18,7 @@ use App\Message\TriggerCorporationMiningExtractionsSync;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningOperationRecurrences;
 use App\Message\TriggerMiningSync;
+use App\Message\TriggerMoonTaxSync;
 use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerPveSync;
 use App\Message\TriggerStructureMarketSync;
@@ -57,6 +58,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         SyncCostIndices::class => 'cost-indices',
         SyncPublicContracts::class => 'public-contracts',
         TriggerCorporationMiningExtractionsSync::class => 'corporation-mining-extractions',
+        TriggerMoonTaxSync::class => 'moon-tax',
     ];
 
     /** Maintenance planifiée dont les handlers n'utilisent pas le SyncTracker. */
@@ -71,6 +73,8 @@ class SyncSchedulerIntervalsTest extends TestCase
     ];
 
     private const THIRTY_MINUTES_IN_SECONDS = 1800;
+
+    private const ONE_HOUR_IN_SECONDS = 3600;
 
     private const ONE_DAY_IN_SECONDS = 86400;
 
@@ -98,6 +102,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'market-jita' => 3600,
             'market-structure' => 3600,
             'mining' => 3600,
+            'moon-tax' => 3600,
             'planetary' => 1800,
             'public-contracts' => 1800,
             'pve' => 3600,
@@ -125,6 +130,15 @@ class SyncSchedulerIntervalsTest extends TestCase
         $this->assertSame(
             self::THIRTY_MINUTES_IN_SECONDS,
             $this->scheduledIntervalsByMessageClass()[TriggerMiningOperationRecurrences::class] ?? null,
+        );
+    }
+
+    #[Group('issue-273')]
+    public function testMoonTaxSyncIsTriggeredEveryHour(): void
+    {
+        $this->assertSame(
+            self::ONE_HOUR_IN_SECONDS,
+            $this->scheduledIntervalsByMessageClass()[TriggerMoonTaxSync::class] ?? null,
         );
     }
 

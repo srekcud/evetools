@@ -13,6 +13,7 @@ use App\Message\TriggerMiningOperationRecurrences;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningSync;
+use App\Message\TriggerMoonTaxSync;
 use App\Message\TriggerPlanetarySync;
 use App\Message\TriggerPveSync;
 use App\Message\TriggerStructureMarketSync;
@@ -63,6 +64,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
                 TriggerPveSync::class,
                 TriggerMiningSync::class,
                 SyncWalletTransactions::class,
+                TriggerMoonTaxSync::class,
                 SyncCostIndices::class,
             ],
             $this->drainMessageClasses($workerAfterDowntime->getMessages()),

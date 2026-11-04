@@ -81,6 +81,7 @@ class SyncTrackerTest extends TestCase
                 ['cost-indices', 'Cost Indices', 7200, false],
                 ['public-contracts', 'Public Contracts', 1800, false],
                 ['corporation-mining-extractions', 'Corporation Moon Chunks', 1800, false],
+                ['moon-tax', 'Moon Tax', 3600, false],
                 ['assets', 'Assets', null, true],
                 ['market-alerts', 'Market Alerts', null, true],
             ],
