@@ -100,6 +100,23 @@ final class MoonCompositionApiTest extends WebTestCase
         self::assertSame([422, ['scan[2]'], 0], [$this->client->getResponse()->getStatusCode(), $paths, $this->storedCompositionCount()]);
     }
 
+    public static function incompleteBodies(): iterable
+    {
+        yield 'without the moon' => [['corporationId' => self::ILYRA_CORPORATION_ID, 'scan' => "Bitumens\t100 %"]];
+        yield 'without the corporation' => [['moonId' => self::KNOWN_VALUE_MOON_ID, 'scan' => "Bitumens\t100 %"]];
+        yield 'without the scan' => [['corporationId' => self::ILYRA_CORPORATION_ID, 'moonId' => self::KNOWN_VALUE_MOON_ID]];
+    }
+
+    #[DataProvider('incompleteBodies')]
+    public function testABodyWithoutOneOfTheThreeFieldsIsRefusedAsUnprocessableAndStoresNothing(array $body): void
+    {
+        $this->as($this->aria);
+
+        $this->request('POST', self::ENDPOINT, $body);
+
+        self::assertSame([422, 0], [$this->client->getResponse()->getStatusCode(), $this->storedCompositionCount()]);
+    }
+
     public function testAnonymousVisitorCannotRecordAComposition(): void
     {
         $this->as(null);
