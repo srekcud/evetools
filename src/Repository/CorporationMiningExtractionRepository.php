@@ -64,4 +64,9 @@ class CorporationMiningExtractionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function existsForRefinery(int $corporationId, int $structureId): bool
+    {
+        return $this->findOneBy(['corporationId' => $corporationId, 'structureId' => $structureId]) !== null;
+    }
 }

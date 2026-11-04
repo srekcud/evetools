@@ -104,10 +104,6 @@ when@test:
         App\Industry\Infrastructure\Sde\SdeRigBonusReader: ~
         App\Industry\Infrastructure\Sde\SdeStructureBonusReader: ~
         App\Industry\Infrastructure\Sde\SdeInventionCatalog: ~
-        App\Service\Sync\MoonTaxSyncService: ~
-        App\Service\MoonTax\MoonTaxStatementCloser: ~
-        App\Service\MoonTax\MoonTaxReference: ~
-        App\MessageHandler\TriggerMoonTaxSyncHandler: ~
         App\Industry\Domain\BlueprintCatalog:
             alias: App\Industry\Infrastructure\Sde\SdeBlueprintCatalog
             public: true

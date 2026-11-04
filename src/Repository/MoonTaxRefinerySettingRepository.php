@@ -23,6 +23,29 @@ class MoonTaxRefinerySettingRepository extends ServiceEntityRepository
      */
     public function findOpenCorporationIds(): array
     {
-        return [];
+        $rows = $this->createQueryBuilder('setting')
+            ->select('DISTINCT setting.corporationId AS corporationId')
+            ->where('setting.openToAlliance = true')
+            ->orderBy('setting.corporationId', 'ASC')
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_values(array_map(static fn (array $row): int => (int) $row['corporationId'], $rows));
+    }
+
+    /**
+     * @return list<MoonTaxRefinerySetting>
+     */
+    public function findOpenOfCorporation(int $corporationId): array
+    {
+        return $this->findBy(['corporationId' => $corporationId, 'openToAlliance' => true], ['structureId' => 'ASC']);
+    }
+
+    /**
+     * @return list<MoonTaxRefinerySetting>
+     */
+    public function findOpen(): array
+    {
+        return $this->findBy(['openToAlliance' => true], ['corporationId' => 'ASC', 'structureId' => 'ASC']);
     }
 }
