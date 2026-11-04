@@ -169,6 +169,8 @@ export function ledgerCharacter(name: string, overrides: Partial<MiningLedgerCha
     id: `enrolment-${name}`,
     eveCharacterId: 2_112_262_100,
     name,
+    shipTypeId: null,
+    shipName: null,
     state: 'measuring',
     unknownReason: null,
     totalQuantity: null,

@@ -47,6 +47,7 @@ final class MiningOperationLedgerApiTest extends WebTestCase
     private const int BISTOT = 1223;
     private const int S1 = 30_003_504;
     private const int UNKNOWN_TYPE = 999_999_263;
+    private const int HULK = 22544;
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -58,6 +59,8 @@ final class MiningOperationLedgerApiTest extends WebTestCase
     private MiningOperationMember $brannMembership;
     private MiningOperationMember $cyraMembership;
     private array $ledgersByEveCharacterId = [];
+    private array $shipsByEveCharacterId = [];
+    private array $shipRequests = [];
 
     protected function setUp(): void
     {
@@ -114,6 +117,93 @@ final class MiningOperationLedgerApiTest extends WebTestCase
         self::assertSame(
             ['known', 35_500, [['typeId' => self::SPODUMAIN, 'typeName' => 'Spodumain', 'quantity' => 35_500, 'measuredQuantity' => 35_500, 'correction' => null]]],
             [$brannHolt['state'] ?? null, $brannHolt['totalQuantity'] ?? null, $brannHolt['quantities'] ?? null],
+        );
+    }
+
+    #[Group('issue-364')]
+    public function testEachCharacterShowsTheShipReadAtItsStartSnapshotAndAnUnreadableShipStaysUnknownWithoutBlockingTheSnapshot(): void
+    {
+        $this->seedShipTypes();
+        $this->shipsByEveCharacterId[$this->eveIdOf('Aria Solberg')] = ['ship_type_id' => self::HULK];
+        $this->shipsByEveCharacterId[$this->eveIdOf('Aria II')] = ['ship_type_id' => self::ORCA];
+        $this->shipsByEveCharacterId[$this->eveIdOf('Brann II')] = EsiApiException::fromResponse(403, 'Access forbidden');
+
+        $this->startedByAria();
+
+        $this->as($this->brann);
+        $this->request('GET', $this->operationUri() . '/ledger');
+        $ledger = $this->responseJson();
+        $shipsByCharacter = [];
+        foreach (['Aria Solberg', 'Aria II', 'Brann Holt', 'Brann II'] as $characterName) {
+            $character = $this->characterOf($ledger, $characterName);
+            $shipsByCharacter[$characterName] = [
+                $character['shipTypeId'] ?? null,
+                $character['shipName'] ?? null,
+                array_key_exists('shipTypeId', $character) && array_key_exists('shipName', $character),
+                $character['startSnapshot']['status'] ?? null,
+            ];
+        }
+        self::assertSame(
+            [
+                'Aria Solberg' => [self::HULK, 'Hulk', true, 'taken'],
+                'Aria II' => [self::ORCA, 'Orca', true, 'taken'],
+                'Brann Holt' => [null, null, true, 'taken'],
+                'Brann II' => [null, null, true, 'taken'],
+            ],
+            $shipsByCharacter,
+        );
+        self::assertCount(4, $this->shipRequests);
+    }
+
+    #[Group('issue-364')]
+    public function testShipIsNotReadAgainAtTheEndSnapshotNorChangedWhenTheCharacterSwitchesShip(): void
+    {
+        $this->seedShipTypes();
+        $this->shipsByEveCharacterId[$this->eveIdOf('Brann Holt')] = ['ship_type_id' => self::HULK];
+        $this->startedByAria();
+        $this->shipsByEveCharacterId[$this->eveIdOf('Brann Holt')] = ['ship_type_id' => self::ORCA];
+        $requestsAfterStart = count($this->shipRequests);
+
+        $this->endedByAriaAt(self::ENDED_AT);
+        $this->ledgerOf('Brann Holt', [['2026-11-05', self::SPODUMAIN, self::S1, 47_500]], 'Thu, 05 Nov 2026 21:47:17 GMT');
+        $this->deliverSentSnapshotsAt('2026-11-05T21:37:17+00:00');
+
+        $this->as($this->brann);
+        $this->request('GET', $this->operationUri() . '/ledger');
+        $brannHolt = $this->characterOf($this->responseJson(), 'Brann Holt');
+        self::assertSame(
+            [$requestsAfterStart, self::HULK, 'Hulk'],
+            [count($this->shipRequests), $brannHolt['shipTypeId'] ?? null, $brannHolt['shipName'] ?? null],
+        );
+    }
+
+    #[Group('issue-364')]
+    public function testRetriedStartSnapshotOfAReconnectedCharacterReadsItsShip(): void
+    {
+        $this->seedShipTypes();
+        $this->ledgersByEveCharacterId[$this->eveIdOf('Brann II')] = EsiApiException::fromResponse(403, 'Access forbidden');
+        $this->shipsByEveCharacterId[$this->eveIdOf('Brann II')] = ['ship_type_id' => self::HULK];
+        $this->startedByAria();
+        $this->as($this->brann);
+        $this->request('GET', $this->operationUri() . '/ledger');
+        $before = $this->characterOf($this->responseJson(), 'Brann II');
+
+        $this->ledgerOf('Brann II', [['2026-11-05', self::SPODUMAIN, self::S1, 3_000]]);
+        self::mockTime(new \DateTimeImmutable('2026-11-05T20:40:00+00:00'));
+        $this->as($this->brann);
+        $this->post(sprintf('characters/%s/snapshot-retry', $this->enrolmentIdOf('Brann II')));
+        self::assertResponseStatusCodeSame(204);
+        $this->deliverSentSnapshotsAt('2026-11-05T20:40:02+00:00');
+        $this->as($this->brann);
+        $this->request('GET', $this->operationUri() . '/ledger');
+        $after = $this->characterOf($this->responseJson(), 'Brann II');
+
+        self::assertSame(
+            [['reconnect_required', null, null], ['taken', self::HULK, 'Hulk']],
+            [
+                [$before['startSnapshot']['status'] ?? null, $before['shipTypeId'] ?? null, $before['shipName'] ?? null],
+                [$after['startSnapshot']['status'] ?? null, $after['shipTypeId'] ?? null, $after['shipName'] ?? null],
+            ],
         );
     }
 
@@ -546,6 +636,16 @@ final class MiningOperationLedgerApiTest extends WebTestCase
 
             return $ledger;
         });
+        $esiClient->method('get')->willReturnCallback(function (string $endpoint): array {
+            $this->shipRequests[] = $endpoint;
+            preg_match('#/characters/(\d+)/ship/#', $endpoint, $matches);
+            $ship = $this->shipsByEveCharacterId[(int) ($matches[1] ?? 0)] ?? [];
+            if ($ship instanceof \Throwable) {
+                throw $ship;
+            }
+
+            return $ship;
+        });
         $tokenManager = $this->createStub(TokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturn('access-token');
         self::getContainer()->set(EsiClient::class, $esiClient);
@@ -577,6 +677,14 @@ final class MiningOperationLedgerApiTest extends WebTestCase
         $this->em->persist((new InvType())->setTypeId(self::SPODUMAIN)->setTypeName('Spodumain')->setGroup($spodumainGroup));
         $this->em->persist((new InvType())->setTypeId(self::BISTOT)->setTypeName('Bistot')->setGroup($bistotGroup));
         $this->seedBoostShipSde($this->em);
+    }
+
+    private function seedShipTypes(): void
+    {
+        $miningBarges = $this->em->find(InvGroup::class, 463);
+        \assert($miningBarges instanceof InvGroup);
+        $this->em->persist((new InvType())->setTypeId(self::HULK)->setTypeName('Hulk')->setGroup($miningBarges)->setPublished(true));
+        $this->em->flush();
     }
 
     private function eveIdOf(string $characterName): int

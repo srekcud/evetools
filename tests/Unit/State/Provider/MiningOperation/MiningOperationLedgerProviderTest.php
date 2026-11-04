@@ -183,6 +183,8 @@ final class MiningOperationLedgerProviderTest extends TestCase
                 'id' => $this->enrolmentOf('Brann II')->getId()->toRfc4122(),
                 'eveCharacterId' => $this->character('Brann II')->getEveCharacterId(),
                 'name' => 'Brann II',
+                'shipTypeId' => null,
+                'shipName' => null,
                 'state' => 'known',
                 'unknownReason' => null,
                 'totalQuantity' => 20_000,

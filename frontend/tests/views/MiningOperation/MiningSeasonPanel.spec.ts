@@ -4,7 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import { apiRequest } from '@/services/api'
-import { useMiningOperationStore, type MiningSeason } from '@/stores/miningOperation'
+import { useMiningOperationStore, type MiningSeason, type MiningSeasonShip } from '@/stores/miningOperation'
 import MiningSeasonPanel from '@/views/MiningOperation/MiningSeasonPanel.vue'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -14,6 +14,10 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const SEASON_PATH = '/mining-operations/season'
 const LONG_PLAYER_NAME = 'Cyra Lune-Valdemar de la Ceinture Extérieure des Anomalies Spodumain'
+const LONG_SHIP_NAME = 'Hulk Exhumer-Valdemar Edition Prototype de la Ceinture Extérieure'
+const HULK_TYPE_ID = 22544
+const SKIFF_TYPE_ID = 22546
+const ORCA_TYPE_ID = 28606
 
 function seasonWithAnUnknownOperation(overrides: Partial<MiningSeason> = {}): MiningSeason {
   return {
@@ -29,8 +33,18 @@ function seasonWithAnUnknownOperation(overrides: Partial<MiningSeason> = {}): Mi
       { name: 'Brann Holt', operationsCount: 1, minutes: 90, minedValue: 50_000_000, hasUnknownValue: false },
       { name: 'Cyra Lune', operationsCount: 1, minutes: 90, minedValue: null, hasUnknownValue: true },
     ],
+    ships: [],
+    unknownShipCharactersCount: 0,
     ...overrides,
   }
+}
+
+function shipsOfTheSeason(): MiningSeasonShip[] {
+  return [
+    { shipTypeId: HULK_TYPE_ID, shipName: LONG_SHIP_NAME, charactersCount: 2, minutes: 240, minedValue: 120_000_000, iskPerHour: 30_000_000, isBooster: false },
+    { shipTypeId: SKIFF_TYPE_ID, shipName: 'Skiff', charactersCount: 1, minutes: 90, minedValue: 20_000_000, iskPerHour: 13_333_333, isBooster: false },
+    { shipTypeId: ORCA_TYPE_ID, shipName: 'Orca', charactersCount: 1, minutes: 120, minedValue: null, iskPerHour: null, isBooster: true },
+  ]
 }
 
 function seasonOfKnownOperations(): MiningSeason {
@@ -50,15 +64,17 @@ function seasonOfOneUnknownOperation(): MiningSeason {
     playedMinutes: 90,
     iskPerHour: null,
     players: [{ name: 'Cyra Lune', operationsCount: 1, minutes: 90, minedValue: null, hasUnknownValue: true }],
+    ships: [],
+    unknownShipCharactersCount: 0,
   }
 }
 
 function emptySeason(): MiningSeason {
-  return { period: '30d', operationsCount: 0, unknownValueOperationsCount: 0, knownValue: null, knownOperationMinutes: 0, playedMinutes: 0, iskPerHour: null, players: [] }
+  return { period: '30d', operationsCount: 0, unknownValueOperationsCount: 0, knownValue: null, knownOperationMinutes: 0, playedMinutes: 0, iskPerHour: null, players: [], ships: [], unknownShipCharactersCount: 0 }
 }
 
-function mountPanel(season: MiningSeason) {
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
+function mountPanel(season: MiningSeason, locale: 'en' | 'fr' = 'en') {
+  const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   vi.mocked(apiRequest).mockResolvedValue(season as never)
   useMiningOperationStore().season = season
   const wrapper = mount(MiningSeasonPanel, { global: { plugins: [i18n] } })
@@ -152,6 +168,69 @@ describe('MiningSeasonPanel', () => {
     await flushPromises()
 
     expect([wrapper.text().includes(t('miningOperation.season.empty')), wrapper.findAll('[data-testid="season-player-row"]').length]).toEqual([true, 0])
+  })
+
+  it('lists the ISK per hour of each ship with its characters, hours, value and a bar proportional to the best ship', async () => {
+    const { wrapper } = mountPanel(seasonWithAnUnknownOperation({ ships: shipsOfTheSeason() }))
+    await flushPromises()
+
+    const rows = wrapper.findAll('[data-testid="season-ship-row"]')
+    const names = wrapper.findAll('[data-testid="season-ship-name"]')
+    const bars = wrapper.findAll('[data-testid="season-ship-bar"]')
+    expect({
+      names: names.map(name => name.text()),
+      hulk: [rows[0]?.text().includes('4 h 00 min'), rows[0]?.text().includes('120,000,000'), rows[0]?.text().includes('30,000,000')],
+      skiff: [rows[1]?.text().includes('1 h 30 min'), rows[1]?.text().includes('20,000,000'), rows[1]?.text().includes('13,333,333')],
+      barWidths: bars.map(bar => bar.attributes('style')),
+      longNameWraps: names[0]?.classes().includes('[overflow-wrap:anywhere]'),
+    }).toEqual({
+      names: [LONG_SHIP_NAME, 'Skiff', 'Orca'],
+      hulk: [true, true, true],
+      skiff: [true, true, true],
+      barWidths: ['width: 100%;', 'width: 44%;'],
+      longNameWraps: true,
+    })
+  })
+
+  it('shows a booster ship without value, bar or ISK per hour but with the mention that it does not mine', async () => {
+    const { wrapper } = mountPanel(seasonWithAnUnknownOperation({ ships: shipsOfTheSeason() }), 'fr')
+    await flushPromises()
+
+    const orcaRow = wrapper.findAll('[data-testid="season-ship-row"]')[2]
+    expect([
+      orcaRow?.text().includes('Orca'),
+      orcaRow?.text().includes('booster, ne mine pas'),
+      orcaRow?.find('[data-testid="season-ship-value"]').text(),
+      /\d/.test(orcaRow?.find('[data-testid="season-ship-isk-per-hour"]').text() ?? ''),
+      orcaRow?.find('[data-testid="season-ship-bar"]').exists(),
+    ]).toEqual([true, true, '–', false, false])
+  })
+
+  it('mentions the characters without a known ship below the table only when there are some', async () => {
+    const withUnknownShips = mountPanel(seasonWithAnUnknownOperation({ ships: shipsOfTheSeason(), unknownShipCharactersCount: 2 }), 'fr')
+    await flushPromises()
+    const mention = withUnknownShips.wrapper.find('[data-testid="season-unknown-ships"]')
+    const mentionText = mention.exists() ? mention.text() : ''
+    withUnknownShips.wrapper.unmount()
+
+    const allShipsKnown = mountPanel(seasonWithAnUnknownOperation({ ships: shipsOfTheSeason(), unknownShipCharactersCount: 0 }), 'fr')
+    await flushPromises()
+
+    expect([mentionText, allShipsKnown.wrapper.find('[data-testid="season-unknown-ships"]').exists()]).toEqual([
+      '2 personnages sans vaisseau connu, hors de ce tableau',
+      false,
+    ])
+  })
+
+  it('shows an empty state instead of an empty ships table when no ship is known', async () => {
+    const { wrapper } = mountPanel(seasonWithAnUnknownOperation({ ships: [], unknownShipCharactersCount: 3 }))
+    await flushPromises()
+
+    expect([
+      wrapper.find('[data-testid="season-ships-empty"]').exists(),
+      wrapper.findAll('[data-testid="season-ship-row"]').length,
+      wrapper.findAll('[data-testid="season-player-row"]').length,
+    ]).toEqual([true, 0, 3])
   })
 
   it('reloads the season of the period chosen in the selector', async () => {

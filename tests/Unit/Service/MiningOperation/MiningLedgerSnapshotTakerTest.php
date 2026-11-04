@@ -16,6 +16,7 @@ use App\Service\ESI\PaginatedEsiResponse;
 use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MinedQuantityCalculator;
+use App\Service\MiningOperation\MiningCharacterShipReader;
 use App\Service\MiningOperation\MiningLedgerReader;
 use App\Service\MiningOperation\MiningLedgerSnapshotDispatcher;
 use App\Service\MiningOperation\MiningLedgerSnapshotTaker;
@@ -112,6 +113,7 @@ final class MiningLedgerSnapshotTakerTest extends TestCase
                 'readyAt' => self::STARTED_AT,
                 'settled' => 1,
                 'total' => 4,
+                'shipTypeId' => null,
             ],
             $this->lastPublishedDataOn($this->snapshotTopicOf($this->aria)),
         );
@@ -468,6 +470,7 @@ final class MiningLedgerSnapshotTakerTest extends TestCase
             $this->logger,
             $this->clock,
             $this->notifierRecording(),
+            new MiningCharacterShipReader($esiClient),
         );
     }
 

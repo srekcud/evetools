@@ -12,6 +12,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\ESI\PaginatedEsiResponse;
 use App\Service\ESI\TokenManager;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\MiningOperation\MiningCharacterShipReader;
 use App\Service\MiningOperation\MiningLedgerReader;
 use App\Service\MiningOperation\MiningLedgerSnapshotDispatcher;
 use App\Service\MiningOperation\MiningLedgerSnapshotTaker;
@@ -101,6 +102,7 @@ final class TakeMiningLedgerSnapshotHandlerTest extends TestCase
                 new NullLogger(),
                 $clock,
                 $this->notifierRecording(),
+                new MiningCharacterShipReader($esiClient),
             ),
             $this->logger,
         );

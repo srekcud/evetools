@@ -33,6 +33,7 @@ final readonly class MiningLedgerSnapshotTaker
         private LoggerInterface $logger,
         private ClockInterface $clock,
         private MiningOperationNotifier $notifier,
+        private MiningCharacterShipReader $shipReader,
     ) {
     }
 
