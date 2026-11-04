@@ -11,10 +11,15 @@ use App\Entity\MoonComposition;
 use App\Entity\User;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\MoonChunk\CorporationRolesUnreadable;
 use App\Service\MoonChunk\MoonCompositionRecorder;
+use App\Service\MoonChunk\MoonCompositionReplacementPolicy;
+use App\Service\MoonChunk\MoonCompositionReplacementRefused;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -32,6 +37,7 @@ final readonly class RecordMoonCompositionProcessor implements ProcessorInterfac
         private CorporationMiningExtractionRepository $extractionRepository,
         private InvTypeRepository $invTypeRepository,
         private MoonCompositionRecorder $recorder,
+        private MoonCompositionReplacementPolicy $replacementPolicy,
     ) {
     }
 
@@ -46,6 +52,7 @@ final readonly class RecordMoonCompositionProcessor implements ProcessorInterfac
 
         $this->assertMoonIsExtractedByACorporationOf($user, $data->corporationId, $data->moonId);
         $this->assertScanIsWithinBounds($data->scan);
+        $this->assertUserMayRecord($user, $data->corporationId, $data->moonId);
 
         return $this->resourceOf($this->recorder->record($user, $data->corporationId, $data->moonId, $data->scan));
     }
@@ -55,6 +62,17 @@ final readonly class RecordMoonCompositionProcessor implements ProcessorInterfac
         $isMemberOfCorporation = \in_array($corporationId, $user->getCharacterCorporationIds(), true);
         if (!$isMemberOfCorporation || $this->extractionRepository->findOneBy(['corporationId' => $corporationId, 'moonId' => $moonId]) === null) {
             throw new NotFoundHttpException(self::MOON_NOT_FOUND_MESSAGE);
+        }
+    }
+
+    private function assertUserMayRecord(User $user, int $corporationId, int $moonId): void
+    {
+        try {
+            $this->replacementPolicy->assertMayRecord($user, $corporationId, $moonId);
+        } catch (MoonCompositionReplacementRefused $refusal) {
+            throw new AccessDeniedHttpException($refusal->getMessage(), $refusal);
+        } catch (CorporationRolesUnreadable $unreadable) {
+            throw new ServiceUnavailableHttpException(null, $unreadable->getMessage(), $unreadable);
         }
     }
 
