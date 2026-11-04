@@ -134,6 +134,10 @@ deptrac:
       - App\Service\GroupIndustry\PilotName
     App\Service\GroupIndustry\GroupIndustryContainerService:
       - App\ApiResource\GroupIndustry\GroupContainerVerificationResource
+    App\State\Processor\MoonTax\MarkMoonTaxStatementPaidProcessor:
+      - App\State\Provider\MoonTax\MoonTaxResourceMapper
+    App\State\Processor\MoonTax\CancelMoonTaxStatementProcessor:
+      - App\State\Provider\MoonTax\MoonTaxResourceMapper
     App\State\Processor\Escalation\CreateEscalationProcessor:
       - App\State\Provider\Escalation\EscalationResourceMapper
     App\State\Processor\Escalation\UpdateEscalationProcessor:
