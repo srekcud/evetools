@@ -319,6 +319,7 @@ final readonly class MercurePublisherService
             sprintf('/user/%s/sync/planetary', $userId),
             sprintf('/user/%s/sync/admin-sync', $userId),
             sprintf('/user/%s/sync/mining-operation-snapshot', $userId),
+            sprintf('/user/%s/sync/moon-tax', $userId),
             sprintf('/user/%s/alerts/planetary-expiry', $userId),
             sprintf('/user/%s/alerts/market-price', $userId),
             sprintf('/user/%s/notifications', $userId),

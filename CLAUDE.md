@@ -37,7 +37,7 @@ docker compose exec app php bin/console <commande>
 - **Auth**: OAuth 2.0 via EVE SSO, `Authorization: Bearer <token>`
 - **Rate Limit**: **420** = budget d'erreurs épuisé (`x-esi-error-limit-*`), **429** = rate limit. Support ETag / Cache-Control. Comportement du client : `.claude/skills/esi-api/SKILL.md`.
 - **Pagination**: `page` param + header `X-Pages` → toujours `EsiClient::getPaginated()` (un `get()` ne lit que la page 1)
-- **27 scopes** (`AuthenticationService::REQUIRED_SCOPES`) : assets, wallet, contracts, industry, mining, blueprints, skills, location, fleet, structures, search, notifications, killmails, market, UI, corp projects, PI
+- **28 scopes** (`AuthenticationService::REQUIRED_SCOPES`) : assets, wallet, contracts, industry, mining, blueprints, skills, location, fleet, structures, search, notifications, killmails, market, UI, corp projects, PI
 
 ---
 
@@ -186,6 +186,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Public contracts (The Forge) | 30 min |
 | Corporation moon chunks (extractions) | 30 min |
 | Opérations de minage récurrentes (occurrences `weekly` et `chunk`) | 30 min |
+| Taxe lunaire (ledger des observers + journal wallet corpo, par corporation à raffinerie ouverte) | 1h |
 | Cost indices | 2h |
 | Adjusted prices | 24h |
 | Ansiblex sync | 12h |

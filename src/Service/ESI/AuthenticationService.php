@@ -32,6 +32,7 @@ class AuthenticationService
 
         // Wallet & Contracts (PVE)
         'esi-wallet.read_character_wallet.v1',
+        'esi-wallet.read_corporation_wallets.v1',
         'esi-contracts.read_character_contracts.v1',
 
         // Industry & Mining
