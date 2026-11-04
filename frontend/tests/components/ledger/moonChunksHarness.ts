@@ -1,5 +1,6 @@
 import type {
   CorporationMiningExtraction,
+  MoonChunkValue,
   CorporationMiningExtractions,
   CorporationMiningExtractionsResponse,
 } from '@/composables/useCorporationMiningExtractions'
@@ -24,6 +25,7 @@ export function extraction(overrides: Partial<CorporationMiningExtraction>): Cor
     chunkArrivalTime: '2026-11-05T20:00:00+00:00',
     naturalDecayTime: '2026-11-05T23:00:00+00:00',
     status: 'extracting',
+    chunkValue: null,
     ...overrides,
   }
 }
@@ -104,3 +106,46 @@ export const DENIED_CORPORATION = corporation({
 export function response(...corporations: CorporationMiningExtractions[]): CorporationMiningExtractionsResponse {
   return { corporations }
 }
+
+export const LONG_MOON_NAME = 'Ihakana II - Moon 1 of the Southern Belt Mining Consortium Annex of the Deep Core Tatara'
+
+export const KNOWN_VALUE: MoonChunkValue = {
+  status: 'known',
+  reason: null,
+  volumeM3: 1_850_000,
+  totalValue: 40_700_000,
+  perParticipant: [
+    { participants: 4, value: 10_175_000 },
+    { participants: 6, value: 6_783_333.33 },
+    { participants: 8, value: 5_087_500 },
+  ],
+  lines: [
+    { typeId: 45492, typeName: 'Bitumens', share: 0.4, units: 74_000, value: 7_400_000 },
+    { typeId: 45501, typeName: 'Chromite', share: 0.6, units: 111_000, value: 33_300_000 },
+  ],
+  scanRecordedAt: '2026-11-04T09:30:00+00:00',
+}
+
+export const NO_SCAN_VALUE: MoonChunkValue = {
+  status: 'unknown',
+  reason: 'no_scan',
+  volumeM3: 1_850_000,
+  totalValue: null,
+  perParticipant: null,
+  lines: null,
+  scanRecordedAt: null,
+}
+
+export const NO_PRICE_VALUE: MoonChunkValue = {
+  ...NO_SCAN_VALUE,
+  reason: 'no_price',
+  scanRecordedAt: '2026-11-04T09:30:00+00:00',
+}
+
+export const VALUED_CHUNK = extraction({ id: '0195f3a0-2740-7000-8000-000000000301', moonId: 40301011, chunkValue: KNOWN_VALUE })
+
+export const NO_SCAN_CHUNK = extraction({ id: '0195f3a0-2740-7000-8000-000000000302', moonId: 40301012, moonName: 'NOL-M9 VII - Moon 5', chunkValue: NO_SCAN_VALUE })
+
+export const NO_PRICE_CHUNK = extraction({ id: '0195f3a0-2740-7000-8000-000000000303', moonId: 40301013, moonName: 'NOL-M9 VII - Moon 6', chunkValue: NO_PRICE_VALUE })
+
+export const LONG_MOON_CHUNK = extraction({ id: '0195f3a0-2740-7000-8000-000000000304', moonId: 40301014, moonName: LONG_MOON_NAME, chunkValue: NO_SCAN_VALUE })

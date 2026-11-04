@@ -10,6 +10,33 @@ export type ChunkTimeMode = 'eve' | 'local'
 
 export type ChunkView = 'list' | 'week' | 'month'
 
+export type MoonChunkValueStatus = 'known' | 'unknown'
+
+export type MoonChunkValueReason = 'no_scan' | 'no_price' | 'no_volume'
+
+export interface MoonChunkValueLine {
+  typeId: number
+  typeName: string
+  share: number
+  units: number
+  value: number
+}
+
+export interface MoonChunkParticipantShare {
+  participants: number
+  value: number
+}
+
+export interface MoonChunkValue {
+  status: MoonChunkValueStatus
+  reason: MoonChunkValueReason | null
+  volumeM3: number
+  totalValue: number | null
+  perParticipant: MoonChunkParticipantShare[] | null
+  lines: MoonChunkValueLine[] | null
+  scanRecordedAt: string | null
+}
+
 export interface CorporationMiningExtraction {
   id: string
   structureId: number
@@ -22,6 +49,7 @@ export interface CorporationMiningExtraction {
   chunkArrivalTime: string
   naturalDecayTime: string
   status: MoonChunkStatus
+  chunkValue: MoonChunkValue | null
 }
 
 export interface CorporationMiningExtractions {

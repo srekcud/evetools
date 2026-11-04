@@ -60,6 +60,7 @@ function extractionsOf(structureIds: number[]) {
         chunkArrivalTime: '2026-11-05T20:00:00+00:00',
         naturalDecayTime: '2026-11-08T20:00:00+00:00',
         status: 'extracting',
+        chunkValue: null,
       })),
     }],
   }

@@ -30,6 +30,7 @@ use App\Entity\MarketPriceAlert;
 use App\Entity\MiningEntry;
 use App\Entity\MiningSite;
 use App\Entity\MiningSiteScan;
+use App\Entity\MoonComposition;
 use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
 use App\Entity\PushSubscription;
@@ -147,6 +148,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'market_price_alerts.user_id' => 1,
             'mining_entries.user_id' => 1,
             'mining_sites.owner_id' => 1,
+            'moon_compositions.recorded_by_id' => 1,
             'notifications.user_id' => 1,
             'planetary_colonies.character_id' => 1,
             'push_subscriptions.user_id' => 1,
@@ -1118,6 +1120,12 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setTotalUnits(30_000 * $seed)
             ->setTotalVolumeM3(3_000.0 * $seed)
             ->setRemainingValue(450_000.0 * $seed));
+        $this->em->persist((new MoonComposition())
+            ->setCorporationId(98_262_100 + $seed)
+            ->setMoonId(40_301_000 + $seed)
+            ->setRecordedBy($user)
+            ->setRecordedAt($start)
+            ->setLines([['typeId' => 45_490 + $seed, 'share' => 1.0]]));
         $this->em->persist((new PveIncome())
             ->setUser($user)
             ->setType(PveIncomeType::Bounty)

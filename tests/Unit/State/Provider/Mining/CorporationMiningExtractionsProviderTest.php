@@ -183,7 +183,7 @@ final class CorporationMiningExtractionsProviderTest extends TestCase
         $entries = array_values(array_filter($this->provide(), static fn (array $entry): bool => $entry['corporationId'] === $corporationId));
         self::assertCount(1, $entries);
 
-        return $entries[0];
+        return [...$entries[0], 'extractions' => array_map(static fn (array $extraction): array => array_diff_key($extraction, ['chunkValue' => true]), $entries[0]['extractions'])];
     }
 
     private static function extractionView(
