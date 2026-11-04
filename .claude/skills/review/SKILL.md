@@ -14,7 +14,7 @@ Base de comparaison : `$ARGUMENTS` (si vide : `main`).
    - `security-reviewer` : **une fois par groupe**, avant la fusion de la dernière issue du groupe, sur le diff cumulé des chemins d'accès (Processor, Provider, service d'accès, migration) ; pour une issue isolée du groupe, seulement si elle touche un contrôle d'accès, un secret ou une donnée personnelle ;
    - `ddd-reviewer` : tout fichier de Domain ou Application, et tout fichier touchant un terme du glossaire ;
    - `test-skeptic` : si `tests/` est touché, ou si du code de production change sans test associé.
-3. Lance les gates et rapporte leur sortie. C'est la seule exécution complète du lot : la branche doit être rebasée sur `main` avant. Dans un worktree, passe par `.claude/scripts/wt-php.sh <worktree> unit|integration`.
+3. Lance les gates et rapporte leur sortie. C'est la seule exécution complète du lot : la branche doit être rebasée sur `main` avant. Dans un worktree, passe par `.claude/scripts/wt-php.sh <worktree> unit|integration` (`unit` ajoute `--testsuite=Unit` à PHPUnit si aucune suite ni chemin n'est donné), et `… phpstan` pour PHPStan (cache dev préparé par le script).
    - `docker compose exec app php vendor/bin/phpunit --no-coverage` ;
    - `docker compose exec app php vendor/bin/phpstan analyse` ;
    - `docker compose exec app php vendor/bin/deptrac analyse` ;
