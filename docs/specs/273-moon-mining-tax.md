@@ -36,7 +36,7 @@
 | E8 | Don d'un alt, attribué à la main au personnage A | compte pour A, trace de l'utilisateur |
 | E9 | Taux R64 passé de 10 à 12 % après la fermeture | relevé figé inchangé |
 | E10 | Donation avant `periodStart` du relevé | ne le paie pas |
-| E11 | Ledger relu à 23:30 pour une période finie à 23:00 | pas de relevé ; relu à 00:05, relevé créé |
+| E11 | Période finie le 2026-11-02 00:00 ; ledger relu à 00:59 puis à 01:00 | pas de relevé à 00:59, relevé créé à 01:00 |
 | E12 | Ledger illisible (403 observer) | `access` `denied`, anciens relevés conservés |
 | E13 | Mineur de l'alliance voisine / hors alliance | `outsideAlliance` faux / vrai |
 | E14 | Utilisateur sans Accountant | 403 avec les rôles lus ; vue mineur ouverte |
