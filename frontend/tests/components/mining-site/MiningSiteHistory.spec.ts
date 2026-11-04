@@ -92,7 +92,12 @@ describe('MiningSiteHistory', () => {
 
     const { wrapper, t } = await mountHistory()
     const everySite = shownSiteIds(wrapper)
+    const beltCells = cellsOf(wrapper, BELT_ID).slice(0, 8)
+    const anomalyValue = cellsOf(wrapper, ANOMALY_ID)[6]
+    const jaspetScanColumns = cellsOf(wrapper, JASPET_ID).slice(2, 8)
     const longLabel = wrapper.find(`[title="${LONG_SITE_LABEL}"]`)
+    const longLabelShown = longLabel.exists()
+    const longLabelTruncated = longLabel.exists() && longLabel.classes().includes('truncate')
     const filter = found(wrapper, '[data-testid="system-filter"]')
     const filterOptions = filter.findAll('option').map(option => option.element.value)
     await filter.setValue(String(ALDRANETTE))
@@ -101,11 +106,11 @@ describe('MiningSiteHistory', () => {
 
     expect({
       everySite,
-      beltCells: cellsOf(wrapper, BELT_ID).slice(0, 8),
-      anomalyValue: cellsOf(wrapper, ANOMALY_ID)[6],
-      jaspetScanColumns: cellsOf(wrapper, JASPET_ID).slice(2, 8),
-      longLabelShown: longLabel.exists(),
-      longLabelTruncated: longLabel.exists() && longLabel.classes().includes('truncate'),
+      beltCells,
+      anomalyValue,
+      jaspetScanColumns,
+      longLabelShown,
+      longLabelTruncated,
       filterOptions,
       filtered,
       requests: vi.mocked(apiRequest).mock.calls.map(call => call[0]),
