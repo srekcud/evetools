@@ -37,6 +37,15 @@ block() {
   exit 2
 }
 
+writes_files() {
+  grep -qE '>>?[[:space:]]*["'"'"']?[^[:space:];&|]*tests/' <<< "$1" && return 0
+  grep -qE '(^|[;&|(`[:space:]])(tee|cp|mv|rm|rmdir|touch|truncate|install|ln|dd|patch|unlink|rsync|chmod|xargs|eval|exec|source)([[:space:]]|$)' <<< "$1" && return 0
+  grep -qE '(sed|perl)[[:space:]]+(-[[:alnum:]]*[[:space:]]+)*-[[:alnum:]]*i|--in-place' <<< "$1" && return 0
+  grep -qE 'git[[:space:]]+([^;&|]*[[:space:]])?(checkout|restore|apply|stash|reset|clean|mv|rm|am|cherry-pick|revert|merge|rebase|pull|switch)([[:space:]]|$)' <<< "$1" && return 0
+  grep -qE '(python3?|php|node|ruby|perl|bash|sh|zsh)[[:space:]]+(-[[:alnum:]]+[[:space:]]+)*-(c|e|r)([[:space:]]|$)|\|[[:space:]]*(ba|z)?sh([[:space:]]|$)|-delete|-exec' <<< "$1" && return 0
+  return 1
+}
+
 if [[ "$tool_name" == "Bash" ]]; then
   # Lancer les tests ou Infection reste autorisé, même avec un chemin sous tests/.
   if [[ "$command" =~ ^[[:space:]]*(docker\ compose\ exec\ (-T\ )?app|[^[:space:]]*wt-php\.sh\ [^[:space:]]+\ (unit|integration))\ php\ vendor/bin/(phpunit|infection)([[:space:]]|$) \
@@ -44,8 +53,9 @@ if [[ "$tool_name" == "Bash" ]]; then
      && [[ ! "$command" =~ [\;\&\|\>\`] && ! "$command" =~ \$\( ]]; then
     exit 0
   fi
-  if [[ "$command" =~ (^|[^[:alnum:]_./-]|\./)(frontend/)?tests/ || "$command" == *"$project_dir/tests/"* || "$command" == *"$project_dir/frontend/tests/"* ]]; then
-    block "une commande Bash qui touche tests/"
+  if [[ "$command" =~ (^|[^[:alnum:]_./-]|\./)(frontend/)?tests/ || "$command" == *"$project_dir/tests/"* || "$command" == *"$project_dir/frontend/tests/"* ]] \
+     && writes_files "$command"; then
+    block "une commande Bash qui écrit dans tests/"
   fi
   exit 0
 fi
