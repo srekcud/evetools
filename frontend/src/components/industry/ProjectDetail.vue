@@ -31,6 +31,17 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel, projectDisplayName } = useTypeNames()
 
 const projectRef = computed(() => store.currentProject)
+
+const estimatedSellPriceSourceLabel = computed(() => {
+  switch (store.currentProject?.estimatedSellPriceSource) {
+    case 'jita':
+      return 'Jita'
+    case 'mixed':
+      return t('industry.costs.mixedSources')
+    default:
+      return t('industry.costs.structure')
+  }
+})
 const { estimatedProjectTime, isEstimatedProjectTimeUnknown } = useProjectTime(projectRef)
 
 const PROJECT_TABS = ['steps', 'shopping', 'invention', 'costs'] as const
@@ -458,7 +469,7 @@ onMounted(async () => {
               {{ store.currentProject.estimatedSellPrice != null ? formatIsk(store.currentProject.estimatedSellPrice) : '-' }}
             </p>
             <p v-if="store.currentProject.estimatedSellPriceSource" class="text-xs text-slate-500 mt-0.5">
-              {{ store.currentProject.estimatedSellPriceSource === 'jita' ? 'Jita' : t('industry.costs.structure') }}
+              {{ estimatedSellPriceSourceLabel }}
             </p>
           </div>
           <!-- Profit + % -->

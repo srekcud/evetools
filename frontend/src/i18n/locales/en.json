@@ -1038,7 +1038,8 @@
       "estimatedJobs": "Est. Jobs",
       "estimatedSell": "Est. Sell",
       "estimatedTaxes": "Est. Taxes",
-      "structure": "Structure"
+      "structure": "Structure",
+      "mixedSources": "Mixed"
     },
     "costEstimation": {
       "tabLabel": "Costs",

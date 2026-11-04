@@ -85,6 +85,7 @@ class DeleteStepProcessor implements ProcessorInterface
             throw new BadRequestHttpException($missingProduct->getMessage(), $missingProduct);
         }
 
+        $this->estimatesRefresher->refresh($project);
         $this->entityManager->flush();
     }
 }

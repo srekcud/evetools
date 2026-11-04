@@ -122,7 +122,7 @@ export interface IndustryProject {
   totalCost: number | null
   estimatedJobCost: number | null
   estimatedSellPrice: number | null
-  estimatedSellPriceSource: 'jita' | 'structure' | null
+  estimatedSellPriceSource: 'jita' | 'structure' | 'mixed' | null
   estimatedTaxAmount: number | null
   estimatedMaterialCost: number | null
   profit: number | null

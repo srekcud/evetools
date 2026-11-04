@@ -8,15 +8,11 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\CreateProjectInput;
-use App\Entity\IndustryProject;
 use App\Entity\User;
-use App\Service\Industry\EstimatedSellPriceEstimator;
 use App\Service\Industry\IndustryProjectFactory;
-use App\Service\Industry\ProductionCostService;
 use App\Service\Industry\ProjectEstimatesRefresher;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -30,11 +26,8 @@ class CreateProjectProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly IndustryProjectFactory $projectFactory,
         private readonly IndustryResourceMapper $mapper,
-        private readonly ProductionCostService $productionCostService,
-        private readonly EstimatedSellPriceEstimator $sellPriceEstimator,
         private readonly ProjectEstimatesRefresher $estimatesRefresher,
         private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -63,42 +56,10 @@ class CreateProjectProcessor implements ProcessorInterface
             throw new BadRequestHttpException($e->getMessage());
         }
 
-        // Calculate estimated costs at creation time (snapshot)
-        try {
-            $jobInstallResult = $this->productionCostService->estimateJobInstallCosts($project);
-            $project->setEstimatedJobCost($jobInstallResult['total']);
-        } catch (\Throwable $e) {
-            $this->logEstimationFailure('job_install_cost', $project, $e);
-        }
-
-        try {
-            $materialResult = $this->productionCostService->estimateMaterialCost($project);
-            $project->setEstimatedMaterialCost($materialResult['total']);
-        } catch (\Throwable $e) {
-            $this->logEstimationFailure('material_cost', $project, $e);
-        }
-
-        try {
-            $estimatedSellPrice = $this->sellPriceEstimator->estimateFor($project);
-            if ($estimatedSellPrice !== null) {
-                $project->recordEstimatedSellPrice($estimatedSellPrice->amount, $estimatedSellPrice->source, $estimatedSellPrice->taxAmount);
-            }
-        } catch (\Throwable $e) {
-            $this->logEstimationFailure('sell_price', $project, $e);
-        }
+        $this->estimatesRefresher->refresh($project);
 
         $this->entityManager->flush();
 
         return $this->mapper->projectToResource($project);
-    }
-
-    private function logEstimationFailure(string $estimation, IndustryProject $project, \Throwable $exception): void
-    {
-        $this->logger->warning('Industry project estimation failed', [
-            'estimation' => $estimation,
-            'projectId' => $project->getId()?->toRfc4122(),
-            'reason' => $exception->getMessage(),
-            'exception' => $exception,
-        ]);
     }
 }

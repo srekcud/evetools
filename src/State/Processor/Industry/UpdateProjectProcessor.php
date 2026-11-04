@@ -115,6 +115,8 @@ class UpdateProjectProcessor implements ProcessorInterface
 
         if ($regenerateSteps) {
             $this->projectFactory->regenerateSteps($project);
+            $this->estimatesRefresher->refresh($project);
+            $this->entityManager->flush();
         }
 
         return $this->mapper->projectToResource($project);

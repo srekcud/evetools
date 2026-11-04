@@ -165,7 +165,7 @@ final class CreateStepProcessorTest extends TestCase
     #[Group('issue-280')]
     public function testStepAddedWithMeAndTeLevelsKeepsThemAndComesAfterTheLastStepOfTheProject(): void
     {
-        $this->project->addStep((new IndustryProjectStep())->setSortOrder(4));
+        $this->project->addStep((new IndustryProjectStep())->setProductTypeId(self::HELIUM_FUEL_BLOCK)->setQuantity(40)->setSortOrder(4));
         $typeEntered = $this->typeEntered(self::HELIUM_FUEL_BLOCK, runs: 2);
         $typeEntered->meLevel = 10;
         $typeEntered->teLevel = 20;
@@ -229,8 +229,8 @@ final class CreateStepProcessorTest extends TestCase
     #[Group('issue-280')]
     public function testStepAddedComesAfterTheHighestSortOrderOfTheProjectWhateverTheOrderOfItsSteps(): void
     {
-        $this->project->addStep((new IndustryProjectStep())->setSortOrder(5));
-        $this->project->addStep((new IndustryProjectStep())->setSortOrder(2));
+        $this->project->addStep((new IndustryProjectStep())->setProductTypeId(self::HELIUM_FUEL_BLOCK)->setQuantity(40)->setSortOrder(5));
+        $this->project->addStep((new IndustryProjectStep())->setProductTypeId(self::HELIUM_FUEL_BLOCK)->setQuantity(40)->setSortOrder(2));
 
         $this->post($this->typeEntered(self::FERNITE_CARBIDE, runs: 1), $this->productRepositoryWith($this->ferniteCarbideFormula()), $this->createStub(EntityManagerInterface::class));
 

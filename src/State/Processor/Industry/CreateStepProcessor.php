@@ -140,6 +140,7 @@ class CreateStepProcessor implements ProcessorInterface
         $step->setTeLevel($teLevel ?? 0);
 
         $project->addStep($step);
+        $this->estimatesRefresher->refresh($project);
         $this->entityManager->flush();
 
         return [$this->mapper->stepToResource($step)];
@@ -178,6 +179,7 @@ class CreateStepProcessor implements ProcessorInterface
             throw new BadRequestHttpException($missingProduct->getMessage(), $missingProduct);
         }
 
+        $this->estimatesRefresher->refresh($project);
         $this->entityManager->flush();
 
         return $addedJob;
