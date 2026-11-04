@@ -8,6 +8,7 @@ use App\Entity\Character;
 use App\Entity\CorporationMiningExtraction;
 use App\Entity\MoonComposition;
 use App\Entity\User;
+use App\Service\ESI\CharacterService;
 use App\Service\JitaMarketService;
 use App\Tests\Integration\MoonChunk\SeedsMoonChunkMarket;
 use Doctrine\ORM\EntityManagerInterface;
@@ -39,6 +40,7 @@ trait DrivesMoonChunkApi
     private User $brann;
     private ?string $actingUserId = null;
     private int $buyPriceCalls = 0;
+    private ?CharacterService $characterServiceStub = null;
     private int $nextEveCharacterId = 91_000_000;
 
     private function seedMoonChunkWorld(): void
@@ -121,6 +123,9 @@ trait DrivesMoonChunkApi
         });
         $jitaMarket->method('getLastSyncTime')->willReturn(new \DateTimeImmutable(self::JITA_SYNCED_AT));
         self::getContainer()->set(JitaMarketService::class, $jitaMarket);
+        if ($this->characterServiceStub !== null) {
+            self::getContainer()->set(CharacterService::class, $this->characterServiceStub);
+        }
         self::getContainer()->set('logger', new NullLogger());
     }
 
