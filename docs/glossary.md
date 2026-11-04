@@ -213,12 +213,12 @@ Termes proposés pour le minage groupé (#261), en attente de validation : seuls
 | **Compresseur monté** | Mounted compressor | Genre de compresseur (minerai d'astéroïde, gaz, glace, mercoxit, minerai lunaire) monté sur le vaisseau de boost. | à venir (#311) |
 | **Compressible sur place** | Compressible on site | Un type miné dont le genre a un compresseur monté sur le vaisseau de boost. | à venir (#311) |
 | **Fleet storage** | Fleet storage | Minerai versé par un participant à un destinataire pendant l'opération ; il crée une dette du destinataire envers le participant. | à venir (#266) |
-| **Scan de site** | Site scan | Relevé horodaté du restant, par type de minerai, d'une belt ou d'une anomalie, lu dans le collage du Mining Survey Chipset (spec #267). | à venir (#267) |
-| **Site de minage** | Mining site | Belt ou anomalie suivie par des scans de site, avec son historique de métriques ; le texte collé n'est jamais enregistré (spec #267). | à venir (#267) |
-| **Débit récent** | Recent depletion rate | Unités d'un type retirées d'un site par minute entre les deux derniers scans où il est présent (spec #267). | à venir (#267) |
-| **Débit de tendance** | Trend depletion rate | Unités d'un type retirées d'un site par minute, pente de la régression par moindres carrés sur tous les scans où il est présent (spec #267). | à venir (#267) |
-| **ETA d'épuisement** | Depletion ETA | Instant estimé où un type de minerai, ou un site, est vide. Une par débit (récent, tendance). Inconnue quand le débit est nul ou négatif, ou avec un seul scan (spec #267). | à venir (#267) |
-| **Type épuisé** | Depleted type | Type de minerai présent dans un scan de site et absent de tous les scans suivants (spec #267). | à venir (#267) |
+| **Scan de site** | Site scan | Relevé horodaté du restant, par type de minerai, d'une belt ou d'une anomalie, saisi aujourd'hui comme liste structurée {typeId, unités} horodatée par le serveur ; la lecture du collage du Mining Survey Chipset attend un exemple réel (spec #267). | `MiningSiteScan`, `SiteScanSample`, `MiningSiteScanRecorder` |
+| **Site de minage** | Mining site | Belt ou anomalie suivie par des scans de site, avec son historique de métriques ; le texte collé n'est jamais enregistré (spec #267). | `MiningSite`, `MiningSiteStatus`, `SiteDepletionEstimator` |
+| **Débit récent** | Recent depletion rate | Unités d'un type retirées d'un site par minute entre les deux derniers scans où il est présent (spec #267). | `SiteTypeEstimate`, `SiteDepletionEstimator` |
+| **Débit de tendance** | Trend depletion rate | Unités d'un type retirées d'un site par minute, pente de la régression par moindres carrés sur tous les scans où il est présent (spec #267). | `SiteTypeEstimate`, `SiteDepletionEstimator` |
+| **ETA d'épuisement** | Depletion ETA | Instant estimé où un type de minerai, ou un site, est vide. Une par débit (récent, tendance). Inconnue quand le débit est nul ou négatif, ou avec un seul scan (spec #267). | `SiteTypeEstimate`, `SiteDepletionEstimator` |
+| **Type épuisé** | Depleted type | Type de minerai présent dans un scan de site et absent de tous les scans suivants (spec #267). | `SiteTypeEstimate`, `SiteDepletionEstimator` |
 | **Taxe lunaire** | Moon mining tax | Taxe due au propriétaire d'une raffinerie par chaque personnage qui a miné sur ses lunes, d'après le ledger de la raffinerie (#273). | à venir (#273) |
 | **Récurrence** | Recurrence | Règle qui crée une opération de minage chaque semaine (`weekly`) ou à chaque chunk d'une raffinerie (`chunk`), avec les mêmes règles (spec #310). | à venir (#310) |
 | **Occurrence** | Occurrence | Opération de minage créée par une récurrence (spec #310). | à venir (#310) |
