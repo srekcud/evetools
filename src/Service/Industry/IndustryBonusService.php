@@ -27,6 +27,8 @@ class IndustryBonusService
     /** @var array<string, array<string, float>> Rig name -> [category => time bonus] mapping */
     private array $rigTimeBonusMap = [];
 
+    private const RIG_BONUS_PRECISION = 10;
+
     // Structure base time bonuses (fixed per structure type)
     private const STRUCTURE_TIME_BONUSES = [
         'raitaru' => 15.0,
@@ -284,7 +286,7 @@ class IndustryBonusService
             $baseBonus = self::STRUCTURE_MATERIAL_BONUSES[$structureType] ?? 0.0;
         }
 
-        $rigBonus = 0.0;
+        $rigMultiplier = 1.0;
 
         foreach ($structure->getRigs() as $rigName) {
             if (!isset($this->rigBonusMap[$rigName][$category])) {
@@ -292,10 +294,10 @@ class IndustryBonusService
             }
 
             $securityMultiplier = $this->getSecurityMultiplier($structure->getSecurityType(), $isReactionCategory, $rigName);
-            $rigBonus += $this->rigBonusMap[$rigName][$category] * $securityMultiplier;
+            $rigMultiplier *= 1 - $this->rigBonusMap[$rigName][$category] * $securityMultiplier / 100;
         }
 
-        $effectiveRigBonus = round($rigBonus, 2);
+        $effectiveRigBonus = round((1 - $rigMultiplier) * 100, self::RIG_BONUS_PRECISION);
 
         // Multiplicative total: 1 - (1 - base/100) * (1 - rig/100)
         $total = 1 - (1 - $baseBonus / 100) * (1 - $effectiveRigBonus / 100);
