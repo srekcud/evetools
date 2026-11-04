@@ -391,6 +391,8 @@ export interface ProfitMarginInventionOption {
   te: number
   runs: number
   probability: number | null
+  materialCost: number | null
+  jobInstallCost: number | null
   inventionCost: number | null
   totalProductionCost: number | null
   bestMargin: number | null

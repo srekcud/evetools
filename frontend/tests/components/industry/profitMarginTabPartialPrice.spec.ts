@@ -34,6 +34,8 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   te: 4,
   runs: 10,
   probability: 0.34,
+  materialCost: 174_360,
+  jobInstallCost: 5_000,
   inventionCost: 26_000,
   totalProductionCost: 205_360,
   bestMargin: 10.23,
