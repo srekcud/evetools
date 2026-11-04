@@ -58,6 +58,16 @@ export interface MiningSeasonPlayer {
   hasUnknownValue: boolean
 }
 
+export interface MiningSeasonShip {
+  shipTypeId: number
+  shipName: string | null
+  charactersCount: number
+  minutes: number
+  minedValue: number | null
+  iskPerHour: number | null
+  isBooster: boolean
+}
+
 export interface MiningSeason {
   period: MiningSeasonPeriod
   operationsCount: number
@@ -67,6 +77,8 @@ export interface MiningSeason {
   playedMinutes: number
   iskPerHour: number | null
   players: MiningSeasonPlayer[]
+  ships: MiningSeasonShip[]
+  unknownShipCharactersCount: number
 }
 
 export interface MiningArchiveSummary {
@@ -247,6 +259,8 @@ export interface MiningLedgerCharacter {
   id: string
   eveCharacterId: number
   name: string
+  shipTypeId: number | null
+  shipName: string | null
   state: MinedQuantityState
   unknownReason: MinedQuantityUnknownReason | null
   totalQuantity: number | null

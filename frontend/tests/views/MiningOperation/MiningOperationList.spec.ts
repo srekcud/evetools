@@ -81,6 +81,8 @@ const SEASON_OF_ONE_KNOWN_OPERATION: MiningSeason = {
   playedMinutes: 180,
   iskPerHour: 50_000_000,
   players: [{ name: 'Aria Solberg', operationsCount: 1, minutes: 180, minedValue: 150_000_000, hasUnknownValue: false }],
+  ships: [],
+  unknownShipCharactersCount: 0,
 }
 const LONG_OPERATION_LABEL = 'Anomalie Spodumain du dimanche soir dans la ceinture la plus lointaine'
 const events = reactive<Record<string, MiningOperationEvent | null>>({})

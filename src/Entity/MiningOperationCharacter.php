@@ -36,6 +36,9 @@ class MiningOperationCharacter
     #[ORM\OrderBy(['correctedAt' => 'ASC', 'id' => 'ASC'])]
     private Collection $corrections;
 
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $shipTypeId = null;
+
     public function __construct(
         #[ORM\ManyToOne(targetEntity: MiningOperationMember::class, inversedBy: 'characters')]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -67,6 +70,15 @@ class MiningOperationCharacter
     public function getEnrolledAt(): \DateTimeImmutable
     {
         return $this->enrolledAt;
+    }
+
+    public function getShipTypeId(): ?int
+    {
+        return $this->shipTypeId;
+    }
+
+    public function recordShip(?int $shipTypeId): void
+    {
     }
 
     /**

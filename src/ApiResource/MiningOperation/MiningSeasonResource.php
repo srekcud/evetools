@@ -30,4 +30,9 @@ class MiningSeasonResource
 
     /** @var list<array{name: string, operationsCount: int, minutes: int, minedValue: ?int, hasUnknownValue: bool}> */
     public array $players = [];
+
+    /** @var list<array{shipTypeId: int, shipName: ?string, charactersCount: int, minutes: int, minedValue: ?int, iskPerHour: ?int, isBooster: bool}> */
+    public array $ships = [];
+
+    public int $unknownShipCharactersCount = 0;
 }

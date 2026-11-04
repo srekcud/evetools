@@ -18,12 +18,14 @@ final class MiningSeasonApiTest extends WebTestCase
 {
     use ClockSensitiveTrait;
     use DrivesTheE1MiningOperation;
+    use SeedsMiningBarges;
 
     private const string MISSING = '<key missing>';
     private const string SEASON_URI = '/api/mining-operations/season';
     private const string AFTER_ENDED_AT = '2026-11-05T21:31:00+00:00';
-    private const array SEASON_KEYS_SORTED = ['iskPerHour', 'knownOperationMinutes', 'knownValue', 'operationsCount', 'period', 'playedMinutes', 'players', 'unknownValueOperationsCount'];
+    private const array SEASON_KEYS_SORTED = ['iskPerHour', 'knownOperationMinutes', 'knownValue', 'operationsCount', 'period', 'playedMinutes', 'players', 'ships', 'unknownShipCharactersCount', 'unknownValueOperationsCount'];
     private const array EMPTY_SEASON = ['30d', 0, 0, null, 0, 0, null, []];
+    private const array SHIP_KEYS = ['shipTypeId', 'shipName', 'charactersCount', 'minutes', 'minedValue', 'iskPerHour', 'isBooster'];
 
     protected function setUp(): void
     {
@@ -144,6 +146,42 @@ final class MiningSeasonApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
+    #[Group('issue-364')]
+    public function testSeasonListsTheIskPerHourOfEachShipWithItsNameFromTheFrozenValuesOfItsCharactersAndCountsTheCharactersWithoutShip(): void
+    {
+        $this->seedMiningBarges();
+        $this->recordShips(['Aria Solberg' => self::HULK, 'Aria II' => self::SKIFF, 'Brann Holt' => self::HULK, 'Cyra Lune' => self::ORCA]);
+        $this->g1();
+
+        $season = $this->seasonSeenBy($this->elia);
+
+        self::assertSame(
+            [
+                'ships' => [
+                    [self::HULK, 'Hulk', 2, 153, 4_175_721, 1_637_538, false],
+                    [self::SKIFF, 'Skiff', 1, 89, 738_093, 497_591, false],
+                    [self::ORCA, 'Orca', 1, 89, null, null, true],
+                ],
+                'unknownShipCharactersCount' => 1,
+            ],
+            [
+                'ships' => $this->shipsOf($season),
+                'unknownShipCharactersCount' => array_key_exists('unknownShipCharactersCount', $season) ? $season['unknownShipCharactersCount'] : self::MISSING,
+            ],
+        );
+    }
+
+    #[Group('issue-364')]
+    public function testSeasonWithoutOperationHasNoShipAndNoCharacterWithoutShip(): void
+    {
+        $season = $this->seasonSeenBy($this->elia);
+
+        self::assertSame(
+            [[], 0],
+            [$this->shipsOf($season), array_key_exists('unknownShipCharactersCount', $season) ? $season['unknownShipCharactersCount'] : self::MISSING],
+        );
+    }
+
     private function completeSpodumain(array $startSnapshotTimes, array $minedValues): void
     {
         $this->takeStartSnapshots($startSnapshotTimes);
@@ -216,6 +254,17 @@ final class MiningSeasonApiTest extends WebTestCase
                 ['name', 'operationsCount', 'minutes', 'minedValue', 'hasUnknownValue'],
             ),
             array_key_exists('players', $season) ? $season['players'] : [],
+        );
+    }
+
+    private function shipsOf(array $season): array
+    {
+        return array_map(
+            static fn (array $ship): array => array_map(
+                static fn (string $key): mixed => array_key_exists($key, $ship) ? $ship[$key] : self::MISSING,
+                self::SHIP_KEYS,
+            ),
+            array_key_exists('ships', $season) ? $season['ships'] : [],
         );
     }
 
