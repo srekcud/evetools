@@ -15,11 +15,18 @@ use App\Exception\EsiApiException;
 use App\Repository\CharacterRepository;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\CorporationMiningSyncStateRepository;
+use App\Repository\MoonCompositionRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\MiningSite\MiningSiteUnitPrices;
+use App\Service\MoonChunk\MoonChunkValueReader;
+use App\Service\MoonChunk\MoonChunkValuer;
+use App\Service\MoonChunk\MoonChunkVolumeEstimator;
+use App\Service\OreValueService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -415,9 +422,18 @@ trait CorporationMiningExtractionHarness
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturnCallback(fn (): ?User => $this->currentUser);
 
+        $moonChunkValueReader = new MoonChunkValueReader(
+            $this->createStub(MoonCompositionRepository::class),
+            $this->createStub(InvTypeRepository::class),
+            new MiningSiteUnitPrices($this->createStub(OreValueService::class)),
+            new MoonChunkVolumeEstimator(),
+            new MoonChunkValuer(),
+        );
+
         return [
             $esiClient,
             new CharacterService($esiClient),
+            $moonChunkValueReader,
             $characterRepository,
             $extractionRepository,
             $syncStateRepository,
