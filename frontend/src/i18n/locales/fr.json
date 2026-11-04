@@ -620,7 +620,8 @@
       "marker": "{percent} % couvert",
       "noticeTitle": "Prix partiel : carnet Jita trop court",
       "noticeLine": "{type} : carnet couvert à {percent} %",
-      "tooltip": "Le carnet d'ordres de vente Jita ne couvre qu'une partie de la quantité demandée. Le prix affiché porte sur la part couverte seulement : le coût réel est probablement plus élevé."
+      "tooltip": "Le carnet d'ordres de vente Jita ne couvre qu'une partie de la quantité demandée. Le prix affiché porte sur la part couverte seulement : le coût réel est probablement plus élevé.",
+      "sellTooltip": "Le revenu est calculé sur la seule partie couverte du carnet de vente Jita, pas sur toute la quantité."
     },
     "inventionUnknown": {
       "label": "Inconnu",

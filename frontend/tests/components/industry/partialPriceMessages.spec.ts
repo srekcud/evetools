@@ -4,7 +4,7 @@ import fr from '@/i18n/locales/fr.json'
 describe('partial price messages', () => {
   it('defines the same partial price keys in English and French', () => {
     expect(Object.keys(fr.industry.partialPrice).sort()).toEqual(Object.keys(en.industry.partialPrice).sort())
-    expect(Object.keys(en.industry.partialPrice).sort()).toEqual(['marker', 'noticeLine', 'noticeTitle', 'tooltip'])
+    expect(Object.keys(en.industry.partialPrice).sort()).toEqual(['marker', 'noticeLine', 'noticeTitle', 'sellTooltip', 'tooltip'])
   })
 
   it.each([

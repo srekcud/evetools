@@ -71,8 +71,17 @@ const unknownInstallCostReasons = useUnknownInstallCostReasons(() => result.valu
 
 const partialPriceCoverages = usePartialPriceCoverages(() => result.value?.warnings ?? [])
 
-const materialTypeNames = computed((): Map<number, string> => {
-  return new Map((result.value?.materials ?? []).map(material => [material.typeId, material.typeName]))
+const noticeCoverages = computed((): Map<number, number> => {
+  const coverages = new Map(partialPriceCoverages.value)
+  const jitaSellCoveragePercent = result.value?.sellPrices.jitaSellCoveragePercent
+  if (result.value && jitaSellCoveragePercent != null) coverages.set(result.value.typeId, jitaSellCoveragePercent)
+  return coverages
+})
+
+const noticeTypeNames = computed((): Map<number, string> => {
+  const names = new Map((result.value?.materials ?? []).map(material => [material.typeId, material.typeName]))
+  if (result.value?.typeName != null) names.set(result.value.typeId, result.value.typeName)
+  return names
 })
 
 const productionCostUnknownReasons = computed((): ProductionCostUnknownReason[] => {
@@ -190,7 +199,7 @@ const sellRows = computed((): SellRow[] => {
   const bestKey = bestVenue.value?.key ?? null
   const overrideTotalCost = selectedOption.value != null ? effectiveTotalCost.value : null
 
-  function buildRow(key: SellVenue, venue: string, tag: string, unitPrice: number, origEntry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null): SellRow {
+  function buildRow(key: SellVenue, venue: string, tag: string, unitPrice: number, origEntry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null, coveragePercent: number | null = null): SellRow {
     if (overrideTotalCost != null) {
       const recomputed = venueMargin(unitPrice, r.outputQuantity, overrideTotalCost, r.brokerFeeRate, r.salesTaxRate, key)
       return {
@@ -201,6 +210,7 @@ const sellRows = computed((): SellRow[] => {
         margin: recomputed.margin,
         dailyVolume,
         contractCount,
+        coveragePercent,
         isBest: bestKey === key,
       }
     }
@@ -212,12 +222,13 @@ const sellRows = computed((): SellRow[] => {
       margin: origEntry.margin,
       dailyVolume,
       contractCount,
+      coveragePercent,
       isBest: bestKey === key,
     }
   }
 
   if (sp.jitaSell != null && m['jitaSell'] != null) {
-    rows.push(buildRow('jitaSell', 'Jita', t('industry.margins.sellTag'), sp.jitaSell, m['jitaSell']!, r.dailyVolume))
+    rows.push(buildRow('jitaSell', 'Jita', t('industry.margins.sellTag'), sp.jitaSell, m['jitaSell']!, r.dailyVolume, null, sp.jitaSellCoveragePercent))
   }
   if (sp.structureSell != null && m['structureSell'] != null) {
     rows.push(buildRow('structureSell', structureName, t('industry.margins.undercutTag'), sp.structureSell, m['structureSell']!, null))
@@ -577,7 +588,7 @@ store.fetchUserSettings()
         :best-venue-label="bestVenueLabel"
       />
 
-      <PartialPriceNotice :coverages="partialPriceCoverages" :type-names="materialTypeNames" />
+      <PartialPriceNotice :coverages="noticeCoverages" :type-names="noticeTypeNames" />
 
       <!-- SECTION C: Sell Price Comparison Table -->
       <VenueComparisonTable

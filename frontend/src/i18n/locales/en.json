@@ -620,7 +620,8 @@
       "marker": "{percent}% covered",
       "noticeTitle": "Partial price: Jita order book too shallow",
       "noticeLine": "{type}: order book covers {percent}%",
-      "tooltip": "The Jita sell order book only covers part of the requested quantity. The displayed price applies to the covered part only: the actual cost is likely higher."
+      "tooltip": "The Jita sell order book only covers part of the requested quantity. The displayed price applies to the covered part only: the actual cost is likely higher.",
+      "sellTooltip": "The revenue is computed on the covered part of the Jita sell order book only, not on the whole quantity."
     },
     "inventionUnknown": {
       "label": "Unknown",

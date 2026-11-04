@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Industry\Domain\Cost;
+use App\Industry\Domain\OrderBookCoverage;
 use App\Industry\Domain\PartialPrice;
 
 final class PartialPricePresenter
@@ -42,7 +43,12 @@ final class PartialPricePresenter
 
     private static function coveragePercentOfPartialPrice(PartialPrice $partialPrice): float
     {
-        $roundedPercent = round($partialPrice->coverage->fraction * self::PERCENT_PER_FRACTION, self::DISPLAYED_DECIMALS);
+        return self::coveragePercentOfCoverage($partialPrice->coverage);
+    }
+
+    public static function coveragePercentOfCoverage(OrderBookCoverage $coverage): float
+    {
+        $roundedPercent = round($coverage->fraction * self::PERCENT_PER_FRACTION, self::DISPLAYED_DECIMALS);
 
         return min(self::LARGEST_DISPLAYED_PERCENT, max(self::SMALLEST_DISPLAYED_PERCENT, $roundedPercent));
     }

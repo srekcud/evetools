@@ -69,9 +69,10 @@ class ProfitMarginResource
     /** @var array<string, mixed>|null */
     public ?array $invention = null;
 
-    /** @var array{jitaSell: float|null, structureSell: float|null, structureBuy: float|null, contractSell: float|null, contractCount: int|null, structureId: int, structureName: string} */
+    /** @var array{jitaSell: float|null, jitaSellCoveragePercent: float|null, structureSell: float|null, structureBuy: float|null, contractSell: float|null, contractCount: int|null, structureId: int, structureName: string} */
     public array $sellPrices = [
         'jitaSell' => null,
+        'jitaSellCoveragePercent' => null,
         'structureSell' => null,
         'structureBuy' => null,
         'contractSell' => null,

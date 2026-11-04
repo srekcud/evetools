@@ -22,6 +22,7 @@ use App\Industry\Domain\Cost;
 use App\Industry\Domain\Decryptor;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\MissingData;
+use App\Industry\Domain\OrderBookCoverage;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
@@ -269,14 +270,16 @@ class ProfitMarginService
     }
 
     /**
-     * @return array{jitaSell: ?float, structureSell: ?float, structureBuy: ?float, contractSell: ?float, contractCount: ?int, structureId: int, structureName: string}
+     * @return array{jitaSell: ?float, jitaSellCoveragePercent: ?float, structureSell: ?float, structureBuy: ?float, contractSell: ?float, contractCount: ?int, structureId: int, structureName: string}
      */
     private function sellPrices(int $typeId, int $outputQuantity, int $sellStructureId): array
     {
         $jitaSellData = $this->jitaMarketService->getWeightedSellPrice($typeId, $outputQuantity);
+        $jitaSellCoverage = $this->jitaSellCoverageOf($jitaSellData);
 
         return [
-            'jitaSell' => $jitaSellData['weightedPrice'] ?? null,
+            'jitaSell' => null === $jitaSellCoverage || null === $jitaSellData ? null : $jitaSellData['weightedPrice'],
+            'jitaSellCoveragePercent' => null !== $jitaSellCoverage && $jitaSellCoverage->isPartial() ? PartialPricePresenter::coveragePercentOfCoverage($jitaSellCoverage) : null,
             'structureSell' => $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId),
             'structureBuy' => $this->structureMarketService->getHighestBuyPrice($sellStructureId, $typeId),
             'contractSell' => $this->publicContractPriceService->getLowestUnitPrice($typeId),
@@ -284,6 +287,16 @@ class ProfitMarginService
             'structureId' => $sellStructureId,
             'structureName' => $this->resolveStructureName($sellStructureId),
         ];
+    }
+
+    /**
+     * @param array{weightedPrice: float, coverage?: float, ordersUsed: int}|null $jitaSellData
+     */
+    private function jitaSellCoverageOf(?array $jitaSellData): ?OrderBookCoverage
+    {
+        $fraction = $jitaSellData['coverage'] ?? null;
+
+        return null !== $fraction && $fraction > 0.0 ? new OrderBookCoverage($fraction) : null;
     }
 
     /**
