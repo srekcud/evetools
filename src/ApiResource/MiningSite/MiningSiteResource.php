@@ -66,6 +66,8 @@ class MiningSiteResource
 
     public ?int $solarSystemId = null;
 
+    public ?string $solarSystemName = null;
+
     public ?string $status = null;
 
     public ?\DateTimeImmutable $createdAt = null;

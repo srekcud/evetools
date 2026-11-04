@@ -75,6 +75,34 @@ final class MiningSiteApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-366')]
+    public function testSiteExposesTheNameOfItsSolarSystemOnCreationAndReadAndNullWithoutSystem(): void
+    {
+        $this->as($this->aria);
+
+        $this->request('POST', '/api/mining-sites', ['label' => 'Belt Aldranette 2', 'solarSystemId' => self::ALDRANETTE]);
+        $createdWithSystem = $this->responseJson();
+        $this->request('POST', '/api/mining-sites', ['label' => 'Anomalie Spodumain 2']);
+        $createdWithoutSystem = $this->responseJson();
+        $this->request('GET', sprintf('/api/mining-sites/%s', $this->ariaBeltId));
+        $readWithSystem = $this->responseJson();
+        $this->request('GET', sprintf('/api/mining-sites/%s', $this->ariaAnomalyId));
+        $readWithoutSystem = $this->responseJson();
+        $this->request('GET', '/api/mining-sites');
+        $listed = array_column($this->responseJson(), 'solarSystemName', 'label');
+
+        self::assertSame(
+            ['Aldranette', null, 'Aldranette', null, ['Belt Aldranette 2' => 'Aldranette', 'Belt Aldranette' => 'Aldranette']],
+            [
+                $createdWithSystem['solarSystemName'] ?? null,
+                $createdWithoutSystem['solarSystemName'] ?? null,
+                $readWithSystem['solarSystemName'] ?? null,
+                $readWithoutSystem['solarSystemName'] ?? null,
+                $listed,
+            ],
+        );
+    }
+
     public function testOwnerListsOnlyHisSitesNewestFirstWithTheHistorySummaryAndFiltersBySolarSystem(): void
     {
         $this->as($this->aria);
