@@ -55,6 +55,14 @@ describe('etaTierOf', () => {
   })
 })
 
+describe('etaTierOf on an exhausted site', () => {
+  it('stays depleted once the server has closed the site because its last type is gone', () => {
+    const closedByTheServer = scanOf(4, at('20:20:00'), [depletedType(VELDSPAR, at('20:10:00'), at('20:20:00')), depletedType(SCORDITE, at('20:10:00'), at('20:20:00'))])
+
+    expect(etaTierOf('closed', closedByTheServer, new Date(at('20:30:00')))).toBe('depleted')
+  })
+})
+
 describe('remainingVolumeRingOf', () => {
   it('divides the volume of the last scan by the volume at the first appearance of each type that is being mined', () => {
     const veldsparMinedScorditeNot = [
