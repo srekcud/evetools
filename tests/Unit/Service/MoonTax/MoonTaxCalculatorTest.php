@@ -104,7 +104,7 @@ final class MoonTaxCalculatorTest extends TestCase
             self::RATES_PERCENT,
         );
 
-        self::assertSame([null, [self::VELDSPAR, self::ZEOLITES, self::CLOUD_RUBBLE]], [$moonTax->tax, $moonTax->unknownTypeIds]);
+        self::assertSame([null, [self::VELDSPAR, self::CLOUD_RUBBLE]], [$moonTax->tax, $moonTax->unknownTypeIds]);
     }
 
     public function testZeroPercentRateGivesAZeroTaxNotAnUnknownOne(): void

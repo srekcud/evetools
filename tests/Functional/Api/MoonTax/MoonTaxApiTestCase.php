@@ -50,7 +50,14 @@ abstract class MoonTaxApiTestCase extends WebTestCase
     {
         $this->em->flush();
         $this->em->clear();
-        $this->client->loginUser($this->em->find(User::class, $user->getId()), 'api');
+        $userId = $user->getId();
+        self::ensureKernelShutdown();
+        $this->client = self::createClient();
+        $this->client->disableReboot();
+        $this->em = self::getContainer()->get(EntityManagerInterface::class);
+        $this->replaceEsi();
+        $this->replaceMoonOreJitaMarket();
+        $this->client->loginUser($this->em->find(User::class, $userId), 'api');
         $this->client->request(
             $method,
             $uri,
