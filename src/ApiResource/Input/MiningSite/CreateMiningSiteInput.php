@@ -13,5 +13,6 @@ class CreateMiningSiteInput
     public string $label = '';
 
     #[Assert\Positive]
+    #[Assert\LessThanOrEqual(2_147_483_647)]
     public ?int $solarSystemId = null;
 }

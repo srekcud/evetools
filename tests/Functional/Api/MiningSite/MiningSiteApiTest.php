@@ -189,6 +189,26 @@ final class MiningSiteApiTest extends WebTestCase
         self::assertSame([422, 422, 422, 422, 422, 422], $statuses);
     }
 
+    public function testOutOfRangeInputIsRefusedWithAValidationErrorInsteadOfAServerError(): void
+    {
+        $this->as($this->aria);
+        $scanUri = sprintf('/api/mining-sites/%s/scans', $this->ariaBeltId);
+        $tooManyLines = array_map(static fn (int $offset): array => ['typeId' => self::VELDSPAR + $offset, 'units' => 100], range(0, 100));
+        $statuses = [];
+
+        foreach ([
+            ['/api/mining-sites', ['label' => 'Belt lointaine', 'solarSystemId' => 2_147_483_648]],
+            [$scanUri, ['lines' => [['typeId' => self::VELDSPAR, 'units' => 2_147_483_648]]]],
+            [$scanUri, ['lines' => [['typeId' => 2_147_483_648, 'units' => 100]]]],
+            [$scanUri, ['lines' => $tooManyLines]],
+        ] as [$uri, $body]) {
+            $this->request('POST', $uri, $body);
+            $statuses[] = $this->client->getResponse()->getStatusCode();
+        }
+
+        self::assertSame([422, 422, 422, 422], $statuses);
+    }
+
     public function testOtherUserGetsTheSameNotFoundAsAMissingSiteOnReadScansAndClose(): void
     {
         $this->as($this->brann);

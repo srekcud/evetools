@@ -10,6 +10,7 @@ use App\Entity\MiningSiteScan;
 use App\Enum\MiningSiteStatus;
 use App\Repository\MiningSiteScanRepository;
 use App\Repository\Sde\InvTypeRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -41,10 +42,6 @@ final readonly class MiningSiteScanRecorder
      */
     public function record(MiningSite $site, array $lines): MiningSiteScan
     {
-        if ($site->getStatus() === MiningSiteStatus::Closed) {
-            throw new BadRequestHttpException(self::CLOSED_SITE_MESSAGE);
-        }
-
         return $this->entityManager->wrapInTransaction(fn (): MiningSiteScan => $this->recordInTransaction($site, $lines));
     }
 
@@ -53,6 +50,11 @@ final readonly class MiningSiteScanRecorder
      */
     private function recordInTransaction(MiningSite $site, array $lines): MiningSiteScan
     {
+        $this->entityManager->refresh($site, LockMode::PESSIMISTIC_WRITE);
+        if ($site->getStatus() === MiningSiteStatus::Closed) {
+            throw new BadRequestHttpException(self::CLOSED_SITE_MESSAGE);
+        }
+
         $previousScans = $this->scanRepository->findBySiteChronological($site);
         $unitsByTypeId = $this->unitsByTypeIdOf($lines);
         if ($unitsByTypeId === [] && $previousScans === []) {
