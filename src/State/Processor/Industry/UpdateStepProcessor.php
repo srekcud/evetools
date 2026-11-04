@@ -18,6 +18,7 @@ use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryStepCalculator;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\Service\Industry\SplitGroupMaterials;
 use App\Service\Industry\SplitGroupQuantities;
 use App\Service\UuidOrNotFound;
@@ -42,6 +43,7 @@ class UpdateStepProcessor implements ProcessorInterface
         private readonly IndustryStructureConfigRepository $structureConfigRepository,
         private readonly IndustryStepCalculator $stepCalculator,
         private readonly IndustryResourceMapper $mapper,
+        private readonly ProjectEstimatesRefresher $estimatesRefresher,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }

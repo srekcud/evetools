@@ -17,6 +17,7 @@ use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryStepCalculator;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\State\Processor\Industry\UpdateStepProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -48,6 +49,8 @@ final class UpdateStepProcessorTest extends TestCase
     private User $pilot;
     private IndustryProject $project;
     private int $flushes = 0;
+    private array $stepsAtEachRefresh = [];
+    private array $flushesAtEachRefresh = [];
 
     protected function setUp(): void
     {
@@ -579,6 +582,135 @@ final class UpdateStepProcessorTest extends TestCase
         self::assertSame([[10, 2_000], true, [4, 150]], [$this->runsAndQuantityOf($ferniteAlloy), $ferniteAlloy->isRunsFixed(), $this->runsAndQuantityOf($hydrogenFuelBlock)]);
     }
 
+    #[Group('issue-179')]
+    public function testPurchaseMarkEnteredOnAMaterialStepRefreshesTheEstimationsOnceBeforeTheFlush(): void
+    {
+        [, , $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $purchaseMarkEntered = new UpdateStepInput();
+        $purchaseMarkEntered->purchased = true;
+
+        $this->patch($hydrogenFuelBlock, $purchaseMarkEntered, $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[[[20, 200_000], [10, 2_000], [4, 150]]], [0], 1], [$this->stepsAtEachRefresh, $this->flushesAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testStockEnteredOnAMaterialStepRefreshesTheEstimationsOnceBeforeTheFlush(): void
+    {
+        [, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $stockEntered = new UpdateStepInput();
+        $stockEntered->inStockQuantity = 1_500;
+
+        $this->patch($ferniteAlloy, $stockEntered, $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[[[20, 200_000], [10, 2_000], [4, 150]]], [0], 1], [$this->stepsAtEachRefresh, $this->flushesAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testRunsEnteredOnARootStepRefreshTheEstimationsOnceAfterTheCascadeAndBeforeTheFlush(): void
+    {
+        $ferniteCarbide = $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 2, quantity: 20_000, depth: 0, meLevel: 0);
+        $this->stepOfTheProject(self::HYDROGEN_FUEL_BLOCK, self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'manufacturing', runs: 1, quantity: 10, depth: 1, meLevel: 0);
+
+        $this->patch($ferniteCarbide, $this->runsEntered(3), $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[[[3, 30_000], [1, 15]]], [0], 1], [$this->stepsAtEachRefresh, $this->flushesAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testMeLevelChangedOnARootStepRefreshesTheEstimationsOnceAfterTheCascade(): void
+    {
+        [$quantumMicroprocessor] = $this->quantumMicroprocessorProjectInAStation();
+
+        $this->patch($quantumMicroprocessor, $this->meLevelEntered(8), $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[[[32, 32], [1, 501]]], [0]], [$this->stepsAtEachRefresh, $this->flushesAtEachRefresh]);
+    }
+
+    #[Group('issue-179')]
+    public function testStructureChangedOnARootStepRefreshesTheEstimationsOnceAfterTheCascade(): void
+    {
+        [$quantumMicroprocessor] = $this->quantumMicroprocessorProjectInAStation();
+        $raitaruOfThePilot = $this->structureConfig('Raitaru of the pilot', 'raitaru', $this->pilot);
+
+        $this->patch($quantumMicroprocessor, $this->structureEntered($raitaruOfThePilot->getId()->toRfc4122()), $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class), $this->structureConfigRepositoryWith($quantumMicroprocessor->getStructureConfig(), $raitaruOfThePilot));
+
+        self::assertSame([[[[32, 32], [1, 485]]], [0]], [$this->stepsAtEachRefresh, $this->flushesAtEachRefresh]);
+    }
+
+    #[Group('issue-179')]
+    public function testReleasingTheFixedRunsOfAJobRefreshesTheEstimationsOnceAfterTheCascade(): void
+    {
+        $this->stepOfTheProject(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET, 'reaction', runs: 1, quantity: 10_000, depth: 0, meLevel: 0);
+        $this->jobOfTheFerniteAlloyGroup(0, runs: 3, totalGroupRuns: 5);
+        $fixedAlloyJob = $this->jobOfTheFerniteAlloyGroup(1, runs: 2, totalGroupRuns: 5)->setRunsFixed(true);
+        $runsReleased = new UpdateStepInput();
+        $runsReleased->runsFixed = false;
+
+        $this->patch($fixedAlloyJob, $runsReleased, $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[[[1, 10_000], [1, 100]]], [0]], [$this->stepsAtEachRefresh, $this->flushesAtEachRefresh]);
+    }
+
+    #[Group('issue-179')]
+    public function testTeLevelEnteredAloneDoesNotRefreshTheEstimations(): void
+    {
+        [, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $teLevelEntered = new UpdateStepInput();
+        $teLevelEntered->teLevel = 10;
+
+        $this->patch($ferniteAlloy, $teLevelEntered, $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[], 1], [$this->stepsAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testJobMatchModeEnteredAloneDoesNotRefreshTheEstimations(): void
+    {
+        [, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $jobMatchModeEntered = new UpdateStepInput();
+        $jobMatchModeEntered->jobMatchMode = 'manual';
+
+        $this->patch($ferniteAlloy, $jobMatchModeEntered, $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame(['manual', [], 1], [$ferniteAlloy->getJobMatchMode(), $this->stepsAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testMeLevelEnteredAsItIsDoesNotRefreshTheEstimations(): void
+    {
+        [$quantumMicroprocessor] = $this->quantumMicroprocessorProjectInAStation();
+
+        $this->patch($quantumMicroprocessor, $this->meLevelEntered(10), $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[], 1], [$this->stepsAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testPatchWithoutAnyFieldDoesNotRefreshTheEstimations(): void
+    {
+        [, $ferniteAlloy] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+
+        $this->patch($ferniteAlloy, new UpdateStepInput(), $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+
+        self::assertSame([[], 1], [$this->stepsAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testPurchaseMarkOfARootStepIsRefusedWithoutRefreshingTheEstimations(): void
+    {
+        [$ferniteCarbide] = $this->ferniteCarbideProjectOfTwentyRuns(ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
+        $purchaseMarkEntered = new UpdateStepInput();
+        $purchaseMarkEntered->purchased = true;
+
+        try {
+            $this->patch($ferniteCarbide, $purchaseMarkEntered, $this->entityManagerCountingTheFlushes(), $this->createStub(EntityManagerInterface::class));
+            self::fail('A root step must not be marked as purchased.');
+        } catch (BadRequestHttpException) {
+            self::assertSame([[], 0], [$this->stepsAtEachRefresh, $this->flushes]);
+        }
+    }
+
     public function testStepOfAProjectOfAnotherPilotIsRefusedAsProjectNotFound(): void
     {
         [$quantumMicroprocessor] = $this->quantumMicroprocessorProjectInAStation();
@@ -634,6 +766,7 @@ final class UpdateStepProcessorTest extends TestCase
             $this->createStub(IndustryStructureConfigRepository::class),
             $this->createStub(IndustryStepCalculator::class),
             $this->createStub(IndustryResourceMapper::class),
+            $this->createStub(ProjectEstimatesRefresher::class),
             $this->createStub(EntityManagerInterface::class),
         );
 
@@ -776,8 +909,23 @@ final class UpdateStepProcessorTest extends TestCase
             $structureConfigRepository,
             $this->stepCalculatorOnGoldenSde($productRepository, $structureConfigRepository, $calculatorEntityManager ?? $entityManager),
             $mapper,
+            $this->refresherRecordingTheStepsAndTheFlushes(),
             $entityManager,
         );
         return $processor->process($input, new Patch(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+    }
+
+    private function refresherRecordingTheStepsAndTheFlushes(): ProjectEstimatesRefresher
+    {
+        $refresher = $this->createStub(ProjectEstimatesRefresher::class);
+        $refresher->method('refresh')->willReturnCallback(function (IndustryProject $project): void {
+            $this->stepsAtEachRefresh[] = array_map(
+                static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity()],
+                $project->getSteps()->getValues(),
+            );
+            $this->flushesAtEachRefresh[] = $this->flushes;
+        });
+
+        return $refresher;
     }
 }

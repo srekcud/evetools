@@ -406,6 +406,7 @@ final class CreateStepProcessorAddedJobTest extends TestCase
             $structureConfigRepository,
             $this->stepCalculatorOnGoldenSde($productRepository, $structureConfigRepository, $entityManager),
             $this->mapper(),
+            $this->createStub(ProjectEstimatesRefresher::class),
             $entityManager,
         );
     }

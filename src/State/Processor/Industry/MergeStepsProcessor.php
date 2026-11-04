@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\Service\Industry\SplitGroupMaterialNeeds;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
@@ -31,6 +32,7 @@ class MergeStepsProcessor implements ProcessorInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly IndustryResourceMapper $mapper,
+        private readonly ProjectEstimatesRefresher $estimatesRefresher,
         private readonly EntityManagerInterface $entityManager,
         private readonly SplitGroupMaterialNeeds $splitGroupMaterialNeeds,
     ) {

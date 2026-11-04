@@ -67,3 +67,12 @@ Taux : réglages utilisateur courtage 1 %, taxe de vente 2 % (sans réglages, le
 2. Source `mixed` pour un prix de vente multi-produits issu de deux marchés (R4), avec libellé front (R5).
 3. Recalcul limité à création, régénération des étapes, ajout et suppression d'étape (R3) ; les autres mutations d'étape sont notées hors périmètre.
 4. Pas de note de câblage `architect` : le câblage est dans la présente spec (fichiers : `CreateProjectProcessor`, `UpdateProjectProcessor`, `CreateStepProcessor`, `DeleteStepProcessor`, `EstimatedSellPriceEstimator`, nouveau `ProjectEstimatesRefresher`, `ProjectDetail.vue`, `en.json`, `fr.json`).
+
+## Lot 2 : recalcul sur les autres mutations d'étape (décision de Sylvain, 2026-11-04)
+
+Sylvain a tranché la décision ouverte du « Hors périmètre » : les estimations suivent **toute mutation d'étape**. Le recalcul reste `ProjectEstimatesRefresher::refresh` (R1, R2), appelé avant le `flush` final de chaque opération.
+
+- **R7 : `UpdateStepProcessor`.** `refresh` quand le PATCH change ce qui entre dans les coûts : `purchased`, `inStockQuantity`, ME, structure, runs, ou libération des runs fixés (tout cas où le processeur recalcule les quantités), jamais pour un PATCH de TE, de `jobMatchMode` seul ni sans champ modifié.
+- **R8 : `SplitStepProcessor` et `MergeStepsProcessor`.** `refresh` après chaque découpage et chaque fusion réussis.
+- **R9 : inchangé.** Les achats saisis (`CreatePurchaseProcessor`, `DeletePurchaseProcessor`) n'entrent pas dans `getShoppingList()` (seul `getPurchasedQuantities()`, affichage de la liste d'achats les lit) : aucun recalcul. Liaison de jobs, synchronisation ESI : hors lot. Aucune migration ni commande.
+- **Exemples** : PATCH `purchased: true` d'une étape → `refresh` appelé une fois ; PATCH `runs` → une fois ; PATCH `teLevel` seul → jamais ; découpage → une fois ; fusion → une fois ; refus (404, 400) → jamais.

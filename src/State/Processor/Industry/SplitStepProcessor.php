@@ -14,6 +14,7 @@ use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\Service\Industry\SplitGroupMaterialNeeds;
 use App\Service\Industry\SplitGroupMaterials;
 use App\Service\Industry\SplitGroupQuantities;
@@ -37,6 +38,7 @@ class SplitStepProcessor implements ProcessorInterface
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryResourceMapper $mapper,
+        private readonly ProjectEstimatesRefresher $estimatesRefresher,
         private readonly EntityManagerInterface $entityManager,
         private readonly SplitGroupMaterialNeeds $splitGroupMaterialNeeds,
     ) {

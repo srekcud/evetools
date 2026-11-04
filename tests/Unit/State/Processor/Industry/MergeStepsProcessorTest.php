@@ -13,6 +13,7 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\Service\Industry\SplitGroupMaterialNeeds;
 use App\Service\Industry\SplitGroupQuantities;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -24,6 +25,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
 
@@ -39,6 +41,10 @@ final class MergeStepsProcessorTest extends TestCase
     private const int FERNITE_ALLOY_FORMULA = 17960;
     private const int FERNITE_ALLOY_OUTPUT_PER_RUN = 100;
     private const int REACTION_ACTIVITY_ID = 11;
+
+    private int $flushes = 0;
+    private array $stepsAtEachRefresh = [];
+    private array $flushesAtEachRefresh = [];
 
     #[Group('issue-112')]
     public function testMergingAManuallySplitGroupGivesBackTheRunsAndTheNeedOfTheStep(): void
@@ -79,9 +85,9 @@ final class MergeStepsProcessorTest extends TestCase
         $splitInput = new SplitStepInput();
         $splitInput->numberOfJobs = 3;
 
-        (new SplitStepProcessor($security, $projectRepository, $stepRepository, $activityProductRepository, $mapper, $entityManager, $this->splitGroupMaterialNeedsOnRecipes()))
+        (new SplitStepProcessor($security, $projectRepository, $stepRepository, $activityProductRepository, $mapper, $this->createStub(ProjectEstimatesRefresher::class), $entityManager, $this->splitGroupMaterialNeedsOnRecipes()))
             ->process($splitInput, new Post(), $uriVariables);
-        (new MergeStepsProcessor($security, $projectRepository, $stepRepository, $mapper, $entityManager, $this->splitGroupMaterialNeedsOnRecipes()))
+        (new MergeStepsProcessor($security, $projectRepository, $stepRepository, $mapper, $this->createStub(ProjectEstimatesRefresher::class), $entityManager, $this->splitGroupMaterialNeedsOnRecipes()))
             ->process(null, new Post(), $uriVariables);
 
         self::assertSame(
@@ -129,6 +135,68 @@ final class MergeStepsProcessorTest extends TestCase
         );
     }
 
+    #[Group('issue-179')]
+    public function testMergeRefreshesTheEstimationsOnceWithTheMergedJobAndBeforeTheFlush(): void
+    {
+        $project = (new IndustryProject())->setUser(new User());
+        $firstJob = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 2, quantity: 2, splitGroupId: 'scorpion', splitIndex: 0, totalGroupRuns: 5);
+        $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 3, quantity: 3, splitGroupId: 'scorpion', splitIndex: 1, totalGroupRuns: 5);
+
+        $this->merge($project, $firstJob, $this->entityManagerCountingTheFlushes());
+
+        self::assertSame([[[[5, 5]]], [0], 1], [$this->stepsAtEachRefresh, $this->flushesAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testMergeOfAStepThatIsNotSplitIsRefusedWithoutRefreshingTheEstimations(): void
+    {
+        $project = (new IndustryProject())->setUser(new User());
+        $step = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 5, quantity: 5);
+
+        try {
+            $this->merge($project, $step, $this->entityManagerCountingTheFlushes());
+            self::fail('A step that is not split must not be merged.');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame(['Step is not part of a split group', [], 0], [$refusal->getMessage(), $this->stepsAtEachRefresh, $this->flushes]);
+        }
+    }
+
+    #[Group('issue-179')]
+    public function testMergeOfASplitGroupWithoutSiblingIsRefusedWithoutRefreshingTheEstimations(): void
+    {
+        $project = (new IndustryProject())->setUser(new User());
+        $onlyJob = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 5, quantity: 5, splitGroupId: 'scorpion', splitIndex: 0, totalGroupRuns: 5);
+
+        try {
+            $this->merge($project, $onlyJob, $this->entityManagerCountingTheFlushes());
+            self::fail('A split group without sibling must not be merged.');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame(['No siblings to merge', [], 0], [$refusal->getMessage(), $this->stepsAtEachRefresh, $this->flushes]);
+        }
+    }
+
+    #[Group('issue-179')]
+    public function testMergeOfAStepOfAProjectOfAnotherPilotIsRefusedWithoutRefreshingTheEstimations(): void
+    {
+        $project = (new IndustryProject())->setUser(new User());
+        $firstJob = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 2, quantity: 2, splitGroupId: 'scorpion', splitIndex: 0, totalGroupRuns: 5);
+        $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 3, quantity: 3, splitGroupId: 'scorpion', splitIndex: 1, totalGroupRuns: 5);
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn(new User());
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('find')->willReturn($project);
+        $stepRepository = $this->createStub(IndustryProjectStepRepository::class);
+        $stepRepository->method('find')->willReturn($firstJob);
+        $processor = new MergeStepsProcessor($security, $projectRepository, $stepRepository, $this->createStub(IndustryResourceMapper::class), $this->refresherRecordingTheStepsAndTheFlushes(), $this->entityManagerCountingTheFlushes(), $this->splitGroupMaterialNeedsOnRecipes());
+
+        try {
+            $processor->process(null, new Post(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
+            self::fail('A step of a project of another pilot must not be merged.');
+        } catch (NotFoundHttpException $refusal) {
+            self::assertSame(['Project not found', [], 0], [$refusal->getMessage(), $this->stepsAtEachRefresh, $this->flushes]);
+        }
+    }
+
     private function stepOf(IndustryProject $project, int $productTypeId, string $activityType, int $runs, int $quantity, ?string $splitGroupId = null, int $splitIndex = 0, ?int $totalGroupRuns = null): IndustryProjectStep
     {
         $step = (new IndustryProjectStep())
@@ -163,6 +231,7 @@ final class MergeStepsProcessorTest extends TestCase
             $projectRepository,
             $stepRepository,
             $this->createStub(IndustryResourceMapper::class),
+            $this->createStub(ProjectEstimatesRefresher::class),
             $this->createStub(EntityManagerInterface::class),
             $this->splitGroupMaterialNeedsOnRecipes(),
         );
@@ -173,7 +242,7 @@ final class MergeStepsProcessorTest extends TestCase
         $processor->process(null, new Post(), ['id' => '0192f0c4-7b1e-7a3c-9d2e-200000000001', 'stepId' => 'split-2']);
     }
 
-    private function merge(IndustryProject $project, IndustryProjectStep $jobOfTheSplitGroup): void
+    private function merge(IndustryProject $project, IndustryProjectStep $jobOfTheSplitGroup, ?EntityManagerInterface $entityManager = null): void
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($project->getUser());
@@ -184,7 +253,7 @@ final class MergeStepsProcessorTest extends TestCase
         $mapper = $this->createStub(IndustryResourceMapper::class);
         $mapper->method('stepToResource')->willReturn(new ProjectStepResource());
 
-        (new MergeStepsProcessor($security, $projectRepository, $stepRepository, $mapper, $this->createStub(EntityManagerInterface::class), $this->splitGroupMaterialNeedsOnRecipes()))
+        (new MergeStepsProcessor($security, $projectRepository, $stepRepository, $mapper, $this->refresherRecordingTheStepsAndTheFlushes(), $entityManager ?? $this->createStub(EntityManagerInterface::class), $this->splitGroupMaterialNeedsOnRecipes()))
             ->process(null, new Post(), ['id' => Uuid::v4()->toRfc4122(), 'stepId' => Uuid::v4()->toRfc4122()]);
     }
 
@@ -197,5 +266,29 @@ final class MergeStepsProcessorTest extends TestCase
             static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity(), $step->getSplitIndex(), $step->getTotalGroupRuns()],
             $steps,
         );
+    }
+
+    private function refresherRecordingTheStepsAndTheFlushes(): ProjectEstimatesRefresher
+    {
+        $refresher = $this->createStub(ProjectEstimatesRefresher::class);
+        $refresher->method('refresh')->willReturnCallback(function (IndustryProject $project): void {
+            $this->stepsAtEachRefresh[] = array_map(
+                static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity()],
+                $project->getSteps()->getValues(),
+            );
+            $this->flushesAtEachRefresh[] = $this->flushes;
+        });
+
+        return $refresher;
+    }
+
+    private function entityManagerCountingTheFlushes(): EntityManagerInterface
+    {
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('flush')->willReturnCallback(function (): void {
+            ++$this->flushes;
+        });
+
+        return $entityManager;
     }
 }

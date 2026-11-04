@@ -15,6 +15,7 @@ use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\Service\Industry\SplitGroupMaterialNeeds;
 use App\Service\Industry\SplitGroupQuantities;
 use App\State\Processor\Industry\SplitStepProcessor;
@@ -53,6 +54,9 @@ final class SplitStepProcessorTest extends TestCase
 
     private User $user;
     private IndustryProject $project;
+    private int $flushes = 0;
+    private array $stepsAtEachRefresh = [];
+    private array $flushesAtEachRefresh = [];
 
     protected function setUp(): void
     {
@@ -357,6 +361,56 @@ final class SplitStepProcessorTest extends TestCase
         $this->splitAt(['id' => '0192f0c4-7b1e-7a3c-9d2e-200000000001', 'stepId' => 'def'], $projectRepository, $stepRepository);
     }
 
+    #[Group('issue-179')]
+    public function testManualSplitRefreshesTheEstimationsOnceWithTheNewJobsAndBeforeTheFlush(): void
+    {
+        $step = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', runs: 5, quantity: 190);
+
+        $this->split($step, numberOfJobs: 2, entityManager: $this->entityManagerCountingTheFlushes());
+
+        self::assertSame([[[[3, 120], [2, 70]]], [0], 1], [$this->stepsAtEachRefresh, $this->flushesAtEachRefresh, $this->flushes]);
+    }
+
+    #[Group('issue-179')]
+    public function testManualSplitIntoMoreJobsThanRunsIsRefusedWithoutRefreshingTheEstimations(): void
+    {
+        $step = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', runs: 3, quantity: 110);
+
+        try {
+            $this->split($step, numberOfJobs: 4, entityManager: $this->entityManagerCountingTheFlushes());
+            self::fail('A step must not be split into more jobs than runs.');
+        } catch (BadRequestHttpException) {
+            self::assertSame([[], 0], [$this->stepsAtEachRefresh, $this->flushes]);
+        }
+    }
+
+    #[Group('issue-179')]
+    public function testManualSplitOfAStepWhoseProductIsMissingFromTheSdeIsRefusedWithoutRefreshingTheEstimations(): void
+    {
+        $step = $this->stepOfTheProject(self::NITROGEN_FUEL_BLOCK, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_MISSING_FROM_THE_SDE, 'manufacturing', runs: 6, quantity: 230);
+
+        try {
+            $this->split($step, numberOfJobs: 2, entityManager: $this->entityManagerCountingTheFlushes());
+            self::fail('A step whose product is missing from the SDE must not be split.');
+        } catch (BadRequestHttpException) {
+            self::assertSame([], $this->stepsAtEachRefresh);
+        }
+    }
+
+    #[Group('issue-179')]
+    public function testManualSplitOfAStepOfAProjectOfAnotherPilotIsRefusedWithoutRefreshingTheEstimations(): void
+    {
+        $step = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', runs: 4, quantity: 150);
+        $this->project->setUser(new User());
+
+        try {
+            $this->split($step, numberOfJobs: 2, entityManager: $this->entityManagerCountingTheFlushes());
+            self::fail('A step of a project of another pilot must not be split.');
+        } catch (NotFoundHttpException) {
+            self::assertSame([], $this->stepsAtEachRefresh);
+        }
+    }
+
     private function stepOfTheProject(int $productTypeId, int $blueprintTypeId, string $activityType, int $runs, int $quantity): IndustryProjectStep
     {
         $step = (new IndustryProjectStep())
@@ -399,6 +453,7 @@ final class SplitStepProcessorTest extends TestCase
             $stepRepository,
             $this->activityProductRepositoryOfTheSde(),
             $mapper,
+            $this->refresherRecordingTheStepsAndTheFlushes(),
             $entityManager ?? $this->createStub(EntityManagerInterface::class),
             $splitGroupMaterialNeeds ?? $this->splitGroupMaterialNeedsOnRecipes(),
         );
@@ -418,6 +473,7 @@ final class SplitStepProcessorTest extends TestCase
             $stepRepository,
             $this->activityProductRepositoryOfTheSde(),
             $this->createStub(IndustryResourceMapper::class),
+            $this->refresherRecordingTheStepsAndTheFlushes(),
             $this->createStub(EntityManagerInterface::class),
             $this->splitGroupMaterialNeedsOnRecipes(),
         );
@@ -469,5 +525,29 @@ final class SplitStepProcessorTest extends TestCase
             static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity(), $step->getSplitIndex(), $step->getTotalGroupRuns()],
             $steps,
         );
+    }
+
+    private function refresherRecordingTheStepsAndTheFlushes(): ProjectEstimatesRefresher
+    {
+        $refresher = $this->createStub(ProjectEstimatesRefresher::class);
+        $refresher->method('refresh')->willReturnCallback(function (IndustryProject $project): void {
+            $this->stepsAtEachRefresh[] = array_map(
+                static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity()],
+                $project->getSteps()->getValues(),
+            );
+            $this->flushesAtEachRefresh[] = $this->flushes;
+        });
+
+        return $refresher;
+    }
+
+    private function entityManagerCountingTheFlushes(): EntityManagerInterface
+    {
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('flush')->willReturnCallback(function (): void {
+            ++$this->flushes;
+        });
+
+        return $entityManager;
     }
 }
