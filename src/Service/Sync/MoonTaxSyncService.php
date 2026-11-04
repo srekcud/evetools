@@ -23,6 +23,7 @@ class MoonTaxSyncService
     public const string SYNC_TYPE = 'moon-tax';
 
     private const int LOCK_TTL_SECONDS = 900;
+    private const string UNEXPECTED_FAILURE_MESSAGE = 'The moon tax sync failed';
 
     public function __construct(
         private readonly CharacterRepository $characterRepository,
@@ -79,8 +80,9 @@ class MoonTaxSyncService
                 $this->statementCloser->close($corporationId);
             }
         } catch (\Throwable $exception) {
+            $this->logger->error('Moon tax sync failed', ['corporation_id' => $corporationId, 'error' => $exception->getMessage()]);
             foreach ($userIds as $userId) {
-                $this->mercurePublisher->syncError($userId, self::SYNC_TYPE, $exception->getMessage());
+                $this->mercurePublisher->syncError($userId, self::SYNC_TYPE, self::UNEXPECTED_FAILURE_MESSAGE);
             }
 
             throw $exception;

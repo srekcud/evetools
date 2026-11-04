@@ -12,7 +12,7 @@ final readonly class MoonTaxStatementCsvEncoder implements EncoderInterface
 {
     private const string FORMAT = 'csv';
     private const string LINE_BREAK = "\r\n";
-    private const string FORMULA_PREFIXES = '=+-@';
+    private const string FORMULA_PREFIXES = "=+-@\t\r";
 
     /**
      * @param array<string, mixed> $context
