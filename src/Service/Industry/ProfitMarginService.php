@@ -235,6 +235,8 @@ class ProfitMarginService
                 'te' => $optionInvention->outcome->timeEfficiency->value,
                 'runs' => $optionInvention->outcome->runs->value,
                 'probability' => $optionInvention->chance?->value,
+                'materialCost' => self::amountOf($optionCost->materialCost),
+                'jobInstallCost' => self::amountOf($optionCost->installCost),
                 'inventionCost' => self::amountOf($optionInvention->total),
                 'totalProductionCost' => self::amountOf($optionCost->totalCost),
                 'bestMargin' => self::bestMarginOf($marginsOf($optionCost->totalCost)),

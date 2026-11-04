@@ -117,6 +117,18 @@ const effectiveCostPerUnit = computed((): number | null => {
   return effectiveTotalCost.value / outputQty
 })
 
+const effectiveMaterialCost = computed((): number | null => {
+  if (selectedOption.value != null) return selectedOption.value.materialCost
+  if (!result.value) return 0
+  return result.value.materialCost
+})
+
+const effectiveJobInstallCost = computed((): number | null => {
+  if (selectedOption.value != null) return selectedOption.value.jobInstallCost
+  if (!result.value) return 0
+  return result.value.jobInstallCost
+})
+
 const effectiveInventionCost = computed((): number | null => {
   if (selectedOption.value != null && result.value != null) {
     // inventionCost from the option includes datacores + decryptor + install, amortized
@@ -272,14 +284,14 @@ const hiddenMaterialsTotal = computed((): number | null => {
 // Cost breakdown percentages (use effective values for invention); null when the total cost is unknown
 const materialPercent = computed((): number | null => {
   if (!result.value || effectiveTotalCost.value === 0) return 0
-  if (effectiveTotalCost.value == null || result.value.materialCost == null) return null
-  return (result.value.materialCost / effectiveTotalCost.value) * 100
+  if (effectiveTotalCost.value == null || effectiveMaterialCost.value == null) return null
+  return (effectiveMaterialCost.value / effectiveTotalCost.value) * 100
 })
 
 const jobInstallPercent = computed((): number | null => {
   if (!result.value || effectiveTotalCost.value === 0) return 0
-  if (effectiveTotalCost.value == null || result.value.jobInstallCost == null) return null
-  return (result.value.jobInstallCost / effectiveTotalCost.value) * 100
+  if (effectiveTotalCost.value == null || effectiveJobInstallCost.value == null) return null
+  return (effectiveJobInstallCost.value / effectiveTotalCost.value) * 100
 })
 
 const inventionPercent = computed((): number | null => {
@@ -357,12 +369,12 @@ function clearProduct() {
 async function analyzeType(typeId: number): Promise<ProfitMarginResult | null> {
   // Reset local decryptor override before re-fetching
   selectedOption.value = null
-  selectedDecryptorTypeId.value = undefined
   return store.analyzeMargin(typeId, {
     runs: runs.value,
     me: meLevel.value,
     te: teLevel.value,
     solarSystemId: selectedSolarSystemId.value ?? undefined,
+    decryptorTypeId: selectedDecryptorTypeId.value,
   })
 }
 
@@ -819,12 +831,12 @@ store.fetchUserSettings()
           <div class="grid grid-cols-4 gap-6 text-center mb-4">
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.materials') }}</div>
-              <div class="font-mono text-slate-200 text-lg">{{ formatCost(result.materialCost) }}</div>
+              <div class="font-mono text-slate-200 text-lg">{{ formatCost(effectiveMaterialCost) }}</div>
               <div class="text-xs text-slate-500 font-mono">{{ formatPercent(materialPercent) }}</div>
             </div>
             <div>
               <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">{{ t('industry.costEstimation.jobInstall') }}</div>
-              <div class="font-mono text-slate-200 text-lg">{{ formatCost(result.jobInstallCost) }}</div>
+              <div class="font-mono text-slate-200 text-lg">{{ formatCost(effectiveJobInstallCost) }}</div>
               <div class="text-xs text-slate-500 font-mono">{{ formatPercent(jobInstallPercent) }}</div>
             </div>
             <div v-if="result.isT2">
@@ -841,8 +853,8 @@ store.fetchUserSettings()
 
           <!-- Breakdown bar (only meaningful when the total cost is known) -->
           <div v-if="materialPercent != null && jobInstallPercent != null && inventionPercent != null" class="h-3 rounded-full overflow-hidden flex bg-slate-800">
-            <div class="bg-blue-500/60" :style="{ width: materialPercent + '%' }" :title="`Materials: ${formatIsk(result.materialCost)} (${materialPercent.toFixed(1)}%)`"></div>
-            <div class="bg-amber-500/60" :style="{ width: jobInstallPercent + '%' }" :title="`Job Install: ${formatCost(result.jobInstallCost)} (${jobInstallPercent.toFixed(1)}%)`"></div>
+            <div class="bg-blue-500/60" :style="{ width: materialPercent + '%' }" :title="`Materials: ${formatCost(effectiveMaterialCost)} (${materialPercent.toFixed(1)}%)`"></div>
+            <div class="bg-amber-500/60" :style="{ width: jobInstallPercent + '%' }" :title="`Job Install: ${formatCost(effectiveJobInstallCost)} (${jobInstallPercent.toFixed(1)}%)`"></div>
             <div v-if="result.isT2" class="bg-purple-500/60" :style="{ width: inventionPercent + '%' }" :title="`Invention: ${formatCost(effectiveInventionCost)} (${inventionPercent.toFixed(1)}%)`"></div>
           </div>
           <div class="flex items-center gap-4 mt-2 text-xs">
