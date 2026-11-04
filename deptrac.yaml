@@ -223,5 +223,11 @@ deptrac:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\UpdateMiningPaymentProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningSite\CloseMiningSiteProcessor:
+      - App\State\Provider\MiningSite\MiningSiteResourceMapper
+    App\State\Processor\MiningSite\CreateMiningSiteProcessor:
+      - App\State\Provider\MiningSite\MiningSiteResourceMapper
+    App\State\Processor\MiningSite\RecordMiningSiteScanProcessor:
+      - App\State\Provider\MiningSite\MiningSiteResourceMapper
     App\State\Processor\Notification\MarkReadProcessor:
       - App\State\Provider\Notification\NotificationResourceMapper

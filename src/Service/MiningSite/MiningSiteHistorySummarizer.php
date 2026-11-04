@@ -8,8 +8,17 @@ use App\Entity\MiningSiteScan;
 
 final class MiningSiteHistorySummarizer
 {
+    private const float SECONDS_PER_MINUTE = 60.0;
+
     public function summarize(MiningSiteScan $first, MiningSiteScan $last): MiningSiteHistorySummary
     {
-        return new MiningSiteHistorySummary(0, null, null, null);
+        $observedSeconds = $last->getScannedAt()->getTimestamp() - $first->getScannedAt()->getTimestamp();
+
+        return new MiningSiteHistorySummary(
+            $observedSeconds,
+            $first->getTotalVolumeM3(),
+            $first->getRemainingValue(),
+            $observedSeconds === 0 ? null : ($first->getTotalUnits() - $last->getTotalUnits()) * self::SECONDS_PER_MINUTE / $observedSeconds,
+        );
     }
 }

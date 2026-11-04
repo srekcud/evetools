@@ -46,7 +46,6 @@ use App\State\Provider\MiningSite\MiningSiteItemProvider;
             uriVariables: [
                 'id' => new Link(fromClass: self::class),
             ],
-            provider: MiningSiteItemProvider::class,
             processor: CloseMiningSiteProcessor::class,
             input: EmptyInput::class,
             status: 200,

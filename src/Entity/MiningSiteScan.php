@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Repository\MiningSiteScanRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: MiningSiteScanRepository::class)]
 #[ORM\Table(name: 'mining_site_scans')]
 #[ORM\UniqueConstraint(columns: ['site_id', 'scanned_at'])]
 class MiningSiteScan

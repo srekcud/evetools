@@ -7,14 +7,31 @@ namespace App\State\Provider\MiningSite;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningSite\MiningSiteScanResource;
+use App\Repository\MiningSiteRepository;
+use App\Repository\MiningSiteScanRepository;
+use App\Service\MiningOperation\MiningOperationRequest;
+use App\Service\MiningSite\MiningSiteRequest;
+use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * @implements ProviderInterface<MiningSiteScanResource>
  */
 final readonly class MiningSiteScanItemProvider implements ProviderInterface
 {
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): ?MiningSiteScanResource
+    public function __construct(
+        private Security $security,
+        private MiningSiteRepository $siteRepository,
+        private MiningSiteScanRepository $scanRepository,
+        private MiningSiteResourceMapper $mapper,
+    ) {
+    }
+
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): MiningSiteScanResource
     {
-        return null;
+        $user = MiningOperationRequest::userOf($this->security);
+
+        $site = MiningSiteRequest::siteOf($this->siteRepository, $user, $uriVariables['siteId']);
+
+        return $this->mapper->scanToResource(MiningSiteRequest::scanOf($this->scanRepository, $site, $uriVariables['id']));
     }
 }

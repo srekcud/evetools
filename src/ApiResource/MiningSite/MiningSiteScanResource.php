@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\MiningSite\RecordMiningSiteScanInput;
@@ -21,17 +22,27 @@ use App\State\Provider\MiningSite\MiningSiteScanItemProvider;
     operations: [
         new Post(
             uriTemplate: '/mining-sites/{siteId}/scans',
+            uriVariables: [
+                'siteId' => new Link(fromClass: MiningSiteResource::class),
+            ],
             processor: RecordMiningSiteScanProcessor::class,
             input: RecordMiningSiteScanInput::class,
             openapi: new Model\Operation(summary: 'Record a scan of a mining site', tags: ['Mining Sites']),
         ),
         new GetCollection(
             uriTemplate: '/mining-sites/{siteId}/scans',
+            uriVariables: [
+                'siteId' => new Link(fromClass: MiningSiteResource::class),
+            ],
             provider: MiningSiteScanCollectionProvider::class,
             openapi: new Model\Operation(summary: 'List the scans of a mining site', tags: ['Mining Sites']),
         ),
         new Get(
             uriTemplate: '/mining-sites/{siteId}/scans/{id}',
+            uriVariables: [
+                'siteId' => new Link(fromClass: MiningSiteResource::class),
+                'id' => new Link(fromClass: self::class),
+            ],
             provider: MiningSiteScanItemProvider::class,
             openapi: new Model\Operation(summary: 'Get a scan of a mining site', tags: ['Mining Sites']),
         ),
@@ -43,6 +54,9 @@ class MiningSiteScanResource
 {
     #[ApiProperty(identifier: true)]
     public ?string $id = null;
+
+    #[ApiProperty(readable: false, writable: false)]
+    public ?MiningSiteResource $site = null;
 
     public ?\DateTimeImmutable $scannedAt = null;
 

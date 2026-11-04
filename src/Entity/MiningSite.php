@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\MiningSiteStatus;
+use App\Repository\MiningSiteRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: MiningSiteRepository::class)]
 #[ORM\Table(name: 'mining_sites')]
 #[ORM\Index(columns: ['owner_id'])]
 class MiningSite

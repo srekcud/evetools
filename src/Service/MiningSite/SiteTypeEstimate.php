@@ -26,4 +26,9 @@ final readonly class SiteTypeEstimate
         public ?\DateTimeImmutable $firstAbsentAt = null,
     ) {
     }
+
+    public function isDepleted(): bool
+    {
+        return $this->firstAbsentAt !== null;
+    }
 }
