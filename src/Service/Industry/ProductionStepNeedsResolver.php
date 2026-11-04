@@ -103,7 +103,7 @@ class ProductionStepNeedsResolver
      */
     public function materialQuantityOf(IndustryActivityMaterial $material, IndustryProjectStep $job, int $runs, array $materialBonus): int
     {
-        return $this->calculationService->calculateMaterialQuantity($material->getQuantity(), $runs, $job->getMeLevel(), $materialBonus['base'], $materialBonus['rig']);
+        return $this->calculationService->calculateMaterialQuantity($material->getQuantity(), $runs, $job->getMaterialEfficiencyLevelApplied(), $materialBonus['base'], $materialBonus['rig']);
     }
 
     /**

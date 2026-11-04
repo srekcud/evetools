@@ -17,6 +17,10 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['blueprint_type_id'])]
 class IndustryProjectStep
 {
+    private const string REACTION_ACTIVITY_TYPE = 'reaction';
+
+    private const int REACTION_ME_LEVEL = 0;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -177,6 +181,11 @@ class IndustryProjectStep
     {
         $this->meLevel = $meLevel;
         return $this;
+    }
+
+    public function getMaterialEfficiencyLevelApplied(): int
+    {
+        return $this->activityType === self::REACTION_ACTIVITY_TYPE ? self::REACTION_ME_LEVEL : $this->meLevel;
     }
 
     public function getTeLevel(): int

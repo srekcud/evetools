@@ -116,7 +116,7 @@ class IndustryStepCalculator
         return $this->calculationService->calculateMaterialQuantity(
             $material->getQuantity(),
             $consumer->getRuns(),
-            $consumer->getMeLevel(),
+            $consumer->getMaterialEfficiencyLevelApplied(),
             $materialBonus['base'],
             $materialBonus['rig'],
         );
