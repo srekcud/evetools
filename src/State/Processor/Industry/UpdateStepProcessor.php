@@ -139,6 +139,10 @@ class UpdateStepProcessor implements ProcessorInterface
 
         $cascadedSteps = $needsCascade ? $this->stepCalculator->recalculateStepQuantities($project) : [];
 
+        if ($needsCascade || $data->purchased !== null || $data->inStockQuantity !== null) {
+            $this->estimatesRefresher->refresh($project);
+        }
+
         $this->entityManager->flush();
 
         $isEditedStepRemoved = !$project->getSteps()->contains($step);

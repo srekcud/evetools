@@ -121,6 +121,7 @@ class MergeStepsProcessor implements ProcessorInterface
         $keepStep->setSplitIndex(0);
         $keepStep->setTotalGroupRuns(null);
 
+        $this->estimatesRefresher->refresh($project);
         $this->entityManager->flush();
 
         return $this->mapper->stepToResource($keepStep);

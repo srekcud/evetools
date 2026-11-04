@@ -126,6 +126,7 @@ class SplitStepProcessor implements ProcessorInterface
             $results[] = $newStep;
         }
 
+        $this->estimatesRefresher->refresh($project);
         $this->entityManager->flush();
 
         return array_map(fn ($s) => $this->mapper->stepToResource($s), $results);
