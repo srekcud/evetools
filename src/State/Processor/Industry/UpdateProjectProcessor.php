@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryProjectFactory;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +30,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectFactory $projectFactory,
         private readonly IndustryResourceMapper $mapper,
+        private readonly ProjectEstimatesRefresher $estimatesRefresher,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }

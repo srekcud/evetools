@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Service\Industry\EstimatedSellPriceEstimator;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\ProductionCostService;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -31,6 +32,7 @@ class CreateProjectProcessor implements ProcessorInterface
         private readonly IndustryResourceMapper $mapper,
         private readonly ProductionCostService $productionCostService,
         private readonly EstimatedSellPriceEstimator $sellPriceEstimator,
+        private readonly ProjectEstimatesRefresher $estimatesRefresher,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
     ) {

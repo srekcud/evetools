@@ -12,6 +12,7 @@ use App\Exception\StepMaterialsMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Service\Industry\IndustryStepCalculator;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\Service\Industry\SplitGroupQuantities;
 use App\Service\Industry\StepMaterialTypeIdsReader;
 use App\Service\UuidOrNotFound;
@@ -34,6 +35,7 @@ class DeleteStepProcessor implements ProcessorInterface
         private readonly IndustryProjectStepRepository $stepRepository,
         private readonly IndustryStepCalculator $stepCalculator,
         private readonly StepMaterialTypeIdsReader $materialTypeIdsReader,
+        private readonly ProjectEstimatesRefresher $estimatesRefresher,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }

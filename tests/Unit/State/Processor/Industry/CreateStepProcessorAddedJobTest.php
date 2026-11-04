@@ -17,6 +17,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\State\Processor\Industry\CreateStepProcessor;
 use App\State\Processor\Industry\UpdateStepProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
@@ -48,6 +49,8 @@ final class CreateStepProcessorAddedJobTest extends TestCase
     private User $pilot;
     private IndustryProject $project;
     private int $flushes = 0;
+    private array $stepsAtEachRefresh = [];
+    private array $flushesAtEachRefresh = [];
 
     protected function setUp(): void
     {
@@ -232,6 +235,28 @@ final class CreateStepProcessorAddedJobTest extends TestCase
         );
     }
 
+    #[Group('issue-179')]
+    public function testEstimationsAreRefreshedOnceAfterTheQuantitiesAreRecalculatedWhenAJobIsAddedToAStep(): void
+    {
+        [, $ferniteAlloy] = $this->ferniteCarbideProjectOfFourRuns();
+
+        $this->post($this->stepEntered(runs: 3), $ferniteAlloy, $this->entityManagerCountingTheFlushes());
+
+        self::assertSame([[[4, 40_000], [2, 400], [2, 45], [3, 600]]], $this->stepsAtEachRefresh);
+        self::assertGreaterThan($this->flushesAtEachRefresh[0] ?? PHP_INT_MAX, $this->flushes);
+    }
+
+    #[Group('issue-179')]
+    public function testEstimationsAreRefreshedOnceAfterTheQuantitiesAreRecalculatedWhenAJobIsAddedToASplitGroup(): void
+    {
+        $this->ferniteCarbideProjectOfTenRuns(hydrogenFuelBlockBlueprintTypeId: self::HYDROGEN_FUEL_BLOCK + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET);
+
+        $this->post($this->splitGroupEntered(self::FERNITE_ALLOY_SPLIT_GROUP, runs: 4), null, $this->entityManagerCountingTheFlushes());
+
+        self::assertSame([[[10, 100_000], [3, 600], [2, 400], [3, 95], [4, 800]]], $this->stepsAtEachRefresh);
+        self::assertGreaterThan($this->flushesAtEachRefresh[0] ?? PHP_INT_MAX, $this->flushes);
+    }
+
     private function structureConfig(string $name, string $structureType): IndustryStructureConfig
     {
         return (new IndustryStructureConfig())->setName($name)->setStructureType($structureType)->setUser($this->pilot);
@@ -343,10 +368,25 @@ final class CreateStepProcessorAddedJobTest extends TestCase
             $productRepository,
             $this->stepCalculatorOnGoldenSde($productRepository, $this->createStub(IndustryStructureConfigRepository::class), $entityManager),
             $this->mapper(),
+            $this->refresherRecordingTheStepsAndTheFlushes(),
             $entityManager,
         );
 
         return $processor->process($input, new Post(), ['id' => Uuid::v4()->toRfc4122()]);
+    }
+
+    private function refresherRecordingTheStepsAndTheFlushes(): ProjectEstimatesRefresher
+    {
+        $refresher = $this->createStub(ProjectEstimatesRefresher::class);
+        $refresher->method('refresh')->willReturnCallback(function (IndustryProject $project): void {
+            $this->stepsAtEachRefresh[] = array_map(
+                static fn (IndustryProjectStep $step): array => [$step->getRuns(), $step->getQuantity()],
+                $project->getSteps()->getValues(),
+            );
+            $this->flushesAtEachRefresh[] = $this->flushes;
+        });
+
+        return $refresher;
     }
 
     private function updateStepProcessor(IndustryProjectStep $stepFound, EntityManagerInterface $entityManager): UpdateStepProcessor

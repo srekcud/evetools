@@ -15,6 +15,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectStepRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\Service\Industry\StepMaterialTypeIdsReader;
 use App\State\Processor\Industry\DeleteStepProcessor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -55,6 +56,8 @@ final class DeleteStepProcessorTest extends TestCase
     private IndustryProject $project;
     private array $projectAtEachFlush = [];
     private array $removedEntities = [];
+    private array $stepsAtEachRefresh = [];
+    private array $flushesAtEachRefresh = [];
 
     protected function setUp(): void
     {
@@ -77,6 +80,20 @@ final class DeleteStepProcessorTest extends TestCase
             end($this->projectAtEachFlush),
         );
         self::assertSame([$secondAlloyJob], $this->removedEntities);
+    }
+
+    #[Group('issue-179')]
+    public function testEstimationsAreRefreshedOnceAfterTheQuantitiesAreRecalculatedAndBeforeTheLastFlush(): void
+    {
+        [$ferniteCarbide, $firstAlloyJob, $secondAlloyJob, $hydrogenFuelBlock] = $this->ferniteCarbideProjectOfTenRuns();
+
+        $this->delete($secondAlloyJob);
+
+        self::assertSame(
+            [[$this->jobValuesOf($ferniteCarbide), [5, 1_000, false, 0, null], $this->jobValuesOf($hydrogenFuelBlock)]],
+            $this->stepsAtEachRefresh,
+        );
+        self::assertGreaterThan($this->flushesAtEachRefresh[0] ?? PHP_INT_MAX, \count($this->projectAtEachFlush));
     }
 
     public function testDeletedFixedJobOfASplitGroupOfTwoLeavesTheKeptFixedJobAtItsRunsAndLowersTheNeedOfItsMaterials(): void
@@ -759,7 +776,19 @@ final class DeleteStepProcessorTest extends TestCase
             $this->stepCalculatorOnGoldenSde($this->productRepositoryOfTheGoldenBlueprints(), $this->createStub(IndustryStructureConfigRepository::class), $entityManager),
             $entityManager,
             $materialRepository,
+            $this->refresherRecordingTheStepsAndTheFlushes(),
         ]);
+    }
+
+    private function refresherRecordingTheStepsAndTheFlushes(): ProjectEstimatesRefresher
+    {
+        $refresher = $this->createStub(ProjectEstimatesRefresher::class);
+        $refresher->method('refresh')->willReturnCallback(function (IndustryProject $project): void {
+            $this->stepsAtEachRefresh[] = array_map($this->jobValuesOf(...), $project->getSteps()->getValues());
+            $this->flushesAtEachRefresh[] = \count($this->projectAtEachFlush);
+        });
+
+        return $refresher;
     }
 
     private function materialRepositoryOnGoldenSdeGivingTheMaterialsOfHydrogenFuelBlockToTheBlueprintMissingFromTheSde(): IndustryActivityMaterialRepository

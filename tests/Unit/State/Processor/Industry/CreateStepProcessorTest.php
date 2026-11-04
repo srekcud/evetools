@@ -23,6 +23,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\IndustryStepCalculator;
+use App\Service\Industry\ProjectEstimatesRefresher;
 use App\State\Processor\Industry\CreateStepProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -56,6 +57,9 @@ final class CreateStepProcessorTest extends TestCase
 
     private User $pilot;
     private IndustryProject $project;
+    private array $stepsAtEachRefresh = [];
+    private array $flushesAtEachRefresh = [];
+    private int $flushes = 0;
 
     protected function setUp(): void
     {
@@ -75,6 +79,15 @@ final class CreateStepProcessorTest extends TestCase
             [self::HELIUM_FUEL_BLOCK_BLUEPRINT, self::HELIUM_FUEL_BLOCK, 'manufacturing', 5, 200, 0],
             $this->blueprintProductActivityRunsQuantityAndDepthOf($this->addedStep()),
         );
+    }
+
+    #[Group('issue-179')]
+    public function testEstimationsAreRefreshedOnceWithTheAddedStepAndBeforeTheLastFlushWhenAStepIsAddedForAType(): void
+    {
+        $this->post($this->typeEntered(self::HELIUM_FUEL_BLOCK, runs: 5), $this->productRepositoryWith($this->heliumFuelBlockBlueprint()), $this->entityManagerCountingTheFlushes());
+
+        self::assertSame([[[self::HELIUM_FUEL_BLOCK, 200]]], $this->stepsAtEachRefresh);
+        self::assertGreaterThan($this->flushesAtEachRefresh[0] ?? PHP_INT_MAX, $this->flushes);
     }
 
     public function testStepAddedForATypeIsTheOnlyStepOfTheResponse(): void
@@ -627,8 +640,33 @@ final class CreateStepProcessorTest extends TestCase
             $productRepository,
             new IndustryStepCalculator($this->createStub(IndustryCalculationService::class), $this->createStub(IndustryActivityMaterialRepository::class), $productRepository, $entityManager),
             $mapper,
+            $this->refresherRecordingTheStepsAndTheFlushes(),
             $entityManager,
         );
+    }
+
+    private function refresherRecordingTheStepsAndTheFlushes(): ProjectEstimatesRefresher
+    {
+        $refresher = $this->createStub(ProjectEstimatesRefresher::class);
+        $refresher->method('refresh')->willReturnCallback(function (IndustryProject $project): void {
+            $this->stepsAtEachRefresh[] = array_map(
+                static fn (IndustryProjectStep $step): array => [$step->getProductTypeId(), $step->getQuantity()],
+                $project->getSteps()->getValues(),
+            );
+            $this->flushesAtEachRefresh[] = $this->flushes;
+        });
+
+        return $refresher;
+    }
+
+    private function entityManagerCountingTheFlushes(): EntityManagerInterface
+    {
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('flush')->willReturnCallback(function (): void {
+            ++$this->flushes;
+        });
+
+        return $entityManager;
     }
 
     private function entityManagerNeverWriting(): EntityManagerInterface
