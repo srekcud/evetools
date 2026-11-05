@@ -263,7 +263,7 @@ final class ProjectStructureChoiceByTotalCostTest extends IntegrationTestCase
     private function project(bool $acceptsOutsideFavoriteSystem, float $minimumOutsideSaving): IndustryProject
     {
         return (new IndustryProject())
-            ->setUser($this->pilot)
+            ->setOwner($this->pilot)
             ->setProductTypeId(self::FRIGATE_TYPE_ID)
             ->setRuns(self::FRIGATE_RUNS)
             ->setAcceptsOutsideFavoriteSystem($acceptsOutsideFavoriteSystem)
