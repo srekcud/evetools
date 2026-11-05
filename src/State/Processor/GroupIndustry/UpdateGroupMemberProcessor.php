@@ -11,7 +11,7 @@ use App\ApiResource\Input\GroupIndustry\UpdateGroupMemberInput;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -32,7 +32,7 @@ class UpdateGroupMemberProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,

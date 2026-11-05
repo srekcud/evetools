@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Industry;
 
 use ApiPlatform\Metadata\Get;
-use App\Entity\GroupIndustryProjectItem;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
@@ -31,7 +31,7 @@ final class ProjectProviderRouteSeparationTest extends TestCase
             ->setName('Sabre by items')
             ->setStatus(GroupProjectStatus::Published)
             ->addItem(
-                (new GroupIndustryProjectItem())
+                (new IndustryProjectProduct())
                     ->setTypeId(22456)
                     ->setTypeName('Sabre')
                     ->setMeLevel(10)

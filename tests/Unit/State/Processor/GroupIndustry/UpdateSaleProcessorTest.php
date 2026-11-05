@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Patch;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\UpdateSaleInput;
 use App\Entity\CachedWalletTransaction;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Enum\GroupProjectStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\UpdateSaleProcessor;
@@ -180,7 +180,7 @@ final class UpdateSaleProcessorTest extends TestCase
 
     public function testCorrectionOfASaleWhoseRecorderDeletedTheAccountKeepsNoRecorderName(): void
     {
-        (new \ReflectionProperty(GroupIndustrySale::class, 'recordedBy'))->setValue($this->sabreSale, null);
+        (new \ReflectionProperty(IndustryProjectSale::class, 'recordedBy'))->setValue($this->sabreSale, null);
         $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
 
         $sale = $this->correctSabreSale(['unitPrice' => 950000.0]);

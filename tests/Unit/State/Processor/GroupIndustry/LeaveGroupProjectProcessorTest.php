@@ -6,15 +6,15 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Post;
 use App\Entity\Character;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\LeaveGroupProjectProcessor;
@@ -59,9 +59,9 @@ class LeaveGroupProjectProcessorTest extends TestCase
             fn (Uuid $id): ?IndustryProject => $id->equals($this->project->getId()) ? $this->project : null,
         );
 
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $memberRepository->method('findOneBy')->willReturnCallback(
-            function (array $criteria): ?GroupIndustryProjectMember {
+            function (array $criteria): ?IndustryProjectParticipant {
                 foreach ($this->memberships as $membership) {
                     if ($this->membershipMatches($membership, $criteria)) {
                         return $membership;
@@ -251,22 +251,22 @@ class LeaveGroupProjectProcessorTest extends TestCase
         return $user;
     }
 
-    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status, ?IndustryProject $project = null): GroupIndustryProjectMember
+    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status, ?IndustryProject $project = null): IndustryProjectParticipant
     {
-        $membership = new GroupIndustryProjectMember();
+        $membership = new IndustryProjectParticipant();
         $membership->setUser($user);
         $membership->setRole($role);
         $membership->setStatus($status);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($membership, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($membership, Uuid::v4());
         ($project ?? $this->project)->addMember($membership);
         $this->memberships[] = $membership;
 
         return $membership;
     }
 
-    private function addContribution(GroupIndustryProjectMember $membership, int $quantity, ContributionStatus $status): GroupIndustryContribution
+    private function addContribution(IndustryProjectParticipant $membership, int $quantity, ContributionStatus $status): IndustryProjectContribution
     {
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setProject($this->project);
         $contribution->setMember($membership);
         $contribution->setType(ContributionType::Material);
@@ -276,7 +276,7 @@ class LeaveGroupProjectProcessorTest extends TestCase
         return $contribution;
     }
 
-    private function expectMemberLeftEvent(GroupIndustryProjectMember $membership, string $characterName): void
+    private function expectMemberLeftEvent(IndustryProjectParticipant $membership, string $characterName): void
     {
         $this->hub
             ->expects($this->once())
@@ -293,7 +293,7 @@ class LeaveGroupProjectProcessorTest extends TestCase
             }));
     }
 
-    private function membershipMatches(GroupIndustryProjectMember $membership, array $criteria): bool
+    private function membershipMatches(IndustryProjectParticipant $membership, array $criteria): bool
     {
         $values = [
             'project' => $membership->getProject(),

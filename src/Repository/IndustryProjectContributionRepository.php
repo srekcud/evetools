@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -15,17 +15,17 @@ use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @extends ServiceEntityRepository<GroupIndustryContribution>
+ * @extends ServiceEntityRepository<IndustryProjectContribution>
  */
-class GroupIndustryContributionRepository extends ServiceEntityRepository
+class IndustryProjectContributionRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, GroupIndustryContribution::class);
+        parent::__construct($registry, IndustryProjectContribution::class);
     }
 
     /**
-     * @return GroupIndustryContribution[]
+     * @return IndustryProjectContribution[]
      */
     public function findApprovedByProject(IndustryProject $project): array
     {
@@ -99,11 +99,11 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
      * @param ContributionStatus[] $statuses
      */
     public function findByMemberBomItemAndType(
-        GroupIndustryProjectMember $member,
-        GroupIndustryBomItem $bomItem,
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
         ContributionType $type,
         array $statuses,
-    ): ?GroupIndustryContribution {
+    ): ?IndustryProjectContribution {
         if (empty($statuses)) {
             return null;
         }
@@ -126,7 +126,7 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
      * Contributions of a project, most recent first, with the contributing member, its user and main character,
      * the BOM item and the reviewer with its main character fetch-joined.
      *
-     * @return GroupIndustryContribution[]
+     * @return IndustryProjectContribution[]
      */
     public function findByProjectForListing(IndustryProject $project): array
     {

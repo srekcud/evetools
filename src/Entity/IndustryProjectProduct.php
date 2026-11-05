@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Repository\GroupIndustryProjectItemRepository;
+use App\Repository\IndustryProjectProductRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity(repositoryClass: GroupIndustryProjectItemRepository::class)]
-#[ORM\Table(name: 'group_industry_project_items')]
+#[ORM\Entity(repositoryClass: IndustryProjectProductRepository::class)]
+#[ORM\Table(name: 'industry_project_products')]
 #[ORM\Index(columns: ['project_id'])]
-class GroupIndustryProjectItem
+class IndustryProjectProduct
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]

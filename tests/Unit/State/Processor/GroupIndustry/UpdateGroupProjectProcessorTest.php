@@ -9,12 +9,12 @@ use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\UpdateGroupProjectProcessor;
@@ -373,15 +373,15 @@ class UpdateGroupProjectProcessorTest extends TestCase
         self::assertSame(GroupProjectStatus::Completed, $this->project->getStatus());
     }
 
-    private function processorActingAs(User $actor, ?GroupIndustryProjectMember $membership): UpdateGroupProjectProcessor
+    private function processorActingAs(User $actor, ?IndustryProjectParticipant $membership): UpdateGroupProjectProcessor
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($actor);
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($this->project);
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $memberRepository->method('findOneBy')->willReturnCallback(
-            fn (array $criteria): ?GroupIndustryProjectMember => $membership !== null
+            fn (array $criteria): ?IndustryProjectParticipant => $membership !== null
                 && ($criteria['project'] ?? null) === $this->project
                 && ($criteria['user'] ?? null) === $actor
                 && ($criteria['status'] ?? $membership->getStatus()) === $membership->getStatus()
@@ -401,9 +401,9 @@ class UpdateGroupProjectProcessorTest extends TestCase
         );
     }
 
-    private function membershipOf(User $user, GroupMemberRole $role, GroupMemberStatus $status = GroupMemberStatus::Accepted): GroupIndustryProjectMember
+    private function membershipOf(User $user, GroupMemberRole $role, GroupMemberStatus $status = GroupMemberStatus::Accepted): IndustryProjectParticipant
     {
-        $membership = new GroupIndustryProjectMember();
+        $membership = new IndustryProjectParticipant();
         $membership->setProject($this->project);
         $membership->setUser($user);
         $membership->setRole($role);

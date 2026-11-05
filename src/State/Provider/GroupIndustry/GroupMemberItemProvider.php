@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\User;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,7 +24,7 @@ class GroupMemberItemProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
     ) {
     }

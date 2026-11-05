@@ -8,17 +8,17 @@ use ApiPlatform\Metadata\Post;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\ApiResource\Input\GroupIndustry\SubmitContributionInput;
 use App\Entity\Character;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryBomItemRepository;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\Mercure\MercurePublisherService;
@@ -53,9 +53,9 @@ class SubmitContributionProcessorTest extends TestCase
     private SubmitContributionProcessor $processor;
     private IndustryProject $project;
     private IndustryProject $otherProject;
-    private GroupIndustryBomItem $morphite;
-    private GroupIndustryBomItem $tritanium;
-    private GroupIndustryBomItem $isogenOfTheOtherProject;
+    private IndustryProjectBomLine $morphite;
+    private IndustryProjectBomLine $tritanium;
+    private IndustryProjectBomLine $isogenOfTheOtherProject;
     private User $contributor;
 
     protected function setUp(): void
@@ -71,21 +71,21 @@ class SubmitContributionProcessorTest extends TestCase
         $this->otherProject->setOwner($this->createStub(User::class));
         $this->assignId($this->otherProject);
 
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setUser($contributor);
         $member->setRole(GroupMemberRole::Member);
         $member->setStatus(GroupMemberStatus::Accepted);
         $member->setProject($this->project);
         $this->assignId($member);
 
-        $this->morphite = new GroupIndustryBomItem();
+        $this->morphite = new IndustryProjectBomLine();
         $this->morphite->setProject($this->project);
         $this->morphite->setTypeId(self::MORPHITE_TYPE_ID);
         $this->morphite->setTypeName('Morphite');
         $this->morphite->setRequiredQuantity(500);
         $this->assignId($this->morphite);
 
-        $this->tritanium = new GroupIndustryBomItem();
+        $this->tritanium = new IndustryProjectBomLine();
         $this->tritanium->setProject($this->project);
         $this->tritanium->setTypeId(self::TRITANIUM_TYPE_ID);
         $this->tritanium->setTypeName('Tritanium');
@@ -93,7 +93,7 @@ class SubmitContributionProcessorTest extends TestCase
         $this->tritanium->setEstimatedPrice(self::TRITANIUM_BOM_PRICE);
         $this->assignId($this->tritanium);
 
-        $this->isogenOfTheOtherProject = new GroupIndustryBomItem();
+        $this->isogenOfTheOtherProject = new IndustryProjectBomLine();
         $this->isogenOfTheOtherProject->setProject($this->otherProject);
         $this->isogenOfTheOtherProject->setTypeId(self::ISOGEN_TYPE_ID);
         $this->isogenOfTheOtherProject->setTypeName('Isogen');
@@ -110,24 +110,24 @@ class SubmitContributionProcessorTest extends TestCase
                 default => null,
             },
         );
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $memberRepository->method('findOneBy')->willReturnCallback(
-            fn (array $criteria): ?GroupIndustryProjectMember => ($criteria['project'] ?? null) === $this->project
+            fn (array $criteria): ?IndustryProjectParticipant => ($criteria['project'] ?? null) === $this->project
                 && ($criteria['user'] ?? null) === $contributor
                 && ($criteria['status'] ?? null) === GroupMemberStatus::Accepted
                 ? $member
                 : null,
         );
-        $bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
+        $bomItemRepository = $this->createStub(IndustryProjectBomLineRepository::class);
         $bomItemRepository->method('find')->willReturnCallback(
-            fn (Uuid $bomItemId): ?GroupIndustryBomItem => match (true) {
+            fn (Uuid $bomItemId): ?IndustryProjectBomLine => match (true) {
                 $bomItemId->equals($this->morphite->getId()) => $this->morphite,
                 $bomItemId->equals($this->tritanium->getId()) => $this->tritanium,
                 $bomItemId->equals($this->isogenOfTheOtherProject->getId()) => $this->isogenOfTheOtherProject,
                 default => null,
             },
         );
-        $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
+        $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findByMemberBomItemAndType')->willReturn(null);
 
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
@@ -159,7 +159,7 @@ class SubmitContributionProcessorTest extends TestCase
     public function testMaterialContributionWithoutBomPriceIsRecordedAtTheEnteredValue(): void
     {
         $this->entityManager->expects($this->once())->method('persist')->willReturnCallback(
-            fn (GroupIndustryContribution $contribution) => $this->assignId($contribution),
+            fn (IndustryProjectContribution $contribution) => $this->assignId($contribution),
         );
         $this->entityManager->expects($this->once())->method('flush');
 
@@ -189,7 +189,7 @@ class SubmitContributionProcessorTest extends TestCase
         $this->project->setStatus(GroupProjectStatus::Selling);
 
         $this->entityManager->expects($this->once())->method('persist')->willReturnCallback(
-            fn (GroupIndustryContribution $contribution) => $this->assignId($contribution),
+            fn (IndustryProjectContribution $contribution) => $this->assignId($contribution),
         );
         $this->entityManager->expects($this->once())->method('flush');
 
@@ -223,7 +223,7 @@ class SubmitContributionProcessorTest extends TestCase
     public function testMaterialContributionWithABomPriceIsRecordedAtTheBomPriceTimesQuantity(): void
     {
         $this->entityManager->expects($this->once())->method('persist')->willReturnCallback(
-            fn (GroupIndustryContribution $contribution) => $this->assignId($contribution),
+            fn (IndustryProjectContribution $contribution) => $this->assignId($contribution),
         );
         $this->entityManager->expects($this->once())->method('flush');
 
@@ -256,7 +256,7 @@ class SubmitContributionProcessorTest extends TestCase
         $this->contributor->method('getMainCharacter')->willReturn($character);
         $contributionId = null;
         $this->entityManager->method('persist')->willReturnCallback(
-            function (GroupIndustryContribution $contribution) use (&$contributionId): void {
+            function (IndustryProjectContribution $contribution) use (&$contributionId): void {
                 $this->assignId($contribution);
                 $contributionId = $contribution->getId()->toRfc4122();
             },
@@ -380,14 +380,14 @@ class SubmitContributionProcessorTest extends TestCase
         return $this->submitMaterial($this->morphite, $quantity, $estimatedValue);
     }
 
-    private function submitMaterial(GroupIndustryBomItem $bomItem, int $quantity, ?float $estimatedValue): GroupIndustryContributionResource
+    private function submitMaterial(IndustryProjectBomLine $bomItem, int $quantity, ?float $estimatedValue): GroupIndustryContributionResource
     {
         return $this->processor->process($this->materialInput($bomItem, $quantity, $estimatedValue), new Post(), [
             'projectId' => $this->project->getId()->toRfc4122(),
         ]);
     }
 
-    private function materialInput(GroupIndustryBomItem $bomItem, int $quantity, ?float $estimatedValue): SubmitContributionInput
+    private function materialInput(IndustryProjectBomLine $bomItem, int $quantity, ?float $estimatedValue): SubmitContributionInput
     {
         $input = new SubmitContributionInput();
         $input->type = 'material';

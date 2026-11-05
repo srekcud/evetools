@@ -7,12 +7,12 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -25,9 +25,9 @@ class AvailableGroupProjectsProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
     ) {
     }
 
@@ -62,7 +62,7 @@ class AvailableGroupProjectsProvider implements ProviderInterface
         }
 
         $joinedProjectIds = array_map(
-            static fn (GroupIndustryProjectMember $membership): string => (string) $membership->getProject()->getId(),
+            static fn (IndustryProjectParticipant $membership): string => (string) $membership->getProject()->getId(),
             $this->memberRepository->findBy(['project' => $ownProjectsExcluded, 'user' => $user]),
         );
         $availableProjects = array_values(array_filter(

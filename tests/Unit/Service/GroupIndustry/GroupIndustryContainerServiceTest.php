@@ -7,12 +7,12 @@ namespace App\Tests\Unit\Service\GroupIndustry;
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
-use App\Entity\GroupIndustryBomItem;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
-use App\Repository\GroupIndustryBomItemRepository;
+use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\GroupIndustry\GroupIndustryContainerService;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -54,7 +54,7 @@ final class GroupIndustryContainerServiceTest extends TestCase
 
     private CachedAssetRepository $cachedAssetRepository;
     private CorpAssetVisibilityRepository $visibilityRepository;
-    private GroupIndustryBomItemRepository $bomItemRepository;
+    private IndustryProjectBomLineRepository $bomItemRepository;
     private GroupIndustryContainerService $service;
 
     protected function setUp(): void
@@ -87,7 +87,7 @@ final class GroupIndustryContainerServiceTest extends TestCase
             fn (int $corporationId): ?CorpAssetVisibility => $corporationId === self::CORPORATION_ID ? $this->visibility : null,
         );
 
-        $this->bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
+        $this->bomItemRepository = $this->createStub(IndustryProjectBomLineRepository::class);
         $this->bomItemRepository->method('findMaterialsByProject')->willReturnCallback(fn (): array => $this->materialLines);
 
         $this->service = $this->serviceReading($this->cachedAssetRepository);
@@ -569,14 +569,14 @@ final class GroupIndustryContainerServiceTest extends TestCase
         return $owner;
     }
 
-    private function materialLine(int $typeId, int $requiredQuantity): GroupIndustryBomItem
+    private function materialLine(int $typeId, int $requiredQuantity): IndustryProjectBomLine
     {
-        $materialLine = (new GroupIndustryBomItem())
+        $materialLine = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName(self::TYPE_NAMES[$typeId])
             ->setRequiredQuantity($requiredQuantity)
             ->setIsJob(false);
-        (new \ReflectionProperty(GroupIndustryBomItem::class, 'id'))->setValue($materialLine, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectBomLine::class, 'id'))->setValue($materialLine, Uuid::v4());
 
         return $materialLine;
     }

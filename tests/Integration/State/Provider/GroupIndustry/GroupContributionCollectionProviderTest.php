@@ -6,16 +6,16 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupContributionCollectionProvider;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -300,7 +300,7 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         $provider = new GroupContributionCollectionProvider(
             $security,
             self::getContainer()->get(IndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustryContributionRepository::class),
+            self::getContainer()->get(IndustryProjectContributionRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(GroupIndustryResourceMapper::class),
         );
@@ -329,9 +329,9 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole($role)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -340,9 +340,9 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): GroupIndustryBomItem
+    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): IndustryProjectBomLine
     {
-        $bomItem = (new GroupIndustryBomItem())
+        $bomItem = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setRequiredQuantity(1_000_000);
@@ -354,15 +354,15 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
     private function addContribution(
         string $label,
         IndustryProject $project,
-        GroupIndustryProjectMember $member,
-        ?GroupIndustryBomItem $bomItem,
+        IndustryProjectParticipant $member,
+        ?IndustryProjectBomLine $bomItem,
         ContributionType $type,
         int $quantity,
         float $estimatedValue,
         ContributionStatus $status,
         ?User $reviewedBy,
-    ): GroupIndustryContribution {
-        $contribution = (new GroupIndustryContribution())
+    ): IndustryProjectContribution {
+        $contribution = (new IndustryProjectContribution())
             ->setMember($member)
             ->setBomItem($bomItem)
             ->setType($type)

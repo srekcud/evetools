@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\User;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSaleOfProject;
 use App\Service\Mercure\MercurePublisherService;
@@ -28,7 +28,7 @@ final readonly class DeleteSaleProcessor implements ProcessorInterface
     public function __construct(
         private Security $security,
         private IndustryProjectRepository $projectRepository,
-        private GroupIndustrySaleRepository $saleRepository,
+        private IndustryProjectSaleRepository $saleRepository,
         private GroupProjectAccessChecker $accessChecker,
         private EntityManagerInterface $entityManager,
         private MercurePublisherService $mercurePublisher,

@@ -6,11 +6,11 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use PHPUnit\Framework\MockObject\Stub;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Mercure\Update;
@@ -27,7 +27,7 @@ trait SabreBatchSales
     private const string SABRE_SALE_CREATED_AT = '2026-10-21T16:50:00+00:00';
     private const string SABRE_SALE_RECORDER_NAME = 'Brann Holt';
 
-    private GroupIndustrySale $sabreSale;
+    private IndustryProjectSale $sabreSale;
     private IndustryProject $hecateBatch;
 
     private function recordSabreSale(): void
@@ -35,7 +35,7 @@ trait SabreBatchSales
         $recorder = $this->createStub(User::class);
         $recorder->method('getMainCharacter')->willReturn((new Character())->setName(self::SABRE_SALE_RECORDER_NAME));
 
-        $this->sabreSale = (new GroupIndustrySale())
+        $this->sabreSale = (new IndustryProjectSale())
             ->setTypeId(self::TYPE_ID_TYPED_BY_NAME)
             ->setTypeName('Sabre')
             ->setQuantity(self::SABRE_SALE_QUANTITY)
@@ -44,8 +44,8 @@ trait SabreBatchSales
             ->setVenue(self::SABRE_SALE_VENUE)
             ->setSoldAt(new \DateTimeImmutable(self::SABRE_SALE_SOLD_AT))
             ->setRecordedBy($recorder);
-        (new \ReflectionProperty(GroupIndustrySale::class, 'id'))->setValue($this->sabreSale, Uuid::v4());
-        (new \ReflectionProperty(GroupIndustrySale::class, 'createdAt'))->setValue($this->sabreSale, new \DateTimeImmutable(self::SABRE_SALE_CREATED_AT));
+        (new \ReflectionProperty(IndustryProjectSale::class, 'id'))->setValue($this->sabreSale, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectSale::class, 'createdAt'))->setValue($this->sabreSale, new \DateTimeImmutable(self::SABRE_SALE_CREATED_AT));
         $this->sabreBatch->addSale($this->sabreSale);
     }
 
@@ -72,14 +72,14 @@ trait SabreBatchSales
         return $projectRepository;
     }
 
-    private function saleRepositoryOfTheSabreSale(): GroupIndustrySaleRepository&Stub
+    private function saleRepositoryOfTheSabreSale(): IndustryProjectSaleRepository&Stub
     {
-        $saleRepository = $this->createStub(GroupIndustrySaleRepository::class);
+        $saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
         $saleRepository->method('find')->willReturnCallback(
-            fn (Uuid|string $id): ?GroupIndustrySale => $this->isTheSabreSaleId($id) ? $this->sabreSale : null,
+            fn (Uuid|string $id): ?IndustryProjectSale => $this->isTheSabreSaleId($id) ? $this->sabreSale : null,
         );
         $saleRepository->method('findOneBy')->willReturnCallback(
-            fn (array $criteria): ?GroupIndustrySale => $this->sabreSaleMeetsEveryCriterion($criteria) ? $this->sabreSale : null,
+            fn (array $criteria): ?IndustryProjectSale => $this->sabreSaleMeetsEveryCriterion($criteria) ? $this->sabreSale : null,
         );
 
         return $saleRepository;

@@ -8,11 +8,11 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Input\GroupIndustry\UpdateSaleInput;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -20,7 +20,7 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\DeleteSaleProcessor;
@@ -194,7 +194,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return new GroupSaleItemProvider(
             $this->ownerSecurity(),
             self::getContainer()->get(IndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
         );
     }
@@ -204,7 +204,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return new UpdateSaleProcessor(
             $this->ownerSecurity(),
             self::getContainer()->get(IndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             $this->em,
             $this->silentMercurePublisher(),
@@ -216,7 +216,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return new DeleteSaleProcessor(
             $this->ownerSecurity(),
             self::getContainer()->get(IndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             $this->em,
             $this->silentMercurePublisher(),
@@ -253,9 +253,9 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return $user;
     }
 
-    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole($role)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -264,9 +264,9 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): GroupIndustryBomItem
+    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): IndustryProjectBomLine
     {
-        $bomItem = (new GroupIndustryBomItem())
+        $bomItem = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setRequiredQuantity(1000000);
@@ -275,9 +275,9 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return $bomItem;
     }
 
-    private function addApprovedContribution(IndustryProject $project, GroupIndustryProjectMember $member, GroupIndustryBomItem $bomItem, float $estimatedValue): void
+    private function addApprovedContribution(IndustryProject $project, IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, float $estimatedValue): void
     {
-        $contribution = (new GroupIndustryContribution())
+        $contribution = (new IndustryProjectContribution())
             ->setMember($member)
             ->setBomItem($bomItem)
             ->setType(ContributionType::Material)
@@ -287,9 +287,9 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         $project->addContribution($contribution);
     }
 
-    private function addSale(IndustryProject $project, User $recordedBy, string $typeName, int $quantity, float $unitPrice): GroupIndustrySale
+    private function addSale(IndustryProject $project, User $recordedBy, string $typeName, int $quantity, float $unitPrice): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId(0)
             ->setTypeName($typeName)
             ->setQuantity($quantity)

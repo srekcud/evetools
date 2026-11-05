@@ -16,7 +16,7 @@ Lot 1 : une seule entité, `IndustryProject`. `GroupIndustryProject` disparaît.
 - **R6 — Code d'invitation.** Tout projet reçoit un code de 10 caractères hexadécimaux, unique. La route solo ne l'expose pas au lot 1.
 - **R7 — Source du plan au lot 1.** Deux sources coexistent jusqu'au lot qui dérive la BOM des étapes (D1) : un projet créé par la route solo a des étapes et aucun item ; un projet créé par la route groupe a des items, une BOM et aucune étape. Les prédicats sont portés par l'entité : `isPlannedBySteps()` (aucun item, côté route solo) et `hasSteps()` (au moins une étape, côté route groupe).
 - **R8 — Produit d'un projet créé par la route groupe.** `productTypeId`, `runs`, `meLevel`, `teLevel` (non nuls) reprennent ceux du premier item (`sortOrder` 0). Aucun code de groupe ne les lit.
-- **R9 — Chaque route ne sert que ses projets.** Routes solo : projets planifiés par étapes ; un projet à items répond 404 « Project not found », comme un projet d'un autre utilisateur. Routes groupe : projets sans étape ; un projet qui a des étapes (un projet solo en a toujours) répond comme un projet inexistant (404). Listes, découverte, lien court et jeton Mercure filtrent sur les items (`IndustryProjectRepository`, `GroupIndustryProjectMemberRepository`).
+- **R9 — Chaque route ne sert que ses projets.** Routes solo : projets planifiés par étapes ; un projet à items répond 404 « Project not found », comme un projet d'un autre utilisateur. Routes groupe : projets sans étape ; un projet qui a des étapes (un projet solo en a toujours) répond comme un projet inexistant (404). Listes, découverte, lien court et jeton Mercure filtrent sur les items (`IndustryProjectRepository`, `IndustryProjectParticipantRepository`).
 - **R10 — Accès inchangé (spec #162).** `GroupProjectAccessChecker` reçoit un `IndustryProject` ; la matrice A1 à A13 donne les mêmes codes et messages. Routes solo : propriétaire seul, 404 sinon (inchangé).
 - **R11 — Suppression inchangée par route.** Route solo : le propriétaire supprime toujours (étapes, achats et jobs matchés en cascade). Route groupe : `isDeletable()` (spec #152) inchangé. Unification au lot 2 (D2).
 - **R12 — Purge.** La migration efface tous les projets solo et groupe et leurs lignes dépendantes, puis transforme le schéma. Utilisateurs, personnages, transactions wallet, Stockpile, structures et réglages industrie restent.
@@ -63,10 +63,10 @@ Routes unifiées et voters (lot 2) ; front (lot 3) ; dérivation de la BOM depui
 ## Glossaire (à ajouter, section « Industrie collaborative » renommée « Projet industriel »)
 
 - **Projet industriel** (Industry project) : projet de fabrication à 1..n participants, propriétaire compris ; une seule entité. `IndustryProject`.
-- **Participant** (Project participant) : utilisateur rattaché à un projet industriel avec un rôle et un statut ; le propriétaire est le premier. Remplace « membre » ; code `GroupIndustryProjectMember` jusqu'au renommage (D3).
+- **Participant** (Project participant) : utilisateur rattaché à un projet industriel avec un rôle et un statut ; le propriétaire est le premier. Remplace « membre » ; code `IndustryProjectParticipant` jusqu'au renommage (D3).
 - **Code d'invitation** (Invitation code) : code court unique d'un projet, porté par le lien d'invitation. `IndustryProject::$shortLinkCode`.
 - **Cycle de vie** (Project lifecycle) : `draft`, `published`, `in_progress`, `selling`, `completed`. `GroupProjectStatus`.
-- **Produit du projet** (Project product) : produit visé, avec runs, ME et TE ; une racine d'étapes. `GroupIndustryProjectItem` au lot 1.
+- **Produit du projet** (Project product) : produit visé, avec runs, ME et TE ; une racine d'étapes. `IndustryProjectProduct` au lot 1.
 
 ## Décisions (Sylvain, 2026-11-05)
 

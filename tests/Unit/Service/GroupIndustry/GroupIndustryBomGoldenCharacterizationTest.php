@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -36,7 +36,7 @@ use App\Industry\Domain\Runs;
 use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Industry\Infrastructure\Sde\SdeBlueprintCatalog;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
@@ -222,7 +222,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
                 [17888, 'Nitrogen Isotopes', 10125],
             ],
             array_map(
-                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getTypeId(), $bomItem->getTypeName(), $bomItem->getRequiredQuantity()],
+                static fn (IndustryProjectBomLine $bomItem): array => [$bomItem->getTypeId(), $bomItem->getTypeName(), $bomItem->getRequiredQuantity()],
                 $this->sortedMaterialBomItems($project),
             ),
         );
@@ -619,8 +619,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame(
             [['Hail L'], ['Depleted Uranium L']],
             [
-                array_map(static fn (GroupIndustryBomItem $bomItem): string => $bomItem->getTypeName(), $this->jobsOf($project, self::HAIL_L, 'invention')),
-                array_map(static fn (GroupIndustryBomItem $bomItem): string => $bomItem->getTypeName(), $this->jobsOf($project, self::DEPLETED_URANIUM_L, 'copy')),
+                array_map(static fn (IndustryProjectBomLine $bomItem): string => $bomItem->getTypeName(), $this->jobsOf($project, self::HAIL_L, 'invention')),
+                array_map(static fn (IndustryProjectBomLine $bomItem): string => $bomItem->getTypeName(), $this->jobsOf($project, self::DEPLETED_URANIUM_L, 'copy')),
             ],
         );
     }
@@ -769,7 +769,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame(
             [[1, 2, 4], [7, 0, 0]],
             $this->sortedJobs(array_map(
-                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getRuns(), $bomItem->getMeLevel(), $bomItem->getTeLevel()],
+                static fn (IndustryProjectBomLine $bomItem): array => [$bomItem->getRuns(), $bomItem->getMeLevel(), $bomItem->getTeLevel()],
                 $this->jobsOf($project, self::HAIL_L, 'manufacturing'),
             )),
         );
@@ -791,7 +791,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame(
             [[7, 0, 0], [7, 2, 4]],
             $this->sortedJobs(array_map(
-                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getRuns(), $bomItem->getMeLevel(), $bomItem->getTeLevel()],
+                static fn (IndustryProjectBomLine $bomItem): array => [$bomItem->getRuns(), $bomItem->getMeLevel(), $bomItem->getTeLevel()],
                 $this->jobsOf($project, self::HAIL_L, 'manufacturing'),
             )),
         );
@@ -1081,7 +1081,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame(
             [[self::NITROGEN_FUEL_BLOCK, 'copy', null], [self::NITROGEN_FUEL_BLOCK, 'manufacturing', null]],
             $this->sortedJobs(array_map(
-                static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getTypeId(), (string) $bomItem->getActivityType(), $bomItem->getEstimatedPrice()],
+                static fn (IndustryProjectBomLine $bomItem): array => [$bomItem->getTypeId(), (string) $bomItem->getActivityType(), $bomItem->getEstimatedPrice()],
                 $this->jobBomItems($project),
             )),
         );
@@ -1376,7 +1376,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
         $this->service->buildBom($project, $this->owner);
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
-        $approvedIsotopes = $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $approvedIsotopes = $this->contribution($project, new IndustryProjectParticipant(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $isotopes->setFulfilledQuantity(300);
         $project->getItems()->first()->setRuns(4_991);
         $statesBeforeRebuild = $this->lineStates($project);
@@ -1488,14 +1488,14 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame(
             [[$this->owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted]],
             array_map(
-                static fn (GroupIndustryProjectMember $member): array => [$member->getUser(), $member->getRole(), $member->getStatus()],
+                static fn (IndustryProjectParticipant $member): array => [$member->getUser(), $member->getRole(), $member->getStatus()],
                 $project->getMembers()->toArray(),
             ),
         );
         self::assertSame(
             [[self::NITROGEN_FUEL_BLOCK, 'Nitrogen Fuel Block', 10, 20, 1, 0], [self::HAIL_L, 'Hail L', 2, 4, 1, 1]],
             array_map(
-                static fn (GroupIndustryProjectItem $item): array => [
+                static fn (IndustryProjectProduct $item): array => [
                     $item->getTypeId(), $item->getTypeName(), $item->getMeLevel(), $item->getTeLevel(), $item->getRuns(), $item->getSortOrder(),
                 ],
                 $project->getItems()->toArray(),
@@ -1526,7 +1526,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ));
 
         self::assertSame([25], array_map(
-            static fn (GroupIndustryProjectItem $item): int => $item->getRuns(),
+            static fn (IndustryProjectProduct $item): int => $item->getRuns(),
             $project->getItems()->toArray(),
         ));
     }
@@ -1538,7 +1538,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $this->service->buildBom($project, $this->owner);
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
         $finalJob = $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')[0];
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $approvedIsotopes = $this->contribution($project, $member, $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $isotopes->setFulfilledQuantity(300);
         $pendingJob = $this->contribution($project, $member, $finalJob, ContributionType::JobInstall, 1, ContributionStatus::Pending);
@@ -1589,7 +1589,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $isotopes = $this->recordedMaterialLine($project, self::NITROGEN_ISOTOPES, 405, 300);
         $finalJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 1, 40);
         $copyJob = $this->recordedJobLine($project, 'copy', 'blueprint', 0, 0, 1, 1);
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $approvedIsotopes = $this->contribution($project, $member, $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $pendingJob = $this->contribution($project, $member, $finalJob, ContributionType::JobInstall, 1, ContributionStatus::Pending);
 
@@ -1620,7 +1620,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
         $isotopes = $this->recordedMaterialLine($project, self::NITROGEN_ISOTOPES, 10_125, 9_000);
-        $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 9_000, ContributionStatus::Approved);
+        $this->contribution($project, new IndustryProjectParticipant(), $isotopes, ContributionType::Material, 9_000, ContributionStatus::Approved);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1636,7 +1636,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
-        $approvedIsotopes = $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $approvedIsotopes = $this->contribution($project, new IndustryProjectParticipant(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $isotopes->setFulfilledQuantity(300);
         $linesBeforeRebuild = $project->getBomItems()->toArray();
         $statesOfTheOtherLines = $this->lineStatesExcept($project, [self::NITROGEN_ISOTOPES, self::ROBOTICS]);
@@ -1659,7 +1659,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);
         $robotics = $this->bomItemsOf($project, self::ROBOTICS)[0];
-        $contribution = $this->contribution($project, new GroupIndustryProjectMember(), $robotics, ContributionType::Material, 1, $status);
+        $contribution = $this->contribution($project, new IndustryProjectParticipant(), $robotics, ContributionType::Material, 1, $status);
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
         $this->removeMaterialsFromTheRecipe(self::NITROGEN_FUEL_BLOCK, [self::NITROGEN_ISOTOPES, self::ROBOTICS]);
 
@@ -1684,7 +1684,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);
-        $lineRental = $this->contribution($project, new GroupIndustryProjectMember(), $this->bomItemsOf($project, self::ROBOTICS)[0], ContributionType::LineRental, 1, ContributionStatus::Approved);
+        $lineRental = $this->contribution($project, new IndustryProjectParticipant(), $this->bomItemsOf($project, self::ROBOTICS)[0], ContributionType::LineRental, 1, ContributionStatus::Approved);
         $lineRental->setBomItem(null);
         $this->removeMaterialsFromTheRecipe(self::NITROGEN_FUEL_BLOCK, [self::ROBOTICS]);
 
@@ -1700,7 +1700,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 250, 10, 20]]);
         $remainderJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 50, 2_000);
         $fullJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
-        $pendingJob = $this->contribution($project, new GroupIndustryProjectMember(), $remainderJob, ContributionType::JobInstall, 50, ContributionStatus::Pending);
+        $pendingJob = $this->contribution($project, new IndustryProjectParticipant(), $remainderJob, ContributionType::JobInstall, 50, ContributionStatus::Pending);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1720,7 +1720,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 150, 10, 20]]);
         $remainderJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 50, 2_000);
         $fullJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
-        $this->contribution($project, new GroupIndustryProjectMember(), $remainderJob, ContributionType::JobInstall, 50, ContributionStatus::Pending);
+        $this->contribution($project, new IndustryProjectParticipant(), $remainderJob, ContributionType::JobInstall, 50, ContributionStatus::Pending);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1736,7 +1736,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 150, 10, 20]]);
         $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 50, 2_000);
         $fullJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
-        $this->contribution($project, new GroupIndustryProjectMember(), $fullJob, ContributionType::JobInstall, 200, ContributionStatus::Approved);
+        $this->contribution($project, new IndustryProjectParticipant(), $fullJob, ContributionType::JobInstall, 200, ContributionStatus::Approved);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1749,7 +1749,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 100, 10, 20]]);
         $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 125, 5_000);
         $contributedJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 125, 5_000);
-        $this->contribution($project, new GroupIndustryProjectMember(), $contributedJob, ContributionType::JobInstall, 125, ContributionStatus::Pending);
+        $this->contribution($project, new IndustryProjectParticipant(), $contributedJob, ContributionType::JobInstall, 125, ContributionStatus::Pending);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1809,7 +1809,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 100, 10, 20]]);
         $lowIdentifierJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000001', 125, 5_000);
         $contributedJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000002', 125, 5_000);
-        $this->contribution($project, new GroupIndustryProjectMember(), $contributedJob, ContributionType::JobInstall, 125, ContributionStatus::Approved);
+        $this->contribution($project, new IndustryProjectParticipant(), $contributedJob, ContributionType::JobInstall, 125, ContributionStatus::Approved);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1822,7 +1822,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 100, 10, 20]]);
         $longJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000002', 200, 8_000);
         $contributedShortJob = $this->recordedJobLineWithIdentifier($project, '00000000-0000-4000-8000-000000000001', 50, 2_000);
-        $this->contribution($project, new GroupIndustryProjectMember(), $contributedShortJob, ContributionType::JobInstall, 50, ContributionStatus::Approved);
+        $this->contribution($project, new IndustryProjectParticipant(), $contributedShortJob, ContributionType::JobInstall, 50, ContributionStatus::Approved);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1835,7 +1835,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 250, 10, 20]]);
         $recordedJob = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, 200, 8_000);
-        $this->contribution($project, new GroupIndustryProjectMember(), $recordedJob, ContributionType::JobInstall, 200, ContributionStatus::Approved);
+        $this->contribution($project, new IndustryProjectParticipant(), $recordedJob, ContributionType::JobInstall, 200, ContributionStatus::Approved);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1844,7 +1844,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame($this->idOf($recordedJob), $this->idOf($finalJobs[0]));
         self::assertSame(
             [[125, 5_000, 0], [125, 5_000, 0]],
-            array_map(static fn (GroupIndustryBomItem $line): array => [$line->getRuns(), $line->getRequiredQuantity(), $line->getFulfilledQuantity()], $finalJobs),
+            array_map(static fn (IndustryProjectBomLine $line): array => [$line->getRuns(), $line->getRequiredQuantity(), $line->getFulfilledQuantity()], $finalJobs),
         );
     }
 
@@ -1853,7 +1853,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 25, 10, 20]]);
         $isotopes = $this->recordedMaterialLine($project, self::NITROGEN_ISOTOPES, 405, 0);
         $jobAtMeZero = $this->recordedJobLine($project, 'manufacturing', 'final', 0, 0, 1, 40);
-        $this->contribution($project, new GroupIndustryProjectMember(), $jobAtMeZero, ContributionType::JobInstall, 1, ContributionStatus::Pending);
+        $this->contribution($project, new IndustryProjectParticipant(), $jobAtMeZero, ContributionType::JobInstall, 1, ContributionStatus::Pending);
 
         $this->service->buildBom($project, $this->owner);
 
@@ -1900,7 +1900,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
-        $approvedIsotopes = $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $approvedIsotopes = $this->contribution($project, new IndustryProjectParticipant(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $approvedIsotopes->setEstimatedValue(153_750.0);
         $this->jitaPrices = [self::NITROGEN_ISOTOPES => 530.0, self::OXYGEN => 160.0];
 
@@ -1920,12 +1920,12 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $approvedIsotopes = $this->contribution($project, $member, $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $isotopes->setFulfilledQuantity(300);
         $pendingJob = $this->contribution($project, $member, $this->jobsOf($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing')[0], ContributionType::JobInstall, 1, ContributionStatus::Pending);
         $project->setStatus(GroupProjectStatus::Completed);
-        $project->addItem((new GroupIndustryProjectItem())->setTypeId(self::MORPHITE)->setTypeName('Morphite')->setRuns(1)->setMeLevel(0)->setTeLevel(0)->setSortOrder(1));
+        $project->addItem((new IndustryProjectProduct())->setTypeId(self::MORPHITE)->setTypeName('Morphite')->setRuns(1)->setMeLevel(0)->setTeLevel(0)->setSortOrder(1));
         $linesBeforeRebuild = $project->getBomItems()->toArray();
         $statesBeforeRebuild = $this->lineStates($project);
         $pricingCallsBeforeRebuild = $this->pricedTypeIds;
@@ -1974,9 +1974,9 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);
         $isotopes = $this->bomItemsOf($project, self::NITROGEN_ISOTOPES)[0];
-        $approvedIsotopes = $this->contribution($project, new GroupIndustryProjectMember(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
+        $approvedIsotopes = $this->contribution($project, new IndustryProjectParticipant(), $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
         $isotopes->setFulfilledQuantity(300);
-        $project->addItem((new GroupIndustryProjectItem())->setTypeId(self::MORPHITE)->setTypeName('Morphite')->setRuns(1)->setMeLevel(0)->setTeLevel(0)->setSortOrder(1));
+        $project->addItem((new IndustryProjectProduct())->setTypeId(self::MORPHITE)->setTypeName('Morphite')->setRuns(1)->setMeLevel(0)->setTeLevel(0)->setSortOrder(1));
         $linesBeforeRebuild = $project->getBomItems()->toArray();
         $statesBeforeRebuild = $this->lineStates($project);
 
@@ -2018,7 +2018,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 0, 0]]);
         $this->service->buildBom($project, $this->owner);
         $this->persistLines($project);
-        $this->contribution($project, new GroupIndustryProjectMember(), $this->bomItemsOf($project, self::ROBOTICS)[0], ContributionType::Material, 1, ContributionStatus::Pending);
+        $this->contribution($project, new IndustryProjectParticipant(), $this->bomItemsOf($project, self::ROBOTICS)[0], ContributionType::Material, 1, ContributionStatus::Pending);
         $this->contributedBomItemIdsInTheDatabase = [];
         $this->removeMaterialsFromTheRecipe(self::NITROGEN_FUEL_BLOCK, [self::ROBOTICS]);
 
@@ -2152,7 +2152,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     {
         $project = new IndustryProject();
         foreach ($items as $index => [$typeId, $runs, $me, $te]) {
-            $project->addItem((new GroupIndustryProjectItem())
+            $project->addItem((new IndustryProjectProduct())
                 ->setTypeId($typeId)
                 ->setTypeName($this->sde['typeNames'][(string) $typeId])
                 ->setRuns($runs)
@@ -2177,7 +2177,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     private function jobs(IndustryProject $project): array
     {
-        return $this->sortedJobs(array_map(static fn (GroupIndustryBomItem $bomItem): array => [
+        return $this->sortedJobs(array_map(static fn (IndustryProjectBomLine $bomItem): array => [
             $bomItem->getTypeId(),
             (string) $bomItem->getActivityType(),
             (string) $bomItem->getJobGroup(),
@@ -2227,8 +2227,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private function finalJobTypeIds(IndustryProject $project): array
     {
         $finalJobTypeIds = array_values(array_map(
-            static fn (GroupIndustryBomItem $bomItem): int => $bomItem->getTypeId(),
-            array_filter($this->jobBomItems($project), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getJobGroup() === 'final'),
+            static fn (IndustryProjectBomLine $bomItem): int => $bomItem->getTypeId(),
+            array_filter($this->jobBomItems($project), static fn (IndustryProjectBomLine $bomItem): bool => $bomItem->getJobGroup() === 'final'),
         ));
         sort($finalJobTypeIds);
 
@@ -2237,27 +2237,27 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     private function materialBomItems(IndustryProject $project): array
     {
-        return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $bomItem): bool => !$bomItem->isJob()));
+        return array_values(array_filter($project->getBomItems()->toArray(), static fn (IndustryProjectBomLine $bomItem): bool => !$bomItem->isJob()));
     }
 
     private function sortedMaterialBomItems(IndustryProject $project): array
     {
         $materialBomItems = $this->materialBomItems($project);
-        usort($materialBomItems, static fn (GroupIndustryBomItem $left, GroupIndustryBomItem $right): int => $left->getTypeId() <=> $right->getTypeId());
+        usort($materialBomItems, static fn (IndustryProjectBomLine $left, IndustryProjectBomLine $right): int => $left->getTypeId() <=> $right->getTypeId());
 
         return $materialBomItems;
     }
 
     private function jobBomItems(IndustryProject $project): array
     {
-        return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->isJob()));
+        return array_values(array_filter($project->getBomItems()->toArray(), static fn (IndustryProjectBomLine $bomItem): bool => $bomItem->isJob()));
     }
 
     private function jobsOf(IndustryProject $project, int $typeId, string $activityType): array
     {
         return array_values(array_filter(
             $this->jobBomItems($project),
-            static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getTypeId() === $typeId && $bomItem->getActivityType() === $activityType,
+            static fn (IndustryProjectBomLine $bomItem): bool => $bomItem->getTypeId() === $typeId && $bomItem->getActivityType() === $activityType,
         ));
     }
 
@@ -2280,7 +2280,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private function datacoreLines(IndustryProject $project): array
     {
         return array_map(
-            static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getTypeId(), $bomItem->getTypeName(), $bomItem->getRequiredQuantity()],
+            static fn (IndustryProjectBomLine $bomItem): array => [$bomItem->getTypeId(), $bomItem->getTypeName(), $bomItem->getRequiredQuantity()],
             [
                 ...$this->materialBomItemsOf($project, self::DATACORE_NUCLEAR_PHYSICS),
                 ...$this->materialBomItemsOf($project, self::DATACORE_MECHANICAL_ENGINEERING),
@@ -2290,17 +2290,17 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     private function materialBomItemsOf(IndustryProject $project, int $typeId): array
     {
-        return array_values(array_filter($this->materialBomItems($project), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getTypeId() === $typeId));
+        return array_values(array_filter($this->materialBomItems($project), static fn (IndustryProjectBomLine $bomItem): bool => $bomItem->getTypeId() === $typeId));
     }
 
     private function bomItemsOf(IndustryProject $project, int $typeId): array
     {
-        return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getTypeId() === $typeId));
+        return array_values(array_filter($project->getBomItems()->toArray(), static fn (IndustryProjectBomLine $bomItem): bool => $bomItem->getTypeId() === $typeId));
     }
 
     private function lineStates(IndustryProject $project): array
     {
-        $states = array_map(static fn (GroupIndustryBomItem $line): array => [
+        $states = array_map(static fn (IndustryProjectBomLine $line): array => [
             $line->getTypeId(),
             (string) $line->getActivityType(),
             (string) $line->getJobGroup(),
@@ -2358,9 +2358,9 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $entity === null ? null : spl_object_id($entity);
     }
 
-    private function recordedMaterialLine(IndustryProject $project, int $typeId, int $requiredQuantity, int $fulfilledQuantity): GroupIndustryBomItem
+    private function recordedMaterialLine(IndustryProject $project, int $typeId, int $requiredQuantity, int $fulfilledQuantity): IndustryProjectBomLine
     {
-        $line = (new GroupIndustryBomItem())
+        $line = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($this->sde['typeNames'][(string) $typeId])
             ->setRequiredQuantity($requiredQuantity)
@@ -2371,9 +2371,9 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $line;
     }
 
-    private function recordedJobLine(IndustryProject $project, string $activityType, string $jobGroup, int $me, int $te, int $runs, int $requiredQuantity): GroupIndustryBomItem
+    private function recordedJobLine(IndustryProject $project, string $activityType, string $jobGroup, int $me, int $te, int $runs, int $requiredQuantity): IndustryProjectBomLine
     {
-        $line = (new GroupIndustryBomItem())
+        $line = (new IndustryProjectBomLine())
             ->setTypeId(self::NITROGEN_FUEL_BLOCK)
             ->setTypeName('Nitrogen Fuel Block')
             ->setRequiredQuantity($requiredQuantity)
@@ -2388,10 +2388,10 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $line;
     }
 
-    private function recordedJobLineWithIdentifier(IndustryProject $project, string $identifier, int $runs, int $requiredQuantity): GroupIndustryBomItem
+    private function recordedJobLineWithIdentifier(IndustryProject $project, string $identifier, int $runs, int $requiredQuantity): IndustryProjectBomLine
     {
         $line = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, $runs, $requiredQuantity);
-        (new \ReflectionProperty(GroupIndustryBomItem::class, 'id'))->setValue($line, Uuid::fromString($identifier));
+        (new \ReflectionProperty(IndustryProjectBomLine::class, 'id'))->setValue($line, Uuid::fromString($identifier));
 
         return $line;
     }
@@ -2405,13 +2405,13 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     private function contribution(
         IndustryProject $project,
-        GroupIndustryProjectMember $member,
-        GroupIndustryBomItem $bomItem,
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
         ContributionType $type,
         int $quantity,
         ContributionStatus $status,
-    ): GroupIndustryContribution {
-        $contribution = (new GroupIndustryContribution())
+    ): IndustryProjectContribution {
+        $contribution = (new IndustryProjectContribution())
             ->setMember($member)
             ->setBomItem($bomItem)
             ->setType($type)
@@ -2431,19 +2431,19 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         }
     }
 
-    private function persistLine(GroupIndustryBomItem $line): void
+    private function persistLine(IndustryProjectBomLine $line): void
     {
         if ($line->getId() !== null) {
             return;
         }
 
         ++$this->persistedLineCount;
-        (new \ReflectionProperty(GroupIndustryBomItem::class, 'id'))->setValue($line, Uuid::fromString(\sprintf(self::PERSISTED_LINE_IDENTIFIER_FORMAT, $this->persistedLineCount)));
+        (new \ReflectionProperty(IndustryProjectBomLine::class, 'id'))->setValue($line, Uuid::fromString(\sprintf(self::PERSISTED_LINE_IDENTIFIER_FORMAT, $this->persistedLineCount)));
     }
 
-    private function contributionRepositoryOnTheContributionsOfTheProject(): GroupIndustryContributionRepository
+    private function contributionRepositoryOnTheContributionsOfTheProject(): IndustryProjectContributionRepository
     {
-        $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
+        $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findContributedBomItemIds')->willReturnCallback(function (IndustryProject $project): array {
             $this->projectsQueriedForTheirContributedBomItems[] = $project;
 

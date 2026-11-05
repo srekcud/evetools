@@ -6,11 +6,11 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Delete;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -33,8 +33,8 @@ class GroupProjectDeleteProviderTest extends TestCase
 {
     private User $owner;
     private IndustryProject $project;
-    private GroupIndustryProjectMember $contributor;
-    private GroupIndustryBomItem $tritanium;
+    private IndustryProjectParticipant $contributor;
+    private IndustryProjectBomLine $tritanium;
 
     protected function setUp(): void
     {
@@ -44,14 +44,14 @@ class GroupProjectDeleteProviderTest extends TestCase
         $this->project->setOwner($this->owner);
         $this->assignId($this->project);
 
-        $this->contributor = new GroupIndustryProjectMember();
+        $this->contributor = new IndustryProjectParticipant();
         $this->contributor->setUser($this->createStub(User::class));
         $this->contributor->setRole(GroupMemberRole::Member);
         $this->contributor->setStatus(GroupMemberStatus::Accepted);
         $this->assignId($this->contributor);
         $this->project->addMember($this->contributor);
 
-        $this->tritanium = new GroupIndustryBomItem();
+        $this->tritanium = new IndustryProjectBomLine();
         $this->tritanium->setTypeId(34);
         $this->tritanium->setTypeName('Tritanium');
         $this->tritanium->setRequiredQuantity(12000);
@@ -109,7 +109,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     public function testAdminWhoIsNotTheOwnerCannotDeleteAPublishedProject(): void
     {
         $admin = $this->createStub(User::class);
-        $adminMember = new GroupIndustryProjectMember();
+        $adminMember = new IndustryProjectParticipant();
         $adminMember->setUser($admin);
         $adminMember->setRole(GroupMemberRole::Admin);
         $adminMember->setStatus(GroupMemberStatus::Accepted);
@@ -151,7 +151,7 @@ class GroupProjectDeleteProviderTest extends TestCase
 
     private function addContribution(ContributionStatus $status, int $quantity): void
     {
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setMember($this->contributor);
         $contribution->setBomItem($this->tritanium);
         $contribution->setType(ContributionType::Material);
@@ -166,7 +166,7 @@ class GroupProjectDeleteProviderTest extends TestCase
 
     private function addSale(): void
     {
-        $sale = new GroupIndustrySale();
+        $sale = new IndustryProjectSale();
         $sale->setTypeId(28606);
         $sale->setTypeName('Orca');
         $sale->setQuantity(2);

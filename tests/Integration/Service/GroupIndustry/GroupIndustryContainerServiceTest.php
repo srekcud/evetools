@@ -7,7 +7,7 @@ namespace App\Tests\Integration\Service\GroupIndustry;
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
-use App\Entity\GroupIndustryBomItem;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Service\GroupIndustry\GroupIndustryContainerService;
@@ -241,7 +241,7 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
 
     private function addMaterial(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity): void
     {
-        $material = (new GroupIndustryBomItem())
+        $material = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setRequiredQuantity($requiredQuantity)

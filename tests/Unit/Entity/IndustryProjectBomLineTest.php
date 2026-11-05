@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Entity;
 
-use App\Entity\GroupIndustryBomItem;
+use App\Entity\IndustryProjectBomLine;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
-#[CoversClass(GroupIndustryBomItem::class)]
+#[CoversClass(IndustryProjectBomLine::class)]
 #[Group('issue-107')]
-final class GroupIndustryBomItemTest extends TestCase
+final class IndustryProjectBomLineTest extends TestCase
 {
     public function testJobLineOfOneRunIsFulfilledByTheUnitsProducedByThatRun(): void
     {
-        $finalJob = (new GroupIndustryBomItem())
+        $finalJob = (new IndustryProjectBomLine())
             ->setIsJob(true)
             ->setActivityType('manufacturing')
             ->setRuns(1)
@@ -27,7 +27,7 @@ final class GroupIndustryBomItemTest extends TestCase
 
     public function testJobLineOfOneRunIsNotFulfilledByASingleUnit(): void
     {
-        $finalJob = (new GroupIndustryBomItem())
+        $finalJob = (new IndustryProjectBomLine())
             ->setIsJob(true)
             ->setActivityType('manufacturing')
             ->setRuns(1)

@@ -7,12 +7,12 @@ namespace App\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -31,7 +31,7 @@ class JoinGroupProjectProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
@@ -93,9 +93,9 @@ class JoinGroupProjectProcessor implements ProcessorInterface
     }
 
     /** New membership: auto-accepted for the owner's corporation, pending otherwise. */
-    private function createMembership(IndustryProject $project, User $user): GroupIndustryProjectMember
+    private function createMembership(IndustryProject $project, User $user): IndustryProjectParticipant
     {
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setUser($user);
 
         $userCorpId = $user->getCorporationId();

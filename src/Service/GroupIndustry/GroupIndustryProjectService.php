@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryBomItem;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectItem;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
@@ -27,7 +27,7 @@ use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\ProductionPlanner;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\InventionService;
@@ -49,7 +49,7 @@ class GroupIndustryProjectService
         private readonly InventionService $inventionService,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryActivityRepository $activityRepository,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
     ) {
     }
 
@@ -69,7 +69,7 @@ class GroupIndustryProjectService
 
         // Create project items
         foreach ($data->items as $index => $itemData) {
-            $item = new GroupIndustryProjectItem();
+            $item = new IndustryProjectProduct();
             $item->setTypeId($itemData['typeId']);
             $item->setTypeName($itemData['typeName']);
             $item->setMeLevel($itemData['meLevel']);
@@ -123,7 +123,7 @@ class GroupIndustryProjectService
         $plannedLines = [];
 
         foreach ($materialAggregation as $typeId => $matData) {
-            $bomItem = new GroupIndustryBomItem();
+            $bomItem = new IndustryProjectBomLine();
             $bomItem->setTypeId($typeId);
             $bomItem->setTypeName($matData['typeName']);
             $bomItem->setRequiredQuantity($matData['quantity']);
@@ -133,7 +133,7 @@ class GroupIndustryProjectService
         }
 
         foreach ($jobAggregation as $jobData) {
-            $bomItem = new GroupIndustryBomItem();
+            $bomItem = new IndustryProjectBomLine();
             $bomItem->setTypeId($jobData['typeId']);
             $bomItem->setTypeName($jobData['typeName']);
             $bomItem->setRequiredQuantity(
@@ -153,23 +153,23 @@ class GroupIndustryProjectService
     }
 
     /**
-     * @param list<GroupIndustryBomItem> $plannedLines
+     * @param list<IndustryProjectBomLine> $plannedLines
      */
     private function reconcileBomLines(IndustryProject $project, array $plannedLines): void
     {
         $contributedLineIds = $this->contributedLineIdsOf($project);
-        $carriesContribution = static fn (GroupIndustryBomItem $line): bool => isset($contributedLineIds[$line->getId()->toRfc4122()]);
+        $carriesContribution = static fn (IndustryProjectBomLine $line): bool => isset($contributedLineIds[$line->getId()->toRfc4122()]);
 
         $existingByKey = $this->groupByLineKey(array_values($project->getBomItems()->toArray()));
         foreach ($existingByKey as &$existingLines) {
-            usort($existingLines, static fn (GroupIndustryBomItem $a, GroupIndustryBomItem $b): int => $b->getRuns() <=> $a->getRuns()
+            usort($existingLines, static fn (IndustryProjectBomLine $a, IndustryProjectBomLine $b): int => $b->getRuns() <=> $a->getRuns()
                 ?: $carriesContribution($b) <=> $carriesContribution($a)
                 ?: (string) $a->getId() <=> (string) $b->getId());
         }
         unset($existingLines);
 
         foreach ($this->groupByLineKey($plannedLines) as $key => $plannedGroup) {
-            usort($plannedGroup, static fn (GroupIndustryBomItem $a, GroupIndustryBomItem $b): int => $b->getRuns() <=> $a->getRuns());
+            usort($plannedGroup, static fn (IndustryProjectBomLine $a, IndustryProjectBomLine $b): int => $b->getRuns() <=> $a->getRuns());
 
             foreach ($plannedGroup as $rank => $plannedLine) {
                 if (!isset($existingByKey[$key][$rank])) {
@@ -204,8 +204,8 @@ class GroupIndustryProjectService
     }
 
     /**
-     * @param list<GroupIndustryBomItem> $lines
-     * @return array<string, list<GroupIndustryBomItem>>
+     * @param list<IndustryProjectBomLine> $lines
+     * @return array<string, list<IndustryProjectBomLine>>
      */
     private function groupByLineKey(array $lines): array
     {
@@ -217,7 +217,7 @@ class GroupIndustryProjectService
         return $groups;
     }
 
-    private function lineKeyOf(GroupIndustryBomItem $line): string
+    private function lineKeyOf(IndustryProjectBomLine $line): string
     {
         if (!$line->isJob()) {
             return \sprintf('material:%d', $line->getTypeId());
@@ -233,7 +233,7 @@ class GroupIndustryProjectService
         );
     }
 
-    private function updateLineInPlace(GroupIndustryBomItem $line, GroupIndustryBomItem $plannedLine): void
+    private function updateLineInPlace(IndustryProjectBomLine $line, IndustryProjectBomLine $plannedLine): void
     {
         $line->setTypeName($plannedLine->getTypeName());
         $line->setRequiredQuantity($plannedLine->getRequiredQuantity());

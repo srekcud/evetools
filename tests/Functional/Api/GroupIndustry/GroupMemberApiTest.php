@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\GroupIndustry;
 
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -236,7 +236,7 @@ final class GroupMemberApiTest extends WebTestCase
         return $this->projectUri($this->ishtarBatch).'/members';
     }
 
-    private function memberUri(GroupIndustryProjectMember $membership): string
+    private function memberUri(IndustryProjectParticipant $membership): string
     {
         return $this->membersUri().'/'.$this->idOf($membership);
     }
@@ -261,18 +261,18 @@ final class GroupMemberApiTest extends WebTestCase
         );
     }
 
-    private function storedRoleAndStatusOf(GroupIndustryProjectMember $membership): array
+    private function storedRoleAndStatusOf(IndustryProjectParticipant $membership): array
     {
         $this->em->clear();
-        $stored = $this->em->find(GroupIndustryProjectMember::class, $membership->getId());
+        $stored = $this->em->find(IndustryProjectParticipant::class, $membership->getId());
 
         return [$stored?->getRole()->value, $stored?->getStatus()->value];
     }
 
-    private function storedContributionCountOf(GroupIndustryProjectMember $membership): int
+    private function storedContributionCountOf(IndustryProjectParticipant $membership): int
     {
         $this->em->clear();
 
-        return $this->em->getRepository(GroupIndustryContribution::class)->count(['member' => $membership->getId()]);
+        return $this->em->getRepository(IndustryProjectContribution::class)->count(['member' => $membership->getId()]);
     }
 }

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\GroupIndustry;
 
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\IndustryProject;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryProjectRepository;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
@@ -34,7 +34,7 @@ trait ResolvesSaleOfProject
     /**
      * @param array<string, string> $uriVariables
      */
-    private function saleOf(GroupIndustrySaleRepository $saleRepository, IndustryProject $project, array $uriVariables): GroupIndustrySale
+    private function saleOf(IndustryProjectSaleRepository $saleRepository, IndustryProject $project, array $uriVariables): IndustryProjectSale
     {
         $saleId = $uriVariables['id'] ?? null;
         if ($saleId === null || !Uuid::isValid($saleId)) {

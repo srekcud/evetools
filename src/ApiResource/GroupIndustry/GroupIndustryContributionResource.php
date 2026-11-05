@@ -19,7 +19,7 @@ use App\State\Provider\GroupIndustry\GroupContributionCollectionProvider;
 use App\State\Provider\GroupIndustry\GroupContributionItemProvider;
 
 #[ApiResource(
-    shortName: 'GroupIndustryContribution',
+    shortName: 'IndustryProjectContribution',
     description: 'Contributions to a group industry project',
     operations: [
         new GetCollection(

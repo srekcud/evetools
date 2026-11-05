@@ -7,9 +7,9 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\User;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,7 +24,7 @@ class GroupContributionCollectionProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,
     ) {
@@ -56,7 +56,7 @@ class GroupContributionCollectionProvider implements ProviderInterface
         $contributions = $this->contributionRepository->findByProjectForListing($project);
 
         return array_map(
-            fn (GroupIndustryContribution $contribution) => $this->mapper->contributionToResource($contribution),
+            fn (IndustryProjectContribution $contribution) => $this->mapper->contributionToResource($contribution),
             $contributions,
         );
     }

@@ -7,7 +7,7 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Enum\GroupProjectStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\RecordSaleProcessor;
@@ -46,7 +46,7 @@ class RecordSaleProcessorTest extends TestCase
     private HubInterface&MockObject $hub;
     private RecordSaleProcessor $processor;
     private int $persistedSales = 0;
-    private ?GroupIndustrySale $persistedSale = null;
+    private ?IndustryProjectSale $persistedSale = null;
 
     private array $publishedUpdates = [];
 
@@ -57,7 +57,7 @@ class RecordSaleProcessorTest extends TestCase
         $this->security = $this->createStub(Security::class);
 
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->entityManager->method('persist')->willReturnCallback(function (GroupIndustrySale $sale): void {
+        $this->entityManager->method('persist')->willReturnCallback(function (IndustryProjectSale $sale): void {
             (new \ReflectionProperty($sale, 'id'))->setValue($sale, Uuid::v4());
             ++$this->persistedSales;
             $this->persistedSale = $sale;

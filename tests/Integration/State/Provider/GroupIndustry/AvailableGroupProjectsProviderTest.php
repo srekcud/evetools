@@ -6,19 +6,19 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\AvailableGroupProjectsProvider;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -227,9 +227,9 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         $provider = new AvailableGroupProjectsProvider(
             $security,
             self::getContainer()->get(IndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustryProjectMemberRepository::class),
+            self::getContainer()->get(IndustryProjectParticipantRepository::class),
             self::getContainer()->get(GroupIndustryResourceMapper::class),
-            self::getContainer()->get(GroupIndustryContributionRepository::class),
+            self::getContainer()->get(IndustryProjectContributionRepository::class),
         );
 
         return $provider->provide(new GetCollection());
@@ -292,9 +292,9 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         return $project;
     }
 
-    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole($role)
             ->setStatus($status);
@@ -303,10 +303,10 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addContribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
     {
         $member->getProject()->addContribution(
-            (new GroupIndustryContribution())
+            (new IndustryProjectContribution())
                 ->setMember($member)
                 ->setType($type)
                 ->setQuantity(1)
@@ -318,7 +318,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
     private function addItem(IndustryProject $project, int $typeId, string $typeName, int $runs): void
     {
         $project->addItem(
-            (new GroupIndustryProjectItem())
+            (new IndustryProjectProduct())
                 ->setTypeId($typeId)
                 ->setTypeName($typeName)
                 ->setMeLevel(10)
@@ -331,7 +331,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
     private function addBomItem(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity, int $fulfilledQuantity, float $estimatedPrice): void
     {
         $project->addBomItem(
-            (new GroupIndustryBomItem())
+            (new IndustryProjectBomLine())
                 ->setTypeId($typeId)
                 ->setTypeName($typeName)
                 ->setRequiredQuantity($requiredQuantity)

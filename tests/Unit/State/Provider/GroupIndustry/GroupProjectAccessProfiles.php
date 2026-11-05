@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use PHPUnit\Framework\MockObject\Stub;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -102,9 +102,9 @@ trait GroupProjectAccessProfiles
         return $projectRepository;
     }
 
-    private function sabreBatchMemberRepository(): GroupIndustryProjectMemberRepository&Stub
+    private function sabreBatchMemberRepository(): IndustryProjectParticipantRepository&Stub
     {
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $memberRepository->method('findOneBy')->willReturnCallback($this->sabreBatchMembershipLookup());
         $memberRepository->method('find')->willReturnCallback($this->sabreBatchMembershipById());
 
@@ -113,7 +113,7 @@ trait GroupProjectAccessProfiles
 
     private function sabreBatchMembershipLookup(): \Closure
     {
-        return function (array $criteria): ?GroupIndustryProjectMember {
+        return function (array $criteria): ?IndustryProjectParticipant {
             foreach ($this->sabreBatchMemberships as $membership) {
                 if ($this->membershipMeetsEveryCriterion($membership, $criteria)) {
                     return $membership;
@@ -126,7 +126,7 @@ trait GroupProjectAccessProfiles
 
     private function sabreBatchMembershipById(): \Closure
     {
-        return function (Uuid $id): ?GroupIndustryProjectMember {
+        return function (Uuid $id): ?IndustryProjectParticipant {
             foreach ($this->sabreBatchMemberships as $membership) {
                 if ($id->equals($membership->getId())) {
                     return $membership;
@@ -172,13 +172,13 @@ trait GroupProjectAccessProfiles
         return $user;
     }
 
-    private function addSabreBatchMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function addSabreBatchMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status): IndustryProjectParticipant
     {
-        $membership = new GroupIndustryProjectMember();
+        $membership = new IndustryProjectParticipant();
         $membership->setUser($user);
         $membership->setRole($role);
         $membership->setStatus($status);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($membership, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($membership, Uuid::v4());
         $this->sabreBatch->addMember($membership);
 
         $this->sabreBatchMemberships[] = $membership;
@@ -196,11 +196,11 @@ trait GroupProjectAccessProfiles
         $cutlassBatch->setStatus(GroupProjectStatus::InProgress);
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($cutlassBatch, Uuid::v4());
 
-        $membership = new GroupIndustryProjectMember();
+        $membership = new IndustryProjectParticipant();
         $membership->setUser($user);
         $membership->setRole($role);
         $membership->setStatus($status);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($membership, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($membership, Uuid::v4());
         $cutlassBatch->addMember($membership);
 
         $this->sabreBatchMemberships[] = $membership;
@@ -229,7 +229,7 @@ trait GroupProjectAccessProfiles
         return is_string($granted) ? $granted : self::GRANTED;
     }
 
-    private function membershipMeetsEveryCriterion(GroupIndustryProjectMember $membership, array $criteria): bool
+    private function membershipMeetsEveryCriterion(IndustryProjectParticipant $membership, array $criteria): bool
     {
         $values = [
             'project' => $membership->getProject(),

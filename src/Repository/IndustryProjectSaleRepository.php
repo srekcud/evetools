@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\IndustryProject;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<GroupIndustrySale>
+ * @extends ServiceEntityRepository<IndustryProjectSale>
  */
-class GroupIndustrySaleRepository extends ServiceEntityRepository
+class IndustryProjectSaleRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, GroupIndustrySale::class);
+        parent::__construct($registry, IndustryProjectSale::class);
     }
 
     /**
-     * @return GroupIndustrySale[]
+     * @return IndustryProjectSale[]
      */
     public function findByProjectForListing(IndustryProject $project): array
     {

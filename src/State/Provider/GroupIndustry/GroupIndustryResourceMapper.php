@@ -7,9 +7,9 @@ namespace App\State\Provider\GroupIndustry;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberStatus;
@@ -23,7 +23,7 @@ class GroupIndustryResourceMapper
      */
     public function projectToResource(
         IndustryProject $project,
-        ?GroupIndustryProjectMember $myMembership,
+        ?IndustryProjectParticipant $myMembership,
         ?int $acceptedMembersCount = null,
         ?float $approvedContributionValue = null,
     ): GroupIndustryProjectResource
@@ -59,18 +59,18 @@ class GroupIndustryResourceMapper
 
         // Count accepted members only
         $resource->membersCount = $acceptedMembersCount ?? $project->getMembers()
-            ->filter(fn (GroupIndustryProjectMember $m) => $m->getStatus() === GroupMemberStatus::Accepted)
+            ->filter(fn (IndustryProjectParticipant $m) => $m->getStatus() === GroupMemberStatus::Accepted)
             ->count();
 
-        $materialItems = $project->getBomItems()->filter(static fn (GroupIndustryBomItem $bomItem) => !$bomItem->isJob());
+        $materialItems = $project->getBomItems()->filter(static fn (IndustryProjectBomLine $bomItem) => !$bomItem->isJob());
         $resource->totalBomValue = $this->totalBomValueOf($materialItems->toArray());
         $resource->fulfillmentPercent = $materialItems->isEmpty()
             ? 0.0
-            : round(array_sum($materialItems->map(static fn (GroupIndustryBomItem $bomItem) => $bomItem->getFulfillmentPercent())->toArray()) / $materialItems->count(), 2);
+            : round(array_sum($materialItems->map(static fn (IndustryProjectBomLine $bomItem) => $bomItem->getFulfillmentPercent())->toArray()) / $materialItems->count(), 2);
         $resource->approvedContributionValue = $approvedContributionValue ?? array_sum(
             $project->getContributions()
-                ->filter(static fn (GroupIndustryContribution $contribution) => $contribution->getStatus() === ContributionStatus::Approved)
-                ->map(static fn (GroupIndustryContribution $contribution) => $contribution->getEstimatedValue())
+                ->filter(static fn (IndustryProjectContribution $contribution) => $contribution->getStatus() === ContributionStatus::Approved)
+                ->map(static fn (IndustryProjectContribution $contribution) => $contribution->getEstimatedValue())
                 ->toArray(),
         );
 
@@ -78,7 +78,7 @@ class GroupIndustryResourceMapper
     }
 
     /**
-     * @param GroupIndustryBomItem[] $materialItems
+     * @param IndustryProjectBomLine[] $materialItems
      */
     private function totalBomValueOf(array $materialItems): ?float
     {
@@ -94,7 +94,7 @@ class GroupIndustryResourceMapper
         return $total;
     }
 
-    public function contributionToResource(GroupIndustryContribution $contribution): GroupIndustryContributionResource
+    public function contributionToResource(IndustryProjectContribution $contribution): GroupIndustryContributionResource
     {
         $resource = new GroupIndustryContributionResource();
         $resource->id = $contribution->getId()->toString();
@@ -116,7 +116,7 @@ class GroupIndustryResourceMapper
         return $resource;
     }
 
-    public function memberToResource(GroupIndustryProjectMember $member, float $totalContributionValue = 0.0, int $contributionCount = 0): GroupIndustryMemberResource
+    public function memberToResource(IndustryProjectParticipant $member, float $totalContributionValue = 0.0, int $contributionCount = 0): GroupIndustryMemberResource
     {
         $resource = new GroupIndustryMemberResource();
         $resource->id = $member->getId()->toString();

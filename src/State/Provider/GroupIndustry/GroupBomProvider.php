@@ -7,9 +7,9 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryBomResource;
-use App\Entity\GroupIndustryBomItem;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\User;
-use App\Repository\GroupIndustryBomItemRepository;
+use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,7 +24,7 @@ class GroupBomProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryBomItemRepository $bomItemRepository,
+        private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
     ) {
     }
@@ -55,12 +55,12 @@ class GroupBomProvider implements ProviderInterface
         $bomItems = $this->bomItemRepository->findBy(['project' => $project]);
 
         return array_map(
-            fn (GroupIndustryBomItem $item) => $this->mapToResource($item),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item),
             $bomItems,
         );
     }
 
-    private function mapToResource(GroupIndustryBomItem $item): GroupIndustryBomResource
+    private function mapToResource(IndustryProjectBomLine $item): GroupIndustryBomResource
     {
         $resource = new GroupIndustryBomResource();
         $resource->id = $item->getId()->toString();

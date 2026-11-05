@@ -12,7 +12,7 @@ use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\Mercure\MercurePublisherService;
@@ -33,7 +33,7 @@ class ReviewContributionProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly GroupIndustryContributionService $contributionService,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,

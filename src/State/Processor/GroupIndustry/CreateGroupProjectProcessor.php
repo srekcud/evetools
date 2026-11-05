@@ -12,7 +12,7 @@ use App\ApiResource\Input\GroupIndustry\GroupProjectFees;
 use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -34,7 +34,7 @@ class CreateGroupProjectProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly GroupIndustryProjectService $projectService,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,

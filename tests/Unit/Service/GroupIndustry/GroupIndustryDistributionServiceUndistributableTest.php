@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\GroupIndustry;
 
 use App\Entity\Character;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionType;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\GroupIndustry\MemberDistribution;
@@ -29,14 +29,14 @@ final class GroupIndustryDistributionServiceUndistributableTest extends TestCase
     private const string ALICE_MEMBER_ID = '00000000-0000-0000-0000-0000000001a1';
     private const string BRANN_MEMBER_ID = '00000000-0000-0000-0000-0000000001b2';
 
-    private GroupIndustryContributionRepository&Stub $contributionRepository;
-    private GroupIndustrySaleRepository&Stub $saleRepository;
+    private IndustryProjectContributionRepository&Stub $contributionRepository;
+    private IndustryProjectSaleRepository&Stub $saleRepository;
     private GroupIndustryDistributionService $service;
 
     protected function setUp(): void
     {
-        $this->contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
-        $this->saleRepository = $this->createStub(GroupIndustrySaleRepository::class);
+        $this->contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
+        $this->saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
         $this->service = new GroupIndustryDistributionService($this->contributionRepository, $this->saleRepository);
     }
 
@@ -148,7 +148,7 @@ final class GroupIndustryDistributionServiceUndistributableTest extends TestCase
     private function distributionOf(IndustryProject $project, array $saleTotals, array $approvedContributions): DistributionResult
     {
         $this->saleRepository->method('findBy')->willReturn(array_map(
-            static fn (float $totalPrice): GroupIndustrySale => (new GroupIndustrySale())->setTotalPrice($totalPrice),
+            static fn (float $totalPrice): IndustryProjectSale => (new IndustryProjectSale())->setTotalPrice($totalPrice),
             $saleTotals,
         ));
         $this->contributionRepository->method('findApprovedByProject')->willReturn($approvedContributions);
@@ -164,22 +164,22 @@ final class GroupIndustryDistributionServiceUndistributableTest extends TestCase
             ->setSalesTaxPercent($salesTaxPercent);
     }
 
-    private function member(string $characterName, string $memberId): GroupIndustryProjectMember
+    private function member(string $characterName, string $memberId): IndustryProjectParticipant
     {
         $user = new User();
         $character = (new Character())->setName($characterName);
         $user->addCharacter($character);
         $user->setMainCharacter($character);
 
-        $member = (new GroupIndustryProjectMember())->setUser($user);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($member, Uuid::fromString($memberId));
+        $member = (new IndustryProjectParticipant())->setUser($user);
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($member, Uuid::fromString($memberId));
 
         return $member;
     }
 
-    private function contribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue): GroupIndustryContribution
+    private function contribution(IndustryProjectParticipant $member, ContributionType $type, float $estimatedValue): IndustryProjectContribution
     {
-        return (new GroupIndustryContribution())
+        return (new IndustryProjectContribution())
             ->setMember($member)
             ->setType($type)
             ->setQuantity(1)

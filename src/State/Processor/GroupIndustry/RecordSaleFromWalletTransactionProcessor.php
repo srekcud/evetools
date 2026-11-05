@@ -9,11 +9,11 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\RecordSaleFromWalletTransactionInput;
 use App\Entity\CachedWalletTransaction;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSaleOfProject;
 use App\Service\Mercure\MercurePublisherService;
@@ -41,7 +41,7 @@ final readonly class RecordSaleFromWalletTransactionProcessor implements Process
         private IndustryProjectRepository $projectRepository,
         private GroupProjectAccessChecker $accessChecker,
         private CachedWalletTransactionRepository $transactionRepository,
-        private GroupIndustrySaleRepository $saleRepository,
+        private IndustryProjectSaleRepository $saleRepository,
         private EntityManagerInterface $entityManager,
         private MercurePublisherService $mercurePublisher,
     ) {
@@ -74,7 +74,7 @@ final readonly class RecordSaleFromWalletTransactionProcessor implements Process
             throw new ConflictHttpException(self::ALREADY_LINKED_MESSAGE);
         }
 
-        $sale = new GroupIndustrySale();
+        $sale = new IndustryProjectSale();
         $sale->setProject($project);
         $sale->setTypeId($transaction->getTypeId());
         $sale->setTypeName($typeName);

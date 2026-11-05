@@ -9,15 +9,15 @@ use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\CharacterRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\State\Processor\Me\DeleteCharacterProcessor;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -48,7 +48,7 @@ final class SaleSellerCharacterRemovalTest extends IntegrationTestCase
         $owner->setMainCharacter($oMain);
         $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName('Sabre')->setStatus(GroupProjectStatus::Selling);
         $this->em->persist($project);
-        $project->addMember((new GroupIndustryProjectMember())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
+        $project->addMember((new IndustryProjectParticipant())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
         $saleSoldByTheAlt = $this->addSale($project, $owner, 3, 61_250_000.0, '2026-10-24T21:05:00+00:00')->setSeller($oAlt);
         $saleSoldByTheMain = $this->addSale($project, $owner, 2, 60_000_000.0, '2026-10-23T19:10:00+00:00')->setSeller($oMain);
         $this->em->flush();
@@ -128,7 +128,7 @@ final class SaleSellerCharacterRemovalTest extends IntegrationTestCase
             $this->securityOfTheOwner(),
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
         );
 
         return $provider->provide(new GetCollection(), ['projectId' => $this->projectId]);
@@ -154,17 +154,17 @@ final class SaleSellerCharacterRemovalTest extends IntegrationTestCase
         return $security;
     }
 
-    private function sale(string $saleId): GroupIndustrySale
+    private function sale(string $saleId): IndustryProjectSale
     {
-        $sale = $this->em->find(GroupIndustrySale::class, $saleId);
-        \assert($sale instanceof GroupIndustrySale);
+        $sale = $this->em->find(IndustryProjectSale::class, $saleId);
+        \assert($sale instanceof IndustryProjectSale);
 
         return $sale;
     }
 
-    private function addSale(IndustryProject $project, User $recordedBy, int $quantity, float $unitPrice, string $soldAt): GroupIndustrySale
+    private function addSale(IndustryProject $project, User $recordedBy, int $quantity, float $unitPrice, string $soldAt): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId(0)
             ->setTypeName('Sabre')
             ->setQuantity($quantity)

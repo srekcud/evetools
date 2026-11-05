@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\GroupIndustryBomItem;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<GroupIndustryBomItem>
+ * @extends ServiceEntityRepository<IndustryProjectBomLine>
  */
-class GroupIndustryBomItemRepository extends ServiceEntityRepository
+class IndustryProjectBomLineRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, GroupIndustryBomItem::class);
+        parent::__construct($registry, IndustryProjectBomLine::class);
     }
 
     /**
-     * @return GroupIndustryBomItem[]
+     * @return IndustryProjectBomLine[]
      */
     public function findMaterialsByProject(IndustryProject $project): array
     {

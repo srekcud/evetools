@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSellerOfUser;
@@ -69,7 +69,7 @@ class RecordSaleProcessor implements ProcessorInterface
             ? new \DateTimeImmutable($data->soldAt)
             : new \DateTimeImmutable();
 
-        $sale = new GroupIndustrySale();
+        $sale = new IndustryProjectSale();
         $sale->setProject($project);
         $sale->setTypeId($data->typeId);
         $sale->setTypeName($data->typeName);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Repository;
 
-use App\Entity\GroupIndustryProjectItem;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
@@ -53,7 +53,7 @@ final class IndustryProjectRouteSeparationTest extends IntegrationTestCase
             ->setProductTypeId(22456)
             ->setRuns(5)
             ->addItem(
-                (new GroupIndustryProjectItem())
+                (new IndustryProjectProduct())
                     ->setTypeId(22456)
                     ->setTypeName('Sabre')
                     ->setMeLevel(10)

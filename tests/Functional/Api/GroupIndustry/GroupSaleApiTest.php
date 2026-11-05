@@ -7,9 +7,9 @@ namespace App\Tests\Functional\Api\GroupIndustry;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
@@ -36,7 +36,7 @@ final class GroupSaleApiTest extends WebTestCase
     private User $member;
     private IndustryProject $sabreDoctrine;
     private IndustryProject $hecateBatch;
-    private GroupIndustrySale $sabreSale;
+    private IndustryProjectSale $sabreSale;
 
     protected function setUp(): void
     {
@@ -54,7 +54,7 @@ final class GroupSaleApiTest extends WebTestCase
         $this->addMembership($this->sabreDoctrine, $this->member, GroupMemberRole::Member);
         $this->hecateBatch = $this->persistProject('Hecate batch', GroupProjectStatus::Selling);
         $this->addMembership($this->hecateBatch, $this->owner, GroupMemberRole::Owner);
-        $this->sabreSale = (new GroupIndustrySale())
+        $this->sabreSale = (new IndustryProjectSale())
             ->setTypeId(0)
             ->setTypeName('Sabre')
             ->setQuantity(2)
@@ -371,7 +371,7 @@ final class GroupSaleApiTest extends WebTestCase
     private function persistWalletSale(User $seller, int $transactionId, int $quantity, float $unitPrice): CachedWalletTransaction
     {
         if ($this->sabreDoctrine->getItems()->isEmpty()) {
-            $this->sabreDoctrine->addItem((new GroupIndustryProjectItem())->setTypeId(22456)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
+            $this->sabreDoctrine->addItem((new IndustryProjectProduct())->setTypeId(22456)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
         }
         $sellerCharacter = $seller->getMainCharacter();
         \assert($sellerCharacter instanceof Character);
@@ -428,7 +428,7 @@ final class GroupSaleApiTest extends WebTestCase
     private function addMembership(IndustryProject $project, User $user, GroupMemberRole $role): void
     {
         $project->addMember(
-            (new GroupIndustryProjectMember())->setUser($user)->setRole($role)->setStatus(GroupMemberStatus::Accepted),
+            (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus(GroupMemberStatus::Accepted),
         );
     }
 
@@ -479,13 +479,13 @@ final class GroupSaleApiTest extends WebTestCase
     {
         $this->em->clear();
 
-        return $this->em->getRepository(GroupIndustrySale::class)->count(['project' => $project->getId()]);
+        return $this->em->getRepository(IndustryProjectSale::class)->count(['project' => $project->getId()]);
     }
 
     private function storedSabreSaleAmounts(): array
     {
         $this->em->clear();
-        $sale = $this->em->find(GroupIndustrySale::class, $this->sabreSale->getId());
+        $sale = $this->em->find(IndustryProjectSale::class, $this->sabreSale->getId());
 
         return [$sale?->getUnitPrice(), $sale?->getTotalPrice()];
     }

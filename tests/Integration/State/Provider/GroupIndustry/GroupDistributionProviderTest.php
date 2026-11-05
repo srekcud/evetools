@@ -6,11 +6,11 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\GroupIndustry\GroupIndustryDistributionResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -110,7 +110,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         $this->em->persist($project);
         $ownerMember = $this->addMember($project, $owner, GroupMemberRole::Owner);
         $project->addContribution(
-            (new GroupIndustryContribution())
+            (new IndustryProjectContribution())
                 ->setMember($ownerMember)
                 ->setType(ContributionType::LineRental)
                 ->setQuantity(1)
@@ -211,9 +211,9 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole($role)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -222,9 +222,9 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): GroupIndustryBomItem
+    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): IndustryProjectBomLine
     {
-        $bomItem = (new GroupIndustryBomItem())
+        $bomItem = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setRequiredQuantity(1_000_000);
@@ -233,9 +233,9 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         return $bomItem;
     }
 
-    private function addApprovedContribution(IndustryProject $project, GroupIndustryProjectMember $member, GroupIndustryBomItem $bomItem, float $estimatedValue): void
+    private function addApprovedContribution(IndustryProject $project, IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, float $estimatedValue): void
     {
-        $contribution = (new GroupIndustryContribution())
+        $contribution = (new IndustryProjectContribution())
             ->setMember($member)
             ->setBomItem($bomItem)
             ->setType(ContributionType::Material)
@@ -247,7 +247,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
 
     private function addSale(IndustryProject $project, User $recordedBy, int $quantity, float $unitPrice): void
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId(self::SABRE_TYPE_ID)
             ->setTypeName('Sabre')
             ->setQuantity($quantity)

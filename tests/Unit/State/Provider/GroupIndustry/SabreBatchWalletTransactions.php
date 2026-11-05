@@ -7,8 +7,8 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectSale;
 use App\Enum\GroupProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
 use PHPUnit\Framework\MockObject\Stub;
@@ -32,8 +32,8 @@ trait SabreBatchWalletTransactions
     private CachedWalletTransaction $t5;
     private CachedWalletTransaction $t6;
     private CachedWalletTransaction $t7;
-    private GroupIndustrySale $manualSaleV;
-    private GroupIndustrySale $saleOfAnotherProjectLinkedToT6;
+    private IndustryProjectSale $manualSaleV;
+    private IndustryProjectSale $saleOfAnotherProjectLinkedToT6;
 
     private array $walletTransactions = [];
 
@@ -56,23 +56,23 @@ trait SabreBatchWalletTransactions
         $this->saleOfAnotherProjectLinkedToT6 = $this->saleOf($cutlassBatch, self::SABRE_TYPE_ID, 2, 60_500_000.0);
     }
 
-    private function addSabreBatchItem(int $typeId, string $typeName, int $meLevel): GroupIndustryProjectItem
+    private function addSabreBatchItem(int $typeId, string $typeName, int $meLevel): IndustryProjectProduct
     {
-        $item = (new GroupIndustryProjectItem())->setTypeId($typeId)->setTypeName($typeName)->setMeLevel($meLevel)->setRuns(1);
-        (new \ReflectionProperty(GroupIndustryProjectItem::class, 'id'))->setValue($item, Uuid::v4());
+        $item = (new IndustryProjectProduct())->setTypeId($typeId)->setTypeName($typeName)->setMeLevel($meLevel)->setRuns(1);
+        (new \ReflectionProperty(IndustryProjectProduct::class, 'id'))->setValue($item, Uuid::v4());
         $this->sabreBatch->addItem($item);
 
         return $item;
     }
 
-    private function addSabreBatchSale(int $typeId, int $quantity, float $unitPrice): GroupIndustrySale
+    private function addSabreBatchSale(int $typeId, int $quantity, float $unitPrice): IndustryProjectSale
     {
         return $this->saleOf($this->sabreBatch, $typeId, $quantity, $unitPrice);
     }
 
-    private function saleOf(IndustryProject $project, int $typeId, int $quantity, float $unitPrice): GroupIndustrySale
+    private function saleOf(IndustryProject $project, int $typeId, int $quantity, float $unitPrice): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId($typeId)
             ->setTypeName('Sabre')
             ->setQuantity($quantity)
@@ -80,7 +80,7 @@ trait SabreBatchWalletTransactions
             ->recalculateTotalPrice()
             ->setSoldAt(new \DateTimeImmutable('2026-10-24T22:00:00+00:00'))
             ->setRecordedBy($this->sabreBatchOwner);
-        (new \ReflectionProperty(GroupIndustrySale::class, 'id'))->setValue($sale, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectSale::class, 'id'))->setValue($sale, Uuid::v4());
         $project->addSale($sale);
 
         return $sale;
@@ -117,7 +117,7 @@ trait SabreBatchWalletTransactions
         return $this->saleLinkedTo($transaction) !== null;
     }
 
-    private function saleLinkedTo(CachedWalletTransaction $transaction): ?GroupIndustrySale
+    private function saleLinkedTo(CachedWalletTransaction $transaction): ?IndustryProjectSale
     {
         if ($transaction === $this->t6) {
             return $this->saleOfAnotherProjectLinkedToT6;

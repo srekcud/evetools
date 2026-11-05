@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -13,13 +13,13 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<GroupIndustryProjectMember>
+ * @extends ServiceEntityRepository<IndustryProjectParticipant>
  */
-class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
+class IndustryProjectParticipantRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, GroupIndustryProjectMember::class);
+        parent::__construct($registry, IndustryProjectParticipant::class);
     }
 
     /**
@@ -48,11 +48,11 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
      * the project, its owner and the owner's main character are fetch-joined, the project items and
      * BOM items are batch-loaded (one query per collection, to avoid a row explosion).
      *
-     * @return GroupIndustryProjectMember[]
+     * @return IndustryProjectParticipant[]
      */
     public function findAcceptedWithProjectsByUser(User $user): array
     {
-        /** @var GroupIndustryProjectMember[] $memberships */
+        /** @var IndustryProjectParticipant[] $memberships */
         $memberships = $this->createQueryBuilder('m')
             ->addSelect('p', 'owner', 'ownerCharacter', 'ownerToken')
             ->join('m.project', 'p')
@@ -70,7 +70,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
             ->getResult();
 
         $this->loadItemsAndBomItems(
-            array_map(static fn (GroupIndustryProjectMember $m): IndustryProject => $m->getProject(), $memberships),
+            array_map(static fn (IndustryProjectParticipant $m): IndustryProject => $m->getProject(), $memberships),
         );
 
         return $memberships;
@@ -95,7 +95,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
     /**
      * Initializes, in a single query, the user of each given membership and the user's main character.
      *
-     * @param GroupIndustryProjectMember[] $memberships
+     * @param IndustryProjectParticipant[] $memberships
      */
     public function loadUsersWithMainCharacter(array $memberships): void
     {
@@ -149,7 +149,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
         return $counts;
     }
 
-    public function findOwnershipSuccessor(IndustryProject $project, User $leavingOwner): ?GroupIndustryProjectMember
+    public function findOwnershipSuccessor(IndustryProject $project, User $leavingOwner): ?IndustryProjectParticipant
     {
         return $this->createQueryBuilder('m')
             ->addSelect('CASE WHEN m.role = :admin THEN 0 ELSE 1 END AS HIDDEN rolePriority')

@@ -8,11 +8,11 @@ use ApiPlatform\Metadata\Post;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\JoinGroupProjectProcessor;
@@ -43,7 +43,7 @@ class JoinGroupProjectProcessorTest extends TestCase
     private HubInterface&MockObject $hub;
     private IndustryProject $project;
 
-    /** @var GroupIndustryProjectMember[] */
+    /** @var IndustryProjectParticipant[] */
     private array $memberships = [];
 
     private JoinGroupProjectProcessor $processor;
@@ -64,9 +64,9 @@ class JoinGroupProjectProcessorTest extends TestCase
         $projectRepository->method('findByShortLinkCode')->willReturnMap([[self::SHORT_LINK_CODE, $this->project]]);
 
         // In-memory repository: findOneBy matches every criterion against the stored rows
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $memberRepository->method('findOneBy')->willReturnCallback(
-            function (array $criteria): ?GroupIndustryProjectMember {
+            function (array $criteria): ?IndustryProjectParticipant {
                 foreach ($this->memberships as $membership) {
                     if ($this->membershipMatches($membership, $criteria)) {
                         return $membership;
@@ -263,13 +263,13 @@ class JoinGroupProjectProcessorTest extends TestCase
         return $user;
     }
 
-    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status): IndustryProjectParticipant
     {
-        $membership = new GroupIndustryProjectMember();
+        $membership = new IndustryProjectParticipant();
         $membership->setUser($user);
         $membership->setRole($role);
         $membership->setStatus($status);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($membership, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($membership, Uuid::v4());
         $this->project->addMember($membership);
 
         $this->memberships[] = $membership;
@@ -283,7 +283,7 @@ class JoinGroupProjectProcessorTest extends TestCase
         $this->entityManager->method('flush')->willReturnCallback(function (): void {
             foreach ($this->project->getMembers() as $membership) {
                 if ($membership->getId() === null) {
-                    (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($membership, Uuid::v4());
+                    (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($membership, Uuid::v4());
                 }
             }
         });
@@ -292,7 +292,7 @@ class JoinGroupProjectProcessorTest extends TestCase
     /**
      * @param array<string, mixed> $criteria
      */
-    private function membershipMatches(GroupIndustryProjectMember $membership, array $criteria): bool
+    private function membershipMatches(IndustryProjectParticipant $membership, array $criteria): bool
     {
         $values = [
             'project' => $membership->getProject(),

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\Sde\InvCategory;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
@@ -19,7 +19,7 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\GroupIndustry\CreateProjectData;
@@ -89,7 +89,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             self::getContainer()->get(InventionService::class),
             self::getContainer()->get(IndustryActivityProductRepository::class),
             self::getContainer()->get(IndustryActivityRepository::class),
-            self::getContainer()->get(GroupIndustryContributionRepository::class),
+            self::getContainer()->get(IndustryProjectContributionRepository::class),
         );
     }
 
@@ -118,7 +118,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         self::assertSame(
             [[self::NITROGEN_FUEL_BLOCK, 'Nitrogen Fuel Block', 10, 20, 25, 0]],
             $this->connection->fetchAllNumeric(
-                'SELECT type_id, type_name, me_level, te_level, runs, sort_order FROM group_industry_project_items WHERE project_id = ?',
+                'SELECT type_id, type_name, me_level, te_level, runs, sort_order FROM industry_project_products WHERE project_id = ?',
                 [$projectId],
             ),
         );
@@ -153,7 +153,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         self::assertSame(
             [[10125, null], [1000, 25]],
             $this->connection->fetchAllNumeric(
-                "SELECT required_quantity, runs FROM group_industry_bom_items WHERE project_id = ? AND (type_id = ? OR activity_type = 'manufacturing') ORDER BY is_job",
+                "SELECT required_quantity, runs FROM industry_project_bom_lines WHERE project_id = ? AND (type_id = ? OR activity_type = 'manufacturing') ORDER BY is_job",
                 [$newProjectId, self::NITROGEN_ISOTOPES],
             ),
         );
@@ -163,7 +163,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     {
         $project = $this->createNitrogenFuelBlockProject(runs: 1, meLevel: 0, teLevel: 0);
         $ownerMember = $project->getMembers()->first();
-        \assert($ownerMember instanceof GroupIndustryProjectMember);
+        \assert($ownerMember instanceof IndustryProjectParticipant);
         $isotopes = $this->bomItemOf($project, self::NITROGEN_ISOTOPES, isJob: false);
         $finalJob = $this->bomItemOf($project, self::NITROGEN_FUEL_BLOCK, isJob: true);
         $this->contribution($project, $ownerMember, $isotopes, ContributionType::Material, 300, ContributionStatus::Approved);
@@ -186,19 +186,19 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             $contributionsBefore,
         );
         self::assertSame($contributionsBefore, $this->persistedContributionRows($projectId));
-        self::assertSame(11, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM group_industry_bom_items WHERE project_id = ?', [$projectId]));
+        self::assertSame(11, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM industry_project_bom_lines WHERE project_id = ?', [$projectId]));
         self::assertSame($bomRowsBefore, $this->persistedBomRowsWithIds($projectId));
         self::assertSame(
             [[$isotopesId, 450, 300]],
             $this->connection->fetchAllNumeric(
-                'SELECT id, required_quantity, fulfilled_quantity FROM group_industry_bom_items WHERE project_id = ? AND type_id = ?',
+                'SELECT id, required_quantity, fulfilled_quantity FROM industry_project_bom_lines WHERE project_id = ? AND type_id = ?',
                 [$projectId, self::NITROGEN_ISOTOPES],
             ),
         );
         self::assertSame(
             [[$finalJobId, 1, 40, 'final', 0, 0]],
             $this->connection->fetchAllNumeric(
-                "SELECT id, runs, required_quantity, job_group, me_level, te_level FROM group_industry_bom_items WHERE project_id = ? AND is_job AND activity_type = 'manufacturing'",
+                "SELECT id, runs, required_quantity, job_group, me_level, te_level FROM industry_project_bom_lines WHERE project_id = ? AND is_job AND activity_type = 'manufacturing'",
                 [$projectId],
             ),
         );
@@ -210,7 +210,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         $this->flushAndClear();
         $projectId = (string) $project->getId();
         $recordedLineIds = $this->connection->fetchFirstColumn(
-            'SELECT id FROM group_industry_bom_items WHERE project_id = ? ORDER BY is_job, activity_type',
+            'SELECT id FROM industry_project_bom_lines WHERE project_id = ? ORDER BY is_job, activity_type',
             [$projectId],
         );
         $contributionsBefore = $this->persistedContributionRows($projectId);
@@ -237,7 +237,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             [[10125, 300], [25, 25], [1000, 25]],
             array_map(
                 fn (string $lineId): array => array_map('intval', $this->connection->fetchNumeric(
-                    'SELECT required_quantity, COALESCE(runs, fulfilled_quantity) FROM group_industry_bom_items WHERE id = ?',
+                    'SELECT required_quantity, COALESCE(runs, fulfilled_quantity) FROM industry_project_bom_lines WHERE id = ?',
                     [$lineId],
                 ) ?: []),
                 $recordedLineIds,
@@ -253,7 +253,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         $this->flushAndClear();
         [$project, $owner] = $this->loadedProjectAndOwner($projectId);
         self::assertCount(0, $project->getContributions());
-        $roboticsId = $this->connection->fetchOne('SELECT id FROM group_industry_bom_items WHERE project_id = ? AND type_id = ?', [$projectId, self::ROBOTICS]);
+        $roboticsId = $this->connection->fetchOne('SELECT id FROM industry_project_bom_lines WHERE project_id = ? AND type_id = ?', [$projectId, self::ROBOTICS]);
         $this->insertMaterialContributionOfOneUnit($projectId, $roboticsId);
         $this->connection->delete('sde_industry_activity_materials', ['type_id' => self::NITROGEN_FUEL_BLOCK_BLUEPRINT, 'material_type_id' => self::ROBOTICS]);
 
@@ -263,12 +263,12 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         self::assertSame(
             [[$roboticsId, 1, 0]],
             $this->connection->fetchAllNumeric(
-                'SELECT id, required_quantity, fulfilled_quantity FROM group_industry_bom_items WHERE project_id = ? AND type_id = ?',
+                'SELECT id, required_quantity, fulfilled_quantity FROM industry_project_bom_lines WHERE project_id = ? AND type_id = ?',
                 [$projectId, self::ROBOTICS],
             ),
         );
         self::assertSame([[ContributionType::Material->value, 1, ContributionStatus::Pending->value, $roboticsId]], $this->persistedContributionRows($projectId));
-        self::assertSame(11, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM group_industry_bom_items WHERE project_id = ?', [$projectId]));
+        self::assertSame(11, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM industry_project_bom_lines WHERE project_id = ?', [$projectId]));
     }
 
     public static function projectOfSeveralLineCountsProvider(): iterable
@@ -289,7 +289,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 
         $contributionQueries = $this->queriesMatching(
             $this->sqlExecutedDuring(fn () => $this->service->buildBom($project, $owner)),
-            '/\bgroup_industry_contributions\b/',
+            '/\bindustry_project_contributions\b/',
         );
 
         self::assertCount($lineCount, $project->getBomItems());
@@ -309,8 +309,8 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     private function insertMaterialContributionOfOneUnit(string $projectId, string $bomItemId): void
     {
         $this->connection->executeStatement(
-            "INSERT INTO group_industry_contributions (id, project_id, member_id, bom_item_id, type, quantity, estimated_value, status, is_auto_detected, is_verified, created_at)
-             SELECT ?, project_id, id, ?, ?, 1, 76000, ?, false, false, NOW() FROM group_industry_project_members WHERE project_id = ?",
+            "INSERT INTO industry_project_contributions (id, project_id, member_id, bom_item_id, type, quantity, estimated_value, status, is_auto_detected, is_verified, created_at)
+             SELECT ?, project_id, id, ?, ?, 1, 76000, ?, false, false, NOW() FROM industry_project_participants WHERE project_id = ?",
             [Uuid::v7()->toRfc4122(), $bomItemId, ContributionType::Material->value, ContributionStatus::Pending->value, $projectId],
         );
     }
@@ -329,23 +329,23 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     private function projectRecordedWithTheBomOfOneRunForTwentyFiveRuns(): IndustryProject
     {
         $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->owner)->setName('Fuel run recorded before the plan');
-        $ownerMember = (new GroupIndustryProjectMember())->setUser($this->owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted);
+        $ownerMember = (new IndustryProjectParticipant())->setUser($this->owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted);
         $project->addMember($ownerMember);
-        $project->addItem((new GroupIndustryProjectItem())
+        $project->addItem((new IndustryProjectProduct())
             ->setTypeId(self::NITROGEN_FUEL_BLOCK)
             ->setTypeName('Nitrogen Fuel Block')
             ->setMeLevel(10)
             ->setTeLevel(20)
             ->setRuns(25)
             ->setSortOrder(0));
-        $isotopes = (new GroupIndustryBomItem())
+        $isotopes = (new IndustryProjectBomLine())
             ->setTypeId(self::NITROGEN_ISOTOPES)
             ->setTypeName('Nitrogen Isotopes')
             ->setRequiredQuantity(405)
             ->setIsJob(false)
             ->setEstimatedPrice(512.5)
             ->setFulfilledQuantity(300);
-        $finalJob = (new GroupIndustryBomItem())
+        $finalJob = (new IndustryProjectBomLine())
             ->setTypeId(self::NITROGEN_FUEL_BLOCK)
             ->setTypeName('Nitrogen Fuel Block')
             ->setRequiredQuantity(40)
@@ -355,7 +355,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             ->setMeLevel(10)
             ->setTeLevel(20)
             ->setRuns(1);
-        $copyJob = (new GroupIndustryBomItem())
+        $copyJob = (new IndustryProjectBomLine())
             ->setTypeId(self::NITROGEN_FUEL_BLOCK)
             ->setTypeName('Nitrogen Fuel Block')
             ->setRequiredQuantity(1)
@@ -389,7 +389,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     {
         return $this->connection->fetchAllNumeric(
             'SELECT id, type_id, required_quantity, fulfilled_quantity, estimated_price, is_job, job_group, activity_type, me_level, te_level, runs
-             FROM group_industry_bom_items WHERE project_id = ? ORDER BY id',
+             FROM industry_project_bom_lines WHERE project_id = ? ORDER BY id',
             [$projectId],
         );
     }
@@ -398,7 +398,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     {
         return $this->connection->fetchAllNumeric(
             'SELECT type_id, type_name, required_quantity, fulfilled_quantity, estimated_price, is_job, job_group, activity_type, parent_type_id, me_level, te_level, runs
-             FROM group_industry_bom_items WHERE project_id = ? ORDER BY is_job, type_id, activity_type',
+             FROM industry_project_bom_lines WHERE project_id = ? ORDER BY is_job, type_id, activity_type',
             [$projectId],
         );
     }
@@ -406,12 +406,12 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     private function persistedContributionRows(string $projectId): array
     {
         return $this->connection->fetchAllNumeric(
-            'SELECT type, quantity, status, bom_item_id FROM group_industry_contributions WHERE project_id = ? ORDER BY type',
+            'SELECT type, quantity, status, bom_item_id FROM industry_project_contributions WHERE project_id = ? ORDER BY type',
             [$projectId],
         );
     }
 
-    private function bomItemOf(IndustryProject $project, int $typeId, bool $isJob): GroupIndustryBomItem
+    private function bomItemOf(IndustryProject $project, int $typeId, bool $isJob): IndustryProjectBomLine
     {
         foreach ($project->getBomItems() as $bomItem) {
             if ($bomItem->getTypeId() === $typeId && $bomItem->isJob() === $isJob && $bomItem->getActivityType() !== 'copy') {
@@ -423,13 +423,13 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 
     private function contribution(
         IndustryProject $project,
-        GroupIndustryProjectMember $member,
-        GroupIndustryBomItem $bomItem,
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
         ContributionType $type,
         int $quantity,
         ContributionStatus $status,
     ): void {
-        $project->addContribution((new GroupIndustryContribution())
+        $project->addContribution((new IndustryProjectContribution())
             ->setMember($member)
             ->setBomItem($bomItem)
             ->setType($type)

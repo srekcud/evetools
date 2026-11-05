@@ -7,11 +7,11 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContainerService;
 use App\State\Provider\GroupIndustry\ContainerVerificationProvider;
@@ -30,7 +30,7 @@ class ContainerVerificationProviderTest extends TestCase
 {
     private Security&Stub $security;
     private IndustryProjectRepository&Stub $projectRepository;
-    private GroupIndustryProjectMemberRepository&Stub $memberRepository;
+    private IndustryProjectParticipantRepository&Stub $memberRepository;
     private GroupIndustryContainerService&Stub $containerService;
     private GroupProjectAccessChecker $accessChecker;
     private ContainerVerificationProvider $provider;
@@ -39,7 +39,7 @@ class ContainerVerificationProviderTest extends TestCase
     {
         $this->security = $this->createStub(Security::class);
         $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->containerService = $this->createStub(GroupIndustryContainerService::class);
         $this->accessChecker = new GroupProjectAccessChecker($this->memberRepository);
 
@@ -122,7 +122,7 @@ class ContainerVerificationProviderTest extends TestCase
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
 
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setUser($user);
         $member->setProject($project);
         $member->setRole(GroupMemberRole::Admin);

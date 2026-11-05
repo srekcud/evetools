@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Entity;
 
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -25,7 +25,7 @@ final class IndustryProjectTest extends TestCase
         $formerOwner = new User();
         $newOwner = new User();
         $project = (new IndustryProject())->setOwner($formerOwner);
-        $participant = (new GroupIndustryProjectMember())
+        $participant = (new IndustryProjectParticipant())
             ->setUser($newOwner)
             ->setRole(GroupMemberRole::Admin)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -55,7 +55,7 @@ final class IndustryProjectTest extends TestCase
         self::assertTrue($project->isPlannedBySteps());
 
         $project->addItem(
-            (new GroupIndustryProjectItem())
+            (new IndustryProjectProduct())
                 ->setTypeId(22456)
                 ->setTypeName('Sabre')
                 ->setMeLevel(10)

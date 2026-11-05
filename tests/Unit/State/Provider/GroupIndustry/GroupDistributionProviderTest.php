@@ -6,14 +6,14 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\GroupIndustry\GroupIndustryDistributionResource;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectSale;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\GroupIndustry\MemberDistribution;
@@ -157,16 +157,16 @@ class GroupDistributionProviderTest extends TestCase
         $viewer = $this->userWithProfile(self::ACCEPTED_MEMBER);
         $this->security->method('getUser')->willReturn($viewer);
         $lineRenter = $this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), GroupMemberRole::Member, GroupMemberStatus::Accepted);
-        $freeLineRental = (new GroupIndustryContribution())
+        $freeLineRental = (new IndustryProjectContribution())
             ->setMember($lineRenter)
             ->setType(ContributionType::LineRental)
             ->setQuantity(1)
             ->setEstimatedValue(0.0)
             ->setStatus(ContributionStatus::Approved);
-        $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
+        $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findApprovedByProject')->willReturn([$freeLineRental]);
-        $saleRepository = $this->createStub(GroupIndustrySaleRepository::class);
-        $saleRepository->method('findBy')->willReturn([(new GroupIndustrySale())->setTotalPrice(1_000_000.0)]);
+        $saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
+        $saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTotalPrice(1_000_000.0)]);
         $provider = new GroupDistributionProvider(
             $this->security,
             $this->sabreBatchProjectRepository(),

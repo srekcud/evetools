@@ -6,17 +6,17 @@ namespace App\Entity;
 
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity(repositoryClass: GroupIndustryProjectMemberRepository::class)]
-#[ORM\Table(name: 'group_industry_project_members')]
+#[ORM\Entity(repositoryClass: IndustryProjectParticipantRepository::class)]
+#[ORM\Table(name: 'industry_project_participants')]
 #[ORM\Index(columns: ['project_id'])]
 #[ORM\Index(columns: ['user_id'])]
 #[ORM\UniqueConstraint(columns: ['project_id', 'user_id'])]
-class GroupIndustryProjectMember
+class IndustryProjectParticipant
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]

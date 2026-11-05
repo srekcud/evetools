@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Integration\State\Provider\Mercure;
 
 use ApiPlatform\Metadata\Get;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\State\Provider\Mercure\TokenProvider;
 use App\Tests\Integration\IntegrationTestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -48,7 +48,7 @@ final class TokenProviderTest extends IntegrationTestCase
             ->setProductTypeId(22456)
             ->setRuns(5)
             ->addItem(
-                (new GroupIndustryProjectItem())
+                (new IndustryProjectProduct())
                     ->setTypeId(22456)
                     ->setTypeName('Sabre')
                     ->setMeLevel(10)
@@ -68,7 +68,7 @@ final class TokenProviderTest extends IntegrationTestCase
         $security->method('getUser')->willReturn($this->em->find(User::class, $ownerId));
         $provider = new TokenProvider(
             $security,
-            self::getContainer()->get(GroupIndustryProjectMemberRepository::class),
+            self::getContainer()->get(IndustryProjectParticipantRepository::class),
             'a-mercure-secret-of-at-least-thirty-two-bytes',
             'https://mercure.example.test/.well-known/mercure',
         );
@@ -80,9 +80,9 @@ final class TokenProviderTest extends IntegrationTestCase
         self::assertCount(1, array_filter($topics, static fn (string $topic): bool => str_starts_with($topic, '/group-project/')));
     }
 
-    private function ownerParticipant(User $user): GroupIndustryProjectMember
+    private function ownerParticipant(User $user): IndustryProjectParticipant
     {
-        return (new GroupIndustryProjectMember())
+        return (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole(GroupMemberRole::Owner)
             ->setStatus(GroupMemberStatus::Accepted);

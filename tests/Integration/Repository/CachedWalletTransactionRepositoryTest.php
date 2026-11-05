@@ -7,7 +7,7 @@ namespace App\Tests\Integration\Repository;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Enum\GroupProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Tests\Integration\IntegrationTestCase;
@@ -28,7 +28,7 @@ final class CachedWalletTransactionRepositoryTest extends IntegrationTestCase
     private Character $oAlt;
     private Character $aMain;
     private IndustryProject $sabreProject;
-    private GroupIndustrySale $cutlassSaleLinkedToT6;
+    private IndustryProjectSale $cutlassSaleLinkedToT6;
 
     protected function setUp(): void
     {
@@ -166,9 +166,9 @@ final class CachedWalletTransactionRepositoryTest extends IntegrationTestCase
         return $transaction;
     }
 
-    private function addSale(IndustryProject $project, int $quantity, float $unitPrice): GroupIndustrySale
+    private function addSale(IndustryProject $project, int $quantity, float $unitPrice): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId(self::SABRE_TYPE_ID)
             ->setTypeName('Sabre')
             ->setQuantity($quantity)

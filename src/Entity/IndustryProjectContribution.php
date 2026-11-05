@@ -6,17 +6,17 @@ namespace App\Entity;
 
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity(repositoryClass: GroupIndustryContributionRepository::class)]
-#[ORM\Table(name: 'group_industry_contributions')]
+#[ORM\Entity(repositoryClass: IndustryProjectContributionRepository::class)]
+#[ORM\Table(name: 'industry_project_contributions')]
 #[ORM\Index(columns: ['project_id'])]
 #[ORM\Index(columns: ['member_id'])]
 #[ORM\Index(columns: ['status'])]
-class GroupIndustryContribution
+class IndustryProjectContribution
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -26,13 +26,13 @@ class GroupIndustryContribution
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private IndustryProject $project;
 
-    #[ORM\ManyToOne(targetEntity: GroupIndustryProjectMember::class)]
+    #[ORM\ManyToOne(targetEntity: IndustryProjectParticipant::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private GroupIndustryProjectMember $member;
+    private IndustryProjectParticipant $member;
 
-    #[ORM\ManyToOne(targetEntity: GroupIndustryBomItem::class)]
+    #[ORM\ManyToOne(targetEntity: IndustryProjectBomLine::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
-    private ?GroupIndustryBomItem $bomItem = null;
+    private ?IndustryProjectBomLine $bomItem = null;
 
     #[ORM\Column(type: 'string', length: 20, enumType: ContributionType::class)]
     private ContributionType $type;
@@ -90,23 +90,23 @@ class GroupIndustryContribution
         return $this;
     }
 
-    public function getMember(): GroupIndustryProjectMember
+    public function getMember(): IndustryProjectParticipant
     {
         return $this->member;
     }
 
-    public function setMember(GroupIndustryProjectMember $member): static
+    public function setMember(IndustryProjectParticipant $member): static
     {
         $this->member = $member;
         return $this;
     }
 
-    public function getBomItem(): ?GroupIndustryBomItem
+    public function getBomItem(): ?IndustryProjectBomLine
     {
         return $this->bomItem;
     }
 
-    public function setBomItem(?GroupIndustryBomItem $bomItem): static
+    public function setBomItem(?IndustryProjectBomLine $bomItem): static
     {
         $this->bomItem = $bomItem;
         return $this;

@@ -9,13 +9,13 @@ use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
 use App\Tests\Integration\IntegrationTestCase;
@@ -269,7 +269,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         return [(string) $viewer->getId(), (string) $project->getId()];
     }
 
-    private function saleTransactionOf(Character $seller, GroupIndustrySale $sale): CachedWalletTransaction
+    private function saleTransactionOf(Character $seller, IndustryProjectSale $sale): CachedWalletTransaction
     {
         $transaction = (new CachedWalletTransaction())
             ->setCharacter($seller)
@@ -339,7 +339,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
             $security,
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
         );
 
         return $provider->provide(new GetCollection(), ['projectId' => $projectId]);
@@ -361,9 +361,9 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole($role)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -372,9 +372,9 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addSale(IndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $soldAt, ?User $recordedBy): GroupIndustrySale
+    private function addSale(IndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $soldAt, ?User $recordedBy): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setQuantity($quantity)

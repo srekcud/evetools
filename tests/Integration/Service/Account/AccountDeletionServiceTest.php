@@ -17,13 +17,13 @@ use App\Entity\CorporationWalletDonation;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\Escalation;
 use App\Entity\EveToken;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\IndustryUserSettings;
 use App\Entity\MarketFavorite;
@@ -51,7 +51,7 @@ use App\MessageHandler\SyncCharacterAssetsHandler;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\Account\AccountDeletionService;
 use App\Service\ESI\CorporationService;
 use App\Service\ESI\EsiClient;
@@ -143,7 +143,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'corporation_wallet_donations.attributed_by_user_id' => 1,
             'escalations.user_id' => 1,
             'eve_tokens.character_id' => 2,
-            'group_industry_sales.seller_character_id' => 1,
+            'industry_project_sales.seller_character_id' => 1,
             'industry_projects.owner_id' => 2,
             'industry_structure_configs.user_id' => 1,
             'industry_user_settings.user_id' => 1,
@@ -256,8 +256,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $project = $this->createProject($kaelen, 'Hulk for the corp');
         $kaelenMember = $this->addMember($project, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
         $this->addMember($project, $dorn, GroupMemberRole::Member, GroupMemberStatus::Pending, '2026-01-01 09:00:00');
-        $project->addItem((new GroupIndustryProjectItem())->setTypeId(22_544)->setTypeName('Hulk')->setRuns(3));
-        $project->addBomItem((new GroupIndustryBomItem())->setTypeId(11_399)->setTypeName('Morphite')->setRequiredQuantity(675)->setEstimatedPrice(9_800.0));
+        $project->addItem((new IndustryProjectProduct())->setTypeId(22_544)->setTypeName('Hulk')->setRuns(3));
+        $project->addBomItem((new IndustryProjectBomLine())->setTypeId(11_399)->setTypeName('Morphite')->setRequiredQuantity(675)->setEstimatedPrice(9_800.0));
         $this->addContribution($project, $kaelenMember, 2_400_000.0, ContributionStatus::Approved, ContributionType::Material, 40_000);
         $this->addSale($project, $kaelen, 22_544, 'Hulk', 3, 390_000_000.0);
         $this->em->flush();
@@ -266,11 +266,11 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $this->deleteAccount((string) $kaelen->getId());
 
         self::assertSame(0, $this->countWhereIn('industry_projects', 'id', [$projectId]));
-        self::assertSame(0, $this->countWhereIn('group_industry_project_items', 'project_id', [$projectId]));
-        self::assertSame(0, $this->countWhereIn('group_industry_bom_items', 'project_id', [$projectId]));
-        self::assertSame(0, $this->countWhereIn('group_industry_project_members', 'project_id', [$projectId]));
-        self::assertSame(0, $this->countWhereIn('group_industry_contributions', 'project_id', [$projectId]));
-        self::assertSame(0, $this->countWhereIn('group_industry_sales', 'project_id', [$projectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_products', 'project_id', [$projectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_bom_lines', 'project_id', [$projectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_participants', 'project_id', [$projectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_contributions', 'project_id', [$projectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_sales', 'project_id', [$projectId]));
         self::assertSame(1, $this->countWhereIn('users', 'id', [(string) $dorn->getId()]));
     }
 
@@ -290,7 +290,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         self::assertSame(0, $this->countWhereIn('industry_projects', 'id', [$soloProjectId]));
         self::assertSame(0, $this->countWhereIn('industry_project_steps', 'project_id', [$soloProjectId]));
-        self::assertSame(0, $this->countWhereIn('group_industry_project_members', 'project_id', [$soloProjectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_participants', 'project_id', [$soloProjectId]));
     }
 
     public function testAcceptedMembershipIsAnonymizedAndKeepsOnlyItsApprovedContribution(): void
@@ -397,8 +397,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         $this->deleteAccount((string) $kaelen->getId());
 
-        self::assertSame(0, $this->countWhereIn('group_industry_project_members', 'id', [$kaelenMemberId]));
-        self::assertSame(1, $this->countWhereIn('group_industry_project_members', 'id', [$brannMemberId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_participants', 'id', [$kaelenMemberId]));
+        self::assertSame(1, $this->countWhereIn('industry_project_participants', 'id', [$brannMemberId]));
         self::assertSame(1, $this->countWhereIn('industry_projects', 'id', [$projectId]));
     }
 
@@ -417,8 +417,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         $this->deleteAccount((string) $kaelen->getId());
 
-        $sale = $this->em->find(GroupIndustrySale::class, $saleId);
-        self::assertInstanceOf(GroupIndustrySale::class, $sale);
+        $sale = $this->em->find(IndustryProjectSale::class, $saleId);
+        self::assertInstanceOf(IndustryProjectSale::class, $sale);
         self::assertNull($sale->getRecordedBy());
         self::assertSame(5_000_000.0, $sale->getTotalPrice());
         self::assertSame(5_000_000.0, $this->distributionOf($projectId)->totalRevenue);
@@ -444,8 +444,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         $this->deleteAccount((string) $kaelen->getId());
 
-        $sale = $this->em->find(GroupIndustrySale::class, $saleId);
-        self::assertInstanceOf(GroupIndustrySale::class, $sale);
+        $sale = $this->em->find(IndustryProjectSale::class, $saleId);
+        self::assertInstanceOf(IndustryProjectSale::class, $sale);
         self::assertSame([null, null, 183_750_000.0], [$sale->getSeller(), $sale->getRecordedBy(), $sale->getTotalPrice()]);
         self::assertSame(183_750_000.0, $this->distributionOf($projectId)->totalRevenue);
         $listedSales = $this->listSalesOf($projectId, $brannId);
@@ -493,8 +493,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         $this->deleteAccount((string) $kaelen->getId());
 
-        $sale = $this->em->find(GroupIndustrySale::class, $saleId);
-        self::assertInstanceOf(GroupIndustrySale::class, $sale);
+        $sale = $this->em->find(IndustryProjectSale::class, $saleId);
+        self::assertInstanceOf(IndustryProjectSale::class, $sale);
         self::assertSame(
             [null, null, null, 2, 122_000_000.0],
             [$sale->getWalletTransaction(), $sale->getSeller(), $sale->getRecordedBy(), $sale->getQuantity(), $sale->getTotalPrice()],
@@ -616,12 +616,12 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         self::assertSame(1, $this->countWhereIn('characters', 'id', [$kaelenCharacterId]));
         self::assertSame(1, $this->countWhereIn('eve_tokens', 'character_id', [$kaelenCharacterId]));
         self::assertSame($kaelenId, $connection->fetchOne('SELECT owner_id::text FROM industry_projects WHERE id = ?', [$ownedProjectId]));
-        self::assertSame(['role' => 'admin', 'status' => 'accepted'], $connection->fetchAssociative('SELECT role, status FROM group_industry_project_members WHERE id = ?', [$brannAdminId]));
+        self::assertSame(['role' => 'admin', 'status' => 'accepted'], $connection->fetchAssociative('SELECT role, status FROM industry_project_participants WHERE id = ?', [$brannAdminId]));
         self::assertSame(
             ['user_id' => $kaelenId, 'role' => 'admin', 'status' => 'accepted'],
-            $connection->fetchAssociative('SELECT user_id::text AS user_id, role, status FROM group_industry_project_members WHERE id = ?', [$kaelenMemberId]),
+            $connection->fetchAssociative('SELECT user_id::text AS user_id, role, status FROM industry_project_participants WHERE id = ?', [$kaelenMemberId]),
         );
-        self::assertSame(1, $this->countWhereIn('group_industry_contributions', 'id', [$pendingId]));
+        self::assertSame(1, $this->countWhereIn('industry_project_contributions', 'id', [$pendingId]));
         self::assertSame([], $this->ssoRequests);
     }
 
@@ -820,10 +820,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         return $project;
     }
 
-    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status, string $joinedAt): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status, string $joinedAt): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())->setUser($user)->setRole($role)->setStatus($status);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'joinedAt'))->setValue($member, new \DateTimeImmutable($joinedAt));
+        $member = (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus($status);
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'joinedAt'))->setValue($member, new \DateTimeImmutable($joinedAt));
         $project->addMember($member);
 
         return $member;
@@ -831,13 +831,13 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
     private function addContribution(
         IndustryProject $project,
-        GroupIndustryProjectMember $member,
+        IndustryProjectParticipant $member,
         float $estimatedValue,
         ContributionStatus $status,
         ContributionType $type,
         int $quantity,
-    ): GroupIndustryContribution {
-        $contribution = (new GroupIndustryContribution())
+    ): IndustryProjectContribution {
+        $contribution = (new IndustryProjectContribution())
             ->setMember($member)
             ->setType($type)
             ->setQuantity($quantity)
@@ -848,9 +848,9 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         return $contribution;
     }
 
-    private function addSale(IndustryProject $project, User $recordedBy, int $typeId, string $typeName, int $quantity, float $unitPrice): GroupIndustrySale
+    private function addSale(IndustryProject $project, User $recordedBy, int $typeId, string $typeName, int $quantity, float $unitPrice): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setQuantity($quantity)
@@ -872,10 +872,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         return $project;
     }
 
-    private function member(string $memberId): GroupIndustryProjectMember
+    private function member(string $memberId): IndustryProjectParticipant
     {
-        $member = $this->em->find(GroupIndustryProjectMember::class, $memberId);
-        \assert($member instanceof GroupIndustryProjectMember);
+        $member = $this->em->find(IndustryProjectParticipant::class, $memberId);
+        \assert($member instanceof IndustryProjectParticipant);
 
         return $member;
     }
@@ -895,7 +895,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
     private function contributionsOf(string $memberId): array
     {
         $rows = $this->connection()->fetchAllAssociative(
-            'SELECT id::text AS id, status, estimated_value, quantity FROM group_industry_contributions WHERE member_id = ? ORDER BY id',
+            'SELECT id::text AS id, status, estimated_value, quantity FROM industry_project_contributions WHERE member_id = ? ORDER BY id',
             [$memberId],
         );
 
@@ -910,7 +910,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
     private function noteAndValueOf(string $contributionId): array
     {
         $row = $this->connection()->fetchAssociative(
-            'SELECT note, estimated_value FROM group_industry_contributions WHERE id = ?',
+            'SELECT note, estimated_value FROM industry_project_contributions WHERE id = ?',
             [$contributionId],
         );
         \assert(\is_array($row));
@@ -958,7 +958,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             $security,
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
         );
 
         return $provider->provide(new GetCollection(), ['projectId' => $projectId]);
@@ -1032,7 +1032,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             SQL);
         $connection->executeStatement(<<<'SQL'
             CREATE TRIGGER fail_on_membership_anonymization_53
-            AFTER UPDATE ON group_industry_project_members
+            AFTER UPDATE ON industry_project_participants
             FOR EACH ROW WHEN (OLD.user_id IS NOT NULL AND NEW.user_id IS NULL)
             EXECUTE FUNCTION fail_on_membership_anonymization_53()
             SQL);

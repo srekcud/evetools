@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
@@ -435,7 +435,7 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame(10, strlen($project->getShortLinkCode()));
         $this->assertCount(1, $project->getMembers());
         $participant = $project->getMembers()->first();
-        $this->assertInstanceOf(GroupIndustryProjectMember::class, $participant);
+        $this->assertInstanceOf(IndustryProjectParticipant::class, $participant);
         $this->assertSame($user, $participant->getUser());
         $this->assertSame(GroupMemberRole::Owner, $participant->getRole());
         $this->assertSame(GroupMemberStatus::Accepted, $participant->getStatus());

@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Get;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -42,7 +42,7 @@ final class GroupProjectProviderRouteSeparationTest extends TestCase
                     ->setRuns(12)
                     ->setDepth(0),
             );
-        $ownerParticipant = (new GroupIndustryProjectMember())
+        $ownerParticipant = (new IndustryProjectParticipant())
             ->setUser($owner)
             ->setRole(GroupMemberRole::Owner)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -51,7 +51,7 @@ final class GroupProjectProviderRouteSeparationTest extends TestCase
         $security->method('getUser')->willReturn($owner);
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($projectPlannedBySteps);
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $memberRepository->method('findOneBy')->willReturn($ownerParticipant);
         $provider = new GroupProjectProvider(
             $security,

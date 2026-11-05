@@ -7,10 +7,10 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -21,9 +21,9 @@ class GroupProjectCollectionProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
     ) {
     }
 
@@ -37,7 +37,7 @@ class GroupProjectCollectionProvider implements ProviderInterface
         }
 
         $memberships = $this->memberRepository->findAcceptedWithProjectsByUser($user);
-        $projects = array_values(array_map(static fn (GroupIndustryProjectMember $membership) => $membership->getProject(), $memberships));
+        $projects = array_values(array_map(static fn (IndustryProjectParticipant $membership) => $membership->getProject(), $memberships));
         $membersCountByProject = $this->memberRepository->countAcceptedByProject($projects);
         $approvedValueByProject = $this->contributionRepository->sumApprovedValueByProject($projects);
 

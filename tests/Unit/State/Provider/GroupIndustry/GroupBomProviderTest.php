@@ -6,14 +6,14 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryBomResource;
-use App\Entity\GroupIndustryBomItem;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryBomItemRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupBomProvider;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -34,16 +34,16 @@ class GroupBomProviderTest extends TestCase
 
     private Security&Stub $security;
     private IndustryProjectRepository&Stub $projectRepository;
-    private GroupIndustryBomItemRepository&Stub $bomItemRepository;
-    private GroupIndustryProjectMemberRepository&Stub $memberRepository;
+    private IndustryProjectBomLineRepository&Stub $bomItemRepository;
+    private IndustryProjectParticipantRepository&Stub $memberRepository;
     private GroupBomProvider $provider;
 
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
         $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $this->bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
-        $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $this->bomItemRepository = $this->createStub(IndustryProjectBomLineRepository::class);
+        $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
 
         $this->provider = new GroupBomProvider(
             $this->security,
@@ -124,7 +124,7 @@ class GroupBomProviderTest extends TestCase
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
 
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setUser($user);
         $member->setProject($project);
         $member->setRole(GroupMemberRole::Member);
@@ -258,7 +258,7 @@ class GroupBomProviderTest extends TestCase
         $this->security->method('getUser')->willReturn($this->sabreBatchOwner);
         $ferox = $this->createBomItem(11399, 'Ferox', 7, 2, null, true, 'final', 'manufacturing', null, 10, 20, 7);
         $tritanium = $this->createBomItem(34, 'Tritanium', 150, 40, null, false, null, null, 11399, null, null, null);
-        $bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
+        $bomItemRepository = $this->createStub(IndustryProjectBomLineRepository::class);
         $bomItemRepository->method('findBy')->willReturnCallback(
             fn (array $criteria): array => $criteria === ['project' => $this->sabreBatch] ? [$ferox, $tritanium] : [],
         );
@@ -276,7 +276,7 @@ class GroupBomProviderTest extends TestCase
 
     private function readSabreBatchBom(Uuid $projectId): string
     {
-        $bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
+        $bomItemRepository = $this->createStub(IndustryProjectBomLineRepository::class);
         $bomItemRepository->method('findBy')->willReturn([
             $this->createBomItem(11399, 'Ferox', 7, 2, null, true, 'final', 'manufacturing', null, 10, 20, 7),
         ]);
@@ -316,8 +316,8 @@ class GroupBomProviderTest extends TestCase
         ?int $meLevel,
         ?int $teLevel,
         ?int $runs,
-    ): GroupIndustryBomItem {
-        $item = new GroupIndustryBomItem();
+    ): IndustryProjectBomLine {
+        $item = new IndustryProjectBomLine();
         $item->setTypeId($typeId);
         $item->setTypeName($typeName);
         $item->setRequiredQuantity($requiredQuantity);
@@ -331,7 +331,7 @@ class GroupBomProviderTest extends TestCase
         $item->setTeLevel($teLevel);
         $item->setRuns($runs);
 
-        $reflection = new \ReflectionProperty(GroupIndustryBomItem::class, 'id');
+        $reflection = new \ReflectionProperty(IndustryProjectBomLine::class, 'id');
         $reflection->setValue($item, Uuid::v4());
 
         return $item;

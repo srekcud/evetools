@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Get;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -166,10 +166,10 @@ class GroupProjectProviderTest extends TestCase
         );
     }
 
-    private function addSabreBatchContribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    private function addSabreBatchContribution(IndustryProjectParticipant $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
     {
         $this->sabreBatch->addContribution(
-            (new GroupIndustryContribution())
+            (new IndustryProjectContribution())
                 ->setMember($member)
                 ->setType($type)
                 ->setQuantity(1)
@@ -181,7 +181,7 @@ class GroupProjectProviderTest extends TestCase
     private function addSabreBatchMaterial(int $typeId, float $estimatedPrice, int $requiredQuantity, int $fulfilledQuantity): void
     {
         $this->sabreBatch->addBomItem(
-            (new GroupIndustryBomItem())
+            (new IndustryProjectBomLine())
                 ->setTypeId($typeId)
                 ->setTypeName(sprintf('Material %d', $typeId))
                 ->setRequiredQuantity($requiredQuantity)

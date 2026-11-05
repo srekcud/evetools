@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class GroupIndustryContributionService
 {
     public function __construct(
-        private readonly GroupIndustryContributionRepository $contributionRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -27,13 +27,13 @@ class GroupIndustryContributionService
      * @throws \DomainException if a duplicate pending/approved contribution exists
      */
     public function submit(
-        GroupIndustryProjectMember $member,
-        GroupIndustryBomItem $bomItem,
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
         ContributionType $type,
         int $quantity,
         ?float $estimatedValue = null,
         ?string $note = null,
-    ): GroupIndustryContribution {
+    ): IndustryProjectContribution {
         $this->validateAntiDuplicate($member, $bomItem, $type);
 
         $estimatedValue = match ($type) {
@@ -42,7 +42,7 @@ class GroupIndustryContributionService
             ContributionType::LineRental => $this->requireEnteredValue($type, $estimatedValue),
         };
 
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setProject($member->getProject());
         $contribution->setMember($member);
         $contribution->setBomItem($bomItem);
@@ -65,7 +65,7 @@ class GroupIndustryContributionService
      *
      * @throws \DomainException if contribution is not pending
      */
-    public function approve(GroupIndustryContribution $contribution, User $reviewer): void
+    public function approve(IndustryProjectContribution $contribution, User $reviewer): void
     {
         if ($contribution->getStatus() !== ContributionStatus::Pending) {
             throw new \DomainException(
@@ -90,7 +90,7 @@ class GroupIndustryContributionService
      *
      * @throws \DomainException if contribution is not pending
      */
-    public function reject(GroupIndustryContribution $contribution, User $reviewer): void
+    public function reject(IndustryProjectContribution $contribution, User $reviewer): void
     {
         if ($contribution->getStatus() !== ContributionStatus::Pending) {
             throw new \DomainException(
@@ -111,8 +111,8 @@ class GroupIndustryContributionService
      * @throws \DomainException if a duplicate contribution is found
      */
     public function validateAntiDuplicate(
-        GroupIndustryProjectMember $member,
-        GroupIndustryBomItem $bomItem,
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
         ContributionType $type,
     ): void {
         $existing = $this->contributionRepository->findByMemberBomItemAndType(
@@ -127,7 +127,7 @@ class GroupIndustryContributionService
         }
     }
 
-    private function resolveMaterialValue(GroupIndustryBomItem $bomItem, int $quantity, ?float $enteredValue): float
+    private function resolveMaterialValue(IndustryProjectBomLine $bomItem, int $quantity, ?float $enteredValue): float
     {
         $bomPrice = $bomItem->getEstimatedPrice();
 
@@ -162,7 +162,7 @@ class GroupIndustryContributionService
         return $value;
     }
 
-    private function incrementFulfillment(GroupIndustryBomItem $bomItem, int $quantity): void
+    private function incrementFulfillment(IndustryProjectBomLine $bomItem, int $quantity): void
     {
         $bomItem->setFulfilledQuantity($bomItem->getFulfilledQuantity() + $quantity);
     }

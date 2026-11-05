@@ -15,7 +15,7 @@ use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\GroupIndustry\RecordSaleFromWalletTransactionInput;
 use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
 use App\ApiResource\Input\GroupIndustry\UpdateSaleInput;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Service\GroupIndustry\PilotName;
 use App\State\Processor\GroupIndustry\DeleteSaleProcessor;
 use App\State\Processor\GroupIndustry\RecordSaleFromWalletTransactionProcessor;
@@ -25,7 +25,7 @@ use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
 use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
 
 #[ApiResource(
-    shortName: 'GroupIndustrySale',
+    shortName: 'IndustryProjectSale',
     description: 'Sales recorded for a group industry project',
     operations: [
         new GetCollection(
@@ -128,7 +128,7 @@ class GroupIndustrySaleResource
 
     public string $createdAt;
 
-    public static function fromSale(GroupIndustrySale $sale): self
+    public static function fromSale(IndustryProjectSale $sale): self
     {
         $resource = new self();
         $resource->id = $sale->getId()->toRfc4122();

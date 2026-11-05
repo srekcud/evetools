@@ -11,7 +11,7 @@ use App\ApiResource\Input\GroupIndustry\GroupProjectFees;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -37,7 +37,7 @@ class UpdateGroupProjectProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,

@@ -13,16 +13,16 @@ use App\ApiResource\Input\GroupIndustry\RecordSaleFromWalletTransactionInput;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\DeleteSaleProcessor;
@@ -66,9 +66,9 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
             ->setSalesTaxPercent(4.0);
         (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable('2026-10-20T10:00:00+00:00'));
         $this->em->persist($project);
-        $project->addMember((new GroupIndustryProjectMember())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
-        $project->addItem((new GroupIndustryProjectItem())->setTypeId(self::SABRE_TYPE_ID)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
-        $manualSaleV = (new GroupIndustrySale())
+        $project->addMember((new IndustryProjectParticipant())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
+        $project->addItem((new IndustryProjectProduct())->setTypeId(self::SABRE_TYPE_ID)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
+        $manualSaleV = (new IndustryProjectSale())
             ->setTypeId(0)
             ->setTypeName('Sabre')
             ->setQuantity(3)
@@ -93,8 +93,8 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
     {
         $saleId = $this->recordSaleFrom($this->t1Id)->id;
 
-        $sale = $this->em->find(GroupIndustrySale::class, $saleId);
-        \assert($sale instanceof GroupIndustrySale);
+        $sale = $this->em->find(IndustryProjectSale::class, $saleId);
+        \assert($sale instanceof IndustryProjectSale);
         self::assertSame(
             [self::SABRE_TYPE_ID, 3, 183_750_000.0, '2026-10-24T21:05:00+00:00', 'O-Main', null, $this->t1Id],
             [
@@ -181,7 +181,7 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(CachedWalletTransactionRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             $this->em,
             $this->silentMercurePublisher(),
         );
@@ -198,7 +198,7 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
         $itemProvider = new GroupSaleItemProvider(
             $this->ownerSecurity(),
             self::getContainer()->get(IndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
         );
         $sale = $itemProvider->provide($operation, $uriVariables);
@@ -206,7 +206,7 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
         $processor = new DeleteSaleProcessor(
             $this->ownerSecurity(),
             self::getContainer()->get(IndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             $this->em,
             $this->silentMercurePublisher(),
@@ -247,7 +247,7 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
 
     private function salesCount(): int
     {
-        return $this->em->getRepository(GroupIndustrySale::class)->count(['project' => $this->projectId]);
+        return $this->em->getRepository(IndustryProjectSale::class)->count(['project' => $this->projectId]);
     }
 
     private function ownerSecurity(): Security
@@ -281,9 +281,9 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
         return $transaction;
     }
 
-    private function saleLinkedTo(CachedWalletTransaction $transaction, User $recordedBy): GroupIndustrySale
+    private function saleLinkedTo(CachedWalletTransaction $transaction, User $recordedBy): IndustryProjectSale
     {
-        return (new GroupIndustrySale())
+        return (new IndustryProjectSale())
             ->setTypeId(self::SABRE_TYPE_ID)
             ->setTypeName('Sabre')
             ->setQuantity($transaction->getQuantity())

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\GroupIndustry;
 
 use App\Entity\Character;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -52,20 +52,20 @@ trait BuildsIshtarGroupProject
     private User $ownerCorpmate;
     private IndustryProject $ishtarBatch;
     private IndustryProject $hecateBatch;
-    private GroupIndustryProjectMember $ownerMembership;
-    private GroupIndustryProjectMember $memberMembership;
-    private GroupIndustryProjectMember $pendingMembership;
-    private GroupIndustryProjectMember $hecateOwnerMembership;
-    private GroupIndustryBomItem $tritaniumLine;
-    private GroupIndustryBomItem $morphiteLine;
-    private GroupIndustryBomItem $nocxiumLine;
-    private GroupIndustryBomItem $ramJobLine;
-    private GroupIndustryBomItem $ishtarJobLine;
-    private GroupIndustryBomItem $hecateTritaniumLine;
-    private GroupIndustryContribution $memberMorphiteContribution;
-    private GroupIndustryContribution $ownerIshtarJobInstall;
-    private GroupIndustryContribution $memberRamJobInstall;
-    private GroupIndustrySale $ishtarSale;
+    private IndustryProjectParticipant $ownerMembership;
+    private IndustryProjectParticipant $memberMembership;
+    private IndustryProjectParticipant $pendingMembership;
+    private IndustryProjectParticipant $hecateOwnerMembership;
+    private IndustryProjectBomLine $tritaniumLine;
+    private IndustryProjectBomLine $morphiteLine;
+    private IndustryProjectBomLine $nocxiumLine;
+    private IndustryProjectBomLine $ramJobLine;
+    private IndustryProjectBomLine $ishtarJobLine;
+    private IndustryProjectBomLine $hecateTritaniumLine;
+    private IndustryProjectContribution $memberMorphiteContribution;
+    private IndustryProjectContribution $ownerIshtarJobInstall;
+    private IndustryProjectContribution $memberRamJobInstall;
+    private IndustryProjectSale $ishtarSale;
 
     private function setUpIshtarGroupProject(): void
     {
@@ -131,17 +131,17 @@ trait BuildsIshtarGroupProject
         return $project;
     }
 
-    private function addMembership(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function addMembership(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): IndustryProjectParticipant
     {
-        $membership = (new GroupIndustryProjectMember())->setUser($user)->setRole($role)->setStatus($status);
+        $membership = (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus($status);
         $project->addMember($membership);
 
         return $membership;
     }
 
-    private function addMaterialLine(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity, ?float $bomPrice): GroupIndustryBomItem
+    private function addMaterialLine(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity, ?float $bomPrice): IndustryProjectBomLine
     {
-        $line = (new GroupIndustryBomItem())
+        $line = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setRequiredQuantity($requiredQuantity)
@@ -152,9 +152,9 @@ trait BuildsIshtarGroupProject
         return $line;
     }
 
-    private function addJobLine(IndustryProject $project, int $typeId, string $typeName, string $jobGroup, int $runs, int $quantity, int $meLevel, int $teLevel, ?int $parentTypeId): GroupIndustryBomItem
+    private function addJobLine(IndustryProject $project, int $typeId, string $typeName, string $jobGroup, int $runs, int $quantity, int $meLevel, int $teLevel, ?int $parentTypeId): IndustryProjectBomLine
     {
-        $line = (new GroupIndustryBomItem())
+        $line = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setRequiredQuantity($quantity)
@@ -170,9 +170,9 @@ trait BuildsIshtarGroupProject
         return $line;
     }
 
-    private function addContribution(GroupIndustryProjectMember $membership, GroupIndustryBomItem $line, ContributionType $type, int $quantity, float $estimatedValue, ContributionStatus $status): GroupIndustryContribution
+    private function addContribution(IndustryProjectParticipant $membership, IndustryProjectBomLine $line, ContributionType $type, int $quantity, float $estimatedValue, ContributionStatus $status): IndustryProjectContribution
     {
-        $contribution = (new GroupIndustryContribution())
+        $contribution = (new IndustryProjectContribution())
             ->setMember($membership)
             ->setBomItem($line)
             ->setType($type)
@@ -189,9 +189,9 @@ trait BuildsIshtarGroupProject
         return $contribution;
     }
 
-    private function addSale(IndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $venue, string $soldAt): GroupIndustrySale
+    private function addSale(IndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $venue, string $soldAt): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setQuantity($quantity)
@@ -210,7 +210,7 @@ trait BuildsIshtarGroupProject
         return '/api/group-industry/projects/'.$project->getId()?->toRfc4122();
     }
 
-    private function idOf(GroupIndustryProjectMember|GroupIndustryBomItem|GroupIndustryContribution|GroupIndustrySale $entity): string
+    private function idOf(IndustryProjectParticipant|IndustryProjectBomLine|IndustryProjectContribution|IndustryProjectSale $entity): string
     {
         return (string) $entity->getId()?->toRfc4122();
     }

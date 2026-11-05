@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -33,7 +33,7 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
 
     private GroupIndustryResourceMapper $mapper;
     private IndustryProject $project;
-    private GroupIndustryProjectMember $ownerMembership;
+    private IndustryProjectParticipant $ownerMembership;
 
     protected function setUp(): void
     {
@@ -42,7 +42,7 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
         $owner = new User();
         $this->project = (new IndustryProject())->setOwner($owner)->setName('Sabre batch');
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
-        $this->ownerMembership = (new GroupIndustryProjectMember())
+        $this->ownerMembership = (new IndustryProjectParticipant())
             ->setUser($owner)
             ->setRole(GroupMemberRole::Owner)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -247,7 +247,7 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
     private function addMaterial(int $typeId, ?float $estimatedPrice, int $requiredQuantity, int $fulfilledQuantity = 0): void
     {
         $this->project->addBomItem(
-            (new GroupIndustryBomItem())
+            (new IndustryProjectBomLine())
                 ->setTypeId($typeId)
                 ->setTypeName(sprintf('Material %d', $typeId))
                 ->setRequiredQuantity($requiredQuantity)
@@ -259,7 +259,7 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
     private function addJobLine(int $typeId, int $requiredQuantity, int $fulfilledQuantity, ?float $estimatedPrice): void
     {
         $this->project->addBomItem(
-            (new GroupIndustryBomItem())
+            (new IndustryProjectBomLine())
                 ->setTypeId($typeId)
                 ->setTypeName(sprintf('Job %d', $typeId))
                 ->setRequiredQuantity($requiredQuantity)
@@ -272,9 +272,9 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
         );
     }
 
-    private function acceptedMember(): GroupIndustryProjectMember
+    private function acceptedMember(): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser(new User())
             ->setRole(GroupMemberRole::Member)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -283,10 +283,10 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
         return $member;
     }
 
-    private function addContribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
     {
         $this->project->addContribution(
-            (new GroupIndustryContribution())
+            (new IndustryProjectContribution())
                 ->setMember($member)
                 ->setType($type)
                 ->setQuantity(1)

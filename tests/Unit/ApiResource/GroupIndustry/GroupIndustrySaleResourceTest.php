@@ -7,7 +7,7 @@ namespace App\Tests\Unit\ApiResource\GroupIndustry;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -90,9 +90,9 @@ final class GroupIndustrySaleResourceTest extends TestCase
         self::assertSame([false, 183_750_000.0], [$resource->linkedToWalletTransaction, $resource->totalPrice]);
     }
 
-    private function sabreSale(int $quantity, float $unitPrice, ?User $recordedBy): GroupIndustrySale
+    private function sabreSale(int $quantity, float $unitPrice, ?User $recordedBy): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId(0)
             ->setTypeName('Sabre')
             ->setQuantity($quantity)
@@ -102,7 +102,7 @@ final class GroupIndustrySaleResourceTest extends TestCase
         if ($recordedBy !== null) {
             $sale->setRecordedBy($recordedBy);
         }
-        (new \ReflectionProperty(GroupIndustrySale::class, 'id'))->setValue($sale, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectSale::class, 'id'))->setValue($sale, Uuid::v4());
 
         return $sale;
     }

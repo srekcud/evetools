@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Integration\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\AvailableGroupProjectsProvider;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -65,7 +65,7 @@ final class SoloProjectParticipantVisibilityTest extends IntegrationTestCase
             ->setProductTypeId(22456)
             ->setRuns(5)
             ->addItem(
-                (new GroupIndustryProjectItem())
+                (new IndustryProjectProduct())
                     ->setTypeId(22456)
                     ->setTypeName('Sabre')
                     ->setMeLevel(10)
@@ -81,7 +81,7 @@ final class SoloProjectParticipantVisibilityTest extends IntegrationTestCase
             ->setProductTypeId(34828)
             ->setRuns(20)
             ->addItem(
-                (new GroupIndustryProjectItem())
+                (new IndustryProjectProduct())
                     ->setTypeId(34828)
                     ->setTypeName('Jackdaw')
                     ->setMeLevel(8)
@@ -105,14 +105,14 @@ final class SoloProjectParticipantVisibilityTest extends IntegrationTestCase
 
     public function testAcceptedMembershipsOfTheOwnerOnlyReachTheProjectWithItems(): void
     {
-        $memberRepository = self::getContainer()->get(GroupIndustryProjectMemberRepository::class);
+        $memberRepository = self::getContainer()->get(IndustryProjectParticipantRepository::class);
         $owner = $this->user($this->ownerId);
 
         self::assertSame([$this->groupProjectId], $memberRepository->findAcceptedProjectIds($owner));
         self::assertSame(
             [$this->groupProjectId],
             array_map(
-                static fn (GroupIndustryProjectMember $membership): string => (string) $membership->getProject()->getId(),
+                static fn (IndustryProjectParticipant $membership): string => (string) $membership->getProject()->getId(),
                 $memberRepository->findAcceptedWithProjectsByUser($owner),
             ),
         );
@@ -164,17 +164,17 @@ final class SoloProjectParticipantVisibilityTest extends IntegrationTestCase
             return new AvailableGroupProjectsProvider(
                 $security,
                 $container->get(IndustryProjectRepository::class),
-                $container->get(GroupIndustryProjectMemberRepository::class),
+                $container->get(IndustryProjectParticipantRepository::class),
                 $container->get(GroupIndustryResourceMapper::class),
-                $container->get(GroupIndustryContributionRepository::class),
+                $container->get(IndustryProjectContributionRepository::class),
             );
         }
 
         return new GroupProjectCollectionProvider(
             $security,
-            $container->get(GroupIndustryProjectMemberRepository::class),
+            $container->get(IndustryProjectParticipantRepository::class),
             $container->get(GroupIndustryResourceMapper::class),
-            $container->get(GroupIndustryContributionRepository::class),
+            $container->get(IndustryProjectContributionRepository::class),
         );
     }
 
@@ -186,9 +186,9 @@ final class SoloProjectParticipantVisibilityTest extends IntegrationTestCase
         return $user;
     }
 
-    private function ownerParticipant(User $user): GroupIndustryProjectMember
+    private function ownerParticipant(User $user): IndustryProjectParticipant
     {
-        return (new GroupIndustryProjectMember())
+        return (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole(GroupMemberRole::Owner)
             ->setStatus(GroupMemberStatus::Accepted);

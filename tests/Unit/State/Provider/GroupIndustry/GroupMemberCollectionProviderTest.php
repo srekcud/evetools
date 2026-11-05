@@ -7,14 +7,14 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\Character;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupMemberCollectionProvider;
@@ -36,10 +36,10 @@ class GroupMemberCollectionProviderTest extends TestCase
     private User&Stub $owner;
     private IndustryProject $project;
 
-    /** @var GroupIndustryProjectMember[] */
+    /** @var IndustryProjectParticipant[] */
     private array $memberships = [];
 
-    /** @var GroupIndustryContribution[] */
+    /** @var IndustryProjectContribution[] */
     private array $approvedContributions = [];
 
     private GroupMemberCollectionProvider $provider;
@@ -58,15 +58,15 @@ class GroupMemberCollectionProviderTest extends TestCase
         $projectRepository->method('find')->willReturn($this->project);
 
         // In-memory repository: findBy matches every criterion against the stored rows
-        $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $memberRepository->method('findBy')->willReturnCallback(
             fn (array $criteria): array => array_values(array_filter(
                 $this->memberships,
-                fn (GroupIndustryProjectMember $membership): bool => $this->membershipMatches($membership, $criteria),
+                fn (IndustryProjectParticipant $membership): bool => $this->membershipMatches($membership, $criteria),
             )),
         );
 
-        $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
+        $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findBy')->willReturnCallback(fn (): array => $this->approvedContributions);
 
         $this->provider = new GroupMemberCollectionProvider(
@@ -141,7 +141,7 @@ class GroupMemberCollectionProviderTest extends TestCase
         GroupMemberRole $role,
         GroupMemberStatus $status,
         ?User $user = null,
-    ): GroupIndustryProjectMember {
+    ): IndustryProjectParticipant {
         if ($user === null) {
             $character = $this->createStub(Character::class);
             $character->method('getName')->willReturn($characterName);
@@ -149,11 +149,11 @@ class GroupMemberCollectionProviderTest extends TestCase
             $user->method('getMainCharacter')->willReturn($character);
         }
 
-        $membership = new GroupIndustryProjectMember();
+        $membership = new IndustryProjectParticipant();
         $membership->setUser($user);
         $membership->setRole($role);
         $membership->setStatus($status);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($membership, Uuid::fromString($memberId));
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($membership, Uuid::fromString($memberId));
         $this->project->addMember($membership);
 
         $this->memberships[] = $membership;
@@ -161,9 +161,9 @@ class GroupMemberCollectionProviderTest extends TestCase
         return $membership;
     }
 
-    private function stubContribution(GroupIndustryProjectMember $member, float $estimatedValue): GroupIndustryContribution&Stub
+    private function stubContribution(IndustryProjectParticipant $member, float $estimatedValue): IndustryProjectContribution&Stub
     {
-        $contribution = $this->createStub(GroupIndustryContribution::class);
+        $contribution = $this->createStub(IndustryProjectContribution::class);
         $contribution->method('getMember')->willReturn($member);
         $contribution->method('getEstimatedValue')->willReturn($estimatedValue);
 
@@ -173,7 +173,7 @@ class GroupMemberCollectionProviderTest extends TestCase
     /**
      * @param array<string, mixed> $criteria
      */
-    private function membershipMatches(GroupIndustryProjectMember $membership, array $criteria): bool
+    private function membershipMatches(IndustryProjectParticipant $membership, array $criteria): bool
     {
         $values = [
             'project' => $membership->getProject(),

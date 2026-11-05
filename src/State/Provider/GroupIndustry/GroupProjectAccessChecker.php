@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\State\Provider\GroupIndustry;
 
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class GroupProjectAccessChecker
@@ -17,7 +17,7 @@ class GroupProjectAccessChecker
     private const string NO_ACCESS_MESSAGE = 'You do not have access to this project';
 
     public function __construct(
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
     ) {
     }
 
@@ -35,7 +35,7 @@ class GroupProjectAccessChecker
         throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
     }
 
-    public function assertCanManageMember(User $user, IndustryProject $project, GroupIndustryProjectMember $member): void
+    public function assertCanManageMember(User $user, IndustryProject $project, IndustryProjectParticipant $member): void
     {
         if ($project->getOwner() === $user || $member->getRole() !== GroupMemberRole::Admin) {
             return;

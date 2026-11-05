@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\User;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,7 +24,7 @@ class GroupSaleCollectionProvider implements ProviderInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
-        private readonly GroupIndustrySaleRepository $saleRepository,
+        private readonly IndustryProjectSaleRepository $saleRepository,
     ) {
     }
 

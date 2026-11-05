@@ -6,15 +6,15 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Delete;
 use App\Entity\Character;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\KickGroupMemberProcessor;
@@ -41,7 +41,7 @@ class KickGroupMemberProcessorTest extends TestCase
 {
     private Security&Stub $security;
     private IndustryProjectRepository&Stub $projectRepository;
-    private GroupIndustryProjectMemberRepository&Stub $memberRepository;
+    private IndustryProjectParticipantRepository&Stub $memberRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
     private KickGroupMemberProcessor $processor;
@@ -54,7 +54,7 @@ class KickGroupMemberProcessorTest extends TestCase
     {
         $this->security = $this->createStub(Security::class);
         $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
 
@@ -142,7 +142,7 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->projectRepository->method('find')->willReturn($this->project);
 
         $otherProject = $this->createStub(IndustryProject::class);
-        $member = $this->createStub(GroupIndustryProjectMember::class);
+        $member = $this->createStub(IndustryProjectParticipant::class);
         $member->method('getProject')->willReturn($otherProject);
         $member->method('getRole')->willReturn(GroupMemberRole::Member);
         $this->memberRepository->method('find')->willReturn($member);
@@ -160,9 +160,9 @@ class KickGroupMemberProcessorTest extends TestCase
         $adminUser = $this->createStub(User::class);
         $this->security->method('getUser')->willReturn($adminUser);
         $this->projectRepository->method('find')->willReturn($this->project);
-        $this->memberRepository->method('findOneBy')->willReturn($this->createStub(GroupIndustryProjectMember::class));
+        $this->memberRepository->method('findOneBy')->willReturn($this->createStub(IndustryProjectParticipant::class));
 
-        $ownerMember = $this->createStub(GroupIndustryProjectMember::class);
+        $ownerMember = $this->createStub(IndustryProjectParticipant::class);
         $ownerMember->method('getProject')->willReturn($this->project);
         $ownerMember->method('getRole')->willReturn(GroupMemberRole::Owner);
         $ownerMember->method('getUser')->willReturn($this->owner);
@@ -183,7 +183,7 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn($adminUser);
         $this->projectRepository->method('find')->willReturn($this->project);
 
-        $adminMember = $this->createStub(GroupIndustryProjectMember::class);
+        $adminMember = $this->createStub(IndustryProjectParticipant::class);
         $adminMember->method('getProject')->willReturn($this->project);
         $adminMember->method('getRole')->willReturn(GroupMemberRole::Admin);
         $adminMember->method('getUser')->willReturn($adminUser);
@@ -309,7 +309,7 @@ class KickGroupMemberProcessorTest extends TestCase
             [$member, 'approved', 'material', 350, 1_750_000.0],
             [$member, 'pending', 'job_install', 1, 820_000.0],
             [$member, 'rejected', 'bpc', 10, 2_300_000.0],
-        ], array_map(static fn (GroupIndustryContribution $contribution): array => [
+        ], array_map(static fn (IndustryProjectContribution $contribution): array => [
             $contribution->getMember(),
             $contribution->getStatus()->value,
             $contribution->getType()->value,
@@ -408,10 +408,10 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn($adminUser);
         $this->projectRepository->method('find')->willReturn($this->project);
         // Accepted Admin membership found for the acting user
-        $this->memberRepository->method('findOneBy')->willReturn($this->createStub(GroupIndustryProjectMember::class));
+        $this->memberRepository->method('findOneBy')->willReturn($this->createStub(IndustryProjectParticipant::class));
     }
 
-    private function acceptedMember(Uuid $memberId, string $characterName, GroupMemberRole $role = GroupMemberRole::Member): GroupIndustryProjectMember
+    private function acceptedMember(Uuid $memberId, string $characterName, GroupMemberRole $role = GroupMemberRole::Member): IndustryProjectParticipant
     {
         $character = $this->createStub(Character::class);
         $character->method('getName')->willReturn($characterName);
@@ -419,24 +419,24 @@ class KickGroupMemberProcessorTest extends TestCase
         $memberUser = $this->createStub(User::class);
         $memberUser->method('getMainCharacter')->willReturn($character);
 
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setProject($this->project);
         $member->setUser($memberUser);
         $member->setRole($role);
         $member->setStatus(GroupMemberStatus::Accepted);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($member, $memberId);
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($member, $memberId);
 
         return $member;
     }
 
     private function contributionOf(
-        GroupIndustryProjectMember $member,
+        IndustryProjectParticipant $member,
         ContributionType $type,
         int $quantity,
         float $estimatedValue,
         ContributionStatus $status,
-    ): GroupIndustryContribution {
-        return (new GroupIndustryContribution())
+    ): IndustryProjectContribution {
+        return (new IndustryProjectContribution())
             ->setProject($this->project)
             ->setMember($member)
             ->setType($type)

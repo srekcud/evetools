@@ -7,12 +7,12 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -27,8 +27,8 @@ class GroupMemberCollectionProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,
     ) {
@@ -77,7 +77,7 @@ class GroupMemberCollectionProvider implements ProviderInterface
         }
 
         return array_map(
-            function (GroupIndustryProjectMember $member) use ($contributionsByMember) {
+            function (IndustryProjectParticipant $member) use ($contributionsByMember) {
                 $memberId = $member->getId()->toString();
                 $memberContributions = $contributionsByMember[$memberId] ?? [];
 

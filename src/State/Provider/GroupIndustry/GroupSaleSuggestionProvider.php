@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupSaleSuggestionResource;
 use App\Entity\CachedWalletTransaction;
-use App\Entity\GroupIndustryProjectItem;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
@@ -64,7 +64,7 @@ final readonly class GroupSaleSuggestionProvider implements ProviderInterface
     private function itemTypeIds(IndustryProject $project): array
     {
         return array_values(array_unique(array_map(
-            static fn (GroupIndustryProjectItem $item): int => $item->getTypeId(),
+            static fn (IndustryProjectProduct $item): int => $item->getTypeId(),
             $project->getItems()->toArray(),
         )));
     }

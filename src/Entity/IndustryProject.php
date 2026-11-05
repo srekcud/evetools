@@ -140,24 +140,24 @@ class IndustryProject
     #[ORM\OneToMany(targetEntity: IndustryProjectStep::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $steps;
 
-    /** @var Collection<int, GroupIndustryProjectItem> */
-    #[ORM\OneToMany(targetEntity: GroupIndustryProjectItem::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    /** @var Collection<int, IndustryProjectProduct> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectProduct::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $items;
 
-    /** @var Collection<int, GroupIndustryProjectMember> */
-    #[ORM\OneToMany(targetEntity: GroupIndustryProjectMember::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    /** @var Collection<int, IndustryProjectParticipant> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectParticipant::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $members;
 
-    /** @var Collection<int, GroupIndustryBomItem> */
-    #[ORM\OneToMany(targetEntity: GroupIndustryBomItem::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    /** @var Collection<int, IndustryProjectBomLine> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectBomLine::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $bomItems;
 
-    /** @var Collection<int, GroupIndustryContribution> */
-    #[ORM\OneToMany(targetEntity: GroupIndustryContribution::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    /** @var Collection<int, IndustryProjectContribution> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectContribution::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $contributions;
 
-    /** @var Collection<int, GroupIndustrySale> */
-    #[ORM\OneToMany(targetEntity: GroupIndustrySale::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    /** @var Collection<int, IndustryProjectSale> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectSale::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $sales;
 
     public function __construct()
@@ -194,7 +194,7 @@ class IndustryProject
         return $this;
     }
 
-    public function transferOwnershipTo(GroupIndustryProjectMember $member): void
+    public function transferOwnershipTo(IndustryProjectParticipant $member): void
     {
         $newOwner = $member->getUser();
         if ($member->getProject() !== $this || $newOwner === null) {
@@ -327,7 +327,7 @@ class IndustryProject
         }
 
         return !$this->contributions->exists(
-            static fn (int $key, GroupIndustryContribution $contribution): bool => $contribution->getStatus() === ContributionStatus::Approved,
+            static fn (int $key, IndustryProjectContribution $contribution): bool => $contribution->getStatus() === ContributionStatus::Approved,
         );
     }
 
@@ -660,7 +660,7 @@ class IndustryProject
         return $this;
     }
 
-    /** @return Collection<int, GroupIndustryProjectItem> */
+    /** @return Collection<int, IndustryProjectProduct> */
     public function getItems(): Collection
     {
         return $this->items;
@@ -677,7 +677,7 @@ class IndustryProject
         return null;
     }
 
-    public function addItem(GroupIndustryProjectItem $item): static
+    public function addItem(IndustryProjectProduct $item): static
     {
         if (!$this->items->contains($item)) {
             $this->items->add($item);
@@ -686,7 +686,7 @@ class IndustryProject
         return $this;
     }
 
-    /** @return Collection<int, GroupIndustryProjectMember> */
+    /** @return Collection<int, IndustryProjectParticipant> */
     public function getMembers(): Collection
     {
         return $this->members;
@@ -695,14 +695,14 @@ class IndustryProject
     public function enrolOwner(): static
     {
         return $this->addMember(
-            (new GroupIndustryProjectMember())
+            (new IndustryProjectParticipant())
                 ->setUser($this->owner)
                 ->setRole(GroupMemberRole::Owner)
                 ->setStatus(GroupMemberStatus::Accepted),
         );
     }
 
-    public function addMember(GroupIndustryProjectMember $member): static
+    public function addMember(IndustryProjectParticipant $member): static
     {
         if (!$this->members->contains($member)) {
             $this->members->add($member);
@@ -711,13 +711,13 @@ class IndustryProject
         return $this;
     }
 
-    /** @return Collection<int, GroupIndustryBomItem> */
+    /** @return Collection<int, IndustryProjectBomLine> */
     public function getBomItems(): Collection
     {
         return $this->bomItems;
     }
 
-    public function addBomItem(GroupIndustryBomItem $bomItem): static
+    public function addBomItem(IndustryProjectBomLine $bomItem): static
     {
         if (!$this->bomItems->contains($bomItem)) {
             $this->bomItems->add($bomItem);
@@ -726,20 +726,20 @@ class IndustryProject
         return $this;
     }
 
-    public function removeBomItem(GroupIndustryBomItem $bomItem): static
+    public function removeBomItem(IndustryProjectBomLine $bomItem): static
     {
         $this->bomItems->removeElement($bomItem);
 
         return $this;
     }
 
-    /** @return Collection<int, GroupIndustryContribution> */
+    /** @return Collection<int, IndustryProjectContribution> */
     public function getContributions(): Collection
     {
         return $this->contributions;
     }
 
-    public function addContribution(GroupIndustryContribution $contribution): static
+    public function addContribution(IndustryProjectContribution $contribution): static
     {
         if (!$this->contributions->contains($contribution)) {
             $this->contributions->add($contribution);
@@ -748,13 +748,13 @@ class IndustryProject
         return $this;
     }
 
-    /** @return Collection<int, GroupIndustrySale> */
+    /** @return Collection<int, IndustryProjectSale> */
     public function getSales(): Collection
     {
         return $this->sales;
     }
 
-    public function addSale(GroupIndustrySale $sale): static
+    public function addSale(IndustryProjectSale $sale): static
     {
         if (!$this->sales->contains($sale)) {
             $this->sales->add($sale);
