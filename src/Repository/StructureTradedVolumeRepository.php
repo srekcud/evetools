@@ -20,6 +20,13 @@ class StructureTradedVolumeRepository extends ServiceEntityRepository
 
     public function purgeOlderThan(int $days): int
     {
-        return 0;
+        $cutoff = new \DateTimeImmutable("-{$days} days");
+
+        return (int) $this->createQueryBuilder('v')
+            ->delete()
+            ->where('v.date < :cutoff')
+            ->setParameter('cutoff', $cutoff)
+            ->getQuery()
+            ->execute();
     }
 }
