@@ -14,6 +14,8 @@ use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Repository\CachedStructureRepository;
 use App\Service\Industry\IndustryBlacklistService;
+use App\Industry\Application\InventionSkillLevels;
+use App\Service\Industry\InventorSkills;
 use App\Service\Industry\ProfitMarginService;
 use App\Service\Industry\PublicContractPriceService;
 use App\Service\Industry\SalesFees\SalesFees;
@@ -252,6 +254,9 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
             static fn (array $typeIds): array => array_intersect_key(self::TYPE_NAMES, array_flip($typeIds)),
         );
 
+        $inventorSkills = $this->createStub(InventorSkills::class);
+        $inventorSkills->method('levelsFor')->willReturn(InventionSkillLevels::none());
+
         return new ProfitMarginService(
             new ProductionCostCalculator(
                 new InMemoryBlueprintCatalog(self::ammunitionRecipe(self::AMMUNITION_MATERIALS + $additionalMaterials)),
@@ -269,6 +274,7 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
             $typeNameResolver,
             $this->createStub(CachedStructureRepository::class),
             $this->createStub(IndustryBlacklistService::class),
+            $inventorSkills,
         );
     }
 

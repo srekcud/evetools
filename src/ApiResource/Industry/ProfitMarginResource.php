@@ -29,6 +29,7 @@ use App\State\Provider\Industry\ProfitMarginProvider;
                     new Model\Parameter(name: 'solarSystemId', in: 'query', required: false, schema: ['type' => 'integer']),
                     new Model\Parameter(name: 'structureId', in: 'query', required: false, schema: ['type' => 'integer']),
                     new Model\Parameter(name: 'decryptorTypeId', in: 'query', required: false, schema: ['type' => 'integer']),
+                    new Model\Parameter(name: 'inventorCharacterId', in: 'query', required: false, schema: ['type' => 'string', 'format' => 'uuid']),
                 ],
             ),
         ),

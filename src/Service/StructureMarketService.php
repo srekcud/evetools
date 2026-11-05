@@ -23,6 +23,7 @@ class StructureMarketService
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly StructureMarketSnapshotService $snapshotService,
+        private readonly StructureTradedVolumeService $tradedVolumeService,
     ) {
     }
 
@@ -402,6 +403,8 @@ class StructureMarketService
 
             // Record daily snapshots for price history
             $this->snapshotService->recordSnapshots($structureId, $aggregates);
+
+            $this->tradedVolumeService->recordFromSync($structureId, $orders, new \DateTimeImmutable());
 
             // Store metadata
             $metaKey = self::CACHE_KEY_PREFIX . $structureId . '_meta';

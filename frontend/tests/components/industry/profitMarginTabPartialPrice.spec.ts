@@ -68,6 +68,7 @@ const SABRE_WITH_PARTIAL_PRICES: ProfitMarginResult = {
     unknownReason: null,
     datacores: ['Datacore - Mechanical Engineering'],
     datacoresCostPerAttempt: null,
+    inventor: null,
     selectedDecryptorTypeId: null,
     selectedDecryptorName: 'No Decryptor',
     options: [NO_DECRYPTOR_OPTION],

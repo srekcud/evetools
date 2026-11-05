@@ -334,7 +334,7 @@ export interface UserSettings {
 
 // Profit Margin types
 
-export type MissingDataReason = 'market_price' | 'adjusted_price' | 'cost_index' | 'invention_probability'
+export type MissingDataReason = 'market_price' | 'adjusted_price' | 'cost_index' | 'invention_probability' | 'inventor_skills'
 
 export interface MissingData {
   reason: MissingDataReason
@@ -400,7 +400,7 @@ export interface ProfitMarginInventionOption {
   costPerUnitDelta: number | null
 }
 
-export type InventionUnknownReason = 'missing_invention_probability' | 'missing_market_price'
+export type InventionUnknownReason = 'missing_invention_probability' | 'missing_market_price' | 'missing_inventor_skills'
 
 export type ProductionCostUnknownReason = InventionUnknownReason | 'missing_material_price' | JobInstallCostUnknownReason
 
@@ -423,6 +423,7 @@ export interface ProfitMarginResult {
     unknownReason: InventionUnknownReason | null
     datacores: (string | null)[]
     datacoresCostPerAttempt: number | null
+    inventor: { characterId: string, characterName: string, skillsKnown: boolean } | null
     selectedDecryptorTypeId: number | null
     selectedDecryptorName: string
     options: ProfitMarginInventionOption[]

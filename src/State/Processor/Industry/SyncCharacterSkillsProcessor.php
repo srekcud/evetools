@@ -36,8 +36,13 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         CachedCharacterSkill::SKILL_BROKER_RELATIONS,
     ];
 
+    private const int INVENTION_ACTIVITY_ID = 8;
+
     /** @var int[]|null */
     private ?array $relevantSkillIds = null;
+
+    /** @var int[] */
+    private array $inventionSkillIds = [];
 
     public function __construct(
         private readonly Security $security,
@@ -129,6 +134,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
 
         // Only sync manufacturing-relevant skills (base industry + blueprint science skills)
         $relevantSkillIds = $this->getManufacturingRelevantSkillIds();
+        $inventionSkillIds = $this->inventionSkillIds;
 
         // Index ESI skills by ID for fast lookup
         $esiBySkillId = [];
@@ -162,7 +168,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
                     $existing->setLevel($level);
                     $existing->setCachedAt($now);
                 }
-            } elseif ($level > 0 || in_array($skillId, self::SKILLS_WRITTEN_AT_ZERO, true)) {
+            } elseif ($level > 0 || in_array($skillId, self::SKILLS_WRITTEN_AT_ZERO, true) || in_array($skillId, $inventionSkillIds, true)) {
                 $skill = new CachedCharacterSkill();
                 $skill->setCharacter($character);
                 $skill->setSkillId($skillId);
@@ -190,10 +196,14 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
 
         $conn = $this->entityManager->getConnection();
         $rows = $conn->fetchAllAssociative(
-            'SELECT DISTINCT skill_id FROM sde_industry_activity_skills WHERE activity_id IN (1, 11)'
+            'SELECT DISTINCT skill_id, activity_id FROM sde_industry_activity_skills WHERE activity_id IN (1, 8, 11)'
         );
 
-        $skillIds = array_map(fn ($r) => (int) $r['skill_id'], $rows);
+        $skillIds = array_values(array_unique(array_map(fn ($r) => (int) $r['skill_id'], $rows)));
+        $this->inventionSkillIds = array_values(array_unique(array_map(
+            fn ($r) => (int) $r['skill_id'],
+            array_filter($rows, fn ($r) => self::INVENTION_ACTIVITY_ID === (int) $r['activity_id']),
+        )));
 
         // Ensure base industry skills and slot skills are always included
         $alwaysInclude = array_unique(array_merge(

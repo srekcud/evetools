@@ -91,6 +91,7 @@ services:
     App\Industry\Application\RigCategories: '@App\Industry\Infrastructure\Sde\SdeRigCategories'
     App\Industry\Application\UserProductionStructures: '@App\Industry\Infrastructure\Doctrine\ConfiguredProductionStructures'
     App\Industry\Application\Decryptors: '@App\Industry\Infrastructure\Sde\SdeDecryptors'
+    App\Industry\Application\InventionSkillRequirements: '@App\Industry\Infrastructure\Sde\SdeInventionSkillRequirements'
 
 when@test:
     services:
