@@ -60,15 +60,15 @@ class IndustryProject
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $containerName = null;
 
-    /** @var array<string, int>|null Override line rental rates for this project */
+    /** @var array<string, int>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $lineRentalRatesOverride = null;
 
-    /** @var int[] SDE group IDs blacklisted from production */
+    /** @var int[] */
     #[ORM\Column(type: 'json')]
     private array $blacklistGroupIds = [];
 
-    /** @var int[] Individual type IDs blacklisted from production */
+    /** @var int[] */
     #[ORM\Column(type: 'json')]
     private array $blacklistTypeIds = [];
 
