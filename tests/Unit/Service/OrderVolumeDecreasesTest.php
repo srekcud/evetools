@@ -111,6 +111,21 @@ final class OrderVolumeDecreasesTest extends TestCase
         self::assertSame([self::PYERITE => 5], $this->decreases->between($previous, $current));
     }
 
+    public function testNewOrderAndRetypedOrderDoNotStopTheCountOfTheOrdersAfterThem(): void
+    {
+        $previous = [
+            2 => $this->order(self::TRITANIUM, 50),
+            3 => $this->order(self::PYERITE, 10),
+        ];
+        $current = [
+            1 => $this->order(self::MEXALLON, 500),
+            2 => $this->order(self::MEXALLON, 20),
+            3 => $this->order(self::PYERITE, 4),
+        ];
+
+        self::assertSame([self::PYERITE => 6], $this->decreases->between($previous, $current));
+    }
+
     public function testEmptyPreviousReadProducesNoEntry(): void
     {
         $current = [1 => $this->order(self::TRITANIUM, 1000)];
