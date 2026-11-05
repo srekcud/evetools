@@ -201,6 +201,7 @@ describe('ProfitMarginTab opened type defaults (issue 238)', () => {
     expect(requestedEndpoints()).toEqual([
       `${TYPE_LOOKUP_ENDPOINT}${FEROX_TYPE_ID}`,
       `${PROFIT_MARGIN_ENDPOINT}${FEROX_TYPE_ID}?runs=1&me=10&te=20`,
+      `/industry/sell-markets/${FEROX_TYPE_ID}?quantity=1`,
     ])
   })
 

@@ -16,6 +16,7 @@ import PartialPriceNotice from '@/components/industry/PartialPriceNotice.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CostSummaryCards from '@/components/industry/profit/CostSummaryCards.vue'
 import VenueComparisonTable from '@/components/industry/profit/VenueComparisonTable.vue'
+import SellMarketsCard from '@/components/industry/SellMarketsCard.vue'
 import type { SellRow } from '@/components/industry/profit/VenueComparisonTable.vue'
 import InventionOptionsPanel from '@/components/industry/profit/InventionOptionsPanel.vue'
 import { venueLabel } from '@/components/industry/venueLabel'
@@ -627,6 +628,8 @@ store.fetchUserSettings()
       <div v-else-if="!loading" class="eve-card p-6 text-center">
         <p class="text-sm text-slate-500">{{ t('industry.margins.noData') }}</p>
       </div>
+
+      <SellMarketsCard :type-id="result.typeId" :quantity="result.outputQuantity" />
 
       <!-- SECTION D: Invention (T2 only) -->
       <InventionOptionsPanel
