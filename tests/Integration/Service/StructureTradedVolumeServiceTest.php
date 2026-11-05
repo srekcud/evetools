@@ -87,9 +87,9 @@ final class StructureTradedVolumeServiceTest extends IntegrationTestCase
         ]);
 
         self::assertSame([
-            [self::MEXALLON, '2026-11-03', 0],
             [self::TRITANIUM, '2026-11-03', 80],
-        ], $this->tradedVolumeRows(self::STRUCTURE_ID));
+            [self::MEXALLON, '2026-11-03', 0],
+        ],$this->tradedVolumeRows(self::STRUCTURE_ID));
     }
 
     public function testDecreasesAreCountedPerTypeAndNewOrdersAndDisappearedOrdersAreNot(): void
@@ -108,10 +108,10 @@ final class StructureTradedVolumeServiceTest extends IntegrationTestCase
         ]);
 
         self::assertSame([
-            [self::MEXALLON, '2026-11-03', 0],
-            [self::PYERITE, '2026-11-03', 6],
             [self::TRITANIUM, '2026-11-03', 130],
-        ], $this->tradedVolumeRows(self::STRUCTURE_ID));
+            [self::PYERITE, '2026-11-03', 6],
+            [self::MEXALLON, '2026-11-03', 0],
+        ],$this->tradedVolumeRows(self::STRUCTURE_ID));
     }
 
     public function testBaselineOfAStructureIsNotUsedByAnotherStructure(): void

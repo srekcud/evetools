@@ -51,5 +51,19 @@ final readonly class PurgeOldMarketHistoryHandler
                 'error' => $e->getMessage(),
             ]);
         }
+
+        $this->logger->info('Purging structure traded volumes older than 90 days');
+
+        try {
+            $deletedTradedVolumes = $this->tradedVolumeRepository->purgeOlderThan(90);
+
+            $this->logger->info('Structure traded volume purge completed', [
+                'deleted' => $deletedTradedVolumes,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Structure traded volume purge failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

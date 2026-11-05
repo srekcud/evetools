@@ -404,6 +404,8 @@ class StructureMarketService
             // Record daily snapshots for price history
             $this->snapshotService->recordSnapshots($structureId, $aggregates);
 
+            $this->tradedVolumeService->recordFromSync($structureId, $orders, new \DateTimeImmutable());
+
             // Store metadata
             $metaKey = self::CACHE_KEY_PREFIX . $structureId . '_meta';
             $metaItem = $this->cache->getItem($metaKey);

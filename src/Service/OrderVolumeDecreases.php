@@ -14,6 +14,19 @@ final class OrderVolumeDecreases
      */
     public function between(array $previous, array $current): array
     {
-        return [];
+        $decreases = [];
+
+        foreach ($current as $orderId => $order) {
+            if (!isset($previous[$orderId]) || $previous[$orderId]['typeId'] !== $order['typeId']) {
+                continue;
+            }
+
+            $decrease = $previous[$orderId]['volumeRemain'] - $order['volumeRemain'];
+            if ($decrease > 0) {
+                $decreases[$order['typeId']] = ($decreases[$order['typeId']] ?? 0) + $decrease;
+            }
+        }
+
+        return $decreases;
     }
 }
