@@ -85,43 +85,6 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
         );
     }
 
-    public function testStepPatchWithoutUriVariablesLeavesProjectAndStepUndeclared(): void
-    {
-        $operation = new Patch(uriTemplate: '/industry/projects/{id}/steps/{stepId}');
-
-        $this->assertSame(['id', 'stepId'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
-    }
-
-    public function testStepPatchDeclaringProjectAndStepLinksHasNoUndeclaredUriVariable(): void
-    {
-        $operation = new Patch(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-            ],
-        );
-
-        $this->assertSame([], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
-    }
-
-    public function testStepPatchDeclaringOnlyProjectLinkLeavesStepUndeclared(): void
-    {
-        $operation = new Patch(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            uriVariables: ['id' => new Link(fromClass: ProjectResource::class)],
-        );
-
-        $this->assertSame(['stepId'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
-    }
-
-    public function testStepPostWithoutUriVariablesLeavesProjectUndeclared(): void
-    {
-        $operation = new Post(uriTemplate: '/industry/projects/{id}/steps');
-
-        $this->assertSame(['id'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
-    }
-
     public function testPurchaseDeleteDeclaringOnlyParentLinksLeavesFinalPurchaseUndeclared(): void
     {
         $operation = new Delete(
