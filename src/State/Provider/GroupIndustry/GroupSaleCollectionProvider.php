@@ -8,8 +8,8 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\User;
-use App\Repository\GroupIndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -22,7 +22,7 @@ class GroupSaleCollectionProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustrySaleRepository $saleRepository,
     ) {
@@ -45,7 +45,7 @@ class GroupSaleCollectionProvider implements ProviderInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->hasSteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

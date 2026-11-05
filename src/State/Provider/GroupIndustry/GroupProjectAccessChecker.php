@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\State\Provider\GroupIndustry;
 
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
@@ -26,7 +26,7 @@ class GroupProjectAccessChecker
      *
      * @throws AccessDeniedHttpException if the user is not a member
      */
-    public function assertAcceptedMember(User $user, GroupIndustryProject $project): void
+    public function assertAcceptedMember(User $user, IndustryProject $project): void
     {
         if ($this->isOwnerOrAcceptedMember($user, $project)) {
             return;
@@ -35,7 +35,7 @@ class GroupProjectAccessChecker
         throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
     }
 
-    public function assertCanManageMember(User $user, GroupIndustryProject $project, GroupIndustryProjectMember $member): void
+    public function assertCanManageMember(User $user, IndustryProject $project, GroupIndustryProjectMember $member): void
     {
         if ($project->getOwner() === $user || $member->getRole() !== GroupMemberRole::Admin) {
             return;
@@ -49,7 +49,7 @@ class GroupProjectAccessChecker
      *
      * @throws AccessDeniedHttpException if the user is not admin or owner
      */
-    public function assertAdminOrOwner(User $user, GroupIndustryProject $project): void
+    public function assertAdminOrOwner(User $user, IndustryProject $project): void
     {
         if ($project->getOwner() === $user) {
             return;
@@ -68,7 +68,7 @@ class GroupProjectAccessChecker
         throw new AccessDeniedHttpException('Only project owner or admin can perform this action');
     }
 
-    private function isOwnerOrAcceptedMember(User $user, GroupIndustryProject $project): bool
+    private function isOwnerOrAcceptedMember(User $user, IndustryProject $project): bool
     {
         if ($project->getOwner() === $user) {
             return true;

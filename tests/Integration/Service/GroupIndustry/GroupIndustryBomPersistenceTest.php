@@ -328,7 +328,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 
     private function projectRecordedWithTheBomOfOneRunForTwentyFiveRuns(): IndustryProject
     {
-        $project = (new IndustryProject())->setOwner($this->owner)->setName('Fuel run recorded before the plan');
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->owner)->setName('Fuel run recorded before the plan');
         $ownerMember = (new GroupIndustryProjectMember())->setUser($this->owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted);
         $project->addMember($ownerMember);
         $project->addItem((new GroupIndustryProjectItem())

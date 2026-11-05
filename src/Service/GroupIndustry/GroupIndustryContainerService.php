@@ -6,7 +6,7 @@ namespace App\Service\GroupIndustry;
 
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
 use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\GroupIndustryBomItemRepository;
@@ -40,7 +40,7 @@ class GroupIndustryContainerService
      *
      * @return GroupContainerVerificationResource[]
      */
-    public function verifyContainer(GroupIndustryProject $project): array
+    public function verifyContainer(IndustryProject $project): array
     {
         $materialItems = $this->bomItemRepository->findMaterialsByProject($project);
         $containerName = $project->getContainerName();

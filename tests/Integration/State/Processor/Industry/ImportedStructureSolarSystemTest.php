@@ -188,7 +188,7 @@ final class ImportedStructureSolarSystemTest extends IntegrationTestCase
 
     private function manufacturingStepWithoutStructure(): IndustryProjectStep
     {
-        $project = (new IndustryProject())->setOwner($this->pilot)
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->pilot)
             ->setProductTypeId(self::PRODUCT_TYPE_ID)
             ->setRuns(10);
 

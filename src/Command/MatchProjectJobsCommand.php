@@ -52,7 +52,7 @@ class MatchProjectJobsCommand extends Command
 
         // Sync jobs from ESI first
         $syncedCount = 0;
-        foreach ($project->getUser()->getCharacters() as $character) {
+        foreach ($project->getOwner()->getCharacters() as $character) {
             try {
                 $this->jobSyncService->syncCharacterJobs($character);
                 $syncedCount++;

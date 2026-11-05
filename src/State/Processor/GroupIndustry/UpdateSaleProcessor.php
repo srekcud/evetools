@@ -11,8 +11,8 @@ use App\ApiResource\Input\GroupIndustry\UpdateSaleInput;
 use App\Entity\Character;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
-use App\Repository\GroupIndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSaleOfProject;
 use App\Service\GroupIndustry\ResolvesSellerOfUser;
 use App\Service\Mercure\MercurePublisherService;
@@ -32,7 +32,7 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
 
     public function __construct(
         private Security $security,
-        private GroupIndustryProjectRepository $projectRepository,
+        private IndustryProjectRepository $projectRepository,
         private GroupIndustrySaleRepository $saleRepository,
         private GroupProjectAccessChecker $accessChecker,
         private EntityManagerInterface $entityManager,

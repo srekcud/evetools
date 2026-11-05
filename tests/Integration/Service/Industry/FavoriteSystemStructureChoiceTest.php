@@ -198,7 +198,7 @@ final class FavoriteSystemStructureChoiceTest extends IntegrationTestCase
 
     private function stepWithoutStructure(int $productTypeId, string $activityType): IndustryProjectStep
     {
-        $project = (new IndustryProject())->setOwner($this->pilot)
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->pilot)
             ->setProductTypeId($productTypeId)
             ->setRuns(10);
 

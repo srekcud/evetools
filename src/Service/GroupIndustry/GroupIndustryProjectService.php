@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\GroupIndustry;
 
 use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -56,9 +56,9 @@ class GroupIndustryProjectService
     ) {
     }
 
-    public function createProject(User $owner, CreateProjectData $data): GroupIndustryProject
+    public function createProject(User $owner, CreateProjectData $data): IndustryProject
     {
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         $project->setOwner($owner);
         $project->setName($data->name !== '' ? $data->name : null);
         $project->setContainerName($data->containerName);
@@ -87,6 +87,8 @@ class GroupIndustryProjectService
             $project->addItem($item);
         }
 
+        $project->takeProductFromFirstItem();
+
         $this->buildBom($project, $owner);
 
         $this->entityManager->persist($project);
@@ -95,7 +97,7 @@ class GroupIndustryProjectService
         return $project;
     }
 
-    public function buildBom(GroupIndustryProject $project, User $owner): void
+    public function buildBom(IndustryProject $project, User $owner): void
     {
         if ($project->isCompleted()) {
             throw new \RuntimeException('The BOM of a completed project cannot be rebuilt.');
@@ -161,7 +163,7 @@ class GroupIndustryProjectService
     /**
      * @param list<GroupIndustryBomItem> $plannedLines
      */
-    private function reconcileBomLines(GroupIndustryProject $project, array $plannedLines): void
+    private function reconcileBomLines(IndustryProject $project, array $plannedLines): void
     {
         $contributedLineIds = $this->contributedLineIdsOf($project);
         $carriesContribution = static fn (GroupIndustryBomItem $line): bool => isset($contributedLineIds[$line->getId()->toRfc4122()]);
@@ -200,7 +202,7 @@ class GroupIndustryProjectService
     /**
      * @return array<string, int>
      */
-    private function contributedLineIdsOf(GroupIndustryProject $project): array
+    private function contributedLineIdsOf(IndustryProject $project): array
     {
         if ($project->getBomItems()->isEmpty()) {
             return [];
@@ -254,7 +256,7 @@ class GroupIndustryProjectService
         $line->setEstimatedPrice($plannedLine->getEstimatedPrice());
     }
 
-    private function planOf(GroupIndustryProject $project, User $owner): Plan
+    private function planOf(IndustryProject $project, User $owner): Plan
     {
         $blacklistedTypeIds = $this->resolveBlacklistedTypeIds(
             $project->getBlacklistGroupIds(),
@@ -276,7 +278,7 @@ class GroupIndustryProjectService
     /**
      * @return list<PlanTarget>
      */
-    private function targetsOf(GroupIndustryProject $project): array
+    private function targetsOf(IndustryProject $project): array
     {
         $targets = [];
         foreach ($project->getItems() as $item) {

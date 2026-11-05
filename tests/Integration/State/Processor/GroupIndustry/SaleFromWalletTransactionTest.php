@@ -58,7 +58,7 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
         $oMain = $this->createCharacter($owner, 'O-Main')->setEveCharacterId(2120000001);
         $oAlt = $this->createCharacter($owner, 'O-Alt')->setEveCharacterId(2120000002);
         $owner->setMainCharacter($oMain);
-        $project = (new IndustryProject())
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)
             ->setOwner($owner)
             ->setName('Sabre')
             ->setStatus(GroupProjectStatus::Selling)

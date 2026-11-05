@@ -13,7 +13,7 @@ use App\Enum\ContributionType;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryBomItemRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
@@ -33,7 +33,7 @@ class SubmitContributionProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
         private readonly GroupIndustryBomItemRepository $bomItemRepository,
         private readonly GroupIndustryContributionService $contributionService,
@@ -58,7 +58,7 @@ class SubmitContributionProcessor implements ProcessorInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->hasSteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

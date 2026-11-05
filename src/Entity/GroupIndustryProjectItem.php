@@ -20,9 +20,9 @@ class GroupIndustryProjectItem
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
     private ?Uuid $id = null;
 
-    #[ORM\ManyToOne(targetEntity: GroupIndustryProject::class, inversedBy: 'items')]
+    #[ORM\ManyToOne(targetEntity: IndustryProject::class, inversedBy: 'items')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
 
     #[ORM\Column(type: 'integer')]
     private int $typeId;
@@ -47,12 +47,12 @@ class GroupIndustryProjectItem
         return $this->id;
     }
 
-    public function getProject(): GroupIndustryProject
+    public function getProject(): IndustryProject
     {
         return $this->project;
     }
 
-    public function setProject(GroupIndustryProject $project): static
+    public function setProject(IndustryProject $project): static
     {
         $this->project = $project;
         return $this;

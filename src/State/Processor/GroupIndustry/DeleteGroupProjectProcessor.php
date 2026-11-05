@@ -6,7 +6,7 @@ namespace App\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -16,7 +16,7 @@ use Symfony\Component\Uid\Uuid;
 class DeleteGroupProjectProcessor implements ProcessorInterface
 {
     public function __construct(
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }

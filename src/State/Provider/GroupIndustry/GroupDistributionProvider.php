@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryDistributionResource;
 use App\Entity\User;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\GroupIndustry\MemberDistribution;
@@ -24,7 +24,7 @@ class GroupDistributionProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryDistributionService $distributionService,
     ) {
@@ -44,7 +44,7 @@ class GroupDistributionProvider implements ProviderInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->hasSteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

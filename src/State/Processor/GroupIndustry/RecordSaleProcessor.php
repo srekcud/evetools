@@ -10,7 +10,7 @@ use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\RecordSaleInput;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSellerOfUser;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
@@ -30,7 +30,7 @@ class RecordSaleProcessor implements ProcessorInterface
 
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
@@ -53,7 +53,7 @@ class RecordSaleProcessor implements ProcessorInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->hasSteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

@@ -13,7 +13,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -26,7 +26,7 @@ class GroupMemberCollectionProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
         private readonly GroupIndustryContributionRepository $contributionRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
@@ -51,7 +51,7 @@ class GroupMemberCollectionProvider implements ProviderInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->hasSteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

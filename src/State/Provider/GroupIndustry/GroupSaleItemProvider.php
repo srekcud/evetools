@@ -8,8 +8,8 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\User;
-use App\Repository\GroupIndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSaleOfProject;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -23,7 +23,7 @@ final readonly class GroupSaleItemProvider implements ProviderInterface
 
     public function __construct(
         private Security $security,
-        private GroupIndustryProjectRepository $projectRepository,
+        private IndustryProjectRepository $projectRepository,
         private GroupIndustrySaleRepository $saleRepository,
         private GroupProjectAccessChecker $accessChecker,
     ) {

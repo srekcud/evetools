@@ -22,9 +22,9 @@ class GroupIndustryProjectMember
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: GroupIndustryProject::class, inversedBy: 'members')]
+    #[ORM\ManyToOne(targetEntity: IndustryProject::class, inversedBy: 'members')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
@@ -50,12 +50,12 @@ class GroupIndustryProjectMember
         return $this->id;
     }
 
-    public function getProject(): GroupIndustryProject
+    public function getProject(): IndustryProject
     {
         return $this->project;
     }
 
-    public function setProject(GroupIndustryProject $project): static
+    public function setProject(IndustryProject $project): static
     {
         $this->project = $project;
         return $this;

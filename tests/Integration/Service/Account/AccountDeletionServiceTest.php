@@ -143,7 +143,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'escalations.user_id' => 1,
             'eve_tokens.character_id' => 2,
             'group_industry_sales.seller_character_id' => 1,
-            'industry_projects.user_id' => 1,
+            'industry_projects.owner_id' => 2,
             'industry_structure_configs.user_id' => 1,
             'industry_user_settings.user_id' => 1,
             'market_favorites.user_id' => 1,
@@ -264,7 +264,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         $this->deleteAccount((string) $kaelen->getId());
 
-        self::assertSame(0, $this->countWhereIn('group_industry_projects', 'id', [$projectId]));
+        self::assertSame(0, $this->countWhereIn('industry_projects', 'id', [$projectId]));
         self::assertSame(0, $this->countWhereIn('group_industry_project_items', 'project_id', [$projectId]));
         self::assertSame(0, $this->countWhereIn('group_industry_bom_items', 'project_id', [$projectId]));
         self::assertSame(0, $this->countWhereIn('group_industry_project_members', 'project_id', [$projectId]));
@@ -379,7 +379,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         self::assertSame(0, $this->countWhereIn('group_industry_project_members', 'id', [$kaelenMemberId]));
         self::assertSame(1, $this->countWhereIn('group_industry_project_members', 'id', [$brannMemberId]));
-        self::assertSame(1, $this->countWhereIn('group_industry_projects', 'id', [$projectId]));
+        self::assertSame(1, $this->countWhereIn('industry_projects', 'id', [$projectId]));
     }
 
     public function testSaleRecordedByTheDeletedAccountIsKeptWithoutAuthor(): void
@@ -595,7 +595,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         self::assertSame(1, $this->countWhereIn('users', 'id', [$kaelenId]));
         self::assertSame(1, $this->countWhereIn('characters', 'id', [$kaelenCharacterId]));
         self::assertSame(1, $this->countWhereIn('eve_tokens', 'character_id', [$kaelenCharacterId]));
-        self::assertSame($kaelenId, $connection->fetchOne('SELECT owner_id::text FROM group_industry_projects WHERE id = ?', [$ownedProjectId]));
+        self::assertSame($kaelenId, $connection->fetchOne('SELECT owner_id::text FROM industry_projects WHERE id = ?', [$ownedProjectId]));
         self::assertSame(['role' => 'admin', 'status' => 'accepted'], $connection->fetchAssociative('SELECT role, status FROM group_industry_project_members WHERE id = ?', [$brannAdminId]));
         self::assertSame(
             ['user_id' => $kaelenId, 'role' => 'admin', 'status' => 'accepted'],
@@ -794,7 +794,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
     private function createProject(User $owner, string $name): IndustryProject
     {
-        $project = (new IndustryProject())->setOwner($owner)->setName($name);
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName($name);
         $this->em->persist($project);
 
         return $project;
@@ -1107,7 +1107,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setUpgradeLevel(3 + $seed)
             ->setNumPins(8 + $seed)
             ->setLastUpdate($start));
-        $this->em->persist((new IndustryProject())->setOwner($user)
+        $this->em->persist((new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($user)
             ->setProductTypeId(22_444 + $seed)
             ->setRuns(10 * $seed));
         $this->em->persist((new IndustryUserSettings())

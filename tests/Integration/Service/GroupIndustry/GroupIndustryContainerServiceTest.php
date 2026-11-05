@@ -224,7 +224,7 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
 
     private function createProjectUsingBuildContainer(): IndustryProject
     {
-        $project = (new IndustryProject())
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)
             ->setOwner($this->em->getReference(User::class, $this->owner->getId()))
             ->setName('Hull run')
             ->setContainerName(self::BUILD_CONTAINER_NAME);

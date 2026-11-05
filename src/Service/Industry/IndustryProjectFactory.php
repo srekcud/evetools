@@ -9,6 +9,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\User;
+use App\Enum\GroupProjectStatus;
 use App\Industry\Application\InventionCatalog;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
@@ -52,7 +53,8 @@ class IndustryProjectFactory
         }
 
         $project = new IndustryProject();
-        $project->setUser($user);
+        $project->setOwner($user);
+        $project->setStatus(GroupProjectStatus::Draft);
         $project->setProductTypeId($productTypeId);
         $project->setName($name !== '' ? $name : null);
         $project->setRuns($runs);
@@ -79,7 +81,7 @@ class IndustryProjectFactory
 
     public function regenerateSteps(IndustryProject $project): void
     {
-        $user = $project->getUser();
+        $user = $project->getOwner();
         $userId = $user->getId()?->toRfc4122();
 
         if ($userId !== null) {
@@ -94,7 +96,7 @@ class IndustryProjectFactory
 
             if ($userId !== null) {
                 $this->mercurePublisher->syncCompleted($userId, 'industry-project', 'Steps regenerated', [
-                    'projectId' => $project->getId()?->toRfc4122() ?? '',
+                    'projectId' => $project->getId()->toRfc4122(),
                     'stepsCount' => count($rawSteps),
                 ]);
             }
@@ -152,7 +154,7 @@ class IndustryProjectFactory
      */
     private function regenerationPlanOf(IndustryProject $project): array
     {
-        $user = $project->getUser();
+        $user = $project->getOwner();
         $settingsOfExistingSteps = $this->settingsOfExistingStepsByKeyInSplitIndexOrder($project);
         $tree = $this->productionTreeOf($project);
 
@@ -233,7 +235,7 @@ class IndustryProjectFactory
      */
     private function productionTreeOf(IndustryProject $project): array
     {
-        $user = $project->getUser();
+        $user = $project->getOwner();
 
         return $this->treeService->buildProductionTree(
             $project->getProductTypeId(),

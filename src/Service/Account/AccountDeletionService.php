@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Account;
 
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
@@ -111,14 +111,14 @@ class AccountDeletionService
     }
 
     /**
-     * @return list<GroupIndustryProject>
+     * @return list<IndustryProject>
      */
     private function handOverOwnedProjects(User $user): array
     {
         $memberRepository = $this->memberRepository();
         $deletedProjects = [];
 
-        foreach ($this->entityManager->getRepository(GroupIndustryProject::class)->findBy(['owner' => $user]) as $project) {
+        foreach ($this->entityManager->getRepository(IndustryProject::class)->findBy(['owner' => $user]) as $project) {
             $successor = $memberRepository->findOwnershipSuccessor($project, $user);
 
             if ($successor === null) {
@@ -135,7 +135,7 @@ class AccountDeletionService
     }
 
     /**
-     * @param list<GroupIndustryProject> $deletedProjects
+     * @param list<IndustryProject> $deletedProjects
      */
     private function anonymizeMemberships(User $user, array $deletedProjects): void
     {

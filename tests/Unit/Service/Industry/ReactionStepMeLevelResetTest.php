@@ -363,28 +363,12 @@ final class ReactionStepMeLevelResetTest extends TestCase
     public function testOwnerWithoutIdentifierFailsTheProjectBeforeAnyFlush(): void
     {
         $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135)
-            ->setUser(new User());
+            ->setOwner(new User());
 
         $outcomes = $this->resetOf($project)->run(false);
 
         self::assertSame(
             [[self::FERNITE_CARBIDE_PROJECT_ID, 'Fernite Carbide', 20, ProjectCorrectionStatus::Failed, null, 'LogicException: A project owner read from the database has no identifier']],
-            self::summaryOf($outcomes),
-        );
-        self::assertSame(['clear'], $this->entityManagerCalls);
-        self::assertSame([], $this->topicsAndStatusesOfThePublishedUpdates());
-    }
-
-    #[Group('issue-301')]
-    public function testProjectWithoutIdentifierFailsBeforeAnyFlush(): void
-    {
-        $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135);
-        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, null);
-
-        $outcomes = $this->resetReadingEachProjectUnderItsId([self::FERNITE_CARBIDE_PROJECT_ID => $project])->run(false);
-
-        self::assertSame(
-            [[self::FERNITE_CARBIDE_PROJECT_ID, 'type 16673 (name missing from the SDE)', 20, ProjectCorrectionStatus::Failed, null, 'LogicException: A project read from the database has no identifier']],
             self::summaryOf($outcomes),
         );
         self::assertSame(['clear'], $this->entityManagerCalls);

@@ -9,8 +9,8 @@ use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberStatus;
 use App\Service\GroupIndustry\PilotName;
@@ -22,7 +22,7 @@ class GroupIndustryResourceMapper
      * @param float|null $approvedContributionValue precomputed by collection providers; summed from the approved contributions otherwise
      */
     public function projectToResource(
-        GroupIndustryProject $project,
+        IndustryProject $project,
         ?GroupIndustryProjectMember $myMembership,
         ?int $acceptedMembersCount = null,
         ?float $approvedContributionValue = null,

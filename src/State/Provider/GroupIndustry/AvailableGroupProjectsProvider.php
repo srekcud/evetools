@@ -7,13 +7,13 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -24,7 +24,7 @@ class AvailableGroupProjectsProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
         private readonly GroupIndustryContributionRepository $contributionRepository,
@@ -55,7 +55,7 @@ class AvailableGroupProjectsProvider implements ProviderInterface
         // Own projects and projects the user already has a membership in (whatever its status) are not available
         $ownProjectsExcluded = array_values(array_filter(
             $corpProjects,
-            static fn (GroupIndustryProject $project): bool => $project->getOwner() !== $user,
+            static fn (IndustryProject $project): bool => $project->getOwner() !== $user,
         ));
         if ($ownProjectsExcluded === []) {
             return [];
@@ -67,7 +67,7 @@ class AvailableGroupProjectsProvider implements ProviderInterface
         );
         $availableProjects = array_values(array_filter(
             $ownProjectsExcluded,
-            static fn (GroupIndustryProject $project): bool => !\in_array((string) $project->getId(), $joinedProjectIds, true),
+            static fn (IndustryProject $project): bool => !\in_array((string) $project->getId(), $joinedProjectIds, true),
         ));
 
         $this->memberRepository->loadItemsAndBomItems($availableProjects);

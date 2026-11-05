@@ -9,7 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\UpdateProjectInput;
 use App\Entity\User;
-use App\Enum\ProjectStatus;
+use App\Enum\GroupProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\ProjectEstimatesRefresher;
@@ -45,7 +45,7 @@ class UpdateProjectProcessor implements ProcessorInterface
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
 
-        if ($project === null || $project->getUser() !== $user) {
+        if ($project === null || !$project->isPlannedByStepsAndOwnedBy($user)) {
             throw new NotFoundHttpException('Project not found');
         }
 
@@ -76,12 +76,13 @@ class UpdateProjectProcessor implements ProcessorInterface
             $project->setName($name !== '' ? $name : null);
         }
         if ($data->status !== null) {
-            $parsedStatus = ProjectStatus::tryFrom($data->status);
-            if ($parsedStatus !== null) {
-                $project->setStatus($parsedStatus);
-                if ($parsedStatus === ProjectStatus::Completed && $project->getCompletedAt() === null) {
+            if ($data->status === UpdateProjectInput::STATUS_COMPLETED) {
+                $project->setStatus(GroupProjectStatus::Completed);
+                if ($project->getCompletedAt() === null) {
                     $project->setCompletedAt(new \DateTimeImmutable());
                 }
+            } elseif ($data->status === UpdateProjectInput::STATUS_ACTIVE && $project->isCompleted()) {
+                $project->setStatus(GroupProjectStatus::Draft);
             }
         }
         if ($data->personalUse !== null) {

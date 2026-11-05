@@ -55,7 +55,7 @@ class ProductionStepNeedsResolver
             $structureByStep[spl_object_id($step)] = ['materialBonus' => $structureBonus['materialBonus'], 'name' => $structureBonus['name']];
         }
 
-        $blacklistedTypeIds = array_flip($this->blacklistService->resolveBlacklistedTypeIds($project->getUser()));
+        $blacklistedTypeIds = array_flip($this->blacklistService->resolveBlacklistedTypeIds($project->getOwner()));
         $changeOfNeedByProduct = [];
         $needsByProduct = [];
 

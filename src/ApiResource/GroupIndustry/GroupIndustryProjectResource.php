@@ -27,7 +27,7 @@ use App\State\Provider\GroupIndustry\GroupProjectDeleteProvider;
 use App\State\Provider\GroupIndustry\GroupProjectProvider;
 
 #[ApiResource(
-    shortName: 'GroupIndustryProject',
+    shortName: 'IndustryProject',
     description: 'Group industry collaborative projects',
     operations: [
         new GetCollection(

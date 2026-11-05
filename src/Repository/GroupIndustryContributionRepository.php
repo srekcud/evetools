@@ -6,8 +6,8 @@ namespace App\Repository;
 
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -27,7 +27,7 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
     /**
      * @return GroupIndustryContribution[]
      */
-    public function findApprovedByProject(GroupIndustryProject $project): array
+    public function findApprovedByProject(IndustryProject $project): array
     {
         return $this->createQueryBuilder('c')
             ->addSelect('contributor', 'contributorUser', 'contributorCharacter', 'contributorToken')
@@ -46,7 +46,7 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
     /**
      * Approved contribution value per project, keyed by project UUID (RFC 4122); 0.0 for a project without any.
      *
-     * @param list<GroupIndustryProject> $projects
+     * @param list<IndustryProject> $projects
      *
      * @return array<string, float>
      */
@@ -80,7 +80,7 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
     /**
      * @return list<string>
      */
-    public function findContributedBomItemIds(GroupIndustryProject $project): array
+    public function findContributedBomItemIds(IndustryProject $project): array
     {
         $bomItemIds = $this->createQueryBuilder('c')
             ->select('DISTINCT IDENTITY(c.bomItem)')
@@ -128,7 +128,7 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
      *
      * @return GroupIndustryContribution[]
      */
-    public function findByProjectForListing(GroupIndustryProject $project): array
+    public function findByProjectForListing(IndustryProject $project): array
     {
         return $this->createQueryBuilder('c')
             ->addSelect('contributor', 'contributorUser', 'contributorCharacter', 'contributorToken', 'bomItem', 'reviewer', 'reviewerCharacter', 'reviewerToken')

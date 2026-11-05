@@ -125,7 +125,7 @@ trait BuildsIshtarGroupProject
 
     private function persistProject(string $name): IndustryProject
     {
-        $project = (new IndustryProject())->setOwner($this->owner)->setName($name)->setStatus(GroupProjectStatus::InProgress);
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->owner)->setName($name)->setStatus(GroupProjectStatus::InProgress);
         $this->em->persist($project);
 
         return $project;

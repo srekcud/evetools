@@ -7,13 +7,13 @@ namespace App\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,7 +30,7 @@ class JoinGroupProjectProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
         private readonly GroupIndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
@@ -93,7 +93,7 @@ class JoinGroupProjectProcessor implements ProcessorInterface
     }
 
     /** New membership: auto-accepted for the owner's corporation, pending otherwise. */
-    private function createMembership(GroupIndustryProject $project, User $user): GroupIndustryProjectMember
+    private function createMembership(IndustryProject $project, User $user): GroupIndustryProjectMember
     {
         $member = new GroupIndustryProjectMember();
         $member->setUser($user);

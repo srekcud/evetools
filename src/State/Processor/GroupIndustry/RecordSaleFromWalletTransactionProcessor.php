@@ -9,12 +9,12 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\RecordSaleFromWalletTransactionInput;
 use App\Entity\CachedWalletTransaction;
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
-use App\Repository\GroupIndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSaleOfProject;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -38,7 +38,7 @@ final readonly class RecordSaleFromWalletTransactionProcessor implements Process
 
     public function __construct(
         private Security $security,
-        private GroupIndustryProjectRepository $projectRepository,
+        private IndustryProjectRepository $projectRepository,
         private GroupProjectAccessChecker $accessChecker,
         private CachedWalletTransactionRepository $transactionRepository,
         private GroupIndustrySaleRepository $saleRepository,
@@ -120,7 +120,7 @@ final readonly class RecordSaleFromWalletTransactionProcessor implements Process
         return $transaction;
     }
 
-    private function assertSellsTheProduction(CachedWalletTransaction $transaction, GroupIndustryProject $project): string
+    private function assertSellsTheProduction(CachedWalletTransaction $transaction, IndustryProject $project): string
     {
         if ($transaction->isBuy()) {
             throw new BadRequestHttpException('This transaction is a purchase, not a sale.');

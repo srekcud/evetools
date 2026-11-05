@@ -7,7 +7,6 @@ namespace App\Service\Industry;
 use App\Entity\IndustryProject;
 use App\Enum\IndustryActivityType;
 use App\Enum\ProjectCorrectionStatus;
-use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,7 +37,7 @@ class ReactionProjectSellPriceRecalculation extends ProjectByProjectCorrection
     private function isReactionProjectToRecalculate(IndustryProject $project, \DateTimeImmutable $createdBefore): bool
     {
         if ($project->getCreatedAt() >= $createdBefore
-            || $project->getStatus() !== ProjectStatus::Active
+            || $project->isCompleted()
             || $project->getEstimatedSellPrice() === null) {
             return false;
         }

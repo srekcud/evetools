@@ -43,7 +43,7 @@ class IndustryJobMatcher
 
     public function matchEsiJobs(IndustryProject $project): void
     {
-        $user = $project->getUser();
+        $user = $project->getOwner();
         $characterIds = [];
         foreach ($user->getCharacters() as $character) {
             $characterIds[] = $character->getId();
@@ -251,7 +251,7 @@ class IndustryJobMatcher
 
             if ($currentLocationId !== $stationId) {
                 $facilityConfig = $this->structureConfigRepository
-                    ->findByUserAndLocationId($project->getUser(), $stationId);
+                    ->findByUserAndLocationId($project->getOwner(), $stationId);
 
                 if ($facilityConfig !== null && $facilityConfig->getId() !== $currentConfig?->getId()) {
                     // Record what was planned before correction

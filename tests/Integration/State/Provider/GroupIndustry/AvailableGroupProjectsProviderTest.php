@@ -283,7 +283,7 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
 
     private function createProject(User $owner, string $name, GroupProjectStatus $status): IndustryProject
     {
-        $project = (new IndustryProject())
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)
             ->setOwner($owner)
             ->setName($name)
             ->setStatus($status);

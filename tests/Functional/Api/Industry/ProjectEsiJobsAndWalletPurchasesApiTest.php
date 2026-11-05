@@ -189,7 +189,7 @@ final class ProjectEsiJobsAndWalletPurchasesApiTest extends WebTestCase
 
     private function fuelBlockStepOfAnotherProjectOfTheOwner(): IndustryProjectStep
     {
-        $anotherProject = (new IndustryProject())->setOwner($this->owner)->setProductTypeId(self::FUEL_BLOCK_TYPE_ID)->setRuns(3)->setMeLevel(0);
+        $anotherProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->owner)->setProductTypeId(self::FUEL_BLOCK_TYPE_ID)->setRuns(3)->setMeLevel(0);
         $this->em->persist($anotherProject);
         $step = (new IndustryProjectStep())
             ->setBlueprintTypeId(self::FUEL_BLOCK_BLUEPRINT_TYPE_ID)

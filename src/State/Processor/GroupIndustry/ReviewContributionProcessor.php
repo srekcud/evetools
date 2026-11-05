@@ -8,12 +8,12 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\ApiResource\Input\GroupIndustry\ReviewContributionInput;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
@@ -32,7 +32,7 @@ class ReviewContributionProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupIndustryContributionRepository $contributionRepository,
         private readonly GroupIndustryContributionService $contributionService,
         private readonly GroupProjectAccessChecker $accessChecker,
@@ -59,7 +59,7 @@ class ReviewContributionProcessor implements ProcessorInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->hasSteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 
@@ -103,7 +103,7 @@ class ReviewContributionProcessor implements ProcessorInterface
         return $this->mapper->contributionToResource($contribution);
     }
 
-    private function hasAnotherAcceptedReviewer(User $user, GroupIndustryProject $project): bool
+    private function hasAnotherAcceptedReviewer(User $user, IndustryProject $project): bool
     {
         foreach ($project->getMembers() as $member) {
             $canReview = $member->getStatus() === GroupMemberStatus::Accepted

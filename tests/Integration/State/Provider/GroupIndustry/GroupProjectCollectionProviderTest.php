@@ -369,7 +369,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
 
     private function createProject(User $owner, string $name): IndustryProject
     {
-        $project = (new IndustryProject())
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)
             ->setOwner($owner)
             ->setName($name);
         $this->em->persist($project);

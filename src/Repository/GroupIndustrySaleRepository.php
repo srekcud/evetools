@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\GroupIndustryProject;
 use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProject;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -22,7 +22,7 @@ class GroupIndustrySaleRepository extends ServiceEntityRepository
     /**
      * @return GroupIndustrySale[]
      */
-    public function findByProjectForListing(GroupIndustryProject $project): array
+    public function findByProjectForListing(IndustryProject $project): array
     {
         return $this->createQueryBuilder('s')
             ->addSelect('recorder', 'recorderCharacter', 'recorderToken', 'seller', 'sellerToken')

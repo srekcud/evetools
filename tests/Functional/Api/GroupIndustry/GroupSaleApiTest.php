@@ -419,7 +419,7 @@ final class GroupSaleApiTest extends WebTestCase
 
     private function persistProject(string $name, GroupProjectStatus $status): IndustryProject
     {
-        $project = (new IndustryProject())->setOwner($this->owner)->setName($name)->setStatus($status);
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->owner)->setName($name)->setStatus($status);
         $this->em->persist($project);
 
         return $project;

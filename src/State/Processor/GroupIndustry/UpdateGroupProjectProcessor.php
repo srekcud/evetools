@@ -12,7 +12,7 @@ use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -36,7 +36,7 @@ class UpdateGroupProjectProcessor implements ProcessorInterface
 
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
         private readonly GroupIndustryProjectMemberRepository $memberRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,
@@ -55,7 +55,7 @@ class UpdateGroupProjectProcessor implements ProcessorInterface
 
         $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
 
-        if ($project === null) {
+        if ($project === null || $project->hasSteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

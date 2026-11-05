@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\GroupIndustry;
 
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Enum\ContributionType;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustrySaleRepository;
@@ -17,7 +17,7 @@ class GroupIndustryDistributionService
         private readonly GroupIndustrySaleRepository $saleRepository,
     ) {}
 
-    public function calculateDistribution(GroupIndustryProject $project): DistributionResult
+    public function calculateDistribution(IndustryProject $project): DistributionResult
     {
         $sales = $this->saleRepository->findBy(['project' => $project]);
         $totalRevenue = array_sum(array_map(
