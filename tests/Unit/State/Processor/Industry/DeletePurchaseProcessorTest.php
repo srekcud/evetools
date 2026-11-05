@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry;
 
 use ApiPlatform\Metadata\Delete;
-use App\ApiResource\Industry\StepPurchaseResource;
-use App\Entity\IndustryStepPurchase;
-use App\Repository\IndustryStepPurchaseRepository;
+use App\ApiResource\Industry\ProjectPurchaseResource;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectPurchase;
+use App\Repository\IndustryProjectPurchaseRepository;
 use App\State\Processor\Industry\DeletePurchaseProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -16,38 +17,40 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 #[CoversClass(DeletePurchaseProcessor::class)]
-#[Group('issue-206')]
+#[Group('issue-362')]
 final class DeletePurchaseProcessorTest extends TestCase
 {
-    private const string PROJECT_ID = '0192f0c4-7b1e-7a3c-9d2e-206000000001';
-    private const string STEP_ID = '0192f0c4-7b1e-7a3c-9d2e-206000000011';
-    private const string ISOTOPE_PURCHASE_ID = '0192f0c4-7b1e-7a3c-9d2e-206000000021';
-    private const string FUEL_BLOCK_PURCHASE_ID = '0192f0c4-7b1e-7a3c-9d2e-206000000022';
-    private const string UNKNOWN_PURCHASE_ID = '0192f0c4-7b1e-7a3c-9d2e-206000000099';
-    private const int ISOTOPE_TYPE_ID = 16274;
-    private const int PURCHASED_ISOTOPES = 2_160;
-    private const int FUEL_BLOCK_TYPE_ID = 4246;
-    private const int PURCHASED_FUEL_BLOCKS = 40;
+    private const string PROJECT_ID = '0192f0c4-7b1e-7a3c-9d2e-362000000001';
+    private const string RAM_PURCHASE_ID = '0192f0c4-7b1e-7a3c-9d2e-362000000021';
+    private const string TRITANIUM_PURCHASE_ID = '0192f0c4-7b1e-7a3c-9d2e-362000000022';
+    private const string UNKNOWN_PURCHASE_ID = '0192f0c4-7b1e-7a3c-9d2e-362000000099';
+    private const int RAM_TYPE_ID = 11478;
+    private const int PURCHASED_RAMS = 50;
+    private const int TRITANIUM_TYPE_ID = 34;
+    private const int PURCHASED_TRITANIUM = 1_000;
 
     private array $entityManagerCalls = [];
 
-    public function testPurchaseDesignatedByTheResourceIdIsRemovedThenFlushedRatherThanThePurchaseOfTheUriVariables(): void
+    public function testPurchaseDesignatedByTheResourceIsRemovedFromItsLineThenFlushedRatherThanThePurchaseOfTheUriVariables(): void
     {
-        $isotopePurchase = (new IndustryStepPurchase())->setTypeId(self::ISOTOPE_TYPE_ID)->setQuantity(self::PURCHASED_ISOTOPES);
-        $fuelBlockPurchase = (new IndustryStepPurchase())->setTypeId(self::FUEL_BLOCK_TYPE_ID)->setQuantity(self::PURCHASED_FUEL_BLOCKS);
+        $ramLine = (new IndustryProjectBomLine())->setTypeId(self::RAM_TYPE_ID)->setTypeName('R.A.M.- Starship Tech')->setRequiredQuantity(400);
+        $ramPurchase = (new IndustryProjectPurchase())->setTypeId(self::RAM_TYPE_ID)->setQuantity(self::PURCHASED_RAMS);
+        $ramLine->addPurchase($ramPurchase);
+        $tritaniumPurchase = (new IndustryProjectPurchase())->setTypeId(self::TRITANIUM_TYPE_ID)->setQuantity(self::PURCHASED_TRITANIUM);
 
-        $this->processorFinding([self::ISOTOPE_PURCHASE_ID => $isotopePurchase, self::FUEL_BLOCK_PURCHASE_ID => $fuelBlockPurchase])
-            ->process($this->purchaseResource(self::ISOTOPE_PURCHASE_ID), new Delete(), $this->uriVariables(self::FUEL_BLOCK_PURCHASE_ID));
+        $this->processorFinding([self::RAM_PURCHASE_ID => $ramPurchase, self::TRITANIUM_PURCHASE_ID => $tritaniumPurchase])
+            ->process($this->purchaseResource(self::RAM_PURCHASE_ID), new Delete(), ['projectId' => self::PROJECT_ID, 'id' => self::TRITANIUM_PURCHASE_ID]);
 
-        self::assertSame([['remove', $isotopePurchase], ['flush']], $this->entityManagerCalls);
+        self::assertSame([['remove', $ramPurchase], ['flush']], $this->entityManagerCalls);
+        self::assertSame([0, 0], [$ramLine->getPurchases()->count(), $ramLine->getPurchasedQuantity()]);
     }
 
     public function testResourceDesignatingNoKnownPurchaseIsNotFoundWithoutRemovingNorFlushing(): void
     {
-        $processor = $this->processorFinding([self::ISOTOPE_PURCHASE_ID => (new IndustryStepPurchase())->setTypeId(self::ISOTOPE_TYPE_ID)]);
+        $processor = $this->processorFinding([self::RAM_PURCHASE_ID => (new IndustryProjectPurchase())->setTypeId(self::RAM_TYPE_ID)]);
 
         try {
-            $processor->process($this->purchaseResource(self::UNKNOWN_PURCHASE_ID), new Delete(), $this->uriVariables(self::ISOTOPE_PURCHASE_ID));
+            $processor->process($this->purchaseResource(self::UNKNOWN_PURCHASE_ID), new Delete(), ['projectId' => self::PROJECT_ID, 'id' => self::RAM_PURCHASE_ID]);
             self::fail('A resource designating no known purchase must be answered as not found');
         } catch (NotFoundHttpException $notFound) {
             self::assertSame('Purchase not found', $notFound->getMessage());
@@ -58,9 +61,9 @@ final class DeletePurchaseProcessorTest extends TestCase
 
     private function processorFinding(array $purchasesById): DeletePurchaseProcessor
     {
-        $purchaseRepository = $this->createStub(IndustryStepPurchaseRepository::class);
+        $purchaseRepository = $this->createStub(IndustryProjectPurchaseRepository::class);
         $purchaseRepository->method('find')->willReturnCallback(
-            static fn (mixed $id): ?IndustryStepPurchase => $purchasesById[(string) $id] ?? null,
+            static fn (mixed $id): ?IndustryProjectPurchase => $purchasesById[(string) $id] ?? null,
         );
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('remove')->willReturnCallback(function (object $entity): void {
@@ -73,17 +76,11 @@ final class DeletePurchaseProcessorTest extends TestCase
         return new DeletePurchaseProcessor($entityManager, $purchaseRepository);
     }
 
-    private function purchaseResource(string $purchaseId): StepPurchaseResource
+    private function purchaseResource(string $purchaseId): ProjectPurchaseResource
     {
-        $resource = new StepPurchaseResource();
+        $resource = new ProjectPurchaseResource();
         $resource->id = $purchaseId;
-        $resource->stepId = self::STEP_ID;
 
         return $resource;
-    }
-
-    private function uriVariables(string $purchaseId): array
-    {
-        return ['id' => self::PROJECT_ID, 'stepId' => self::STEP_ID, 'purchaseId' => $purchaseId];
     }
 }
