@@ -10,8 +10,8 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
-use App\ApiResource\GroupIndustry\GroupIndustryBomResource;
-use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
+use App\ApiResource\Industry\Project\ProjectBomLineResource;
+use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\ApiResource\Input\Industry\CreatePurchaseInput;
 use App\Entity\IndustryProjectPurchase;
 use App\State\Processor\Industry\CreatePurchaseProcessor;
@@ -25,8 +25,8 @@ use App\State\Provider\Industry\PurchaseDeleteProvider;
         new Post(
             uriTemplate: '/industry/projects/{projectId}/bom/{lineId}/purchases',
             uriVariables: [
-                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
-                'lineId' => new Link(fromClass: GroupIndustryBomResource::class),
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+                'lineId' => new Link(fromClass: ProjectBomLineResource::class),
             ],
             processor: CreatePurchaseProcessor::class,
             input: CreatePurchaseInput::class,
@@ -35,7 +35,7 @@ use App\State\Provider\Industry\PurchaseDeleteProvider;
         new Delete(
             uriTemplate: '/industry/projects/{projectId}/purchases/{id}',
             uriVariables: [
-                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
                 'id' => new Link(fromClass: self::class),
             ],
             provider: PurchaseDeleteProvider::class,

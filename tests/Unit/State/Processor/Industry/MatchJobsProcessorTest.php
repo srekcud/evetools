@@ -14,8 +14,8 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Repository\IndustryProjectParticipantRepository;
@@ -24,7 +24,7 @@ use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
 use App\State\Processor\Industry\MatchJobsProcessor;
-use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -76,7 +76,7 @@ final class MatchJobsProcessorTest extends TestCase
         $this->pilotThree = $this->addCharacterWithToken(self::PILOT_THREE, self::PILOT_THREE_ID);
         $this->project = (new IndustryProject())->setOwner($this->user);
         $this->admin = new User();
-        $this->project->addMember((new IndustryProjectParticipant())->setUser($this->admin)->setRole(GroupMemberRole::Admin)->setStatus(GroupMemberStatus::Accepted));
+        $this->project->addMember((new IndustryProjectParticipant())->setUser($this->admin)->setRole(ParticipantRole::Admin)->setStatus(ParticipantStatus::Accepted));
         $this->logger = new BufferingLogger();
         $this->authenticatedUser = $this->user;
         $this->foundProject = $this->project;
@@ -389,7 +389,7 @@ final class MatchJobsProcessorTest extends TestCase
             $projectRepository,
             $jobMatcher,
             $jobSyncService,
-            new GroupProjectAccessChecker($participantRepository),
+            new ProjectAccessChecker($participantRepository),
             $this->logger,
         );
 

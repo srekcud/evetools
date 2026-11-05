@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\Industry;
 
 use App\Entity\IndustryProject;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
-use App\Enum\GroupProjectStatus;
-use App\Tests\Functional\Api\GroupIndustry\BuildsIshtarGroupProject;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
+use App\Tests\Functional\Api\Industry\Project\BuildsIshtarGroupProject;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -72,7 +72,7 @@ final class ProjectLifecycleApiTest extends WebTestCase
     #[DataProvider('statusChangesOfADraftProject')]
     public function testOwnerChangesTheStatusOfADraftProject(string $target, int $expectedStatusCode, string $expectedStatusOrDetail): void
     {
-        $this->hecateBatch->setStatus(GroupProjectStatus::Draft);
+        $this->hecateBatch->setStatus(ProjectStatus::Draft);
         $this->em->flush();
 
         $this->actAs($this->owner);
@@ -92,7 +92,7 @@ final class ProjectLifecycleApiTest extends WebTestCase
 
     public function testSameCorporationJoinsByCodeAcceptedAndOtherCorporationPendingOnceTheOwnerOpensTheProject(): void
     {
-        $this->ishtarBatch->setStatus(GroupProjectStatus::Published);
+        $this->ishtarBatch->setStatus(ProjectStatus::Published);
         $this->em->flush();
         $code = $this->ishtarBatch->getShortLinkCode();
 
@@ -114,7 +114,7 @@ final class ProjectLifecycleApiTest extends WebTestCase
 
     public function testJoiningAPrivateProjectByItsCodeIsNotFound(): void
     {
-        $this->ishtarBatch->setStatus(GroupProjectStatus::Published);
+        $this->ishtarBatch->setStatus(ProjectStatus::Published);
         $this->em->flush();
 
         $this->actAs($this->ownerCorpmate);
@@ -126,7 +126,7 @@ final class ProjectLifecycleApiTest extends WebTestCase
 
     public function testOwnerClosingTheProjectAgainKeepsItsParticipantsButHidesItFromDiscoveryAndFromTheCode(): void
     {
-        $this->ishtarBatch->setStatus(GroupProjectStatus::Published)->setPrivate(false);
+        $this->ishtarBatch->setStatus(ProjectStatus::Published)->setPrivate(false);
         $this->em->flush();
         $code = $this->ishtarBatch->getShortLinkCode();
         $newcomer = $this->persistPilot('Fenn Orr', self::FRESH_PILOT_CORPORATION_ID);
@@ -177,8 +177,8 @@ final class ProjectLifecycleApiTest extends WebTestCase
 
     public function testOwnerDeletesADraftProjectWithoutContributionNorSale(): void
     {
-        $draft = $this->persistProject('Empty draft')->setStatus(GroupProjectStatus::Draft);
-        $this->addMembership($draft, $this->owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $draft = $this->persistProject('Empty draft')->setStatus(ProjectStatus::Draft);
+        $this->addMembership($draft, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
         $this->em->flush();
         $draftUri = $this->projectUri($draft);
 

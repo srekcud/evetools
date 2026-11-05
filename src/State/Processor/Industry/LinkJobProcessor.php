@@ -17,7 +17,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\UuidOrNotFound;
-use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -35,7 +35,7 @@ class LinkJobProcessor implements ProcessorInterface
         private readonly CachedIndustryJobRepository $jobRepository,
         private readonly IndustryProjectJobMatchRepository $jobMatchRepository,
         private readonly IndustryActivityProductRepository $productRepository,
-        private readonly GroupProjectAccessChecker $accessChecker,
+        private readonly ProjectAccessChecker $accessChecker,
         private readonly IndustryJobMatcher $jobMatcher,
     ) {
     }

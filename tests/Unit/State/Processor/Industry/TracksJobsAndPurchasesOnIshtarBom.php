@@ -9,12 +9,12 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
-use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Uid\Uuid;
@@ -56,14 +56,14 @@ trait TracksJobsAndPurchasesOnIshtarBom
         $this->adminCharacter = $this->characterOf($this->admin, 'Brann Holt');
 
         $this->ishtarProject = $this->projectOfTheOwner('Ishtar batch');
-        $this->participate($this->ishtarProject, $this->owner, GroupMemberRole::Owner);
-        $this->participate($this->ishtarProject, $this->admin, GroupMemberRole::Admin);
+        $this->participate($this->ishtarProject, $this->owner, ParticipantRole::Owner);
+        $this->participate($this->ishtarProject, $this->admin, ParticipantRole::Admin);
         $this->ishtarLine = $this->jobLine($this->ishtarProject, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_LINE_RUNS, self::ISHTAR_LINE_RUNS);
         $this->ramLine = $this->jobLine($this->ishtarProject, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 'component', self::RAM_LINE_RUNS, self::RAM_LINE_QUANTITY);
         $this->tritaniumLine = $this->materialLine($this->ishtarProject, self::TRITANIUM_LINE_QUANTITY);
 
         $this->hecateProject = $this->projectOfTheOwner('Hecate batch');
-        $this->participate($this->hecateProject, $this->owner, GroupMemberRole::Owner);
+        $this->participate($this->hecateProject, $this->owner, ParticipantRole::Owner);
         $this->hecateTritaniumLine = $this->materialLine($this->hecateProject, 40_000);
     }
 
@@ -84,9 +84,9 @@ trait TracksJobsAndPurchasesOnIshtarBom
         return $project;
     }
 
-    private function participate(IndustryProject $project, User $user, GroupMemberRole $role): void
+    private function participate(IndustryProject $project, User $user, ParticipantRole $role): void
     {
-        $participant = (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus(GroupMemberStatus::Accepted);
+        $participant = (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus(ParticipantStatus::Accepted);
         $project->addMember($participant);
         $this->participants[] = $participant;
     }
@@ -153,7 +153,7 @@ trait TracksJobsAndPurchasesOnIshtarBom
         return $repository;
     }
 
-    private function accessChecker(): GroupProjectAccessChecker
+    private function accessChecker(): ProjectAccessChecker
     {
         $repository = $this->createStub(IndustryProjectParticipantRepository::class);
         $repository->method('findOneBy')->willReturnCallback(
@@ -166,7 +166,7 @@ trait TracksJobsAndPurchasesOnIshtarBom
             ),
         );
 
-        return new GroupProjectAccessChecker($repository);
+        return new ProjectAccessChecker($repository);
     }
 
     private function outcomeOf(callable $operation): string

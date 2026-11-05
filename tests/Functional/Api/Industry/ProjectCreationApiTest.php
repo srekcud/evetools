@@ -8,7 +8,7 @@ use App\Entity\IndustryProject;
 use App\Entity\Sde\InvCategory;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
-use App\Tests\Functional\Api\GroupIndustry\BuildsIshtarGroupProject;
+use App\Tests\Functional\Api\Industry\Project\BuildsIshtarGroupProject;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;

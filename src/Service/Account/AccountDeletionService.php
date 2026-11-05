@@ -12,7 +12,7 @@ use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
-use App\Enum\GroupMemberStatus;
+use App\Enum\ParticipantStatus;
 use App\Enum\MiningOperationStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryStructureConfigRepository;
@@ -146,7 +146,7 @@ class AccountDeletionService
                 continue;
             }
 
-            if ($membership->getStatus() === GroupMemberStatus::Pending) {
+            if ($membership->getStatus() === ParticipantStatus::Pending) {
                 $this->entityManager->remove($membership);
 
                 continue;

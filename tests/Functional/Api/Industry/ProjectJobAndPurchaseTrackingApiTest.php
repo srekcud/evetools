@@ -9,8 +9,8 @@ use App\Entity\Character;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectPurchase;
-use App\Enum\GroupMemberRole;
-use App\Tests\Functional\Api\GroupIndustry\BuildsIshtarGroupProject;
+use App\Enum\ParticipantRole;
+use App\Tests\Functional\Api\Industry\Project\BuildsIshtarGroupProject;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -33,7 +33,7 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
     protected function setUp(): void
     {
         $this->setUpIshtarGroupProject();
-        $this->memberMembership->setRole(GroupMemberRole::Admin);
+        $this->memberMembership->setRole(ParticipantRole::Admin);
         $this->tritaniumPurchase = $this->manualPurchaseOn($this->tritaniumLine, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
         $this->hecateTritaniumPurchase = $this->manualPurchaseOn($this->hecateTritaniumLine, self::TRITANIUM_TYPE_ID, 5_000, 4.3);
         $this->ishtarJobMatch = (new IndustryProjectJobMatch())

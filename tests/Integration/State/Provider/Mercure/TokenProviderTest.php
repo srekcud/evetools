@@ -9,9 +9,9 @@ use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
-use App\Enum\GroupProjectStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\State\Provider\Mercure\TokenProvider;
 use App\Tests\Integration\IntegrationTestCase;
@@ -28,7 +28,7 @@ final class TokenProviderTest extends IntegrationTestCase
         $groupProject = (new IndustryProject())
             ->setOwner($owner)
             ->setName('Sabre by items')
-            ->setStatus(GroupProjectStatus::Published)
+            ->setStatus(ProjectStatus::Published)
             ->addItem(
                 (new IndustryProjectProduct())
                     ->setTypeId(22456)
@@ -66,17 +66,17 @@ final class TokenProviderTest extends IntegrationTestCase
         $otherOwner = $this->createUser();
         $otherOwner->setMainCharacter($this->createCharacter($otherOwner, 'Brann Holt')->setCorporationId(98_362_202));
 
-        $soloProject = $this->projectOf($owner, 'Solo Rifter', GroupProjectStatus::Draft);
+        $soloProject = $this->projectOf($owner, 'Solo Rifter', ProjectStatus::Draft);
         $soloProject->addMember($this->ownerParticipant($owner));
-        $groupProject = $this->projectOf($owner, 'Group Sabre', GroupProjectStatus::InProgress)->addItem(
+        $groupProject = $this->projectOf($owner, 'Group Sabre', ProjectStatus::InProgress)->addItem(
             (new IndustryProjectProduct())->setTypeId(22456)->setTypeName('Sabre')->setMeLevel(10)->setTeLevel(20)->setRuns(5),
         );
         $groupProject->addMember($this->ownerParticipant($owner));
-        $groupProject->addMember($this->participantOf($otherOwner, GroupMemberRole::Member, GroupMemberStatus::Accepted));
-        $pendingProject = $this->projectOf($otherOwner, 'Pending Hecate', GroupProjectStatus::Published);
+        $groupProject->addMember($this->participantOf($otherOwner, ParticipantRole::Member, ParticipantStatus::Accepted));
+        $pendingProject = $this->projectOf($otherOwner, 'Pending Hecate', ProjectStatus::Published);
         $pendingProject->addMember($this->ownerParticipant($otherOwner));
-        $pendingProject->addMember($this->participantOf($owner, GroupMemberRole::Member, GroupMemberStatus::Pending));
-        $strangerProject = $this->projectOf($otherOwner, 'Stranger Cutlass', GroupProjectStatus::Published);
+        $pendingProject->addMember($this->participantOf($owner, ParticipantRole::Member, ParticipantStatus::Pending));
+        $strangerProject = $this->projectOf($otherOwner, 'Stranger Cutlass', ProjectStatus::Published);
         $strangerProject->addMember($this->ownerParticipant($otherOwner));
         $this->em->flush();
         $ownerId = (string) $owner->getId();
@@ -105,7 +105,7 @@ final class TokenProviderTest extends IntegrationTestCase
         self::assertSame($expected, $projectTopics);
     }
 
-    private function projectOf(User $owner, string $name, GroupProjectStatus $status): IndustryProject
+    private function projectOf(User $owner, string $name, ProjectStatus $status): IndustryProject
     {
         $project = (new IndustryProject())->setOwner($owner)->setName($name)->setStatus($status);
         $this->em->persist($project);
@@ -113,7 +113,7 @@ final class TokenProviderTest extends IntegrationTestCase
         return $project;
     }
 
-    private function participantOf(User $user, GroupMemberRole $role, GroupMemberStatus $status): IndustryProjectParticipant
+    private function participantOf(User $user, ParticipantRole $role, ParticipantStatus $status): IndustryProjectParticipant
     {
         return (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus($status);
     }
@@ -122,7 +122,7 @@ final class TokenProviderTest extends IntegrationTestCase
     {
         return (new IndustryProjectParticipant())
             ->setUser($user)
-            ->setRole(GroupMemberRole::Owner)
-            ->setStatus(GroupMemberStatus::Accepted);
+            ->setRole(ParticipantRole::Owner)
+            ->setStatus(ParticipantStatus::Accepted);
     }
 }

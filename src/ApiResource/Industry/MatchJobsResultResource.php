@@ -9,7 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
-use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
+use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\ApiResource\Input\EmptyInput;
 use App\State\Processor\Industry\MatchJobsProcessor;
 
@@ -20,7 +20,7 @@ use App\State\Processor\Industry\MatchJobsProcessor;
         new Post(
             uriTemplate: '/industry/projects/{projectId}/match-jobs',
             uriVariables: [
-                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
             ],
             processor: MatchJobsProcessor::class,
             input: EmptyInput::class,

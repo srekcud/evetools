@@ -16,7 +16,7 @@ use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
 use App\Service\UuidOrNotFound;
-use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -32,7 +32,7 @@ class MatchJobsProcessor implements ProcessorInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryJobMatcher $jobMatcher,
         private readonly IndustryJobSyncService $jobSyncService,
-        private readonly GroupProjectAccessChecker $accessChecker,
+        private readonly ProjectAccessChecker $accessChecker,
         private readonly LoggerInterface $logger,
     ) {
     }

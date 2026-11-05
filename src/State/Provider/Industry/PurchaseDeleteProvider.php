@@ -11,7 +11,7 @@ use App\Entity\User;
 use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
-use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -25,7 +25,7 @@ class PurchaseDeleteProvider implements ProviderInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectPurchaseRepository $purchaseRepository,
-        private readonly GroupProjectAccessChecker $accessChecker,
+        private readonly ProjectAccessChecker $accessChecker,
     ) {
     }
 

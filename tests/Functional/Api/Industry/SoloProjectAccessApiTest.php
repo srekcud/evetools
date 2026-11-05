@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\Industry;
 
 use App\Entity\IndustryProject;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
-use App\Enum\GroupProjectStatus;
-use App\Tests\Functional\Api\GroupIndustry\BuildsIshtarGroupProject;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
+use App\Tests\Functional\Api\Industry\Project\BuildsIshtarGroupProject;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -89,8 +89,8 @@ final class SoloProjectAccessApiTest extends WebTestCase
 
     public function testOwnerDeletesADeletableSoloProjectAndOthersAreRefused(): void
     {
-        $draft = $this->persistProject('Solo draft')->setStatus(GroupProjectStatus::Draft);
-        $this->addMembership($draft, $this->owner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $draft = $this->persistProject('Solo draft')->setStatus(ProjectStatus::Draft);
+        $this->addMembership($draft, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
         $this->em->flush();
         $draftUri = $this->projectUri($draft);
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\IndustryProject;
-use App\Enum\GroupProjectStatus;
+use App\Enum\ProjectStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -20,7 +20,7 @@ class IndustryProjectRepository extends ServiceEntityRepository
     }
 
     /**
-     * @param GroupProjectStatus[] $statuses
+     * @param ProjectStatus[] $statuses
      * @return IndustryProject[]
      */
     public function findDiscoverableByOwnerCorporation(int $corporationId, array $statuses): array
@@ -37,7 +37,7 @@ class IndustryProjectRepository extends ServiceEntityRepository
 
         if (!empty($statuses)) {
             $qb->andWhere('p.status IN (:statuses)')
-                ->setParameter('statuses', array_map(fn (GroupProjectStatus $s) => $s->value, $statuses));
+                ->setParameter('statuses', array_map(fn (ProjectStatus $s) => $s->value, $statuses));
         }
 
         $qb->orderBy('p.createdAt', 'DESC');

@@ -7,8 +7,8 @@ namespace App\Repository;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -32,7 +32,7 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
             ->andWhere('m.user = :user')
             ->andWhere('m.status = :status')
             ->setParameter('user', $user)
-            ->setParameter('status', GroupMemberStatus::Accepted->value)
+            ->setParameter('status', ParticipantStatus::Accepted->value)
             ->getQuery()
             ->getScalarResult();
 
@@ -59,7 +59,7 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
             ->andWhere('m.user = :user')
             ->andWhere('m.status = :status')
             ->setParameter('user', $user)
-            ->setParameter('status', GroupMemberStatus::Accepted->value)
+            ->setParameter('status', ParticipantStatus::Accepted->value)
             ->orderBy('m.joinedAt', 'DESC')
             ->getQuery()
             ->getResult();
@@ -128,7 +128,7 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
             ->andWhere('m.project IN (:projects)')
             ->andWhere('m.status = :status')
             ->setParameter('projects', $projects)
-            ->setParameter('status', GroupMemberStatus::Accepted->value)
+            ->setParameter('status', ParticipantStatus::Accepted->value)
             ->groupBy('m.project')
             ->getQuery()
             ->getScalarResult();
@@ -152,9 +152,9 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
             ->andWhere('m.status = :accepted')
             ->andWhere('m.user IS NOT NULL')
             ->andWhere('m.user != :leavingOwner')
-            ->setParameter('admin', GroupMemberRole::Admin->value)
+            ->setParameter('admin', ParticipantRole::Admin->value)
             ->setParameter('project', $project)
-            ->setParameter('accepted', GroupMemberStatus::Accepted->value)
+            ->setParameter('accepted', ParticipantStatus::Accepted->value)
             ->setParameter('leavingOwner', $leavingOwner)
             ->orderBy('rolePriority', 'ASC')
             ->addOrderBy('m.joinedAt', 'ASC')

@@ -1,0 +1,107 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\State\Provider\Industry\Project;
+
+use ApiPlatform\Metadata\Operation;
+use ApiPlatform\State\ProviderInterface;
+use App\ApiResource\Industry\Project\ProjectSaleSuggestionResource;
+use App\Entity\CachedWalletTransaction;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProject;
+use App\Entity\User;
+use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\ResolvesSaleOfProject;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+
+/**
+ * @implements ProviderInterface<ProjectSaleSuggestionResource>
+ */
+final readonly class ProjectSaleSuggestionProvider implements ProviderInterface
+{
+    use ResolvesSaleOfProject;
+
+    public function __construct(
+        private Security $security,
+        private IndustryProjectRepository $projectRepository,
+        private ProjectAccessChecker $accessChecker,
+        private CachedWalletTransactionRepository $transactionRepository,
+    ) {
+    }
+
+    /**
+     * @return ProjectSaleSuggestionResource[]
+     */
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
+    {
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
+        }
+
+        $project = $this->projectOf($this->projectRepository, $uriVariables);
+        $this->accessChecker->assertAdminOrOwner($user, $project);
+
+        $transactions = $this->transactionRepository->findUnlinkedSaleTransactions(
+            $user->getCharacters()->toArray(),
+            $this->itemTypeIds($project),
+            $project->getCreatedAt(),
+        );
+
+        return array_map(
+            fn (CachedWalletTransaction $transaction): ProjectSaleSuggestionResource => $this->suggestionOf($transaction, $project),
+            $transactions,
+        );
+    }
+
+    /**
+     * @return int[]
+     */
+    private function itemTypeIds(IndustryProject $project): array
+    {
+        return array_values(array_unique(array_map(
+            static fn (IndustryProjectProduct $item): int => $item->getTypeId(),
+            $project->getItems()->toArray(),
+        )));
+    }
+
+    private function suggestionOf(CachedWalletTransaction $transaction, IndustryProject $project): ProjectSaleSuggestionResource
+    {
+        $suggestion = new ProjectSaleSuggestionResource();
+        $suggestion->transactionId = $transaction->getId()->toRfc4122();
+        $suggestion->typeId = $transaction->getTypeId();
+        $suggestion->typeName = $project->getItemTypeName($transaction->getTypeId())
+            ?? throw new \LogicException(sprintf('Type %d is not an item of the project', $transaction->getTypeId()));
+        $suggestion->quantity = $transaction->getQuantity();
+        $suggestion->unitPrice = $transaction->getUnitPrice();
+        $suggestion->totalPrice = $transaction->getTotalPrice();
+        $suggestion->date = $transaction->getDate()->format(\DateTimeInterface::ATOM);
+        $suggestion->sellerCharacterId = $transaction->getCharacter()->getEveCharacterId();
+        $suggestion->sellerCharacterName = $transaction->getCharacter()->getName();
+        $suggestion->locationId = $transaction->getLocationId();
+        $suggestion->possibleDuplicateSaleIds = $this->possibleDuplicateSaleIds($transaction, $project);
+
+        return $suggestion;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function possibleDuplicateSaleIds(CachedWalletTransaction $transaction, IndustryProject $project): array
+    {
+        $duplicateIds = [];
+        foreach ($project->getSales() as $sale) {
+            if ($sale->getWalletTransaction() === null
+                && $sale->getQuantity() === $transaction->getQuantity()
+                && $sale->getUnitPrice() === $transaction->getUnitPrice()) {
+                $duplicateIds[] = $sale->getId()->toRfc4122();
+            }
+        }
+
+        return $duplicateIds;
+    }
+}

@@ -11,8 +11,8 @@ use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Tests\Integration\IntegrationTestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -31,15 +31,15 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
     public function testApprovedValueOfEachProjectAddsOnlyItsApprovedContributionsOfEveryMemberAndType(): void
     {
         $sabre = $this->createProject('Sabre batch');
-        $sabreOwner = $this->addMember($sabre, GroupMemberRole::Owner);
-        $sabreAdmin = $this->addMember($sabre, GroupMemberRole::Admin);
+        $sabreOwner = $this->addMember($sabre, ParticipantRole::Owner);
+        $sabreAdmin = $this->addMember($sabre, ParticipantRole::Admin);
         $this->addContribution($sabreOwner, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
         $this->addContribution($sabreAdmin, ContributionType::LineRental, 250_000.0, ContributionStatus::Approved);
         $this->addContribution($sabreAdmin, ContributionType::Material, 500_000.0, ContributionStatus::Pending);
         $this->addContribution($sabreOwner, ContributionType::JobInstall, 100_000.0, ContributionStatus::Rejected);
 
         $jackdaw = $this->createProject('Jackdaw batch');
-        $jackdawOwner = $this->addMember($jackdaw, GroupMemberRole::Owner);
+        $jackdawOwner = $this->addMember($jackdaw, ParticipantRole::Owner);
         $this->addContribution($jackdawOwner, ContributionType::Bpc, 820_000.0, ContributionStatus::Approved);
         $this->addContribution($jackdawOwner, ContributionType::JobInstall, 37_500.0, ContributionStatus::Approved);
 
@@ -56,11 +56,11 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
     public function testProjectWithoutApprovedContributionHasAnApprovedValueOfZero(): void
     {
         $ishtar = $this->createProject('Ishtar fleet');
-        $ishtarOwner = $this->addMember($ishtar, GroupMemberRole::Owner);
+        $ishtarOwner = $this->addMember($ishtar, ParticipantRole::Owner);
         $this->addContribution($ishtarOwner, ContributionType::Material, 500_000.0, ContributionStatus::Pending);
         $this->addContribution($ishtarOwner, ContributionType::Material, 100_000.0, ContributionStatus::Rejected);
         $hurricane = $this->createProject('Hurricane line');
-        $this->addMember($hurricane, GroupMemberRole::Owner);
+        $this->addMember($hurricane, ParticipantRole::Owner);
         $this->em->flush();
 
         $expected = [(string) $ishtar->getId() => 0.0, (string) $hurricane->getId() => 0.0];
@@ -74,9 +74,9 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
     public function testApprovedValueIsReadOnlyForTheGivenProjects(): void
     {
         $sabre = $this->createProject('Sabre batch');
-        $this->addContribution($this->addMember($sabre, GroupMemberRole::Owner), ContributionType::Material, 2_400_000.0, ContributionStatus::Approved);
+        $this->addContribution($this->addMember($sabre, ParticipantRole::Owner), ContributionType::Material, 2_400_000.0, ContributionStatus::Approved);
         $otherProject = $this->createProject('Other project');
-        $this->addContribution($this->addMember($otherProject, GroupMemberRole::Owner), ContributionType::Material, 9_900_000.0, ContributionStatus::Approved);
+        $this->addContribution($this->addMember($otherProject, ParticipantRole::Owner), ContributionType::Material, 9_900_000.0, ContributionStatus::Approved);
         $this->em->flush();
 
         self::assertSame(
@@ -94,8 +94,8 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
     public function testContributedBomItemIdsAreTheLinesOfTheProjectCarryingAContributionOfAnyStatusEachOnce(): void
     {
         $sabre = $this->createProject('Sabre batch');
-        $sabreOwner = $this->addMember($sabre, GroupMemberRole::Owner);
-        $sabreAdmin = $this->addMember($sabre, GroupMemberRole::Admin);
+        $sabreOwner = $this->addMember($sabre, ParticipantRole::Owner);
+        $sabreAdmin = $this->addMember($sabre, ParticipantRole::Admin);
         $tritanium = $this->addBomLine($sabre, 34, 'Tritanium', 120_000);
         $pyerite = $this->addBomLine($sabre, 35, 'Pyerite', 45_000);
         $mexallon = $this->addBomLine($sabre, 36, 'Mexallon', 9_600);
@@ -120,10 +120,10 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
     {
         $sabre = $this->createProject('Sabre batch');
         $morphite = $this->addBomLine($sabre, 11399, 'Morphite', 150);
-        $this->addContributionOn($this->addMember($sabre, GroupMemberRole::Owner), $morphite, ContributionStatus::Pending);
+        $this->addContributionOn($this->addMember($sabre, ParticipantRole::Owner), $morphite, ContributionStatus::Pending);
         $jackdaw = $this->createProject('Jackdaw batch');
         $zydrine = $this->addBomLine($jackdaw, 39, 'Zydrine', 820);
-        $this->addContributionOn($this->addMember($jackdaw, GroupMemberRole::Owner), $zydrine, ContributionStatus::Approved);
+        $this->addContributionOn($this->addMember($jackdaw, ParticipantRole::Owner), $zydrine, ContributionStatus::Approved);
         $this->em->flush();
 
         self::assertSame([$morphite->getId()->toRfc4122()], $this->repository->findContributedBomItemIds($sabre));
@@ -134,7 +134,7 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
     {
         $ishtar = $this->createProject('Ishtar fleet');
         $this->addBomLine($ishtar, 38, 'Nocxium', 1_350);
-        $this->addContribution($this->addMember($ishtar, GroupMemberRole::Owner), ContributionType::LineRental, 400_000.0, ContributionStatus::Approved);
+        $this->addContribution($this->addMember($ishtar, ParticipantRole::Owner), ContributionType::LineRental, 400_000.0, ContributionStatus::Approved);
         $this->em->flush();
 
         self::assertSame([], $this->repository->findContributedBomItemIds($ishtar));
@@ -148,12 +148,12 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         return $project;
     }
 
-    private function addMember(IndustryProject $project, GroupMemberRole $role): IndustryProjectParticipant
+    private function addMember(IndustryProject $project, ParticipantRole $role): IndustryProjectParticipant
     {
         $member = (new IndustryProjectParticipant())
-            ->setUser($role === GroupMemberRole::Owner ? $project->getOwner() : $this->createUser())
+            ->setUser($role === ParticipantRole::Owner ? $project->getOwner() : $this->createUser())
             ->setRole($role)
-            ->setStatus(GroupMemberStatus::Accepted);
+            ->setStatus(ParticipantStatus::Accepted);
         $project->addMember($member);
 
         return $member;

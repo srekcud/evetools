@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
-use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
+use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\State\Provider\Industry\AvailableJobsProvider;
 
 #[ApiResource(
@@ -18,7 +18,7 @@ use App\State\Provider\Industry\AvailableJobsProvider;
         new GetCollection(
             uriTemplate: '/industry/projects/{projectId}/available-jobs',
             uriVariables: [
-                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
             ],
             provider: AvailableJobsProvider::class,
             openapi: new Model\Operation(summary: 'Available ESI jobs', description: 'Lists ESI jobs of the owner on the blueprints of the job lines, with link status', tags: ['Industry - Projects']),

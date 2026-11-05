@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\ContributionStatus;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
-use App\Enum\GroupProjectStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -32,8 +32,8 @@ class IndustryProject
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $name = null;
 
-    #[ORM\Column(type: 'string', length: 20, enumType: GroupProjectStatus::class)]
-    private GroupProjectStatus $status = GroupProjectStatus::Draft;
+    #[ORM\Column(type: 'string', length: 20, enumType: ProjectStatus::class)]
+    private ProjectStatus $status = ProjectStatus::Draft;
 
     #[ORM\Column(type: 'string', length: 10, unique: true)]
     private string $shortLinkCode;
@@ -134,7 +134,7 @@ class IndustryProject
         }
 
         foreach ($this->members as $member) {
-            if ($member->getStatus() === GroupMemberStatus::Accepted && $member->getUser() !== $user) {
+            if ($member->getStatus() === ParticipantStatus::Accepted && $member->getUser() !== $user) {
                 return false;
             }
         }
@@ -149,7 +149,7 @@ class IndustryProject
             throw new \DomainException('Ownership can only be transferred to a member of the project with an account.');
         }
 
-        $member->setRole(GroupMemberRole::Owner);
+        $member->setRole(ParticipantRole::Owner);
         $this->owner = $newOwner;
 
         foreach ($this->bomItems as $bomLine) {
@@ -169,12 +169,12 @@ class IndustryProject
         return $this;
     }
 
-    public function getStatus(): GroupProjectStatus
+    public function getStatus(): ProjectStatus
     {
         return $this->status;
     }
 
-    public function setStatus(GroupProjectStatus $status): static
+    public function setStatus(ProjectStatus $status): static
     {
         $this->status = $status;
         return $this;
@@ -182,7 +182,7 @@ class IndustryProject
 
     public function isCompleted(): bool
     {
-        return $this->status === GroupProjectStatus::Completed;
+        return $this->status === ProjectStatus::Completed;
     }
 
     public function isDeletable(): bool
@@ -365,8 +365,8 @@ class IndustryProject
         return $this->addMember(
             (new IndustryProjectParticipant())
                 ->setUser($this->owner)
-                ->setRole(GroupMemberRole::Owner)
-                ->setStatus(GroupMemberStatus::Accepted),
+                ->setRole(ParticipantRole::Owner)
+                ->setStatus(ParticipantStatus::Accepted),
         );
     }
 

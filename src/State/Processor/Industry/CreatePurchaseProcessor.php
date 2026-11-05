@@ -16,7 +16,7 @@ use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
-use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -38,7 +38,7 @@ class CreatePurchaseProcessor implements ProcessorInterface
         private readonly IndustryProjectBomLineRepository $bomLineRepository,
         private readonly CachedWalletTransactionRepository $transactionRepository,
         private readonly IndustryProjectPurchaseRepository $purchaseRepository,
-        private readonly GroupProjectAccessChecker $accessChecker,
+        private readonly ProjectAccessChecker $accessChecker,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }

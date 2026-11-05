@@ -11,8 +11,8 @@ use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\ApiResource\GroupIndustry\GroupIndustryBomResource;
-use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
+use App\ApiResource\Industry\Project\ProjectBomLineResource;
+use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\ApiResource\Industry\ProjectPurchaseResource;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 final class IndustrySubResourceUriVariablesTest extends TestCase
 {
     private const string INDUSTRY_API_RESOURCE_NAMESPACE = 'App\\ApiResource\\Industry\\';
-    private const string GROUP_INDUSTRY_API_RESOURCE_NAMESPACE = 'App\\ApiResource\\GroupIndustry\\';
+    private const string GROUP_INDUSTRY_API_RESOURCE_NAMESPACE = 'App\\ApiResource\\Industry\\Project\\';
 
     #[DataProvider('industrySubResourceOperations')]
     public function testIndustrySubResourceOperationDeclaresEveryUriVariableAsLink(string $resourceShortName, HttpOperation $operation): void
@@ -46,7 +46,7 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
 
     public static function groupIndustrySubResourceOperations(): iterable
     {
-        return self::subResourceOperationsOf('GroupIndustry', self::GROUP_INDUSTRY_API_RESOURCE_NAMESPACE);
+        return self::subResourceOperationsOf('Industry/Project', self::GROUP_INDUSTRY_API_RESOURCE_NAMESPACE);
     }
 
     private static function subResourceOperationsOf(string $apiResourceDirectory, string $apiResourceNamespace): iterable
@@ -89,8 +89,8 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
         $operation = new Delete(
             uriTemplate: '/industry/projects/{projectId}/bom/{lineId}/purchases/{purchaseId}',
             uriVariables: [
-                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
-                'lineId' => new Link(fromClass: GroupIndustryBomResource::class),
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+                'lineId' => new Link(fromClass: ProjectBomLineResource::class),
             ],
         );
 
@@ -102,8 +102,8 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
         $operation = new Delete(
             uriTemplate: '/industry/projects/{projectId}/bom/{lineId}/purchases/{purchaseId}',
             uriVariables: [
-                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
-                'lineId' => new Link(fromClass: GroupIndustryBomResource::class),
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+                'lineId' => new Link(fromClass: ProjectBomLineResource::class),
                 'purchaseId' => new Link(fromClass: ProjectPurchaseResource::class),
             ],
         );
@@ -115,7 +115,7 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     {
         $operation = new Patch(
             uriTemplate: '/industry/projects/{projectId}/bom/{lineId}',
-            uriVariables: ['projectId' => 'projectId', 'lineId' => new Link(fromClass: GroupIndustryBomResource::class)],
+            uriVariables: ['projectId' => 'projectId', 'lineId' => new Link(fromClass: ProjectBomLineResource::class)],
         );
 
         $this->assertSame(['projectId'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
@@ -151,7 +151,7 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     {
         $operation = new Patch(
             uriTemplate: '/industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
-            uriVariables: ['projectId' => new Link(fromClass: GroupIndustryProjectResource::class)],
+            uriVariables: ['projectId' => new Link(fromClass: IndustryProjectResource::class)],
         );
 
         $this->assertSame(['id'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));

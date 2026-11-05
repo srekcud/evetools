@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry;
 
-use App\Tests\Functional\Api\GroupIndustry\BuildsIshtarGroupProject;
+use App\Tests\Functional\Api\Industry\Project\BuildsIshtarGroupProject;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
