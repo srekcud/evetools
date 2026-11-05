@@ -168,13 +168,13 @@ deptrac:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
       - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\Industry\CreatePurchaseProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\Industry\CreateStructureProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\LinkJobProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\Industry\MatchJobsProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
+      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
     App\State\Processor\Industry\SyncCharacterSkillsProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\UpdateCharacterSkillProcessor:

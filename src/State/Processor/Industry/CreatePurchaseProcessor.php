@@ -6,17 +6,17 @@ namespace App\State\Processor\Industry;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
-use App\ApiResource\Industry\StepPurchaseResource;
+use App\ApiResource\Industry\ProjectPurchaseResource;
 use App\ApiResource\Input\Industry\CreatePurchaseInput;
 use App\Entity\CachedWalletTransaction;
-use App\Entity\IndustryStepPurchase;
+use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\IndustryProjectStepRepository;
-use App\Repository\IndustryStepPurchaseRepository;
 use App\Service\UuidOrNotFound;
-use App\State\Provider\Industry\IndustryResourceMapper;
+use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -25,7 +25,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
- * @implements ProcessorInterface<CreatePurchaseInput, StepPurchaseResource>
+ * @implements ProcessorInterface<CreatePurchaseInput, ProjectPurchaseResource>
  */
 class CreatePurchaseProcessor implements ProcessorInterface
 {
@@ -35,15 +35,15 @@ class CreatePurchaseProcessor implements ProcessorInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
-        private readonly IndustryProjectStepRepository $stepRepository,
+        private readonly IndustryProjectBomLineRepository $bomLineRepository,
         private readonly CachedWalletTransactionRepository $transactionRepository,
-        private readonly IndustryStepPurchaseRepository $purchaseRepository,
-        private readonly IndustryResourceMapper $mapper,
+        private readonly IndustryProjectPurchaseRepository $purchaseRepository,
+        private readonly GroupProjectAccessChecker $accessChecker,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
-    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): StepPurchaseResource
+    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): ProjectPurchaseResource
     {
         $user = $this->security->getUser();
 
@@ -51,22 +51,21 @@ class CreatePurchaseProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
-
-        if ($project === null || !$project->isPlannedByStepsAndOwnedBy($user)) {
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['projectId'], 'Project not found'));
+        if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }
 
-        $step = $this->stepRepository->find(UuidOrNotFound::of($uriVariables['stepId'], 'Step not found'));
+        $this->accessChecker->assertOwner($user, $project);
 
-        if ($step === null || $step->getProject() !== $project) {
-            throw new NotFoundHttpException('Step not found');
+        $line = $this->bomLineRepository->find(UuidOrNotFound::of($uriVariables['lineId'], 'BOM line not found'));
+        if ($line === null || $line->getProject() !== $project) {
+            throw new NotFoundHttpException('BOM line not found');
         }
 
-        assert($data instanceof CreatePurchaseInput);
+        \assert($data instanceof CreatePurchaseInput);
 
-        $purchase = new IndustryStepPurchase();
-        $purchase->setStep($step);
+        $purchase = new IndustryProjectPurchase();
 
         if ($data->transactionId !== null) {
             $transaction = $this->findOwnedTransaction($user, $data->transactionId);
@@ -93,11 +92,11 @@ class CreatePurchaseProcessor implements ProcessorInterface
             $purchase->setSource('manual');
         }
 
-        $step->addPurchase($purchase);
+        $line->addPurchase($purchase);
         $this->entityManager->persist($purchase);
         $this->entityManager->flush();
 
-        return $this->mapper->purchaseToResource($purchase);
+        return ProjectPurchaseResource::fromEntity($purchase);
     }
 
     private function findOwnedTransaction(User $user, string $transactionId): CachedWalletTransaction

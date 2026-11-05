@@ -67,4 +67,14 @@ class GroupIndustryBomResource
     public ?int $runs = null;
 
     public bool $isFulfilled;
+
+    /** @var list<array<string, mixed>> */
+    public array $jobMatches = [];
+
+    public int $matchedRuns = 0;
+
+    /** @var list<array<string, mixed>> */
+    public array $purchases = [];
+
+    public int $purchasedQuantity = 0;
 }

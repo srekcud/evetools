@@ -8,15 +8,16 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\PurchaseSuggestionListResource;
 use App\ApiResource\Industry\PurchaseSuggestionResource;
-use App\Entity\IndustryStepPurchase;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
-use App\Enum\IndustryActivityType;
 use App\Repository\CachedWalletTransactionRepository;
+use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\IndustryStepPurchaseRepository;
-use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\UuidOrNotFound;
+use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -26,13 +27,15 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class PurchaseSuggestionProvider implements ProviderInterface
 {
+    private const string COMPONENT_JOB_GROUP = 'component';
+
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly CachedWalletTransactionRepository $transactionRepository,
         private readonly IndustryCalculationService $calculationService,
-        private readonly IndustryActivityMaterialRepository $materialRepository,
-        private readonly IndustryStepPurchaseRepository $purchaseRepository,
+        private readonly IndustryProjectPurchaseRepository $purchaseRepository,
+        private readonly GroupProjectAccessChecker $accessChecker,
     ) {
     }
 
@@ -44,54 +47,25 @@ class PurchaseSuggestionProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
-
-        if ($project === null || !$project->isPlannedByStepsAndOwnedBy($user)) {
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['projectId'], 'Project not found'));
+        if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }
 
-        $materialTypeIds = [];
-        foreach ($project->getSteps() as $step) {
-            if ($step->getDepth() > 0 && $step->getActivityType() !== 'copy') {
-                $materialTypeIds[$step->getProductTypeId()] = true;
-            }
-        }
+        $this->accessChecker->assertOwner($user, $project);
 
-        if (empty($materialTypeIds)) {
-            $blueprintTypeIds = [];
-            foreach ($project->getSteps() as $step) {
-                if ($step->getActivityType() !== 'copy') {
-                    $blueprintTypeIds[$step->getBlueprintTypeId()] = true;
-                }
-            }
-            if (!empty($blueprintTypeIds)) {
-                $materialsByBlueprint = $this->materialRepository->findMaterialsForBlueprints(
-                    array_keys($blueprintTypeIds),
-                    [IndustryActivityType::Manufacturing->value, IndustryActivityType::Reaction->value],
-                );
-                foreach ($materialsByBlueprint as $materials) {
-                    foreach ($materials as $material) {
-                        $materialTypeIds[$material['materialTypeId']] = true;
-                    }
-                }
-            }
-        }
+        $result = new PurchaseSuggestionListResource();
+        $result->id = $uriVariables['projectId'];
 
-        if (empty($materialTypeIds)) {
-            $result = new PurchaseSuggestionListResource();
-            $result->id = $uriVariables['id'];
+        $typeIds = $this->suggestedTypeIdsOf($project);
+        if ($typeIds === []) {
             return $result;
         }
 
         $foundTransactions = [];
         foreach ($user->getCharacters() as $character) {
-            $transactions = $this->transactionRepository->findBuysByTypeIds(
-                $character,
-                array_keys($materialTypeIds),
-            );
-
-            foreach ($transactions as $tx) {
-                $foundTransactions[] = [$character, $tx];
+            foreach ($this->transactionRepository->findBuysByTypeIds($character, $typeIds) as $transaction) {
+                $foundTransactions[] = [$character, $transaction];
             }
         }
 
@@ -102,15 +76,14 @@ class PurchaseSuggestionProvider implements ProviderInterface
             ]);
         }
 
-        $suggestions = [];
-        foreach ($foundTransactions as [$character, $tx]) {
+        foreach ($foundTransactions as [$character, $transaction]) {
             $linkingPurchases = array_filter(
                 $purchases,
-                static fn (IndustryStepPurchase $purchase) => $purchase->getTransaction() === $tx,
+                static fn (IndustryProjectPurchase $purchase): bool => $purchase->getTransaction() === $transaction,
             );
             $linkedToCurrentProject = array_any(
                 $linkingPurchases,
-                static fn (IndustryStepPurchase $purchase) => $purchase->getStep()->getProject() === $project,
+                static fn (IndustryProjectPurchase $purchase): bool => $purchase->getBomLine()->getProject() === $project,
             );
 
             if ($linkingPurchases !== [] && !$linkedToCurrentProject) {
@@ -118,26 +91,50 @@ class PurchaseSuggestionProvider implements ProviderInterface
             }
 
             $suggestion = new PurchaseSuggestionResource();
-            $suggestion->transactionId = $tx->getTransactionId();
-            $suggestion->transactionUuid = (string) $tx->getId();
-            $suggestion->typeId = $tx->getTypeId();
-            $suggestion->typeName = $this->calculationService->resolveTypeName($tx->getTypeId());
-            $suggestion->quantity = $tx->getQuantity();
-            $suggestion->unitPrice = $tx->getUnitPrice();
-            $suggestion->totalPrice = $tx->getTotalPrice();
-            $suggestion->date = $tx->getDate()->format('c');
+            $suggestion->transactionId = $transaction->getTransactionId();
+            $suggestion->transactionUuid = (string) $transaction->getId();
+            $suggestion->typeId = $transaction->getTypeId();
+            $suggestion->typeName = $this->calculationService->resolveTypeName($transaction->getTypeId());
+            $suggestion->quantity = $transaction->getQuantity();
+            $suggestion->unitPrice = $transaction->getUnitPrice();
+            $suggestion->totalPrice = $transaction->getTotalPrice();
+            $suggestion->date = $transaction->getDate()->format('c');
             $suggestion->characterName = $character->getName();
-            $suggestion->locationId = $tx->getLocationId();
+            $suggestion->locationId = $transaction->getLocationId();
             $suggestion->alreadyLinked = $linkedToCurrentProject;
 
-            $suggestions[] = $suggestion;
+            $result->suggestions[] = $suggestion;
         }
 
-        $result = new PurchaseSuggestionListResource();
-        $result->id = $uriVariables['id'];
-        $result->suggestions = $suggestions;
-        $result->totalCount = count($suggestions);
+        $result->totalCount = \count($result->suggestions);
 
         return $result;
+    }
+
+    /**
+     * @return int[]
+     */
+    private function suggestedTypeIdsOf(IndustryProject $project): array
+    {
+        $componentTypeIds = $this->typeIdsOfLines($project, static fn (IndustryProjectBomLine $line): bool => $line->isJob() && $line->getJobGroup() === self::COMPONENT_JOB_GROUP);
+
+        if ($componentTypeIds !== []) {
+            return $componentTypeIds;
+        }
+
+        return $this->typeIdsOfLines($project, static fn (IndustryProjectBomLine $line): bool => !$line->isJob());
+    }
+
+    /**
+     * @param \Closure(IndustryProjectBomLine): bool $isSelected
+     *
+     * @return int[]
+     */
+    private function typeIdsOfLines(IndustryProject $project, \Closure $isSelected): array
+    {
+        return array_values(array_unique(array_map(
+            static fn (IndustryProjectBomLine $line): int => $line->getTypeId(),
+            $project->getBomItems()->filter($isSelected)->toArray(),
+        )));
     }
 }

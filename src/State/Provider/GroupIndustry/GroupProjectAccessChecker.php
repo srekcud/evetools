@@ -15,6 +15,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 class GroupProjectAccessChecker
 {
     private const string NO_ACCESS_MESSAGE = 'You do not have access to this project';
+    private const string OWNER_ONLY_MESSAGE = 'Only the project owner can perform this action';
 
     public function __construct(
         private readonly IndustryProjectParticipantRepository $memberRepository,
@@ -33,6 +34,13 @@ class GroupProjectAccessChecker
         }
 
         throw new AccessDeniedHttpException(self::NO_ACCESS_MESSAGE);
+    }
+
+    public function assertOwner(User $user, IndustryProject $project): void
+    {
+        if ($project->getOwner() !== $user) {
+            throw new AccessDeniedHttpException(self::OWNER_ONLY_MESSAGE);
+        }
     }
 
     public function assertCanManageMember(User $user, IndustryProject $project, IndustryProjectParticipant $member): void

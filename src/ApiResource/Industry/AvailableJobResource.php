@@ -8,19 +8,20 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
+use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\State\Provider\Industry\AvailableJobsProvider;
 
 #[ApiResource(
     shortName: 'AvailableJob',
-    description: 'ESI jobs available for linking to project steps',
+    description: 'ESI jobs available for linking to the job lines of the project BOM',
     operations: [
         new GetCollection(
-            uriTemplate: '/industry/projects/{id}/available-jobs',
+            uriTemplate: '/industry/projects/{projectId}/available-jobs',
             uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
             provider: AvailableJobsProvider::class,
-            openapi: new Model\Operation(summary: 'Available ESI jobs', description: 'Lists ESI jobs matching the project blueprints, with link status', tags: ['Industry - Projects']),
+            openapi: new Model\Operation(summary: 'Available ESI jobs', description: 'Lists ESI jobs of the owner on the blueprints of the job lines, with link status', tags: ['Industry - Projects']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
@@ -47,12 +48,9 @@ class AvailableJobResource
 
     public string $characterName;
 
-    /** Step ID if already linked, null if available */
-    public ?string $linkedToStepId = null;
+    public ?string $linkedToBomLineId = null;
 
-    /** Step product name if linked */
-    public ?string $linkedToStepName = null;
+    public ?string $linkedToBomLineName = null;
 
-    /** Match ID if linked (for unlinking) */
     public ?string $matchId = null;
 }

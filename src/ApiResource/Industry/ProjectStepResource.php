@@ -5,39 +5,7 @@ declare(strict_types=1);
 namespace App\ApiResource\Industry;
 
 use ApiPlatform\Metadata\ApiProperty;
-use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Link;
-use ApiPlatform\Metadata\Post;
-use ApiPlatform\OpenApi\Model;
-use App\ApiResource\Input\Industry\LinkJobInput;
-use App\State\Processor\Industry\LinkJobProcessor;
-use App\State\Processor\Industry\UnlinkJobProcessor;
-use App\State\Provider\Industry\JobMatchDeleteProvider;
 
-#[ApiResource(
-    shortName: 'ProjectStep',
-    description: 'Industry project step',
-    operations: [
-        new Post(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}/link-job',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-            ],
-            processor: LinkJobProcessor::class,
-            input: LinkJobInput::class,
-            openapi: new Model\Operation(summary: 'Link ESI job', description: 'Links an ESI job to this step', tags: ['Industry - Projects']),
-        ),
-        new Delete(
-            uriTemplate: '/industry/step-job-matches/{id}',
-            provider: JobMatchDeleteProvider::class,
-            processor: UnlinkJobProcessor::class,
-            openapi: new Model\Operation(summary: 'Unlink ESI job', description: 'Removes a job match from a step', tags: ['Industry - Projects']),
-        ),
-    ],
-    security: "is_granted('ROLE_USER')",
-)]
 class ProjectStepResource
 {
     #[ApiProperty(identifier: true)]

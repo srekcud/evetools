@@ -5,31 +5,7 @@ declare(strict_types=1);
 namespace App\ApiResource\Industry;
 
 use ApiPlatform\Metadata\ApiProperty;
-use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Link;
-use ApiPlatform\Metadata\Post;
-use ApiPlatform\OpenApi\Model;
-use App\ApiResource\Input\EmptyInput;
-use App\State\Processor\Industry\MatchJobsProcessor;
 
-#[ApiResource(
-    shortName: 'IndustryProject',
-    description: 'Industry manufacturing projects',
-    operations: [
-        new Post(
-            uriTemplate: '/industry/projects/{id}/match-jobs',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-            ],
-            processor: MatchJobsProcessor::class,
-            input: EmptyInput::class,
-            output: MatchJobsResultResource::class,
-            openapi: new Model\Operation(summary: 'Match ESI jobs', description: 'Matches project steps with ESI industry jobs', tags: ['Industry - Projects']),
-        ),
-    ],
-    security: "is_granted('ROLE_USER')",
-    normalizationContext: ['skip_null_values' => false],
-)]
 class ProjectResource
 {
     #[ApiProperty(identifier: true)]

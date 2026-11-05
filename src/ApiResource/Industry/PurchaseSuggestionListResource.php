@@ -9,19 +9,20 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\OpenApi\Model;
+use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\State\Provider\Industry\PurchaseSuggestionProvider;
 
 #[ApiResource(
     shortName: 'PurchaseSuggestionList',
-    description: 'Purchase suggestions from wallet transactions matching project materials',
+    description: 'Purchase suggestions from wallet transactions matching the products of the project BOM lines',
     operations: [
         new Get(
-            uriTemplate: '/industry/projects/{id}/purchase-suggestions',
+            uriTemplate: '/industry/projects/{projectId}/purchase-suggestions',
             uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
             provider: PurchaseSuggestionProvider::class,
-            openapi: new Model\Operation(summary: 'Get purchase suggestions', description: 'Returns wallet transactions matching project materials', tags: ['Industry - Projects']),
+            openapi: new Model\Operation(summary: 'Get purchase suggestions', description: 'Returns wallet transactions matching the products of the BOM lines', tags: ['Industry - Projects']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
