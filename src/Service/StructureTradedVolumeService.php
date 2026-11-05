@@ -33,21 +33,34 @@ class StructureTradedVolumeService
     public function recordFromSync(int $structureId, iterable $orders, \DateTimeImmutable $syncedAt): void
     {
         $current = $this->orderStates($orders);
-        $baselineItem = $this->cache->getItem(self::BASELINE_KEY_PREFIX . $structureId);
-        $previous = $baselineItem->isHit() ? $this->readableBaseline($baselineItem->get(), $structureId) : null;
 
-        if ($previous !== null) {
-            $currentTypeIds = array_values(array_unique(array_column($current, 'typeId')));
-            $tradedVolumeByType = array_replace(
-                array_fill_keys($currentTypeIds, 0),
-                (new OrderVolumeDecreases())->between($previous, $current),
-            );
-            $this->accumulate($structureId, $tradedVolumeByType, $syncedAt);
+        $this->connection->beginTransaction();
+
+        try {
+            $this->connection->executeStatement('SELECT pg_advisory_xact_lock(?)', [$structureId]);
+
+            $baselineItem = $this->cache->getItem(self::BASELINE_KEY_PREFIX . $structureId);
+            $previous = $baselineItem->isHit() ? $this->readableBaseline($baselineItem->get(), $structureId) : null;
+
+            if ($previous !== null) {
+                $currentTypeIds = array_values(array_unique(array_column($current, 'typeId')));
+                $tradedVolumeByType = array_replace(
+                    array_fill_keys($currentTypeIds, 0),
+                    (new OrderVolumeDecreases())->between($previous, $current),
+                );
+                $this->accumulate($structureId, $tradedVolumeByType, $syncedAt);
+            }
+
+            $baselineItem->set($current);
+            $baselineItem->expiresAfter(self::BASELINE_LIFETIME_SECONDS);
+            $this->cache->save($baselineItem);
+
+            $this->connection->commit();
+        } catch (\Throwable $e) {
+            $this->connection->rollBack();
+
+            throw $e;
         }
-
-        $baselineItem->set($current);
-        $baselineItem->expiresAfter(self::BASELINE_LIFETIME_SECONDS);
-        $this->cache->save($baselineItem);
     }
 
     /**
@@ -162,17 +175,8 @@ class StructureTradedVolumeService
 
         $date = $syncedAt->format('Y-m-d');
 
-        $this->connection->beginTransaction();
-
-        try {
-            foreach (array_chunk($tradedVolumeByType, self::UPSERT_BATCH_SIZE, true) as $batch) {
-                $this->upsertBatch($structureId, $batch, $date);
-            }
-            $this->connection->commit();
-        } catch (\Throwable $e) {
-            $this->connection->rollBack();
-
-            throw $e;
+        foreach (array_chunk($tradedVolumeByType, self::UPSERT_BATCH_SIZE, true) as $batch) {
+            $this->upsertBatch($structureId, $batch, $date);
         }
 
         $this->logger->info('Recorded structure traded volumes', [
