@@ -861,3 +861,32 @@ export type NavigationIntent =
   | { target: 'slots' }
   | { target: 'stockpile' }
   | null
+
+export type SellMarketKey = 'jita' | 'capital'
+
+export interface SellMarketLine {
+  key: SellMarketKey
+  name: string
+  unitPrice: number | null
+  coveragePercent: number | null
+  dailyVolume: number | null
+  volumeKind: 'region_history' | 'structure_estimate'
+  feeRate: number | null
+  netUnitPrice: number | null
+  daysToSell: number | null
+}
+
+export interface SellMarketImmediateSale {
+  averageUnitPrice: number | null
+  coveragePercent: number | null
+  netUnitPrice: number | null
+}
+
+export interface SellMarketResponse {
+  typeId: number
+  typeName: string | null
+  quantity: number
+  sellShareOfDailyVolume: number
+  markets: SellMarketLine[]
+  immediateSale: SellMarketImmediateSale
+}
