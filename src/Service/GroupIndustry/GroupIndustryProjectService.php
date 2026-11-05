@@ -79,8 +79,6 @@ class GroupIndustryProjectService
             $project->addItem($item);
         }
 
-        $project->takeProductFromFirstItem();
-
         $this->buildBom($project, $owner);
 
         $this->entityManager->persist($project);

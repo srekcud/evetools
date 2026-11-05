@@ -14,7 +14,6 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
-use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -31,7 +30,6 @@ class InventionServiceTest extends TestCase
     private InvTypeRepository&MockObject $invTypeRepository;
     private JitaMarketService&MockObject $jitaMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
-    private TypeNameResolver $typeNameResolver;
     private InventionService $service;
 
     // EVE type IDs for realistic test data
@@ -51,7 +49,6 @@ class InventionServiceTest extends TestCase
         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
-        $this->typeNameResolver = new TypeNameResolver($this->invTypeRepository);
 
         $this->service = new InventionService(
             $this->activityProductRepository,
@@ -59,7 +56,6 @@ class InventionServiceTest extends TestCase
             $this->invTypeRepository,
             $this->jitaMarketService,
             $this->esiCostIndexService,
-            $this->typeNameResolver,
         );
     }
 
@@ -892,7 +888,6 @@ class InventionServiceTest extends TestCase
             $invTypeRepository,
             $this->jitaMarketService,
             $this->esiCostIndexService,
-            new TypeNameResolver($invTypeRepository),
         );
     }
 
