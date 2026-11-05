@@ -31,7 +31,7 @@ U et V (corporation C1), W (C2). Produits A (5 runs, ME 10, TE 20) et B (3 runs)
 | # | Action | Résultat attendu |
 |---|---|---|
 | E1 | U crée P1 avec A, sans `private` | 201 ; `draft`, `private` vrai ; 1 participant `owner`/`accepted` ; BOM du golden ; code de 10 caractères |
-| E2 | U crée P2 avec A et B, `private` faux ; puis un projet sans produit ou à 11 produits | P2 : 2 produits, BOM agrégée du golden ; les deux autres : 400, rien persisté |
+| E2 | U crée P2 avec A et B, `private` faux ; puis un projet sans produit ou à 11 produits | P2 : 2 produits, BOM agrégée du golden ; les deux autres : 422 sur `items`, rien persisté |
 | E3 | U liste ses projets | P2 puis P1, `owner`/`accepted` |
 | E4 | W lit P1 ou sa BOM ; UUID inconnu | 403 « You do not have access to this project » ; 404 « Project not found » |
 | E5 | `GET /group-industry/projects`, `POST /industry/projects/{P1}/steps`, `GET .../shopping-list`, `.../bpc-kit` | 404 |
@@ -49,7 +49,7 @@ U et V (corporation C1), W (C2). Produits A (5 runs, ME 10, TE 20) et B (3 runs)
 | E17 | Un job déjà lié à P2 ; match sur P1 | non lié à P1 |
 | E18 | U lie à FA un job d'un autre blueprint ; un job de V ; un job déjà lié | 400 pour chacun (messages de `LinkJobProcessor`, « step » remplacé par « BOM line ») |
 | E19 | Lien manuel sur FA, puis match | FA garde son seul job manuel |
-| E20 | Le job lié de 3 runs passe `delivered` à la sync | statut copié sur le lien ; `syncCompleted` `industry-project` à U avec `projectId` de P1 et le nom de A |
+| E20 | Le job lié de 3 runs passe `delivered` à la sync | statut copié sur le lien ; une notification de progression `industry-project` à U avec `projectId` de P1 et le nom de A |
 | E21 | Achats de U : 50 du composant C (ligne de composant de P1) et 1 000 Tritanium (ligne de matériau) | suggestion : C seul |
 | E22 | U lie l'achat de C à sa ligne ; relit les suggestions ; V les lit sur P2 où l'achat n'est pas lié | `purchasedQuantity` 50, `fulfilledQuantity` inchangé ; `alreadyLinked` vrai ; masqué |
 | E23 | V (admin `accepted`) lance le match, lie un job ou un achat sur P1 | 403 |
