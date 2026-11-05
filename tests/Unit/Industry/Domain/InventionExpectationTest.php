@@ -217,4 +217,26 @@ final class InventionExpectationTest extends TestCase
         $this->assertTrue($cost->isKnown(), 'cost should be known');
         $this->assertEqualsWithDelta($expectedAmount, $cost->amount()->amount, self::ISK_TOLERANCE);
     }
+
+    public function testAnUnknownChanceReportsTheGivenReasonInsteadOfTheMissingSdeProbability(): void
+    {
+        $expectation = InventionExpectation::of(
+            self::HOBGOBLIN_I_BLUEPRINT_TYPE_ID,
+            null,
+            InventionOutcome::of(new Runs(self::HOBGOBLIN_II_BASE_RUNS), null),
+            Cost::known(new Isk(184000.0)),
+            MissingData::inventorSkills(self::HOBGOBLIN_I_BLUEPRINT_TYPE_ID),
+        );
+
+        $this->assertEquals([MissingData::inventorSkills(self::HOBGOBLIN_I_BLUEPRINT_TYPE_ID)], $expectation->costForRuns(new Runs(25))->missingData);
+        $this->assertEquals([MissingData::inventorSkills(self::HOBGOBLIN_I_BLUEPRINT_TYPE_ID)], $expectation->costPerSuccessfulCopy()->missingData);
+        $this->assertNull($expectation->expectedAttempts(new Runs(25)));
+    }
+
+    public function testTheInventorSkillsDataIsMissingForTheBlueprintTheInventionStartsFrom(): void
+    {
+        $missingData = MissingData::inventorSkills(self::HOBGOBLIN_I_BLUEPRINT_TYPE_ID);
+
+        $this->assertSame(['inventor_skills', self::HOBGOBLIN_I_BLUEPRINT_TYPE_ID], [$missingData->reason, $missingData->typeId]);
+    }
 }
