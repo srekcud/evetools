@@ -20,6 +20,7 @@ use App\Service\MarketAlertService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\StructureMarketService;
 use App\Service\StructureMarketSnapshotService;
+use App\Service\StructureTradedVolumeService;
 use App\Tests\Unit\Service\SimulatesJitaMarketEsi;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -206,6 +207,7 @@ final class CheckAlertPricesHandlerTest extends TestCase
                 new NullLogger(),
                 $mercurePublisher,
                 new StructureMarketSnapshotService($this->createStub(Connection::class), new NullLogger()),
+                $this->createStub(StructureTradedVolumeService::class),
             ),
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),

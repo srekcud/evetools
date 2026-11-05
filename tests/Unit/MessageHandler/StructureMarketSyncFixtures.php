@@ -11,6 +11,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\StructureMarketService;
 use App\Service\StructureMarketSnapshotService;
+use App\Service\StructureTradedVolumeService;
 use Doctrine\DBAL\Connection;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -29,7 +30,7 @@ trait StructureMarketSyncFixtures
     /** @var list<string> topics of every Mercure update published by the market service */
     private array $publishedTopics = [];
 
-    private function createStructureMarketService(EsiClient $esiClient): StructureMarketService
+    private function createStructureMarketService(EsiClient $esiClient, ?StructureTradedVolumeService $tradedVolumeService = null): StructureMarketService
     {
         $hub = $this->createStub(HubInterface::class);
         $hub->method('publish')->willReturnCallback(function (Update $update): string {
@@ -44,6 +45,7 @@ trait StructureMarketSyncFixtures
             new NullLogger(),
             new MercurePublisherService($hub, new NullLogger()),
             new StructureMarketSnapshotService($this->createStub(Connection::class), new NullLogger()),
+            $tradedVolumeService ?? $this->createStub(StructureTradedVolumeService::class),
         );
     }
 
