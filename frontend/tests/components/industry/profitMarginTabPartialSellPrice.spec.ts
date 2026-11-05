@@ -32,6 +32,10 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   inventionCost: 1_000,
   totalProductionCost: 5_000,
   bestMargin: 41.36,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
@@ -46,6 +50,10 @@ const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
   inventionCost: 1_800,
   totalProductionCost: 5_800,
   bestMargin: 31.1,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const SABRE_WITH_PARTIAL_JITA_SELL: ProfitMarginResult = {

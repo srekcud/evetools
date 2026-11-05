@@ -30,6 +30,10 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   inventionCost: 300,
   totalProductionCost: BASE_TOTAL_COST,
   bestMargin: 116.28,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
@@ -44,6 +48,10 @@ const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
   inventionCost: 300,
   totalProductionCost: 800,
   bestMargin: 132.5,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const NO_MARGINS: Record<string, MarginEntry | null> = {
