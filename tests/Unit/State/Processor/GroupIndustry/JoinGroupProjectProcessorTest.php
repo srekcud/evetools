@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Post;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -53,7 +54,7 @@ class JoinGroupProjectProcessorTest extends TestCase
         $owner = $this->createStub(User::class);
         $owner->method('getCorporationId')->willReturn(self::OWNER_CORPORATION_ID);
 
-        $this->project = new IndustryProject();
+        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->project->setOwner($owner);
         $this->project->setShortLinkCode(self::SHORT_LINK_CODE);
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());

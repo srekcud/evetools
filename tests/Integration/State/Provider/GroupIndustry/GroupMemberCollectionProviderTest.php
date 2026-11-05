@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -224,7 +225,7 @@ final class GroupMemberCollectionProviderTest extends IntegrationTestCase
 
     private function createProject(User $owner, string $name): IndustryProject
     {
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName($name);
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName($name);
         $this->em->persist($project);
 
         return $project;

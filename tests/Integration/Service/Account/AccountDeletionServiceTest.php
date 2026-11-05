@@ -407,6 +407,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre doctrine');
+        $project->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
         $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
         $sale = $this->addSale($project, $kaelen, 22_456, 'Sabre', 100, 50_000.0);
@@ -434,6 +435,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre');
+        $project->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
         $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
         $sale = $this->addSale($project, $kaelen, 0, 'Sabre', 3, 61_250_000.0)->setSeller($this->mainCharacterOf($kaelen));
@@ -469,6 +471,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre');
+        $project->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
         $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
         $t5 = (new CachedWalletTransaction())

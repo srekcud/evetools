@@ -228,11 +228,6 @@ class IndustryProject
         $this->teLevel = $firstItem->getTeLevel();
     }
 
-    public function hasSteps(): bool
-    {
-        return !$this->steps->isEmpty();
-    }
-
     public function isPlannedByStepsAndOwnedBy(User $user): bool
     {
         return $this->isPlannedBySteps() && $this->owner === $user;

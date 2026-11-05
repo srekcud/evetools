@@ -8,6 +8,7 @@ use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -40,7 +41,7 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
         $this->mapper = new GroupIndustryResourceMapper();
 
         $owner = new User();
-        $this->project = (new IndustryProject())->setOwner($owner)->setName('Sabre batch');
+        $this->project = ((new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1)))->setOwner($owner)->setName('Sabre batch');
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
         $this->ownerMembership = (new IndustryProjectParticipant())
             ->setUser($owner)

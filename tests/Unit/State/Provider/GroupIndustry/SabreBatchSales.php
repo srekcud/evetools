@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\Entity\Character;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
@@ -51,7 +52,7 @@ trait SabreBatchSales
 
     private function createHecateBatchOfTheSabreBatchOwner(): void
     {
-        $this->hecateBatch = new IndustryProject();
+        $this->hecateBatch = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->hecateBatch->setOwner($this->sabreBatchOwner);
         $this->hecateBatch->setName('Hecate batch');
         $this->hecateBatch->setStatus(GroupProjectStatus::Selling);

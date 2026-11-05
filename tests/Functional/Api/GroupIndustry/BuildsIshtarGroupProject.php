@@ -8,6 +8,7 @@ use App\Entity\Character;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
@@ -125,7 +126,7 @@ trait BuildsIshtarGroupProject
 
     private function persistProject(string $name): IndustryProject
     {
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->owner)->setName($name)->setStatus(GroupProjectStatus::InProgress);
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($this->owner)->setName($name)->setStatus(GroupProjectStatus::InProgress);
         $this->em->persist($project);
 
         return $project;

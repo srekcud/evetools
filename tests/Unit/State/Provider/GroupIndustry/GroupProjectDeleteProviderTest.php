@@ -9,6 +9,7 @@ use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
@@ -40,7 +41,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     {
         $this->owner = $this->createStub(User::class);
 
-        $this->project = new IndustryProject();
+        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->project->setOwner($this->owner);
         $this->assignId($this->project);
 

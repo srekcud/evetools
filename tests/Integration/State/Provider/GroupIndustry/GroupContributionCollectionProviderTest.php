@@ -9,6 +9,7 @@ use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -61,7 +62,7 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         $dornWithoutMainCharacter = $this->createUser();
         $viewer = $this->createUserWithMainCharacter('Kaelen Voss');
 
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($aria)->setName('Sabre doctrine');
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($aria)->setName('Sabre doctrine');
         $this->em->persist($project);
         $ariaMember = $this->addMember($project, $aria, GroupMemberRole::Owner);
         $brannMember = $this->addMember($project, $brann, GroupMemberRole::Admin);
@@ -84,7 +85,7 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         $this->addContribution('mexallon', $project, $ariaMember, $mexallon, ContributionType::Material, quantity: 50_000, estimatedValue: 2_500_000.0, status: ContributionStatus::Approved, reviewedBy: $brann)
             ->setIsVerified(true);
 
-        $otherProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($brann)->setName('Other project');
+        $otherProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($brann)->setName('Other project');
         $this->em->persist($otherProject);
         $otherMember = $this->addMember($otherProject, $brann, GroupMemberRole::Owner);
         $this->addContribution('otherProject', $otherProject, $otherMember, null, ContributionType::LineRental, quantity: 1, estimatedValue: 1_000_000.0, status: ContributionStatus::Pending, reviewedBy: null);
@@ -265,7 +266,7 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
     {
         $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
         $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName(sprintf('%s project', $prefix));
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $this->addMember($project, $viewer, GroupMemberRole::Member);

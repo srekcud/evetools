@@ -9,6 +9,7 @@ use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -48,7 +49,7 @@ class UpdateGroupProjectProcessorTest extends TestCase
     {
         $this->owner = $this->createStub(User::class);
 
-        $this->project = new IndustryProject();
+        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->project->setOwner($this->owner);
         $this->project->setName('Orca batch');
         $this->project->setContainerName('GI Orca hangar');

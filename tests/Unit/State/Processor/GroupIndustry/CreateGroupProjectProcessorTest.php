@@ -9,6 +9,7 @@ use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -222,7 +223,7 @@ class CreateGroupProjectProcessorTest extends TestCase
                 self::assertSame($this->owner, $owner);
                 $this->createdProjectData = $data;
 
-                return new IndustryProject();
+                return (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
             },
         );
 

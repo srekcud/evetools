@@ -24,7 +24,7 @@ trait ResolvesSaleOfProject
         }
 
         $project = $projectRepository->find(Uuid::fromString($projectId));
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

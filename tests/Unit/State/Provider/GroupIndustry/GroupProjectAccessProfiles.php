@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -81,7 +82,7 @@ trait GroupProjectAccessProfiles
     {
         $this->sabreBatchOwner = $this->userOfCorporation($ownerCorporationId);
 
-        $this->sabreBatch = new IndustryProject();
+        $this->sabreBatch = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->sabreBatch->setOwner($this->sabreBatchOwner);
         $this->sabreBatch->setName('Sabre batch');
         $this->sabreBatch->setStatus(GroupProjectStatus::InProgress);
@@ -190,7 +191,7 @@ trait GroupProjectAccessProfiles
     {
         $user = $this->userOfCorporation($corporationId);
 
-        $cutlassBatch = new IndustryProject();
+        $cutlassBatch = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $cutlassBatch->setOwner($this->userOfCorporation(self::FOREIGN_CORPORATION_ID));
         $cutlassBatch->setName('Cutlass batch');
         $cutlassBatch->setStatus(GroupProjectStatus::InProgress);

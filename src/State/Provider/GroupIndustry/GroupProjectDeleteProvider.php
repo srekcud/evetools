@@ -37,7 +37,7 @@ class GroupProjectDeleteProvider implements ProviderInterface
 
         $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
 
-        if ($project === null || $project->hasSteps()) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

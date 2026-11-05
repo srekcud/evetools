@@ -9,6 +9,7 @@ use App\ApiResource\GroupIndustry\GroupIndustryDistributionResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
@@ -71,7 +72,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
     public function testMemberWithoutMainCharacterIsPaidUnderAnUnknownName(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName('Sabre doctrine')->setBrokerFeePercent(0.0)->setSalesTaxPercent(0.0);
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName('Sabre doctrine')->setBrokerFeePercent(0.0)->setSalesTaxPercent(0.0);
         $this->em->persist($project);
         $ownerMember = $this->addMember($project, $owner, GroupMemberRole::Owner);
         $memberWithoutMainCharacter = $this->addMember($project, $this->createUser(), GroupMemberRole::Member);
@@ -106,7 +107,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
     public function testSaleWhoseOnlyApprovedContributionIsAFreeLineRentalIsUndistributable(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName('Sabre doctrine');
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName('Sabre doctrine');
         $this->em->persist($project);
         $ownerMember = $this->addMember($project, $owner, GroupMemberRole::Owner);
         $project->addContribution(
@@ -159,7 +160,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
     {
         $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
         $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName(sprintf('%s project', $prefix));
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $this->addMember($project, $viewer, GroupMemberRole::Member);

@@ -9,6 +9,7 @@ use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\User;
 use App\Service\GroupIndustry\GroupIndustryContainerService;
 use App\Tests\Integration\IntegrationTestCase;
@@ -224,7 +225,7 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
 
     private function createProjectUsingBuildContainer(): IndustryProject
     {
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))
             ->setOwner($this->em->getReference(User::class, $this->owner->getId()))
             ->setName('Hull run')
             ->setContainerName(self::BUILD_CONTAINER_NAME);
