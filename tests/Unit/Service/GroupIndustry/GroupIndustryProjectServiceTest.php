@@ -243,26 +243,6 @@ final class GroupIndustryProjectServiceTest extends TestCase
         );
     }
 
-    #[Group('issue-362')]
-    public function testCreateProjectTakesTheProjectProductFromTheFirstItem(): void
-    {
-        $this->givenRifter();
-        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 20_000, self::MEXALLON => 4_100]);
-
-        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
-            name: 'Sabre first',
-            items: [
-                ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 8, 'teLevel' => 16, 'runs' => 5],
-                ['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
-            ],
-        ));
-
-        $this->assertSame(
-            [self::SABRE, 5, 8, 16],
-            [$project->getProductTypeId(), $project->getRuns(), $project->getMeLevel(), $project->getTeLevel()],
-        );
-    }
-
     public function testCreateProjectEmptyNameStoresNull(): void
     {
         $this->givenRifter();

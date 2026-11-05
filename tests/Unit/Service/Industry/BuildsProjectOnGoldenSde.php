@@ -4,119 +4,24 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
-use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
-use App\Entity\Sde\IndustryBlueprint;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Enum\IndustryActivityType;
-use App\Industry\Application\InventionCatalog;
-use App\Industry\Application\InventionRecipe;
-use App\Industry\Domain\Runs;
-use App\Repository\CachedCharacterSkillRepository;
-use App\Repository\CachedStructureRepository;
-use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\IndustryActivityRepository;
-use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
-use App\Repository\Sde\StaStationRepository;
-use App\Service\Industry\IndustryBlacklistService;
-use App\Service\Industry\IndustryBonusService;
-use App\Service\Industry\IndustryCalculationService;
-use App\Service\Industry\IndustryProjectFactory;
-use App\Service\Industry\IndustryTreeService;
-use App\Service\Industry\TimePerRunCalculator;
-use App\Service\Mercure\MercurePublisherService;
-use App\Service\TypeNameResolver;
-use App\Tests\Unit\Industry\Application\Double\InMemoryInventionCatalog;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\NullLogger;
-use Symfony\Component\Mercure\HubInterface;
 
 trait BuildsProjectOnGoldenSde
 {
-    use AutowiresByType;
-
     private const string GOLDEN_DIR = __DIR__.'/../../../Fixtures/Golden/';
     private const int SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET = 1_000_000;
     private const int UNCATEGORIZED_GROUP_ID = 999_999_001;
-    private const array T1_BLUEPRINT_AND_T1_PRODUCT_OF_EACH_INVENTED_GOLDEN_PRODUCT = [
-        22436 => [1_000_640, 640],
-        28846 => [1_020_189, 20189],
-        12779 => [2_000_000_001, 2_000_000_002],
-    ];
 
     private array $typeIdsMissingFromSde = [];
-
-    private array $typeIdsWithoutBaseTime = [];
-
-    private bool $goldenBlueprintsHaveTheirCopyActivity = false;
-
-    private array $typeIdsWithoutIndustryBlueprint = [];
-
-    private array $typeIdsWithZeroMaxProductionLimit = [];
-
-    private bool $goldenT2ProductsAreInvented = true;
-
-    private function projectFactoryOnGoldenSde(IndustryBonusService $bonusService, IndustryCalculationService $calculationService, ?EntityManagerInterface $projectEntityManager = null, ?CachedCharacterSkillRepository $skillRepository = null, ?HubInterface $mercureHub = null): IndustryProjectFactory
-    {
-        $typeRepository = $this->typeRepositoryOnGoldenSde();
-        $materialRepository = $this->materialRepositoryOnGoldenSde();
-        $timePerRunCalculator = new TimePerRunCalculator(
-            $calculationService,
-            $this->activityRepositoryOnGoldenSde(),
-            $this->entityManagerWithoutRows(),
-            $skillRepository ?? $this->createStub(CachedCharacterSkillRepository::class),
-        );
-
-        return self::autowired(IndustryProjectFactory::class, [
-            new IndustryTreeService($this->productRepositoryOnGoldenSde(), $materialRepository, $typeRepository, $this->entityManagerWithCopyActivitiesOfGoldenSde(), $bonusService),
-            new IndustryBlacklistService($this->entityManagerWithoutRows()),
-            $bonusService,
-            $calculationService,
-            $timePerRunCalculator,
-            $skillRepository ?? $this->createStub(CachedCharacterSkillRepository::class),
-            $typeRepository,
-            $materialRepository,
-            $this->activityRepositoryOnGoldenSde(),
-            $this->blueprintRepositoryOnGoldenSde(),
-            $projectEntityManager ?? $this->entityManagerWithoutRows(),
-            new MercurePublisherService($mercureHub ?? $this->createStub(HubInterface::class), new NullLogger()),
-            $this->inventionCatalogOfGoldenSde(),
-        ]);
-    }
-
-    private function inventionCatalogOfGoldenSde(): InventionCatalog
-    {
-        if (!$this->goldenT2ProductsAreInvented) {
-            return new InMemoryInventionCatalog();
-        }
-
-        return new InMemoryInventionCatalog(array_map(
-            static fn (array $t1BlueprintAndT1Product): InventionRecipe => new InventionRecipe($t1BlueprintAndT1Product[0], $t1BlueprintAndT1Product[1], null, new Runs(1), []),
-            self::T1_BLUEPRINT_AND_T1_PRODUCT_OF_EACH_INVENTED_GOLDEN_PRODUCT,
-        ));
-    }
-
-    private function calculationServiceOnGoldenSde(IndustryBonusService $bonusService, IndustryStructureConfigRepository $structureConfigRepository): IndustryCalculationService
-    {
-        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
-        $settingsRepository->method('findOneBy')->willReturn(null);
-
-        return new IndustryCalculationService(
-            new TypeNameResolver($this->typeRepositoryOnGoldenSde()),
-            $bonusService,
-            $structureConfigRepository,
-            $settingsRepository,
-            $this->createStub(StaStationRepository::class),
-            $this->createStub(CachedStructureRepository::class),
-        );
-    }
 
     private function entityManagerWithoutRows(): EntityManagerInterface
     {
@@ -127,52 +32,6 @@ trait BuildsProjectOnGoldenSde
         $entityManager->method('getConnection')->willReturn($connection);
 
         return $entityManager;
-    }
-
-    private function entityManagerWithCopyActivitiesOfGoldenSde(): EntityManagerInterface
-    {
-        $connection = $this->createStub(Connection::class);
-        $connection->method('fetchOne')->willReturnCallback(
-            fn (string $sql, array $params = []): int => $this->goldenBlueprintsHaveTheirCopyActivity
-                && ($params[1] ?? null) === IndustryActivityType::Copying->value
-                && (self::goldenRecipes()[$params[0] - self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET]['hasCopyActivity'] ?? false) ? 1 : 0,
-        );
-        $connection->method('fetchAllAssociative')->willReturn([]);
-        $entityManager = $this->createStub(EntityManagerInterface::class);
-        $entityManager->method('getConnection')->willReturn($connection);
-
-        return $entityManager;
-    }
-
-    private function blueprintRepositoryOnGoldenSde(): IndustryBlueprintRepository
-    {
-        $blueprintsOf = fn (array $blueprintTypeIds): array => array_values(array_filter(array_map($this->industryBlueprintOnGoldenSde(...), $blueprintTypeIds)));
-
-        $blueprintRepository = $this->createStub(IndustryBlueprintRepository::class);
-        $blueprintRepository->method('find')->willReturnCallback(
-            fn (mixed $blueprintTypeId): ?IndustryBlueprint => \is_int($blueprintTypeId) ? $this->industryBlueprintOnGoldenSde($blueprintTypeId) : null,
-        );
-        $blueprintRepository->method('findBy')->willReturnCallback(
-            static fn (array $criteria): array => $blueprintsOf((array) ($criteria['typeId'] ?? [])),
-        );
-        $blueprintRepository->method('findOneBy')->willReturnCallback(
-            static fn (array $criteria): ?IndustryBlueprint => $blueprintsOf((array) ($criteria['typeId'] ?? []))[0] ?? null,
-        );
-
-        return $blueprintRepository;
-    }
-
-    private function industryBlueprintOnGoldenSde(int $blueprintTypeId): ?IndustryBlueprint
-    {
-        $productTypeId = $blueprintTypeId - self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET;
-        $recipe = self::goldenRecipes()[$productTypeId] ?? null;
-        if ($recipe === null || \in_array($productTypeId, $this->typeIdsWithoutIndustryBlueprint, true)) {
-            return null;
-        }
-
-        return (new IndustryBlueprint())
-            ->setTypeId($blueprintTypeId)
-            ->setMaxProductionLimit(\in_array($productTypeId, $this->typeIdsWithZeroMaxProductionLimit, true) ? 0 : $recipe['maxProductionLimit']);
     }
 
     private function typeRepositoryOnGoldenSde(): InvTypeRepository
@@ -251,51 +110,6 @@ trait BuildsProjectOnGoldenSde
         );
 
         return $materialRepository;
-    }
-
-    private function materialRepositoryOnGoldenSdeWithoutTheBlueprintOf(int $productTypeId): IndustryActivityMaterialRepository
-    {
-        $goldenMaterialRepository = $this->materialRepositoryOnGoldenSde();
-        $missingBlueprintKeyPrefix = ($productTypeId + self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET).'-';
-        $materialRepository = $this->createStub(IndustryActivityMaterialRepository::class);
-        $materialRepository->method('findMaterialEntitiesForBlueprints')->willReturnCallback(
-            static fn (array $blueprintTypeIds, array $activityIds): array => array_filter(
-                $goldenMaterialRepository->findMaterialEntitiesForBlueprints($blueprintTypeIds, $activityIds),
-                static fn (string $blueprintKey): bool => !str_starts_with($blueprintKey, $missingBlueprintKeyPrefix),
-                \ARRAY_FILTER_USE_KEY,
-            ),
-        );
-
-        return $materialRepository;
-    }
-
-    private function activityRepositoryOnGoldenSde(): IndustryActivityRepository
-    {
-        $activityRepository = $this->createStub(IndustryActivityRepository::class);
-        $activityRepository->method('findByTypeIdsAndActivityIds')->willReturnCallback(
-            function (array $blueprintTypeIds, array $activityIds): array {
-                $recipes = self::goldenRecipes();
-                $activities = [];
-                foreach ($blueprintTypeIds as $blueprintTypeId) {
-                    $productTypeId = $blueprintTypeId - self::SYNTHETIC_BLUEPRINT_TYPE_ID_OFFSET;
-                    $recipe = $recipes[$productTypeId] ?? null;
-                    if ($recipe === null || \in_array($productTypeId, $this->typeIdsWithoutBaseTime, true)) {
-                        continue;
-                    }
-                    $activityId = self::activityIdOf($recipe['activity']);
-                    if (\in_array($activityId, $activityIds, true)) {
-                        $activities[$blueprintTypeId.'-'.$activityId] = (new IndustryActivity())
-                            ->setTypeId($blueprintTypeId)
-                            ->setActivityId($activityId)
-                            ->setTime($recipe['baseTimeSeconds']);
-                    }
-                }
-
-                return $activities;
-            },
-        );
-
-        return $activityRepository;
     }
 
     private static function activityMaterials(int $blueprintTypeId, int $activityId): array

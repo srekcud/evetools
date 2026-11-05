@@ -65,4 +65,24 @@ final class IndustryProjectTest extends TestCase
 
         self::assertFalse($project->isPlannedBySteps());
     }
+
+    public function testNewProjectIsPrivateByDefaultAndItsPrivacyCanBeLifted(): void
+    {
+        $project = new IndustryProject();
+        self::assertTrue($project->isPrivate());
+
+        $project->setPrivate(false);
+        self::assertFalse($project->isPrivate());
+
+        $project->setPrivate(true);
+        self::assertTrue($project->isPrivate());
+    }
+
+    public function testProjectHasNoStepsAndDoesNotTakeItsProductFromItsFirstItem(): void
+    {
+        $project = new IndustryProject();
+
+        self::assertFalse(method_exists($project, 'getSteps'));
+        self::assertFalse(method_exists($project, 'takeProductFromFirstItem'));
+    }
 }

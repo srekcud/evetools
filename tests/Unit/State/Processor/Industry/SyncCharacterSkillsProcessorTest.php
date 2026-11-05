@@ -14,18 +14,12 @@ use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Repository\CachedCharacterSkillRepository;
-use App\Repository\CachedIndustryJobRepository;
-use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Service\ESI\CharacterStandingsSynchronizer;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
-use App\Service\Industry\IndustryCalculationService;
-use App\Service\Industry\InventionService;
-use App\Service\Industry\TimePerRunCalculator;
 use App\Service\Sync\CharacterSyncFailure;
 use App\State\Processor\Industry\SyncCharacterSkillsProcessor;
 use App\State\Provider\Industry\IndustryResourceMapper;
-use App\Tests\Unit\Service\Industry\AutowiresByType;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -40,8 +34,6 @@ use Symfony\Component\ErrorHandler\BufferingLogger;
 #[Group('issue-197')]
 final class SyncCharacterSkillsProcessorTest extends TestCase
 {
-    use AutowiresByType;
-
     private const string SKILLS_SCOPE = 'esi-skills.read_skills.v1';
     private const string JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
     private const string STANDINGS_SCOPE = 'esi-characters.read_standings.v1';
@@ -803,13 +795,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             $this->flushedCharacterNames[] = array_keys($this->persistedSkillsByCharacterName);
         });
 
-        $mapper = self::autowired(IndustryResourceMapper::class, [
-            $this->createStub(IndustryCalculationService::class),
-            $this->createStub(TimePerRunCalculator::class),
-            $this->createStub(CachedIndustryJobRepository::class),
-            $this->createStub(InventionService::class),
-            $this->createStub(IndustryActivityMaterialRepository::class),
-        ]);
+        $mapper = new IndustryResourceMapper();
 
         $standingsSynchronizer = $this->createStub(CharacterStandingsSynchronizer::class);
         $standingsSynchronizer->method('sync')->willReturnCallback(function (Character $character): void {

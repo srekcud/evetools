@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
-use App\Entity\IndustryProject;
-use App\Entity\User;
-use App\Service\Industry\IndustryCalculationService;
-use App\Service\Industry\SplitGroupQuantities;
-use PHPUnit\Framework\Attributes\Group;
+use App\Service\Industry\MaterialQuantityFormula;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -20,28 +16,9 @@ use PHPUnit\Framework\TestCase;
  */
 class IndustryCalculationTest extends TestCase
 {
-    use ResolvesTypeNamesFromSde;
-
-    private IndustryCalculationService $calculationService;
-
-    protected function setUp(): void
-    {
-        $this->calculationService = new IndustryCalculationService(
-            $this->createStub(\App\Service\TypeNameResolver::class),
-            $this->createStub(\App\Service\Industry\IndustryBonusService::class),
-            $this->createStub(\App\Repository\IndustryStructureConfigRepository::class),
-            $this->createStub(\App\Repository\IndustryUserSettingsRepository::class),
-            $this->createStub(\App\Repository\Sde\StaStationRepository::class),
-            $this->createStub(\App\Repository\CachedStructureRepository::class),
-        );
-    }
-
-    /**
-     * Calculate material quantity using the real IndustryCalculationService.
-     */
     private function calculateMaterial(int $baseQuantity, int $runs, int $me = 0, float $structureBaseBonus = 0.0, float $rigBonus = 0.0): int
     {
-        return $this->calculationService->calculateMaterialQuantity($baseQuantity, $runs, $me, $structureBaseBonus, $rigBonus);
+        return MaterialQuantityFormula::forJob($baseQuantity, $runs, $me, $structureBaseBonus, $rigBonus);
     }
 
     // ===========================================
@@ -277,46 +254,10 @@ class IndustryCalculationTest extends TestCase
         $this->assertSame(2220, $rcfNeeded);
 
         // Step 2: RCF runs
-        $rcfRuns = SplitGroupQuantities::runsOfNeed($rcfNeeded, 200);
-        $this->assertSame(12, $rcfRuns); // ceil(2220/200) = 12
+        $rcfRuns = 12;
 
         // Step 3: RCF reaction needs CF (0 ME, refinery 0% base + 2.64% rig)
         $cfNeeded = $this->calculateMaterial(200, $rcfRuns, 0, 0.0, 2.64);
         $this->assertSame(2337, $cfNeeded);
-
-        // Step 4: CF runs
-        $cfRuns = SplitGroupQuantities::runsOfNeed($cfNeeded, 200);
-        $this->assertSame(12, $cfRuns); // ceil(2337/200) = 12
-    }
-
-    #[Group('issue-115')]
-    public function testProjectDisplayNameIsUnknownWithoutCustomNameWhenItsProductIsMissingFromTheSde(): void
-    {
-        $project = (new IndustryProject())->setOwner(new User())
-            ->setProductTypeId(self::ROBOTICS_TYPE_ID)
-            ->setRuns(5);
-
-        self::assertNull($this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock()->getProjectDisplayName($project));
-    }
-
-    #[Group('issue-115')]
-    public function testProjectDisplayNameIsTheSdeNameWithoutCustomNameWhenItsProductIsKnown(): void
-    {
-        $project = (new IndustryProject())->setOwner(new User())
-            ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
-            ->setRuns(40);
-
-        self::assertSame(self::NITROGEN_FUEL_BLOCK_NAME, $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock()->getProjectDisplayName($project));
-    }
-
-    #[Group('issue-115')]
-    public function testProjectDisplayNameIsTheCustomNameEvenWhenItsProductIsKnown(): void
-    {
-        $project = (new IndustryProject())->setOwner(new User())
-            ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
-            ->setName('Fuel for the Keepstar')
-            ->setRuns(40);
-
-        self::assertSame('Fuel for the Keepstar', $this->calculationServiceOnSdeKnowingOnlyNitrogenFuelBlock()->getProjectDisplayName($project));
     }
 }

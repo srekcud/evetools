@@ -142,7 +142,7 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
 
     private function createProject(string $name): IndustryProject
     {
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->createUser())->setName($name);
+        $project = (new IndustryProject())->setOwner($this->createUser())->setName($name);
         $this->em->persist($project);
 
         return $project;

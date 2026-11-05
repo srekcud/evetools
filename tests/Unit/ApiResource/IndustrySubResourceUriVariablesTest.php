@@ -11,10 +11,9 @@ use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\ApiResource\GroupIndustry\GroupIndustryBomResource;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\ApiResource\Industry\ProjectResource;
-use App\ApiResource\Industry\ProjectStepResource;
-use App\ApiResource\Industry\StepPurchaseResource;
+use App\ApiResource\Industry\ProjectPurchaseResource;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -88,10 +87,10 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     public function testPurchaseDeleteDeclaringOnlyParentLinksLeavesFinalPurchaseUndeclared(): void
     {
         $operation = new Delete(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}/purchases/{purchaseId}',
+            uriTemplate: '/industry/projects/{projectId}/bom/{lineId}/purchases/{purchaseId}',
             uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+                'lineId' => new Link(fromClass: GroupIndustryBomResource::class),
             ],
         );
 
@@ -101,11 +100,11 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     public function testPurchaseDeleteDeclaringAllLinksHasNoUndeclaredUriVariable(): void
     {
         $operation = new Delete(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}/purchases/{purchaseId}',
+            uriTemplate: '/industry/projects/{projectId}/bom/{lineId}/purchases/{purchaseId}',
             uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-                'purchaseId' => new Link(fromClass: StepPurchaseResource::class),
+                'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
+                'lineId' => new Link(fromClass: GroupIndustryBomResource::class),
+                'purchaseId' => new Link(fromClass: ProjectPurchaseResource::class),
             ],
         );
 
@@ -115,11 +114,11 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     public function testUriVariableDeclaredAsPlainStringIsUndeclared(): void
     {
         $operation = new Patch(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            uriVariables: ['id' => 'id', 'stepId' => new Link(fromClass: ProjectStepResource::class)],
+            uriTemplate: '/industry/projects/{projectId}/bom/{lineId}',
+            uriVariables: ['projectId' => 'projectId', 'lineId' => new Link(fromClass: GroupIndustryBomResource::class)],
         );
 
-        $this->assertSame(['id'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
+        $this->assertSame(['projectId'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
     }
 
     public function testProjectGetWithFinalIdentifierIsNotSubResource(): void

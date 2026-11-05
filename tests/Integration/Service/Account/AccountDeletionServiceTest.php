@@ -20,7 +20,6 @@ use App\Entity\EveToken;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
@@ -275,21 +274,21 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
     }
 
     #[Group('issue-362')]
-    public function testPlannedProjectWhoseOnlyParticipantIsTheOwnerIsDeletedWithItsStepsAndItsParticipant(): void
+    public function testProjectWhoseOnlyParticipantIsTheOwnerIsDeletedWithItsProductsAndItsParticipant(): void
     {
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $soloProject = $this->createProject($kaelen, 'Rifter by steps');
         $this->addMember($soloProject, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $soloProject->addStep((new IndustryProjectStep())->setBlueprintTypeId(586)->setProductTypeId(587)->setQuantity(10)->setRuns(10)->setDepth(0));
-        $soloProject->addStep((new IndustryProjectStep())->setBlueprintTypeId(1_000_004)->setProductTypeId(34)->setQuantity(250_000)->setRuns(1)->setDepth(1));
+        $soloProject->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Rifter')->setRuns(10));
+        $soloProject->addItem((new IndustryProjectProduct())->setTypeId(34)->setTypeName('Tritanium')->setRuns(1));
         $this->em->flush();
         $soloProjectId = (string) $soloProject->getId();
-        self::assertSame(2, $this->countWhereIn('industry_project_steps', 'project_id', [$soloProjectId]));
+        self::assertSame(2, $this->countWhereIn('industry_project_products', 'project_id', [$soloProjectId]));
 
         $this->deleteAccount((string) $kaelen->getId());
 
         self::assertSame(0, $this->countWhereIn('industry_projects', 'id', [$soloProjectId]));
-        self::assertSame(0, $this->countWhereIn('industry_project_steps', 'project_id', [$soloProjectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_products', 'project_id', [$soloProjectId]));
         self::assertSame(0, $this->countWhereIn('industry_project_participants', 'project_id', [$soloProjectId]));
     }
 
@@ -817,7 +816,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
     private function createProject(User $owner, string $name): IndustryProject
     {
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName($name);
+        $project = (new IndustryProject())->setOwner($owner)->setName($name);
         $this->em->persist($project);
 
         return $project;
@@ -1130,9 +1129,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setUpgradeLevel(3 + $seed)
             ->setNumPins(8 + $seed)
             ->setLastUpdate($start));
-        $this->em->persist((new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($user)
-            ->setProductTypeId(22_444 + $seed)
-            ->setRuns(10 * $seed));
+        $this->em->persist((new IndustryProject())->setOwner($user)
+            ->addItem((new IndustryProjectProduct())->setTypeId(22_444 + $seed)->setTypeName(sprintf('Seeded product %d', $seed))->setRuns(10 * $seed)));
         $this->em->persist((new IndustryUserSettings())
             ->setUser($user)
             ->setExportCostPerM3(100.0 * $seed));

@@ -89,7 +89,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     public function testProjectInProgressBecomesDeletableOnceItsOnlySaleIsDeleted(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName('Hecate batch')->setStatus(GroupProjectStatus::InProgress);
+        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName('Hecate batch')->setStatus(GroupProjectStatus::InProgress);
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $sabreSale = $this->addSale($project, $owner, 'Sabre', quantity: 2, unitPrice: 900000.0);
@@ -108,7 +108,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     private function createSellingSabreDoctrineProject(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))
+        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))
             ->setOwner($owner)
             ->setName('Sabre doctrine')
             ->setStatus(GroupProjectStatus::Selling)
