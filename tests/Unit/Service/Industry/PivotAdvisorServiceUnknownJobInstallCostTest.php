@@ -13,6 +13,7 @@ use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
@@ -166,6 +167,32 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         );
 
         $this->assertSame([self::CANDIDATE_X_FIGURED, self::CANDIDATE_W_FIGURED], $result['candidates']);
+    }
+
+    public function testMarginProfitAndScoreAreUnknownWhileTheCoverageIsFiguredWhenTheSellerSalesFeesAreUnknown(): void
+    {
+        $result = $this->analyzePivot(
+            sourceMaterials: self::SOURCE_MATERIALS,
+            candidates: [
+                self::CANDIDATE_X => [self::MANUFACTURING_ACTIVITY_ID, self::CANDIDATE_X_MATERIALS],
+            ],
+            costIndexByActivity: ['manufacturing' => self::MANUFACTURING_COST_INDEX, 'reaction' => self::REACTION_COST_INDEX],
+            salesFees: null,
+        );
+
+        $this->assertSame(
+            [
+                'marginPercent' => null,
+                'profitPerUnit' => null,
+                'dailyVolume' => 99.0,
+                'coveragePercent' => 9.09,
+                'additionalCost' => 500.0,
+                'estimatedProfit' => null,
+                'score' => null,
+            ],
+            $this->onlyKeys($this->candidateOf(self::CANDIDATE_X, $result), 'marginPercent', 'profitPerUnit', 'dailyVolume', 'coveragePercent', 'additionalCost', 'estimatedProfit', 'score'),
+        );
+        $this->assertNull($result['sourceProduct']['marginPercent']);
     }
 
     public function testSourceProductWithAKnownCostIndexAndAdjustedPricesHasAMarginWithTheEstimatedJobInstallCost(): void
@@ -413,6 +440,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         array $candidates,
         array $costIndexByActivity,
         array $jitaPrices = self::JITA_PRICES,
+        ?SalesFees $salesFees = new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE),
     ): array {
         $sourceBlueprint = $this->blueprintProducing(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT);
         $componentTwoBlueprint = $this->blueprintProducing(self::COMPONENT_TWO_BLUEPRINT, self::COMPONENT_TWO);
@@ -489,8 +517,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             self::SOURCE_PRODUCT,
             self::RUNS,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE_RATE,
-            self::SALES_TAX_RATE,
+            $salesFees,
             $this->userWithId(),
             self::SOLAR_SYSTEM_ID,
         );

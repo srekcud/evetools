@@ -25,9 +25,12 @@ class GroupIndustryDistributionService
             $sales,
         ));
 
-        $brokerFee = $totalRevenue * $project->getBrokerFeePercent() / 100;
-        $salesTax = $totalRevenue * $project->getSalesTaxPercent() / 100;
-        $netRevenue = $totalRevenue - $brokerFee - $salesTax;
+        $brokerFeePercent = $project->getBrokerFeePercent();
+        $salesTaxPercent = $project->getSalesTaxPercent();
+        $feesAreKnown = $brokerFeePercent !== null && $salesTaxPercent !== null;
+        $brokerFee = $feesAreKnown ? $totalRevenue * $brokerFeePercent / 100 : null;
+        $salesTax = $feesAreKnown ? $totalRevenue * $salesTaxPercent / 100 : null;
+        $netRevenue = $feesAreKnown ? $totalRevenue - $brokerFee - $salesTax : null;
 
         $approvedContributions = $this->contributionRepository->findApprovedByProject($project);
         $totalProjectCost = array_sum(array_map(
@@ -35,7 +38,7 @@ class GroupIndustryDistributionService
             $approvedContributions,
         ));
 
-        $marginRatio = $totalProjectCost > 0
+        $marginRatio = $netRevenue !== null && $totalProjectCost > 0
             ? ($netRevenue - $totalProjectCost) / $totalProjectCost
             : null;
 

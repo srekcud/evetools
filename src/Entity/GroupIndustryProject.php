@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Constant\EveConstants;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupProjectStatus;
@@ -53,11 +52,11 @@ class GroupIndustryProject
     #[ORM\Column(type: 'json')]
     private array $blacklistTypeIds = [];
 
-    #[ORM\Column(type: 'float')]
-    private float $brokerFeePercent = EveConstants::DEFAULT_BROKER_FEE_PERCENT;
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $brokerFeePercent = null;
 
-    #[ORM\Column(type: 'float')]
-    private float $salesTaxPercent = EveConstants::DEFAULT_SALES_TAX_PERCENT;
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $salesTaxPercent = null;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
@@ -231,23 +230,23 @@ class GroupIndustryProject
         return $this;
     }
 
-    public function getBrokerFeePercent(): float
+    public function getBrokerFeePercent(): ?float
     {
         return $this->brokerFeePercent;
     }
 
-    public function setBrokerFeePercent(float $brokerFeePercent): static
+    public function setBrokerFeePercent(?float $brokerFeePercent): static
     {
         $this->brokerFeePercent = $brokerFeePercent;
         return $this;
     }
 
-    public function getSalesTaxPercent(): float
+    public function getSalesTaxPercent(): ?float
     {
         return $this->salesTaxPercent;
     }
 
-    public function setSalesTaxPercent(float $salesTaxPercent): static
+    public function setSalesTaxPercent(?float $salesTaxPercent): static
     {
         $this->salesTaxPercent = $salesTaxPercent;
         return $this;

@@ -16,6 +16,7 @@ use App\Repository\CachedStructureRepository;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\ProfitMarginService;
 use App\Service\Industry\PublicContractPriceService;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -230,8 +231,7 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
             self::SELL_STRUCTURE_ID,
             self::MANUFACTURING_SYSTEM_ID,
             null,
-            self::BROKER_FEE_RATE,
-            self::SALES_TAX_RATE,
+            new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE),
             null,
             self::MANUFACTURING_SYSTEM_ID,
         );

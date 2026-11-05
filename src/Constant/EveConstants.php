@@ -11,10 +11,6 @@ final class EveConstants
     public const THE_FORGE_REGION_ID = 10000002;
     public const JITA_NPC_CORPORATION_ID = 1000035;
     public const JITA_NPC_FACTION_ID = 500001;
-    public const DEFAULT_BROKER_FEE_RATE = 0.036;
-    public const DEFAULT_SALES_TAX_RATE = 0.036;
-    public const DEFAULT_BROKER_FEE_PERCENT = 3.6;
-    public const DEFAULT_SALES_TAX_PERCENT = 3.6;
     public const DEFAULT_EXPORT_COST_PER_M3 = 1200.0;
     public const STRUCTURE_MARKET_SCOPE = 'esi-markets.structure_markets.v1';
 }

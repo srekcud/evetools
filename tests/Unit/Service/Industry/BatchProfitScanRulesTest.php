@@ -21,6 +21,7 @@ use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\JobInstallCostEstimator;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -106,7 +107,7 @@ class BatchProfitScanRulesTest extends TestCase
         $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0, self::PYERITE_TYPE_ID => 9.0];
         $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
 
-        $result = $this->scan(brokerFeeRate: 0.0215, salesTaxRate: 0.036, exportCostPerM3: 812.3456);
+        $result = $this->scan(salesFees: new SalesFees(0.0215, 0.036), exportCostPerM3: 812.3456);
 
         $this->assertSame([[
             'typeId' => self::SHIELD_EXTENDER_TYPE_ID,
@@ -130,6 +131,32 @@ class BatchProfitScanRulesTest extends TestCase
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
         ]], $result);
+    }
+
+    public function testMarginProfitAndIskPerDayAreUnknownWhileThePricesAndCostsStayComputedWhenTheSellerSalesFeesAreUnknown(): void
+    {
+        $this->givenProduct(self::SHIELD_EXTENDER_BLUEPRINT_ID, self::SHIELD_EXTENDER_TYPE_ID, self::MANUFACTURING, 1, [
+            self::TRITANIUM_TYPE_ID => 19,
+            self::PYERITE_TYPE_ID => 1,
+        ]);
+        $this->givenType(self::SHIELD_EXTENDER_TYPE_ID, '38', 'Shield Extender', '7', '5.0');
+        $this->materialVolumeRows = [self::TRITANIUM_TYPE_ID => '0.01', self::PYERITE_TYPE_ID => '0.01'];
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 5.3713, self::PYERITE_TYPE_ID => 11.23, self::SHIELD_EXTENDER_TYPE_ID => 6543.219];
+        $this->jitaDailyVolumes = [self::SHIELD_EXTENDER_TYPE_ID => 37.0];
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0, self::PYERITE_TYPE_ID => 9.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0711];
+
+        $result = $this->scan(salesFees: null, exportCostPerM3: 812.3456);
+
+        $this->assertCount(1, $result);
+        $this->assertNull($result[0]['marginPercent']);
+        $this->assertNull($result[0]['profitPerUnit']);
+        $this->assertNull($result[0]['iskPerDay']);
+        $this->assertSame(6543.22, $result[0]['sellPrice']);
+        $this->assertSame(107.91, $result[0]['materialCost']);
+        $this->assertSame(154.35, $result[0]['importCost']);
+        $this->assertSame(4061.73, $result[0]['exportCost']);
+        $this->assertSame(37.0, $result[0]['dailyVolume']);
     }
 
     public function testReactionUsesBaseQuantitiesAndTheReactionCostIndex(): void
@@ -961,8 +988,7 @@ class BatchProfitScanRulesTest extends TestCase
         ?float $minDailyVolume = null,
         string $sellVenue = 'jita',
         ?int $structureId = null,
-        float $brokerFeeRate = 0.0,
-        float $salesTaxRate = 0.0,
+        ?SalesFees $salesFees = new SalesFees(0.0, 0.0),
         float $exportCostPerM3 = 0.0,
         ?User $user = null,
         int $reactionSolarSystemId = self::SOLAR_SYSTEM_ID,
@@ -974,8 +1000,7 @@ class BatchProfitScanRulesTest extends TestCase
             $sellVenue,
             $structureId,
             self::SOLAR_SYSTEM_ID,
-            $brokerFeeRate,
-            $salesTaxRate,
+            $salesFees,
             $exportCostPerM3,
             $user,
             $reactionSolarSystemId,

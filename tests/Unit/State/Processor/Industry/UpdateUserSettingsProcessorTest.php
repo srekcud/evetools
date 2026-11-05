@@ -40,8 +40,6 @@ final class UpdateUserSettingsProcessorTest extends TestCase
         $this->user = new User();
         $this->settings = (new IndustryUserSettings())
             ->setUser($this->user)
-            ->setBrokerFeeRate(0.025)
-            ->setSalesTaxRate(0.045)
             ->setExportCostPerM3(1200.0)
             ->setFavoriteManufacturingSystemId(self::AMARR_SYSTEM_ID)
             ->setFavoriteReactionSystemId(self::PERIMETER_SYSTEM_ID);
@@ -50,30 +48,23 @@ final class UpdateUserSettingsProcessorTest extends TestCase
     public function testValidatedBoundaryValuesAreStoredAsSentAndFlushedOnce(): void
     {
         $input = new UpdateUserSettingsInput();
-        $input->brokerFeeRate = 0.0;
-        $input->salesTaxRate = 1.0;
         $input->exportCostPerM3 = 0.0;
 
         $this->patch($input);
 
-        self::assertSame(
-            [0.0, 1.0, 0.0],
-            [$this->settings->getBrokerFeeRate(), $this->settings->getSalesTaxRate(), $this->settings->getExportCostPerM3()],
-        );
+        self::assertSame(0.0, $this->settings->getExportCostPerM3());
     }
 
     public function testSettingsAbsentFromThePatchAreUnchanged(): void
     {
         $input = new UpdateUserSettingsInput();
-        $input->salesTaxRate = 0.036;
+        $input->exportCostPerM3 = 640.0;
 
         $this->patch($input);
 
         self::assertSame(
-            [0.025, 0.036, 1200.0, self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID],
+            [640.0, self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID],
             [
-                $this->settings->getBrokerFeeRate(),
-                $this->settings->getSalesTaxRate(),
                 $this->settings->getExportCostPerM3(),
                 $this->settings->getFavoriteManufacturingSystemId(),
                 $this->settings->getFavoriteReactionSystemId(),
@@ -86,8 +77,6 @@ final class UpdateUserSettingsProcessorTest extends TestCase
         $input = new UpdateUserSettingsInput();
         $input->favoriteManufacturingSystemId = self::JITA_SYSTEM_ID;
         $input->favoriteReactionSystemId = self::RENS_SYSTEM_ID;
-        $input->brokerFeeRate = 0.0125;
-        $input->salesTaxRate = 0.0337;
         $input->exportCostPerM3 = 850.0;
 
         $resource = $this->patch($input);
@@ -98,8 +87,6 @@ final class UpdateUserSettingsProcessorTest extends TestCase
                 'favoriteManufacturingSystemName' => 'Jita',
                 'favoriteReactionSystemId' => self::RENS_SYSTEM_ID,
                 'favoriteReactionSystemName' => 'Rens',
-                'brokerFeeRate' => 0.0125,
-                'salesTaxRate' => 0.0337,
                 'exportCostPerM3' => 850.0,
             ],
             get_object_vars($resource),
@@ -182,7 +169,7 @@ final class UpdateUserSettingsProcessorTest extends TestCase
         $input = new UpdateUserSettingsInput();
         $input->favoriteManufacturingSystemId = self::SYSTEM_ID_ABSENT_FROM_THE_SDE;
         $input->favoriteReactionSystemId = self::RENS_SYSTEM_ID;
-        $input->brokerFeeRate = 0.0175;
+        $input->exportCostPerM3 = 975.0;
 
         $refusal = $this->patchExpectingRefusal($input, $this->settings);
 
@@ -191,7 +178,7 @@ final class UpdateUserSettingsProcessorTest extends TestCase
             [$refusal->getStatusCode(), $this->refusedValuesByPropertyPath($refusal)],
         );
         self::assertSame(
-            [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID, 0.025, 0.045, 1200.0],
+            [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID, 1200.0],
             $this->storedSettings(),
         );
     }
@@ -201,7 +188,7 @@ final class UpdateUserSettingsProcessorTest extends TestCase
         $input = new UpdateUserSettingsInput();
         $input->favoriteManufacturingSystemId = self::JITA_SYSTEM_ID;
         $input->favoriteReactionSystemId = self::OTHER_SYSTEM_ID_ABSENT_FROM_THE_SDE;
-        $input->salesTaxRate = 0.0288;
+        $input->exportCostPerM3 = 700.0;
 
         $refusal = $this->patchExpectingRefusal($input, $this->settings);
 
@@ -210,7 +197,7 @@ final class UpdateUserSettingsProcessorTest extends TestCase
             [$refusal->getStatusCode(), $this->refusedValuesByPropertyPath($refusal)],
         );
         self::assertSame(
-            [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID, 0.025, 0.045, 1200.0],
+            [self::AMARR_SYSTEM_ID, self::PERIMETER_SYSTEM_ID, 1200.0],
             $this->storedSettings(),
         );
     }
@@ -227,6 +214,21 @@ final class UpdateUserSettingsProcessorTest extends TestCase
             [422, ['favoriteReactionSystemId' => self::SYSTEM_ID_ABSENT_FROM_THE_SDE]],
             [$refusal->getStatusCode(), $this->refusedValuesByPropertyPath($refusal)],
         );
+    }
+
+    #[Group('issue-347')]
+    public function testSalesFeeRatesAreNoLongerPartOfTheUserSettings(): void
+    {
+        $remaining = [];
+        foreach ([UpdateUserSettingsInput::class, UserSettingsResource::class, IndustryUserSettings::class] as $class) {
+            foreach (['brokerFeeRate', 'salesTaxRate'] as $property) {
+                if (property_exists($class, $property)) {
+                    $remaining[] = $class.'::$'.$property;
+                }
+            }
+        }
+
+        self::assertSame([], $remaining);
     }
 
     private function patchExpectingRefusal(UpdateUserSettingsInput $input, ?IndustryUserSettings $storedSettings): ValidationException
@@ -263,8 +265,6 @@ final class UpdateUserSettingsProcessorTest extends TestCase
         return [
             $this->settings->getFavoriteManufacturingSystemId(),
             $this->settings->getFavoriteReactionSystemId(),
-            $this->settings->getBrokerFeeRate(),
-            $this->settings->getSalesTaxRate(),
             $this->settings->getExportCostPerM3(),
         ];
     }

@@ -27,6 +27,7 @@ use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
 use App\Repository\CachedStructureRepository;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -65,8 +66,7 @@ class ProfitMarginService
         int $sellStructureId,
         int $solarSystemId,
         ?int $decryptorTypeId,
-        float $brokerFeeRate,
-        float $salesTaxRate,
+        ?SalesFees $salesFees,
         ?User $user,
         int $reactionSolarSystemId,
     ): array {
@@ -84,7 +84,7 @@ class ProfitMarginService
         $outputQuantity = $productionCost->producedQuantity->value;
 
         $sellPrices = $this->sellPrices($typeId, $outputQuantity, $sellStructureId);
-        $marginsOf = fn (Cost $totalCost): array => $this->marginsOf($sellPrices, $outputQuantity, $totalCost, $brokerFeeRate, $salesTaxRate);
+        $marginsOf = fn (Cost $totalCost): array => $this->marginsOf($sellPrices, $outputQuantity, $totalCost, $salesFees);
 
         $volumes = $this->jitaMarketService->getAverageDailyVolumes([$typeId]);
 
@@ -106,8 +106,8 @@ class ProfitMarginService
                 ? null
                 : $this->inventionDetails($productionCost->invention, $decryptorTypeId, $decryptors, $productionCost, $costOf, $marginsOf),
             'sellPrices' => $sellPrices,
-            'brokerFeeRate' => $brokerFeeRate,
-            'salesTaxRate' => $salesTaxRate,
+            'brokerFeeRate' => $salesFees?->brokerFeeRate,
+            'salesTaxRate' => $salesFees?->salesTaxRate,
             'margins' => $marginsOf($productionCost->totalCost),
             'dailyVolume' => $volumes[$typeId] ?? null,
             'missingData' => MissingDataPresenter::of($productionCost->totalCost),
@@ -212,7 +212,7 @@ class ProfitMarginService
     /**
      * @param list<Decryptor>                                                                                   $decryptors
      * @param \Closure(?Decryptor): ProductionCost                                                              $costOf
-     * @param \Closure(Cost): array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null> $marginsOf
+     * @param \Closure(Cost): array<string, array{revenue: float, fees: ?float, profit: ?float, margin: ?float}|null> $marginsOf
      *
      * @return array<string, mixed>
      */
@@ -304,34 +304,39 @@ class ProfitMarginService
     /**
      * @param array{jitaSell: ?float, structureSell: ?float, structureBuy: ?float, contractSell: ?float} $sellPrices
      *
-     * @return array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null>
+     * @return array<string, array{revenue: float, fees: ?float, profit: ?float, margin: ?float}|null>
      */
-    private function marginsOf(array $sellPrices, int $outputQuantity, Cost $totalCost, float $brokerFeeRate, float $salesTaxRate): array
+    private function marginsOf(array $sellPrices, int $outputQuantity, Cost $totalCost, ?SalesFees $salesFees): array
     {
         if (!$totalCost->isKnown()) {
             return ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null];
         }
         $cost = $totalCost->amount()->amount;
-        $sellOrderFeeRate = $brokerFeeRate + $salesTaxRate;
+        $sellOrderFeeRate = null === $salesFees ? null : $salesFees->brokerFeeRate + $salesFees->salesTaxRate;
+        $buyOrderFeeRate = $salesFees?->salesTaxRate;
 
         return [
             'jitaSell' => self::marginForPrice($sellPrices['jitaSell'], $outputQuantity, $cost, $sellOrderFeeRate),
             'structureSell' => self::marginForPrice($sellPrices['structureSell'], $outputQuantity, $cost, $sellOrderFeeRate),
-            'structureBuy' => self::marginForPrice($sellPrices['structureBuy'], $outputQuantity, $cost, $salesTaxRate),
+            'structureBuy' => self::marginForPrice($sellPrices['structureBuy'], $outputQuantity, $cost, $buyOrderFeeRate),
             'contractSell' => self::marginForPrice($sellPrices['contractSell'], $outputQuantity, $cost, self::CONTRACT_FEE_RATE),
         ];
     }
 
     /**
-     * @return array{revenue: float, fees: float, profit: float, margin: ?float}|null
+     * @return array{revenue: float, fees: ?float, profit: ?float, margin: ?float}|null
      */
-    private static function marginForPrice(?float $unitPrice, int $outputQuantity, float $totalCost, float $feeRate): ?array
+    private static function marginForPrice(?float $unitPrice, int $outputQuantity, float $totalCost, ?float $feeRate): ?array
     {
         if (null === $unitPrice || $unitPrice <= 0.0) {
             return null;
         }
 
         $grossRevenue = $unitPrice * $outputQuantity;
+        if (null === $feeRate) {
+            return ['revenue' => $grossRevenue, 'fees' => null, 'profit' => null, 'margin' => null];
+        }
+
         $fees = $grossRevenue * $feeRate;
         $profit = $grossRevenue - $fees - $totalCost;
 
@@ -344,7 +349,7 @@ class ProfitMarginService
     }
 
     /**
-     * @param array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null> $venueMargins
+     * @param array<string, array{revenue: float, fees: ?float, profit: ?float, margin: ?float}|null> $venueMargins
      */
     private static function bestMarginOf(array $venueMargins): ?float
     {

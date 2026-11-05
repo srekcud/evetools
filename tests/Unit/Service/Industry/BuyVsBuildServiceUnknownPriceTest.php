@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Service\Industry\BuyVsBuildService;
+use App\Service\Industry\SalesFees\SalesFees;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -425,7 +426,7 @@ final class BuyVsBuildServiceUnknownPriceTest extends TestCase
             structurePrices: [],
             adjustedPrices: self::FERNITE_CARBIDE_ADJUSTED_PRICES,
             costIndices: self::COST_INDICES,
-        )->analyze(self::FERNITE_CARBIDE, self::RUNS, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null);
+        )->analyze(self::FERNITE_CARBIDE, self::RUNS, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE), null);
 
         $this->assertSame(
             [
@@ -486,7 +487,7 @@ final class BuyVsBuildServiceUnknownPriceTest extends TestCase
             structurePrices: [self::SELL_STRUCTURE_ID => $structurePrices],
             adjustedPrices: self::HAIL_L_ADJUSTED_PRICES,
             costIndices: self::COST_INDICES,
-        )->analyze(self::HAIL_L, self::RUNS, self::ME_LEVEL, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null);
+        )->analyze(self::HAIL_L, self::RUNS, self::ME_LEVEL, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE), null);
     }
 
     private function hailLJitaPricesWithout(int ...$typeIds): array

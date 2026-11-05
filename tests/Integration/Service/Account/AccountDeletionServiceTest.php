@@ -1114,7 +1114,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setRuns(10 * $seed));
         $this->em->persist((new IndustryUserSettings())
             ->setUser($user)
-            ->setBrokerFeeRate(0.01 * $seed));
+            ->setExportCostPerM3(100.0 * $seed));
         $this->em->persist((new MarketFavorite())
             ->setUser($user)
             ->setTypeId(16_670 + $seed));

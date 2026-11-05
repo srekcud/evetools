@@ -239,6 +239,18 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
         self::assertSame(0.0, $resource->approvedContributionValue);
     }
 
+    #[Group('issue-347')]
+    public function testUnknownFeesOfTheProjectAreCopiedAsNullAndKnownFeesAsTheyAre(): void
+    {
+        self::assertSame([null, null], [$this->resource()->brokerFeePercent, $this->resource()->salesTaxPercent]);
+
+        $this->project->setBrokerFeePercent(1.38)->setSalesTaxPercent(null);
+        self::assertSame([1.38, null], [$this->resource()->brokerFeePercent, $this->resource()->salesTaxPercent]);
+
+        $this->project->setBrokerFeePercent(null)->setSalesTaxPercent(3.375);
+        self::assertSame([null, 3.375], [$this->resource()->brokerFeePercent, $this->resource()->salesTaxPercent]);
+    }
+
     private function resource(): GroupIndustryProjectResource
     {
         return $this->mapper->projectToResource($this->project, $this->ownerMembership);

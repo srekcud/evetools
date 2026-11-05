@@ -10,6 +10,8 @@ use App\Constant\EveConstants;
 use App\Entity\IndustryUserSettings;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\BuyVsBuildService;
 use App\State\Provider\Industry\BuyVsBuildProvider;
 use App\Tests\Unit\Service\Industry\BuildsBuyVsBuildOnGoldenSde;
@@ -38,9 +40,11 @@ final class BuyVsBuildProviderTest extends TestCase
     private const int ROBOTICS = 9848;
     private const int FULLERIDES = 16679;
     private const int MORPHITE = 11399;
+    private const float SELLER_BROKER_FEE_RATE = 0.036;
+    private const float SELLER_SALES_TAX_RATE = 0.036;
 
     #[Group('issue-100')]
-    public function testWithoutParametersNorSettingsAnalyzesOneRunAtMe10InJitaWithDefaultFees(): void
+    public function testWithoutParametersNorSettingsAnalyzesOneRunAtMe10InJitaWithTheSellerSalesFees(): void
     {
         $resource = $this->provide(self::HAIL_L, [], $this->goldenUser(), null);
 
@@ -52,7 +56,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertResourceIsTheAnalysisOf(
             $resource,
             self::HAIL_L, 1, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null,
-            EveConstants::DEFAULT_BROKER_FEE_RATE, EveConstants::DEFAULT_SALES_TAX_RATE,
+            self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE,
         );
     }
 
@@ -90,12 +94,12 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertSame(25000.0, $this->componentOf($resource, self::RAM_AMMUNITION_TECH)['buyCostStructure']);
     }
 
-    public function testUserSettingsGiveTheFeesTheFavoriteManufacturingSystemAndThePreferredStructure(): void
+    public function testSellerSalesFeesComeFromTheResolverWhileUserSettingsGiveTheFavoriteManufacturingSystemAndThePreferredStructure(): void
     {
         $user = $this->goldenUser()->setPreferredMarketStructureId(self::SELL_STRUCTURE_ID);
         $settings = $this->settingsOf($user, favoriteManufacturingSystemId: self::FACTORY_SYSTEM_ID);
 
-        $resource = $this->provide(self::HAIL_L, [], $user, $settings);
+        $resource = $this->provide(self::HAIL_L, [], $user, $settings, salesFees: new SalesFees(0.01, 0.02));
 
         $this->assertSame(500.0, $resource->sellPrice);
         $this->assertResourceIsTheAnalysisOf($resource, self::HAIL_L, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.01, 0.02);
@@ -115,7 +119,7 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $this->assertSame(1, $resource->runs);
         $this->assertSame(2940, $this->componentOf($resource, self::FERNITE_CARBIDE)['quantity']);
-        $this->assertResourceIsTheAnalysisOf($resource, self::HAIL_L, 1, 2, self::FACTORY_SYSTEM_ID, EveConstants::JITA_STATION_ID, 0.01, 0.02);
+        $this->assertResourceIsTheAnalysisOf($resource, self::HAIL_L, 1, 2, self::FACTORY_SYSTEM_ID, EveConstants::JITA_STATION_ID, self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE);
     }
 
     #[Group('issue-100')]
@@ -128,7 +132,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertResourceIsTheAnalysisOf(
             $resource,
             self::HAIL_L, 10, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null,
-            EveConstants::DEFAULT_BROKER_FEE_RATE, EveConstants::DEFAULT_SALES_TAX_RATE,
+            self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE,
         );
     }
 
@@ -147,7 +151,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertNull($resource->sellStructureId);
         $this->assertResourceIsTheAnalysisOf(
             $resource,
-            self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02,
+            self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE,
             reactionSolarSystemId: EveConstants::JITA_SOLAR_SYSTEM_ID,
         );
     }
@@ -178,7 +182,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertSame(14392.5, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
         $this->assertSame(3157.95, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
         $this->assertSame(113791.45, $resource->totalProductionCost);
-        $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
+        $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE);
     }
 
     #[Group('issue-99')]
@@ -193,7 +197,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertSame(14392.5, $this->componentOf($resource, self::FERNITE_ALLOY)['buildJobInstallCost']);
         $this->assertSame(3157.95, $this->componentOf($resource, self::HYDROGEN_FUEL_BLOCK)['buildJobInstallCost']);
         $this->assertSame(113791.45, $resource->totalProductionCost);
-        $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, 0.01, 0.02);
+        $this->assertResourceIsTheAnalysisOf($resource, self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, null, self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE);
     }
 
     #[Group('issue-99')]
@@ -257,7 +261,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
 
-        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository))
+        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository, $this->salesFeesResolverReturning(new SalesFees(self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE))))
             ->provide(new Get(), ['typeId' => (string) self::ROBOTICS]);
 
         $this->assertNull($resource->typeName);
@@ -320,7 +324,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
 
-        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository))
+        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository, $this->salesFeesResolverReturning(new SalesFees(self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE))))
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L]);
 
         $this->assertNull($resource->totalProductionCost);
@@ -391,7 +395,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
 
-        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository))
+        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository, $this->salesFeesResolverReturning(new SalesFees(self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE))))
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L]);
 
         $this->assertNull($resource->components[0]['buildJobInstallCost']);
@@ -414,7 +418,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->assertResourceIsTheAnalysisOf(
             $resource,
             self::RAM_AMMUNITION_TECH, 1, 0, EveConstants::JITA_SOLAR_SYSTEM_ID, null,
-            EveConstants::DEFAULT_BROKER_FEE_RATE, EveConstants::DEFAULT_SALES_TAX_RATE,
+            self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE,
         );
     }
 
@@ -468,7 +472,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
 
-        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository))
+        $resource = (new BuyVsBuildProvider($security, $requestStack, $buyVsBuildService, $settingsRepository, $this->salesFeesResolverReturning(new SalesFees(self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE))))
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L]);
 
         $this->assertSame($components, $resource->components);
@@ -499,7 +503,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $this->provide(self::HAIL_L, [], null, null);
     }
 
-    private function provide(int $typeId, array $query, ?User $user, ?IndustryUserSettings $settings, array $jitaCoverages = []): BuyVsBuildResource
+    private function provide(int $typeId, array $query, ?User $user, ?IndustryUserSettings $settings, array $jitaCoverages = [], ?SalesFees $salesFees = new SalesFees(self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE)): BuyVsBuildResource
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
@@ -510,7 +514,7 @@ final class BuyVsBuildProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn($settings);
 
-        $provider = new BuyVsBuildProvider($security, $requestStack, $this->goldenBuyVsBuildService($jitaCoverages), $settingsRepository);
+        $provider = new BuyVsBuildProvider($security, $requestStack, $this->goldenBuyVsBuildService($jitaCoverages), $settingsRepository, $this->salesFeesResolverReturning($salesFees));
 
         return $provider->provide(new Get(), ['typeId' => (string) $typeId]);
     }
@@ -526,7 +530,7 @@ final class BuyVsBuildProviderTest extends TestCase
         float $salesTaxRate,
         ?int $reactionSolarSystemId = null,
     ): void {
-        $analysis = $this->goldenBuyVsBuildService()->analyze($typeId, $runs, $meLevel, $solarSystemId, $sellStructureId, $brokerFeeRate, $salesTaxRate, null, $reactionSolarSystemId);
+        $analysis = $this->goldenBuyVsBuildService()->analyze($typeId, $runs, $meLevel, $solarSystemId, $sellStructureId, new SalesFees($brokerFeeRate, $salesTaxRate), null, $reactionSolarSystemId);
 
         $this->assertSame($analysis, [
             'typeId' => $resource->typeId,
@@ -626,13 +630,19 @@ final class BuyVsBuildProviderTest extends TestCase
         );
     }
 
+    private function salesFeesResolverReturning(?SalesFees $salesFees): SellerSalesFeesResolver
+    {
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturn($salesFees);
+
+        return $salesFeesResolver;
+    }
+
     private function settingsOf(User $user, int $favoriteManufacturingSystemId): IndustryUserSettings
     {
         return (new IndustryUserSettings())
             ->setUser($user)
-            ->setFavoriteManufacturingSystemId($favoriteManufacturingSystemId)
-            ->setBrokerFeeRate(0.01)
-            ->setSalesTaxRate(0.02);
+            ->setFavoriteManufacturingSystemId($favoriteManufacturingSystemId);
     }
 
     private function componentOf(BuyVsBuildResource $resource, int $typeId): array
