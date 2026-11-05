@@ -59,6 +59,8 @@ function mountPanelWithUnknownParityPrice(locale: 'en' | 'fr') {
       effectiveTotalCost: null,
       bestMargin: null,
       datacoresCostPerAttempt: null,
+      inventors: [],
+      selectedInventorId: null,
     },
   })
 }

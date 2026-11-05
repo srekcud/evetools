@@ -52,6 +52,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
     private const string PILOT_ONE_SKILLS_ENDPOINT = '/characters/2112000001/skills/';
     private const string PILOT_TWO_SKILLS_ENDPOINT = '/characters/2112000002/skills/';
     private const int BLUEPRINT_SCIENCE_SKILL = 999_000_001;
+    private const int INVENTION_SCIENCE_SKILL = 999_000_002;
+    private const int INVENTION_ENCRYPTION_SKILL = 999_000_003;
     private const int SKILL_OUTSIDE_THE_SYNCED_LIST = 999_000_101;
 
     private User $user;
@@ -519,8 +521,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
     public function testWritesEachBlueprintScienceSkillListedByTheSdeOnce(): void
     {
         $this->sdeSkillRows = [
-            ['skill_id' => (string) self::BLUEPRINT_SCIENCE_SKILL],
-            ['skill_id' => (string) CachedCharacterSkill::SKILL_INDUSTRY],
+            ['skill_id' => (string) self::BLUEPRINT_SCIENCE_SKILL, 'activity_id' => '1'],
+            ['skill_id' => (string) CachedCharacterSkill::SKILL_INDUSTRY, 'activity_id' => '1'],
         ];
         $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
             $this->esiSkill(self::BLUEPRINT_SCIENCE_SKILL, 4, 5),
@@ -542,6 +544,35 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             ],
             [$this->persistedLevelsBySkillIdOf(self::PILOT_ONE), count($this->persistedSkillsOf(self::PILOT_ONE))],
         );
+    }
+
+    public function testWritesTheInventionSkillsTheCharacterDoesNotHaveAtLevelZeroAndTheTrainedOnesAtTheirLevel(): void
+    {
+        $this->sdeSkillRows = [
+            ['skill_id' => (string) self::INVENTION_SCIENCE_SKILL, 'activity_id' => '8'],
+            ['skill_id' => (string) self::INVENTION_ENCRYPTION_SKILL, 'activity_id' => '8'],
+        ];
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(self::INVENTION_SCIENCE_SKILL, 3, 3),
+        ];
+
+        $this->syncSkills();
+
+        $levels = $this->persistedLevelsBySkillIdOf(self::PILOT_ONE);
+        $this->assertSame(3, $levels[self::INVENTION_SCIENCE_SKILL] ?? null);
+        $this->assertSame(0, $levels[self::INVENTION_ENCRYPTION_SKILL] ?? null);
+    }
+
+    public function testAManufacturingSkillStillOnlyGetsALineWhenTheCharacterHasIt(): void
+    {
+        $this->sdeSkillRows = [
+            ['skill_id' => (string) self::BLUEPRINT_SCIENCE_SKILL, 'activity_id' => '1'],
+            ['skill_id' => (string) self::INVENTION_SCIENCE_SKILL, 'activity_id' => '8'],
+        ];
+
+        $this->syncSkills();
+
+        $this->assertArrayNotHasKey(self::BLUEPRINT_SCIENCE_SKILL, $this->persistedLevelsBySkillIdOf(self::PILOT_ONE));
     }
 
     #[Group('issue-275')]
