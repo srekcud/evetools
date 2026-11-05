@@ -11,10 +11,9 @@ use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\ApiResource\Industry\ProjectResource;
-use App\ApiResource\Industry\ProjectStepResource;
-use App\ApiResource\Industry\StepPurchaseResource;
+use App\ApiResource\Industry\Project\ProjectBomLineResource;
+use App\ApiResource\Industry\Project\IndustryProjectResource;
+use App\ApiResource\Industry\ProjectPurchaseResource;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -25,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 final class IndustrySubResourceUriVariablesTest extends TestCase
 {
     private const string INDUSTRY_API_RESOURCE_NAMESPACE = 'App\\ApiResource\\Industry\\';
-    private const string GROUP_INDUSTRY_API_RESOURCE_NAMESPACE = 'App\\ApiResource\\GroupIndustry\\';
+    private const string GROUP_INDUSTRY_API_RESOURCE_NAMESPACE = 'App\\ApiResource\\Industry\\Project\\';
 
     #[DataProvider('industrySubResourceOperations')]
     public function testIndustrySubResourceOperationDeclaresEveryUriVariableAsLink(string $resourceShortName, HttpOperation $operation): void
@@ -47,7 +46,7 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
 
     public static function groupIndustrySubResourceOperations(): iterable
     {
-        return self::subResourceOperationsOf('GroupIndustry', self::GROUP_INDUSTRY_API_RESOURCE_NAMESPACE);
+        return self::subResourceOperationsOf('Industry/Project', self::GROUP_INDUSTRY_API_RESOURCE_NAMESPACE);
     }
 
     private static function subResourceOperationsOf(string $apiResourceDirectory, string $apiResourceNamespace): iterable
@@ -85,50 +84,13 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
         );
     }
 
-    public function testStepPatchWithoutUriVariablesLeavesProjectAndStepUndeclared(): void
-    {
-        $operation = new Patch(uriTemplate: '/industry/projects/{id}/steps/{stepId}');
-
-        $this->assertSame(['id', 'stepId'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
-    }
-
-    public function testStepPatchDeclaringProjectAndStepLinksHasNoUndeclaredUriVariable(): void
-    {
-        $operation = new Patch(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-            ],
-        );
-
-        $this->assertSame([], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
-    }
-
-    public function testStepPatchDeclaringOnlyProjectLinkLeavesStepUndeclared(): void
-    {
-        $operation = new Patch(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            uriVariables: ['id' => new Link(fromClass: ProjectResource::class)],
-        );
-
-        $this->assertSame(['stepId'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
-    }
-
-    public function testStepPostWithoutUriVariablesLeavesProjectUndeclared(): void
-    {
-        $operation = new Post(uriTemplate: '/industry/projects/{id}/steps');
-
-        $this->assertSame(['id'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
-    }
-
     public function testPurchaseDeleteDeclaringOnlyParentLinksLeavesFinalPurchaseUndeclared(): void
     {
         $operation = new Delete(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}/purchases/{purchaseId}',
+            uriTemplate: '/industry/projects/{projectId}/bom/{lineId}/purchases/{purchaseId}',
             uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+                'lineId' => new Link(fromClass: ProjectBomLineResource::class),
             ],
         );
 
@@ -138,11 +100,11 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     public function testPurchaseDeleteDeclaringAllLinksHasNoUndeclaredUriVariable(): void
     {
         $operation = new Delete(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}/purchases/{purchaseId}',
+            uriTemplate: '/industry/projects/{projectId}/bom/{lineId}/purchases/{purchaseId}',
             uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-                'purchaseId' => new Link(fromClass: StepPurchaseResource::class),
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+                'lineId' => new Link(fromClass: ProjectBomLineResource::class),
+                'purchaseId' => new Link(fromClass: ProjectPurchaseResource::class),
             ],
         );
 
@@ -152,11 +114,11 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     public function testUriVariableDeclaredAsPlainStringIsUndeclared(): void
     {
         $operation = new Patch(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            uriVariables: ['id' => 'id', 'stepId' => new Link(fromClass: ProjectStepResource::class)],
+            uriTemplate: '/industry/projects/{projectId}/bom/{lineId}',
+            uriVariables: ['projectId' => 'projectId', 'lineId' => new Link(fromClass: ProjectBomLineResource::class)],
         );
 
-        $this->assertSame(['id'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
+        $this->assertSame(['projectId'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));
     }
 
     public function testProjectGetWithFinalIdentifierIsNotSubResource(): void
@@ -188,8 +150,8 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     public function testGroupMemberPatchDeclaringOnlyProjectLinkLeavesFinalRequirementMemberUndeclared(): void
     {
         $operation = new Patch(
-            uriTemplate: '/group-industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
-            uriVariables: ['projectId' => new Link(fromClass: GroupIndustryProjectResource::class)],
+            uriTemplate: '/industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriVariables: ['projectId' => new Link(fromClass: IndustryProjectResource::class)],
         );
 
         $this->assertSame(['id'], (new SubResourceUriVariablesDetector())->undeclaredUriVariables($operation));

@@ -130,10 +130,10 @@ deptrac:
   skip_violations:
     App\Controller\Auth\EveOAuthController:
       - App\Message\SyncCharacterAssets
-    App\ApiResource\GroupIndustry\GroupIndustrySaleResource:
-      - App\Service\GroupIndustry\PilotName
-    App\Service\GroupIndustry\GroupIndustryContainerService:
-      - App\ApiResource\GroupIndustry\GroupContainerVerificationResource
+    App\ApiResource\Industry\Project\ProjectSaleResource:
+      - App\Service\Industry\Project\PilotName
+    App\Service\Industry\Project\ProjectContainerService:
+      - App\ApiResource\Industry\Project\ProjectContainerVerificationResource
     App\State\Processor\MoonTax\MarkMoonTaxStatementPaidProcessor:
       - App\State\Provider\MoonTax\MoonTaxResourceMapper
     App\State\Processor\MoonTax\CancelMoonTaxStatementProcessor:
@@ -142,54 +142,42 @@ deptrac:
       - App\State\Provider\Escalation\EscalationResourceMapper
     App\State\Processor\Escalation\UpdateEscalationProcessor:
       - App\State\Provider\Escalation\EscalationResourceMapper
-    App\State\Processor\GroupIndustry\CreateGroupProjectProcessor:
-      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
-    App\State\Processor\GroupIndustry\DeleteSaleProcessor:
-      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\GroupIndustry\JoinGroupProjectProcessor:
-      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
-    App\State\Processor\GroupIndustry\KickGroupMemberProcessor:
-      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\GroupIndustry\ReviewContributionProcessor:
-      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
-      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\GroupIndustry\RecordSaleFromWalletTransactionProcessor:
-      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\GroupIndustry\RecordSaleProcessor:
-      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\GroupIndustry\SubmitContributionProcessor:
-      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
-    App\State\Processor\GroupIndustry\UpdateGroupMemberProcessor:
-      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
-      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\GroupIndustry\UpdateSaleProcessor:
-      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\GroupIndustry\UpdateGroupProjectProcessor:
-      - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
-      - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\Industry\CreateProjectProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
+    App\State\Processor\Industry\Project\CreateProjectProcessor:
+      - App\State\Provider\Industry\Project\ProjectResourceMapper
+    App\State\Processor\Industry\Project\DeleteSaleProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\JoinProjectProcessor:
+      - App\State\Provider\Industry\Project\ProjectResourceMapper
+    App\State\Processor\Industry\Project\KickParticipantProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\ReviewContributionProcessor:
+      - App\State\Provider\Industry\Project\ProjectResourceMapper
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\RecordSaleFromWalletTransactionProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\RecordSaleProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\SubmitContributionProcessor:
+      - App\State\Provider\Industry\Project\ProjectResourceMapper
+    App\State\Processor\Industry\Project\UpdateParticipantProcessor:
+      - App\State\Provider\Industry\Project\ProjectResourceMapper
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\UpdateSaleProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\UpdateProjectProcessor:
+      - App\State\Provider\Industry\Project\ProjectResourceMapper
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\CreatePurchaseProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\CreateStepProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\CreateStructureProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\LinkJobProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\MatchJobsProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\MergeStepsProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\SplitStepProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\SyncCharacterSkillsProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\UpdateCharacterSkillProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\UpdateProjectProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\UpdateStepProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\UpdateStructureProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper

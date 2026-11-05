@@ -8,11 +8,15 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\AvailableJobResource;
 use App\Entity\CachedIndustryJob;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\UuidOrNotFound;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -26,7 +30,9 @@ class AvailableJobsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
         private readonly CachedIndustryJobRepository $jobRepository,
+        private readonly IndustryActivityProductRepository $productRepository,
         private readonly IndustryCalculationService $calculationService,
+        private readonly ProjectAccessChecker $accessChecker,
     ) {
     }
 
@@ -41,83 +47,71 @@ class AvailableJobsProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
-
-        if ($project === null || !$project->isPlannedByStepsAndOwnedBy($user)) {
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['projectId'], 'Project not found'));
+        if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }
 
-        // Collect all blueprint type IDs used in the project
+        $this->accessChecker->assertOwner($user, $project);
+
+        $jobLines = $project->getBomItems()->filter(
+            static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob(),
+        );
+
         $blueprintTypeIds = [];
-        foreach ($project->getSteps() as $step) {
-            if ($step->getActivityType() !== 'copy') {
-                $blueprintTypeIds[$step->getBlueprintTypeId()] = true;
-            }
+        foreach ($jobLines as $line) {
+            $blueprintTypeIds[$this->productRepository->producerOf($line->getTypeId())->getTypeId()] = true;
         }
 
-        if (empty($blueprintTypeIds)) {
-            return [];
-        }
-
-        // Collect character IDs
         $characterIds = [];
         foreach ($user->getCharacters() as $character) {
             $characterIds[] = $character->getId();
         }
 
-        if (empty($characterIds)) {
+        if ($blueprintTypeIds === [] || $characterIds === []) {
             return [];
         }
 
-        $projectStartDate = $project->getEffectiveJobsStartDate();
-
-        // Query all ESI jobs matching these blueprints
         $jobs = $this->jobRepository->findByBlueprintsAndCharacters(
             array_keys($blueprintTypeIds),
             $characterIds,
-            $projectStartDate,
+            $project->getCreatedAt(),
         );
 
-        // Build a map of esiJobId → match info from ALL project steps
-        $linkedJobs = [];
-        foreach ($project->getSteps() as $step) {
-            foreach ($step->getJobMatches() as $match) {
-                $linkedJobs[$match->getEsiJobId()] = [
-                    'stepId' => (string) $step->getId(),
-                    'stepName' => $this->calculationService->resolveTypeName($step->getProductTypeId()),
-                    'matchId' => (string) $match->getId(),
-                ];
-            }
-        }
+        $resources = array_map(
+            fn (CachedIndustryJob $job): AvailableJobResource => $this->toResource($job, $project),
+            array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput()),
+        );
 
-        // Build resources
-        $resources = [];
-        $jobsWithOutput = array_filter($jobs, static fn (CachedIndustryJob $job): bool => !$job->hasNoOutput());
-        foreach ($jobsWithOutput as $job) {
-            $resource = new AvailableJobResource();
-            $resource->esiJobId = $job->getJobId();
-            $resource->blueprintTypeId = $job->getBlueprintTypeId();
-            $resource->productTypeId = $job->getDisplayedTypeId();
-            $resource->productTypeName = $this->calculationService->resolveTypeName($job->getDisplayedTypeId());
-            $resource->runs = $job->getRuns();
-            $resource->cost = $job->getCost();
-            $resource->status = $job->getStatus();
-            $resource->startDate = $job->getStartDate()->format('c');
-            $resource->endDate = $job->getEndDate()->format('c');
-            $resource->characterName = $job->getCharacter()->getName();
-
-            if (isset($linkedJobs[$job->getJobId()])) {
-                $resource->linkedToStepId = $linkedJobs[$job->getJobId()]['stepId'];
-                $resource->linkedToStepName = $linkedJobs[$job->getJobId()]['stepName'];
-                $resource->matchId = $linkedJobs[$job->getJobId()]['matchId'];
-            }
-
-            $resources[] = $resource;
-        }
-
-        // Sort by date DESC
-        usort($resources, fn (AvailableJobResource $a, AvailableJobResource $b) => strcmp($b->startDate, $a->startDate));
+        usort($resources, static fn (AvailableJobResource $a, AvailableJobResource $b): int => strcmp($b->startDate, $a->startDate));
 
         return $resources;
+    }
+
+    private function toResource(CachedIndustryJob $job, IndustryProject $project): AvailableJobResource
+    {
+        $resource = new AvailableJobResource();
+        $resource->esiJobId = $job->getJobId();
+        $resource->blueprintTypeId = $job->getBlueprintTypeId();
+        $resource->productTypeId = $job->getDisplayedTypeId();
+        $resource->productTypeName = $this->calculationService->resolveTypeName($job->getDisplayedTypeId());
+        $resource->runs = $job->getRuns();
+        $resource->cost = $job->getCost();
+        $resource->status = $job->getStatus();
+        $resource->startDate = $job->getStartDate()->format('c');
+        $resource->endDate = $job->getEndDate()->format('c');
+        $resource->characterName = $job->getCharacter()->getName();
+
+        foreach ($project->getBomItems() as $line) {
+            foreach ($line->getJobMatches() as $match) {
+                if ($match->getEsiJobId() === $job->getJobId()) {
+                    $resource->linkedToBomLineId = $line->getId()->toRfc4122();
+                    $resource->linkedToBomLineName = $line->getTypeName();
+                    $resource->matchId = (string) $match->getId();
+                }
+            }
+        }
+
+        return $resource;
     }
 }

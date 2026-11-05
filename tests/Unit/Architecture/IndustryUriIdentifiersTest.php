@@ -29,7 +29,7 @@ final class IndustryUriIdentifiersTest extends TestCase
         $industryStateFiles = $this->industryStateFiles();
 
         self::assertContains('src/State/Processor/Industry/LinkJobProcessor.php', $industryStateFiles);
-        self::assertContains('src/State/Provider/Industry/StepPurchaseDeleteProvider.php', $industryStateFiles);
+        self::assertContains('src/State/Provider/Industry/PurchaseDeleteProvider.php', $industryStateFiles);
     }
 
     /**

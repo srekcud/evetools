@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Repository\IndustryProjectBomLineRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -15,6 +17,9 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['type_id'])]
 class IndustryProjectBomLine
 {
+    private const string ACTIVITY_MANUFACTURING = 'manufacturing';
+    private const string ACTIVITY_REACTION = 'reaction';
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
@@ -63,9 +68,19 @@ class IndustryProjectBomLine
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $runs = null;
 
+    /** @var Collection<int, IndustryProjectJobMatch> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectJobMatch::class, mappedBy: 'bomLine', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $jobMatches;
+
+    /** @var Collection<int, IndustryProjectPurchase> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectPurchase::class, mappedBy: 'bomLine', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $purchases;
+
     public function __construct()
     {
         $this->id = Uuid::v7();
+        $this->jobMatches = new ArrayCollection();
+        $this->purchases = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -233,5 +248,64 @@ class IndustryProjectBomLine
     public function isFulfilled(): bool
     {
         return $this->fulfilledQuantity >= $this->requiredQuantity;
+    }
+
+    public function isManufacturingOrReactionJob(): bool
+    {
+        return $this->isJob && \in_array($this->activityType, [self::ACTIVITY_MANUFACTURING, self::ACTIVITY_REACTION], true);
+    }
+
+    /** @return Collection<int, IndustryProjectJobMatch> */
+    public function getJobMatches(): Collection
+    {
+        return $this->jobMatches;
+    }
+
+    public function addJobMatch(IndustryProjectJobMatch $jobMatch): static
+    {
+        if (!$this->jobMatches->contains($jobMatch)) {
+            $this->jobMatches->add($jobMatch);
+            $jobMatch->setBomLine($this);
+        }
+
+        return $this;
+    }
+
+    public function getMatchedRuns(): int
+    {
+        return array_sum($this->jobMatches->map(static fn (IndustryProjectJobMatch $jobMatch): int => $jobMatch->getRuns())->toArray());
+    }
+
+    public function hasManualJobMatch(): bool
+    {
+        return $this->jobMatches->exists(static fn (int $key, IndustryProjectJobMatch $jobMatch): bool => $jobMatch->isManual());
+    }
+
+    /** @return Collection<int, IndustryProjectPurchase> */
+    public function getPurchases(): Collection
+    {
+        return $this->purchases;
+    }
+
+    public function addPurchase(IndustryProjectPurchase $purchase): static
+    {
+        if (!$this->purchases->contains($purchase)) {
+            $this->purchases->add($purchase);
+            $purchase->setBomLine($this);
+        }
+
+        return $this;
+    }
+
+    public function getPurchasedQuantity(): int
+    {
+        $purchasedQuantity = 0;
+        foreach ($this->purchases as $purchase) {
+            if ($purchase->getTypeId() === $this->typeId) {
+                $purchasedQuantity += $purchase->getQuantity();
+            }
+        }
+
+        return $purchasedQuantity;
     }
 }

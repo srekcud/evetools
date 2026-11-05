@@ -6,21 +6,25 @@ namespace App\Tests\Unit\State\Processor\Industry;
 
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\Industry\MatchJobsResultResource;
-use App\ApiResource\Industry\ProjectStepResource;
+use App\ApiResource\Industry\ProjectJobMatchResource;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectStep;
-use App\Entity\IndustryStepJobMatch;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
 use App\State\Processor\Industry\MatchJobsProcessor;
-use App\State\Provider\Industry\IndustryResourceMapper;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -34,6 +38,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 #[CoversClass(MatchJobsProcessor::class)]
 #[CoversClass(CharacterSyncFailure::class)]
 #[Group('issue-197')]
+#[Group('issue-362')]
 final class MatchJobsProcessorTest extends TestCase
 {
     private const string PROJECT_ID = '0196f6a2-7c1e-7d3a-9b40-197000000001';
@@ -51,9 +56,7 @@ final class MatchJobsProcessorTest extends TestCase
     private BufferingLogger $logger;
     private ?User $authenticatedUser;
     private ?IndustryProject $foundProject;
-    private ProjectStepResource $stepResource;
-
-    private array $mappedSteps = [];
+    private User $admin;
 
     private array $syncFailuresByCharacterName = [];
 
@@ -72,10 +75,11 @@ final class MatchJobsProcessorTest extends TestCase
         $this->pilotTwo = $this->addCharacterWithToken(self::PILOT_TWO, self::PILOT_TWO_ID);
         $this->pilotThree = $this->addCharacterWithToken(self::PILOT_THREE, self::PILOT_THREE_ID);
         $this->project = (new IndustryProject())->setOwner($this->user);
+        $this->admin = new User();
+        $this->project->addMember((new IndustryProjectParticipant())->setUser($this->admin)->setRole(ParticipantRole::Admin)->setStatus(ParticipantStatus::Accepted));
         $this->logger = new BufferingLogger();
         $this->authenticatedUser = $this->user;
         $this->foundProject = $this->project;
-        $this->stepResource = new ProjectStepResource();
     }
 
     protected function tearDown(): void
@@ -231,21 +235,19 @@ final class MatchJobsProcessorTest extends TestCase
         $result = $this->matchJobs();
 
         $this->assertSame(
-            ['steps', 'jobsCost', 'syncedCharacters', 'failedCharacters'],
+            ['jobMatches', 'jobsCost', 'syncedCharacters', 'failedCharacters'],
             array_keys(get_object_vars($result)),
         );
     }
 
-    public function testRejectsAProjectOfAnotherUserWith404(): void
+    public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedWithoutSyncingNorMatching(): void
     {
-        $this->foundProject = (new IndustryProject())->setOwner(new User());
+        $this->authenticatedUser = $this->admin;
 
-        $rejection = $this->rejectionOfMatchJobs();
-
-        $this->assertInstanceOf(NotFoundHttpException::class, $rejection);
-        $this->assertSame(404, $rejection->getStatusCode());
-        $this->assertSame(0, $this->matchEsiJobsCalls);
-        $this->assertSame([], $this->syncedCharacterNames);
+        self::assertSame(
+            ['403 Only the project owner can perform this action', 0, []],
+            [$this->outcomeOfMatchJobs(), $this->matchEsiJobsCalls, $this->syncedCharacterNames],
+        );
     }
 
     public function testRejectsAnUnknownProjectWith404(): void
@@ -292,16 +294,23 @@ final class MatchJobsProcessorTest extends TestCase
         $this->assertSame([], $this->syncedCharacterNames);
     }
 
-    public function testMapsEachStepAndKeepsJobsCost(): void
+    public function testListsTheJobMatchesOfTheProjectLinesWithTheirJobsCost(): void
     {
-        $step = (new IndustryProjectStep())->addJobMatch((new IndustryStepJobMatch())->setCost(1_482_350.25));
-        $this->project->addStep($step);
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $ramLine = (new IndustryProjectBomLine())->setTypeId(11478)->setTypeName('R.A.M.- Starship Tech')->setRequiredQuantity(400)->setIsJob(true)->setJobGroup('component')->setActivityType('manufacturing')->setRuns(4);
+        $this->project->addBomItem($ishtarLine);
+        $this->project->addBomItem($ramLine);
+        $ishtarLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(7_362_501)->setRuns(5)->setStatus('active')->setCost(1_482_350.25));
+        $ramLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(7_362_502)->setRuns(4)->setStatus('delivered')->setCost(86_250.5));
 
         $result = $this->matchJobs();
 
-        $this->assertSame([$step], $this->mappedSteps);
-        $this->assertSame([$this->stepResource], $result->steps);
-        $this->assertSame(1_482_350.25, $result->jobsCost);
+        self::assertContainsOnlyInstancesOf(ProjectJobMatchResource::class, $result->jobMatches);
+        self::assertSame(
+            [[7_362_501, 5, $ishtarLine->getId()->toRfc4122()], [7_362_502, 4, $ramLine->getId()->toRfc4122()]],
+            array_map(static fn (ProjectJobMatchResource $match): array => [$match->esiJobId, $match->runs, $match->bomLineId], $result->jobMatches),
+        );
+        self::assertSame(1_568_600.75, $result->jobsCost);
     }
 
     private function rejectionOfMatchJobs(): HttpExceptionInterface
@@ -365,23 +374,26 @@ final class MatchJobsProcessorTest extends TestCase
             $this->matchEsiJobsCalls++;
         });
 
-        $mapper = $this->createStub(IndustryResourceMapper::class);
-        $mapper->method('stepToResource')->willReturnCallback(function (IndustryProjectStep $step): ProjectStepResource {
-            $this->mappedSteps[] = $step;
-
-            return $this->stepResource;
-        });
+        $participantRepository = $this->createStub(IndustryProjectParticipantRepository::class);
+        $participantRepository->method('findOneBy')->willReturnCallback(
+            fn (array $criteria): ?IndustryProjectParticipant => array_find(
+                $this->project->getMembers()->toArray(),
+                static fn (IndustryProjectParticipant $participant): bool => $participant->getUser() === $criteria['user']
+                    && $participant->getStatus() === ($criteria['status'] ?? $participant->getStatus())
+                    && $participant->getRole() === ($criteria['role'] ?? $participant->getRole()),
+            ),
+        );
 
         $processor = new MatchJobsProcessor(
             $security,
             $projectRepository,
             $jobMatcher,
             $jobSyncService,
-            $mapper,
+            new ProjectAccessChecker($participantRepository),
             $this->logger,
         );
 
-        return $processor->process(null, new Post(), ['id' => $this->projectIdInUrl]);
+        return $processor->process(null, new Post(), ['projectId' => $this->projectIdInUrl]);
     }
 
     private function loggedLevelsAndContexts(): array

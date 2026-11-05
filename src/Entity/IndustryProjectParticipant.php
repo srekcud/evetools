@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -30,11 +30,11 @@ class IndustryProjectParticipant
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $user = null;
 
-    #[ORM\Column(type: 'string', length: 10, enumType: GroupMemberRole::class)]
-    private GroupMemberRole $role = GroupMemberRole::Member;
+    #[ORM\Column(type: 'string', length: 10, enumType: ParticipantRole::class)]
+    private ParticipantRole $role = ParticipantRole::Member;
 
-    #[ORM\Column(type: 'string', length: 10, enumType: GroupMemberStatus::class)]
-    private GroupMemberStatus $status = GroupMemberStatus::Pending;
+    #[ORM\Column(type: 'string', length: 10, enumType: ParticipantStatus::class)]
+    private ParticipantStatus $status = ParticipantStatus::Pending;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $joinedAt;
@@ -64,8 +64,8 @@ class IndustryProjectParticipant
     public function anonymize(): void
     {
         $this->user = null;
-        $this->status = GroupMemberStatus::Removed;
-        $this->role = GroupMemberRole::Member;
+        $this->status = ParticipantStatus::Removed;
+        $this->role = ParticipantRole::Member;
     }
 
     public function getUser(): ?User
@@ -79,23 +79,23 @@ class IndustryProjectParticipant
         return $this;
     }
 
-    public function getRole(): GroupMemberRole
+    public function getRole(): ParticipantRole
     {
         return $this->role;
     }
 
-    public function setRole(GroupMemberRole $role): static
+    public function setRole(ParticipantRole $role): static
     {
         $this->role = $role;
         return $this;
     }
 
-    public function getStatus(): GroupMemberStatus
+    public function getStatus(): ParticipantStatus
     {
         return $this->status;
     }
 
-    public function setStatus(GroupMemberStatus $status): static
+    public function setStatus(ParticipantStatus $status): static
     {
         $this->status = $status;
         return $this;
@@ -109,8 +109,8 @@ class IndustryProjectParticipant
     /** A removed member asking to join again goes back to a pending plain membership. */
     public function requestRejoin(): static
     {
-        $this->status = GroupMemberStatus::Pending;
-        $this->role = GroupMemberRole::Member;
+        $this->status = ParticipantStatus::Pending;
+        $this->role = ParticipantRole::Member;
         $this->joinedAt = new \DateTimeImmutable();
 
         return $this;

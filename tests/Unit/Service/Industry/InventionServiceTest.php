@@ -4,25 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
-use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectStep;
-use App\Entity\IndustryStructureConfig;
-use App\Entity\IndustryUserSettings;
-use App\Entity\User;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Enum\IndustryActivityType;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\EsiCostIndexService;
-use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\InventionService;
-use App\Service\Industry\ProjectStepStructureResolver;
 use App\Service\JitaMarketService;
-use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -33,16 +24,12 @@ use PHPUnit\Framework\TestCase;
 class InventionServiceTest extends TestCase
 {
     use ResolvesTypeNamesFromSde;
-    use CreatesUserWithId;
 
     private IndustryActivityProductRepository&MockObject $activityProductRepository;
     private IndustryActivityMaterialRepository&MockObject $activityMaterialRepository;
     private InvTypeRepository&MockObject $invTypeRepository;
     private JitaMarketService&MockObject $jitaMarketService;
     private EsiCostIndexService&MockObject $esiCostIndexService;
-    private IndustryUserSettingsRepository&MockObject $userSettingsRepository;
-    private TypeNameResolver $typeNameResolver;
-    private ?IndustryStructureConfig $structureRetainedForTheBonus = null;
     private InventionService $service;
 
     // EVE type IDs for realistic test data
@@ -62,8 +49,6 @@ class InventionServiceTest extends TestCase
         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
-        $this->userSettingsRepository = $this->createMock(IndustryUserSettingsRepository::class);
-        $this->typeNameResolver = new TypeNameResolver($this->invTypeRepository);
 
         $this->service = new InventionService(
             $this->activityProductRepository,
@@ -71,30 +56,12 @@ class InventionServiceTest extends TestCase
             $this->invTypeRepository,
             $this->jitaMarketService,
             $this->esiCostIndexService,
-            $this->typeNameResolver,
-            $this->projectStepStructureResolver(),
         );
     }
 
     // ===========================================
     // Helper methods
     // ===========================================
-
-    private function projectStepStructureResolver(): ProjectStepStructureResolver
-    {
-        $calculationService = $this->createStub(IndustryCalculationService::class);
-        $calculationService->method('getStructureBonusForStep')->willReturnCallback(
-            fn (IndustryProjectStep $step): array => [
-                'structure' => $step->getStructureConfig() ?? $this->structureRetainedForTheBonus,
-                'materialBonus' => ['total' => 0.0, 'base' => 0.0, 'rig' => 0.0],
-                'timeBonus' => 0.0,
-                'name' => null,
-                'favoriteSystemWithoutSuitableStructure' => false,
-            ],
-        );
-
-        return new ProjectStepStructureResolver($this->userSettingsRepository, $calculationService);
-    }
 
     private function createProduct(int $blueprintTypeId, int $activityId, int $productTypeId, int $quantity, ?float $probability = null): IndustryActivityProduct
     {
@@ -439,30 +406,6 @@ class InventionServiceTest extends TestCase
             'costBreakdown' => ['datacores' => 463400.0, 'decryptor' => 0.0, 'copyCost' => 1100.0, 'inventionInstall' => 4270.0],
             'unknownReason' => null,
         ], $result);
-    }
-
-    public function testBpcKitRetainsTheCheapestPricedDecryptorAndIgnoresTheOptionsWithoutPrice(): void
-    {
-        $this->setupPricedSabreInvention(0.25, 1, [
-            self::DATACORE_1_TYPE_ID => 41300.0,
-            self::DATACORE_2_TYPE_ID => 67900.0,
-            self::PARITY_DECRYPTOR_ID => 151300.0,
-            self::AUGMENTATION_DECRYPTOR_ID => 987000.0,
-        ]);
-        $project = new IndustryProject();
-        $project->setProductTypeId(self::SABRE_TYPE_ID);
-
-        $breakdown = $this->service->getBpcKitBreakdown($project, 3);
-
-        $options = $breakdown['inventions'][0]['decryptorOptions'];
-        $this->assertSame(5612040.0, $options[0]['totalCost']);
-        $this->assertSame(4951760.0, $this->findOptionByDecryptorTypeId($options, self::PARITY_DECRYPTOR_ID)['totalCost']);
-        $this->assertSame(29093400.0, $this->findOptionByDecryptorTypeId($options, self::AUGMENTATION_DECRYPTOR_ID)['totalCost']);
-        $this->assertNull($this->findOptionByDecryptorTypeId($options, self::ACCELERANT_DECRYPTOR_ID)['totalCost']);
-        $this->assertSame(
-            ['totalInventionCost' => 4951760.0, 'bestDecryptorTypeId' => self::PARITY_DECRYPTOR_ID, 'totalBpcKitCost' => 4951760.0],
-            $breakdown['summary'],
-        );
     }
 
     public static function nonIntegerAttemptRatios(): iterable
@@ -887,27 +830,6 @@ class InventionServiceTest extends TestCase
         $this->assertSame(760000.0, $this->findOptionByDecryptorTypeId($options, self::ACCELERANT_DECRYPTOR_ID)['costPerAttempt']);
     }
 
-    public function testBpcKitBreakdownWithMissingProbabilityReportsUnknownInventionCostInsteadOfZero(): void
-    {
-        $this->setupSabreInventionChain(null, 10);
-        $this->stubKnownCostsPerAttempt();
-
-        $project = new IndustryProject();
-        $project->setProductTypeId(self::SABRE_TYPE_ID);
-
-        $breakdown = $this->service->getBpcKitBreakdown($project, 2);
-
-        $this->assertTrue($breakdown['isT2']);
-        $this->assertCount(1, $breakdown['inventions']);
-        $this->assertNull($breakdown['inventions'][0]['baseProbability']);
-        $this->assertSame(self::MISSING_INVENTION_PROBABILITY, $breakdown['inventions'][0]['unknownReason']);
-        $this->assertSame(2, $breakdown['inventions'][0]['desiredSuccesses']);
-        // Not 0.0 and not PHP_FLOAT_MAX: the cheapest option cannot be known
-        $this->assertNull($breakdown['summary']['totalInventionCost']);
-        $this->assertNull($breakdown['summary']['bestDecryptorTypeId']);
-        $this->assertNull($breakdown['summary']['totalBpcKitCost']);
-    }
-
     private const int THRASHER_TYPE_ID = 16242;
     private const float COPYING_COST_INDEX = 0.05;
     private const array INVENTION_SDE_TYPE_NAMES = [
@@ -918,43 +840,6 @@ class InventionServiceTest extends TestCase
         self::DATACORE_1_TYPE_ID => 'Datacore - Mechanical Engineering',
         self::DATACORE_2_TYPE_ID => 'Datacore - Minmatar Starship Engineering',
     ];
-
-    #[Group('issue-115')]
-    public function testBpcKitOfAProductKnownToTheSdeKeepsTheSdeNamesOfTheProductAndItsDatacores(): void
-    {
-        $this->setupSabreInventionChain(0.30, 10);
-        $this->stubKnownCostsPerAttempt();
-        $project = new IndustryProject();
-        $project->setProductTypeId(self::SABRE_TYPE_ID);
-
-        $breakdown = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getBpcKitBreakdown($project);
-
-        $this->assertSame('Sabre', $breakdown['inventions'][0]['productName']);
-        $this->assertSame(
-            ['Datacore - Mechanical Engineering', 'Datacore - Minmatar Starship Engineering'],
-            array_column($breakdown['inventions'][0]['datacores'], 'typeName'),
-        );
-    }
-
-    #[Group('issue-115')]
-    public function testCopyCostsOfTypesKnownToTheSdeKeepTheirSdeNames(): void
-    {
-        $project = $this->projectWithOneCopyStep(self::THRASHER_BLUEPRINT_ID, self::THRASHER_TYPE_ID, 4);
-        $this->stubCopyEivOf(self::THRASHER_BLUEPRINT_ID, self::THRASHER_TYPE_ID, 1500000.0);
-
-        $copyCosts = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getProjectCopyCosts($project);
-
-        $this->assertSame([
-            [
-                'blueprintTypeId' => self::THRASHER_BLUEPRINT_ID,
-                'blueprintName' => 'Thrasher Blueprint',
-                'productTypeName' => 'Thrasher',
-                'runs' => 4,
-                'cost' => 6015.0,
-                'depth' => 1,
-            ],
-        ], $copyCosts['copies']);
-    }
 
     #[Group('issue-115')]
     public function testDatacoreMissingFromTheSdeHasAnUnknownNameInTheInventionDataWithUnchangedQuantity(): void
@@ -993,73 +878,6 @@ class InventionServiceTest extends TestCase
         $this->assertSame(1240000.0, $result['totalCost']);
     }
 
-    #[Group('issue-115')]
-    public function testBpcKitOfAProductMissingFromTheSdeHasAnUnknownProductNameWithUnchangedProbabilityAndCosts(): void
-    {
-        $this->setupInventionChain(self::ROBOTICS_TYPE_ID, 0.30, 10, [self::DATACORE_1_TYPE_ID => 2, self::DATACORE_2_TYPE_ID => 2]);
-        $this->stubKnownCostsPerAttempt();
-        $project = new IndustryProject();
-        $project->setProductTypeId(self::ROBOTICS_TYPE_ID);
-
-        $breakdown = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getBpcKitBreakdown($project);
-
-        $invention = $breakdown['inventions'][0];
-        $this->assertSame(self::ROBOTICS_TYPE_ID, $invention['productTypeId']);
-        $this->assertNull($invention['productName']);
-        $this->assertSame(0.30, $invention['baseProbability']);
-        $this->assertSame(260000.0, $invention['decryptorOptions'][0]['costPerAttempt']);
-        $this->assertSame(
-            ['totalInventionCost' => 1040000.0, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => 1040000.0],
-            $breakdown['summary'],
-        );
-    }
-
-    #[Group('issue-115')]
-    public function testCopyCostsOfABlueprintAndProductMissingFromTheSdeHaveUnknownNamesWithUnchangedCost(): void
-    {
-        $project = $this->projectWithOneCopyStep(self::ROBOTICS_TYPE_ID, self::ROBOTICS_TYPE_ID, 10);
-        $this->stubCopyEivOf(self::ROBOTICS_TYPE_ID, self::ROBOTICS_TYPE_ID, 2000000.0);
-
-        $copyCosts = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getProjectCopyCosts($project);
-
-        $this->assertSame([
-            [
-                'blueprintTypeId' => self::ROBOTICS_TYPE_ID,
-                'blueprintName' => null,
-                'productTypeName' => null,
-                'runs' => 10,
-                'cost' => 20050.0,
-                'depth' => 1,
-            ],
-        ], $copyCosts['copies']);
-        $this->assertSame(20050.0, $copyCosts['totalCopyCost']);
-    }
-
-    private function projectWithOneCopyStep(int $blueprintTypeId, int $productTypeId, int $runs): IndustryProject
-    {
-        $project = new IndustryProject();
-        $project->setProductTypeId(self::SABRE_TYPE_ID);
-        $project->addStep(
-            (new IndustryProjectStep())
-                ->setBlueprintTypeId($blueprintTypeId)
-                ->setProductTypeId($productTypeId)
-                ->setRuns($runs)
-                ->setDepth(1)
-                ->setActivityType('copy'),
-        );
-
-        return $project;
-    }
-
-    private function stubCopyEivOf(int $blueprintTypeId, int $productTypeId, float $adjustedPrice): void
-    {
-        $this->activityProductRepository->method('findBy')->willReturn([
-            $this->createProduct($blueprintTypeId, IndustryActivityType::Manufacturing->value, $productTypeId, 1),
-        ]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn($adjustedPrice);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(self::COPYING_COST_INDEX);
-    }
-
     private function inventionServiceOnSdeKnowing(array $typeNamesByTypeId): InventionService
     {
         $invTypeRepository = $this->sdeTypeRepositoryKnowing($typeNamesByTypeId);
@@ -1070,8 +888,6 @@ class InventionServiceTest extends TestCase
             $invTypeRepository,
             $this->jitaMarketService,
             $this->esiCostIndexService,
-            new TypeNameResolver($invTypeRepository),
-            $this->projectStepStructureResolver(),
         );
     }
 
@@ -1090,10 +906,6 @@ class InventionServiceTest extends TestCase
     private const int HYPERSYNAPTIC_FIBERS_TYPE_ID = 11478;
     private const string MISSING_COST_INDEX = 'missing_cost_index';
     private const string MISSING_ADJUSTED_PRICE = 'missing_adjusted_price';
-    private const array ALL_DECRYPTOR_PRICES = [
-        34201 => 50000.0, 34202 => 61000.0, 34203 => 72000.0, 34204 => 83000.0,
-        34205 => 94000.0, 34206 => 105000.0, 34207 => 116000.0, 34208 => 127000.0,
-    ];
 
     private array $requestedPriceTypeIdsPerCall = [];
     private array $installEstimateCalls = [];
@@ -1426,29 +1238,6 @@ class InventionServiceTest extends TestCase
         ], $result);
     }
 
-    #[Group('issue-7')]
-    public function testBpcKitTotalInventionCostIsUnknownWhenTheInventionInstallIsUnknownForEveryOption(): void
-    {
-        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE, $this->unknownInstallEstimate(self::MISSING_COST_INDEX));
-        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES + self::ALL_DECRYPTOR_PRICES);
-        $project = new IndustryProject();
-        $project->setProductTypeId(self::SABRE_TYPE_ID);
-
-        $breakdown = $this->service->getBpcKitBreakdown($project);
-
-        $options = $breakdown['inventions'][0]['decryptorOptions'];
-        $this->assertCount(9, $options);
-        foreach ($options as $option) {
-            $this->assertNull($option['totalCost'], $option['decryptorName']);
-            $this->assertNull($option['costBreakdown']['inventionInstall'], $option['decryptorName']);
-            $this->assertSame(self::MISSING_COST_INDEX, $option['unknownReason'], $option['decryptorName']);
-        }
-        $this->assertSame(
-            ['totalInventionCost' => null, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => null],
-            $breakdown['summary'],
-        );
-    }
-
     private function setupSabreInventionAt(?float $baseProbability, array $datacoreLines, ?array $installEstimate = null): void
     {
         $this->setupInventionChainWithDatacoreLines(self::SABRE_TYPE_ID, $baseProbability, 10, $datacoreLines);
@@ -1518,247 +1307,17 @@ class InventionServiceTest extends TestCase
         $this->assertSame($expected, $actualOutcome);
     }
 
-    private const string PROJECT_OWNER_UUID = '0192f3a4-7b1c-7d2e-8f3a-4b5c6d7e8f90';
     private const int AMARR_SOLAR_SYSTEM_ID = 30002187;
     private const int JITA_SOLAR_SYSTEM_ID = 30000142;
     private const int PERIMETER_SOLAR_SYSTEM_ID = 30000144;
     private const float AMARR_COPYING_COST_INDEX = 0.05;
     private const float JITA_COPYING_COST_INDEX = 0.07;
-    private const float NPC_STATION_FACILITY_TAX_PERCENT = 0.25;
     private const float THRASHER_ADJUSTED_PRICE = 1000000.0;
-    private const int COPY_RUNS = 4;
-
-    #[Group('issue-133')]
-    public function testBpcKitUsesTheSolarSystemAndFacilityTaxOfTheManufacturingRootStepWhenTheCopyStepComesFirst(): void
-    {
-        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
-        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
-        $project = $this->projectOf(
-            $this->rootStep('copy', 0, null),
-            $this->rootStep('manufacturing', 1, $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 5.0)),
-        );
-
-        $this->service->getBpcKitBreakdown($project);
-
-        $this->assertSame([[self::AMARR_SOLAR_SYSTEM_ID, 5.0]], $this->installEstimateSolarSystemsAndTaxes());
-    }
-
-    #[Group('issue-133')]
-    public function testBpcKitDoesNotDependOnTheOrderOfTheStepsInTheProject(): void
-    {
-        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
-        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
-        $project = $this->projectOf(
-            $this->rootStep('manufacturing', 1, $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 5.0)),
-            $this->rootStep('copy', 0, null),
-        );
-
-        $this->service->getBpcKitBreakdown($project);
-
-        $this->assertSame([[self::AMARR_SOLAR_SYSTEM_ID, 5.0]], $this->installEstimateSolarSystemsAndTaxes());
-    }
-
-    #[Group('issue-133')]
-    public function testCopyCostsUseTheCopyingCostIndexAndFacilityTaxOfTheManufacturingRootStep(): void
-    {
-        $this->stubThrasherCopyEivAndCopyingCostIndexBySolarSystem();
-        $project = $this->projectOf(
-            $this->rootStep('copy', 0, null)
-                ->setBlueprintTypeId(self::THRASHER_BLUEPRINT_ID)
-                ->setProductTypeId(self::THRASHER_TYPE_ID)
-                ->setRuns(self::COPY_RUNS),
-            $this->rootStep('manufacturing', 1, $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 5.0)),
-        );
-
-        $copyCosts = $this->service->getProjectCopyCosts($project);
-
-        $this->assertEqualsWithDelta(4200.0, $copyCosts['totalCopyCost'], 0.000001);
-    }
-
-    #[Group('issue-133')]
-    public function testBpcKitUsesTheRootStepWithTheSmallestSortOrderWhenTheProjectSplitsManufacturing(): void
-    {
-        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
-        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
-        $project = $this->projectOf(
-            $this->rootStep('manufacturing', 2, $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 5.0)),
-            $this->rootStep('manufacturing', 1, $this->structureConfig(self::JITA_SOLAR_SYSTEM_ID, 1.0)),
-        );
-
-        $this->service->getBpcKitBreakdown($project);
-
-        $this->assertSame([[self::JITA_SOLAR_SYSTEM_ID, 1.0]], $this->installEstimateSolarSystemsAndTaxes());
-    }
-
-    #[Group('issue-133')]
-    public function testBpcKitOfARootStepWithoutStructureUsesTheFavoriteManufacturingSolarSystemAndTheResolvedFacilityTax(): void
-    {
-        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
-        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
-        $this->userSettingsRepository->method('findOneBy')->willReturn(
-            (new IndustryUserSettings())->setFavoriteManufacturingSystemId(self::PERIMETER_SOLAR_SYSTEM_ID),
-        );
-        $project = $this->projectOf(
-            $this->rootStep('copy', 0, null),
-            $this->rootStep('manufacturing', 1, null),
-        );
-
-        $this->service->getBpcKitBreakdown($project);
-
-        $this->assertSame([[self::PERIMETER_SOLAR_SYSTEM_ID, self::NPC_STATION_FACILITY_TAX_PERCENT]], $this->installEstimateSolarSystemsAndTaxes());
-    }
-
-    #[Group('issue-133')]
-    public function testBpcKitOfARootStepWithoutStructureNorFavoriteUsesJitaAndTheResolvedFacilityTax(): void
-    {
-        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
-        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
-        $project = $this->projectOf(
-            $this->rootStep('copy', 0, null),
-            $this->rootStep('manufacturing', 1, null),
-        );
-
-        $this->service->getBpcKitBreakdown($project);
-
-        $this->assertSame([[self::JITA_SOLAR_SYSTEM_ID, self::NPC_STATION_FACILITY_TAX_PERCENT]], $this->installEstimateSolarSystemsAndTaxes());
-    }
-
-    #[Group('issue-133')]
-    public function testBpcKitOfARootStepWithoutStructureUsesTheSolarSystemAndFacilityTaxOfTheStructureRetainedForTheBonus(): void
-    {
-        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
-        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
-        $this->userSettingsRepository->method('findOneBy')->willReturn(
-            (new IndustryUserSettings())->setFavoriteManufacturingSystemId(self::JITA_SOLAR_SYSTEM_ID),
-        );
-        $this->structureRetainedForTheBonus = $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 3.0);
-        $project = $this->projectOf(
-            $this->rootStep('copy', 0, null),
-            $this->rootStep('manufacturing', 1, null),
-        );
-
-        $this->service->getBpcKitBreakdown($project);
-
-        $this->assertSame([[self::AMARR_SOLAR_SYSTEM_ID, 3.0]], $this->installEstimateSolarSystemsAndTaxes());
-    }
-
-    private function projectOf(IndustryProjectStep ...$steps): IndustryProject
-    {
-        $project = (new IndustryProject())->setOwner($this->userWithId(self::PROJECT_OWNER_UUID))
-            ->setProductTypeId(self::SABRE_TYPE_ID);
-        foreach ($steps as $step) {
-            $project->addStep($step);
-        }
-
-        return $project;
-    }
-
-    private function rootStep(string $activityType, int $sortOrder, ?IndustryStructureConfig $structureConfig): IndustryProjectStep
-    {
-        return (new IndustryProjectStep())
-            ->setBlueprintTypeId(self::SABRE_BLUEPRINT_ID)
-            ->setProductTypeId(self::SABRE_TYPE_ID)
-            ->setRuns(1)
-            ->setDepth(0)
-            ->setSortOrder($sortOrder)
-            ->setActivityType($activityType)
-            ->setStructureConfig($structureConfig);
-    }
-
-    private function structureConfig(int $solarSystemId, float $facilityTaxPercent): IndustryStructureConfig
-    {
-        return (new IndustryStructureConfig())
-            ->setSolarSystemId($solarSystemId)
-            ->setFacilityTaxPercent($facilityTaxPercent);
-    }
-
-    private function installEstimateSolarSystemsAndTaxes(): array
-    {
-        return array_values(array_unique(
-            array_map(static fn (array $call): array => [$call[2], $call[4]], $this->installEstimateCalls),
-            SORT_REGULAR,
-        ));
-    }
-
-    private function stubThrasherCopyEivAndCopyingCostIndexBySolarSystem(): void
-    {
-        $this->activityProductRepository->method('findBy')->willReturn([
-            $this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::THRASHER_TYPE_ID, 1),
-        ]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(self::THRASHER_ADJUSTED_PRICE);
-        $this->esiCostIndexService->method('getCostIndex')->willReturnCallback(
-            static fn (int $solarSystemId, string $activity): ?float => $activity === 'copying'
-                ? [self::AMARR_SOLAR_SYSTEM_ID => self::AMARR_COPYING_COST_INDEX, self::JITA_SOLAR_SYSTEM_ID => self::JITA_COPYING_COST_INDEX][$solarSystemId] ?? null
-                : null,
-        );
-    }
-
-    public function testBpcKitOfAT1ProductHasNoInventionAndAZeroInventionCost(): void
-    {
-        $project = $this->projectOf($this->rootStep('manufacturing', 0, $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 5.0)));
-        $project->setProductTypeId(self::THRASHER_TYPE_ID);
-
-        $breakdown = $this->service->getBpcKitBreakdown($project);
-
-        $this->assertSame([
-            'isT2' => false,
-            'inventions' => [],
-            'summary' => ['totalInventionCost' => 0.0, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => 0.0],
-        ], $breakdown);
-    }
-
-    public function testBpcKitKeepsNoDecryptorAsTheBestOptionWhenEveryOptionCostsTheSame(): void
-    {
-        $this->setupSabreInventionChain(0.25, 1);
-        $this->stubZeroCostsExceptDecryptorPrices([]);
-        $project = new IndustryProject();
-        $project->setProductTypeId(self::SABRE_TYPE_ID);
-
-        $breakdown = $this->service->getBpcKitBreakdown($project);
-
-        $this->assertSame(
-            ['totalInventionCost' => 0.0, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => 0.0],
-            $breakdown['summary'],
-        );
-    }
 
     private const int MULTI_UNIT_BLUEPRINT_TYPE_ID = 990001;
     private const int MULTI_UNIT_PRODUCT_TYPE_ID = 990002;
     private const int MULTI_UNIT_UNITS_PER_RUN = 100;
     private const float MULTI_UNIT_PRODUCT_ADJUSTED_PRICE = 37.0;
-
-    #[Group('issue-7')]
-    public function testProjectCopyCostsSumEveryCopyStepAndSkipTheOtherStepsWithACopyEivCurrentlyTakenFromTheProductAdjustedPriceIssue7(): void
-    {
-        $this->stubCopyEivFromManufacturedProducts();
-        $project = $this->projectOf(
-            $this->rootStep('manufacturing', 0, $this->structureConfig(self::AMARR_SOLAR_SYSTEM_ID, 5.0)),
-            $this->copyStep(self::THRASHER_BLUEPRINT_ID, self::THRASHER_TYPE_ID, 4, 1),
-            $this->copyStep(self::MULTI_UNIT_BLUEPRINT_TYPE_ID, self::MULTI_UNIT_PRODUCT_TYPE_ID, 9, 2),
-        );
-
-        $copyCosts = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getProjectCopyCosts($project);
-
-        $this->assertSame([
-            [
-                'blueprintTypeId' => self::THRASHER_BLUEPRINT_ID,
-                'blueprintName' => 'Thrasher Blueprint',
-                'productTypeName' => 'Thrasher',
-                'runs' => 4,
-                'cost' => 4200.0,
-                'depth' => 1,
-            ],
-            [
-                'blueprintTypeId' => self::MULTI_UNIT_BLUEPRINT_TYPE_ID,
-                'blueprintName' => null,
-                'productTypeName' => null,
-                'runs' => 9,
-                'cost' => 34.965,
-                'depth' => 1,
-            ],
-        ], $copyCosts['copies']);
-        $this->assertEqualsWithDelta(4234.965, $copyCosts['totalCopyCost'], 0.000001);
-    }
 
     #[Group('issue-7')]
     public function testCopyJobCostOfAProductWithSeveralUnitsPerRunCurrentlyTakesItsEivFromTheProductAdjustedPriceTimesTheUnitsPerRunIssue7(): void
@@ -1804,14 +1363,4 @@ class InventionServiceTest extends TestCase
         );
     }
 
-    private function copyStep(int $blueprintTypeId, int $productTypeId, int $runs, int $sortOrder): IndustryProjectStep
-    {
-        return (new IndustryProjectStep())
-            ->setBlueprintTypeId($blueprintTypeId)
-            ->setProductTypeId($productTypeId)
-            ->setRuns($runs)
-            ->setDepth(1)
-            ->setSortOrder($sortOrder)
-            ->setActivityType('copy');
-    }
 }

@@ -26,6 +26,5 @@ class PurchaseSuggestionResource
 
     public ?int $locationId = null;
 
-    /** Whether already linked to a step in this project */
     public bool $alreadyLinked = false;
 }

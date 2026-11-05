@@ -8,7 +8,7 @@ use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectSale;
-use App\Enum\GroupProjectStatus;
+use App\Enum\ProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Tests\Integration\IntegrationTestCase;
 use App\Tests\Integration\RecordsSqlQueries;
@@ -43,10 +43,10 @@ final class CachedWalletTransactionRepositoryTest extends IntegrationTestCase
         $this->aMain = $this->createCharacter($admin, 'A-Main')->setEveCharacterId(2120000011);
         $admin->setMainCharacter($this->aMain);
 
-        $this->sabreProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName('Sabre')->setStatus(GroupProjectStatus::Selling);
+        $this->sabreProject = (new IndustryProject())->setOwner($owner)->setName('Sabre')->setStatus(ProjectStatus::Selling);
         (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($this->sabreProject, new \DateTimeImmutable(self::SABRE_PROJECT_CREATED_AT));
         $this->em->persist($this->sabreProject);
-        $cutlassProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName('Cutlass')->setStatus(GroupProjectStatus::Selling);
+        $cutlassProject = (new IndustryProject())->setOwner($owner)->setName('Cutlass')->setStatus(ProjectStatus::Selling);
         $this->em->persist($cutlassProject);
 
         $this->transaction(6_100_000_001, $this->oMain, false, self::SABRE_TYPE_ID, 3, 61_250_000.0, '2026-10-24T21:05:00+00:00');

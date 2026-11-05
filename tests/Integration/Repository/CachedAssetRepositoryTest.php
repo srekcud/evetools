@@ -145,7 +145,7 @@ final class CachedAssetRepositoryTest extends IntegrationTestCase
     }
 
     /**
-     * Guard: GroupIndustryContainerService reads every corporation asset (container
+     * Guard: ProjectContainerService reads every corporation asset (container
      * verification by name). Restricting what members see must not go through this finder.
      */
     public function testFindByCorporationIdStillReturnsEveryAssetOfTheCorporation(): void
