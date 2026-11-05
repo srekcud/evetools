@@ -15,6 +15,8 @@ But : trouver la bonne classe sans relire des fichiers entiers. Les noms de mét
 | Persistance | `src/Entity/Industry*.php`, `src/Entity/GroupIndustry*.php` | `IndustryProject` (table `industry_projects`, seule entité de projet : propriétaire `owner`, statut `GroupProjectStatus`, code d'invitation `shortLinkCode`, collections `steps`, `items`, `members`, `bomItems`, `contributions`, `sales` ; `GroupIndustryProject` et `ProjectStatus` n'existent plus), `IndustryProjectProduct`, `IndustryProjectParticipant`, `IndustryProjectBomLine`, `IndustryProjectContribution`, `IndustryProjectSale` (enfants de `IndustryProject`), `IndustryProjectStep`, `IndustryStructureConfig`, `IndustryUserSettings`, `IndustryStepJobMatch`, `IndustryStockpileTarget`… |
 | Frontend | `frontend/src/views/Industry.vue`, `components/industry/`, `stores/industry/` | Un onglet par écran (`*Tab.vue`), un store par domaine |
 
+Routes retirées au sous-lot 2A de #362 : sous `/api/industry/projects/{id}`, `POST /steps`, `PATCH` et `DELETE /steps/{stepId}`, `POST /steps/{stepId}/split`, `POST /steps/{stepId}/merge`, `GET /shopping-list`, `/cost-estimation`, `/copy-costs`, `/bpc-kit`, et la liste, le détail, la création, le PATCH et le DELETE de `/api/industry/projects` (404 du routeur). Restent servis jusqu'au sous-lot 2B : `match-jobs`, `available-jobs`, `purchase-suggestions`, `steps/{stepId}/link-job`, `steps/{stepId}/purchases`, `step-job-matches/{id}`. Les services et commandes de ce document qui ne citent plus d'appelant API restent jusqu'au sous-lot 2C ; les 6 commandes ponctuelles ont été supprimées.
+
 Services déjà branchés sur le noyau (`grep -rln 'App\\Industry\\' src`) :
 
 | Service | Ce qu'il prend du noyau |

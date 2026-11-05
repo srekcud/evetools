@@ -9,13 +9,13 @@ use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Industry\StepPurchaseResource;
 use App\ApiResource\Industry\StructureConfigResource;
-use App\ApiResource\Input\Industry\UpdateProjectInput;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\IndustryStructureConfig;
+use App\Enum\GroupProjectStatus;
 use App\Exception\StepMaterialsMissingFromSdeException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Service\Industry\IndustryCalculationService;
@@ -25,6 +25,8 @@ use App\Service\Industry\TimePerRunCalculator;
 
 class IndustryResourceMapper
 {
+    private const string STATUS_ACTIVE = 'active';
+
     /** @var array<int, array<array{esiJobId: int, runs: int, status: string, characterName: string}>>|null */
     private ?array $similarJobsByBlueprint = null;
 
@@ -130,7 +132,7 @@ class IndustryResourceMapper
         $resource->meLevel = $project->getMeLevel();
         $resource->teLevel = $project->getTeLevel();
         $resource->maxJobDurationDays = $project->getMaxJobDurationDays();
-        $resource->status = $project->isCompleted() ? UpdateProjectInput::STATUS_COMPLETED : UpdateProjectInput::STATUS_ACTIVE;
+        $resource->status = $project->isCompleted() ? GroupProjectStatus::Completed->value : self::STATUS_ACTIVE;
         $resource->personalUse = $project->isPersonalUse();
         $resource->bpoCost = $project->getBpoCost();
         $resource->materialCost = $project->getMaterialCost();

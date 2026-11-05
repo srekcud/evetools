@@ -167,11 +167,7 @@ deptrac:
     App\State\Processor\GroupIndustry\UpdateGroupProjectProcessor:
       - App\State\Provider\GroupIndustry\GroupIndustryResourceMapper
       - App\State\Provider\GroupIndustry\GroupProjectAccessChecker
-    App\State\Processor\Industry\CreateProjectProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\CreatePurchaseProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\CreateStepProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\CreateStructureProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
@@ -179,17 +175,9 @@ deptrac:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\MatchJobsProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\MergeStepsProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\SplitStepProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\SyncCharacterSkillsProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\UpdateCharacterSkillProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\UpdateProjectProcessor:
-      - App\State\Provider\Industry\IndustryResourceMapper
-    App\State\Processor\Industry\UpdateStepProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\UpdateStructureProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper

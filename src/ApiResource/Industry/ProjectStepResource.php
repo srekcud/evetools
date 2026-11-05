@@ -8,78 +8,17 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Link;
-use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
-use App\ApiResource\Input\EmptyInput;
-use App\ApiResource\Input\Industry\CreateStepInput;
 use App\ApiResource\Input\Industry\LinkJobInput;
-use App\ApiResource\Input\Industry\SplitStepInput;
-use App\ApiResource\Input\Industry\UpdateStepInput;
-use App\State\Processor\Industry\CreateStepProcessor;
-use App\State\Processor\Industry\DeleteStepProcessor;
 use App\State\Processor\Industry\LinkJobProcessor;
-use App\State\Processor\Industry\MergeStepsProcessor;
-use App\State\Processor\Industry\SplitStepProcessor;
 use App\State\Processor\Industry\UnlinkJobProcessor;
-use App\State\Processor\Industry\UpdateStepProcessor;
 use App\State\Provider\Industry\JobMatchDeleteProvider;
-use App\State\Provider\Industry\ProjectStepReferenceProvider;
 
 #[ApiResource(
     shortName: 'ProjectStep',
     description: 'Industry project step',
     operations: [
-        new Post(
-            uriTemplate: '/industry/projects/{id}/steps',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-            ],
-            processor: CreateStepProcessor::class,
-            input: CreateStepInput::class,
-            openapi: new Model\Operation(summary: 'Create step', description: 'Creates a new step in the project', tags: ['Industry - Projects']),
-        ),
-        new Patch(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-            ],
-            provider: ProjectStepReferenceProvider::class,
-            processor: UpdateStepProcessor::class,
-            input: UpdateStepInput::class,
-            openapi: new Model\Operation(summary: 'Update step', description: 'Updates step properties', tags: ['Industry - Projects']),
-        ),
-        new Delete(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-            ],
-            provider: ProjectStepReferenceProvider::class,
-            processor: DeleteStepProcessor::class,
-            openapi: new Model\Operation(summary: 'Delete step', description: 'Deletes a step from the project', tags: ['Industry - Projects']),
-        ),
-        new Post(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}/split',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-            ],
-            processor: SplitStepProcessor::class,
-            input: SplitStepInput::class,
-            openapi: new Model\Operation(summary: 'Split step', description: 'Splits a step into N equal jobs', tags: ['Industry - Projects']),
-        ),
-        new Post(
-            uriTemplate: '/industry/projects/{id}/steps/{stepId}/merge',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-                'stepId' => new Link(fromClass: ProjectStepResource::class),
-            ],
-            processor: MergeStepsProcessor::class,
-            input: EmptyInput::class,
-            openapi: new Model\Operation(summary: 'Merge split group', description: 'Merges all steps in a split group back into one', tags: ['Industry - Projects']),
-        ),
         new Post(
             uriTemplate: '/industry/projects/{id}/steps/{stepId}/link-job',
             uriVariables: [

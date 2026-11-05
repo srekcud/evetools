@@ -6,68 +6,16 @@ namespace App\ApiResource\Industry;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Get;
-use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
-use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
-use App\ApiResource\Input\Industry\CreateProjectInput;
-use App\ApiResource\Input\Industry\UpdateProjectInput;
-use App\State\Processor\Industry\CreateProjectProcessor;
-use App\State\Processor\Industry\DeleteProjectProcessor;
 use App\State\Processor\Industry\MatchJobsProcessor;
-use App\State\Processor\Industry\UpdateProjectProcessor;
-use App\State\Provider\Industry\ProjectCollectionProvider;
-use App\State\Provider\Industry\ProjectProvider;
-use App\State\Provider\Industry\ProjectReferenceProvider;
-use App\State\Provider\Industry\ShoppingListProvider;
 
 #[ApiResource(
     shortName: 'IndustryProject',
     description: 'Industry manufacturing projects',
     operations: [
-        new Get(
-            uriTemplate: '/industry/projects',
-            provider: ProjectCollectionProvider::class,
-            output: ProjectListResource::class,
-            openapi: new Model\Operation(summary: 'List projects', description: 'Returns all industry projects for the user', tags: ['Industry - Projects']),
-        ),
-        new Get(
-            uriTemplate: '/industry/projects/{id}',
-            provider: ProjectProvider::class,
-            openapi: new Model\Operation(summary: 'Get project details', description: 'Returns detailed project information with steps and tree', tags: ['Industry - Projects']),
-        ),
-        new Post(
-            uriTemplate: '/industry/projects',
-            processor: CreateProjectProcessor::class,
-            input: CreateProjectInput::class,
-            openapi: new Model\Operation(summary: 'Create project', description: 'Creates a new industry project', tags: ['Industry - Projects']),
-        ),
-        new Patch(
-            uriTemplate: '/industry/projects/{id}',
-            provider: ProjectReferenceProvider::class,
-            processor: UpdateProjectProcessor::class,
-            input: UpdateProjectInput::class,
-            openapi: new Model\Operation(summary: 'Update project', description: 'Updates project properties', tags: ['Industry - Projects']),
-        ),
-        new Delete(
-            uriTemplate: '/industry/projects/{id}',
-            provider: ProjectReferenceProvider::class,
-            processor: DeleteProjectProcessor::class,
-            openapi: new Model\Operation(summary: 'Delete project', description: 'Deletes an industry project', tags: ['Industry - Projects']),
-        ),
-        new Get(
-            uriTemplate: '/industry/projects/{id}/shopping-list',
-            uriVariables: [
-                'id' => new Link(fromClass: ProjectResource::class),
-            ],
-            provider: ShoppingListProvider::class,
-            output: ShoppingListResource::class,
-            openapi: new Model\Operation(summary: 'Get shopping list', description: 'Returns materials needed with price comparison', tags: ['Industry - Projects']),
-        ),
         new Post(
             uriTemplate: '/industry/projects/{id}/match-jobs',
             uriVariables: [
