@@ -12,6 +12,7 @@ use App\Entity\Character;
 use App\Entity\User;
 use App\Entity\EveToken;
 use App\Repository\CachedCharacterSkillRepository;
+use App\Service\ESI\CharacterStandingsSynchronizer;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Sync\CharacterSyncFailure;
@@ -27,6 +28,13 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 class SyncCharacterSkillsProcessor implements ProcessorInterface
 {
     private const string SKILLS_SCOPE = 'esi-skills.read_skills.v1';
+    private const string STANDINGS_SCOPE = 'esi-characters.read_standings.v1';
+
+    private const array SKILLS_WRITTEN_AT_ZERO = [
+        CachedCharacterSkill::SKILL_SCIENCE,
+        CachedCharacterSkill::SKILL_ACCOUNTING,
+        CachedCharacterSkill::SKILL_BROKER_RELATIONS,
+    ];
 
     /** @var int[]|null */
     private ?array $relevantSkillIds = null;
@@ -39,6 +47,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         private readonly IndustryResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly CharacterStandingsSynchronizer $standingsSynchronizer,
     ) {
     }
 
@@ -56,11 +65,13 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
 
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
+            $missingScopeReported = false;
 
             if ($token === null) {
                 $failures[] = CharacterSyncFailure::missingToken($character);
             } elseif (!$token->hasScope(self::SKILLS_SCOPE)) {
                 $failures[] = CharacterSyncFailure::missingScope($character);
+                $missingScopeReported = true;
             } else {
                 try {
                     $this->syncCharacterSkills($character, $token);
@@ -69,6 +80,20 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
                     $failure = CharacterSyncFailure::fromThrowable($character, $e);
                     $this->logger->warning('Failed to sync skills for character', $failure->logContext($e->getMessage()));
                     $failures[] = $failure;
+                }
+            }
+
+            if ($token !== null) {
+                if ($token->hasScope(self::STANDINGS_SCOPE)) {
+                    try {
+                        $this->standingsSynchronizer->sync($character, $token);
+                    } catch (\Throwable $e) {
+                        $failure = CharacterSyncFailure::fromThrowable($character, $e);
+                        $this->logger->warning('Failed to sync standings for character', $failure->logContext($e->getMessage()));
+                        $failures[] = $failure;
+                    }
+                } elseif (!$missingScopeReported) {
+                    $failures[] = CharacterSyncFailure::missingScope($character);
                 }
             }
 
@@ -137,7 +162,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
                     $existing->setLevel($level);
                     $existing->setCachedAt($now);
                 }
-            } elseif ($level > 0 || $skillId === CachedCharacterSkill::SKILL_SCIENCE) {
+            } elseif ($level > 0 || in_array($skillId, self::SKILLS_WRITTEN_AT_ZERO, true)) {
                 $skill = new CachedCharacterSkill();
                 $skill->setCharacter($character);
                 $skill->setSkillId($skillId);
@@ -174,7 +199,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         $alwaysInclude = array_unique(array_merge(
             CachedCharacterSkill::INDUSTRY_SKILL_IDS,
             CachedCharacterSkill::SLOT_SKILL_IDS,
-            [CachedCharacterSkill::SKILL_SCIENCE],
+            self::SKILLS_WRITTEN_AT_ZERO,
         ));
         foreach ($alwaysInclude as $id) {
             if (!in_array($id, $skillIds, true)) {

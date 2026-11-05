@@ -56,6 +56,9 @@ class Character
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $lastSyncAt = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $standingsSyncedAt = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -208,6 +211,18 @@ class Character
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getStandingsSyncedAt(): ?\DateTimeImmutable
+    {
+        return $this->standingsSyncedAt;
+    }
+
+    public function setStandingsSyncedAt(?\DateTimeImmutable $standingsSyncedAt): static
+    {
+        $this->standingsSyncedAt = $standingsSyncedAt;
+
+        return $this;
     }
 
     public function getLastSyncAt(): ?\DateTimeImmutable
