@@ -19,6 +19,8 @@ use App\Entity\Escalation;
 use App\Entity\EveToken;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectPurchase;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
@@ -217,6 +219,28 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             $this->rolesAndStatusesByMemberName($project),
         );
         self::assertNull($this->member($kaelenMemberId)->getUser());
+    }
+
+    public function testJobMatchesAndPurchasesOfTheDeletedOwnerAreRemovedWhenTheProjectGoesToASuccessor(): void
+    {
+        $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
+        $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
+        $project = $this->createProject($kaelen, 'Rorqual for the corp');
+        $this->addMember($project, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $brann, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-03 09:00:00');
+        $line = (new IndustryProjectBomLine())->setTypeId(11_399)->setTypeName('Morphite')->setRequiredQuantity(675)->setEstimatedPrice(9_800.0);
+        $project->addBomItem($line);
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(900_001)->setStatus('active')->setRuns(3)->setCharacterName('Kaelen Voss')->setMatchedAt(new \DateTimeImmutable('2026-02-01 10:00:00')));
+        $line->addPurchase((new IndustryProjectPurchase())->setTypeId(11_399)->setQuantity(50)->setUnitPrice(9_800.0)->setTotalPrice(490_000.0)->setSource('manual'));
+        $this->em->flush();
+        $projectId = (string) $project->getId();
+
+        $this->deleteAccount((string) $kaelen->getId());
+
+        self::assertSame((string) $brann->getId(), (string) $this->project($projectId)->getOwner()->getId());
+        self::assertSame(1, $this->countWhereIn('industry_project_bom_lines', 'project_id', [$projectId]));
+        self::assertSame(0, $this->connection()->fetchOne('SELECT COUNT(*) FROM industry_project_job_matches'));
+        self::assertSame(0, $this->connection()->fetchOne('SELECT COUNT(*) FROM industry_project_purchases'));
     }
 
     public function testOwnershipGoesToTheOldestAcceptedMemberWhenNoAdminIsAccepted(): void

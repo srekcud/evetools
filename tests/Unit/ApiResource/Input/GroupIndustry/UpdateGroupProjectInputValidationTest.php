@@ -50,6 +50,16 @@ final class UpdateGroupProjectInputValidationTest extends TestCase
         yield 'sales tax absent' => ['salesTaxPercent', null, []];
     }
 
+    public function testNotesAreAtMostTheMaximumLength(): void
+    {
+        $atTheLimit = new UpdateGroupProjectInput();
+        $atTheLimit->notes = str_repeat('a', UpdateGroupProjectInput::MAXIMUM_NOTES_LENGTH);
+        $overTheLimit = new UpdateGroupProjectInput();
+        $overTheLimit->notes = str_repeat('a', UpdateGroupProjectInput::MAXIMUM_NOTES_LENGTH + 1);
+
+        self::assertSame([[], ['notes']], [$this->violatedPathsOf($atTheLimit), $this->violatedPathsOf($overTheLimit)]);
+    }
+
     #[DataProvider('feesSentTogether')]
     public function testSumOfTheFeesSentTogetherIsAtMostOneHundredOnTheSalesTax(float $brokerFeePercent, float $salesTaxPercent, array $expectedPropertyPaths): void
     {
