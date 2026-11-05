@@ -136,6 +136,11 @@ class IndustryProject
 
         $member->setRole(GroupMemberRole::Owner);
         $this->owner = $newOwner;
+
+        foreach ($this->bomItems as $bomLine) {
+            $bomLine->getJobMatches()->clear();
+            $bomLine->getPurchases()->clear();
+        }
     }
 
     public function getName(): ?string

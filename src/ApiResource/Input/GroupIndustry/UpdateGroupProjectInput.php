@@ -9,6 +9,8 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 class UpdateGroupProjectInput
 {
+    public const int MAXIMUM_NOTES_LENGTH = 5000;
+
     #[Assert\Length(max: 255)]
     public ?string $name = null;
 
@@ -26,6 +28,7 @@ class UpdateGroupProjectInput
 
     public ?bool $private = null;
 
+    #[Assert\Length(max: self::MAXIMUM_NOTES_LENGTH)]
     public ?string $notes = null;
 
     #[Assert\Callback]
