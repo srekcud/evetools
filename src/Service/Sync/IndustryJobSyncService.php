@@ -453,10 +453,7 @@ class IndustryJobSyncService
         foreach ($matches as $match) {
             $step = $match->getStep();
             $project = $step->getProject();
-            $projectId = $project->getId()?->toRfc4122();
-            if ($projectId === null) {
-                continue;
-            }
+            $projectId = $project->getId()->toRfc4122();
             if (!isset($projectUpdates[$projectId])) {
                 $projectUpdates[$projectId] = [
                     'projectName' => $project->getName(),

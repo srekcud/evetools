@@ -12,17 +12,17 @@ use App\ApiResource\GroupIndustry\GroupSaleSuggestionResource;
 use App\ApiResource\Input\GroupIndustry\RecordSaleFromWalletTransactionInput;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
-use App\Repository\GroupIndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\DeleteSaleProcessor;
@@ -58,17 +58,17 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
         $oMain = $this->createCharacter($owner, 'O-Main')->setEveCharacterId(2120000001);
         $oAlt = $this->createCharacter($owner, 'O-Alt')->setEveCharacterId(2120000002);
         $owner->setMainCharacter($oMain);
-        $project = (new GroupIndustryProject())
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))
             ->setOwner($owner)
             ->setName('Sabre')
             ->setStatus(GroupProjectStatus::Selling)
             ->setBrokerFeePercent(3.0)
             ->setSalesTaxPercent(4.0);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable('2026-10-20T10:00:00+00:00'));
+        (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable('2026-10-20T10:00:00+00:00'));
         $this->em->persist($project);
-        $project->addMember((new GroupIndustryProjectMember())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
-        $project->addItem((new GroupIndustryProjectItem())->setTypeId(self::SABRE_TYPE_ID)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
-        $manualSaleV = (new GroupIndustrySale())
+        $project->addMember((new IndustryProjectParticipant())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
+        $project->addItem((new IndustryProjectProduct())->setTypeId(self::SABRE_TYPE_ID)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
+        $manualSaleV = (new IndustryProjectSale())
             ->setTypeId(0)
             ->setTypeName('Sabre')
             ->setQuantity(3)
@@ -93,8 +93,8 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
     {
         $saleId = $this->recordSaleFrom($this->t1Id)->id;
 
-        $sale = $this->em->find(GroupIndustrySale::class, $saleId);
-        \assert($sale instanceof GroupIndustrySale);
+        $sale = $this->em->find(IndustryProjectSale::class, $saleId);
+        \assert($sale instanceof IndustryProjectSale);
         self::assertSame(
             [self::SABRE_TYPE_ID, 3, 183_750_000.0, '2026-10-24T21:05:00+00:00', 'O-Main', null, $this->t1Id],
             [
@@ -132,9 +132,9 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
 
     public function testUniqueIndexRefusesASecondSaleLinkedToTheSameTransaction(): void
     {
-        $project = $this->em->find(GroupIndustryProject::class, $this->projectId);
+        $project = $this->em->find(IndustryProject::class, $this->projectId);
         $t1 = $this->em->find(CachedWalletTransaction::class, $this->t1Id);
-        \assert($project instanceof GroupIndustryProject && $t1 instanceof CachedWalletTransaction);
+        \assert($project instanceof IndustryProject && $t1 instanceof CachedWalletTransaction);
         $project->addSale($this->saleLinkedTo($t1, $project->getOwner()));
         $project->addSale($this->saleLinkedTo($t1, $project->getOwner()));
 
@@ -178,10 +178,10 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
 
         $processor = new RecordSaleFromWalletTransactionProcessor(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(CachedWalletTransactionRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             $this->em,
             $this->silentMercurePublisher(),
         );
@@ -197,16 +197,16 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
         $uriVariables = ['projectId' => $this->projectId, 'id' => $saleId];
         $itemProvider = new GroupSaleItemProvider(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
         );
         $sale = $itemProvider->provide($operation, $uriVariables);
 
         $processor = new DeleteSaleProcessor(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustrySaleRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectSaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             $this->em,
             $this->silentMercurePublisher(),
@@ -219,7 +219,7 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
     {
         $provider = new GroupSaleSuggestionProvider(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(CachedWalletTransactionRepository::class),
         );
@@ -236,8 +236,8 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
 
     private function revenueSummary(): array
     {
-        $project = $this->em->find(GroupIndustryProject::class, $this->projectId);
-        \assert($project instanceof GroupIndustryProject);
+        $project = $this->em->find(IndustryProject::class, $this->projectId);
+        \assert($project instanceof IndustryProject);
         $distributionService = self::getContainer()->get(GroupIndustryDistributionService::class);
         \assert($distributionService instanceof GroupIndustryDistributionService);
         $distribution = $distributionService->calculateDistribution($project);
@@ -247,7 +247,7 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
 
     private function salesCount(): int
     {
-        return $this->em->getRepository(GroupIndustrySale::class)->count(['project' => $this->projectId]);
+        return $this->em->getRepository(IndustryProjectSale::class)->count(['project' => $this->projectId]);
     }
 
     private function ownerSecurity(): Security
@@ -281,9 +281,9 @@ final class SaleFromWalletTransactionTest extends IntegrationTestCase
         return $transaction;
     }
 
-    private function saleLinkedTo(CachedWalletTransaction $transaction, User $recordedBy): GroupIndustrySale
+    private function saleLinkedTo(CachedWalletTransaction $transaction, User $recordedBy): IndustryProjectSale
     {
-        return (new GroupIndustrySale())
+        return (new IndustryProjectSale())
             ->setTypeId(self::SABRE_TYPE_ID)
             ->setTypeName('Sabre')
             ->setQuantity($transaction->getQuantity())

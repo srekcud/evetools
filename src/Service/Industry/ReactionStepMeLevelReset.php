@@ -7,7 +7,6 @@ namespace App\Service\Industry;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Enum\ProjectCorrectionStatus;
-use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,7 +32,7 @@ class ReactionStepMeLevelReset extends ProjectByProjectCorrection
     public function run(bool $dryRun): array
     {
         return $this->correctProjects(
-            static fn (IndustryProject $project): bool => $project->getStatus() === ProjectStatus::Active
+            static fn (IndustryProject $project): bool => !$project->isCompleted()
                 && self::reactionStepsWithMaterialEfficiencyOf($project) !== [],
             fn (IndustryProject $project): ProjectCorrectionOutcome => $this->reset($project, $dryRun),
         );
@@ -64,7 +63,7 @@ class ReactionStepMeLevelReset extends ProjectByProjectCorrection
             return $this->outcomeOf($project, ProjectCorrectionStatus::Changed, $change);
         }
 
-        $ownerId = $project->getUser()->getId()?->toRfc4122() ?? throw new \LogicException('A project owner read from the database has no identifier');
+        $ownerId = $project->getOwner()->getId()?->toRfc4122() ?? throw new \LogicException('A project owner read from the database has no identifier');
         $outcome = $this->outcomeOf($project, ProjectCorrectionStatus::Changed, $change);
 
         $this->entityManager->flush();

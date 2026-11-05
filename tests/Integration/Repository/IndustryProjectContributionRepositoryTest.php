@@ -4,28 +4,28 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Repository;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Tests\Integration\IntegrationTestCase;
 use PHPUnit\Framework\Attributes\Group;
 
 #[Group('issue-156')]
-final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
+final class IndustryProjectContributionRepositoryTest extends IntegrationTestCase
 {
-    private GroupIndustryContributionRepository $repository;
+    private IndustryProjectContributionRepository $repository;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->repository = self::getContainer()->get(GroupIndustryContributionRepository::class);
+        $this->repository = self::getContainer()->get(IndustryProjectContributionRepository::class);
     }
 
     public function testApprovedValueOfEachProjectAddsOnlyItsApprovedContributionsOfEveryMemberAndType(): void
@@ -140,17 +140,17 @@ final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->repository->findContributedBomItemIds($ishtar));
     }
 
-    private function createProject(string $name): GroupIndustryProject
+    private function createProject(string $name): IndustryProject
     {
-        $project = (new GroupIndustryProject())->setOwner($this->createUser())->setName($name);
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->createUser())->setName($name);
         $this->em->persist($project);
 
         return $project;
     }
 
-    private function addMember(GroupIndustryProject $project, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, GroupMemberRole $role): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser($role === GroupMemberRole::Owner ? $project->getOwner() : $this->createUser())
             ->setRole($role)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -159,9 +159,9 @@ final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addBomLine(GroupIndustryProject $project, int $typeId, string $typeName, int $requiredQuantity): GroupIndustryBomItem
+    private function addBomLine(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity): IndustryProjectBomLine
     {
-        $line = (new GroupIndustryBomItem())
+        $line = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setRequiredQuantity($requiredQuantity)
@@ -171,10 +171,10 @@ final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
         return $line;
     }
 
-    private function addContributionOn(GroupIndustryProjectMember $member, GroupIndustryBomItem $line, ContributionStatus $status): void
+    private function addContributionOn(IndustryProjectParticipant $member, IndustryProjectBomLine $line, ContributionStatus $status): void
     {
         $member->getProject()->addContribution(
-            (new GroupIndustryContribution())
+            (new IndustryProjectContribution())
                 ->setMember($member)
                 ->setBomItem($line)
                 ->setType(ContributionType::Material)
@@ -184,10 +184,10 @@ final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
         );
     }
 
-    private function addContribution(GroupIndustryProjectMember $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
     {
         $member->getProject()->addContribution(
-            (new GroupIndustryContribution())
+            (new IndustryProjectContribution())
                 ->setMember($member)
                 ->setType($type)
                 ->setQuantity(1)

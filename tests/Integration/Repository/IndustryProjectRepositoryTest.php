@@ -51,8 +51,7 @@ final class IndustryProjectRepositoryTest extends IntegrationTestCase
 
     private function createProject(User $owner, int $productTypeId, int $runs, string $createdAt): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($owner)
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
         (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable($createdAt));

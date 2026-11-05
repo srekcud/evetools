@@ -461,7 +461,7 @@ class IndustryResourceMapperTest extends TestCase
     #[Group('issue-282')]
     public function testStepOfAPilotWhoseOnlyCharacterHasNoCachedSkillHasAnUnknownTimePerRunAndNoRecommendedCharacter(): void
     {
-        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)->setUser($this->pilotWithCachedSkills(['Fresh' => []]));
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)->setOwner($this->pilotWithCachedSkills(['Fresh' => []]));
         $step = $this->rootStep($project, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_BLUEPRINT_TYPE_ID, 40, 10, 10);
 
         $resource = $this->mapperOnTheBaseTimeOfTheNitrogenFuelBlockAndTheCachedSkills()->stepToResource($step);
@@ -472,7 +472,7 @@ class IndustryResourceMapperTest extends TestCase
     #[Group('issue-282')]
     public function testStepOfAPilotWithAKnownCharacterHasTheTimePerRunOfItsSkills(): void
     {
-        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)->setUser($this->pilotWithCachedSkills([
+        $project = $this->project(self::NITROGEN_FUEL_BLOCK_TYPE_ID, null)->setOwner($this->pilotWithCachedSkills([
             'Fresh' => [],
             'Main' => [CachedCharacterSkill::SKILL_INDUSTRY => 4, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 2],
         ]));
@@ -546,8 +546,7 @@ class IndustryResourceMapperTest extends TestCase
 
     private function project(int $productTypeId, ?string $customName): IndustryProject
     {
-        return (new IndustryProject())
-            ->setUser(new User())
+        return (new IndustryProject())->setOwner(new User())
             ->setProductTypeId($productTypeId)
             ->setName($customName)
             ->setRuns(1);

@@ -6,25 +6,25 @@ namespace App\Entity;
 
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity(repositoryClass: GroupIndustryProjectMemberRepository::class)]
-#[ORM\Table(name: 'group_industry_project_members')]
+#[ORM\Entity(repositoryClass: IndustryProjectParticipantRepository::class)]
+#[ORM\Table(name: 'industry_project_participants')]
 #[ORM\Index(columns: ['project_id'])]
 #[ORM\Index(columns: ['user_id'])]
 #[ORM\UniqueConstraint(columns: ['project_id', 'user_id'])]
-class GroupIndustryProjectMember
+class IndustryProjectParticipant
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: GroupIndustryProject::class, inversedBy: 'members')]
+    #[ORM\ManyToOne(targetEntity: IndustryProject::class, inversedBy: 'members')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
@@ -50,12 +50,12 @@ class GroupIndustryProjectMember
         return $this->id;
     }
 
-    public function getProject(): GroupIndustryProject
+    public function getProject(): IndustryProject
     {
         return $this->project;
     }
 
-    public function setProject(GroupIndustryProject $project): static
+    public function setProject(IndustryProject $project): static
     {
         $this->project = $project;
         return $this;

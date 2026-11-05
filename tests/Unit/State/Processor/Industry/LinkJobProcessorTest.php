@@ -110,7 +110,7 @@ class LinkJobProcessorTest extends TestCase
         $this->mainCharacter = $this->createCharacter($this->user, 'Main Pilot');
         $this->security->method('getUser')->willReturn($this->user);
 
-        $this->project = (new IndustryProject())->setUser($this->user);
+        $this->project = (new IndustryProject())->setOwner($this->user);
         $this->projectRepository->method('find')->willReturn($this->project);
 
         $this->step = (new IndustryProjectStep())
@@ -258,7 +258,7 @@ class LinkJobProcessorTest extends TestCase
 
     public function testProjectOfAnotherUserIsNotFound(): void
     {
-        $this->project->setUser(new User());
+        $this->project->setOwner(new User());
         $this->givenJob($this->mainCharacter);
         $this->entityManager->expects($this->never())->method('flush');
 
@@ -282,7 +282,7 @@ class LinkJobProcessorTest extends TestCase
 
     public function testStepOfAnotherProjectIsNotFound(): void
     {
-        $this->step->setProject((new IndustryProject())->setUser($this->user));
+        $this->step->setProject((new IndustryProject())->setOwner($this->user));
         $this->givenJob($this->mainCharacter);
         $this->entityManager->expects($this->never())->method('flush');
 

@@ -947,14 +947,14 @@ final class IndustryProjectFactoryRegenerationTest extends IntegrationTestCase
 
     private function jobMatchCount(): int
     {
-        return (int) $this->em->createQuery('SELECT COUNT(m.id) FROM '.IndustryStepJobMatch::class.' m JOIN m.step s JOIN s.project pr WHERE pr.user = :pilot')
+        return (int) $this->em->createQuery('SELECT COUNT(m.id) FROM '.IndustryStepJobMatch::class.' m JOIN m.step s JOIN s.project pr WHERE pr.owner = :pilot')
             ->setParameter('pilot', $this->pilot)
             ->getSingleScalarResult();
     }
 
     private function purchaseCount(): int
     {
-        return (int) $this->em->createQuery('SELECT COUNT(p.id) FROM '.IndustryStepPurchase::class.' p JOIN p.step s JOIN s.project pr WHERE pr.user = :pilot')
+        return (int) $this->em->createQuery('SELECT COUNT(p.id) FROM '.IndustryStepPurchase::class.' p JOIN p.step s JOIN s.project pr WHERE pr.owner = :pilot')
             ->setParameter('pilot', $this->pilot)
             ->getSingleScalarResult();
     }

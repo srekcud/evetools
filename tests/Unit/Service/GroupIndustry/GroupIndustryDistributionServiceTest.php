@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\GroupIndustry;
 
 use App\Entity\Character;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\GroupIndustry\MemberDistribution;
@@ -27,14 +27,14 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(GroupIndustryDistributionService::class)]
 class GroupIndustryDistributionServiceTest extends TestCase
 {
-    private GroupIndustryContributionRepository&MockObject $contributionRepository;
-    private GroupIndustrySaleRepository&MockObject $saleRepository;
+    private IndustryProjectContributionRepository&MockObject $contributionRepository;
+    private IndustryProjectSaleRepository&MockObject $saleRepository;
     private GroupIndustryDistributionService $service;
 
     protected function setUp(): void
     {
-        $this->contributionRepository = $this->createMock(GroupIndustryContributionRepository::class);
-        $this->saleRepository = $this->createMock(GroupIndustrySaleRepository::class);
+        $this->contributionRepository = $this->createMock(IndustryProjectContributionRepository::class);
+        $this->saleRepository = $this->createMock(IndustryProjectSaleRepository::class);
 
         $this->service = new GroupIndustryDistributionService(
             $this->contributionRepository,
@@ -46,16 +46,16 @@ class GroupIndustryDistributionServiceTest extends TestCase
     // Helper methods
     // ===========================================
 
-    private function stubProject(float $brokerFeePercent = 3.6, float $salesTaxPercent = 3.6): GroupIndustryProject&Stub
+    private function stubProject(float $brokerFeePercent = 3.6, float $salesTaxPercent = 3.6): IndustryProject&Stub
     {
-        $project = $this->createStub(GroupIndustryProject::class);
+        $project = $this->createStub(IndustryProject::class);
         $project->method('getBrokerFeePercent')->willReturn($brokerFeePercent);
         $project->method('getSalesTaxPercent')->willReturn($salesTaxPercent);
 
         return $project;
     }
 
-    private function stubMember(string $characterName, ?string $memberId = null): GroupIndustryProjectMember&Stub
+    private function stubMember(string $characterName, ?string $memberId = null): IndustryProjectParticipant&Stub
     {
         $uuid = $memberId !== null ? Uuid::fromString($memberId) : Uuid::v4();
 
@@ -65,7 +65,7 @@ class GroupIndustryDistributionServiceTest extends TestCase
         $user = $this->createStub(User::class);
         $user->method('getMainCharacter')->willReturn($character);
 
-        $member = $this->createStub(GroupIndustryProjectMember::class);
+        $member = $this->createStub(IndustryProjectParticipant::class);
         $member->method('getId')->willReturn($uuid);
         $member->method('getUser')->willReturn($user);
 
@@ -73,11 +73,11 @@ class GroupIndustryDistributionServiceTest extends TestCase
     }
 
     private function stubContribution(
-        GroupIndustryProjectMember&Stub $member,
+        IndustryProjectParticipant&Stub $member,
         ContributionType $type,
         float $estimatedValue,
-    ): GroupIndustryContribution&Stub {
-        $contribution = $this->createStub(GroupIndustryContribution::class);
+    ): IndustryProjectContribution&Stub {
+        $contribution = $this->createStub(IndustryProjectContribution::class);
         $contribution->method('getMember')->willReturn($member);
         $contribution->method('getType')->willReturn($type);
         $contribution->method('getEstimatedValue')->willReturn($estimatedValue);
@@ -85,16 +85,16 @@ class GroupIndustryDistributionServiceTest extends TestCase
         return $contribution;
     }
 
-    private function stubSale(float $totalPrice): GroupIndustrySale&Stub
+    private function stubSale(float $totalPrice): IndustryProjectSale&Stub
     {
-        $sale = $this->createStub(GroupIndustrySale::class);
+        $sale = $this->createStub(IndustryProjectSale::class);
         $sale->method('getTotalPrice')->willReturn($totalPrice);
 
         return $sale;
     }
 
     private function configureRepositories(
-        GroupIndustryProject $project,
+        IndustryProject $project,
         array $sales,
         array $contributions,
     ): void {
@@ -521,7 +521,7 @@ class GroupIndustryDistributionServiceTest extends TestCase
         $user = $this->createStub(User::class);
         $user->method('getMainCharacter')->willReturn(null);
 
-        $member = $this->createStub(GroupIndustryProjectMember::class);
+        $member = $this->createStub(IndustryProjectParticipant::class);
         $member->method('getId')->willReturn($uuid);
         $member->method('getUser')->willReturn($user);
 

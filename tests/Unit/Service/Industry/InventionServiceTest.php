@@ -1644,8 +1644,7 @@ class InventionServiceTest extends TestCase
 
     private function projectOf(IndustryProjectStep ...$steps): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($this->userWithId(self::PROJECT_OWNER_UUID))
+        $project = (new IndustryProject())->setOwner($this->userWithId(self::PROJECT_OWNER_UUID))
             ->setProductTypeId(self::SABRE_TYPE_ID);
         foreach ($steps as $step) {
             $project->addStep($step);

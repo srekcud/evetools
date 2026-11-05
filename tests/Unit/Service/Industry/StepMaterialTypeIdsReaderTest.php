@@ -67,7 +67,7 @@ final class StepMaterialTypeIdsReaderTest extends TestCase
     public function testStepsOfASecondProjectSharingTheBlueprintsOfTheFirstAreAnsweredWithoutReadingTheSdeAgain(): void
     {
         $firstProject = $this->quantumMicroprocessorProject();
-        $secondProject = (new IndustryProject())->setUser(new User())->setProductTypeId(self::TITANIUM_CARBIDE)->setRuns(3);
+        $secondProject = (new IndustryProject())->setOwner(new User())->setProductTypeId(self::TITANIUM_CARBIDE)->setRuns(3);
         $this->stepOf($secondProject, self::TITANIUM_CARBIDE, 'reaction', runs: 3, quantity: 30_000, depth: 0);
         $this->stepOf($secondProject, self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 15, depth: 1);
         $reader = $this->readerOn($this->materialRepositoryOnGoldenSdeRecordingEachRead());
@@ -150,7 +150,7 @@ final class StepMaterialTypeIdsReaderTest extends TestCase
 
     private function quantumMicroprocessorProject(): IndustryProject
     {
-        $project = (new IndustryProject())->setUser(new User())->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
+        $project = (new IndustryProject())->setOwner(new User())->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
         $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32, depth: 0);
         $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490, depth: 1);
         $this->stepOf($project, self::OXYGEN_FUEL_BLOCK, 'manufacturing', runs: 1, quantity: 5, depth: 2);

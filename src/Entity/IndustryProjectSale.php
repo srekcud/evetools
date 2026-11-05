@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity(repositoryClass: GroupIndustrySaleRepository::class)]
-#[ORM\Table(name: 'group_industry_sales')]
+#[ORM\Entity(repositoryClass: IndustryProjectSaleRepository::class)]
+#[ORM\Table(name: 'industry_project_sales')]
 #[ORM\Index(columns: ['project_id'])]
-class GroupIndustrySale
+class IndustryProjectSale
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: GroupIndustryProject::class, inversedBy: 'sales')]
+    #[ORM\ManyToOne(targetEntity: IndustryProject::class, inversedBy: 'sales')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
 
     #[ORM\Column(type: 'integer')]
     private int $typeId;
@@ -69,12 +69,12 @@ class GroupIndustrySale
         return $this->id;
     }
 
-    public function getProject(): GroupIndustryProject
+    public function getProject(): IndustryProject
     {
         return $this->project;
     }
 
-    public function setProject(GroupIndustryProject $project): static
+    public function setProject(IndustryProject $project): static
     {
         $this->project = $project;
         return $this;

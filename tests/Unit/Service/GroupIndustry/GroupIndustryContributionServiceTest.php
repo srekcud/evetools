@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -33,18 +33,18 @@ class GroupIndustryContributionServiceTest extends TestCase
     private const float MEXALLON_BOM_PRICE = 47.25;
     private const float ISOGEN_BOM_PRICE = 0.0;
 
-    private GroupIndustryContributionRepository&MockObject $contributionRepository;
+    private IndustryProjectContributionRepository&MockObject $contributionRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private GroupIndustryContributionService $service;
 
-    private GroupIndustryProject $project;
-    private GroupIndustryProjectMember $member;
-    private GroupIndustryBomItem $bomItem;
+    private IndustryProject $project;
+    private IndustryProjectParticipant $member;
+    private IndustryProjectBomLine $bomItem;
     private User $reviewer;
 
     protected function setUp(): void
     {
-        $this->contributionRepository = $this->createMock(GroupIndustryContributionRepository::class);
+        $this->contributionRepository = $this->createMock(IndustryProjectContributionRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
 
         $this->service = new GroupIndustryContributionService(
@@ -52,12 +52,12 @@ class GroupIndustryContributionServiceTest extends TestCase
             $this->entityManager,
         );
 
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($this->createMock(User::class));
 
         $this->member = $this->memberOfTheProject();
 
-        $this->bomItem = new GroupIndustryBomItem();
+        $this->bomItem = new IndustryProjectBomLine();
         $this->bomItem->setProject($this->project);
         $this->bomItem->setTypeId(self::TRITANIUM_TYPE_ID);
         $this->bomItem->setTypeName('Tritanium');
@@ -260,7 +260,7 @@ class GroupIndustryContributionServiceTest extends TestCase
 
     public function testSubmitAntiDuplicateBlocksPending(): void
     {
-        $existingContribution = new GroupIndustryContribution();
+        $existingContribution = new IndustryProjectContribution();
         $existingContribution->setStatus(ContributionStatus::Pending);
 
         $this->contributionRepository
@@ -280,7 +280,7 @@ class GroupIndustryContributionServiceTest extends TestCase
 
     public function testSubmitAntiDuplicateBlocksApproved(): void
     {
-        $existingContribution = new GroupIndustryContribution();
+        $existingContribution = new IndustryProjectContribution();
         $existingContribution->setStatus(ContributionStatus::Approved);
 
         $this->contributionRepository
@@ -313,7 +313,7 @@ class GroupIndustryContributionServiceTest extends TestCase
 
     public function testApproveChangeStatusAndIncrementsFulfillment(): void
     {
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setProject($this->project);
         $contribution->setMember($this->member);
         $contribution->setBomItem($this->bomItem);
@@ -336,7 +336,7 @@ class GroupIndustryContributionServiceTest extends TestCase
 
     public function testApproveAlreadyApprovedThrows(): void
     {
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setStatus(ContributionStatus::Approved);
 
         $this->expectException(\DomainException::class);
@@ -347,7 +347,7 @@ class GroupIndustryContributionServiceTest extends TestCase
 
     public function testRejectChangesStatusWithoutFulfillment(): void
     {
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setProject($this->project);
         $contribution->setMember($this->member);
         $contribution->setBomItem($this->bomItem);
@@ -370,7 +370,7 @@ class GroupIndustryContributionServiceTest extends TestCase
 
     public function testRejectAlreadyRejectedThrows(): void
     {
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setStatus(ContributionStatus::Rejected);
 
         $this->expectException(\DomainException::class);
@@ -481,7 +481,7 @@ class GroupIndustryContributionServiceTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    private function refusalOf(GroupIndustryBomItem $bomItem, ContributionType $type, int $quantity, ?float $estimatedValue): \DomainException
+    private function refusalOf(IndustryProjectBomLine $bomItem, ContributionType $type, int $quantity, ?float $estimatedValue): \DomainException
     {
         $this->givenNoExistingContribution();
         $this->entityManager->expects($this->never())->method('persist');
@@ -507,7 +507,7 @@ class GroupIndustryContributionServiceTest extends TestCase
         $this->service->submit($this->member, $this->bomItem, $type, $quantity, $estimatedValue);
     }
 
-    private function submitAndExpectOnePersist(ContributionType $type, int $quantity, float $estimatedValue): GroupIndustryContribution
+    private function submitAndExpectOnePersist(ContributionType $type, int $quantity, float $estimatedValue): IndustryProjectContribution
     {
         $this->givenNoExistingContribution();
         $this->entityManager->expects($this->once())->method('persist');
@@ -525,25 +525,25 @@ class GroupIndustryContributionServiceTest extends TestCase
 
     private function givenExistingContributionWithStatus(ContributionStatus $status): void
     {
-        $existing = new GroupIndustryContribution();
+        $existing = new IndustryProjectContribution();
         $existing->setStatus($status);
         $this->contributionRepository
             ->method('findByMemberBomItemAndType')
-            ->willReturnCallback(static fn (GroupIndustryProjectMember $member, GroupIndustryBomItem $bomItem, ContributionType $type, array $statuses): ?GroupIndustryContribution => in_array($status, $statuses, true) ? $existing : null);
+            ->willReturnCallback(static fn (IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, ContributionType $type, array $statuses): ?IndustryProjectContribution => in_array($status, $statuses, true) ? $existing : null);
     }
 
-    private function memberOfTheProject(): GroupIndustryProjectMember
+    private function memberOfTheProject(): IndustryProjectParticipant
     {
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setProject($this->project);
         $member->setUser($this->createMock(User::class));
 
         return $member;
     }
 
-    private function materialLine(int $typeId, string $typeName, float $bomPrice): GroupIndustryBomItem
+    private function materialLine(int $typeId, string $typeName, float $bomPrice): IndustryProjectBomLine
     {
-        $line = new GroupIndustryBomItem();
+        $line = new IndustryProjectBomLine();
         $line->setProject($this->project);
         $line->setTypeId($typeId);
         $line->setTypeName($typeName);
@@ -553,9 +553,9 @@ class GroupIndustryContributionServiceTest extends TestCase
         return $line;
     }
 
-    private function morphiteBomItem(): GroupIndustryBomItem
+    private function morphiteBomItem(): IndustryProjectBomLine
     {
-        $morphite = new GroupIndustryBomItem();
+        $morphite = new IndustryProjectBomLine();
         $morphite->setProject($this->project);
         $morphite->setTypeId(self::MORPHITE_TYPE_ID);
         $morphite->setTypeName('Morphite');

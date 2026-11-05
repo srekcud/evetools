@@ -6,8 +6,8 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\Character;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -44,12 +44,12 @@ class GroupIndustryResourceMapperTest extends TestCase
         $user->method('getMainCharacter')->willReturn($character);
         $user->method('getCorporationId')->willReturn(98000001);
 
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setUser($user);
         $member->setRole(GroupMemberRole::Member);
         $member->setStatus(GroupMemberStatus::Accepted);
 
-        $reflection = new \ReflectionProperty(GroupIndustryProjectMember::class, 'id');
+        $reflection = new \ReflectionProperty(IndustryProjectParticipant::class, 'id');
         $reflection->setValue($member, Uuid::v4());
 
         $resource = $this->mapper->memberToResource($member, 1500000.0, 5);
@@ -70,12 +70,12 @@ class GroupIndustryResourceMapperTest extends TestCase
         $user->method('getMainCharacter')->willReturn(null);
         $user->method('getCorporationId')->willReturn(null);
 
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setUser($user);
         $member->setRole(GroupMemberRole::Owner);
         $member->setStatus(GroupMemberStatus::Accepted);
 
-        $reflection = new \ReflectionProperty(GroupIndustryProjectMember::class, 'id');
+        $reflection = new \ReflectionProperty(IndustryProjectParticipant::class, 'id');
         $reflection->setValue($member, Uuid::v4());
 
         $resource = $this->mapper->memberToResource($member);
@@ -106,13 +106,13 @@ class GroupIndustryResourceMapperTest extends TestCase
     #[Group('issue-53')]
     public function testContributionOfADeletedAccountHasNoMemberCharacterName(): void
     {
-        $contribution = (new GroupIndustryContribution())
+        $contribution = (new IndustryProjectContribution())
             ->setMember($this->anonymizedMember())
             ->setType(ContributionType::Material)
             ->setQuantity(12_000)
             ->setEstimatedValue(1_000_000.0)
             ->setStatus(ContributionStatus::Approved);
-        (new \ReflectionProperty(GroupIndustryContribution::class, 'id'))->setValue($contribution, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectContribution::class, 'id'))->setValue($contribution, Uuid::v4());
 
         $resource = $this->mapper->contributionToResource($contribution);
 
@@ -121,18 +121,18 @@ class GroupIndustryResourceMapperTest extends TestCase
         $this->assertSame(12_000, $resource->quantity);
     }
 
-    private function anonymizedMember(): GroupIndustryProjectMember
+    private function anonymizedMember(): IndustryProjectParticipant
     {
         $mainCharacter = (new Character())->setEveCharacterId(2_112_000_053)->setName('Deleted Pilot')->setCorporationId(98_000_053)->setCorporationName('Deleted Corp');
         $user = new User();
         $user->addCharacter($mainCharacter);
         $user->setMainCharacter($mainCharacter);
 
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole(GroupMemberRole::Admin)
             ->setStatus(GroupMemberStatus::Accepted);
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($member, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($member, Uuid::v4());
         $member->anonymize();
 
         return $member;

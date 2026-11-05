@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Unit\ApiResource\Input\Industry;
 
 use App\ApiResource\Input\Industry\UpdateProjectInput;
-use App\Enum\ProjectStatus;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -77,12 +76,22 @@ final class UpdateProjectInputValidationTest extends TestCase
     }
 
     #[Group('issue-21')]
-    #[DataProvider('projectStatuses')]
-    public function testEveryProjectStatusIsAccepted(ProjectStatus $projectStatus): void
+    #[Group('issue-362')]
+    #[DataProvider('statusesTheSoloRouteAccepts')]
+    public function testActiveAndCompletedProjectStatusesAreAccepted(string $status): void
     {
-        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'status', $projectStatus->value);
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'status', $status);
 
         self::assertCount(0, $violations);
+    }
+
+    #[Group('issue-362')]
+    #[DataProvider('statusesTheSoloRouteRefuses')]
+    public function testArchivedAndLifecycleProjectStatusesAreRejected(string $status): void
+    {
+        $violations = $this->validator->validatePropertyValue(new UpdateProjectInput(), 'status', $status);
+
+        self::assertSame(['status'], $this->propertyPathsOf($violations));
     }
 
     #[Group('issue-21')]
@@ -169,11 +178,17 @@ final class UpdateProjectInputValidationTest extends TestCase
         self::assertCount(0, $violations);
     }
 
-    public static function projectStatuses(): \Generator
+    public static function statusesTheSoloRouteAccepts(): \Generator
     {
-        foreach (ProjectStatus::cases() as $projectStatus) {
-            yield $projectStatus->value => [$projectStatus];
-        }
+        yield 'active' => ['active'];
+        yield 'completed' => ['completed'];
+    }
+
+    public static function statusesTheSoloRouteRefuses(): \Generator
+    {
+        yield 'archived' => ['archived'];
+        yield 'draft' => ['draft'];
+        yield 'in_progress' => ['in_progress'];
     }
 
     /**

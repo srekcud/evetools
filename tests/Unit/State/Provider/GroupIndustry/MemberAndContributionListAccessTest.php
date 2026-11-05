@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\State\Provider\GroupIndustry\GroupContributionCollectionProvider;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupMemberCollectionProvider;
@@ -34,7 +34,7 @@ class MemberAndContributionListAccessTest extends TestCase
 
         $memberRepository = $this->sabreBatchMemberRepository();
         $memberRepository->method('findBy')->willReturn([]);
-        $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
+        $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findBy')->willReturn([]);
         $contributionRepository->method('findByProjectForListing')->willReturn([]);
         $accessChecker = new GroupProjectAccessChecker($memberRepository);

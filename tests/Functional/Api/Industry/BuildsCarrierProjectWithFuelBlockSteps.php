@@ -65,8 +65,7 @@ trait BuildsCarrierProjectWithFuelBlockSteps
         $this->seedCarrierFuelBlockAndPolymerRecipes();
         $this->owner = $this->persistPilot('Aria Solberg');
         $this->intruder = $this->persistPilot('Brann Holt');
-        $this->project = (new IndustryProject())
-            ->setUser($this->owner)
+        $this->project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->owner)
             ->setProductTypeId(self::CARRIER_TYPE_ID)
             ->setRuns(self::CARRIER_RUNS)
             ->setMeLevel(0);

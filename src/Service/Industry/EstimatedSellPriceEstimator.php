@@ -28,7 +28,7 @@ class EstimatedSellPriceEstimator
 
     public function estimateFor(IndustryProject $project): ?EstimatedSellPrice
     {
-        $user = $project->getUser();
+        $user = $project->getOwner();
         $projectProductTypeId = $project->getProductTypeId();
         $producer = SplitGroupMaterials::producerOf($this->activityProductRepository, $projectProductTypeId);
 

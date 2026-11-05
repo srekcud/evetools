@@ -54,8 +54,7 @@ final class PurchaseSuggestionProviderTest extends TestCase
         $character = (new Character())->setName('Aurora Industrialist');
         $pilot = $this->pilotWith($character);
 
-        $project = (new IndustryProject())
-            ->setUser($pilot)
+        $project = (new IndustryProject())->setOwner($pilot)
             ->setProductTypeId(self::CAPITAL_CONSTRUCTION_PARTS_TYPE_ID)
             ->setRuns(2);
         $project->addStep($this->step(self::CAPITAL_CONSTRUCTION_PARTS_BLUEPRINT_TYPE_ID, self::CAPITAL_CONSTRUCTION_PARTS_TYPE_ID, 2, 0));
@@ -409,7 +408,7 @@ final class PurchaseSuggestionProviderTest extends TestCase
 
     private function projectOf(User $owner, int $productTypeId): IndustryProject
     {
-        return (new IndustryProject())->setUser($owner)->setProductTypeId($productTypeId)->setRuns(1);
+        return (new IndustryProject())->setOwner($owner)->setProductTypeId($productTypeId)->setRuns(1);
     }
 
     private function step(int $blueprintTypeId, int $productTypeId, int $runs, int $depth): IndustryProjectStep

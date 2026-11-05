@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
 use App\Enum\ContributionType;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectSaleRepository;
 
 class GroupIndustryDistributionService
 {
     public function __construct(
-        private readonly GroupIndustryContributionRepository $contributionRepository,
-        private readonly GroupIndustrySaleRepository $saleRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
+        private readonly IndustryProjectSaleRepository $saleRepository,
     ) {}
 
-    public function calculateDistribution(GroupIndustryProject $project): DistributionResult
+    public function calculateDistribution(IndustryProject $project): DistributionResult
     {
         $sales = $this->saleRepository->findBy(['project' => $project]);
         $totalRevenue = array_sum(array_map(
@@ -34,7 +34,7 @@ class GroupIndustryDistributionService
 
         $approvedContributions = $this->contributionRepository->findApprovedByProject($project);
         $totalProjectCost = array_sum(array_map(
-            static fn (GroupIndustryContribution $c) => $c->getEstimatedValue(),
+            static fn (IndustryProjectContribution $c) => $c->getEstimatedValue(),
             $approvedContributions,
         ));
 
@@ -56,12 +56,12 @@ class GroupIndustryDistributionService
     }
 
     /**
-     * @param GroupIndustryContribution[] $contributions
+     * @param IndustryProjectContribution[] $contributions
      * @return MemberDistribution[]
      */
     private function buildMemberDistributions(array $contributions, float $totalProjectCost, ?float $marginRatio): array
     {
-        /** @var array<string, array{contributions: GroupIndustryContribution[], member: \App\Entity\GroupIndustryProjectMember}> $grouped */
+        /** @var array<string, array{contributions: IndustryProjectContribution[], member: \App\Entity\IndustryProjectParticipant}> $grouped */
         $grouped = [];
 
         foreach ($contributions as $contribution) {

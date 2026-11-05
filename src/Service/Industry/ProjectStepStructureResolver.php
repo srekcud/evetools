@@ -39,7 +39,7 @@ final readonly class ProjectStepStructureResolver
 
     private function favoriteSolarSystemOf(IndustryProjectStep $step): int
     {
-        $settings = $this->userSettingsRepository->findOneBy(['user' => $step->getProject()->getUser()]);
+        $settings = $this->userSettingsRepository->findOneBy(['user' => $step->getProject()->getOwner()]);
         if ($settings === null) {
             return EveConstants::JITA_SOLAR_SYSTEM_ID;
         }

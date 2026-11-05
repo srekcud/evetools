@@ -62,7 +62,7 @@ final class DeleteStepProcessorTest extends TestCase
     protected function setUp(): void
     {
         $this->pilot = new User();
-        $this->project = (new IndustryProject())->setUser($this->pilot)->setProductTypeId(self::FERNITE_CARBIDE);
+        $this->project = (new IndustryProject())->setOwner($this->pilot)->setProductTypeId(self::FERNITE_CARBIDE);
     }
 
     public function testDeletedJobOfASplitGroupOfTwoDissolvesTheKeptJobWhichTakesTheWholeNeedAndIsSavedWithTheCascade(): void
@@ -577,7 +577,7 @@ final class DeleteStepProcessorTest extends TestCase
     public function testStepOfAProjectOfAnotherPilotIsNotFound(): void
     {
         [, $ferniteAlloy] = $this->ferniteCarbideProjectOfFourRuns();
-        $this->project->setUser(new User());
+        $this->project->setOwner(new User());
 
         $this->expectExceptionObject(new NotFoundHttpException('Project not found'));
 
@@ -587,7 +587,7 @@ final class DeleteStepProcessorTest extends TestCase
     public function testStepOfAnotherProjectIsNotFound(): void
     {
         $this->ferniteCarbideProjectOfFourRuns();
-        $stepOfAnotherProject = (new IndustryProjectStep())->setProject((new IndustryProject())->setUser($this->pilot));
+        $stepOfAnotherProject = (new IndustryProjectStep())->setProject((new IndustryProject())->setOwner($this->pilot));
 
         $this->expectExceptionObject(new NotFoundHttpException('Step not found'));
 

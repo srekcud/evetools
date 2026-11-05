@@ -10,7 +10,7 @@ use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
 use App\Entity\User;
 use App\Enum\ProjectCorrectionStatus;
-use App\Enum\ProjectStatus;
+use App\Enum\GroupProjectStatus;
 use App\Exception\BlueprintProductMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryStepCalculator;
@@ -175,9 +175,9 @@ final class ReactionStepMeLevelResetTest extends TestCase
     public function testCompletedArchivedAtMeZeroAndWithoutReactionProjectsAreNotSelected(): void
     {
         $completedProject = $this->ferniteCarbideProjectOfTwentyRuns(self::COMPLETED_FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135)
-            ->setStatus(ProjectStatus::Completed);
+            ->setStatus(GroupProjectStatus::Completed);
         $archivedProject = $this->ferniteCarbideProjectOfTwentyRuns(self::ARCHIVED_FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135)
-            ->setStatus(ProjectStatus::Archived);
+            ->setStatus(GroupProjectStatus::Completed);
         $projectAtMeZero = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 0, ferniteAlloyRuns: 10, ferniteAlloyQuantity: 2_000, hydrogenFuelBlockQuantity: 150);
         $rifterProject = $this->rifterProjectWithItsBlueprintCopy();
 
@@ -363,7 +363,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
     public function testOwnerWithoutIdentifierFailsTheProjectBeforeAnyFlush(): void
     {
         $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135)
-            ->setUser(new User());
+            ->setOwner(new User());
 
         $outcomes = $this->resetOf($project)->run(false);
 
@@ -375,26 +375,9 @@ final class ReactionStepMeLevelResetTest extends TestCase
         self::assertSame([], $this->topicsAndStatusesOfThePublishedUpdates());
     }
 
-    #[Group('issue-301')]
-    public function testProjectWithoutIdentifierFailsBeforeAnyFlush(): void
-    {
-        $project = $this->ferniteCarbideProjectOfTwentyRuns(self::FERNITE_CARBIDE_PROJECT_ID, ferniteCarbideMeLevel: 10, ferniteAlloyRuns: 9, ferniteAlloyQuantity: 1_800, hydrogenFuelBlockQuantity: 135);
-        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, null);
-
-        $outcomes = $this->resetReadingEachProjectUnderItsId([self::FERNITE_CARBIDE_PROJECT_ID => $project])->run(false);
-
-        self::assertSame(
-            [[self::FERNITE_CARBIDE_PROJECT_ID, 'type 16673 (name missing from the SDE)', 20, ProjectCorrectionStatus::Failed, null, 'LogicException: A project read from the database has no identifier']],
-            self::summaryOf($outcomes),
-        );
-        self::assertSame(['clear'], $this->entityManagerCalls);
-        self::assertSame([], $this->topicsAndStatusesOfThePublishedUpdates());
-    }
-
     private function ferniteCarbideProject(string $projectId, int $runs): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($this->pilot)
+        $project = (new IndustryProject())->setOwner($this->pilot)
             ->setProductTypeId(self::FERNITE_CARBIDE)
             ->setRuns($runs)
             ->setMeLevel(self::PROJECT_ME_LEVEL)
@@ -428,8 +411,7 @@ final class ReactionStepMeLevelResetTest extends TestCase
     private function rifterProjectWithItsBlueprintCopy(): IndustryProject
     {
         $project = $this->identified(
-            (new IndustryProject())
-                ->setUser($this->pilot)
+            (new IndustryProject())->setOwner($this->pilot)
                 ->setProductTypeId(self::RIFTER)
                 ->setRuns(5)
                 ->setMeLevel(self::PROJECT_ME_LEVEL)

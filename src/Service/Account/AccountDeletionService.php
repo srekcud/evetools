@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Account;
 
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProject;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
@@ -14,7 +14,7 @@ use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberStatus;
 use App\Enum\MiningOperationStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\MiningOperationMemberRepository;
 use App\Service\ESI\EsiClient;
@@ -111,14 +111,14 @@ class AccountDeletionService
     }
 
     /**
-     * @return list<GroupIndustryProject>
+     * @return list<IndustryProject>
      */
     private function handOverOwnedProjects(User $user): array
     {
         $memberRepository = $this->memberRepository();
         $deletedProjects = [];
 
-        foreach ($this->entityManager->getRepository(GroupIndustryProject::class)->findBy(['owner' => $user]) as $project) {
+        foreach ($this->entityManager->getRepository(IndustryProject::class)->findBy(['owner' => $user]) as $project) {
             $successor = $memberRepository->findOwnershipSuccessor($project, $user);
 
             if ($successor === null) {
@@ -135,11 +135,11 @@ class AccountDeletionService
     }
 
     /**
-     * @param list<GroupIndustryProject> $deletedProjects
+     * @param list<IndustryProject> $deletedProjects
      */
     private function anonymizeMemberships(User $user, array $deletedProjects): void
     {
-        $contributionRepository = $this->entityManager->getRepository(GroupIndustryContribution::class);
+        $contributionRepository = $this->entityManager->getRepository(IndustryProjectContribution::class);
 
         foreach ($this->memberRepository()->findBy(['user' => $user]) as $membership) {
             if (\in_array($membership->getProject(), $deletedProjects, true)) {
@@ -164,11 +164,11 @@ class AccountDeletionService
         }
     }
 
-    private function memberRepository(): GroupIndustryProjectMemberRepository
+    private function memberRepository(): IndustryProjectParticipantRepository
     {
-        $repository = $this->entityManager->getRepository(GroupIndustryProjectMember::class);
-        if (!$repository instanceof GroupIndustryProjectMemberRepository) {
-            throw new \LogicException(sprintf('%s must be the repository of %s.', GroupIndustryProjectMemberRepository::class, GroupIndustryProjectMember::class));
+        $repository = $this->entityManager->getRepository(IndustryProjectParticipant::class);
+        if (!$repository instanceof IndustryProjectParticipantRepository) {
+            throw new \LogicException(sprintf('%s must be the repository of %s.', IndustryProjectParticipantRepository::class, IndustryProjectParticipant::class));
         }
 
         return $repository;

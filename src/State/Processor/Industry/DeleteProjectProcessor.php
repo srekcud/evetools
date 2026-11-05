@@ -36,7 +36,7 @@ class DeleteProjectProcessor implements ProcessorInterface
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
 
-        if ($project === null || $project->getUser() !== $user) {
+        if ($project === null || !$project->isPlannedByStepsAndOwnedBy($user)) {
             throw new NotFoundHttpException('Project not found');
         }
 

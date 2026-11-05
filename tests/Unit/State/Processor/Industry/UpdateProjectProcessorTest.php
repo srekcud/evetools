@@ -150,8 +150,7 @@ final class UpdateProjectProcessorTest extends TestCase
 
     private function projectOf(User $user): IndustryProject
     {
-        return (new IndustryProject())
-            ->setUser($user)
+        return (new IndustryProject())->setOwner($user)
             ->setProductTypeId(self::RIFTER)
             ->setRuns(self::INITIAL_RUNS)
             ->setMeLevel(self::INITIAL_ME_LEVEL)

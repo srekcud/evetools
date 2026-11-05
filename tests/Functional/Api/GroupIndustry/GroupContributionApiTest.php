@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\GroupIndustry;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -199,7 +199,7 @@ final class GroupContributionApiTest extends WebTestCase
         return $this->projectUri($this->ishtarBatch).'/contributions';
     }
 
-    private function contributionUri(GroupIndustryContribution $contribution): string
+    private function contributionUri(IndustryProjectContribution $contribution): string
     {
         return $this->contributionsUri().'/'.$this->idOf($contribution);
     }
@@ -226,20 +226,20 @@ final class GroupContributionApiTest extends WebTestCase
     {
         $this->em->clear();
 
-        return $this->em->getRepository(GroupIndustryContribution::class)->count(['project' => $this->ishtarBatch->getId()]);
+        return $this->em->getRepository(IndustryProjectContribution::class)->count(['project' => $this->ishtarBatch->getId()]);
     }
 
-    private function storedFulfilledQuantityOf(GroupIndustryBomItem $line): ?int
+    private function storedFulfilledQuantityOf(IndustryProjectBomLine $line): ?int
     {
         $this->em->clear();
 
-        return $this->em->find(GroupIndustryBomItem::class, $line->getId())?->getFulfilledQuantity();
+        return $this->em->find(IndustryProjectBomLine::class, $line->getId())?->getFulfilledQuantity();
     }
 
-    private function storedStatusOf(GroupIndustryContribution $contribution): ?string
+    private function storedStatusOf(IndustryProjectContribution $contribution): ?string
     {
         $this->em->clear();
 
-        return $this->em->find(GroupIndustryContribution::class, $contribution->getId())?->getStatus()->value;
+        return $this->em->find(IndustryProjectContribution::class, $contribution->getId())?->getStatus()->value;
     }
 }

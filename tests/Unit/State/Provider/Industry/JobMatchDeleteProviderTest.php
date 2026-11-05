@@ -40,7 +40,7 @@ final class JobMatchDeleteProviderTest extends TestCase
     public function testJobMatchOfAStepOfAnotherPilotIsNotFound(): void
     {
         $step = (new IndustryProjectStep())->setActivityType('manufacturing')->setRuns(12)->setQuantity(12);
-        (new IndustryProject())->setUser(new User())->addStep($step);
+        (new IndustryProject())->setOwner(new User())->addStep($step);
         $matchOfAnotherPilot = (new IndustryStepJobMatch())->setEsiJobId(307)->setRuns(12)->setStatus('active');
         $step->addJobMatch($matchOfAnotherPilot);
         $security = $this->createStub(Security::class);

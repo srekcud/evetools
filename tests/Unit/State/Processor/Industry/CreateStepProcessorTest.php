@@ -64,7 +64,7 @@ final class CreateStepProcessorTest extends TestCase
     protected function setUp(): void
     {
         $this->pilot = new User();
-        $this->project = (new IndustryProject())->setUser($this->pilot);
+        $this->project = (new IndustryProject())->setOwner($this->pilot);
     }
 
     #[Group('issue-280')]
@@ -325,7 +325,7 @@ final class CreateStepProcessorTest extends TestCase
     public function testStepAddedToAStepOfAnotherProjectIsRefusedAsStepNotFound(): void
     {
         $stepOfAnotherProject = (new IndustryProjectStep())->setRuns(7);
-        (new IndustryProject())->setUser($this->pilot)->addStep($stepOfAnotherProject);
+        (new IndustryProject())->setOwner($this->pilot)->addStep($stepOfAnotherProject);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects($this->never())->method('flush');
 
@@ -430,7 +430,7 @@ final class CreateStepProcessorTest extends TestCase
 
     public function testStepAddedToAProjectOfAnotherPilotIsRefusedAsProjectNotFound(): void
     {
-        $this->project->setUser(new User());
+        $this->project->setOwner(new User());
 
         $this->expectException(NotFoundHttpException::class);
         $this->expectExceptionMessage('Project not found');

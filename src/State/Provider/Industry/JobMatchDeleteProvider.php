@@ -35,7 +35,7 @@ class JobMatchDeleteProvider implements ProviderInterface
 
         $match = $this->matchRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Job match not found'));
 
-        if ($match === null || $match->getStep()->getProject()->getUser() !== $user) {
+        if ($match === null || !$match->getStep()->getProject()->isPlannedByStepsAndOwnedBy($user)) {
             throw new NotFoundHttpException('Job match not found');
         }
 

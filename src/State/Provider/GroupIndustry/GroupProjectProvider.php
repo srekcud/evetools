@@ -9,8 +9,8 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\User;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -23,8 +23,8 @@ class GroupProjectProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,
     ) {
@@ -40,7 +40,7 @@ class GroupProjectProvider implements ProviderInterface
 
         $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
 
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

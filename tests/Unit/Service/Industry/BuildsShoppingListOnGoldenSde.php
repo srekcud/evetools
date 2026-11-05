@@ -73,8 +73,7 @@ trait BuildsShoppingListOnGoldenSde
 
     private static function projectOf(User $pilot, int $productTypeId, int $runs, int $meLevel): IndustryProject
     {
-        return (new IndustryProject())
-            ->setUser($pilot)
+        return (new IndustryProject())->setOwner($pilot)
             ->setProductTypeId($productTypeId)
             ->setRuns($runs)
             ->setMeLevel($meLevel);

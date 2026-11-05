@@ -61,7 +61,7 @@ final class SplitStepProcessorTest extends TestCase
     protected function setUp(): void
     {
         $this->user = new User();
-        $this->project = (new IndustryProject())->setUser($this->user);
+        $this->project = (new IndustryProject())->setOwner($this->user);
     }
 
     #[Group('issue-112')]
@@ -291,7 +291,7 @@ final class SplitStepProcessorTest extends TestCase
     public function testManualSplitOfAStepOfAProjectOfAnotherPilotIsRefusedAsProjectNotFound(): void
     {
         $step = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', runs: 4, quantity: 150);
-        $this->project->setUser(new User());
+        $this->project->setOwner(new User());
 
         $this->expectException(NotFoundHttpException::class);
         $this->expectExceptionMessage('Project not found');
@@ -325,7 +325,7 @@ final class SplitStepProcessorTest extends TestCase
     public function testManualSplitOfAStepOfAnotherProjectIsRefusedAsStepNotFound(): void
     {
         $stepOfAnotherProject = (new IndustryProjectStep())->setRuns(8);
-        (new IndustryProject())->setUser($this->user)->addStep($stepOfAnotherProject);
+        (new IndustryProject())->setOwner($this->user)->addStep($stepOfAnotherProject);
 
         $this->expectException(NotFoundHttpException::class);
         $this->expectExceptionMessage('Step not found');
@@ -401,7 +401,7 @@ final class SplitStepProcessorTest extends TestCase
     public function testManualSplitOfAStepOfAProjectOfAnotherPilotIsRefusedWithoutRefreshingTheEstimations(): void
     {
         $step = $this->stepOfTheProject(self::OXYGEN_FUEL_BLOCK, self::OXYGEN_FUEL_BLOCK_BLUEPRINT, 'manufacturing', runs: 4, quantity: 150);
-        $this->project->setUser(new User());
+        $this->project->setOwner(new User());
 
         try {
             $this->split($step, numberOfJobs: 2, entityManager: $this->entityManagerCountingTheFlushes());

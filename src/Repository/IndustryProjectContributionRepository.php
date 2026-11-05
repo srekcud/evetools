@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProject;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -15,19 +15,19 @@ use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @extends ServiceEntityRepository<GroupIndustryContribution>
+ * @extends ServiceEntityRepository<IndustryProjectContribution>
  */
-class GroupIndustryContributionRepository extends ServiceEntityRepository
+class IndustryProjectContributionRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, GroupIndustryContribution::class);
+        parent::__construct($registry, IndustryProjectContribution::class);
     }
 
     /**
-     * @return GroupIndustryContribution[]
+     * @return IndustryProjectContribution[]
      */
-    public function findApprovedByProject(GroupIndustryProject $project): array
+    public function findApprovedByProject(IndustryProject $project): array
     {
         return $this->createQueryBuilder('c')
             ->addSelect('contributor', 'contributorUser', 'contributorCharacter', 'contributorToken')
@@ -46,7 +46,7 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
     /**
      * Approved contribution value per project, keyed by project UUID (RFC 4122); 0.0 for a project without any.
      *
-     * @param list<GroupIndustryProject> $projects
+     * @param list<IndustryProject> $projects
      *
      * @return array<string, float>
      */
@@ -80,7 +80,7 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
     /**
      * @return list<string>
      */
-    public function findContributedBomItemIds(GroupIndustryProject $project): array
+    public function findContributedBomItemIds(IndustryProject $project): array
     {
         $bomItemIds = $this->createQueryBuilder('c')
             ->select('DISTINCT IDENTITY(c.bomItem)')
@@ -99,11 +99,11 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
      * @param ContributionStatus[] $statuses
      */
     public function findByMemberBomItemAndType(
-        GroupIndustryProjectMember $member,
-        GroupIndustryBomItem $bomItem,
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
         ContributionType $type,
         array $statuses,
-    ): ?GroupIndustryContribution {
+    ): ?IndustryProjectContribution {
         if (empty($statuses)) {
             return null;
         }
@@ -126,9 +126,9 @@ class GroupIndustryContributionRepository extends ServiceEntityRepository
      * Contributions of a project, most recent first, with the contributing member, its user and main character,
      * the BOM item and the reviewer with its main character fetch-joined.
      *
-     * @return GroupIndustryContribution[]
+     * @return IndustryProjectContribution[]
      */
-    public function findByProjectForListing(GroupIndustryProject $project): array
+    public function findByProjectForListing(IndustryProject $project): array
     {
         return $this->createQueryBuilder('c')
             ->addSelect('contributor', 'contributorUser', 'contributorCharacter', 'contributorToken', 'bomItem', 'reviewer', 'reviewerCharacter', 'reviewerToken')

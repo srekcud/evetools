@@ -85,15 +85,15 @@ final class CreatePurchaseProcessorTest extends TestCase
         $p9 = $this->character('Other Pilot', 2_120_000_009);
         $u2->addCharacter($p9);
 
-        $j1 = (new IndustryProject())->setUser($u1)->setProductTypeId(9000)->setRuns(4);
+        $j1 = (new IndustryProject())->setOwner($u1)->setProductTypeId(9000)->setRuns(4);
         $this->s1 = $this->step(9200, 9000, 4, 0);
         $this->s1b = $this->step(9201, 9101, 30, 1);
         $j1->addStep($this->s1);
         $j1->addStep($this->s1b);
-        $j2 = (new IndustryProject())->setUser($u1)->setProductTypeId(9010)->setRuns(2);
+        $j2 = (new IndustryProject())->setOwner($u1)->setProductTypeId(9010)->setRuns(2);
         $this->s2 = $this->step(9202, 9010, 2, 0);
         $j2->addStep($this->s2);
-        $j9 = (new IndustryProject())->setUser($u2)->setProductTypeId(9090)->setRuns(1);
+        $j9 = (new IndustryProject())->setOwner($u2)->setProductTypeId(9090)->setRuns(1);
         $this->s9 = $this->step(9209, 9090, 1, 0);
         $j9->addStep($this->s9);
 

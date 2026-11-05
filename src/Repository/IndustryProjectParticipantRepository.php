@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
@@ -13,17 +13,17 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<GroupIndustryProjectMember>
+ * @extends ServiceEntityRepository<IndustryProjectParticipant>
  */
-class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
+class IndustryProjectParticipantRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, GroupIndustryProjectMember::class);
+        parent::__construct($registry, IndustryProjectParticipant::class);
     }
 
     /**
-     * Return project UUIDs (as strings) for all accepted memberships of a user.
+     * Return project UUIDs (as strings) for all accepted memberships of a user in projects with items.
      *
      * @return string[]
      */
@@ -31,6 +31,8 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
     {
         $rows = $this->createQueryBuilder('m')
             ->select('IDENTITY(m.project) AS projectId')
+            ->join('m.project', 'p')
+            ->andWhere('p.items IS NOT EMPTY')
             ->andWhere('m.user = :user')
             ->andWhere('m.status = :status')
             ->setParameter('user', $user)
@@ -46,11 +48,11 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
      * the project, its owner and the owner's main character are fetch-joined, the project items and
      * BOM items are batch-loaded (one query per collection, to avoid a row explosion).
      *
-     * @return GroupIndustryProjectMember[]
+     * @return IndustryProjectParticipant[]
      */
     public function findAcceptedWithProjectsByUser(User $user): array
     {
-        /** @var GroupIndustryProjectMember[] $memberships */
+        /** @var IndustryProjectParticipant[] $memberships */
         $memberships = $this->createQueryBuilder('m')
             ->addSelect('p', 'owner', 'ownerCharacter', 'ownerToken')
             ->join('m.project', 'p')
@@ -58,6 +60,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
             // Character::eveToken is an inverse OneToOne: not joined, Doctrine would load it row by row
             ->leftJoin('owner.mainCharacter', 'ownerCharacter')
             ->leftJoin('ownerCharacter.eveToken', 'ownerToken')
+            ->andWhere('p.items IS NOT EMPTY')
             ->andWhere('m.user = :user')
             ->andWhere('m.status = :status')
             ->setParameter('user', $user)
@@ -67,7 +70,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
             ->getResult();
 
         $this->loadItemsAndBomItems(
-            array_map(static fn (GroupIndustryProjectMember $m): GroupIndustryProject => $m->getProject(), $memberships),
+            array_map(static fn (IndustryProjectParticipant $m): IndustryProject => $m->getProject(), $memberships),
         );
 
         return $memberships;
@@ -77,7 +80,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
      * Initializes the items and the BOM items of the given projects: one query per collection,
      * whatever the number of projects (a single fetch join would multiply the rows).
      *
-     * @param GroupIndustryProject[] $projects
+     * @param IndustryProject[] $projects
      */
     public function loadItemsAndBomItems(array $projects): void
     {
@@ -92,7 +95,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
     /**
      * Initializes, in a single query, the user of each given membership and the user's main character.
      *
-     * @param GroupIndustryProjectMember[] $memberships
+     * @param IndustryProjectParticipant[] $memberships
      */
     public function loadUsersWithMainCharacter(array $memberships): void
     {
@@ -115,7 +118,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
     /**
      * Number of accepted members per project, keyed by project UUID (RFC 4122); 0 for a project without any.
      *
-     * @param GroupIndustryProject[] $projects
+     * @param IndustryProject[] $projects
      *
      * @return array<string, int>
      */
@@ -146,7 +149,7 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
         return $counts;
     }
 
-    public function findOwnershipSuccessor(GroupIndustryProject $project, User $leavingOwner): ?GroupIndustryProjectMember
+    public function findOwnershipSuccessor(IndustryProject $project, User $leavingOwner): ?IndustryProjectParticipant
     {
         return $this->createQueryBuilder('m')
             ->addSelect('CASE WHEN m.role = :admin THEN 0 ELSE 1 END AS HIDDEN rolePriority')
@@ -168,13 +171,13 @@ class GroupIndustryProjectMemberRepository extends ServiceEntityRepository
     /**
      * Initializes a collection of the given projects in a single fetch-join query.
      *
-     * @param GroupIndustryProject[] $projects
+     * @param IndustryProject[] $projects
      */
     private function loadProjectCollection(array $projects, string $collection): void
     {
         $this->getEntityManager()->createQueryBuilder()
             ->select('p', 'c')
-            ->from(GroupIndustryProject::class, 'p')
+            ->from(IndustryProject::class, 'p')
             ->leftJoin('p.'.$collection, 'c')
             ->andWhere('p IN (:projects)')
             ->setParameter('projects', $projects)

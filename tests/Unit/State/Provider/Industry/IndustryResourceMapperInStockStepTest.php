@@ -79,7 +79,7 @@ final class IndustryResourceMapperInStockStepTest extends TestCase
 
     private function ferniteCarbideProjectOfFourRuns(): array
     {
-        $project = (new IndustryProject())->setUser(new User())->setProductTypeId(self::FERNITE_CARBIDE)->setRuns(4);
+        $project = (new IndustryProject())->setOwner(new User())->setProductTypeId(self::FERNITE_CARBIDE)->setRuns(4);
 
         return [
             $this->stepOf($project, self::FERNITE_CARBIDE, 'reaction', runs: 4, quantity: 40_000, depth: 0),

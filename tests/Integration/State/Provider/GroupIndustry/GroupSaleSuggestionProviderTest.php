@@ -6,16 +6,16 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\CachedWalletTransaction;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupSaleSuggestionProvider;
 use App\Tests\Integration\IntegrationTestCase;
@@ -77,11 +77,11 @@ final class GroupSaleSuggestionProviderTest extends IntegrationTestCase
         }
         $owner->setMainCharacter($characters[0]);
 
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix))->setStatus(GroupProjectStatus::Selling);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable('2026-10-20T10:00:00+00:00'));
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName(sprintf('%s project', $prefix))->setStatus(GroupProjectStatus::Selling);
+        (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($project, new \DateTimeImmutable('2026-10-20T10:00:00+00:00'));
         $this->em->persist($project);
-        $project->addMember((new GroupIndustryProjectMember())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
-        $project->addItem((new GroupIndustryProjectItem())->setTypeId(self::SABRE_TYPE_ID)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
+        $project->addMember((new IndustryProjectParticipant())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
+        $project->addItem((new IndustryProjectProduct())->setTypeId(self::SABRE_TYPE_ID)->setTypeName('Sabre')->setMeLevel(10)->setRuns(1));
         $project->addSale($this->manualSale($owner, 3, 61_250_000.0));
         $project->addSale($this->manualSale($owner, 2, 60_000_000.0));
 
@@ -113,7 +113,7 @@ final class GroupSaleSuggestionProviderTest extends IntegrationTestCase
         $security->method('getUser')->willReturn($owner);
         $provider = new GroupSaleSuggestionProvider(
             $security,
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(CachedWalletTransactionRepository::class),
         );
@@ -126,9 +126,9 @@ final class GroupSaleSuggestionProviderTest extends IntegrationTestCase
         return [$queries, \count($suggestions)];
     }
 
-    private function manualSale(User $recordedBy, int $quantity, float $unitPrice): GroupIndustrySale
+    private function manualSale(User $recordedBy, int $quantity, float $unitPrice): IndustryProjectSale
     {
-        return (new GroupIndustrySale())
+        return (new IndustryProjectSale())
             ->setTypeId(0)
             ->setTypeName('Sabre')
             ->setQuantity($quantity)

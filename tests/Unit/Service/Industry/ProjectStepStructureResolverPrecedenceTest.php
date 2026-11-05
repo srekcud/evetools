@@ -96,7 +96,7 @@ final class ProjectStepStructureResolverPrecedenceTest extends TestCase
 
     private function stepOfUser(User $user, string $activityType): IndustryProjectStep
     {
-        $project = (new IndustryProject())->setUser($user);
+        $project = (new IndustryProject())->setOwner($user);
         $step = (new IndustryProjectStep())->setActivityType($activityType)->setDepth(0);
         $project->addStep($step);
 

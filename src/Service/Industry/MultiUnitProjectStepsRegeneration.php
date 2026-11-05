@@ -9,7 +9,6 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Enum\IndustryActivityType;
 use App\Enum\ProjectCorrectionStatus;
-use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -39,7 +38,7 @@ class MultiUnitProjectStepsRegeneration extends ProjectByProjectCorrection
 
     private function hasRootStepsBelowItsProducedQuantity(IndustryProject $project): bool
     {
-        if ($project->getStatus() !== ProjectStatus::Active) {
+        if ($project->isCompleted()) {
             return false;
         }
 

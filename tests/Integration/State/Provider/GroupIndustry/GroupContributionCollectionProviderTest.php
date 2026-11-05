@@ -6,17 +6,18 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupContributionCollectionProvider;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -61,7 +62,7 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         $dornWithoutMainCharacter = $this->createUser();
         $viewer = $this->createUserWithMainCharacter('Kaelen Voss');
 
-        $project = (new GroupIndustryProject())->setOwner($aria)->setName('Sabre doctrine');
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($aria)->setName('Sabre doctrine');
         $this->em->persist($project);
         $ariaMember = $this->addMember($project, $aria, GroupMemberRole::Owner);
         $brannMember = $this->addMember($project, $brann, GroupMemberRole::Admin);
@@ -84,7 +85,7 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         $this->addContribution('mexallon', $project, $ariaMember, $mexallon, ContributionType::Material, quantity: 50_000, estimatedValue: 2_500_000.0, status: ContributionStatus::Approved, reviewedBy: $brann)
             ->setIsVerified(true);
 
-        $otherProject = (new GroupIndustryProject())->setOwner($brann)->setName('Other project');
+        $otherProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($brann)->setName('Other project');
         $this->em->persist($otherProject);
         $otherMember = $this->addMember($otherProject, $brann, GroupMemberRole::Owner);
         $this->addContribution('otherProject', $otherProject, $otherMember, null, ContributionType::LineRental, quantity: 1, estimatedValue: 1_000_000.0, status: ContributionStatus::Pending, reviewedBy: null);
@@ -265,7 +266,7 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
     {
         $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
         $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName(sprintf('%s project', $prefix));
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $this->addMember($project, $viewer, GroupMemberRole::Member);
@@ -299,8 +300,8 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
 
         $provider = new GroupContributionCollectionProvider(
             $security,
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
-            self::getContainer()->get(GroupIndustryContributionRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectContributionRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(GroupIndustryResourceMapper::class),
         );
@@ -329,9 +330,9 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): IndustryProjectParticipant
     {
-        $member = (new GroupIndustryProjectMember())
+        $member = (new IndustryProjectParticipant())
             ->setUser($user)
             ->setRole($role)
             ->setStatus(GroupMemberStatus::Accepted);
@@ -340,9 +341,9 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addBomItem(GroupIndustryProject $project, int $typeId, string $typeName): GroupIndustryBomItem
+    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): IndustryProjectBomLine
     {
-        $bomItem = (new GroupIndustryBomItem())
+        $bomItem = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
             ->setTypeName($typeName)
             ->setRequiredQuantity(1_000_000);
@@ -353,16 +354,16 @@ final class GroupContributionCollectionProviderTest extends IntegrationTestCase
 
     private function addContribution(
         string $label,
-        GroupIndustryProject $project,
-        GroupIndustryProjectMember $member,
-        ?GroupIndustryBomItem $bomItem,
+        IndustryProject $project,
+        IndustryProjectParticipant $member,
+        ?IndustryProjectBomLine $bomItem,
         ContributionType $type,
         int $quantity,
         float $estimatedValue,
         ContributionStatus $status,
         ?User $reviewedBy,
-    ): GroupIndustryContribution {
-        $contribution = (new GroupIndustryContribution())
+    ): IndustryProjectContribution {
+        $contribution = (new IndustryProjectContribution())
             ->setMember($member)
             ->setBomItem($bomItem)
             ->setType($type)

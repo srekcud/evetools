@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Repository\GroupIndustryBomItemRepository;
+use App\Repository\IndustryProjectBomLineRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity(repositoryClass: GroupIndustryBomItemRepository::class)]
-#[ORM\Table(name: 'group_industry_bom_items')]
+#[ORM\Entity(repositoryClass: IndustryProjectBomLineRepository::class)]
+#[ORM\Table(name: 'industry_project_bom_lines')]
 #[ORM\Index(columns: ['project_id'])]
 #[ORM\Index(columns: ['type_id'])]
-class GroupIndustryBomItem
+class IndustryProjectBomLine
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
 
-    #[ORM\ManyToOne(targetEntity: GroupIndustryProject::class, inversedBy: 'bomItems')]
+    #[ORM\ManyToOne(targetEntity: IndustryProject::class, inversedBy: 'bomItems')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
 
     #[ORM\Column(type: 'integer')]
     private int $typeId;
@@ -73,12 +73,12 @@ class GroupIndustryBomItem
         return $this->id;
     }
 
-    public function getProject(): GroupIndustryProject
+    public function getProject(): IndustryProject
     {
         return $this->project;
     }
 
-    public function setProject(GroupIndustryProject $project): static
+    public function setProject(IndustryProject $project): static
     {
         $this->project = $project;
         return $this;

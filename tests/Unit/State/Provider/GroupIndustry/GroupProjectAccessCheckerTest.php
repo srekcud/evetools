@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
@@ -193,12 +193,12 @@ class GroupProjectAccessCheckerTest extends TestCase
         self::assertSame(self::GRANTED, $this->manageOutcome($actingAdmin, $pendingMember));
     }
 
-    private function membershipOf(GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function membershipOf(GroupMemberRole $role, GroupMemberStatus $status): IndustryProjectParticipant
     {
         return $this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), $role, $status);
     }
 
-    private function manageOutcome(User $user, GroupIndustryProjectMember $target): string
+    private function manageOutcome(User $user, IndustryProjectParticipant $target): string
     {
         return $this->outcomeOf(fn () => $this->accessChecker->assertCanManageMember($user, $this->sabreBatch, $target));
     }

@@ -8,10 +8,10 @@ use ApiPlatform\Metadata\Post;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\RecordSaleFromWalletTransactionInput;
 use App\Entity\CachedWalletTransaction;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\RecordSaleFromWalletTransactionProcessor;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -65,8 +65,8 @@ final class RecordSaleFromWalletTransactionProcessorTest extends TestCase
         $this->security = $this->createStub(Security::class);
 
         $entityManager = $this->createStub(EntityManagerInterface::class);
-        $entityManager->method('persist')->willReturnCallback(function (GroupIndustrySale $sale): void {
-            (new \ReflectionProperty(GroupIndustrySale::class, 'id'))->setValue($sale, Uuid::v4());
+        $entityManager->method('persist')->willReturnCallback(function (IndustryProjectSale $sale): void {
+            (new \ReflectionProperty(IndustryProjectSale::class, 'id'))->setValue($sale, Uuid::v4());
             $this->persistedSales[] = $sale;
             $this->sabreBatch->addSale($sale);
         });
@@ -393,11 +393,11 @@ final class RecordSaleFromWalletTransactionProcessorTest extends TestCase
         return [$outcome, count($this->persistedSales), $this->publishedUpdates];
     }
 
-    private function saleRepositoryLookingUpTheLinkedSales(): GroupIndustrySaleRepository&Stub
+    private function saleRepositoryLookingUpTheLinkedSales(): IndustryProjectSaleRepository&Stub
     {
-        $saleRepository = $this->createStub(GroupIndustrySaleRepository::class);
+        $saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
         $saleRepository->method('findOneBy')->willReturnCallback(
-            function (array $criteria): ?GroupIndustrySale {
+            function (array $criteria): ?IndustryProjectSale {
                 if (array_keys($criteria) !== ['walletTransaction']) {
                     self::fail('Unexpected criteria ' . implode(', ', array_keys($criteria)));
                 }

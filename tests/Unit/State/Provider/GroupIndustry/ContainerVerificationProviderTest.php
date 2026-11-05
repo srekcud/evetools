@@ -6,13 +6,14 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContainerService;
 use App\State\Provider\GroupIndustry\ContainerVerificationProvider;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -29,8 +30,8 @@ use Symfony\Component\Uid\Uuid;
 class ContainerVerificationProviderTest extends TestCase
 {
     private Security&Stub $security;
-    private GroupIndustryProjectRepository&Stub $projectRepository;
-    private GroupIndustryProjectMemberRepository&Stub $memberRepository;
+    private IndustryProjectRepository&Stub $projectRepository;
+    private IndustryProjectParticipantRepository&Stub $memberRepository;
     private GroupIndustryContainerService&Stub $containerService;
     private GroupProjectAccessChecker $accessChecker;
     private ContainerVerificationProvider $provider;
@@ -38,8 +39,8 @@ class ContainerVerificationProviderTest extends TestCase
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
-        $this->projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
-        $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->containerService = $this->createStub(GroupIndustryContainerService::class);
         $this->accessChecker = new GroupProjectAccessChecker($this->memberRepository);
 
@@ -82,7 +83,7 @@ class ContainerVerificationProviderTest extends TestCase
 
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
         $this->memberRepository->method('findOneBy')->willReturn(null);
@@ -101,7 +102,7 @@ class ContainerVerificationProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $project->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
         $this->containerService->method('verifyContainer')->willReturn([]);
@@ -118,11 +119,11 @@ class ContainerVerificationProviderTest extends TestCase
 
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
 
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setUser($user);
         $member->setProject($project);
         $member->setRole(GroupMemberRole::Admin);
@@ -144,7 +145,7 @@ class ContainerVerificationProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $project->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
 

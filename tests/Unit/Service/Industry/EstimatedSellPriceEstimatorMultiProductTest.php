@@ -183,8 +183,7 @@ final class EstimatedSellPriceEstimatorMultiProductTest extends TestCase
 
     private function projectOfUserWithRootSteps(User $user, IndustryProjectStep ...$steps): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($user)
+        $project = (new IndustryProject())->setOwner($user)
             ->setProductTypeId(self::RIFTER)
             ->setRuns(self::PROJECT_RUNS);
         foreach ($steps as $step) {

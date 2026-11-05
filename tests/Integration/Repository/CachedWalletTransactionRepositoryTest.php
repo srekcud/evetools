@@ -6,8 +6,8 @@ namespace App\Tests\Integration\Repository;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectSale;
 use App\Enum\GroupProjectStatus;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Tests\Integration\IntegrationTestCase;
@@ -27,8 +27,8 @@ final class CachedWalletTransactionRepositoryTest extends IntegrationTestCase
     private Character $oMain;
     private Character $oAlt;
     private Character $aMain;
-    private GroupIndustryProject $sabreProject;
-    private GroupIndustrySale $cutlassSaleLinkedToT6;
+    private IndustryProject $sabreProject;
+    private IndustryProjectSale $cutlassSaleLinkedToT6;
 
     protected function setUp(): void
     {
@@ -43,10 +43,10 @@ final class CachedWalletTransactionRepositoryTest extends IntegrationTestCase
         $this->aMain = $this->createCharacter($admin, 'A-Main')->setEveCharacterId(2120000011);
         $admin->setMainCharacter($this->aMain);
 
-        $this->sabreProject = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre')->setStatus(GroupProjectStatus::Selling);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'createdAt'))->setValue($this->sabreProject, new \DateTimeImmutable(self::SABRE_PROJECT_CREATED_AT));
+        $this->sabreProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName('Sabre')->setStatus(GroupProjectStatus::Selling);
+        (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($this->sabreProject, new \DateTimeImmutable(self::SABRE_PROJECT_CREATED_AT));
         $this->em->persist($this->sabreProject);
-        $cutlassProject = (new GroupIndustryProject())->setOwner($owner)->setName('Cutlass')->setStatus(GroupProjectStatus::Selling);
+        $cutlassProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName('Cutlass')->setStatus(GroupProjectStatus::Selling);
         $this->em->persist($cutlassProject);
 
         $this->transaction(6_100_000_001, $this->oMain, false, self::SABRE_TYPE_ID, 3, 61_250_000.0, '2026-10-24T21:05:00+00:00');
@@ -166,9 +166,9 @@ final class CachedWalletTransactionRepositoryTest extends IntegrationTestCase
         return $transaction;
     }
 
-    private function addSale(GroupIndustryProject $project, int $quantity, float $unitPrice): GroupIndustrySale
+    private function addSale(IndustryProject $project, int $quantity, float $unitPrice): IndustryProjectSale
     {
-        $sale = (new GroupIndustrySale())
+        $sale = (new IndustryProjectSale())
             ->setTypeId(self::SABRE_TYPE_ID)
             ->setTypeName('Sabre')
             ->setQuantity($quantity)

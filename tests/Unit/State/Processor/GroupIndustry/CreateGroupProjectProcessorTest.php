@@ -8,13 +8,14 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
-use App\Repository\GroupIndustryProjectMemberRepository;
+use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\GroupIndustry\CreateProjectData;
@@ -43,7 +44,7 @@ class CreateGroupProjectProcessorTest extends TestCase
 
     private Security&Stub $security;
     private GroupIndustryProjectService&Stub $projectService;
-    private GroupIndustryProjectMemberRepository&Stub $memberRepository;
+    private IndustryProjectParticipantRepository&Stub $memberRepository;
     private GroupIndustryResourceMapper&Stub $mapper;
     private InvTypeRepository&MockObject $invTypeRepository;
     private IndustryActivityProductRepository&MockObject $activityProductRepository;
@@ -56,7 +57,7 @@ class CreateGroupProjectProcessorTest extends TestCase
     {
         $this->security = $this->createStub(Security::class);
         $this->projectService = $this->createStub(GroupIndustryProjectService::class);
-        $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->mapper = $this->createStub(GroupIndustryResourceMapper::class);
         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
         $this->activityProductRepository = $this->createMock(IndustryActivityProductRepository::class);
@@ -235,11 +236,11 @@ class CreateGroupProjectProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn($this->owner);
         $this->givenSabreHasABlueprint();
         $this->projectService->method('createProject')->willReturnCallback(
-            function (User $owner, CreateProjectData $data): GroupIndustryProject {
+            function (User $owner, CreateProjectData $data): IndustryProject {
                 self::assertSame($this->owner, $owner);
                 $this->createdProjectData = $data;
 
-                return new GroupIndustryProject();
+                return (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
             },
         );
 
@@ -298,10 +299,10 @@ class CreateGroupProjectProcessorTest extends TestCase
                 return null;
             });
 
-        $project = $this->createStub(GroupIndustryProject::class);
+        $project = $this->createStub(IndustryProject::class);
         $this->projectService->method('createProject')->willReturn($project);
 
-        $ownerMember = $this->createStub(GroupIndustryProjectMember::class);
+        $ownerMember = $this->createStub(IndustryProjectParticipant::class);
         $this->memberRepository->method('findOneBy')->willReturn($ownerMember);
 
         $expectedResource = new GroupIndustryProjectResource();
@@ -399,10 +400,10 @@ class CreateGroupProjectProcessorTest extends TestCase
             ->method('findBlueprintForProduct')
             ->willReturn($product);
 
-        $project = $this->createStub(GroupIndustryProject::class);
+        $project = $this->createStub(IndustryProject::class);
         $this->projectService->method('createProject')->willReturn($project);
 
-        $ownerMember = $this->createStub(GroupIndustryProjectMember::class);
+        $ownerMember = $this->createStub(IndustryProjectParticipant::class);
         $this->memberRepository->method('findOneBy')->willReturn($ownerMember);
 
         $expectedResource = new GroupIndustryProjectResource();
@@ -438,10 +439,10 @@ class CreateGroupProjectProcessorTest extends TestCase
                 return null;
             });
 
-        $project = $this->createStub(GroupIndustryProject::class);
+        $project = $this->createStub(IndustryProject::class);
         $this->projectService->method('createProject')->willReturn($project);
 
-        $ownerMember = $this->createStub(GroupIndustryProjectMember::class);
+        $ownerMember = $this->createStub(IndustryProjectParticipant::class);
         $this->memberRepository->method('findOneBy')->willReturn($ownerMember);
 
         $expectedResource = new GroupIndustryProjectResource();

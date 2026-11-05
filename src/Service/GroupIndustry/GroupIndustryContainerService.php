@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Service\GroupIndustry;
 
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProject;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
-use App\Repository\GroupIndustryBomItemRepository;
+use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 
 class GroupIndustryContainerService
@@ -26,7 +26,7 @@ class GroupIndustryContainerService
 
     public function __construct(
         private readonly VisibleCorporationAssetsFinder $visibleAssetsFinder,
-        private readonly GroupIndustryBomItemRepository $bomItemRepository,
+        private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
     ) {
@@ -40,7 +40,7 @@ class GroupIndustryContainerService
      *
      * @return GroupContainerVerificationResource[]
      */
-    public function verifyContainer(GroupIndustryProject $project): array
+    public function verifyContainer(IndustryProject $project): array
     {
         $materialItems = $this->bomItemRepository->findMaterialsByProject($project);
         $containerName = $project->getContainerName();
@@ -118,31 +118,31 @@ class GroupIndustryContainerService
     }
 
     /**
-     * @param GroupIndustryBomItem[] $materialItems
+     * @param IndustryProjectBomLine[] $materialItems
      * @return GroupContainerVerificationResource[]
      */
     private function buildAllUnknown(array $materialItems, string $unknownReason): array
     {
         return array_map(
-            fn (GroupIndustryBomItem $item): GroupContainerVerificationResource => $this->buildResource($item, null, self::STATUS_UNKNOWN, $unknownReason),
+            fn (IndustryProjectBomLine $item): GroupContainerVerificationResource => $this->buildResource($item, null, self::STATUS_UNKNOWN, $unknownReason),
             $materialItems,
         );
     }
 
     /**
-     * @param GroupIndustryBomItem[] $materialItems
+     * @param IndustryProjectBomLine[] $materialItems
      * @return GroupContainerVerificationResource[]
      */
     private function buildAllContainerNotFound(array $materialItems): array
     {
         return array_map(
-            fn (GroupIndustryBomItem $item): GroupContainerVerificationResource => $this->buildResource($item, null, self::STATUS_CONTAINER_NOT_FOUND),
+            fn (IndustryProjectBomLine $item): GroupContainerVerificationResource => $this->buildResource($item, null, self::STATUS_CONTAINER_NOT_FOUND),
             $materialItems,
         );
     }
 
     /**
-     * @param GroupIndustryBomItem[] $materialItems
+     * @param IndustryProjectBomLine[] $materialItems
      * @param array<int, int> $containerQuantities
      * @return GroupContainerVerificationResource[]
      */
@@ -173,7 +173,7 @@ class GroupIndustryContainerService
     }
 
     private function buildResource(
-        GroupIndustryBomItem $item,
+        IndustryProjectBomLine $item,
         ?int $containerQuantity,
         string $status,
         ?string $unknownReason = null,
