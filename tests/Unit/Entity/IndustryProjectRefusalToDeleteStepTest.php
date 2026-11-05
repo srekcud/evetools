@@ -249,7 +249,7 @@ final class IndustryProjectRefusalToDeleteStepTest extends TestCase
 
     private function projectOf(int $productTypeId, int $runs): IndustryProject
     {
-        return (new IndustryProject())->setUser(new User())->setProductTypeId($productTypeId)->setRuns($runs);
+        return (new IndustryProject())->setOwner(new User())->setProductTypeId($productTypeId)->setRuns($runs);
     }
 
     private function stepOf(int $productTypeId, string $activityType, int $runs, int $quantity, int $depth): IndustryProjectStep

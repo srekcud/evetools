@@ -6,7 +6,7 @@ namespace App\Tests\Integration\Service\GroupIndustry;
 
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\Sde\InvCategory;
@@ -298,8 +298,8 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 
     private function loadedProjectAndOwner(string $projectId): array
     {
-        $project = $this->em->find(GroupIndustryProject::class, $projectId);
-        \assert($project instanceof GroupIndustryProject);
+        $project = $this->em->find(IndustryProject::class, $projectId);
+        \assert($project instanceof IndustryProject);
         $owner = $this->em->find(User::class, $this->owner->getId());
         \assert($owner instanceof User);
 
@@ -315,7 +315,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
     }
 
-    private function createNitrogenFuelBlockProject(int $runs, int $meLevel, int $teLevel): GroupIndustryProject
+    private function createNitrogenFuelBlockProject(int $runs, int $meLevel, int $teLevel): IndustryProject
     {
         $owner = $this->em->find(User::class, $this->owner->getId());
         \assert($owner instanceof User);
@@ -326,9 +326,9 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         ));
     }
 
-    private function projectRecordedWithTheBomOfOneRunForTwentyFiveRuns(): GroupIndustryProject
+    private function projectRecordedWithTheBomOfOneRunForTwentyFiveRuns(): IndustryProject
     {
-        $project = (new GroupIndustryProject())->setOwner($this->owner)->setName('Fuel run recorded before the plan');
+        $project = (new IndustryProject())->setOwner($this->owner)->setName('Fuel run recorded before the plan');
         $ownerMember = (new GroupIndustryProjectMember())->setUser($this->owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted);
         $project->addMember($ownerMember);
         $project->addItem((new GroupIndustryProjectItem())
@@ -377,8 +377,8 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 
     private function rebuildPersistedBomOf(string $projectId): void
     {
-        $project = $this->em->find(GroupIndustryProject::class, $projectId);
-        \assert($project instanceof GroupIndustryProject);
+        $project = $this->em->find(IndustryProject::class, $projectId);
+        \assert($project instanceof IndustryProject);
         $owner = $this->em->find(User::class, $this->owner->getId());
         \assert($owner instanceof User);
         $this->service->buildBom($project, $owner);
@@ -411,7 +411,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
     }
 
-    private function bomItemOf(GroupIndustryProject $project, int $typeId, bool $isJob): GroupIndustryBomItem
+    private function bomItemOf(IndustryProject $project, int $typeId, bool $isJob): GroupIndustryBomItem
     {
         foreach ($project->getBomItems() as $bomItem) {
             if ($bomItem->getTypeId() === $typeId && $bomItem->isJob() === $isJob && $bomItem->getActivityType() !== 'copy') {
@@ -422,7 +422,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
     }
 
     private function contribution(
-        GroupIndustryProject $project,
+        IndustryProject $project,
         GroupIndustryProjectMember $member,
         GroupIndustryBomItem $bomItem,
         ContributionType $type,

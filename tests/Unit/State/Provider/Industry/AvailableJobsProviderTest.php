@@ -52,8 +52,7 @@ final class AvailableJobsProviderTest extends TestCase
         $character = (new Character())->setName('Aurora Industrialist')->setUser($pilot);
         $pilot->addCharacter($character);
 
-        $project = (new IndustryProject())
-            ->setUser($pilot)
+        $project = (new IndustryProject())->setOwner($pilot)
             ->setProductTypeId(self::ROBOTICS_TYPE_ID)
             ->setRuns(30);
         $roboticsStep = (new IndustryProjectStep())
@@ -93,8 +92,7 @@ final class AvailableJobsProviderTest extends TestCase
         $pilot = new User();
         $character = (new Character())->setName('Aurora Industrialist')->setUser($pilot);
         $pilot->addCharacter($character);
-        $project = (new IndustryProject())
-            ->setUser($pilot)
+        $project = (new IndustryProject())->setOwner($pilot)
             ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
             ->setRuns(10);
         $project->addStep((new IndustryProjectStep())
@@ -125,8 +123,7 @@ final class AvailableJobsProviderTest extends TestCase
         $pilot = new User();
         $character = (new Character())->setName('Aurora Industrialist')->setUser($pilot);
         $pilot->addCharacter($character);
-        $project = (new IndustryProject())
-            ->setUser($pilot)
+        $project = (new IndustryProject())->setOwner($pilot)
             ->setProductTypeId(self::RIFTER_TYPE_ID)
             ->setRuns(10);
         $project->addStep((new IndustryProjectStep())

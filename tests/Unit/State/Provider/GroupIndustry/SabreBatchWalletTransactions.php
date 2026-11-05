@@ -6,7 +6,7 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustrySale;
 use App\Enum\GroupProjectStatus;
@@ -39,7 +39,7 @@ trait SabreBatchWalletTransactions
 
     private function createSabreBatchWalletTransactions(): void
     {
-        (new \ReflectionProperty(GroupIndustryProject::class, 'createdAt'))->setValue($this->sabreBatch, new \DateTimeImmutable(self::SABRE_BATCH_CREATED_AT));
+        (new \ReflectionProperty(IndustryProject::class, 'createdAt'))->setValue($this->sabreBatch, new \DateTimeImmutable(self::SABRE_BATCH_CREATED_AT));
         $this->sabreBatch->setStatus(GroupProjectStatus::Selling);
         $this->addSabreBatchItem(self::SABRE_TYPE_ID, 'Sabre', 10);
         $this->manualSaleV = $this->addSabreBatchSale(0, 3, 61_250_000.0);
@@ -52,7 +52,7 @@ trait SabreBatchWalletTransactions
         $this->t6 = $this->walletTransaction(6_100_000_006, $this->oAlt, false, self::SABRE_TYPE_ID, 2, 60_500_000.0, '2026-10-25T20:00:00+00:00', self::JITA_STATION_ID);
         $this->t7 = $this->walletTransaction(6_100_000_007, $this->oAlt, false, self::SABRE_TYPE_ID, 12, 60_000_000.0, '2026-10-26T11:45:00+00:00', self::RENS_STATION_ID);
 
-        $cutlassBatch = (new GroupIndustryProject())->setOwner($this->sabreBatchOwner)->setName('Cutlass batch')->setStatus(GroupProjectStatus::Selling);
+        $cutlassBatch = (new IndustryProject())->setOwner($this->sabreBatchOwner)->setName('Cutlass batch')->setStatus(GroupProjectStatus::Selling);
         $this->saleOfAnotherProjectLinkedToT6 = $this->saleOf($cutlassBatch, self::SABRE_TYPE_ID, 2, 60_500_000.0);
     }
 
@@ -70,7 +70,7 @@ trait SabreBatchWalletTransactions
         return $this->saleOf($this->sabreBatch, $typeId, $quantity, $unitPrice);
     }
 
-    private function saleOf(GroupIndustryProject $project, int $typeId, int $quantity, float $unitPrice): GroupIndustrySale
+    private function saleOf(IndustryProject $project, int $typeId, int $quantity, float $unitPrice): GroupIndustrySale
     {
         $sale = (new GroupIndustrySale())
             ->setTypeId($typeId)

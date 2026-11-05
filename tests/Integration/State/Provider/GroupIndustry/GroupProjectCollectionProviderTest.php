@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
@@ -367,9 +367,9 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function createProject(User $owner, string $name): GroupIndustryProject
+    private function createProject(User $owner, string $name): IndustryProject
     {
-        $project = (new GroupIndustryProject())
+        $project = (new IndustryProject())
             ->setOwner($owner)
             ->setName($name);
         $this->em->persist($project);
@@ -377,7 +377,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         return $project;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
     {
         $member = (new GroupIndustryProjectMember())
             ->setUser($user)
@@ -400,7 +400,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         );
     }
 
-    private function addItem(GroupIndustryProject $project, int $typeId, string $typeName, int $meLevel, int $teLevel, int $runs): void
+    private function addItem(IndustryProject $project, int $typeId, string $typeName, int $meLevel, int $teLevel, int $runs): void
     {
         $project->addItem(
             (new GroupIndustryProjectItem())
@@ -413,7 +413,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         );
     }
 
-    private function addBomItem(GroupIndustryProject $project, int $typeId, string $typeName, int $requiredQuantity, int $fulfilledQuantity, ?float $estimatedPrice): GroupIndustryBomItem
+    private function addBomItem(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity, int $fulfilledQuantity, ?float $estimatedPrice): GroupIndustryBomItem
     {
         $bomItem = (new GroupIndustryBomItem())
             ->setTypeId($typeId)
@@ -426,7 +426,7 @@ final class GroupProjectCollectionProviderTest extends IntegrationTestCase
         return $bomItem;
     }
 
-    private function idOf(GroupIndustryProject $project): string
+    private function idOf(IndustryProject $project): string
     {
         $this->em->flush();
         $id = $project->getId();

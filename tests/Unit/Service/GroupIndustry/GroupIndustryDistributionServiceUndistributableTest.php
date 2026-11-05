@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Service\GroupIndustry;
 
 use App\Entity\Character;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
@@ -145,7 +145,7 @@ final class GroupIndustryDistributionServiceUndistributableTest extends TestCase
         );
     }
 
-    private function distributionOf(GroupIndustryProject $project, array $saleTotals, array $approvedContributions): DistributionResult
+    private function distributionOf(IndustryProject $project, array $saleTotals, array $approvedContributions): DistributionResult
     {
         $this->saleRepository->method('findBy')->willReturn(array_map(
             static fn (float $totalPrice): GroupIndustrySale => (new GroupIndustrySale())->setTotalPrice($totalPrice),
@@ -156,9 +156,9 @@ final class GroupIndustryDistributionServiceUndistributableTest extends TestCase
         return $this->service->calculateDistribution($project);
     }
 
-    private function project(float $brokerFeePercent, float $salesTaxPercent): GroupIndustryProject
+    private function project(float $brokerFeePercent, float $salesTaxPercent): IndustryProject
     {
-        return (new GroupIndustryProject())
+        return (new IndustryProject())
             ->setName('Sabre batch')
             ->setBrokerFeePercent($brokerFeePercent)
             ->setSalesTaxPercent($salesTaxPercent);

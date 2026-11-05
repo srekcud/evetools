@@ -7,7 +7,7 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Post;
 use App\Entity\Character;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -15,7 +15,7 @@ use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\LeaveGroupProjectProcessor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -39,24 +39,24 @@ use Symfony\Component\Uid\Uuid;
 class LeaveGroupProjectProcessorTest extends TestCase
 {
     private Security&Stub $security;
-    private GroupIndustryProjectRepository&Stub $projectRepository;
+    private IndustryProjectRepository&Stub $projectRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
     private LeaveGroupProjectProcessor $processor;
 
     private array $memberships = [];
 
     protected function setUp(): void
     {
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($this->createStub(User::class));
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
 
         $this->security = $this->createStub(Security::class);
-        $this->projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
         $this->projectRepository->method('find')->willReturnCallback(
-            fn (Uuid $id): ?GroupIndustryProject => $id->equals($this->project->getId()) ? $this->project : null,
+            fn (Uuid $id): ?IndustryProject => $id->equals($this->project->getId()) ? $this->project : null,
         );
 
         $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
@@ -142,9 +142,9 @@ class LeaveGroupProjectProcessorTest extends TestCase
     public function testMembershipOnAnotherProjectDoesNotAllowLeavingThisOne(): void
     {
         $user = $this->actAs('Wandering Pilot');
-        $otherProject = new GroupIndustryProject();
+        $otherProject = new IndustryProject();
         $otherProject->setOwner($this->createStub(User::class));
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($otherProject, Uuid::v4());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($otherProject, Uuid::v4());
         $otherMembership = $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Accepted, $otherProject);
 
         $this->entityManager->expects($this->never())->method('flush');
@@ -251,7 +251,7 @@ class LeaveGroupProjectProcessorTest extends TestCase
         return $user;
     }
 
-    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status, ?GroupIndustryProject $project = null): GroupIndustryProjectMember
+    private function addMembership(User $user, GroupMemberRole $role, GroupMemberStatus $status, ?IndustryProject $project = null): GroupIndustryProjectMember
     {
         $membership = new GroupIndustryProjectMember();
         $membership->setUser($user);

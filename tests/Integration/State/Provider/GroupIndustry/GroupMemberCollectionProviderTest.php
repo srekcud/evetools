@@ -7,7 +7,7 @@ namespace App\Tests\Integration\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -16,7 +16,7 @@ use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupMemberCollectionProvider;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -160,7 +160,7 @@ final class GroupMemberCollectionProviderTest extends IntegrationTestCase
 
         $provider = new GroupMemberCollectionProvider(
             $security,
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupIndustryProjectMemberRepository::class),
             self::getContainer()->get(GroupIndustryContributionRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
@@ -222,15 +222,15 @@ final class GroupMemberCollectionProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function createProject(User $owner, string $name): GroupIndustryProject
+    private function createProject(User $owner, string $name): IndustryProject
     {
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName($name);
+        $project = (new IndustryProject())->setOwner($owner)->setName($name);
         $this->em->persist($project);
 
         return $project;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
     {
         $member = (new GroupIndustryProjectMember())
             ->setUser($user)
@@ -241,7 +241,7 @@ final class GroupMemberCollectionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addContribution(GroupIndustryProject $project, GroupIndustryProjectMember $member, float $estimatedValue, ContributionStatus $status): void
+    private function addContribution(IndustryProject $project, GroupIndustryProjectMember $member, float $estimatedValue, ContributionStatus $status): void
     {
         $project->addContribution(
             (new GroupIndustryContribution())

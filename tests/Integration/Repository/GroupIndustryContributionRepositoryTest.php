@@ -6,7 +6,7 @@ namespace App\Tests\Integration\Repository;
 
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -140,15 +140,15 @@ final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
         self::assertSame([], $this->repository->findContributedBomItemIds($ishtar));
     }
 
-    private function createProject(string $name): GroupIndustryProject
+    private function createProject(string $name): IndustryProject
     {
-        $project = (new GroupIndustryProject())->setOwner($this->createUser())->setName($name);
+        $project = (new IndustryProject())->setOwner($this->createUser())->setName($name);
         $this->em->persist($project);
 
         return $project;
     }
 
-    private function addMember(GroupIndustryProject $project, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, GroupMemberRole $role): GroupIndustryProjectMember
     {
         $member = (new GroupIndustryProjectMember())
             ->setUser($role === GroupMemberRole::Owner ? $project->getOwner() : $this->createUser())
@@ -159,7 +159,7 @@ final class GroupIndustryContributionRepositoryTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addBomLine(GroupIndustryProject $project, int $typeId, string $typeName, int $requiredQuantity): GroupIndustryBomItem
+    private function addBomLine(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity): GroupIndustryBomItem
     {
         $line = (new GroupIndustryBomItem())
             ->setTypeId($typeId)

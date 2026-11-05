@@ -7,7 +7,7 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -32,7 +32,7 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
     private const int SABRE_TYPE_ID = 22456;
 
     private GroupIndustryResourceMapper $mapper;
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
     private GroupIndustryProjectMember $ownerMembership;
 
     protected function setUp(): void
@@ -40,8 +40,8 @@ final class GroupIndustryResourceMapperProjectTest extends TestCase
         $this->mapper = new GroupIndustryResourceMapper();
 
         $owner = new User();
-        $this->project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre batch');
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
+        $this->project = (new IndustryProject())->setOwner($owner)->setName('Sabre batch');
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
         $this->ownerMembership = (new GroupIndustryProjectMember())
             ->setUser($owner)
             ->setRole(GroupMemberRole::Owner)

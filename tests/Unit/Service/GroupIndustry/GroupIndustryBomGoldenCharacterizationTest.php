@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Service\GroupIndustry;
 
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\Sde\IndustryActivity;
@@ -2148,9 +2148,9 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    private function projectOf(array $items): GroupIndustryProject
+    private function projectOf(array $items): IndustryProject
     {
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         foreach ($items as $index => [$typeId, $runs, $me, $te]) {
             $project->addItem((new GroupIndustryProjectItem())
                 ->setTypeId($typeId)
@@ -2164,7 +2164,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $project;
     }
 
-    private function materials(GroupIndustryProject $project): array
+    private function materials(IndustryProject $project): array
     {
         $materials = [];
         foreach ($this->materialBomItems($project) as $bomItem) {
@@ -2175,7 +2175,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $materials;
     }
 
-    private function jobs(GroupIndustryProject $project): array
+    private function jobs(IndustryProject $project): array
     {
         return $this->sortedJobs(array_map(static fn (GroupIndustryBomItem $bomItem): array => [
             $bomItem->getTypeId(),
@@ -2189,7 +2189,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ], $this->jobBomItems($project)));
     }
 
-    private function jobsIgnoringMeAndTe(GroupIndustryProject $project): array
+    private function jobsIgnoringMeAndTe(IndustryProject $project): array
     {
         return array_map(
             static fn (array $job): array => [$job[0], $job[1], $job[2], $job[3], $job[6], $job[7]],
@@ -2197,22 +2197,22 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    private function jobsOfType(GroupIndustryProject $project, int $typeId): array
+    private function jobsOfType(IndustryProject $project, int $typeId): array
     {
         return array_values(array_filter($this->jobs($project), static fn (array $job): bool => $job[0] === $typeId));
     }
 
-    private function jobsOfTypeAndActivity(GroupIndustryProject $project, int $typeId, string $activityType): array
+    private function jobsOfTypeAndActivity(IndustryProject $project, int $typeId, string $activityType): array
     {
         return array_values(array_filter($this->jobsOfType($project, $typeId), static fn (array $job): bool => $job[1] === $activityType));
     }
 
-    private function runsOf(GroupIndustryProject $project, int $typeId, string $activityType): array
+    private function runsOf(IndustryProject $project, int $typeId, string $activityType): array
     {
         return array_map(static fn (array $job): ?int => $job[3], $this->jobsOfTypeAndActivity($project, $typeId, $activityType));
     }
 
-    private function runsAndRequiredQuantitiesOf(GroupIndustryProject $project, int $typeId, string $activityType): array
+    private function runsAndRequiredQuantitiesOf(IndustryProject $project, int $typeId, string $activityType): array
     {
         return array_map(static fn (array $job): array => [$job[3], $job[6]], $this->jobsOfTypeAndActivity($project, $typeId, $activityType));
     }
@@ -2224,7 +2224,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $jobs;
     }
 
-    private function finalJobTypeIds(GroupIndustryProject $project): array
+    private function finalJobTypeIds(IndustryProject $project): array
     {
         $finalJobTypeIds = array_values(array_map(
             static fn (GroupIndustryBomItem $bomItem): int => $bomItem->getTypeId(),
@@ -2235,12 +2235,12 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $finalJobTypeIds;
     }
 
-    private function materialBomItems(GroupIndustryProject $project): array
+    private function materialBomItems(IndustryProject $project): array
     {
         return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $bomItem): bool => !$bomItem->isJob()));
     }
 
-    private function sortedMaterialBomItems(GroupIndustryProject $project): array
+    private function sortedMaterialBomItems(IndustryProject $project): array
     {
         $materialBomItems = $this->materialBomItems($project);
         usort($materialBomItems, static fn (GroupIndustryBomItem $left, GroupIndustryBomItem $right): int => $left->getTypeId() <=> $right->getTypeId());
@@ -2248,12 +2248,12 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $materialBomItems;
     }
 
-    private function jobBomItems(GroupIndustryProject $project): array
+    private function jobBomItems(IndustryProject $project): array
     {
         return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->isJob()));
     }
 
-    private function jobsOf(GroupIndustryProject $project, int $typeId, string $activityType): array
+    private function jobsOf(IndustryProject $project, int $typeId, string $activityType): array
     {
         return array_values(array_filter(
             $this->jobBomItems($project),
@@ -2269,7 +2269,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ];
     }
 
-    private function inventionJobs(GroupIndustryProject $project): array
+    private function inventionJobs(IndustryProject $project): array
     {
         return array_values(array_filter(
             $this->jobs($project),
@@ -2277,7 +2277,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ));
     }
 
-    private function datacoreLines(GroupIndustryProject $project): array
+    private function datacoreLines(IndustryProject $project): array
     {
         return array_map(
             static fn (GroupIndustryBomItem $bomItem): array => [$bomItem->getTypeId(), $bomItem->getTypeName(), $bomItem->getRequiredQuantity()],
@@ -2288,17 +2288,17 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         );
     }
 
-    private function materialBomItemsOf(GroupIndustryProject $project, int $typeId): array
+    private function materialBomItemsOf(IndustryProject $project, int $typeId): array
     {
         return array_values(array_filter($this->materialBomItems($project), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getTypeId() === $typeId));
     }
 
-    private function bomItemsOf(GroupIndustryProject $project, int $typeId): array
+    private function bomItemsOf(IndustryProject $project, int $typeId): array
     {
         return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $bomItem): bool => $bomItem->getTypeId() === $typeId));
     }
 
-    private function lineStates(GroupIndustryProject $project): array
+    private function lineStates(IndustryProject $project): array
     {
         $states = array_map(static fn (GroupIndustryBomItem $line): array => [
             $line->getTypeId(),
@@ -2319,7 +2319,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $states;
     }
 
-    private function lineStatesExcept(GroupIndustryProject $project, array $typeIds): array
+    private function lineStatesExcept(IndustryProject $project, array $typeIds): array
     {
         return array_values(array_filter(
             $this->lineStates($project),
@@ -2327,7 +2327,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         ));
     }
 
-    private function fulfilledQuantitiesOfMaterials(GroupIndustryProject $project): array
+    private function fulfilledQuantitiesOfMaterials(IndustryProject $project): array
     {
         $fulfilledQuantities = [];
         foreach ($this->materialBomItems($project) as $bomItem) {
@@ -2338,7 +2338,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $fulfilledQuantities;
     }
 
-    private function estimatedPricesOfMaterials(GroupIndustryProject $project): array
+    private function estimatedPricesOfMaterials(IndustryProject $project): array
     {
         $estimatedPrices = [];
         foreach ($this->sortedMaterialBomItems($project) as $bomItem) {
@@ -2358,7 +2358,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $entity === null ? null : spl_object_id($entity);
     }
 
-    private function recordedMaterialLine(GroupIndustryProject $project, int $typeId, int $requiredQuantity, int $fulfilledQuantity): GroupIndustryBomItem
+    private function recordedMaterialLine(IndustryProject $project, int $typeId, int $requiredQuantity, int $fulfilledQuantity): GroupIndustryBomItem
     {
         $line = (new GroupIndustryBomItem())
             ->setTypeId($typeId)
@@ -2371,7 +2371,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $line;
     }
 
-    private function recordedJobLine(GroupIndustryProject $project, string $activityType, string $jobGroup, int $me, int $te, int $runs, int $requiredQuantity): GroupIndustryBomItem
+    private function recordedJobLine(IndustryProject $project, string $activityType, string $jobGroup, int $me, int $te, int $runs, int $requiredQuantity): GroupIndustryBomItem
     {
         $line = (new GroupIndustryBomItem())
             ->setTypeId(self::NITROGEN_FUEL_BLOCK)
@@ -2388,7 +2388,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $line;
     }
 
-    private function recordedJobLineWithIdentifier(GroupIndustryProject $project, string $identifier, int $runs, int $requiredQuantity): GroupIndustryBomItem
+    private function recordedJobLineWithIdentifier(IndustryProject $project, string $identifier, int $runs, int $requiredQuantity): GroupIndustryBomItem
     {
         $line = $this->recordedJobLine($project, 'manufacturing', 'final', 10, 20, $runs, $requiredQuantity);
         (new \ReflectionProperty(GroupIndustryBomItem::class, 'id'))->setValue($line, Uuid::fromString($identifier));
@@ -2404,7 +2404,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     }
 
     private function contribution(
-        GroupIndustryProject $project,
+        IndustryProject $project,
         GroupIndustryProjectMember $member,
         GroupIndustryBomItem $bomItem,
         ContributionType $type,
@@ -2424,7 +2424,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $contribution;
     }
 
-    private function persistLines(GroupIndustryProject $project): void
+    private function persistLines(IndustryProject $project): void
     {
         foreach ($project->getBomItems() as $line) {
             $this->persistLine($line);
@@ -2444,7 +2444,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private function contributionRepositoryOnTheContributionsOfTheProject(): GroupIndustryContributionRepository
     {
         $contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
-        $contributionRepository->method('findContributedBomItemIds')->willReturnCallback(function (GroupIndustryProject $project): array {
+        $contributionRepository->method('findContributedBomItemIds')->willReturnCallback(function (IndustryProject $project): array {
             $this->projectsQueriedForTheirContributedBomItems[] = $project;
 
             return $this->contributedBomItemIdsInTheDatabase ?? $this->contributedBomItemIdsOf($project);
@@ -2453,7 +2453,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         return $contributionRepository;
     }
 
-    private function contributedBomItemIdsOf(GroupIndustryProject $project): array
+    private function contributedBomItemIdsOf(IndustryProject $project): array
     {
         $contributedBomItemIds = [];
         foreach ($project->getContributions() as $contribution) {

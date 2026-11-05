@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -218,11 +218,11 @@ class CreateGroupProjectProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn($this->owner);
         $this->givenSabreHasABlueprint();
         $this->projectService->method('createProject')->willReturnCallback(
-            function (User $owner, CreateProjectData $data): GroupIndustryProject {
+            function (User $owner, CreateProjectData $data): IndustryProject {
                 self::assertSame($this->owner, $owner);
                 $this->createdProjectData = $data;
 
-                return new GroupIndustryProject();
+                return new IndustryProject();
             },
         );
 
@@ -281,7 +281,7 @@ class CreateGroupProjectProcessorTest extends TestCase
                 return null;
             });
 
-        $project = $this->createStub(GroupIndustryProject::class);
+        $project = $this->createStub(IndustryProject::class);
         $this->projectService->method('createProject')->willReturn($project);
 
         $ownerMember = $this->createStub(GroupIndustryProjectMember::class);
@@ -382,7 +382,7 @@ class CreateGroupProjectProcessorTest extends TestCase
             ->method('findBlueprintForProduct')
             ->willReturn($product);
 
-        $project = $this->createStub(GroupIndustryProject::class);
+        $project = $this->createStub(IndustryProject::class);
         $this->projectService->method('createProject')->willReturn($project);
 
         $ownerMember = $this->createStub(GroupIndustryProjectMember::class);
@@ -421,7 +421,7 @@ class CreateGroupProjectProcessorTest extends TestCase
                 return null;
             });
 
-        $project = $this->createStub(GroupIndustryProject::class);
+        $project = $this->createStub(IndustryProject::class);
         $this->projectService->method('createProject')->willReturn($project);
 
         $ownerMember = $this->createStub(GroupIndustryProjectMember::class);

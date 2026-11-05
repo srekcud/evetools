@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Delete;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
@@ -17,7 +17,7 @@ use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupProjectDeleteProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -32,7 +32,7 @@ use Symfony\Component\Uid\Uuid;
 class GroupProjectDeleteProviderTest extends TestCase
 {
     private User $owner;
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
     private GroupIndustryProjectMember $contributor;
     private GroupIndustryBomItem $tritanium;
 
@@ -40,7 +40,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     {
         $this->owner = $this->createStub(User::class);
 
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($this->owner);
         $this->assignId($this->project);
 
@@ -126,7 +126,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(null);
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($this->project);
 
         $this->expectException(UnauthorizedHttpException::class);
@@ -139,7 +139,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->owner);
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn(null);
 
         $this->expectException(NotFoundHttpException::class);
@@ -182,7 +182,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($this->project);
 
         $provider = new GroupProjectDeleteProvider($security, $projectRepository);

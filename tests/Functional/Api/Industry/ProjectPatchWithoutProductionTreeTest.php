@@ -124,8 +124,7 @@ final class ProjectPatchWithoutProductionTreeTest extends WebTestCase
 
     private function persistProject(User $owner): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($owner)
+        $project = (new IndustryProject())->setOwner($owner)
             ->setProductTypeId(self::PRODUCT_TYPE_ID)
             ->setRuns(self::PROJECT_RUNS)
             ->setMeLevel(self::PROJECT_ME_LEVEL)

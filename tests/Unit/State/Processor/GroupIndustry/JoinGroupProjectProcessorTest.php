@@ -7,13 +7,13 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\Character;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\JoinGroupProjectProcessor;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -41,7 +41,7 @@ class JoinGroupProjectProcessorTest extends TestCase
     private Security&Stub $security;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
 
     /** @var GroupIndustryProjectMember[] */
     private array $memberships = [];
@@ -53,14 +53,14 @@ class JoinGroupProjectProcessorTest extends TestCase
         $owner = $this->createStub(User::class);
         $owner->method('getCorporationId')->willReturn(self::OWNER_CORPORATION_ID);
 
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($owner);
         $this->project->setShortLinkCode(self::SHORT_LINK_CODE);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
 
         $this->security = $this->createStub(Security::class);
 
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('findByShortLinkCode')->willReturnMap([[self::SHORT_LINK_CODE, $this->project]]);
 
         // In-memory repository: findOneBy matches every criterion against the stored rows

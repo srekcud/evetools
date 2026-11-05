@@ -55,7 +55,7 @@ final class UpdateStepProcessorTest extends TestCase
     protected function setUp(): void
     {
         $this->pilot = new User();
-        $this->project = (new IndustryProject())->setUser($this->pilot);
+        $this->project = (new IndustryProject())->setOwner($this->pilot);
     }
 
     #[Group('issue-137')]
@@ -714,7 +714,7 @@ final class UpdateStepProcessorTest extends TestCase
     public function testStepOfAProjectOfAnotherPilotIsRefusedAsProjectNotFound(): void
     {
         [$quantumMicroprocessor] = $this->quantumMicroprocessorProjectInAStation();
-        $this->project->setUser(new User());
+        $this->project->setOwner(new User());
 
         try {
             $this->patch($quantumMicroprocessor, $this->meLevelEntered(8), $this->entityManagerCountingTheFlushes());
@@ -737,7 +737,7 @@ final class UpdateStepProcessorTest extends TestCase
             ->setQuantity(70_000)
             ->setDepth(0)
             ->setMeLevel(0);
-        (new IndustryProject())->setUser($this->pilot)->addStep($ferniteCarbideOfAnotherProject);
+        (new IndustryProject())->setOwner($this->pilot)->addStep($ferniteCarbideOfAnotherProject);
 
         try {
             $this->patch($ferniteCarbideOfAnotherProject, $this->runsEntered(9), $this->entityManagerCountingTheFlushes());

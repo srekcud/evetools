@@ -11,7 +11,7 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ProjectCorrectionStatus;
-use App\Enum\ProjectStatus;
+use App\Enum\GroupProjectStatus;
 use App\Exception\ProducerMissingFromSdeException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
@@ -220,7 +220,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
 
     public function testCompletedReactionProjectIsNotSelected(): void
     {
-        $project = $this->ferniteCarbideProjectOfTheOldCalculation()->setStatus(ProjectStatus::Completed);
+        $project = $this->ferniteCarbideProjectOfTheOldCalculation()->setStatus(GroupProjectStatus::Completed);
 
         $outcomes = $this->recalculationOf($project)->run(new \DateTimeImmutable(self::CREATED_BEFORE), false);
 
@@ -499,8 +499,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
 
     private function project(string $projectId, int $productTypeId, int $runs, string $createdAt = self::CREATED_BEFORE_THE_DEPLOYMENT, ?User $owner = null): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($owner ?? new User())
+        $project = (new IndustryProject())->setOwner($owner ?? new User())
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, Uuid::fromString($projectId));

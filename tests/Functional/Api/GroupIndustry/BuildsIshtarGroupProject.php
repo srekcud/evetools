@@ -7,7 +7,7 @@ namespace App\Tests\Functional\Api\GroupIndustry;
 use App\Entity\Character;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
@@ -50,8 +50,8 @@ trait BuildsIshtarGroupProject
     private User $pendingMember;
     private User $outsider;
     private User $ownerCorpmate;
-    private GroupIndustryProject $ishtarBatch;
-    private GroupIndustryProject $hecateBatch;
+    private IndustryProject $ishtarBatch;
+    private IndustryProject $hecateBatch;
     private GroupIndustryProjectMember $ownerMembership;
     private GroupIndustryProjectMember $memberMembership;
     private GroupIndustryProjectMember $pendingMembership;
@@ -123,15 +123,15 @@ trait BuildsIshtarGroupProject
         return $user;
     }
 
-    private function persistProject(string $name): GroupIndustryProject
+    private function persistProject(string $name): IndustryProject
     {
-        $project = (new GroupIndustryProject())->setOwner($this->owner)->setName($name)->setStatus(GroupProjectStatus::InProgress);
+        $project = (new IndustryProject())->setOwner($this->owner)->setName($name)->setStatus(GroupProjectStatus::InProgress);
         $this->em->persist($project);
 
         return $project;
     }
 
-    private function addMembership(GroupIndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
+    private function addMembership(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status): GroupIndustryProjectMember
     {
         $membership = (new GroupIndustryProjectMember())->setUser($user)->setRole($role)->setStatus($status);
         $project->addMember($membership);
@@ -139,7 +139,7 @@ trait BuildsIshtarGroupProject
         return $membership;
     }
 
-    private function addMaterialLine(GroupIndustryProject $project, int $typeId, string $typeName, int $requiredQuantity, ?float $bomPrice): GroupIndustryBomItem
+    private function addMaterialLine(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity, ?float $bomPrice): GroupIndustryBomItem
     {
         $line = (new GroupIndustryBomItem())
             ->setTypeId($typeId)
@@ -152,7 +152,7 @@ trait BuildsIshtarGroupProject
         return $line;
     }
 
-    private function addJobLine(GroupIndustryProject $project, int $typeId, string $typeName, string $jobGroup, int $runs, int $quantity, int $meLevel, int $teLevel, ?int $parentTypeId): GroupIndustryBomItem
+    private function addJobLine(IndustryProject $project, int $typeId, string $typeName, string $jobGroup, int $runs, int $quantity, int $meLevel, int $teLevel, ?int $parentTypeId): GroupIndustryBomItem
     {
         $line = (new GroupIndustryBomItem())
             ->setTypeId($typeId)
@@ -189,7 +189,7 @@ trait BuildsIshtarGroupProject
         return $contribution;
     }
 
-    private function addSale(GroupIndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $venue, string $soldAt): GroupIndustrySale
+    private function addSale(IndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $venue, string $soldAt): GroupIndustrySale
     {
         $sale = (new GroupIndustrySale())
             ->setTypeId($typeId)
@@ -205,7 +205,7 @@ trait BuildsIshtarGroupProject
         return $sale;
     }
 
-    private function projectUri(GroupIndustryProject $project): string
+    private function projectUri(IndustryProject $project): string
     {
         return '/api/group-industry/projects/'.$project->getId()?->toRfc4122();
     }

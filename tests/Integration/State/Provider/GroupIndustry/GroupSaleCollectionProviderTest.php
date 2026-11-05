@@ -8,13 +8,13 @@ use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
@@ -82,7 +82,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
     public function testSalesAreListedMostRecentFirstWithTheNameOfTheirRecorder(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre doctrine');
+        $project = (new IndustryProject())->setOwner($owner)->setName('Sabre doctrine');
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $adminWithoutMainCharacter = $this->createUser();
@@ -163,7 +163,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         $admin = $this->createUser();
         $aMain = $this->createCharacter($admin, 'A-Main')->setEveCharacterId(2120000011);
         $admin->setMainCharacter($aMain);
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre');
+        $project = (new IndustryProject())->setOwner($owner)->setName('Sabre');
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $this->addMember($project, $admin, GroupMemberRole::Admin);
@@ -238,7 +238,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
     {
         $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
         $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $project = (new IndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $this->addMember($project, $viewer, GroupMemberRole::Member);
@@ -298,7 +298,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
     {
         $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
         $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $project = (new IndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $this->addMember($project, $viewer, GroupMemberRole::Member);
@@ -337,7 +337,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
 
         $provider = new GroupSaleCollectionProvider(
             $security,
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(GroupIndustrySaleRepository::class),
         );
@@ -361,7 +361,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
     {
         $member = (new GroupIndustryProjectMember())
             ->setUser($user)
@@ -372,7 +372,7 @@ final class GroupSaleCollectionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addSale(GroupIndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $soldAt, ?User $recordedBy): GroupIndustrySale
+    private function addSale(IndustryProject $project, int $typeId, string $typeName, int $quantity, float $unitPrice, string $soldAt, ?User $recordedBy): GroupIndustrySale
     {
         $sale = (new GroupIndustrySale())
             ->setTypeId($typeId)

@@ -10,7 +10,7 @@ use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Input\GroupIndustry\UpdateSaleInput;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
@@ -19,7 +19,7 @@ use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\Mercure\MercurePublisherService;
@@ -88,7 +88,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     public function testProjectInProgressBecomesDeletableOnceItsOnlySaleIsDeleted(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Hecate batch')->setStatus(GroupProjectStatus::InProgress);
+        $project = (new IndustryProject())->setOwner($owner)->setName('Hecate batch')->setStatus(GroupProjectStatus::InProgress);
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $sabreSale = $this->addSale($project, $owner, 'Sabre', quantity: 2, unitPrice: 900000.0);
@@ -107,7 +107,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     private function createSellingSabreDoctrineProject(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new GroupIndustryProject())
+        $project = (new IndustryProject())
             ->setOwner($owner)
             ->setName('Sabre doctrine')
             ->setStatus(GroupProjectStatus::Selling)
@@ -155,7 +155,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     {
         $provider = new GroupDistributionProvider(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(GroupIndustryDistributionService::class),
         );
@@ -193,7 +193,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     {
         return new GroupSaleItemProvider(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupIndustrySaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
         );
@@ -203,7 +203,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     {
         return new UpdateSaleProcessor(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupIndustrySaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             $this->em,
@@ -215,7 +215,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     {
         return new DeleteSaleProcessor(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupIndustrySaleRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             $this->em,
@@ -227,7 +227,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
     {
         return new GroupProjectDeleteProvider(
             $this->ownerSecurity(),
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
         );
     }
 
@@ -253,7 +253,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return $user;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
     {
         $member = (new GroupIndustryProjectMember())
             ->setUser($user)
@@ -264,7 +264,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addBomItem(GroupIndustryProject $project, int $typeId, string $typeName): GroupIndustryBomItem
+    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): GroupIndustryBomItem
     {
         $bomItem = (new GroupIndustryBomItem())
             ->setTypeId($typeId)
@@ -275,7 +275,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         return $bomItem;
     }
 
-    private function addApprovedContribution(GroupIndustryProject $project, GroupIndustryProjectMember $member, GroupIndustryBomItem $bomItem, float $estimatedValue): void
+    private function addApprovedContribution(IndustryProject $project, GroupIndustryProjectMember $member, GroupIndustryBomItem $bomItem, float $estimatedValue): void
     {
         $contribution = (new GroupIndustryContribution())
             ->setMember($member)
@@ -287,7 +287,7 @@ final class SaleCorrectionDistributionTest extends IntegrationTestCase
         $project->addContribution($contribution);
     }
 
-    private function addSale(GroupIndustryProject $project, User $recordedBy, string $typeName, int $quantity, float $unitPrice): GroupIndustrySale
+    private function addSale(IndustryProject $project, User $recordedBy, string $typeName, int $quantity, float $unitPrice): GroupIndustrySale
     {
         $sale = (new GroupIndustrySale())
             ->setTypeId(0)

@@ -8,14 +8,14 @@ use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\Character;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupMemberCollectionProvider;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -34,7 +34,7 @@ class GroupMemberCollectionProviderTest extends TestCase
     private const REMOVED_BOB_MEMBER_ID = '00000000-0000-0000-0000-000000000004';
 
     private User&Stub $owner;
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
 
     /** @var GroupIndustryProjectMember[] */
     private array $memberships = [];
@@ -47,14 +47,14 @@ class GroupMemberCollectionProviderTest extends TestCase
     protected function setUp(): void
     {
         $this->owner = $this->createStub(User::class);
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($this->owner);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
 
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->owner);
 
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($this->project);
 
         // In-memory repository: findBy matches every criterion against the stored rows

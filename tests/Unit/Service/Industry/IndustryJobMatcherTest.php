@@ -148,7 +148,7 @@ class IndustryJobMatcherTest extends TestCase
     private function createProject(IndustryProjectStep ...$steps): IndustryProject
     {
         $project = new IndustryProject();
-        $project->setUser($this->user);
+        $project->setOwner($this->user);
         $project->setProductTypeId(self::PRODUCT_TYPE_ID);
         $project->setRuns(10);
         $project->setJobsStartDate(new \DateTimeImmutable('2026-09-01 00:00:00'));

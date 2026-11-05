@@ -10,7 +10,7 @@ use App\ApiResource\Input\GroupIndustry\SubmitContributionInput;
 use App\Entity\Character;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -19,7 +19,7 @@ use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryBomItemRepository;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\SubmitContributionProcessor;
@@ -51,8 +51,8 @@ class SubmitContributionProcessorTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
     private SubmitContributionProcessor $processor;
-    private GroupIndustryProject $project;
-    private GroupIndustryProject $otherProject;
+    private IndustryProject $project;
+    private IndustryProject $otherProject;
     private GroupIndustryBomItem $morphite;
     private GroupIndustryBomItem $tritanium;
     private GroupIndustryBomItem $isogenOfTheOtherProject;
@@ -63,11 +63,11 @@ class SubmitContributionProcessorTest extends TestCase
         $contributor = $this->createStub(User::class);
         $this->contributor = $contributor;
 
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($this->createStub(User::class));
         $this->assignId($this->project);
 
-        $this->otherProject = new GroupIndustryProject();
+        $this->otherProject = new IndustryProject();
         $this->otherProject->setOwner($this->createStub(User::class));
         $this->assignId($this->otherProject);
 
@@ -102,9 +102,9 @@ class SubmitContributionProcessorTest extends TestCase
 
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($contributor);
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturnCallback(
-            fn (Uuid $projectId): ?GroupIndustryProject => match (true) {
+            fn (Uuid $projectId): ?IndustryProject => match (true) {
                 $projectId->equals($this->project->getId()) => $this->project,
                 $projectId->equals($this->otherProject->getId()) => $this->otherProject,
                 default => null,

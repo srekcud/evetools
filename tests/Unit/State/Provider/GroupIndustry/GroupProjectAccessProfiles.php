@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use PHPUnit\Framework\MockObject\Stub;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Uid\Uuid;
@@ -40,7 +40,7 @@ trait GroupProjectAccessProfiles
     private const string ACCEPTED_ADMIN_OF_COMPLETED_PROJECT = 'accepted admin of a completed project';
     private const string STRANGER_TO_COMPLETED_PROJECT = 'stranger to a completed project';
 
-    private GroupIndustryProject $sabreBatch;
+    private IndustryProject $sabreBatch;
     private User&Stub $sabreBatchOwner;
 
     private array $sabreBatchMemberships = [];
@@ -81,22 +81,22 @@ trait GroupProjectAccessProfiles
     {
         $this->sabreBatchOwner = $this->userOfCorporation($ownerCorporationId);
 
-        $this->sabreBatch = new GroupIndustryProject();
+        $this->sabreBatch = new IndustryProject();
         $this->sabreBatch->setOwner($this->sabreBatchOwner);
         $this->sabreBatch->setName('Sabre batch');
         $this->sabreBatch->setStatus(GroupProjectStatus::InProgress);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($this->sabreBatch, Uuid::v4());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->sabreBatch, Uuid::v4());
 
         if ($withOwnerMembership) {
             $this->addSabreBatchMembership($this->sabreBatchOwner, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
         }
     }
 
-    private function sabreBatchProjectRepository(): GroupIndustryProjectRepository&Stub
+    private function sabreBatchProjectRepository(): IndustryProjectRepository&Stub
     {
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturnCallback(
-            fn (Uuid $id): ?GroupIndustryProject => $id->equals($this->sabreBatch->getId()) ? $this->sabreBatch : null,
+            fn (Uuid $id): ?IndustryProject => $id->equals($this->sabreBatch->getId()) ? $this->sabreBatch : null,
         );
 
         return $projectRepository;
@@ -190,11 +190,11 @@ trait GroupProjectAccessProfiles
     {
         $user = $this->userOfCorporation($corporationId);
 
-        $cutlassBatch = new GroupIndustryProject();
+        $cutlassBatch = new IndustryProject();
         $cutlassBatch->setOwner($this->userOfCorporation(self::FOREIGN_CORPORATION_ID));
         $cutlassBatch->setName('Cutlass batch');
         $cutlassBatch->setStatus(GroupProjectStatus::InProgress);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($cutlassBatch, Uuid::v4());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($cutlassBatch, Uuid::v4());
 
         $membership = new GroupIndustryProjectMember();
         $membership->setUser($user);

@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Service\GroupIndustry;
 
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -37,7 +37,7 @@ class GroupIndustryContributionServiceTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private GroupIndustryContributionService $service;
 
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
     private GroupIndustryProjectMember $member;
     private GroupIndustryBomItem $bomItem;
     private User $reviewer;
@@ -52,7 +52,7 @@ class GroupIndustryContributionServiceTest extends TestCase
             $this->entityManager,
         );
 
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($this->createMock(User::class));
 
         $this->member = $this->memberOfTheProject();

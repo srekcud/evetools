@@ -484,8 +484,7 @@ final class CreateProjectProcessorTest extends TestCase
 
     private function projectFor(int $productTypeId, User $user, int $runs = self::PROJECT_RUNS): IndustryProject
     {
-        return (new IndustryProject())
-            ->setUser($user)
+        return (new IndustryProject())->setOwner($user)
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
     }

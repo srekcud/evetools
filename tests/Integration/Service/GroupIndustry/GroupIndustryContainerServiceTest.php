@@ -8,7 +8,7 @@ use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Service\GroupIndustry\GroupIndustryContainerService;
 use App\Tests\Integration\IntegrationTestCase;
@@ -222,9 +222,9 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
         $this->flushAndClear();
     }
 
-    private function createProjectUsingBuildContainer(): GroupIndustryProject
+    private function createProjectUsingBuildContainer(): IndustryProject
     {
-        $project = (new GroupIndustryProject())
+        $project = (new IndustryProject())
             ->setOwner($this->em->getReference(User::class, $this->owner->getId()))
             ->setName('Hull run')
             ->setContainerName(self::BUILD_CONTAINER_NAME);
@@ -233,13 +233,13 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
         $this->addMaterial($project, self::PYERITE, 'Pyerite', self::PYERITE_REQUIRED);
         $this->flushAndClear();
 
-        $reloadedProject = $this->em->find(GroupIndustryProject::class, $project->getId());
-        \assert($reloadedProject instanceof GroupIndustryProject);
+        $reloadedProject = $this->em->find(IndustryProject::class, $project->getId());
+        \assert($reloadedProject instanceof IndustryProject);
 
         return $reloadedProject;
     }
 
-    private function addMaterial(GroupIndustryProject $project, int $typeId, string $typeName, int $requiredQuantity): void
+    private function addMaterial(IndustryProject $project, int $typeId, string $typeName, int $requiredQuantity): void
     {
         $material = (new GroupIndustryBomItem())
             ->setTypeId($typeId)
@@ -250,7 +250,7 @@ final class GroupIndustryContainerServiceTest extends IntegrationTestCase
         $this->em->persist($material);
     }
 
-    private function verifyContainerOf(GroupIndustryProject $project): array
+    private function verifyContainerOf(IndustryProject $project): array
     {
         $verification = [];
         foreach (self::getContainer()->get(GroupIndustryContainerService::class)->verifyContainer($project) as $material) {

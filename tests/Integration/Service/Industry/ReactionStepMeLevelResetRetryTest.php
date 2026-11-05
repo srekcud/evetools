@@ -88,8 +88,7 @@ final class ReactionStepMeLevelResetRetryTest extends IntegrationTestCase
 
     private function carbideProjectAtMeTenWithItsAlloyStep(): Uuid
     {
-        $project = (new IndustryProject())
-            ->setUser($this->createUser())
+        $project = (new IndustryProject())->setOwner($this->createUser())
             ->setName(self::PROJECT_NAME)
             ->setProductTypeId(self::CARBIDE_TYPE_ID)
             ->setRuns(self::CARBIDE_RUNS);

@@ -7,7 +7,7 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 use ApiPlatform\Metadata\Delete;
 use App\Entity\Character;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -15,7 +15,7 @@ use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\KickGroupMemberProcessor;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -40,7 +40,7 @@ use Symfony\Component\Uid\Uuid;
 class KickGroupMemberProcessorTest extends TestCase
 {
     private Security&Stub $security;
-    private GroupIndustryProjectRepository&Stub $projectRepository;
+    private IndustryProjectRepository&Stub $projectRepository;
     private GroupIndustryProjectMemberRepository&Stub $memberRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
@@ -48,12 +48,12 @@ class KickGroupMemberProcessorTest extends TestCase
 
     private User&Stub $owner;
     private Uuid $projectId;
-    private GroupIndustryProject&Stub $project;
+    private IndustryProject&Stub $project;
 
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
-        $this->projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
         $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
@@ -69,7 +69,7 @@ class KickGroupMemberProcessorTest extends TestCase
 
         $this->owner = $this->createStub(User::class);
         $this->projectId = Uuid::v4();
-        $this->project = $this->createStub(GroupIndustryProject::class);
+        $this->project = $this->createStub(IndustryProject::class);
         $this->project->method('getId')->willReturn($this->projectId);
         $this->project->method('getOwner')->willReturn($this->owner);
     }
@@ -141,7 +141,7 @@ class KickGroupMemberProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn($this->owner);
         $this->projectRepository->method('find')->willReturn($this->project);
 
-        $otherProject = $this->createStub(GroupIndustryProject::class);
+        $otherProject = $this->createStub(IndustryProject::class);
         $member = $this->createStub(GroupIndustryProjectMember::class);
         $member->method('getProject')->willReturn($otherProject);
         $member->method('getRole')->willReturn(GroupMemberRole::Member);

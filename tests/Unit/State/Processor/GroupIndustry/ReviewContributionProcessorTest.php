@@ -10,7 +10,7 @@ use App\ApiResource\Input\GroupIndustry\ReviewContributionInput;
 use App\Entity\Character;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -20,7 +20,7 @@ use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryContributionRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\ReviewContributionProcessor;
@@ -47,7 +47,7 @@ use Symfony\Component\Uid\Uuid;
  * than its contributor. Only exception: the project owner may review his own contribution
  * when he is the only owner/admin of the project (nobody else could ever review it).
  *
- * The project members are kept both in GroupIndustryProject::getMembers() and in a fake
+ * The project members are kept both in IndustryProject::getMembers() and in a fake
  * member repository, so the rule can be implemented with either source.
  */
 #[CoversClass(ReviewContributionProcessor::class)]
@@ -58,7 +58,7 @@ class ReviewContributionProcessorTest extends TestCase
     private const int ALREADY_FULFILLED_QUANTITY = 2000;
 
     private Security&Stub $security;
-    private GroupIndustryProjectRepository&Stub $projectRepository;
+    private IndustryProjectRepository&Stub $projectRepository;
     private GroupIndustryContributionRepository&Stub $contributionRepository;
     private GroupIndustryProjectMemberRepository&Stub $memberRepository;
     private EntityManagerInterface&MockObject $entityManager;
@@ -69,14 +69,14 @@ class ReviewContributionProcessorTest extends TestCase
     private array $members = [];
 
     private User $owner;
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
     private GroupIndustryProjectMember $ownerMember;
     private GroupIndustryBomItem $bomItem;
 
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
-        $this->projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
         $this->contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
         $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
@@ -106,7 +106,7 @@ class ReviewContributionProcessorTest extends TestCase
         );
 
         $this->owner = $this->createStub(User::class);
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($this->owner);
         $this->assignId($this->project);
         $this->projectRepository->method('find')->willReturn($this->project);
@@ -326,7 +326,7 @@ class ReviewContributionProcessorTest extends TestCase
 
     public function testContributionOfAnotherProjectIsNotFound(): void
     {
-        $otherProject = new GroupIndustryProject();
+        $otherProject = new IndustryProject();
         $otherProject->setOwner($this->createStub(User::class));
         $contributor = $this->addMember($this->createStub(User::class), GroupMemberRole::Member);
         $contribution = $this->pendingContributionOf($contributor);

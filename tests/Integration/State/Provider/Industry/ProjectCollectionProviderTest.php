@@ -285,8 +285,7 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
 
     private function createProject(User $owner, int $productTypeId, int $runs): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($owner)
+        $project = (new IndustryProject())->setOwner($owner)
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
         $this->em->persist($project);

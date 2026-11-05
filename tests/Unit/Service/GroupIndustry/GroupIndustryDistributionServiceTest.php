@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Service\GroupIndustry;
 
 use App\Entity\Character;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
@@ -46,9 +46,9 @@ class GroupIndustryDistributionServiceTest extends TestCase
     // Helper methods
     // ===========================================
 
-    private function stubProject(float $brokerFeePercent = 3.6, float $salesTaxPercent = 3.6): GroupIndustryProject&Stub
+    private function stubProject(float $brokerFeePercent = 3.6, float $salesTaxPercent = 3.6): IndustryProject&Stub
     {
-        $project = $this->createStub(GroupIndustryProject::class);
+        $project = $this->createStub(IndustryProject::class);
         $project->method('getBrokerFeePercent')->willReturn($brokerFeePercent);
         $project->method('getSalesTaxPercent')->willReturn($salesTaxPercent);
 
@@ -94,7 +94,7 @@ class GroupIndustryDistributionServiceTest extends TestCase
     }
 
     private function configureRepositories(
-        GroupIndustryProject $project,
+        IndustryProject $project,
         array $sales,
         array $contributions,
     ): void {

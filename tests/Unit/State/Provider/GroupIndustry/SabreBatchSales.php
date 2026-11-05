@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\Entity\Character;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
 use PHPUnit\Framework\MockObject\Stub;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -28,7 +28,7 @@ trait SabreBatchSales
     private const string SABRE_SALE_RECORDER_NAME = 'Brann Holt';
 
     private GroupIndustrySale $sabreSale;
-    private GroupIndustryProject $hecateBatch;
+    private IndustryProject $hecateBatch;
 
     private function recordSabreSale(): void
     {
@@ -51,18 +51,18 @@ trait SabreBatchSales
 
     private function createHecateBatchOfTheSabreBatchOwner(): void
     {
-        $this->hecateBatch = new GroupIndustryProject();
+        $this->hecateBatch = new IndustryProject();
         $this->hecateBatch->setOwner($this->sabreBatchOwner);
         $this->hecateBatch->setName('Hecate batch');
         $this->hecateBatch->setStatus(GroupProjectStatus::Selling);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($this->hecateBatch, Uuid::v4());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->hecateBatch, Uuid::v4());
     }
 
-    private function projectRepositoryOfTheSabreAndHecateBatches(): GroupIndustryProjectRepository&Stub
+    private function projectRepositoryOfTheSabreAndHecateBatches(): IndustryProjectRepository&Stub
     {
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturnCallback(
-            fn (Uuid $id): ?GroupIndustryProject => match (true) {
+            fn (Uuid $id): ?IndustryProject => match (true) {
                 $id->equals($this->sabreBatch->getId()) => $this->sabreBatch,
                 $id->equals($this->hecateBatch->getId()) => $this->hecateBatch,
                 default => null,

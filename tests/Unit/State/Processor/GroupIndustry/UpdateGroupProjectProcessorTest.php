@@ -8,14 +8,14 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\UpdateGroupProjectProcessor;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
@@ -41,14 +41,14 @@ class UpdateGroupProjectProcessorTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private UpdateGroupProjectProcessor $processor;
     private HubInterface&MockObject $hub;
-    private GroupIndustryProject $project;
+    private IndustryProject $project;
     private User $owner;
 
     protected function setUp(): void
     {
         $this->owner = $this->createStub(User::class);
 
-        $this->project = new GroupIndustryProject();
+        $this->project = new IndustryProject();
         $this->project->setOwner($this->owner);
         $this->project->setName('Orca batch');
         $this->project->setContainerName('GI Orca hangar');
@@ -377,7 +377,7 @@ class UpdateGroupProjectProcessorTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($actor);
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($this->project);
         $memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
         $memberRepository->method('findOneBy')->willReturnCallback(

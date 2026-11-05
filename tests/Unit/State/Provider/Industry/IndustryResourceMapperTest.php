@@ -546,8 +546,7 @@ class IndustryResourceMapperTest extends TestCase
 
     private function project(int $productTypeId, ?string $customName): IndustryProject
     {
-        return (new IndustryProject())
-            ->setUser(new User())
+        return (new IndustryProject())->setOwner(new User())
             ->setProductTypeId($productTypeId)
             ->setName($customName)
             ->setRuns(1);

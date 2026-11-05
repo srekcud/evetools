@@ -7,14 +7,14 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustryBomResource;
 use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Repository\GroupIndustryBomItemRepository;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupBomProvider;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -33,7 +33,7 @@ class GroupBomProviderTest extends TestCase
     use GroupProjectAccessProfiles;
 
     private Security&Stub $security;
-    private GroupIndustryProjectRepository&Stub $projectRepository;
+    private IndustryProjectRepository&Stub $projectRepository;
     private GroupIndustryBomItemRepository&Stub $bomItemRepository;
     private GroupIndustryProjectMemberRepository&Stub $memberRepository;
     private GroupBomProvider $provider;
@@ -41,7 +41,7 @@ class GroupBomProviderTest extends TestCase
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
-        $this->projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
         $this->bomItemRepository = $this->createStub(GroupIndustryBomItemRepository::class);
         $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
 
@@ -84,7 +84,7 @@ class GroupBomProviderTest extends TestCase
 
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
         $this->memberRepository->method('findOneBy')->willReturn(null);
@@ -103,7 +103,7 @@ class GroupBomProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         $project->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
         $this->bomItemRepository->method('findBy')->willReturn([]);
@@ -120,7 +120,7 @@ class GroupBomProviderTest extends TestCase
 
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
 
@@ -144,7 +144,7 @@ class GroupBomProviderTest extends TestCase
 
         $this->security->method('getUser')->willReturn($corpmate);
 
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
         $this->memberRepository->method('findOneBy')->willReturn(null);
@@ -165,7 +165,7 @@ class GroupBomProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         $project->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
 
@@ -195,7 +195,7 @@ class GroupBomProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         $project->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
 
@@ -223,7 +223,7 @@ class GroupBomProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         $project->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
 

@@ -55,7 +55,7 @@ final class CreateStepProcessorAddedJobTest extends TestCase
     protected function setUp(): void
     {
         $this->pilot = new User();
-        $this->project = (new IndustryProject())->setUser($this->pilot);
+        $this->project = (new IndustryProject())->setOwner($this->pilot);
     }
 
     public function testJobAddedToASingleStepFixesBothJobsAtTheirRunsAndRecalculatesTheMaterialsJobByJob(): void

@@ -403,7 +403,7 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame(20, $project->getTeLevel());
         $this->assertSame(2.0, $project->getMaxJobDurationDays());
         $this->assertSame('Test Rifter', $project->getName());
-        $this->assertSame($user, $project->getUser());
+        $this->assertSame($user, $project->getOwner());
 
         // Should have 1 manufacturing step
         $steps = $project->getSteps();
@@ -1098,8 +1098,7 @@ class IndustryProjectFactoryTest extends TestCase
         $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(38001, 38002, 'Assigned Structure Product', 20));
         $this->setupDefaultMocks();
         $this->baseTimeByBlueprintAndActivity = ['38001-1' => 10500];
-        $project = (new IndustryProject())
-            ->setUser($this->userWithCharacters([]))
+        $project = (new IndustryProject())->setOwner($this->userWithCharacters([]))
             ->setProductTypeId(38002)
             ->setRuns(20)
             ->setMeLevel(10)
@@ -1325,8 +1324,7 @@ class IndustryProjectFactoryTest extends TestCase
     private function projectWithTheJobsOfASplitStep(User $user, int $blueprintTypeId, int $productTypeId, array $runsOfEachJob): IndustryProject
     {
         $totalGroupRuns = array_sum($runsOfEachJob);
-        $project = (new IndustryProject())
-            ->setUser($user)
+        $project = (new IndustryProject())->setOwner($user)
             ->setProductTypeId($productTypeId)
             ->setRuns($totalGroupRuns)
             ->setMeLevel(10)
@@ -1443,8 +1441,7 @@ class IndustryProjectFactoryTest extends TestCase
     {
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
         $exclusionsOfTheTree = $this->capturesTheExclusionsOfTheTree();
-        $project = (new IndustryProject())
-            ->setUser($this->createUser())
+        $project = (new IndustryProject())->setOwner($this->createUser())
             ->setProductTypeId(self::QUANTUM_MICROPROCESSOR)
             ->setRuns(self::QUANTUM_MICROPROCESSOR_RUNS)
             ->setMeLevel(10)

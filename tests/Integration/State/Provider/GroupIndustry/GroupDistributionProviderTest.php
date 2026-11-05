@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Get;
 use App\ApiResource\GroupIndustry\GroupIndustryDistributionResource;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
 use App\Entity\User;
@@ -16,7 +16,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\State\Provider\GroupIndustry\GroupDistributionProvider;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -71,7 +71,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
     public function testMemberWithoutMainCharacterIsPaidUnderAnUnknownName(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre doctrine')->setBrokerFeePercent(0.0)->setSalesTaxPercent(0.0);
+        $project = (new IndustryProject())->setOwner($owner)->setName('Sabre doctrine')->setBrokerFeePercent(0.0)->setSalesTaxPercent(0.0);
         $this->em->persist($project);
         $ownerMember = $this->addMember($project, $owner, GroupMemberRole::Owner);
         $memberWithoutMainCharacter = $this->addMember($project, $this->createUser(), GroupMemberRole::Member);
@@ -106,7 +106,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
     public function testSaleWhoseOnlyApprovedContributionIsAFreeLineRentalIsUndistributable(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre doctrine');
+        $project = (new IndustryProject())->setOwner($owner)->setName('Sabre doctrine');
         $this->em->persist($project);
         $ownerMember = $this->addMember($project, $owner, GroupMemberRole::Owner);
         $project->addContribution(
@@ -159,7 +159,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
     {
         $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
         $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $project = (new IndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
         $this->em->persist($project);
         $this->addMember($project, $owner, GroupMemberRole::Owner);
         $this->addMember($project, $viewer, GroupMemberRole::Member);
@@ -187,7 +187,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
 
         $provider = new GroupDistributionProvider(
             $security,
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(GroupIndustryDistributionService::class),
         );
@@ -211,7 +211,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role): GroupIndustryProjectMember
     {
         $member = (new GroupIndustryProjectMember())
             ->setUser($user)
@@ -222,7 +222,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addBomItem(GroupIndustryProject $project, int $typeId, string $typeName): GroupIndustryBomItem
+    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): GroupIndustryBomItem
     {
         $bomItem = (new GroupIndustryBomItem())
             ->setTypeId($typeId)
@@ -233,7 +233,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         return $bomItem;
     }
 
-    private function addApprovedContribution(GroupIndustryProject $project, GroupIndustryProjectMember $member, GroupIndustryBomItem $bomItem, float $estimatedValue): void
+    private function addApprovedContribution(IndustryProject $project, GroupIndustryProjectMember $member, GroupIndustryBomItem $bomItem, float $estimatedValue): void
     {
         $contribution = (new GroupIndustryContribution())
             ->setMember($member)
@@ -245,7 +245,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
         $project->addContribution($contribution);
     }
 
-    private function addSale(GroupIndustryProject $project, User $recordedBy, int $quantity, float $unitPrice): void
+    private function addSale(IndustryProject $project, User $recordedBy, int $quantity, float $unitPrice): void
     {
         $sale = (new GroupIndustrySale())
             ->setTypeId(self::SABRE_TYPE_ID)

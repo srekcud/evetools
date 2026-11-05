@@ -6,7 +6,7 @@ namespace App\Tests\Functional\Api\GroupIndustry;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
@@ -34,8 +34,8 @@ final class GroupSaleApiTest extends WebTestCase
     private User $owner;
     private User $admin;
     private User $member;
-    private GroupIndustryProject $sabreDoctrine;
-    private GroupIndustryProject $hecateBatch;
+    private IndustryProject $sabreDoctrine;
+    private IndustryProject $hecateBatch;
     private GroupIndustrySale $sabreSale;
 
     protected function setUp(): void
@@ -104,7 +104,7 @@ final class GroupSaleApiTest extends WebTestCase
 
     public function testPastedIshtarLineWithEveryValueOutOfRangeCreatesNoProject(): void
     {
-        $projectsBefore = $this->em->getRepository(GroupIndustryProject::class)->count([]);
+        $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
         $this->client->loginUser($this->owner, 'api');
         $this->request('POST', '/api/group-industry/projects', [
             'items' => [['typeId' => 0, 'typeName' => 'Ishtar', 'meLevel' => 12, 'teLevel' => 25, 'runs' => 0]],
@@ -115,7 +115,7 @@ final class GroupSaleApiTest extends WebTestCase
         sort($violatedPaths);
         self::assertSame(
             [['items[0][meLevel]', 'items[0][runs]', 'items[0][teLevel]'], $projectsBefore],
-            [$violatedPaths, $this->em->getRepository(GroupIndustryProject::class)->count([])],
+            [$violatedPaths, $this->em->getRepository(IndustryProject::class)->count([])],
         );
     }
 
@@ -195,24 +195,24 @@ final class GroupSaleApiTest extends WebTestCase
 
     public function testPastedItemsThatAreNotObjectsCreateNoProject(): void
     {
-        $projectsBefore = $this->em->getRepository(GroupIndustryProject::class)->count([]);
+        $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
         $this->client->loginUser($this->owner, 'api');
         $this->request('POST', '/api/group-industry/projects', ['items' => ['x']]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame([['items[0]'], $projectsBefore], [$this->violatedPaths(), $this->em->getRepository(GroupIndustryProject::class)->count([])]);
+        self::assertSame([['items[0]'], $projectsBefore], [$this->violatedPaths(), $this->em->getRepository(IndustryProject::class)->count([])]);
     }
 
     public function testItemWithNullRunsCreatesNoProject(): void
     {
-        $projectsBefore = $this->em->getRepository(GroupIndustryProject::class)->count([]);
+        $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
         $this->client->loginUser($this->owner, 'api');
         $this->request('POST', '/api/group-industry/projects', [
             'items' => [['typeId' => 12005, 'typeName' => 'Ishtar', 'meLevel' => 10, 'teLevel' => 20, 'runs' => null]],
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame([['items[0][runs]'], $projectsBefore], [$this->violatedPaths(), $this->em->getRepository(GroupIndustryProject::class)->count([])]);
+        self::assertSame([['items[0][runs]'], $projectsBefore], [$this->violatedPaths(), $this->em->getRepository(IndustryProject::class)->count([])]);
     }
 
     #[Group('issue-241')]
@@ -417,15 +417,15 @@ final class GroupSaleApiTest extends WebTestCase
         return $user;
     }
 
-    private function persistProject(string $name, GroupProjectStatus $status): GroupIndustryProject
+    private function persistProject(string $name, GroupProjectStatus $status): IndustryProject
     {
-        $project = (new GroupIndustryProject())->setOwner($this->owner)->setName($name)->setStatus($status);
+        $project = (new IndustryProject())->setOwner($this->owner)->setName($name)->setStatus($status);
         $this->em->persist($project);
 
         return $project;
     }
 
-    private function addMembership(GroupIndustryProject $project, User $user, GroupMemberRole $role): void
+    private function addMembership(IndustryProject $project, User $user, GroupMemberRole $role): void
     {
         $project->addMember(
             (new GroupIndustryProjectMember())->setUser($user)->setRole($role)->setStatus(GroupMemberStatus::Accepted),
@@ -442,7 +442,7 @@ final class GroupSaleApiTest extends WebTestCase
         $this->request('POST', sprintf('/api/group-industry/projects/%s/sales', $this->sabreDoctrine->getId()?->toRfc4122()), $sale);
     }
 
-    private function sabreSaleUri(GroupIndustryProject $project): string
+    private function sabreSaleUri(IndustryProject $project): string
     {
         return sprintf('/api/group-industry/projects/%s/sales/%s', $project->getId()?->toRfc4122(), $this->sabreSale->getId()?->toRfc4122());
     }
@@ -475,7 +475,7 @@ final class GroupSaleApiTest extends WebTestCase
         return array_values(array_unique(array_column($this->responseJson()['violations'] ?? [], 'propertyPath')));
     }
 
-    private function salesCountOf(GroupIndustryProject $project): int
+    private function salesCountOf(IndustryProject $project): int
     {
         $this->em->clear();
 

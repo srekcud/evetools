@@ -23,7 +23,7 @@ final class SplitGroupMaterialNeedsTest extends TestCase
     #[Group('issue-73')]
     public function testChangeOfJobsReturnsEveryMaterialStepWhoseNeedChanged(): void
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $quantumMicroprocessor = $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32);
         $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: 490);
         $this->stepOf($project, self::PHENOLIC_COMPOSITES, 'reaction', runs: 1, quantity: 173);
@@ -42,7 +42,7 @@ final class SplitGroupMaterialNeedsTest extends TestCase
 
     public function testChildSplitGroupOfAManualSplitKeepsOnlyTheJobsThatItsNewNeedRuns(): void
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $quantumMicroprocessor = $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 32, quantity: 32);
         $titaniumCarbideJobs = array_map(
             fn (int $splitIndex): IndustryProjectStep => $this->stepOf($project, self::TITANIUM_CARBIDE, 'reaction', runs: 1, quantity: $splitIndex === 0 ? 490 : 0)

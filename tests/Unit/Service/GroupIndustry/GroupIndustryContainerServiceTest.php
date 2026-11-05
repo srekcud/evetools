@@ -8,7 +8,7 @@ use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
@@ -546,7 +546,7 @@ final class GroupIndustryContainerServiceTest extends TestCase
         );
     }
 
-    private function verificationOf(GroupIndustryProject $project): array
+    private function verificationOf(IndustryProject $project): array
     {
         return array_map(
             static fn (GroupContainerVerificationResource $line): array => [$line->typeId, $line->requiredQuantity, $line->containerQuantity, $line->status, $line->unknownReason],
@@ -554,9 +554,9 @@ final class GroupIndustryContainerServiceTest extends TestCase
         );
     }
 
-    private function projectUsingContainer(?string $containerName, ?User $owner = null): GroupIndustryProject
+    private function projectUsingContainer(?string $containerName, ?User $owner = null): IndustryProject
     {
-        return (new GroupIndustryProject())
+        return (new IndustryProject())
             ->setOwner($owner ?? $this->ownerOfCorporation(self::CORPORATION_ID))
             ->setContainerName($containerName);
     }

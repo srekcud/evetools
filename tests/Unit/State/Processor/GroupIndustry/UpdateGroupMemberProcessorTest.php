@@ -6,7 +6,7 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupMemberInput;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -247,7 +247,7 @@ class UpdateGroupMemberProcessorTest extends TestCase
     public function testMemberOfAnotherProjectIsNotFound(): void
     {
         $this->actAs($this->adminA);
-        $otherProject = new GroupIndustryProject();
+        $otherProject = new IndustryProject();
         $otherProject->setOwner($this->userOfCorporation(self::FOREIGN_CORPORATION_ID));
         $otherProjectAdmin = $this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), GroupMemberRole::Admin, GroupMemberStatus::Accepted);
         $otherProjectAdmin->setProject($otherProject);

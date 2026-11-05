@@ -292,8 +292,7 @@ class IndustryCalculationTest extends TestCase
     #[Group('issue-115')]
     public function testProjectDisplayNameIsUnknownWithoutCustomNameWhenItsProductIsMissingFromTheSde(): void
     {
-        $project = (new IndustryProject())
-            ->setUser(new User())
+        $project = (new IndustryProject())->setOwner(new User())
             ->setProductTypeId(self::ROBOTICS_TYPE_ID)
             ->setRuns(5);
 
@@ -303,8 +302,7 @@ class IndustryCalculationTest extends TestCase
     #[Group('issue-115')]
     public function testProjectDisplayNameIsTheSdeNameWithoutCustomNameWhenItsProductIsKnown(): void
     {
-        $project = (new IndustryProject())
-            ->setUser(new User())
+        $project = (new IndustryProject())->setOwner(new User())
             ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
             ->setRuns(40);
 
@@ -314,8 +312,7 @@ class IndustryCalculationTest extends TestCase
     #[Group('issue-115')]
     public function testProjectDisplayNameIsTheCustomNameEvenWhenItsProductIsKnown(): void
     {
-        $project = (new IndustryProject())
-            ->setUser(new User())
+        $project = (new IndustryProject())->setOwner(new User())
             ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
             ->setName('Fuel for the Keepstar')
             ->setRuns(40);

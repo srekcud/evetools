@@ -19,11 +19,10 @@ use App\Entity\Escalation;
 use App\Entity\EveToken;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
-use App\Entity\IndustryProject;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\IndustryUserSettings;
 use App\Entity\MarketFavorite;
@@ -50,7 +49,7 @@ use App\Message\SyncCharacterAssets;
 use App\MessageHandler\SyncCharacterAssetsHandler;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Repository\GroupIndustrySaleRepository;
 use App\Service\Account\AccountDeletionService;
 use App\Service\ESI\CorporationService;
@@ -793,15 +792,15 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         return $mainCharacter;
     }
 
-    private function createProject(User $owner, string $name): GroupIndustryProject
+    private function createProject(User $owner, string $name): IndustryProject
     {
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName($name);
+        $project = (new IndustryProject())->setOwner($owner)->setName($name);
         $this->em->persist($project);
 
         return $project;
     }
 
-    private function addMember(GroupIndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status, string $joinedAt): GroupIndustryProjectMember
+    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status, string $joinedAt): GroupIndustryProjectMember
     {
         $member = (new GroupIndustryProjectMember())->setUser($user)->setRole($role)->setStatus($status);
         (new \ReflectionProperty(GroupIndustryProjectMember::class, 'joinedAt'))->setValue($member, new \DateTimeImmutable($joinedAt));
@@ -811,7 +810,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
     }
 
     private function addContribution(
-        GroupIndustryProject $project,
+        IndustryProject $project,
         GroupIndustryProjectMember $member,
         float $estimatedValue,
         ContributionStatus $status,
@@ -829,7 +828,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         return $contribution;
     }
 
-    private function addSale(GroupIndustryProject $project, User $recordedBy, int $typeId, string $typeName, int $quantity, float $unitPrice): GroupIndustrySale
+    private function addSale(IndustryProject $project, User $recordedBy, int $typeId, string $typeName, int $quantity, float $unitPrice): GroupIndustrySale
     {
         $sale = (new GroupIndustrySale())
             ->setTypeId($typeId)
@@ -845,10 +844,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         return $sale;
     }
 
-    private function project(string $projectId): GroupIndustryProject
+    private function project(string $projectId): IndustryProject
     {
-        $project = $this->em->find(GroupIndustryProject::class, $projectId);
-        \assert($project instanceof GroupIndustryProject);
+        $project = $this->em->find(IndustryProject::class, $projectId);
+        \assert($project instanceof IndustryProject);
 
         return $project;
     }
@@ -861,7 +860,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         return $member;
     }
 
-    private function rolesAndStatusesByMemberName(GroupIndustryProject $project): array
+    private function rolesAndStatusesByMemberName(IndustryProject $project): array
     {
         $byName = [];
         foreach ($project->getMembers() as $member) {
@@ -937,7 +936,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         $provider = new GroupSaleCollectionProvider(
             $security,
-            self::getContainer()->get(GroupIndustryProjectRepository::class),
+            self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(GroupProjectAccessChecker::class),
             self::getContainer()->get(GroupIndustrySaleRepository::class),
         );
@@ -1108,8 +1107,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setUpgradeLevel(3 + $seed)
             ->setNumPins(8 + $seed)
             ->setLastUpdate($start));
-        $this->em->persist((new IndustryProject())
-            ->setUser($user)
+        $this->em->persist((new IndustryProject())->setOwner($user)
             ->setProductTypeId(22_444 + $seed)
             ->setRuns(10 * $seed));
         $this->em->persist((new IndustryUserSettings())
