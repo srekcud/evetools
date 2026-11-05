@@ -38,8 +38,6 @@ const USER_SETTINGS: UserSettings = {
   favoriteManufacturingSystemName: null,
   favoriteReactionSystemId: null,
   favoriteReactionSystemName: null,
-  brokerFeeRate: 0.025,
-  salesTaxRate: 0.045,
   exportCostPerM3: 1200,
 }
 

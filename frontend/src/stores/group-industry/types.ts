@@ -42,8 +42,8 @@ export type GroupProject = {
   totalBomValue: number | null
   fulfillmentPercent: number
   approvedContributionValue: number
-  brokerFeePercent: number
-  salesTaxPercent: number
+  brokerFeePercent: number | null
+  salesTaxPercent: number | null
   lineRentalRatesOverride: Record<string, number> | null
   blacklistGroupIds: number[]
   blacklistTypeIds: number[]
@@ -159,9 +159,9 @@ export type MemberDistribution = {
 export type Distribution = {
   id: string
   totalRevenue: number
-  brokerFee: number
-  salesTax: number
-  netRevenue: number
+  brokerFee: number | null
+  salesTax: number | null
+  netRevenue: number | null
   totalProjectCost: number
   marginPercent: number | null
   members: MemberDistribution[]
