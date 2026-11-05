@@ -36,7 +36,7 @@ const SELL_MARKETS_MESSAGES = {
   unknown: {
     noSellOrder: 'No sell order',
     noBuyOrder: 'No buy order',
-    noVolume: 'Fewer than 7 days of observed sales',
+    noVolume: 'Not enough days of observed sales',
   },
 }
 
