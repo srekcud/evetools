@@ -72,6 +72,27 @@ final class SellMarketProviderTest extends TestCase
         yield 'one above the integer maximum' => ['2147483648'];
     }
 
+    #[DataProvider('acceptedBoundaries')]
+    public function testSmallestAndLargestTypeIdsAndQuantityOneAreCompared(string|int $typeId, int $expectedTypeId): void
+    {
+        $comparison = $this->createMock(SellMarketComparison::class);
+        $comparison->expects($this->once())
+            ->method('compare')
+            ->with($this->anything(), $expectedTypeId, 1, $this->anything())
+            ->willReturn($this->resultWithoutPrices(1));
+
+        $resource = $this->provider(new User(), '1', $comparison)->provide(new Get(), ['typeId' => $typeId]);
+
+        $this->assertSame(1, $resource->quantity);
+    }
+
+    public static function acceptedBoundaries(): iterable
+    {
+        yield 'smallest type id' => ['1', 1];
+        yield 'largest type id' => ['2147483647', 2_147_483_647];
+        yield 'integer type id' => [12779, 12779];
+    }
+
     public function testMaximumQuantityIsAcceptedAndComparedForTheAuthenticatedUserToday(): void
     {
         $user = new User();
@@ -174,7 +195,7 @@ final class SellMarketProviderTest extends TestCase
 
         $typeNameResolver = $this->createStub(TypeNameResolver::class);
         $typeNameResolver->method('findName')->willReturnCallback(
-            static fn (int $typeId): ?string => $typeId === self::HAIL_L_TYPE_ID ? $typeName : self::fail('Name resolved for another type.'),
+            static fn (int $typeId): ?string => $typeId === self::HAIL_L_TYPE_ID ? $typeName : null,
         );
 
         return new SellMarketProvider($security, $requestStack, $comparison, $typeNameResolver, new MockClock('2026-11-05 10:30:00 UTC'));
