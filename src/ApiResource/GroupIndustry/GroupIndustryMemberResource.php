@@ -25,7 +25,7 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
     description: 'Members of a group industry project',
     operations: [
         new GetCollection(
-            uriTemplate: '/group-industry/projects/{projectId}/members',
+            uriTemplate: '/industry/projects/{projectId}/members',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
@@ -37,7 +37,7 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
             ),
         ),
         new Patch(
-            uriTemplate: '/group-industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriTemplate: '/industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
                 'id' => new Link(fromClass: self::class),
@@ -52,7 +52,7 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
             ),
         ),
         new Delete(
-            uriTemplate: '/group-industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriTemplate: '/industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
                 'id' => new Link(fromClass: self::class),
@@ -66,7 +66,7 @@ use App\State\Provider\GroupIndustry\GroupMemberItemProvider;
             ),
         ),
         new Post(
-            uriTemplate: '/group-industry/projects/{projectId}/leave',
+            uriTemplate: '/industry/projects/{projectId}/leave',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],

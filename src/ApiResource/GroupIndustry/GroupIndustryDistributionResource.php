@@ -16,7 +16,7 @@ use App\State\Provider\GroupIndustry\GroupDistributionProvider;
     description: 'Profit distribution calculation for a group industry project',
     operations: [
         new Get(
-            uriTemplate: '/group-industry/projects/{projectId}/distribution',
+            uriTemplate: '/industry/projects/{projectId}/distribution',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],

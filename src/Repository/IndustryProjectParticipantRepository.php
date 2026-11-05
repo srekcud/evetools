@@ -23,16 +23,12 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
     }
 
     /**
-     * Return project UUIDs (as strings) for all accepted memberships of a user in projects with items.
-     *
      * @return string[]
      */
     public function findAcceptedProjectIds(User $user): array
     {
         $rows = $this->createQueryBuilder('m')
             ->select('IDENTITY(m.project) AS projectId')
-            ->join('m.project', 'p')
-            ->andWhere('p.items IS NOT EMPTY')
             ->andWhere('m.user = :user')
             ->andWhere('m.status = :status')
             ->setParameter('user', $user)
@@ -60,7 +56,6 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
             // Character::eveToken is an inverse OneToOne: not joined, Doctrine would load it row by row
             ->leftJoin('owner.mainCharacter', 'ownerCharacter')
             ->leftJoin('ownerCharacter.eveToken', 'ownerToken')
-            ->andWhere('p.items IS NOT EMPTY')
             ->andWhere('m.user = :user')
             ->andWhere('m.status = :status')
             ->setParameter('user', $user)

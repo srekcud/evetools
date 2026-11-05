@@ -53,7 +53,7 @@ class JoinGroupProjectProcessor implements ProcessorInterface
 
         $project = $this->projectRepository->findByShortLinkCode($shortLinkCode);
 
-        if ($project === null) {
+        if ($project === null || $project->isPrivate()) {
             throw new NotFoundHttpException('Project not found');
         }
 

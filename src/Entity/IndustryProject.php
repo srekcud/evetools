@@ -33,7 +33,7 @@ class IndustryProject
     private ?string $name = null;
 
     #[ORM\Column(type: 'string', length: 20, enumType: GroupProjectStatus::class)]
-    private GroupProjectStatus $status = GroupProjectStatus::Published;
+    private GroupProjectStatus $status = GroupProjectStatus::Draft;
 
     #[ORM\Column(type: 'string', length: 10, unique: true)]
     private string $shortLinkCode;
@@ -136,16 +136,6 @@ class IndustryProject
 
         $member->setRole(GroupMemberRole::Owner);
         $this->owner = $newOwner;
-    }
-
-    public function isPlannedBySteps(): bool
-    {
-        return $this->items->isEmpty();
-    }
-
-    public function isPlannedByStepsAndOwnedBy(User $user): bool
-    {
-        return $this->isPlannedBySteps() && $this->owner === $user;
     }
 
     public function getName(): ?string

@@ -85,6 +85,7 @@ class CreateGroupProjectProcessor implements ProcessorInterface
                 lineRentalRatesOverride: $data->lineRentalRatesOverride,
                 brokerFeePercent: $brokerFeePercent,
                 salesTaxPercent: $salesTaxPercent,
+                private: $data->private,
             );
 
             $project = $this->projectService->createProject($user, $projectData);

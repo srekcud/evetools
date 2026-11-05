@@ -34,6 +34,8 @@ class GroupIndustryResourceMapper
         $resource->status = $project->getStatus()->value;
         $resource->shortLinkCode = $project->getShortLinkCode();
         $resource->containerName = $project->getContainerName();
+        $resource->private = $project->isPrivate();
+        $resource->notes = $project->getNotes();
         $resource->ownerCharacterName = $project->getOwner()->getMainCharacter()?->getName() ?? 'Unknown';
         $resource->ownerCorporationId = $project->getOwner()->getCorporationId();
         $resource->brokerFeePercent = $project->getBrokerFeePercent();

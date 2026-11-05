@@ -29,6 +29,7 @@ use Symfony\Component\Uid\Uuid;
 class UpdateGroupProjectProcessor implements ProcessorInterface
 {
     private const array VALID_TRANSITIONS = [
+        'draft' => ['published', 'in_progress'],
         'published' => ['in_progress'],
         'in_progress' => ['selling'],
         'selling' => ['completed'],
@@ -55,7 +56,7 @@ class UpdateGroupProjectProcessor implements ProcessorInterface
 
         $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
 
-        if ($project === null || $project->isPlannedBySteps()) {
+        if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }
 
@@ -86,6 +87,14 @@ class UpdateGroupProjectProcessor implements ProcessorInterface
 
         if ($data->containerName !== null) {
             $project->setContainerName($data->containerName !== '' ? $data->containerName : null);
+        }
+
+        if ($data->notes !== null) {
+            $project->setNotes($data->notes !== '' ? $data->notes : null);
+        }
+
+        if ($data->private !== null) {
+            $project->setPrivate($data->private);
         }
 
         if ($data->brokerFeePercent !== null) {

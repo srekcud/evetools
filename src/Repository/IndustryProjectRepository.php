@@ -20,12 +20,10 @@ class IndustryProjectRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find projects with items owned by users in a given corporation, filtered by status.
-     *
      * @param GroupProjectStatus[] $statuses
      * @return IndustryProject[]
      */
-    public function findByOwnerCorporation(int $corporationId, array $statuses): array
+    public function findDiscoverableByOwnerCorporation(int $corporationId, array $statuses): array
     {
         $qb = $this->createQueryBuilder('p')
             ->addSelect('owner', 'mc', 'ownerToken')
@@ -34,7 +32,7 @@ class IndustryProjectRepository extends ServiceEntityRepository
             // Character::eveToken is an inverse OneToOne: not joined, Doctrine would load it row by row
             ->leftJoin('mc.eveToken', 'ownerToken')
             ->where('mc.corporationId = :corpId')
-            ->andWhere('p.items IS NOT EMPTY')
+            ->andWhere('p.private = false')
             ->setParameter('corpId', $corporationId);
 
         if (!empty($statuses)) {
@@ -51,7 +49,6 @@ class IndustryProjectRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('p')
             ->where('p.shortLinkCode = :code')
-            ->andWhere('p.items IS NOT EMPTY')
             ->setParameter('code', $code)
             ->getQuery()
             ->getOneOrNullResult();

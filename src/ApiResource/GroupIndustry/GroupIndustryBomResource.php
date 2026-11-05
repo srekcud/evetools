@@ -16,7 +16,7 @@ use App\State\Provider\GroupIndustry\GroupBomProvider;
     description: 'Bill of Materials for a group industry project',
     operations: [
         new GetCollection(
-            uriTemplate: '/group-industry/projects/{projectId}/bom',
+            uriTemplate: '/industry/projects/{projectId}/bom',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],

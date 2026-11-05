@@ -30,7 +30,7 @@ use App\State\Provider\GroupIndustry\GroupProjectProvider;
     description: 'Group industry collaborative projects',
     operations: [
         new GetCollection(
-            uriTemplate: '/group-industry/projects',
+            uriTemplate: '/industry/projects',
             provider: GroupProjectCollectionProvider::class,
             openapi: new Model\Operation(
                 summary: 'List my projects',
@@ -39,7 +39,7 @@ use App\State\Provider\GroupIndustry\GroupProjectProvider;
             ),
         ),
         new GetCollection(
-            uriTemplate: '/group-industry/projects/available',
+            uriTemplate: '/industry/projects/available',
             provider: AvailableGroupProjectsProvider::class,
             openapi: new Model\Operation(
                 summary: 'List available projects',
@@ -48,7 +48,7 @@ use App\State\Provider\GroupIndustry\GroupProjectProvider;
             ),
         ),
         new Get(
-            uriTemplate: '/group-industry/projects/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriTemplate: '/industry/projects/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
             provider: GroupProjectProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get project details',
@@ -57,7 +57,7 @@ use App\State\Provider\GroupIndustry\GroupProjectProvider;
             ),
         ),
         new Post(
-            uriTemplate: '/group-industry/projects',
+            uriTemplate: '/industry/projects',
             processor: CreateGroupProjectProcessor::class,
             input: CreateGroupProjectInput::class,
             openapi: new Model\Operation(
@@ -67,7 +67,7 @@ use App\State\Provider\GroupIndustry\GroupProjectProvider;
             ),
         ),
         new Patch(
-            uriTemplate: '/group-industry/projects/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriTemplate: '/industry/projects/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
             provider: GroupProjectProvider::class,
             processor: UpdateGroupProjectProcessor::class,
             input: UpdateGroupProjectInput::class,
@@ -78,7 +78,7 @@ use App\State\Provider\GroupIndustry\GroupProjectProvider;
             ),
         ),
         new Delete(
-            uriTemplate: '/group-industry/projects/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriTemplate: '/industry/projects/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
             provider: GroupProjectDeleteProvider::class,
             processor: DeleteGroupProjectProcessor::class,
             openapi: new Model\Operation(
@@ -88,7 +88,7 @@ use App\State\Provider\GroupIndustry\GroupProjectProvider;
             ),
         ),
         new Post(
-            uriTemplate: '/group-industry/projects/join/{shortLinkCode}',
+            uriTemplate: '/industry/projects/join/{shortLinkCode}',
             uriVariables: [
                 'shortLinkCode' => new Link(
                     fromClass: self::class,
@@ -119,6 +119,10 @@ class GroupIndustryProjectResource
     public string $shortLinkCode;
 
     public ?string $containerName = null;
+
+    public bool $private = true;
+
+    public ?string $notes = null;
 
     public string $ownerCharacterName;
 

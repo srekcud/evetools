@@ -29,7 +29,7 @@ use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
     description: 'Sales recorded for a group industry project',
     operations: [
         new GetCollection(
-            uriTemplate: '/group-industry/projects/{projectId}/sales',
+            uriTemplate: '/industry/projects/{projectId}/sales',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
@@ -41,7 +41,7 @@ use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
             ),
         ),
         new Post(
-            uriTemplate: '/group-industry/projects/{projectId}/sales',
+            uriTemplate: '/industry/projects/{projectId}/sales',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
@@ -54,7 +54,7 @@ use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
             ),
         ),
         new Post(
-            uriTemplate: '/group-industry/projects/{projectId}/sales/from-wallet-transaction',
+            uriTemplate: '/industry/projects/{projectId}/sales/from-wallet-transaction',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
@@ -67,7 +67,7 @@ use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
             ),
         ),
         new Patch(
-            uriTemplate: '/group-industry/projects/{projectId}/sales/{id}',
+            uriTemplate: '/industry/projects/{projectId}/sales/{id}',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
                 'id' => new Link(fromClass: self::class),
@@ -82,7 +82,7 @@ use App\State\Provider\GroupIndustry\GroupSaleItemProvider;
             ),
         ),
         new Delete(
-            uriTemplate: '/group-industry/projects/{projectId}/sales/{id}',
+            uriTemplate: '/industry/projects/{projectId}/sales/{id}',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
                 'id' => new Link(fromClass: self::class),

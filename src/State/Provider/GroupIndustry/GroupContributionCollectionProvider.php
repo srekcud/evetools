@@ -47,7 +47,7 @@ class GroupContributionCollectionProvider implements ProviderInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null || $project->isPlannedBySteps()) {
+        if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }
 

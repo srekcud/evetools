@@ -156,6 +156,7 @@ final class ProjectLifecycleApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         self::assertSame([], $this->responseJson());
 
+        $this->actAs($newcomer);
         $this->request('POST', '/api/industry/projects/join/'.$code, []);
         self::assertResponseStatusCodeSame(404);
         self::assertSame([404, 'Project not found'], $this->errorDetail());

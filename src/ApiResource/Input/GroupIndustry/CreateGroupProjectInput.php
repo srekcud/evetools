@@ -60,6 +60,8 @@ class CreateGroupProjectInput
     #[Assert\Range(min: 0, max: GroupProjectFees::MAXIMUM_PERCENT)]
     public ?float $salesTaxPercent = null;
 
+    public bool $private = true;
+
     #[Assert\Callback]
     public function validateTheSumOfTheRuns(ExecutionContextInterface $context): void
     {

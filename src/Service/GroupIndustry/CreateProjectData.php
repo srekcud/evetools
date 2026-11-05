@@ -25,6 +25,7 @@ final readonly class CreateProjectData
         public ?array $lineRentalRatesOverride = null,
         public ?float $brokerFeePercent = null,
         public ?float $salesTaxPercent = null,
+        public bool $private = true,
     ) {
     }
 }

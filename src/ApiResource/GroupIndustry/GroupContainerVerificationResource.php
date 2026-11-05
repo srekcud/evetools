@@ -16,7 +16,7 @@ use App\State\Provider\GroupIndustry\ContainerVerificationProvider;
     description: 'Container verification results for a group industry project',
     operations: [
         new GetCollection(
-            uriTemplate: '/group-industry/projects/{projectId}/container-verification',
+            uriTemplate: '/industry/projects/{projectId}/container-verification',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],

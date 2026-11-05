@@ -24,6 +24,10 @@ class UpdateGroupProjectInput
     #[Assert\Range(min: 0, max: GroupProjectFees::MAXIMUM_PERCENT)]
     public ?float $salesTaxPercent = null;
 
+    public ?bool $private = null;
+
+    public ?string $notes = null;
+
     #[Assert\Callback]
     public function validateTheSumOfTheFees(ExecutionContextInterface $context): void
     {

@@ -47,9 +47,9 @@ class AvailableGroupProjectsProvider implements ProviderInterface
         }
 
         // Find all same-corp projects with open status
-        $corpProjects = $this->projectRepository->findByOwnerCorporation(
+        $corpProjects = $this->projectRepository->findDiscoverableByOwnerCorporation(
             $userCorpId,
-            [GroupProjectStatus::Published, GroupProjectStatus::InProgress],
+            [GroupProjectStatus::Published],
         );
 
         // Own projects and projects the user already has a membership in (whatever its status) are not available

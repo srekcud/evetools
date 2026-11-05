@@ -40,7 +40,7 @@ class GroupProjectProvider implements ProviderInterface
 
         $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
 
-        if ($project === null || $project->isPlannedBySteps()) {
+        if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }
 

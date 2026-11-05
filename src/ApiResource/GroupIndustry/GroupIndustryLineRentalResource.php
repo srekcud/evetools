@@ -18,7 +18,7 @@ use App\State\Provider\GroupIndustry\LineRentalRatesProvider;
     description: 'Default line rental rates for group industry projects',
     operations: [
         new Get(
-            uriTemplate: '/group-industry/line-rental-rates',
+            uriTemplate: '/industry/line-rental-rates',
             provider: LineRentalRatesProvider::class,
             openapi: new Model\Operation(
                 summary: 'Get line rental rates',
@@ -27,7 +27,7 @@ use App\State\Provider\GroupIndustry\LineRentalRatesProvider;
             ),
         ),
         new Patch(
-            uriTemplate: '/group-industry/line-rental-rates',
+            uriTemplate: '/industry/line-rental-rates',
             provider: LineRentalRatesProvider::class,
             processor: UpdateLineRentalRatesProcessor::class,
             input: UpdateLineRentalRatesInput::class,

@@ -64,6 +64,7 @@ class GroupIndustryProjectService
         $project->setBlacklistTypeIds($data->blacklistTypeIds);
         $project->setBrokerFeePercent($data->brokerFeePercent);
         $project->setSalesTaxPercent($data->salesTaxPercent);
+        $project->setPrivate($data->private);
 
         $project->enrolOwner();
 

@@ -23,7 +23,7 @@ use App\State\Provider\GroupIndustry\GroupContributionItemProvider;
     description: 'Contributions to a group industry project',
     operations: [
         new GetCollection(
-            uriTemplate: '/group-industry/projects/{projectId}/contributions',
+            uriTemplate: '/industry/projects/{projectId}/contributions',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
@@ -35,7 +35,7 @@ use App\State\Provider\GroupIndustry\GroupContributionItemProvider;
             ),
         ),
         new Post(
-            uriTemplate: '/group-industry/projects/{projectId}/contributions',
+            uriTemplate: '/industry/projects/{projectId}/contributions',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
@@ -48,7 +48,7 @@ use App\State\Provider\GroupIndustry\GroupContributionItemProvider;
             ),
         ),
         new Patch(
-            uriTemplate: '/group-industry/projects/{projectId}/contributions/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriTemplate: '/industry/projects/{projectId}/contributions/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
                 'id' => new Link(fromClass: self::class),

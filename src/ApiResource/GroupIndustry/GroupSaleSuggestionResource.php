@@ -16,7 +16,7 @@ use App\State\Provider\GroupIndustry\GroupSaleSuggestionProvider;
     description: 'Wallet transactions that can be recorded as sales of a group industry project',
     operations: [
         new GetCollection(
-            uriTemplate: '/group-industry/projects/{projectId}/sale-suggestions',
+            uriTemplate: '/industry/projects/{projectId}/sale-suggestions',
             uriVariables: [
                 'projectId' => new Link(fromClass: GroupIndustryProjectResource::class),
             ],
