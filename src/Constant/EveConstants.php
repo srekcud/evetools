@@ -9,6 +9,8 @@ final class EveConstants
     public const JITA_SOLAR_SYSTEM_ID = 30000142;
     public const JITA_STATION_ID = 60003760;
     public const THE_FORGE_REGION_ID = 10000002;
+    public const JITA_NPC_CORPORATION_ID = 1000035;
+    public const JITA_NPC_FACTION_ID = 500001;
     public const DEFAULT_BROKER_FEE_RATE = 0.036;
     public const DEFAULT_SALES_TAX_RATE = 0.036;
     public const DEFAULT_BROKER_FEE_PERCENT = 3.6;

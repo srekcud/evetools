@@ -37,7 +37,7 @@ docker compose exec app php bin/console <commande>
 - **Auth**: OAuth 2.0 via EVE SSO, `Authorization: Bearer <token>`
 - **Rate Limit**: **420** = budget d'erreurs épuisé (`x-esi-error-limit-*`), **429** = rate limit. Support ETag / Cache-Control. Comportement du client : `.claude/skills/esi-api/SKILL.md`.
 - **Pagination**: `page` param + header `X-Pages` → toujours `EsiClient::getPaginated()` (un `get()` ne lit que la page 1)
-- **28 scopes** (`AuthenticationService::REQUIRED_SCOPES`) : assets, wallet, contracts, industry, mining, blueprints, skills, location, fleet, structures, search, notifications, killmails, market, UI, corp projects, PI
+- **29 scopes** (`AuthenticationService::REQUIRED_SCOPES`) : assets, wallet, contracts, industry, mining, blueprints, skills, location, fleet, structures, search, notifications, killmails, market, UI, corp projects, PI, standings
 
 ---
 

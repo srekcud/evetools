@@ -72,6 +72,8 @@ class AuthenticationService
 
         // Planetary Interaction
         'esi-planets.manage_planets.v1',
+
+        'esi-characters.read_standings.v1',
     ];
 
     /**
