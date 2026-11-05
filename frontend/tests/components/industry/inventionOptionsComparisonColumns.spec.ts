@@ -81,6 +81,8 @@ function mountPanel(locale: 'en' | 'fr' = 'en') {
       effectiveTotalCost: 10_600,
       bestMargin: 15,
       datacoresCostPerAttempt: 460,
+      inventors: [],
+      selectedInventorId: null,
     },
   })
 }

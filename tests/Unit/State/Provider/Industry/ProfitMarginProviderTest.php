@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Provider\Industry;
 
 use ApiPlatform\Metadata\Get;
 use App\Constant\EveConstants;
+use App\Entity\Character;
 use App\Entity\IndustryUserSettings;
 use App\Entity\User;
 use App\Industry\Application\Decryptors;
@@ -24,6 +25,8 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Characterization of the /industry/profit-margin/{typeId} defaults, before ProfitMarginService moves to the industry engine (spec §7, rank 1).
@@ -44,6 +47,8 @@ class ProfitMarginProviderTest extends TestCase
     private const int HYDROGEN_FUEL_BLOCK_TYPE_ID = 4246;
     private const int PROCESS_DECRYPTOR = 34205;
     private const int UNKNOWN_DECRYPTOR = 34299;
+    private const string OWN_CHARACTER_ID = '0192f5a0-7c1e-7d2a-9b4e-3a5c6d7e8f90';
+    private const string FOREIGN_CHARACTER_ID = '0192f5a0-7c1e-7d2a-9b4e-3a5c6d7e8faa';
 
     public function testWithoutQueryAnalyzesOneRunAtMeTenAndTeTwentyWithoutDecryptor(): void
     {
@@ -598,6 +603,67 @@ class ProfitMarginProviderTest extends TestCase
         return (new IndustryUserSettings())
             ->setUser($user)
             ->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID);
+    }
+
+    public function testTheInventorIsACharacterOfTheAuthenticatedUserPassedToTheAnalysis(): void
+    {
+        $user = new User();
+        $ownCharacter = $this->characterWithId(self::OWN_CHARACTER_ID);
+        $user->addCharacter($ownCharacter);
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(...[...array_fill(0, 10, $this->anything()), $this->identicalTo($ownCharacter)])
+            ->willReturn($this->analysis());
+
+        $this->provider($user, new Request(['inventorCharacterId' => self::OWN_CHARACTER_ID]), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public function testWithoutInventorCharacterTheAnalysisGetsNoInventor(): void
+    {
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(...[...array_fill(0, 10, $this->anything()), null])
+            ->willReturn($this->analysis());
+
+        $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public function testACharacterOfAnotherUserIsNotFound(): void
+    {
+        $user = new User();
+        $user->addCharacter($this->characterWithId(self::OWN_CHARACTER_ID));
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->never())->method('analyze');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Character not found');
+
+        $this->provider($user, new Request(['inventorCharacterId' => self::FOREIGN_CHARACTER_ID]), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public function testAnInventorCharacterIdThatIsNotAUuidIsNotFound(): void
+    {
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->never())->method('analyze');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Character not found');
+
+        $this->provider(new User(), new Request(['inventorCharacterId' => 'not-a-uuid']), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    private function characterWithId(string $id): Character
+    {
+        $character = new Character();
+        (new \ReflectionProperty(Character::class, 'id'))->setValue($character, Uuid::fromString($id));
+
+        return $character;
     }
 
     private function provider(User $user, ?Request $request, ProfitMarginService $profitMarginService, ?IndustryUserSettings $settings = null, ?SalesFees $sellerSalesFees = new SalesFees(0.036, 0.036)): ProfitMarginProvider

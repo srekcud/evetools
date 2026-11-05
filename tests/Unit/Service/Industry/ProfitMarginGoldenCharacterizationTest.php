@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\CachedStructure;
+use App\Entity\Character;
 use App\Entity\User;
 use App\Industry\Application\Decryptors;
+use App\Industry\Application\InventionSkillLevels;
 use App\Industry\Application\ProductionCostCalculator;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\RigCategories;
@@ -24,6 +26,7 @@ use App\Repository\CachedStructureRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\IndustryBlacklistService;
+use App\Service\Industry\InventorSkills;
 use App\Service\Industry\ProfitMarginService;
 use App\Service\Industry\PublicContractPriceService;
 use App\Service\Industry\SalesFees\SalesFees;
@@ -87,6 +90,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
 
     private const int ACCELERANT_DECRYPTOR = 34201;
     private const int PARITY_DECRYPTOR = 34204;
+    private const string PILOT_ID = '0192f5a0-7c1e-7d2a-9b4e-3a5c6d7e8f90';
     private const int PROCESS_DECRYPTOR = 34205;
     /** @var array<int, array{string, float, int, int, int}> typeId => name, probability multiplier, runs, ME, TE modifiers */
     private const array DECRYPTORS = [
@@ -192,6 +196,8 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     /** @var array<int, float> */
     private array $dailyVolumes = [];
     private ?string $cachedSellStructureName = null;
+    private ?Character $inventor = null;
+    private ?InventionSkillLevels $inventorLevels = null;
     private ?float $jitaSellPriceOfProduct = null;
     private ?float $structureSellPriceOfProduct = null;
     private ?float $structureBuyPriceOfProduct = null;
@@ -1155,6 +1161,11 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $blacklistService = $this->createStub(IndustryBlacklistService::class);
         $blacklistService->method('resolveBlacklistedTypeIds')->willReturn($blacklistedTypeIds);
 
+        $inventorSkills = $this->createStub(InventorSkills::class);
+        $inventorSkills->method('levelsFor')->willReturnCallback(
+            fn (int $productTypeId, ?Character $inventor): InventionSkillLevels => null === $inventor ? InventionSkillLevels::none() : ($this->inventorLevels ?? InventionSkillLevels::none()),
+        );
+
         $service = new ProfitMarginService(
             new ProductionCostCalculator(
                 new SdeBlueprintCatalog($productRepository, $this->sdeActivityTimeRepository(), $materialRepository, $this->sdeBlueprintRepository()),
@@ -1172,6 +1183,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             $typeNameResolver,
             $cachedStructureRepository,
             $blacklistService,
+            $inventorSkills,
         );
 
         return $service->analyze(
@@ -1185,6 +1197,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             $this->sellerSalesFeesAreUnknown ? null : new SalesFees($this->brokerFeeRate, $this->salesTaxRate),
             $user,
             $reactionSolarSystemId ?? $solarSystemId,
+            $this->inventor,
         );
     }
 
@@ -1516,5 +1529,60 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             $this->assertNull($option['costPerUnitDelta']);
             $this->assertNotNull($option['expectedAttempts']);
         }
+    }
+
+    public function testTheSkillsOfTheInventorRaiseTheProbabilityOfEveryOption(): void
+    {
+        $this->inventor = $this->pilot();
+        $this->inventorLevels = new InventionSkillLevels(5, 5, 5);
+
+        $result = $this->analyzeHailL(runs: 1);
+
+        $skillBonus = 1 + 10 / 30 + 5 / 40;
+        $noDecryptorOption = $result['invention']['options'][0];
+        $this->assertEqualsWithDelta(0.34 * $skillBonus, $noDecryptorOption['probability'], 1e-9);
+        $this->assertEqualsWithDelta(1 / (0.34 * $skillBonus * 10), $noDecryptorOption['expectedAttempts'], 1e-9);
+        $this->assertEqualsWithDelta(0.34 * $skillBonus * 1.1, $this->decryptorOption($result, self::PROCESS_DECRYPTOR)['probability'], 1e-9);
+        $this->assertSame(self::HAIL_L_INVENTION_PROBABILITY, $result['invention']['baseProbability']);
+        $this->assertNull($result['invention']['unknownReason']);
+        $this->assertSame(
+            ['characterId' => self::PILOT_ID, 'characterName' => 'Pilot Prime', 'skillsKnown' => true],
+            $result['invention']['inventor'],
+        );
+    }
+
+    public function testAnUnknownSkillOfTheInventorLeavesTheProbabilityAndTheCostsOfEveryOptionUnknown(): void
+    {
+        $this->inventor = $this->pilot();
+        $this->inventorLevels = new InventionSkillLevels(5, null, 5);
+
+        $result = $this->analyzeHailL(runs: 1);
+
+        $this->assertCount(9, $result['invention']['options']);
+        foreach ($result['invention']['options'] as $option) {
+            foreach (['probability', 'expectedAttempts', 'inventionCost', 'totalProductionCost', 'costPerUnit', 'costPerUnitDelta', 'bestMargin'] as $unknownField) {
+                $this->assertNull($option[$unknownField], $unknownField);
+            }
+            $this->assertNotNull($option['materialCost']);
+        }
+        $this->assertSame('missing_inventor_skills', $result['invention']['unknownReason']);
+        $this->assertFalse($result['invention']['inventor']['skillsKnown']);
+        $this->assertNull($result['totalCost']);
+    }
+
+    public function testWithoutInventorTheInventionKeepsTheBaseProbabilityAndNamesNoInventor(): void
+    {
+        $result = $this->analyzeHailL(runs: 1);
+
+        $this->assertNull($result['invention']['inventor']);
+        $this->assertEqualsWithDelta(self::HAIL_L_INVENTION_PROBABILITY, $result['invention']['options'][0]['probability'], 1e-12);
+    }
+
+    private function pilot(): Character
+    {
+        $pilot = (new Character())->setName('Pilot Prime');
+        (new \ReflectionProperty(Character::class, 'id'))->setValue($pilot, Uuid::fromString(self::PILOT_ID));
+
+        return $pilot;
     }
 }
