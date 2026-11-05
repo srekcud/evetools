@@ -225,9 +225,14 @@ class ProfitMarginService
         \Closure $marginsOf,
     ): array {
         $options = [];
+        $costPerUnitWithoutDecryptor = null;
         foreach ([null, ...$decryptors] as $decryptor) {
             $optionCost = $decryptor?->typeId === $selectedDecryptorTypeId ? $selectedProductionCost : $costOf($decryptor);
             $optionInvention = $optionCost->invention ?? throw new \LogicException('Every decryptor option of an invented product is invented.');
+            $costPerUnit = self::amountOf($optionCost->costPerUnit);
+            if (null === $decryptor) {
+                $costPerUnitWithoutDecryptor = $costPerUnit;
+            }
             $options[] = [
                 'decryptorTypeId' => $decryptor?->typeId,
                 'decryptorName' => $this->decryptorNameOf($decryptor?->typeId),
@@ -240,6 +245,10 @@ class ProfitMarginService
                 'inventionCost' => self::amountOf($optionInvention->total),
                 'totalProductionCost' => self::amountOf($optionCost->totalCost),
                 'bestMargin' => self::bestMarginOf($marginsOf($optionCost->totalCost)),
+                'expectedAttempts' => $optionInvention->expectedAttempts,
+                'decryptorCost' => self::amountOf($optionInvention->decryptorCost),
+                'costPerUnit' => $costPerUnit,
+                'costPerUnitDelta' => null === $costPerUnit || null === $costPerUnitWithoutDecryptor ? null : $costPerUnit - $costPerUnitWithoutDecryptor,
             ];
         }
 
@@ -250,6 +259,7 @@ class ProfitMarginService
                 fn (RecipeMaterial $datacore): ?string => $this->typeNameResolver->findName($datacore->typeId),
                 $invention->recipe->datacores,
             ),
+            'datacoresCostPerAttempt' => self::amountOf($invention->datacoresCost),
             'selectedDecryptorTypeId' => $selectedDecryptorTypeId,
             'selectedDecryptorName' => $this->decryptorNameOf($selectedDecryptorTypeId),
             'options' => $options,
