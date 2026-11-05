@@ -23,6 +23,7 @@ class StructureMarketService
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly StructureMarketSnapshotService $snapshotService,
+        private readonly StructureTradedVolumeService $tradedVolumeService,
     ) {
     }
 

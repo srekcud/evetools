@@ -7,6 +7,7 @@ namespace App\MessageHandler;
 use App\Message\PurgeOldMarketHistory;
 use App\Repository\MarketPriceHistoryRepository;
 use App\Repository\StructureMarketSnapshotRepository;
+use App\Repository\StructureTradedVolumeRepository;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -16,6 +17,7 @@ final readonly class PurgeOldMarketHistoryHandler
     public function __construct(
         private MarketPriceHistoryRepository $historyRepository,
         private StructureMarketSnapshotRepository $snapshotRepository,
+        private StructureTradedVolumeRepository $tradedVolumeRepository,
         private LoggerInterface $logger,
     ) {
     }
