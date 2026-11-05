@@ -20,6 +20,7 @@ const ENTERED_ME = 3
 const INVENTED_BLUEPRINT_ME = 2
 const INVENTED_BLUEPRINT_TE = 4
 const DEFAULT_MAX_JOB_DURATION_DAYS = 2
+const DEFAULT_MINIMUM_OUTSIDE_SAVING = 500000
 const RIFTER: SearchResult = { typeId: 587, typeName: 'Rifter', isT2: false }
 const RIFTER_RUNS = 3
 const WIDOW_TYPE_ID = 22436
@@ -166,6 +167,8 @@ describe('Industry create project form', () => {
       DEFAULT_MAX_JOB_DURATION_DAYS,
       null,
       [],
+      false,
+      DEFAULT_MINIMUM_OUTSIDE_SAVING,
     )
   })
 
@@ -178,7 +181,7 @@ describe('Industry create project form', () => {
     await flushPromises()
 
     expect(createProject).toHaveBeenCalledTimes(1)
-    expect(createProject).toHaveBeenCalledWith(RIFTER.typeId, RIFTER_RUNS, 0, 0, DEFAULT_MAX_JOB_DURATION_DAYS, null, [])
+    expect(createProject).toHaveBeenCalledWith(RIFTER.typeId, RIFTER_RUNS, 0, 0, DEFAULT_MAX_JOB_DURATION_DAYS, null, [], false, DEFAULT_MINIMUM_OUTSIDE_SAVING)
   })
 })
 
@@ -228,6 +231,8 @@ describe('Industry create project form opened from buy vs build', () => {
       DEFAULT_MAX_JOB_DURATION_DAYS,
       null,
       BOUGHT_WIDOW_COMPONENT_TYPE_IDS,
+      false,
+      DEFAULT_MINIMUM_OUTSIDE_SAVING,
     )
   })
 
@@ -247,6 +252,8 @@ describe('Industry create project form opened from buy vs build', () => {
       DEFAULT_MAX_JOB_DURATION_DAYS,
       null,
       [],
+      false,
+      DEFAULT_MINIMUM_OUTSIDE_SAVING,
     )
   })
 
@@ -262,7 +269,7 @@ describe('Industry create project form opened from buy vs build', () => {
     await flushPromises()
 
     expect(createProject).toHaveBeenCalledTimes(1)
-    expect(createProject).toHaveBeenCalledWith(SABRE.typeId, SABRE_RUNS, ENTERED_ME, 0, DEFAULT_MAX_JOB_DURATION_DAYS, null, [])
+    expect(createProject).toHaveBeenCalledWith(SABRE.typeId, SABRE_RUNS, ENTERED_ME, 0, DEFAULT_MAX_JOB_DURATION_DAYS, null, [], false, DEFAULT_MINIMUM_OUTSIDE_SAVING)
   })
 
   it('sends no excluded component once the form is closed and opened again', async () => {
@@ -283,6 +290,8 @@ describe('Industry create project form opened from buy vs build', () => {
       DEFAULT_MAX_JOB_DURATION_DAYS,
       null,
       [],
+      false,
+      DEFAULT_MINIMUM_OUTSIDE_SAVING,
     )
   })
 })

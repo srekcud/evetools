@@ -75,6 +75,8 @@ function projectWithoutMatchedJobs(id: string): IndustryProject {
     meLevel: 9,
     teLevel: 18,
     maxJobDurationDays: 3,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 500000,
     status: 'active',
     personalUse: false,
     isT2: false,

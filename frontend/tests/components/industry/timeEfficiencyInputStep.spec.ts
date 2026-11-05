@@ -87,6 +87,8 @@ const ACTIVE_PROJECT: IndustryProject = {
   meLevel: 8,
   teLevel: 6,
   maxJobDurationDays: 2,
+  acceptsOutsideFavoriteSystem: false,
+  minimumOutsideSaving: 500000,
   status: 'active',
   personalUse: false,
   isT2: false,

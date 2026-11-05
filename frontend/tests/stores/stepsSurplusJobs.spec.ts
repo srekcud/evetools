@@ -136,6 +136,8 @@ function project(steps: IndustryProjectStep[]): IndustryProject {
     meLevel: 10,
     teLevel: 20,
     maxJobDurationDays: 2,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 500000,
     status: 'active',
     personalUse: false,
     isT2: false,
