@@ -33,14 +33,6 @@ class IndustryUserSettings
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $favoriteReactionSystemId = null;
 
-    /** Broker fee rate (default 3.6% = skills level 0) */
-    #[ORM\Column(type: 'float', options: ['default' => 0.036])]
-    private float $brokerFeeRate = EveConstants::DEFAULT_BROKER_FEE_RATE;
-
-    /** Sales tax rate (default 3.6% = skills level 0) */
-    #[ORM\Column(type: 'float', options: ['default' => 0.036])]
-    private float $salesTaxRate = EveConstants::DEFAULT_SALES_TAX_RATE;
-
     /** Export cost per m3 for transporting finished products to sell venue (ISK/m3) */
     #[ORM\Column(type: 'float', options: ['default' => 1200.0])]
     private float $exportCostPerM3 = EveConstants::DEFAULT_EXPORT_COST_PER_M3;
@@ -80,28 +72,6 @@ class IndustryUserSettings
     public function setFavoriteReactionSystemId(?int $id): static
     {
         $this->favoriteReactionSystemId = $id;
-        return $this;
-    }
-
-    public function getBrokerFeeRate(): float
-    {
-        return $this->brokerFeeRate;
-    }
-
-    public function setBrokerFeeRate(float $brokerFeeRate): static
-    {
-        $this->brokerFeeRate = $brokerFeeRate;
-        return $this;
-    }
-
-    public function getSalesTaxRate(): float
-    {
-        return $this->salesTaxRate;
-    }
-
-    public function setSalesTaxRate(float $salesTaxRate): static
-    {
-        $this->salesTaxRate = $salesTaxRate;
         return $this;
     }
 

@@ -9,16 +9,15 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
 use App\ApiResource\Input\GroupIndustry\GroupProjectFees;
-use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
 use App\Service\Industry\IndustryBlacklistService;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -29,7 +28,8 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class CreateGroupProjectProcessor implements ProcessorInterface
 {
-    private const int PERCENT_DECIMALS = 4;
+    private const float PERCENT_PER_RATE = 100.0;
+    private const int FLOAT_NOISE_DECIMALS = 10;
 
     public function __construct(
         private readonly Security $security,
@@ -38,7 +38,7 @@ class CreateGroupProjectProcessor implements ProcessorInterface
         private readonly GroupIndustryResourceMapper $mapper,
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
-        private readonly IndustryUserSettingsRepository $settingsRepository,
+        private readonly SellerSalesFeesResolver $salesFeesResolver,
     ) {
     }
 
@@ -68,10 +68,12 @@ class CreateGroupProjectProcessor implements ProcessorInterface
         }
         $resolvedGroupIds = array_values(array_unique($resolvedGroupIds));
 
-        $settings = $this->settingsRepository->findOneBy(['user' => $user]);
-        $brokerFeePercent = $data->brokerFeePercent ?? self::ratePercent($settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE);
-        $salesTaxPercent = $data->salesTaxPercent ?? self::ratePercent($settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE);
-        GroupProjectFees::rejectEffectiveFeesAboveMaximum($brokerFeePercent, $salesTaxPercent);
+        $sellerFees = $this->salesFeesResolver->forUser($user);
+        $brokerFeePercent = $data->brokerFeePercent ?? (null === $sellerFees ? null : self::percentOf($sellerFees->brokerFeeRate));
+        $salesTaxPercent = $data->salesTaxPercent ?? (null === $sellerFees ? null : self::percentOf($sellerFees->salesTaxRate));
+        if ($brokerFeePercent !== null && $salesTaxPercent !== null) {
+            GroupProjectFees::rejectEffectiveFeesAboveMaximum($brokerFeePercent, $salesTaxPercent);
+        }
 
         try {
             $projectData = new CreateProjectData(
@@ -100,9 +102,9 @@ class CreateGroupProjectProcessor implements ProcessorInterface
         return $this->mapper->projectToResource($project, $ownerMembership);
     }
 
-    private static function ratePercent(float $rate): float
+    private static function percentOf(float $rate): float
     {
-        return round($rate * 100, self::PERCENT_DECIMALS);
+        return round($rate * self::PERCENT_PER_RATE, self::FLOAT_NOISE_DECIMALS);
     }
 
     /**

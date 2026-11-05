@@ -26,6 +26,7 @@ use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\ProfitMarginService;
 use App\Service\Industry\PublicContractPriceService;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -199,6 +200,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     private bool $publicContractsNeverSynced = false;
     private float $brokerFeeRate = self::BROKER_FEE_RATE;
     private float $salesTaxRate = self::SALES_TAX_RATE;
+    private bool $sellerSalesFeesAreUnknown = false;
 
     protected function setUp(): void
     {
@@ -376,6 +378,27 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertMargin(176000.0, 12672.0, $totalCost, $result['margins']['structureSell']);
         $this->assertMargin(160000.0, 5760.0, $totalCost, $result['margins']['structureBuy']);
         $this->assertMargin(172000.0, 0.0, $totalCost, $result['margins']['contractSell']);
+    }
+
+    public function testMarginsOfTheVenuesChargingFeesAreUnknownWhenTheSellerSalesFeesAreUnknown(): void
+    {
+        $this->sellerSalesFeesAreUnknown = true;
+        $this->jitaSellPriceOfProduct = 4500.0;
+        $this->structureSellPriceOfProduct = 4400.0;
+        $this->structureBuyPriceOfProduct = 4000.0;
+        $this->contractSellPriceOfProduct = 4300.0;
+        $this->contractCountOfProduct = 7;
+
+        $result = $this->analyze(self::NITROGEN_FUEL_BLOCK, runs: 1, me: 10, solarSystemId: self::MANUFACTURING_SYSTEM_ID);
+
+        $this->assertNull($result['brokerFeeRate']);
+        $this->assertNull($result['salesTaxRate']);
+        $this->assertEqualsWithDelta(self::NITROGEN_FUEL_BLOCK_ONE_RUN_TOTAL_COST, $result['totalCost'], 0.001);
+        $this->assertSame(4500.0, $result['sellPrices']['jitaSell']);
+        $this->assertSame(['revenue' => 180000.0, 'fees' => null, 'profit' => null, 'margin' => null], $result['margins']['jitaSell']);
+        $this->assertSame(['revenue' => 176000.0, 'fees' => null, 'profit' => null, 'margin' => null], $result['margins']['structureSell']);
+        $this->assertSame(['revenue' => 160000.0, 'fees' => null, 'profit' => null, 'margin' => null], $result['margins']['structureBuy']);
+        $this->assertMargin(172000.0, 0.0, self::NITROGEN_FUEL_BLOCK_ONE_RUN_TOTAL_COST, $result['margins']['contractSell']);
     }
 
     public function testBuyOrderWithoutSalesTaxHasNoFeeWhileSellOrdersStillPayTheBrokerFee(): void
@@ -1159,8 +1182,7 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             self::SELL_STRUCTURE_ID,
             $solarSystemId,
             $decryptorTypeId,
-            $this->brokerFeeRate,
-            $this->salesTaxRate,
+            $this->sellerSalesFeesAreUnknown ? null : new SalesFees($this->brokerFeeRate, $this->salesTaxRate),
             $user,
             $reactionSolarSystemId ?? $solarSystemId,
         );

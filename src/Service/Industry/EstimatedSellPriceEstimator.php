@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
-use App\Constant\EveConstants;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\User;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 
@@ -23,7 +22,7 @@ class EstimatedSellPriceEstimator
         private readonly JitaMarketService $jitaMarketService,
         private readonly StructureMarketService $structureMarketService,
         private readonly IndustryActivityProductRepository $activityProductRepository,
-        private readonly IndustryUserSettingsRepository $settingsRepository,
+        private readonly SellerSalesFeesResolver $salesFeesResolver,
     ) {
     }
 
@@ -53,7 +52,10 @@ class EstimatedSellPriceEstimator
 
         $source = count($sources) === 1 ? array_key_first($sources) : self::SOURCE_MIXED;
 
-        return new EstimatedSellPrice($estimatedSellTotal, $source, $estimatedSellTotal * $this->sellTaxRate($user));
+        $salesFees = $this->salesFeesResolver->forUser($user);
+        $taxAmount = null === $salesFees ? null : $estimatedSellTotal * ($salesFees->brokerFeeRate + $salesFees->salesTaxRate);
+
+        return new EstimatedSellPrice($estimatedSellTotal, $source, $taxAmount);
     }
 
     private function isAdditionalRootProduct(IndustryProjectStep $step, int $projectProductTypeId): bool
@@ -85,14 +87,5 @@ class EstimatedSellPriceEstimator
         }
 
         return null;
-    }
-
-    private function sellTaxRate(User $user): float
-    {
-        $settings = $this->settingsRepository->findOneBy(['user' => $user]);
-        $brokerFeeRate = $settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE;
-        $salesTaxRate = $settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE;
-
-        return $brokerFeeRate + $salesTaxRate;
     }
 }

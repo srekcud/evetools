@@ -134,6 +134,19 @@ class UpdateGroupProjectProcessorTest extends TestCase
         self::assertNotNull($this->project->getCompletedAt());
     }
 
+    #[Group('issue-347')]
+    public function testSalesTaxAboveTheMaximumIsSavedWhenTheRecordedBrokerFeeIsUnknown(): void
+    {
+        $this->project->setBrokerFeePercent(null);
+        $input = new UpdateGroupProjectInput();
+        $input->salesTaxPercent = 99.0;
+
+        $resource = $this->update($input);
+
+        self::assertSame([null, 99.0], [$this->project->getBrokerFeePercent(), $this->project->getSalesTaxPercent()]);
+        self::assertSame([null, 99.0], [$resource->brokerFeePercent, $resource->salesTaxPercent]);
+    }
+
     #[Group('issue-257')]
     public function testSalesTaxBringingTheFeesToExactlyOneHundredWithTheRecordedBrokerFeeIsSaved(): void
     {

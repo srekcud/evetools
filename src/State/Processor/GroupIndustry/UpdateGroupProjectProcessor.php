@@ -72,10 +72,11 @@ class UpdateGroupProjectProcessor implements ProcessorInterface
         }
 
         if ($feesAreChanged) {
-            GroupProjectFees::rejectEffectiveFeesAboveMaximum(
-                $data->brokerFeePercent ?? $project->getBrokerFeePercent(),
-                $data->salesTaxPercent ?? $project->getSalesTaxPercent(),
-            );
+            $effectiveBrokerFeePercent = $data->brokerFeePercent ?? $project->getBrokerFeePercent();
+            $effectiveSalesTaxPercent = $data->salesTaxPercent ?? $project->getSalesTaxPercent();
+            if ($effectiveBrokerFeePercent !== null && $effectiveSalesTaxPercent !== null) {
+                GroupProjectFees::rejectEffectiveFeesAboveMaximum($effectiveBrokerFeePercent, $effectiveSalesTaxPercent);
+            }
         }
 
         if ($data->name !== null) {

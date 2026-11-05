@@ -10,6 +10,7 @@ use App\Enum\IndustryActivityType;
 use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,8 +51,7 @@ class PivotAdvisorService
         int $sourceTypeId,
         int $runs,
         int $solarSystemId,
-        float $brokerFeeRate,
-        float $salesTaxRate,
+        ?SalesFees $salesFees,
         User $user,
         int $reactionSolarSystemId,
     ): array {
@@ -94,7 +94,7 @@ class PivotAdvisorService
         }
 
         if (empty($buildableMaterials)) {
-            return $this->buildResultWithSourceOnly($sourceTypeId, $sourceMaterials, $sourceOutputPerRun, $sourceActivityId, $solarSystemIdByActivity, $brokerFeeRate, $salesTaxRate, $user, $facilityTaxByActivity);
+            return $this->buildResultWithSourceOnly($sourceTypeId, $sourceMaterials, $sourceOutputPerRun, $sourceActivityId, $solarSystemIdByActivity, $salesFees, $user, $facilityTaxByActivity);
         }
 
         $buildableMaterialTypeIds = array_map(fn (array $m) => $m['materialTypeId'], $buildableMaterials);
@@ -112,7 +112,7 @@ class PivotAdvisorService
         ));
 
         if (empty($candidateProducts)) {
-            return $this->buildResultWithSourceOnly($sourceTypeId, $sourceMaterials, $sourceOutputPerRun, $sourceActivityId, $solarSystemIdByActivity, $brokerFeeRate, $salesTaxRate, $user, $facilityTaxByActivity);
+            return $this->buildResultWithSourceOnly($sourceTypeId, $sourceMaterials, $sourceOutputPerRun, $sourceActivityId, $solarSystemIdByActivity, $salesFees, $user, $facilityTaxByActivity);
         }
 
         // 6. Batch-fetch candidate materials
@@ -184,8 +184,8 @@ class PivotAdvisorService
 
             $marginPercent = null;
             $profitPerUnit = null;
-            if ($totalCost !== null) {
-                $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
+            if ($totalCost !== null && $salesFees !== null) {
+                $fees = $sellPrice * ($salesFees->brokerFeeRate + $salesFees->salesTaxRate);
                 $netSellPrice = $sellPrice - $fees;
                 $marginPercent = ($netSellPrice * $cpOutputPerRun - $totalCost) / $totalCost * 100;
                 $profitPerUnit = ($netSellPrice * $cpOutputPerRun - $totalCost) / $cpOutputPerRun;
@@ -276,8 +276,7 @@ class PivotAdvisorService
             $sourceIsT2,
             $sourceIsReaction,
             $solarSystemIdByActivity,
-            $brokerFeeRate,
-            $salesTaxRate,
+            $salesFees,
             $jitaPrices,
             $dailyVolumes,
             $typeNames,
@@ -411,8 +410,7 @@ class PivotAdvisorService
         bool $isT2,
         bool $isReaction,
         array $solarSystemIdByActivity,
-        float $brokerFeeRate,
-        float $salesTaxRate,
+        ?SalesFees $salesFees,
         array $jitaPrices,
         array $dailyVolumes,
         array $typeNames,
@@ -431,8 +429,8 @@ class PivotAdvisorService
 
         $sellPrice = $jitaPrices[$sourceTypeId] ?? null;
         $marginPercent = null;
-        if ($totalCost !== null && $sellPrice !== null && $sellPrice > 0 && $totalCost > 0) {
-            $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
+        if ($salesFees !== null && $totalCost !== null && $sellPrice !== null && $sellPrice > 0 && $totalCost > 0) {
+            $fees = $sellPrice * ($salesFees->brokerFeeRate + $salesFees->salesTaxRate);
             $netSellPrice = $sellPrice - $fees;
             $marginPercent = round(($netSellPrice * $outputPerRun - $totalCost) / $totalCost * 100, 2);
         }
@@ -559,8 +557,7 @@ class PivotAdvisorService
         int $outputPerRun,
         int $activityId,
         array $solarSystemIdByActivity,
-        float $brokerFeeRate,
-        float $salesTaxRate,
+        ?SalesFees $salesFees,
         User $user,
         array $facilityTaxByActivity,
     ): array {
@@ -587,8 +584,7 @@ class PivotAdvisorService
             $isT2,
             $isReaction,
             $solarSystemIdByActivity,
-            $brokerFeeRate,
-            $salesTaxRate,
+            $salesFees,
             $jitaPrices,
             $dailyVolumes,
             $typeNames,

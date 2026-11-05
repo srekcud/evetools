@@ -15,29 +15,30 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(GroupIndustryProject::class)]
 #[CoversClass(GroupIndustryProjectResource::class)]
 #[Group('issue-170')]
+#[Group('issue-347')]
 final class GroupProjectDefaultFeesTest extends TestCase
 {
-    public function testProjectDataWithoutFeesDefaultsToExactlyThreePointSixPercent(): void
+    public function testProjectDataWithoutFeesHasNoFee(): void
     {
         $projectData = new CreateProjectData('Sabre batch', []);
 
-        self::assertSame(3.6, $projectData->brokerFeePercent);
-        self::assertSame(3.6, $projectData->salesTaxPercent);
+        self::assertNull($projectData->brokerFeePercent);
+        self::assertNull($projectData->salesTaxPercent);
     }
 
-    public function testNewProjectDefaultsToExactlyThreePointSixPercent(): void
+    public function testNewProjectHasNoFee(): void
     {
         $project = new GroupIndustryProject();
 
-        self::assertSame(3.6, $project->getBrokerFeePercent());
-        self::assertSame(3.6, $project->getSalesTaxPercent());
+        self::assertNull($project->getBrokerFeePercent());
+        self::assertNull($project->getSalesTaxPercent());
     }
 
-    public function testNewProjectResourceDefaultsToExactlyThreePointSixPercent(): void
+    public function testNewProjectResourceHasNoFee(): void
     {
         $resource = new GroupIndustryProjectResource();
 
-        self::assertSame(3.6, $resource->brokerFeePercent);
-        self::assertSame(3.6, $resource->salesTaxPercent);
+        self::assertNull($resource->brokerFeePercent);
+        self::assertNull($resource->salesTaxPercent);
     }
 }

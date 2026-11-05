@@ -330,7 +330,7 @@ class IndustryProject
         return $this;
     }
 
-    public function recordEstimatedSellPrice(float $price, string $source, float $tax): static
+    public function recordEstimatedSellPrice(float $price, string $source, ?float $tax): static
     {
         $this->estimatedSellPrice = $price;
         $this->estimatedSellPriceSource = $source;

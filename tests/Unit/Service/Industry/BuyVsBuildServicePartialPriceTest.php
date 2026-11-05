@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Service\Industry\BuyVsBuildService;
+use App\Service\Industry\SalesFees\SalesFees;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -279,7 +280,7 @@ final class BuyVsBuildServicePartialPriceTest extends TestCase
                 self::HYDROGEN_FUEL_BLOCKS_BOUGHT_BY_THE_ROOT => self::HYDROGEN_FUEL_BLOCK_COVERAGE_OF_THE_ROOT_PURCHASE,
                 self::HYDROGEN_FUEL_BLOCKS_BOUGHT_BY_EACH_BUILT_COMPONENT => self::HYDROGEN_FUEL_BLOCK_COVERAGE_OF_A_COMPONENT_PURCHASE,
             ]],
-        )->analyze(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE_RUNS, self::FERNITE_CARBIDE_ME_LEVEL, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null);
+        )->analyze(self::FERNITE_CARBIDE, self::FERNITE_CARBIDE_RUNS, self::FERNITE_CARBIDE_ME_LEVEL, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE), null);
 
         $this->assertSame([self::HYDROGEN_FUEL_BLOCK], $result['buyTypeIds']);
         $this->assertSame([self::FERNITE_ALLOY, self::CERAMIC_POWDER], $result['buildTypeIds']);
@@ -307,7 +308,7 @@ final class BuyVsBuildServicePartialPriceTest extends TestCase
             adjustedPrices: self::HAIL_L_ADJUSTED_PRICES,
             costIndices: self::COST_INDICES,
             jitaCoverages: $jitaCoverages,
-        )->analyze(self::HAIL_L, self::HAIL_L_RUNS, self::HAIL_L_ME_LEVEL, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null);
+        )->analyze(self::HAIL_L, self::HAIL_L_RUNS, self::HAIL_L_ME_LEVEL, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE), null);
     }
 
     private static function partialMarketDepth(int $typeId, float $coveragePercent): array

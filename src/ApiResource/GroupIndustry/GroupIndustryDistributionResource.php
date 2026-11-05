@@ -37,11 +37,11 @@ class GroupIndustryDistributionResource
 
     public float $totalRevenue;
 
-    public float $brokerFee;
+    public ?float $brokerFee;
 
-    public float $salesTax;
+    public ?float $salesTax;
 
-    public float $netRevenue;
+    public ?float $netRevenue;
 
     public float $totalProjectCost;
 

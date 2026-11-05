@@ -106,7 +106,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
     public function testSaleWhoseOnlyApprovedContributionIsAFreeLineRentalIsUndistributable(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre doctrine');
+        $project = (new GroupIndustryProject())->setOwner($owner)->setName('Sabre doctrine')->setBrokerFeePercent(3.6)->setSalesTaxPercent(3.6);
         $this->em->persist($project);
         $ownerMember = $this->addMember($project, $owner, GroupMemberRole::Owner);
         $project->addContribution(

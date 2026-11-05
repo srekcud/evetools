@@ -40,8 +40,6 @@ class UserSettingsProvider implements ProviderInterface
         if ($settings !== null) {
             $resource->favoriteManufacturingSystemId = $settings->getFavoriteManufacturingSystemId();
             $resource->favoriteReactionSystemId = $settings->getFavoriteReactionSystemId();
-            $resource->brokerFeeRate = $settings->getBrokerFeeRate();
-            $resource->salesTaxRate = $settings->getSalesTaxRate();
             $resource->exportCostPerM3 = $settings->getExportCostPerM3();
 
             if ($resource->favoriteManufacturingSystemId !== null) {

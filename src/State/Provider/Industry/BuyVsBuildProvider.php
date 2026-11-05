@@ -10,6 +10,7 @@ use App\ApiResource\Industry\BuyVsBuildResource;
 use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\BuyVsBuildService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -25,6 +26,7 @@ class BuyVsBuildProvider implements ProviderInterface
         private readonly RequestStack $requestStack,
         private readonly BuyVsBuildService $buyVsBuildService,
         private readonly IndustryUserSettingsRepository $settingsRepository,
+        private readonly SellerSalesFeesResolver $salesFeesResolver,
     ) {
     }
 
@@ -49,8 +51,6 @@ class BuyVsBuildProvider implements ProviderInterface
         // Load user settings
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 
-        $brokerFeeRate = $settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE;
-        $salesTaxRate = $settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE;
 
         // Resolve structure ID
         $structureId = $structureIdParam !== null ? (int) $structureIdParam : null;
@@ -72,8 +72,7 @@ class BuyVsBuildProvider implements ProviderInterface
             $me,
             $solarSystemId,
             $structureId,
-            $brokerFeeRate,
-            $salesTaxRate,
+            $this->salesFeesResolver->forUser($user),
             $user,
             $reactionSolarSystemId,
         );
