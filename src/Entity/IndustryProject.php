@@ -127,6 +127,21 @@ class IndustryProject
         return $this;
     }
 
+    public function isSoloProjectOf(User $user): bool
+    {
+        if ($this->owner !== $user) {
+            return false;
+        }
+
+        foreach ($this->members as $member) {
+            if ($member->getStatus() === GroupMemberStatus::Accepted && $member->getUser() !== $user) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function transferOwnershipTo(IndustryProjectParticipant $member): void
     {
         $newOwner = $member->getUser();

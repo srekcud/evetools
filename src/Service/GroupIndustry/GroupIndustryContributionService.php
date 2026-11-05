@@ -55,6 +55,14 @@ class GroupIndustryContributionService
         $contribution->setNote($note);
 
         $this->entityManager->persist($contribution);
+
+        $contributor = $member->getUser();
+        if ($contributor !== null && $member->getProject()->isSoloProjectOf($contributor)) {
+            $this->approve($contribution, $contributor);
+
+            return $contribution;
+        }
+
         $this->entityManager->flush();
 
         return $contribution;
