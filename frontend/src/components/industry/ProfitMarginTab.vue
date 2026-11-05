@@ -624,6 +624,7 @@ store.fetchUserSettings()
         :base-probability="inventionData.baseProbability"
         :unknown-reason="inventionData.unknownReason"
         :datacores="inventionData.datacores"
+        :datacores-cost-per-attempt="inventionData.datacoresCostPerAttempt"
         :options="inventionOptions"
         :best-decryptor-index="bestDecryptorIndex"
         :selected-option="selectedOption"

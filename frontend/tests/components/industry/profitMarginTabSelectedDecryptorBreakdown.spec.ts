@@ -92,6 +92,7 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
     baseProbability: 0.34,
     unknownReason: null,
     datacores: ['Datacore - Mechanical Engineering'],
+    datacoresCostPerAttempt: null,
     selectedDecryptorTypeId: null,
     selectedDecryptorName: 'No Decryptor',
     options: [NO_DECRYPTOR_OPTION, ATTAINMENT_OPTION, PARITY_OPTION_WITHOUT_MATERIAL_PRICE],

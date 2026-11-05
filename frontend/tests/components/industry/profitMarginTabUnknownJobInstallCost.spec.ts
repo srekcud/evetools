@@ -170,6 +170,7 @@ const HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
     baseProbability: 0.34,
     unknownReason: null,
     datacores: ['Stub Datacore A', 'Stub Datacore B'],
+    datacoresCostPerAttempt: null,
     selectedDecryptorTypeId: null,
     selectedDecryptorName: 'No Decryptor',
     options: [NO_DECRYPTOR_OPTION, PROCESS_DECRYPTOR_OPTION],

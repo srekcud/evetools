@@ -76,6 +76,7 @@ const SABRE_WITH_PARTIAL_JITA_SELL: ProfitMarginResult = {
     baseProbability: 0.34,
     unknownReason: null,
     datacores: ['Datacore - Mechanical Engineering'],
+    datacoresCostPerAttempt: null,
     selectedDecryptorTypeId: null,
     selectedDecryptorName: 'No Decryptor',
     options: [NO_DECRYPTOR_OPTION, ATTAINMENT_OPTION],

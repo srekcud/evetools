@@ -394,6 +394,10 @@ export interface ProfitMarginInventionOption {
   inventionCost: number | null
   totalProductionCost: number | null
   bestMargin: number | null
+  expectedAttempts: number | null
+  decryptorCost: number | null
+  costPerUnit: number | null
+  costPerUnitDelta: number | null
 }
 
 export type InventionUnknownReason = 'missing_invention_probability' | 'missing_market_price'
@@ -418,6 +422,7 @@ export interface ProfitMarginResult {
     baseProbability: number | null
     unknownReason: InventionUnknownReason | null
     datacores: (string | null)[]
+    datacoresCostPerAttempt: number | null
     selectedDecryptorTypeId: number | null
     selectedDecryptorName: string
     options: ProfitMarginInventionOption[]
