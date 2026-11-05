@@ -53,6 +53,25 @@ final class SellMarketProviderTest extends TestCase
         yield 'text' => ['fifty'];
     }
 
+    #[DataProvider('invalidTypeIds')]
+    public function testTypeIdThatIsNotAPositiveIntegerOfThePlatformIsABadRequest(string $typeId): void
+    {
+        $comparison = $this->createMock(SellMarketComparison::class);
+        $comparison->expects($this->never())->method('compare');
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $this->provider(new User(), '50', $comparison)->provide(new Get(), ['typeId' => $typeId]);
+    }
+
+    public static function invalidTypeIds(): iterable
+    {
+        yield 'zero' => ['0'];
+        yield 'negative' => ['-12779'];
+        yield 'text' => ['hail'];
+        yield 'one above the integer maximum' => ['2147483648'];
+    }
+
     public function testMaximumQuantityIsAcceptedAndComparedForTheAuthenticatedUserToday(): void
     {
         $user = new User();

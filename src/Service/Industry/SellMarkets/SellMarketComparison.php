@@ -21,6 +21,7 @@ class SellMarketComparison
     public const string STRUCTURE_ESTIMATE_VOLUME = 'structure_estimate';
     private const float FULL_COVERAGE = 1.0;
     private const float NO_VOLUME = 0.0;
+    private const string UNNAMED_STRUCTURE_FORMAT = 'Structure %d';
 
     public function __construct(
         private readonly JitaMarketService $jitaMarketService,
@@ -37,7 +38,7 @@ class SellMarketComparison
 
         $structureId = $user->getPreferredMarketStructureId();
         if (null !== $structureId) {
-            $markets[] = $this->capitalRow($structureId, (string) $user->getPreferredMarketStructureName(), $typeId, $quantity, $today, $fees);
+            $markets[] = $this->capitalRow($structureId, $user->getPreferredMarketStructureName() ?? \sprintf(self::UNNAMED_STRUCTURE_FORMAT, $structureId), $typeId, $quantity, $today, $fees);
         }
 
         return new SellMarketComparisonResult($typeId, $quantity, $markets, $this->immediateSale($typeId, $quantity, $fees));

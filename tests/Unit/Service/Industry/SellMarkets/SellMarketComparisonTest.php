@@ -49,6 +49,13 @@ final class SellMarketComparisonTest extends TestCase
         $this->assertEqualsWithDelta(25.0, $jita->daysToSell, self::DELTA);
     }
 
+    public function testCapitalRowOfAStructureWithoutNameIsLabelledWithItsId(): void
+    {
+        $result = $this->compare(50, capitalPrice: 800000.0, capitalVolume: 2.0, capitalName: null);
+
+        $this->assertSame('Structure ' . self::PREFERRED_MARKET_STRUCTURE_ID, $this->row($result, 'capital')->name);
+    }
+
     public function testCapitalRowIsNamedAfterThePreferredStructureAndSoldInDaysFromTheEstimatedVolume(): void
     {
         $result = $this->compare(50, capitalPrice: 800000.0, capitalVolume: 2.0);
@@ -231,6 +238,7 @@ final class SellMarketComparisonTest extends TestCase
         ?float $capitalVolume = null,
         ?SalesFees $salesFees = new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE),
         bool $withCapital = true,
+        ?string $capitalName = self::PREFERRED_MARKET_STRUCTURE_NAME,
     ): SellMarketComparisonResult {
         $today = new \DateTimeImmutable('2026-11-05');
         $typeQuantities = [$typeId => $quantity];
@@ -263,7 +271,7 @@ final class SellMarketComparisonTest extends TestCase
         $user = new User();
         if ($withCapital) {
             $user->setPreferredMarketStructureId(self::PREFERRED_MARKET_STRUCTURE_ID);
-            $user->setPreferredMarketStructureName(self::PREFERRED_MARKET_STRUCTURE_NAME);
+            $user->setPreferredMarketStructureName($capitalName);
         }
 
         $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);

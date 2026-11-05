@@ -26,6 +26,8 @@ class SellMarketProvider implements ProviderInterface
 {
     public const int MAXIMUM_QUANTITY = 100_000_000;
     private const int MINIMUM_QUANTITY = 1;
+    private const int MINIMUM_TYPE_ID = 1;
+    private const int MAXIMUM_TYPE_ID = 2_147_483_647;
 
     public function __construct(
         private readonly Security $security,
@@ -43,7 +45,7 @@ class SellMarketProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $typeId = (int) $uriVariables['typeId'];
+        $typeId = $this->requestedTypeId($uriVariables['typeId'] ?? null);
         $quantity = $this->requestedQuantity();
 
         $comparison = $this->sellMarketComparison->compare($user, $typeId, $quantity, $this->clock->now());
@@ -57,6 +59,17 @@ class SellMarketProvider implements ProviderInterface
         $resource->immediateSale = $this->immediateSaleLine($comparison->immediateSale);
 
         return $resource;
+    }
+
+    private function requestedTypeId(mixed $rawTypeId): int
+    {
+        $typeId = \is_string($rawTypeId) || \is_int($rawTypeId) ? filter_var($rawTypeId, FILTER_VALIDATE_INT) : false;
+
+        if (false === $typeId || $typeId < self::MINIMUM_TYPE_ID || $typeId > self::MAXIMUM_TYPE_ID) {
+            throw new BadRequestHttpException(\sprintf('typeId must be an integer between %d and %d.', self::MINIMUM_TYPE_ID, self::MAXIMUM_TYPE_ID));
+        }
+
+        return $typeId;
     }
 
     private function requestedQuantity(): int
