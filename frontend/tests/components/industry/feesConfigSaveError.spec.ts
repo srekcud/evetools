@@ -18,19 +18,17 @@ const INVALID_FEES_FR = 'Chaque taux doit être compris entre 0 et 100 % et le c
 const FAILED_FEES_EN = 'Failed to save the fees.'
 const FAILED_FEES_FR = 'Échec de l\'enregistrement des frais.'
 const SAVED_NOTICE_EN = en.settings.marketStructureSaved
-const BROKER_FEE_VIOLATION = 'brokerFeeRate: This value should be between 0 and 1.'
+const EXPORT_COST_VIOLATION = 'exportCostPerM3: This value should be 0 or more.'
 
 const STORED_SETTINGS: UserSettings = {
   favoriteManufacturingSystemId: null,
   favoriteManufacturingSystemName: null,
   favoriteReactionSystemId: null,
   favoriteReactionSystemName: null,
-  brokerFeeRate: 0.025,
-  salesTaxRate: 0.045,
   exportCostPerM3: 1200,
 }
 
-const UPDATED_SETTINGS: UserSettings = { ...STORED_SETTINGS, brokerFeeRate: 0.03, salesTaxRate: 0.036, exportCostPerM3: 900 }
+const UPDATED_SETTINGS: UserSettings = { ...STORED_SETTINGS, exportCostPerM3: 900 }
 
 let saveOutcomes: Array<() => UserSettings> = []
 let savedBodies: unknown[] = []
@@ -39,13 +37,13 @@ function rejectWith(error: Error): () => UserSettings {
   return () => { throw error }
 }
 
-function brokerFeeValidationError(): ValidationError {
+function exportCostValidationError(): ValidationError {
   return new ValidationError({
     '@type': 'ConstraintViolationList',
     status: 422,
-    violations: [{ propertyPath: 'brokerFeeRate', message: 'This value should be between 0 and 1.' }],
-    description: BROKER_FEE_VIOLATION,
-    detail: BROKER_FEE_VIOLATION,
+    violations: [{ propertyPath: 'exportCostPerM3', message: 'This value should be 0 or more.' }],
+    description: EXPORT_COST_VIOLATION,
+    detail: EXPORT_COST_VIOLATION,
   })
 }
 
@@ -82,35 +80,31 @@ function displayedFees(wrapper: Awaited<ReturnType<typeof mountFeesConfig>>): st
   return wrapper.findAll('input[type="number"]').map(input => (input.element as HTMLInputElement).value)
 }
 
-describe('FeesConfig percentages', () => {
-  it('shows the stored rates as percentages and the export cost as stored', async () => {
+describe('FeesConfig fields', () => {
+  it('offers only the export cost field since the broker fee and the sales tax are computed from the seller', async () => {
     const wrapper = await mountFeesConfig()
 
-    expect(displayedFees(wrapper)).toEqual(['2.5', '4.5', '1200'])
+    expect({
+      inputs: displayedFees(wrapper),
+      labels: wrapper.findAll('label').map(label => label.text()),
+    }).toEqual({ inputs: ['1200'], labels: [en.industry.config.exportCost] })
   })
 
-  it('sends the rates typed as percentages as fractions in the PATCH body', async () => {
-    const wrapper = await mountFeesConfig('en', { ...STORED_SETTINGS, brokerFeeRate: 0.012, salesTaxRate: 0.0337, exportCostPerM3: 750 })
+  it('sends only the export cost in the PATCH body', async () => {
+    const wrapper = await mountFeesConfig('en', { ...STORED_SETTINGS, exportCostPerM3: 750 })
     saveOutcomes = [() => ({ ...UPDATED_SETTINGS })]
-    const [brokerFeeInput, salesTaxInput, exportCostInput] = wrapper.findAll('input[type="number"]')
-    const displayedBeforeTyping = displayedFees(wrapper)
 
-    await brokerFeeInput.setValue('2.5')
-    await salesTaxInput.setValue('4.5')
-    await exportCostInput.setValue('1200')
+    await wrapper.get('input[type="number"]').setValue('1200')
     await clickSave(wrapper)
 
-    expect({ displayedBeforeTyping, savedBodies }).toEqual({
-      displayedBeforeTyping: ['1.2', '3.37', '750'],
-      savedBodies: [{ brokerFeeRate: 0.025, salesTaxRate: 0.045, exportCostPerM3: 1200 }],
-    })
+    expect(savedBodies).toEqual([{ exportCostPerM3: 1200 }])
   })
 })
 
 describe('FeesConfig save error', () => {
   it('shows the invalid fees message in an alert, no saved notice and re-enables the button on a 422', async () => {
     const wrapper = await mountFeesConfig()
-    saveOutcomes = [rejectWith(brokerFeeValidationError())]
+    saveOutcomes = [rejectWith(exportCostValidationError())]
 
     await clickSave(wrapper)
 
@@ -119,7 +113,7 @@ describe('FeesConfig save error', () => {
       text: saveError.exists() ? saveError.text() : null,
       role: saveError.exists() ? saveError.attributes('role') : null,
       savedShown: wrapper.text().includes(SAVED_NOTICE_EN),
-      apiTextShown: wrapper.text().includes(BROKER_FEE_VIOLATION),
+      apiTextShown: wrapper.text().includes(EXPORT_COST_VIOLATION),
       buttonDisabled: wrapper.get('button').attributes('disabled') !== undefined,
     }).toEqual({ text: INVALID_FEES_EN, role: 'alert', savedShown: false, apiTextShown: false, buttonDisabled: false })
   })
@@ -149,7 +143,7 @@ describe('FeesConfig save error', () => {
 
   it('shows the invalid fees message in French', async () => {
     const wrapper = await mountFeesConfig('fr')
-    saveOutcomes = [rejectWith(brokerFeeValidationError())]
+    saveOutcomes = [rejectWith(exportCostValidationError())]
 
     await clickSave(wrapper)
 
@@ -159,7 +153,7 @@ describe('FeesConfig save error', () => {
 
   it('clears the error and shows the saved notice when the next save succeeds', async () => {
     const wrapper = await mountFeesConfig()
-    saveOutcomes = [rejectWith(brokerFeeValidationError()), () => ({ ...UPDATED_SETTINGS })]
+    saveOutcomes = [rejectWith(exportCostValidationError()), () => ({ ...UPDATED_SETTINGS })]
 
     await clickSave(wrapper)
     const errorAfterRejection = wrapper.find('[data-testid="fees-save-error"]').exists()

@@ -329,8 +329,6 @@ export interface UserSettings {
   favoriteManufacturingSystemName: string | null
   favoriteReactionSystemId: number | null
   favoriteReactionSystemName: string | null
-  brokerFeeRate: number
-  salesTaxRate: number
   exportCostPerM3: number
 }
 
@@ -379,8 +377,8 @@ export interface ProfitMarginSellPrices {
 
 export interface MarginEntry {
   revenue: number
-  fees: number
-  profit: number
+  fees: number | null
+  profit: number | null
   margin: number | null
 }
 
@@ -425,8 +423,8 @@ export interface ProfitMarginResult {
     options: ProfitMarginInventionOption[]
   } | null
   sellPrices: ProfitMarginSellPrices
-  brokerFeeRate: number
-  salesTaxRate: number
+  brokerFeeRate: number | null
+  salesTaxRate: number | null
   margins: Record<string, MarginEntry | null>
   dailyVolume: number | null
   missingData: MissingData[]

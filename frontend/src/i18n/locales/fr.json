@@ -623,6 +623,10 @@
       "tooltip": "Le carnet d'ordres de vente Jita ne couvre qu'une partie de la quantité demandée. Le prix affiché porte sur la part couverte seulement : le coût réel est probablement plus élevé.",
       "sellTooltip": "Le revenu est calculé sur la seule partie couverte du carnet de vente Jita, pas sur toute la quantité."
     },
+    "fees": {
+      "unknown": "Frais inconnus",
+      "unknownReason": "Le courtage et la taxe de vente sont calculés depuis vos compétences et vos standings. Synchronisez-les depuis la page Compétences."
+    },
     "inventionUnknown": {
       "label": "Inconnu",
       "missing_adjusted_price": "Prix ajusté ESI inconnu",
@@ -963,9 +967,7 @@
     "config": {
       "maxJobDuration": "Duree max des jobs",
       "maxJobDurationHint": "Les jobs depassant cette duree seront decoupes automatiquement",
-      "feesTitle": "Frais de courtage & Taxe de vente",
-      "brokerFee": "Frais de courtage (%)",
-      "salesTax": "Taxe de vente (%)",
+      "feesTitle": "Coût d'export",
       "exportCost": "Coût d'export (ISK/m³)",
       "feesErrors": {
         "invalid": "Chaque taux doit être compris entre 0 et 100 % et le coût d'export être positif ou nul. Rien n'a été enregistré.",
@@ -2309,6 +2311,7 @@
     },
     "financialSummary": {
       "title": "Résumé financier",
+      "feesUnknown": "Frais inconnus : le propriétaire du projet n'a pas synchronisé ses compétences et ses standings, le revenu net, le profit et la marge ne peuvent pas être calculés.",
       "brokerFeeWithRate": "Frais courtier ({percent}%)",
       "salesTaxWithRate": "Taxe de vente ({percent}%)",
       "materials": "Matériaux",
@@ -2548,7 +2551,8 @@
         "containerName": "Nom du container",
         "containerPlaceholder": "ex: Fleet Doctrine Materials",
         "brokerFee": "Frais courtier %",
-        "salesTax": "Taxe de vente %"
+        "salesTax": "Taxe de vente %",
+        "feesUnknownHint": "Laissé vide, les frais restent inconnus tant que le propriétaire n'a pas synchronisé ses compétences et ses standings."
       },
       "deleteConfirm": {
         "title": "Supprimer le projet",

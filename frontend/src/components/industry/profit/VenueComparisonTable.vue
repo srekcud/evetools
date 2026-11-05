@@ -3,6 +3,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 
 export type SellRow = {
   key: string
@@ -10,8 +11,8 @@ export type SellRow = {
   tag: string
   unitPrice: number
   revenue: number
-  fees: number
-  profit: number
+  fees: number | null
+  profit: number | null
   margin: number | null
   dailyVolume: number | null
   contractCount: number | null
@@ -22,7 +23,7 @@ export type SellRow = {
 defineProps<{
   rows: SellRow[]
   runs: number
-  brokerFeeRate: number
+  brokerFeeRate: number | null
 }>()
 
 const { t } = useI18n()
@@ -38,7 +39,8 @@ const { formatIsk } = useFormatters()
         </svg>
         <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.margins.sellComparison') }}</h4>
       </div>
-      <span class="text-xs text-slate-500">{{ runs }} runs &middot; {{ t('industry.margins.brokerFeeLabel') }} {{ (brokerFeeRate * 100).toFixed(1) }}%</span>
+      <span v-if="brokerFeeRate === null" class="text-xs text-slate-500">{{ runs }} runs &middot; <span class="text-amber-400">{{ t('industry.fees.unknown') }}</span></span>
+      <span v-else class="text-xs text-slate-500">{{ runs }} runs &middot; {{ t('industry.margins.brokerFeeLabel') }} {{ (brokerFeeRate * 100).toFixed(1) }}%</span>
     </div>
 
     <DataTable>
@@ -74,8 +76,10 @@ const { formatIsk } = useFormatters()
             </td>
             <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="row.isBest ? 'text-slate-100 font-semibold' : 'text-slate-300'">{{ formatIsk(row.unitPrice) }}</td>
             <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="row.isBest ? 'text-slate-100' : 'text-slate-300'">{{ formatIsk(row.revenue) }}<PartialPriceMarker :percent="row.coveragePercent" tooltip-key="industry.partialPrice.sellTooltip" /></td>
-            <td class="py-2.5 px-3 text-right font-mono text-amber-400 tabular-nums" :class="!row.isBest ? 'text-amber-400/70' : ''">-{{ formatIsk(Math.abs(row.fees)) }}</td>
-            <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="[row.profit >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.profit >= 0 ? '+' : '' }}{{ formatIsk(row.profit) }}</td>
+            <td v-if="row.fees === null" class="py-2.5 px-3 text-right font-mono text-slate-500 tabular-nums"><UnknownValue /></td>
+            <td v-else class="py-2.5 px-3 text-right font-mono text-amber-400 tabular-nums" :class="!row.isBest ? 'text-amber-400/70' : ''">-{{ formatIsk(Math.abs(row.fees)) }}</td>
+            <td v-if="row.profit === null" class="py-2.5 px-3 text-right font-mono text-slate-500 tabular-nums"><UnknownValue /></td>
+            <td v-else class="py-2.5 px-3 text-right font-mono tabular-nums" :class="[row.profit >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.profit >= 0 ? '+' : '' }}{{ formatIsk(row.profit) }}</td>
             <td v-if="row.margin == null" class="py-2.5 px-3 text-right font-mono text-slate-500 tabular-nums">{{ t('industry.inventionUnknown.label') }}</td>
             <td v-else class="py-2.5 px-3 text-right font-mono tabular-nums" :class="[row.margin >= 0 ? 'text-emerald-400' : 'text-red-400', row.isBest ? 'font-bold' : '']">{{ row.margin >= 0 ? '+' : '' }}{{ row.margin.toFixed(1) }}%</td>
             <td class="py-2.5 px-4 text-right font-mono tabular-nums" :class="row.dailyVolume != null || row.contractCount != null ? 'text-slate-300' : 'text-slate-500'">
@@ -87,6 +91,13 @@ const { formatIsk } = useFormatters()
         </tbody>
       </table>
     </DataTable>
+
+    <div v-if="brokerFeeRate === null" class="px-4 py-3 bg-amber-500/10 border-t border-slate-800 flex items-center gap-2">
+      <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <p class="text-xs text-amber-300/80">{{ t('industry.fees.unknownReason') }}</p>
+    </div>
 
     <!-- Info note -->
     <div class="px-4 py-3 bg-cyan-900/10 border-t border-slate-800 flex items-center gap-2">
