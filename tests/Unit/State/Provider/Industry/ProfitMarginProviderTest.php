@@ -12,6 +12,8 @@ use App\Industry\Application\Decryptors;
 use App\Industry\Domain\Decryptor;
 use App\Industry\Domain\Multiplier;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\ProfitMarginService;
 use App\State\Provider\Industry\ProfitMarginProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -59,7 +61,6 @@ class ProfitMarginProviderTest extends TestCase
                 $this->anything(),
                 $this->anything(),
                 $this->anything(),
-                $this->anything(),
             )
             ->willReturn($this->analysis());
 
@@ -81,8 +82,7 @@ class ProfitMarginProviderTest extends TestCase
                 EveConstants::JITA_STATION_ID,
                 EveConstants::JITA_SOLAR_SYSTEM_ID,
                 $this->anything(),
-                0.036,
-                0.036,
+                new SalesFees(0.036, 0.036),
                 $user,
                 EveConstants::JITA_SOLAR_SYSTEM_ID,
             )
@@ -205,7 +205,6 @@ class ProfitMarginProviderTest extends TestCase
                 $this->anything(),
                 $this->anything(),
                 $this->anything(),
-                $this->anything(),
             )
             ->willReturn($this->analysis());
 
@@ -236,8 +235,7 @@ class ProfitMarginProviderTest extends TestCase
                 EveConstants::JITA_STATION_ID,
                 EveConstants::JITA_SOLAR_SYSTEM_ID,
                 null,
-                0.036,
-                0.036,
+                new SalesFees(0.036, 0.036),
                 $user,
                 EveConstants::JITA_SOLAR_SYSTEM_ID,
             )
@@ -261,7 +259,6 @@ class ProfitMarginProviderTest extends TestCase
                 $this->anything(),
                 $this->anything(),
                 null,
-                $this->anything(),
                 $this->anything(),
                 $this->anything(),
                 $this->anything(),
@@ -293,7 +290,7 @@ class ProfitMarginProviderTest extends TestCase
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
     }
 
-    public function testUserSettingsAndPreferredMarketStructureReplaceTheDefaults(): void
+    public function testUserSettingsPreferredMarketStructureAndSellerSalesFeesReplaceTheDefaults(): void
     {
         $user = (new User())->setPreferredMarketStructureId(self::PREFERRED_MARKET_STRUCTURE_ID);
         $settings = $this->settings($user);
@@ -308,15 +305,41 @@ class ProfitMarginProviderTest extends TestCase
                 self::PREFERRED_MARKET_STRUCTURE_ID,
                 self::FAVORITE_MANUFACTURING_SYSTEM_ID,
                 null,
-                0.015,
-                0.0225,
+                new SalesFees(0.015, 0.0225),
                 $user,
                 self::FAVORITE_MANUFACTURING_SYSTEM_ID,
             )
             ->willReturn($this->analysis());
 
-        $this->provider($user, new Request(), $profitMarginService, $settings)
+        $this->provider($user, new Request(), $profitMarginService, $settings, new SalesFees(0.015, 0.0225))
             ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+    }
+
+    public function testUnknownSellerSalesFeesReachTheServiceAsNull(): void
+    {
+        $user = new User();
+        $profitMarginService = $this->createMock(ProfitMarginService::class);
+        $profitMarginService->expects($this->once())
+            ->method('analyze')
+            ->with(
+                self::HAIL_L_TYPE_ID,
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $this->anything(),
+                $this->isNull(),
+                $user,
+                $this->anything(),
+            )
+            ->willReturn($this->analysis(['brokerFeeRate' => null, 'salesTaxRate' => null]));
+
+        $resource = $this->provider($user, new Request(), $profitMarginService, null, null)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertNull($resource->brokerFeeRate);
+        $this->assertNull($resource->salesTaxRate);
     }
 
     public function testQueryStructureAndSystemTakePrecedenceOverSettingsAndPreferredMarketStructure(): void
@@ -334,8 +357,7 @@ class ProfitMarginProviderTest extends TestCase
                 1046664001931,
                 EveConstants::JITA_SOLAR_SYSTEM_ID,
                 null,
-                0.015,
-                0.0225,
+                $this->anything(),
                 $user,
                 EveConstants::JITA_SOLAR_SYSTEM_ID,
             )
@@ -367,8 +389,7 @@ class ProfitMarginProviderTest extends TestCase
                 EveConstants::JITA_STATION_ID,
                 self::FAVORITE_MANUFACTURING_SYSTEM_ID,
                 null,
-                0.015,
-                0.0225,
+                $this->anything(),
                 $user,
                 self::FAVORITE_REACTION_SYSTEM_ID,
             )
@@ -394,8 +415,7 @@ class ProfitMarginProviderTest extends TestCase
                 EveConstants::JITA_STATION_ID,
                 self::REQUESTED_SYSTEM_ID,
                 null,
-                0.015,
-                0.0225,
+                $this->anything(),
                 $user,
                 self::REQUESTED_SYSTEM_ID,
             )
@@ -577,12 +597,10 @@ class ProfitMarginProviderTest extends TestCase
     {
         return (new IndustryUserSettings())
             ->setUser($user)
-            ->setBrokerFeeRate(0.015)
-            ->setSalesTaxRate(0.0225)
             ->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID);
     }
 
-    private function provider(User $user, ?Request $request, ProfitMarginService $profitMarginService, ?IndustryUserSettings $settings = null): ProfitMarginProvider
+    private function provider(User $user, ?Request $request, ProfitMarginService $profitMarginService, ?IndustryUserSettings $settings = null, ?SalesFees $sellerSalesFees = new SalesFees(0.036, 0.036)): ProfitMarginProvider
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
@@ -597,10 +615,17 @@ class ProfitMarginProviderTest extends TestCase
                 : self::fail(sprintf('Settings looked up by %s instead of the authenticated user.', json_encode(array_keys($criteria)))),
         );
 
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturnCallback(
+            static fn (User $seller): ?SalesFees => $seller === $user
+                ? $sellerSalesFees
+                : self::fail('Sales fees resolved for another user than the authenticated user.'),
+        );
+
         $decryptors = $this->createStub(Decryptors::class);
         $decryptors->method('all')->willReturn([new Decryptor(self::PROCESS_DECRYPTOR, new Multiplier(1.1), 0, 3, 6)]);
 
-        return new ProfitMarginProvider($security, $requestStack, $profitMarginService, $settingsRepository, $decryptors);
+        return new ProfitMarginProvider($security, $requestStack, $profitMarginService, $settingsRepository, $decryptors, $salesFeesResolver);
     }
 
     /**

@@ -8,16 +8,16 @@ use ApiPlatform\Metadata\Post;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\CreateProjectInput;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Exception\TypeMissingFromSdeException;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\EstimatedSellPriceEstimator;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\ProductionCostService;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\State\Processor\Industry\CreateProjectProcessor;
@@ -77,7 +77,7 @@ final class CreateProjectProcessorTest extends TestCase
             $this->createStub(StructureMarketService::class),
             $this->createStub(IndustryActivityProductRepository::class),
             $this->createStub(EntityManagerInterface::class),
-            $this->createStub(IndustryUserSettingsRepository::class),
+            $this->createStub(SellerSalesFeesResolver::class),
             new NullLogger(),
         ]);
         $input = new CreateProjectInput();
@@ -91,13 +91,13 @@ final class CreateProjectProcessorTest extends TestCase
     }
 
     #[Group('issue-21')]
-    public function testEstimatedTaxAmountAtJitaPriceUsesBrokerFeeAndSalesTaxFromUserSettings(): void
+    public function testEstimatedTaxAmountAtJitaPriceUsesBrokerFeeAndSalesTaxOfTheSeller(): void
     {
         $project = $this->createProjectWithSellPrices(
             self::RIFTER,
             jitaPrice: 100_000.0,
             structurePrice: null,
-            settings: $this->userSettings(),
+            salesFees: $this->salesFees(),
         );
 
         self::assertSame('jita', $project->getEstimatedSellPriceSource());
@@ -112,7 +112,7 @@ final class CreateProjectProcessorTest extends TestCase
             self::HAMMERHEAD_I,
             jitaPrice: 80_000.0,
             structurePrice: 100_000.0,
-            settings: $this->userSettings(),
+            salesFees: $this->salesFees(),
         );
 
         self::assertSame('structure', $project->getEstimatedSellPriceSource());
@@ -121,17 +121,18 @@ final class CreateProjectProcessorTest extends TestCase
     }
 
     #[Group('issue-21')]
-    public function testEstimatedTaxAmountWithoutUserSettingsUsesDefaultBrokerFeeAndSalesTax(): void
+    public function testEstimatedTaxAmountIsUnknownWhenTheSellerSalesFeesAreUnknown(): void
     {
         $project = $this->createProjectWithSellPrices(
             self::ACOLYTE_I,
             jitaPrice: 100_000.0,
             structurePrice: null,
-            settings: null,
+            salesFees: null,
         );
 
         self::assertSame('jita', $project->getEstimatedSellPriceSource());
-        self::assertEqualsWithDelta(72_000.0, $project->getEstimatedTaxAmount(), 0.001);
+        self::assertEqualsWithDelta(1_000_000.0, $project->getEstimatedSellPrice(), 0.001);
+        self::assertNull($project->getEstimatedTaxAmount());
     }
 
     #[Group('issue-125')]
@@ -141,7 +142,7 @@ final class CreateProjectProcessorTest extends TestCase
             self::FERNITE_CARBIDE,
             jitaPrice: 30.0,
             structurePrice: null,
-            settings: $this->userSettings(),
+            salesFees: $this->salesFees(),
             runs: self::FERNITE_CARBIDE_RUNS,
             producers: [IndustryActivityType::Reaction->value => $this->ferniteCarbideReactionFormula()],
         );
@@ -160,7 +161,7 @@ final class CreateProjectProcessorTest extends TestCase
             self::FERNITE_CARBIDE,
             jitaPrice: 30.0,
             structurePrice: null,
-            settings: $this->userSettings(),
+            salesFees: $this->salesFees(),
             runs: self::FERNITE_CARBIDE_RUNS,
             producers: [],
             logger: $logger,
@@ -198,7 +199,7 @@ final class CreateProjectProcessorTest extends TestCase
             $productionCostService,
             $jitaMarketService,
             $this->createStub(StructureMarketService::class),
-            $this->settingsRepositoryReturning($this->userSettings()),
+            $this->salesFeesResolverReturning($this->salesFees()),
             $logger,
         );
 
@@ -236,7 +237,7 @@ final class CreateProjectProcessorTest extends TestCase
             $productionCostService,
             $jitaMarketService,
             $this->createStub(StructureMarketService::class),
-            $this->settingsRepositoryReturning($this->userSettings()),
+            $this->salesFeesResolverReturning($this->salesFees()),
             new NullLogger(),
         );
 
@@ -263,7 +264,7 @@ final class CreateProjectProcessorTest extends TestCase
             $productionCostService,
             $jitaMarketService,
             $this->createStub(StructureMarketService::class),
-            $this->settingsRepositoryReturning($this->userSettings()),
+            $this->salesFeesResolverReturning($this->salesFees()),
             new NullLogger(),
         );
 
@@ -333,7 +334,7 @@ final class CreateProjectProcessorTest extends TestCase
             $this->createStub(StructureMarketService::class),
             $this->createStub(IndustryActivityProductRepository::class),
             $this->createStub(EntityManagerInterface::class),
-            $this->settingsRepositoryReturning(null),
+            $this->salesFeesResolverReturning(null),
             new NullLogger(),
         ]);
         $input = $this->inputFor(self::QUANTUM_MICROPROCESSOR);
@@ -371,7 +372,7 @@ final class CreateProjectProcessorTest extends TestCase
             $this->createStub(StructureMarketService::class),
             $this->createStub(IndustryActivityProductRepository::class),
             $this->createStub(EntityManagerInterface::class),
-            $this->settingsRepositoryReturning(null),
+            $this->salesFeesResolverReturning(null),
             new NullLogger(),
         ]);
         $input = new CreateProjectInput();
@@ -389,7 +390,7 @@ final class CreateProjectProcessorTest extends TestCase
         int $productTypeId,
         float $jitaPrice,
         ?float $structurePrice,
-        ?IndustryUserSettings $settings,
+        ?SalesFees $salesFees,
         int $runs = self::PROJECT_RUNS,
         ?array $producers = null,
         LoggerInterface $logger = new NullLogger(),
@@ -412,7 +413,7 @@ final class CreateProjectProcessorTest extends TestCase
             $productionCostService,
             $jitaMarketService,
             $structureMarketService,
-            $this->settingsRepositoryReturning($settings),
+            $this->salesFeesResolverReturning($salesFees),
             $logger,
             $producers,
         );
@@ -428,7 +429,7 @@ final class CreateProjectProcessorTest extends TestCase
         ProductionCostService $productionCostService,
         JitaMarketService $jitaMarketService,
         StructureMarketService $structureMarketService,
-        IndustryUserSettingsRepository $settingsRepository,
+        SellerSalesFeesResolver $salesFeesResolver,
         LoggerInterface $logger,
         ?array $producers = null,
     ): CreateProjectProcessor {
@@ -453,7 +454,7 @@ final class CreateProjectProcessorTest extends TestCase
             $structureMarketService,
             $activityProductRepository,
             $this->createStub(EntityManagerInterface::class),
-            $settingsRepository,
+            $salesFeesResolver,
             $logger,
         ]);
     }
@@ -467,19 +468,17 @@ final class CreateProjectProcessorTest extends TestCase
             ->setQuantity(self::FERNITE_CARBIDE_UNITS_PER_RUN);
     }
 
-    private function settingsRepositoryReturning(?IndustryUserSettings $settings): IndustryUserSettingsRepository
+    private function salesFeesResolverReturning(?SalesFees $salesFees): SellerSalesFeesResolver
     {
-        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
-        $settingsRepository->method('findOneBy')->willReturn($settings);
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturn($salesFees);
 
-        return $settingsRepository;
+        return $salesFeesResolver;
     }
 
-    private function userSettings(): IndustryUserSettings
+    private function salesFees(): SalesFees
     {
-        return (new IndustryUserSettings())
-            ->setBrokerFeeRate(self::BROKER_FEE_RATE)
-            ->setSalesTaxRate(self::SALES_TAX_RATE);
+        return new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE);
     }
 
     private function projectFor(int $productTypeId, User $user, int $runs = self::PROJECT_RUNS): IndustryProject

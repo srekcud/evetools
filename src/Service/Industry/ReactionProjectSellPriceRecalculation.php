@@ -13,6 +13,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class ReactionProjectSellPriceRecalculation extends ProjectByProjectCorrection
 {
+    private const string UNKNOWN_TAX = 'unknown';
+
     public function __construct(
         IndustryProjectRepository $projectRepository,
         EntityManagerInterface $entityManager,
@@ -72,8 +74,10 @@ class ReactionProjectSellPriceRecalculation extends ProjectByProjectCorrection
         return $this->outcomeOf($project, ProjectCorrectionStatus::Changed, $change);
     }
 
-    private static function describe(float $amount, string $source, float $taxAmount): string
+    private static function describe(float $amount, string $source, ?float $taxAmount): string
     {
-        return \sprintf('sell %s (%s), tax %s', number_format($amount, 2), $source, number_format($taxAmount, 2));
+        $tax = null === $taxAmount ? self::UNKNOWN_TAX : number_format($taxAmount, 2);
+
+        return \sprintf('sell %s (%s), tax %s', number_format($amount, 2), $source, $tax);
     }
 }

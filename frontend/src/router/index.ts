@@ -146,6 +146,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/mining-sites/:id([0-9a-fA-F-]{36})',
+      name: 'mining-site-detail',
+      component: () => import('@/views/MiningSite/MiningSiteDetail.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/Admin.vue'),

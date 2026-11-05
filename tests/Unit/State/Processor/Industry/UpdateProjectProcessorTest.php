@@ -8,13 +8,13 @@ use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\UpdateProjectInput;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\EstimatedSellPriceEstimator;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\ProductionCostService;
 use App\Service\Industry\ProjectEstimatesRefresher;
@@ -199,9 +199,9 @@ final class UpdateProjectProcessorTest extends TestCase
         $jitaMarketService->method('getPrice')->willReturnMap([[self::RIFTER, self::RIFTER_JITA_PRICE]]);
         $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
         $activityProductRepository->method('findBlueprintForProduct')->willReturn((new IndustryActivityProduct())->setQuantity(1));
-        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
-        $settingsRepository->method('findOneBy')->willReturn((new IndustryUserSettings())->setBrokerFeeRate(0.01)->setSalesTaxRate(0.02));
-        $sellPriceEstimator = new EstimatedSellPriceEstimator($jitaMarketService, $this->createStub(StructureMarketService::class), $activityProductRepository, $settingsRepository);
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturn(new SalesFees(0.01, 0.02));
+        $sellPriceEstimator = new EstimatedSellPriceEstimator($jitaMarketService, $this->createStub(StructureMarketService::class), $activityProductRepository, $salesFeesResolver);
 
         return new ProjectEstimatesRefresher($productionCostService, $sellPriceEstimator, new NullLogger());
     }

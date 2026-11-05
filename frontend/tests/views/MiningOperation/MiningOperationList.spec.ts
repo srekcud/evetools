@@ -11,6 +11,7 @@ import type { MiningOperation, MiningSeason } from '@/stores/miningOperation'
 import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import type { User } from '@/types'
 import { expectOnlyLocaleTexts, TEST_LOCALES, type TestLocale } from '../../localeTexts'
+import { SITES_PATH, SITE_ID, siteAfterThreeScans } from '../MiningSite/miningSiteFixtures'
 import { OPERATION_O } from './miningOperationLedgerFixtures'
 import { ARCHIVE_PATH, P2_LABEL, completedP2Operation, g1Operation, settledArchiveSummary, settledG1Operation } from './miningOperationPaymentFixtures'
 
@@ -199,7 +200,7 @@ describe('MiningOperationList, archive', () => {
       settled: ['5,567,729', '2,294,229', '3 / 3 paid', 'Settled', 'Aldranette'].every(text => settledRow.includes(text)),
       completed: ['812,300', 'my value · everyone keeps their own', 'nothing to settle', 'Completed'].every(text => completedRow.includes(text)),
     }).toEqual({
-      archiveTab: ['My operations', 'Available', 'Archive', 'Season'],
+      archiveTab: ['My operations', 'Available', 'Archive', 'Season', 'Sites'],
       settled: true,
       completed: true,
     })
@@ -285,5 +286,26 @@ describe('MiningOperationList, season', () => {
     await flushPromises()
 
     expect([callsTo(SEASON_PATH_30_DAYS) > 0, wrapper.text().includes('150,000,000')]).toEqual([true, true])
+  })
+})
+
+describe('MiningOperationList, sites', () => {
+  it('opens the sites tab, which loads my mining sites and shows their history', async () => {
+    vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+      if (endpoint === SITES_PATH) return [siteAfterThreeScans()] as never
+      return [] as never
+    })
+    const wrapper = await mountList(ARIA_OF_C1)
+
+    const sitesTab = wrapper.findAll('[role="tab"]').find(tab => tab.text().startsWith('Sites'))
+    expect(sitesTab, 'sites tab').toBeDefined()
+    await sitesTab?.trigger('click')
+    await flushPromises()
+
+    expect({
+      selected: sitesTab?.attributes('aria-selected'),
+      siteRequests: callsTo(SITES_PATH),
+      siteRow: wrapper.find(`[data-testid="site-row-${SITE_ID}"]`).exists() ? wrapper.find(`[data-testid="site-row-${SITE_ID}"]`).text() : null,
+    }).toEqual({ selected: 'true', siteRequests: 1, siteRow: expect.stringContaining('Belt Aldranette') })
   })
 })

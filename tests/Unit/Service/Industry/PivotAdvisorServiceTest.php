@@ -13,6 +13,7 @@ use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Industry\Domain\SecurityClass;
@@ -210,8 +211,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -310,8 +310,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -391,8 +390,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -470,8 +468,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -540,8 +537,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -619,8 +615,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -733,8 +728,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::ROBOTICS_TYPE_ID,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -869,8 +863,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -1024,8 +1017,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -1043,7 +1035,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->givenManufacturingAndReactionCandidatesOfAManufacturingSource();
         $installCostRequests = $this->givenJobInstallCostsRecorded();
 
-        $this->pivotAdvisorOnSdeKnowing([])->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::SOLAR_SYSTEM_ID);
+        $this->pivotAdvisorOnSdeKnowing([])->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, new SalesFees(self::BROKER_FEE, self::SALES_TAX), $this->user, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([['manufacturing', 0.25], ['manufacturing', 0.25], ['reaction', 0.25]], $this->sorted($installCostRequests));
     }
@@ -1056,7 +1048,7 @@ class PivotAdvisorServiceTest extends TestCase
             ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
         ]]);
 
-        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::SOLAR_SYSTEM_ID);
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, new SalesFees(self::BROKER_FEE, self::SALES_TAX), $this->user, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([['manufacturing', 0.25], ['manufacturing', 0.25], ['reaction', 2.0]], $this->sorted($installCostRequests));
     }
@@ -1076,7 +1068,7 @@ class PivotAdvisorServiceTest extends TestCase
             ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
         ]]);
 
-        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::SOLAR_SYSTEM_ID);
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, new SalesFees(self::BROKER_FEE, self::SALES_TAX), $this->user, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([['reaction', 2.0]], $installCostRequests->requests);
     }
@@ -1091,7 +1083,7 @@ class PivotAdvisorServiceTest extends TestCase
             ProductionStructures::tataraWithFacilityTax('tatara-reaction-system', SecurityClass::NullSec, self::REACTION_SOLAR_SYSTEM_ID, 0.02),
         ]]);
 
-        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::REACTION_SOLAR_SYSTEM_ID);
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, new SalesFees(self::BROKER_FEE, self::SALES_TAX), $this->user, self::REACTION_SOLAR_SYSTEM_ID);
 
         $this->assertSame(
             [[30000144, 'reaction', 2.0], [30002510, 'manufacturing', 0.25], [30002510, 'manufacturing', 0.25]],
@@ -1116,7 +1108,7 @@ class PivotAdvisorServiceTest extends TestCase
             ProductionStructures::tataraWithFacilityTax('tatara-reaction-system', SecurityClass::NullSec, self::REACTION_SOLAR_SYSTEM_ID, 0.02),
         ]]);
 
-        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, self::BROKER_FEE, self::SALES_TAX, $this->user, self::REACTION_SOLAR_SYSTEM_ID);
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, new SalesFees(self::BROKER_FEE, self::SALES_TAX), $this->user, self::REACTION_SOLAR_SYSTEM_ID);
 
         $this->assertSame([[30000144, 'reaction', 2.0]], $installCostRequests->requestsWithSolarSystem);
     }
@@ -1185,8 +1177,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );
@@ -1376,8 +1367,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_PRODUCT,
             $runs,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE,
-            self::SALES_TAX,
+            new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,
             self::SOLAR_SYSTEM_ID,
         );

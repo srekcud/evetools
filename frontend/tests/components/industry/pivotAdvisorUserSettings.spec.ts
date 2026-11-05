@@ -21,8 +21,6 @@ const USER_SETTINGS_WITH_FAVORITE_SYSTEMS: UserSettings = {
   favoriteManufacturingSystemName: 'Niarja',
   favoriteReactionSystemId: 30_000_157,
   favoriteReactionSystemName: 'Ikuchi',
-  brokerFeeRate: 0.015,
-  salesTaxRate: 0.0225,
   exportCostPerM3: 980,
 }
 

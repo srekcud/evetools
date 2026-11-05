@@ -81,11 +81,11 @@ class ProfitMarginResource
         'structureName' => '',
     ];
 
-    public float $brokerFeeRate = 0.036;
+    public ?float $brokerFeeRate = null;
 
-    public float $salesTaxRate = 0.036;
+    public ?float $salesTaxRate = null;
 
-    /** @var array<string, array{revenue: float, fees: float, profit: float, margin: float|null}|null> */
+    /** @var array<string, array{revenue: float, fees: float|null, profit: float|null, margin: float|null}|null> */
     public array $margins = [];
 
     public ?float $dailyVolume = null;

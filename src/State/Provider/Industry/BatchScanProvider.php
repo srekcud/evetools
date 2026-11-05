@@ -10,6 +10,7 @@ use App\ApiResource\Industry\BatchScanResultResource;
 use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\BatchProfitScannerService;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,6 +27,7 @@ class BatchScanProvider implements ProviderInterface
         private readonly RequestStack $requestStack,
         private readonly BatchProfitScannerService $scannerService,
         private readonly IndustryUserSettingsRepository $settingsRepository,
+        private readonly SellerSalesFeesResolver $salesFeesResolver,
     ) {
     }
 
@@ -56,8 +58,6 @@ class BatchScanProvider implements ProviderInterface
         // Load user settings for defaults
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 
-        $brokerFeeRate = $settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE;
-        $salesTaxRate = $settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE;
         $exportCostPerM3 = $settings?->getExportCostPerM3() ?? EveConstants::DEFAULT_EXPORT_COST_PER_M3;
 
         // Resolve structure ID
@@ -75,8 +75,7 @@ class BatchScanProvider implements ProviderInterface
             $sellVenue,
             $structureId,
             $solarSystems->manufacturingSolarSystemId,
-            $brokerFeeRate,
-            $salesTaxRate,
+            $this->salesFeesResolver->forUser($user),
             $exportCostPerM3,
             $user,
             $solarSystems->reactionSolarSystemId,

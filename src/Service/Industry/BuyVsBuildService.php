@@ -25,6 +25,7 @@ use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -84,8 +85,7 @@ class BuyVsBuildService
         int $meLevel,
         int $solarSystemId,
         ?int $sellStructureId,
-        float $brokerFeeRate,
-        float $salesTaxRate,
+        ?SalesFees $salesFees,
         ?User $user,
         ?int $reactionSolarSystemId = null,
     ): array {
@@ -190,7 +190,7 @@ class BuyVsBuildService
             'runs' => $runs,
             'totalProductionCost' => self::roundedAmountOf($totalProductionCost),
             'sellPrice' => null === $sellPrice ? null : round($sellPrice, self::DISPLAYED_DECIMALS),
-            'marginPercent' => self::marginPercentOf($sellPrice, $rootCost->producedQuantity->value, $totalProductionCost, $brokerFeeRate + $salesTaxRate),
+            'marginPercent' => self::marginPercentOf($sellPrice, $rootCost->producedQuantity->value, $totalProductionCost, $salesFees),
             'components' => $components,
             'buildAllCost' => self::roundedAmountOf($buildAllCost),
             'buyAllCost' => self::roundedAmountOf($buyAllCost),
@@ -330,14 +330,14 @@ class BuyVsBuildService
         return $structureSellPrice ?? $this->jitaMarketService->getPricesWithFallback([$typeId])[$typeId] ?? null;
     }
 
-    private static function marginPercentOf(?float $sellPrice, int $outputQuantity, Cost $totalProductionCost, float $sellOrderFeeRate): ?float
+    private static function marginPercentOf(?float $sellPrice, int $outputQuantity, Cost $totalProductionCost, ?SalesFees $salesFees): ?float
     {
-        if (null === $sellPrice || $sellPrice <= 0.0 || !$totalProductionCost->isKnown() || $totalProductionCost->amount()->amount <= 0.0) {
+        if (null === $salesFees || null === $sellPrice || $sellPrice <= 0.0 || !$totalProductionCost->isKnown() || $totalProductionCost->amount()->amount <= 0.0) {
             return null;
         }
         $totalCost = $totalProductionCost->amount()->amount;
         $grossRevenue = $sellPrice * $outputQuantity;
-        $netRevenue = $grossRevenue - $grossRevenue * $sellOrderFeeRate;
+        $netRevenue = $grossRevenue - $grossRevenue * ($salesFees->brokerFeeRate + $salesFees->salesTaxRate);
 
         return round(($netRevenue - $totalCost) / $totalCost * self::PERCENT, self::DISPLAYED_DECIMALS);
     }

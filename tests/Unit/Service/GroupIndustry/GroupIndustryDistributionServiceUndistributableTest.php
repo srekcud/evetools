@@ -17,6 +17,7 @@ use App\Service\GroupIndustry\DistributionResult;
 use App\Service\GroupIndustry\GroupIndustryDistributionService;
 use App\Service\GroupIndustry\MemberDistribution;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -145,6 +146,39 @@ final class GroupIndustryDistributionServiceUndistributableTest extends TestCase
         );
     }
 
+    public static function projectsWithAnUnknownFeeProvider(): iterable
+    {
+        yield 'broker fee unknown' => [null, 3.375];
+        yield 'sales tax unknown' => [1.38, null];
+        yield 'both unknown' => [null, null];
+    }
+
+    #[Group('issue-347')]
+    #[DataProvider('projectsWithAnUnknownFeeProvider')]
+    public function testProjectWithAnUnknownFeeHasUnknownFeesAndNetRevenueAndNoMarginProfitPartNorPayoutButKnownShares(?float $brokerFeePercent, ?float $salesTaxPercent): void
+    {
+        $alice = $this->member('Alice Kaine', self::ALICE_MEMBER_ID);
+        $brann = $this->member('Brann Holt', self::BRANN_MEMBER_ID);
+
+        $result = $this->distributionOf(
+            $this->project(brokerFeePercent: $brokerFeePercent, salesTaxPercent: $salesTaxPercent),
+            [2_500_000.0],
+            [
+                $this->contribution($alice, ContributionType::Material, 900_000.0),
+                $this->contribution($brann, ContributionType::JobInstall, 600_000.0),
+            ],
+        );
+
+        self::assertSame([2_500_000.0, null, null, null, 1_500_000.0, null], $this->totalsOf($result));
+        self::assertSame(
+            [
+                self::ALICE_MEMBER_ID => ['Alice Kaine', 900_000.0, 900_000.0, 0.0, 0.0, 0.0, 60.0, null, null],
+                self::BRANN_MEMBER_ID => ['Brann Holt', 600_000.0, 0.0, 600_000.0, 0.0, 0.0, 40.0, null, null],
+            ],
+            $this->membersOf($result),
+        );
+    }
+
     private function distributionOf(IndustryProject $project, array $saleTotals, array $approvedContributions): DistributionResult
     {
         $this->saleRepository->method('findBy')->willReturn(array_map(
@@ -156,7 +190,7 @@ final class GroupIndustryDistributionServiceUndistributableTest extends TestCase
         return $this->service->calculateDistribution($project);
     }
 
-    private function project(float $brokerFeePercent, float $salesTaxPercent): IndustryProject
+    private function project(?float $brokerFeePercent, ?float $salesTaxPercent): IndustryProject
     {
         return (new IndustryProject())
             ->setName('Sabre batch')

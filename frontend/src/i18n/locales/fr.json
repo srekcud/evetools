@@ -623,6 +623,10 @@
       "tooltip": "Le carnet d'ordres de vente Jita ne couvre qu'une partie de la quantité demandée. Le prix affiché porte sur la part couverte seulement : le coût réel est probablement plus élevé.",
       "sellTooltip": "Le revenu est calculé sur la seule partie couverte du carnet de vente Jita, pas sur toute la quantité."
     },
+    "fees": {
+      "unknown": "Frais inconnus",
+      "unknownReason": "Le courtage et la taxe de vente sont calculés depuis vos compétences et vos standings. Synchronisez-les depuis la page Compétences."
+    },
     "inventionUnknown": {
       "label": "Inconnu",
       "missing_adjusted_price": "Prix ajusté ESI inconnu",
@@ -963,9 +967,7 @@
     "config": {
       "maxJobDuration": "Duree max des jobs",
       "maxJobDurationHint": "Les jobs depassant cette duree seront decoupes automatiquement",
-      "feesTitle": "Frais de courtage & Taxe de vente",
-      "brokerFee": "Frais de courtage (%)",
-      "salesTax": "Taxe de vente (%)",
+      "feesTitle": "Coût d'export",
       "exportCost": "Coût d'export (ISK/m³)",
       "feesErrors": {
         "invalid": "Chaque taux doit être compris entre 0 et 100 % et le coût d'export être positif ou nul. Rien n'a été enregistré.",
@@ -1414,6 +1416,12 @@
       "brokerFeeLabel": "Courtage",
       "inventionTitle": "Invention \u2014 Impact du decrypteur sur le profit",
       "probability": "Prob.",
+      "probabilityWithoutSkills": "(sans competences)",
+      "attemptsCol": "Tentatives",
+      "decryptorCostCol": "Decrypteur / tentative",
+      "costPerUnitCol": "Cout / unite",
+      "deltaPerUnitCol": "Ecart / unite",
+      "datacoresCostPerAttempt": "Datacores par tentative",
       "totalProdCost": "Cout prod. total",
       "bestMarginCol": "Meilleure marge",
       "inventionFooterNote": "\"Meilleure marge\" utilise le lieu le plus rentable. Le cout prod. total inclut materiaux + jobs + invention.",
@@ -2309,6 +2317,7 @@
     },
     "financialSummary": {
       "title": "Résumé financier",
+      "feesUnknown": "Frais inconnus : le propriétaire du projet n'a pas synchronisé ses compétences et ses standings, le revenu net, le profit et la marge ne peuvent pas être calculés.",
       "brokerFeeWithRate": "Frais courtier ({percent}%)",
       "salesTaxWithRate": "Taxe de vente ({percent}%)",
       "materials": "Matériaux",
@@ -2548,7 +2557,8 @@
         "containerName": "Nom du container",
         "containerPlaceholder": "ex: Fleet Doctrine Materials",
         "brokerFee": "Frais courtier %",
-        "salesTax": "Taxe de vente %"
+        "salesTax": "Taxe de vente %",
+        "feesUnknownHint": "Laissé vide, les frais restent inconnus tant que le propriétaire n'a pas synchronisé ses compétences et ses standings."
       },
       "deleteConfirm": {
         "title": "Supprimer le projet",
@@ -2653,7 +2663,8 @@
       "archive": "Archive",
       "mine": "Mes opérations",
       "available": "Disponibles",
-      "season": "Saison"
+      "season": "Saison",
+      "sites": "Sites"
     },
     "list": {
       "new": "Nouvelle opération",
@@ -3196,5 +3207,165 @@
         "footerEachForThemselves": "evetools · chacun pour soi"
       }
     }
+  }
+,
+  "miningSite": {
+    "feed": {
+      "title": "Fil des scans",
+      "shared": "partagé en direct avec la flotte",
+      "unknownAuthor": "auteur inconnu",
+      "types": "{count} type | {count} types"
+    },
+    "lastScan": {
+      "text": "Dernier scan #{number} par {author}, {age}",
+      "ago": "il y a {minutes} min",
+      "justNow": "à l'instant"
+    },
+    "status": {
+      "active": "Actif",
+      "closed": "Clôturé"
+    },
+    "tier": {
+      "normal": "Normal",
+      "orange": "Bientôt",
+      "red": "Imminent",
+      "reached": "ETA dépassée",
+      "depleted": "Épuisé",
+      "unknown": "ETA inconnue"
+    },
+    "eta": {
+      "title": "ETA du site",
+      "trend": "Tendance",
+      "recent": "Récente",
+      "countdown": "Temps restant",
+      "lastType": "Dernier minerai à tomber :",
+      "unknown": "inconnue",
+      "depleted": "épuisé"
+    },
+    "single": {
+      "hint": "ETA inconnue : ajoutez un 2e scan du même site"
+    },
+    "value": {
+      "unknown": "inconnue",
+      "remaining": "Valeur restante",
+      "missingPrices": "sans prix : {types}"
+    },
+    "badge": {
+      "notMined": "non miné",
+      "singleScan": "un seul scan",
+      "irregular": "débit irrégulier",
+      "depleted": "Épuisé · entre {from} et {to}"
+    },
+    "irregular": {
+      "hint": "Débit irrégulier : des mineurs sont arrivés ou partis, le débit récent est plus fiable que la tendance. Les deux ETA restent affichées."
+    },
+    "rescan": {
+      "due": "Re-scanner",
+      "by": "Dernier scan par {author}",
+      "hint": "Même position, même portée",
+      "delay": "Rappel de re-scan après",
+      "minutes": "min (3 à 30)"
+    },
+    "scan": {
+      "title": "Ajouter un scan",
+      "type": "Type de minerai",
+      "chooseType": "Choisir un minerai",
+      "units": "Unités",
+      "addLine": "Ajouter un minerai",
+      "removeLine": "Retirer cette ligne",
+      "submit": "Enregistrer le scan",
+      "allDepleted": "Tout épuisé",
+      "reminder": "Scannez depuis la même position avec la même portée qu'avant, sinon un astéroïde hors de portée passe pour épuisé.",
+      "added": "Scan {number} ajouté · ETA tendance {from} → {to}",
+      "errors": {
+        "noLines": "Ajoutez au moins une ligne de minerai.",
+        "typeRequired": "Choisissez un type de minerai sur chaque ligne.",
+        "unitsInvalid": "Les unités doivent être un entier supérieur à 0.",
+        "duplicate": "Un type de minerai ne peut apparaître qu'une fois."
+      }
+    },
+    "create": {
+      "title": "Estimer un site",
+      "label": "Nom du site",
+      "labelRequired": "Le nom du site est obligatoire.",
+      "system": "Système solaire (facultatif)",
+      "systemNone": "Aucun système solaire",
+      "submit": "Créer le site"
+    },
+    "history": {
+      "hint": "Les sites que vous avez scannés, du plus récent au plus ancien.",
+      "filter": "Système",
+      "allSystems": "Tous les systèmes",
+      "empty": "Aucun site pour l'instant. Estimez-en un avec un premier scan.",
+      "estimate": "Estimer un site",
+      "columns": {
+        "label": "Site",
+        "system": "Système",
+        "firstScan": "Premier scan",
+        "lastScan": "Dernier scan",
+        "observed": "Durée observée",
+        "volume": "Volume au départ",
+        "value": "Valeur au départ",
+        "rate": "Débit de tendance moyen",
+        "status": "Statut",
+        "actions": "Actions"
+      }
+    },
+    "close": {
+      "action": "Clôturer le site",
+      "confirm": "Clôturer ce site ? Il n'acceptera plus de scan."
+    },
+    "detail": {
+      "back": "Sites de minage",
+      "firstScan": "Premier scan",
+      "scans": "Scans : {count}",
+      "noScan": "Aucun scan pour l'instant : ajoutez le premier scan ci-dessous.",
+      "ring": "restant"
+    },
+    "bestOre": {
+      "title": "Minerai le plus rentable au m³"
+    },
+    "table": {
+      "title": "Par type de minerai, dernier scan",
+      "hint": "Débits en unités par minute, ETA en heure EVE (UTC).",
+      "columns": {
+        "type": "Minerai",
+        "remaining": "Restant (u)",
+        "recentRate": "Débit récent",
+        "recentEta": "ETA récente",
+        "trendRate": "Débit de tendance",
+        "trendEta": "ETA de tendance",
+        "value": "Valeur"
+      }
+    },
+    "curve": {
+      "title": "Restant par type de minerai",
+      "unit": "Unité",
+      "units": "Unités",
+      "unitsShort": "unités",
+      "m3Unavailable": "Un volume est inconnu, les mètres cubes sont indisponibles",
+      "alt": "Quantité restante par type de minerai en {unit} sur {count} scans. Dernières valeurs : {types}.",
+      "legendTrend": "Trait plein : tendance",
+      "legendRecent": "Pointillés : débit récent",
+      "legendDepleted": "Cercle creux : épuisé"
+    },
+    "evolution": {
+      "title": "ETA annoncées à chaque scan",
+      "columns": {
+        "number": "Scan",
+        "time": "Heure (EVE)",
+        "trend": "ETA de tendance",
+        "recent": "ETA récente"
+      }
+    },
+    "unit": {
+      "perMinute": "{rate} u/min"
+    }
+  },
+  "miningOperationSites": {
+    "title": "Sites de minage",
+    "create": "Nouveau site",
+    "empty": "Aucun site pour cette opération. Créez-en un pour partager vos scans avec la flotte.",
+    "noScan": "aucun scan"
   }
 }

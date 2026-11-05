@@ -152,7 +152,7 @@ const bestVenue = computed(() => {
 
   if (!useOverride) {
     // Use original margins from API
-    let best: { key: string; margin: number; revenue: number; profit: number; fees: number; unitPrice: number } | null = null
+    let best: { key: string; margin: number; revenue: number; profit: number | null; fees: number | null; unitPrice: number } | null = null
     for (const [key, entry] of Object.entries(r.margins)) {
       if (entry != null && entry.margin != null && (best == null || entry.margin > best.margin)) {
         const unitPrice = r.sellPrices[key as SellVenue]
@@ -164,7 +164,7 @@ const bestVenue = computed(() => {
   }
 
   // Recompute margins with selected decryptor's totalProductionCost
-  let best: { key: string; margin: number; revenue: number; profit: number; fees: number; unitPrice: number } | null = null
+  let best: { key: string; margin: number; revenue: number; profit: number | null; fees: number | null; unitPrice: number } | null = null
   const prices: [SellVenue, number | null][] = [
     ['jitaSell', r.sellPrices.jitaSell],
     ['structureSell', r.sellPrices.structureSell],
@@ -624,6 +624,7 @@ store.fetchUserSettings()
         :base-probability="inventionData.baseProbability"
         :unknown-reason="inventionData.unknownReason"
         :datacores="inventionData.datacores"
+        :datacores-cost-per-attempt="inventionData.datacoresCostPerAttempt"
         :options="inventionOptions"
         :best-decryptor-index="bestDecryptorIndex"
         :selected-option="selectedOption"

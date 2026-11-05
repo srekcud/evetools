@@ -41,9 +41,5 @@ class UserSettingsResource
 
     public ?string $favoriteReactionSystemName = null;
 
-    public float $brokerFeeRate = 0.036;
-
-    public float $salesTaxRate = 0.036;
-
     public float $exportCostPerM3 = 1200.0;
 }

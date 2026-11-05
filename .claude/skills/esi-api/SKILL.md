@@ -770,7 +770,7 @@ https://esi.evetech.net/latest
 
 ## 10. OAuth2 Scopes Reference
 
-All 28 scopes requested during authentication (defined in `AuthenticationService::REQUIRED_SCOPES`):
+All 29 scopes requested during authentication (defined in `AuthenticationService::REQUIRED_SCOPES`):
 
 ### Assets & Corporation
 | Scope | Endpoint | Description |
@@ -843,6 +843,11 @@ All 28 scopes requested during authentication (defined in `AuthenticationService
 | Scope | Endpoint | Description |
 |---|---|---|
 | `esi-planets.manage_planets.v1` | `/characters/{id}/planets/` | PI colonies and pins |
+
+### Standings
+| Scope | Endpoint | Description |
+|---|---|---|
+| `esi-characters.read_standings.v1` | `/characters/{id}/standings/` | Faction and NPC corporation standings (seller sales fees) |
 
 ---
 

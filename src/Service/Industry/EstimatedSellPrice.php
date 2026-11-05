@@ -9,7 +9,7 @@ final readonly class EstimatedSellPrice
     public function __construct(
         public float $amount,
         public string $source,
-        public float $taxAmount,
+        public ?float $taxAmount,
     ) {
     }
 }

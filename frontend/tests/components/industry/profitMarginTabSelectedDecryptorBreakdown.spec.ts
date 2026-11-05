@@ -32,6 +32,10 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   inventionCost: 26_000,
   totalProductionCost: 131_000,
   bestMargin: 19.69,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
@@ -46,6 +50,10 @@ const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
   inventionCost: 45_000,
   totalProductionCost: 150_000,
   bestMargin: 4.53,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const PARITY_OPTION_WITHOUT_MATERIAL_PRICE: ProfitMarginInventionOption = {
@@ -60,6 +68,10 @@ const PARITY_OPTION_WITHOUT_MATERIAL_PRICE: ProfitMarginInventionOption = {
   inventionCost: 33_000,
   totalProductionCost: null,
   bestMargin: null,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const SABRE_MARGIN_RESULT: ProfitMarginResult = {
@@ -80,6 +92,7 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
     baseProbability: 0.34,
     unknownReason: null,
     datacores: ['Datacore - Mechanical Engineering'],
+    datacoresCostPerAttempt: null,
     selectedDecryptorTypeId: null,
     selectedDecryptorName: 'No Decryptor',
     options: [NO_DECRYPTOR_OPTION, ATTAINMENT_OPTION, PARITY_OPTION_WITHOUT_MATERIAL_PRICE],
@@ -151,7 +164,7 @@ async function chooseDecryptor(wrapper: VueWrapper, rowLabel: string): Promise<v
 }
 
 function decryptorRow(wrapper: VueWrapper, rowLabel: string): DOMWrapper<Element> {
-  const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 9 && candidate.text().includes(rowLabel))
+  const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 13 && candidate.text().includes(rowLabel))
   expect(row, `decryptor row ${rowLabel}`).toBeDefined()
   return row!
 }

@@ -10,6 +10,8 @@ use App\Entity\IndustryUserSettings;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\BatchProfitScannerService;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\State\Provider\Industry\BatchScanProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -203,13 +205,23 @@ class BatchScanProviderTest extends TestCase
     {
         $settings = (new IndustryUserSettings())->setExportCostPerM3(800.0);
 
-        $this->assertSame(800.0, $this->argumentsReceivedByTheScanner(new Request(), $settings)[8]);
+        $this->assertSame(800.0, $this->argumentsReceivedByTheScanner(new Request(), $settings)[7]);
     }
 
     #[Group('issue-194')]
     public function testScannerReceivesTheDefaultTransportCostPerM3WithoutIndustrySettings(): void
     {
-        $this->assertSame(EveConstants::DEFAULT_EXPORT_COST_PER_M3, $this->argumentsReceivedByTheScanner(new Request(), null)[8]);
+        $this->assertSame(EveConstants::DEFAULT_EXPORT_COST_PER_M3, $this->argumentsReceivedByTheScanner(new Request(), null)[7]);
+    }
+
+    #[Group('issue-347')]
+    public function testScannerReceivesTheSalesFeesOfTheSellerResolvedForTheAuthenticatedUserAndNotTheIndustrySettings(): void
+    {
+        $user = $this->createStub(User::class);
+
+        $arguments = $this->argumentsReceivedByTheScanner(new Request(), new IndustryUserSettings(), $user, new SalesFees(0.0215, 0.0337));
+
+        $this->assertEquals(new SalesFees(0.0215, 0.0337), $arguments[6]);
     }
 
     private function settings(?int $favoriteManufacturingSystemId, ?int $favoriteReactionSystemId): IndustryUserSettings
@@ -226,10 +238,10 @@ class BatchScanProviderTest extends TestCase
     {
         $receivedArguments = $this->argumentsReceivedByTheScanner($request, $settings);
 
-        return [$receivedArguments[5], $receivedArguments[10] ?? null];
+        return [$receivedArguments[5], $receivedArguments[9] ?? null];
     }
 
-    private function argumentsReceivedByTheScanner(Request $request, ?IndustryUserSettings $settings): array
+    private function argumentsReceivedByTheScanner(Request $request, ?IndustryUserSettings $settings, ?User $user = null, ?SalesFees $salesFees = new SalesFees(0.036, 0.036)): array
     {
         $receivedArguments = [];
         $scanner = $this->createStub(BatchProfitScannerService::class);
@@ -241,15 +253,15 @@ class BatchScanProviderTest extends TestCase
             },
         );
 
-        $this->providerFor($scanner, $request, $settings)->provide(new GetCollection());
+        $this->providerFor($scanner, $request, $settings, $user ?? $this->createStub(User::class), $salesFees)->provide(new GetCollection());
 
         return $receivedArguments;
     }
 
-    private function providerFor(BatchProfitScannerService $scanner, Request $request, ?IndustryUserSettings $settings): BatchScanProvider
+    private function providerFor(BatchProfitScannerService $scanner, Request $request, ?IndustryUserSettings $settings, User $user, ?SalesFees $salesFees): BatchScanProvider
     {
         $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn($this->createStub(User::class));
+        $security->method('getUser')->willReturn($user);
 
         $requestStack = new RequestStack();
         $requestStack->push($request);
@@ -257,7 +269,17 @@ class BatchScanProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn($settings);
 
-        return new BatchScanProvider($security, $requestStack, $scanner, $settingsRepository);
+        return new BatchScanProvider($security, $requestStack, $scanner, $settingsRepository, $this->salesFeesResolverOf($user, $salesFees));
+    }
+
+    private function salesFeesResolverOf(User $seller, ?SalesFees $salesFees): SellerSalesFeesResolver
+    {
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturnCallback(
+            static fn (User $user): ?SalesFees => $user === $seller ? $salesFees : null,
+        );
+
+        return $salesFeesResolver;
     }
 
     /**
@@ -278,7 +300,7 @@ class BatchScanProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn(null);
 
-        $provider = new BatchScanProvider($security, $requestStack, $scanner, $settingsRepository);
+        $provider = new BatchScanProvider($security, $requestStack, $scanner, $settingsRepository, $this->createStub(SellerSalesFeesResolver::class));
 
         return $provider->provide(new GetCollection());
     }

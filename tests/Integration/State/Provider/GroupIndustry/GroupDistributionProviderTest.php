@@ -9,8 +9,8 @@ use App\ApiResource\GroupIndustry\GroupIndustryDistributionResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -107,7 +107,7 @@ final class GroupDistributionProviderTest extends IntegrationTestCase
     public function testSaleWhoseOnlyApprovedContributionIsAFreeLineRentalIsUndistributable(): void
     {
         $owner = $this->createUserWithMainCharacter('Aria Solberg');
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName('Sabre doctrine');
+        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName('Sabre doctrine')->setBrokerFeePercent(3.6)->setSalesTaxPercent(3.6);
         $this->em->persist($project);
         $ownerMember = $this->addMember($project, $owner, GroupMemberRole::Owner);
         $project->addContribution(

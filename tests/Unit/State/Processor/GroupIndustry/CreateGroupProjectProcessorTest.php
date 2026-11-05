@@ -9,19 +9,19 @@ use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\CreateGroupProjectInput;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
-use App\Entity\IndustryUserSettings;
+use App\Entity\IndustryProjectProduct;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Repository\IndustryProjectParticipantRepository;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\GroupIndustry\CreateProjectData;
 use App\Service\GroupIndustry\GroupIndustryProjectService;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\State\Processor\GroupIndustry\CreateGroupProjectProcessor;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -50,7 +50,7 @@ class CreateGroupProjectProcessorTest extends TestCase
     private IndustryActivityProductRepository&MockObject $activityProductRepository;
     private CreateGroupProjectProcessor $processor;
     private User&Stub $owner;
-    private ?IndustryUserSettings $ownerSettings = null;
+    private ?SalesFees $sellerFees = null;
     private ?CreateProjectData $createdProjectData = null;
 
     protected function setUp(): void
@@ -62,9 +62,9 @@ class CreateGroupProjectProcessorTest extends TestCase
         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
         $this->activityProductRepository = $this->createMock(IndustryActivityProductRepository::class);
         $this->owner = $this->createUser();
-        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
-        $settingsRepository->method('findOneBy')->willReturnCallback(
-            fn (array $criteria): ?IndustryUserSettings => ($criteria['user'] ?? null) === $this->owner ? $this->ownerSettings : null,
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturnCallback(
+            fn (User $user): ?SalesFees => $user === $this->owner ? $this->sellerFees : null,
         );
 
         $this->processor = new CreateGroupProjectProcessor(
@@ -74,32 +74,28 @@ class CreateGroupProjectProcessorTest extends TestCase
             $this->mapper,
             $this->invTypeRepository,
             $this->activityProductRepository,
-            $settingsRepository,
+            $salesFeesResolver,
         );
     }
 
     public static function projectFeesProvider(): iterable
     {
-        yield 'F1 no industry settings and no fee sent fall back to the default rates' => [null, null, null, 3.6, 3.6];
-        yield 'F2 industry settings give the fee of each absent fee' => [[0.015, 0.045], null, null, 1.5, 4.5];
-        yield 'F3 industry settings at the default rates give exactly 3.6 percent' => [[0.036, 0.036], null, null, 3.6, 3.6];
-        yield 'F4 fees sent are kept over the industry settings, zero included' => [[0.015, 0.045], 2.0, 0.0, 2.0, 0.0];
-        yield 'F5 a broker fee rate of zero in the settings is a setting' => [[0.0, 0.036], null, null, 0.0, 3.6];
-        yield 'F6 only the sales tax sent, the broker fee comes from the settings' => [[0.014234, 0.045], null, 3.0, 1.4234, 3.0];
-        yield 'F7 a broker fee of zero sent without settings is kept, the sales tax falls back' => [null, 0.0, null, 0.0, 3.6];
-        yield 'F8 only the broker fee sent, the sales tax comes from the settings' => [[0.015, 0.045], 2.0, null, 2.0, 4.5];
+        yield 'F1 unknown seller fees and no fee sent give no fee' => [null, null, null, null, null];
+        yield 'F2 seller fees give the fee of each absent fee' => [[0.015, 0.045], null, null, 1.5, 4.5];
+        yield 'F3 seller fees at 0.036 give exactly 3.6 percent' => [[0.036, 0.036], null, null, 3.6, 3.6];
+        yield 'F4 fees sent are kept over the seller fees, zero included' => [[0.015, 0.045], 2.0, 0.0, 2.0, 0.0];
+        yield 'F5 a broker fee rate of zero of the seller is a fee' => [[0.0, 0.036], null, null, 0.0, 3.6];
+        yield 'F6 only the sales tax sent, the broker fee comes from the seller fees' => [[0.014234, 0.045], null, 3.0, 1.4234, 3.0];
+        yield 'F7 a broker fee of zero sent with unknown seller fees is kept, the sales tax stays unknown' => [null, 0.0, null, 0.0, null];
+        yield 'F8 only the broker fee sent, the sales tax comes from the seller fees' => [[0.015, 0.045], 2.0, null, 2.0, 4.5];
     }
 
     #[Group('issue-170')]
+    #[Group('issue-347')]
     #[DataProvider('projectFeesProvider')]
-    public function testFeeAbsentAtCreationTakesTheIndustrySettingsOfTheOwnerInPercent(?array $ownerRates, ?float $brokerFeePercentSent, ?float $salesTaxPercentSent, float $expectedBrokerFeePercent, float $expectedSalesTaxPercent): void
+    public function testFeeAbsentAtCreationTakesTheSellerFeesOfTheOwnerInPercent(?array $sellerRates, ?float $brokerFeePercentSent, ?float $salesTaxPercentSent, ?float $expectedBrokerFeePercent, ?float $expectedSalesTaxPercent): void
     {
-        if ($ownerRates !== null) {
-            $this->ownerSettings = (new IndustryUserSettings())
-                ->setUser($this->owner)
-                ->setBrokerFeeRate($ownerRates[0])
-                ->setSalesTaxRate($ownerRates[1]);
-        }
+        $this->givenSellerFees($sellerRates);
         $input = $this->sabreInput();
         $input->brokerFeePercent = $brokerFeePercentSent;
         $input->salesTaxPercent = $salesTaxPercentSent;
@@ -109,6 +105,30 @@ class CreateGroupProjectProcessorTest extends TestCase
         self::assertNotNull($this->createdProjectData);
         self::assertSame($expectedBrokerFeePercent, $this->createdProjectData->brokerFeePercent);
         self::assertSame($expectedSalesTaxPercent, $this->createdProjectData->salesTaxPercent);
+    }
+
+    #[Group('issue-347')]
+    public function testSellerFeesOfFiveAccountingFiveBrokerRelationsAndStandingsGiveTheProjectFeesInPercent(): void
+    {
+        $this->givenSellerFees([0.0138, 0.03375]);
+
+        $this->createProjectFrom($this->sabreInput());
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame(1.38, $this->createdProjectData->brokerFeePercent);
+        self::assertSame(3.375, $this->createdProjectData->salesTaxPercent);
+    }
+
+    #[Group('issue-347')]
+    public function testEffectiveFeesAreNotRejectedWhenOneOfThemIsUnknown(): void
+    {
+        $input = $this->sabreInput();
+        $input->brokerFeePercent = 100.0;
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame([100.0, null], [$this->createdProjectData->brokerFeePercent, $this->createdProjectData->salesTaxPercent]);
     }
 
     #[Group('issue-164')]
@@ -129,16 +149,16 @@ class CreateGroupProjectProcessorTest extends TestCase
 
     public static function effectiveFeesOverOneHundredProvider(): iterable
     {
-        yield 'F9 broker fee of one hundred sent, sales tax of 3.6 from the settings' => [[0.015, 0.036], 100.0, null];
-        yield 'broker fee of 96.41 sent, sales tax of 3.6 by default without settings' => [null, 96.41, null];
-        yield 'sales tax of 98.51 sent, broker fee of 1.5 from the settings' => [[0.015, 0.045], null, 98.51];
+        yield 'F9 broker fee of one hundred sent, sales tax of 3.6 from the seller fees' => [[0.015, 0.036], 100.0, null];
+        yield 'broker fee of 96.41 sent, sales tax of 3.6 from the seller fees' => [[0.015, 0.036], 96.41, null];
+        yield 'sales tax of 98.51 sent, broker fee of 1.5 from the seller fees' => [[0.015, 0.045], null, 98.51];
     }
 
     #[Group('issue-257')]
     #[DataProvider('effectiveFeesOverOneHundredProvider')]
-    public function testEffectiveFeesSummingOverOneHundredAreRejectedOnTheSalesTaxAndNoProjectIsCreated(?array $ownerRates, ?float $brokerFeePercentSent, ?float $salesTaxPercentSent): void
+    public function testEffectiveFeesSummingOverOneHundredAreRejectedOnTheSalesTaxAndNoProjectIsCreated(?array $sellerRates, ?float $brokerFeePercentSent, ?float $salesTaxPercentSent): void
     {
-        $this->givenOwnerRates($ownerRates);
+        $this->givenSellerFees($sellerRates);
         $input = $this->sabreInput();
         $input->brokerFeePercent = $brokerFeePercentSent;
         $input->salesTaxPercent = $salesTaxPercentSent;
@@ -159,15 +179,15 @@ class CreateGroupProjectProcessorTest extends TestCase
 
     public static function effectiveFeesOfExactlyOneHundredProvider(): iterable
     {
-        yield 'broker fee of 96.4 sent, sales tax of 3.6 from the settings' => [[0.015, 0.036], 96.4, null, 96.4, 3.6];
-        yield 'sales tax of 98.5 sent, broker fee of 1.5 from the settings' => [[0.015, 0.045], null, 98.5, 1.5, 98.5];
+        yield 'broker fee of 96.4 sent, sales tax of 3.6 from the seller fees' => [[0.015, 0.036], 96.4, null, 96.4, 3.6];
+        yield 'sales tax of 98.5 sent, broker fee of 1.5 from the seller fees' => [[0.015, 0.045], null, 98.5, 1.5, 98.5];
     }
 
     #[Group('issue-257')]
     #[DataProvider('effectiveFeesOfExactlyOneHundredProvider')]
-    public function testEffectiveFeesSummingToExactlyOneHundredCreateTheProject(?array $ownerRates, ?float $brokerFeePercentSent, ?float $salesTaxPercentSent, float $expectedBrokerFeePercent, float $expectedSalesTaxPercent): void
+    public function testEffectiveFeesSummingToExactlyOneHundredCreateTheProject(?array $sellerRates, ?float $brokerFeePercentSent, ?float $salesTaxPercentSent, float $expectedBrokerFeePercent, float $expectedSalesTaxPercent): void
     {
-        $this->givenOwnerRates($ownerRates);
+        $this->givenSellerFees($sellerRates);
         $input = $this->sabreInput();
         $input->brokerFeePercent = $brokerFeePercentSent;
         $input->salesTaxPercent = $salesTaxPercentSent;
@@ -181,16 +201,13 @@ class CreateGroupProjectProcessorTest extends TestCase
         );
     }
 
-    private function givenOwnerRates(?array $ownerRates): void
+    private function givenSellerFees(?array $sellerRates): void
     {
-        if ($ownerRates === null) {
+        if ($sellerRates === null) {
             return;
         }
 
-        $this->ownerSettings = (new IndustryUserSettings())
-            ->setUser($this->owner)
-            ->setBrokerFeeRate($ownerRates[0])
-            ->setSalesTaxRate($ownerRates[1]);
+        $this->sellerFees = new SalesFees($sellerRates[0], $sellerRates[1]);
     }
 
     private function sabreInput(): CreateGroupProjectInput

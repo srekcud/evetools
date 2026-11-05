@@ -58,8 +58,8 @@ const showEditModal = ref(false)
 const editForm = ref({
   name: '',
   containerName: '',
-  brokerFeePercent: 0,
-  salesTaxPercent: 0,
+  brokerFeePercent: null as number | null,
+  salesTaxPercent: null as number | null,
 })
 const isEditSaving = ref(false)
 const editError = ref<string | null>(null)
@@ -151,6 +151,12 @@ function openContributeModal(bomItem?: BomItem): void {
   showContributeModal.value = true
 }
 
+function feeOrNull(percent: number | string | null): number | null {
+  return typeof percent === 'number' ? percent : null
+}
+
+const editFeesUnknown = computed(() => feeOrNull(editForm.value.brokerFeePercent) === null || feeOrNull(editForm.value.salesTaxPercent) === null)
+
 function openEditModal(): void {
   if (!project.value) return
   editForm.value = {
@@ -171,8 +177,8 @@ async function handleEditSave(): Promise<void> {
     await projectStore.updateProject(projectId.value, {
       name: editForm.value.name || null,
       containerName: editForm.value.containerName || null,
-      brokerFeePercent: editForm.value.brokerFeePercent,
-      salesTaxPercent: editForm.value.salesTaxPercent,
+      brokerFeePercent: feeOrNull(editForm.value.brokerFeePercent),
+      salesTaxPercent: feeOrNull(editForm.value.salesTaxPercent),
     } as Partial<GroupProject>)
     showEditModal.value = false
   } catch (e) {
@@ -572,6 +578,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             />
           </div>
         </div>
+        <p v-if="editFeesUnknown" class="text-xs text-amber-400">{{ t('groupIndustry.detail.editFields.feesUnknownHint') }}</p>
 
         <p v-if="editError" class="text-sm text-red-400">{{ editError }}</p>
       </div>

@@ -42,8 +42,8 @@ final class Version20261105150000 extends AbstractMigration
         $this->addSql('ALTER TABLE industry_projects ADD line_rental_rates_override JSON DEFAULT NULL');
         $this->addSql('ALTER TABLE industry_projects ADD blacklist_group_ids JSON NOT NULL');
         $this->addSql('ALTER TABLE industry_projects ADD blacklist_type_ids JSON NOT NULL');
-        $this->addSql('ALTER TABLE industry_projects ADD broker_fee_percent DOUBLE PRECISION NOT NULL');
-        $this->addSql('ALTER TABLE industry_projects ADD sales_tax_percent DOUBLE PRECISION NOT NULL');
+        $this->addSql('ALTER TABLE industry_projects ADD broker_fee_percent DOUBLE PRECISION DEFAULT NULL');
+        $this->addSql('ALTER TABLE industry_projects ADD sales_tax_percent DOUBLE PRECISION DEFAULT NULL');
         $this->addSql('ALTER TABLE industry_projects ADD updated_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL');
         $this->addSql('ALTER TABLE industry_projects ADD CONSTRAINT FK_7CCBA9217E3C61F9 FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE NOT DEFERRABLE');
         $this->addSql('CREATE UNIQUE INDEX UNIQ_7CCBA921B83B7806 ON industry_projects (short_link_code)');

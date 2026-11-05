@@ -13,12 +13,15 @@ const { formatIsk } = useFormatters()
 
 const dist = computed(() => distStore.distribution)
 
-const profit = computed(() => {
-  if (!dist.value) return 0
+const feesUnknown = computed(() => dist.value?.brokerFee === null || dist.value?.salesTax === null)
+
+const profit = computed((): number | null => {
+  if (!dist.value || dist.value.netRevenue === null) return null
   return dist.value.netRevenue - dist.value.totalProjectCost
 })
 
-const isProfit = computed(() => profit.value >= 0)
+const isProfit = computed(() => profit.value !== null && profit.value >= 0)
+const profitUnknown = computed(() => profit.value === null)
 
 const brokerFeeLabel = computed(() => {
   const pct = projectStore.currentProject?.brokerFeePercent
@@ -48,21 +51,22 @@ const salesTaxLabel = computed(() => {
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-500">{{ brokerFeeLabel }}</span>
             <span class="font-mono text-sm text-red-400" style="font-variant-numeric: tabular-nums;">
-              -{{ formatIsk(dist.brokerFee) }}
+              <UnknownValue v-if="dist.brokerFee === null" /><template v-else>-{{ formatIsk(dist.brokerFee) }}</template>
             </span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-500">{{ salesTaxLabel }}</span>
             <span class="font-mono text-sm text-red-400" style="font-variant-numeric: tabular-nums;">
-              -{{ formatIsk(dist.salesTax) }}
+              <UnknownValue v-if="dist.salesTax === null" /><template v-else>-{{ formatIsk(dist.salesTax) }}</template>
             </span>
           </div>
           <div class="border-t border-slate-700 pt-2 flex items-center justify-between">
             <span class="text-sm font-semibold text-slate-300">{{ t('groupIndustry.distribution.netRevenue') }}</span>
             <span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
-              {{ formatIsk(dist.netRevenue) }}
+              <UnknownValue v-if="dist.netRevenue === null" /><template v-else>{{ formatIsk(dist.netRevenue) }}</template>
             </span>
           </div>
+          <p v-if="feesUnknown" class="text-xs text-amber-400">{{ t('groupIndustry.financialSummary.feesUnknown') }}</p>
         </div>
 
         <!-- Cost breakdown -->
@@ -96,21 +100,21 @@ const salesTaxLabel = computed(() => {
         <!-- Profit ring -->
         <div
           class="rounded-xl border p-5 flex flex-col items-center justify-center"
-          :class="isProfit ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'"
+          :class="profitUnknown ? 'bg-slate-800/40 border-slate-700' : isProfit ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'"
         >
           <p
             class="text-xs uppercase tracking-wider mb-1"
-            :class="isProfit ? 'text-emerald-400/60' : 'text-red-400/60'"
+            :class="profitUnknown ? 'text-slate-500' : isProfit ? 'text-emerald-400/60' : 'text-red-400/60'"
           >{{ t('groupIndustry.financialSummary.profit') }}</p>
           <p
             class="text-3xl font-mono font-bold"
-            :class="isProfit ? 'text-emerald-400' : 'text-red-400'"
+            :class="profitUnknown ? 'text-slate-500' : isProfit ? 'text-emerald-400' : 'text-red-400'"
             style="font-variant-numeric: tabular-nums;"
-          >{{ isProfit ? '+' : '' }}{{ formatIsk(profit) }}</p>
+          ><UnknownValue v-if="profit === null" /><template v-else>{{ isProfit ? '+' : '' }}{{ formatIsk(profit) }}</template></p>
           <p
             class="text-sm font-mono mt-1"
-            :class="isProfit ? 'text-emerald-400/80' : 'text-red-400/80'"
-          >{{ t('groupIndustry.financialSummary.marginLabel') }} <UnknownValue v-if="dist.marginPercent === null" /><template v-else>{{ isProfit ? '+' : '' }}{{ dist.marginPercent.toFixed(1) }}%</template></p>
+            :class="profitUnknown ? 'text-slate-500' : isProfit ? 'text-emerald-400/80' : 'text-red-400/80'"
+          >{{ t('groupIndustry.financialSummary.marginLabel') }} <UnknownValue v-if="dist.marginPercent === null" /><template v-else>{{ dist.marginPercent >= 0 ? '+' : '' }}{{ dist.marginPercent.toFixed(1) }}%</template></p>
         </div>
       </div>
     </div>

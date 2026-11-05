@@ -329,8 +329,6 @@ export interface UserSettings {
   favoriteManufacturingSystemName: string | null
   favoriteReactionSystemId: number | null
   favoriteReactionSystemName: string | null
-  brokerFeeRate: number
-  salesTaxRate: number
   exportCostPerM3: number
 }
 
@@ -379,8 +377,8 @@ export interface ProfitMarginSellPrices {
 
 export interface MarginEntry {
   revenue: number
-  fees: number
-  profit: number
+  fees: number | null
+  profit: number | null
   margin: number | null
 }
 
@@ -396,6 +394,10 @@ export interface ProfitMarginInventionOption {
   inventionCost: number | null
   totalProductionCost: number | null
   bestMargin: number | null
+  expectedAttempts: number | null
+  decryptorCost: number | null
+  costPerUnit: number | null
+  costPerUnitDelta: number | null
 }
 
 export type InventionUnknownReason = 'missing_invention_probability' | 'missing_market_price'
@@ -420,13 +422,14 @@ export interface ProfitMarginResult {
     baseProbability: number | null
     unknownReason: InventionUnknownReason | null
     datacores: (string | null)[]
+    datacoresCostPerAttempt: number | null
     selectedDecryptorTypeId: number | null
     selectedDecryptorName: string
     options: ProfitMarginInventionOption[]
   } | null
   sellPrices: ProfitMarginSellPrices
-  brokerFeeRate: number
-  salesTaxRate: number
+  brokerFeeRate: number | null
+  salesTaxRate: number | null
   margins: Record<string, MarginEntry | null>
   dailyVolume: number | null
   missingData: MissingData[]

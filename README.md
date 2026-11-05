@@ -57,7 +57,7 @@ make db-migrate
 ## Configuration EVE ESI
 
 1. Créer une application sur https://developers.eveonline.com/
-2. Configurer les scopes requis : les 28 scopes listés dans `AuthenticationService::REQUIRED_SCOPES` (`src/Service/ESI/AuthenticationService.php`). L'application les demande tous à la connexion ; un scope absent de l'application EVE fait échouer l'autorisation.
+2. Configurer les scopes requis : les 29 scopes listés dans `AuthenticationService::REQUIRED_SCOPES` (`src/Service/ESI/AuthenticationService.php`). L'application les demande tous à la connexion ; un scope absent de l'application EVE fait échouer l'autorisation.
 3. Copier le Client ID et Client Secret dans `.env.local`
 4. Générer une clé de chiffrement pour les tokens:
 ```bash

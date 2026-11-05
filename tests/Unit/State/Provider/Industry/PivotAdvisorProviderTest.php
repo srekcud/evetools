@@ -10,6 +10,8 @@ use App\Entity\IndustryUserSettings;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\PivotAdvisorService;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\State\Provider\Industry\PivotAdvisorProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -56,6 +58,16 @@ final class PivotAdvisorProviderTest extends TestCase
         );
     }
 
+    #[Group('issue-347')]
+    public function testServiceReceivesTheSalesFeesOfTheSellerResolvedForTheAuthenticatedUserAndNotTheIndustrySettings(): void
+    {
+        $user = new User();
+
+        $arguments = $this->argumentsReceivedByTheService($user, new Request(), new IndustryUserSettings(), new SalesFees(0.0215, 0.0337));
+
+        $this->assertEquals(new SalesFees(0.0215, 0.0337), $arguments[3]);
+    }
+
     private function settings(?int $favoriteManufacturingSystemId, ?int $favoriteReactionSystemId): IndustryUserSettings
     {
         return (new IndustryUserSettings())
@@ -67,6 +79,13 @@ final class PivotAdvisorProviderTest extends TestCase
      * @return array{int, int|null}
      */
     private function solarSystemsReceivedByTheService(User $user, Request $request, ?IndustryUserSettings $settings): array
+    {
+        $receivedArguments = $this->argumentsReceivedByTheService($user, $request, $settings, new SalesFees(0.036, 0.036));
+
+        return [$receivedArguments[2], $receivedArguments[5] ?? null];
+    }
+
+    private function argumentsReceivedByTheService(User $user, Request $request, ?IndustryUserSettings $settings, ?SalesFees $salesFees): array
     {
         $receivedArguments = [];
         $pivotAdvisorService = $this->createStub(PivotAdvisorService::class);
@@ -85,9 +104,14 @@ final class PivotAdvisorProviderTest extends TestCase
         $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
         $settingsRepository->method('findOneBy')->willReturn($settings);
 
-        (new PivotAdvisorProvider($security, $requestStack, $pivotAdvisorService, $settingsRepository))
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturnCallback(
+            static fn (User $seller): ?SalesFees => $seller === $user ? $salesFees : null,
+        );
+
+        (new PivotAdvisorProvider($security, $requestStack, $pivotAdvisorService, $settingsRepository, $salesFeesResolver))
             ->provide(new Get(), ['typeId' => (string) self::SABRE_TYPE_ID]);
 
-        return [$receivedArguments[2], $receivedArguments[6] ?? null];
+        return $receivedArguments;
     }
 }

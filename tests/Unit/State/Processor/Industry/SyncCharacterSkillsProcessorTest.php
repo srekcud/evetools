@@ -16,6 +16,7 @@ use App\Exception\EveAuthRequiredException;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
+use App\Service\ESI\CharacterStandingsSynchronizer;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
 use App\Service\Industry\IndustryCalculationService;
@@ -43,6 +44,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
     private const string SKILLS_SCOPE = 'esi-skills.read_skills.v1';
     private const string JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
+    private const string STANDINGS_SCOPE = 'esi-characters.read_standings.v1';
     private const string PILOT_ONE = 'Pilot One';
     private const string PILOT_TWO = 'Pilot Two';
     private const int PILOT_ONE_ID = 2_112_000_001;
@@ -81,13 +83,15 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
     private array $sdeSkillRows = [];
 
+    private array $standingsSyncedCharacterNames = [];
+
     private int $sdeSkillQueryCount = 0;
 
     protected function setUp(): void
     {
         $this->user = new User();
-        $this->pilotOneToken = (new EveToken())->setScopes([self::SKILLS_SCOPE]);
-        $this->pilotTwoToken = (new EveToken())->setScopes([self::SKILLS_SCOPE, self::JOBS_SCOPE]);
+        $this->pilotOneToken = (new EveToken())->setScopes([self::SKILLS_SCOPE, self::STANDINGS_SCOPE]);
+        $this->pilotTwoToken = (new EveToken())->setScopes([self::SKILLS_SCOPE, self::JOBS_SCOPE, self::STANDINGS_SCOPE]);
         $this->pilotOne = $this->addCharacter(self::PILOT_ONE, self::PILOT_ONE_ID, $this->pilotOneToken);
         $this->pilotTwo = $this->addCharacter(self::PILOT_TWO, self::PILOT_TWO_ID, $this->pilotTwoToken);
         $this->logger = new BufferingLogger();
@@ -101,7 +105,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
     public function testDoesNotCallEsiNorCountACharacterWhoseTokenLacksTheSkillsScope(): void
     {
-        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE]);
+        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE, self::STANDINGS_SCOPE]);
 
         $result = $this->syncSkills();
 
@@ -222,7 +226,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
     public function testReturnsEachCharacterWithItsOwnCachedSkills(): void
     {
-        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE]);
+        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE, self::STANDINGS_SCOPE]);
         $this->cachedSkillsByCharacterName[self::PILOT_ONE] = [
             $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_INDUSTRY, 5, true, '2026-10-20T08:15:00+00:00'),
             $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_REACTIONS, 2, true, '2026-10-21T11:30:00+00:00'),
@@ -262,15 +266,29 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
         $this->syncSkills();
 
-        $this->assertSame([[CachedCharacterSkill::SKILL_SCIENCE, 4, false]], $this->persistedSkillsOf(self::PILOT_ONE));
+        $this->assertSame(
+            [
+                CachedCharacterSkill::SKILL_SCIENCE => 4,
+                CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
+                CachedCharacterSkill::SKILL_ACCOUNTING => 0,
+            ],
+            $this->persistedLevelsBySkillIdOf(self::PILOT_ONE),
+        );
     }
 
     #[Group('issue-275')]
-    public function testWritesScienceAtLevelZeroAndNoOtherSkillWhenEsiReturnsNoSkill(): void
+    public function testWritesScienceAccountingAndBrokerRelationsAtLevelZeroAndNoOtherSkillWhenEsiReturnsNoSkill(): void
     {
         $this->syncSkills();
 
-        $this->assertSame([[CachedCharacterSkill::SKILL_SCIENCE, 0, false]], $this->persistedSkillsOf(self::PILOT_ONE));
+        $this->assertSame(
+            [
+                CachedCharacterSkill::SKILL_SCIENCE => 0,
+                CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
+                CachedCharacterSkill::SKILL_ACCOUNTING => 0,
+            ],
+            $this->persistedLevelsBySkillIdOf(self::PILOT_ONE),
+        );
     }
 
     #[Group('issue-275')]
@@ -285,8 +303,15 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->syncSkills();
 
         $this->assertSame(
-            [[CachedCharacterSkill::SKILL_SCIENCE, 0, false], 5],
-            [...$this->persistedSkillsOf(self::PILOT_ONE), $industry->getLevel()],
+            [
+                [
+                    CachedCharacterSkill::SKILL_SCIENCE => 0,
+                    CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
+                    CachedCharacterSkill::SKILL_ACCOUNTING => 0,
+                ],
+                5,
+            ],
+            [$this->persistedLevelsBySkillIdOf(self::PILOT_ONE), $industry->getLevel()],
         );
     }
 
@@ -301,7 +326,10 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
         $this->syncSkills();
 
-        $this->assertSame([4, []], [$science->getLevel(), $this->persistedSkillsOf(self::PILOT_ONE)]);
+        $this->assertSame(
+            [4, [CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
+            [$science->getLevel(), $this->persistedLevelsBySkillIdOf(self::PILOT_ONE)],
+        );
     }
 
     #[Group('issue-275')]
@@ -312,13 +340,16 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
         $this->syncSkills();
 
-        $this->assertSame([0, []], [$science->getLevel(), $this->persistedSkillsOf(self::PILOT_ONE)]);
+        $this->assertSame(
+            [0, [CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
+            [$science->getLevel(), $this->persistedLevelsBySkillIdOf(self::PILOT_ONE)],
+        );
     }
 
     #[Group('issue-275')]
     public function testWritesNoScienceLevelForACharacterWhoseTokenLacksTheSkillsScope(): void
     {
-        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE]);
+        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE, self::STANDINGS_SCOPE]);
 
         $this->syncSkills();
 
@@ -433,8 +464,16 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $result = $this->syncSkills();
 
         $this->assertSame(
-            [[], [[CachedCharacterSkill::SKILL_SCIENCE, 3, false]], 0],
-            [$result->failedCharacters, $this->persistedSkillsOf(self::PILOT_TWO), $advancedIndustry->getLevel()],
+            [
+                [],
+                [
+                    CachedCharacterSkill::SKILL_SCIENCE => 3,
+                    CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
+                    CachedCharacterSkill::SKILL_ACCOUNTING => 0,
+                ],
+                0,
+            ],
+            [$result->failedCharacters, $this->persistedLevelsBySkillIdOf(self::PILOT_TWO), $advancedIndustry->getLevel()],
         );
     }
 
@@ -464,6 +503,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
                 CachedCharacterSkill::SKILL_SCIENCE => 5,
                 CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 4,
+                CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
+                CachedCharacterSkill::SKILL_ACCOUNTING => 0,
                 CachedCharacterSkill::SKILL_ADVANCED_LABORATORY_OPERATION => 1,
                 CachedCharacterSkill::SKILL_ADVANCED_MASS_PRODUCTION => 1,
                 CachedCharacterSkill::SKILL_REACTIONS => 3,
@@ -493,9 +534,11 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 [
                     CachedCharacterSkill::SKILL_INDUSTRY => 5,
                     CachedCharacterSkill::SKILL_SCIENCE => 0,
+                    CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
+                    CachedCharacterSkill::SKILL_ACCOUNTING => 0,
                     self::BLUEPRINT_SCIENCE_SKILL => 4,
                 ],
-                3,
+                5,
             ],
             [$this->persistedLevelsBySkillIdOf(self::PILOT_ONE), count($this->persistedSkillsOf(self::PILOT_ONE))],
         );
@@ -543,10 +586,127 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 $industry->getCachedAt() >= $syncStartedAt,
                 $advancedIndustry->getLevel(),
                 $advancedIndustry->getCachedAt()->format(DATE_ATOM),
-                [$this->persistedSkills[0]->getSkillId(), $this->persistedSkills[0]->getLevel(), $this->persistedSkills[0]->isManual()],
-                $this->persistedSkills[0]->getCachedAt() >= $syncStartedAt,
+                [$this->persistedScience()->getSkillId(), $this->persistedScience()->getLevel(), $this->persistedScience()->isManual()],
+                $this->persistedScience()->getCachedAt() >= $syncStartedAt,
             ],
         );
+    }
+
+    #[Group('issue-347')]
+    public function testWritesTheAccountingAndBrokerRelationsLevelsReadFromEsi(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_ACCOUNTING, 4, 5),
+            $this->esiSkill(CachedCharacterSkill::SKILL_BROKER_RELATIONS, 3, 3),
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame(
+            [
+                CachedCharacterSkill::SKILL_SCIENCE => 0,
+                CachedCharacterSkill::SKILL_BROKER_RELATIONS => 3,
+                CachedCharacterSkill::SKILL_ACCOUNTING => 4,
+            ],
+            $this->persistedLevelsBySkillIdOf(self::PILOT_ONE),
+        );
+    }
+
+    #[Group('issue-347')]
+    public function testKeepsTheLevelOfAManualAccountingLineAndUpdatesTheEsiBrokerRelationsLine(): void
+    {
+        $accounting = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_ACCOUNTING, 5, true, '2026-10-22T14:00:00+00:00');
+        $brokerRelations = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_BROKER_RELATIONS, 1, false, '2026-10-22T14:00:00+00:00');
+        $this->cachedSkillsByCharacterName[self::PILOT_ONE] = [$accounting, $brokerRelations];
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_ACCOUNTING, 2, 2),
+            $this->esiSkill(CachedCharacterSkill::SKILL_BROKER_RELATIONS, 4, 4),
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame(
+            [5, '2026-10-22T14:00:00+00:00', 4],
+            [$accounting->getLevel(), $accounting->getCachedAt()->format(DATE_ATOM), $brokerRelations->getLevel()],
+        );
+    }
+
+    #[Group('issue-347')]
+    public function testSynchronizesTheStandingsOfEachCharacterWhoseTokenHasTheStandingsScope(): void
+    {
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [[self::PILOT_ONE, self::PILOT_TWO], 2, []],
+            [$this->standingsSyncedCharacterNames, $result->syncedCount, $result->failedCharacters],
+        );
+    }
+
+    #[Group('issue-347')]
+    public function testNamesTheCharacterWithoutStandingsScopeAndStillSynchronizesItsSkills(): void
+    {
+        $this->pilotOneToken->setScopes([self::SKILLS_SCOPE]);
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            $this->esiSkill(CachedCharacterSkill::SKILL_ACCOUNTING, 4, 4),
+        ];
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [
+                [self::PILOT_TWO],
+                2,
+                [['characterName' => self::PILOT_ONE, 'reason' => 'missing_scope', 'statusCode' => null]],
+                [
+                    CachedCharacterSkill::SKILL_SCIENCE => 0,
+                    CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
+                    CachedCharacterSkill::SKILL_ACCOUNTING => 4,
+                ],
+            ],
+            [
+                $this->standingsSyncedCharacterNames,
+                $result->syncedCount,
+                $result->failedCharacters,
+                $this->persistedLevelsBySkillIdOf(self::PILOT_ONE),
+            ],
+        );
+    }
+
+    #[Group('issue-347')]
+    public function testSynchronizesTheStandingsOfACharacterWhoseTokenLacksTheSkillsScope(): void
+    {
+        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE, self::STANDINGS_SCOPE]);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [
+                [self::PILOT_ONE, self::PILOT_TWO],
+                [['characterName' => self::PILOT_TWO, 'reason' => 'missing_scope', 'statusCode' => null]],
+            ],
+            [$this->standingsSyncedCharacterNames, $result->failedCharacters],
+        );
+    }
+
+    #[Group('issue-347')]
+    public function testDoesNotSynchronizeTheStandingsOfACharacterWithoutToken(): void
+    {
+        $this->pilotTwo->setEveToken(null);
+
+        $this->syncSkills();
+
+        $this->assertSame([self::PILOT_ONE], $this->standingsSyncedCharacterNames);
+    }
+
+    private function persistedScience(): CachedCharacterSkill
+    {
+        foreach ($this->persistedSkills as $skill) {
+            if ($skill->getSkillId() === CachedCharacterSkill::SKILL_SCIENCE) {
+                return $skill;
+            }
+        }
+
+        throw new \LogicException('No science skill was persisted');
     }
 
     private function persistedLevelsBySkillIdOf(string $characterName): array
@@ -651,6 +811,11 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             $this->createStub(IndustryActivityMaterialRepository::class),
         ]);
 
+        $standingsSynchronizer = $this->createStub(CharacterStandingsSynchronizer::class);
+        $standingsSynchronizer->method('sync')->willReturnCallback(function (Character $character): void {
+            $this->standingsSyncedCharacterNames[] = $character->getName();
+        });
+
         $processor = new SyncCharacterSkillsProcessor(
             $security,
             $esiClient,
@@ -659,6 +824,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             $mapper,
             $entityManager,
             $this->logger,
+            $standingsSynchronizer,
         );
 
         return $processor->process(null, new Post());

@@ -156,6 +156,7 @@ class GroupDistributionProviderTest extends TestCase
     {
         $viewer = $this->userWithProfile(self::ACCEPTED_MEMBER);
         $this->security->method('getUser')->willReturn($viewer);
+        $this->sabreBatch->setBrokerFeePercent(3.6)->setSalesTaxPercent(3.6);
         $lineRenter = $this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), GroupMemberRole::Member, GroupMemberStatus::Accepted);
         $freeLineRental = (new IndustryProjectContribution())
             ->setMember($lineRenter)
@@ -197,6 +198,51 @@ class GroupDistributionProviderTest extends TestCase
             ],
             $resource->members,
         );
+    }
+
+    #[Group('issue-347')]
+    public function testDistributionWithUnknownFeesReachesTheApiWithUnknownFeesNetRevenueMarginProfitPartAndPayout(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+        $distributionService = $this->createStub(GroupIndustryDistributionService::class);
+        $distributionService->method('calculateDistribution')->willReturn(new DistributionResult(
+            totalRevenue: 12_300_000.0,
+            brokerFee: null,
+            salesTax: null,
+            netRevenue: null,
+            totalProjectCost: 9_400_000.0,
+            marginPercent: null,
+            members: [
+                new MemberDistribution(
+                    memberId: self::ALICE_MEMBER_ID,
+                    characterName: 'Alice Kaine',
+                    totalCostsEngaged: 9_400_000.0,
+                    materialCosts: 9_400_000.0,
+                    jobInstallCosts: 0.0,
+                    bpcCosts: 0.0,
+                    lineRentalCosts: 0.0,
+                    sharePercent: 100.0,
+                    profitPart: null,
+                    payoutTotal: null,
+                ),
+            ],
+        ));
+        $provider = new GroupDistributionProvider(
+            $this->security,
+            $this->sabreBatchProjectRepository(),
+            new GroupProjectAccessChecker($this->sabreBatchMemberRepository()),
+            $distributionService,
+        );
+
+        $resource = $provider->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertSame(
+            [12_300_000.0, null, null, null, 9_400_000.0, null],
+            [$resource->totalRevenue, $resource->brokerFee, $resource->salesTax, $resource->netRevenue, $resource->totalProjectCost, $resource->marginPercent],
+        );
+        self::assertSame(100.0, $resource->members[0]['sharePercent']);
+        self::assertNull($resource->members[0]['profitPart']);
+        self::assertNull($resource->members[0]['payoutTotal']);
     }
 
     private function distributionOf(Uuid $projectId): GroupIndustryDistributionResource

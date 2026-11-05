@@ -6,13 +6,13 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
-use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\EstimatedSellPrice;
 use App\Service\Industry\EstimatedSellPriceEstimator;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -52,6 +52,21 @@ final class EstimatedSellPriceEstimatorMultiProductTest extends TestCase
         ])->estimateFor($project);
 
         $this->assertEstimate(1_100_000.0, 'jita', 33_000.0, $estimatedSellPrice);
+    }
+
+    public function testEstimatedTaxIsUnknownWhileTheEstimatedSellPriceIsComputedWhenTheSellerSalesFeesAreUnknown(): void
+    {
+        $project = $this->projectWithRootSteps($this->rootStep(self::HAMMERHEAD_I, 'manufacturing', self::HAMMERHEAD_I_QUANTITY));
+
+        $estimatedSellPrice = $this->estimatorOnJitaPrices([
+            self::RIFTER => self::RIFTER_JITA_PRICE,
+            self::HAMMERHEAD_I => self::HAMMERHEAD_I_JITA_PRICE,
+        ], null)->estimateFor($project);
+
+        self::assertNotNull($estimatedSellPrice);
+        self::assertEqualsWithDelta(1_100_000.0, $estimatedSellPrice->amount, 0.001);
+        self::assertSame('jita', $estimatedSellPrice->source);
+        self::assertNull($estimatedSellPrice->taxAmount);
     }
 
     public function testSecondProductPricedAtTheStructureAboveJitaMakesTheSourceMixed(): void
@@ -189,12 +204,12 @@ final class EstimatedSellPriceEstimatorMultiProductTest extends TestCase
             ->setDepth($depth);
     }
 
-    private function estimatorOnJitaPrices(array $jitaPrices): EstimatedSellPriceEstimator
+    private function estimatorOnJitaPrices(array $jitaPrices, ?SalesFees $salesFees = new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE)): EstimatedSellPriceEstimator
     {
-        return $this->estimatorOn($jitaPrices, []);
+        return $this->estimatorOn($jitaPrices, [], $salesFees);
     }
 
-    private function estimatorOn(array $jitaPrices, array $structurePrices): EstimatedSellPriceEstimator
+    private function estimatorOn(array $jitaPrices, array $structurePrices, ?SalesFees $salesFees = new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE)): EstimatedSellPriceEstimator
     {
         $jitaMarketService = $this->createStub(JitaMarketService::class);
         $jitaMarketService->method('getPrice')->willReturnCallback(
@@ -206,11 +221,9 @@ final class EstimatedSellPriceEstimatorMultiProductTest extends TestCase
         );
         $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
         $activityProductRepository->method('findBlueprintForProduct')->willReturn((new IndustryActivityProduct())->setQuantity(1));
-        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
-        $settingsRepository->method('findOneBy')->willReturn(
-            (new IndustryUserSettings())->setBrokerFeeRate(self::BROKER_FEE_RATE)->setSalesTaxRate(self::SALES_TAX_RATE),
-        );
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturn($salesFees);
 
-        return new EstimatedSellPriceEstimator($jitaMarketService, $structureMarketService, $activityProductRepository, $settingsRepository);
+        return new EstimatedSellPriceEstimator($jitaMarketService, $structureMarketService, $activityProductRepository, $salesFeesResolver);
     }
 }

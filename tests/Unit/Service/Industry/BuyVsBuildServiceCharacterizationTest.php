@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\User;
 use App\Service\Industry\BuyVsBuildService;
+use App\Service\Industry\SalesFees\SalesFees;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -235,7 +236,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Product 34 has no blueprint nor reaction: it cannot be built.');
 
-        $service->analyze(self::TRITANIUM, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null);
+        $service->analyze(self::TRITANIUM, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE), null);
     }
 
     #[Group('issue-98')]
@@ -248,6 +249,16 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         $this->assertSame(self::HAIL_L_ONE_RUN_TOTAL_PRODUCTION_COST, $result['totalProductionCost']);
         $this->assertSame(293.57, $result['marginPercent']);
         $this->assertTrue($result['isT2']);
+    }
+
+    public function testMarginPercentIsUnknownWhileTheCostsAndTheSellPriceAreComputedWhenTheSellerSalesFeesAreUnknown(): void
+    {
+        $result = $this->analyzeHailL($this->hailLJitaPrices(), salesFees: null);
+
+        $this->assertNull($result['marginPercent']);
+        $this->assertSame(500.0, $result['sellPrice']);
+        $this->assertSame(self::HAIL_L_ONE_RUN_OPTIMAL_MIX_COST, $result['optimalMixCost']);
+        $this->assertSame(self::HAIL_L_ONE_RUN_TOTAL_PRODUCTION_COST, $result['totalProductionCost']);
     }
 
     public function testInventedProductIgnoresTheRequestedMeAndConsumesWithTheMeOfTheInventedCopy(): void
@@ -358,7 +369,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             costIndices: self::FACTORY_COST_INDICES,
         );
 
-        $result = $service->analyze(self::HAIL_L, 1, 2, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, null);
+        $result = $service->analyze(self::HAIL_L, 1, 2, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE), null);
 
         $this->assertSame(
             [
@@ -496,7 +507,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             costIndices: self::FACTORY_COST_INDICES,
         );
 
-        $result = $service->analyze(self::NITROGEN_FUEL_BLOCK, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.01, 0.02, null);
+        $result = $service->analyze(self::NITROGEN_FUEL_BLOCK, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(0.01, 0.02), null);
 
         $this->assertSame([
             'typeId' => self::NITROGEN_FUEL_BLOCK,
@@ -604,7 +615,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             costIndices: self::FACTORY_COST_INDICES,
         );
 
-        $result = $service->analyze(self::MARSHAL, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
+        $result = $service->analyze(self::MARSHAL, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(0.0, 0.0), null);
 
         $this->assertSame(213_773_432.15, $result['optimalMixCost']);
         $this->assertSame(547_438_954.65, $result['totalProductionCost']);
@@ -641,7 +652,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             costIndices: self::FACTORY_COST_INDICES,
         );
 
-        $result = $service->analyze(self::FERNITE_CARBIDE, 10, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
+        $result = $service->analyze(self::FERNITE_CARBIDE, 10, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(0.0, 0.0), null);
 
         $this->assertSame(815297.65, $result['totalProductionCost']);
         $this->assertSame(60.0, $result['sellPrice']);
@@ -683,7 +694,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             costIndices: self::FACTORY_COST_INDICES,
         );
 
-        $result = $service->analyze(self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
+        $result = $service->analyze(self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(0.0, 0.0), null);
 
         $this->assertSame('T1 Component', $this->componentOf($result, self::HYDROGEN_FUEL_BLOCK)['stage']);
         $this->assertSame('Reaction', $this->componentOf($result, self::FERNITE_ALLOY)['stage']);
@@ -699,7 +710,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             costIndices: self::FACTORY_COST_INDICES,
         );
 
-        $result = $service->analyze(self::MARSHAL, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
+        $result = $service->analyze(self::MARSHAL, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, new SalesFees(0.0, 0.0), null);
 
         $this->assertSame('T2 Component', $this->componentOf($result, self::PLASMA_THRUSTER)['stage']);
     }
@@ -713,6 +724,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         int $runs = 1,
         int $meLevel = 2,
         ?User $user = null,
+        ?SalesFees $salesFees = new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE),
     ): array {
         $sellStructurePrices = [];
         if ($ferniteCarbideStructurePrice !== null) {
@@ -732,7 +744,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             costIndices: self::FACTORY_COST_INDICES,
         );
 
-        return $service->analyze(self::HAIL_L, $runs, $meLevel, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, self::BROKER_FEE_RATE, self::SALES_TAX_RATE, $user);
+        return $service->analyze(self::HAIL_L, $runs, $meLevel, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, $salesFees, $user);
     }
 
     private function hailLJitaPrices(): array
