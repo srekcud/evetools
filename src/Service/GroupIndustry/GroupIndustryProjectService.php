@@ -7,12 +7,9 @@ namespace App\Service\GroupIndustry;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\IndustryProject;
 use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
 use App\Enum\IndustryActivityType;
 use App\Exception\InventionProbabilityMissingException;
 use App\Exception\InventionT1ProductMissingException;
@@ -68,12 +65,7 @@ class GroupIndustryProjectService
         $project->setBrokerFeePercent($data->brokerFeePercent);
         $project->setSalesTaxPercent($data->salesTaxPercent);
 
-        // Add owner as first member (accepted)
-        $ownerMember = new GroupIndustryProjectMember();
-        $ownerMember->setUser($owner);
-        $ownerMember->setRole(GroupMemberRole::Owner);
-        $ownerMember->setStatus(GroupMemberStatus::Accepted);
-        $project->addMember($ownerMember);
+        $project->enrolOwner();
 
         // Create project items
         foreach ($data->items as $index => $itemData) {

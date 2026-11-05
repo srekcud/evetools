@@ -63,6 +63,8 @@ class IndustryProjectFactory
         $project->setMaxJobDurationDays($maxJobDurationDays);
         $project->setExcludedTypeIds(array_values(array_unique($excludedTypeIds)));
 
+        $project->enrolOwner();
+
         $tree = $this->productionTreeOf($project);
 
         $rawSteps = [];

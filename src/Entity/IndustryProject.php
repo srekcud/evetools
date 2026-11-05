@@ -7,6 +7,7 @@ namespace App\Entity;
 use App\Constant\EveConstants;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberRole;
+use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -689,6 +690,16 @@ class IndustryProject
     public function getMembers(): Collection
     {
         return $this->members;
+    }
+
+    public function enrolOwner(): static
+    {
+        return $this->addMember(
+            (new GroupIndustryProjectMember())
+                ->setUser($this->owner)
+                ->setRole(GroupMemberRole::Owner)
+                ->setStatus(GroupMemberStatus::Accepted),
+        );
     }
 
     public function addMember(GroupIndustryProjectMember $member): static

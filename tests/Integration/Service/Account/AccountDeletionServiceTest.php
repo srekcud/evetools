@@ -20,6 +20,7 @@ use App\Entity\EveToken;
 use App\Entity\GroupIndustryBomItem;
 use App\Entity\GroupIndustryContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectStep;
 use App\Entity\GroupIndustryProjectItem;
 use App\Entity\GroupIndustryProjectMember;
 use App\Entity\GroupIndustrySale;
@@ -271,6 +272,25 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         self::assertSame(0, $this->countWhereIn('group_industry_contributions', 'project_id', [$projectId]));
         self::assertSame(0, $this->countWhereIn('group_industry_sales', 'project_id', [$projectId]));
         self::assertSame(1, $this->countWhereIn('users', 'id', [(string) $dorn->getId()]));
+    }
+
+    #[Group('issue-362')]
+    public function testPlannedProjectWhoseOnlyParticipantIsTheOwnerIsDeletedWithItsStepsAndItsParticipant(): void
+    {
+        $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
+        $soloProject = $this->createProject($kaelen, 'Rifter by steps');
+        $this->addMember($soloProject, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
+        $soloProject->addStep((new IndustryProjectStep())->setBlueprintTypeId(586)->setProductTypeId(587)->setQuantity(10)->setRuns(10)->setDepth(0));
+        $soloProject->addStep((new IndustryProjectStep())->setBlueprintTypeId(1_000_004)->setProductTypeId(34)->setQuantity(250_000)->setRuns(1)->setDepth(1));
+        $this->em->flush();
+        $soloProjectId = (string) $soloProject->getId();
+        self::assertSame(2, $this->countWhereIn('industry_project_steps', 'project_id', [$soloProjectId]));
+
+        $this->deleteAccount((string) $kaelen->getId());
+
+        self::assertSame(0, $this->countWhereIn('industry_projects', 'id', [$soloProjectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_steps', 'project_id', [$soloProjectId]));
+        self::assertSame(0, $this->countWhereIn('group_industry_project_members', 'project_id', [$soloProjectId]));
     }
 
     public function testAcceptedMembershipIsAnonymizedAndKeepsOnlyItsApprovedContribution(): void

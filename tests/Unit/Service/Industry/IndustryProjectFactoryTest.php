@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
+use App\Entity\GroupIndustryProjectMember;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
@@ -17,6 +18,9 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Industry\Application\InventionCatalog;
 use App\Industry\Application\InventionRecipe;
+use App\Enum\GroupMemberRole;
+use App\Enum\GroupMemberStatus;
+use App\Enum\GroupProjectStatus;
 use App\Industry\Domain\Runs;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
@@ -415,6 +419,26 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame('manufacturing', $step->getActivityType());
         $this->assertSame(10, $step->getRuns());
         $this->assertSame(0, $step->getDepth());
+    }
+
+    #[Group('issue-362')]
+    public function testCreateProjectAddsTheOwnerAsTheOnlyAcceptedOwnerParticipantOfADraftProjectWithAnInvitationCode(): void
+    {
+        $user = $this->createUser();
+        $this->invTypeRepository->method('find')->willReturn($this->createMock(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(586, 587, 'Rifter', 10));
+        $this->setupDefaultMocks();
+
+        $project = $this->factory->createProject($user, 587, 10, 10, 2.0, 20, 'Test Rifter');
+
+        $this->assertSame(GroupProjectStatus::Draft, $project->getStatus());
+        $this->assertSame(10, strlen($project->getShortLinkCode()));
+        $this->assertCount(1, $project->getMembers());
+        $participant = $project->getMembers()->first();
+        $this->assertInstanceOf(GroupIndustryProjectMember::class, $participant);
+        $this->assertSame($user, $participant->getUser());
+        $this->assertSame(GroupMemberRole::Owner, $participant->getRole());
+        $this->assertSame(GroupMemberStatus::Accepted, $participant->getStatus());
     }
 
     public function testCreateProjectThrowsForUnknownTypeId(): void
