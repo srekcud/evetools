@@ -1446,4 +1446,53 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             $this->assertEqualsWithDelta($totalProductionCost, $option['totalProductionCost'], 1e-6);
         }
     }
+
+    public function testDecryptorOptionsExposeTheExpectedAttemptsOfTheirOwnProbabilityAndRuns(): void
+    {
+        $result = $this->analyzeHailL(runs: 1);
+
+        $noDecryptorOption = $result['invention']['options'][0];
+        $this->assertEqualsWithDelta(1 / (0.34 * 10), $noDecryptorOption['expectedAttempts'], 1e-9);
+        $processOption = $this->decryptorOption($result, self::PROCESS_DECRYPTOR);
+        $this->assertEqualsWithDelta(1 / (0.374 * 10), $processOption['expectedAttempts'], 1e-9);
+        $parityOption = $this->decryptorOption($result, self::PARITY_DECRYPTOR);
+        $this->assertEqualsWithDelta(1 / ($parityOption['probability'] * $parityOption['runs']), $parityOption['expectedAttempts'], 1e-9);
+    }
+
+    public function testDecryptorOptionCarriesTheDecryptorPricePerAttemptAndTheInventionCarriesTheDatacoresCostPerAttempt(): void
+    {
+        $result = $this->analyzeHailL(runs: 1);
+
+        $this->assertSame(0.0, $result['invention']['options'][0]['decryptorCost']);
+        $this->assertEqualsWithDelta(342.05, $this->decryptorOption($result, self::PROCESS_DECRYPTOR)['decryptorCost'], 1e-6);
+        $this->assertEqualsWithDelta(2 * 0.11 + 2 * 0.12, $result['invention']['datacoresCostPerAttempt'], 1e-9);
+    }
+
+    public function testDecryptorOptionCostPerUnitIsItsTotalProductionCostOverTheProducedQuantityAndItsDeltaIsAgainstNoDecryptor(): void
+    {
+        $result = $this->analyzeHailL(runs: 1);
+
+        $noDecryptorOption = $result['invention']['options'][0];
+        $processOption = $this->decryptorOption($result, self::PROCESS_DECRYPTOR);
+        $this->assertGreaterThan(0, $result['outputQuantity']);
+        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_ENGINE_TOTAL_COST / $result['outputQuantity'], $noDecryptorOption['costPerUnit'], 1e-6);
+        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_PROCESS_TOTAL_COST / $result['outputQuantity'], $processOption['costPerUnit'], 1e-6);
+        $this->assertSame(0.0, $noDecryptorOption['costPerUnitDelta']);
+        $this->assertEqualsWithDelta($processOption['costPerUnit'] - $noDecryptorOption['costPerUnit'], $processOption['costPerUnitDelta'], 1e-9);
+        $this->assertLessThan(0, $processOption['costPerUnitDelta']);
+    }
+
+    public function testMaterialWithoutJitaPriceLeavesTheCostPerUnitAndItsDeltaOfEveryDecryptorOptionUnknown(): void
+    {
+        $this->leavesWithoutJitaPrice = [self::MORPHITE];
+
+        $result = $this->analyzeHailL(runs: 1);
+
+        $this->assertCount(9, $result['invention']['options']);
+        foreach ($result['invention']['options'] as $option) {
+            $this->assertNull($option['costPerUnit']);
+            $this->assertNull($option['costPerUnitDelta']);
+            $this->assertNotNull($option['expectedAttempts']);
+        }
+    }
 }

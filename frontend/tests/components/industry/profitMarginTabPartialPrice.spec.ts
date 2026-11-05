@@ -39,6 +39,10 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   inventionCost: 26_000,
   totalProductionCost: 205_360,
   bestMargin: 10.23,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const SABRE_WITH_PARTIAL_PRICES: ProfitMarginResult = {
