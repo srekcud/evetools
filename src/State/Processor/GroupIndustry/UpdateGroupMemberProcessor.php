@@ -11,8 +11,8 @@ use App\ApiResource\Input\GroupIndustry\UpdateGroupMemberInput;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
@@ -31,8 +31,8 @@ class UpdateGroupMemberProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,
@@ -57,7 +57,7 @@ class UpdateGroupMemberProcessor implements ProcessorInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

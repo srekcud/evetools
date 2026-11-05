@@ -230,6 +230,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       solarSystemId?: number
       structureId?: number
       decryptorTypeId?: number | null
+      inventorCharacterId?: string | null
     } = {},
   ): Promise<ProfitMarginResult | null> {
     const requestId = ++latestMarginRequestId
@@ -243,6 +244,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
       if (params.solarSystemId != null) queryParams.set('solarSystemId', params.solarSystemId.toString())
       if (params.structureId != null) queryParams.set('structureId', params.structureId.toString())
       if (params.decryptorTypeId != null) queryParams.set('decryptorTypeId', params.decryptorTypeId.toString())
+      if (params.inventorCharacterId != null) queryParams.set('inventorCharacterId', params.inventorCharacterId)
       const qs = queryParams.toString() ? `?${queryParams.toString()}` : ''
       const data = await apiRequest<ProfitMarginResult>(
         `/industry/profit-margin/${typeId}${qs}`,

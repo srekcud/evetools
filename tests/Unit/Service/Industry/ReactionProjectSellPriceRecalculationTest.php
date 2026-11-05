@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\IndustryProject;
-use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Enum\ProjectCorrectionStatus;
-use App\Enum\ProjectStatus;
+use App\Enum\GroupProjectStatus;
 use App\Exception\ProducerMissingFromSdeException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\EstimatedSellPriceEstimator;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\ProjectCorrectionOutcome;
 use App\Service\Industry\ReactionProjectSellPriceRecalculation;
+use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use Doctrine\DBAL\Driver\PDO\Exception as PdoDriverException;
@@ -220,7 +220,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
 
     public function testCompletedReactionProjectIsNotSelected(): void
     {
-        $project = $this->ferniteCarbideProjectOfTheOldCalculation()->setStatus(ProjectStatus::Completed);
+        $project = $this->ferniteCarbideProjectOfTheOldCalculation()->setStatus(GroupProjectStatus::Completed);
 
         $outcomes = $this->recalculationOf($project)->run(new \DateTimeImmutable(self::CREATED_BEFORE), false);
 
@@ -499,8 +499,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
 
     private function project(string $projectId, int $productTypeId, int $runs, string $createdAt = self::CREATED_BEFORE_THE_DEPLOYMENT, ?User $owner = null): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($owner ?? new User())
+        $project = (new IndustryProject())->setOwner($owner ?? new User())
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, Uuid::fromString($projectId));
@@ -538,7 +537,7 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
             $this->producersOfTheSde(),
             $this->jitaPrices(),
             $this->preferredStructurePrices(),
-            $this->settingsRepositoryByOwner(),
+            $this->salesFeesResolverByOwner(),
             $this->calculationServiceResolvingTheTypeNames(),
         ]);
     }
@@ -657,18 +656,18 @@ final class ReactionProjectSellPriceRecalculationTest extends TestCase
         return $structureMarketService;
     }
 
-    private function settingsRepositoryByOwner(): IndustryUserSettingsRepository
+    private function salesFeesResolverByOwner(): SellerSalesFeesResolver
     {
-        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
-        $settingsRepository->method('findOneBy')->willReturnCallback(
-            function (array $criteria): IndustryUserSettings {
-                [$brokerFeeRate, $salesTaxRate] = $this->taxRatesByOwnerId[(string) $criteria['user']->getId()] ?? [self::BROKER_FEE_RATE, self::SALES_TAX_RATE];
+        $salesFeesResolver = $this->createStub(SellerSalesFeesResolver::class);
+        $salesFeesResolver->method('forUser')->willReturnCallback(
+            function (User $owner): SalesFees {
+                [$brokerFeeRate, $salesTaxRate] = $this->taxRatesByOwnerId[(string) $owner->getId()] ?? [self::BROKER_FEE_RATE, self::SALES_TAX_RATE];
 
-                return (new IndustryUserSettings())->setBrokerFeeRate($brokerFeeRate)->setSalesTaxRate($salesTaxRate);
+                return new SalesFees($brokerFeeRate, $salesTaxRate);
             },
         );
 
-        return $settingsRepository;
+        return $salesFeesResolver;
     }
 
     private static function summaryOf(array $outcomes): array

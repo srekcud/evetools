@@ -240,8 +240,7 @@ final class FacilityTaxInstallCostTest extends TestCase
 
     private function projectWithManufacturingStep(int $productTypeId, int $blueprintTypeId, int $runs, ?IndustryStructureConfig $structure, ?User $owner = null): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($owner ?? new User())
+        $project = (new IndustryProject())->setOwner($owner ?? new User())
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
 

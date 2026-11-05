@@ -623,12 +623,17 @@
       "tooltip": "The Jita sell order book only covers part of the requested quantity. The displayed price applies to the covered part only: the actual cost is likely higher.",
       "sellTooltip": "The revenue is computed on the covered part of the Jita sell order book only, not on the whole quantity."
     },
+    "fees": {
+      "unknown": "Unknown fees",
+      "unknownReason": "The broker fee and the sales tax are computed from your skills and standings. Sync them from the Skills page."
+    },
     "inventionUnknown": {
       "label": "Unknown",
       "missing_adjusted_price": "ESI adjusted price unknown",
       "missing_cost_index": "System cost index unknown",
       "missing_invention_probability": "Invention success probability missing from the static data (SDE): the invention cost is unknown.",
       "missing_market_price": "Unknown market price for a datacore or the decryptor: the invention cost is unknown.",
+      "missing_inventor_skills": "Skills of the selected character are unknown: synchronize its skills in the industry settings to compute the invention probability.",
       "missing_material_price": "A material has no Jita price: the manufacturing cost and margins are unknown.",
       "missing_sale_price": "The product has no Jita sale price: the sale price, profit and margins are unknown.",
       "missing_volume": "A product or a material has no volume in the static data (SDE): the transport cost and margins are unknown.",
@@ -965,9 +970,7 @@
     "config": {
       "maxJobDuration": "Max job duration",
       "maxJobDurationHint": "Jobs exceeding this duration will be split automatically",
-      "feesTitle": "Broker Fee & Sales Tax",
-      "brokerFee": "Broker Fee (%)",
-      "salesTax": "Sales Tax (%)",
+      "feesTitle": "Export cost",
       "exportCost": "Export cost (ISK/m³)",
       "feesErrors": {
         "invalid": "Each rate must be between 0 and 100 % and the export cost 0 or more. Nothing was saved.",
@@ -1416,6 +1419,14 @@
       "brokerFeeLabel": "Broker fee",
       "inventionTitle": "Invention \u2014 Decryptor Impact on Profit",
       "probability": "Prob.",
+      "inventorLabel": "Inventor",
+      "withoutSkills": "Without skills",
+      "probabilityWithoutSkills": "(no skills)",
+      "attemptsCol": "Attempts",
+      "decryptorCostCol": "Decryptor / attempt",
+      "costPerUnitCol": "Cost / unit",
+      "deltaPerUnitCol": "Delta / unit",
+      "datacoresCostPerAttempt": "Datacores per attempt",
       "totalProdCost": "Total Prod. Cost",
       "bestMarginCol": "Best Margin",
       "inventionFooterNote": "\"Best Margin\" uses the most profitable venue. Total Prod. Cost includes materials + jobs + invention.",
@@ -2311,6 +2322,7 @@
     },
     "financialSummary": {
       "title": "Financial Summary",
+      "feesUnknown": "Fees unknown: the project owner has no synced skills and standings, so the net revenue, the profit and the margin cannot be computed.",
       "brokerFeeWithRate": "Broker Fee ({percent}%)",
       "salesTaxWithRate": "Sales Tax ({percent}%)",
       "materials": "Materials",
@@ -2550,7 +2562,8 @@
         "containerName": "Container Name",
         "containerPlaceholder": "e.g. Fleet Doctrine Materials",
         "brokerFee": "Broker Fee %",
-        "salesTax": "Sales Tax %"
+        "salesTax": "Sales Tax %",
+        "feesUnknownHint": "Left empty, the fees stay unknown until the owner syncs skills and standings."
       },
       "deleteConfirm": {
         "title": "Delete Project",
@@ -2655,7 +2668,8 @@
       "archive": "Archive",
       "mine": "My operations",
       "available": "Available",
-      "season": "Season"
+      "season": "Season",
+      "sites": "Sites"
     },
     "list": {
       "new": "New operation",
@@ -3198,5 +3212,165 @@
         "footerEachForThemselves": "evetools · each for themselves"
       }
     }
+  }
+,
+  "miningSite": {
+    "feed": {
+      "title": "Scan feed",
+      "shared": "shared live with the fleet",
+      "unknownAuthor": "unknown author",
+      "types": "{count} type | {count} types"
+    },
+    "lastScan": {
+      "text": "Last scan #{number} by {author}, {age}",
+      "ago": "{minutes} min ago",
+      "justNow": "just now"
+    },
+    "status": {
+      "active": "Active",
+      "closed": "Closed"
+    },
+    "tier": {
+      "normal": "Normal",
+      "orange": "Soon",
+      "red": "Imminent",
+      "reached": "ETA reached",
+      "depleted": "Depleted",
+      "unknown": "ETA unknown"
+    },
+    "eta": {
+      "title": "Site ETA",
+      "trend": "Trend",
+      "recent": "Recent",
+      "countdown": "Time left",
+      "lastType": "Last ore to fall:",
+      "unknown": "unknown",
+      "depleted": "depleted"
+    },
+    "single": {
+      "hint": "ETA unknown: add a 2nd scan of the same site"
+    },
+    "value": {
+      "unknown": "unknown",
+      "remaining": "Remaining value",
+      "missingPrices": "no price for: {types}"
+    },
+    "badge": {
+      "notMined": "not mined",
+      "singleScan": "single scan",
+      "irregular": "irregular rate",
+      "depleted": "Depleted · between {from} and {to}"
+    },
+    "irregular": {
+      "hint": "Irregular rate: miners arrived or left, so the recent rate is more reliable than the trend. Both ETAs stay shown."
+    },
+    "rescan": {
+      "due": "Re-scan",
+      "by": "Last scan by {author}",
+      "hint": "Same position, same range",
+      "delay": "Re-scan reminder after",
+      "minutes": "min (3 to 30)"
+    },
+    "scan": {
+      "title": "Add a scan",
+      "type": "Ore type",
+      "chooseType": "Choose an ore",
+      "units": "Units",
+      "addLine": "Add an ore",
+      "removeLine": "Remove this line",
+      "submit": "Record the scan",
+      "allDepleted": "Everything depleted",
+      "reminder": "Scan from the same position with the same range as before, otherwise an asteroid out of range counts as depleted.",
+      "added": "Scan {number} added · trend ETA {from} → {to}",
+      "errors": {
+        "noLines": "Add at least one ore line.",
+        "typeRequired": "Choose an ore type on every line.",
+        "unitsInvalid": "Units must be a whole number above 0.",
+        "duplicate": "An ore type can appear only once."
+      }
+    },
+    "create": {
+      "title": "Estimate a site",
+      "label": "Site name",
+      "labelRequired": "The site name is required.",
+      "system": "Solar system (optional)",
+      "systemNone": "No solar system",
+      "submit": "Create the site"
+    },
+    "history": {
+      "hint": "The sites you scanned, newest first.",
+      "filter": "System",
+      "allSystems": "All systems",
+      "empty": "No site yet. Estimate one with a first scan.",
+      "estimate": "Estimate a site",
+      "columns": {
+        "label": "Site",
+        "system": "System",
+        "firstScan": "First scan",
+        "lastScan": "Last scan",
+        "observed": "Observed",
+        "volume": "Start volume",
+        "value": "Start value",
+        "rate": "Avg. trend rate",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "close": {
+      "action": "Close the site",
+      "confirm": "Close this site? It will no longer accept scans."
+    },
+    "detail": {
+      "back": "Mining sites",
+      "firstScan": "First scan",
+      "scans": "Scans: {count}",
+      "noScan": "No scan yet: add the first scan below.",
+      "ring": "remaining"
+    },
+    "bestOre": {
+      "title": "Most profitable ore per m³"
+    },
+    "table": {
+      "title": "By ore type, last scan",
+      "hint": "Rates in units per minute, ETAs in EVE time (UTC).",
+      "columns": {
+        "type": "Ore",
+        "remaining": "Remaining (u)",
+        "recentRate": "Recent rate",
+        "recentEta": "Recent ETA",
+        "trendRate": "Trend rate",
+        "trendEta": "Trend ETA",
+        "value": "Value"
+      }
+    },
+    "curve": {
+      "title": "Remaining per ore type",
+      "unit": "Unit",
+      "units": "Units",
+      "unitsShort": "units",
+      "m3Unavailable": "A volume is unknown, cubic metres are unavailable",
+      "alt": "Remaining quantity per ore type in {unit} over {count} scans. Last values: {types}.",
+      "legendTrend": "Solid line: trend",
+      "legendRecent": "Dashed line: recent rate",
+      "legendDepleted": "Hollow circle: depleted"
+    },
+    "evolution": {
+      "title": "ETAs announced at each scan",
+      "columns": {
+        "number": "Scan",
+        "time": "Time (EVE)",
+        "trend": "Trend ETA",
+        "recent": "Recent ETA"
+      }
+    },
+    "unit": {
+      "perMinute": "{rate} u/min"
+    }
+  },
+  "miningOperationSites": {
+    "title": "Mining sites",
+    "create": "New site",
+    "empty": "No site for this operation yet. Create one to share your scans with the fleet.",
+    "noScan": "no scan"
   }
 }

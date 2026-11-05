@@ -11,9 +11,9 @@ use App\ApiResource\Input\GroupIndustry\SubmitContributionInput;
 use App\Entity\User;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryBomItemRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
@@ -33,9 +33,9 @@ class SubmitContributionProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
-        private readonly GroupIndustryBomItemRepository $bomItemRepository,
+        private readonly IndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
+        private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly GroupIndustryContributionService $contributionService,
         private readonly GroupIndustryResourceMapper $mapper,
         private readonly MercurePublisherService $mercurePublisher,
@@ -58,7 +58,7 @@ class SubmitContributionProcessor implements ProcessorInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

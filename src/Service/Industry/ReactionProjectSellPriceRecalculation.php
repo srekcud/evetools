@@ -7,13 +7,14 @@ namespace App\Service\Industry;
 use App\Entity\IndustryProject;
 use App\Enum\IndustryActivityType;
 use App\Enum\ProjectCorrectionStatus;
-use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class ReactionProjectSellPriceRecalculation extends ProjectByProjectCorrection
 {
+    private const string UNKNOWN_TAX = 'unknown';
+
     public function __construct(
         IndustryProjectRepository $projectRepository,
         EntityManagerInterface $entityManager,
@@ -38,7 +39,7 @@ class ReactionProjectSellPriceRecalculation extends ProjectByProjectCorrection
     private function isReactionProjectToRecalculate(IndustryProject $project, \DateTimeImmutable $createdBefore): bool
     {
         if ($project->getCreatedAt() >= $createdBefore
-            || $project->getStatus() !== ProjectStatus::Active
+            || $project->isCompleted()
             || $project->getEstimatedSellPrice() === null) {
             return false;
         }
@@ -73,8 +74,10 @@ class ReactionProjectSellPriceRecalculation extends ProjectByProjectCorrection
         return $this->outcomeOf($project, ProjectCorrectionStatus::Changed, $change);
     }
 
-    private static function describe(float $amount, string $source, float $taxAmount): string
+    private static function describe(float $amount, string $source, ?float $taxAmount): string
     {
-        return \sprintf('sell %s (%s), tax %s', number_format($amount, 2), $source, number_format($taxAmount, 2));
+        $tax = null === $taxAmount ? self::UNKNOWN_TAX : number_format($taxAmount, 2);
+
+        return \sprintf('sell %s (%s), tax %s', number_format($amount, 2), $source, $tax);
     }
 }

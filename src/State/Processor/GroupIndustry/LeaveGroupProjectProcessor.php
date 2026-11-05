@@ -9,8 +9,8 @@ use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\PilotName;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
@@ -27,8 +27,8 @@ class LeaveGroupProjectProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
+        private readonly IndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
     ) {
@@ -48,7 +48,7 @@ class LeaveGroupProjectProcessor implements ProcessorInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

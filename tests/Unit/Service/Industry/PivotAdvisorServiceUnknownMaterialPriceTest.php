@@ -13,6 +13,7 @@ use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\PivotAdvisorService;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
@@ -671,8 +672,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             self::SOURCE_PRODUCT,
             self::RUNS,
             self::SOLAR_SYSTEM_ID,
-            self::BROKER_FEE_RATE,
-            self::SALES_TAX_RATE,
+            new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE),
             $this->userWithId(),
             self::SOLAR_SYSTEM_ID,
         );

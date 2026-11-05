@@ -8,15 +8,19 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\ProfitMarginResource;
 use App\Constant\EveConstants;
+use App\Entity\Character;
 use App\Entity\User;
 use App\Industry\Application\Decryptors;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\BlueprintEfficiencyLevels;
 use App\Service\Industry\ProfitMarginService;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -24,6 +28,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class ProfitMarginProvider implements ProviderInterface
 {
+    private const string CHARACTER_NOT_FOUND = 'Character not found';
 
     public function __construct(
         private readonly Security $security,
@@ -31,6 +36,7 @@ class ProfitMarginProvider implements ProviderInterface
         private readonly ProfitMarginService $profitMarginService,
         private readonly IndustryUserSettingsRepository $settingsRepository,
         private readonly Decryptors $decryptors,
+        private readonly SellerSalesFeesResolver $salesFeesResolver,
     ) {
     }
 
@@ -58,8 +64,6 @@ class ProfitMarginProvider implements ProviderInterface
         // Load user settings
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 
-        $brokerFeeRate = $settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE;
-        $salesTaxRate = $settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE;
 
         // Resolve structure ID: query param > user's preferred market structure
         $structureId = $structureIdParam !== null ? (int) $structureIdParam : null;
@@ -87,13 +91,29 @@ class ProfitMarginProvider implements ProviderInterface
             $structureId,
             $solarSystems->manufacturingSolarSystemId,
             $decryptorTypeId,
-            $brokerFeeRate,
-            $salesTaxRate,
+            $this->salesFeesResolver->forUser($user),
             $user,
             $solarSystems->reactionSolarSystemId,
+            $this->inventorOf($user, $request?->query->get('inventorCharacterId')),
         );
 
         return $this->mapToResource($result);
+    }
+
+    private function inventorOf(User $user, mixed $rawCharacterId): ?Character
+    {
+        if (null === $rawCharacterId) {
+            return null;
+        }
+
+        $characterId = UuidOrNotFound::of((string) $rawCharacterId, self::CHARACTER_NOT_FOUND)->toRfc4122();
+        foreach ($user->getCharacters() as $character) {
+            if ($character->getId()?->toRfc4122() === $characterId) {
+                return $character;
+            }
+        }
+
+        throw new NotFoundHttpException(self::CHARACTER_NOT_FOUND);
     }
 
     private function efficiencyLevelParameter(mixed $rawValue, string $name, int $default): int

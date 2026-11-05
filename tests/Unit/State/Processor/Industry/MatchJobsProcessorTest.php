@@ -71,7 +71,7 @@ final class MatchJobsProcessorTest extends TestCase
         $this->addCharacterWithToken(self::PILOT_ONE, self::PILOT_ONE_ID);
         $this->pilotTwo = $this->addCharacterWithToken(self::PILOT_TWO, self::PILOT_TWO_ID);
         $this->pilotThree = $this->addCharacterWithToken(self::PILOT_THREE, self::PILOT_THREE_ID);
-        $this->project = (new IndustryProject())->setUser($this->user);
+        $this->project = (new IndustryProject())->setOwner($this->user);
         $this->logger = new BufferingLogger();
         $this->authenticatedUser = $this->user;
         $this->foundProject = $this->project;
@@ -238,7 +238,7 @@ final class MatchJobsProcessorTest extends TestCase
 
     public function testRejectsAProjectOfAnotherUserWith404(): void
     {
-        $this->foundProject = (new IndustryProject())->setUser(new User());
+        $this->foundProject = (new IndustryProject())->setOwner(new User());
 
         $rejection = $this->rejectionOfMatchJobs();
 

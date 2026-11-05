@@ -79,7 +79,7 @@ final class ProjectStepOfAnotherProjectApiTest extends WebTestCase
 
     private function persistFuelBlockStepOfAnotherProjectOf(User $holder): void
     {
-        $anotherProject = (new IndustryProject())->setUser($holder)->setProductTypeId(self::FUEL_BLOCK_TYPE_ID)->setRuns(self::OTHER_FUEL_BLOCK_RUNS)->setMeLevel(0);
+        $anotherProject = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($holder)->setProductTypeId(self::FUEL_BLOCK_TYPE_ID)->setRuns(self::OTHER_FUEL_BLOCK_RUNS)->setMeLevel(0);
         $this->em->persist($anotherProject);
         $this->stepOfAnotherProject = (new IndustryProjectStep())
             ->setBlueprintTypeId(self::FUEL_BLOCK_BLUEPRINT_TYPE_ID)

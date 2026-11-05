@@ -9,6 +9,7 @@ use App\ApiResource\MiningSite\MiningSiteScanResource;
 use App\Entity\MiningSite;
 use App\Entity\MiningSiteScan;
 use App\Repository\MiningSiteScanRepository;
+use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\MiningOperation\PersistedUuid;
 use App\Service\MiningSite\MiningSiteHistorySummarizer;
 
@@ -19,6 +20,7 @@ final readonly class MiningSiteResourceMapper
     public function __construct(
         private MiningSiteScanRepository $scanRepository,
         private MiningSiteHistorySummarizer $summarizer,
+        private MapSolarSystemRepository $solarSystemRepository,
     ) {
     }
 
@@ -29,6 +31,7 @@ final readonly class MiningSiteResourceMapper
         $resource->operationId = $site->getOperation() === null ? null : PersistedUuid::of($site->getOperation()->getId());
         $resource->label = $site->getLabel();
         $resource->solarSystemId = $site->getSolarSystemId();
+        $resource->solarSystemName = $this->solarSystemNameOf($site);
         $resource->status = $site->getStatus()->value;
         $resource->createdAt = $this->inEveTime($site->getCreatedAt());
 
@@ -94,6 +97,13 @@ final readonly class MiningSiteResourceMapper
         $resource->types = $scan->getTypes();
 
         return $resource;
+    }
+
+    private function solarSystemNameOf(MiningSite $site): ?string
+    {
+        $solarSystemId = $site->getSolarSystemId();
+
+        return $solarSystemId === null ? null : $this->solarSystemRepository->findBySolarSystemId($solarSystemId)?->getSolarSystemName();
     }
 
     private function authorNameOf(MiningSiteScan $scan): ?string

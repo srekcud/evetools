@@ -6,8 +6,9 @@ namespace App\Tests\Unit\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupMemberInput;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
@@ -37,11 +38,11 @@ class UpdateGroupMemberProcessorTest extends TestCase
     private int $flushes = 0;
 
     private User $adminA;
-    private GroupIndustryProjectMember $ownerMembership;
-    private GroupIndustryProjectMember $adminAMembership;
-    private GroupIndustryProjectMember $adminBMembership;
-    private GroupIndustryProjectMember $memberM;
-    private GroupIndustryProjectMember $pendingQ;
+    private IndustryProjectParticipant $ownerMembership;
+    private IndustryProjectParticipant $adminAMembership;
+    private IndustryProjectParticipant $adminBMembership;
+    private IndustryProjectParticipant $memberM;
+    private IndustryProjectParticipant $pendingQ;
     private User $memberMUser;
 
     protected function setUp(): void
@@ -229,8 +230,8 @@ class UpdateGroupMemberProcessorTest extends TestCase
     public function testUnknownMemberIsNotFoundAfterTheAccessCheck(): void
     {
         $this->actAs($this->adminA);
-        $unknownMember = new GroupIndustryProjectMember();
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($unknownMember, Uuid::v4());
+        $unknownMember = new IndustryProjectParticipant();
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($unknownMember, Uuid::v4());
 
         self::assertSame(self::MEMBER_NOT_FOUND, $this->patch($unknownMember, role: 'member'));
     }
@@ -238,8 +239,8 @@ class UpdateGroupMemberProcessorTest extends TestCase
     public function testPlainMemberIsRefusedBeforeAnUnknownMemberIsReported(): void
     {
         $this->actAs($this->memberMUser);
-        $unknownMember = new GroupIndustryProjectMember();
-        (new \ReflectionProperty(GroupIndustryProjectMember::class, 'id'))->setValue($unknownMember, Uuid::v4());
+        $unknownMember = new IndustryProjectParticipant();
+        (new \ReflectionProperty(IndustryProjectParticipant::class, 'id'))->setValue($unknownMember, Uuid::v4());
 
         self::assertSame(self::ADMIN_OR_OWNER_ONLY, $this->patch($unknownMember, role: 'member'));
     }
@@ -247,7 +248,7 @@ class UpdateGroupMemberProcessorTest extends TestCase
     public function testMemberOfAnotherProjectIsNotFound(): void
     {
         $this->actAs($this->adminA);
-        $otherProject = new GroupIndustryProject();
+        $otherProject = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $otherProject->setOwner($this->userOfCorporation(self::FOREIGN_CORPORATION_ID));
         $otherProjectAdmin = $this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), GroupMemberRole::Admin, GroupMemberStatus::Accepted);
         $otherProjectAdmin->setProject($otherProject);
@@ -271,7 +272,7 @@ class UpdateGroupMemberProcessorTest extends TestCase
         $this->security->method('getUser')->willReturn($user);
     }
 
-    private function patch(GroupIndustryProjectMember $target, ?string $role = null, ?string $status = null, ?Uuid $projectId = null): string
+    private function patch(IndustryProjectParticipant $target, ?string $role = null, ?string $status = null, ?Uuid $projectId = null): string
     {
         $input = new UpdateGroupMemberInput();
         $input->role = $role;
@@ -287,7 +288,7 @@ class UpdateGroupMemberProcessorTest extends TestCase
         });
     }
 
-    private function stateOf(GroupIndustryProjectMember $member): array
+    private function stateOf(IndustryProjectParticipant $member): array
     {
         return [$member->getRole()->value, $member->getStatus()->value, $this->flushes];
     }

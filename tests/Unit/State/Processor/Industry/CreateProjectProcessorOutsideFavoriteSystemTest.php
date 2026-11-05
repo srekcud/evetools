@@ -9,10 +9,10 @@ use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Input\Industry\CreateProjectInput;
 use App\Entity\IndustryProject;
 use App\Entity\User;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryProjectFactory;
 use App\Service\Industry\ProductionCostService;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\State\Processor\Industry\CreateProjectProcessor;
@@ -62,7 +62,7 @@ final class CreateProjectProcessorOutsideFavoriteSystemTest extends TestCase
             function (User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays, int $teLevel, ?string $name, array $excludedTypeIds = [], bool $acceptsOutsideFavoriteSystem = false, float $minimumOutsideSaving = 0.0) use (&$optionGivenToTheFactory): IndustryProject {
                 $optionGivenToTheFactory = [$acceptsOutsideFavoriteSystem, $minimumOutsideSaving];
 
-                return (new IndustryProject())->setUser($user)->setProductTypeId($productTypeId)->setRuns($runs);
+                return (new IndustryProject())->setOwner($user)->setProductTypeId($productTypeId)->setRuns($runs);
             },
         );
         $mapper = $this->createStub(IndustryResourceMapper::class);
@@ -80,7 +80,7 @@ final class CreateProjectProcessorOutsideFavoriteSystemTest extends TestCase
             $this->createStub(StructureMarketService::class),
             $this->createStub(IndustryActivityProductRepository::class),
             $this->createStub(EntityManagerInterface::class),
-            $this->createStub(IndustryUserSettingsRepository::class),
+            $this->createStub(SellerSalesFeesResolver::class),
             new NullLogger(),
         ]);
 

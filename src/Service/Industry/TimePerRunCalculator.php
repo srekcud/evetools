@@ -61,7 +61,7 @@ class TimePerRunCalculator
     public function calculateTimePerRun(IndustryProjectStep $step, ?array $characterSkills = null): ?int
     {
         return $this->timePerRunOf(
-            $step->getProject()->getUser(),
+            $step->getProject()->getOwner(),
             $step->getBlueprintTypeId(),
             $step->getProductTypeId(),
             $step->getActivityType(),

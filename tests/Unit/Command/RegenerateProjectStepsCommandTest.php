@@ -75,8 +75,7 @@ final class RegenerateProjectStepsCommandTest extends TestCase
 
     private function projectWithoutCustomName(int $productTypeId, int $runs): IndustryProject
     {
-        return (new IndustryProject())
-            ->setUser(new User())
+        return (new IndustryProject())->setOwner(new User())
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
     }

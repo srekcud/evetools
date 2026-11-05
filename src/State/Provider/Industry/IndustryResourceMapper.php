@@ -9,6 +9,7 @@ use App\ApiResource\Industry\ProjectResource;
 use App\ApiResource\Industry\ProjectStepResource;
 use App\ApiResource\Industry\StepPurchaseResource;
 use App\ApiResource\Industry\StructureConfigResource;
+use App\ApiResource\Input\Industry\UpdateProjectInput;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
@@ -129,7 +130,7 @@ class IndustryResourceMapper
         $resource->meLevel = $project->getMeLevel();
         $resource->teLevel = $project->getTeLevel();
         $resource->maxJobDurationDays = $project->getMaxJobDurationDays();
-        $resource->status = $project->getStatus()->value;
+        $resource->status = $project->isCompleted() ? UpdateProjectInput::STATUS_COMPLETED : UpdateProjectInput::STATUS_ACTIVE;
         $resource->personalUse = $project->isPersonalUse();
         $resource->acceptsOutsideFavoriteSystem = $project->isAcceptsOutsideFavoriteSystem();
         $resource->minimumOutsideSaving = $project->getMinimumOutsideSaving();
@@ -254,7 +255,7 @@ class IndustryResourceMapper
         $resource->favoriteSystemWithoutSuitableStructure = $structureData['favoriteSystemWithoutSuitableStructure'];
 
         $timeAndCharacter = $this->timePerRunCalculator->timePerRunAndRecommendedCharacterOf(
-            $step->getProject()->getUser(),
+            $step->getProject()->getOwner(),
             $step->getBlueprintTypeId(),
             $step->getProductTypeId(),
             $step->getActivityType(),
@@ -299,7 +300,7 @@ class IndustryResourceMapper
             $resource->facilityInfoType = 'unconfigured';
             $resource->actualFacilityName = $unconfiguredFacilityName;
         } elseif (!empty($resource->jobMatches) && $step->getActivityType() !== 'copy') {
-            $user = $step->getProject()->getUser();
+            $user = $step->getProject()->getOwner();
             $isReaction = $step->getActivityType() === 'reaction';
             $bestData = $this->calculationService->getBestStructureBonusForProduct($user, $step->getProductTypeId(), $isReaction);
 
@@ -363,7 +364,7 @@ class IndustryResourceMapper
         }
 
         $characterIds = [];
-        foreach ($project->getUser()->getCharacters() as $character) {
+        foreach ($project->getOwner()->getCharacters() as $character) {
             $characterIds[] = $character->getId();
         }
 

@@ -14,6 +14,7 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -152,8 +153,7 @@ class BatchProfitScannerService
         string $sellVenue,
         ?int $structureId,
         int $solarSystemId,
-        float $brokerFeeRate,
-        float $salesTaxRate,
+        ?SalesFees $salesFees,
         float $exportCostPerM3,
         ?User $user,
         int $reactionSolarSystemId,
@@ -374,9 +374,9 @@ class BatchProfitScannerService
             $netProfitPerUnit = null;
             $marginPercent = null;
             $iskPerDay = null;
-            if ($sellPrice !== null && !$isCostUnknown) {
+            if ($sellPrice !== null && !$isCostUnknown && $salesFees !== null) {
                 // Apply broker + sales tax to sell price
-                $fees = $sellPrice * ($brokerFeeRate + $salesTaxRate);
+                $fees = $sellPrice * ($salesFees->brokerFeeRate + $salesFees->salesTaxRate);
                 $netSellPrice = $sellPrice - $fees;
                 $netProfitPerUnit = ($netSellPrice * $outputPerRun - $totalCost) / $outputPerRun;
                 $marginPercent = ($netProfitPerUnit * $outputPerRun / $totalCost) * 100;

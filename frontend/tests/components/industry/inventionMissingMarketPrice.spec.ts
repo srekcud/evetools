@@ -19,6 +19,10 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   inventionCost: 2400,
   totalProductionCost: 11_400,
   bestMargin: 373.7,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const PARITY_OPTION_WITHOUT_PRICE: ProfitMarginInventionOption = {
@@ -33,6 +37,10 @@ const PARITY_OPTION_WITHOUT_PRICE: ProfitMarginInventionOption = {
   inventionCost: null,
   totalProductionCost: null,
   bestMargin: null,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 function mountPanelWithUnknownParityPrice(locale: 'en' | 'fr') {
@@ -50,6 +58,9 @@ function mountPanelWithUnknownParityPrice(locale: 'en' | 'fr') {
       effectiveInventionCost: null,
       effectiveTotalCost: null,
       bestMargin: null,
+      datacoresCostPerAttempt: null,
+      inventors: [],
+      selectedInventorId: null,
     },
   })
 }

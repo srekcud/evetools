@@ -133,7 +133,7 @@ final class CostEstimationProviderTest extends TestCase
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $projectRepository->method('find')->willReturn((new IndustryProject())->setUser(new User())->setProductTypeId(self::RIFTER_TYPE_ID)->setRuns(3));
+        $projectRepository->method('find')->willReturn((new IndustryProject())->setOwner(new User())->setProductTypeId(self::RIFTER_TYPE_ID)->setRuns(3));
         $productionCostService = $this->createMock(ProductionCostService::class);
         $productionCostService->expects($this->never())->method('estimateTotalCost');
 
@@ -163,8 +163,7 @@ final class CostEstimationProviderTest extends TestCase
     private function provideFor(array $estimation, int $productTypeId = self::RIFTER_TYPE_ID, int $runs = 2): CostEstimationResource
     {
         $user = new User();
-        $project = (new IndustryProject())
-            ->setUser($user)
+        $project = (new IndustryProject())->setOwner($user)
             ->setProductTypeId($productTypeId)
             ->setRuns($runs);
         $security = $this->createStub(Security::class);

@@ -7,10 +7,10 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryBomResource;
-use App\Entity\GroupIndustryBomItem;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\User;
-use App\Repository\GroupIndustryBomItemRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -23,8 +23,8 @@ class GroupBomProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryBomItemRepository $bomItemRepository,
+        private readonly IndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
     ) {
     }
@@ -46,7 +46,7 @@ class GroupBomProvider implements ProviderInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 
@@ -55,12 +55,12 @@ class GroupBomProvider implements ProviderInterface
         $bomItems = $this->bomItemRepository->findBy(['project' => $project]);
 
         return array_map(
-            fn (GroupIndustryBomItem $item) => $this->mapToResource($item),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item),
             $bomItems,
         );
     }
 
-    private function mapToResource(GroupIndustryBomItem $item): GroupIndustryBomResource
+    private function mapToResource(IndustryProjectBomLine $item): GroupIndustryBomResource
     {
         $resource = new GroupIndustryBomResource();
         $resource->id = $item->getId()->toString();

@@ -50,7 +50,7 @@ final class IndustryResourceMapperOutsideFavoriteSystemTest extends TestCase
     private function project(): IndustryProject
     {
         return (new IndustryProject())
-            ->setUser(new User())
+            ->setOwner(new User())
             ->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID)
             ->setRuns(1);
     }

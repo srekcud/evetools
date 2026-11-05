@@ -16,6 +16,7 @@ use App\Service\MarketAlertService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\StructureMarketService;
 use App\Service\StructureMarketSnapshotService;
+use App\Service\StructureTradedVolumeService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -78,6 +79,7 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
             new NullLogger(),
             $this->mercurePublisher,
             $this->createStub(StructureMarketSnapshotService::class),
+            $this->createStub(StructureTradedVolumeService::class),
         );
 
         $this->service = $this->createService($this->createStub(EntityManagerInterface::class));

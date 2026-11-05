@@ -194,7 +194,7 @@ final class ProjectStepStructureResolverTest extends TestCase
 
     private function stepOf(string $activityType, ?IndustryStructureConfig $structureConfig = null): IndustryProjectStep
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $step = (new IndustryProjectStep())
             ->setActivityType($activityType)
             ->setDepth(0)

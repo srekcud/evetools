@@ -9,7 +9,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStepJobMatch;
 use App\Entity\IndustryStepPurchase;
 use App\Enum\ProjectCorrectionStatus;
-use App\Enum\ProjectStatus;
+use App\Enum\GroupProjectStatus;
 use App\Exception\ProducerMissingFromSdeException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Repository\IndustryProjectRepository;
@@ -173,7 +173,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
 
     public function testCompletedProjectIsNotSelected(): void
     {
-        $project = $this->nitrogenFuelBlockProjectOfTheOldCalculation(self::NITROGEN_FUEL_BLOCK_PROJECT_ID)->setStatus(ProjectStatus::Completed);
+        $project = $this->nitrogenFuelBlockProjectOfTheOldCalculation(self::NITROGEN_FUEL_BLOCK_PROJECT_ID)->setStatus(GroupProjectStatus::Completed);
 
         self::assertSame([], $this->regenerationOf($project)->run(false));
         self::assertSame([[1, 25]], self::runsAndQuantityOfEachJob($this->rootJobsOf($project)));
@@ -183,7 +183,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
     public function testProjectWhoseProductHasNoProducerInTheSdeFailsAndTheNextProjectIsRegenerated(): void
     {
         $roboticsProject = $this->identified(
-            (new IndustryProject())->setUser($this->pilot)->setProductTypeId(self::ROBOTICS)->setRuns(self::ROBOTICS_RUNS),
+            (new IndustryProject())->setOwner($this->pilot)->setProductTypeId(self::ROBOTICS)->setRuns(self::ROBOTICS_RUNS),
             self::ROBOTICS_PROJECT_ID,
         );
         $nitrogenFuelBlockProject = $this->nitrogenFuelBlockProjectOfTheOldCalculationWithAJobMatchAndAPurchase();
@@ -458,8 +458,7 @@ final class MultiUnitProjectStepsRegenerationTest extends TestCase
 
     private function hydrogenFuelBlockProjectOfTheOldCalculationBuiltByHand(): IndustryProject
     {
-        $project = (new IndustryProject())
-            ->setUser($this->pilot)
+        $project = (new IndustryProject())->setOwner($this->pilot)
             ->setProductTypeId(self::HYDROGEN_FUEL_BLOCK)
             ->setRuns(self::HYDROGEN_FUEL_BLOCK_RUNS)
             ->setMeLevel(self::PROJECT_ME_LEVEL)

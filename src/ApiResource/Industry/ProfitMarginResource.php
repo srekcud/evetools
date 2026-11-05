@@ -29,6 +29,7 @@ use App\State\Provider\Industry\ProfitMarginProvider;
                     new Model\Parameter(name: 'solarSystemId', in: 'query', required: false, schema: ['type' => 'integer']),
                     new Model\Parameter(name: 'structureId', in: 'query', required: false, schema: ['type' => 'integer']),
                     new Model\Parameter(name: 'decryptorTypeId', in: 'query', required: false, schema: ['type' => 'integer']),
+                    new Model\Parameter(name: 'inventorCharacterId', in: 'query', required: false, schema: ['type' => 'string', 'format' => 'uuid']),
                 ],
             ),
         ),
@@ -81,11 +82,11 @@ class ProfitMarginResource
         'structureName' => '',
     ];
 
-    public float $brokerFeeRate = 0.036;
+    public ?float $brokerFeeRate = null;
 
-    public float $salesTaxRate = 0.036;
+    public ?float $salesTaxRate = null;
 
-    /** @var array<string, array{revenue: float, fees: float, profit: float, margin: float|null}|null> */
+    /** @var array<string, array{revenue: float, fees: float|null, profit: float|null, margin: float|null}|null> */
     public array $margins = [];
 
     public ?float $dailyVolume = null;

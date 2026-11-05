@@ -90,7 +90,7 @@ class UnlinkJobProcessorTest extends TestCase
             ->setRuns(self::SPEC_STEP_RUNS)
             ->setQuantity(self::SPEC_STEP_RUNS)
             ->setJobMatchMode('manual');
-        (new IndustryProject())->setUser(new User())->addStep($step);
+        (new IndustryProject())->setOwner(new User())->addStep($step);
 
         return $step;
     }

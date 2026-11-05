@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
+use App\Entity\Character;
 use App\Entity\User;
 use App\Industry\Application\CostMode;
 use App\Industry\Application\Decryptors;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\InventionCost;
-use App\Industry\Application\InventionSettings;
+use App\Industry\Application\InventionSkillLevels;
 use App\Industry\Application\JobCost;
 use App\Industry\Application\LeafCost;
 use App\Industry\Application\ProductionCost;
@@ -27,6 +28,7 @@ use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
 use App\Repository\CachedStructureRepository;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -35,9 +37,9 @@ class ProfitMarginService
 {
     private const float CONTRACT_FEE_RATE = 0.0;
 
-    private const int INVENTION_SKILL_LEVEL_WITHOUT_SKILLS = 0;
-
     private const float NO_INVENTION_COST = 0.0;
+
+    private const string UNKNOWN_REASON_MISSING_INVENTOR_SKILLS = 'missing_inventor_skills';
 
     private const string MARKET_PRICE_REASON = 'market_price';
 
@@ -51,6 +53,7 @@ class ProfitMarginService
         private readonly TypeNameResolver $typeNameResolver,
         private readonly CachedStructureRepository $cachedStructureRepository,
         private readonly IndustryBlacklistService $blacklistService,
+        private readonly InventorSkills $inventorSkills,
     ) {
     }
 
@@ -65,12 +68,13 @@ class ProfitMarginService
         int $sellStructureId,
         int $solarSystemId,
         ?int $decryptorTypeId,
-        float $brokerFeeRate,
-        float $salesTaxRate,
+        ?SalesFees $salesFees,
         ?User $user,
         int $reactionSolarSystemId,
+        ?Character $inventor = null,
     ): array {
         $decryptors = $this->decryptors->all();
+        $skillLevels = $this->inventorSkills->levelsFor($typeId, $inventor);
         $costOf = $this->costFunction(
             $typeId,
             $runs,
@@ -78,13 +82,14 @@ class ProfitMarginService
             $solarSystemId,
             $reactionSolarSystemId,
             $user,
+            $skillLevels,
         );
 
         $productionCost = $costOf(self::decryptorOf($decryptors, $decryptorTypeId));
         $outputQuantity = $productionCost->producedQuantity->value;
 
         $sellPrices = $this->sellPrices($typeId, $outputQuantity, $sellStructureId);
-        $marginsOf = fn (Cost $totalCost): array => $this->marginsOf($sellPrices, $outputQuantity, $totalCost, $brokerFeeRate, $salesTaxRate);
+        $marginsOf = fn (Cost $totalCost): array => $this->marginsOf($sellPrices, $outputQuantity, $totalCost, $salesFees);
 
         $volumes = $this->jitaMarketService->getAverageDailyVolumes([$typeId]);
 
@@ -104,10 +109,10 @@ class ProfitMarginService
             'costPerUnit' => self::amountOf($productionCost->costPerUnit),
             'invention' => null === $productionCost->invention
                 ? null
-                : $this->inventionDetails($productionCost->invention, $decryptorTypeId, $decryptors, $productionCost, $costOf, $marginsOf),
+                : $this->inventionDetails($productionCost->invention, $decryptorTypeId, $decryptors, $productionCost, $costOf, $marginsOf, $inventor, $skillLevels),
             'sellPrices' => $sellPrices,
-            'brokerFeeRate' => $brokerFeeRate,
-            'salesTaxRate' => $salesTaxRate,
+            'brokerFeeRate' => $salesFees?->brokerFeeRate,
+            'salesTaxRate' => $salesFees?->salesTaxRate,
             'margins' => $marginsOf($productionCost->totalCost),
             'dailyVolume' => $volumes[$typeId] ?? null,
             'missingData' => MissingDataPresenter::of($productionCost->totalCost),
@@ -118,7 +123,7 @@ class ProfitMarginService
     /**
      * @return \Closure(?Decryptor): ProductionCost
      */
-    private function costFunction(int $typeId, int $runs, BlueprintEfficiency $efficiency, int $solarSystemId, int $reactionSolarSystemId, ?User $user): \Closure
+    private function costFunction(int $typeId, int $runs, BlueprintEfficiency $efficiency, int $solarSystemId, int $reactionSolarSystemId, ?User $user, InventionSkillLevels $skillLevels): \Closure
     {
         $structures = null === $user ? [] : $this->productionStructures->configuredBy(self::idOf($user));
         $blacklist = null === $user ? [] : $this->blacklistService->resolveBlacklistedTypeIds($user);
@@ -132,12 +137,7 @@ class ProfitMarginService
             $structures,
             $favoriteSystems,
             $blacklist,
-            new InventionSettings(
-                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
-                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
-                self::INVENTION_SKILL_LEVEL_WITHOUT_SKILLS,
-                $decryptor,
-            ),
+            $skillLevels->settingsWith($decryptor),
         ));
     }
 
@@ -212,7 +212,7 @@ class ProfitMarginService
     /**
      * @param list<Decryptor>                                                                                   $decryptors
      * @param \Closure(?Decryptor): ProductionCost                                                              $costOf
-     * @param \Closure(Cost): array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null> $marginsOf
+     * @param \Closure(Cost): array<string, array{revenue: float, fees: ?float, profit: ?float, margin: ?float}|null> $marginsOf
      *
      * @return array<string, mixed>
      */
@@ -223,11 +223,18 @@ class ProfitMarginService
         ProductionCost $selectedProductionCost,
         \Closure $costOf,
         \Closure $marginsOf,
+        ?Character $inventor,
+        InventionSkillLevels $skillLevels,
     ): array {
         $options = [];
+        $costPerUnitWithoutDecryptor = null;
         foreach ([null, ...$decryptors] as $decryptor) {
             $optionCost = $decryptor?->typeId === $selectedDecryptorTypeId ? $selectedProductionCost : $costOf($decryptor);
             $optionInvention = $optionCost->invention ?? throw new \LogicException('Every decryptor option of an invented product is invented.');
+            $costPerUnit = self::amountOf($optionCost->costPerUnit);
+            if (null === $decryptor) {
+                $costPerUnitWithoutDecryptor = $costPerUnit;
+            }
             $options[] = [
                 'decryptorTypeId' => $decryptor?->typeId,
                 'decryptorName' => $this->decryptorNameOf($decryptor?->typeId),
@@ -240,6 +247,10 @@ class ProfitMarginService
                 'inventionCost' => self::amountOf($optionInvention->total),
                 'totalProductionCost' => self::amountOf($optionCost->totalCost),
                 'bestMargin' => self::bestMarginOf($marginsOf($optionCost->totalCost)),
+                'expectedAttempts' => $optionInvention->expectedAttempts,
+                'decryptorCost' => self::amountOf($optionInvention->decryptorCost),
+                'costPerUnit' => $costPerUnit,
+                'costPerUnitDelta' => null === $costPerUnit || null === $costPerUnitWithoutDecryptor ? null : $costPerUnit - $costPerUnitWithoutDecryptor,
             ];
         }
 
@@ -250,6 +261,12 @@ class ProfitMarginService
                 fn (RecipeMaterial $datacore): ?string => $this->typeNameResolver->findName($datacore->typeId),
                 $invention->recipe->datacores,
             ),
+            'datacoresCostPerAttempt' => self::amountOf($invention->datacoresCost),
+            'inventor' => null === $inventor ? null : [
+                'characterId' => $inventor->getId()?->toRfc4122() ?? throw new \LogicException('An inventor without id cannot be identified.'),
+                'characterName' => $inventor->getName(),
+                'skillsKnown' => $skillLevels->isKnown(),
+            ],
             'selectedDecryptorTypeId' => $selectedDecryptorTypeId,
             'selectedDecryptorName' => $this->decryptorNameOf($selectedDecryptorTypeId),
             'options' => $options,
@@ -263,8 +280,11 @@ class ProfitMarginService
 
     private static function inventionUnknownReasonOf(InventionCost $invention): ?string
     {
-        if (null === $invention->chance) {
+        if (null === $invention->recipe->baseProbability) {
             return InventionService::UNKNOWN_REASON_MISSING_PROBABILITY;
+        }
+        if (null === $invention->chance) {
+            return self::UNKNOWN_REASON_MISSING_INVENTOR_SKILLS;
         }
         $missingReasons = array_map(static fn (MissingData $missingData): string => $missingData->reason, $invention->total->missingData);
 
@@ -304,34 +324,39 @@ class ProfitMarginService
     /**
      * @param array{jitaSell: ?float, structureSell: ?float, structureBuy: ?float, contractSell: ?float} $sellPrices
      *
-     * @return array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null>
+     * @return array<string, array{revenue: float, fees: ?float, profit: ?float, margin: ?float}|null>
      */
-    private function marginsOf(array $sellPrices, int $outputQuantity, Cost $totalCost, float $brokerFeeRate, float $salesTaxRate): array
+    private function marginsOf(array $sellPrices, int $outputQuantity, Cost $totalCost, ?SalesFees $salesFees): array
     {
         if (!$totalCost->isKnown()) {
             return ['jitaSell' => null, 'structureSell' => null, 'structureBuy' => null, 'contractSell' => null];
         }
         $cost = $totalCost->amount()->amount;
-        $sellOrderFeeRate = $brokerFeeRate + $salesTaxRate;
+        $sellOrderFeeRate = null === $salesFees ? null : $salesFees->brokerFeeRate + $salesFees->salesTaxRate;
+        $buyOrderFeeRate = $salesFees?->salesTaxRate;
 
         return [
             'jitaSell' => self::marginForPrice($sellPrices['jitaSell'], $outputQuantity, $cost, $sellOrderFeeRate),
             'structureSell' => self::marginForPrice($sellPrices['structureSell'], $outputQuantity, $cost, $sellOrderFeeRate),
-            'structureBuy' => self::marginForPrice($sellPrices['structureBuy'], $outputQuantity, $cost, $salesTaxRate),
+            'structureBuy' => self::marginForPrice($sellPrices['structureBuy'], $outputQuantity, $cost, $buyOrderFeeRate),
             'contractSell' => self::marginForPrice($sellPrices['contractSell'], $outputQuantity, $cost, self::CONTRACT_FEE_RATE),
         ];
     }
 
     /**
-     * @return array{revenue: float, fees: float, profit: float, margin: ?float}|null
+     * @return array{revenue: float, fees: ?float, profit: ?float, margin: ?float}|null
      */
-    private static function marginForPrice(?float $unitPrice, int $outputQuantity, float $totalCost, float $feeRate): ?array
+    private static function marginForPrice(?float $unitPrice, int $outputQuantity, float $totalCost, ?float $feeRate): ?array
     {
         if (null === $unitPrice || $unitPrice <= 0.0) {
             return null;
         }
 
         $grossRevenue = $unitPrice * $outputQuantity;
+        if (null === $feeRate) {
+            return ['revenue' => $grossRevenue, 'fees' => null, 'profit' => null, 'margin' => null];
+        }
+
         $fees = $grossRevenue * $feeRate;
         $profit = $grossRevenue - $fees - $totalCost;
 
@@ -344,7 +369,7 @@ class ProfitMarginService
     }
 
     /**
-     * @param array<string, array{revenue: float, fees: float, profit: float, margin: ?float}|null> $venueMargins
+     * @param array<string, array{revenue: float, fees: ?float, profit: ?float, margin: ?float}|null> $venueMargins
      */
     private static function bestMarginOf(array $venueMargins): ?float
     {

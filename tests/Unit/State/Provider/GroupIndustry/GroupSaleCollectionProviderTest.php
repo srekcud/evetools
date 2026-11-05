@@ -7,9 +7,9 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\Character;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -40,7 +40,7 @@ class GroupSaleCollectionProviderTest extends TestCase
         $this->createSabreBatch();
         $this->security = $this->createStub(Security::class);
 
-        $saleRepository = $this->createStub(GroupIndustrySaleRepository::class);
+        $saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
         $saleRepository->method('findByProjectForListing')->willReturnCallback(fn (): array => $this->listedSales);
 
         $this->provider = new GroupSaleCollectionProvider(
@@ -149,9 +149,9 @@ class GroupSaleCollectionProviderTest extends TestCase
         return $this->provider->provide(new GetCollection(), ['projectId' => $projectId->toRfc4122()]);
     }
 
-    private function sale(int $typeId, string $typeName, int $quantity, float $unitPrice, string $soldAt, ?User $recordedBy): GroupIndustrySale
+    private function sale(int $typeId, string $typeName, int $quantity, float $unitPrice, string $soldAt, ?User $recordedBy): IndustryProjectSale
     {
-        $sale = new GroupIndustrySale();
+        $sale = new IndustryProjectSale();
         $sale->setProject($this->sabreBatch);
         $sale->setTypeId($typeId);
         $sale->setTypeName($typeName);
@@ -163,7 +163,7 @@ class GroupSaleCollectionProviderTest extends TestCase
         if ($recordedBy !== null) {
             $sale->setRecordedBy($recordedBy);
         }
-        (new \ReflectionProperty(GroupIndustrySale::class, 'id'))->setValue($sale, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectSale::class, 'id'))->setValue($sale, Uuid::v4());
 
         return $sale;
     }

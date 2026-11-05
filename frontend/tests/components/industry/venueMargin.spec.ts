@@ -55,4 +55,20 @@ describe('venueMargin', () => {
     expect(contract.fees).toBe(0)
     expect(contract.profit).toBe(10000)
   })
+
+  it('leaves the fees, the profit and the margin unknown on a market sale when the seller fees are unknown', () => {
+    const sellOrder = venueMargin(UNIT_PRICE, OUTPUT_QUANTITY, TOTAL_COST, null, null, 'jitaSell')
+    const buyOrder = venueMargin(UNIT_PRICE, OUTPUT_QUANTITY, TOTAL_COST, null, null, 'structureBuy')
+
+    expect([sellOrder, buyOrder]).toEqual([
+      { revenue: 10000, fees: null, profit: null, margin: null },
+      { revenue: 10000, fees: null, profit: null, margin: null },
+    ])
+  })
+
+  it('keeps the contract sale known when the seller fees are unknown, since it carries no fee', () => {
+    const result = venueMargin(UNIT_PRICE, OUTPUT_QUANTITY, TOTAL_COST, null, null, 'contractSell')
+
+    expect(result).toEqual({ revenue: 10000, fees: 0, profit: 2000, margin: 25 })
+  })
 })

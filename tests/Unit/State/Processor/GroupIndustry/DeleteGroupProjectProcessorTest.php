@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\GroupIndustry;
 
 use ApiPlatform\Metadata\Delete;
-use App\Entity\GroupIndustryProject;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Repository\IndustryProjectRepository;
 use App\State\Processor\GroupIndustry\DeleteGroupProjectProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -19,10 +20,10 @@ class DeleteGroupProjectProcessorTest extends TestCase
     public function testRemovesAndFlushesTheProjectFoundByItsId(): void
     {
         $projectId = Uuid::v4();
-        $project = new GroupIndustryProject();
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturnCallback(
-            static fn (Uuid $id): ?GroupIndustryProject => $id->equals($projectId) ? $project : null,
+            static fn (Uuid $id): ?IndustryProject => $id->equals($projectId) ? $project : null,
         );
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -35,7 +36,7 @@ class DeleteGroupProjectProcessorTest extends TestCase
 
     public function testDoesNothingWhenTheProjectIsAbsent(): void
     {
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);

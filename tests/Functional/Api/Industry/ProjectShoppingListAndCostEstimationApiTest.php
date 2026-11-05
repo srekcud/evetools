@@ -209,8 +209,7 @@ final class ProjectShoppingListAndCostEstimationApiTest extends WebTestCase
 
     private function polymerProjectOfThreeReactionRuns(): IndustryProjectStep
     {
-        $this->project = (new IndustryProject())
-            ->setUser($this->owner)
+        $this->project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->owner)
             ->setProductTypeId(self::POLYMER_TYPE_ID)
             ->setRuns(self::POLYMER_REACTION_RUNS)
             ->setMeLevel(0);

@@ -179,12 +179,12 @@ final class IndustryResourceMapperDeletableStepTest extends TestCase
 
     private function ferniteCarbideProject(int $runs): IndustryProject
     {
-        return (new IndustryProject())->setUser(new User())->setProductTypeId(self::FERNITE_CARBIDE)->setRuns($runs);
+        return (new IndustryProject())->setOwner(new User())->setProductTypeId(self::FERNITE_CARBIDE)->setRuns($runs);
     }
 
     private function quantumMicroprocessorProject(): IndustryProject
     {
-        return (new IndustryProject())->setUser(new User())->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
+        return (new IndustryProject())->setOwner(new User())->setProductTypeId(self::QUANTUM_MICROPROCESSOR)->setRuns(32);
     }
 
     private function alloyJobOf(IndustryProject $project, int $splitIndex, int $runs): IndustryProjectStep

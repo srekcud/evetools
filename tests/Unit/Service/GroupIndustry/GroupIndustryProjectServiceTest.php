@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectItem;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
@@ -23,7 +23,7 @@ use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
-use App\Repository\GroupIndustryContributionRepository;
+use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -213,7 +213,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
         $this->assertSame(
             [[$user, GroupMemberRole::Owner, GroupMemberStatus::Accepted]],
             array_map(
-                static fn (GroupIndustryProjectMember $member): array => [$member->getUser(), $member->getRole(), $member->getStatus()],
+                static fn (IndustryProjectParticipant $member): array => [$member->getUser(), $member->getRole(), $member->getStatus()],
                 $project->getMembers()->toArray(),
             ),
         );
@@ -235,11 +235,31 @@ final class GroupIndustryProjectServiceTest extends TestCase
         $this->assertSame(
             [[self::RIFTER, 'Rifter', 10, 20, 10, 0], [self::SABRE, 'Sabre', 8, 16, 5, 1]],
             array_map(
-                static fn (GroupIndustryProjectItem $item): array => [
+                static fn (IndustryProjectProduct $item): array => [
                     $item->getTypeId(), $item->getTypeName(), $item->getMeLevel(), $item->getTeLevel(), $item->getRuns(), $item->getSortOrder(),
                 ],
                 $project->getItems()->toArray(),
             ),
+        );
+    }
+
+    #[Group('issue-362')]
+    public function testCreateProjectTakesTheProjectProductFromTheFirstItem(): void
+    {
+        $this->givenRifter();
+        $this->givenRecipe(self::SABRE, 'Sabre', [self::TRITANIUM => 20_000, self::MEXALLON => 4_100]);
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Sabre first',
+            items: [
+                ['typeId' => self::SABRE, 'typeName' => 'Sabre', 'meLevel' => 8, 'teLevel' => 16, 'runs' => 5],
+                ['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10],
+            ],
+        ));
+
+        $this->assertSame(
+            [self::SABRE, 5, 8, 16],
+            [$project->getProductTypeId(), $project->getRuns(), $project->getMeLevel(), $project->getTeLevel()],
         );
     }
 
@@ -269,7 +289,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
         $this->assertSame(
             [[self::TRITANIUM, 'Tritanium', 252_000, 0, false], [self::PYERITE, 'Pyerite', 50_400, 0, false]],
             array_map(
-                static fn (GroupIndustryBomItem $material): array => [
+                static fn (IndustryProjectBomLine $material): array => [
                     $material->getTypeId(), $material->getTypeName(), $material->getRequiredQuantity(), $material->getFulfilledQuantity(), $material->isJob(),
                 ],
                 $this->sortedMaterialBomItems($project),
@@ -295,7 +315,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
                 [self::COMPONENT, 'Advanced Component', 'manufacturing', 'component', 45, 10, 20, 45, self::RIFTER],
             ],
             array_map(
-                static fn (GroupIndustryBomItem $job): array => [
+                static fn (IndustryProjectBomLine $job): array => [
                     $job->getTypeId(), $job->getTypeName(), $job->getActivityType(), $job->getJobGroup(), $job->getRuns(),
                     $job->getMeLevel(), $job->getTeLevel(), $job->getRequiredQuantity(), $job->getParentTypeId(),
                 ],
@@ -317,7 +337,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
         $this->assertSame(
             [[self::SABRE, 'Sabre', 'copy', 'blueprint', 10, 0, 0, 10, true]],
             array_map(
-                static fn (GroupIndustryBomItem $job): array => [
+                static fn (IndustryProjectBomLine $job): array => [
                     $job->getTypeId(), $job->getTypeName(), $job->getActivityType(), $job->getJobGroup(), $job->getRuns(),
                     $job->getMeLevel(), $job->getTeLevel(), $job->getRequiredQuantity(), $job->isJob(),
                 ],
@@ -441,7 +461,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
         $this->assertSame(
             [[self::REACTION_PRODUCT, 'component', 1, 0, 0, 100, self::RIFTER]],
             array_map(
-                static fn (GroupIndustryBomItem $job): array => [
+                static fn (IndustryProjectBomLine $job): array => [
                     $job->getTypeId(), $job->getJobGroup(), $job->getRuns(), $job->getMeLevel(), $job->getTeLevel(), $job->getRequiredQuantity(), $job->getParentTypeId(),
                 ],
                 $this->jobBomItemsOfActivity($project, 'reaction'),
@@ -464,7 +484,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
         $this->assertSame(
             [[self::FERNITE_CARBIDE, 'Fernite Carbide', true, 9, 180]],
             array_map(
-                static fn (GroupIndustryBomItem $job): array => [$job->getTypeId(), $job->getTypeName(), $job->isJob(), $job->getRuns(), $job->getRequiredQuantity()],
+                static fn (IndustryProjectBomLine $job): array => [$job->getTypeId(), $job->getTypeName(), $job->isJob(), $job->getRuns(), $job->getRequiredQuantity()],
                 $this->jobBomItemsOfActivity($project, 'reaction'),
             ),
         );
@@ -653,7 +673,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
             $this->inventionService,
             $this->activityProductRepository(),
             $this->activityRepository(),
-            $this->createStub(GroupIndustryContributionRepository::class),
+            $this->createStub(IndustryProjectContributionRepository::class),
         );
     }
 
@@ -799,11 +819,11 @@ final class GroupIndustryProjectServiceTest extends TestCase
         return $user;
     }
 
-    private function projectWithItems(array $items): GroupIndustryProject
+    private function projectWithItems(array $items): IndustryProject
     {
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
         foreach ($items as $index => [$typeId, $typeName, $runs]) {
-            $project->addItem((new GroupIndustryProjectItem())
+            $project->addItem((new IndustryProjectProduct())
                 ->setTypeId($typeId)
                 ->setTypeName($typeName)
                 ->setRuns($runs)
@@ -815,9 +835,9 @@ final class GroupIndustryProjectServiceTest extends TestCase
         return $project;
     }
 
-    private function jobLines(GroupIndustryProject $project): array
+    private function jobLines(IndustryProject $project): array
     {
-        $jobLines = array_map(static fn (GroupIndustryBomItem $job): array => [
+        $jobLines = array_map(static fn (IndustryProjectBomLine $job): array => [
             $job->getTypeId(),
             $job->getActivityType(),
             $job->getJobGroup(),
@@ -830,18 +850,18 @@ final class GroupIndustryProjectServiceTest extends TestCase
         return $jobLines;
     }
 
-    private function runsOf(GroupIndustryProject $project, int $typeId, string $activityType): array
+    private function runsOf(IndustryProject $project, int $typeId, string $activityType): array
     {
         $runs = array_map(
-            static fn (GroupIndustryBomItem $job): ?int => $job->getRuns(),
-            array_filter($this->jobBomItemsOfActivity($project, $activityType), static fn (GroupIndustryBomItem $job): bool => $job->getTypeId() === $typeId),
+            static fn (IndustryProjectBomLine $job): ?int => $job->getRuns(),
+            array_filter($this->jobBomItemsOfActivity($project, $activityType), static fn (IndustryProjectBomLine $job): bool => $job->getTypeId() === $typeId),
         );
         sort($runs);
 
         return $runs;
     }
 
-    private function materialQuantities(GroupIndustryProject $project): array
+    private function materialQuantities(IndustryProject $project): array
     {
         $quantities = [];
         foreach ($this->getMaterialBomItems($project) as $material) {
@@ -853,7 +873,7 @@ final class GroupIndustryProjectServiceTest extends TestCase
         return $quantities;
     }
 
-    private function estimatedPrices(GroupIndustryProject $project): array
+    private function estimatedPrices(IndustryProject $project): array
     {
         $prices = [];
         foreach ($this->getMaterialBomItems($project) as $material) {
@@ -865,35 +885,35 @@ final class GroupIndustryProjectServiceTest extends TestCase
         return $prices;
     }
 
-    private function getMaterialBomItems(GroupIndustryProject $project): array
+    private function getMaterialBomItems(IndustryProject $project): array
     {
-        return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $item): bool => !$item->isJob()));
+        return array_values(array_filter($project->getBomItems()->toArray(), static fn (IndustryProjectBomLine $item): bool => !$item->isJob()));
     }
 
-    private function sortedMaterialBomItems(GroupIndustryProject $project): array
+    private function sortedMaterialBomItems(IndustryProject $project): array
     {
         $materials = $this->getMaterialBomItems($project);
-        usort($materials, static fn (GroupIndustryBomItem $left, GroupIndustryBomItem $right): int => $left->getTypeId() <=> $right->getTypeId());
+        usort($materials, static fn (IndustryProjectBomLine $left, IndustryProjectBomLine $right): int => $left->getTypeId() <=> $right->getTypeId());
 
         return $materials;
     }
 
-    private function getJobBomItems(GroupIndustryProject $project): array
+    private function getJobBomItems(IndustryProject $project): array
     {
-        return array_values(array_filter($project->getBomItems()->toArray(), static fn (GroupIndustryBomItem $item): bool => $item->isJob()));
+        return array_values(array_filter($project->getBomItems()->toArray(), static fn (IndustryProjectBomLine $item): bool => $item->isJob()));
     }
 
-    private function sortedJobBomItems(GroupIndustryProject $project): array
+    private function sortedJobBomItems(IndustryProject $project): array
     {
         $jobs = $this->getJobBomItems($project);
-        usort($jobs, static fn (GroupIndustryBomItem $left, GroupIndustryBomItem $right): int => [$left->getTypeId(), $left->getActivityType()] <=> [$right->getTypeId(), $right->getActivityType()]);
+        usort($jobs, static fn (IndustryProjectBomLine $left, IndustryProjectBomLine $right): int => [$left->getTypeId(), $left->getActivityType()] <=> [$right->getTypeId(), $right->getActivityType()]);
 
         return $jobs;
     }
 
-    private function jobBomItemsOfActivity(GroupIndustryProject $project, string $activityType): array
+    private function jobBomItemsOfActivity(IndustryProject $project, string $activityType): array
     {
-        return array_values(array_filter($this->getJobBomItems($project), static fn (GroupIndustryBomItem $item): bool => $item->getActivityType() === $activityType));
+        return array_values(array_filter($this->getJobBomItems($project), static fn (IndustryProjectBomLine $item): bool => $item->getActivityType() === $activityType));
     }
 
     private static function activityIdOf(ActivityKind $activity): int

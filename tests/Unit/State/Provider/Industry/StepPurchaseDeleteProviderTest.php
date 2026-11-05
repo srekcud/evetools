@@ -36,7 +36,7 @@ final class StepPurchaseDeleteProviderTest extends TestCase
     public function testPurchaseIdThatIsNotAUuidIsNotFoundAfterReadingTheProjectAndTheStep(): void
     {
         $user = new User();
-        $project = (new IndustryProject())->setUser($user);
+        $project = (new IndustryProject())->setOwner($user);
         $step = (new IndustryProjectStep())->setProject($project);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
@@ -63,7 +63,7 @@ final class StepPurchaseDeleteProviderTest extends TestCase
     public function testPurchaseOfTheStepIsProvidedAsItsResourceAndStaysOnTheStep(): void
     {
         $user = new User();
-        $project = (new IndustryProject())->setUser($user);
+        $project = (new IndustryProject())->setOwner($user);
         $step = (new IndustryProjectStep())->setProject($project);
         $isotopePurchase = (new IndustryStepPurchase())
             ->setTypeId(self::ISOTOPE_TYPE_ID)

@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\User;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -23,7 +23,7 @@ class GroupProjectDeleteProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectRepository $projectRepository,
     ) {
     }
 
@@ -37,7 +37,7 @@ class GroupProjectDeleteProvider implements ProviderInterface
 
         $project = $this->projectRepository->find(Uuid::fromString($uriVariables['id']));
 
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 

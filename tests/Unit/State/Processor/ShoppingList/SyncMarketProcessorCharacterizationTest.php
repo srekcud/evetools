@@ -18,6 +18,7 @@ use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\StructureMarketService;
 use App\Service\StructureMarketSnapshotService;
+use App\Service\StructureTradedVolumeService;
 use App\State\Processor\ShoppingList\SyncMarketProcessor;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -342,6 +343,7 @@ final class SyncMarketProcessorCharacterizationTest extends TestCase
             new NullLogger(),
             new MercurePublisherService($hub, new NullLogger()),
             $this->createStub(StructureMarketSnapshotService::class),
+            $this->createStub(StructureTradedVolumeService::class),
         );
     }
 

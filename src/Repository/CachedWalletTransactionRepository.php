@@ -6,7 +6,7 @@ namespace App\Repository;
 
 use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
@@ -59,7 +59,7 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
             ->addSelect('c', 'token')
             ->innerJoin('t.character', 'c')
             ->leftJoin('c.eveToken', 'token')
-            ->leftJoin(GroupIndustrySale::class, 's', Join::WITH, 's.walletTransaction = t')
+            ->leftJoin(IndustryProjectSale::class, 's', Join::WITH, 's.walletTransaction = t')
             ->where('t.character IN (:characters)')
             ->andWhere('t.isBuy = false')
             ->andWhere('t.typeId IN (:typeIds)')

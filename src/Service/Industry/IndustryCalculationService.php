@@ -110,7 +110,7 @@ class IndustryCalculationService
     public function getStructureBonusForStep(IndustryProjectStep $step): array
     {
         return $this->structureBonusOf(
-            $step->getProject()->getUser(),
+            $step->getProject()->getOwner(),
             $step->getProductTypeId(),
             $step->getActivityType(),
             $step->getStructureConfig(),

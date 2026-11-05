@@ -66,7 +66,7 @@ abstract class ProjectByProjectCorrection
     protected function outcomeOf(IndustryProject $project, ProjectCorrectionStatus $status, ?string $change = null, ?string $reason = null): ProjectCorrectionOutcome
     {
         return new ProjectCorrectionOutcome(
-            $project->getId()?->toRfc4122() ?? throw new \LogicException('A project read from the database has no identifier'),
+            $project->getId()->toRfc4122(),
             $this->calculationService->resolveTypeName($project->getProductTypeId()) ?? UnknownTypeName::label($project->getProductTypeId()),
             $project->getRuns(),
             $status,

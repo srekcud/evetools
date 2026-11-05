@@ -811,7 +811,7 @@ class TimePerRunCalculatorTest extends TestCase
             ->setBlueprintTypeId($blueprintTypeId)
             ->setActivityType($activityType)
             ->setTeLevel($teLevel);
-        (new IndustryProject())->setUser(new User())->addStep($step);
+        (new IndustryProject())->setOwner(new User())->addStep($step);
 
         return $step;
     }

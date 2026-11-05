@@ -8,19 +8,20 @@ use ApiPlatform\Metadata\Patch;
 use App\ApiResource\GroupIndustry\GroupIndustryContributionResource;
 use App\ApiResource\Input\GroupIndustry\ReviewContributionInput;
 use App\Entity\Character;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\GroupIndustryContributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\GroupIndustry\ReviewContributionProcessor;
@@ -47,7 +48,7 @@ use Symfony\Component\Uid\Uuid;
  * than its contributor. Only exception: the project owner may review his own contribution
  * when he is the only owner/admin of the project (nobody else could ever review it).
  *
- * The project members are kept both in GroupIndustryProject::getMembers() and in a fake
+ * The project members are kept both in IndustryProject::getMembers() and in a fake
  * member repository, so the rule can be implemented with either source.
  */
 #[CoversClass(ReviewContributionProcessor::class)]
@@ -58,32 +59,32 @@ class ReviewContributionProcessorTest extends TestCase
     private const int ALREADY_FULFILLED_QUANTITY = 2000;
 
     private Security&Stub $security;
-    private GroupIndustryProjectRepository&Stub $projectRepository;
-    private GroupIndustryContributionRepository&Stub $contributionRepository;
-    private GroupIndustryProjectMemberRepository&Stub $memberRepository;
+    private IndustryProjectRepository&Stub $projectRepository;
+    private IndustryProjectContributionRepository&Stub $contributionRepository;
+    private IndustryProjectParticipantRepository&Stub $memberRepository;
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
     private ReviewContributionProcessor $processor;
 
-    /** @var list<GroupIndustryProjectMember> */
+    /** @var list<IndustryProjectParticipant> */
     private array $members = [];
 
     private User $owner;
-    private GroupIndustryProject $project;
-    private GroupIndustryProjectMember $ownerMember;
-    private GroupIndustryBomItem $bomItem;
+    private IndustryProject $project;
+    private IndustryProjectParticipant $ownerMember;
+    private IndustryProjectBomLine $bomItem;
 
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
-        $this->projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
-        $this->contributionRepository = $this->createStub(GroupIndustryContributionRepository::class);
-        $this->memberRepository = $this->createStub(GroupIndustryProjectMemberRepository::class);
+        $this->projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $this->contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
+        $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
 
         $this->memberRepository->method('findOneBy')->willReturnCallback(
-            fn (array $criteria): ?GroupIndustryProjectMember => $this->membersMatching($criteria)[0] ?? null,
+            fn (array $criteria): ?IndustryProjectParticipant => $this->membersMatching($criteria)[0] ?? null,
         );
         $this->memberRepository->method('findBy')->willReturnCallback(
             fn (array $criteria): array => $this->membersMatching($criteria),
@@ -106,14 +107,14 @@ class ReviewContributionProcessorTest extends TestCase
         );
 
         $this->owner = $this->createStub(User::class);
-        $this->project = new GroupIndustryProject();
+        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->project->setOwner($this->owner);
         $this->assignId($this->project);
         $this->projectRepository->method('find')->willReturn($this->project);
 
         $this->ownerMember = $this->addMember($this->owner, GroupMemberRole::Owner);
 
-        $this->bomItem = new GroupIndustryBomItem();
+        $this->bomItem = new IndustryProjectBomLine();
         $this->bomItem->setProject($this->project);
         $this->bomItem->setTypeId(34);
         $this->bomItem->setTypeName('Tritanium');
@@ -326,7 +327,7 @@ class ReviewContributionProcessorTest extends TestCase
 
     public function testContributionOfAnotherProjectIsNotFound(): void
     {
-        $otherProject = new GroupIndustryProject();
+        $otherProject = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $otherProject->setOwner($this->createStub(User::class));
         $contributor = $this->addMember($this->createStub(User::class), GroupMemberRole::Member);
         $contribution = $this->pendingContributionOf($contributor);
@@ -376,7 +377,7 @@ class ReviewContributionProcessorTest extends TestCase
 
     // --- Helpers --------------------------------------------------------------------------
 
-    private function assertReviewOnCompletedProjectIsRefused(GroupIndustryContribution $contribution, string $decision): void
+    private function assertReviewOnCompletedProjectIsRefused(IndustryProjectContribution $contribution, string $decision): void
     {
         $this->entityManager->expects($this->never())->method('flush');
         $this->hub->expects($this->never())->method('publish');
@@ -395,7 +396,7 @@ class ReviewContributionProcessorTest extends TestCase
         self::assertSame(self::ALREADY_FULFILLED_QUANTITY, $this->bomItem->getFulfilledQuantity());
     }
 
-    private function assertSelfReviewIsRefused(User $reviewer, GroupIndustryContribution $contribution, string $decision): void
+    private function assertSelfReviewIsRefused(User $reviewer, IndustryProjectContribution $contribution, string $decision): void
     {
         $this->entityManager->expects($this->never())->method('flush');
         $this->hub->expects($this->never())->method('publish');
@@ -476,7 +477,7 @@ class ReviewContributionProcessorTest extends TestCase
         $this->processor->process($input, new Patch(), ['id' => Uuid::v4()->toRfc4122()]);
     }
 
-    private function review(User $reviewer, GroupIndustryContribution $contribution, string $decision): GroupIndustryContributionResource
+    private function review(User $reviewer, IndustryProjectContribution $contribution, string $decision): GroupIndustryContributionResource
     {
         $this->security->method('getUser')->willReturn($reviewer);
         $this->contributionRepository->method('find')->willReturn($contribution);
@@ -490,9 +491,9 @@ class ReviewContributionProcessorTest extends TestCase
         ]);
     }
 
-    private function addMember(User $user, GroupMemberRole $role, GroupMemberStatus $status = GroupMemberStatus::Accepted): GroupIndustryProjectMember
+    private function addMember(User $user, GroupMemberRole $role, GroupMemberStatus $status = GroupMemberStatus::Accepted): IndustryProjectParticipant
     {
-        $member = new GroupIndustryProjectMember();
+        $member = new IndustryProjectParticipant();
         $member->setUser($user);
         $member->setRole($role);
         $member->setStatus($status);
@@ -503,9 +504,9 @@ class ReviewContributionProcessorTest extends TestCase
         return $member;
     }
 
-    private function pendingContributionOf(GroupIndustryProjectMember $contributor): GroupIndustryContribution
+    private function pendingContributionOf(IndustryProjectParticipant $contributor): IndustryProjectContribution
     {
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setProject($this->project);
         $contribution->setMember($contributor);
         $contribution->setBomItem($this->bomItem);
@@ -549,13 +550,13 @@ class ReviewContributionProcessorTest extends TestCase
     /**
      * @param array<string, mixed> $criteria
      *
-     * @return list<GroupIndustryProjectMember>
+     * @return list<IndustryProjectParticipant>
      */
     private function membersMatching(array $criteria): array
     {
         return array_values(array_filter(
             $this->members,
-            static function (GroupIndustryProjectMember $member) use ($criteria): bool {
+            static function (IndustryProjectParticipant $member) use ($criteria): bool {
                 foreach ($criteria as $field => $expected) {
                     $actual = $member->{'get' . ucfirst($field)}();
                     $matches = \is_array($expected) ? \in_array($actual, $expected, true) : $actual === $expected;

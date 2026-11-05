@@ -8,11 +8,11 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupSaleSuggestionResource;
 use App\Entity\CachedWalletTransaction;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectItem;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSaleOfProject;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -26,7 +26,7 @@ final readonly class GroupSaleSuggestionProvider implements ProviderInterface
 
     public function __construct(
         private Security $security,
-        private GroupIndustryProjectRepository $projectRepository,
+        private IndustryProjectRepository $projectRepository,
         private GroupProjectAccessChecker $accessChecker,
         private CachedWalletTransactionRepository $transactionRepository,
     ) {
@@ -61,15 +61,15 @@ final readonly class GroupSaleSuggestionProvider implements ProviderInterface
     /**
      * @return int[]
      */
-    private function itemTypeIds(GroupIndustryProject $project): array
+    private function itemTypeIds(IndustryProject $project): array
     {
         return array_values(array_unique(array_map(
-            static fn (GroupIndustryProjectItem $item): int => $item->getTypeId(),
+            static fn (IndustryProjectProduct $item): int => $item->getTypeId(),
             $project->getItems()->toArray(),
         )));
     }
 
-    private function suggestionOf(CachedWalletTransaction $transaction, GroupIndustryProject $project): GroupSaleSuggestionResource
+    private function suggestionOf(CachedWalletTransaction $transaction, IndustryProject $project): GroupSaleSuggestionResource
     {
         $suggestion = new GroupSaleSuggestionResource();
         $suggestion->transactionId = $transaction->getId()->toRfc4122();
@@ -91,7 +91,7 @@ final readonly class GroupSaleSuggestionProvider implements ProviderInterface
     /**
      * @return string[]
      */
-    private function possibleDuplicateSaleIds(CachedWalletTransaction $transaction, GroupIndustryProject $project): array
+    private function possibleDuplicateSaleIds(CachedWalletTransaction $transaction, IndustryProject $project): array
     {
         $duplicateIds = [];
         foreach ($project->getSales() as $sale) {

@@ -21,8 +21,6 @@ const USER_SETTINGS_WITH_FAVORITE_SYSTEMS: UserSettings = {
   favoriteManufacturingSystemName: 'Hek',
   favoriteReactionSystemId: 30_004_299,
   favoriteReactionSystemName: 'Sakht',
-  brokerFeeRate: 0.0168,
-  salesTaxRate: 0.0336,
   exportCostPerM3: 1_150,
 }
 

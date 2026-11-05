@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Constant\EveConstants;
 use App\Service\Industry\BuyVsBuildService;
+use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\StructureMarketService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -17,6 +18,8 @@ final class BuyVsBuildServiceWithoutSellStructureTest extends TestCase
 {
     use BuildsBuyVsBuildOnGoldenSde;
 
+    private const float BROKER_FEE_RATE = 0.036;
+    private const float SALES_TAX_RATE = 0.036;
     private const int HAIL_L = 12779;
     private const int RAM_AMMUNITION_TECH = 11476;
     private const int FERNITE_CARBIDE = 16673;
@@ -102,7 +105,7 @@ final class BuyVsBuildServiceWithoutSellStructureTest extends TestCase
             structureMarket: $this->structureMarketRecordingReads(),
         );
 
-        return $service->analyze(self::HAIL_L, 1, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null, EveConstants::DEFAULT_BROKER_FEE_RATE, EveConstants::DEFAULT_SALES_TAX_RATE, null);
+        return $service->analyze(self::HAIL_L, 1, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null, new SalesFees(self::BROKER_FEE_RATE, self::SALES_TAX_RATE), null);
     }
 
     private function structureMarketRecordingReads(): StructureMarketService

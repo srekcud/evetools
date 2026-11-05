@@ -5,39 +5,40 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\GroupIndustry;
 
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProject;
 use App\Service\GroupIndustry\CreateProjectData;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(CreateProjectData::class)]
-#[CoversClass(GroupIndustryProject::class)]
+#[CoversClass(IndustryProject::class)]
 #[CoversClass(GroupIndustryProjectResource::class)]
 #[Group('issue-170')]
+#[Group('issue-347')]
 final class GroupProjectDefaultFeesTest extends TestCase
 {
-    public function testProjectDataWithoutFeesDefaultsToExactlyThreePointSixPercent(): void
+    public function testProjectDataWithoutFeesHasNoFee(): void
     {
         $projectData = new CreateProjectData('Sabre batch', []);
 
-        self::assertSame(3.6, $projectData->brokerFeePercent);
-        self::assertSame(3.6, $projectData->salesTaxPercent);
+        self::assertNull($projectData->brokerFeePercent);
+        self::assertNull($projectData->salesTaxPercent);
     }
 
-    public function testNewProjectDefaultsToExactlyThreePointSixPercent(): void
+    public function testNewProjectHasNoFee(): void
     {
-        $project = new GroupIndustryProject();
+        $project = new IndustryProject();
 
-        self::assertSame(3.6, $project->getBrokerFeePercent());
-        self::assertSame(3.6, $project->getSalesTaxPercent());
+        self::assertNull($project->getBrokerFeePercent());
+        self::assertNull($project->getSalesTaxPercent());
     }
 
-    public function testNewProjectResourceDefaultsToExactlyThreePointSixPercent(): void
+    public function testNewProjectResourceHasNoFee(): void
     {
         $resource = new GroupIndustryProjectResource();
 
-        self::assertSame(3.6, $resource->brokerFeePercent);
-        self::assertSame(3.6, $resource->salesTaxPercent);
+        self::assertNull($resource->brokerFeePercent);
+        self::assertNull($resource->salesTaxPercent);
     }
 }

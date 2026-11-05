@@ -7,9 +7,9 @@ namespace App\State\Provider\Industry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\PivotAdvisorResource;
-use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Repository\IndustryUserSettingsRepository;
+use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\PivotAdvisorService;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,6 +26,7 @@ class PivotAdvisorProvider implements ProviderInterface
         private readonly RequestStack $requestStack,
         private readonly PivotAdvisorService $pivotAdvisorService,
         private readonly IndustryUserSettingsRepository $settingsRepository,
+        private readonly SellerSalesFeesResolver $salesFeesResolver,
     ) {
     }
 
@@ -48,8 +49,6 @@ class PivotAdvisorProvider implements ProviderInterface
         // Load user settings
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 
-        $brokerFeeRate = $settings?->getBrokerFeeRate() ?? EveConstants::DEFAULT_BROKER_FEE_RATE;
-        $salesTaxRate = $settings?->getSalesTaxRate() ?? EveConstants::DEFAULT_SALES_TAX_RATE;
 
         $solarSystems = AnalysisSolarSystems::resolve($solarSystemIdParam !== null ? (int) $solarSystemIdParam : null, $settings);
 
@@ -57,8 +56,7 @@ class PivotAdvisorProvider implements ProviderInterface
             $typeId,
             $runs,
             $solarSystems->manufacturingSolarSystemId,
-            $brokerFeeRate,
-            $salesTaxRate,
+            $this->salesFeesResolver->forUser($user),
             $user,
             $solarSystems->reactionSolarSystemId,
         );

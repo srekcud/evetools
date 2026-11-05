@@ -59,7 +59,7 @@ class UpdateStepProcessor implements ProcessorInterface
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
 
-        if ($project === null || $project->getUser() !== $user) {
+        if ($project === null || !$project->isPlannedByStepsAndOwnedBy($user)) {
             throw new NotFoundHttpException('Project not found');
         }
 
@@ -161,7 +161,7 @@ class UpdateStepProcessor implements ProcessorInterface
     {
         $structureConfig = $this->structureConfigRepository->find(Uuid::fromString($structureConfigId));
 
-        if ($structureConfig === null || $structureConfig->getUser() !== $project->getUser()) {
+        if ($structureConfig === null || $structureConfig->getUser() !== $project->getOwner()) {
             throw new NotFoundHttpException('Structure not found');
         }
 

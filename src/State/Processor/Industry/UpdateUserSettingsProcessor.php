@@ -65,14 +65,6 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
             );
         }
 
-        if ($data->brokerFeeRate !== null) {
-            $settings->setBrokerFeeRate($data->brokerFeeRate);
-        }
-
-        if ($data->salesTaxRate !== null) {
-            $settings->setSalesTaxRate($data->salesTaxRate);
-        }
-
         if ($data->exportCostPerM3 !== null) {
             $settings->setExportCostPerM3($data->exportCostPerM3);
         }
@@ -83,8 +75,6 @@ class UpdateUserSettingsProcessor implements ProcessorInterface
         $resource = new UserSettingsResource();
         $resource->favoriteManufacturingSystemId = $settings->getFavoriteManufacturingSystemId();
         $resource->favoriteReactionSystemId = $settings->getFavoriteReactionSystemId();
-        $resource->brokerFeeRate = $settings->getBrokerFeeRate();
-        $resource->salesTaxRate = $settings->getSalesTaxRate();
         $resource->exportCostPerM3 = $settings->getExportCostPerM3();
 
         if ($resource->favoriteManufacturingSystemId !== null) {

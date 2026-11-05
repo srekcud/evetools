@@ -12,7 +12,6 @@ use App\Industry\Domain\EivMaterial;
 use App\Industry\Domain\EstimatedItemValue;
 use App\Industry\Domain\InstallCost;
 use App\Industry\Domain\InventionAttempt;
-use App\Industry\Domain\InventionChance;
 use App\Industry\Domain\InventionExpectation;
 use App\Industry\Domain\InventionOutcome;
 use App\Industry\Domain\Isk;
@@ -199,16 +198,11 @@ final readonly class ProductionCostCalculator
         );
         $attemptCost = InventionAttempt::cost($datacoresCost, $decryptorCost, $inventionInstallCost)->plus($copyInstallCost->total);
 
-        $chance = null === $inventionRecipe->baseProbability
+        $chance = null === $inventionRecipe->baseProbability ? null : $settings->chanceOf($inventionRecipe->baseProbability);
+        $unknownChanceReason = null === $inventionRecipe->baseProbability || $settings->skillsAreKnown()
             ? null
-            : InventionChance::of(
-                $inventionRecipe->baseProbability,
-                $settings->firstScienceSkillLevel,
-                $settings->secondScienceSkillLevel,
-                $settings->encryptionSkillLevel,
-                $settings->decryptor,
-            );
-        $expectation = InventionExpectation::of($inventionRecipe->t1BlueprintTypeId, $chance, $outcome, $attemptCost);
+            : MissingData::inventorSkills($inventionRecipe->t1BlueprintTypeId);
+        $expectation = InventionExpectation::of($inventionRecipe->t1BlueprintTypeId, $chance, $outcome, $attemptCost, $unknownChanceReason);
 
         return new InventionCost(
             $inventionRecipe,

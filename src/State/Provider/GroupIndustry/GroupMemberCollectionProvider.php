@@ -7,13 +7,13 @@ namespace App\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
-use App\Entity\GroupIndustryProjectMember;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\GroupMemberStatus;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustryProjectMemberRepository;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -26,9 +26,9 @@ class GroupMemberCollectionProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly GroupIndustryProjectRepository $projectRepository,
-        private readonly GroupIndustryProjectMemberRepository $memberRepository,
-        private readonly GroupIndustryContributionRepository $contributionRepository,
+        private readonly IndustryProjectRepository $projectRepository,
+        private readonly IndustryProjectParticipantRepository $memberRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly GroupProjectAccessChecker $accessChecker,
         private readonly GroupIndustryResourceMapper $mapper,
     ) {
@@ -51,7 +51,7 @@ class GroupMemberCollectionProvider implements ProviderInterface
         }
 
         $project = $this->projectRepository->find(UuidOrNotFound::of($projectId, 'Project not found'));
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 
@@ -77,7 +77,7 @@ class GroupMemberCollectionProvider implements ProviderInterface
         }
 
         return array_map(
-            function (GroupIndustryProjectMember $member) use ($contributionsByMember) {
+            function (IndustryProjectParticipant $member) use ($contributionsByMember) {
                 $memberId = $member->getId()->toString();
                 $memberContributions = $contributionsByMember[$memberId] ?? [];
 

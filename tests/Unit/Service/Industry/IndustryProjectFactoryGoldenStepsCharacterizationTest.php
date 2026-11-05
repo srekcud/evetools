@@ -743,8 +743,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
     public function testRegeneratedStepsOfAProjectPlanNeitherItsExcludedComponentsNorTheBlacklist(): void
     {
         $this->pilot->setIndustryBlacklistTypeIds([self::TITANIUM_CARBIDE]);
-        $project = (new IndustryProject())
-            ->setUser($this->pilot)
+        $project = (new IndustryProject())->setOwner($this->pilot)
             ->setProductTypeId(self::QUANTUM_MICROPROCESSOR)
             ->setRuns(32)
             ->setMeLevel(10)
@@ -1357,7 +1356,7 @@ final class IndustryProjectFactoryGoldenStepsCharacterizationTest extends TestCa
      */
     private function projectOfStepsWithoutStructure(array $steps): IndustryProject
     {
-        $project = (new IndustryProject())->setUser($this->pilot);
+        $project = (new IndustryProject())->setOwner($this->pilot);
         foreach ($steps as $step) {
             $project->addStep($step);
         }

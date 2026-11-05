@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\Industry;
 
-use App\Enum\ProjectStatus;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class UpdateProjectInput
 {
+    public const string STATUS_ACTIVE = 'active';
+    public const string STATUS_COMPLETED = 'completed';
+
     #[Assert\Range(min: 1, max: CreateProjectInput::MAXIMUM_PROJECT_RUNS)]
     public ?int $runs = null;
 
@@ -36,7 +38,7 @@ class UpdateProjectInput
 
     public ?string $notes = null;
 
-    #[Assert\Choice(choices: ['active', 'completed', 'archived'])]
+    #[Assert\Choice(choices: [self::STATUS_ACTIVE, self::STATUS_COMPLETED])]
     public ?string $status = null;
 
     public ?bool $personalUse = null;

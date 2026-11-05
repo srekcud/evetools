@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustrySale;
-use App\Repository\GroupIndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Entity\IndustryProjectSale;
+use App\Entity\IndustryProject;
+use App\Repository\IndustryProjectSaleRepository;
+use App\Repository\IndustryProjectRepository;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\Uuid;
 
@@ -16,7 +16,7 @@ trait ResolvesSaleOfProject
     /**
      * @param array<string, string> $uriVariables
      */
-    private function projectOf(GroupIndustryProjectRepository $projectRepository, array $uriVariables): GroupIndustryProject
+    private function projectOf(IndustryProjectRepository $projectRepository, array $uriVariables): IndustryProject
     {
         $projectId = $uriVariables['projectId'] ?? null;
         if ($projectId === null || !Uuid::isValid($projectId)) {
@@ -24,7 +24,7 @@ trait ResolvesSaleOfProject
         }
 
         $project = $projectRepository->find(Uuid::fromString($projectId));
-        if ($project === null) {
+        if ($project === null || $project->isPlannedBySteps()) {
             throw new NotFoundHttpException('Project not found');
         }
 
@@ -34,7 +34,7 @@ trait ResolvesSaleOfProject
     /**
      * @param array<string, string> $uriVariables
      */
-    private function saleOf(GroupIndustrySaleRepository $saleRepository, GroupIndustryProject $project, array $uriVariables): GroupIndustrySale
+    private function saleOf(IndustryProjectSaleRepository $saleRepository, IndustryProject $project, array $uriVariables): IndustryProjectSale
     {
         $saleId = $uriVariables['id'] ?? null;
         if ($saleId === null || !Uuid::isValid($saleId)) {

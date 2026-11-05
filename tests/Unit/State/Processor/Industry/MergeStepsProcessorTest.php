@@ -50,7 +50,7 @@ final class MergeStepsProcessorTest extends TestCase
     public function testMergingAManuallySplitGroupGivesBackTheRunsAndTheNeedOfTheStep(): void
     {
         $user = new User();
-        $project = (new IndustryProject())->setUser($user);
+        $project = (new IndustryProject())->setOwner($user);
         $step = (new IndustryProjectStep())
             ->setProductTypeId(self::FERNITE_ALLOY)
             ->setBlueprintTypeId(self::FERNITE_ALLOY_FORMULA)
@@ -102,7 +102,7 @@ final class MergeStepsProcessorTest extends TestCase
     #[Group('issue-73')]
     public function testMergingASplitConsumerGivesItsMaterialStepTheMaterialsOfTheSingleJob(): void
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $firstJob = $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 11, quantity: 11, splitGroupId: 'quantum-microprocessor', splitIndex: 0, totalGroupRuns: 32);
         $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 11, quantity: 11, splitGroupId: 'quantum-microprocessor', splitIndex: 1, totalGroupRuns: 32);
         $this->stepOf($project, self::QUANTUM_MICROPROCESSOR, 'manufacturing', runs: 10, quantity: 10, splitGroupId: 'quantum-microprocessor', splitIndex: 2, totalGroupRuns: 32);
@@ -119,7 +119,7 @@ final class MergeStepsProcessorTest extends TestCase
     #[Group('issue-73')]
     public function testMergingASplitConsumerLowersTheRunsOfAMaterialStepToItsNewNeed(): void
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $firstJob = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 1, quantity: 1, splitGroupId: 'scorpion', splitIndex: 0, totalGroupRuns: 5);
         foreach ([1, 2, 3, 4] as $splitIndex) {
             $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 1, quantity: 1, splitGroupId: 'scorpion', splitIndex: $splitIndex, totalGroupRuns: 5);
@@ -138,7 +138,7 @@ final class MergeStepsProcessorTest extends TestCase
     #[Group('issue-179')]
     public function testMergeRefreshesTheEstimationsOnceWithTheMergedJobAndBeforeTheFlush(): void
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $firstJob = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 2, quantity: 2, splitGroupId: 'scorpion', splitIndex: 0, totalGroupRuns: 5);
         $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 3, quantity: 3, splitGroupId: 'scorpion', splitIndex: 1, totalGroupRuns: 5);
 
@@ -150,7 +150,7 @@ final class MergeStepsProcessorTest extends TestCase
     #[Group('issue-179')]
     public function testMergeOfAStepThatIsNotSplitIsRefusedWithoutRefreshingTheEstimations(): void
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $step = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 5, quantity: 5);
 
         try {
@@ -164,7 +164,7 @@ final class MergeStepsProcessorTest extends TestCase
     #[Group('issue-179')]
     public function testMergeOfASplitGroupWithoutSiblingIsRefusedWithoutRefreshingTheEstimations(): void
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $onlyJob = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 5, quantity: 5, splitGroupId: 'scorpion', splitIndex: 0, totalGroupRuns: 5);
 
         try {
@@ -178,7 +178,7 @@ final class MergeStepsProcessorTest extends TestCase
     #[Group('issue-179')]
     public function testMergeOfAStepOfAProjectOfAnotherPilotIsRefusedWithoutRefreshingTheEstimations(): void
     {
-        $project = (new IndustryProject())->setUser(new User());
+        $project = (new IndustryProject())->setOwner(new User());
         $firstJob = $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 2, quantity: 2, splitGroupId: 'scorpion', splitIndex: 0, totalGroupRuns: 5);
         $this->stepOf($project, self::SCORPION, 'manufacturing', runs: 3, quantity: 3, splitGroupId: 'scorpion', splitIndex: 1, totalGroupRuns: 5);
         $security = $this->createStub(Security::class);
@@ -223,7 +223,7 @@ final class MergeStepsProcessorTest extends TestCase
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
-        $projectRepository->method('find')->willReturn((new IndustryProject())->setUser($user));
+        $projectRepository->method('find')->willReturn((new IndustryProject())->setOwner($user));
         $stepRepository = $this->createMock(IndustryProjectStepRepository::class);
         $stepRepository->expects($this->never())->method('find');
         $processor = new MergeStepsProcessor(
@@ -245,7 +245,7 @@ final class MergeStepsProcessorTest extends TestCase
     private function merge(IndustryProject $project, IndustryProjectStep $jobOfTheSplitGroup, ?EntityManagerInterface $entityManager = null): void
     {
         $security = $this->createStub(Security::class);
-        $security->method('getUser')->willReturn($project->getUser());
+        $security->method('getUser')->willReturn($project->getOwner());
         $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($project);
         $stepRepository = $this->createStub(IndustryProjectStepRepository::class);

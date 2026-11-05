@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use App\Entity\Character;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectRepository;
+use App\Repository\IndustryProjectSaleRepository;
 use PHPUnit\Framework\MockObject\Stub;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Mercure\Update;
@@ -27,15 +28,15 @@ trait SabreBatchSales
     private const string SABRE_SALE_CREATED_AT = '2026-10-21T16:50:00+00:00';
     private const string SABRE_SALE_RECORDER_NAME = 'Brann Holt';
 
-    private GroupIndustrySale $sabreSale;
-    private GroupIndustryProject $hecateBatch;
+    private IndustryProjectSale $sabreSale;
+    private IndustryProject $hecateBatch;
 
     private function recordSabreSale(): void
     {
         $recorder = $this->createStub(User::class);
         $recorder->method('getMainCharacter')->willReturn((new Character())->setName(self::SABRE_SALE_RECORDER_NAME));
 
-        $this->sabreSale = (new GroupIndustrySale())
+        $this->sabreSale = (new IndustryProjectSale())
             ->setTypeId(self::TYPE_ID_TYPED_BY_NAME)
             ->setTypeName('Sabre')
             ->setQuantity(self::SABRE_SALE_QUANTITY)
@@ -44,25 +45,25 @@ trait SabreBatchSales
             ->setVenue(self::SABRE_SALE_VENUE)
             ->setSoldAt(new \DateTimeImmutable(self::SABRE_SALE_SOLD_AT))
             ->setRecordedBy($recorder);
-        (new \ReflectionProperty(GroupIndustrySale::class, 'id'))->setValue($this->sabreSale, Uuid::v4());
-        (new \ReflectionProperty(GroupIndustrySale::class, 'createdAt'))->setValue($this->sabreSale, new \DateTimeImmutable(self::SABRE_SALE_CREATED_AT));
+        (new \ReflectionProperty(IndustryProjectSale::class, 'id'))->setValue($this->sabreSale, Uuid::v4());
+        (new \ReflectionProperty(IndustryProjectSale::class, 'createdAt'))->setValue($this->sabreSale, new \DateTimeImmutable(self::SABRE_SALE_CREATED_AT));
         $this->sabreBatch->addSale($this->sabreSale);
     }
 
     private function createHecateBatchOfTheSabreBatchOwner(): void
     {
-        $this->hecateBatch = new GroupIndustryProject();
+        $this->hecateBatch = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->hecateBatch->setOwner($this->sabreBatchOwner);
         $this->hecateBatch->setName('Hecate batch');
         $this->hecateBatch->setStatus(GroupProjectStatus::Selling);
-        (new \ReflectionProperty(GroupIndustryProject::class, 'id'))->setValue($this->hecateBatch, Uuid::v4());
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->hecateBatch, Uuid::v4());
     }
 
-    private function projectRepositoryOfTheSabreAndHecateBatches(): GroupIndustryProjectRepository&Stub
+    private function projectRepositoryOfTheSabreAndHecateBatches(): IndustryProjectRepository&Stub
     {
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturnCallback(
-            fn (Uuid $id): ?GroupIndustryProject => match (true) {
+            fn (Uuid $id): ?IndustryProject => match (true) {
                 $id->equals($this->sabreBatch->getId()) => $this->sabreBatch,
                 $id->equals($this->hecateBatch->getId()) => $this->hecateBatch,
                 default => null,
@@ -72,14 +73,14 @@ trait SabreBatchSales
         return $projectRepository;
     }
 
-    private function saleRepositoryOfTheSabreSale(): GroupIndustrySaleRepository&Stub
+    private function saleRepositoryOfTheSabreSale(): IndustryProjectSaleRepository&Stub
     {
-        $saleRepository = $this->createStub(GroupIndustrySaleRepository::class);
+        $saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
         $saleRepository->method('find')->willReturnCallback(
-            fn (Uuid|string $id): ?GroupIndustrySale => $this->isTheSabreSaleId($id) ? $this->sabreSale : null,
+            fn (Uuid|string $id): ?IndustryProjectSale => $this->isTheSabreSaleId($id) ? $this->sabreSale : null,
         );
         $saleRepository->method('findOneBy')->willReturnCallback(
-            fn (array $criteria): ?GroupIndustrySale => $this->sabreSaleMeetsEveryCriterion($criteria) ? $this->sabreSale : null,
+            fn (array $criteria): ?IndustryProjectSale => $this->sabreSaleMeetsEveryCriterion($criteria) ? $this->sabreSale : null,
         );
 
         return $saleRepository;

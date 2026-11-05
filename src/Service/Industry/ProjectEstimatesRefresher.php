@@ -47,7 +47,7 @@ class ProjectEstimatesRefresher
     {
         $this->logger->warning('Industry project estimation failed', [
             'estimation' => $estimation,
-            'projectId' => $project->getId()?->toRfc4122(),
+            'projectId' => $project->getId()->toRfc4122(),
             'reason' => $exception->getMessage(),
             'exception' => $exception,
         ]);

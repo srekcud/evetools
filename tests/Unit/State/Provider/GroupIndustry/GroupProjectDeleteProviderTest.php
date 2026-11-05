@@ -6,18 +6,19 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 
 use ApiPlatform\Metadata\Delete;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
-use App\Entity\GroupIndustryBomItem;
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
-use App\Entity\GroupIndustryProjectMember;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
 use App\Enum\GroupProjectStatus;
-use App\Repository\GroupIndustryProjectRepository;
+use App\Repository\IndustryProjectRepository;
 use App\State\Provider\GroupIndustry\GroupProjectDeleteProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -32,26 +33,26 @@ use Symfony\Component\Uid\Uuid;
 class GroupProjectDeleteProviderTest extends TestCase
 {
     private User $owner;
-    private GroupIndustryProject $project;
-    private GroupIndustryProjectMember $contributor;
-    private GroupIndustryBomItem $tritanium;
+    private IndustryProject $project;
+    private IndustryProjectParticipant $contributor;
+    private IndustryProjectBomLine $tritanium;
 
     protected function setUp(): void
     {
         $this->owner = $this->createStub(User::class);
 
-        $this->project = new GroupIndustryProject();
+        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
         $this->project->setOwner($this->owner);
         $this->assignId($this->project);
 
-        $this->contributor = new GroupIndustryProjectMember();
+        $this->contributor = new IndustryProjectParticipant();
         $this->contributor->setUser($this->createStub(User::class));
         $this->contributor->setRole(GroupMemberRole::Member);
         $this->contributor->setStatus(GroupMemberStatus::Accepted);
         $this->assignId($this->contributor);
         $this->project->addMember($this->contributor);
 
-        $this->tritanium = new GroupIndustryBomItem();
+        $this->tritanium = new IndustryProjectBomLine();
         $this->tritanium->setTypeId(34);
         $this->tritanium->setTypeName('Tritanium');
         $this->tritanium->setRequiredQuantity(12000);
@@ -109,7 +110,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     public function testAdminWhoIsNotTheOwnerCannotDeleteAPublishedProject(): void
     {
         $admin = $this->createStub(User::class);
-        $adminMember = new GroupIndustryProjectMember();
+        $adminMember = new IndustryProjectParticipant();
         $adminMember->setUser($admin);
         $adminMember->setRole(GroupMemberRole::Admin);
         $adminMember->setStatus(GroupMemberStatus::Accepted);
@@ -126,7 +127,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(null);
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($this->project);
 
         $this->expectException(UnauthorizedHttpException::class);
@@ -139,7 +140,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->owner);
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn(null);
 
         $this->expectException(NotFoundHttpException::class);
@@ -151,7 +152,7 @@ class GroupProjectDeleteProviderTest extends TestCase
 
     private function addContribution(ContributionStatus $status, int $quantity): void
     {
-        $contribution = new GroupIndustryContribution();
+        $contribution = new IndustryProjectContribution();
         $contribution->setMember($this->contributor);
         $contribution->setBomItem($this->tritanium);
         $contribution->setType(ContributionType::Material);
@@ -166,7 +167,7 @@ class GroupProjectDeleteProviderTest extends TestCase
 
     private function addSale(): void
     {
-        $sale = new GroupIndustrySale();
+        $sale = new IndustryProjectSale();
         $sale->setTypeId(28606);
         $sale->setTypeName('Orca');
         $sale->setQuantity(2);
@@ -182,7 +183,7 @@ class GroupProjectDeleteProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
-        $projectRepository = $this->createStub(GroupIndustryProjectRepository::class);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
         $projectRepository->method('find')->willReturn($this->project);
 
         $provider = new GroupProjectDeleteProvider($security, $projectRepository);

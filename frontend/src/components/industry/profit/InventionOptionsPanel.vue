@@ -7,6 +7,9 @@ const props = defineProps<{
   baseProbability: number | null
   unknownReason: InventionUnknownReason | null
   datacores: (string | null)[]
+  datacoresCostPerAttempt: number | null
+  inventors: { id: string, name: string }[]
+  selectedInventorId: string | null
   options: ProfitMarginInventionOption[]
   bestDecryptorIndex: number
   selectedOption: ProfitMarginInventionOption | null
@@ -18,6 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'select-decryptor': [option: ProfitMarginInventionOption]
+  'select-inventor': [characterId: string | null]
 }>()
 
 const { t } = useI18n()
@@ -60,6 +64,26 @@ function formatCost(cost: number | null): string {
   return formatIsk(cost)
 }
 
+function onInventorChange(event: Event) {
+  const characterId = (event.target as HTMLSelectElement).value
+  emit('select-inventor', characterId === '' ? null : characterId)
+}
+
+function formatAttempts(attempts: number | null): string {
+  if (attempts == null) return t('industry.inventionUnknown.label')
+  return attempts.toFixed(1)
+}
+
+function formatCostDelta(delta: number | null): string {
+  if (delta == null || delta === 0) return '—'
+  return `${delta > 0 ? '+' : ''}${formatIsk(delta)}`
+}
+
+function deltaColor(delta: number | null): string {
+  if (delta == null || delta === 0) return 'text-slate-500'
+  return delta < 0 ? 'text-emerald-400' : 'text-red-400'
+}
+
 function formatMargin(margin: number | null): string {
   if (margin == null) return t('industry.inventionUnknown.label')
   return `${margin >= 0 ? '+' : ''}${margin.toFixed(1)}%`
@@ -93,6 +117,20 @@ function selectedDecryptorName(): string {
           <span>{{ t('industry.bpcKitTab.baseProbability') }}: <span class="text-cyan-400 font-mono">{{ formatProbability(props.baseProbability) }}</span></span>
           <span class="text-slate-500">|</span>
           <span>{{ t('industry.bpcKitTab.datacoresLabel') }}: <span class="text-slate-400">{{ props.datacores.map(name => name ?? t('common.unknownName')).join(' + ') }}</span></span>
+          <span class="text-slate-500">|</span>
+          <label class="flex items-center gap-1">{{ t('industry.margins.inventorLabel') }}:
+            <select
+              data-test="inventor-select"
+              class="bg-slate-800 border border-slate-700 rounded-sm text-slate-200 px-1.5 py-0.5"
+              :value="props.selectedInventorId ?? ''"
+              @change="onInventorChange"
+            >
+              <option value="">{{ t('industry.margins.withoutSkills') }}</option>
+              <option v-for="inventor in props.inventors" :key="inventor.id" :value="inventor.id">{{ inventor.name }}</option>
+            </select>
+          </label>
+          <span class="text-slate-500">|</span>
+          <span>{{ t('industry.margins.datacoresCostPerAttempt') }}: <span class="text-slate-400 font-mono">{{ formatCost(props.datacoresCostPerAttempt) }}</span></span>
         </div>
       </div>
       <p v-if="props.unknownReason != null" class="mt-2 text-xs text-amber-400">
@@ -109,7 +147,11 @@ function selectedDecryptorName(): string {
             <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.me') }}</th>
             <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.te') }}</th>
             <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.runsBpc') }}</th>
-            <th class="text-right py-2.5 px-3">{{ t('industry.margins.probability') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.probability') }} <span v-if="props.selectedInventorId == null" class="normal-case tracking-normal text-slate-500">{{ t('industry.margins.probabilityWithoutSkills') }}</span></th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.attemptsCol') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.decryptorCostCol') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.costPerUnitCol') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.deltaPerUnitCol') }}</th>
             <th class="text-right py-2.5 px-3">{{ t('industry.margins.inventionCostCol') }}</th>
             <th class="text-right py-2.5 px-3">{{ t('industry.margins.totalProdCost') }}</th>
             <th class="text-right py-2.5 px-3">{{ t('industry.margins.bestMarginCol') }}</th>
@@ -176,6 +218,22 @@ function selectedDecryptorName(): string {
             <!-- Probability -->
             <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
               {{ formatProbability(option.probability) }}
+            </td>
+
+            <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+              {{ formatAttempts(option.expectedAttempts) }}
+            </td>
+
+            <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+              {{ formatCost(option.decryptorCost) }}
+            </td>
+
+            <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+              {{ formatCost(option.costPerUnit) }}
+            </td>
+
+            <td class="py-2.5 px-3 text-right font-mono" :class="deltaColor(option.costPerUnitDelta)">
+              {{ formatCostDelta(option.costPerUnitDelta) }}
             </td>
 
             <!-- Invention Cost -->

@@ -685,7 +685,7 @@ final class UpdateStepFixedRunsTest extends IntegrationTestCase
             $input->{$field} = $value;
         }
 
-        $owner = $project->getUser();
+        $owner = $project->getOwner();
         self::getContainer()->get('security.token_storage')->setToken(new UsernamePasswordToken($owner, 'api', $owner->getRoles()));
         $projectId = $project->getId();
         self::assertNotNull($projectId);

@@ -190,8 +190,7 @@ final class ProjectEstimatesRefresherTest extends TestCase
 
     private function estimatedProject(): IndustryProject
     {
-        return (new IndustryProject())
-            ->setUser(new User())
+        return (new IndustryProject())->setOwner(new User())
             ->setProductTypeId(self::RIFTER)
             ->setRuns(self::PROJECT_RUNS)
             ->setEstimatedJobCost(self::STALE_ESTIMATED_JOB_COST)

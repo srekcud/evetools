@@ -32,7 +32,7 @@ class ProjectCollectionProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $projects = $this->projectRepository->findByUserWithStepsAndJobMatches($user);
+        $projects = $this->projectRepository->findByOwnerWithStepsAndJobMatches($user);
 
         $resource = new ProjectListResource();
 

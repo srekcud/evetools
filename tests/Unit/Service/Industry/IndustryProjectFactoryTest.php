@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
@@ -17,6 +18,9 @@ use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Industry\Application\InventionCatalog;
 use App\Industry\Application\InventionRecipe;
+use App\Enum\GroupMemberRole;
+use App\Enum\GroupMemberStatus;
+use App\Enum\GroupProjectStatus;
 use App\Industry\Domain\Runs;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
@@ -403,7 +407,7 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame(20, $project->getTeLevel());
         $this->assertSame(2.0, $project->getMaxJobDurationDays());
         $this->assertSame('Test Rifter', $project->getName());
-        $this->assertSame($user, $project->getUser());
+        $this->assertSame($user, $project->getOwner());
 
         // Should have 1 manufacturing step
         $steps = $project->getSteps();
@@ -415,6 +419,26 @@ class IndustryProjectFactoryTest extends TestCase
         $this->assertSame('manufacturing', $step->getActivityType());
         $this->assertSame(10, $step->getRuns());
         $this->assertSame(0, $step->getDepth());
+    }
+
+    #[Group('issue-362')]
+    public function testCreateProjectAddsTheOwnerAsTheOnlyAcceptedOwnerParticipantOfADraftProjectWithAnInvitationCode(): void
+    {
+        $user = $this->createUser();
+        $this->invTypeRepository->method('find')->willReturn($this->createMock(InvType::class));
+        $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(586, 587, 'Rifter', 10));
+        $this->setupDefaultMocks();
+
+        $project = $this->factory->createProject($user, 587, 10, 10, 2.0, 20, 'Test Rifter');
+
+        $this->assertSame(GroupProjectStatus::Draft, $project->getStatus());
+        $this->assertSame(10, strlen($project->getShortLinkCode()));
+        $this->assertCount(1, $project->getMembers());
+        $participant = $project->getMembers()->first();
+        $this->assertInstanceOf(IndustryProjectParticipant::class, $participant);
+        $this->assertSame($user, $participant->getUser());
+        $this->assertSame(GroupMemberRole::Owner, $participant->getRole());
+        $this->assertSame(GroupMemberStatus::Accepted, $participant->getStatus());
     }
 
     public function testCreateProjectThrowsForUnknownTypeId(): void
@@ -1098,8 +1122,7 @@ class IndustryProjectFactoryTest extends TestCase
         $this->treeService->method('buildProductionTree')->willReturn($this->buildFlatTreeNode(38001, 38002, 'Assigned Structure Product', 20));
         $this->setupDefaultMocks();
         $this->baseTimeByBlueprintAndActivity = ['38001-1' => 10500];
-        $project = (new IndustryProject())
-            ->setUser($this->userWithCharacters([]))
+        $project = (new IndustryProject())->setOwner($this->userWithCharacters([]))
             ->setProductTypeId(38002)
             ->setRuns(20)
             ->setMeLevel(10)
@@ -1325,8 +1348,7 @@ class IndustryProjectFactoryTest extends TestCase
     private function projectWithTheJobsOfASplitStep(User $user, int $blueprintTypeId, int $productTypeId, array $runsOfEachJob): IndustryProject
     {
         $totalGroupRuns = array_sum($runsOfEachJob);
-        $project = (new IndustryProject())
-            ->setUser($user)
+        $project = (new IndustryProject())->setOwner($user)
             ->setProductTypeId($productTypeId)
             ->setRuns($totalGroupRuns)
             ->setMeLevel(10)
@@ -1443,8 +1465,7 @@ class IndustryProjectFactoryTest extends TestCase
     {
         $this->blacklistService->method('resolveBlacklistedTypeIds')->willReturn([self::NANOTRANSISTORS]);
         $exclusionsOfTheTree = $this->capturesTheExclusionsOfTheTree();
-        $project = (new IndustryProject())
-            ->setUser($this->createUser())
+        $project = (new IndustryProject())->setOwner($this->createUser())
             ->setProductTypeId(self::QUANTUM_MICROPROCESSOR)
             ->setRuns(self::QUANTUM_MICROPROCESSOR_RUNS)
             ->setMeLevel(10)

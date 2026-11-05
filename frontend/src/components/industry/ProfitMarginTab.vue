@@ -2,6 +2,7 @@
 import DataTable from '@/components/common/DataTable.vue'
 import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import { useIndustryStore, type SearchResult, type ProfitMarginResult, type ProfitMarginInventionOption, type MarginEntry } from '@/stores/industry'
 import type { ProductionCostUnknownReason } from '@/stores/industry/types'
 import { useFormatters } from '@/composables/useFormatters'
@@ -45,6 +46,9 @@ const meLevel = ref(STANDARD_ME_LEVEL)
 const teLevel = ref(STANDARD_TE_LEVEL)
 const selectedSolarSystemId = ref<number | null>(null)
 const selectedDecryptorTypeId = ref<number | null | undefined>(undefined)
+const authStore = useAuthStore()
+const inventorChoices = computed(() => (authStore.user?.characters ?? []).map(character => ({ id: character.id, name: character.name })))
+const selectedInventorId = ref<string | null>(authStore.user?.characters.find(character => character.isMain)?.id ?? null)
 
 // UI state
 const materialsExpanded = ref(false)
@@ -152,7 +156,7 @@ const bestVenue = computed(() => {
 
   if (!useOverride) {
     // Use original margins from API
-    let best: { key: string; margin: number; revenue: number; profit: number; fees: number; unitPrice: number } | null = null
+    let best: { key: string; margin: number; revenue: number; profit: number | null; fees: number | null; unitPrice: number } | null = null
     for (const [key, entry] of Object.entries(r.margins)) {
       if (entry != null && entry.margin != null && (best == null || entry.margin > best.margin)) {
         const unitPrice = r.sellPrices[key as SellVenue]
@@ -164,7 +168,7 @@ const bestVenue = computed(() => {
   }
 
   // Recompute margins with selected decryptor's totalProductionCost
-  let best: { key: string; margin: number; revenue: number; profit: number; fees: number; unitPrice: number } | null = null
+  let best: { key: string; margin: number; revenue: number; profit: number | null; fees: number | null; unitPrice: number } | null = null
   const prices: [SellVenue, number | null][] = [
     ['jitaSell', r.sellPrices.jitaSell],
     ['structureSell', r.sellPrices.structureSell],
@@ -372,6 +376,7 @@ async function analyzeType(typeId: number): Promise<ProfitMarginResult | null> {
     te: teLevel.value,
     solarSystemId: selectedSolarSystemId.value ?? undefined,
     decryptorTypeId: selectedDecryptorTypeId.value,
+    inventorCharacterId: selectedInventorId.value,
   })
 }
 
@@ -408,6 +413,11 @@ watch(() => props.initialTypeId, (typeId) => {
   if (typeId === undefined) return
   return openType(typeId)
 }, { immediate: true })
+
+function selectInventor(characterId: string | null) {
+  selectedInventorId.value = characterId
+  return analyze()
+}
 
 function selectDecryptor(option: ProfitMarginInventionOption) {
   selectedDecryptorTypeId.value = option.decryptorTypeId
@@ -624,6 +634,9 @@ store.fetchUserSettings()
         :base-probability="inventionData.baseProbability"
         :unknown-reason="inventionData.unknownReason"
         :datacores="inventionData.datacores"
+        :datacores-cost-per-attempt="inventionData.datacoresCostPerAttempt"
+        :inventors="inventorChoices"
+        :selected-inventor-id="selectedInventorId"
         :options="inventionOptions"
         :best-decryptor-index="bestDecryptorIndex"
         :selected-option="selectedOption"
@@ -632,6 +645,7 @@ store.fetchUserSettings()
         :effective-total-cost="effectiveTotalCost"
         :best-margin="bestMargin"
         @select-decryptor="selectDecryptor"
+        @select-inventor="selectInventor"
       />
 
       <!-- SECTION E1: Material Cost Breakdown -->

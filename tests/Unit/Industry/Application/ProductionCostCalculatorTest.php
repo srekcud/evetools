@@ -1168,4 +1168,46 @@ final class ProductionCostCalculatorTest extends TestCase
         $this->assertTrue($cost->isKnown(), 'cost should be known, missing: '.json_encode($cost->missingData));
         $this->assertEqualsWithDelta($expectedAmount, $cost->amount()->amount, self::ISK_TOLERANCE);
     }
+
+    public function testAnUnknownInventorSkillMakesTheInventionCostUnknownNeverZero(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)->costOf(self::hobgoblinIIRequestWithSettings(new InventionSettings(4, null, 4)));
+
+        $this->assertKnownCost(960400.0, $productionCost->materialCost);
+        $this->assertNotNull($productionCost->invention);
+        $this->assertNull($productionCost->invention->chance);
+        $this->assertNull($productionCost->invention->expectedAttempts);
+        $this->assertKnownCost(280187.175, $productionCost->invention->attemptCost);
+        $this->assertFalse($productionCost->invention->total->isKnown());
+        $this->assertEquals([MissingData::inventorSkills(self::HOBGOBLIN_I_BLUEPRINT)], $productionCost->totalCost->missingData);
+        $this->assertFalse($productionCost->costPerUnit->isKnown());
+    }
+
+    public function testAMissingInventionProbabilityOfTheSdeIsReportedBeforeAnUnknownInventorSkill(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(null)->costOf(self::hobgoblinIIRequestWithSettings(new InventionSettings(null, null, null)));
+
+        $this->assertEquals([MissingData::inventionProbability(self::HOBGOBLIN_I_BLUEPRINT)], $productionCost->totalCost->missingData);
+    }
+
+    public function testKnownInventorSkillsKeepTheProbabilityOfTheCharacter(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)->costOf(self::hobgoblinIIRequestWithSettings(new InventionSettings(4, 4, 4)));
+
+        $this->assertNotNull($productionCost->invention?->chance);
+        $this->assertEqualsWithDelta(self::HOBGOBLIN_II_BASE_PROBABILITY * (1 + 8 / 30 + 4 / 40), $productionCost->invention->chance->value, self::FLOAT_TOLERANCE);
+    }
+
+    private static function hobgoblinIIRequestWithSettings(InventionSettings $settings): ProductionCostRequest
+    {
+        return new ProductionCostRequest(
+            productTypeId: self::HOBGOBLIN_II,
+            runs: new Runs(10),
+            efficiency: new BlueprintEfficiency(new MaterialEfficiency(2), new TimeEfficiency(4)),
+            mode: CostMode::MarginalCost,
+            structures: [],
+            favoriteSystems: new FavoriteSystems(self::FAVORITE_MANUFACTURING_SYSTEM_ID, null),
+            invention: $settings,
+        );
+    }
 }

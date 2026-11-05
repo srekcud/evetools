@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Service\GroupIndustry;
 
-use App\Entity\GroupIndustryContribution;
-use App\Entity\GroupIndustryProject;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
 use App\Enum\ContributionType;
-use App\Repository\GroupIndustryContributionRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryProjectSaleRepository;
 
 class GroupIndustryDistributionService
 {
     public function __construct(
-        private readonly GroupIndustryContributionRepository $contributionRepository,
-        private readonly GroupIndustrySaleRepository $saleRepository,
+        private readonly IndustryProjectContributionRepository $contributionRepository,
+        private readonly IndustryProjectSaleRepository $saleRepository,
     ) {}
 
-    public function calculateDistribution(GroupIndustryProject $project): DistributionResult
+    public function calculateDistribution(IndustryProject $project): DistributionResult
     {
         $sales = $this->saleRepository->findBy(['project' => $project]);
         $totalRevenue = array_sum(array_map(
@@ -25,17 +25,20 @@ class GroupIndustryDistributionService
             $sales,
         ));
 
-        $brokerFee = $totalRevenue * $project->getBrokerFeePercent() / 100;
-        $salesTax = $totalRevenue * $project->getSalesTaxPercent() / 100;
-        $netRevenue = $totalRevenue - $brokerFee - $salesTax;
+        $brokerFeePercent = $project->getBrokerFeePercent();
+        $salesTaxPercent = $project->getSalesTaxPercent();
+        $feesAreKnown = $brokerFeePercent !== null && $salesTaxPercent !== null;
+        $brokerFee = $feesAreKnown ? $totalRevenue * $brokerFeePercent / 100 : null;
+        $salesTax = $feesAreKnown ? $totalRevenue * $salesTaxPercent / 100 : null;
+        $netRevenue = $feesAreKnown ? $totalRevenue - $brokerFee - $salesTax : null;
 
         $approvedContributions = $this->contributionRepository->findApprovedByProject($project);
         $totalProjectCost = array_sum(array_map(
-            static fn (GroupIndustryContribution $c) => $c->getEstimatedValue(),
+            static fn (IndustryProjectContribution $c) => $c->getEstimatedValue(),
             $approvedContributions,
         ));
 
-        $marginRatio = $totalProjectCost > 0
+        $marginRatio = $netRevenue !== null && $totalProjectCost > 0
             ? ($netRevenue - $totalProjectCost) / $totalProjectCost
             : null;
 
@@ -53,12 +56,12 @@ class GroupIndustryDistributionService
     }
 
     /**
-     * @param GroupIndustryContribution[] $contributions
+     * @param IndustryProjectContribution[] $contributions
      * @return MemberDistribution[]
      */
     private function buildMemberDistributions(array $contributions, float $totalProjectCost, ?float $marginRatio): array
     {
-        /** @var array<string, array{contributions: GroupIndustryContribution[], member: \App\Entity\GroupIndustryProjectMember}> $grouped */
+        /** @var array<string, array{contributions: IndustryProjectContribution[], member: \App\Entity\IndustryProjectParticipant}> $grouped */
         $grouped = [];
 
         foreach ($contributions as $contribution) {

@@ -9,10 +9,10 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\ApiResource\Input\GroupIndustry\UpdateSaleInput;
 use App\Entity\Character;
-use App\Entity\GroupIndustrySale;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
-use App\Repository\GroupIndustryProjectRepository;
-use App\Repository\GroupIndustrySaleRepository;
+use App\Repository\IndustryProjectSaleRepository;
+use App\Repository\IndustryProjectRepository;
 use App\Service\GroupIndustry\ResolvesSaleOfProject;
 use App\Service\GroupIndustry\ResolvesSellerOfUser;
 use App\Service\Mercure\MercurePublisherService;
@@ -32,8 +32,8 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
 
     public function __construct(
         private Security $security,
-        private GroupIndustryProjectRepository $projectRepository,
-        private GroupIndustrySaleRepository $saleRepository,
+        private IndustryProjectRepository $projectRepository,
+        private IndustryProjectSaleRepository $saleRepository,
         private GroupProjectAccessChecker $accessChecker,
         private EntityManagerInterface $entityManager,
         private MercurePublisherService $mercurePublisher,
@@ -77,7 +77,7 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
         return GroupIndustrySaleResource::fromSale($sale);
     }
 
-    private function assertCorrectionKeepsTheWalletTransaction(GroupIndustrySale $sale, UpdateSaleInput $correction): void
+    private function assertCorrectionKeepsTheWalletTransaction(IndustryProjectSale $sale, UpdateSaleInput $correction): void
     {
         $transaction = $sale->getWalletTransaction();
         if ($transaction === null) {
@@ -96,7 +96,7 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
         }
     }
 
-    private function applyCorrection(GroupIndustrySale $sale, UpdateSaleInput $correction, ?Character $seller): void
+    private function applyCorrection(IndustryProjectSale $sale, UpdateSaleInput $correction, ?Character $seller): void
     {
         if ($correction->typeId !== null) {
             $sale->setTypeId($correction->typeId);

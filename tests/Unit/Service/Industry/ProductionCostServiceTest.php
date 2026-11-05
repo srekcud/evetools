@@ -110,7 +110,7 @@ class ProductionCostServiceTest extends TestCase
         $project = $this->createMock(IndustryProject::class);
         $project->method('getProductTypeId')->willReturn($productTypeId);
         $project->method('getRuns')->willReturn($runs);
-        $project->method('getUser')->willReturn($user);
+        $project->method('getOwner')->willReturn($user);
         $project->method('getBpoCost')->willReturn($bpoCost);
 
         return $project;
@@ -1419,7 +1419,7 @@ class ProductionCostServiceTest extends TestCase
         $project = $this->createMock(IndustryProject::class);
         $project->method('getProductTypeId')->willReturn(self::RIFTER_TYPE_ID);
         $project->method('getRuns')->willReturn($runs);
-        $project->method('getUser')->willReturn($user);
+        $project->method('getOwner')->willReturn($user);
         $step = $this->createStep('manufacturing', self::RIFTER_TYPE_ID, $runs, null, self::RIFTER_BLUEPRINT_TYPE_ID);
         $step->method('getProject')->willReturn($project);
         $project->method('getSteps')->willReturn(new ArrayCollection([$step]));

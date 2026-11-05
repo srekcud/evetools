@@ -24,7 +24,7 @@ class IndustryShoppingListBuilder
     public function getShoppingList(IndustryProject $project): array
     {
         $needs = $this->needsResolver->resolve($project);
-        $user = $project->getUser();
+        $user = $project->getOwner();
 
         $bestMaterialBonusByStep = [];
         $hasSuboptimalStructure = false;
