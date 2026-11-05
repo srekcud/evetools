@@ -37,7 +37,7 @@ final readonly class StructureTotalCostComparator
         Runs $referenceRuns,
         ?string $productCategory,
         ProductionStructure $structure,
-        int $workshopSolarSystemId,
+        int $favoriteSolarSystemId,
         bool $alphaClone,
     ): Cost {
         $structureSolarSystemId = $structure->solarSystemId;
@@ -47,7 +47,7 @@ final readonly class StructureTotalCostComparator
 
         return $this->materialCost($recipe, $referenceRuns, $productCategory, $structure)
             ->plus($this->installCost($recipe, $referenceRuns, $structure, $structureSolarSystemId, $alphaClone))
-            ->plus($this->transportCost($recipe, $referenceRuns, $workshopSolarSystemId, $structureSolarSystemId));
+            ->plus($this->transportCost($recipe, $referenceRuns, $favoriteSolarSystemId, $structureSolarSystemId));
     }
 
     private function materialCost(Recipe $recipe, Runs $referenceRuns, ?string $productCategory, ProductionStructure $structure): Cost
@@ -94,9 +94,9 @@ final readonly class StructureTotalCostComparator
         )->total;
     }
 
-    private function transportCost(Recipe $recipe, Runs $referenceRuns, int $workshopSolarSystemId, int $structureSolarSystemId): Cost
+    private function transportCost(Recipe $recipe, Runs $referenceRuns, int $favoriteSolarSystemId, int $structureSolarSystemId): Cost
     {
-        $jumps = $this->jumpDistances->jumpsBetween($workshopSolarSystemId, $structureSolarSystemId);
+        $jumps = $this->jumpDistances->jumpsBetween($favoriteSolarSystemId, $structureSolarSystemId);
         if (null === $jumps) {
             return Cost::unknown(MissingData::jumpRoute());
         }

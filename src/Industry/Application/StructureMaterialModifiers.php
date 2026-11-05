@@ -16,7 +16,6 @@ final readonly class StructureMaterialModifiers implements JobMaterialModifiers
 {
     /**
      * @param array<int, ProductionStructure> $assignedStructures structure assigned to the step, by product typeId
-     * @param ?Runs                           $referenceRuns      runs on which the structures are compared at total cost
      */
     public function __construct(
         private StructureSelector $selector,

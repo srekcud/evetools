@@ -68,10 +68,10 @@ final readonly class StructureSelector
      */
     private function bestMaterialMultiplierOrTotalCost(array $candidates, ActivityKind $activity, ?string $productCategory, ?StructureJobBasis $basis): StructureChoice
     {
-        $workshopSolarSystemId = $this->favoriteSystems->forActivity($activity);
+        $favoriteSolarSystemId = $this->favoriteSystems->forActivity($activity);
         $policy = $this->selectionPolicy;
         $comparator = $this->totalCostComparator;
-        if (null === $policy || !$policy->acceptsOutsideFavoriteSystem || null === $comparator || null === $basis || null === $workshopSolarSystemId) {
+        if (null === $policy || !$policy->acceptsOutsideFavoriteSystem || null === $comparator || null === $basis || null === $favoriteSolarSystemId) {
             return $this->bestMaterialMultiplier($candidates, $activity, $productCategory);
         }
 
@@ -83,20 +83,20 @@ final readonly class StructureSelector
             ? $this->bestMaterialMultiplier($candidates, $activity, $productCategory)
             : $this->choiceOf($this->smallestMaterialMultiplier($inFavoriteSystem, $activity, $productCategory), StructureChoiceStatus::BestInFavoriteSystem, $activity, $productCategory);
 
-        return $this->cheaperByTotalCost($reference, $candidates, $activity, $productCategory, $basis, $workshopSolarSystemId, $policy, $comparator);
+        return $this->cheaperByTotalCost($reference, $candidates, $activity, $productCategory, $basis, $favoriteSolarSystemId, $policy, $comparator);
     }
 
     /**
      * @param non-empty-list<ProductionStructure> $candidates
      */
-    private function cheaperByTotalCost(StructureChoice $reference, array $candidates, ActivityKind $activity, ?string $productCategory, StructureJobBasis $basis, int $workshopSolarSystemId, StructureSelectionPolicy $policy, StructureTotalCostComparator $comparator): StructureChoice
+    private function cheaperByTotalCost(StructureChoice $reference, array $candidates, ActivityKind $activity, ?string $productCategory, StructureJobBasis $basis, int $favoriteSolarSystemId, StructureSelectionPolicy $policy, StructureTotalCostComparator $comparator): StructureChoice
     {
         $referenceStructure = $reference->structure;
         if (null === $referenceStructure) {
             return $reference;
         }
 
-        $referenceCost = $comparator->totalCostOf($basis->recipe, $basis->referenceRuns, $productCategory, $referenceStructure, $workshopSolarSystemId, false);
+        $referenceCost = $comparator->totalCostOf($basis->recipe, $basis->referenceRuns, $productCategory, $referenceStructure, $favoriteSolarSystemId, false);
         if (!$referenceCost->isKnown()) {
             return $reference;
         }
@@ -104,7 +104,7 @@ final readonly class StructureSelector
         $knownCosts = [];
         $comparableCandidates = [];
         foreach ($candidates as $candidate) {
-            $cost = $comparator->totalCostOf($basis->recipe, $basis->referenceRuns, $productCategory, $candidate, $workshopSolarSystemId, false);
+            $cost = $comparator->totalCostOf($basis->recipe, $basis->referenceRuns, $productCategory, $candidate, $favoriteSolarSystemId, false);
             if ($cost->isKnown()) {
                 $knownCosts[$candidate->id] = $cost->amount()->amount;
                 $comparableCandidates[] = $candidate;
