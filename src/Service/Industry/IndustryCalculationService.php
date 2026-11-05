@@ -8,6 +8,9 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
+use App\Industry\Application\StructureSelectionPolicy;
+use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\Isk;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\IndustryUserSettingsRepository;
@@ -23,6 +26,7 @@ class IndustryCalculationService
         private readonly IndustryUserSettingsRepository $settingsRepository,
         private readonly StaStationRepository $staStationRepository,
         private readonly CachedStructureRepository $cachedStructureRepository,
+        private readonly ?StructureChoiceByTotalCost $structureChoiceByTotalCost = null,
     ) {
     }
 
@@ -110,13 +114,25 @@ class IndustryCalculationService
             $step->getProductTypeId(),
             $step->getActivityType(),
             $step->getStructureConfig(),
+            self::selectionPolicyOf($step->getProject()),
+            self::referenceRunsOf($step),
         );
+    }
+
+    public static function referenceRunsOf(IndustryProjectStep $step): ?int
+    {
+        return $step->getProject()->isAcceptsOutsideFavoriteSystem() ? $step->getRuns() : null;
+    }
+
+    public static function selectionPolicyOf(IndustryProject $project): StructureSelectionPolicy
+    {
+        return new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving()));
     }
 
     /**
      * @return array{structure: IndustryStructureConfig|null, materialBonus: array{total: float, base: float, rig: float}, timeBonus: float, name: string|null, favoriteSystemWithoutSuitableStructure: bool}
      */
-    public function structureBonusOf(User $user, int $productTypeId, string $activityType, ?IndustryStructureConfig $structureConfig): array
+    public function structureBonusOf(User $user, int $productTypeId, string $activityType, ?IndustryStructureConfig $structureConfig, ?StructureSelectionPolicy $selectionPolicy = null, ?int $referenceRuns = null): array
     {
         $isReaction = $activityType === 'reaction';
 
@@ -130,6 +146,21 @@ class IndustryCalculationService
                 'name' => $structureConfig->getName(),
                 'favoriteSystemWithoutSuitableStructure' => false,
             ];
+        }
+
+        if ($selectionPolicy?->acceptsOutsideFavoriteSystem === true) {
+            $structureChosenByTotalCost = $this->structureChosenByTotalCost($user, $productTypeId, $activityType, $selectionPolicy, $referenceRuns);
+            if ($structureChosenByTotalCost !== null) {
+                $chosenStructureBonus = $this->assignedStructureBonusOf($structureChosenByTotalCost, $productTypeId, $isReaction);
+
+                return [
+                    'structure' => $structureChosenByTotalCost,
+                    'materialBonus' => $chosenStructureBonus['materialBonus'],
+                    'timeBonus' => $chosenStructureBonus['timeBonus'],
+                    'name' => $structureChosenByTotalCost->getName(),
+                    'favoriteSystemWithoutSuitableStructure' => false,
+                ];
+            }
         }
 
         // No assigned structure — try favorite system first, then fallback to global best
@@ -165,6 +196,31 @@ class IndustryCalculationService
             'name' => $structure?->getName(),
             'favoriteSystemWithoutSuitableStructure' => $favoriteSystemId !== null,
         ];
+    }
+
+    private function structureChosenByTotalCost(User $user, int $productTypeId, string $activityType, StructureSelectionPolicy $selectionPolicy, ?int $referenceRuns): ?IndustryStructureConfig
+    {
+        $activity = match ($activityType) {
+            'manufacturing' => ActivityKind::Manufacturing,
+            'reaction' => ActivityKind::Reaction,
+            default => null,
+        };
+        if ($activity === null) {
+            return null;
+        }
+        $chooser = $this->structureChoiceByTotalCost
+            ?? throw new \LogicException('A selection policy accepting structures outside the favorite system needs the structure choice by total cost.');
+        $runs = $referenceRuns ?? throw new \LogicException('A selection policy accepting structures outside the favorite system needs the reference runs of the job.');
+
+        $structureId = $chooser->structureIdChosenFor($user, $productTypeId, $activity, $selectionPolicy, $runs);
+        if ($structureId === null) {
+            return null;
+        }
+
+        return array_find(
+            $this->structureConfigRepository->findByUser($user),
+            static fn (IndustryStructureConfig $structure): bool => $structure->getId()->toRfc4122() === $structureId,
+        ) ?? throw new \LogicException(\sprintf('The structure %s chosen by total cost is not configured by the user.', $structureId));
     }
 
     private function findFavoriteSystemId(User $user, bool $isReaction): ?int

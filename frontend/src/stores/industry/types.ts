@@ -112,6 +112,8 @@ export interface IndustryProject {
   maxJobDurationDays: number
   status: string
   personalUse: boolean
+  acceptsOutsideFavoriteSystem: boolean
+  minimumOutsideSaving: number
   isT2: boolean
   bpoCost: number | null
   materialCost: number | null

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Industry\Application;
 
 use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\Isk;
 use App\Industry\Domain\Runs;
 
 /**
@@ -31,6 +32,7 @@ final readonly class ProductionCostRequest
         public bool $alphaClone = false,
         public array $blueprintCopyMaxRuns = [],
         public array $assignedStructures = [],
+        public StructureSelectionPolicy $selectionPolicy = new StructureSelectionPolicy(false, new Isk(0.0)),
     ) {
     }
 }

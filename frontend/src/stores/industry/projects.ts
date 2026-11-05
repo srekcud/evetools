@@ -7,6 +7,8 @@ import { enrichProject, enrichStep, formatErrorMessage } from './compat'
 
 const MINIMUM_MAX_JOB_DURATION_DAYS = 0.5
 
+export const DEFAULT_MINIMUM_OUTSIDE_SAVING = 500000
+
 export const useProjectsStore = defineStore('industry-projects', () => {
   const projects = ref<IndustryProject[]>([])
   const currentProject = ref<IndustryProject | null>(null)
@@ -49,12 +51,14 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     maxJobDurationDays: number = 2.0,
     name?: string | null,
     excludedTypeIds: number[] = [],
+    acceptsOutsideFavoriteSystem: boolean = false,
+    minimumOutsideSaving: number = DEFAULT_MINIMUM_OUTSIDE_SAVING,
   ) {
     error.value = null
     try {
       const project = enrichProject(await apiRequest<IndustryProject>('/industry/projects', {
         method: 'POST',
-        body: JSON.stringify({ typeId, runs, meLevel, teLevel, maxJobDurationDays, name, excludedTypeIds }),
+        body: JSON.stringify({ typeId, runs, meLevel, teLevel, maxJobDurationDays, name, excludedTypeIds, acceptsOutsideFavoriteSystem, minimumOutsideSaving }),
       }))
       projects.value.unshift(project)
       return project

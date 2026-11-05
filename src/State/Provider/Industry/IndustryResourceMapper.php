@@ -131,6 +131,8 @@ class IndustryResourceMapper
         $resource->maxJobDurationDays = $project->getMaxJobDurationDays();
         $resource->status = $project->getStatus()->value;
         $resource->personalUse = $project->isPersonalUse();
+        $resource->acceptsOutsideFavoriteSystem = $project->isAcceptsOutsideFavoriteSystem();
+        $resource->minimumOutsideSaving = $project->getMinimumOutsideSaving();
         $resource->bpoCost = $project->getBpoCost();
         $resource->materialCost = $project->getMaterialCost();
         $resource->transportCost = $project->getTransportCost();
@@ -258,6 +260,9 @@ class IndustryResourceMapper
             $step->getActivityType(),
             $step->getTeLevel(),
             $step->getStructureConfig(),
+            null,
+            IndustryCalculationService::selectionPolicyOf($step->getProject()),
+            IndustryCalculationService::referenceRunsOf($step),
         );
         $resource->timePerRun = $timeAndCharacter['timePerRun'];
         $resource->recommendedCharacterName = $timeAndCharacter['recommendedCharacterName'];

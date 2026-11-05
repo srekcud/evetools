@@ -946,7 +946,9 @@
       "t2Locked": "T2 : ME/TE definis par l'invention",
       "newProject": "Nouveau projet",
       "optional": "optionnel",
-      "projectNamePlaceholder": "Ex: Flotte Rorqual, Build Capital..."
+      "projectNamePlaceholder": "Ex: Flotte Rorqual, Build Capital...",
+      "acceptsOutsideFavoriteSystem": "Accepter une structure hors du systeme prefere si elle revient moins cher, transport compris",
+      "minimumOutsideSaving": "Economie minimale"
     },
     "project": {
       "delete": "Supprimer le projet",

@@ -52,6 +52,7 @@ final readonly class ProductionCostCalculator
         private AdjustedPrices $adjustedPrices,
         private SystemCostIndices $costIndices,
         private RigCategories $rigCategories,
+        private ?StructureTotalCostComparator $structureTotalCostComparator = null,
     ) {
         $this->planner = new ProductionPlanner($blueprints);
     }
@@ -60,13 +61,13 @@ final readonly class ProductionCostCalculator
     {
         $recipes = new RecipeMemory($this->blueprints);
         $recipe = self::recipeOf($request->productTypeId, $recipes);
-        $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices);
+        $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices, $this->structureTotalCostComparator, $request->selectionPolicy);
         $inventionRecipe = $this->inventions->inventionOf($request->productTypeId);
         $invention = null === $inventionRecipe ? null : $this->inventionCost($inventionRecipe, $request, $selector, $recipes);
         $targetEfficiency = null === $invention
             ? $request->efficiency
             : new BlueprintEfficiency($invention->outcome->materialEfficiency, $invention->outcome->timeEfficiency);
-        $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories, $request->assignedStructures);
+        $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories, $request->assignedStructures, $request->runs);
         $planRequest = new PlanRequest(
             [new PlanTarget($request->productTypeId, $request->runs, $targetEfficiency)],
             $materialModifiers,

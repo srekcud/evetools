@@ -12,6 +12,8 @@ final readonly class MissingData
     private const string ADJUSTED_PRICE = 'adjusted_price';
     private const string COST_INDEX = 'cost_index';
     private const string INVENTION_PROBABILITY = 'invention_probability';
+    private const string ITEM_VOLUME = 'item_volume';
+    private const string JUMP_ROUTE = 'jump_route';
     private const string MARKET_PRICE = 'market_price';
 
     private function __construct(public string $reason, public ?int $typeId)
@@ -31,6 +33,16 @@ final readonly class MissingData
     public static function costIndex(): self
     {
         return new self(self::COST_INDEX, null);
+    }
+
+    public static function itemVolume(int $typeId): self
+    {
+        return new self(self::ITEM_VOLUME, $typeId);
+    }
+
+    public static function jumpRoute(): self
+    {
+        return new self(self::JUMP_ROUTE, null);
     }
 
     /**

@@ -16,6 +16,7 @@ use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\EmptyInput;
 use App\ApiResource\Input\Industry\CreateProjectInput;
 use App\ApiResource\Input\Industry\UpdateProjectInput;
+use App\Entity\IndustryProject;
 use App\State\Processor\Industry\CreateProjectProcessor;
 use App\State\Processor\Industry\DeleteProjectProcessor;
 use App\State\Processor\Industry\MatchJobsProcessor;
@@ -139,6 +140,10 @@ class ProjectResource
     public ?string $notes = null;
 
     public bool $personalUse = false;
+
+    public bool $acceptsOutsideFavoriteSystem = false;
+
+    public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
     public ?string $jobsStartDate = null;
 

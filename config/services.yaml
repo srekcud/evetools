@@ -91,6 +91,8 @@ services:
     App\Industry\Application\RigCategories: '@App\Industry\Infrastructure\Sde\SdeRigCategories'
     App\Industry\Application\UserProductionStructures: '@App\Industry\Infrastructure\Doctrine\ConfiguredProductionStructures'
     App\Industry\Application\Decryptors: '@App\Industry\Infrastructure\Sde\SdeDecryptors'
+    App\Industry\Application\JumpDistances: '@App\Industry\Infrastructure\Sde\SdeJumpDistances'
+    App\Industry\Application\ItemVolumes: '@App\Industry\Infrastructure\Sde\SdeItemVolumes'
 
 when@test:
     services:
@@ -127,4 +129,10 @@ when@test:
             public: true
         App\Industry\Application\Decryptors:
             alias: App\Industry\Infrastructure\Sde\SdeDecryptors
+            public: true
+        App\Industry\Application\JumpDistances:
+            alias: App\Industry\Infrastructure\Sde\SdeJumpDistances
+            public: true
+        App\Industry\Application\ItemVolumes:
+            alias: App\Industry\Infrastructure\Sde\SdeItemVolumes
             public: true

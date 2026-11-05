@@ -10,6 +10,7 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\User;
 use App\Industry\Application\InventionCatalog;
+use App\Industry\Application\StructureSelectionPolicy;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -44,7 +45,7 @@ class IndustryProjectFactory
     /**
      * @param list<int> $excludedTypeIds
      */
-    public function createProject(User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays = 2.0, int $teLevel = 0, ?string $name = null, array $excludedTypeIds = []): IndustryProject
+    public function createProject(User $user, int $productTypeId, int $runs, int $meLevel, float $maxJobDurationDays = 2.0, int $teLevel = 0, ?string $name = null, array $excludedTypeIds = [], bool $acceptsOutsideFavoriteSystem = false, float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING): IndustryProject
     {
         $type = $this->invTypeRepository->find($productTypeId);
         if ($type === null) {
@@ -60,13 +61,16 @@ class IndustryProjectFactory
         $project->setTeLevel($teLevel);
         $project->setMaxJobDurationDays($maxJobDurationDays);
         $project->setExcludedTypeIds(array_values(array_unique($excludedTypeIds)));
+        $project->setAcceptsOutsideFavoriteSystem($acceptsOutsideFavoriteSystem);
+        $project->setMinimumOutsideSaving($minimumOutsideSaving);
 
         $tree = $this->productionTreeOf($project);
 
         $rawSteps = [];
         $this->collectStepsFromTree($rawSteps, $tree, $meLevel, $teLevel);
-        $this->addTimeDataToSteps($rawSteps, $user);
-        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), [], []);
+        $selectionPolicy = IndustryCalculationService::selectionPolicyOf($project);
+        $this->addTimeDataToSteps($rawSteps, $user, $selectionPolicy);
+        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), [], [], $selectionPolicy);
 
         $this->sortRawSteps($rawSteps);
         $this->applyPlanToExistingSteps($project, $rawSteps);
@@ -159,8 +163,9 @@ class IndustryProjectFactory
         $rawSteps = [];
         $this->collectStepsFromTree($rawSteps, $tree, $project->getMeLevel(), $project->getTeLevel());
         $rawSteps = array_map(fn (array $rawStep): array => $this->withSettingsOfExistingStep($rawStep, $settingsOfExistingSteps), $rawSteps);
-        $this->addTimeDataToSteps($rawSteps, $user);
-        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), $settingsOfExistingSteps, $this->existingJobsWithFixedRunsByKey($project));
+        $selectionPolicy = IndustryCalculationService::selectionPolicyOf($project);
+        $this->addTimeDataToSteps($rawSteps, $user, $selectionPolicy);
+        $rawSteps = $this->planStepsJobByJob($rawSteps, $user, $project->getMaxJobDurationDays(), $settingsOfExistingSteps, $this->existingJobsWithFixedRunsByKey($project), $selectionPolicy);
 
         $this->sortRawSteps($rawSteps);
 
@@ -449,7 +454,7 @@ class IndustryProjectFactory
     /**
      * @param array<string, array<string, mixed>> $steps
      */
-    private function addTimeDataToSteps(array &$steps, User $user): void
+    private function addTimeDataToSteps(array &$steps, User $user, StructureSelectionPolicy $selectionPolicy): void
     {
         $characterSkillLevels = $this->timePerRunCalculator->loadCharacterSkillLevels($user);
 
@@ -462,6 +467,8 @@ class IndustryProjectFactory
                 $step['teLevel'],
                 $step['structureConfig'],
                 $characterSkillLevels,
+                $selectionPolicy,
+                $step['runs'],
             )['timePerRun'];
         }
         unset($step);
@@ -473,7 +480,7 @@ class IndustryProjectFactory
      * @param array<string, list<IndustryProjectStep>> $existingJobsWithFixedRunsByKey
      * @return list<array<string, mixed>>
      */
-    private function planStepsJobByJob(array $steps, User $user, float $maxJobDurationDays, array $settingsOfExistingSteps, array $existingJobsWithFixedRunsByKey): array
+    private function planStepsJobByJob(array $steps, User $user, float $maxJobDurationDays, array $settingsOfExistingSteps, array $existingJobsWithFixedRunsByKey, StructureSelectionPolicy $selectionPolicy): array
     {
         $activityTypeByProduct = [];
         foreach ($steps as $step) {
@@ -505,7 +512,7 @@ class IndustryProjectFactory
             $jobs = array_map(fn (array $job): array => $this->withSettingsOfExistingStep($job, $settingsOfExistingSteps), $plannedJobs);
             $materials = $materialsByKey[$step['blueprintTypeId'] . '-' . SplitGroupMaterials::activityIdOf($step['activityType'])] ?? [];
             foreach ($jobs as $job) {
-                $this->addNeedOfJobs($needByProduct, $user, $job, [$job['runs']], $materials, $activityTypeByProduct);
+                $this->addNeedOfJobs($needByProduct, $user, $job, [$job['runs']], $materials, $activityTypeByProduct, $selectionPolicy);
             }
 
             array_push($plannedSteps, ...$jobs);
@@ -566,9 +573,9 @@ class IndustryProjectFactory
      * @param list<IndustryActivityMaterial> $materials
      * @param array<int, string> $activityTypeByProduct
      */
-    private function addNeedOfJobs(array &$needByProduct, User $user, array $consumer, array $jobRuns, array $materials, array $activityTypeByProduct): void
+    private function addNeedOfJobs(array &$needByProduct, User $user, array $consumer, array $jobRuns, array $materials, array $activityTypeByProduct, StructureSelectionPolicy $selectionPolicy): void
     {
-        $materialBonus = $this->calculationService->structureBonusOf($user, $consumer['productTypeId'], $consumer['activityType'], $consumer['structureConfig'])['materialBonus'];
+        $materialBonus = $this->calculationService->structureBonusOf($user, $consumer['productTypeId'], $consumer['activityType'], $consumer['structureConfig'], $selectionPolicy, $consumer['runs'])['materialBonus'];
         foreach ($materials as $material) {
             $materialTypeId = $material->getMaterialTypeId();
             if (!isset($activityTypeByProduct[$materialTypeId])) {

@@ -9,6 +9,7 @@ use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Industry\Application\StructureSelectionPolicy;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,13 +36,13 @@ class TimePerRunCalculator
      * @param list<array{name: string, skills: array<int, int>|null}>|null $characterSkillLevels
      * @return array{timePerRun: int|null, recommendedCharacterName: string|null}
      */
-    public function timePerRunAndRecommendedCharacterOf(User $user, int $blueprintTypeId, int $productTypeId, string $activityType, int $teLevel, ?IndustryStructureConfig $structureConfig, ?array $characterSkillLevels = null): array
+    public function timePerRunAndRecommendedCharacterOf(User $user, int $blueprintTypeId, int $productTypeId, string $activityType, int $teLevel, ?IndustryStructureConfig $structureConfig, ?array $characterSkillLevels = null, ?StructureSelectionPolicy $selectionPolicy = null, ?int $referenceRuns = null): array
     {
         $bestCharacter = $this->bestCharacterForStepTime($user, $blueprintTypeId, $activityType, $characterSkillLevels);
 
         $timePerRun = $bestCharacter['skillsUnknown']
             ? null
-            : $this->timePerRunOf($user, $blueprintTypeId, $productTypeId, $activityType, $teLevel, $structureConfig, $bestCharacter['skills']);
+            : $this->timePerRunOf($user, $blueprintTypeId, $productTypeId, $activityType, $teLevel, $structureConfig, $bestCharacter['skills'], $selectionPolicy, $referenceRuns);
 
         return ['timePerRun' => $timePerRun, 'recommendedCharacterName' => $bestCharacter['name']];
     }
@@ -67,6 +68,8 @@ class TimePerRunCalculator
             $step->getTeLevel(),
             $step->getStructureConfig(),
             $characterSkills,
+            IndustryCalculationService::selectionPolicyOf($step->getProject()),
+            IndustryCalculationService::referenceRunsOf($step),
         );
     }
 
@@ -81,6 +84,8 @@ class TimePerRunCalculator
         int $teLevel,
         ?IndustryStructureConfig $structureConfig,
         ?array $characterSkills,
+        ?StructureSelectionPolicy $selectionPolicy = null,
+        ?int $referenceRuns = null,
     ): ?int {
         $baseTime = $this->baseTimePerRunOf($blueprintTypeId, $activityType);
         if ($baseTime === null) {
@@ -88,7 +93,7 @@ class TimePerRunCalculator
         }
 
         $teMultiplier = 1 - $teLevel / 100;
-        $structureTimeMultiplier = 1 - $this->calculationService->structureBonusOf($user, $productTypeId, $activityType, $structureConfig)['timeBonus'] / 100;
+        $structureTimeMultiplier = 1 - $this->calculationService->structureBonusOf($user, $productTypeId, $activityType, $structureConfig, $selectionPolicy, $referenceRuns)['timeBonus'] / 100;
 
         $skillMultiplier = 1.0;
         if ($characterSkills !== null) {

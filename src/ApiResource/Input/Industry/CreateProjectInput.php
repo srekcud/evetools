@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\Industry;
 
+use App\Entity\IndustryProject;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class CreateProjectInput
@@ -31,6 +32,11 @@ class CreateProjectInput
 
     #[Assert\Length(max: 255)]
     public ?string $name = null;
+
+    public bool $acceptsOutsideFavoriteSystem = false;
+
+    #[Assert\PositiveOrZero]
+    public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
     /** @var list<int> */
     #[Assert\Count(max: self::MAX_EXCLUDED_COMPONENTS)]

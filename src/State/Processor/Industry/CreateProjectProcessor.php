@@ -51,6 +51,8 @@ class CreateProjectProcessor implements ProcessorInterface
                 $data->teLevel,
                 $data->name,
                 $data->excludedTypeIds,
+                $data->acceptsOutsideFavoriteSystem,
+                $data->minimumOutsideSaving,
             );
         } catch (\InvalidArgumentException|\RuntimeException $e) {
             throw new BadRequestHttpException($e->getMessage());

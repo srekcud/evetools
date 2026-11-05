@@ -16,7 +16,7 @@ Mode nuit : décisions de Sylvain du 2026-11-03 (coût total, option à la créa
 6. **Runs de référence** : les runs de la cible du plan (calculateur) ou les runs de l'étape (projet). Les coûts et le seuil se lisent sur ces runs.
 7. **Politique de sélection** `StructureSelectionPolicy` : `acceptsOutsideFavoriteSystem` (faux par défaut) et `minimumSaving` (Isk). Faux : comportement actuel, à l'identique (aucun appel au comparateur).
 8. **Choix avec la politique active** (fabrication, réaction, aucune structure assignée, un système favori défini pour l'activité) :
-   a. la référence est le choix actuel (filtre souple du système favori) ;
+   a. la référence est la meilleure structure du système favori apte à l'activité (matériaux, puis préférence), adaptée ou non à la catégorie : le filtre souple ne s'applique pas avec la politique active ;
    b. le comparateur calcule le coût total de chaque structure apte à l'activité et comparable ;
    c. si `coût(référence) − coût(meilleure) ≥ minimumSaving` (strictement positif), la meilleure est retenue, statut `BestByTotalCost`, hors système favori ou non ; sinon la référence reste ;
    d. coût de la référence inconnu, ou aucune structure comparable : la référence reste, jamais d'erreur ;
