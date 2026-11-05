@@ -11,7 +11,6 @@ use App\Entity\Character;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -64,11 +63,11 @@ class SubmitContributionProcessorTest extends TestCase
         $contributor = $this->createStub(User::class);
         $this->contributor = $contributor;
 
-        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $this->project = (new IndustryProject());
         $this->project->setOwner($this->createStub(User::class));
         $this->assignId($this->project);
 
-        $this->otherProject = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $this->otherProject = (new IndustryProject());
         $this->otherProject->setOwner($this->createStub(User::class));
         $this->assignId($this->otherProject);
 

@@ -252,7 +252,7 @@ final class GroupProjectReadApiTest extends WebTestCase
     public function testProjectRouteOnAProjectIdentifierThatIsNotAUuidIsNotFound(string $method, string $uriAfterTheProject, ?array $body): void
     {
         $this->client->loginUser($this->owner, 'api');
-        $this->request($method, '/api/group-industry/projects/'.self::NOT_A_UUID.$uriAfterTheProject, $body);
+        $this->request($method, '/api/industry/projects/'.self::NOT_A_UUID.$uriAfterTheProject, $body);
 
         self::assertResponseStatusCodeSame(404);
         self::assertSame([404, 'Project not found'], $this->errorDetail());

@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Post;
 use App\Entity\Character;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ContributionStatus;
@@ -50,7 +49,7 @@ class LeaveGroupProjectProcessorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $this->project = (new IndustryProject());
         $this->project->setOwner($this->createStub(User::class));
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
 
@@ -143,7 +142,7 @@ class LeaveGroupProjectProcessorTest extends TestCase
     public function testMembershipOnAnotherProjectDoesNotAllowLeavingThisOne(): void
     {
         $user = $this->actAs('Wandering Pilot');
-        $otherProject = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $otherProject = (new IndustryProject());
         $otherProject->setOwner($this->createStub(User::class));
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($otherProject, Uuid::v4());
         $otherMembership = $this->addMembership($user, GroupMemberRole::Member, GroupMemberStatus::Accepted, $otherProject);

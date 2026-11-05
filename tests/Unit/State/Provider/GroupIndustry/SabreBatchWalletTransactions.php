@@ -52,7 +52,7 @@ trait SabreBatchWalletTransactions
         $this->t6 = $this->walletTransaction(6_100_000_006, $this->oAlt, false, self::SABRE_TYPE_ID, 2, 60_500_000.0, '2026-10-25T20:00:00+00:00', self::JITA_STATION_ID);
         $this->t7 = $this->walletTransaction(6_100_000_007, $this->oAlt, false, self::SABRE_TYPE_ID, 12, 60_000_000.0, '2026-10-26T11:45:00+00:00', self::RENS_STATION_ID);
 
-        $cutlassBatch = ((new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1)))->setOwner($this->sabreBatchOwner)->setName('Cutlass batch')->setStatus(GroupProjectStatus::Selling);
+        $cutlassBatch = (new IndustryProject())->setOwner($this->sabreBatchOwner)->setName('Cutlass batch')->setStatus(GroupProjectStatus::Selling);
         $this->saleOfAnotherProjectLinkedToT6 = $this->saleOf($cutlassBatch, self::SABRE_TYPE_ID, 2, 60_500_000.0);
     }
 

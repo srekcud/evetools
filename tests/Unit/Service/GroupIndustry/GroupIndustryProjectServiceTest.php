@@ -183,9 +183,37 @@ final class GroupIndustryProjectServiceTest extends TestCase
         ));
 
         $this->assertSame('Fleet Doctrine', $project->getName());
-        $this->assertSame(GroupProjectStatus::Published, $project->getStatus());
+        $this->assertSame(GroupProjectStatus::Draft, $project->getStatus());
         $this->assertSame($user, $project->getOwner());
         $this->assertMatchesRegularExpression('/^[0-9a-f]{10}$/', $project->getShortLinkCode());
+    }
+
+    #[Group('issue-362')]
+    public function testCreateProjectIsPrivateWhenTheDataDoNotSayOtherwise(): void
+    {
+        $this->givenRifter();
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Default privacy',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
+        ));
+
+        $this->assertTrue($project->isPrivate());
+    }
+
+    #[Group('issue-362')]
+    public function testCreateProjectTakesThePrivateFlagOfTheData(): void
+    {
+        $this->givenRifter();
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Open project',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
+            private: false,
+        ));
+
+        $this->assertFalse($project->isPrivate());
+        $this->assertSame(GroupProjectStatus::Draft, $project->getStatus());
     }
 
     public function testCreateProjectPersistsAndFlushes(): void

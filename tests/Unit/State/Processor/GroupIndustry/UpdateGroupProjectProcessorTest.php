@@ -9,7 +9,6 @@ use ApiPlatform\Validator\Exception\ValidationException;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\ApiResource\Input\GroupIndustry\UpdateGroupProjectInput;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -24,6 +23,7 @@ use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -49,7 +49,7 @@ class UpdateGroupProjectProcessorTest extends TestCase
     {
         $this->owner = $this->createStub(User::class);
 
-        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $this->project = (new IndustryProject());
         $this->project->setOwner($this->owner);
         $this->project->setName('Orca batch');
         $this->project->setContainerName('GI Orca hangar');
@@ -353,6 +353,139 @@ class UpdateGroupProjectProcessorTest extends TestCase
         self::assertInstanceOf(BadRequestHttpException::class, $refusal);
         self::assertSame('Cannot transition from "published" to "selling"', $refusal->getMessage());
         self::assertSame(GroupProjectStatus::Published, $this->project->getStatus());
+    }
+
+    #[Group('issue-362')]
+    public function testDraftProjectCanBePublishedAndTheChangeIsPublishedWithTheOldAndTheNewStatus(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Draft);
+        $input = new UpdateGroupProjectInput();
+        $input->status = 'published';
+        $payloads = $this->capturePublishedPayloads();
+
+        $resource = $this->update($input);
+
+        self::assertSame('published', $resource->status);
+        self::assertSame(GroupProjectStatus::Published, $this->project->getStatus());
+        self::assertCount(1, $payloads);
+        self::assertSame(['oldStatus' => 'draft', 'newStatus' => 'published'], $payloads[0]['data']);
+    }
+
+    #[Group('issue-362')]
+    public function testDraftProjectCanStartDirectlyInProgress(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Draft);
+        $input = new UpdateGroupProjectInput();
+        $input->status = 'in_progress';
+
+        $resource = $this->update($input);
+
+        self::assertSame('in_progress', $resource->status);
+        self::assertSame(GroupProjectStatus::InProgress, $this->project->getStatus());
+        self::assertNull($this->project->getCompletedAt());
+    }
+
+    #[Group('issue-362')]
+    public function testDraftProjectCannotJumpToSellingAndNothingIsChangedNorPublished(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Draft);
+        $input = new UpdateGroupProjectInput();
+        $input->status = 'selling';
+        $this->entityManager->expects($this->never())->method('flush');
+        $this->hub->expects($this->never())->method('publish');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $exception) {
+            $refusal = $exception;
+        }
+
+        self::assertInstanceOf(BadRequestHttpException::class, $refusal);
+        self::assertSame('Cannot transition from "draft" to "selling"', $refusal->getMessage());
+        self::assertSame(GroupProjectStatus::Draft, $this->project->getStatus());
+    }
+
+    #[Group('issue-362')]
+    public function testSellingProjectCompletesWithTheCompletionDateAndCompletedProjectCannotBeReopened(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Selling);
+        $completion = new UpdateGroupProjectInput();
+        $completion->status = 'completed';
+
+        $this->update($completion);
+
+        self::assertSame(GroupProjectStatus::Completed, $this->project->getStatus());
+        self::assertNotNull($this->project->getCompletedAt());
+
+        $reopening = new UpdateGroupProjectInput();
+        $reopening->status = 'in_progress';
+        $refusal = null;
+        try {
+            $this->update($reopening);
+        } catch (BadRequestHttpException $exception) {
+            $refusal = $exception;
+        }
+
+        self::assertInstanceOf(BadRequestHttpException::class, $refusal);
+        self::assertSame('Cannot transition from "completed" to "in_progress"', $refusal->getMessage());
+    }
+
+    public static function everyProjectStatus(): iterable
+    {
+        foreach (GroupProjectStatus::cases() as $status) {
+            yield $status->value => [$status];
+        }
+    }
+
+    #[Group('issue-362')]
+    #[DataProvider('everyProjectStatus')]
+    public function testPrivateFlagIsModifiableInEveryStatusAndNothingElseChanges(GroupProjectStatus $status): void
+    {
+        $this->project->setStatus($status)->setPrivate(true);
+        $input = new UpdateGroupProjectInput();
+        $input->private = false;
+        $payloads = $this->capturePublishedPayloads();
+
+        $resource = $this->update($input);
+
+        self::assertFalse($resource->private);
+        self::assertFalse($this->project->isPrivate());
+        self::assertSame($status, $this->project->getStatus());
+        self::assertSame('Orca batch', $this->project->getName());
+        self::assertCount(0, $payloads);
+    }
+
+    #[Group('issue-362')]
+    public function testPrivateFlagCanBeSetBackToTrueAndAnUpdateWithoutItKeepsIt(): void
+    {
+        $this->project->setPrivate(false);
+        $setBack = new UpdateGroupProjectInput();
+        $setBack->private = true;
+
+        $this->update($setBack);
+
+        self::assertTrue($this->project->isPrivate());
+
+        $this->project->setPrivate(false);
+        $rename = new UpdateGroupProjectInput();
+        $rename->name = 'Orca batch two';
+
+        $this->update($rename);
+
+        self::assertFalse($this->project->isPrivate());
+    }
+
+    #[Group('issue-362')]
+    public function testNotesAreUpdatedAndExposedInTheResource(): void
+    {
+        $input = new UpdateGroupProjectInput();
+        $input->notes = 'Hangar 3, bring the fuel blocks';
+
+        $resource = $this->update($input);
+
+        self::assertSame('Hangar 3, bring the fuel blocks', $this->project->getNotes());
+        self::assertSame('Hangar 3, bring the fuel blocks', $resource->notes);
     }
 
     private function assertFeesAreRejectedOnTheSalesTax(UpdateGroupProjectInput $input): void

@@ -9,7 +9,6 @@ use App\ApiResource\GroupIndustry\GroupIndustryMemberResource;
 use App\Entity\Character;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -48,7 +47,7 @@ class GroupMemberCollectionProviderTest extends TestCase
     protected function setUp(): void
     {
         $this->owner = $this->createStub(User::class);
-        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $this->project = (new IndustryProject());
         $this->project->setOwner($this->owner);
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
 

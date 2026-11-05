@@ -150,7 +150,7 @@ final class IndustrySubResourceUriVariablesTest extends TestCase
     public function testGroupMemberPatchDeclaringOnlyProjectLinkLeavesFinalRequirementMemberUndeclared(): void
     {
         $operation = new Patch(
-            uriTemplate: '/group-industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
+            uriTemplate: '/industry/projects/{projectId}/members/{id<[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}>}',
             uriVariables: ['projectId' => new Link(fromClass: GroupIndustryProjectResource::class)],
         );
 

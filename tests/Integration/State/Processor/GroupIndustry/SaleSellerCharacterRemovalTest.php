@@ -9,7 +9,6 @@ use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
@@ -47,7 +46,7 @@ final class SaleSellerCharacterRemovalTest extends IntegrationTestCase
         $oMain = $this->createCharacter($owner, 'O-Main')->setEveCharacterId(self::O_MAIN_EVE_CHARACTER_ID);
         $oAlt = $this->createCharacter($owner, 'O-Alt')->setEveCharacterId(self::O_ALT_EVE_CHARACTER_ID);
         $owner->setMainCharacter($oMain);
-        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($owner)->setName('Sabre')->setStatus(GroupProjectStatus::Selling);
+        $project = (new IndustryProject())->setOwner($owner)->setName('Sabre')->setStatus(GroupProjectStatus::Selling);
         $this->em->persist($project);
         $project->addMember((new IndustryProjectParticipant())->setUser($owner)->setRole(GroupMemberRole::Owner)->setStatus(GroupMemberStatus::Accepted));
         $saleSoldByTheAlt = $this->addSale($project, $owner, 3, 61_250_000.0, '2026-10-24T21:05:00+00:00')->setSeller($oAlt);

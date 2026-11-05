@@ -49,6 +49,8 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
     private string $sabreProjectId;
     private string $jackdawProjectId;
     private string $leftProjectId;
+    private string $privateProjectId;
+    private string $inProgressProjectId;
 
     protected function setUp(): void
     {
@@ -72,11 +74,17 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         $this->addBomItem($sabre, self::TRITANIUM_TYPE_ID, 'Tritanium', requiredQuantity: 1_000_000, fulfilledQuantity: 400_000, estimatedPrice: 4.0);
         $this->addBomItem($sabre, self::PYERITE_TYPE_ID, 'Pyerite', requiredQuantity: 200_000, fulfilledQuantity: 250_000, estimatedPrice: 10.0);
 
-        $jackdaw = $this->createProject($brann, 'Jackdaw batch', GroupProjectStatus::InProgress);
+        $jackdaw = $this->createProject($brann, 'Jackdaw batch', GroupProjectStatus::Published);
         $brannInJackdaw = $this->addMember($jackdaw, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
         $this->addContribution($brannInJackdaw, ContributionType::Material, 640_000.0, ContributionStatus::Pending);
         $this->addItem($jackdaw, self::JACKDAW_TYPE_ID, 'Jackdaw', runs: 20);
 
+        $private = $this->createProject($aria, 'Private project', GroupProjectStatus::Published, private: true);
+        $this->addMember($private, $aria, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $this->addItem($private, self::PYERITE_TYPE_ID, 'Private hull', runs: 2);
+        $inProgress = $this->createProject($brann, 'Hurricane batch', GroupProjectStatus::InProgress);
+        $this->addMember($inProgress, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
+        $this->addItem($inProgress, self::TRITANIUM_TYPE_ID, 'Hurricane', runs: 3);
         $draft = $this->createProject($aria, 'Draft project', GroupProjectStatus::Draft);
         $this->addMember($draft, $aria, GroupMemberRole::Owner, GroupMemberStatus::Accepted);
         $selling = $this->createProject($aria, 'Selling project', GroupProjectStatus::Selling);
@@ -97,6 +105,8 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         $this->sabreProjectId = (string) $sabre->getId();
         $this->jackdawProjectId = (string) $jackdaw->getId();
         $this->leftProjectId = (string) $leftProject->getId();
+        $this->privateProjectId = (string) $private->getId();
+        $this->inProgressProjectId = (string) $inProgress->getId();
         $this->em->clear();
     }
 
@@ -140,11 +150,42 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         }
     }
 
-    public function testListsOnlyOpenProjectsOfTheCorporationTheUserHasNotJoined(): void
+    #[Group('issue-362')]
+    public function testListsOnlyPublishedNotPrivateProjectsOfTheCorporationTheUserHasNotJoined(): void
     {
         $projects = $this->availableProjectsById();
 
         self::assertEqualsCanonicalizing([$this->sabreProjectId, $this->jackdawProjectId], array_keys($projects));
+    }
+
+    #[Group('issue-362')]
+    public function testPrivatePublishedProjectIsNotListed(): void
+    {
+        self::assertArrayNotHasKey($this->privateProjectId, $this->availableProjectsById());
+    }
+
+    #[Group('issue-362')]
+    public function testInProgressProjectIsNotListed(): void
+    {
+        self::assertArrayNotHasKey($this->inProgressProjectId, $this->availableProjectsById());
+    }
+
+    #[Group('issue-362')]
+    public function testProjectTheOwnerOpensToTheDiscoveryAppearsAndOneTheOwnerClosesAgainDisappears(): void
+    {
+        $private = $this->em->find(IndustryProject::class, $this->privateProjectId);
+        \assert($private instanceof IndustryProject);
+        $private->setPrivate(false);
+        $this->em->flush();
+        $this->em->clear();
+
+        self::assertArrayHasKey($this->privateProjectId, $this->availableProjectsById());
+
+        $this->em->find(IndustryProject::class, $this->privateProjectId)->setPrivate(true);
+        $this->em->flush();
+        $this->em->clear();
+
+        self::assertArrayNotHasKey($this->privateProjectId, $this->availableProjectsById());
     }
 
     public function testPublishedProjectOfTheCorporationTheUserWasRemovedFromIsNotListed(): void
@@ -175,11 +216,11 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         self::assertSame(1_250_000.0, $sabre->approvedContributionValue);
     }
 
-    public function testInProgressProjectWithoutBom(): void
+    public function testPublishedProjectWithoutBom(): void
     {
         $jackdaw = $this->availableProjectsById()[$this->jackdawProjectId];
 
-        self::assertSame('in_progress', $jackdaw->status);
+        self::assertSame('published', $jackdaw->status);
         self::assertSame('Brann Holt', $jackdaw->ownerCharacterName);
         self::assertSame(1, $jackdaw->membersCount);
         self::assertSame([
@@ -281,12 +322,13 @@ final class AvailableGroupProjectsProviderTest extends IntegrationTestCase
         return $user;
     }
 
-    private function createProject(User $owner, string $name, GroupProjectStatus $status): IndustryProject
+    private function createProject(User $owner, string $name, GroupProjectStatus $status, bool $private = false): IndustryProject
     {
         $project = (new IndustryProject())
             ->setOwner($owner)
             ->setName($name)
-            ->setStatus($status);
+            ->setStatus($status)
+            ->setPrivate($private);
         $this->em->persist($project);
 
         return $project;

@@ -7,7 +7,6 @@ namespace App\Tests\Unit\State\Provider\GroupIndustry;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\GroupIndustry\GroupContainerVerificationResource;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
@@ -83,7 +82,7 @@ class ContainerVerificationProviderTest extends TestCase
 
         $this->security->method('getUser')->willReturn($user);
 
-        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $project = (new IndustryProject());
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
         $this->memberRepository->method('findOneBy')->willReturn(null);
@@ -102,7 +101,7 @@ class ContainerVerificationProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $project = (new IndustryProject());
         $project->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
         $this->containerService->method('verifyContainer')->willReturn([]);
@@ -119,7 +118,7 @@ class ContainerVerificationProviderTest extends TestCase
 
         $this->security->method('getUser')->willReturn($user);
 
-        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $project = (new IndustryProject());
         $project->setOwner($owner);
         $this->projectRepository->method('find')->willReturn($project);
 
@@ -145,7 +144,7 @@ class ContainerVerificationProviderTest extends TestCase
         $user = $this->createUserStub();
         $this->security->method('getUser')->willReturn($user);
 
-        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $project = (new IndustryProject());
         $project->setOwner($user);
         $this->projectRepository->method('find')->willReturn($project);
 

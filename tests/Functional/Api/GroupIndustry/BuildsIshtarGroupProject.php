@@ -8,7 +8,6 @@ use App\Entity\Character;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
@@ -126,7 +125,7 @@ trait BuildsIshtarGroupProject
 
     private function persistProject(string $name): IndustryProject
     {
-        $project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1))->setOwner($this->owner)->setName($name)->setStatus(GroupProjectStatus::InProgress);
+        $project = (new IndustryProject())->setOwner($this->owner)->setName($name)->setStatus(GroupProjectStatus::InProgress);
         $this->em->persist($project);
 
         return $project;
@@ -208,12 +207,18 @@ trait BuildsIshtarGroupProject
 
     private function projectUri(IndustryProject $project): string
     {
-        return '/api/group-industry/projects/'.$project->getId()?->toRfc4122();
+        return '/api/industry/projects/'.$project->getId()?->toRfc4122();
     }
 
     private function idOf(IndustryProjectParticipant|IndustryProjectBomLine|IndustryProjectContribution|IndustryProjectSale $entity): string
     {
         return (string) $entity->getId()?->toRfc4122();
+    }
+
+    private function actAs(User $user): void
+    {
+        $this->client->getKernel()->boot();
+        $this->client->loginUser($this->em->find(User::class, $user->getId()), 'api');
     }
 
     private function request(string $method, string $uri, ?array $body = null): void

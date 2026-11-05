@@ -59,6 +59,65 @@ final class TokenProviderTest extends IntegrationTestCase
         self::assertCount(1, array_filter($topics, static fn (string $topic): bool => str_starts_with($topic, '/group-project/')));
     }
 
+    public function testSubscriberTopicsIncludeTheEventsOfEveryProjectWhereTheUserIsAcceptedSoloProjectIncludedAndNoOther(): void
+    {
+        $owner = $this->createUser();
+        $owner->setMainCharacter($this->createCharacter($owner, 'Aria Solberg')->setCorporationId(98_362_202));
+        $otherOwner = $this->createUser();
+        $otherOwner->setMainCharacter($this->createCharacter($otherOwner, 'Brann Holt')->setCorporationId(98_362_202));
+
+        $soloProject = $this->projectOf($owner, 'Solo Rifter', GroupProjectStatus::Draft);
+        $soloProject->addMember($this->ownerParticipant($owner));
+        $groupProject = $this->projectOf($owner, 'Group Sabre', GroupProjectStatus::InProgress)->addItem(
+            (new IndustryProjectProduct())->setTypeId(22456)->setTypeName('Sabre')->setMeLevel(10)->setTeLevel(20)->setRuns(5),
+        );
+        $groupProject->addMember($this->ownerParticipant($owner));
+        $groupProject->addMember($this->participantOf($otherOwner, GroupMemberRole::Member, GroupMemberStatus::Accepted));
+        $pendingProject = $this->projectOf($otherOwner, 'Pending Hecate', GroupProjectStatus::Published);
+        $pendingProject->addMember($this->ownerParticipant($otherOwner));
+        $pendingProject->addMember($this->participantOf($owner, GroupMemberRole::Member, GroupMemberStatus::Pending));
+        $strangerProject = $this->projectOf($otherOwner, 'Stranger Cutlass', GroupProjectStatus::Published);
+        $strangerProject->addMember($this->ownerParticipant($otherOwner));
+        $this->em->flush();
+        $ownerId = (string) $owner->getId();
+        $expected = [
+            sprintf('/group-project/%s/events', $soloProject->getId()),
+            sprintf('/group-project/%s/events', $groupProject->getId()),
+        ];
+        sort($expected);
+        $this->em->clear();
+
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($this->em->find(User::class, $ownerId));
+        $provider = new TokenProvider(
+            $security,
+            self::getContainer()->get(IndustryProjectParticipantRepository::class),
+            'a-mercure-secret-of-at-least-thirty-two-bytes',
+            'https://mercure.example.test/.well-known/mercure',
+        );
+
+        $projectTopics = array_values(array_filter(
+            $provider->provide(new Get())->topics,
+            static fn (string $topic): bool => str_starts_with($topic, '/group-project/'),
+        ));
+        sort($projectTopics);
+
+        self::assertSame($expected, $projectTopics);
+    }
+
+    private function projectOf(User $owner, string $name, GroupProjectStatus $status): IndustryProject
+    {
+        $project = (new IndustryProject())->setOwner($owner)->setName($name)->setStatus($status);
+        $this->em->persist($project);
+
+        return $project;
+    }
+
+    private function participantOf(User $user, GroupMemberRole $role, GroupMemberStatus $status): IndustryProjectParticipant
+    {
+        return (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus($status);
+    }
+
     private function ownerParticipant(User $user): IndustryProjectParticipant
     {
         return (new IndustryProjectParticipant())

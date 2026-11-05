@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Entity;
 
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
@@ -37,33 +36,16 @@ final class IndustryProjectTest extends TestCase
         self::assertSame(GroupMemberRole::Owner, $participant->getRole());
     }
 
-    public function testNewProjectIsPublishedWithAUuidV7AndItsOwnInvitationCodeOfTenHexadecimalCharacters(): void
+    public function testNewProjectIsADraftWithAUuidV7AndItsOwnInvitationCodeOfTenHexadecimalCharacters(): void
     {
         $project = new IndustryProject();
         $otherProject = new IndustryProject();
 
         self::assertInstanceOf(UuidV7::class, $project->getId());
-        self::assertSame(GroupProjectStatus::Published, $project->getStatus());
+        self::assertSame(GroupProjectStatus::Draft, $project->getStatus());
         self::assertMatchesRegularExpression('/^[0-9a-f]{10}$/', $project->getShortLinkCode());
         self::assertMatchesRegularExpression('/^[0-9a-f]{10}$/', $otherProject->getShortLinkCode());
         self::assertNotSame($otherProject->getShortLinkCode(), $project->getShortLinkCode());
-    }
-
-    public function testProjectIsPlannedByStepsUntilItGetsAnItem(): void
-    {
-        $project = new IndustryProject();
-        self::assertTrue($project->isPlannedBySteps());
-
-        $project->addItem(
-            (new IndustryProjectProduct())
-                ->setTypeId(22456)
-                ->setTypeName('Sabre')
-                ->setMeLevel(10)
-                ->setTeLevel(20)
-                ->setRuns(5),
-        );
-
-        self::assertFalse($project->isPlannedBySteps());
     }
 
     public function testNewProjectIsPrivateByDefaultAndItsPrivacyCanBeLifted(): void
@@ -84,5 +66,13 @@ final class IndustryProjectTest extends TestCase
 
         self::assertFalse(method_exists($project, 'getSteps'));
         self::assertFalse(method_exists($project, 'takeProductFromFirstItem'));
+    }
+
+    public function testProjectHasNoRoutePredicateToTellASoloProjectFromAGroupOne(): void
+    {
+        $project = new IndustryProject();
+
+        self::assertFalse(method_exists($project, 'isPlannedBySteps'));
+        self::assertFalse(method_exists($project, 'isPlannedByStepsAndOwnedBy'));
     }
 }

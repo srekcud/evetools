@@ -201,6 +201,27 @@ class CreateGroupProjectProcessorTest extends TestCase
         );
     }
 
+    #[Group('issue-362')]
+    public function testPrivateAbsentAtCreationIsPassedToTheServiceAsPrivate(): void
+    {
+        $this->createProjectFrom($this->sabreInput());
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertTrue($this->createdProjectData->private);
+    }
+
+    #[Group('issue-362')]
+    public function testPrivateFalseSentAtCreationIsPassedToTheServiceAsNotPrivate(): void
+    {
+        $input = $this->sabreInput();
+        $input->private = false;
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertFalse($this->createdProjectData->private);
+    }
+
     private function givenSellerFees(?array $sellerRates): void
     {
         if ($sellerRates === null) {

@@ -8,11 +8,11 @@ use ApiPlatform\Metadata\Post;
 use App\ApiResource\GroupIndustry\GroupIndustryProjectResource;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\GroupMemberRole;
 use App\Enum\GroupMemberStatus;
+use App\Enum\GroupProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Mercure\MercurePublisherService;
@@ -21,12 +21,15 @@ use App\State\Provider\GroupIndustry\GroupIndustryResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
@@ -54,7 +57,7 @@ class JoinGroupProjectProcessorTest extends TestCase
         $owner = $this->createStub(User::class);
         $owner->method('getCorporationId')->willReturn(self::OWNER_CORPORATION_ID);
 
-        $this->project = (new IndustryProject())->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
+        $this->project = (new IndustryProject())->setStatus(GroupProjectStatus::Published)->setPrivate(false);
         $this->project->setOwner($owner);
         $this->project->setShortLinkCode(self::SHORT_LINK_CODE);
         (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($this->project, Uuid::v4());
@@ -105,6 +108,56 @@ class JoinGroupProjectProcessorTest extends TestCase
         self::assertSame('accepted', $membership->getStatus()->value);
         self::assertSame('member', $membership->getRole()->value);
         self::assertSame('member', $resource->myRole);
+    }
+
+    #[Group('issue-362')]
+    public function testPrivatePublishedProjectIsNotFoundByItsCodeAndNobodyJoins(): void
+    {
+        $this->project->setPrivate(true);
+        $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        $this->join();
+    }
+
+    #[Group('issue-362')]
+    public function testPrivateDraftProjectIsNotFoundByItsCodeRatherThanClosedToNewMembers(): void
+    {
+        $this->project->setPrivate(true)->setStatus(GroupProjectStatus::Draft);
+        $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Project not found');
+
+        $this->join();
+    }
+
+    #[Group('issue-362')]
+    public function testDraftProjectThatIsNotPrivateIsClosedToNewMembers(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::Draft);
+        $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('This project is no longer accepting new members');
+
+        $this->join();
+    }
+
+    #[Group('issue-362')]
+    public function testInProgressProjectThatIsNotPrivateAcceptsAMemberOfTheOwnerCorporation(): void
+    {
+        $this->project->setStatus(GroupProjectStatus::InProgress);
+        $this->actAs('Corp Mate', self::OWNER_CORPORATION_ID);
+        $this->assignIdsOnFlush();
+
+        $resource = $this->join();
+
+        self::assertSame('accepted', $resource->myStatus);
     }
 
     public function testNewUserFromAnotherCorporationIsPending(): void

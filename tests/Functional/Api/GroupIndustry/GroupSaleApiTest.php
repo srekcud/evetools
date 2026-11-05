@@ -106,7 +106,7 @@ final class GroupSaleApiTest extends WebTestCase
     {
         $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
         $this->client->loginUser($this->owner, 'api');
-        $this->request('POST', '/api/group-industry/projects', [
+        $this->request('POST', '/api/industry/projects', [
             'items' => [['typeId' => 0, 'typeName' => 'Ishtar', 'meLevel' => 12, 'teLevel' => 25, 'runs' => 0]],
         ]);
 
@@ -197,7 +197,7 @@ final class GroupSaleApiTest extends WebTestCase
     {
         $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
         $this->client->loginUser($this->owner, 'api');
-        $this->request('POST', '/api/group-industry/projects', ['items' => ['x']]);
+        $this->request('POST', '/api/industry/projects', ['items' => ['x']]);
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame([['items[0]'], $projectsBefore], [$this->violatedPaths(), $this->em->getRepository(IndustryProject::class)->count([])]);
@@ -207,7 +207,7 @@ final class GroupSaleApiTest extends WebTestCase
     {
         $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
         $this->client->loginUser($this->owner, 'api');
-        $this->request('POST', '/api/group-industry/projects', [
+        $this->request('POST', '/api/industry/projects', [
             'items' => [['typeId' => 12005, 'typeName' => 'Ishtar', 'meLevel' => 10, 'teLevel' => 20, 'runs' => null]],
         ]);
 
@@ -393,12 +393,12 @@ final class GroupSaleApiTest extends WebTestCase
 
     private function saleSuggestionsUri(): string
     {
-        return sprintf('/api/group-industry/projects/%s/sale-suggestions', $this->sabreDoctrine->getId()?->toRfc4122());
+        return sprintf('/api/industry/projects/%s/sale-suggestions', $this->sabreDoctrine->getId()?->toRfc4122());
     }
 
     private function saleFromWalletTransactionUri(): string
     {
-        return sprintf('/api/group-industry/projects/%s/sales/from-wallet-transaction', $this->sabreDoctrine->getId()?->toRfc4122());
+        return sprintf('/api/industry/projects/%s/sales/from-wallet-transaction', $this->sabreDoctrine->getId()?->toRfc4122());
     }
 
     private function persistPilot(string $name, int $corporationId): User
@@ -439,17 +439,17 @@ final class GroupSaleApiTest extends WebTestCase
             unset($sale[$without]);
         }
 
-        $this->request('POST', sprintf('/api/group-industry/projects/%s/sales', $this->sabreDoctrine->getId()?->toRfc4122()), $sale);
+        $this->request('POST', sprintf('/api/industry/projects/%s/sales', $this->sabreDoctrine->getId()?->toRfc4122()), $sale);
     }
 
     private function sabreSaleUri(IndustryProject $project): string
     {
-        return sprintf('/api/group-industry/projects/%s/sales/%s', $project->getId()?->toRfc4122(), $this->sabreSale->getId()?->toRfc4122());
+        return sprintf('/api/industry/projects/%s/sales/%s', $project->getId()?->toRfc4122(), $this->sabreSale->getId()?->toRfc4122());
     }
 
     private function saleUriWithANonUuidId(): string
     {
-        return sprintf('/api/group-industry/projects/%s/sales/abc', $this->sabreDoctrine->getId()?->toRfc4122());
+        return sprintf('/api/industry/projects/%s/sales/abc', $this->sabreDoctrine->getId()?->toRfc4122());
     }
 
     private function request(string $method, string $uri, ?array $body = null): void
