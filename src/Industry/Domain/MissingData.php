@@ -12,6 +12,7 @@ final readonly class MissingData
     private const string ADJUSTED_PRICE = 'adjusted_price';
     private const string COST_INDEX = 'cost_index';
     private const string INVENTION_PROBABILITY = 'invention_probability';
+    private const string INVENTOR_SKILLS = 'inventor_skills';
     private const string MARKET_PRICE = 'market_price';
 
     private function __construct(public string $reason, public ?int $typeId)
@@ -39,5 +40,10 @@ final readonly class MissingData
     public static function inventionProbability(int $blueprintTypeId): self
     {
         return new self(self::INVENTION_PROBABILITY, $blueprintTypeId);
+    }
+
+    public static function inventorSkills(int $blueprintTypeId): self
+    {
+        return new self(self::INVENTOR_SKILLS, $blueprintTypeId);
     }
 }

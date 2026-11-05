@@ -34,6 +34,10 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   inventionCost: 1_000,
   totalProductionCost: 5_000,
   bestMargin: null,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
@@ -48,6 +52,10 @@ const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
   inventionCost: 1_800,
   totalProductionCost: 5_800,
   bestMargin: null,
+  expectedAttempts: null,
+  decryptorCost: null,
+  costPerUnit: null,
+  costPerUnitDelta: null,
 }
 
 const SABRE_WITH_UNKNOWN_SELLER_FEES: ProfitMarginResult = {
@@ -70,6 +78,8 @@ const SABRE_WITH_UNKNOWN_SELLER_FEES: ProfitMarginResult = {
     baseProbability: 0.34,
     unknownReason: null,
     datacores: ['Datacore - Mechanical Engineering'],
+    datacoresCostPerAttempt: null,
+    inventor: null,
     selectedDecryptorTypeId: null,
     selectedDecryptorName: 'No Decryptor',
     options: [NO_DECRYPTOR_OPTION, ATTAINMENT_OPTION],

@@ -17,12 +17,13 @@ final readonly class InventionExpectation
         private ?InventionChance $chance,
         private InventionOutcome $outcome,
         private Cost $attemptCost,
+        private ?MissingData $unknownChanceReason,
     ) {
     }
 
-    public static function of(int $t1BlueprintTypeId, ?InventionChance $chance, InventionOutcome $outcome, Cost $attemptCost): self
+    public static function of(int $t1BlueprintTypeId, ?InventionChance $chance, InventionOutcome $outcome, Cost $attemptCost, ?MissingData $unknownChanceReason = null): self
     {
-        return new self($t1BlueprintTypeId, $chance, $outcome, $attemptCost);
+        return new self($t1BlueprintTypeId, $chance, $outcome, $attemptCost, $unknownChanceReason);
     }
 
     public function costPerSuccessfulCopy(): Cost
@@ -58,6 +59,6 @@ final readonly class InventionExpectation
 
     private function unknownProbability(): Cost
     {
-        return Cost::unknown(MissingData::inventionProbability($this->t1BlueprintTypeId))->plus($this->attemptCost);
+        return Cost::unknown($this->unknownChanceReason ?? MissingData::inventionProbability($this->t1BlueprintTypeId))->plus($this->attemptCost);
     }
 }
