@@ -46,6 +46,11 @@ final class PartialPricePresenter
         return self::coveragePercentOfCoverage($partialPrice->coverage);
     }
 
+    public static function coveragePercentOfFraction(float $fraction): float
+    {
+        return self::coveragePercentOfCoverage(new OrderBookCoverage($fraction));
+    }
+
     public static function coveragePercentOfCoverage(OrderBookCoverage $coverage): float
     {
         $roundedPercent = round($coverage->fraction * self::PERCENT_PER_FRACTION, self::DISPLAYED_DECIMALS);
