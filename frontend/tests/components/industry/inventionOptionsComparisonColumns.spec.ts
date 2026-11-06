@@ -75,7 +75,6 @@ function mountPanel(locale: 'en' | 'fr' = 'en') {
       datacores: ['Datacore A', 'Datacore B'],
       options: [NO_DECRYPTOR_OPTION, PROCESS_OPTION, PARITY_OPTION_COSTLIER, UNPRICED_OPTION],
       bestDecryptorIndex: 1,
-      selectedOption: null,
       selectedDecryptorTypeId: undefined,
       effectiveInventionCost: 2_600,
       effectiveTotalCost: 10_600,

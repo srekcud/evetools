@@ -57,7 +57,6 @@ function mountPanel(overrides: Record<string, unknown> = {}, locale: 'en' | 'fr'
       datacoresCostPerAttempt: 460,
       options: [OPTION],
       bestDecryptorIndex: 0,
-      selectedOption: null,
       selectedDecryptorTypeId: undefined,
       effectiveInventionCost: 2_400,
       effectiveTotalCost: 11_400,

@@ -1,11 +1,10 @@
-import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { apiRequest } from '@/services/api'
-import { useProjectsStore } from '@/stores/industry/projects'
 import type { ProfitMarginInventionOption, ProfitMarginResult } from '@/stores/industry/types'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -98,22 +97,49 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
   warnings: [],
 }
 
+const ATTAINMENT_MARGIN_RESULT: ProfitMarginResult = {
+  ...SABRE_MARGIN_RESULT,
+  materialCost: 96_000,
+  jobInstallCost: 9_000,
+  inventionCost: 45_000,
+  totalCost: 150_000,
+  costPerUnit: 3_750,
+  invention: {
+    ...SABRE_MARGIN_RESULT.invention!,
+    selectedDecryptorTypeId: ATTAINMENT_DECRYPTOR_TYPE_ID,
+    selectedDecryptorName: 'Attainment Decryptor',
+  },
+  margins: {
+    structureSell: { revenue: 166_000, fees: 11_620, profit: 4_380, margin: 2.92 },
+    structureBuy: { revenue: 160_000, fees: 3_200, profit: 6_800, margin: 4.53 },
+  },
+}
+
 const marginLabels = en.industry.margins
 
-function mountProfitMargin(): VueWrapper {
-  vi.mocked(apiRequest).mockResolvedValue(null)
-  useProjectsStore().marginResult = SABRE_MARGIN_RESULT
+function respondLikeTheServer(path: string): Promise<unknown> {
+  if (path === `/industry/types/${SABRE_TYPE_ID}`) return Promise.resolve({ typeId: SABRE_TYPE_ID, typeName: 'Sabre', isT2: true })
+  const decryptorChosen = path.includes(`decryptorTypeId=${ATTAINMENT_DECRYPTOR_TYPE_ID}`)
+  return Promise.resolve(decryptorChosen ? ATTAINMENT_MARGIN_RESULT : SABRE_MARGIN_RESULT)
+}
+
+async function mountProfitMargin(): Promise<VueWrapper> {
+  vi.mocked(apiRequest).mockImplementation(respondLikeTheServer)
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
-  return mount(ProfitMarginTab, {
+  const wrapper = mount(ProfitMarginTab, {
     global: { plugins: [i18n], stubs: { ProductSearch: true } },
+    props: { initialTypeId: SABRE_TYPE_ID },
   })
+  await flushPromises()
+  return wrapper
 }
 
 async function mountProfitMarginWithAttainmentSelected(): Promise<VueWrapper> {
-  const wrapper = mountProfitMargin()
+  const wrapper = await mountProfitMargin()
   const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
   expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
   await attainmentRow!.trigger('click')
+  await flushPromises()
   return wrapper
 }
 
@@ -138,15 +164,15 @@ beforeEach(() => {
 })
 
 describe('ProfitMarginTab without a selected decryptor', () => {
-  it('shows the invention cost of the analysis as is, the T1 copies being part of each invention attempt', () => {
-    const wrapper = mountProfitMargin()
+  it('shows the invention cost of the analysis as is, the T1 copies being part of each invention attempt', async () => {
+    const wrapper = await mountProfitMargin()
 
     expect(costSummaryAmount(wrapper, marginLabels.inventionCostLabel)).toBe('26.00 K')
   })
 })
 
 describe('ProfitMarginTab with a selected decryptor', () => {
-  it('recomputes the sale to the structure buy order with the sales tax only and the sell order with the broker fee too', async () => {
+  it('shows the sale to the structure buy order with the sales tax only and the sell order with the broker fee too', async () => {
     const wrapper = await mountProfitMarginWithAttainmentSelected()
 
     expect(figuresOf(venueRowTagged(wrapper, marginLabels.instantSellTag))).toEqual(['160.00 K', '-3.20 K', '+6.80 K', '+4.5%'])

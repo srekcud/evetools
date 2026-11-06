@@ -133,6 +133,21 @@ const ATTAINMENT_MARGIN_RESULT: ProfitMarginResult = {
   },
 }
 
+const PARITY_MARGIN_RESULT: ProfitMarginResult = {
+  ...SABRE_MARGIN_RESULT,
+  materialCost: null,
+  jobInstallCost: 7_000,
+  inventionCost: 33_000,
+  totalCost: null,
+  costPerUnit: null,
+  invention: {
+    ...SABRE_MARGIN_RESULT.invention!,
+    selectedDecryptorTypeId: PARITY_DECRYPTOR_TYPE_ID,
+    selectedDecryptorName: 'Parity Decryptor',
+  },
+  margins: { structureSell: null, structureBuy: null },
+}
+
 const costLabels = {
   materials: en.industry.costEstimation.materials,
   jobInstall: en.industry.costEstimation.jobInstall,
@@ -143,8 +158,9 @@ const UNKNOWN_LABEL = en.industry.inventionUnknown.label
 function respondLikeTheServer(path: string): Promise<unknown> {
   if (path === `/industry/types/${SABRE_TYPE_ID}`) return Promise.resolve(SABRE)
   if (path.startsWith(PROFIT_MARGIN_ENDPOINT)) {
-    const decryptorChosen = path.includes(`decryptorTypeId=${ATTAINMENT_DECRYPTOR_TYPE_ID}`)
-    return Promise.resolve(decryptorChosen ? ATTAINMENT_MARGIN_RESULT : SABRE_MARGIN_RESULT)
+    if (path.includes(`decryptorTypeId=${ATTAINMENT_DECRYPTOR_TYPE_ID}`)) return Promise.resolve(ATTAINMENT_MARGIN_RESULT)
+    if (path.includes(`decryptorTypeId=${PARITY_DECRYPTOR_TYPE_ID}`)) return Promise.resolve(PARITY_MARGIN_RESULT)
+    return Promise.resolve(SABRE_MARGIN_RESULT)
   }
   return Promise.resolve(null)
 }
@@ -162,6 +178,7 @@ async function mountSabreAnalysis(): Promise<VueWrapper> {
 
 async function chooseDecryptor(wrapper: VueWrapper, rowLabel: string): Promise<void> {
   await decryptorRow(wrapper, rowLabel).trigger('click')
+  await flushPromises()
 }
 
 function decryptorRow(wrapper: VueWrapper, rowLabel: string): DOMWrapper<Element> {
@@ -263,8 +280,8 @@ describe('ProfitMarginTab refreshing the prices', () => {
 
     await refreshPrices(wrapper)
 
-    expect(marginRequests()).toHaveLength(2)
-    expect(marginRequests()[1]).toContain(`decryptorTypeId=${ATTAINMENT_DECRYPTOR_TYPE_ID}`)
+    expect(marginRequests()).toHaveLength(3)
+    expect(marginRequests()[2]).toContain(`decryptorTypeId=${ATTAINMENT_DECRYPTOR_TYPE_ID}`)
     expect(isMarkedSelected(decryptorRow(wrapper, 'Attainment Decryptor'))).toBe(true)
     expect(isMarkedSelected(decryptorRow(wrapper, en.industry.bpcKitTab.none))).toBe(false)
   })
@@ -285,6 +302,7 @@ describe('ProfitMarginTab refreshing the prices', () => {
 
     await refreshPrices(wrapper)
 
-    expect(marginRequests()[1]).not.toContain('decryptorTypeId')
+    expect(marginRequests()).toHaveLength(4)
+    expect(marginRequests()[3]).not.toContain('decryptorTypeId')
   })
 })
