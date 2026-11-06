@@ -129,6 +129,42 @@ final class CreatePurchaseProcessorTest extends TestCase
         self::assertSame([], $this->refreshedLines);
     }
 
+    public function testWalletSaleIsABadRequestAndNoPurchaseIsCreated(): void
+    {
+        $this->walletTransactionsByUuid[self::RAM_BUY_UUID]->setIsBuy(false);
+
+        self::assertSame(
+            '400 The wallet transaction is not a purchase.',
+            $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::RAM_BUY_UUID))),
+        );
+        self::assertSame([], $this->persistedEntities);
+        self::assertSame([], $this->refreshedLines);
+    }
+
+    public function testQuantityAboveTheWalletBuyIsABadRequestAndNoPurchaseIsCreated(): void
+    {
+        $input = $this->transactionInput(self::RAM_BUY_UUID);
+        $input->quantity = 51;
+
+        self::assertSame(
+            '400 The quantity cannot exceed the quantity of the wallet transaction.',
+            $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->ramLine, $input)),
+        );
+        self::assertSame([], $this->persistedEntities);
+        self::assertSame([], $this->refreshedLines);
+    }
+
+    public function testQuantityBelowTheWalletBuyLinksOnlyThatQuantityAtTheTransactionPrice(): void
+    {
+        $input = $this->transactionInput(self::RAM_BUY_UUID);
+        $input->quantity = 20;
+
+        $this->create($this->owner, $this->ishtarProject, $this->ramLine, $input);
+
+        $purchase = $this->persistedEntities[0];
+        self::assertSame([20, 60_810.0], [$purchase->getQuantity(), $purchase->getTotalPrice()]);
+    }
+
     public function testIncompleteManualPurchaseIsABadRequest(): void
     {
         $input = new CreatePurchaseInput();
