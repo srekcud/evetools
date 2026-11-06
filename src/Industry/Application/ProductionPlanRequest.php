@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Industry\Application;
 
+use App\Industry\Domain\Isk;
 use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\Quantity;
 
@@ -21,6 +22,7 @@ final readonly class ProductionPlanRequest
         public FavoriteSystems $favoriteSystems,
         public array $blacklist = [],
         public array $startingStock = [],
+        public StructureSelectionPolicy $selectionPolicy = new StructureSelectionPolicy(false, new Isk(0.0)),
     ) {
     }
 }

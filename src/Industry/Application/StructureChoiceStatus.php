@@ -13,5 +13,6 @@ enum StructureChoiceStatus
     case BestInFavoriteSystem;
     case BestConfigured;
     case BestOutsideFavoriteSystem;
+    case BestByTotalCost;
     case NotConfigured;
 }

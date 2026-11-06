@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project;
 
+use App\Entity\IndustryProject;
+
 /**
  * Data transfer object for creating a Group Industry project.
  * Decoupled from API Platform input DTOs.
@@ -26,6 +28,8 @@ final readonly class CreateProjectData
         public ?float $brokerFeePercent = null,
         public ?float $salesTaxPercent = null,
         public bool $private = true,
+        public bool $acceptsOutsideFavoriteSystem = false,
+        public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING,
     ) {
     }
 }

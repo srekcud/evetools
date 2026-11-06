@@ -82,6 +82,8 @@ function vagabondProjectOf(runs: number): IndustryProject {
     meLevel: 2,
     teLevel: 4,
     maxJobDurationDays: 3,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 500000,
     status: 'active',
     personalUse: false,
     isT2: true,

@@ -15,14 +15,24 @@ final readonly class StructureSelector
 {
     private const float INSTALL_RATE_TOLERANCE = 1e-9;
 
+    private const float TOTAL_COST_TOLERANCE_ISK = 0.01;
+
     /**
      * @param list<ProductionStructure> $structures
      */
-    public function __construct(private array $structures, private FavoriteSystems $favoriteSystems, private SystemCostIndices $costIndices)
-    {
+    public function __construct(
+        private array $structures,
+        private FavoriteSystems $favoriteSystems,
+        private SystemCostIndices $costIndices,
+        private ?StructureTotalCostComparator $totalCostComparator = null,
+        private ?StructureSelectionPolicy $selectionPolicy = null,
+    ) {
+        if (true === $selectionPolicy?->acceptsOutsideFavoriteSystem && null === $totalCostComparator) {
+            throw new \LogicException('A selection policy accepting structures outside the favorite system needs a total cost comparator.');
+        }
     }
 
-    public function select(ActivityKind $activity, ?string $productCategory, ?ProductionStructure $assignedStructure = null): StructureChoice
+    public function select(ActivityKind $activity, ?string $productCategory, ?ProductionStructure $assignedStructure = null, ?StructureJobBasis $basis = null): StructureChoice
     {
         if (null !== $assignedStructure && $assignedStructure->canRun($activity)) {
             return new StructureChoice(
@@ -32,12 +42,12 @@ final readonly class StructureSelector
             );
         }
 
-        $choice = $this->selectBest($activity, $productCategory);
+        $choice = $this->selectBest($activity, $productCategory, $basis);
 
         return null === $assignedStructure ? $choice : $choice->ignoring($assignedStructure);
     }
 
-    private function selectBest(ActivityKind $activity, ?string $productCategory): StructureChoice
+    private function selectBest(ActivityKind $activity, ?string $productCategory, ?StructureJobBasis $basis): StructureChoice
     {
         $candidates = array_values(array_filter(
             $this->structures,
@@ -49,8 +59,75 @@ final readonly class StructureSelector
 
         return match ($activity) {
             ActivityKind::Copying, ActivityKind::Invention => $this->lowestInstallRate($candidates, $activity),
-            ActivityKind::Manufacturing, ActivityKind::Reaction => $this->bestMaterialMultiplier($candidates, $activity, $productCategory),
+            ActivityKind::Manufacturing, ActivityKind::Reaction => $this->bestMaterialMultiplierOrTotalCost($candidates, $activity, $productCategory, $basis),
         };
+    }
+
+    /**
+     * @param non-empty-list<ProductionStructure> $candidates
+     */
+    private function bestMaterialMultiplierOrTotalCost(array $candidates, ActivityKind $activity, ?string $productCategory, ?StructureJobBasis $basis): StructureChoice
+    {
+        $favoriteSolarSystemId = $this->favoriteSystems->forActivity($activity);
+        $policy = $this->selectionPolicy;
+        $comparator = $this->totalCostComparator;
+        if (null === $policy || !$policy->acceptsOutsideFavoriteSystem || null === $comparator || null === $basis || null === $favoriteSolarSystemId) {
+            return $this->bestMaterialMultiplier($candidates, $activity, $productCategory);
+        }
+
+        $inFavoriteSystem = array_values(array_filter(
+            $candidates,
+            fn (ProductionStructure $structure): bool => $this->favoriteSystems->contains($structure, $activity),
+        ));
+        $reference = [] === $inFavoriteSystem
+            ? $this->bestMaterialMultiplier($candidates, $activity, $productCategory)
+            : $this->choiceOf($this->smallestMaterialMultiplier($inFavoriteSystem, $activity, $productCategory), StructureChoiceStatus::BestInFavoriteSystem, $activity, $productCategory);
+
+        return $this->cheaperByTotalCost($reference, $candidates, $activity, $productCategory, $basis, $favoriteSolarSystemId, $policy, $comparator);
+    }
+
+    /**
+     * @param non-empty-list<ProductionStructure> $candidates
+     */
+    private function cheaperByTotalCost(StructureChoice $reference, array $candidates, ActivityKind $activity, ?string $productCategory, StructureJobBasis $basis, int $favoriteSolarSystemId, StructureSelectionPolicy $policy, StructureTotalCostComparator $comparator): StructureChoice
+    {
+        $referenceStructure = $reference->structure;
+        if (null === $referenceStructure) {
+            return $reference;
+        }
+
+        $referenceCost = $comparator->totalCostOf($basis->recipe, $basis->referenceRuns, $productCategory, $referenceStructure, $favoriteSolarSystemId, false);
+        if (!$referenceCost->isKnown()) {
+            return $reference;
+        }
+
+        $knownCosts = [];
+        $comparableCandidates = [];
+        foreach ($candidates as $candidate) {
+            $cost = $comparator->totalCostOf($basis->recipe, $basis->referenceRuns, $productCategory, $candidate, $favoriteSolarSystemId, false);
+            if ($cost->isKnown()) {
+                $knownCosts[$candidate->id] = $cost->amount()->amount;
+                $comparableCandidates[] = $candidate;
+            }
+        }
+        if ([] === $knownCosts) {
+            return $reference;
+        }
+
+        $lowestCost = min($knownCosts);
+        $cheapest = $this->firstByPreference(
+            array_values(array_filter(
+                $comparableCandidates,
+                static fn (ProductionStructure $structure): bool => $knownCosts[$structure->id] - $lowestCost <= self::TOTAL_COST_TOLERANCE_ISK,
+            )),
+            $activity,
+        );
+        $saving = $referenceCost->amount()->amount - $knownCosts[$cheapest->id];
+        if ($saving <= self::TOTAL_COST_TOLERANCE_ISK || $saving + self::TOTAL_COST_TOLERANCE_ISK < $policy->minimumSaving->amount) {
+            return $reference;
+        }
+
+        return $this->choiceOf($cheapest, StructureChoiceStatus::BestByTotalCost, $activity, $productCategory);
     }
 
     /**

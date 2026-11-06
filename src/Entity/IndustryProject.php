@@ -21,6 +21,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['status'])]
 class IndustryProject
 {
+    public const float DEFAULT_MINIMUM_OUTSIDE_SAVING = 500000.0;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
@@ -58,6 +60,12 @@ class IndustryProject
 
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $salesTaxPercent = null;
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $acceptsOutsideFavoriteSystem = false;
+
+    #[ORM\Column(type: 'float', options: ['default' => self::DEFAULT_MINIMUM_OUTSIDE_SAVING])]
+    private float $minimumOutsideSaving = self::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $private = true;
@@ -204,6 +212,28 @@ class IndustryProject
     public function setPrivate(bool $private): static
     {
         $this->private = $private;
+        return $this;
+    }
+
+    public function isAcceptsOutsideFavoriteSystem(): bool
+    {
+        return $this->acceptsOutsideFavoriteSystem;
+    }
+
+    public function setAcceptsOutsideFavoriteSystem(bool $acceptsOutsideFavoriteSystem): static
+    {
+        $this->acceptsOutsideFavoriteSystem = $acceptsOutsideFavoriteSystem;
+        return $this;
+    }
+
+    public function getMinimumOutsideSaving(): float
+    {
+        return $this->minimumOutsideSaving;
+    }
+
+    public function setMinimumOutsideSaving(float $minimumOutsideSaving): static
+    {
+        $this->minimumOutsideSaving = $minimumOutsideSaving;
         return $this;
     }
 

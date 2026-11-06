@@ -41,6 +41,7 @@ class CreateProjectProcessorTest extends TestCase
 {
     private const int SABRE_TYPE_ID = 22456;
     private const int SABRE_BLUEPRINT_TYPE_ID = 22457;
+    private const float MINIMUM_OUTSIDE_SAVING = 125_000.0;
 
     private Security&Stub $security;
     private IndustryProjectService&Stub $projectService;
@@ -220,6 +221,28 @@ class CreateProjectProcessorTest extends TestCase
 
         self::assertNotNull($this->createdProjectData);
         self::assertFalse($this->createdProjectData->private);
+    }
+
+    #[Group('issue-341')]
+    public function testSelectionPolicySentAtCreationIsPassedToTheService(): void
+    {
+        $input = $this->sabreInput();
+        $input->acceptsOutsideFavoriteSystem = true;
+        $input->minimumOutsideSaving = self::MINIMUM_OUTSIDE_SAVING;
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame([true, self::MINIMUM_OUTSIDE_SAVING], [$this->createdProjectData->acceptsOutsideFavoriteSystem, $this->createdProjectData->minimumOutsideSaving]);
+    }
+
+    #[Group('issue-341')]
+    public function testSelectionPolicyAbsentAtCreationIsPassedToTheServiceAsRefusingAStructureOutsideTheFavoriteSystemWithTheDefaultMinimumOutsideSaving(): void
+    {
+        $this->createProjectFrom($this->sabreInput());
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame([false, IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING], [$this->createdProjectData->acceptsOutsideFavoriteSystem, $this->createdProjectData->minimumOutsideSaving]);
     }
 
     private function givenSellerFees(?array $sellerRates): void

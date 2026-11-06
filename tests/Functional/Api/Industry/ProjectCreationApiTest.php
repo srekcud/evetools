@@ -28,6 +28,7 @@ final class ProjectCreationApiTest extends WebTestCase
     private const int FIXTURE_ALLOY = 990_362_102;
     private const int MANUFACTURING_ACTIVITY = 1;
     private const int MAXIMUM_PRODUCTS = 10;
+    private const float MINIMUM_OUTSIDE_SAVING = 125_000.5;
 
     protected function setUp(): void
     {
@@ -108,6 +109,43 @@ final class ProjectCreationApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame(['items'], $this->violatedPaths());
+        self::assertSame($projectsBefore, $this->em->getRepository(IndustryProject::class)->count([]));
+    }
+
+    #[Group('issue-341')]
+    public function testCreationAcceptingAStructureOutsideTheFavoriteSystemKeepsTheSelectionPolicyOnTheProject(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', [
+            'name' => 'Beta anywhere cheaper',
+            'acceptsOutsideFavoriteSystem' => true,
+            'minimumOutsideSaving' => self::MINIMUM_OUTSIDE_SAVING,
+            'items' => [['typeId' => self::BETA_HULL, 'typeName' => 'Fixture Beta Hull', 'meLevel' => 4, 'teLevel' => 8, 'runs' => 7]],
+        ]);
+
+        self::assertResponseStatusCodeSame(201);
+        $projectId = $this->responseJson()['id'];
+        $this->actAs($this->owner);
+        $this->request('GET', '/api/industry/projects/'.$projectId);
+        self::assertResponseStatusCodeSame(200);
+        $project = $this->responseJson();
+        self::assertSame([true, self::MINIMUM_OUTSIDE_SAVING], [$project['acceptsOutsideFavoriteSystem'], $project['minimumOutsideSaving']]);
+    }
+
+    #[Group('issue-341')]
+    public function testCreationWithANegativeMinimumOutsideSavingCreatesNoProject(): void
+    {
+        $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', [
+            'name' => 'Negative saving',
+            'acceptsOutsideFavoriteSystem' => true,
+            'minimumOutsideSaving' => -1.5,
+            'items' => [['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 2, 'teLevel' => 4, 'runs' => 2]],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['minimumOutsideSaving'], $this->violatedPaths());
         self::assertSame($projectsBefore, $this->em->getRepository(IndustryProject::class)->count([]));
     }
 

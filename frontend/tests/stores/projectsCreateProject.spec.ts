@@ -12,6 +12,7 @@ const WIDOW_RUNS = 10
 const INVENTED_BLUEPRINT_ME = 2
 const INVENTED_BLUEPRINT_TE = 4
 const MAX_JOB_DURATION_DAYS = 2
+const DEFAULT_MINIMUM_OUTSIDE_SAVING = 500000
 const SUSTAINED_SHIELD_EMITTER_TYPE_ID = 11558
 const TITANIUM_CARBIDE_TYPE_ID = 16671
 const RIFTER_TYPE_ID = 587
@@ -51,6 +52,8 @@ describe('projects store project creation', () => {
       maxJobDurationDays: MAX_JOB_DURATION_DAYS,
       name: null,
       excludedTypeIds: [SUSTAINED_SHIELD_EMITTER_TYPE_ID, TITANIUM_CARBIDE_TYPE_ID],
+      acceptsOutsideFavoriteSystem: false,
+      minimumOutsideSaving: DEFAULT_MINIMUM_OUTSIDE_SAVING,
     })
   })
 
@@ -65,6 +68,8 @@ describe('projects store project creation', () => {
       maxJobDurationDays: MAX_JOB_DURATION_DAYS,
       name: null,
       excludedTypeIds: [],
+      acceptsOutsideFavoriteSystem: false,
+      minimumOutsideSaving: DEFAULT_MINIMUM_OUTSIDE_SAVING,
     })
   })
 })

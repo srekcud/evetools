@@ -124,6 +124,8 @@ function project(overrides: Partial<IndustryProject>): IndustryProject {
     meLevel: 0,
     teLevel: 0,
     maxJobDurationDays: 2,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 500000,
     status: 'active',
     personalUse: false,
     isT2: false,

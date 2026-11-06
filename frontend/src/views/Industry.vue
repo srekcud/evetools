@@ -3,6 +3,7 @@ import { ref, onMounted, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useIndustryStore, type SearchResult } from '@/stores/industry'
+import { DEFAULT_MINIMUM_OUTSIDE_SAVING } from '@/stores/industry/projects'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useAdminStore } from '@/stores/admin'
 import { DATA_FRESHNESS_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
@@ -31,6 +32,8 @@ const projectNameFieldId = useId()
 const runsFieldId = useId()
 const meLevelFieldId = useId()
 const teLevelFieldId = useId()
+const acceptsOutsideFavoriteSystemFieldId = useId()
+const minimumOutsideSavingFieldId = useId()
 const route = useRoute()
 const router = useRouter()
 const store = useIndustryStore()
@@ -57,6 +60,8 @@ const meLevel = ref(0)
 const teLevel = ref(0)
 const excludedTypeIds = ref<number[]>([])
 const projectName = ref('')
+const acceptsOutsideFavoriteSystem = ref(false)
+const minimumOutsideSaving = ref(DEFAULT_MINIMUM_OUTSIDE_SAVING)
 const productsToAdd = ref<ProductToAdd[]>([])
 const isCreating = ref(false)
 const productSearchRef = ref<{ clear: () => void } | null>(null)
@@ -268,6 +273,8 @@ async function createProject() {
       store.defaultMaxJobDurationDays,
       projectName.value.trim() || null,
       excludedTypeIds.value,
+      acceptsOutsideFavoriteSystem.value,
+      minimumOutsideSaving.value,
     )
 
     // Add remaining products as additional steps (with their own ME/TE)
@@ -283,6 +290,8 @@ async function createProject() {
     teLevel.value = 0
     excludedTypeIds.value = []
     projectName.value = ''
+    acceptsOutsideFavoriteSystem.value = false
+    minimumOutsideSaving.value = DEFAULT_MINIMUM_OUTSIDE_SAVING
     productsToAdd.value = []
     showCreateModal.value = false
 
@@ -720,6 +729,32 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                 step="2"
                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
               />
+            </div>
+          </div>
+
+          <!-- Structure outside the favorite system -->
+          <div class="space-y-2 rounded-lg border border-slate-700/60 bg-slate-800/40 px-4 py-3">
+            <label :for="acceptsOutsideFavoriteSystemFieldId" class="flex items-start gap-2 text-sm text-slate-300 cursor-pointer">
+              <input
+                :id="acceptsOutsideFavoriteSystemFieldId"
+                v-model="acceptsOutsideFavoriteSystem"
+                type="checkbox"
+                class="mt-0.5 w-4 h-4 rounded-sm border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
+              />
+              <span>{{ t('industry.createProject.acceptsOutsideFavoriteSystem') }}</span>
+            </label>
+            <div class="flex items-center gap-3">
+              <label :for="minimumOutsideSavingFieldId" class="text-sm text-slate-400">{{ t('industry.createProject.minimumOutsideSaving') }}</label>
+              <input
+                :id="minimumOutsideSavingFieldId"
+                v-model.number="minimumOutsideSaving"
+                :disabled="!acceptsOutsideFavoriteSystem"
+                type="number"
+                min="0"
+                step="1000"
+                class="w-40 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 text-right focus:outline-hidden focus:border-cyan-500 font-mono disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <span class="text-xs text-slate-500">ISK</span>
             </div>
           </div>
 

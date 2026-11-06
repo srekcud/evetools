@@ -48,6 +48,7 @@ final class DropIndustryProjectStepsMigrationTest extends IntegrationTestCase
     ];
 
     private const array COLUMNS_OF_THE_PROJECT_AFTER_THE_DROP = [
+        'accepts_outside_favorite_system',
         'blacklist_group_ids',
         'blacklist_type_ids',
         'broker_fee_percent',
@@ -56,6 +57,7 @@ final class DropIndustryProjectStepsMigrationTest extends IntegrationTestCase
         'created_at',
         'id',
         'line_rental_rates_override',
+        'minimum_outside_saving',
         'name',
         'notes',
         'owner_id',

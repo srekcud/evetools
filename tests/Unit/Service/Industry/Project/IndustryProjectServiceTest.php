@@ -17,6 +17,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Enum\IndustryActivityType;
 use App\Industry\Application\ProductionPlanning;
+use App\Industry\Application\StructureTotalCostComparator;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\Quantity;
@@ -24,6 +25,7 @@ use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -31,6 +33,10 @@ use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryItemVolumes;
+use App\Tests\Unit\Industry\Application\Double\InMemoryJumpDistances;
+use App\Tests\Unit\Industry\Application\Double\InMemoryMarketPrices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
@@ -544,6 +550,34 @@ final class IndustryProjectServiceTest extends TestCase
         $this->assertSame(3.0, $project->getSalesTaxPercent());
     }
 
+    #[Group('issue-341')]
+    public function testCreateProjectTakesTheSelectionPolicyOfTheData(): void
+    {
+        $this->givenRifter();
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifters built anywhere cheaper',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 12]],
+            acceptsOutsideFavoriteSystem: true,
+            minimumOutsideSaving: 250_000.0,
+        ));
+
+        $this->assertSame([true, 250_000.0], [$project->isAcceptsOutsideFavoriteSystem(), $project->getMinimumOutsideSaving()]);
+    }
+
+    #[Group('issue-341')]
+    public function testCreateProjectRefusesAStructureOutsideTheFavoriteSystemWithTheDefaultMinimumOutsideSavingWhenTheDataDoNotSayOtherwise(): void
+    {
+        $this->givenRifter();
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifters at home',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 3]],
+        ));
+
+        $this->assertSame([false, IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING], [$project->isAcceptsOutsideFavoriteSystem(), $project->getMinimumOutsideSaving()]);
+    }
+
     #[Group('issue-141')]
     public function testBuildBomIntermediateCopyStep(): void
     {
@@ -674,7 +708,12 @@ final class IndustryProjectServiceTest extends TestCase
         }
 
         return new IndustryProjectService(
-            new ProductionPlanning(new InMemoryBlueprintCatalog(...$recipes), InMemorySystemCostIndices::none(), new InMemoryRigCategories()),
+            new ProductionPlanning(
+                new InMemoryBlueprintCatalog(...$recipes),
+                InMemorySystemCostIndices::none(),
+                new InMemoryRigCategories(),
+                new StructureTotalCostComparator(new InMemoryMarketPrices([]), new InMemoryAdjustedPrices([]), InMemorySystemCostIndices::none(), new InMemoryJumpDistances(), new InMemoryItemVolumes()),
+            ),
             new InMemoryUserProductionStructures(),
             $this->jitaMarketService,
             $this->entityManager,
@@ -682,6 +721,7 @@ final class IndustryProjectServiceTest extends TestCase
             $this->activityProductRepository(),
             $this->activityRepository(),
             $this->createStub(IndustryProjectContributionRepository::class),
+            $this->createStub(IndustryUserSettingsRepository::class),
         );
     }
 

@@ -65,6 +65,8 @@ function vexorProject(): IndustryProject {
     meLevel: 8,
     teLevel: 16,
     maxJobDurationDays: 2,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 500000,
     status: 'active',
     personalUse: false,
     isT2: false,

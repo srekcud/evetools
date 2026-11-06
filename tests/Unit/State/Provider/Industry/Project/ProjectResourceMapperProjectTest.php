@@ -252,6 +252,24 @@ final class ProjectResourceMapperProjectTest extends TestCase
         self::assertSame([null, 3.375], [$this->resource()->brokerFeePercent, $this->resource()->salesTaxPercent]);
     }
 
+    #[Group('issue-341')]
+    public function testSelectionPolicyOfTheProjectIsCopiedAsItIs(): void
+    {
+        $this->project->setAcceptsOutsideFavoriteSystem(true)->setMinimumOutsideSaving(75_000.0);
+
+        $resource = $this->resource();
+
+        self::assertSame([true, 75_000.0], [$resource->acceptsOutsideFavoriteSystem, $resource->minimumOutsideSaving]);
+    }
+
+    #[Group('issue-341')]
+    public function testProjectWithoutSelectionPolicyRefusesAStructureOutsideTheFavoriteSystemWithTheDefaultMinimumOutsideSaving(): void
+    {
+        $resource = $this->resource();
+
+        self::assertSame([false, IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING], [$resource->acceptsOutsideFavoriteSystem, $resource->minimumOutsideSaving]);
+    }
+
     private function resource(): IndustryProjectResource
     {
         return $this->mapper->projectToResource($this->project, $this->ownerMembership);

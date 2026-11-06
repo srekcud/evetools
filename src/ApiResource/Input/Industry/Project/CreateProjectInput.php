@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\Industry\Project;
 
+use App\Entity\IndustryProject;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
@@ -61,6 +62,11 @@ class CreateProjectInput
     public ?float $salesTaxPercent = null;
 
     public bool $private = true;
+
+    public bool $acceptsOutsideFavoriteSystem = false;
+
+    #[Assert\PositiveOrZero]
+    public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
     #[Assert\Callback]
     public function validateTheSumOfTheRuns(ExecutionContextInterface $context): void

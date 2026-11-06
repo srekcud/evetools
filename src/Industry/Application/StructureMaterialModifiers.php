@@ -7,6 +7,7 @@ namespace App\Industry\Application;
 use App\Industry\Domain\JobMaterialModifiers;
 use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\Recipe;
+use App\Industry\Domain\Runs;
 
 /**
  * Material modifier of each job from the structure chosen by the StructureSelector (spec R2, R4, D3).
@@ -20,6 +21,7 @@ final readonly class StructureMaterialModifiers implements JobMaterialModifiers
         private StructureSelector $selector,
         private RigCategories $rigCategories,
         private array $assignedStructures = [],
+        private ?Runs $referenceRuns = null,
     ) {
     }
 
@@ -38,6 +40,7 @@ final readonly class StructureMaterialModifiers implements JobMaterialModifiers
             $recipe->activity,
             $this->rigCategories->categoryOf($recipe->productTypeId, $recipe->activity),
             $assignedStructure,
+            null === $this->referenceRuns ? null : new StructureJobBasis($recipe, $this->referenceRuns),
         );
     }
 }

@@ -29,6 +29,8 @@ const ISHTAR_PROJECT = {
   meLevel: 2,
   teLevel: 4,
   maxJobDurationDays: 2,
+  acceptsOutsideFavoriteSystem: false,
+  minimumOutsideSaving: 500000,
   status: 'active',
   personalUse: false,
   isT2: false,
