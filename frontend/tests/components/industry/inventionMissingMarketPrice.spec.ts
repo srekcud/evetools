@@ -53,7 +53,6 @@ function mountPanelWithUnknownParityPrice(locale: 'en' | 'fr') {
       datacores: ['Datacore - Mechanical Engineering', 'Datacore - Minmatar Starship Engineering'],
       options: [NO_DECRYPTOR_OPTION, PARITY_OPTION_WITHOUT_PRICE],
       bestDecryptorIndex: 0,
-      selectedOption: PARITY_OPTION_WITHOUT_PRICE,
       selectedDecryptorTypeId: 34204,
       effectiveInventionCost: null,
       effectiveTotalCost: null,
