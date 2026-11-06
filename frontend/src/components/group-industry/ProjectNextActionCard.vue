@@ -15,6 +15,11 @@ defineEmits<{
 const { t } = useI18n()
 
 const messageKey = computed(() => `groupIndustry.cockpit.nextAction.${props.nextAction.code}`)
+const descriptionKey = computed(() =>
+  props.nextAction.code === 'launch_job' && props.nextAction.quantity === null
+    ? `${messageKey.value}.descriptionUnknownRuns`
+    : `${messageKey.value}.description`
+)
 const hasButton = computed(() => props.nextAction.targetStatus !== null || props.nextAction.tab !== null)
 </script>
 
@@ -33,7 +38,7 @@ const hasButton = computed(() => props.nextAction.targetStatus !== null || props
         {{ t(`${messageKey}.title`) }}{{ ' ' }}
       </h2>
       <p class="break-words text-sm text-slate-400">
-        {{ t(`${messageKey}.description`, { typeName: nextAction.typeName, quantity: nextAction.quantity }) }}
+        {{ t(descriptionKey, { typeName: nextAction.typeName, quantity: nextAction.quantity }) }}
       </p>
     </div>
     <button
