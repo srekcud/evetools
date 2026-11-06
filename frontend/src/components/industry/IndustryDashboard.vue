@@ -44,7 +44,7 @@ const activeProjectCount = computed(() =>
   groupProjectStore.myProjects.filter(p => p.status !== 'completed').length,
 )
 
-// --- KPI 2: Slots Used ---
+// --- KPI 3: Slots Used ---
 const slotsData = computed(() => slotsStore.data)
 
 const totalSlotsUsed = computed(() => {
@@ -94,7 +94,7 @@ const slotsAvailableColor = computed(() => {
   return 'text-emerald-400/70'
 })
 
-// --- KPI 3: Pipeline Health ---
+// --- KPI 4: Pipeline Health ---
 const pipelineHealth = computed((): number | null =>
   stockpileStore.stockpileStatus?.kpis.pipelineHealth ?? null,
 )
@@ -269,7 +269,7 @@ function cleanTypeName(name: string): string {
       </p>
     </div>
 
-    <!-- KPI 2: Slots Used -->
+    <!-- KPI 3: Slots Used -->
     <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.slotsUsed') }}</p>
       <div v-if="slotsData" class="flex items-center gap-3">
@@ -301,7 +301,7 @@ function cleanTypeName(name: string): string {
       <p v-else class="text-2xl font-bold text-slate-500">&mdash;</p>
     </div>
 
-    <!-- KPI 3: Pipeline Health -->
+    <!-- KPI 4: Pipeline Health -->
     <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.pipelineHealth') }}</p>
       <p v-if="pipelineHealth === null" class="text-2xl font-bold text-slate-500"><UnknownValue /></p>
