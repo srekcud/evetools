@@ -83,9 +83,9 @@ final class ProjectBomStructureChoiceByTotalCostTest extends IntegrationTestCase
     private const float HIGH_MINIMUM_OUTSIDE_SAVING = 1_000_000.0;
 
     private const int PLATINGS_AT_THE_FAVORITE_STRUCTURE = 970;
-    private const int ALLOYS_FOR_THE_PLATINGS_OF_THE_FAVORITE_STRUCTURE = 2_881;
+    private const int ALLOYS_FOR_THE_PLATINGS_OF_THE_FAVORITE_STRUCTURE = 2_593;
     private const int PLATINGS_AT_THE_NEIGHBOUR_STRUCTURE = 941;
-    private const int ALLOYS_FOR_THE_PLATINGS_OF_THE_NEIGHBOUR_STRUCTURE = 2_795;
+    private const int ALLOYS_FOR_THE_PLATINGS_OF_THE_NEIGHBOUR_STRUCTURE = 2_516;
 
     private User $pilot;
 

@@ -17,6 +17,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Enum\IndustryActivityType;
 use App\Industry\Application\ProductionPlanning;
+use App\Industry\Application\StructureTotalCostComparator;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\Quantity;
@@ -32,6 +33,10 @@ use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
+use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryItemVolumes;
+use App\Tests\Unit\Industry\Application\Double\InMemoryJumpDistances;
+use App\Tests\Unit\Industry\Application\Double\InMemoryMarketPrices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
@@ -703,7 +708,12 @@ final class IndustryProjectServiceTest extends TestCase
         }
 
         return new IndustryProjectService(
-            new ProductionPlanning(new InMemoryBlueprintCatalog(...$recipes), InMemorySystemCostIndices::none(), new InMemoryRigCategories()),
+            new ProductionPlanning(
+                new InMemoryBlueprintCatalog(...$recipes),
+                InMemorySystemCostIndices::none(),
+                new InMemoryRigCategories(),
+                new StructureTotalCostComparator(new InMemoryMarketPrices([]), new InMemoryAdjustedPrices([]), InMemorySystemCostIndices::none(), new InMemoryJumpDistances(), new InMemoryItemVolumes()),
+            ),
             new InMemoryUserProductionStructures(),
             $this->jitaMarketService,
             $this->entityManager,

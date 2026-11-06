@@ -64,4 +64,27 @@ final class ProductionPlanningStructureSelectionPolicyTest extends TestCase
             array_map(static fn (Quantity $quantity): int => $quantity->value, $plan->leaves),
         );
     }
+
+    public function testPlanningWithoutComparatorRefusesAPolicyAcceptingAStructureOutsideTheFavoriteSystem(): void
+    {
+        $planning = new ProductionPlanning(
+            new InMemoryBlueprintCatalog(StructureTotalCostExample::recipe()),
+            StructureTotalCostExample::costIndices(),
+            new InMemoryRigCategories(manufacturing: [StructureTotalCostExample::PRODUCT_TYPE_ID => StructureTotalCostExample::PRODUCT_CATEGORY]),
+        );
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('A selection policy accepting structures outside the favorite system needs a total cost comparator.');
+
+        $planning->planOf(new ProductionPlanRequest(
+            [new PlanTarget(
+                StructureTotalCostExample::PRODUCT_TYPE_ID,
+                new Runs(StructureTotalCostExample::REFERENCE_RUNS),
+                new BlueprintEfficiency(new MaterialEfficiency(0), new TimeEfficiency(0)),
+            )],
+            [StructureTotalCostExample::workshopStructureWithNeutralRig(), StructureTotalCostExample::structureC()],
+            new FavoriteSystems(StructureTotalCostExample::WORKSHOP_SYSTEM_ID, null),
+            selectionPolicy: new StructureSelectionPolicy(true, new Isk(100_000.0)),
+        ));
+    }
 }
