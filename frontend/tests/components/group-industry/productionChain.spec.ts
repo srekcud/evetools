@@ -52,7 +52,9 @@ async function openTree(wrapper: VueWrapper): Promise<void> {
   await wrapper.get('[data-testid="chain-view-tree"]').trigger('click')
 }
 
-function row(wrapper: VueWrapper, nodeId: string): DOMWrapper<Element> {
+type FoundElement = Omit<DOMWrapper<Element>, 'exists'>
+
+function row(wrapper: VueWrapper, nodeId: string): FoundElement {
   return wrapper.get(`[data-testid="chain-row-${nodeId}"]`)
 }
 
@@ -73,13 +75,13 @@ function cellsOf(wrapper: VueWrapper, nodeId: string): DOMWrapper<Element>[] {
   return row(wrapper, nodeId).findAll('td')
 }
 
-function cell(wrapper: VueWrapper, nodeId: string, column: keyof typeof COLUMN): DOMWrapper<Element> {
+function cell(wrapper: VueWrapper, nodeId: string, column: keyof typeof COLUMN): FoundElement {
   const found = cellsOf(wrapper, nodeId)[COLUMN[column]]
   if (found === undefined) throw new Error(`no ${column} cell on ${nodeId}`)
   return found
 }
 
-function testIdOf(element: DOMWrapper<Element>, prefix: string): string {
+function testIdOf(element: FoundElement, prefix: string): string {
   const testId = element.attributes('data-testid')
   if (testId === undefined) throw new Error('element without test id')
   return testId.replace(prefix, '')
@@ -89,7 +91,7 @@ function shownRowIds(wrapper: VueWrapper): string[] {
   return wrapper.findAll('[data-testid^="chain-row-"]').map(shown => testIdOf(shown, 'chain-row-'))
 }
 
-function nodeIdsOf(column: DOMWrapper<Element>): string[] {
+function nodeIdsOf(column: FoundElement): string[] {
   return column.findAll('[data-testid^="chain-node-"]').map(node => testIdOf(node, 'chain-node-'))
 }
 
