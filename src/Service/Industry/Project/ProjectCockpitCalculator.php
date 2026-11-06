@@ -106,12 +106,19 @@ final readonly class ProjectCockpitCalculator
      */
     private function soldUnitsOf(array $finalLines, array $soldQuantityByTypeId): int
     {
-        $finalTypeIds = array_unique(array_map(static fn (CockpitBomLine $line): int => $line->typeId, $finalLines));
+        $requiredByTypeId = [];
+        foreach ($finalLines as $line) {
+            $requiredByTypeId[$line->typeId] = array_key_exists($line->typeId, $requiredByTypeId)
+                ? $requiredByTypeId[$line->typeId] + $line->requiredQuantity
+                : $line->requiredQuantity;
+        }
 
-        return array_sum(array_map(
-            static fn (int $typeId): int => array_key_exists($typeId, $soldQuantityByTypeId) ? $soldQuantityByTypeId[$typeId] : self::NONE,
-            $finalTypeIds,
-        ));
+        $soldUnits = self::NONE;
+        foreach ($requiredByTypeId as $typeId => $requiredQuantity) {
+            $soldUnits += min($requiredQuantity, array_key_exists($typeId, $soldQuantityByTypeId) ? $soldQuantityByTypeId[$typeId] : self::NONE);
+        }
+
+        return $soldUnits;
     }
 
     /**
