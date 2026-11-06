@@ -2286,7 +2286,82 @@
       "materialsJobs": "Materiaux & Jobs",
       "contributions": "Contributions",
       "distribution": "Distribution",
-      "members": "Membres"
+      "members": "Membres",
+      "finances": "Finances",
+      "sales": "Ventes",
+      "team": "Équipe",
+      "chain": "Chaîne",
+      "invention": "Invention",
+      "planning": "Planning",
+      "journal": "Journal",
+      "comingSoon": "À venir"
+    },
+    "cockpit": {
+      "railLabel": "Phases du projet",
+      "unavailable": "Phases et prochaine action indisponibles pour le moment.",
+      "phases": {
+        "prepare": "Préparer",
+        "supply": "Approvisionner",
+        "produce": "Produire",
+        "sell": "Vendre",
+        "close": "Clôturer"
+      },
+      "states": {
+        "done": "Terminée",
+        "current": "En cours",
+        "blocked": "Bloquée",
+        "upcoming": "À venir"
+      },
+      "blockedReasons": {
+        "materials_missing": "{count} matériaux à couvrir",
+        "jobs_unfinished": "{count} jobs à terminer"
+      },
+      "nextAction": {
+        "label": "Prochaine action",
+        "project_completed": {
+          "title": "Projet terminé",
+          "description": "Les comptes sont figés : il n'y a plus rien à faire sur ce projet."
+        },
+        "review_contributions": {
+          "title": "Contributions à relire",
+          "description": "{quantity} contributions attendent votre décision avant d'être comptées dans la BOM.",
+          "button": "Relire les contributions"
+        },
+        "start_project": {
+          "title": "Démarrer le projet",
+          "description": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
+          "button": "Démarrer le projet"
+        },
+        "source_material": {
+          "title": "Approvisionner un matériau",
+          "description": "Il manque {quantity} {typeName} pour couvrir la BOM.",
+          "button": "Contribuer"
+        },
+        "launch_job": {
+          "title": "Lancer un job",
+          "description": "{quantity} runs de {typeName} restent à lancer.",
+          "button": "Voir les jobs"
+        },
+        "start_selling": {
+          "title": "Passer à la vente",
+          "description": "La production est terminée : ouvrez la vente des produits.",
+          "button": "Passer à la vente"
+        },
+        "record_sale": {
+          "title": "Enregistrer les ventes",
+          "description": "{quantity} unités restent à vendre ou à enregistrer.",
+          "button": "Ouvrir les ventes"
+        },
+        "complete_project": {
+          "title": "Clôturer le projet",
+          "description": "Tout est vendu : terminez le projet pour figer les comptes.",
+          "button": "Clôturer le projet"
+        },
+        "nothing_to_do": {
+          "title": "Rien à faire pour vous",
+          "description": "Le projet avance sans vous pour le moment."
+        }
+      }
     },
     "available": {
       "runs": "Runs",
