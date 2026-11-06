@@ -65,6 +65,7 @@ async function mountDetailOfTheSabreBatch(): Promise<VueWrapper> {
   const projectStore = useGroupProjectStore()
   vi.spyOn(projectStore, 'fetchProjectDetail').mockResolvedValue(undefined as never)
   vi.spyOn(projectStore, 'fetchBom').mockResolvedValue(undefined as never)
+  vi.spyOn(projectStore, 'fetchCockpit').mockResolvedValue(undefined as never)
   projectStore.currentProject = SABRE_BATCH
   const wrapper = mount(GroupIndustryDetail, {
     global: {
@@ -101,19 +102,19 @@ beforeEach(() => {
 })
 
 describe('sales of a group project fetched by the detail view', () => {
-  it('fetches the sales once when the distribution tab is opened', async () => {
+  it('fetches the sales once when the sales tab is opened', async () => {
     const wrapper = await mountDetailOfTheSabreBatch()
-    const distributionTab = wrapper.findAll('button').find(button => button.text() === en.groupIndustry.tabs.distribution)
-    if (distributionTab === undefined) throw new Error('no distribution tab')
+    const salesTab = wrapper.find('[data-testid="project-tab-sales"]')
+    expect(salesTab.exists()).toBe(true)
 
-    await distributionTab.trigger('click')
+    await salesTab.trigger('click')
     await flushPromises()
 
     expect([wrapper.findComponent(SalesTable).exists(), salesRequests()]).toEqual([true, 1])
   })
 
-  it('fetches the sales once when the view opens on the distribution tab', async () => {
-    route.query = { tab: 'distribution' }
+  it('fetches the sales once when the view opens on the sales tab', async () => {
+    route.query = { tab: 'sales' }
 
     const wrapper = await mountDetailOfTheSabreBatch()
 

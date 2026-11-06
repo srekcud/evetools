@@ -15,6 +15,7 @@ const navigationRoutes = [
   '/industry',
   '/group-industry',
   '/group-industry/p1',
+  '/industry/projects/p1',
   '/appraisal',
   '/planetary',
   '/market',
