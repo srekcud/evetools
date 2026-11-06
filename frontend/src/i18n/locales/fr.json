@@ -935,6 +935,8 @@
     },
     "projectHistory": "Historique des projets",
     "config": {
+      "maxJobDuration": "Durée max des jobs",
+      "maxJobDurationHint": "Les jobs dépassant cette durée seront découpés automatiquement",
       "feesTitle": "Coût d'export",
       "exportCost": "Coût d'export (ISK/m³)",
       "feesErrors": {
@@ -1968,7 +1970,41 @@
       "matchJobs": "Associer les jobs",
       "matchError": "Échec de l'association des jobs",
       "matchFailedCharacters": "Certains personnages n'ont pas pu être synchronisés :",
-      "matchedRuns": "{runs} runs associés"
+      "matchedRuns": "{runs} runs associés",
+      "character": "Personnage",
+      "jobCost": "Coût du job",
+      "linkJob": "Lier un job",
+      "unlink": "Délier",
+      "link": "Lier",
+      "linkModalTitle": "Lier un job à {name}",
+      "linkModalDescription": "Choisissez un job industriel des membres du projet pour le compter sur cette ligne.",
+      "availableJobsLoading": "Chargement des jobs...",
+      "availableJobsEmpty": "Aucun job à lier",
+      "alreadyLinkedTo": "Déjà lié à {name}",
+      "availableJobsError": "Échec du chargement des jobs disponibles",
+      "linkError": "Échec du lien du job",
+      "unlinkError": "Échec de la suppression du lien"
+    },
+    "purchases": {
+      "open": "Achats",
+      "modalTitle": "Achats de {name}",
+      "suggestionsTitle": "Transactions du wallet",
+      "suggestionsLoading": "Chargement des transactions...",
+      "suggestionsEmpty": "Aucune transaction du wallet ne correspond à cet objet",
+      "date": "Date",
+      "quantity": "Quantité",
+      "unitPrice": "Prix unitaire",
+      "totalPrice": "Total",
+      "alreadyLinked": "Déjà lié",
+      "link": "Lier",
+      "manualTitle": "Achat manuel",
+      "add": "Ajouter un achat",
+      "sourceTransaction": "Wallet",
+      "sourceManual": "Manuel",
+      "loadError": "Échec du chargement des suggestions d'achat",
+      "linkError": "Échec du lien de la transaction",
+      "addError": "Échec de l'ajout de l'achat",
+      "deleteError": "Échec de la suppression de l'achat"
     },
     "contribute": {
       "title": "Ajouter une contribution",
@@ -2186,7 +2222,9 @@
         "brokerFee": "Frais courtier %",
         "salesTax": "Taxe de vente %",
         "privateLabel": "Projet privé",
-        "privateHint": "Absent de la découverte de la corporation, sans adhésion par code."
+        "privateHint": "Absent de la découverte de la corporation, sans adhésion par code.",
+        "outsideFavoriteLabel": "Accepter les structures hors systèmes favoris",
+        "minimumSavingLabel": "Économie minimale"
       },
       "contribute": {
         "title": "Ajouter une contribution",

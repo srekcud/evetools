@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useIndustryStore } from '@/stores/industry'
@@ -22,6 +22,7 @@ import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 
 const { t } = useI18n()
+const maxJobDurationFieldId = useId()
 const route = useRoute()
 const router = useRouter()
 const store = useIndustryStore()
@@ -256,6 +257,23 @@ watch(() => store.navigationIntent, (intent) => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
+            </div>
+
+            <!-- Max job duration setting -->
+            <div class="px-6 py-4 border-b border-slate-800">
+              <label :for="maxJobDurationFieldId" class="block text-xs text-slate-500 mb-1.5">{{ t('industry.config.maxJobDuration') }}</label>
+              <div class="flex items-center gap-3">
+                <input
+                  :id="maxJobDurationFieldId"
+                  :value="store.defaultMaxJobDurationDays.toFixed(1)"
+                  @change="(e) => store.setDefaultMaxJobDurationDays(parseFloat((e.target as HTMLInputElement).value) || 2.0)"
+                  type="number"
+                  min="0.5"
+                  step="0.1"
+                  class="w-32 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
+                />
+                <p class="text-xs text-slate-500">{{ t('industry.config.maxJobDurationHint') }}</p>
+              </div>
             </div>
 
             <!-- Accordion sections -->

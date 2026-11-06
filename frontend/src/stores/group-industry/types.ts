@@ -247,7 +247,56 @@ export type CreateGroupProjectInput = {
   lineRentalRatesOverride?: Record<string, number>
   brokerFeePercent?: number
   salesTaxPercent?: number
+  acceptsOutsideFavoriteSystem: boolean
+  minimumOutsideSaving: number
 }
+
+export type AvailableJob = {
+  esiJobId: number
+  blueprintTypeId: number
+  productTypeId: number
+  productTypeName: string | null
+  runs: number
+  cost: number | null
+  status: string
+  startDate: string
+  endDate: string | null
+  characterName: string
+  linkedToBomLineId: string | null
+  linkedToBomLineName: string | null
+  matchId: string | null
+}
+
+export type PurchaseSuggestion = {
+  transactionId: number
+  transactionUuid: string
+  typeId: number
+  typeName: string | null
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  date: string
+  characterName: string
+  locationId: number | null
+  alreadyLinked: boolean
+}
+
+export type PurchaseSuggestions = {
+  suggestions: PurchaseSuggestion[]
+  totalCount: number
+}
+
+export type LinkedTransactionPurchaseInput = {
+  transactionId: string
+}
+
+export type ManualPurchaseInput = {
+  typeId: number
+  quantity: number
+  unitPrice: number
+}
+
+export type CreatePurchaseInput = LinkedTransactionPurchaseInput | ManualPurchaseInput
 
 export type SubmitContributionInput = {
   type: ContributionType

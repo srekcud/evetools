@@ -6,6 +6,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import LinePurchases from './LinePurchases.vue'
 import type { BomItem, ContainerVerification, ContainerVerificationStatus } from '@/stores/group-industry/types'
 import { CHART_COLORS } from '@/utils/chartColors'
 
@@ -175,6 +176,7 @@ function ringStrokeColor(percent: number): string {
                   data-testid="purchased-quantity"
                   class="block text-xs font-sans text-slate-500"
                 >{{ t('groupIndustry.bom.purchasedQuantity', { quantity: formatNumber(item.purchasedQuantity, 0) }) }}</span>
+                <LinePurchases :item="item" class="font-sans" />
               </td>
 
               <!-- Remaining -->

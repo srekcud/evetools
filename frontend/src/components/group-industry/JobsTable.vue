@@ -5,7 +5,9 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
-import type { BomItem, CharacterMatchFailure } from '@/stores/group-industry/types'
+import JobLinkModal from './JobLinkModal.vue'
+import LinePurchases from './LinePurchases.vue'
+import type { AvailableJob, BomItem, CharacterMatchFailure } from '@/stores/group-industry/types'
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
@@ -45,6 +47,63 @@ async function matchJobs(): Promise<void> {
     matchJobsError.value = e instanceof Error ? e.message : t('groupIndustry.jobs.matchError')
   } finally {
     isMatchingJobs.value = false
+  }
+}
+
+const linkScreenLine = ref<BomItem | null>(null)
+const availableJobs = ref<AvailableJob[]>([])
+const isLoadingAvailableJobs = ref(false)
+const linkingEsiJobId = ref<number | null>(null)
+const jobLinkError = ref<string | null>(null)
+
+function failureMessage(error: unknown, fallbackKey: string): string {
+  return error instanceof Error ? error.message : t(fallbackKey)
+}
+
+async function openLinkScreen(job: BomItem): Promise<void> {
+  const project = projectStore.currentProject
+  if (project === null) return
+  linkScreenLine.value = job
+  jobLinkError.value = null
+  isLoadingAvailableJobs.value = true
+  try {
+    availableJobs.value = await projectStore.fetchAvailableJobs(project.id)
+  } catch (e) {
+    availableJobs.value = []
+    jobLinkError.value = failureMessage(e, 'groupIndustry.jobs.availableJobsError')
+  } finally {
+    isLoadingAvailableJobs.value = false
+  }
+}
+
+function closeLinkScreen(): void {
+  linkScreenLine.value = null
+}
+
+async function linkJob(esiJobId: number): Promise<void> {
+  const project = projectStore.currentProject
+  const line = linkScreenLine.value
+  if (project === null || line === null) return
+  linkingEsiJobId.value = esiJobId
+  jobLinkError.value = null
+  try {
+    await projectStore.linkJob(project.id, line.id, esiJobId)
+    closeLinkScreen()
+  } catch (e) {
+    jobLinkError.value = failureMessage(e, 'groupIndustry.jobs.linkError')
+  } finally {
+    linkingEsiJobId.value = null
+  }
+}
+
+async function unlinkJob(matchId: string): Promise<void> {
+  const project = projectStore.currentProject
+  if (project === null) return
+  jobLinkError.value = null
+  try {
+    await projectStore.unlinkJob(project.id, matchId)
+  } catch (e) {
+    jobLinkError.value = failureMessage(e, 'groupIndustry.jobs.unlinkError')
   }
 }
 
@@ -184,6 +243,23 @@ function isJobDimmed(job: BomItem): boolean {
         </li>
       </ul>
     </div>
+    <p
+      v-if="jobLinkError !== null && linkScreenLine === null"
+      data-testid="job-link-error"
+      role="alert"
+      class="mb-3 text-sm text-red-400"
+    >{{ jobLinkError }}</p>
+    <JobLinkModal
+      v-if="isProjectOwner"
+      :show="linkScreenLine !== null"
+      :line-name="linkScreenLine?.typeName ?? ''"
+      :jobs="availableJobs"
+      :loading="isLoadingAvailableJobs"
+      :error="jobLinkError"
+      :linking-esi-job-id="linkingEsiJobId"
+      @close="closeLinkScreen"
+      @link="linkJob"
+    />
     <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
       <!-- Loading -->
       <div v-if="projectStore.bomLoading && allJobs.length === 0" class="p-8 text-center text-slate-500">
@@ -268,8 +344,21 @@ function isJobDimmed(job: BomItem): boolean {
                           <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
                           &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
                           &middot; {{ jobMatch.status }}
+                          <button
+                            v-if="isProjectOwner"
+                            data-testid="job-match-unlink"
+                            class="ml-2 px-1.5 py-0.5 rounded-sm text-xs text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/30 transition-colors"
+                            @click="unlinkJob(jobMatch.id)"
+                          >{{ t('groupIndustry.jobs.unlink') }}</button>
                         </li>
                       </ul>
+                      <button
+                        v-if="isProjectOwner"
+                        data-testid="link-job-open"
+                        class="mt-1 px-2 py-0.5 rounded-sm text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+                        @click="openLinkScreen(job)"
+                      >{{ t('groupIndustry.jobs.linkJob') }}</button>
+                      <LinePurchases v-if="job.jobGroup === 'component'" :item="job" />
                     </td>
 
                     <!-- Activity badge -->
