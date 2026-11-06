@@ -1,4 +1,4 @@
-import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
@@ -108,7 +108,7 @@ const SABRE_WITH_UNKNOWN_SELLER_FEES: ProfitMarginResult = {
 }
 
 function mountWithAnalysis(locale: TestLocale): VueWrapper {
-  vi.mocked(apiRequest).mockResolvedValue(null)
+  vi.mocked(apiRequest).mockResolvedValue(SABRE_WITH_UNKNOWN_SELLER_FEES)
   useProjectsStore().marginResult = SABRE_WITH_UNKNOWN_SELLER_FEES
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   return mount(ProfitMarginTab, { global: { plugins: [i18n], stubs: { ProductSearch: true } } })
@@ -175,6 +175,7 @@ describe('ProfitMarginTab with unknown seller fees', () => {
     if (attainmentRow === undefined) throw new Error('Attainment Decryptor row not found')
 
     await attainmentRow.trigger('click')
+    await flushPromises()
 
     expect(unknownFeesState(wrapper)).toEqual(EXPECTED_UNKNOWN_FEES_STATE)
   })

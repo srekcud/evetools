@@ -1,4 +1,4 @@
-import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
@@ -116,7 +116,7 @@ const SABRE_WITH_PARTIAL_JITA_SELL_AND_PARTIAL_MATERIAL: ProfitMarginResult = {
 }
 
 function mountWithAnalysis(analysis: ProfitMarginResult, locale: 'en' | 'fr') {
-  vi.mocked(apiRequest).mockResolvedValue(null)
+  vi.mocked(apiRequest).mockResolvedValue(analysis)
   useProjectsStore().marginResult = analysis
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   const wrapper = mount(ProfitMarginTab, {
@@ -197,6 +197,7 @@ describe('ProfitMarginTab with a partial Jita sell price', () => {
     const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
     expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
     await attainmentRow!.trigger('click')
+    await flushPromises()
 
     const jitaRow = venueRowTagged(wrapper, t('industry.margins.sellTag'))
     expect(jitaRow.text()).toContain(t('industry.partialPrice.marker', { percent: JITA_SELL_COVERAGE_PERCENT }))
