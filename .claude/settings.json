@@ -19,7 +19,6 @@
       "Bash(gh issue create:*)",
       "Bash(gh issue comment:*)",
       "Bash(gh pr create:*)",
-      "Bash(git push:*)",
       "Bash(docker compose exec app php bin/console doctrine:migrations:*)",
       "Bash(docker compose exec app composer require:*)",
       "Bash(composer require:*)",
