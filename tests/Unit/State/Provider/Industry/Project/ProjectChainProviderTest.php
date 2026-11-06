@@ -149,8 +149,8 @@ final class ProjectChainProviderTest extends TestCase
 
         self::assertSame(
             [
-                $plannedInADeletedStructure->getId()->toRfc4122() => ['name' => null, 'status' => 'best_configured'],
                 $plannedInTheRaitaru->getId()->toRfc4122() => ['name' => self::OSTINGELE_RAITARU_NAME, 'status' => 'best_in_favorite_system'],
+                $plannedInADeletedStructure->getId()->toRfc4122() => ['name' => null, 'status' => 'best_configured'],
             ],
             $this->plannedStructuresByNodeId($chain),
         );

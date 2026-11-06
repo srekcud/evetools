@@ -24,6 +24,11 @@ final readonly class ProductionPlanning
 
     public function planOf(ProductionPlanRequest $request): Plan
     {
+        return $this->planWithStructuresOf($request)->plan;
+    }
+
+    public function planWithStructuresOf(ProductionPlanRequest $request): PlannedProduction
+    {
         $recipes = new RecipeMemory($this->blueprints);
         $planner = new ProductionPlanner($this->blueprints);
         $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices, $this->totalCostComparator, $request->selectionPolicy);
@@ -37,10 +42,19 @@ final readonly class ProductionPlanning
                 ?? throw new \LogicException(\sprintf('Job of product %d has no recipe.', $job->productTypeId));
         }
 
-        return $planner->plan(
+        $plan = $planner->plan(
             new PlanRequest($request->targets, $materialModifiers, $request->startingStock, $request->blacklist, $maxRunsByProduct),
             $recipes,
         );
+
+        $structureChoices = [];
+        foreach ($plan->jobs as $job) {
+            $recipe = $recipes->recipeFor($job->productTypeId)
+                ?? throw new \LogicException(\sprintf('Job of product %d has no recipe.', $job->productTypeId));
+            $structureChoices[PlannedProduction::choiceKey($job->productTypeId, $job->activity)] = $materialModifiers->choiceFor($recipe);
+        }
+
+        return new PlannedProduction($plan, $structureChoices);
     }
 
     /**
