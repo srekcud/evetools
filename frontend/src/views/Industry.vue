@@ -182,6 +182,7 @@ watch(() => store.navigationIntent, (intent) => {
         </button>
       </div>
 
+      <!-- Error -->
       <ErrorBanner v-if="store.error" :message="store.error" class="mb-6" @dismiss="store.clearError()" />
 
       <DataFreshnessList

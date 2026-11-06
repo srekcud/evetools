@@ -12,6 +12,7 @@ import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { groupProjectLabel } from '@/utils/groupProjectLabel'
 import { CHART_COLORS } from '@/utils/chartColors'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import type { GroupProjectStatus } from '@/stores/group-industry/types'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
@@ -256,6 +257,8 @@ function cleanTypeName(name: string): string {
 </script>
 
 <template>
+  <ErrorBanner v-if="groupProjectStore.error" :message="groupProjectStore.error" class="mb-6" />
+
   <!-- KPI Cards -->
   <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
     <!-- KPI 1: Active Projects -->

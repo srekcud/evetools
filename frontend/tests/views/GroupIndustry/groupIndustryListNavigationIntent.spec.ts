@@ -103,4 +103,18 @@ describe('GroupIndustryList navigation intent', () => {
     expect(industryStore.navigationIntent).toBeNull()
     expect(createButton(wrapper).attributes('disabled')).toBeDefined()
   })
+
+  it('gives an invented blueprint the T2 time efficiency when the prefill has none', async () => {
+    const industryStore = useIndustryStore()
+    industryStore.navigationIntent = { target: 'projects', prefill: { typeId: 12005, typeName: 'Ishtar', isT2: true } }
+
+    const wrapper = mountList()
+    await flushPromises()
+    await createButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(sentCreationBody()).toMatchObject({
+      items: [{ typeId: 12005, typeName: 'Ishtar', meLevel: 0, teLevel: 4, runs: 1 }],
+    })
+  })
 })
