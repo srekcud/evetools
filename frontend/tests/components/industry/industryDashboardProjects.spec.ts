@@ -69,4 +69,16 @@ describe('IndustryDashboard projects', () => {
     expect(wrapper.text()).toContain('Widow in progress')
     expect(wrapper.text()).toContain('Widow completed')
   })
+
+  it('shows the failure message when the project list cannot be loaded', async () => {
+    vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
+      if (endpoint === PROJECTS_ENDPOINT) throw new Error('Projects service unavailable')
+      return new Promise(() => {})
+    }) as never)
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+    const wrapper = mount(IndustryDashboard, { global: { plugins: [i18n] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Projects service unavailable')
+  })
 })

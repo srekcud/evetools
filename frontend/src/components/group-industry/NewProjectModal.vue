@@ -12,6 +12,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const DEFAULT_PREFILL_LEVEL = 0
 const DEFAULT_PREFILL_RUNS = 1
+const INVENTED_BLUEPRINT_TIME_EFFICIENCY = 4
 
 const { t } = useI18n()
 const projectNameFieldId = useId()
@@ -193,7 +194,7 @@ function applyPrefill() {
     typeId: props.prefill.typeId,
     typeName: props.prefill.typeName,
     meLevel: props.prefill.me ?? DEFAULT_PREFILL_LEVEL,
-    teLevel: props.prefill.te ?? DEFAULT_PREFILL_LEVEL,
+    teLevel: props.prefill.te ?? (props.prefill.isT2 ? INVENTED_BLUEPRINT_TIME_EFFICIENCY : DEFAULT_PREFILL_LEVEL),
     runs: props.prefill.runs ?? DEFAULT_PREFILL_RUNS,
   }]
   blacklistTypeIds.value = props.prefill.excludedTypeIds ?? []
