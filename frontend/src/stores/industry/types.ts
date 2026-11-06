@@ -183,6 +183,7 @@ export interface ProfitMarginInventionOption {
   totalProductionCost: number | null
   bestMargin: number | null
   expectedAttempts: number | null
+  manufacturingJobs: number
   decryptorCost: number | null
   costPerUnit: number | null
   costPerUnitDelta: number | null

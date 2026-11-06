@@ -7,7 +7,7 @@ import type { ProfitMarginInventionOption } from '@/stores/industry/types'
 
 const margins: Record<string, string> = en.industry.margins
 const frenchMargins: Record<string, string> = fr.industry.margins
-const NEW_LABEL_KEYS = ['attemptsCol', 'decryptorCostCol', 'costPerUnitCol', 'deltaPerUnitCol', 'datacoresCostPerAttempt', 'probabilityWithoutSkills']
+const NEW_LABEL_KEYS = ['attemptsCol', 'manufacturingJobsCol', 'decryptorCostCol', 'costPerUnitCol', 'deltaPerUnitCol', 'datacoresCostPerAttempt', 'probabilityWithoutSkills']
 const UNKNOWN_LABEL = en.industry.inventionUnknown.label
 const NO_DECRYPTOR_LABEL = en.industry.bpcKitTab.none
 
@@ -24,6 +24,7 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   totalProductionCost: 11_400,
   bestMargin: 12,
   expectedAttempts: 0.2941,
+  manufacturingJobs: 5,
   decryptorCost: 0,
   costPerUnit: 1_140,
   costPerUnitDelta: 0,
@@ -42,6 +43,7 @@ const PROCESS_OPTION: ProfitMarginInventionOption = {
   totalProductionCost: 10_600,
   bestMargin: 15,
   expectedAttempts: 0.2674,
+  manufacturingJobs: 4,
   decryptorCost: 342_050,
   costPerUnit: 1_060,
   costPerUnitDelta: -80,
@@ -93,9 +95,10 @@ function cellsOf(wrapper: ReturnType<typeof mountPanel>, decryptorName: string):
 }
 
 const ATTEMPTS_CELL = 6
-const DECRYPTOR_COST_CELL = 7
-const COST_PER_UNIT_CELL = 8
-const DELTA_CELL = 9
+const MANUFACTURING_JOBS_CELL = 7
+const DECRYPTOR_COST_CELL = 8
+const COST_PER_UNIT_CELL = 9
+const DELTA_CELL = 10
 
 describe('InventionOptionsPanel comparison columns', () => {
   it.each(NEW_LABEL_KEYS)('has the label %s in English and in French', key => {
@@ -108,6 +111,21 @@ describe('InventionOptionsPanel comparison columns', () => {
 
     expect(cellsOf(wrapper, NO_DECRYPTOR_LABEL)[ATTEMPTS_CELL]).toBe('0.3')
     expect(cellsOf(wrapper, 'Process Decryptor')[ATTEMPTS_CELL]).toBe('0.3')
+  })
+
+  it('shows the manufacturing jobs of each option after the attempts', () => {
+    const wrapper = mountPanel()
+
+    expect(cellsOf(wrapper, NO_DECRYPTOR_LABEL)[MANUFACTURING_JOBS_CELL]).toBe('5')
+    expect(cellsOf(wrapper, 'Process Decryptor')[MANUFACTURING_JOBS_CELL]).toBe('4')
+    expect(cellsOf(wrapper, 'Augmentation Decryptor')[MANUFACTURING_JOBS_CELL]).toBe('4')
+  })
+
+  it('labels the manufacturing jobs column in the header', () => {
+    const wrapper = mountPanel()
+
+    const headers = wrapper.findAll('thead th').map(header => header.text())
+    expect(headers[MANUFACTURING_JOBS_CELL]).toBe(margins.manufacturingJobsCol)
   })
 
   it('shows the decryptor price per attempt, none for the option without decryptor', () => {

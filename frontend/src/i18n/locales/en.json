@@ -1125,6 +1125,7 @@
       "withoutSkills": "Without skills",
       "probabilityWithoutSkills": "(no skills)",
       "attemptsCol": "Attempts",
+      "manufacturingJobsCol": "Jobs",
       "decryptorCostCol": "Decryptor / attempt",
       "costPerUnitCol": "Cost / unit",
       "deltaPerUnitCol": "Delta / unit",

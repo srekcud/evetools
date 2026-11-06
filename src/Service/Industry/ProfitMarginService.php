@@ -109,7 +109,7 @@ class ProfitMarginService
             'costPerUnit' => self::amountOf($productionCost->costPerUnit),
             'invention' => null === $productionCost->invention
                 ? null
-                : $this->inventionDetails($productionCost->invention, $decryptorTypeId, $decryptors, $productionCost, $costOf, $marginsOf, $inventor, $skillLevels),
+                : $this->inventionDetails($productionCost->invention, $runs, $decryptorTypeId, $decryptors, $productionCost, $costOf, $marginsOf, $inventor, $skillLevels),
             'sellPrices' => $sellPrices,
             'brokerFeeRate' => $salesFees?->brokerFeeRate,
             'salesTaxRate' => $salesFees?->salesTaxRate,
@@ -218,6 +218,7 @@ class ProfitMarginService
      */
     private function inventionDetails(
         InventionCost $invention,
+        int $requestedRuns,
         ?int $selectedDecryptorTypeId,
         array $decryptors,
         ProductionCost $selectedProductionCost,
@@ -248,6 +249,7 @@ class ProfitMarginService
                 'totalProductionCost' => self::amountOf($optionCost->totalCost),
                 'bestMargin' => self::bestMarginOf($marginsOf($optionCost->totalCost)),
                 'expectedAttempts' => $optionInvention->expectedAttempts,
+                'manufacturingJobs' => (int) ceil($requestedRuns / $optionInvention->outcome->runs->value),
                 'decryptorCost' => self::amountOf($optionInvention->decryptorCost),
                 'costPerUnit' => $costPerUnit,
                 'costPerUnitDelta' => null === $costPerUnit || null === $costPerUnitWithoutDecryptor ? null : $costPerUnit - $costPerUnitWithoutDecryptor,

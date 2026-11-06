@@ -1494,6 +1494,46 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         $this->assertEqualsWithDelta(1 / ($parityOption['probability'] * $parityOption['runs']), $parityOption['expectedAttempts'], 1e-9);
     }
 
+    public function testDecryptorOptionsCarryTheManufacturingJobsNeededByTheRunsOfTheirBlueprintCopy(): void
+    {
+        $result = $this->analyzeHailL(runs: 25);
+
+        $this->assertSame(3, $result['invention']['options'][0]['manufacturingJobs']);
+        $expectedJobsByDecryptor = [
+            self::ACCELERANT_DECRYPTOR => 3,
+            34202 => 2,
+            34203 => 2,
+            self::PARITY_DECRYPTOR => 2,
+            self::PROCESS_DECRYPTOR => 3,
+            34206 => 3,
+            34207 => 3,
+            34208 => 2,
+        ];
+        foreach ($expectedJobsByDecryptor as $decryptorTypeId => $expectedJobs) {
+            $this->assertSame($expectedJobs, $this->decryptorOption($result, $decryptorTypeId)['manufacturingJobs'], "decryptor {$decryptorTypeId}");
+        }
+    }
+
+    public function testOneMoreRunThanTheBlueprintCopyHoldsNeedsOneMoreManufacturingJob(): void
+    {
+        $result = $this->analyzeHailL(runs: 11);
+
+        $this->assertSame(2, $result['invention']['options'][0]['manufacturingJobs']);
+        $this->assertSame(1, $this->decryptorOption($result, self::ACCELERANT_DECRYPTOR)['manufacturingJobs']);
+        $this->assertSame(2, $this->decryptorOption($result, self::PROCESS_DECRYPTOR)['manufacturingJobs']);
+    }
+
+    public function testManufacturingJobsStayKnownWhenAMaterialPriceIsMissing(): void
+    {
+        $this->leavesWithoutJitaPrice = [self::MORPHITE];
+
+        $result = $this->analyzeHailL(runs: 25);
+
+        foreach ($result['invention']['options'] as $option) {
+            $this->assertIsInt($option['manufacturingJobs']);
+        }
+    }
+
     public function testDecryptorOptionCarriesTheDecryptorPricePerAttemptAndTheInventionCarriesTheDatacoresCostPerAttempt(): void
     {
         $result = $this->analyzeHailL(runs: 1);
