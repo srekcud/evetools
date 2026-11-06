@@ -4,9 +4,18 @@ import { apiRequest } from '@/services/api'
 import { i18n } from '@/i18n'
 import type { SearchResult, ProfitMarginResult } from './types'
 
+const MINIMUM_MAX_JOB_DURATION_DAYS = 0.5
+
+export const DEFAULT_MINIMUM_OUTSIDE_SAVING = 500000
+
 export const useProjectsStore = defineStore('industry-projects', () => {
   const searchResults = ref<SearchResult[]>([])
   const error = ref<string | null>(null)
+  const defaultMaxJobDurationDays = ref(2.0)
+
+  function setDefaultMaxJobDurationDays(days: number) {
+    defaultMaxJobDurationDays.value = Math.max(days, MINIMUM_MAX_JOB_DURATION_DAYS)
+  }
 
   async function searchProducts(query: string) {
     if (query.length < 2) {
@@ -84,6 +93,8 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     marginResult,
     marginLoading,
     marginError,
+    defaultMaxJobDurationDays,
+    setDefaultMaxJobDurationDays,
     searchProducts,
     fetchManufacturableType,
     analyzeMargin,

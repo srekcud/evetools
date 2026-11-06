@@ -3,7 +3,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import { ref, computed, watch, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
-import { useProjectsStore } from '@/stores/industry/projects'
+import { DEFAULT_MINIMUM_OUTSIDE_SAVING, useProjectsStore } from '@/stores/industry/projects'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { ProjectPrefill, SearchResult } from '@/stores/industry/types'
 import type { CreateGroupProjectInput } from '@/stores/group-industry/types'
@@ -17,6 +17,7 @@ const INVENTED_BLUEPRINT_TIME_EFFICIENCY = 4
 const { t } = useI18n()
 const projectNameFieldId = useId()
 const containerNameFieldId = useId()
+const minimumOutsideSavingFieldId = useId()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const projectsStore = useProjectsStore()
 const groupProjectStore = useGroupProjectStore()
@@ -123,6 +124,11 @@ const blacklistTypeIds = ref<number[]>([])
 const projectName = ref('')
 const containerName = ref('')
 const isPrivate = ref(true)
+const acceptsOutsideFavoriteSystem = ref(false)
+const minimumOutsideSaving = ref<number | string>(DEFAULT_MINIMUM_OUTSIDE_SAVING)
+const hasValidMinimumOutsideSaving = computed(() =>
+  typeof minimumOutsideSaving.value === 'number' && minimumOutsideSaving.value >= 0,
+)
 
 // Blacklist categories
 type BlacklistCategory = {
@@ -216,6 +222,8 @@ function resetForm() {
   projectName.value = ''
   containerName.value = ''
   isPrivate.value = true
+  acceptsOutsideFavoriteSystem.value = false
+  minimumOutsideSaving.value = DEFAULT_MINIMUM_OUTSIDE_SAVING
   showLineRentalOverride.value = false
   lineRentalOverrideEnabled.value = false
   lineRentalRates.value.forEach(r => {
@@ -265,6 +273,7 @@ function parseBulkText() {
 
 async function handleCreate() {
   if (items.value.length === 0) return
+  if (typeof minimumOutsideSaving.value !== 'number' || !hasValidMinimumOutsideSaving.value) return
   isCreating.value = true
   errorMsg.value = null
 
@@ -286,6 +295,8 @@ async function handleCreate() {
     lineRentalRatesOverride: lineRentalOverrideEnabled.value
       ? Object.fromEntries(lineRentalRates.value.map(r => [r.key, r.value]))
       : undefined,
+    acceptsOutsideFavoriteSystem: acceptsOutsideFavoriteSystem.value,
+    minimumOutsideSaving: minimumOutsideSaving.value,
   }
 
   try {
@@ -592,6 +603,31 @@ function handleClose() {
         <p class="text-xs text-slate-500 mt-1.5">{{ t('groupIndustry.modals.newProject.privateHint') }}</p>
       </div>
 
+      <div>
+        <label class="flex items-center gap-2.5 cursor-pointer">
+          <input
+            v-model="acceptsOutsideFavoriteSystem"
+            data-testid="project-outside-favorite"
+            type="checkbox"
+            class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
+          />
+          <span class="text-sm font-medium text-slate-300">{{ t('groupIndustry.modals.newProject.outsideFavoriteLabel') }}</span>
+        </label>
+        <div class="mt-2">
+          <label :for="minimumOutsideSavingFieldId" class="block text-xs text-slate-500 mb-1.5">{{ t('groupIndustry.modals.newProject.minimumSavingLabel') }}</label>
+          <input
+            :id="minimumOutsideSavingFieldId"
+            v-model.number="minimumOutsideSaving"
+            data-testid="project-minimum-outside-saving"
+            type="number"
+            min="0"
+            step="1"
+            :disabled="!acceptsOutsideFavoriteSystem"
+            class="form-input w-40 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono disabled:opacity-50"
+          />
+        </div>
+      </div>
+
       <!-- Production Blacklist -->
       <div>
         <p class="text-sm font-medium text-slate-300 mb-1 block">{{ t('groupIndustry.modals.newProject.blacklistLabel') }}</p>
@@ -723,7 +759,7 @@ function handleClose() {
         </button>
         <button
           class="btn-action px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="items.length === 0 || isCreating"
+          :disabled="items.length === 0 || isCreating || !hasValidMinimumOutsideSaving"
           @click="handleCreate"
         >
           <LoadingSpinner v-if="isCreating" size="sm" />

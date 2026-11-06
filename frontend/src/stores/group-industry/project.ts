@@ -8,6 +8,9 @@ import type {
   CreateGroupProjectInput,
   CharacterMatchFailure,
   MatchJobsResult,
+  AvailableJob,
+  PurchaseSuggestions,
+  CreatePurchaseInput,
 } from './types'
 
 export const useGroupProjectStore = defineStore('group-project', () => {
@@ -159,6 +162,40 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     }
   }
 
+  async function fetchAvailableJobs(projectId: string): Promise<AvailableJob[]> {
+    return apiRequest<AvailableJob[]>(`/industry/projects/${projectId}/available-jobs`)
+  }
+
+  async function linkJob(projectId: string, lineId: string, esiJobId: number): Promise<void> {
+    await apiRequest(`/industry/projects/${projectId}/bom/${lineId}/link-job`, {
+      method: 'POST',
+      body: JSON.stringify({ esiJobId }),
+    })
+    await fetchBom(projectId)
+  }
+
+  async function unlinkJob(projectId: string, matchId: string): Promise<void> {
+    await apiRequest(`/industry/projects/${projectId}/job-matches/${matchId}`, { method: 'DELETE' })
+    await fetchBom(projectId)
+  }
+
+  async function fetchPurchaseSuggestions(projectId: string): Promise<PurchaseSuggestions> {
+    return apiRequest<PurchaseSuggestions>(`/industry/projects/${projectId}/purchase-suggestions`)
+  }
+
+  async function createPurchase(projectId: string, lineId: string, input: CreatePurchaseInput): Promise<void> {
+    await apiRequest(`/industry/projects/${projectId}/bom/${lineId}/purchases`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    await fetchBom(projectId)
+  }
+
+  async function deletePurchase(projectId: string, purchaseId: string): Promise<void> {
+    await apiRequest(`/industry/projects/${projectId}/purchases/${purchaseId}`, { method: 'DELETE' })
+    await fetchBom(projectId)
+  }
+
   function clearError(): void {
     error.value = null
   }
@@ -187,6 +224,12 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     deleteProject,
     joinProject,
     matchJobs,
+    fetchAvailableJobs,
+    linkJob,
+    unlinkJob,
+    fetchPurchaseSuggestions,
+    createPurchase,
+    deletePurchase,
     clearError,
   }
 })
