@@ -59,6 +59,12 @@ class IndustryProjectBomLine
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $parentTypeId = null;
 
+    #[ORM\Column(type: 'string', length: 36, nullable: true)]
+    private ?string $plannedStructureId = null;
+
+    #[ORM\Column(type: 'string', length: 40, nullable: true)]
+    private ?string $plannedStructureStatus = null;
+
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $meLevel = null;
 
@@ -184,6 +190,28 @@ class IndustryProjectBomLine
     public function setActivityType(?string $activityType): static
     {
         $this->activityType = $activityType;
+        return $this;
+    }
+
+    public function getPlannedStructureId(): ?string
+    {
+        return $this->plannedStructureId;
+    }
+
+    public function setPlannedStructureId(?string $plannedStructureId): static
+    {
+        $this->plannedStructureId = $plannedStructureId;
+        return $this;
+    }
+
+    public function getPlannedStructureStatus(): ?string
+    {
+        return $this->plannedStructureStatus;
+    }
+
+    public function setPlannedStructureStatus(?string $plannedStructureStatus): static
+    {
+        $this->plannedStructureStatus = $plannedStructureStatus;
         return $this;
     }
 

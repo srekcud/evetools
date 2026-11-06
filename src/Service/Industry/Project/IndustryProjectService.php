@@ -15,8 +15,10 @@ use App\Exception\InventionProbabilityMissingException;
 use App\Exception\InventionT1ProductMissingException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\FavoriteSystems;
+use App\Industry\Application\PlannedProduction;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\ProductionPlanRequest;
+use App\Industry\Application\StructureChoiceStatus;
 use App\Industry\Application\StructureSelectionPolicy;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\ActivityKind;
@@ -38,7 +40,7 @@ use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * @phpstan-type JobLine array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, outputPerRun: int}
+ * @phpstan-type JobLine array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, outputPerRun: int, plannedStructureId: string|null, plannedStructureStatus: string|null}
  */
 class IndustryProjectService
 {
@@ -100,7 +102,8 @@ class IndustryProjectService
             throw new \RuntimeException('The BOM of a completed project cannot be rebuilt.');
         }
 
-        $plan = $this->planOf($project, $owner);
+        $plannedProduction = $this->planOf($project, $owner);
+        $plan = $plannedProduction->plan;
         $producers = $this->producersOf($plan);
         $typeNames = $this->sdeTypeNames(array_values(array_unique([
             ...array_map(static fn (Job $job): int => $job->productTypeId, $plan->jobs),
@@ -111,7 +114,7 @@ class IndustryProjectService
         foreach ($plan->leaves as $typeId => $quantity) {
             $materialAggregation[$typeId] = ['typeName' => $typeNames[$typeId], 'quantity' => $quantity->value];
         }
-        $jobAggregation = $this->jobLinesOf($plan, $producers, $typeNames);
+        $jobAggregation = $this->jobLinesOf($plannedProduction, $producers, $typeNames);
 
         $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation);
 
@@ -151,6 +154,8 @@ class IndustryProjectService
             $bomItem->setTeLevel($jobData['teLevel']);
             $bomItem->setRuns($jobData['runs']);
             $bomItem->setParentTypeId($jobData['parentTypeId']);
+            $bomItem->setPlannedStructureId($jobData['plannedStructureId']);
+            $bomItem->setPlannedStructureStatus($jobData['plannedStructureStatus']);
             $plannedLines[] = $bomItem;
         }
 
@@ -246,6 +251,8 @@ class IndustryProjectService
         if ($line->isJob()) {
             $line->setRuns($plannedLine->getRuns());
             $line->setParentTypeId($plannedLine->getParentTypeId());
+            $line->setPlannedStructureId($plannedLine->getPlannedStructureId());
+            $line->setPlannedStructureStatus($plannedLine->getPlannedStructureStatus());
 
             return;
         }
@@ -253,7 +260,7 @@ class IndustryProjectService
         $line->setEstimatedPrice($plannedLine->getEstimatedPrice());
     }
 
-    private function planOf(IndustryProject $project, User $owner): Plan
+    private function planOf(IndustryProject $project, User $owner): PlannedProduction
     {
         $blacklistedTypeIds = $this->resolveBlacklistedTypeIds(
             $project->getBlacklistGroupIds(),
@@ -261,7 +268,7 @@ class IndustryProjectService
         );
 
         try {
-            return $this->productionPlanning->planOf(new ProductionPlanRequest(
+            return $this->productionPlanning->planWithStructuresOf(new ProductionPlanRequest(
                 $this->targetsOf($project),
                 $this->userStructures->configuredBy($this->idOf($owner)),
                 $this->favoriteSystemsOf($owner),
@@ -332,8 +339,9 @@ class IndustryProjectService
      * @param array<int, string>                  $typeNames
      * @return array<int|string, JobLine>
      */
-    private function jobLinesOf(Plan $plan, array $producers, array $typeNames): array
+    private function jobLinesOf(PlannedProduction $plannedProduction, array $producers, array $typeNames): array
     {
+        $plan = $plannedProduction->plan;
         $componentJobIds = [];
         foreach ($plan->intermediates as $intermediate) {
             foreach ($intermediate->jobs as $job) {
@@ -351,6 +359,8 @@ class IndustryProjectService
         $lines = [];
         foreach ($plan->jobs as $job) {
             $isComponent = isset($componentJobIds[spl_object_id($job)]);
+            $structureChoice = $plannedProduction->structureChoiceFor($job->productTypeId, $job->activity)
+                ?? throw new \LogicException(\sprintf('Job of product %d has no structure choice.', $job->productTypeId));
             $lines[] = [
                 'typeId' => $job->productTypeId,
                 'typeName' => $typeNames[$job->productTypeId],
@@ -363,6 +373,8 @@ class IndustryProjectService
                     ? $firstConsumerByMaterial[$job->productTypeId] ?? throw new \LogicException(\sprintf('Intermediate %d is consumed by no job of the plan.', $job->productTypeId))
                     : null,
                 'outputPerRun' => $producers[$job->productTypeId]->getQuantity(),
+                'plannedStructureId' => $structureChoice->structure?->id,
+                'plannedStructureStatus' => $this->plannedStructureStatusOf($structureChoice->status),
             ];
         }
 
@@ -401,10 +413,24 @@ class IndustryProjectService
                 'jobGroup' => 'blueprint',
                 'parentTypeId' => $jobLine['parentTypeId'],
                 'outputPerRun' => $jobLine['outputPerRun'],
+                'plannedStructureId' => null,
+                'plannedStructureStatus' => null,
             ];
         }
 
         return $copyLines;
+    }
+
+    private function plannedStructureStatusOf(StructureChoiceStatus $status): string
+    {
+        return match ($status) {
+            StructureChoiceStatus::Assigned => 'assigned',
+            StructureChoiceStatus::BestInFavoriteSystem => 'best_in_favorite_system',
+            StructureChoiceStatus::BestConfigured => 'best_configured',
+            StructureChoiceStatus::BestOutsideFavoriteSystem => 'best_outside_favorite_system',
+            StructureChoiceStatus::BestByTotalCost => 'best_by_total_cost',
+            StructureChoiceStatus::NotConfigured => 'not_configured',
+        };
     }
 
     private function activityTypeOf(ActivityKind $activity): string
@@ -475,6 +501,8 @@ class IndustryProjectService
                 'jobGroup' => 'blueprint',
                 'parentTypeId' => $firstManufacturingJob['parentTypeId'],
                 'outputPerRun' => 1,
+                'plannedStructureId' => null,
+                'plannedStructureStatus' => null,
             ];
 
             $t1CopyKey = $t1ProductTypeId . ':copy:invention';
@@ -490,7 +518,9 @@ class IndustryProjectService
                     'activityType' => 'copy',
                     'jobGroup' => 'blueprint',
                     'parentTypeId' => $firstManufacturingJob['parentTypeId'],
-                        'outputPerRun' => 1,
+                    'outputPerRun' => 1,
+                    'plannedStructureId' => null,
+                    'plannedStructureStatus' => null,
                 ];
             }
 
