@@ -19,6 +19,7 @@ const TAB_LABEL_KEYS: Record<ProjectDetailTab, string> = {
   distribution: 'groupIndustry.tabs.finances',
   sales: 'groupIndustry.tabs.sales',
   members: 'groupIndustry.tabs.team',
+  chain: 'groupIndustry.tabs.chain',
 }
 
 function tabClasses(tab: ProjectDetailTab): string {
