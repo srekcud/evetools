@@ -239,8 +239,18 @@ describe('CommandPalette projects', () => {
       expect(requestedEndpoints()).not.toContain('/industry/projects')
     })
 
-    it('keeps the projects when only industry is hidden', async () => {
+    it('removes the projects and does not read them when industry is hidden, since projects now belong to industry', async () => {
       await mountOpenPalette({ hiddenModules: ['industry'] })
+
+      await typeQueryAndWaitForTypes('titan')
+
+      expect(groupNames()).not.toContain('Projects')
+      expect(paletteText()).not.toContain('Corp Titan')
+      expect(requestedEndpoints()).not.toContain('/industry/projects')
+    })
+
+    it('keeps the projects when another module is hidden', async () => {
+      await mountOpenPalette({ hiddenModules: ['market'] })
 
       await typeQueryAndWaitForTypes('titan')
 
