@@ -127,8 +127,8 @@ describe('useNavigationEntries', () => {
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(26)
-    expect(entries[25]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(25)
+    expect(entries[24]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -177,6 +177,6 @@ describe('useNavigationEntries', () => {
     hideModules(['planetary'])
 
     expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/planetary')
-    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(24)
+    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(23)
   })
 })

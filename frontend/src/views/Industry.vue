@@ -1,19 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, useId } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { useIndustryStore, type SearchResult } from '@/stores/industry'
-import { DEFAULT_MINIMUM_OUTSIDE_SAVING } from '@/stores/industry/projects'
+import { useIndustryStore } from '@/stores/industry'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useAdminStore } from '@/stores/admin'
 import { DATA_FRESHNESS_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import MainLayout from '@/layouts/MainLayout.vue'
-import BaseModal from '@/components/common/BaseModal.vue'
 import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
-import ProductSearch from '@/components/industry/ProductSearch.vue'
-import ProjectTable from '@/components/industry/ProjectTable.vue'
-import ProjectDetail from '@/components/industry/ProjectDetail.vue'
 import BlacklistConfig from '@/components/industry/BlacklistConfig.vue'
 import StructureConfig from '@/components/industry/StructureConfig.vue'
 import SkillsConfig from '@/components/industry/SkillsConfig.vue'
@@ -27,13 +22,6 @@ import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 
 const { t } = useI18n()
-const maxJobDurationFieldId = useId()
-const projectNameFieldId = useId()
-const runsFieldId = useId()
-const meLevelFieldId = useId()
-const teLevelFieldId = useId()
-const acceptsOutsideFavoriteSystemFieldId = useId()
-const minimumOutsideSavingFieldId = useId()
 const route = useRoute()
 const router = useRouter()
 const store = useIndustryStore()
@@ -41,77 +29,14 @@ const adminStore = useAdminStore()
 const dataFreshnessStore = useDataFreshnessStore()
 const isAdmin = ref(false)
 
-const INVENTED_BLUEPRINT_ME = 2
-const INVENTED_BLUEPRINT_TE = 4
-
-// Create project form
-interface ProductToAdd {
-  typeId: number
-  typeName: string
-  runs: number
-  meLevel: number
-  teLevel: number
-  isT2: boolean
-}
-
-const selectedProduct = ref<SearchResult | null>(null)
-const runs = ref(1)
-const meLevel = ref(0)
-const teLevel = ref(0)
-const excludedTypeIds = ref<number[]>([])
-const projectName = ref('')
-const acceptsOutsideFavoriteSystem = ref(false)
-const minimumOutsideSaving = ref(DEFAULT_MINIMUM_OUTSIDE_SAVING)
-const productsToAdd = ref<ProductToAdd[]>([])
-const isCreating = ref(false)
-const productSearchRef = ref<{ clear: () => void } | null>(null)
-
-// Create modal state
-const showCreateModal = ref(false)
-
-function openCreateModal() {
-  // Reset form when opening modal
-  selectedProduct.value = null
-  runs.value = 1
-  meLevel.value = 0
-  teLevel.value = 0
-  excludedTypeIds.value = []
-  projectName.value = ''
-  productsToAdd.value = []
-  showCreateModal.value = true
-}
-
-function closeCreateModal() {
-  showCreateModal.value = false
-}
-
-// Helper to clean type names (remove BPC suffix if present)
-function cleanTypeName(name: string): string {
-  return name.replace(/\s*\(BPC\)\s*$/i, '').trim()
-}
-
-const PROJECT_ID_PATTERN = /^[\w-]+$/
-
-function projectIdFromQuery(): string | null {
-  const queryProject = route.query.project
-  return typeof queryProject === 'string' && PROJECT_ID_PATTERN.test(queryProject) ? queryProject : null
-}
-
 function typeIdFromQuery(): number | undefined {
   const queryTypeId = route.query.typeId
   return typeof queryTypeId === 'string' && /^\d+$/.test(queryTypeId) ? Number(queryTypeId) : undefined
 }
 
-// Detail view
-const viewingProjectId = ref<string | null>(projectIdFromQuery())
-
-watch(() => route.query.project, () => {
-  viewingProjectId.value = projectIdFromQuery()
-})
-
 // Flat pill navigation (single level)
-type MainTab = 'dashboard' | 'projects' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile'
-const MAIN_TABS: MainTab[] = ['dashboard', 'projects', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile']
+type MainTab = 'dashboard' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile'
+const MAIN_TABS: MainTab[] = ['dashboard', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile']
 const mainTab = useTabQuery(MAIN_TABS, 'dashboard')
 const DATA_FRESHNESS_TABS: readonly MainTab[] = ['margins', 'batch', 'buy-vs-build', 'pivot']
 
@@ -153,7 +78,6 @@ const navGroups: NavGroup[] = [
     label: () => t('industry.groups.overview'),
     pills: [
       { key: 'dashboard', label: () => t('industry.tabs.dashboard') },
-      { key: 'projects', label: () => t('industry.tabs.projects') },
     ],
   },
   {
@@ -177,8 +101,6 @@ const navGroups: NavGroup[] = [
 onMounted(async () => {
   dataFreshnessStore.fetchDataFreshness()
   isAdmin.value = await adminStore.checkAccess()
-
-  store.fetchProjects()
 })
 
 // NavigationIntent watcher for cross-tab navigation
@@ -186,25 +108,11 @@ watch(() => store.navigationIntent, (intent) => {
   if (!intent) return
 
   if (intent.target === 'projects') {
-    mainTab.value = 'projects'
-    if (intent.openCreateModal) {
-      openCreateModal()
-    }
-    if (intent.prefill) {
-      // Open modal with prefilled data
-      showCreateModal.value = true
-      const isT2 = intent.prefill.isT2 ?? false
-      selectedProduct.value = {
-        typeId: intent.prefill.typeId,
-        typeName: intent.prefill.typeName,
-        isT2,
-      }
-      runs.value = intent.prefill.runs ?? 1
-      meLevel.value = intent.prefill.me ?? 0
-      teLevel.value = intent.prefill.te ?? (isT2 ? INVENTED_BLUEPRINT_TE : 0)
-      excludedTypeIds.value = intent.prefill.excludedTypeIds ?? []
-    }
-  } else if (intent.target === 'margins') {
+    router.push('/group-industry')
+    return
+  }
+
+  if (intent.target === 'margins') {
     mainTab.value = 'margins'
     analysisInitialTypeId.value = intent.typeId
   } else if (intent.target === 'batch') {
@@ -223,113 +131,6 @@ watch(() => store.navigationIntent, (intent) => {
 
   store.navigationIntent = null
 })
-
-function onProductSelect(result: SearchResult) {
-  selectedProduct.value = result
-  excludedTypeIds.value = []
-  if (result.isT2) {
-    meLevel.value = INVENTED_BLUEPRINT_ME
-    teLevel.value = INVENTED_BLUEPRINT_TE
-  }
-}
-
-// Add product to the list
-function addProductToList() {
-  if (!selectedProduct.value) return
-  const isT2 = selectedProduct.value.isT2 ?? false
-  productsToAdd.value.push({
-    typeId: selectedProduct.value.typeId,
-    typeName: cleanTypeName(selectedProduct.value.typeName),
-    runs: runs.value,
-    meLevel: meLevel.value,
-    teLevel: teLevel.value,
-    isT2,
-  })
-}
-
-// Remove product from the list
-function removeProductFromList(index: number) {
-  productsToAdd.value.splice(index, 1)
-}
-
-// Create project with all products
-async function createProject() {
-  // If no products in list but one selected, add it first
-  if (productsToAdd.value.length === 0 && selectedProduct.value) {
-    addProductToList()
-  }
-
-  if (productsToAdd.value.length === 0) return
-
-  isCreating.value = true
-  try {
-    // Create project with first product
-    const firstProduct = productsToAdd.value[0]
-    const project = await store.createProject(
-      firstProduct.typeId,
-      firstProduct.runs,
-      firstProduct.meLevel,
-      firstProduct.teLevel,
-      store.defaultMaxJobDurationDays,
-      projectName.value.trim() || null,
-      excludedTypeIds.value,
-      acceptsOutsideFavoriteSystem.value,
-      minimumOutsideSaving.value,
-    )
-
-    // Add remaining products as additional steps (with their own ME/TE)
-    for (let i = 1; i < productsToAdd.value.length; i++) {
-      const product = productsToAdd.value[i]
-      await store.createStep(project.id, product.typeId, product.runs, product.meLevel, product.teLevel)
-    }
-
-    // Reset form and close modal
-    selectedProduct.value = null
-    runs.value = 1
-    meLevel.value = 0
-    teLevel.value = 0
-    excludedTypeIds.value = []
-    projectName.value = ''
-    acceptsOutsideFavoriteSystem.value = false
-    minimumOutsideSaving.value = DEFAULT_MINIMUM_OUTSIDE_SAVING
-    productsToAdd.value = []
-    showCreateModal.value = false
-
-    await store.fetchProjects()
-  } finally {
-    isCreating.value = false
-  }
-}
-
-function viewProject(id: string) {
-  viewingProjectId.value = id
-}
-
-function closeDetail() {
-  viewingProjectId.value = null
-  store.fetchProjects()
-  if (route.query.project !== undefined) {
-    const remainingQuery = { ...route.query }
-    delete remainingQuery.project
-    router.replace({ query: remainingQuery })
-  }
-}
-
-async function duplicateProject(project: { productTypeId: number; runs: number; meLevel: number; teLevel: number }) {
-  isCreating.value = true
-  try {
-    await store.createProject(
-      project.productTypeId,
-      project.runs,
-      project.meLevel,
-      project.teLevel,
-      store.defaultMaxJobDurationDays,
-    )
-    await store.fetchProjects()
-  } finally {
-    isCreating.value = false
-  }
-}
 </script>
 
 <template>
@@ -340,7 +141,7 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
       </div>
 
       <!-- Flat pill navigation bar -->
-      <div v-if="!viewingProjectId" class="flex items-center gap-1 bg-slate-900/50 rounded-xl border border-slate-800/60 px-3 py-2.5 mb-6">
+      <div class="flex items-center gap-1 bg-slate-900/50 rounded-xl border border-slate-800/60 px-3 py-2.5 mb-6">
         <template v-for="(group, groupIndex) in navGroups" :key="groupIndex">
           <!-- Divider between groups -->
           <div v-if="groupIndex > 0" class="nav-divider"></div>
@@ -381,23 +182,17 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
         </button>
       </div>
 
-      <!-- Error -->
       <ErrorBanner v-if="store.error" :message="store.error" class="mb-6" @dismiss="store.clearError()" />
 
       <DataFreshnessList
-        v-if="!viewingProjectId && DATA_FRESHNESS_TABS.includes(mainTab)"
+        v-if="DATA_FRESHNESS_TABS.includes(mainTab)"
         :sources="DATA_FRESHNESS_SOURCES"
         class="mb-4"
       />
 
-      <!-- Detail view -->
-      <div v-if="viewingProjectId" key="detail">
-        <ProjectDetail :project-id="viewingProjectId" @close="closeDetail" />
-      </div>
-
       <!-- Dashboard -->
-      <div v-else-if="mainTab === 'dashboard'" key="dashboard">
-        <IndustryDashboard @view-project="viewProject" />
+      <div v-if="mainTab === 'dashboard'" key="dashboard">
+        <IndustryDashboard />
       </div>
 
       <!-- Margins -->
@@ -430,42 +225,6 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
         <StockpileDashboard />
       </div>
 
-      <!-- Projects (default / fallback) -->
-      <div v-else key="projects">
-        <!-- Projects table card -->
-        <div class="bg-slate-900 rounded-xl border border-slate-800">
-          <!-- Table header with New Project button -->
-          <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <h3 class="text-lg font-semibold text-slate-100">{{ t('industry.tabs.projects') }}</h3>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 font-mono">
-                {{ store.projects.length }} {{ t('industry.tabs.projects').toLowerCase() }}
-              </span>
-            </div>
-            <button
-              @click="openCreateModal"
-              class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-semibold flex items-center gap-2 transition-all hover:-translate-y-px hover:shadow-lg hover:shadow-black/30 active:translate-y-0"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-              {{ t('industry.createProject.newProject') }}
-            </button>
-          </div>
-
-          <!-- Loading -->
-          <div v-if="store.isLoading" class="p-8 text-center text-slate-500">
-            <svg class="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {{ t('common.status.loading') }}
-          </div>
-
-          <!-- Projects table -->
-          <ProjectTable v-else @view-project="viewProject" @duplicate-project="duplicateProject" />
-        </div>
-      </div>
-
       <!-- Config Slide-Over Panel -->
       <Teleport to="body">
         <div
@@ -496,23 +255,6 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>
-
-            <!-- Max job duration setting -->
-            <div class="px-6 py-4 border-b border-slate-800">
-              <label :for="maxJobDurationFieldId" class="block text-xs text-slate-500 mb-1.5">{{ t('industry.config.maxJobDuration') }}</label>
-              <div class="flex items-center gap-3">
-                <input
-                  :id="maxJobDurationFieldId"
-                  :value="store.defaultMaxJobDurationDays.toFixed(1)"
-                  @change="(e) => store.setDefaultMaxJobDurationDays(parseFloat((e.target as HTMLInputElement).value) || 2.0)"
-                  type="number"
-                  min="0.5"
-                  step="0.1"
-                  class="w-32 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-cyan-500"
-                />
-                <p class="text-xs text-slate-500">{{ t('industry.config.maxJobDurationHint') }}</p>
-              </div>
             </div>
 
             <!-- Accordion sections -->
@@ -600,218 +342,6 @@ async function duplicateProject(project: { productTypeId: number; runs: number; 
           </div>
         </div>
       </Teleport>
-
-      <!-- Create Project Modal -->
-      <BaseModal
-        :show="showCreateModal"
-        :title="t('industry.createProject.title')"
-        panel-class="border-slate-700 max-w-xl"
-        @close="closeCreateModal"
-      >
-        <!-- Modal header -->
-        <template #title="{ titleId }">
-          <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-            <h3 :id="titleId" class="text-lg font-semibold text-white">{{ t('industry.createProject.title') }}</h3>
-            <button
-              @click="closeCreateModal"
-              class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-colors"
-              :aria-label="t('common.actions.close')"
-            >
-              <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </template>
-
-        <!-- Modal body -->
-        <div class="px-6 py-5 space-y-5">
-          <!-- Project name -->
-          <div v-if="productsToAdd.length > 0 || projectName">
-            <label :for="projectNameFieldId" class="block text-sm text-slate-400 mb-1.5">
-              {{ t('industry.createProject.projectName') }}
-              <span class="text-slate-500">({{ t('industry.createProject.optional') }})</span>
-            </label>
-            <input
-              :id="projectNameFieldId"
-              v-model="projectName"
-              type="text"
-              :placeholder="t('industry.createProject.projectNamePlaceholder')"
-              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-hidden focus:border-cyan-500 placeholder-slate-500 transition-colors"
-            />
-          </div>
-
-          <!-- Products already added to the list -->
-          <div v-if="productsToAdd.length > 0" class="space-y-2">
-            <div
-              v-for="(product, index) in productsToAdd"
-              :key="index"
-              class="flex items-center gap-3 bg-slate-800/50 rounded-lg px-4 py-2"
-            >
-              <span class="flex-1 text-slate-200">
-                {{ product.typeName }}
-                <span v-if="product.isT2" class="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-sm ml-1">T2</span>
-              </span>
-              <div class="flex items-center gap-1">
-                <input
-                  v-model.number="product.runs"
-                  :aria-label="`${product.typeName} ${t('industry.createProject.runs')}`"
-                  type="number"
-                  min="1"
-                  class="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-center"
-                />
-                <span class="text-slate-500 text-xs">runs</span>
-              </div>
-              <span class="text-slate-500 text-xs">ME{{ product.meLevel }}/TE{{ product.teLevel }}</span>
-              <button
-                @click="removeProductFromList(index)"
-                class="p-1 text-slate-500 hover:text-red-400"
-                :title="t('industry.createProject.remove')"
-                :aria-label="t('industry.createProject.remove')"
-              >
-                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Product search -->
-          <div>
-            <p class="block text-sm text-slate-400 mb-1.5">
-              {{ productsToAdd.length > 0 ? t('industry.createProject.addProduct') : t('industry.createProject.product') }}
-              <span v-if="productsToAdd.length === 0" class="text-red-400 ml-0.5">*</span>
-              <span v-if="selectedProduct" class="text-cyan-400 ml-2">
-                -- {{ selectedProduct.typeName }}
-              </span>
-            </p>
-            <ProductSearch ref="productSearchRef" @select="onProductSelect" />
-          </div>
-
-          <!-- Parameters row: Runs, ME, TE -->
-          <div class="grid grid-cols-3 gap-4">
-            <div>
-              <label :for="runsFieldId" class="block text-sm text-slate-400 mb-1.5">{{ t('industry.createProject.runs') }}</label>
-              <input
-                :id="runsFieldId"
-                v-model.number="runs"
-                type="number"
-                min="1"
-                max="100000"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
-              />
-            </div>
-            <div>
-              <label :for="meLevelFieldId" class="block text-sm text-slate-400 mb-1.5">
-                {{ t('industry.createProject.me') }}
-                <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
-              </label>
-              <input
-                :id="meLevelFieldId"
-                v-model.number="meLevel"
-                type="number"
-                min="0"
-                max="10"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
-              />
-            </div>
-            <div>
-              <label :for="teLevelFieldId" class="block text-sm text-slate-400 mb-1.5">
-                {{ t('industry.createProject.te') }}
-                <span v-if="selectedProduct?.isT2" class="text-xs text-blue-400 ml-1">T2</span>
-              </label>
-              <input
-                :id="teLevelFieldId"
-                v-model.number="teLevel"
-                type="number"
-                min="0"
-                max="20"
-                step="2"
-                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 text-center focus:outline-hidden focus:border-cyan-500 font-mono"
-              />
-            </div>
-          </div>
-
-          <!-- Structure outside the favorite system -->
-          <div class="space-y-2 rounded-lg border border-slate-700/60 bg-slate-800/40 px-4 py-3">
-            <label :for="acceptsOutsideFavoriteSystemFieldId" class="flex items-start gap-2 text-sm text-slate-300 cursor-pointer">
-              <input
-                :id="acceptsOutsideFavoriteSystemFieldId"
-                v-model="acceptsOutsideFavoriteSystem"
-                type="checkbox"
-                class="mt-0.5 w-4 h-4 rounded-sm border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
-              />
-              <span>{{ t('industry.createProject.acceptsOutsideFavoriteSystem') }}</span>
-            </label>
-            <div class="flex items-center gap-3">
-              <label :for="minimumOutsideSavingFieldId" class="text-sm text-slate-400">{{ t('industry.createProject.minimumOutsideSaving') }}</label>
-              <input
-                :id="minimumOutsideSavingFieldId"
-                v-model.number="minimumOutsideSaving"
-                :disabled="!acceptsOutsideFavoriteSystem"
-                type="number"
-                min="0"
-                step="1000"
-                class="w-40 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 text-right focus:outline-hidden focus:border-cyan-500 font-mono disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span class="text-xs text-slate-500">ISK</span>
-            </div>
-          </div>
-
-          <!-- Add another product link -->
-          <button
-            v-if="selectedProduct && productsToAdd.length === 0"
-            @click="addProductToList"
-            class="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            {{ t('industry.createProject.multiProduct') }}
-          </button>
-
-          <!-- Add to list button (when products already in list) -->
-          <button
-            v-if="productsToAdd.length > 0 && selectedProduct"
-            @click="addProductToList"
-            class="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            {{ t('industry.createProject.addProduct') }}
-          </button>
-        </div>
-
-        <!-- Modal footer -->
-        <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
-          <button
-            @click="closeCreateModal"
-            class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 text-sm font-medium transition-colors"
-          >
-            {{ t('common.actions.cancel') }}
-          </button>
-          <button
-            @click="createProject"
-            :disabled="(!selectedProduct && productsToAdd.length === 0) || isCreating"
-            class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-px hover:shadow-lg hover:shadow-black/30 active:translate-y-0"
-          >
-            <svg
-              v-if="isCreating"
-              class="w-4 h-4 animate-spin"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            {{ isCreating ? t('industry.createProject.creating') : t('industry.createProject.create') }}
-          </button>
-        </div>
-      </BaseModal>
   </MainLayout>
 </template>
 

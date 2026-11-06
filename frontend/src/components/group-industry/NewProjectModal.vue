@@ -5,10 +5,13 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useProjectsStore } from '@/stores/industry/projects'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
-import type { SearchResult } from '@/stores/industry/types'
+import type { ProjectPrefill, SearchResult } from '@/stores/industry/types'
 import type { CreateGroupProjectInput } from '@/stores/group-industry/types'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+
+const DEFAULT_PREFILL_LEVEL = 0
+const DEFAULT_PREFILL_RUNS = 1
 
 const { t } = useI18n()
 const projectNameFieldId = useId()
@@ -19,6 +22,7 @@ const groupProjectStore = useGroupProjectStore()
 
 const props = defineProps<{
   show: boolean
+  prefill?: ProjectPrefill | null
 }>()
 
 const emit = defineEmits<{
@@ -112,6 +116,7 @@ type ProjectItem = {
   runs: number
 }
 const items = ref<ProjectItem[]>([])
+const blacklistTypeIds = ref<number[]>([])
 
 // Project metadata
 const projectName = ref('')
@@ -176,8 +181,23 @@ const totalRuns = computed(() =>
 
 // Reset form when modal opens
 watch(() => props.show, (newVal) => {
-  if (newVal) resetForm()
+  if (newVal) {
+    resetForm()
+    applyPrefill()
+  }
 })
+
+function applyPrefill() {
+  if (!props.prefill) return
+  items.value = [{
+    typeId: props.prefill.typeId,
+    typeName: props.prefill.typeName,
+    meLevel: props.prefill.me ?? DEFAULT_PREFILL_LEVEL,
+    teLevel: props.prefill.te ?? DEFAULT_PREFILL_LEVEL,
+    runs: props.prefill.runs ?? DEFAULT_PREFILL_RUNS,
+  }]
+  blacklistTypeIds.value = props.prefill.excludedTypeIds ?? []
+}
 
 function resetForm() {
   addMode.value = 'add-item'
@@ -191,6 +211,7 @@ function resetForm() {
   itemRuns.value = 100
   bulkText.value = ''
   items.value = []
+  blacklistTypeIds.value = []
   projectName.value = ''
   containerName.value = ''
   isPrivate.value = true
@@ -260,6 +281,7 @@ async function handleCreate() {
     blacklistCategoryKeys: blacklistCategories.value
       .filter(cat => cat.checked)
       .map(cat => cat.id),
+    blacklistTypeIds: blacklistTypeIds.value.length > 0 ? blacklistTypeIds.value : undefined,
     lineRentalRatesOverride: lineRentalOverrideEnabled.value
       ? Object.fromEntries(lineRentalRates.value.map(r => [r.key, r.value]))
       : undefined,

@@ -1,31 +1,29 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useIndustryStore } from '@/stores/industry'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
-import { useTypeNames } from '@/composables/useTypeNames'
-import { projectProfitTotal } from '@/utils/projectProfitTotal'
+import { groupProjectLabel } from '@/utils/groupProjectLabel'
 import { CHART_COLORS } from '@/utils/chartColors'
 import UnknownValue from '@/components/common/UnknownValue.vue'
-import type { IndustryProject } from '@/stores/industry/types'
+import type { GroupProjectStatus } from '@/stores/group-industry/types'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
+const router = useRouter()
 const store = useIndustryStore()
+const groupProjectStore = useGroupProjectStore()
 const slotsStore = useSlotsStore()
 const kpisUpdated = useUpdateFlash(() => slotsStore.data)
 const stockpileStore = useStockpileStore()
 const { formatIsk } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { projectDisplayName } = useTypeNames()
-
-const emit = defineEmits<{
-  'view-project': [id: string]
-}>()
 
 // SVG ring chart constants (48x48 viewport, radius 19)
 const RING_RADIUS = 19
@@ -35,22 +33,18 @@ useIndustryJobsSync(() => slotsStore.fetchSlots())
 
 onMounted(async () => {
   await Promise.all([
+    groupProjectStore.fetchMyProjects(),
     slotsStore.fetchSlots(),
     stockpileStore.fetchStockpileStatus(),
   ])
 })
 
 // --- KPI 1: Active Projects ---
-const activeProjects = computed(() =>
-  store.projects.filter(p => p.status === 'active'),
+const activeProjectCount = computed(() =>
+  groupProjectStore.myProjects.filter(p => p.status !== 'completed').length,
 )
-const activeProjectCount = computed(() => activeProjects.value.length)
 
-// --- KPI 2: Estimated Profit ---
-const activeProfitTotal = computed(() => projectProfitTotal(activeProjects.value))
-const estimatedProfit = computed(() => activeProfitTotal.value.total)
-
-// --- KPI 3: Slots Used ---
+// --- KPI 2: Slots Used ---
 const slotsData = computed(() => slotsStore.data)
 
 const totalSlotsUsed = computed(() => {
@@ -100,7 +94,7 @@ const slotsAvailableColor = computed(() => {
   return 'text-emerald-400/70'
 })
 
-// --- KPI 4: Pipeline Health ---
+// --- KPI 3: Pipeline Health ---
 const pipelineHealth = computed((): number | null =>
   stockpileStore.stockpileStatus?.kpis.pipelineHealth ?? null,
 )
@@ -166,12 +160,6 @@ const criticalStockpileItems = computed(() =>
   allStockpileItems.value.filter(i => i.percent < 25),
 )
 
-const negativeProfitProjects = computed(() =>
-  activeProjects.value.filter(
-    p => p.profitPercent != null && p.profitPercent < 0,
-  ),
-)
-
 const alerts = computed<DashboardAlert[]>(() => {
   const result: DashboardAlert[] = []
 
@@ -198,19 +186,6 @@ const alerts = computed<DashboardAlert[]>(() => {
         cost: item.deficitCost === null ? t('industry.inventionUnknown.label') : `${formatIsk(item.deficitCost)} ISK`,
       }),
       action: navigateToStockpile,
-    })
-  }
-
-  for (const project of negativeProfitProjects.value.slice(0, 3)) {
-    result.push({
-      id: `negative-profit-${project.id}`,
-      type: 'orange',
-      icon: 'info-circle',
-      title: t('industry.dashboard.alerts.negativeProfitTitle', { name: projectDisplayName(project) }),
-      description: t('industry.dashboard.alerts.negativeProfitDesc', {
-        margin: project.profitPercent?.toFixed(1) ?? '0',
-      }),
-      action: () => emit('view-project', project.id),
     })
   }
 
@@ -250,8 +225,8 @@ function navigateToStockpile(): void {
 }
 
 // --- Recent Projects ---
-const recentProjects = computed<IndustryProject[]>(() => {
-  const sorted = [...store.projects].sort((a, b) => {
+const recentProjects = computed(() => {
+  const sorted = [...groupProjectStore.myProjects].sort((a, b) => {
     const dateA = new Date(a.createdAt).getTime()
     const dateB = new Date(b.createdAt).getTime()
     return dateB - dateA
@@ -259,30 +234,20 @@ const recentProjects = computed<IndustryProject[]>(() => {
   return sorted.slice(0, 5)
 })
 
-function projectStatusClass(status: string): string {
-  if (status === 'completed') return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
-  return 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20'
+const PROJECT_STATUS_CLASSES: Record<GroupProjectStatus, string> = {
+  draft: 'bg-slate-700 text-slate-400 border-slate-600',
+  published: 'bg-violet-500/15 text-violet-400 border-violet-500/20',
+  in_progress: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20',
+  selling: 'bg-violet-500/15 text-violet-400 border-violet-500/20',
+  completed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
 }
 
-function projectStatusLabel(status: string): string {
-  if (status === 'completed') return t('industry.stepStatus.completed')
-  return t('industry.stepStatus.active')
+function projectStatusLabel(status: GroupProjectStatus): string {
+  return t(`groupIndustry.status.${status}`)
 }
 
-function projectProfitColor(profit: number | null): string {
-  if (profit == null) return 'text-slate-500'
-  return profit >= 0 ? 'text-emerald-400' : 'text-red-400'
-}
-
-// Approximate progress based on step job matching
-function projectProgress(project: IndustryProject): number {
-  if (project.status === 'completed') return 100
-  const steps = project.steps
-  if (!steps || steps.length === 0) return 0
-  const completedSteps = steps.filter(
-    s => s.purchased || s.inStock || s.esiJobStatus === 'delivered',
-  ).length
-  return Math.round((completedSteps / steps.length) * 100)
+function viewProject(projectId: string): void {
+  router.push(`/group-industry/${projectId}`)
 }
 
 function cleanTypeName(name: string): string {
@@ -292,7 +257,7 @@ function cleanTypeName(name: string): string {
 
 <template>
   <!-- KPI Cards -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
     <!-- KPI 1: Active Projects -->
     <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <div class="flex items-center justify-between mb-3">
@@ -304,29 +269,7 @@ function cleanTypeName(name: string): string {
       </p>
     </div>
 
-    <!-- KPI 2: Estimated Profit -->
-    <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
-      <div class="flex items-center justify-between mb-3">
-        <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.dashboard.estimatedProfit') }}</p>
-        <svg class="w-4 h-4 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-        </svg>
-      </div>
-      <p
-        class="text-3xl font-bold font-mono"
-        :class="estimatedProfit >= 0 ? 'text-emerald-400' : 'text-red-400'"
-        style="font-variant-numeric: tabular-nums;"
-      >
-        <template v-if="estimatedProfit !== 0">{{ formatIsk(estimatedProfit) }}</template>
-        <template v-else>&mdash;</template>
-      </p>
-      <p class="text-xs text-slate-500 mt-1">{{ t('industry.dashboard.acrossActiveProjects') }}</p>
-      <p v-if="activeProfitTotal.unknownProfitCount > 0" class="text-xs text-slate-500 mt-1">
-        {{ t('industry.dashboard.unknownProfitExcluded', { count: activeProfitTotal.unknownProfitCount }, activeProfitTotal.unknownProfitCount) }}
-      </p>
-    </div>
-
-    <!-- KPI 3: Slots Used -->
+    <!-- KPI 2: Slots Used -->
     <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.slotsUsed') }}</p>
       <div v-if="slotsData" class="flex items-center gap-3">
@@ -358,7 +301,7 @@ function cleanTypeName(name: string): string {
       <p v-else class="text-2xl font-bold text-slate-500">&mdash;</p>
     </div>
 
-    <!-- KPI 4: Pipeline Health -->
+    <!-- KPI 3: Pipeline Health -->
     <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
       <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.pipelineHealth') }}</p>
       <p v-if="pipelineHealth === null" class="text-2xl font-bold text-slate-500"><UnknownValue /></p>
@@ -537,7 +480,6 @@ function cleanTypeName(name: string): string {
           <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
             <th class="text-left py-3 px-6">{{ t('industry.table.product') }}</th>
             <th class="text-left py-3 px-3">{{ t('common.status.active') }}</th>
-            <th class="text-right py-3 px-3">{{ t('industry.table.profit') }}</th>
             <th class="text-left py-3 px-6 w-48">{{ t('industry.slots.table.progress') }}</th>
           </tr>
         </thead>
@@ -546,21 +488,21 @@ function cleanTypeName(name: string): string {
             v-for="project in recentProjects"
             :key="project.id"
             class="hover:bg-slate-800/50 cursor-pointer group"
-            @click="emit('view-project', project.id)"
+            @click="viewProject(project.id)"
           >
             <!-- Product -->
             <td class="py-3 px-6">
               <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
+                <div v-if="project.items.length > 0" class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
                   <img
-                    :src="getTypeIconUrl(project.productTypeId, 64)"
-                    :alt="projectDisplayName(project)"
+                    :src="getTypeIconUrl(project.items[0].typeId, 64)"
+                    :alt="groupProjectLabel(project)"
                     class="w-full h-full object-cover"
                     @error="onImageError"
                   />
                 </div>
                 <span class="text-slate-100 font-medium group-hover:text-cyan-400 transition-colors">
-                  {{ cleanTypeName(projectDisplayName(project)) }}
+                  {{ cleanTypeName(groupProjectLabel(project)) }}
                 </span>
               </div>
             </td>
@@ -569,19 +511,10 @@ function cleanTypeName(name: string): string {
             <td class="py-3 px-3">
               <span
                 class="text-xs px-2 py-0.5 rounded border"
-                :class="projectStatusClass(project.status)"
+                :class="PROJECT_STATUS_CLASSES[project.status]"
               >
                 {{ projectStatusLabel(project.status) }}
               </span>
-            </td>
-
-            <!-- Profit -->
-            <td
-              class="py-3 px-3 text-right font-mono"
-              :class="projectProfitColor(project.profit)"
-              style="font-variant-numeric: tabular-nums;"
-            >
-              {{ project.profit != null ? formatIsk(project.profit) : '---' }}
             </td>
 
             <!-- Progress -->
@@ -591,10 +524,10 @@ function cleanTypeName(name: string): string {
                   <div
                     class="h-full rounded-full relative"
                     :class="project.status === 'completed' ? 'bg-emerald-500/60' : 'bg-cyan-500/60'"
-                    :style="{ width: projectProgress(project) + '%' }"
+                    :style="{ width: project.fulfillmentPercent + '%' }"
                   >
                     <div
-                      v-if="project.status !== 'completed' && projectProgress(project) > 0"
+                      v-if="project.status !== 'completed' && project.fulfillmentPercent > 0"
                       class="absolute inset-0 progress-shimmer rounded-full"
                     ></div>
                   </div>
@@ -603,7 +536,7 @@ function cleanTypeName(name: string): string {
                   class="text-xs font-mono w-8 text-right"
                   :class="project.status === 'completed' ? 'text-emerald-400' : 'text-slate-500'"
                 >
-                  {{ projectProgress(project) }}%
+                  {{ project.fulfillmentPercent }}%
                 </span>
               </div>
             </td>

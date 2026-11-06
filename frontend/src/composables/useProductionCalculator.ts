@@ -1,5 +1,3 @@
-import { formatDuration } from './useProjectTime'
-
 /**
  * Calculate the maximum number of runs achievable within a given duration.
  */
@@ -25,4 +23,21 @@ export function calculateDurationForRuns(
   return Math.ceil(runs / productionLines) * timePerRunSeconds
 }
 
-export { formatDuration }
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null || seconds <= 0) return '-'
+
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+
+  if (days > 0) {
+    if (hours > 0) {
+      return `${days}j ${hours}h`
+    }
+    return `${days}j`
+  } else if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  } else {
+    return `${minutes}m`
+  }
+}
