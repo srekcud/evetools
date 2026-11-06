@@ -37,6 +37,7 @@ use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Industry\Infrastructure\Sde\SdeBlueprintCatalog;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
@@ -2496,6 +2497,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             $productRepository,
             $activityRepository,
             $this->contributionRepositoryOnTheContributionsOfTheProject(),
+            $this->createStub(IndustryUserSettingsRepository::class),
         );
     }
 

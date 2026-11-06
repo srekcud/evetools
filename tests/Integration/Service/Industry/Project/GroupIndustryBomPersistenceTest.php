@@ -20,6 +20,7 @@ use App\Enum\ParticipantStatus;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\Project\CreateProjectData;
@@ -90,6 +91,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             self::getContainer()->get(IndustryActivityProductRepository::class),
             self::getContainer()->get(IndustryActivityRepository::class),
             self::getContainer()->get(IndustryProjectContributionRepository::class),
+            self::getContainer()->get(IndustryUserSettingsRepository::class),
         );
     }
 

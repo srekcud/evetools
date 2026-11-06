@@ -24,6 +24,7 @@ use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -544,6 +545,34 @@ final class IndustryProjectServiceTest extends TestCase
         $this->assertSame(3.0, $project->getSalesTaxPercent());
     }
 
+    #[Group('issue-341')]
+    public function testCreateProjectTakesTheSelectionPolicyOfTheData(): void
+    {
+        $this->givenRifter();
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifters built anywhere cheaper',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 12]],
+            acceptsOutsideFavoriteSystem: true,
+            minimumOutsideSaving: 250_000.0,
+        ));
+
+        $this->assertSame([true, 250_000.0], [$project->isAcceptsOutsideFavoriteSystem(), $project->getMinimumOutsideSaving()]);
+    }
+
+    #[Group('issue-341')]
+    public function testCreateProjectRefusesAStructureOutsideTheFavoriteSystemWithTheDefaultMinimumOutsideSavingWhenTheDataDoNotSayOtherwise(): void
+    {
+        $this->givenRifter();
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifters at home',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 3]],
+        ));
+
+        $this->assertSame([false, IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING], [$project->isAcceptsOutsideFavoriteSystem(), $project->getMinimumOutsideSaving()]);
+    }
+
     #[Group('issue-141')]
     public function testBuildBomIntermediateCopyStep(): void
     {
@@ -682,6 +711,7 @@ final class IndustryProjectServiceTest extends TestCase
             $this->activityProductRepository(),
             $this->activityRepository(),
             $this->createStub(IndustryProjectContributionRepository::class),
+            $this->createStub(IndustryUserSettingsRepository::class),
         );
     }
 
