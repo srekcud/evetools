@@ -115,6 +115,6 @@ describe('MainLayout sidebar navigation', () => {
     await flushPromises()
 
     const moduleLabels = Array.from(document.querySelectorAll('[role="dialog"] label')).map(label => label.textContent?.trim())
-    expect(moduleLabels).toEqual(['Industry', 'Appraisal', 'PI', 'Mining operations', 'Market', 'Revenue', 'Inventory'])
+    expect(moduleLabels).toEqual(['Dashboard', 'Industry', 'Appraisal', 'PI', 'Mining operations', 'Market', 'Revenue', 'Inventory'])
   })
 })
