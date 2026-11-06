@@ -4,16 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
-use App\Constant\EveConstants;
-use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectStep;
-use App\Entity\IndustryStructureConfig;
 use App\Enum\IndustryActivityType;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
-use App\Service\TypeNameResolver;
 
 /**
  * Calculates BPC copy costs, invention costs, and decryptor comparisons
@@ -53,8 +48,6 @@ class InventionService
         private readonly InvTypeRepository $invTypeRepository,
         private readonly JitaMarketService $jitaMarketService,
         private readonly EsiCostIndexService $esiCostIndexService,
-        private readonly TypeNameResolver $typeNameResolver,
-        private readonly ProjectStepStructureResolver $stepStructureResolver,
     ) {
     }
 
@@ -337,150 +330,6 @@ class InventionService
     }
 
     /**
-     * Get BPC kit breakdown for a project (invention data only).
-     *
-     * For T2 items: invention costs with each decryptor option + "no decryptor" baseline.
-     * Copy costs are handled separately by getProjectCopyCosts().
-     *
-     * @return array{
-     *     isT2: bool,
-     *     inventions: list<array{
-     *         productTypeId: int,
-     *         productName: string|null,
-     *         baseProbability: ?float,
-     *         unknownReason: ?string,
-     *         desiredSuccesses: int,
-     *         datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: ?float, totalPrice: ?float}>,
-     *         decryptorOptions: list<array{
-     *             decryptorTypeId: ?int,
-     *             decryptorName: string,
-     *             me: int,
-     *             te: int,
-     *             runs: int,
-     *             probability: ?float,
-     *             costPerAttempt: ?float,
-     *             expectedAttempts: ?int,
-     *             totalCost: ?float,
-     *             costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: ?float},
-     *             missingPriceTypeIds: list<int>,
-     *             missingAdjustedPriceTypeIds: list<int>,
-     *             unknownReason: ?string
-     *         }>
-     *     }>,
-     *     summary: array{totalInventionCost: ?float, bestDecryptorTypeId: ?int, totalBpcKitCost: ?float}
-     * }
-     */
-    public function getBpcKitBreakdown(IndustryProject $project, int $desiredBpcCount = 1): array
-    {
-        $productTypeId = $project->getProductTypeId();
-        ['solarSystemId' => $solarSystemId, 'facilityTaxPercent' => $facilityTaxPercent] = $this->resolveInstallContext($project);
-
-        // Check if this is a T2 item (has invention path in SDE)
-        $inventionData = $this->getInventionData($productTypeId);
-        $isT2 = $inventionData !== null;
-
-        $inventions = [];
-        $totalInventionCost = $isT2 ? null : 0.0;
-        $bestDecryptorTypeId = null;
-
-        if ($isT2) {
-            // T2 item: calculate invention costs with all decryptor options
-            $decryptorOptions = $this->buildDecryptorOptions(
-                $productTypeId,
-                $solarSystemId,
-                $desiredBpcCount,
-                $facilityTaxPercent,
-            );
-
-            // Get datacores info from the "no decryptor" result (materials are the same regardless)
-            $noDecryptorResult = $this->calculateInventionCost(
-                $productTypeId,
-                $solarSystemId,
-                null,
-                $desiredBpcCount,
-                $facilityTaxPercent,
-            );
-
-            $productName = $this->typeNameResolver->findName($productTypeId);
-
-            $inventions[] = [
-                'productTypeId' => $productTypeId,
-                'productName' => $productName,
-                'baseProbability' => $inventionData['probability'],
-                'unknownReason' => $inventionData['probability'] === null ? self::UNKNOWN_REASON_MISSING_PROBABILITY : null,
-                'desiredSuccesses' => $desiredBpcCount,
-                'datacores' => $noDecryptorResult['datacores'] ?? [],
-                'decryptorOptions' => $decryptorOptions,
-            ];
-
-            // Find cheapest option for the summary; options with an unknown cost cannot be compared
-            foreach ($decryptorOptions as $option) {
-                if ($option['totalCost'] !== null && ($totalInventionCost === null || $option['totalCost'] < $totalInventionCost)) {
-                    $totalInventionCost = $option['totalCost'];
-                    $bestDecryptorTypeId = $option['decryptorTypeId'];
-                }
-            }
-        }
-
-        return [
-            'isT2' => $isT2,
-            'inventions' => $inventions,
-            'summary' => [
-                'totalInventionCost' => $totalInventionCost,
-                'bestDecryptorTypeId' => $bestDecryptorTypeId,
-                'totalBpcKitCost' => $totalInventionCost,
-            ],
-        ];
-    }
-
-    /**
-     * Calculate all T1 BPC copy costs for a project.
-     * Returns copy costs for ALL steps with activityType === 'copy'.
-     *
-     * @return array{copies: list<array{blueprintTypeId: int, blueprintName: string|null, productTypeName: string|null, runs: int, cost: float, depth: int}>, totalCopyCost: float}
-     */
-    public function getProjectCopyCosts(IndustryProject $project): array
-    {
-        ['solarSystemId' => $solarSystemId, 'facilityTaxPercent' => $facilityTaxPercent] = $this->resolveInstallContext($project);
-
-        $copies = [];
-        $totalCopyCost = 0.0;
-
-        foreach ($project->getSteps() as $step) {
-            if ($step->getActivityType() !== 'copy') {
-                continue;
-            }
-
-            $blueprintTypeId = $step->getBlueprintTypeId();
-            $stepRuns = $step->getRuns();
-
-            $copyCost = $this->getCopyJobCost(
-                $blueprintTypeId,
-                $stepRuns,
-                $solarSystemId,
-                $facilityTaxPercent,
-            );
-            $totalCopyCost += $copyCost;
-
-            $blueprintName = $this->typeNameResolver->findName($blueprintTypeId);
-            $productTypeName = $this->typeNameResolver->findName($step->getProductTypeId());
-            $copies[] = [
-                'blueprintTypeId' => $blueprintTypeId,
-                'blueprintName' => $blueprintName,
-                'productTypeName' => $productTypeName,
-                'runs' => $stepRuns,
-                'cost' => $copyCost,
-                'depth' => $step->getDepth(),
-            ];
-        }
-
-        return [
-            'copies' => $copies,
-            'totalCopyCost' => $totalCopyCost,
-        ];
-    }
-
-    /**
      * Build all decryptor options (including "no decryptor") for a T2 item.
      *
      * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: ?float, costPerAttempt: ?float, expectedAttempts: ?int, totalCost: ?float, costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: ?float}, missingPriceTypeIds: list<int>, missingAdjustedPriceTypeIds: list<int>, unknownReason: ?string}>
@@ -522,40 +371,6 @@ class InventionService
         }
 
         return $options;
-    }
-
-    /**
-     * @return array{solarSystemId: int, facilityTaxPercent: ?float}
-     */
-    private function resolveInstallContext(IndustryProject $project): array
-    {
-        $rootStep = $this->findRootStep($project);
-        if ($rootStep === null) {
-            return [
-                'solarSystemId' => EveConstants::JITA_SOLAR_SYSTEM_ID,
-                'facilityTaxPercent' => IndustryStructureConfig::NPC_STATION_FACILITY_TAX_PERCENT,
-            ];
-        }
-
-        return [
-            'solarSystemId' => $this->stepStructureResolver->solarSystemOf($rootStep),
-            'facilityTaxPercent' => $this->stepStructureResolver->facilityTaxPercentOf($rootStep),
-        ];
-    }
-
-    private function findRootStep(IndustryProject $project): ?IndustryProjectStep
-    {
-        $rootStep = null;
-        foreach ($project->getSteps() as $step) {
-            if ($step->getDepth() !== 0 || $step->getActivityType() === 'copy') {
-                continue;
-            }
-            if ($rootStep === null || $step->getSortOrder() < $rootStep->getSortOrder()) {
-                $rootStep = $step;
-            }
-        }
-
-        return $rootStep;
     }
 
     /**

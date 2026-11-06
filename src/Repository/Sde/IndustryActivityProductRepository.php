@@ -6,6 +6,7 @@ namespace App\Repository\Sde;
 
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Enum\IndustryActivityType;
+use App\Exception\ProducerMissingFromSdeException;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
@@ -234,5 +235,12 @@ class IndustryActivityProductRepository extends ServiceEntityRepository
         }
 
         return $results[0];
+    }
+
+    public function producerOf(int $productTypeId): IndustryActivityProduct
+    {
+        return $this->findBlueprintForProduct($productTypeId, IndustryActivityType::Manufacturing->value)
+            ?? $this->findBlueprintForProduct($productTypeId, IndustryActivityType::Reaction->value)
+            ?? throw new ProducerMissingFromSdeException($productTypeId);
     }
 }

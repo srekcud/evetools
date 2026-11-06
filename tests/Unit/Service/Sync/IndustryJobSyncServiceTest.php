@@ -9,13 +9,13 @@ use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectStep;
-use App\Entity\IndustryStepJobMatch;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\Notification;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
-use App\Repository\IndustryStepJobMatchRepository;
+use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
@@ -96,7 +96,7 @@ class IndustryJobSyncServiceTest extends TestCase
     private CachedIndustryJobRepository&MockObject $jobRepository;
     private InvTypeRepository&Stub $invTypeRepository;
     private EntityManagerInterface&MockObject $em;
-    private IndustryStepJobMatchRepository&Stub $jobMatchRepository;
+    private IndustryProjectJobMatchRepository&Stub $jobMatchRepository;
     private NotificationDispatcher&MockObject $notificationDispatcher;
     private IndustryJobSyncService $service;
     private array $publishedMercurePayloads = [];
@@ -131,7 +131,7 @@ class IndustryJobSyncServiceTest extends TestCase
             self::RIFTER_TYPE_ID => self::RIFTER_NAME,
         ]);
         $this->em = $this->createMock(EntityManagerInterface::class);
-        $this->jobMatchRepository = $this->createStub(IndustryStepJobMatchRepository::class);
+        $this->jobMatchRepository = $this->createStub(IndustryProjectJobMatchRepository::class);
         $this->notificationDispatcher = $this->createMock(NotificationDispatcher::class);
         $this->jobRepository->method('claimCompletionNotification')->willReturnCallback(
             function (int $jobId, \DateTimeImmutable $claimedAt): bool {
@@ -643,24 +643,26 @@ class IndustryJobSyncServiceTest extends TestCase
         ], $jobCompletedNotifications[0]['data']);
     }
 
-    public function testProjectProgressMercureMessageLabelsStepProductMissingFromSde(): void
+    #[Group('issue-362')]
+    public function testDeliveredJobOfABomLineCopiesItsStatusOnTheLinkAndPublishesTheProjectProgressWithTheLineProduct(): void
     {
-        $character = $this->createCharacterWithUser(12345);
-        $this->completeJobOf($character, 7002, self::TYPE_ID_MISSING_FROM_SDE);
-
-        $project = $this->createStub(IndustryProject::class);
-        $project->method('getId')->willReturn(Uuid::fromString('0193a5c2-7b1e-7c4d-9f2a-3e8b6d1c5a40'));
-        $project->method('getName')->willReturn('Batch');
-        $step = (new IndustryProjectStep())->setProject($project)->setProductTypeId(self::TYPE_ID_MISSING_FROM_SDE);
-        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([(new IndustryStepJobMatch())->setEsiJobId(7002)->setStep($step)]);
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::MANUFACTURING_JOB_ID, $character, 1, self::RIFTER_TYPE_ID, 3, 1_250_000.75);
+        $jobMatch = $this->givenJobMatchOnBomLine(self::MANUFACTURING_JOB_ID, $this->makeBomLine(self::RIFTER_TYPE_ID, self::RIFTER_NAME))->setRuns(3)->setCost(1_250_000.75);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $deliveredJob = $this->esiManufacturingJob500('delivered');
+        $deliveredJob['runs'] = 3;
+        $deliveredJob['cost'] = 1_250_000.75;
+        $this->esiClient->method('get')->willReturn([$deliveredJob]);
 
         $this->service->syncCharacterJobs($character);
 
+        $this->assertSame('delivered', $jobMatch->getStatus());
         $projectNotifications = $this->mercureNotificationsOf('industry-project');
-        $this->assertCount(1, $projectNotifications);
         $this->assertSame(
-            'Project "Batch": type 1000 (name missing from the SDE) completed',
-            $projectNotifications[0]['message'],
+            [['Project "Capital Batch": Rifter completed', '0193a5c2-7b1e-7c4d-9f2a-3e8b6d1c5a41']],
+            array_map(static fn (array $notification): array => [$notification['message'], $notification['data']['projectId']], $projectNotifications),
         );
     }
 
@@ -1292,39 +1294,11 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     #[Group('issue-208')]
-    public function testDeliveredJobRefreshesJobMatchOfManualStep(): void
+    public function testDeliveredJobRefreshesJobMatchOfBomLine(): void
     {
         $character = $this->createCharacterWithUser(12345);
         $cachedJob = $this->givenMatchedCachedJob($character);
-        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
-        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'delivered', '2026-10-20T12:00:00Z')]);
-        $this->stubCachedJobs([$cachedJob]);
-
-        $this->service->syncCharacterJobs($character);
-
-        $this->assertSame(['delivered', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
-    }
-
-    #[Group('issue-208')]
-    public function testReadyJobRefreshesJobMatchOfPurchasedStep(): void
-    {
-        $character = $this->createCharacterWithUser(12345);
-        $cachedJob = $this->givenMatchedCachedJob($character);
-        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('auto')->setPurchased(true));
-        $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'ready', '2026-10-20T12:00:00Z')]);
-        $this->stubCachedJobs([$cachedJob]);
-
-        $this->service->syncCharacterJobs($character);
-
-        $this->assertSame(['ready', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
-    }
-
-    #[Group('issue-208')]
-    public function testDeliveredJobRefreshesJobMatchOfAutoStepWithoutMatchingJobsAgain(): void
-    {
-        $character = $this->createCharacterWithUser(12345);
-        $cachedJob = $this->givenMatchedCachedJob($character);
-        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('auto'));
+        $jobMatch = $this->givenJobMatchOnBomLine(100, $this->makeBomLine());
         $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'delivered', '2026-10-20T12:00:00Z')]);
         $this->stubCachedJobs([$cachedJob]);
 
@@ -1338,7 +1312,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         $character = $this->createCharacterWithUser(12345);
         $cachedJob = $this->givenMatchedCachedJob($character);
-        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $jobMatch = $this->givenJobMatchOnBomLine(100, $this->makeBomLine());
         $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'active', '2026-10-21T08:30:00Z')]);
         $this->stubCachedJobs([$cachedJob]);
 
@@ -1353,7 +1327,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         $character = $this->createCharacterWithUser(12345);
         $cachedJob = $this->givenMatchedCachedJob($character);
-        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $jobMatch = $this->givenJobMatchOnBomLine(100, $this->makeBomLine());
         $this->esiClient->method('get')->willReturn([]);
         $this->givenCorporationJobs([]);
         $this->stubActiveJobsByCharacter([$cachedJob]);
@@ -1369,7 +1343,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $character = $this->createCharacterWithUser(12345);
         $corpmateCachedJob = $this->makeCachedJob(200, $this->createCharacterWithUser(99999), 'delivered', '2026-10-19T16:45:00Z');
         $corpmateCachedJob->setCost(2_750_000.75)->setRuns(4);
-        $jobMatch = $this->givenJobMatchOnStep(200, $this->makeStep('manual'));
+        $jobMatch = $this->givenJobMatchOnBomLine(200, $this->makeBomLine());
         $this->esiClient->method('get')->willReturn([]);
         $this->givenCorporationJobs([$this->makeEsiJobOfMatch(200, 99999, 'delivered', '2026-10-19T16:45:00Z')]);
         $this->stubCachedJobs([$corpmateCachedJob]);
@@ -1385,7 +1359,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         [$character] = $this->createCharactersOfSameUserWithScopes([12345 => [self::CORPORATION_JOBS_SCOPE]]);
         $cachedJob = $this->givenMatchedCachedJob($character)->setStatus('ready');
-        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $jobMatch = $this->givenJobMatchOnBomLine(100, $this->makeBomLine());
         $this->esiClient->expects($this->never())->method('get');
         $this->givenCorporationJobs([]);
         $this->stubCachedJobs([$cachedJob]);
@@ -1401,7 +1375,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         $character = $this->createCharacterWithUser(12345);
         $cachedJob = $this->givenMatchedCachedJob($character);
-        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'))->setCost(900_000.0)->setRuns(5);
+        $jobMatch = $this->givenJobMatchOnBomLine(100, $this->makeBomLine())->setCost(900_000.0)->setRuns(5);
         $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'active', '2026-10-20T12:00:00Z')]);
         $this->stubCachedJobs([$cachedJob]);
 
@@ -1412,36 +1386,34 @@ class IndustryJobSyncServiceTest extends TestCase
     }
 
     #[Group('issue-208')]
-    public function testRefreshKeepsCharacterFacilityPlannedStructureAndMatchDateOfJobMatch(): void
+    public function testRefreshKeepsCharacterFacilityAndMatchDateOfJobMatch(): void
     {
         $character = $this->createCharacterWithUser(12345);
         $cachedJob = $this->givenMatchedCachedJob($character);
-        $jobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
+        $jobMatch = $this->givenJobMatchOnBomLine(100, $this->makeBomLine());
         $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'delivered', '2026-10-20T12:00:00Z')]);
         $this->stubCachedJobs([$cachedJob]);
 
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame(
-            ['Main Industrialist', 1_035_466_617_946, 'Sotiyo Kemerk', 'Azbel Planned', 1.0, '2026-10-15T09:00:00+00:00'],
+            ['Main Industrialist', 1_035_466_617_946, 'Sotiyo Kemerk', '2026-10-15T09:00:00+00:00'],
             [
                 $jobMatch->getCharacterName(),
                 $jobMatch->getFacilityId(),
                 $jobMatch->getFacilityName(),
-                $jobMatch->getPlannedStructureName(),
-                $jobMatch->getPlannedMaterialBonus(),
                 $jobMatch->getMatchedAt()->format('c'),
             ],
         );
     }
 
     #[Group('issue-208')]
-    public function testJobMatchedOnTwoStepsIsRefreshedOnBoth(): void
+    public function testJobMatchedOnTwoBomLinesIsRefreshedOnBoth(): void
     {
         $character = $this->createCharacterWithUser(12345);
         $cachedJob = $this->givenMatchedCachedJob($character);
-        $firstJobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('manual'));
-        $secondJobMatch = $this->givenJobMatchOnStep(100, $this->makeStep('auto'));
+        $firstJobMatch = $this->givenJobMatchOnBomLine(100, $this->makeBomLine());
+        $secondJobMatch = $this->givenJobMatchOnBomLine(100, $this->makeBomLine());
         $this->esiClient->method('get')->willReturn([$this->makeEsiJobOfMatch(100, 12345, 'delivered', '2026-10-20T12:00:00Z')]);
         $this->stubCachedJobs([$cachedJob]);
 
@@ -1457,7 +1429,7 @@ class IndustryJobSyncServiceTest extends TestCase
         [$characterA, $characterB] = $this->createCharactersOfSameUser(12345, 67890);
         $altCachedJob = $this->makeCachedJob(400, $characterB, 'active', '2026-10-23T06:15:00Z');
         $altCachedJob->setCost(640_000.25)->setRuns(3);
-        $jobMatch = $this->givenJobMatchOnStep(400, $this->makeStep('manual'));
+        $jobMatch = $this->givenJobMatchOnBomLine(400, $this->makeBomLine());
         $this->esiClient->method('get')->willReturn([]);
         $altEsiJob = $this->makeEsiJobOfMatch(400, 67890, 'ready', '2026-10-23T06:15:00Z');
         $altEsiJob['cost'] = 640_000.25;
@@ -1674,8 +1646,8 @@ class IndustryJobSyncServiceTest extends TestCase
         ];
         $this->stubCachedJobs($cachedJobs);
         $this->stubActiveJobsByCharacter($cachedJobs);
-        $this->givenJobMatchOnStep(100, $this->makeStep('manual')->setProductTypeId(self::TRITANIUM_TYPE_ID));
-        $this->givenJobMatchOnStep(101, $this->makeStep('manual')->setProductTypeId(self::NITROGEN_FUEL_BLOCK_TYPE_ID));
+        $this->givenJobMatchOnBomLine(100, $this->makeBomLine(self::TRITANIUM_TYPE_ID, self::TRITANIUM_NAME));
+        $this->givenJobMatchOnBomLine(101, $this->makeBomLine(self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::NITROGEN_FUEL_BLOCK_NAME));
         $this->reservedCompletionNotificationJobIds = [101];
         $this->recordDispatchedNotifications();
 
@@ -1993,7 +1965,7 @@ class IndustryJobSyncServiceTest extends TestCase
     {
         $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
         $cachedJob = $this->cachedRifterJob(self::MANUFACTURING_JOB_ID, $character, 1, self::RIFTER_TYPE_ID, 10, 1_250_000.75);
-        $jobMatch = $this->givenJobMatchOnStep(self::MANUFACTURING_JOB_ID, $this->makeStep('manual'))->setCost(1_250_000.75);
+        $jobMatch = $this->givenJobMatchOnBomLine(self::MANUFACTURING_JOB_ID, $this->makeBomLine())->setCost(1_250_000.75);
         $this->stubCachedJobs([$cachedJob]);
         $this->stubActiveJobsByCharacter([$cachedJob]);
         $esiJobWithoutCost = $this->esiManufacturingJob500('active');
@@ -2850,21 +2822,26 @@ class IndustryJobSyncServiceTest extends TestCase
         return $cachedJob;
     }
 
-    private function makeStep(string $jobMatchMode): IndustryProjectStep
+    private function makeBomLine(int $typeId = self::RIFTER_TYPE_ID, string $typeName = self::RIFTER_NAME): IndustryProjectBomLine
     {
         $project = $this->createStub(IndustryProject::class);
         $project->method('getId')->willReturn(Uuid::fromString('0193a5c2-7b1e-7c4d-9f2a-3e8b6d1c5a41'));
         $project->method('getName')->willReturn('Capital Batch');
 
-        return (new IndustryProjectStep())
+        return (new IndustryProjectBomLine())
             ->setProject($project)
-            ->setProductTypeId(self::TYPE_ID_MISSING_FROM_SDE)
-            ->setJobMatchMode($jobMatchMode);
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setRequiredQuantity(10)
+            ->setIsJob(true)
+            ->setJobGroup('final')
+            ->setActivityType('manufacturing')
+            ->setRuns(10);
     }
 
-    private function givenJobMatchOnStep(int $esiJobId, IndustryProjectStep $step): IndustryStepJobMatch
+    private function givenJobMatchOnBomLine(int $esiJobId, IndustryProjectBomLine $line): IndustryProjectJobMatch
     {
-        $jobMatch = (new IndustryStepJobMatch())
+        $jobMatch = (new IndustryProjectJobMatch())
             ->setEsiJobId($esiJobId)
             ->setStatus('active')
             ->setEndDate(new \DateTimeImmutable('2026-10-20T12:00:00Z'))
@@ -2873,15 +2850,13 @@ class IndustryJobSyncServiceTest extends TestCase
             ->setCharacterName('Main Industrialist')
             ->setFacilityId(1_035_466_617_946)
             ->setFacilityName('Sotiyo Kemerk')
-            ->setPlannedStructureName('Azbel Planned')
-            ->setPlannedMaterialBonus(1.0)
             ->setMatchedAt(new \DateTimeImmutable('2026-10-15T09:00:00Z'));
-        $step->addJobMatch($jobMatch);
+        $line->addJobMatch($jobMatch);
         $this->jobMatches[] = $jobMatch;
         $this->jobMatchRepository->method('findByEsiJobIds')->willReturnCallback(
             fn (array $esiJobIds): array => array_values(array_filter(
                 $this->jobMatches,
-                static fn (IndustryStepJobMatch $match): bool => in_array($match->getEsiJobId(), $esiJobIds, true),
+                static fn (IndustryProjectJobMatch $match): bool => in_array($match->getEsiJobId(), $esiJobIds, true),
             )),
         );
 
@@ -2922,7 +2897,7 @@ class IndustryJobSyncServiceTest extends TestCase
     /**
      * @return array{string, ?string, ?float, int}
      */
-    private function jobStateOf(IndustryStepJobMatch $jobMatch): array
+    private function jobStateOf(IndustryProjectJobMatch $jobMatch): array
     {
         return [$jobMatch->getStatus(), $jobMatch->getEndDate()?->format('c'), $jobMatch->getCost(), $jobMatch->getRuns()];
     }

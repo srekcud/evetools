@@ -11,7 +11,7 @@ use App\Entity\Notification;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
-use App\Repository\IndustryStepJobMatchRepository;
+use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
@@ -39,7 +39,7 @@ class IndustryJobSyncService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
-        private readonly IndustryStepJobMatchRepository $jobMatchRepository,
+        private readonly IndustryProjectJobMatchRepository $jobMatchRepository,
         private readonly NotificationDispatcher $notificationDispatcher,
         private readonly CacheItemPoolInterface $esiCache,
         private readonly CharacterService $characterService,
@@ -451,8 +451,8 @@ class IndustryJobSyncService
         // Group by project
         $projectUpdates = [];
         foreach ($matches as $match) {
-            $step = $match->getStep();
-            $project = $step->getProject();
+            $line = $match->getBomLine();
+            $project = $line->getProject();
             $projectId = $project->getId()->toRfc4122();
             if (!isset($projectUpdates[$projectId])) {
                 $projectUpdates[$projectId] = [
@@ -460,18 +460,18 @@ class IndustryJobSyncService
                     'completedSteps' => [],
                 ];
             }
-            $productTypeId = $step->getProductTypeId();
+            $productTypeId = $line->getTypeId();
             $projectUpdates[$projectId]['completedSteps'][] = $this->getTypeName($productTypeId) ?? UnknownTypeName::label($productTypeId);
         }
 
         foreach ($projectUpdates as $projectId => $update) {
-            $stepNames = implode(', ', $update['completedSteps']);
+            $productNames = implode(', ', $update['completedSteps']);
             $this->mercurePublisher->publishSyncProgress(
                 $userId,
                 'industry-project',
                 'notification',
                 null,
-                sprintf('Project "%s": %s completed', $update['projectName'], $stepNames),
+                sprintf('Project "%s": %s completed', $update['projectName'], $productNames),
                 [
                     'projectId' => $projectId,
                     'completedSteps' => $update['completedSteps'],

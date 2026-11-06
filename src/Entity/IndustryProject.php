@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\ContributionStatus;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
-use App\Enum\GroupProjectStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -16,7 +16,6 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: IndustryProjectRepository::class)]
-#[ORM\HasLifecycleCallbacks]
 #[ORM\Table(name: 'industry_projects')]
 #[ORM\Index(columns: ['owner_id'])]
 #[ORM\Index(columns: ['status'])]
@@ -32,28 +31,11 @@ class IndustryProject
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $owner;
 
-    #[ORM\Column(type: 'integer')]
-    private int $productTypeId;
-
-    /** @var string|null Custom project name (null = use product name) */
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $name = null;
 
-    #[ORM\Column(type: 'integer')]
-    private int $runs;
-
-    #[ORM\Column(type: 'integer')]
-    private int $meLevel = 0;
-
-    #[ORM\Column(type: 'integer')]
-    private int $teLevel = 0;
-
-    /** @var float Maximum job duration in days before splitting (default 2.0 days) */
-    #[ORM\Column(type: 'float')]
-    private float $maxJobDurationDays = 2.0;
-
-    #[ORM\Column(type: 'string', length: 20, enumType: GroupProjectStatus::class)]
-    private GroupProjectStatus $status = GroupProjectStatus::Published;
+    #[ORM\Column(type: 'string', length: 20, enumType: ProjectStatus::class)]
+    private ProjectStatus $status = ProjectStatus::Draft;
 
     #[ORM\Column(type: 'string', length: 10, unique: true)]
     private string $shortLinkCode;
@@ -79,53 +61,14 @@ class IndustryProject
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $salesTaxPercent = null;
 
-    #[ORM\Column(type: 'boolean')]
-    private bool $personalUse = false;
-
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $acceptsOutsideFavoriteSystem = false;
 
     #[ORM\Column(type: 'float', options: ['default' => self::DEFAULT_MINIMUM_OUTSIDE_SAVING])]
     private float $minimumOutsideSaving = self::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $bpoCost = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $materialCost = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $transportCost = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $taxAmount = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $sellPrice = null;
-
-    /** @var int[] Type IDs to exclude from building (treated as raw materials) */
-    #[ORM\Column(type: 'json')]
-    private array $excludedTypeIds = [];
-
-    /** @var array<array{typeId: int, typeName: string, quantity: int}>|null */
-    #[ORM\Column(type: 'json', nullable: true)]
-    private ?array $inventionMaterials = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $estimatedJobCost = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $estimatedMaterialCost = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $estimatedSellPrice = null;
-
-    /** @var string|null Source of estimated sell price: 'jita' or 'structure' */
-    #[ORM\Column(type: 'string', length: 20, nullable: true)]
-    private ?string $estimatedSellPriceSource = null;
-
-    #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $estimatedTaxAmount = null;
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    private bool $private = true;
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
@@ -133,19 +76,11 @@ class IndustryProject
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
-    /** @var \DateTimeImmutable|null Custom start date for job matching (defaults to createdAt) */
-    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
-    private ?\DateTimeImmutable $jobsStartDate = null;
-
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $completedAt = null;
-
-    /** @var Collection<int, IndustryProjectStep> */
-    #[ORM\OneToMany(targetEntity: IndustryProjectStep::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    private Collection $steps;
 
     /** @var Collection<int, IndustryProjectProduct> */
     #[ORM\OneToMany(targetEntity: IndustryProjectProduct::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
@@ -172,7 +107,6 @@ class IndustryProject
         $this->id = Uuid::v7();
         $this->createdAt = new \DateTimeImmutable();
         $this->shortLinkCode = self::generateShortLinkCode();
-        $this->steps = new ArrayCollection();
         $this->items = new ArrayCollection();
         $this->members = new ArrayCollection();
         $this->bomItems = new ArrayCollection();
@@ -201,6 +135,21 @@ class IndustryProject
         return $this;
     }
 
+    public function isSoloProjectOf(User $user): bool
+    {
+        if ($this->owner !== $user) {
+            return false;
+        }
+
+        foreach ($this->members as $member) {
+            if ($member->getStatus() === ParticipantStatus::Accepted && $member->getUser() !== $user) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function transferOwnershipTo(IndustryProjectParticipant $member): void
     {
         $newOwner = $member->getUser();
@@ -208,47 +157,13 @@ class IndustryProject
             throw new \DomainException('Ownership can only be transferred to a member of the project with an account.');
         }
 
-        $member->setRole(GroupMemberRole::Owner);
+        $member->setRole(ParticipantRole::Owner);
         $this->owner = $newOwner;
-    }
 
-    public function isPlannedBySteps(): bool
-    {
-        return $this->items->isEmpty();
-    }
-
-    #[ORM\PreFlush]
-    public function takeProductFromFirstItem(): void
-    {
-        if (isset($this->productTypeId)) {
-            return;
+        foreach ($this->bomItems as $bomLine) {
+            $bomLine->getJobMatches()->clear();
+            $bomLine->getPurchases()->clear();
         }
-
-        $firstItem = $this->items->first();
-        if ($firstItem === false) {
-            return;
-        }
-
-        $this->productTypeId = $firstItem->getTypeId();
-        $this->runs = $firstItem->getRuns();
-        $this->meLevel = $firstItem->getMeLevel();
-        $this->teLevel = $firstItem->getTeLevel();
-    }
-
-    public function isPlannedByStepsAndOwnedBy(User $user): bool
-    {
-        return $this->isPlannedBySteps() && $this->owner === $user;
-    }
-
-    public function getProductTypeId(): int
-    {
-        return $this->productTypeId;
-    }
-
-    public function setProductTypeId(int $productTypeId): static
-    {
-        $this->productTypeId = $productTypeId;
-        return $this;
     }
 
     public function getName(): ?string
@@ -262,56 +177,12 @@ class IndustryProject
         return $this;
     }
 
-    public function getRuns(): int
-    {
-        return $this->runs;
-    }
-
-    public function setRuns(int $runs): static
-    {
-        $this->runs = $runs;
-        return $this;
-    }
-
-    public function getMeLevel(): int
-    {
-        return $this->meLevel;
-    }
-
-    public function setMeLevel(int $meLevel): static
-    {
-        $this->meLevel = $meLevel;
-        return $this;
-    }
-
-    public function getTeLevel(): int
-    {
-        return $this->teLevel;
-    }
-
-    public function setTeLevel(int $teLevel): static
-    {
-        $this->teLevel = $teLevel;
-        return $this;
-    }
-
-    public function getMaxJobDurationDays(): float
-    {
-        return $this->maxJobDurationDays;
-    }
-
-    public function setMaxJobDurationDays(float $maxJobDurationDays): static
-    {
-        $this->maxJobDurationDays = $maxJobDurationDays;
-        return $this;
-    }
-
-    public function getStatus(): GroupProjectStatus
+    public function getStatus(): ProjectStatus
     {
         return $this->status;
     }
 
-    public function setStatus(GroupProjectStatus $status): static
+    public function setStatus(ProjectStatus $status): static
     {
         $this->status = $status;
         return $this;
@@ -319,7 +190,7 @@ class IndustryProject
 
     public function isCompleted(): bool
     {
-        return $this->status === GroupProjectStatus::Completed;
+        return $this->status === ProjectStatus::Completed;
     }
 
     public function isDeletable(): bool
@@ -331,6 +202,39 @@ class IndustryProject
         return !$this->contributions->exists(
             static fn (int $key, IndustryProjectContribution $contribution): bool => $contribution->getStatus() === ContributionStatus::Approved,
         );
+    }
+
+    public function isPrivate(): bool
+    {
+        return $this->private;
+    }
+
+    public function setPrivate(bool $private): static
+    {
+        $this->private = $private;
+        return $this;
+    }
+
+    public function isAcceptsOutsideFavoriteSystem(): bool
+    {
+        return $this->acceptsOutsideFavoriteSystem;
+    }
+
+    public function setAcceptsOutsideFavoriteSystem(bool $acceptsOutsideFavoriteSystem): static
+    {
+        $this->acceptsOutsideFavoriteSystem = $acceptsOutsideFavoriteSystem;
+        return $this;
+    }
+
+    public function getMinimumOutsideSaving(): float
+    {
+        return $this->minimumOutsideSaving;
+    }
+
+    public function setMinimumOutsideSaving(float $minimumOutsideSaving): static
+    {
+        $this->minimumOutsideSaving = $minimumOutsideSaving;
+        return $this;
     }
 
     public function getShortLinkCode(): string
@@ -416,192 +320,6 @@ class IndustryProject
         return $this;
     }
 
-    public function isPersonalUse(): bool
-    {
-        return $this->personalUse;
-    }
-
-    public function setPersonalUse(bool $personalUse): static
-    {
-        $this->personalUse = $personalUse;
-        return $this;
-    }
-
-    public function isAcceptsOutsideFavoriteSystem(): bool
-    {
-        return $this->acceptsOutsideFavoriteSystem;
-    }
-
-    public function setAcceptsOutsideFavoriteSystem(bool $acceptsOutsideFavoriteSystem): static
-    {
-        $this->acceptsOutsideFavoriteSystem = $acceptsOutsideFavoriteSystem;
-        return $this;
-    }
-
-    public function getMinimumOutsideSaving(): float
-    {
-        return $this->minimumOutsideSaving;
-    }
-
-    public function setMinimumOutsideSaving(float $minimumOutsideSaving): static
-    {
-        $this->minimumOutsideSaving = $minimumOutsideSaving;
-        return $this;
-    }
-
-    public function getBpoCost(): ?float
-    {
-        return $this->bpoCost;
-    }
-
-    public function setBpoCost(?float $bpoCost): static
-    {
-        $this->bpoCost = $bpoCost;
-        return $this;
-    }
-
-    public function getMaterialCost(): ?float
-    {
-        return $this->materialCost;
-    }
-
-    public function setMaterialCost(?float $materialCost): static
-    {
-        $this->materialCost = $materialCost;
-        return $this;
-    }
-
-    public function getTransportCost(): ?float
-    {
-        return $this->transportCost;
-    }
-
-    public function setTransportCost(?float $transportCost): static
-    {
-        $this->transportCost = $transportCost;
-        return $this;
-    }
-
-    public function getTaxAmount(): ?float
-    {
-        return $this->taxAmount;
-    }
-
-    public function setTaxAmount(?float $taxAmount): static
-    {
-        $this->taxAmount = $taxAmount;
-        return $this;
-    }
-
-    public function getSellPrice(): ?float
-    {
-        return $this->sellPrice;
-    }
-
-    public function setSellPrice(?float $sellPrice): static
-    {
-        $this->sellPrice = $sellPrice;
-        return $this;
-    }
-
-    public function getEstimatedJobCost(): ?float
-    {
-        return $this->estimatedJobCost;
-    }
-
-    public function setEstimatedJobCost(?float $estimatedJobCost): static
-    {
-        $this->estimatedJobCost = $estimatedJobCost;
-        return $this;
-    }
-
-    public function getEstimatedMaterialCost(): ?float
-    {
-        return $this->estimatedMaterialCost;
-    }
-
-    public function setEstimatedMaterialCost(?float $estimatedMaterialCost): static
-    {
-        $this->estimatedMaterialCost = $estimatedMaterialCost;
-        return $this;
-    }
-
-    public function getEstimatedSellPrice(): ?float
-    {
-        return $this->estimatedSellPrice;
-    }
-
-    public function setEstimatedSellPrice(?float $estimatedSellPrice): static
-    {
-        $this->estimatedSellPrice = $estimatedSellPrice;
-        return $this;
-    }
-
-    public function getEstimatedSellPriceSource(): ?string
-    {
-        return $this->estimatedSellPriceSource;
-    }
-
-    public function setEstimatedSellPriceSource(?string $estimatedSellPriceSource): static
-    {
-        $this->estimatedSellPriceSource = $estimatedSellPriceSource;
-        return $this;
-    }
-
-    public function getEstimatedTaxAmount(): ?float
-    {
-        return $this->estimatedTaxAmount;
-    }
-
-    public function setEstimatedTaxAmount(?float $estimatedTaxAmount): static
-    {
-        $this->estimatedTaxAmount = $estimatedTaxAmount;
-        return $this;
-    }
-
-    public function recordEstimatedSellPrice(float $price, string $source, ?float $tax): static
-    {
-        $this->estimatedSellPrice = $price;
-        $this->estimatedSellPriceSource = $source;
-        $this->estimatedTaxAmount = $tax;
-        return $this;
-    }
-
-    /** @return int[] */
-    public function getExcludedTypeIds(): array
-    {
-        return $this->excludedTypeIds;
-    }
-
-    /** @param int[] $excludedTypeIds */
-    public function setExcludedTypeIds(array $excludedTypeIds): static
-    {
-        $this->excludedTypeIds = $excludedTypeIds;
-        return $this;
-    }
-
-    /**
-     * @param list<int> $blacklistedTypeIds
-     * @return list<int>
-     */
-    public function excludedTypeIdsWithBlacklist(array $blacklistedTypeIds): array
-    {
-        return array_values(array_unique([...$blacklistedTypeIds, ...$this->excludedTypeIds]));
-    }
-
-    /** @return array<array{typeId: int, typeName: string, quantity: int}>|null */
-    public function getInventionMaterials(): ?array
-    {
-        return $this->inventionMaterials;
-    }
-
-    /** @param array<array{typeId: int, typeName: string, quantity: int}>|null $inventionMaterials */
-    public function setInventionMaterials(?array $inventionMaterials): static
-    {
-        $this->inventionMaterials = $inventionMaterials;
-        return $this;
-    }
-
     public function getNotes(): ?string
     {
         return $this->notes;
@@ -629,26 +347,6 @@ class IndustryProject
         return $this;
     }
 
-    public function getJobsStartDate(): ?\DateTimeImmutable
-    {
-        return $this->jobsStartDate;
-    }
-
-    public function setJobsStartDate(?\DateTimeImmutable $jobsStartDate): static
-    {
-        $this->jobsStartDate = $jobsStartDate;
-        return $this;
-    }
-
-    /**
-     * Get the effective start date for job matching.
-     * Uses jobsStartDate if set, otherwise createdAt.
-     */
-    public function getEffectiveJobsStartDate(): \DateTimeImmutable
-    {
-        return $this->jobsStartDate ?? $this->createdAt;
-    }
-
     public function getCompletedAt(): ?\DateTimeImmutable
     {
         return $this->completedAt;
@@ -657,30 +355,6 @@ class IndustryProject
     public function setCompletedAt(?\DateTimeImmutable $completedAt): static
     {
         $this->completedAt = $completedAt;
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, IndustryProjectStep>
-     */
-    public function getSteps(): Collection
-    {
-        return $this->steps;
-    }
-
-    public function addStep(IndustryProjectStep $step): static
-    {
-        if (!$this->steps->contains($step)) {
-            $this->steps->add($step);
-            $step->setProject($this);
-        }
-        return $this;
-    }
-
-    public function removeStep(IndustryProjectStep $step): static
-    {
-        $this->steps->removeElement($step);
-
         return $this;
     }
 
@@ -721,8 +395,8 @@ class IndustryProject
         return $this->addMember(
             (new IndustryProjectParticipant())
                 ->setUser($this->owner)
-                ->setRole(GroupMemberRole::Owner)
-                ->setStatus(GroupMemberStatus::Accepted),
+                ->setRole(ParticipantRole::Owner)
+                ->setStatus(ParticipantStatus::Accepted),
         );
     }
 
@@ -785,120 +459,5 @@ class IndustryProject
             $sale->setProject($this);
         }
         return $this;
-    }
-
-    /**
-     * @param \Closure(IndustryProjectStep): list<int> $materialTypeIdsOf
-     */
-    public function refusalToDeleteStep(IndustryProjectStep $step, \Closure $materialTypeIdsOf): ?string
-    {
-        if (!$step->getJobMatches()->isEmpty()) {
-            return 'Cannot delete a step linked to an ESI job';
-        }
-
-        if ($this->isLastProductionStepOfProjectProduct($step)) {
-            return 'Cannot delete the last step of the project product';
-        }
-
-        if ($step->isCommitted() && $this->otherJobsOfGroupOf($step) === []) {
-            return 'Cannot delete a step holding purchases, stock or a purchased mark';
-        }
-
-        if ($this->leavesMaterialStepWithoutConsumer($step, $materialTypeIdsOf)) {
-            return 'Cannot delete a step whose material steps have no other consumer; delete them first';
-        }
-
-        return null;
-    }
-
-    /**
-     * @return list<IndustryProjectStep>
-     */
-    public function otherJobsOfGroupOf(IndustryProjectStep $step): array
-    {
-        if ($step->getSplitGroupId() === null) {
-            return [];
-        }
-
-        return array_values($this->steps->filter(
-            static fn (IndustryProjectStep $other): bool => $other !== $step && $other->getSplitGroupId() === $step->getSplitGroupId(),
-        )->toArray());
-    }
-
-    /**
-     * @param \Closure(IndustryProjectStep): list<int> $materialTypeIdsOf
-     */
-    private function leavesMaterialStepWithoutConsumer(IndustryProjectStep $step, \Closure $materialTypeIdsOf): bool
-    {
-        if ($step->getActivityType() === 'copy') {
-            return false;
-        }
-
-        $remainingProductionSteps = array_values($this->steps->filter(
-            static fn (IndustryProjectStep $other): bool => $other !== $step && $other->getActivityType() !== 'copy',
-        )->toArray());
-        $remainingProductTypeIds = array_map(static fn (IndustryProjectStep $other): int => $other->getProductTypeId(), $remainingProductionSteps);
-        $materialStepProductTypeIds = array_intersect(array_unique($materialTypeIdsOf($step)), $remainingProductTypeIds);
-
-        foreach ($materialStepProductTypeIds as $materialStepProductTypeId) {
-            $hasOtherConsumer = array_any(
-                $remainingProductionSteps,
-                static fn (IndustryProjectStep $consumer): bool => \in_array($materialStepProductTypeId, $materialTypeIdsOf($consumer), true),
-            );
-            if (!$hasOtherConsumer) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function isLastProductionStepOfProjectProduct(IndustryProjectStep $step): bool
-    {
-        if ($step->getActivityType() === 'copy' || $step->getProductTypeId() !== $this->productTypeId) {
-            return false;
-        }
-
-        return $this->steps->filter(
-            static fn (IndustryProjectStep $other): bool => $other !== $step
-                && $other->getActivityType() !== 'copy'
-                && $other->getProductTypeId() === $step->getProductTypeId(),
-        )->isEmpty();
-    }
-
-    public function getJobsCost(): float
-    {
-        $total = 0.0;
-        foreach ($this->steps as $step) {
-            $total += $step->getJobsCost();
-        }
-        return $total;
-    }
-
-    public function getTotalCost(): float
-    {
-        return ($this->bpoCost ?? 0)
-            + ($this->materialCost ?? 0)
-            + ($this->transportCost ?? 0)
-            + $this->getJobsCost()
-            + ($this->taxAmount ?? 0);
-    }
-
-    public function getProfit(): ?float
-    {
-        if ($this->sellPrice === null) {
-            return null;
-        }
-        return $this->sellPrice - $this->getTotalCost();
-    }
-
-    public function getProfitPercent(): ?float
-    {
-        $totalCost = $this->getTotalCost();
-        $profit = $this->getProfit();
-        if ($profit === null || $totalCost <= 0) {
-            return null;
-        }
-        return ($profit / $totalCost) * 100;
     }
 }

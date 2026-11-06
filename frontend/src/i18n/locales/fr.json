@@ -1546,6 +1546,27 @@
       "fetchEsiJobs": "Échec du chargement des jobs ESI",
       "linkJob": "Échec de la liaison du job",
       "unlinkJob": "Échec de la suppression du lien"
+    },
+    "sellMarkets": {
+      "title": "Où vendre",
+      "quantity": "Quantité",
+      "price": "Prix",
+      "volume": "Volume",
+      "fees": "Frais",
+      "net": "Net / u",
+      "daysToSellAll": "Pour tout vendre",
+      "days": "{days} j",
+      "capitalEstimate": "estimation, borne basse",
+      "immediateSale": "Vente immédiate · ordres d'achat Jita",
+      "averagePrice": "Prix moyen",
+      "shareOfVolume": "À {percent} % du volume quotidien",
+      "unknown": {
+        "noSellOrder": "Aucun ordre de vente",
+        "noBuyOrder": "Aucun ordre d'achat",
+        "noVolume": "Moins de 7 jours de ventes observées",
+        "noRegionVolume": "Aucun historique de marché",
+        "noFees": "Frais inconnus"
+      }
     }
   },
   "ledger": {

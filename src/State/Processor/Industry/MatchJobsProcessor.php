@@ -7,13 +7,16 @@ namespace App\State\Processor\Industry;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\MatchJobsResultResource;
+use App\ApiResource\Industry\ProjectJobMatchResource;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
 use App\Service\UuidOrNotFound;
-use App\State\Provider\Industry\IndustryResourceMapper;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -29,7 +32,7 @@ class MatchJobsProcessor implements ProcessorInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryJobMatcher $jobMatcher,
         private readonly IndustryJobSyncService $jobSyncService,
-        private readonly IndustryResourceMapper $mapper,
+        private readonly ProjectAccessChecker $accessChecker,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -42,11 +45,13 @@ class MatchJobsProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['id'], 'Project not found'));
+        $project = $this->projectRepository->find(UuidOrNotFound::of($uriVariables['projectId'], 'Project not found'));
 
-        if ($project === null || !$project->isPlannedByStepsAndOwnedBy($user)) {
+        if ($project === null) {
             throw new NotFoundHttpException('Project not found');
         }
+
+        $this->accessChecker->assertOwner($user, $project);
 
         $syncedCount = 0;
         $failures = [];
@@ -70,11 +75,12 @@ class MatchJobsProcessor implements ProcessorInterface
         $this->jobMatcher->matchEsiJobs($project);
 
         $result = new MatchJobsResultResource();
-        $result->steps = array_map(
-            fn ($step) => $this->mapper->stepToResource($step),
-            $project->getSteps()->toArray()
-        );
-        $result->jobsCost = $project->getJobsCost();
+        $jobMatches = $this->jobMatchesOf($project);
+        $result->jobMatches = array_map(ProjectJobMatchResource::fromEntity(...), $jobMatches);
+        $result->jobsCost = array_sum(array_filter(
+            array_map(static fn (IndustryProjectJobMatch $match): ?float => $match->getCost(), $jobMatches),
+            static fn (?float $cost): bool => $cost !== null,
+        ));
         $result->syncedCharacters = $syncedCount;
         $result->failedCharacters = array_map(
             static fn (CharacterSyncFailure $failure): array => $failure->toArray(),
@@ -82,5 +88,20 @@ class MatchJobsProcessor implements ProcessorInterface
         );
 
         return $result;
+    }
+
+    /**
+     * @return IndustryProjectJobMatch[]
+     */
+    private function jobMatchesOf(IndustryProject $project): array
+    {
+        $jobMatches = [];
+        foreach ($project->getBomItems() as $line) {
+            foreach ($line->getJobMatches() as $match) {
+                $jobMatches[] = $match;
+            }
+        }
+
+        return $jobMatches;
     }
 }

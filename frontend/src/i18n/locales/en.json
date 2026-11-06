@@ -1546,6 +1546,27 @@
       "fetchEsiJobs": "Failed to load the ESI jobs",
       "linkJob": "Failed to link the job",
       "unlinkJob": "Failed to unlink the job"
+    },
+    "sellMarkets": {
+      "title": "Where to sell",
+      "quantity": "Quantity",
+      "price": "Price",
+      "volume": "Volume",
+      "fees": "Fees",
+      "net": "Net / unit",
+      "daysToSellAll": "To sell everything",
+      "days": "{days} d",
+      "capitalEstimate": "estimate, lower bound",
+      "immediateSale": "Immediate sale · Jita buy orders",
+      "averagePrice": "Average price",
+      "shareOfVolume": "At {percent}% of the daily volume",
+      "unknown": {
+        "noSellOrder": "No sell order",
+        "noBuyOrder": "No buy order",
+        "noVolume": "Fewer than 7 days of observed sales",
+        "noRegionVolume": "No market history",
+        "noFees": "Unknown fees"
+      }
     }
   },
   "ledger": {

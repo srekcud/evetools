@@ -9,13 +9,9 @@ use ApiPlatform\Metadata\Post;
 use App\ApiResource\Input\Industry\CreateStructureInput;
 use App\ApiResource\Input\Industry\UpdateStructureInput;
 use App\Entity\CachedStructure;
-use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryStructureConfig;
-use App\Entity\IndustryUserSettings;
 use App\Entity\User;
 use App\Repository\IndustryStructureConfigRepository;
-use App\Service\Industry\IndustryCalculationService;
 use App\State\Processor\Industry\CreateStructureProcessor;
 use App\State\Processor\Industry\UpdateStructureProcessor;
 use App\Tests\Integration\IntegrationTestCase;
@@ -37,8 +33,6 @@ final class ImportedStructureSolarSystemTest extends IntegrationTestCase
     private const int UNCACHED_LOCATION_ID = 1_035_466_617_948;
     private const int FAVORITE_SYSTEM_ID = 30_000_142;
     private const int OTHER_SYSTEM_ID = 30_002_187;
-    /** Not in the SDE: no rig category, only the base structure bonuses apply. */
-    private const int PRODUCT_TYPE_ID = 999_999_001;
 
     private User $pilot;
 
@@ -111,24 +105,6 @@ final class ImportedStructureSolarSystemTest extends IntegrationTestCase
         self::assertSame(self::FAVORITE_SYSTEM_ID, $this->storedStructure(self::RAITARU_LOCATION_ID)->getSolarSystemId());
     }
 
-    /**
-     * Without the solar system, the favorite system has no structure and the global best
-     * (the Sotiyo, 30 % time bonus) wins over the Raitaru that sits in the favorite system.
-     */
-    public function testStepWithoutAssignedStructureUsesTheImportedStructureOfTheFavoriteSystem(): void
-    {
-        $this->storeSotiyoInAnotherSystem();
-        $this->setFavoriteManufacturingSystem(self::FAVORITE_SYSTEM_ID);
-        $this->import(self::RAITARU_LOCATION_ID, solarSystemId: null);
-
-        $step = $this->manufacturingStepWithoutStructure();
-        $bonus = self::getContainer()->get(IndustryCalculationService::class)->getStructureBonusForStep($step);
-
-        self::assertSame('Favorite Raitaru', $bonus['name']);
-        self::assertSame(15.0, $bonus['timeBonus']);
-        self::assertSame(['total' => 1.0, 'base' => 1.0, 'rig' => 0.0], $bonus['materialBonus']);
-    }
-
     private function import(int $locationId, ?int $solarSystemId): void
     {
         // Payload the frontend sends after picking a structure in the ESI search
@@ -162,41 +138,6 @@ final class ImportedStructureSolarSystemTest extends IntegrationTestCase
         $this->em->persist($structure);
 
         return $structure;
-    }
-
-    private function storeSotiyoInAnotherSystem(): void
-    {
-        $sotiyo = (new IndustryStructureConfig())
-            ->setUser($this->pilot)
-            ->setName('Remote Sotiyo')
-            ->setSolarSystemId(self::OTHER_SYSTEM_ID)
-            ->setSecurityType('nullsec')
-            ->setStructureType('sotiyo')
-            ->setRigs([]);
-        $this->em->persist($sotiyo);
-        $this->em->flush();
-    }
-
-    private function setFavoriteManufacturingSystem(int $solarSystemId): void
-    {
-        $settings = (new IndustryUserSettings())
-            ->setUser($this->pilot)
-            ->setFavoriteManufacturingSystemId($solarSystemId);
-        $this->em->persist($settings);
-        $this->em->flush();
-    }
-
-    private function manufacturingStepWithoutStructure(): IndustryProjectStep
-    {
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($this->pilot)
-            ->setProductTypeId(self::PRODUCT_TYPE_ID)
-            ->setRuns(10);
-
-        return (new IndustryProjectStep())
-            ->setProject($project)
-            ->setProductTypeId(self::PRODUCT_TYPE_ID)
-            ->setActivityType('manufacturing')
-            ->setRuns(10);
     }
 
     private function storedStructure(int $locationId): IndustryStructureConfig

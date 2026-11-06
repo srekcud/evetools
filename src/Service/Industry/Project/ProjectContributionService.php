@@ -1,0 +1,177 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Service\Industry\Project;
+
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\User;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
+use App\Repository\IndustryProjectContributionRepository;
+use Doctrine\ORM\EntityManagerInterface;
+
+class ProjectContributionService
+{
+    public function __construct(
+        private readonly IndustryProjectContributionRepository $contributionRepository,
+        private readonly EntityManagerInterface $entityManager,
+    ) {
+    }
+
+    /**
+     * Submit a manual contribution from a project member.
+     *
+     * @throws \DomainException if a duplicate pending/approved contribution exists
+     */
+    public function submit(
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
+        ContributionType $type,
+        int $quantity,
+        ?float $estimatedValue = null,
+        ?string $note = null,
+    ): IndustryProjectContribution {
+        $this->validateAntiDuplicate($member, $bomItem, $type);
+
+        $estimatedValue = match ($type) {
+            ContributionType::Material => $this->resolveMaterialValue($bomItem, $quantity, $estimatedValue),
+            ContributionType::JobInstall, ContributionType::Bpc => $this->requirePositiveEnteredValue($type, $estimatedValue),
+            ContributionType::LineRental => $this->requireEnteredValue($type, $estimatedValue),
+        };
+
+        $contribution = new IndustryProjectContribution();
+        $contribution->setProject($member->getProject());
+        $contribution->setMember($member);
+        $contribution->setBomItem($bomItem);
+        $contribution->setType($type);
+        $contribution->setQuantity($quantity);
+        $contribution->setEstimatedValue($estimatedValue);
+        $contribution->setStatus(ContributionStatus::Pending);
+        $contribution->setIsAutoDetected(false);
+        $contribution->setIsVerified(false);
+        $contribution->setNote($note);
+
+        $this->entityManager->persist($contribution);
+
+        $contributor = $member->getUser();
+        if ($contributor !== null && $member->getProject()->isSoloProjectOf($contributor)) {
+            $this->approve($contribution, $contributor);
+
+            return $contribution;
+        }
+
+        $this->entityManager->flush();
+
+        return $contribution;
+    }
+
+    /**
+     * Approve a pending contribution. Increments the BOM item fulfillment.
+     *
+     * @throws \DomainException if contribution is not pending
+     */
+    public function approve(IndustryProjectContribution $contribution, User $reviewer): void
+    {
+        if ($contribution->getStatus() !== ContributionStatus::Pending) {
+            throw new \DomainException(
+                sprintf('Cannot approve a contribution with status "%s"', $contribution->getStatus()->value),
+            );
+        }
+
+        $contribution->setStatus(ContributionStatus::Approved);
+        $contribution->setReviewedBy($reviewer);
+        $contribution->setReviewedAt(new \DateTimeImmutable());
+
+        $bomItem = $contribution->getBomItem();
+        if ($bomItem !== null) {
+            $this->incrementFulfillment($bomItem, $contribution->getQuantity());
+        }
+
+        $this->entityManager->flush();
+    }
+
+    /**
+     * Reject a pending contribution. Does NOT modify BOM item fulfillment.
+     *
+     * @throws \DomainException if contribution is not pending
+     */
+    public function reject(IndustryProjectContribution $contribution, User $reviewer): void
+    {
+        if ($contribution->getStatus() !== ContributionStatus::Pending) {
+            throw new \DomainException(
+                sprintf('Cannot reject a contribution with status "%s"', $contribution->getStatus()->value),
+            );
+        }
+
+        $contribution->setStatus(ContributionStatus::Rejected);
+        $contribution->setReviewedBy($reviewer);
+        $contribution->setReviewedAt(new \DateTimeImmutable());
+
+        $this->entityManager->flush();
+    }
+
+    /**
+     * Check that no pending or approved contribution of the same type exists for this member/bomItem pair.
+     *
+     * @throws \DomainException if a duplicate contribution is found
+     */
+    public function validateAntiDuplicate(
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
+        ContributionType $type,
+    ): void {
+        $existing = $this->contributionRepository->findByMemberBomItemAndType(
+            $member,
+            $bomItem,
+            $type,
+            [ContributionStatus::Pending, ContributionStatus::Approved],
+        );
+
+        if ($existing !== null) {
+            throw new \DomainException('A contribution of this type is already pending or approved for this item');
+        }
+    }
+
+    private function resolveMaterialValue(IndustryProjectBomLine $bomItem, int $quantity, ?float $enteredValue): float
+    {
+        $bomPrice = $bomItem->getEstimatedPrice();
+
+        if ($bomPrice !== null) {
+            if ($enteredValue !== null) {
+                throw new \DomainException(sprintf('Type %d has a BOM price: a material contribution is valued from it.', $bomItem->getTypeId()));
+            }
+
+            return $bomPrice * $quantity;
+        }
+
+        if ($enteredValue === null || $enteredValue <= 0) {
+            throw new \DomainException(sprintf('No market price for type %d: enter an estimated value.', $bomItem->getTypeId()));
+        }
+
+        return $enteredValue;
+    }
+
+    private function requireEnteredValue(ContributionType $type, ?float $enteredValue): float
+    {
+        return $enteredValue
+            ?? throw new \DomainException(sprintf('An estimated value is required for a %s contribution.', $type->value));
+    }
+
+    private function requirePositiveEnteredValue(ContributionType $type, ?float $enteredValue): float
+    {
+        $value = $this->requireEnteredValue($type, $enteredValue);
+        if ($value <= 0) {
+            throw new \DomainException(sprintf('The estimated value of a %s contribution must be positive.', $type->value));
+        }
+
+        return $value;
+    }
+
+    private function incrementFulfillment(IndustryProjectBomLine $bomItem, int $quantity): void
+    {
+        $bomItem->setFulfilledQuantity($bomItem->getFulfilledQuantity() + $quantity);
+    }
+}

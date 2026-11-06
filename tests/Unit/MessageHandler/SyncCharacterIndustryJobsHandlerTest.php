@@ -12,7 +12,7 @@ use App\Message\SyncCharacterIndustryJobs;
 use App\MessageHandler\SyncCharacterIndustryJobsHandler;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
-use App\Repository\IndustryStepJobMatchRepository;
+use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
@@ -125,7 +125,7 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
-            $this->createStub(IndustryStepJobMatchRepository::class),
+            $this->createStub(IndustryProjectJobMatchRepository::class),
             $this->createStub(NotificationDispatcher::class),
             new ArrayAdapter(),
             $this->characterServiceReadingCorporation(self::CORPORATION_ID),

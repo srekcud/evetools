@@ -7,7 +7,7 @@ namespace App\Tests\Integration\Service\Account;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\Assets\CorpAssetVisibilityResource;
-use App\ApiResource\GroupIndustry\GroupIndustrySaleResource;
+use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\Entity\CachedAsset;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\CachedIndustryJob;
@@ -19,8 +19,9 @@ use App\Entity\Escalation;
 use App\Entity\EveToken;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectPurchase;
 use App\Entity\IndustryProject;
-use App\Entity\IndustryProjectStep;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
@@ -43,8 +44,8 @@ use App\Enum\AlertDirection;
 use App\Enum\AlertPriceSource;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Enum\PveIncomeType;
 use App\Message\SyncCharacterAssets;
 use App\MessageHandler\SyncCharacterAssetsHandler;
@@ -57,12 +58,12 @@ use App\Service\ESI\CorporationService;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\EveSsoTokenRevoker;
 use App\Service\ESI\TokenManager;
-use App\Service\GroupIndustry\DistributionResult;
-use App\Service\GroupIndustry\GroupIndustryDistributionService;
+use App\Service\Industry\Project\DistributionResult;
+use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Sync\AssetsSyncService;
 use App\State\Provider\Assets\CorpAssetVisibilityProvider;
-use App\State\Provider\GroupIndustry\GroupProjectAccessChecker;
-use App\State\Provider\GroupIndustry\GroupSaleCollectionProvider;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
+use App\State\Provider\Industry\Project\ProjectSaleCollectionProvider;
 use App\Tests\Integration\IntegrationTestCase;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -196,10 +197,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $cyra = $this->createAccount('Cyra Lune', 'refresh-token-cyra-main');
         $dorn = $this->createAccount('Dorn Ashby', 'refresh-token-dorn-main');
         $project = $this->createProject($kaelen, 'Rorqual for the corp');
-        $kaelenMember = $this->addMember($project, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $this->addMember($project, $brann, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-03 09:00:00');
-        $this->addMember($project, $cyra, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
-        $this->addMember($project, $dorn, GroupMemberRole::Member, GroupMemberStatus::Accepted, '2026-01-01 09:00:00');
+        $kaelenMember = $this->addMember($project, $kaelen, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $brann, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-03 09:00:00');
+        $this->addMember($project, $cyra, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
+        $this->addMember($project, $dorn, ParticipantRole::Member, ParticipantStatus::Accepted, '2026-01-01 09:00:00');
         $this->em->flush();
         $projectId = (string) $project->getId();
         $kaelenMemberId = (string) $kaelenMember->getId();
@@ -220,6 +221,28 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         self::assertNull($this->member($kaelenMemberId)->getUser());
     }
 
+    public function testJobMatchesAndPurchasesOfTheDeletedOwnerAreRemovedWhenTheProjectGoesToASuccessor(): void
+    {
+        $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
+        $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
+        $project = $this->createProject($kaelen, 'Rorqual for the corp');
+        $this->addMember($project, $kaelen, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $brann, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-03 09:00:00');
+        $line = (new IndustryProjectBomLine())->setTypeId(11_399)->setTypeName('Morphite')->setRequiredQuantity(675)->setEstimatedPrice(9_800.0);
+        $project->addBomItem($line);
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(900_001)->setStatus('active')->setRuns(3)->setCharacterName('Kaelen Voss')->setMatchedAt(new \DateTimeImmutable('2026-02-01 10:00:00')));
+        $line->addPurchase((new IndustryProjectPurchase())->setTypeId(11_399)->setQuantity(50)->setUnitPrice(9_800.0)->setTotalPrice(490_000.0)->setSource('manual'));
+        $this->em->flush();
+        $projectId = (string) $project->getId();
+
+        $this->deleteAccount((string) $kaelen->getId());
+
+        self::assertSame((string) $brann->getId(), (string) $this->project($projectId)->getOwner()->getId());
+        self::assertSame(1, $this->countWhereIn('industry_project_bom_lines', 'project_id', [$projectId]));
+        self::assertSame(0, $this->connection()->fetchOne('SELECT COUNT(*) FROM industry_project_job_matches'));
+        self::assertSame(0, $this->connection()->fetchOne('SELECT COUNT(*) FROM industry_project_purchases'));
+    }
+
     public function testOwnershipGoesToTheOldestAcceptedMemberWhenNoAdminIsAccepted(): void
     {
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
@@ -227,10 +250,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $cyra = $this->createAccount('Cyra Lune', 'refresh-token-cyra-main');
         $dorn = $this->createAccount('Dorn Ashby', 'refresh-token-dorn-main');
         $project = $this->createProject($kaelen, 'Orca for the corp');
-        $this->addMember($project, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $this->addMember($project, $brann, GroupMemberRole::Member, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
-        $this->addMember($project, $cyra, GroupMemberRole::Member, GroupMemberStatus::Accepted, '2026-01-01 09:00:00');
-        $this->addMember($project, $dorn, GroupMemberRole::Member, GroupMemberStatus::Pending, '2025-12-31 09:00:00');
+        $this->addMember($project, $kaelen, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $brann, ParticipantRole::Member, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
+        $this->addMember($project, $cyra, ParticipantRole::Member, ParticipantStatus::Accepted, '2026-01-01 09:00:00');
+        $this->addMember($project, $dorn, ParticipantRole::Member, ParticipantStatus::Pending, '2025-12-31 09:00:00');
         $this->em->flush();
         $projectId = (string) $project->getId();
 
@@ -254,8 +277,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $dorn = $this->createAccount('Dorn Ashby', 'refresh-token-dorn-main');
         $project = $this->createProject($kaelen, 'Hulk for the corp');
-        $kaelenMember = $this->addMember($project, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $this->addMember($project, $dorn, GroupMemberRole::Member, GroupMemberStatus::Pending, '2026-01-01 09:00:00');
+        $kaelenMember = $this->addMember($project, $kaelen, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $dorn, ParticipantRole::Member, ParticipantStatus::Pending, '2026-01-01 09:00:00');
         $project->addItem((new IndustryProjectProduct())->setTypeId(22_544)->setTypeName('Hulk')->setRuns(3));
         $project->addBomItem((new IndustryProjectBomLine())->setTypeId(11_399)->setTypeName('Morphite')->setRequiredQuantity(675)->setEstimatedPrice(9_800.0));
         $this->addContribution($project, $kaelenMember, 2_400_000.0, ContributionStatus::Approved, ContributionType::Material, 40_000);
@@ -275,21 +298,21 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
     }
 
     #[Group('issue-362')]
-    public function testPlannedProjectWhoseOnlyParticipantIsTheOwnerIsDeletedWithItsStepsAndItsParticipant(): void
+    public function testProjectWhoseOnlyParticipantIsTheOwnerIsDeletedWithItsProductsAndItsParticipant(): void
     {
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $soloProject = $this->createProject($kaelen, 'Rifter by steps');
-        $this->addMember($soloProject, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $soloProject->addStep((new IndustryProjectStep())->setBlueprintTypeId(586)->setProductTypeId(587)->setQuantity(10)->setRuns(10)->setDepth(0));
-        $soloProject->addStep((new IndustryProjectStep())->setBlueprintTypeId(1_000_004)->setProductTypeId(34)->setQuantity(250_000)->setRuns(1)->setDepth(1));
+        $this->addMember($soloProject, $kaelen, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $soloProject->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Rifter')->setRuns(10));
+        $soloProject->addItem((new IndustryProjectProduct())->setTypeId(34)->setTypeName('Tritanium')->setRuns(1));
         $this->em->flush();
         $soloProjectId = (string) $soloProject->getId();
-        self::assertSame(2, $this->countWhereIn('industry_project_steps', 'project_id', [$soloProjectId]));
+        self::assertSame(2, $this->countWhereIn('industry_project_products', 'project_id', [$soloProjectId]));
 
         $this->deleteAccount((string) $kaelen->getId());
 
         self::assertSame(0, $this->countWhereIn('industry_projects', 'id', [$soloProjectId]));
-        self::assertSame(0, $this->countWhereIn('industry_project_steps', 'project_id', [$soloProjectId]));
+        self::assertSame(0, $this->countWhereIn('industry_project_products', 'project_id', [$soloProjectId]));
         self::assertSame(0, $this->countWhereIn('industry_project_participants', 'project_id', [$soloProjectId]));
     }
 
@@ -298,8 +321,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre doctrine');
-        $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $kaelenMember = $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $this->addMember($project, $brann, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $kaelenMember = $this->addMember($project, $kaelen, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
         $approved = $this->addContribution($project, $kaelenMember, 1_000_000.0, ContributionStatus::Approved, ContributionType::Material, 250_000);
         $this->addContribution($project, $kaelenMember, 400_000.0, ContributionStatus::Pending, ContributionType::JobInstall, 1);
         $this->addContribution($project, $kaelenMember, 250_000.0, ContributionStatus::Rejected, ContributionType::Bpc, 10);
@@ -311,8 +334,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
         $member = $this->member($kaelenMemberId);
         self::assertNull($member->getUser());
-        self::assertSame(GroupMemberStatus::Removed, $member->getStatus());
-        self::assertSame(GroupMemberRole::Member, $member->getRole());
+        self::assertSame(ParticipantStatus::Removed, $member->getStatus());
+        self::assertSame(ParticipantRole::Member, $member->getRole());
         self::assertSame(
             [$approvedId => ['approved', 1_000_000.0, 250_000]],
             $this->contributionsOf($kaelenMemberId),
@@ -324,8 +347,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre doctrine');
-        $brannMember = $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $kaelenMember = $this->addMember($project, $kaelen, GroupMemberRole::Member, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $brannMember = $this->addMember($project, $brann, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $kaelenMember = $this->addMember($project, $kaelen, ParticipantRole::Member, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
         $kaelenContribution = $this->addContribution($project, $kaelenMember, 1_000_000.0, ContributionStatus::Approved, ContributionType::Material, 250_000)
             ->setNote('Hauled by Kaelen Voss from his Amarr hangar');
         $brannContribution = $this->addContribution($project, $brannMember, 3_000_000.0, ContributionStatus::Approved, ContributionType::LineRental, 4)
@@ -351,8 +374,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre doctrine')->setBrokerFeePercent(0.0)->setSalesTaxPercent(0.0);
-        $brannMember = $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $kaelenMember = $this->addMember($project, $kaelen, GroupMemberRole::Member, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $brannMember = $this->addMember($project, $brann, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $kaelenMember = $this->addMember($project, $kaelen, ParticipantRole::Member, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
         $this->addContribution($project, $kaelenMember, 1_000_000.0, ContributionStatus::Approved, ContributionType::Material, 250_000);
         $this->addContribution($project, $kaelenMember, 400_000.0, ContributionStatus::Pending, ContributionType::JobInstall, 1);
         $this->addContribution($project, $kaelenMember, 250_000.0, ContributionStatus::Rejected, ContributionType::Bpc, 10);
@@ -388,8 +411,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre doctrine');
-        $brannMember = $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $kaelenMember = $this->addMember($project, $kaelen, GroupMemberRole::Member, GroupMemberStatus::Pending, '2026-01-02 09:00:00');
+        $brannMember = $this->addMember($project, $brann, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $kaelenMember = $this->addMember($project, $kaelen, ParticipantRole::Member, ParticipantStatus::Pending, '2026-01-02 09:00:00');
         $this->em->flush();
         $projectId = (string) $project->getId();
         $kaelenMemberId = (string) $kaelenMember->getId();
@@ -408,8 +431,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre doctrine');
         $project->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
-        $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $this->addMember($project, $brann, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $kaelen, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
         $sale = $this->addSale($project, $kaelen, 22_456, 'Sabre', 100, 50_000.0);
         $this->em->flush();
         $projectId = (string) $project->getId();
@@ -436,8 +459,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre');
         $project->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
-        $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $this->addMember($project, $brann, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $kaelen, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
         $sale = $this->addSale($project, $kaelen, 0, 'Sabre', 3, 61_250_000.0)->setSeller($this->mainCharacterOf($kaelen));
         $this->em->flush();
         $projectId = (string) $project->getId();
@@ -454,7 +477,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         self::assertSame(
             [[null, null, null, 183_750_000.0]],
             array_map(
-                static fn (GroupIndustrySaleResource $listedSale): array => [
+                static fn (ProjectSaleResource $listedSale): array => [
                     $listedSale->sellerCharacterId,
                     $listedSale->sellerCharacterName,
                     $listedSale->recordedByCharacterName,
@@ -472,8 +495,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $project = $this->createProject($brann, 'Sabre');
         $project->addItem((new IndustryProjectProduct())->setTypeId(587)->setTypeName('Sabre')->setRuns(1));
-        $this->addMember($project, $brann, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $this->addMember($project, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $this->addMember($project, $brann, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $this->addMember($project, $kaelen, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
         $t5 = (new CachedWalletTransaction())
             ->setCharacter($this->mainCharacterOf($kaelen))
             ->setTransactionId(6_100_000_005)
@@ -507,7 +530,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         self::assertSame(
             [[false, null, null, 122_000_000.0]],
             array_map(
-                static fn (GroupIndustrySaleResource $listedSale): array => [
+                static fn (ProjectSaleResource $listedSale): array => [
                     $listedSale->linkedToWalletTransaction,
                     $listedSale->sellerCharacterName,
                     $listedSale->recordedByCharacterName,
@@ -592,11 +615,11 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
         $cyra = $this->createAccount('Cyra Lune', 'refresh-token-cyra-main');
         $ownedProject = $this->createProject($kaelen, 'Rorqual for the corp');
-        $this->addMember($ownedProject, $kaelen, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $brannAdmin = $this->addMember($ownedProject, $brann, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-02 09:00:00');
+        $this->addMember($ownedProject, $kaelen, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $brannAdmin = $this->addMember($ownedProject, $brann, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-02 09:00:00');
         $joinedProject = $this->createProject($cyra, 'Sabre doctrine');
-        $this->addMember($joinedProject, $cyra, GroupMemberRole::Owner, GroupMemberStatus::Accepted, '2025-12-01 09:00:00');
-        $kaelenMember = $this->addMember($joinedProject, $kaelen, GroupMemberRole::Admin, GroupMemberStatus::Accepted, '2026-01-03 09:00:00');
+        $this->addMember($joinedProject, $cyra, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $kaelenMember = $this->addMember($joinedProject, $kaelen, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-03 09:00:00');
         $pending = $this->addContribution($joinedProject, $kaelenMember, 400_000.0, ContributionStatus::Pending, ContributionType::JobInstall, 1);
         $this->em->flush();
         $kaelenId = (string) $kaelen->getId();
@@ -817,13 +840,13 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
     private function createProject(User $owner, string $name): IndustryProject
     {
-        $project = (new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($owner)->setName($name);
+        $project = (new IndustryProject())->setOwner($owner)->setName($name);
         $this->em->persist($project);
 
         return $project;
     }
 
-    private function addMember(IndustryProject $project, User $user, GroupMemberRole $role, GroupMemberStatus $status, string $joinedAt): IndustryProjectParticipant
+    private function addMember(IndustryProject $project, User $user, ParticipantRole $role, ParticipantStatus $status, string $joinedAt): IndustryProjectParticipant
     {
         $member = (new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus($status);
         (new \ReflectionProperty(IndustryProjectParticipant::class, 'joinedAt'))->setValue($member, new \DateTimeImmutable($joinedAt));
@@ -923,8 +946,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
 
     private function distributionOf(string $projectId): DistributionResult
     {
-        $distributionService = self::getContainer()->get(GroupIndustryDistributionService::class);
-        \assert($distributionService instanceof GroupIndustryDistributionService);
+        $distributionService = self::getContainer()->get(ProjectDistributionService::class);
+        \assert($distributionService instanceof ProjectDistributionService);
 
         return $distributionService->calculateDistribution($this->project($projectId));
     }
@@ -957,10 +980,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($viewer);
 
-        $provider = new GroupSaleCollectionProvider(
+        $provider = new ProjectSaleCollectionProvider(
             $security,
             self::getContainer()->get(IndustryProjectRepository::class),
-            self::getContainer()->get(GroupProjectAccessChecker::class),
+            self::getContainer()->get(ProjectAccessChecker::class),
             self::getContainer()->get(IndustryProjectSaleRepository::class),
         );
 
@@ -1130,9 +1153,8 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setUpgradeLevel(3 + $seed)
             ->setNumPins(8 + $seed)
             ->setLastUpdate($start));
-        $this->em->persist((new IndustryProject())->setProductTypeId(587)->setRuns(1)->setOwner($user)
-            ->setProductTypeId(22_444 + $seed)
-            ->setRuns(10 * $seed));
+        $this->em->persist((new IndustryProject())->setOwner($user)
+            ->addItem((new IndustryProjectProduct())->setTypeId(22_444 + $seed)->setTypeName(sprintf('Seeded product %d', $seed))->setRuns(10 * $seed)));
         $this->em->persist((new IndustryUserSettings())
             ->setUser($user)
             ->setExportCostPerM3(100.0 * $seed));

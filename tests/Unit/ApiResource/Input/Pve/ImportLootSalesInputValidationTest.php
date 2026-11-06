@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\ApiResource\Input\Pve;
 
 use App\ApiResource\Input\Pve\ImportLootSalesInput;
-use App\Tests\Unit\ApiResource\Input\GroupIndustry\PropertyPathsOfViolations;
+use App\Tests\Unit\ApiResource\Input\Industry\Project\PropertyPathsOfViolations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;

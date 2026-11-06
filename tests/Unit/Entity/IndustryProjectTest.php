@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Entity;
 
-use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\User;
-use App\Enum\GroupMemberRole;
-use App\Enum\GroupMemberStatus;
-use App\Enum\GroupProjectStatus;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -27,42 +26,53 @@ final class IndustryProjectTest extends TestCase
         $project = (new IndustryProject())->setOwner($formerOwner);
         $participant = (new IndustryProjectParticipant())
             ->setUser($newOwner)
-            ->setRole(GroupMemberRole::Admin)
-            ->setStatus(GroupMemberStatus::Accepted);
+            ->setRole(ParticipantRole::Admin)
+            ->setStatus(ParticipantStatus::Accepted);
         $project->addMember($participant);
 
         $project->transferOwnershipTo($participant);
 
         self::assertSame($newOwner, $project->getOwner());
-        self::assertSame(GroupMemberRole::Owner, $participant->getRole());
+        self::assertSame(ParticipantRole::Owner, $participant->getRole());
     }
 
-    public function testNewProjectIsPublishedWithAUuidV7AndItsOwnInvitationCodeOfTenHexadecimalCharacters(): void
+    public function testNewProjectIsADraftWithAUuidV7AndItsOwnInvitationCodeOfTenHexadecimalCharacters(): void
     {
         $project = new IndustryProject();
         $otherProject = new IndustryProject();
 
         self::assertInstanceOf(UuidV7::class, $project->getId());
-        self::assertSame(GroupProjectStatus::Published, $project->getStatus());
+        self::assertSame(ProjectStatus::Draft, $project->getStatus());
         self::assertMatchesRegularExpression('/^[0-9a-f]{10}$/', $project->getShortLinkCode());
         self::assertMatchesRegularExpression('/^[0-9a-f]{10}$/', $otherProject->getShortLinkCode());
         self::assertNotSame($otherProject->getShortLinkCode(), $project->getShortLinkCode());
     }
 
-    public function testProjectIsPlannedByStepsUntilItGetsAnItem(): void
+    public function testNewProjectIsPrivateByDefaultAndItsPrivacyCanBeLifted(): void
     {
         $project = new IndustryProject();
-        self::assertTrue($project->isPlannedBySteps());
+        self::assertTrue($project->isPrivate());
 
-        $project->addItem(
-            (new IndustryProjectProduct())
-                ->setTypeId(22456)
-                ->setTypeName('Sabre')
-                ->setMeLevel(10)
-                ->setTeLevel(20)
-                ->setRuns(5),
-        );
+        $project->setPrivate(false);
+        self::assertFalse($project->isPrivate());
 
-        self::assertFalse($project->isPlannedBySteps());
+        $project->setPrivate(true);
+        self::assertTrue($project->isPrivate());
+    }
+
+    public function testProjectHasNoStepsAndDoesNotTakeItsProductFromItsFirstItem(): void
+    {
+        $project = new IndustryProject();
+
+        self::assertFalse(method_exists($project, 'getSteps'));
+        self::assertFalse(method_exists($project, 'takeProductFromFirstItem'));
+    }
+
+    public function testProjectHasNoRoutePredicateToTellASoloProjectFromAGroupOne(): void
+    {
+        $project = new IndustryProject();
+
+        self::assertFalse(method_exists($project, 'isPlannedBySteps'));
+        self::assertFalse(method_exists($project, 'isPlannedByStepsAndOwnedBy'));
     }
 }

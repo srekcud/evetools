@@ -1,0 +1,261 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Integration\State\Provider\Industry\Project;
+
+use ApiPlatform\Metadata\Get;
+use App\ApiResource\Industry\Project\ProjectDistributionResource;
+use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryProjectSale;
+use App\Entity\User;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
+use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\ProjectDistributionService;
+use App\State\Provider\Industry\Project\ProjectDistributionProvider;
+use App\State\Provider\Industry\Project\ProjectAccessChecker;
+use App\Tests\Integration\IntegrationTestCase;
+use App\Tests\Integration\RecordsSqlQueries;
+use PHPUnit\Framework\Attributes\Group;
+use Symfony\Bundle\SecurityBundle\Security;
+
+#[Group('issue-166')]
+final class ProjectDistributionProviderTest extends IntegrationTestCase
+{
+    use RecordsSqlQueries;
+
+    private const int MAX_QUERIES = 5;
+    private const int CONTRIBUTIONS_PER_MEMBER = 2;
+    private const int SABRE_TYPE_ID = 22456;
+    private const int TRITANIUM_TYPE_ID = 34;
+
+    public function testDistributionIssuesTheSameQueriesForFiveOrTenContributingMembers(): void
+    {
+        [$fiveMembersViewerId, $fiveMembersProjectId] = $this->createProjectWithApprovedContributions('Lyra Sato', membersCount: 5, salesCount: 4);
+        [$tenMembersViewerId, $tenMembersProjectId] = $this->createProjectWithApprovedContributions('Orin Vahl', membersCount: 10, salesCount: 8);
+
+        $fiveMembersQueries = $this->queriesReadingTheDistribution($fiveMembersViewerId, $fiveMembersProjectId);
+        $tenMembersQueries = $this->queriesReadingTheDistribution($tenMembersViewerId, $tenMembersProjectId);
+
+        self::assertCount(
+            \count($fiveMembersQueries),
+            $tenMembersQueries,
+            sprintf(
+                "5 members, 10 contributions, 4 sales: %d queries; 10 members, 20 contributions, 8 sales: %d queries:\n%s",
+                \count($fiveMembersQueries),
+                \count($tenMembersQueries),
+                implode("\n", $tenMembersQueries),
+            ),
+        );
+    }
+
+    public function testDistributionIssuesABoundedNumberOfQueries(): void
+    {
+        [$viewerId, $projectId] = $this->createProjectWithApprovedContributions('Kaelen Voss', membersCount: 5, salesCount: 4);
+
+        $queries = $this->queriesReadingTheDistribution($viewerId, $projectId);
+
+        self::assertLessThanOrEqual(
+            self::MAX_QUERIES,
+            \count($queries),
+            sprintf("expected at most %d queries, got %d:\n%s", self::MAX_QUERIES, \count($queries), implode("\n", $queries)),
+        );
+    }
+
+    public function testMemberWithoutMainCharacterIsPaidUnderAnUnknownName(): void
+    {
+        $owner = $this->createUserWithMainCharacter('Aria Solberg');
+        $project = (new IndustryProject())->setOwner($owner)->setName('Sabre doctrine')->setBrokerFeePercent(0.0)->setSalesTaxPercent(0.0);
+        $this->em->persist($project);
+        $ownerMember = $this->addMember($project, $owner, ParticipantRole::Owner);
+        $memberWithoutMainCharacter = $this->addMember($project, $this->createUser(), ParticipantRole::Member);
+        $tritanium = $this->addBomItem($project, self::TRITANIUM_TYPE_ID, 'Tritanium');
+        $this->addApprovedContribution($project, $ownerMember, $tritanium, 3_000_000.0);
+        $this->addApprovedContribution($project, $memberWithoutMainCharacter, $tritanium, 1_000_000.0);
+        $this->addSale($project, $owner, quantity: 2, unitPrice: 2_200_000.0);
+        $this->em->flush();
+        $ownerId = (string) $owner->getId();
+        $projectId = (string) $project->getId();
+        $ownerMemberId = (string) $ownerMember->getId();
+        $memberWithoutMainCharacterId = (string) $memberWithoutMainCharacter->getId();
+        $this->em->clear();
+
+        $distribution = $this->distributionOf($projectId, $this->user($ownerId));
+
+        $payoutsByMemberId = [];
+        foreach ($distribution->members as $member) {
+            $payoutsByMemberId[$member['memberId']] = [$member['characterName'], $member['totalCostsEngaged'], $member['payoutTotal']];
+        }
+        ksort($payoutsByMemberId);
+        $expected = [
+            $ownerMemberId => ['Aria Solberg', 3_000_000.0, 3_300_000.0],
+            $memberWithoutMainCharacterId => ['Unknown', 1_000_000.0, 1_100_000.0],
+        ];
+        ksort($expected);
+        self::assertSame($expected, $payoutsByMemberId);
+        self::assertSame(4_400_000.0, $distribution->totalRevenue);
+    }
+
+    #[Group('issue-146')]
+    public function testSaleWhoseOnlyApprovedContributionIsAFreeLineRentalIsUndistributable(): void
+    {
+        $owner = $this->createUserWithMainCharacter('Aria Solberg');
+        $project = (new IndustryProject())->setOwner($owner)->setName('Sabre doctrine')->setBrokerFeePercent(3.6)->setSalesTaxPercent(3.6);
+        $this->em->persist($project);
+        $ownerMember = $this->addMember($project, $owner, ParticipantRole::Owner);
+        $project->addContribution(
+            (new IndustryProjectContribution())
+                ->setMember($ownerMember)
+                ->setType(ContributionType::LineRental)
+                ->setQuantity(1)
+                ->setEstimatedValue(0.0)
+                ->setStatus(ContributionStatus::Approved),
+        );
+        $this->addSale($project, $owner, quantity: 1, unitPrice: 1_000_000.0);
+        $this->em->flush();
+        $ownerId = (string) $owner->getId();
+        $projectId = (string) $project->getId();
+        $ownerMemberId = (string) $ownerMember->getId();
+        $this->em->clear();
+
+        $distribution = $this->distributionOf($projectId, $this->user($ownerId));
+
+        self::assertSame(
+            [1_000_000.0, 36_000.0, 36_000.0, 928_000.0, 0.0, null],
+            [$distribution->totalRevenue, $distribution->brokerFee, $distribution->salesTax, $distribution->netRevenue, $distribution->totalProjectCost, $distribution->marginPercent],
+        );
+        self::assertSame(
+            [[
+                'memberId' => $ownerMemberId,
+                'characterName' => 'Aria Solberg',
+                'totalCostsEngaged' => 0.0,
+                'materialCosts' => 0.0,
+                'jobInstallCosts' => 0.0,
+                'bpcCosts' => 0.0,
+                'lineRentalCosts' => 0.0,
+                'sharePercent' => null,
+                'profitPart' => null,
+                'payoutTotal' => null,
+            ]],
+            $distribution->members,
+        );
+    }
+
+    private function queriesReadingTheDistribution(string $viewerId, string $projectId): array
+    {
+        $this->em->clear();
+        $viewer = $this->user($viewerId);
+
+        return $this->sqlExecutedDuring(fn () => $this->distributionOf($projectId, $viewer));
+    }
+
+    private function createProjectWithApprovedContributions(string $prefix, int $membersCount, int $salesCount): array
+    {
+        $owner = $this->createUserWithMainCharacter(sprintf('Owner of %s', $prefix));
+        $viewer = $this->createUserWithMainCharacter(sprintf('Viewer of %s', $prefix));
+        $project = (new IndustryProject())->setOwner($owner)->setName(sprintf('%s project', $prefix));
+        $this->em->persist($project);
+        $this->addMember($project, $owner, ParticipantRole::Owner);
+        $this->addMember($project, $viewer, ParticipantRole::Member);
+
+        for ($memberIndex = 1; $memberIndex <= $membersCount; ++$memberIndex) {
+            $member = $this->addMember($project, $this->createUserWithMainCharacter(sprintf('Member %d of %s', $memberIndex, $prefix)), ParticipantRole::Member);
+            $bomItem = $this->addBomItem($project, self::TRITANIUM_TYPE_ID + $memberIndex, sprintf('Material %d', $memberIndex));
+            for ($contributionIndex = 1; $contributionIndex <= self::CONTRIBUTIONS_PER_MEMBER; ++$contributionIndex) {
+                $this->addApprovedContribution($project, $member, $bomItem, $memberIndex * 125_000.0 + $contributionIndex * 7_500.0);
+            }
+        }
+        for ($saleIndex = 1; $saleIndex <= $salesCount; ++$saleIndex) {
+            $this->addSale($project, $owner, quantity: $saleIndex, unitPrice: 61_250_000.0 + $saleIndex * 15_000.0);
+        }
+
+        $this->em->flush();
+
+        return [(string) $viewer->getId(), (string) $project->getId()];
+    }
+
+    private function distributionOf(string $projectId, User $user): ProjectDistributionResource
+    {
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($user);
+
+        $provider = new ProjectDistributionProvider(
+            $security,
+            self::getContainer()->get(IndustryProjectRepository::class),
+            self::getContainer()->get(ProjectAccessChecker::class),
+            self::getContainer()->get(ProjectDistributionService::class),
+        );
+
+        return $provider->provide(new Get(), ['projectId' => $projectId]);
+    }
+
+    private function user(string $userId): User
+    {
+        $user = $this->em->find(User::class, $userId);
+        \assert($user instanceof User);
+
+        return $user;
+    }
+
+    private function createUserWithMainCharacter(string $characterName): User
+    {
+        $user = $this->createUser();
+        $user->setMainCharacter($this->createCharacter($user, $characterName));
+
+        return $user;
+    }
+
+    private function addMember(IndustryProject $project, User $user, ParticipantRole $role): IndustryProjectParticipant
+    {
+        $member = (new IndustryProjectParticipant())
+            ->setUser($user)
+            ->setRole($role)
+            ->setStatus(ParticipantStatus::Accepted);
+        $project->addMember($member);
+
+        return $member;
+    }
+
+    private function addBomItem(IndustryProject $project, int $typeId, string $typeName): IndustryProjectBomLine
+    {
+        $bomItem = (new IndustryProjectBomLine())
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setRequiredQuantity(1_000_000);
+        $project->addBomItem($bomItem);
+
+        return $bomItem;
+    }
+
+    private function addApprovedContribution(IndustryProject $project, IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, float $estimatedValue): void
+    {
+        $contribution = (new IndustryProjectContribution())
+            ->setMember($member)
+            ->setBomItem($bomItem)
+            ->setType(ContributionType::Material)
+            ->setQuantity(1_000)
+            ->setEstimatedValue($estimatedValue)
+            ->setStatus(ContributionStatus::Approved);
+        $project->addContribution($contribution);
+    }
+
+    private function addSale(IndustryProject $project, User $recordedBy, int $quantity, float $unitPrice): void
+    {
+        $sale = (new IndustryProjectSale())
+            ->setTypeId(self::SABRE_TYPE_ID)
+            ->setTypeName('Sabre')
+            ->setQuantity($quantity)
+            ->setUnitPrice($unitPrice)
+            ->setTotalPrice($quantity * $unitPrice)
+            ->setVenue('Jita IV - Moon 4')
+            ->setSoldAt(new \DateTimeImmutable('2026-10-20T18:30:00+00:00'))
+            ->setRecordedBy($recordedBy);
+        $project->addSale($sale);
+    }
+}

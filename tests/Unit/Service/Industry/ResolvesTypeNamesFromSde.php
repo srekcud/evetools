@@ -7,10 +7,8 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\Sde\InvType;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\StaStationRepository;
-use App\Service\Industry\IndustryBonusService;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\TypeNameResolver;
 
@@ -67,9 +65,7 @@ trait ResolvesTypeNamesFromSde
     {
         return new IndustryCalculationService(
             new TypeNameResolver($invTypeRepository),
-            $this->createStub(IndustryBonusService::class),
             $this->createStub(IndustryStructureConfigRepository::class),
-            $this->createStub(IndustryUserSettingsRepository::class),
             $this->createStub(StaStationRepository::class),
             $this->createStub(CachedStructureRepository::class),
         );
