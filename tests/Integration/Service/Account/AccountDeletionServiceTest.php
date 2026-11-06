@@ -58,8 +58,10 @@ use App\Service\ESI\CorporationService;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\EveSsoTokenRevoker;
 use App\Service\ESI\TokenManager;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
+use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
 use App\State\Provider\Assets\CorpAssetVisibilityProvider;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -75,6 +77,7 @@ use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Uid\Uuid;
 
 #[Group('issue-53')]
@@ -241,6 +244,45 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         self::assertSame(1, $this->countWhereIn('industry_project_bom_lines', 'project_id', [$projectId]));
         self::assertSame(0, $this->connection()->fetchOne('SELECT COUNT(*) FROM industry_project_job_matches'));
         self::assertSame(0, $this->connection()->fetchOne('SELECT COUNT(*) FROM industry_project_purchases'));
+    }
+
+    #[Group('issue-363')]
+    public function testDerivedContributionsOfTheDeletedOwnerAreRemovedWithTheirLinksAndTheFulfilledQuantityIsCorrectedWhileManualOnesAreKept(): void
+    {
+        $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main');
+        $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main');
+        $project = $this->createProject($kaelen, 'Ishtar batch');
+        $kaelenMember = $this->addMember($project, $kaelen, ParticipantRole::Owner, ParticipantStatus::Accepted, '2025-12-01 09:00:00');
+        $brannMember = $this->addMember($project, $brann, ParticipantRole::Admin, ParticipantStatus::Accepted, '2026-01-03 09:00:00');
+        $tritaniumLine = (new IndustryProjectBomLine())->setTypeId(34)->setTypeName('Tritanium')->setRequiredQuantity(1_000)->setEstimatedPrice(5.5)->setFulfilledQuantity(1_100);
+        $ishtarLine = (new IndustryProjectBomLine())->setTypeId(12_005)->setTypeName('Ishtar')->setRequiredQuantity(5)->setIsJob(true)->setJobGroup('final')->setActivityType('manufacturing')->setRuns(5);
+        $project->addBomItem($tritaniumLine);
+        $project->addBomItem($ishtarLine);
+        $tritaniumLine->addPurchase((new IndustryProjectPurchase())->setTypeId(34)->setQuantity(400)->setUnitPrice(6.5)->setTotalPrice(2_600.0)->setSource('manual'));
+        $tritaniumLine->addPurchase((new IndustryProjectPurchase())->setTypeId(34)->setQuantity(600)->setUnitPrice(6.0)->setTotalPrice(3_600.0)->setSource('manual'));
+        $ishtarLine->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(900_363)->setStatus('active')->setRuns(3)->setCost(214_000.0)->setMatchedAt(new \DateTimeImmutable('2026-02-01 10:00:00')));
+        $derivedMaterial = $this->addContribution($project, $kaelenMember, 6_200.0, ContributionStatus::Approved, ContributionType::Material, 1_000)
+            ->setBomItem($tritaniumLine)->setIsAutoDetected(true)->setIsVerified(true);
+        $derivedJobInstall = $this->addContribution($project, $kaelenMember, 214_000.0, ContributionStatus::Approved, ContributionType::JobInstall, 3)
+            ->setBomItem($ishtarLine)->setIsAutoDetected(true)->setIsVerified(true);
+        $keptBpc = $this->addContribution($project, $kaelenMember, 50_000.0, ContributionStatus::Approved, ContributionType::Bpc, 1)->setBomItem($ishtarLine);
+        $brannMaterial = $this->addContribution($project, $brannMember, 700.0, ContributionStatus::Approved, ContributionType::Material, 100)->setBomItem($tritaniumLine);
+        $this->em->flush();
+        $projectId = (string) $project->getId();
+        $tritaniumLineId = (string) $tritaniumLine->getId();
+        $ishtarLineId = (string) $ishtarLine->getId();
+        $keptBpcId = (string) $keptBpc->getId();
+        $brannMaterialId = (string) $brannMaterial->getId();
+        $derivedIds = [(string) $derivedMaterial->getId(), (string) $derivedJobInstall->getId()];
+
+        $this->deleteAccount((string) $kaelen->getId());
+
+        self::assertSame((string) $brann->getId(), (string) $this->project($projectId)->getOwner()->getId());
+        self::assertSame(0, $this->countWhereIn('industry_project_contributions', 'id', $derivedIds));
+        self::assertSame(2, $this->countWhereIn('industry_project_contributions', 'id', [$keptBpcId, $brannMaterialId]));
+        $tritaniumLine = $this->em->find(IndustryProjectBomLine::class, $tritaniumLineId);
+        $ishtarLine = $this->em->find(IndustryProjectBomLine::class, $ishtarLineId);
+        self::assertSame([100, 0], [$tritaniumLine->getFulfilledQuantity(), $ishtarLine->getFulfilledQuantity()]);
     }
 
     public function testOwnershipGoesToTheOldestAcceptedMemberWhenNoAdminIsAccepted(): void
@@ -772,6 +814,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             tokenRevoker: new EveSsoTokenRevoker($ssoHttpClient, $this->ssoLogger, self::CLIENT_ID, self::CLIENT_SECRET),
             tokenManager: $this->tokenManager(),
             esiCache: $this->esiCache(),
+            derivedContributionService: new DerivedContributionService(
+                $this->em,
+                new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            ),
         );
     }
 

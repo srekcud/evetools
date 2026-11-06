@@ -9,6 +9,7 @@ use App\ApiResource\Industry\ProjectJobMatchResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Repository\IndustryProjectJobMatchRepository;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\State\Processor\Industry\UnlinkJobProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -18,6 +19,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 #[CoversClass(UnlinkJobProcessor::class)]
 #[Group('issue-362')]
+#[Group('issue-363')]
 final class UnlinkJobProcessorTest extends TestCase
 {
     private const int DELIVERED_JOB_ID = 7_362_305;
@@ -28,6 +30,8 @@ final class UnlinkJobProcessorTest extends TestCase
     private const string UNKNOWN_MATCH_ID = '0192f0c4-7b1e-7a3c-9d2e-362000000099';
 
     private array $entityManagerCalls = [];
+
+    private array $refreshedLines = [];
 
     public function testJobMatchDesignatedByTheResourceIsRemovedFromItsLineThenFlushedRatherThanTheJobMatchOfTheUriVariables(): void
     {
@@ -45,6 +49,7 @@ final class UnlinkJobProcessorTest extends TestCase
             [[self::ACTIVE_JOB_ID], 2],
             [array_values(array_map(static fn (IndustryProjectJobMatch $match): int => $match->getEsiJobId(), $ishtarLine->getJobMatches()->toArray())), $ishtarLine->getMatchedRuns()],
         );
+        self::assertSame([[$ishtarLine->getId()->toRfc4122(), 2]], $this->refreshedLines);
     }
 
     public function testResourceDesignatingNoKnownJobMatchIsNotFoundWithoutRemovingNorFlushing(): void
@@ -63,6 +68,7 @@ final class UnlinkJobProcessorTest extends TestCase
 
         self::assertSame([], $this->entityManagerCalls);
         self::assertCount(1, $ishtarLine->getJobMatches());
+        self::assertSame([], $this->refreshedLines);
     }
 
     private function ishtarLine(): IndustryProjectBomLine
@@ -99,6 +105,11 @@ final class UnlinkJobProcessorTest extends TestCase
             $this->entityManagerCalls[] = ['flush'];
         });
 
-        return new UnlinkJobProcessor($entityManager, $matchRepository);
+        $derivedContributionService = $this->createStub(DerivedContributionService::class);
+        $derivedContributionService->method('refreshLine')->willReturnCallback(function (IndustryProjectBomLine $line): void {
+            $this->refreshedLines[] = [$line->getId()->toRfc4122(), $line->getMatchedRuns()];
+        });
+
+        return new UnlinkJobProcessor($entityManager, $matchRepository, $derivedContributionService);
     }
 }

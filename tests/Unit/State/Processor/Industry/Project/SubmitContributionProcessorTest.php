@@ -21,6 +21,7 @@ use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ProjectContributionService;
+use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\SubmitContributionProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -47,6 +48,8 @@ class SubmitContributionProcessorTest extends TestCase
     private const int TRITANIUM_TYPE_ID = 34;
     private const int ISOGEN_TYPE_ID = 37;
     private const float TRITANIUM_BOM_PRICE = 5.5;
+    private const float TRITANIUM_JITA_PRICE = 7.0;
+    private const float MORPHITE_JITA_PRICE = 531.25;
 
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
@@ -57,6 +60,7 @@ class SubmitContributionProcessorTest extends TestCase
     private IndustryProjectBomLine $tritanium;
     private IndustryProjectBomLine $isogenOfTheOtherProject;
     private User $contributor;
+    private array $jitaPrices = [];
 
     protected function setUp(): void
     {
@@ -130,6 +134,12 @@ class SubmitContributionProcessorTest extends TestCase
         $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findByMemberBomItemAndType')->willReturn(null);
 
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE, self::MORPHITE_TYPE_ID => self::MORPHITE_JITA_PRICE];
+        $jitaMarket = $this->createStub(JitaMarketService::class);
+        $jitaMarket->method('getCheapestPercentilePrices')->willReturnCallback(
+            fn (array $typeIds): array => array_combine($typeIds, array_map(fn (int $typeId): ?float => $this->jitaPrices[$typeId] ?? null, $typeIds)),
+        );
+
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
 
@@ -138,36 +148,39 @@ class SubmitContributionProcessorTest extends TestCase
             $projectRepository,
             $memberRepository,
             $bomItemRepository,
-            new ProjectContributionService($contributionRepository, $this->entityManager),
+            new ProjectContributionService($contributionRepository, $this->entityManager, $jitaMarket),
             new ProjectResourceMapper(),
             new MercurePublisherService($this->hub, new NullLogger()),
         );
     }
 
-    public function testMaterialContributionWithoutBomPriceNorEnteredValueIsABadRequestAndNothingIsPersisted(): void
+    #[Group('issue-363')]
+    public function testMaterialContributionWithoutAJitaPriceIsABadRequestAndNothingIsPersisted(): void
     {
+        $this->jitaPrices[self::MORPHITE_TYPE_ID] = null;
         $this->entityManager->expects($this->never())->method('persist');
         $this->entityManager->expects($this->never())->method('flush');
         $this->hub->expects($this->never())->method('publish');
 
         $this->expectException(BadRequestHttpException::class);
-        $this->expectExceptionMessage('No market price for type 11399: enter an estimated value.');
+        $this->expectExceptionMessage('No market price for type 11399: no Jita price for the deposit day.');
 
         $this->submitMorphite(100, null);
     }
 
-    public function testMaterialContributionWithoutBomPriceIsRecordedAtTheEnteredValue(): void
+    #[Group('issue-363')]
+    public function testMaterialContributionOfALineWithoutBomPriceIsRecordedAtTheJitaPriceTimesQuantity(): void
     {
         $this->entityManager->expects($this->once())->method('persist')->willReturnCallback(
             fn (IndustryProjectContribution $contribution) => $this->assignId($contribution),
         );
         $this->entityManager->expects($this->once())->method('flush');
 
-        $resource = $this->submitMorphite(40, 900.0);
+        $resource = $this->submitMorphite(40, null);
 
         self::assertSame('material', $resource->type);
         self::assertSame(40, $resource->quantity);
-        self::assertSame(900.0, $resource->estimatedValue);
+        self::assertSame(21_250.0, $resource->estimatedValue);
         self::assertSame('pending', $resource->status);
     }
 
@@ -181,9 +194,10 @@ class SubmitContributionProcessorTest extends TestCase
 
         $this->expectException(BadRequestHttpException::class);
 
-        $this->submitMorphite(10, 1250.0);
+        $this->submitMorphite(10, null);
     }
 
+    #[Group('issue-363')]
     public function testMaterialContributionOnASellingProjectIsRecordedAsPending(): void
     {
         $this->project->setStatus(ProjectStatus::Selling);
@@ -193,11 +207,11 @@ class SubmitContributionProcessorTest extends TestCase
         );
         $this->entityManager->expects($this->once())->method('flush');
 
-        $resource = $this->submitMorphite(25, 980.0);
+        $resource = $this->submitMorphite(25, null);
 
         self::assertSame('material', $resource->type);
         self::assertSame(25, $resource->quantity);
-        self::assertSame(980.0, $resource->estimatedValue);
+        self::assertSame(13_281.25, $resource->estimatedValue);
         self::assertSame('pending', $resource->status);
     }
 
@@ -219,8 +233,8 @@ class SubmitContributionProcessorTest extends TestCase
         ]);
     }
 
-    #[Group('issue-154')]
-    public function testMaterialContributionWithABomPriceIsRecordedAtTheBomPriceTimesQuantity(): void
+    #[Group('issue-363')]
+    public function testMaterialContributionOfALineWithABomPriceIsRecordedAtTheJitaPriceTimesQuantity(): void
     {
         $this->entityManager->expects($this->once())->method('persist')->willReturnCallback(
             fn (IndustryProjectContribution $contribution) => $this->assignId($contribution),
@@ -231,19 +245,19 @@ class SubmitContributionProcessorTest extends TestCase
 
         self::assertSame('material', $resource->type);
         self::assertSame(1000, $resource->quantity);
-        self::assertSame(5500.0, $resource->estimatedValue);
+        self::assertSame(7000.0, $resource->estimatedValue);
         self::assertSame('pending', $resource->status);
     }
 
-    #[Group('issue-154')]
-    public function testMaterialContributionWithABomPriceAndAValueSentIsABadRequestAndNothingIsPersistedNorPublished(): void
+    #[Group('issue-363')]
+    public function testMaterialContributionWithAValueSentIsABadRequestAndNothingIsPersistedNorPublished(): void
     {
         $this->entityManager->expects($this->never())->method('persist');
         $this->entityManager->expects($this->never())->method('flush');
         $this->hub->expects($this->never())->method('publish');
 
         $this->expectException(BadRequestHttpException::class);
-        $this->expectExceptionMessage('Type 34 has a BOM price: a material contribution is valued from it.');
+        $this->expectExceptionMessage('A material contribution takes no entered value: it is valued at the Jita price of the deposit day.');
 
         $this->submitMaterial($this->tritanium, 1000, 9999.99);
     }
@@ -275,7 +289,7 @@ class SubmitContributionProcessorTest extends TestCase
                 'characterName' => 'Kira Voss',
                 'bomItemName' => 'Tritanium',
                 'quantity' => 1000,
-                'value' => 5500.0,
+                'value' => 7000.0,
             ],
             $payloads[0]['data'],
         );

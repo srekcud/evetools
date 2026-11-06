@@ -24,3 +24,9 @@ describe('groupProjectRefreshes', () => {
     expect(sortedRefreshesFor('status_changed')).toEqual(['bom', 'projectDetail'])
   })
 })
+
+describe('groupProjectRefreshes on a derived contribution', () => {
+  it('refreshes the BOM, the contributions, the distribution and the project detail on contribution_synced', () => {
+    expect(sortedRefreshesFor('contribution_synced')).toEqual(['bom', 'contributions', 'distribution', 'projectDetail'])
+  })
+})

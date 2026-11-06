@@ -146,7 +146,7 @@ describe('ContributeModal for a job install contribution', () => {
 })
 
 describe('ContributeModal for a material with a BOM price', () => {
-  it('sends no estimated value, the backend values the material from its BOM price', async () => {
+  it('sends no estimated value, the backend values the material from the Jita price of the deposit day', async () => {
     const wrapper = await openModalFor(PYERITE_WITH_PRICE)
 
     expect(estimatedValueInput(wrapper)).toBeUndefined()

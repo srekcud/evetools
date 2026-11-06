@@ -30,6 +30,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(LinkJobProcessor::class)]
 #[CoversClass(IndustryJobMatcher::class)]
 #[Group('issue-362')]
+#[Group('issue-363')]
 #[AllowMockObjectsWithoutExpectations]
 final class LinkJobProcessorTest extends TestCase
 {
@@ -68,6 +69,7 @@ final class LinkJobProcessorTest extends TestCase
             [$match->getEsiJobId(), $match->getRuns(), $match->getCharacterName(), $match->isManual(), $match->getBomLine()],
         );
         self::assertSame([3, 0], [$this->ishtarLine->getMatchedRuns(), $this->ishtarLine->getFulfilledQuantity()]);
+        self::assertSame([[$this->ishtarLine->getId()->toRfc4122(), 0, 3]], $this->refreshedLines);
     }
 
     public function testJobOfAnotherBlueprintIsRefusedWithoutLink(): void
@@ -77,6 +79,7 @@ final class LinkJobProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->link($this->owner, $this->ishtarProject, $this->ishtarLine, self::OWNER_RAM_JOB_ID)),
         );
         self::assertCount(0, $this->ishtarLine->getJobMatches());
+        self::assertSame([], $this->refreshedLines);
     }
 
     public function testJobOfAnotherUserIsAnsweredLikeAnUnknownJob(): void
@@ -89,6 +92,7 @@ final class LinkJobProcessorTest extends TestCase
             ],
         );
         self::assertCount(0, $this->ishtarLine->getJobMatches());
+        self::assertSame([], $this->refreshedLines);
     }
 
     public function testJobAlreadyLinkedIsRefusedWithoutLink(): void
@@ -98,6 +102,7 @@ final class LinkJobProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->link($this->owner, $this->ishtarProject, $this->ishtarLine, self::ISHTAR_JOB_LINKED_ELSEWHERE_ID)),
         );
         self::assertCount(0, $this->ishtarLine->getJobMatches());
+        self::assertSame([], $this->refreshedLines);
     }
 
     public function testJobOfAnotherActivityThanTheLineIsRefused(): void
@@ -115,6 +120,7 @@ final class LinkJobProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->link($this->admin, $this->ishtarProject, $this->ishtarLine, self::ADMIN_ISHTAR_JOB_ID)),
         );
         self::assertCount(0, $this->ishtarLine->getJobMatches());
+        self::assertSame([], $this->refreshedLines);
     }
 
     public function testLineOfAnotherProjectIsNotFound(): void
@@ -172,6 +178,7 @@ final class LinkJobProcessorTest extends TestCase
             $productRepository,
             $this->accessChecker(),
             $matcher,
+            $this->derivedContributionService(),
         );
     }
 

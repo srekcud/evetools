@@ -16,6 +16,7 @@ use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
@@ -105,6 +106,7 @@ class IndustryJobSyncServiceTest extends TestCase
     private array $persistedJobs = [];
     private int $flushCount = 0;
     private array $jobMatches = [];
+    private array $refreshedBomLines = [];
     private array $reservedCompletionNotificationJobIds = [];
     private array $completionNotificationEvents = [];
     private array $dispatchedNotifications = [];
@@ -132,6 +134,13 @@ class IndustryJobSyncServiceTest extends TestCase
         ]);
         $this->em = $this->createMock(EntityManagerInterface::class);
         $this->jobMatchRepository = $this->createStub(IndustryProjectJobMatchRepository::class);
+        $derivedContributionService = $this->createStub(DerivedContributionService::class);
+        $derivedContributionService->method('refreshLine')->willReturnCallback(function (IndustryProjectBomLine $line): void {
+            $this->refreshedBomLines[] = [
+                $line->getId()->toRfc4122(),
+                array_map(static fn (IndustryProjectJobMatch $jobMatch): ?float => $jobMatch->getCost(), $line->getJobMatches()->toArray()),
+            ];
+        });
         $this->notificationDispatcher = $this->createMock(NotificationDispatcher::class);
         $this->jobRepository->method('claimCompletionNotification')->willReturnCallback(
             function (int $jobId, \DateTimeImmutable $claimedAt): bool {
@@ -193,6 +202,7 @@ class IndustryJobSyncServiceTest extends TestCase
             $this->notificationDispatcher,
             $this->esiCache,
             $this->characterServiceReadingRecordedAffiliations(),
+            $derivedContributionService,
         );
     }
 
@@ -1352,6 +1362,47 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame(['active', '2026-10-20T12:00:00+00:00', 1_500_000.50, 10], $this->jobStateOf($jobMatch));
+        $this->assertSame([], $this->refreshedBomLines);
+    }
+
+    #[Group('issue-363')]
+    public function testCostCopiedOntoTheLinkIsSeenByTheRefreshOfTheDerivedContributionOfItsLine(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $cachedJob = $this->givenMatchedCachedJob($character);
+        $line = $this->makeBomLine();
+        $this->givenJobMatchOnBomLine(100, $line);
+        $esiJob = $this->makeEsiJobOfMatch(100, 12345, 'active', '2026-10-20T12:00:00Z');
+        $esiJob['cost'] = 1_725_000.25;
+        $this->esiClient->method('get')->willReturn([$esiJob]);
+        $this->stubCachedJobs([$cachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([[$line->getId()->toRfc4122(), [1_725_000.25]]], $this->refreshedBomLines);
+    }
+
+    #[Group('issue-363')]
+    public function testTwoSyncedLinksOfTheSameLineTriggerOneRefreshAfterBothCostsAreCopied(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $firstCachedJob = $this->givenMatchedCachedJob($character);
+        $secondCachedJob = $this->makeCachedJob(101, $character, 'active', '2026-10-20T12:00:00Z');
+        $secondCachedJob->setCost(640_000.0)->setRuns(4);
+        $line = $this->makeBomLine();
+        $this->givenJobMatchOnBomLine(100, $line);
+        $this->givenJobMatchOnBomLine(101, $line)->setCost(640_000.0)->setRuns(4);
+        $firstEsiJob = $this->makeEsiJobOfMatch(100, 12345, 'active', '2026-10-20T12:00:00Z');
+        $firstEsiJob['cost'] = 1_725_000.25;
+        $secondEsiJob = $this->makeEsiJobOfMatch(101, 12345, 'active', '2026-10-20T12:00:00Z');
+        $secondEsiJob['runs'] = 4;
+        $secondEsiJob['cost'] = 655_500.5;
+        $this->esiClient->method('get')->willReturn([$firstEsiJob, $secondEsiJob]);
+        $this->stubCachedJobs([$firstCachedJob, $secondCachedJob]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([[$line->getId()->toRfc4122(), [1_725_000.25, 655_500.5]]], $this->refreshedBomLines);
     }
 
     #[Group('issue-208')]

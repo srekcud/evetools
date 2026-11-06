@@ -20,6 +20,7 @@ use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectParticipantCollectionProvider;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -127,6 +128,34 @@ class ProjectParticipantCollectionProviderTest extends TestCase
         self::assertSame(0, $resources[2]->contributionCount);
     }
 
+    #[Group('issue-363')]
+    public function testMemberCarryingAnApprovedContributionWithoutValueHasAnUnknownTotalWhileTheOthersKeepTheirs(): void
+    {
+        $this->addMembership(self::OWNER_MEMBER_ID, 'Owner Pilot', ParticipantRole::Owner, ParticipantStatus::Accepted, $this->owner);
+        $alice = $this->addMembership(self::ALICE_MEMBER_ID, 'Alice', ParticipantRole::Admin, ParticipantStatus::Accepted);
+        $carl = $this->addMembership(self::CARL_MEMBER_ID, 'Carl', ParticipantRole::Member, ParticipantStatus::Accepted);
+
+        $this->approvedContributions = [
+            $this->stubContribution($alice, 250_000.0),
+            $this->stubContribution($carl, 120_000.0),
+            $this->stubContribution($carl, null),
+        ];
+
+        $resources = $this->listMembers();
+
+        self::assertSame(
+            [0.0, 250_000.0, null, 0, 1, 2],
+            [
+                $resources[0]->totalContributionValue,
+                $resources[1]->totalContributionValue,
+                $resources[2]->totalContributionValue,
+                $resources[0]->contributionCount,
+                $resources[1]->contributionCount,
+                $resources[2]->contributionCount,
+            ],
+        );
+    }
+
     /**
      * @return ProjectParticipantResource[]
      */
@@ -161,7 +190,7 @@ class ProjectParticipantCollectionProviderTest extends TestCase
         return $membership;
     }
 
-    private function stubContribution(IndustryProjectParticipant $member, float $estimatedValue): IndustryProjectContribution&Stub
+    private function stubContribution(IndustryProjectParticipant $member, ?float $estimatedValue): IndustryProjectContribution&Stub
     {
         $contribution = $this->createStub(IndustryProjectContribution::class);
         $contribution->method('getMember')->willReturn($member);

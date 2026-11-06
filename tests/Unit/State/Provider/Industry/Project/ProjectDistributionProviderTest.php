@@ -245,6 +245,50 @@ class ProjectDistributionProviderTest extends TestCase
         self::assertNull($resource->members[0]['payoutTotal']);
     }
 
+    #[Group('issue-363')]
+    public function testApprovedContributionWithoutValueReachesTheApiAsAnUnknownCostMarginShareProfitPartAndPayoutWhileKnownRevenueIsKept(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+        $this->sabreBatch->setBrokerFeePercent(2.0)->setSalesTaxPercent(3.0);
+        $knownMaterial = (new IndustryProjectContribution())
+            ->setMember($this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), ParticipantRole::Member, ParticipantStatus::Accepted))
+            ->setType(ContributionType::Material)
+            ->setQuantity(1_000)
+            ->setEstimatedValue(3_000.0)
+            ->setStatus(ContributionStatus::Approved);
+        $unknownJobInstall = (new IndustryProjectContribution())
+            ->setMember($this->addSabreBatchMembership($this->userOfCorporation(self::FOREIGN_CORPORATION_ID), ParticipantRole::Member, ParticipantStatus::Accepted))
+            ->setType(ContributionType::JobInstall)
+            ->setQuantity(5)
+            ->setEstimatedValue(null)
+            ->setStatus(ContributionStatus::Approved);
+        $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
+        $contributionRepository->method('findApprovedByProject')->willReturn([$knownMaterial, $unknownJobInstall]);
+        $saleRepository = $this->createStub(IndustryProjectSaleRepository::class);
+        $saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTotalPrice(5_000.0)]);
+        $provider = new ProjectDistributionProvider(
+            $this->security,
+            $this->sabreBatchProjectRepository(),
+            new ProjectAccessChecker($this->sabreBatchMemberRepository()),
+            new ProjectDistributionService($contributionRepository, $saleRepository),
+        );
+
+        $resource = $provider->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertSame(
+            [5_000.0, 100.0, 150.0, 4_750.0, null, null],
+            [$resource->totalRevenue, $resource->brokerFee, $resource->salesTax, $resource->netRevenue, $resource->totalProjectCost, $resource->marginPercent],
+        );
+        self::assertSame(
+            [[3_000.0, null, null, null], [null, null, null, null]],
+            array_map(
+                static fn (array $member): array => [$member['totalCostsEngaged'], $member['sharePercent'], $member['profitPart'], $member['payoutTotal']],
+                $resource->members,
+            ),
+        );
+        self::assertNull($resource->members[1]['jobInstallCosts']);
+    }
+
     private function distributionOf(Uuid $projectId): ProjectDistributionResource
     {
         return $this->provider->provide(new Get(), ['projectId' => $projectId->toRfc4122()]);

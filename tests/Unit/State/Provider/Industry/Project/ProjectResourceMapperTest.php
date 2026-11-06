@@ -121,6 +121,32 @@ class ProjectResourceMapperTest extends TestCase
         $this->assertSame(12_000, $resource->quantity);
     }
 
+    #[Group('issue-363')]
+    public function testContributionWithAnUnknownValueIsMappedWithANullValueNotZero(): void
+    {
+        $contribution = (new IndustryProjectContribution())
+            ->setMember($this->anonymizedMember())
+            ->setType(ContributionType::JobInstall)
+            ->setQuantity(5)
+            ->setEstimatedValue(null)
+            ->setStatus(ContributionStatus::Approved);
+        (new \ReflectionProperty(IndustryProjectContribution::class, 'id'))->setValue($contribution, Uuid::v4());
+
+        $resource = $this->mapper->contributionToResource($contribution);
+
+        $this->assertNull($resource->estimatedValue);
+        $this->assertSame(5, $resource->quantity);
+    }
+
+    #[Group('issue-363')]
+    public function testMemberCarryingAnUnknownContributionValueIsMappedWithANullTotalAndKeepsItsCount(): void
+    {
+        $resource = $this->mapper->memberToResource($this->anonymizedMember(), null, 2);
+
+        $this->assertNull($resource->totalContributionValue);
+        $this->assertSame(2, $resource->contributionCount);
+    }
+
     private function anonymizedMember(): IndustryProjectParticipant
     {
         $mainCharacter = (new Character())->setEveCharacterId(2_112_000_053)->setName('Deleted Pilot')->setCorporationId(98_000_053)->setCorporationName('Deleted Corp');

@@ -9,6 +9,7 @@ use App\ApiResource\Industry\ProjectPurchaseResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectPurchase;
 use App\Repository\IndustryProjectPurchaseRepository;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\State\Processor\Industry\DeletePurchaseProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -18,6 +19,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 #[CoversClass(DeletePurchaseProcessor::class)]
 #[Group('issue-362')]
+#[Group('issue-363')]
 final class DeletePurchaseProcessorTest extends TestCase
 {
     private const string PROJECT_ID = '0192f0c4-7b1e-7a3c-9d2e-362000000001';
@@ -31,6 +33,8 @@ final class DeletePurchaseProcessorTest extends TestCase
 
     private array $entityManagerCalls = [];
 
+    private array $refreshedLines = [];
+
     public function testPurchaseDesignatedByTheResourceIsRemovedFromItsLineThenFlushedRatherThanThePurchaseOfTheUriVariables(): void
     {
         $ramLine = (new IndustryProjectBomLine())->setTypeId(self::RAM_TYPE_ID)->setTypeName('R.A.M.- Starship Tech')->setRequiredQuantity(400);
@@ -43,6 +47,7 @@ final class DeletePurchaseProcessorTest extends TestCase
 
         self::assertSame([['remove', $ramPurchase], ['flush']], $this->entityManagerCalls);
         self::assertSame([0, 0], [$ramLine->getPurchases()->count(), $ramLine->getPurchasedQuantity()]);
+        self::assertSame([[$ramLine->getId()->toRfc4122(), 0]], $this->refreshedLines);
     }
 
     public function testResourceDesignatingNoKnownPurchaseIsNotFoundWithoutRemovingNorFlushing(): void
@@ -57,6 +62,7 @@ final class DeletePurchaseProcessorTest extends TestCase
         }
 
         self::assertSame([], $this->entityManagerCalls);
+        self::assertSame([], $this->refreshedLines);
     }
 
     private function processorFinding(array $purchasesById): DeletePurchaseProcessor
@@ -73,7 +79,12 @@ final class DeletePurchaseProcessorTest extends TestCase
             $this->entityManagerCalls[] = ['flush'];
         });
 
-        return new DeletePurchaseProcessor($entityManager, $purchaseRepository);
+        $derivedContributionService = $this->createStub(DerivedContributionService::class);
+        $derivedContributionService->method('refreshLine')->willReturnCallback(function (IndustryProjectBomLine $line): void {
+            $this->refreshedLines[] = [$line->getId()->toRfc4122(), $line->getPurchasedQuantity()];
+        });
+
+        return new DeletePurchaseProcessor($entityManager, $purchaseRepository, $derivedContributionService);
     }
 
     private function purchaseResource(string $purchaseId): ProjectPurchaseResource
