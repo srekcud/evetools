@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
+use App\Service\JitaMarketService;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -53,26 +54,42 @@ final class GroupContributionApiTest extends WebTestCase
         self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
     }
 
-    public function testMaterialContributionOnALineWithABomPriceIsValuedAtTheBomPriceTimesTheQuantity(): void
+    #[Group('issue-363')]
+    public function testMaterialContributionIsValuedAtTheJitaPriceOfTheDepositDayTimesTheQuantityNotAtTheBomPrice(): void
     {
+        $this->givenJitaPercentilePrices([34 => 7.0]);
         $this->client->loginUser($this->member, 'api');
         $this->request('POST', $this->contributionsUri(), ['type' => 'material', 'bomItemId' => $this->idOf($this->tritaniumLine), 'quantity' => 2_500]);
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame(
-            [['Brann Holt', 'Tritanium', 'material', 2_500, 10_625.0, 'pending', null, null, null]],
+            [['Brann Holt', 'Tritanium', 'material', 2_500, 17_500.0, 'pending', null, null, null]],
             $this->contributionRows([$this->responseJson()]),
         );
         self::assertSame([4, 0], [$this->storedContributionCount(), $this->storedFulfilledQuantityOf($this->tritaniumLine)]);
     }
 
-    public function testMaterialContributionWithAnEnteredValueOnALineWithABomPriceIsRefused(): void
+    #[Group('issue-363')]
+    public function testMaterialContributionWithAnEnteredValueIsRefused(): void
     {
+        $this->givenJitaPercentilePrices([34 => 7.0]);
         $this->client->loginUser($this->member, 'api');
         $this->request('POST', $this->contributionsUri(), ['type' => 'material', 'bomItemId' => $this->idOf($this->tritaniumLine), 'quantity' => 2_500, 'estimatedValue' => 12_000]);
 
         self::assertResponseStatusCodeSame(400);
-        self::assertSame([400, 'Type 34 has a BOM price: a material contribution is valued from it.'], $this->errorDetail());
+        self::assertSame([400, 'A material contribution takes no entered value: it is valued at the Jita price of the deposit day.'], $this->errorDetail());
+        self::assertSame(3, $this->storedContributionCount());
+    }
+
+    #[Group('issue-363')]
+    public function testMaterialContributionWithoutAJitaPriceIsRefusedWithoutFallbackOnTheBomPrice(): void
+    {
+        $this->givenJitaPercentilePrices([34 => null]);
+        $this->client->loginUser($this->member, 'api');
+        $this->request('POST', $this->contributionsUri(), ['type' => 'material', 'bomItemId' => $this->idOf($this->tritaniumLine), 'quantity' => 2_500]);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame([400, 'No market price for type 34: no Jita price for the deposit day.'], $this->errorDetail());
         self::assertSame(3, $this->storedContributionCount());
     }
 
@@ -192,6 +209,13 @@ final class GroupContributionApiTest extends WebTestCase
         $this->request('PATCH', $this->contributionsUri().'/'.self::NOT_A_UUID, ['status' => 'approved']);
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    private function givenJitaPercentilePrices(array $pricesByTypeId): void
+    {
+        $jitaMarket = $this->createStub(JitaMarketService::class);
+        $jitaMarket->method('getCheapestPercentilePrices')->willReturn($pricesByTypeId);
+        self::getContainer()->set(JitaMarketService::class, $jitaMarket);
     }
 
     private function contributionsUri(): string

@@ -14,6 +14,7 @@ use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -46,6 +47,8 @@ trait TracksJobsAndPurchasesOnIshtarBom
     private IndustryProjectBomLine $hecateTritaniumLine;
 
     private array $participants = [];
+
+    private array $refreshedLines = [];
 
     private function setUpIshtarProject(): void
     {
@@ -117,6 +120,16 @@ trait TracksJobsAndPurchasesOnIshtarBom
         $project->addBomItem($line);
 
         return $line;
+    }
+
+    private function derivedContributionService(): DerivedContributionService
+    {
+        $service = $this->createStub(DerivedContributionService::class);
+        $service->method('refreshLine')->willReturnCallback(function (IndustryProjectBomLine $line): void {
+            $this->refreshedLines[] = [$line->getId()->toRfc4122(), $line->getPurchasedQuantity(), $line->getMatchedRuns()];
+        });
+
+        return $service;
     }
 
     private function securityOf(User $user): Security

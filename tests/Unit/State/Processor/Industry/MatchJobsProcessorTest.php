@@ -21,6 +21,7 @@ use App\Exception\EveAuthRequiredException;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
 use App\State\Processor\Industry\MatchJobsProcessor;
@@ -39,6 +40,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 #[CoversClass(CharacterSyncFailure::class)]
 #[Group('issue-197')]
 #[Group('issue-362')]
+#[Group('issue-363')]
 final class MatchJobsProcessorTest extends TestCase
 {
     private const string PROJECT_ID = '0196f6a2-7c1e-7d3a-9b40-197000000001';
@@ -67,6 +69,8 @@ final class MatchJobsProcessorTest extends TestCase
     private string $projectIdInUrl = self::PROJECT_ID;
 
     private int $projectLookups = 0;
+
+    private array $refreshedLines = [];
 
     protected function setUp(): void
     {
@@ -245,8 +249,8 @@ final class MatchJobsProcessorTest extends TestCase
         $this->authenticatedUser = $this->admin;
 
         self::assertSame(
-            ['403 Only the project owner can perform this action', 0, []],
-            [$this->outcomeOfMatchJobs(), $this->matchEsiJobsCalls, $this->syncedCharacterNames],
+            ['403 Only the project owner can perform this action', 0, [], []],
+            [$this->outcomeOfMatchJobs(), $this->matchEsiJobsCalls, $this->syncedCharacterNames, $this->refreshedLines],
         );
     }
 
@@ -311,6 +315,7 @@ final class MatchJobsProcessorTest extends TestCase
             array_map(static fn (ProjectJobMatchResource $match): array => [$match->esiJobId, $match->runs, $match->bomLineId], $result->jobMatches),
         );
         self::assertSame(1_568_600.75, $result->jobsCost);
+        self::assertSame([[$ishtarLine->getId()->toRfc4122(), 1], [$ramLine->getId()->toRfc4122(), 1]], $this->refreshedLines);
     }
 
     private function rejectionOfMatchJobs(): HttpExceptionInterface
@@ -374,6 +379,11 @@ final class MatchJobsProcessorTest extends TestCase
             $this->matchEsiJobsCalls++;
         });
 
+        $derivedContributionService = $this->createStub(DerivedContributionService::class);
+        $derivedContributionService->method('refreshLine')->willReturnCallback(function (IndustryProjectBomLine $line): void {
+            $this->refreshedLines[] = [$line->getId()->toRfc4122(), $this->matchEsiJobsCalls];
+        });
+
         $participantRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $participantRepository->method('findOneBy')->willReturnCallback(
             fn (array $criteria): ?IndustryProjectParticipant => array_find(
@@ -391,6 +401,7 @@ final class MatchJobsProcessorTest extends TestCase
             $jobSyncService,
             new ProjectAccessChecker($participantRepository),
             $this->logger,
+            $derivedContributionService,
         );
 
         return $processor->process(null, new Post(), ['projectId' => $this->projectIdInUrl]);

@@ -118,30 +118,12 @@ beforeEach(() => {
 })
 
 describe('ContributeModal for a material without estimated price in the BOM', () => {
-  it('shows the estimated value field', async () => {
+  it('hides the estimated value field and sends no estimated value, the backend values the material from the Jita price of the deposit day', async () => {
     const wrapper = await openModalFor(MORPHITE_WITHOUT_PRICE)
 
-    expect(estimatedValueInput(wrapper), 'estimated value input').toBeDefined()
-  })
-
-  it('keeps the submit button disabled while the estimated value is zero or negative', async () => {
-    const wrapper = await openModalFor(MORPHITE_WITHOUT_PRICE)
-    const input = estimatedValueInput(wrapper)
-    expect(input, 'estimated value input').toBeDefined()
-
-    expect(submitButton(wrapper).element.disabled).toBe(true)
-    await input!.setValue(-150)
-    expect(submitButton(wrapper).element.disabled).toBe(true)
-    await input!.setValue(900)
+    expect(estimatedValueInput(wrapper)).toBeUndefined()
     expect(submitButton(wrapper).element.disabled).toBe(false)
-  })
 
-  it('sends the entered estimated value with the quantity', async () => {
-    const wrapper = await openModalFor(MORPHITE_WITHOUT_PRICE)
-    const input = estimatedValueInput(wrapper)
-    expect(input, 'estimated value input').toBeDefined()
-
-    await input!.setValue(900)
     await submitButton(wrapper).trigger('click')
     await flushPromises()
 
@@ -149,13 +131,12 @@ describe('ContributeModal for a material without estimated price in the BOM', ()
       type: 'material',
       bomItemId: 'bom-morphite',
       quantity: 40,
-      estimatedValue: 900,
     })
   })
 })
 
 describe('ContributeModal for a material with a BOM price', () => {
-  it('hides the estimated value field and sends no estimated value, the backend values it from the BOM price', async () => {
+  it('hides the estimated value field and sends no estimated value, the backend values it from the Jita price of the deposit day', async () => {
     const wrapper = await openModalFor(TRITANIUM_WITH_PRICE)
 
     expect(estimatedValueInput(wrapper)).toBeUndefined()
@@ -171,7 +152,7 @@ describe('ContributeModal for a material with a BOM price', () => {
     })
   })
 
-  it('sends no estimated value for a material whose BOM price is zero, a known price', async () => {
+  it('sends no estimated value for a material whose BOM price is zero', async () => {
     const wrapper = await openModalFor(ISOGEN_AT_ZERO_PRICE)
 
     expect(estimatedValueInput(wrapper)).toBeUndefined()

@@ -85,6 +85,45 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         );
     }
 
+    #[Group('issue-363')]
+    public function testApprovedValueIsUnknownForAProjectWhoseApprovedContributionHasAnUnknownValueNeverPartial(): void
+    {
+        $sabre = $this->createProject('Sabre batch');
+        $sabreOwner = $this->addMember($sabre, ParticipantRole::Owner);
+        $this->addContribution($sabreOwner, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
+        $this->addContribution($sabreOwner, ContributionType::JobInstall, null, ContributionStatus::Approved);
+        $jackdaw = $this->createProject('Jackdaw batch');
+        $jackdawOwner = $this->addMember($jackdaw, ParticipantRole::Owner);
+        $this->addContribution($jackdawOwner, ContributionType::Bpc, 857_500.0, ContributionStatus::Approved);
+        $this->addContribution($jackdawOwner, ContributionType::JobInstall, null, ContributionStatus::Pending);
+        $this->em->flush();
+
+        $expected = [(string) $sabre->getId() => null, (string) $jackdaw->getId() => 857_500.0];
+        ksort($expected);
+        $approvedValues = $this->repository->sumApprovedValueByProject([$sabre, $jackdaw]);
+        ksort($approvedValues);
+
+        self::assertSame($expected, $approvedValues);
+    }
+
+    #[Group('issue-363')]
+    public function testDuplicateLookupOfAMemberOnALineIgnoresTheDerivedContributionButSeesTheDeclaredOne(): void
+    {
+        $ishtar = $this->createProject('Ishtar fleet');
+        $owner = $this->addMember($ishtar, ParticipantRole::Owner);
+        $tritanium = $this->addBomLine($ishtar, 34, 'Tritanium', 1_000);
+        $this->addContributionOn($owner, $tritanium, ContributionStatus::Approved)->setIsAutoDetected(true)->setIsVerified(true);
+        $this->em->flush();
+        $statuses = [ContributionStatus::Pending, ContributionStatus::Approved];
+
+        self::assertNull($this->repository->findByMemberBomItemAndType($owner, $tritanium, ContributionType::Material, $statuses));
+
+        $declared = $this->addContributionOn($owner, $tritanium, ContributionStatus::Pending);
+        $this->em->flush();
+
+        self::assertSame($declared, $this->repository->findByMemberBomItemAndType($owner, $tritanium, ContributionType::Material, $statuses));
+    }
+
     public function testNoProjectGivesNoApprovedValue(): void
     {
         self::assertSame([], $this->repository->sumApprovedValueByProject([]));
@@ -171,20 +210,21 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         return $line;
     }
 
-    private function addContributionOn(IndustryProjectParticipant $member, IndustryProjectBomLine $line, ContributionStatus $status): void
+    private function addContributionOn(IndustryProjectParticipant $member, IndustryProjectBomLine $line, ContributionStatus $status): IndustryProjectContribution
     {
-        $member->getProject()->addContribution(
-            (new IndustryProjectContribution())
-                ->setMember($member)
-                ->setBomItem($line)
-                ->setType(ContributionType::Material)
-                ->setQuantity($line->getRequiredQuantity())
-                ->setEstimatedValue(0.0)
-                ->setStatus($status),
-        );
+        $contribution = (new IndustryProjectContribution())
+            ->setMember($member)
+            ->setBomItem($line)
+            ->setType(ContributionType::Material)
+            ->setQuantity($line->getRequiredQuantity())
+            ->setEstimatedValue(0.0)
+            ->setStatus($status);
+        $member->getProject()->addContribution($contribution);
+
+        return $contribution;
     }
 
-    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, ?float $estimatedValue, ContributionStatus $status): void
     {
         $member->getProject()->addContribution(
             (new IndustryProjectContribution())

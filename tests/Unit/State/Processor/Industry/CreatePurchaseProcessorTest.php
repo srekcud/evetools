@@ -25,6 +25,7 @@ use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(CreatePurchaseProcessor::class)]
 #[Group('issue-362')]
+#[Group('issue-363')]
 #[AllowMockObjectsWithoutExpectations]
 final class CreatePurchaseProcessorTest extends TestCase
 {
@@ -62,6 +63,7 @@ final class CreatePurchaseProcessorTest extends TestCase
             [$purchase->getTypeId(), $purchase->getQuantity(), $purchase->getUnitPrice(), $purchase->getTotalPrice(), $purchase->getSource(), $purchase->getTransaction(), $purchase->getBomLine()],
         );
         self::assertSame([50, 0], [$this->ramLine->getPurchasedQuantity(), $this->ramLine->getFulfilledQuantity()]);
+        self::assertSame([[$this->ramLine->getId()->toRfc4122(), 50, 0]], $this->refreshedLines);
         self::assertInstanceOf(ProjectPurchaseResource::class, $resource);
         self::assertSame(
             [$this->ramLine->getId()->toRfc4122(), self::RAM_TYPE_ID, 50, 152_025.0, 'esi_wallet'],
@@ -84,6 +86,7 @@ final class CreatePurchaseProcessorTest extends TestCase
             [$purchase->getTypeId(), $purchase->getQuantity(), $purchase->getTotalPrice(), $purchase->getSource(), $purchase->getTransaction()],
         );
         self::assertSame([2_500, 0], [$this->tritaniumLine->getPurchasedQuantity(), $this->tritaniumLine->getFulfilledQuantity()]);
+        self::assertSame([[$this->tritaniumLine->getId()->toRfc4122(), 2_500, 0]], $this->refreshedLines);
     }
 
     public function testWalletBuyAlreadyLinkedIsAConflictAndNoPurchaseIsCreated(): void
@@ -93,6 +96,7 @@ final class CreatePurchaseProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->tritaniumLine, $this->transactionInput(self::LINKED_TRITANIUM_BUY_UUID))),
         );
         self::assertSame([], $this->persistedEntities);
+        self::assertSame([], $this->refreshedLines);
     }
 
     public function testWalletBuyOfAnotherUserIsNotFoundAndNoPurchaseIsCreated(): void
@@ -102,6 +106,7 @@ final class CreatePurchaseProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::ADMIN_RAM_BUY_UUID))),
         );
         self::assertSame([], $this->persistedEntities);
+        self::assertSame([], $this->refreshedLines);
     }
 
     public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedAndNoPurchaseIsCreated(): void
@@ -111,6 +116,7 @@ final class CreatePurchaseProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->create($this->admin, $this->ishtarProject, $this->ramLine, $this->transactionInput(self::ADMIN_RAM_BUY_UUID))),
         );
         self::assertSame([], $this->persistedEntities);
+        self::assertSame([], $this->refreshedLines);
     }
 
     public function testLineOfAnotherProjectIsNotFoundAndNoPurchaseIsCreated(): void
@@ -120,6 +126,7 @@ final class CreatePurchaseProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->hecateTritaniumLine, $this->transactionInput(self::RAM_BUY_UUID))),
         );
         self::assertSame([], $this->persistedEntities);
+        self::assertSame([], $this->refreshedLines);
     }
 
     public function testIncompleteManualPurchaseIsABadRequest(): void
@@ -133,6 +140,7 @@ final class CreatePurchaseProcessorTest extends TestCase
             $this->outcomeOf(fn () => $this->create($this->owner, $this->ishtarProject, $this->tritaniumLine, $input)),
         );
         self::assertSame([], $this->persistedEntities);
+        self::assertSame([], $this->refreshedLines);
     }
 
     private function create(User $user, IndustryProject $project, IndustryProjectBomLine $line, CreatePurchaseInput $input): mixed
@@ -161,6 +169,7 @@ final class CreatePurchaseProcessorTest extends TestCase
             $purchaseRepository,
             $this->accessChecker(),
             $entityManager,
+            $this->derivedContributionService(),
         ))->process($input, new Post(), $this->lineUriVariables($project, $line));
     }
 

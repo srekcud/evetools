@@ -222,6 +222,25 @@ final class ProjectResourceMapperProjectTest extends TestCase
         self::assertSame(0.0, $this->resource()->approvedContributionValue);
     }
 
+    #[Group('issue-363')]
+    public function testApprovedContributionValueIsUnknownWhenAnApprovedContributionHasNoValueNeverPartial(): void
+    {
+        $brann = $this->acceptedMember();
+        $this->addContribution($this->ownerMembership, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
+        $this->addContribution($brann, ContributionType::JobInstall, null, ContributionStatus::Approved);
+
+        self::assertNull($this->resource()->approvedContributionValue);
+    }
+
+    #[Group('issue-363')]
+    public function testPendingContributionWithoutValueDoesNotMakeTheApprovedContributionValueUnknown(): void
+    {
+        $this->addContribution($this->ownerMembership, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
+        $this->addContribution($this->acceptedMember(), ContributionType::JobInstall, null, ContributionStatus::Pending);
+
+        self::assertSame(1_000_000.0, $this->resource()->approvedContributionValue);
+    }
+
     public function testPrecomputedApprovedContributionValueIsUsedAsIs(): void
     {
         $this->addContribution($this->ownerMembership, ContributionType::Material, 1_000_000.0, ContributionStatus::Approved);
@@ -314,7 +333,7 @@ final class ProjectResourceMapperProjectTest extends TestCase
         return $member;
     }
 
-    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, ?float $estimatedValue, ContributionStatus $status): void
     {
         $this->project->addContribution(
             (new IndustryProjectContribution())

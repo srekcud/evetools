@@ -21,6 +21,7 @@ use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ProjectContributionService;
+use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\SubmitContributionProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -42,10 +43,12 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(ProjectContributionService::class)]
 #[AllowMockObjectsWithoutExpectations]
 #[Group('issue-362')]
+#[Group('issue-363')]
 class SubmitSoloContributionProcessorTest extends TestCase
 {
     private const int ZYDRINE_TYPE_ID = 39;
     private const float ZYDRINE_BOM_PRICE = 1000.0;
+    private const float ZYDRINE_JITA_PRICE = 1062.5;
     private const string OWNER_PILOT_NAME = 'Ilsa Verhoeven';
 
     private EntityManagerInterface&MockObject $entityManager;
@@ -96,6 +99,9 @@ class SubmitSoloContributionProcessorTest extends TestCase
         $contributionRepository = $this->createStub(IndustryProjectContributionRepository::class);
         $contributionRepository->method('findByMemberBomItemAndType')->willReturn(null);
 
+        $jitaMarket = $this->createStub(JitaMarketService::class);
+        $jitaMarket->method('getCheapestPercentilePrices')->willReturn([self::ZYDRINE_TYPE_ID => self::ZYDRINE_JITA_PRICE]);
+
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->entityManager->method('persist')->willReturnCallback(
             function (object $entity): void {
@@ -112,7 +118,7 @@ class SubmitSoloContributionProcessorTest extends TestCase
             $projectRepository,
             $memberRepository,
             $bomItemRepository,
-            new ProjectContributionService($contributionRepository, $this->entityManager),
+            new ProjectContributionService($contributionRepository, $this->entityManager, $jitaMarket),
             new ProjectResourceMapper(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
         );
@@ -128,7 +134,7 @@ class SubmitSoloContributionProcessorTest extends TestCase
         $contribution = $this->persistedContribution;
         self::assertNotNull($contribution);
         self::assertSame(
-            ['material', 10, 10000.0, 'approved', self::OWNER_PILOT_NAME, 10],
+            ['material', 10, 10625.0, 'approved', self::OWNER_PILOT_NAME, 10],
             [
                 $resource->type,
                 $resource->quantity,
@@ -151,7 +157,7 @@ class SubmitSoloContributionProcessorTest extends TestCase
         $resource = $this->submitZydrine(10);
 
         self::assertSame(
-            ['pending', 10000.0, null, 0],
+            ['pending', 10625.0, null, 0],
             [
                 $resource->status,
                 $resource->estimatedValue,
@@ -171,7 +177,7 @@ class SubmitSoloContributionProcessorTest extends TestCase
         $resource = $this->submitZydrine(6);
 
         self::assertSame(
-            ['approved', 6000.0, 6],
+            ['approved', 6375.0, 6],
             [$resource->status, $resource->estimatedValue, $this->zydrine->getFulfilledQuantity()],
         );
     }

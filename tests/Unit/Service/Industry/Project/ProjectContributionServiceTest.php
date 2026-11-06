@@ -13,6 +13,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Service\Industry\Project\ProjectContributionService;
+use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -27,15 +28,21 @@ class ProjectContributionServiceTest extends TestCase
 {
     private const int TRITANIUM_TYPE_ID = 34;
     private const int MEXALLON_TYPE_ID = 36;
-    private const int ISOGEN_TYPE_ID = 37;
     private const int MORPHITE_TYPE_ID = 11399;
     private const float TRITANIUM_BOM_PRICE = 5.5;
+    private const float TRITANIUM_JITA_PRICE = 7.0;
+    private const float TRITANIUM_JITA_PRICE_LATER = 8.0;
     private const float MEXALLON_BOM_PRICE = 47.25;
-    private const float ISOGEN_BOM_PRICE = 0.0;
+    private const float MEXALLON_JITA_PRICE = 48.75;
+    private const float MORPHITE_JITA_PRICE = 531.25;
 
     private IndustryProjectContributionRepository&MockObject $contributionRepository;
     private EntityManagerInterface&MockObject $entityManager;
+    private JitaMarketService&MockObject $jitaMarket;
     private ProjectContributionService $service;
+
+    private array $jitaPrices = [];
+    private array $jitaLookups = [];
 
     private IndustryProject $project;
     private IndustryProjectParticipant $member;
@@ -47,9 +54,19 @@ class ProjectContributionServiceTest extends TestCase
         $this->contributionRepository = $this->createMock(IndustryProjectContributionRepository::class);
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
 
+        $this->jitaMarket = $this->createMock(JitaMarketService::class);
+        $this->jitaMarket->method('getCheapestPercentilePrices')->willReturnCallback(
+            function (array $typeIds, float $percentile = 0.05): array {
+                $this->jitaLookups[] = [$typeIds, $percentile];
+
+                return array_combine($typeIds, array_map(fn (int $typeId): ?float => $this->jitaPrices[$typeId] ?? null, $typeIds));
+            },
+        );
+
         $this->service = new ProjectContributionService(
             $this->contributionRepository,
             $this->entityManager,
+            $this->jitaMarket,
         );
 
         $this->project = new IndustryProject();
@@ -66,10 +83,11 @@ class ProjectContributionServiceTest extends TestCase
         $this->reviewer = $this->createMock(User::class);
     }
 
-    #[Group('issue-154')]
-    public function testSubmitMaterialIsValuedAtTheBomPriceOfItsLineTimesQuantity(): void
+    #[Group('issue-363')]
+    public function testSubmitMaterialIsValuedAtTheJitaPriceOfTheDepositDayTimesQuantityNotAtTheBomPrice(): void
     {
         $this->givenNoExistingContribution();
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE];
         $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
         $this->entityManager->expects($this->once())->method('persist');
         $this->entityManager->expects($this->once())->method('flush');
@@ -79,144 +97,123 @@ class ProjectContributionServiceTest extends TestCase
         $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
         $this->assertSame(ContributionType::Material, $contribution->getType());
         $this->assertSame(1000, $contribution->getQuantity());
-        $this->assertSame(5500.0, $contribution->getEstimatedValue());
+        $this->assertSame(7000.0, $contribution->getEstimatedValue());
         $this->assertFalse($contribution->isAutoDetected());
         $this->assertFalse($contribution->isVerified());
         $this->assertSame($this->project, $contribution->getProject());
         $this->assertSame($this->member, $contribution->getMember());
         $this->assertSame($tritanium, $contribution->getBomItem());
+        $this->assertSame([[[self::TRITANIUM_TYPE_ID], 0.05]], $this->jitaLookups);
     }
 
-    #[Group('issue-154')]
-    public function testTwoMembersBringingTheSameMaterialAtTwoDatesAreValuedAtTheSameBomPrice(): void
+    #[Group('issue-363')]
+    public function testTwoDepositsOfTheSameMaterialOnTwoDaysKeepTheirOwnJitaPrice(): void
     {
         $this->givenNoExistingContribution();
         $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
 
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE];
         $firstContribution = $this->service->submit($this->member, $tritanium, ContributionType::Material, 1000);
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE_LATER];
         $secondContribution = $this->service->submit($this->memberOfTheProject(), $tritanium, ContributionType::Material, 1000);
 
-        $this->assertSame(5500.0, $firstContribution->getEstimatedValue());
-        $this->assertSame(5500.0, $secondContribution->getEstimatedValue());
+        $this->assertSame(7000.0, $firstContribution->getEstimatedValue());
+        $this->assertSame(8000.0, $secondContribution->getEstimatedValue());
     }
 
-    #[Group('issue-154')]
-    public function testSubmitMaterialAtANonIntegerTotalKeepsTheBomPriceTimesQuantityUnrounded(): void
+    #[Group('issue-363')]
+    public function testSubmitMaterialAtANonIntegerTotalKeepsTheJitaPriceTimesQuantityUnrounded(): void
     {
         $this->givenNoExistingContribution();
+        $this->jitaPrices = [self::MEXALLON_TYPE_ID => self::MEXALLON_JITA_PRICE];
         $mexallon = $this->materialLine(self::MEXALLON_TYPE_ID, 'Mexallon', self::MEXALLON_BOM_PRICE);
 
         $contribution = $this->service->submit($this->member, $mexallon, ContributionType::Material, 33);
 
-        $this->assertSame(1559.25, $contribution->getEstimatedValue());
+        $this->assertSame(1608.75, $contribution->getEstimatedValue());
     }
 
-    #[Group('issue-154')]
-    public function testSubmitMaterialWithAnExplicitNullValueOnALineWithABomPriceIsValuedAtItsBomPrice(): void
+    #[Group('issue-363')]
+    public function testMaterialValueStaysFrozenWhenTheJitaPriceChangesBeforeItIsApproved(): void
     {
         $this->givenNoExistingContribution();
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE];
         $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
-        $this->entityManager->expects($this->once())->method('persist');
+        $contribution = $this->service->submit($this->member, $tritanium, ContributionType::Material, 1000);
 
-        $contribution = $this->service->submit($this->member, $tritanium, ContributionType::Material, 200, estimatedValue: null);
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE_LATER];
+        $this->service->approve($contribution, $this->reviewer);
 
-        $this->assertSame(1100.0, $contribution->getEstimatedValue());
+        $this->assertSame(ContributionStatus::Approved, $contribution->getStatus());
+        $this->assertSame(7000.0, $contribution->getEstimatedValue());
+        $this->assertSame(1000, $tritanium->getFulfilledQuantity());
+        $this->assertCount(1, $this->jitaLookups);
     }
 
-    #[Group('issue-154')]
-    public function testSubmitMaterialAtABomPriceOfZeroIsAKnownPriceValuedAtZero(): void
+    #[Group('issue-363')]
+    public function testSubmitMaterialKeepsTheNoteAndIgnoresTheBomPriceOfAMoreExpensiveLine(): void
     {
         $this->givenNoExistingContribution();
-        $isogen = $this->materialLine(self::ISOGEN_TYPE_ID, 'Isogen', self::ISOGEN_BOM_PRICE);
-        $this->entityManager->expects($this->once())->method('persist');
-        $this->entityManager->expects($this->once())->method('flush');
+        $this->jitaPrices = [self::MORPHITE_TYPE_ID => self::MORPHITE_JITA_PRICE];
 
-        $contribution = $this->service->submit($this->member, $isogen, ContributionType::Material, 300);
+        $contribution = $this->service->submit(
+            $this->member,
+            $this->morphiteBomItem(),
+            ContributionType::Material,
+            40,
+            note: 'Bought last night',
+        );
 
-        $this->assertSame(300, $contribution->getQuantity());
-        $this->assertSame(0.0, $contribution->getEstimatedValue());
+        $this->assertSame(21_250.0, $contribution->getEstimatedValue());
+        $this->assertSame('Bought last night', $contribution->getNote());
     }
 
-    public static function valueSentForAMaterialWithABomPriceProvider(): iterable
+    public static function valueSentForAMaterialProvider(): iterable
     {
-        yield 'E3 a value of its own' => [9999.99];
-        yield 'E3b the value calculated from the BOM price' => [5500.0];
-        yield 'a value of zero' => [0.0];
+        yield 'E2 the value of the Jita price' => [7000.0];
+        yield 'E2 a value of its own' => [9999.99];
+        yield 'E2 a value of zero' => [0.0];
     }
 
-    #[Group('issue-154')]
-    #[DataProvider('valueSentForAMaterialWithABomPriceProvider')]
-    public function testSubmitMaterialWithAValueOnALineWithABomPriceIsRefusedAndNothingIsPersisted(float $valueSent): void
+    #[Group('issue-363')]
+    #[DataProvider('valueSentForAMaterialProvider')]
+    public function testSubmitMaterialWithAnEnteredValueIsRefusedAndNothingIsPersisted(float $valueSent): void
     {
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE];
         $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
 
         $refusal = $this->refusalOf($tritanium, ContributionType::Material, 1000, $valueSent);
 
-        $this->assertSame('Type 34 has a BOM price: a material contribution is valued from it.', $refusal->getMessage());
+        $this->assertSame('A material contribution takes no entered value: it is valued at the Jita price of the deposit day.', $refusal->getMessage());
     }
 
-    #[Group('issue-154')]
-    public function testSubmitMaterialWithAZeroValueOnALineWithABomPriceOfZeroIsRefusedAndNothingIsPersisted(): void
+    public static function missingJitaPriceProvider(): iterable
     {
-        $isogen = $this->materialLine(self::ISOGEN_TYPE_ID, 'Isogen', self::ISOGEN_BOM_PRICE);
-
-        $refusal = $this->refusalOf($isogen, ContributionType::Material, 300, 0.0);
-
-        $this->assertSame('Type 37 has a BOM price: a material contribution is valued from it.', $refusal->getMessage());
+        yield 'E3 no order for the type' => [null];
+        yield 'a Jita price of zero' => [0.0];
+        yield 'a negative Jita price' => [-2.5];
     }
 
-    public static function positiveValueEnteredWithoutBomPriceProvider(): iterable
+    #[Group('issue-363')]
+    #[DataProvider('missingJitaPriceProvider')]
+    public function testSubmitMaterialWithoutAJitaPriceIsRefusedAndNothingIsPersisted(?float $jitaPrice): void
     {
-        yield 'E5 nine hundred ISK' => [900.0];
-        yield 'one hundredth of an ISK' => [0.01];
+        $this->jitaPrices = [self::MORPHITE_TYPE_ID => $jitaPrice];
+
+        $refusal = $this->refusalOf($this->morphiteBomItem(), ContributionType::Material, 100, null);
+
+        $this->assertSame('No market price for type 11399: no Jita price for the deposit day.', $refusal->getMessage());
     }
 
-    #[Group('issue-154')]
-    #[DataProvider('positiveValueEnteredWithoutBomPriceProvider')]
-    public function testSubmitMaterialWithoutBomPriceIsRecordedAtTheEnteredValue(float $enteredValue): void
+    #[Group('issue-363')]
+    public function testSubmitMaterialWithoutAJitaPriceFallsBackOnNeitherTheBomPriceNorTheEnteredValue(): void
     {
-        $this->givenNoExistingContribution();
-        $this->entityManager->expects($this->once())->method('persist');
-        $this->entityManager->expects($this->once())->method('flush');
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => null];
+        $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
 
-        $contribution = $this->service->submit($this->member, $this->morphiteBomItem(), ContributionType::Material, 100, estimatedValue: $enteredValue);
+        $refusal = $this->refusalOf($tritanium, ContributionType::Material, 1000, null);
 
-        $this->assertSame(100, $contribution->getQuantity());
-        $this->assertSame($enteredValue, $contribution->getEstimatedValue());
-    }
-
-    #[Group('issue-154')]
-    public function testSubmitMaterialWithoutBomPriceKeepsTheEnteredValueAndTheNote(): void
-    {
-        $this->givenNoExistingContribution();
-
-        $contribution = $this->service->submit(
-            $this->member,
-            $this->bomItem,
-            ContributionType::Material,
-            1000,
-            estimatedValue: 9999.99,
-            note: 'Manual override',
-        );
-
-        $this->assertSame(9999.99, $contribution->getEstimatedValue());
-        $this->assertSame('Manual override', $contribution->getNote());
-    }
-
-    public static function missingOrNotPositiveValueWithoutBomPriceProvider(): iterable
-    {
-        yield 'E6 no value' => [null];
-        yield 'E7 a value of zero' => [0.0];
-        yield 'a negative value' => [-50.0];
-    }
-
-    #[Group('issue-154')]
-    #[DataProvider('missingOrNotPositiveValueWithoutBomPriceProvider')]
-    public function testSubmitMaterialWithoutBomPriceNorPositiveEnteredValueIsRefusedAndNothingIsPersisted(?float $enteredValue): void
-    {
-        $refusal = $this->refusalOf($this->morphiteBomItem(), ContributionType::Material, 100, $enteredValue);
-
-        $this->assertSame('No market price for type 11399: enter an estimated value.', $refusal->getMessage());
+        $this->assertSame('No market price for type 34: no Jita price for the deposit day.', $refusal->getMessage());
     }
 
     public static function contributionOtherThanMaterialProvider(): iterable
@@ -226,9 +223,9 @@ class ProjectContributionServiceTest extends TestCase
         yield 'free line rental' => [ContributionType::LineRental, 3, 0.0];
     }
 
-    #[Group('issue-154')]
+    #[Group('issue-363')]
     #[DataProvider('contributionOtherThanMaterialProvider')]
-    public function testContributionOtherThanMaterialOnALineWithABomPriceKeepsItsEnteredValue(ContributionType $type, int $quantity, float $enteredValue): void
+    public function testContributionOtherThanMaterialKeepsItsEnteredValueWithoutReadingAJitaPrice(ContributionType $type, int $quantity, float $enteredValue): void
     {
         $this->givenNoExistingContribution();
         $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
@@ -238,6 +235,10 @@ class ProjectContributionServiceTest extends TestCase
 
         $this->assertSame($type, $contribution->getType());
         $this->assertSame($enteredValue, $contribution->getEstimatedValue());
+        $this->assertFalse($contribution->isAutoDetected());
+        $this->assertFalse($contribution->isVerified());
+        $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
+        $this->assertSame([], $this->jitaLookups);
     }
 
     public function testSubmitBpcIsRecordedAtItsEnteredValue(): void
@@ -298,9 +299,11 @@ class ProjectContributionServiceTest extends TestCase
         );
     }
 
-    public function testSubmitMaterialAfterARejectionIsRecordedAtItsBomPrice(): void
+    #[Group('issue-363')]
+    public function testSubmitMaterialAfterARejectionIsRecordedAtTheJitaPrice(): void
     {
         $this->givenNoExistingContribution();
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => self::TRITANIUM_JITA_PRICE];
         $tritanium = $this->materialLine(self::TRITANIUM_TYPE_ID, 'Tritanium', self::TRITANIUM_BOM_PRICE);
         $this->entityManager->expects($this->once())->method('persist');
         $this->entityManager->expects($this->once())->method('flush');
@@ -308,7 +311,7 @@ class ProjectContributionServiceTest extends TestCase
         $contribution = $this->service->submit($this->member, $tritanium, ContributionType::Material, 500);
 
         $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
-        $this->assertSame(2750.0, $contribution->getEstimatedValue());
+        $this->assertSame(3500.0, $contribution->getEstimatedValue());
     }
 
     public function testApproveChangeStatusAndIncrementsFulfillment(): void
@@ -405,9 +408,24 @@ class ProjectContributionServiceTest extends TestCase
         $this->assertSubmissionIsRefused(ContributionType::JobInstall, 1, null);
     }
 
-    public function testSubmitJobInstallWithAnEnteredZeroValueIsRefusedAndNothingIsPersisted(): void
+    #[Group('issue-363')]
+    public function testSubmitJobInstallWithAnEnteredZeroValueIsRefusedThenRecordedAtFiveThousandOnceCorrected(): void
     {
-        $this->assertSubmissionIsRefused(ContributionType::JobInstall, 1, 0.0);
+        $this->givenNoExistingContribution();
+        $this->entityManager->expects($this->once())->method('persist');
+
+        try {
+            $this->service->submit($this->member, $this->bomItem, ContributionType::JobInstall, 1, 0.0);
+            $this->fail('The contribution was recorded');
+        } catch (\DomainException $refusal) {
+            $this->assertSame('The estimated value of a job_install contribution must be positive.', $refusal->getMessage());
+        }
+
+        $contribution = $this->service->submit($this->member, $this->bomItem, ContributionType::JobInstall, 1, 5000.0);
+
+        $this->assertSame(ContributionStatus::Pending, $contribution->getStatus());
+        $this->assertSame(5000.0, $contribution->getEstimatedValue());
+        $this->assertFalse($contribution->isVerified());
     }
 
     public function testSubmitJobInstallWithAnEnteredValueIsRecordedAtThatValueAndPending(): void

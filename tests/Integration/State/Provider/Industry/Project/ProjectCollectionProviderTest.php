@@ -187,6 +187,23 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
         self::assertSame(0.0, $jackdaw->approvedContributionValue);
     }
 
+    #[Group('issue-363')]
+    public function testProjectWithAnApprovedContributionWithoutValueHasAnUnknownApprovedContributionValueInsteadOfAPartialSum(): void
+    {
+        $sabre = $this->em->find(IndustryProject::class, $this->sabreProjectId);
+        \assert($sabre instanceof IndustryProject);
+        $owner = $sabre->getMembers()->filter(static fn (IndustryProjectParticipant $member): bool => $member->getRole() === ParticipantRole::Owner)->first();
+        \assert($owner instanceof IndustryProjectParticipant);
+        $this->addContribution($owner, ContributionType::JobInstall, null, ContributionStatus::Approved);
+        $this->em->flush();
+        $this->em->clear();
+
+        $projects = $this->listedProjectsById();
+
+        self::assertNull($projects[$this->sabreProjectId]->approvedContributionValue);
+        self::assertSame(0.0, $projects[$this->jackdawProjectId]->approvedContributionValue);
+    }
+
     public function testIshtarProjectOwnedByTheUserWithoutBom(): void
     {
         $ishtar = $this->listedProjectsById()[$this->ishtarProjectId];
@@ -388,7 +405,7 @@ final class ProjectCollectionProviderTest extends IntegrationTestCase
         return $member;
     }
 
-    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, float $estimatedValue, ContributionStatus $status): void
+    private function addContribution(IndustryProjectParticipant $member, ContributionType $type, ?float $estimatedValue, ContributionStatus $status): void
     {
         $member->getProject()->addContribution(
             (new IndustryProjectContribution())
