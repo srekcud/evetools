@@ -24,7 +24,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PROJECT_ID = 'project-sabre-batch'
-const SALES_PATH = `/group-industry/projects/${PROJECT_ID}/sales`
+const SALES_PATH = `/industry/projects/${PROJECT_ID}/sales`
 
 const SABRE_BATCH: GroupProject = {
   id: PROJECT_ID,
@@ -47,6 +47,10 @@ const SABRE_BATCH: GroupProject = {
   createdAt: '2026-10-19T12:00:00+00:00',
   myRole: 'owner',
   myStatus: 'accepted',
+  private: false,
+  notes: null,
+  acceptsOutsideFavoriteSystem: false,
+  minimumOutsideSaving: 5,
 }
 
 function i18n() {

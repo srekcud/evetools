@@ -24,7 +24,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PROJECT_ID = 'project-sabre-batch'
-const PROJECT_PATH = `/group-industry/projects/${PROJECT_ID}`
+const PROJECT_PATH = `/industry/projects/${PROJECT_ID}`
 const FEES_UNKNOWN_HINT_KEY = 'groupIndustry.detail.editFields.feesUnknownHint'
 const TYPED_BROKER_FEE_PERCENT = 2.5
 
@@ -49,6 +49,10 @@ const SABRE_BATCH_WITHOUT_SELLER_FEES: GroupProject = {
   createdAt: '2026-10-19T12:00:00+00:00',
   myRole: 'owner',
   myStatus: 'accepted',
+  private: false,
+  notes: null,
+  acceptsOutsideFavoriteSystem: false,
+  minimumOutsideSaving: 5,
 }
 
 async function openEditModal(): Promise<VueWrapper> {

@@ -63,7 +63,7 @@ const CORRECTED_SABRE_SALE: GroupSale = { ...SABRE_SALE, unitPrice: 950_000, tot
 const SALE_DATE_VIOLATION = 'soldAt: This value is not a valid datetime.'
 
 function sabreSalePath(): string {
-  return `/group-industry/projects/${SABRE_BATCH_ID}/sales/${SABRE_SALE.id}`
+  return `/industry/projects/${SABRE_BATCH_ID}/sales/${SABRE_SALE.id}`
 }
 
 function storeHolding(sales: GroupSale[]): ReturnType<typeof useGroupDistributionStore> {
@@ -85,7 +85,7 @@ describe('group distribution store sales changes', () => {
 
     await store.recordSale(SABRE_BATCH_ID, input)
 
-    expect(apiRequest).toHaveBeenCalledWith(`/group-industry/projects/${SABRE_BATCH_ID}/sales`, {
+    expect(apiRequest).toHaveBeenCalledWith(`/industry/projects/${SABRE_BATCH_ID}/sales`, {
       method: 'POST',
       body: JSON.stringify(input),
     })

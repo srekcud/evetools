@@ -45,6 +45,10 @@ function bomLine(material: Material): BomItem {
     teLevel: null,
     runs: null,
     isFulfilled: false,
+    jobMatches: [],
+    matchedRuns: 0,
+    purchases: [],
+    purchasedQuantity: 0,
   }
 }
 
@@ -87,6 +91,10 @@ function hullRunProject(): GroupProject {
     createdAt: '2026-10-28T08:00:00+00:00',
     myRole: 'owner',
     myStatus: 'accepted',
+    private: false,
+    notes: null,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 5,
   }
 }
 

@@ -1,23 +1,23 @@
-import { nextProjectStatus } from '@/views/GroupIndustry/nextProjectStatus'
+import { nextProjectStatuses } from '@/views/GroupIndustry/nextProjectStatus'
 
-describe('nextProjectStatus', () => {
+describe('nextProjectStatuses', () => {
+  it('offers publishing or starting a draft project', () => {
+    expect(nextProjectStatuses('draft')).toEqual(['published', 'in_progress'])
+  })
+
   it('moves a published project to in progress', () => {
-    expect(nextProjectStatus('published')).toBe('in_progress')
+    expect(nextProjectStatuses('published')).toEqual(['in_progress'])
   })
 
   it('moves an in progress project to selling', () => {
-    expect(nextProjectStatus('in_progress')).toBe('selling')
+    expect(nextProjectStatuses('in_progress')).toEqual(['selling'])
   })
 
   it('moves a selling project to completed', () => {
-    expect(nextProjectStatus('selling')).toBe('completed')
+    expect(nextProjectStatuses('selling')).toEqual(['completed'])
   })
 
   it('has no next status for a completed project', () => {
-    expect(nextProjectStatus('completed')).toBeNull()
-  })
-
-  it('has no next status for a draft project', () => {
-    expect(nextProjectStatus('draft')).toBeNull()
+    expect(nextProjectStatuses('completed')).toEqual([])
   })
 })

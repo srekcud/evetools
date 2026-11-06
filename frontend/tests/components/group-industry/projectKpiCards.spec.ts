@@ -27,6 +27,10 @@ function groupProject(overrides: Partial<GroupProject>): GroupProject {
     createdAt: '2026-10-20T18:30:00+00:00',
     myRole: 'member',
     myStatus: 'accepted',
+    private: false,
+    notes: null,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 5,
     ...overrides,
   }
 }

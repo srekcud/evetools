@@ -224,6 +224,10 @@ const GROUP_PROJECT: GroupProject = {
   createdAt: '2026-10-24T09:00:00+00:00',
   myRole: 'owner',
   myStatus: 'accepted',
+  private: false,
+  notes: null,
+  acceptsOutsideFavoriteSystem: false,
+  minimumOutsideSaving: 5,
 }
 
 const shoppingTabWithClearStockModalOpen = defineComponent({

@@ -19,7 +19,7 @@ type PendingResponse = {
 
 const SABRE_BATCH_ID = 'project-sabre-batch'
 const HECATE_BATCH_ID = 'project-hecate-batch'
-const LINE_RENTAL_RATES_PATH = '/group-industry/line-rental-rates'
+const LINE_RENTAL_RATES_PATH = '/industry/line-rental-rates'
 
 const SABRE_BATCH_SALES: GroupSale[] = [
   {
@@ -122,15 +122,15 @@ const NOTHING_HELD = { distribution: null, sales: [], members: [], lineRentalRat
 let pendingResponses: Record<string, PendingResponse[]> = {}
 
 function distributionPath(projectId: string): string {
-  return `/group-industry/projects/${projectId}/distribution`
+  return `/industry/projects/${projectId}/distribution`
 }
 
 function salesPath(projectId: string): string {
-  return `/group-industry/projects/${projectId}/sales`
+  return `/industry/projects/${projectId}/sales`
 }
 
 function membersPath(projectId: string): string {
-  return `/group-industry/projects/${projectId}/members`
+  return `/industry/projects/${projectId}/members`
 }
 
 function nextPendingResponse(endpoint: string): PendingResponse {
