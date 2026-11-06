@@ -43,7 +43,7 @@ class ProjectDistributionResource
 
     public ?float $netRevenue;
 
-    public float $totalProjectCost;
+    public ?float $totalProjectCost;
 
     public ?float $marginPercent;
 
@@ -51,11 +51,11 @@ class ProjectDistributionResource
      * @var list<array{
      *     memberId: string,
      *     characterName: string|null,
-     *     totalCostsEngaged: float,
-     *     materialCosts: float,
-     *     jobInstallCosts: float,
-     *     bpcCosts: float,
-     *     lineRentalCosts: float,
+     *     totalCostsEngaged: float|null,
+     *     materialCosts: float|null,
+     *     jobInstallCosts: float|null,
+     *     bpcCosts: float|null,
+     *     lineRentalCosts: float|null,
      *     sharePercent: float|null,
      *     profitPart: float|null,
      *     payoutTotal: float|null,

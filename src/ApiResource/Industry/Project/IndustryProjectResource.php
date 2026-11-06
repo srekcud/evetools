@@ -141,7 +141,7 @@ class IndustryProjectResource
 
     public float $fulfillmentPercent = 0.0;
 
-    public float $approvedContributionValue = 0.0;
+    public ?float $approvedContributionValue = 0.0;
 
     public ?float $brokerFeePercent = null;
 

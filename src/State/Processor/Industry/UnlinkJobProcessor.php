@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectJobMatchResource;
 use App\Repository\IndustryProjectJobMatchRepository;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\UuidOrNotFound;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -20,6 +21,7 @@ class UnlinkJobProcessor implements ProcessorInterface
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly IndustryProjectJobMatchRepository $matchRepository,
+        private readonly DerivedContributionService $derivedContributionService,
     ) {
     }
 
@@ -31,8 +33,10 @@ class UnlinkJobProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Job match not found');
         }
 
-        $match->getBomLine()->getJobMatches()->removeElement($match);
+        $line = $match->getBomLine();
+        $line->getJobMatches()->removeElement($match);
         $this->entityManager->remove($match);
+        $this->derivedContributionService->refreshLine($line);
         $this->entityManager->flush();
     }
 }

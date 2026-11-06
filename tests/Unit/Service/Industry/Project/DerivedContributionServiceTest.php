@@ -178,14 +178,14 @@ final class DerivedContributionServiceTest extends TestCase
         $manual = $this->givenAManualMaterialContributionOfTheOwnerServingTheTritaniumLine();
         $purchase = $this->linkPurchase($this->tritaniumLine, self::TRITANIUM_TYPE_ID, 400, 6.5, 'esi_wallet');
         $this->service->refreshLine($this->tritaniumLine);
-        $this->singleDerivedContributionOf($this->tritaniumLine);
+        $derived = $this->singleDerivedContributionOf($this->tritaniumLine);
 
         $this->tritaniumLine->getPurchases()->removeElement($purchase);
         $this->service->refreshLine($this->tritaniumLine);
 
         $this->assertSame([$manual], $this->project->getContributions()->toArray());
         $this->assertSame([ContributionStatus::Approved, false, 900.0], [$manual->getStatus(), $manual->isAutoDetected(), $manual->getEstimatedValue()]);
-        $this->assertSame([], $this->removedContributions);
+        $this->assertSame([$derived], $this->removedContributions);
     }
 
     public function testPurchaseOfAnotherTypeMakesNoDerivedContributionAndChangesNothing(): void

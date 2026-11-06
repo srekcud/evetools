@@ -33,12 +33,9 @@ class ProjectDistributionService
         $netRevenue = $feesAreKnown ? $totalRevenue - $brokerFee - $salesTax : null;
 
         $approvedContributions = $this->contributionRepository->findApprovedByProject($project);
-        $totalProjectCost = array_sum(array_map(
-            static fn (IndustryProjectContribution $c) => $c->getEstimatedValue(),
-            $approvedContributions,
-        ));
+        $totalProjectCost = $this->sumOfValues(...$approvedContributions);
 
-        $marginRatio = $netRevenue !== null && $totalProjectCost > 0
+        $marginRatio = $netRevenue !== null && $totalProjectCost !== null && $totalProjectCost > 0
             ? ($netRevenue - $totalProjectCost) / $totalProjectCost
             : null;
 
@@ -59,7 +56,7 @@ class ProjectDistributionService
      * @param IndustryProjectContribution[] $contributions
      * @return ParticipantDistribution[]
      */
-    private function buildMemberDistributions(array $contributions, float $totalProjectCost, ?float $marginRatio): array
+    private function buildMemberDistributions(array $contributions, ?float $totalProjectCost, ?float $marginRatio): array
     {
         /** @var array<string, array{contributions: IndustryProjectContribution[], member: \App\Entity\IndustryProjectParticipant}> $grouped */
         $grouped = [];
@@ -84,29 +81,21 @@ class ProjectDistributionService
             $member = $data['member'];
             $memberContributions = $data['contributions'];
 
-            $totalCosts = 0.0;
-            $materialCosts = 0.0;
-            $jobInstallCosts = 0.0;
-            $bpcCosts = 0.0;
-            $lineRentalCosts = 0.0;
+            $costOfType = fn (ContributionType $type): ?float => $this->sumOfValues(...array_filter(
+                $memberContributions,
+                static fn (IndustryProjectContribution $contribution): bool => $contribution->getType() === $type,
+            ));
+            $totalCosts = $this->sumOfValues(...$memberContributions);
+            $materialCosts = $costOfType(ContributionType::Material);
+            $jobInstallCosts = $costOfType(ContributionType::JobInstall);
+            $bpcCosts = $costOfType(ContributionType::Bpc);
+            $lineRentalCosts = $costOfType(ContributionType::LineRental);
 
-            foreach ($memberContributions as $contribution) {
-                $value = $contribution->getEstimatedValue();
-                $totalCosts += $value;
-
-                match ($contribution->getType()) {
-                    ContributionType::Material => $materialCosts += $value,
-                    ContributionType::JobInstall => $jobInstallCosts += $value,
-                    ContributionType::Bpc => $bpcCosts += $value,
-                    ContributionType::LineRental => $lineRentalCosts += $value,
-                };
-            }
-
-            $sharePercent = $totalProjectCost > 0
+            $sharePercent = $totalCosts !== null && $totalProjectCost !== null && $totalProjectCost > 0
                 ? $totalCosts / $totalProjectCost * 100
                 : null;
 
-            $profitPart = $marginRatio === null ? null : $totalCosts * $marginRatio;
+            $profitPart = $totalCosts === null || $marginRatio === null ? null : $totalCosts * $marginRatio;
             $payoutTotal = $profitPart === null ? null : $totalCosts + $profitPart;
 
             $characterName = PilotName::of($member->getUser());
@@ -126,5 +115,22 @@ class ProjectDistributionService
         }
 
         return $result;
+    }
+
+    private function sumOfValues(IndustryProjectContribution ...$contributions): ?float
+    {
+        $sum = 0.0;
+
+        foreach ($contributions as $contribution) {
+            $value = $contribution->getEstimatedValue();
+
+            if ($value === null) {
+                return null;
+            }
+
+            $sum += $value;
+        }
+
+        return $sum;
     }
 }

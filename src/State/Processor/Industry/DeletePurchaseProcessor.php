@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\ProjectPurchaseResource;
 use App\Repository\IndustryProjectPurchaseRepository;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\UuidOrNotFound;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -20,6 +21,7 @@ class DeletePurchaseProcessor implements ProcessorInterface
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly IndustryProjectPurchaseRepository $purchaseRepository,
+        private readonly DerivedContributionService $derivedContributionService,
     ) {
     }
 
@@ -31,8 +33,10 @@ class DeletePurchaseProcessor implements ProcessorInterface
             throw new NotFoundHttpException('Purchase not found');
         }
 
-        $purchase->getBomLine()->getPurchases()->removeElement($purchase);
+        $line = $purchase->getBomLine();
+        $line->getPurchases()->removeElement($purchase);
         $this->entityManager->remove($purchase);
+        $this->derivedContributionService->refreshLine($line);
         $this->entityManager->flush();
     }
 }

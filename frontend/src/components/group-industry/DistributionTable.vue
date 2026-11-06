@@ -2,6 +2,7 @@
 import DataTable from '@/components/common/DataTable.vue'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
@@ -53,7 +54,9 @@ const ringSegments = computed(() => {
 })
 
 // Totals
-const totalCosts = computed(() => dist.value?.totalProjectCost ?? 0)
+const totalCosts = computed(() => dist.value?.totalProjectCost ?? null)
+
+const isContributionValueUnknown = computed(() => dist.value?.totalProjectCost === null)
 
 function sumOrUnknown(values: (number | null)[]): number | null {
   let sum = 0
@@ -99,7 +102,13 @@ const BREAKDOWN_COLORS: Record<string, string> = {
   <div v-if="dist">
     <h2 class="text-lg font-semibold text-slate-100 mb-4">Profit Distribution</h2>
     <div
-      v-if="isUndistributable"
+      v-if="isContributionValueUnknown"
+      class="bg-violet-500/5 rounded-xl border border-dashed border-violet-400/40 p-4 mb-4 text-sm text-violet-300"
+    >
+      {{ t('groupIndustry.distribution.unknownContributionValue') }}
+    </div>
+    <div
+      v-else-if="isUndistributable"
       class="bg-amber-500/5 rounded-xl border border-amber-500/20 p-4 mb-4 text-sm text-amber-300"
     >
       {{ t('groupIndustry.distribution.undistributable') }}
@@ -200,7 +209,8 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                     </div>
                   </td>
                   <td class="py-3.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                    {{ formatIsk(member.totalCostsEngaged) }}
+                    <UnknownContributionValue v-if="member.totalCostsEngaged === null" />
+                    <template v-else>{{ formatIsk(member.totalCostsEngaged) }}</template>
                   </td>
                   <td class="py-3.5 px-3 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">
                     <UnknownValue v-if="member.sharePercent === null" />
@@ -226,40 +236,44 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                 <tr v-if="isExpanded(member.memberId)" class="bg-slate-800/20">
                   <td colspan="5" class="px-6 py-3">
                     <div class="ml-10 space-y-1.5 text-xs">
-                      <div v-if="member.materialCosts > 0" class="flex items-center justify-between">
+                      <div v-if="member.materialCosts === null || member.materialCosts > 0" class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                           <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.material"></span>
                           <span class="text-slate-400">Materials</span>
                         </div>
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                          {{ formatIsk(member.materialCosts) }}
+                          <UnknownContributionValue v-if="member.materialCosts === null" />
+                          <template v-else>{{ formatIsk(member.materialCosts) }}</template>
                         </span>
                       </div>
-                      <div v-if="member.jobInstallCosts > 0" class="flex items-center justify-between">
+                      <div v-if="member.jobInstallCosts === null || member.jobInstallCosts > 0" class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                           <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.job_install"></span>
                           <span class="text-slate-400">Job Install</span>
                         </div>
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                          {{ formatIsk(member.jobInstallCosts) }}
+                          <UnknownContributionValue v-if="member.jobInstallCosts === null" />
+                          <template v-else>{{ formatIsk(member.jobInstallCosts) }}</template>
                         </span>
                       </div>
-                      <div v-if="member.bpcCosts > 0" class="flex items-center justify-between">
+                      <div v-if="member.bpcCosts === null || member.bpcCosts > 0" class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                           <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.bpc"></span>
                           <span class="text-slate-400">BPC</span>
                         </div>
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                          {{ formatIsk(member.bpcCosts) }}
+                          <UnknownContributionValue v-if="member.bpcCosts === null" />
+                          <template v-else>{{ formatIsk(member.bpcCosts) }}</template>
                         </span>
                       </div>
-                      <div v-if="member.lineRentalCosts > 0" class="flex items-center justify-between">
+                      <div v-if="member.lineRentalCosts === null || member.lineRentalCosts > 0" class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                           <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.line_rental"></span>
                           <span class="text-slate-400">Line Rental</span>
                         </div>
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
-                          {{ formatIsk(member.lineRentalCosts) }}
+                          <UnknownContributionValue v-if="member.lineRentalCosts === null" />
+                          <template v-else>{{ formatIsk(member.lineRentalCosts) }}</template>
                         </span>
                       </div>
                     </div>
@@ -270,7 +284,8 @@ const BREAKDOWN_COLORS: Record<string, string> = {
               <tr class="bg-slate-800/30 border-t-2 border-slate-700">
                 <td class="py-3.5 px-6 text-slate-200 font-semibold">{{ t('common.status.total') }}</td>
                 <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
-                  {{ formatIsk(totalCosts) }}
+                  <UnknownContributionValue v-if="totalCosts === null" />
+                  <template v-else>{{ formatIsk(totalCosts) }}</template>
                 </td>
                 <td class="py-3.5 px-3 text-right font-mono font-semibold text-slate-200" style="font-variant-numeric: tabular-nums;">
                   <UnknownValue v-if="isUndistributable" />

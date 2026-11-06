@@ -13,6 +13,7 @@ use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
 use App\Service\UuidOrNotFound;
@@ -34,6 +35,7 @@ class MatchJobsProcessor implements ProcessorInterface
         private readonly IndustryJobSyncService $jobSyncService,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly LoggerInterface $logger,
+        private readonly DerivedContributionService $derivedContributionService,
     ) {
     }
 
@@ -73,6 +75,12 @@ class MatchJobsProcessor implements ProcessorInterface
         }
 
         $this->jobMatcher->matchEsiJobs($project);
+
+        foreach ($project->getBomItems() as $line) {
+            if ($line->isManufacturingOrReactionJob()) {
+                $this->derivedContributionService->refreshLine($line);
+            }
+        }
 
         $result = new MatchJobsResultResource();
         $jobMatches = $this->jobMatchesOf($project);

@@ -11,13 +11,17 @@ use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
 class ProjectContributionService
 {
+    private const float DEPOSIT_DAY_PERCENTILE = 0.05;
+
     public function __construct(
         private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly JitaMarketService $jitaMarket,
     ) {
     }
 
@@ -137,21 +141,18 @@ class ProjectContributionService
 
     private function resolveMaterialValue(IndustryProjectBomLine $bomItem, int $quantity, ?float $enteredValue): float
     {
-        $bomPrice = $bomItem->getEstimatedPrice();
-
-        if ($bomPrice !== null) {
-            if ($enteredValue !== null) {
-                throw new \DomainException(sprintf('Type %d has a BOM price: a material contribution is valued from it.', $bomItem->getTypeId()));
-            }
-
-            return $bomPrice * $quantity;
+        if ($enteredValue !== null) {
+            throw new \DomainException('A material contribution takes no entered value: it is valued at the Jita price of the deposit day.');
         }
 
-        if ($enteredValue === null || $enteredValue <= 0) {
-            throw new \DomainException(sprintf('No market price for type %d: enter an estimated value.', $bomItem->getTypeId()));
+        $typeId = $bomItem->getTypeId();
+        $jitaPrice = $this->jitaMarket->getCheapestPercentilePrices([$typeId], self::DEPOSIT_DAY_PERCENTILE)[$typeId] ?? null;
+
+        if ($jitaPrice === null || $jitaPrice <= 0) {
+            throw new \DomainException(sprintf('No market price for type %d: no Jita price for the deposit day.', $typeId));
         }
 
-        return $enteredValue;
+        return $jitaPrice * $quantity;
     }
 
     private function requireEnteredValue(ContributionType $type, ?float $enteredValue): float

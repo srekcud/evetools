@@ -16,7 +16,11 @@ const activeCount = computed(() =>
 )
 
 const totalContributions = computed(() =>
-  props.projects.reduce((sum, p) => sum + p.approvedContributionValue, 0)
+  props.projects.reduce((sum, p) => (p.approvedContributionValue === null ? sum : sum + p.approvedContributionValue), 0)
+)
+
+const unknownContributionValueCount = computed(() =>
+  props.projects.filter(p => p.approvedContributionValue === null).length
 )
 
 const pipelineValue = computed(() =>
@@ -54,6 +58,9 @@ const unknownBomValueCount = computed(() =>
         {{ formatIsk(totalContributions, 1) }}
       </p>
       <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.kpis.contributionsDesc') }}</p>
+      <p v-if="unknownContributionValueCount > 0" class="text-xs text-slate-500 mt-1">
+        {{ t('groupIndustry.kpis.unknownValueExcluded', { count: unknownContributionValueCount }, unknownContributionValueCount) }}
+      </p>
     </div>
 
     <!-- Pending Approvals -->

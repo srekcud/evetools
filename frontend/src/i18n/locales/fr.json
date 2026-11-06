@@ -2020,12 +2020,8 @@
       "optional": "optionnel",
       "submit": "Soumettre la contribution",
       "pendingNote": "Votre contribution sera examinee par un admin du projet.",
-      "bomPriceLabel": "Prix BOM, figé à la création du projet",
-      "bomPriceFrozenOn": "Figé le {date}",
-      "bomPriceSource": "Jita, 5 % des ordres de vente les moins chers",
-      "methodBomPrice": "Méthode : prix BOM × quantité",
-      "autoCalculated": "Calculé automatiquement",
-      "unitPrice": "Prix unitaire :"
+      "depositDayPrice": "Prix Jita du jour d'apport (percentile 5 %)",
+      "depositDayPriceNote": "Lu sur le marché au dépôt de la contribution et conservé tel quel lors de sa revue."
     },
     "contributions": {
       "title": "Contributions",
@@ -2044,11 +2040,19 @@
       "verified": "Verifiee",
       "unverified": "Non verifiee",
       "reviewedBy": "Validee par {name}",
-      "noContributions": "Aucune contribution pour le moment."
+      "noContributions": "Aucune contribution pour le moment.",
+      "unknownValueCause": "Un apport n'a pas de prix connu : les totaux qui l'incluent sont inconnus, jamais partiels.",
+      "methods": {
+        "paidPrice": "prix payé (wallet)",
+        "esiCost": "coût réel (ESI)",
+        "depositDayPrice": "prix Jita du jour d'apport",
+        "enteredValue": "valeur saisie"
+      }
     },
     "distribution": {
       "title": "Distribution",
       "undistributable": "Répartition impossible : aucune contribution approuvée n'a de coût, le revenu net ne peut pas être réparti",
+      "unknownContributionValue": "Un apport approuvé n'a pas de prix connu : le coût de production, le profit et les payouts restent inconnus tant qu'il n'en a pas.",
       "totalRevenue": "Revenu total",
       "brokerFee": "Frais courtier",
       "salesTax": "Taxe de vente",
@@ -2073,7 +2077,8 @@
       "jobInstallAndLineRental": "Installation jobs + location ligne",
       "bpc": "BPC",
       "profit": "Profit",
-      "marginLabel": "Marge :"
+      "marginLabel": "Marge :",
+      "unknownContributionValue": "Un apport approuvé n'a pas de prix connu : le coût de production, le profit et les payouts restent inconnus tant qu'il n'en a pas."
     },
     "sales": {
       "title": "Ventes",

@@ -40,8 +40,8 @@ class IndustryProjectContribution
     #[ORM\Column(type: 'integer')]
     private int $quantity;
 
-    #[ORM\Column(type: 'float')]
-    private float $estimatedValue;
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $estimatedValue = null;
 
     #[ORM\Column(type: 'string', length: 10, enumType: ContributionStatus::class)]
     private ContributionStatus $status = ContributionStatus::Pending;
@@ -134,12 +134,12 @@ class IndustryProjectContribution
         return $this;
     }
 
-    public function getEstimatedValue(): float
+    public function getEstimatedValue(): ?float
     {
         return $this->estimatedValue;
     }
 
-    public function setEstimatedValue(float $estimatedValue): static
+    public function setEstimatedValue(?float $estimatedValue): static
     {
         $this->estimatedValue = $estimatedValue;
         return $this;

@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project;
 
+use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectParticipant;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 
 class DerivedContributionService
 {
+    private const string CONTRIBUTION_SYNCED_ACTION = 'contribution_synced';
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
@@ -18,5 +25,160 @@ class DerivedContributionService
 
     public function refreshLine(IndustryProjectBomLine $line): void
     {
+        $project = $line->getProject();
+        $ownerParticipant = $this->ownerParticipantOf($project);
+
+        $syncedContributionIds = [];
+        foreach ($project->getContributions()->toArray() as $contribution) {
+            if ($this->isDerivedOn($contribution, $line) && $contribution->getMember() !== $ownerParticipant) {
+                $syncedContributionIds[] = $this->remove($line, $contribution);
+            }
+        }
+
+        $syncedContributionIds[] = $this->synchronize($line, $ownerParticipant, ContributionType::Material, $line->getPurchasedQuantity(), $this->paidPriceOf($line));
+        $syncedContributionIds[] = $this->synchronize($line, $ownerParticipant, ContributionType::JobInstall, $line->getMatchedRuns(), $this->installCostOf($line));
+
+        $syncedContributionIds = array_filter($syncedContributionIds, static fn (?string $contributionId): bool => $contributionId !== null);
+        if ($syncedContributionIds === []) {
+            return;
+        }
+
+        $this->entityManager->flush();
+
+        foreach ($syncedContributionIds as $contributionId) {
+            $this->mercurePublisher->publishGroupProjectEvent(
+                $project->getId()->toRfc4122(),
+                self::CONTRIBUTION_SYNCED_ACTION,
+                ['contributionId' => $contributionId, 'bomItemId' => $line->getId()->toRfc4122()],
+            );
+        }
+    }
+
+    private function synchronize(
+        IndustryProjectBomLine $line,
+        IndustryProjectParticipant $ownerParticipant,
+        ContributionType $type,
+        int $quantity,
+        ?float $value,
+    ): ?string {
+        $existing = $this->derivedContributionOf($line, $ownerParticipant, $type);
+
+        if ($quantity === 0) {
+            return $existing === null ? null : $this->remove($line, $existing);
+        }
+
+        if ($existing === null) {
+            return $this->create($line, $ownerParticipant, $type, $quantity, $value);
+        }
+
+        if ($existing->getQuantity() === $quantity && $existing->getEstimatedValue() === $value) {
+            return null;
+        }
+
+        $this->shiftFulfillment($line, $type, $quantity - $existing->getQuantity());
+        $existing->setQuantity($quantity);
+        $existing->setEstimatedValue($value);
+
+        return $existing->getId()->toRfc4122();
+    }
+
+    private function create(
+        IndustryProjectBomLine $line,
+        IndustryProjectParticipant $ownerParticipant,
+        ContributionType $type,
+        int $quantity,
+        ?float $value,
+    ): string {
+        $now = new \DateTimeImmutable();
+        $contribution = (new IndustryProjectContribution())
+            ->setProject($line->getProject())
+            ->setMember($ownerParticipant)
+            ->setBomItem($line)
+            ->setType($type)
+            ->setQuantity($quantity)
+            ->setEstimatedValue($value)
+            ->setStatus(ContributionStatus::Approved)
+            ->setIsAutoDetected(true)
+            ->setIsVerified(true)
+            ->setVerifiedAt($now)
+            ->setReviewedBy($ownerParticipant->getUser())
+            ->setReviewedAt($now);
+
+        $line->getProject()->addContribution($contribution);
+        $this->entityManager->persist($contribution);
+        $this->shiftFulfillment($line, $type, $quantity);
+
+        return $contribution->getId()->toRfc4122();
+    }
+
+    private function remove(IndustryProjectBomLine $line, IndustryProjectContribution $contribution): string
+    {
+        $this->shiftFulfillment($line, $contribution->getType(), -$contribution->getQuantity());
+        $line->getProject()->getContributions()->removeElement($contribution);
+        $this->entityManager->remove($contribution);
+
+        return $contribution->getId()->toRfc4122();
+    }
+
+    private function shiftFulfillment(IndustryProjectBomLine $line, ContributionType $type, int $quantityDifference): void
+    {
+        if ($type !== ContributionType::Material) {
+            return;
+        }
+
+        $line->setFulfilledQuantity($line->getFulfilledQuantity() + $quantityDifference);
+    }
+
+    private function paidPriceOf(IndustryProjectBomLine $line): float
+    {
+        $paidPrice = 0.0;
+        foreach ($line->getPurchases() as $purchase) {
+            if ($purchase->getTypeId() === $line->getTypeId()) {
+                $paidPrice += $purchase->getTotalPrice();
+            }
+        }
+
+        return $paidPrice;
+    }
+
+    private function installCostOf(IndustryProjectBomLine $line): ?float
+    {
+        $installCost = 0.0;
+        foreach ($line->getJobMatches() as $jobMatch) {
+            $cost = $jobMatch->getCost();
+            if ($cost === null) {
+                return null;
+            }
+            $installCost += $cost;
+        }
+
+        return $installCost;
+    }
+
+    private function ownerParticipantOf(IndustryProject $project): IndustryProjectParticipant
+    {
+        foreach ($project->getMembers() as $member) {
+            if ($member->getUser() === $project->getOwner()) {
+                return $member;
+            }
+        }
+
+        throw new \LogicException(sprintf('Project %s has no participant for its owner.', $project->getId()->toRfc4122()));
+    }
+
+    private function isDerivedOn(IndustryProjectContribution $contribution, IndustryProjectBomLine $line): bool
+    {
+        return $contribution->isAutoDetected() && $contribution->getBomItem() === $line;
+    }
+
+    private function derivedContributionOf(IndustryProjectBomLine $line, IndustryProjectParticipant $ownerParticipant, ContributionType $type): ?IndustryProjectContribution
+    {
+        foreach ($line->getProject()->getContributions() as $contribution) {
+            if ($this->isDerivedOn($contribution, $line) && $contribution->getMember() === $ownerParticipant && $contribution->getType() === $type) {
+                return $contribution;
+            }
+        }
+
+        return null;
     }
 }
