@@ -14,6 +14,7 @@ const navigationRoutes = [
   '/ledger',
   '/industry',
   '/group-industry',
+  '/group-industry/p1',
   '/appraisal',
   '/planetary',
   '/market',

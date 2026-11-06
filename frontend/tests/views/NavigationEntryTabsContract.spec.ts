@@ -92,10 +92,6 @@ afterEach(() => {
 describe('navigation entry tabs contract', () => {
   it('lists tab entries only for the screens whose view reads the tab from the URL', () => {
     expect(TAB_ROUTES).toEqual([
-      '/ledger?tab=pve',
-      '/ledger?tab=mining',
-      '/ledger?tab=escalations',
-      '/ledger?tab=settings',
       '/industry?tab=margins',
       '/industry?tab=batch',
       '/industry?tab=buy-vs-build',
@@ -105,6 +101,10 @@ describe('navigation entry tabs contract', () => {
       '/group-industry?tab=available',
       '/mining-operations?tab=available',
       '/market?tab=alerts',
+      '/ledger?tab=pve',
+      '/ledger?tab=mining',
+      '/ledger?tab=escalations',
+      '/ledger?tab=settings',
       '/assets?tab=contracts',
     ])
     expect(TAB_ROUTES.map(tabRoute => splitTabRoute(tabRoute).path).every(path => path in VIEWS_BY_ROUTE)).toBe(true)
