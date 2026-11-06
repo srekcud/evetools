@@ -32,6 +32,8 @@ class CreatePurchaseProcessor implements ProcessorInterface
 {
     private const string TRANSACTION_NOT_FOUND_MESSAGE = 'Transaction not found';
     private const string ALREADY_LINKED_MESSAGE = 'This transaction is already linked to a purchase.';
+    private const string NOT_A_PURCHASE_MESSAGE = 'The wallet transaction is not a purchase.';
+    private const string QUANTITY_ABOVE_TRANSACTION_MESSAGE = 'The quantity cannot exceed the quantity of the wallet transaction.';
 
     public function __construct(
         private readonly Security $security,
@@ -74,6 +76,14 @@ class CreatePurchaseProcessor implements ProcessorInterface
 
             if ($this->purchaseRepository->findOneBy(['transaction' => $transaction]) !== null) {
                 throw new ConflictHttpException(self::ALREADY_LINKED_MESSAGE);
+            }
+
+            if (!$transaction->isBuy()) {
+                throw new BadRequestHttpException(self::NOT_A_PURCHASE_MESSAGE);
+            }
+
+            if ($data->quantity !== null && $data->quantity > $transaction->getQuantity()) {
+                throw new BadRequestHttpException(self::QUANTITY_ABOVE_TRANSACTION_MESSAGE);
             }
 
             $purchase->setTransaction($transaction);

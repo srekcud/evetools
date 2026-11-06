@@ -16,6 +16,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['project_id'])]
 #[ORM\Index(columns: ['member_id'])]
 #[ORM\Index(columns: ['status'])]
+#[ORM\UniqueConstraint(name: 'uniq_industry_project_derived_contribution', columns: ['project_id', 'member_id', 'bom_item_id', 'type'], options: ['where' => '(is_auto_detected = true)'])]
 class IndustryProjectContribution
 {
     #[ORM\Id]

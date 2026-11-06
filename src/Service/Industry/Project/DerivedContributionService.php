@@ -26,6 +26,10 @@ class DerivedContributionService
     public function refreshLine(IndustryProjectBomLine $line): void
     {
         $project = $line->getProject();
+        if ($project->isCompleted()) {
+            return;
+        }
+
         $ownerParticipant = $this->ownerParticipantOf($project);
 
         $syncedContributionIds = [];
