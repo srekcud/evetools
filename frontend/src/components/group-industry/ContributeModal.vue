@@ -16,7 +16,7 @@ const noteFieldId = useId()
 const projectStore = useGroupProjectStore()
 const contributionStore = useGroupContributionStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { formatIsk, formatNumber, formatIskFull, formatDate } = useFormatters()
+const { formatNumber, formatIskFull } = useFormatters()
 
 const props = defineProps<{
   show: boolean
@@ -69,41 +69,14 @@ const selectedBomItem = computed(() =>
   projectStore.bomItems.find(i => i.id === selectedBomItemId.value) ?? null
 )
 
-// Auto-calculate estimated value for materials from BOM data
-const autoEstimatedValue = computed(() => {
-  if (selectedType.value !== 'material' || !selectedBomItem.value) return null
-  if (selectedBomItem.value.estimatedPrice == null) return null
-  return selectedBomItem.value.estimatedPrice * quantity.value
-})
-
-const materialPriceIsUnknown = computed(() =>
-  selectedType.value === 'material'
-  && selectedBomItem.value !== null
-  && selectedBomItem.value.estimatedPrice == null
-)
-
-const bomPriceSourceLine = computed(() => {
-  const source = t('groupIndustry.contribute.bomPriceSource')
-  const project = projectStore.currentProject
-  if (!project) return source
-  return `${t('groupIndustry.contribute.bomPriceFrozenOn', { date: formatDate(project.createdAt) })} · ${source}`
-})
-
 const requiresEnteredValue = computed(() =>
-  selectedType.value === 'job_install' || selectedType.value === 'bpc' || selectedType.value === 'line_rental' || materialPriceIsUnknown.value
+  selectedType.value === 'job_install' || selectedType.value === 'bpc' || selectedType.value === 'line_rental'
 )
-
-const displayedValue = computed(() => {
-  if (selectedType.value === 'material' && autoEstimatedValue.value != null) {
-    return autoEstimatedValue.value
-  }
-  return estimatedValue.value
-})
 
 const isFormValid = computed(() => {
   if (!selectedBomItemId.value && selectedType.value !== 'line_rental') return false
   if (quantity.value <= 0) return false
-  if ((selectedType.value === 'job_install' || selectedType.value === 'bpc' || materialPriceIsUnknown.value) && estimatedValue.value <= 0) return false
+  if ((selectedType.value === 'job_install' || selectedType.value === 'bpc') && estimatedValue.value <= 0) return false
   return true
 })
 
@@ -298,24 +271,9 @@ async function submit(): Promise<void> {
         </div>
 
         <!-- Auto-calculated price for materials -->
-        <div v-if="selectedType === 'material' && selectedBomItem && autoEstimatedValue != null" class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm text-slate-400">{{ t('groupIndustry.contribute.bomPriceLabel') }}</span>
-            <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">{{ t('groupIndustry.contribute.autoCalculated') }}</span>
-          </div>
-          <p class="text-xs text-slate-500 mb-2">{{ bomPriceSourceLine }}</p>
-          <div class="flex items-center justify-between">
-            <span class="text-sm text-slate-500">{{ t('groupIndustry.contribute.unitPrice') }}</span>
-            <span class="font-mono text-sm text-slate-300" style="font-variant-numeric: tabular-nums;">
-              {{ selectedBomItem.estimatedPrice != null ? formatIskFull(selectedBomItem.estimatedPrice) : '---' }}
-            </span>
-          </div>
-          <div class="flex items-center justify-between mt-1">
-            <span class="text-sm text-slate-500">{{ formatNumber(quantity, 0) }} x {{ selectedBomItem.estimatedPrice != null ? formatIsk(selectedBomItem.estimatedPrice, 2) : '---' }} =</span>
-            <span class="font-mono text-sm text-slate-300" style="font-variant-numeric: tabular-nums;">
-              {{ formatIskFull(autoEstimatedValue) }}
-            </span>
-          </div>
+        <div v-if="selectedType === 'material'" class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4">
+          <p class="text-xs font-medium uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.contribute.depositDayPrice') }}</p>
+          <p class="mt-1.5 text-xs text-slate-500">{{ t('groupIndustry.contribute.depositDayPriceNote') }}</p>
         </div>
 
         <!-- Manual estimated value for BPC / Line Rental -->
@@ -334,12 +292,11 @@ async function submit(): Promise<void> {
         </div>
 
         <!-- Total Valuation display -->
-        <div v-if="displayedValue > 0" class="bg-emerald-500/5 rounded-xl border border-emerald-500/30 p-5 text-center">
+        <div v-if="requiresEnteredValue && estimatedValue > 0" class="bg-emerald-500/5 rounded-xl border border-emerald-500/30 p-5 text-center">
           <p class="text-xs text-emerald-400/60 uppercase tracking-wider mb-1">{{ t('groupIndustry.contribute.totalValuation') }}</p>
           <p class="text-3xl font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
-            {{ formatIskFull(displayedValue) }}
+            {{ formatIskFull(estimatedValue) }}
           </p>
-          <p v-if="autoEstimatedValue != null" class="text-xs text-slate-500 mt-2">{{ t('groupIndustry.contribute.methodBomPrice') }}</p>
         </div>
 
         <!-- Notes -->

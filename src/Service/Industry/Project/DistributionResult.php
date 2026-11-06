@@ -14,7 +14,7 @@ class DistributionResult
         public readonly ?float $brokerFee,
         public readonly ?float $salesTax,
         public readonly ?float $netRevenue,
-        public readonly float $totalProjectCost,
+        public readonly ?float $totalProjectCost,
         public readonly ?float $marginPercent,
         public readonly array $members,
     ) {}

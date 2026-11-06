@@ -48,7 +48,7 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
      *
      * @param list<IndustryProject> $projects
      *
-     * @return array<string, float>
+     * @return array<string, float|null>
      */
     public function sumApprovedValueByProject(array $projects): array
     {
@@ -57,7 +57,7 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
         }
 
         $rows = $this->createQueryBuilder('c')
-            ->select('IDENTITY(c.project) AS projectId', 'SUM(c.estimatedValue) AS approvedValue')
+            ->select('IDENTITY(c.project) AS projectId', 'SUM(c.estimatedValue) AS approvedValue', 'SUM(CASE WHEN c.estimatedValue IS NULL THEN 1 ELSE 0 END) AS unknownValueCount')
             ->andWhere('c.project IN (:projects)')
             ->andWhere('c.status = :status')
             ->setParameter('projects', $projects)
@@ -71,7 +71,7 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             $values[(string) $project->getId()] = 0.0;
         }
         foreach ($rows as $row) {
-            $values[(string) $row['projectId']] = (float) $row['approvedValue'];
+            $values[(string) $row['projectId']] = (int) $row['unknownValueCount'] > 0 ? null : (float) $row['approvedValue'];
         }
 
         return $values;
@@ -112,6 +112,7 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             ->andWhere('c.member = :member')
             ->andWhere('c.bomItem = :bomItem')
             ->andWhere('c.type = :type')
+            ->andWhere('c.isAutoDetected = false')
             ->andWhere('c.status IN (:statuses)')
             ->setParameter('member', $member)
             ->setParameter('bomItem', $bomItem)

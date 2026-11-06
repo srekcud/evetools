@@ -2020,12 +2020,8 @@
       "optional": "optional",
       "submit": "Submit Contribution",
       "pendingNote": "Your contribution will be reviewed by a project admin.",
-      "bomPriceLabel": "BOM price, frozen at project creation",
-      "bomPriceFrozenOn": "Frozen on {date}",
-      "bomPriceSource": "Jita, cheapest 5% of sell orders",
-      "methodBomPrice": "Method: BOM price × quantity",
-      "autoCalculated": "Auto-calculated",
-      "unitPrice": "Unit price:"
+      "depositDayPrice": "Jita price of the deposit day (5th percentile)",
+      "depositDayPriceNote": "Read from the market when the contribution is submitted and kept as is when it is reviewed."
     },
     "contributions": {
       "title": "Contributions",
@@ -2044,11 +2040,19 @@
       "verified": "Verified",
       "unverified": "Unverified",
       "reviewedBy": "Reviewed by {name}",
-      "noContributions": "No contributions yet."
+      "noContributions": "No contributions yet.",
+      "unknownValueCause": "A contribution has no known price: the totals that include it are unknown, never partial.",
+      "methods": {
+        "paidPrice": "paid price (wallet)",
+        "esiCost": "real cost (ESI)",
+        "depositDayPrice": "Jita price of the deposit day",
+        "enteredValue": "entered value"
+      }
     },
     "distribution": {
       "title": "Distribution",
       "undistributable": "Undistributable distribution: no approved contribution has a cost, the net revenue cannot be split",
+      "unknownContributionValue": "An approved contribution has no known price: the production cost, the profit and the payouts stay unknown until it has one.",
       "totalRevenue": "Total Revenue",
       "brokerFee": "Broker Fee",
       "salesTax": "Sales Tax",
@@ -2073,7 +2077,8 @@
       "jobInstallAndLineRental": "Job Install + Line Rental",
       "bpc": "BPC",
       "profit": "Profit",
-      "marginLabel": "Margin:"
+      "marginLabel": "Margin:",
+      "unknownContributionValue": "An approved contribution has no known price: the production cost, the profit and the payouts stay unknown until it has one."
     },
     "sales": {
       "title": "Sales",

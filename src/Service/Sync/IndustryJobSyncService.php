@@ -15,6 +15,7 @@ use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\UnknownTypeName;
@@ -43,6 +44,7 @@ class IndustryJobSyncService
         private readonly NotificationDispatcher $notificationDispatcher,
         private readonly CacheItemPoolInterface $esiCache,
         private readonly CharacterService $characterService,
+        private readonly DerivedContributionService $derivedContributionService,
     ) {
     }
 
@@ -273,8 +275,13 @@ class IndustryJobSyncService
             }
         }
 
+        $linesOfSyncedJobs = [];
         foreach ($this->jobMatchRepository->findByEsiJobIds(array_keys($syncedJobsByJobId)) as $jobMatch) {
             $jobMatch->copyJobState($syncedJobsByJobId[$jobMatch->getEsiJobId()]);
+            $linesOfSyncedJobs[spl_object_id($jobMatch->getBomLine())] = $jobMatch->getBomLine();
+        }
+        foreach ($linesOfSyncedJobs as $line) {
+            $this->derivedContributionService->refreshLine($line);
         }
 
         $jobIdsToNotify = array_keys(array_filter(

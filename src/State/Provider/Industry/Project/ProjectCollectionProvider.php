@@ -49,6 +49,7 @@ class ProjectCollectionProvider implements ProviderInterface
                 $membership,
                 $membersCountByProject[(string) $project->getId()],
                 $approvedValueByProject[(string) $project->getId()],
+                true,
             );
         }
 

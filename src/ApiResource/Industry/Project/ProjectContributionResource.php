@@ -83,7 +83,7 @@ class ProjectContributionResource
 
     public int $quantity;
 
-    public float $estimatedValue;
+    public ?float $estimatedValue;
 
     public string $status;
 

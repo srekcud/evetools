@@ -81,6 +81,7 @@ class AvailableProjectsProvider implements ProviderInterface
                 null,
                 $membersCountByProject[(string) $project->getId()],
                 $approvedValueByProject[(string) $project->getId()],
+                true,
             );
         }
 

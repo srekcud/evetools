@@ -47,7 +47,7 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
         $this->em->flush();
     }
 
-    public function testOwnerRecordsAManualPurchaseOnTheRamLineWithoutServingTheLine(): void
+    public function testOwnerRecordsAManualPurchaseOnTheRamLineAndServesTheLineByItsQuantity(): void
     {
         $this->client->loginUser($this->owner, 'api');
         $this->request('POST', $this->lineUri($this->ramJobLine).'/purchases', [
@@ -63,7 +63,7 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
             [$response['bomLineId'], $response['typeId'], $response['quantity'], $response['unitPrice'], $response['totalPrice'], $response['source']],
         );
         self::assertSame([[self::RAM_STARSHIP_TECH_TYPE_ID, 50, 152_025.0]], $this->storedPurchasesOf($this->ramJobLine));
-        self::assertSame(0, $this->storedFulfilledQuantityOf($this->ramJobLine));
+        self::assertSame(50, $this->storedFulfilledQuantityOf($this->ramJobLine));
     }
 
     public function testOwnerDeletesThePurchaseOfTheTritaniumLine(): void

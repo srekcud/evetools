@@ -101,7 +101,7 @@ class ProjectParticipantResource
 
     public string $status;
 
-    public float $totalContributionValue = 0.0;
+    public ?float $totalContributionValue = 0.0;
 
     public int $contributionCount = 0;
 

@@ -83,7 +83,12 @@ class ProjectParticipantCollectionProvider implements ProviderInterface
 
                 $totalValue = 0.0;
                 foreach ($memberContributions as $contribution) {
-                    $totalValue += $contribution->getEstimatedValue();
+                    $value = $contribution->getEstimatedValue();
+                    if ($value === null) {
+                        $totalValue = null;
+                        break;
+                    }
+                    $totalValue += $value;
                 }
 
                 return $this->mapper->memberToResource($member, $totalValue, count($memberContributions));

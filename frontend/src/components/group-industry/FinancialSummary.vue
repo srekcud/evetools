@@ -5,6 +5,7 @@ import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
 
 const { t } = useI18n()
 const distStore = useGroupDistributionStore()
@@ -16,12 +17,25 @@ const dist = computed(() => distStore.distribution)
 const feesUnknown = computed(() => dist.value?.brokerFee === null || dist.value?.salesTax === null)
 
 const profit = computed((): number | null => {
-  if (!dist.value || dist.value.netRevenue === null) return null
+  if (!dist.value || dist.value.netRevenue === null || dist.value.totalProjectCost === null) return null
   return dist.value.netRevenue - dist.value.totalProjectCost
 })
 
 const isProfit = computed(() => profit.value !== null && profit.value >= 0)
 const profitUnknown = computed(() => profit.value === null)
+
+function sumOrUnknown(values: (number | null)[]): number | null {
+  let sum = 0
+  for (const value of values) {
+    if (value === null) return null
+    sum += value
+  }
+  return sum
+}
+
+const materialCosts = computed(() => dist.value ? sumOrUnknown(dist.value.members.map(m => m.materialCosts)) : null)
+const jobInstallAndLineRentalCosts = computed(() => dist.value ? sumOrUnknown(dist.value.members.flatMap(m => [m.jobInstallCosts, m.lineRentalCosts])) : null)
+const bpcCosts = computed(() => dist.value ? sumOrUnknown(dist.value.members.map(m => m.bpcCosts)) : null)
 
 const brokerFeeLabel = computed(() => {
   const pct = projectStore.currentProject?.brokerFeePercent
@@ -73,28 +87,33 @@ const salesTaxLabel = computed(() => {
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-400">{{ t('groupIndustry.distribution.totalCost') }}</span>
-            <span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
+            <UnknownContributionValue v-if="dist.totalProjectCost === null" />
+            <span v-else class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
               {{ formatIsk(dist.totalProjectCost) }}
             </span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-500">{{ t('groupIndustry.financialSummary.materials') }}</span>
-            <span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
-              {{ formatIsk(dist.members.reduce((s, m) => s + m.materialCosts, 0)) }}
+            <UnknownContributionValue v-if="materialCosts === null" />
+            <span v-else class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
+              {{ formatIsk(materialCosts) }}
             </span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-500">{{ t('groupIndustry.financialSummary.jobInstallAndLineRental') }}</span>
-            <span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
-              {{ formatIsk(dist.members.reduce((s, m) => s + m.jobInstallCosts + m.lineRentalCosts, 0)) }}
+            <UnknownContributionValue v-if="jobInstallAndLineRentalCosts === null" />
+            <span v-else class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
+              {{ formatIsk(jobInstallAndLineRentalCosts) }}
             </span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-500">{{ t('groupIndustry.financialSummary.bpc') }}</span>
-            <span class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
-              {{ formatIsk(dist.members.reduce((s, m) => s + m.bpcCosts, 0)) }}
+            <UnknownContributionValue v-if="bpcCosts === null" />
+            <span v-else class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
+              {{ formatIsk(bpcCosts) }}
             </span>
           </div>
+          <p v-if="dist.totalProjectCost === null" class="text-xs text-violet-300">{{ t('groupIndustry.financialSummary.unknownContributionValue') }}</p>
         </div>
 
         <!-- Profit ring -->

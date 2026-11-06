@@ -45,7 +45,7 @@ export type GroupProject = {
   items: GroupProjectItem[]
   totalBomValue: number | null
   fulfillmentPercent: number
-  approvedContributionValue: number
+  approvedContributionValue: number | null
   brokerFeePercent: number | null
   salesTaxPercent: number | null
   lineRentalRatesOverride: Record<string, number> | null
@@ -132,7 +132,7 @@ export type GroupContribution = {
   bomItemTypeName: string | null
   type: ContributionType
   quantity: number
-  estimatedValue: number
+  estimatedValue: number | null
   status: ContributionStatus
   isAutoDetected: boolean
   isVerified: boolean
@@ -152,7 +152,7 @@ export type GroupMember = {
   corporationName: string | null
   role: GroupMemberRole
   status: GroupMemberStatus
-  totalContributionValue: number
+  totalContributionValue: number | null
   contributionCount: number
   joinedAt: string
 }
@@ -194,11 +194,11 @@ export type GroupSaleSuggestion = {
 export type MemberDistribution = {
   memberId: string
   characterName: string | null
-  totalCostsEngaged: number
-  materialCosts: number
-  jobInstallCosts: number
-  bpcCosts: number
-  lineRentalCosts: number
+  totalCostsEngaged: number | null
+  materialCosts: number | null
+  jobInstallCosts: number | null
+  bpcCosts: number | null
+  lineRentalCosts: number | null
   sharePercent: number | null
   profitPart: number | null
   payoutTotal: number | null
@@ -210,7 +210,7 @@ export type Distribution = {
   brokerFee: number | null
   salesTax: number | null
   netRevenue: number | null
-  totalProjectCost: number
+  totalProjectCost: number | null
   marginPercent: number | null
   members: MemberDistribution[]
 }

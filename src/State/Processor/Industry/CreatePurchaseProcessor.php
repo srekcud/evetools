@@ -15,6 +15,7 @@ use App\Repository\CachedWalletTransactionRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +41,7 @@ class CreatePurchaseProcessor implements ProcessorInterface
         private readonly IndustryProjectPurchaseRepository $purchaseRepository,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly EntityManagerInterface $entityManager,
+        private readonly DerivedContributionService $derivedContributionService,
     ) {
     }
 
@@ -94,6 +96,7 @@ class CreatePurchaseProcessor implements ProcessorInterface
 
         $line->addPurchase($purchase);
         $this->entityManager->persist($purchase);
+        $this->derivedContributionService->refreshLine($line);
         $this->entityManager->flush();
 
         return ProjectPurchaseResource::fromEntity($purchase);

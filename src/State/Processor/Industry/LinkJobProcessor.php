@@ -16,6 +16,7 @@ use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Service\Industry\IndustryJobMatcher;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -37,6 +38,7 @@ class LinkJobProcessor implements ProcessorInterface
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly IndustryJobMatcher $jobMatcher,
+        private readonly DerivedContributionService $derivedContributionService,
     ) {
     }
 
@@ -84,7 +86,10 @@ class LinkJobProcessor implements ProcessorInterface
             throw new BadRequestHttpException("ESI job {$esiJobId} is already linked to a BOM line");
         }
 
-        return ProjectJobMatchResource::fromEntity($this->jobMatcher->linkJobToBomLine($job, $line));
+        $match = $this->jobMatcher->linkJobToBomLine($job, $line);
+        $this->derivedContributionService->refreshLine($line);
+
+        return ProjectJobMatchResource::fromEntity($match);
     }
 
     private function isOwnedBy(CachedIndustryJob $job, User $user): bool

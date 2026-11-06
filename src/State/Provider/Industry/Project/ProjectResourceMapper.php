@@ -26,6 +26,7 @@ class ProjectResourceMapper
         ?IndustryProjectParticipant $myMembership,
         ?int $acceptedMembersCount = null,
         ?float $approvedContributionValue = null,
+        bool $approvedContributionValueIsPrecomputed = false,
     ): IndustryProjectResource
     {
         $resource = new IndustryProjectResource();
@@ -71,14 +72,28 @@ class ProjectResourceMapper
         $resource->fulfillmentPercent = $materialItems->isEmpty()
             ? 0.0
             : round(array_sum($materialItems->map(static fn (IndustryProjectBomLine $bomItem) => $bomItem->getFulfillmentPercent())->toArray()) / $materialItems->count(), 2);
-        $resource->approvedContributionValue = $approvedContributionValue ?? array_sum(
-            $project->getContributions()
-                ->filter(static fn (IndustryProjectContribution $contribution) => $contribution->getStatus() === ContributionStatus::Approved)
-                ->map(static fn (IndustryProjectContribution $contribution) => $contribution->getEstimatedValue())
-                ->toArray(),
-        );
+        $resource->approvedContributionValue = $approvedContributionValue !== null || $approvedContributionValueIsPrecomputed
+            ? $approvedContributionValue
+            : $this->approvedValueOf($project);
 
         return $resource;
+    }
+
+    private function approvedValueOf(IndustryProject $project): ?float
+    {
+        $total = 0.0;
+        foreach ($project->getContributions() as $contribution) {
+            if ($contribution->getStatus() !== ContributionStatus::Approved) {
+                continue;
+            }
+            $value = $contribution->getEstimatedValue();
+            if ($value === null) {
+                return null;
+            }
+            $total += $value;
+        }
+
+        return $total;
     }
 
     /**
@@ -120,7 +135,7 @@ class ProjectResourceMapper
         return $resource;
     }
 
-    public function memberToResource(IndustryProjectParticipant $member, float $totalContributionValue = 0.0, int $contributionCount = 0): ProjectParticipantResource
+    public function memberToResource(IndustryProjectParticipant $member, ?float $totalContributionValue = 0.0, int $contributionCount = 0): ProjectParticipantResource
     {
         $resource = new ProjectParticipantResource();
         $resource->id = $member->getId()->toString();

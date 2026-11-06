@@ -20,6 +20,7 @@ use App\Repository\MiningOperationMemberRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\EveSsoTokenRevoker;
 use App\Service\ESI\TokenManager;
+use App\Service\Industry\Project\DerivedContributionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 
@@ -30,6 +31,7 @@ class AccountDeletionService
         private readonly EveSsoTokenRevoker $tokenRevoker,
         private readonly TokenManager $tokenManager,
         private readonly TagAwareAdapterInterface $esiCache,
+        private readonly DerivedContributionService $derivedContributionService,
     ) {
     }
 
@@ -129,6 +131,10 @@ class AccountDeletionService
             }
 
             $project->transferOwnershipTo($successor);
+
+            foreach ($project->getBomItems() as $line) {
+                $this->derivedContributionService->refreshLine($line);
+            }
         }
 
         return $deletedProjects;

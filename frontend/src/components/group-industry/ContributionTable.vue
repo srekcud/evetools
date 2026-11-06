@@ -5,8 +5,9 @@ import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { usePilotName } from '@/composables/usePilotName'
-import type { ContributionType, ContributionStatus } from '@/stores/group-industry/types'
+import type { GroupContribution, ContributionType, ContributionStatus } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
 
 const { t } = useI18n()
 
@@ -32,15 +33,19 @@ const filteredContributions = computed(() => {
 })
 
 // Summary stats
-const totalValue = computed(() =>
-  store.contributions.reduce((sum, c) => sum + c.estimatedValue, 0),
-)
-const approvedValue = computed(() =>
-  store.contributions.filter(c => c.status === 'approved').reduce((sum, c) => sum + c.estimatedValue, 0),
-)
-const pendingValue = computed(() =>
-  store.contributions.filter(c => c.status === 'pending').reduce((sum, c) => sum + c.estimatedValue, 0),
-)
+function sumOrUnknown(contributions: GroupContribution[]): number | null {
+  let sum = 0
+  for (const contribution of contributions) {
+    if (contribution.estimatedValue === null) return null
+    sum += contribution.estimatedValue
+  }
+  return sum
+}
+
+const totalValue = computed(() => sumOrUnknown(store.contributions))
+const approvedValue = computed(() => sumOrUnknown(store.contributions.filter(c => c.status === 'approved')))
+const pendingValue = computed(() => sumOrUnknown(store.contributions.filter(c => c.status === 'pending')))
+const hasUnknownValue = computed(() => store.contributions.some(c => c.estimatedValue === null))
 const approvedCount = computed(() =>
   store.contributions.filter(c => c.status === 'approved').length,
 )
@@ -75,6 +80,13 @@ const STATUS_LABELS: Record<ContributionStatus, string> = {
   pending: 'Pending',
   approved: 'Approved',
   rejected: 'Rejected',
+}
+
+function methodLabelKey(contribution: GroupContribution): string {
+  if (contribution.isAutoDetected && contribution.type === 'material') return 'groupIndustry.contributions.methods.paidPrice'
+  if (contribution.isAutoDetected && contribution.type === 'job_install') return 'groupIndustry.contributions.methods.esiCost'
+  if (contribution.type === 'material') return 'groupIndustry.contributions.methods.depositDayPrice'
+  return 'groupIndustry.contributions.methods.enteredValue'
 }
 
 function isPending(status: ContributionStatus): boolean {
@@ -211,12 +223,13 @@ onMounted(() => {
                 :class="isPending(contrib.status) ? 'text-amber-400' : 'text-emerald-400'"
                 style="font-variant-numeric: tabular-nums;"
               >
-                {{ formatIsk(contrib.estimatedValue) }}
+                <UnknownContributionValue v-if="contrib.estimatedValue === null" />
+                <template v-else>{{ formatIsk(contrib.estimatedValue) }}</template>
               </td>
               <!-- Method -->
               <td class="py-3 px-3">
                 <span class="text-xs text-slate-500">
-                  {{ contrib.type === 'material' ? 'Jita weighted' : contrib.type === 'job_install' ? 'ESI job cost' : contrib.type === 'bpc' ? 'Invention cost' : 'Line rental rate' }}
+                  {{ t(methodLabelKey(contrib)) }}
                 </span>
                 <span
                   v-if="contrib.isAutoDetected"
@@ -269,17 +282,17 @@ onMounted(() => {
         <div class="flex items-center gap-8">
           <div>
             <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Engaged Costs</p>
-            <p class="text-xl font-mono font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">{{ formatIsk(totalValue) }}</p>
+            <p class="text-xl font-mono font-bold text-slate-100" style="font-variant-numeric: tabular-nums;"><UnknownContributionValue v-if="totalValue === null" /><template v-else>{{ formatIsk(totalValue) }}</template></p>
           </div>
           <div class="w-px h-10 bg-slate-800"></div>
           <div>
             <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Approved Value</p>
-            <p class="text-xl font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">{{ formatIsk(approvedValue) }}</p>
+            <p class="text-xl font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;"><UnknownContributionValue v-if="approvedValue === null" /><template v-else>{{ formatIsk(approvedValue) }}</template></p>
           </div>
           <div class="w-px h-10 bg-slate-800"></div>
           <div>
             <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Pending Value</p>
-            <p class="text-xl font-mono font-bold text-amber-400" style="font-variant-numeric: tabular-nums;">{{ formatIsk(pendingValue) }}</p>
+            <p class="text-xl font-mono font-bold text-amber-400" style="font-variant-numeric: tabular-nums;"><UnknownContributionValue v-if="pendingValue === null" /><template v-else>{{ formatIsk(pendingValue) }}</template></p>
           </div>
         </div>
         <div class="flex items-center gap-4 text-xs text-slate-500">
@@ -294,6 +307,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
+      <p v-if="hasUnknownValue" class="mt-3 text-xs text-violet-300">{{ t('groupIndustry.contributions.unknownValueCause') }}</p>
     </div>
   </template>
 
