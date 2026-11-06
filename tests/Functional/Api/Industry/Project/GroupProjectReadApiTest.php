@@ -272,6 +272,7 @@ final class GroupProjectReadApiTest extends WebTestCase
         yield 'contribution review' => ['PATCH', '/contributions/'.$uuid, ['status' => 'approved']];
         yield 'bom' => ['GET', '/bom', null];
         yield 'distribution' => ['GET', '/distribution', null];
+        yield 'chain' => ['GET', '/chain', null];
         yield 'container verification' => ['GET', '/container-verification', null];
         yield 'sales' => ['GET', '/sales', null];
         yield 'cockpit' => ['GET', '/cockpit', null];
