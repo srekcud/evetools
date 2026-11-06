@@ -96,7 +96,6 @@ describe('navigation entry tabs contract', () => {
       '/ledger?tab=mining',
       '/ledger?tab=escalations',
       '/ledger?tab=settings',
-      '/industry?tab=projects',
       '/industry?tab=margins',
       '/industry?tab=batch',
       '/industry?tab=buy-vs-build',

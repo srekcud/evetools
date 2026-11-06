@@ -1,6 +1,6 @@
 import { enableAutoUnmount, flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { defineComponent, h, reactive } from 'vue'
+import { reactive } from 'vue'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
@@ -9,15 +9,12 @@ import EscalationRow from '@/components/escalation/EscalationRow.vue'
 import EscalationsTab from '@/components/ledger/EscalationsTab.vue'
 import PveTab from '@/components/ledger/PveTab.vue'
 import NewProjectModal from '@/components/group-industry/NewProjectModal.vue'
-import ProjectDetail from '@/components/industry/ProjectDetail.vue'
-import ProjectTable from '@/components/industry/ProjectTable.vue'
 import StructureConfig from '@/components/industry/StructureConfig.vue'
 import GroupIndustryDetail from '@/views/GroupIndustry/GroupIndustryDetail.vue'
 import { useEscalationStore, type Escalation } from '@/stores/escalation'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { GroupProject } from '@/stores/group-industry/types'
-import { useProjectsStore } from '@/stores/industry/projects'
-import type { IndustryProject, StructureConfig as StructureConfigRecord } from '@/stores/industry/types'
+import type { StructureConfig as StructureConfigRecord } from '@/stores/industry/types'
 import { apiRequest, authFetch } from '@/services/api'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: { id: 'group-project' }, query: {} })
@@ -38,8 +35,6 @@ type Locale = 'en' | 'fr'
 
 const RAW_TRANSLATION_KEY = /^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)+$/
 const FAR_FUTURE = '2099-01-01T00:00:00+00:00'
-const VEXOR_TYPE_ID = 626
-const WIDOW_TYPE_ID = 22436
 const OWNED_CHARACTER_ID = 2112000001
 const SECOND_PAGE_ESCALATION_COUNT = 21
 
@@ -166,43 +161,6 @@ function escalation(overrides: Partial<Escalation>): Escalation {
   }
 }
 
-function industryProject(overrides: Partial<IndustryProject>): IndustryProject {
-  return {
-    id: 'project',
-    productTypeName: 'Vexor',
-    productTypeId: VEXOR_TYPE_ID,
-    displayName: null,
-    runs: 3,
-    meLevel: 8,
-    teLevel: 16,
-    maxJobDurationDays: 2,
-    acceptsOutsideFavoriteSystem: false,
-    minimumOutsideSaving: 500000,
-    status: 'active',
-    personalUse: false,
-    isT2: false,
-    bpoCost: null,
-    materialCost: null,
-    transportCost: null,
-    jobsCost: null,
-    taxAmount: null,
-    sellPrice: null,
-    totalCost: null,
-    estimatedJobCost: null,
-    estimatedSellPrice: null,
-    estimatedSellPriceSource: null,
-    estimatedTaxAmount: null,
-    estimatedMaterialCost: null,
-    profit: null,
-    profitPercent: null,
-    notes: null,
-    createdAt: '2026-10-24T09:00:00+00:00',
-    completedAt: null,
-    jobsStartDate: null,
-    ...overrides,
-  }
-}
-
 const GROUP_PROJECT: GroupProject = {
   id: 'group-project',
   name: 'Widow run',
@@ -229,17 +187,6 @@ const GROUP_PROJECT: GroupProject = {
   acceptsOutsideFavoriteSystem: false,
   minimumOutsideSaving: 5,
 }
-
-const shoppingTabWithClearStockModalOpen = defineComponent({
-  name: 'ShoppingTab',
-  data: () => ({ showClearStockModal: true }),
-  methods: {
-    activate: () => undefined,
-    loadSuggestions: () => undefined,
-    loadPersistedStock: () => undefined,
-  },
-  render: () => h('div'),
-})
 
 interface MountedComponent {
   wrapper: VueWrapper
@@ -324,12 +271,6 @@ async function mountPveTab(locale: Locale): Promise<MountedComponent> {
   return { wrapper, expectedIconOnlyButtons: 11 }
 }
 
-async function mountProjectTable(locale: Locale): Promise<MountedComponent> {
-  useProjectsStore().projects = [industryProject({ id: 'vexor' }), industryProject({ id: 'widow', productTypeId: WIDOW_TYPE_ID, productTypeName: 'Widow' })]
-  const wrapper = mount(ProjectTable, { global: { plugins: [i18nFor(locale)], stubs: { teleport: true } } })
-  return { wrapper, expectedIconOnlyButtons: 4 * 2 }
-}
-
 async function mountNewProjectModal(locale: Locale): Promise<MountedComponent> {
   const wrapper = mount(NewProjectModal, {
     props: { show: true },
@@ -352,21 +293,6 @@ async function mountStructureConfig(locale: Locale): Promise<MountedComponent> {
   await flushPromises()
   const editLabel = locale === 'en' ? en.common.actions.edit : fr.common.actions.edit
   await buttonMatching(wrapper, button => button.attributes('aria-label') === editLabel).trigger('click')
-  await flushPromises()
-  return { wrapper, expectedIconOnlyButtons: 3 }
-}
-
-async function mountProjectDetail(locale: Locale): Promise<MountedComponent> {
-  const projectsStore = useProjectsStore()
-  projectsStore.currentProject = { ...industryProject({ id: 'project-detail' }), steps: [], tree: null }
-  vi.spyOn(projectsStore, 'fetchProject').mockResolvedValue(undefined as never)
-  const wrapper = mount(ProjectDetail, {
-    props: { projectId: 'project-detail' },
-    global: {
-      plugins: [i18nFor(locale)],
-      stubs: { teleport: true, StepsTab: true, BpcKitTab: true, CostEstimationTab: true, ShoppingTab: shoppingTabWithClearStockModalOpen },
-    },
-  })
   await flushPromises()
   return { wrapper, expectedIconOnlyButtons: 3 }
 }
@@ -408,10 +334,8 @@ const COMPONENTS: [string, (locale: Locale) => Promise<MountedComponent>][] = [
   ['EscalationRow', mountEscalationRow],
   ['EscalationsTab', mountEscalationsTab],
   ['PveTab', mountPveTab],
-  ['ProjectTable', mountProjectTable],
   ['NewProjectModal', mountNewProjectModal],
   ['StructureConfig', mountStructureConfig],
-  ['ProjectDetail', mountProjectDetail],
   ['GroupIndustryDetail', mountGroupIndustryDetail],
 ]
 

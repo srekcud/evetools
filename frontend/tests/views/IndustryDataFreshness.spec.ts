@@ -6,9 +6,7 @@ import type { LocationQuery } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
-import ProjectDetail from '@/components/industry/ProjectDetail.vue'
 import { ApiError, apiRequest } from '@/services/api'
-import { useProjectsStore } from '@/stores/industry/projects'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 import { apiOutcomesByPath, rejectWith, respondWith } from '../deferred'
@@ -42,8 +40,6 @@ const stubbedChildren = {
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
-  ProjectTable: true,
-  ProjectDetail: true,
   BlacklistConfig: true,
   StructureConfig: true,
   SkillsConfig: true,
@@ -87,7 +83,6 @@ beforeEach(() => {
   setActivePinia(createPinia())
   outcomes.clear()
   useIndustryStore().navigationIntent = null
-  vi.spyOn(useProjectsStore(), 'fetchProjects').mockResolvedValue(undefined as never)
   vi.spyOn(useAdminStore(), 'checkAccess').mockResolvedValue(false)
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
@@ -109,7 +104,7 @@ describe('Industry data freshness (issue 292)', () => {
     expect(shownFreshness(wrapper)).toEqual(TYPICAL_RESPONSE_SHOWN)
   })
 
-  it.each(['dashboard', 'projects', 'slots', 'stockpile'] as const)('W2: shows no data freshness on the %s tab', async (tab) => {
+  it.each(['dashboard', 'slots', 'stockpile'] as const)('W2: shows no data freshness on the %s tab', async (tab) => {
     outcomes.respondTo(DATA_FRESHNESS_ENDPOINT, respondWith(TYPICAL_DATA_FRESHNESS_RESPONSE))
 
     const wrapper = await mountIndustryWithQuery({ tab })
@@ -131,15 +126,6 @@ describe('Industry data freshness (issue 292)', () => {
       shown: [JITA_PRICES_UNKNOWN, COST_INDICES_UNKNOWN, ADJUSTED_PRICES_UNKNOWN],
       errorBannerShown: false,
     })
-  })
-
-  it('shows no data freshness on a project detail opened from the margins tab', async () => {
-    outcomes.respondTo(DATA_FRESHNESS_ENDPOINT, respondWith(TYPICAL_DATA_FRESHNESS_RESPONSE))
-
-    const wrapper = await mountIndustryWithQuery({ tab: 'margins', project: 'p1' })
-
-    expect({ projectDetailShown: wrapper.findComponent(ProjectDetail).exists(), shown: shownFreshness(wrapper) })
-      .toEqual({ projectDetailShown: true, shown: [] })
   })
 
   it('reads the data freshness again when the screen is mounted again', async () => {

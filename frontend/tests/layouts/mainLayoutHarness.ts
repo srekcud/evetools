@@ -28,9 +28,6 @@ interface MainLayoutMountOptions {
 
 function stubbedApiAnswer(url: string): unknown {
   if (url === '/api/industry/projects') {
-    return { projects: [] }
-  }
-  if (url === '/api/group-industry/projects') {
     return []
   }
   if (url.startsWith('/api/industry/search?q=')) {

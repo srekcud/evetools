@@ -11,7 +11,6 @@ const CATALOG_ROWS: CatalogRow[] = [
   ['/ledger?tab=escalations', 'Revenus › Escalations', 'Revenue › Escalations'],
   ['/ledger?tab=settings', 'Revenus › Parametres', 'Revenue › Settings'],
   ['/industry', 'Industrie', 'Industry'],
-  ['/industry?tab=projects', 'Industrie › Projets', 'Industry › Projects'],
   ['/industry?tab=margins', 'Industrie › Marges', 'Industry › Margins'],
   ['/industry?tab=batch', 'Industrie › Scan', 'Industry › Batch Scan'],
   ['/industry?tab=buy-vs-build', 'Industrie › Achat vs Prod', 'Industry › Buy vs Build'],
@@ -118,7 +117,6 @@ describe('searchNavigationEntries', () => {
   it('keeps declaration order between entries of the same rank', () => {
     expect(labelsFound(ENGLISH_CATALOG, 'ind')).toEqual([
       'Industry',
-      'Industry › Projects',
       'Industry › Margins',
       'Industry › Batch Scan',
       'Industry › Buy vs Build',
@@ -148,7 +146,6 @@ describe('searchNavigationEntries', () => {
   it('cuts at ten entries when more than ten have the best rank', () => {
     expect(labelsFound(ENGLISH_CATALOG, 'i')).toEqual([
       'Industry',
-      'Industry › Projects',
       'Industry › Margins',
       'Industry › Batch Scan',
       'Industry › Buy vs Build',
@@ -157,6 +154,7 @@ describe('searchNavigationEntries', () => {
       'Industry › Stockpile',
       'Inventory',
       'Inventory › Contracts',
+      'Group Industry',
     ])
   })
 

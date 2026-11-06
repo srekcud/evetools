@@ -8,7 +8,6 @@ import Industry from '@/views/Industry.vue'
 import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
 import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
-import { useProjectsStore } from '@/stores/industry/projects'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 
@@ -32,8 +31,6 @@ const stubbedChildren = {
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
-  ProjectTable: true,
-  ProjectDetail: true,
   BlacklistConfig: true,
   StructureConfig: true,
   SkillsConfig: true,
@@ -75,16 +72,15 @@ beforeEach(() => {
   setActivePinia(createPinia())
   routerReplace.mockClear()
   useIndustryStore().navigationIntent = null
-  vi.spyOn(useProjectsStore(), 'fetchProjects').mockResolvedValue(undefined as never)
   vi.spyOn(useAdminStore(), 'checkAccess').mockResolvedValue(false)
 })
 
 describe('Industry type in the URL when a tab pill is clicked', () => {
   it.each([
-    [en.industry.tabs.pivot, { tab: 'pivot', projectTab: 'shopping' }],
-    [en.industry.tabs.dashboard, { projectTab: 'shopping' }],
+    [en.industry.tabs.pivot, { tab: 'pivot', origin: 'dashboard' }],
+    [en.industry.tabs.dashboard, { origin: 'dashboard' }],
   ])('removes the type from the query and keeps the other parameters when the %s pill is clicked', async (pillLabel, expectedQuery) => {
-    const wrapper = await mountIndustryWithQuery({ tab: 'margins', typeId: String(RAVEN_TYPE_ID), projectTab: 'shopping' })
+    const wrapper = await mountIndustryWithQuery({ tab: 'margins', typeId: String(RAVEN_TYPE_ID), origin: 'dashboard' })
 
     await clickPill(wrapper, pillLabel)
 

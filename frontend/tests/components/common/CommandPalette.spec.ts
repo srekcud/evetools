@@ -28,9 +28,6 @@ const TYPE_SEARCH_DEBOUNCE_MS = 250
 
 async function emptyApiAnswer(endpoint: string): Promise<unknown> {
   if (endpoint === '/industry/projects') {
-    return { projects: [] }
-  }
-  if (endpoint === '/group-industry/projects') {
     return []
   }
   if (endpoint.startsWith('/industry/search?q=')) {

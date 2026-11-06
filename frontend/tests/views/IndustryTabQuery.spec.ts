@@ -6,7 +6,6 @@ import type { LocationQuery } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
 import BatchScanTab from '@/components/industry/BatchScanTab.vue'
-import { useProjectsStore } from '@/stores/industry/projects'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 
@@ -24,8 +23,6 @@ const stubbedChildren = {
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
-  ProjectTable: true,
-  ProjectDetail: true,
   BlacklistConfig: true,
   StructureConfig: true,
   SkillsConfig: true,
@@ -61,7 +58,6 @@ beforeEach(() => {
   setActivePinia(createPinia())
   routerReplace.mockClear()
   useIndustryStore().navigationIntent = null
-  vi.spyOn(useProjectsStore(), 'fetchProjects').mockResolvedValue(undefined as never)
   vi.spyOn(useAdminStore(), 'checkAccess').mockResolvedValue(false)
 })
 

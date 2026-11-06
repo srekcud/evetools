@@ -5,9 +5,7 @@ import { createI18n } from 'vue-i18n'
 import type { LocationQuery } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
-import ProjectDetail from '@/components/industry/ProjectDetail.vue'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
-import { useProjectsStore } from '@/stores/industry/projects'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 
@@ -29,8 +27,6 @@ const stubbedChildren = {
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
-  ProjectTable: true,
-  ProjectDetail: true,
   BlacklistConfig: true,
   StructureConfig: true,
   SkillsConfig: true,
@@ -63,60 +59,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   routerReplace.mockClear()
   useIndustryStore().navigationIntent = null
-  vi.spyOn(useProjectsStore(), 'fetchProjects').mockResolvedValue(undefined as never)
   vi.spyOn(useAdminStore(), 'checkAccess').mockResolvedValue(false)
-})
-
-describe('Industry project in the URL', () => {
-  it('opens the project detail when mounted with a project in the query', async () => {
-    const wrapper = await mountIndustryWithQuery({ tab: 'projects', project: 'p1' })
-
-    expect(wrapper.findComponent(ProjectDetail).exists()).toBe(true)
-    expect(wrapper.findComponent(ProjectDetail).props('projectId')).toBe('p1')
-  })
-
-  it('opens the project detail when the project appears in the query of a mounted screen', async () => {
-    const wrapper = await mountIndustryWithQuery({})
-    expect(wrapper.findComponent(ProjectDetail).exists()).toBe(false)
-
-    await changeQuery({ tab: 'projects', project: 'p2' })
-
-    expect(wrapper.findComponent(ProjectDetail).exists()).toBe(true)
-    expect(wrapper.findComponent(ProjectDetail).props('projectId')).toBe('p2')
-  })
-
-  it('switches the open detail to the project now in the query', async () => {
-    const wrapper = await mountIndustryWithQuery({ tab: 'projects', project: 'p1' })
-    expect(wrapper.findComponent(ProjectDetail).exists()).toBe(true)
-
-    await changeQuery({ tab: 'projects', project: 'p3' })
-
-    expect(wrapper.findComponent(ProjectDetail).props('projectId')).toBe('p3')
-  })
-
-  it('removes the project from the query when the detail is closed, keeping the tab', async () => {
-    const wrapper = await mountIndustryWithQuery({ tab: 'projects', project: 'p1' })
-    expect(wrapper.findComponent(ProjectDetail).exists()).toBe(true)
-
-    wrapper.findComponent(ProjectDetail).vm.$emit('close')
-    await flushPromises()
-
-    expect(wrapper.findComponent(ProjectDetail).exists()).toBe(false)
-    expect(routerReplace).toHaveBeenCalledTimes(1)
-    expect(routerReplace).toHaveBeenCalledWith({ query: { tab: 'projects' } })
-  })
-
-  it('opens the same project again after its detail was closed', async () => {
-    const wrapper = await mountIndustryWithQuery({ tab: 'projects', project: 'p1' })
-    expect(wrapper.findComponent(ProjectDetail).exists()).toBe(true)
-    wrapper.findComponent(ProjectDetail).vm.$emit('close')
-    await flushPromises()
-    await changeQuery({ tab: 'projects' })
-
-    await changeQuery({ tab: 'projects', project: 'p1' })
-
-    expect(wrapper.findComponent(ProjectDetail).props('projectId')).toBe('p1')
-  })
 })
 
 describe('Industry type in the URL', () => {
