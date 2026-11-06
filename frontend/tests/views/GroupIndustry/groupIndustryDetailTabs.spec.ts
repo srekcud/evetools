@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
 import FinancialSummary from '@/components/group-industry/FinancialSummary.vue'
+import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { apiRequest } from '@/services/api'
@@ -26,8 +27,8 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const COMING_SOON_FRENCH = 'À venir'
-const ACTIVE_TABS = ['bom', 'contributions', 'distribution', 'sales', 'members']
-const COMING_SOON_TABS = ['chain', 'invention', 'planning', 'journal']
+const ACTIVE_TABS = ['bom', 'contributions', 'distribution', 'sales', 'members', 'chain']
+const COMING_SOON_TABS = ['invention', 'planning', 'journal']
 
 async function mountSellingNyxOn(tab: string | undefined) {
   route.query = tab === undefined ? {} : { tab }
@@ -46,27 +47,29 @@ beforeEach(() => {
 })
 
 describe('project cockpit tabs', () => {
-  it('shows the five working tabs, the team one included for a solo project, then four disabled coming soon tabs, and opens on the materials', async () => {
+  it('shows the six working tabs, the team one included for a solo project, then three disabled coming soon tabs, and opens on the materials', async () => {
     const wrapper = await mountSellingNyxOn(undefined)
 
     const tabs = wrapper.findAll('[data-testid^="project-tab-"]')
     const disabled = tabs.map(tab => (tab.element as HTMLButtonElement).disabled)
     const comingSoonMentions = tabs.map(tab => tab.text().includes(COMING_SOON_FRENCH))
     const materialsPanel = wrapper.findComponent(BomTable).exists()
-    const comingSoonQuery = await mountSellingNyxOn('chain')
+    const chainQuery = await mountSellingNyxOn('chain')
 
     expect({
       ids: tabs.map(tab => tab.attributes('data-testid')),
       disabled,
       comingSoonMentions,
       materialsPanel,
-      comingSoonQueryOpensMaterials: comingSoonQuery.findComponent(BomTable).exists(),
+      chainQueryOpensTheProductionChain: chainQuery.findComponent(ProductionChain).exists(),
+      chainQueryKeepsTheMaterialsClosed: !chainQuery.findComponent(BomTable).exists(),
     }).toEqual({
       ids: [...ACTIVE_TABS, ...COMING_SOON_TABS].map(tab => `project-tab-${tab}`),
-      disabled: [false, false, false, false, false, true, true, true, true],
-      comingSoonMentions: [false, false, false, false, false, true, true, true, true],
+      disabled: [false, false, false, false, false, false, true, true, true],
+      comingSoonMentions: [false, false, false, false, false, false, true, true, true],
       materialsPanel: true,
-      comingSoonQueryOpensMaterials: true,
+      chainQueryOpensTheProductionChain: true,
+      chainQueryKeepsTheMaterialsClosed: true,
     })
   })
 
