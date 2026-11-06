@@ -20,7 +20,7 @@ import SellMarketsCard from '@/components/industry/SellMarketsCard.vue'
 import type { SellRow } from '@/components/industry/profit/VenueComparisonTable.vue'
 import InventionOptionsPanel from '@/components/industry/profit/InventionOptionsPanel.vue'
 import { venueLabel } from '@/components/industry/venueLabel'
-import { venueMargin, type SellVenue } from '@/components/industry/venueMargin'
+import type { SellVenue } from '@/components/industry/venueMargin'
 
 const props = defineProps<{
   initialTypeId?: number
@@ -53,9 +53,6 @@ const selectedInventorId = ref<string | null>(authStore.user?.characters.find(ch
 
 // UI state
 const materialsExpanded = ref(false)
-
-// Selected decryptor option (local, no API call on change)
-const selectedOption = ref<ProfitMarginInventionOption | null>(null)
 
 const MATERIALS_COLLAPSED_LIMIT = 6
 
@@ -107,10 +104,8 @@ const missingPriceTypeNames = computed((): string => {
     .join(', ')
 })
 
-// Effective total cost: use selected decryptor option if available, otherwise API result.
 // Null when the production cost is unknown.
 const effectiveTotalCost = computed((): number | null => {
-  if (selectedOption.value != null) return selectedOption.value.totalProductionCost
   if (!result.value) return 0
   return result.value.totalCost
 })
@@ -123,22 +118,16 @@ const effectiveCostPerUnit = computed((): number | null => {
 })
 
 const effectiveMaterialCost = computed((): number | null => {
-  if (selectedOption.value != null) return selectedOption.value.materialCost
   if (!result.value) return 0
   return result.value.materialCost
 })
 
 const effectiveJobInstallCost = computed((): number | null => {
-  if (selectedOption.value != null) return selectedOption.value.jobInstallCost
   if (!result.value) return 0
   return result.value.jobInstallCost
 })
 
 const effectiveInventionCost = computed((): number | null => {
-  if (selectedOption.value != null && result.value != null) {
-    // inventionCost from the option includes datacores + decryptor + install, amortized
-    return selectedOption.value.inventionCost
-  }
   if (!result.value) return 0
   return result.value.inventionCost
 })
@@ -153,34 +142,13 @@ const bestVenue = computed(() => {
   const totalCost = effectiveTotalCost.value
   // No margin can be computed against an unknown production cost
   if (totalCost == null) return null
-  const useOverride = selectedOption.value != null
 
-  if (!useOverride) {
-    // Use original margins from API
-    let best: { key: string; margin: number; revenue: number; profit: number | null; fees: number | null; unitPrice: number } | null = null
-    for (const [key, entry] of Object.entries(r.margins)) {
-      if (entry != null && entry.margin != null && (best == null || entry.margin > best.margin)) {
-        const unitPrice = r.sellPrices[key as SellVenue]
-        if (unitPrice == null) continue
-        best = { key, margin: entry.margin, revenue: entry.revenue, profit: entry.profit, fees: entry.fees, unitPrice }
-      }
-    }
-    return best
-  }
-
-  // Recompute margins with selected decryptor's totalProductionCost
   let best: { key: string; margin: number; revenue: number; profit: number | null; fees: number | null; unitPrice: number } | null = null
-  const prices: [SellVenue, number | null][] = [
-    ['jitaSell', r.sellPrices.jitaSell],
-    ['structureSell', r.sellPrices.structureSell],
-    ['structureBuy', r.sellPrices.structureBuy],
-    ['contractSell', r.sellPrices.contractSell],
-  ]
-  for (const [key, price] of prices) {
-    if (price == null || r.margins[key] == null) continue
-    const m = venueMargin(price, r.outputQuantity, totalCost, r.brokerFeeRate, r.salesTaxRate, key)
-    if (m.margin != null && (best == null || m.margin > best.margin)) {
-      best = { key, ...m, margin: m.margin, unitPrice: price }
+  for (const [key, entry] of Object.entries(r.margins)) {
+    if (entry != null && entry.margin != null && (best == null || entry.margin > best.margin)) {
+      const unitPrice = r.sellPrices[key as SellVenue]
+      if (unitPrice == null) continue
+      best = { key, margin: entry.margin, revenue: entry.revenue, profit: entry.profit, fees: entry.fees, unitPrice }
     }
   }
   return best
@@ -211,29 +179,14 @@ const sellRows = computed((): SellRow[] => {
   const m = r.margins
   const structureName = sp.structureName || 'Structure'
   const bestKey = bestVenue.value?.key ?? null
-  const overrideTotalCost = selectedOption.value != null ? effectiveTotalCost.value : null
 
-  function buildRow(key: SellVenue, venue: string, tag: string, unitPrice: number, origEntry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null, coveragePercent: number | null = null): SellRow {
-    if (overrideTotalCost != null) {
-      const recomputed = venueMargin(unitPrice, r.outputQuantity, overrideTotalCost, r.brokerFeeRate, r.salesTaxRate, key)
-      return {
-        key, venue, tag, unitPrice,
-        revenue: recomputed.revenue,
-        fees: recomputed.fees,
-        profit: recomputed.profit,
-        margin: recomputed.margin,
-        dailyVolume,
-        contractCount,
-        coveragePercent,
-        isBest: bestKey === key,
-      }
-    }
+  function buildRow(key: SellVenue, venue: string, tag: string, unitPrice: number, entry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null, coveragePercent: number | null = null): SellRow {
     return {
       key, venue, tag, unitPrice,
-      revenue: origEntry.revenue,
-      fees: origEntry.fees,
-      profit: origEntry.profit,
-      margin: origEntry.margin,
+      revenue: entry.revenue,
+      fees: entry.fees,
+      profit: entry.profit,
+      margin: entry.margin,
       dailyVolume,
       contractCount,
       coveragePercent,
@@ -360,7 +313,6 @@ function onProductSelect(product: SearchResult) {
   applyDefaultLevels(product.isT2)
   // Reset state
   selectedDecryptorTypeId.value = undefined
-  selectedOption.value = null
 }
 
 function clearProduct() {
@@ -369,8 +321,6 @@ function clearProduct() {
 }
 
 async function analyzeType(typeId: number): Promise<ProfitMarginResult | null> {
-  // Reset local decryptor override before re-fetching
-  selectedOption.value = null
   return store.analyzeMargin(typeId, {
     runs: runs.value,
     me: meLevel.value,
@@ -422,10 +372,11 @@ function selectInventor(characterId: string | null) {
 
 function selectDecryptor(option: ProfitMarginInventionOption) {
   selectedDecryptorTypeId.value = option.decryptorTypeId
-  selectedOption.value = option
   // Update ME/TE display from the selected decryptor (for reference only)
   meLevel.value = option.me
   teLevel.value = option.te
+  if (result.value == null) return
+  return analyzeType(result.value.typeId)
 }
 
 async function refreshPrices() {
@@ -642,7 +593,6 @@ store.fetchUserSettings()
         :selected-inventor-id="selectedInventorId"
         :options="inventionOptions"
         :best-decryptor-index="bestDecryptorIndex"
-        :selected-option="selectedOption"
         :selected-decryptor-type-id="selectedDecryptorTypeId"
         :effective-invention-cost="effectiveInventionCost"
         :effective-total-cost="effectiveTotalCost"
@@ -826,7 +776,7 @@ store.fetchUserSettings()
             </svg>
             <div>
               <h4 class="text-sm font-semibold text-slate-200">{{ t('industry.margins.inventionCostLabel') }}</h4>
-              <p class="text-xs text-slate-500">{{ selectedOption?.decryptorName ?? inventionData?.selectedDecryptorName ?? t('industry.bpcKitTab.none') }}</p>
+              <p class="text-xs text-slate-500">{{ inventionData?.selectedDecryptorName ?? t('industry.bpcKitTab.none') }}</p>
             </div>
           </div>
           <span class="font-mono text-lg text-slate-100 font-semibold">{{ effectiveInventionCost != null ? formatIskFull(effectiveInventionCost) : t('industry.inventionUnknown.label') }}</span>

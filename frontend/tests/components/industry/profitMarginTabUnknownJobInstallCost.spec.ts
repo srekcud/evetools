@@ -1,4 +1,4 @@
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
@@ -194,8 +194,19 @@ const HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
   warnings: [],
 }
 
+const HAIL_L_WITH_PROCESS_CHOSEN: ProfitMarginResult = {
+  ...HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST,
+  materialCost: PROCESS_DECRYPTOR_OPTION.materialCost,
+  inventionCost: PROCESS_DECRYPTOR_OPTION.inventionCost,
+  invention: {
+    ...HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST.invention!,
+    selectedDecryptorTypeId: PROCESS_DECRYPTOR_TYPE_ID,
+    selectedDecryptorName: PROCESS_DECRYPTOR_OPTION.decryptorName,
+  },
+}
+
 function mountWith(analysis: ProfitMarginResult, locale: 'en' | 'fr') {
-  vi.mocked(apiRequest).mockResolvedValue(null)
+  vi.mocked(apiRequest).mockImplementation(path => Promise.resolve(path.includes(`decryptorTypeId=${PROCESS_DECRYPTOR_TYPE_ID}`) ? HAIL_L_WITH_PROCESS_CHOSEN : null))
   useProjectsStore().marginResult = analysis
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   const wrapper = mount(ProfitMarginTab, {
@@ -233,6 +244,7 @@ async function selectProcessDecryptor(wrapper: VueWrapper): Promise<void> {
   const processRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Process Decryptor'))
   expect(processRow, 'Process Decryptor row').toBeDefined()
   await processRow!.trigger('click')
+  await flushPromises()
 }
 
 beforeEach(() => {

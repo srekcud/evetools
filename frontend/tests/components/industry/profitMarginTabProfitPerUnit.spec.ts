@@ -1,4 +1,4 @@
-import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
@@ -138,8 +138,22 @@ const SABRE_SOLD_AT_A_LOSS: ProfitMarginResult = {
   margins: jitaSellMargin(-450),
 }
 
+const SABRE_WITH_ATTAINMENT_CHOSEN: ProfitMarginResult = {
+  ...SABRE_WITH_JITA_SELL,
+  materialCost: ATTAINMENT_OPTION.materialCost,
+  jobInstallCost: ATTAINMENT_OPTION.jobInstallCost,
+  inventionCost: ATTAINMENT_OPTION.inventionCost,
+  totalCost: ATTAINMENT_OPTION.totalProductionCost,
+  margins: jitaSellMargin(1_060),
+  invention: {
+    ...SABRE_WITH_JITA_SELL.invention!,
+    selectedDecryptorTypeId: ATTAINMENT_OPTION.decryptorTypeId,
+    selectedDecryptorName: ATTAINMENT_OPTION.decryptorName,
+  },
+}
+
 function mountWithAnalysis(analysis: ProfitMarginResult) {
-  vi.mocked(apiRequest).mockResolvedValue(null)
+  vi.mocked(apiRequest).mockImplementation(path => Promise.resolve(path.includes(`decryptorTypeId=${ATTAINMENT_OPTION.decryptorTypeId}`) ? SABRE_WITH_ATTAINMENT_CHOSEN : null))
   useProjectsStore().marginResult = analysis
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   const wrapper = mount(ProfitMarginTab, {
@@ -210,12 +224,13 @@ describe('ProfitMarginTab profit per unit', () => {
     expect(profitCard(wrapper, t).findAll('p')[1]!.classes()).toContain('text-red-400')
   })
 
-  it('divides the profit recomputed with a locally selected decryptor by the output quantity', async () => {
+  it('divides the profit returned by the server for the chosen decryptor by the output quantity', async () => {
     const { wrapper, t } = mountWithAnalysis(SABRE_WITH_JITA_SELL)
 
     const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
     expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
     await attainmentRow!.trigger('click')
+    await flushPromises()
 
     expect(profitCardLines(wrapper, t)).toEqual({
       profit: '+1.06 K',

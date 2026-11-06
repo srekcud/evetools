@@ -1,4 +1,4 @@
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
@@ -107,8 +107,19 @@ const SABRE_WITH_UNPRICED_MATERIALS: ProfitMarginResult = {
   warnings: [],
 }
 
+const SABRE_WITH_ATTAINMENT_CHOSEN: ProfitMarginResult = {
+  ...SABRE_WITH_UNPRICED_MATERIALS,
+  jobInstallCost: ATTAINMENT_OPTION.jobInstallCost,
+  inventionCost: ATTAINMENT_OPTION.inventionCost,
+  invention: {
+    ...SABRE_WITH_UNPRICED_MATERIALS.invention!,
+    selectedDecryptorTypeId: ATTAINMENT_DECRYPTOR_TYPE_ID,
+    selectedDecryptorName: ATTAINMENT_OPTION.decryptorName,
+  },
+}
+
 function mountWithUnpricedMaterials(locale: 'en' | 'fr') {
-  vi.mocked(apiRequest).mockResolvedValue(null)
+  vi.mocked(apiRequest).mockImplementation(path => Promise.resolve(path.includes(`decryptorTypeId=${ATTAINMENT_DECRYPTOR_TYPE_ID}`) ? SABRE_WITH_ATTAINMENT_CHOSEN : null))
   useProjectsStore().marginResult = SABRE_WITH_UNPRICED_MATERIALS
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   const wrapper = mount(ProfitMarginTab, {
@@ -121,6 +132,7 @@ async function selectAttainmentDecryptor(wrapper: VueWrapper): Promise<void> {
   const attainmentRow = wrapper.findAll('tbody tr').find(row => row.text().includes('Attainment Decryptor'))
   expect(attainmentRow, 'Attainment Decryptor row').toBeDefined()
   await attainmentRow!.trigger('click')
+  await flushPromises()
 }
 
 function materialPriceCells(wrapper: VueWrapper, typeName: string): string[] {

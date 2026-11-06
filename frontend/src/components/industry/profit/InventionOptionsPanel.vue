@@ -12,7 +12,6 @@ const props = defineProps<{
   selectedInventorId: string | null
   options: ProfitMarginInventionOption[]
   bestDecryptorIndex: number
-  selectedOption: ProfitMarginInventionOption | null
   selectedDecryptorTypeId: number | null | undefined
   effectiveInventionCost: number | null
   effectiveTotalCost: number | null
@@ -32,12 +31,9 @@ function isInventionBest(index: number): boolean {
 }
 
 function isInventionSelected(option: ProfitMarginInventionOption): boolean {
-  if (props.selectedOption == null && props.selectedDecryptorTypeId === undefined) {
+  if (props.selectedDecryptorTypeId === undefined) {
     // Nothing explicitly selected yet: highlight the "best" one
     return isInventionBest(props.options.indexOf(option))
-  }
-  if (props.selectedOption != null) {
-    return option.decryptorTypeId === props.selectedOption.decryptorTypeId
   }
   return option.decryptorTypeId === props.selectedDecryptorTypeId
 }
@@ -95,7 +91,10 @@ function marginColor(margin: number | null): string {
 }
 
 function selectedDecryptorName(): string {
-  if (props.selectedOption != null) return props.selectedOption.decryptorName
+  if (props.selectedDecryptorTypeId !== undefined) {
+    const chosenOption = props.options.find(option => option.decryptorTypeId === props.selectedDecryptorTypeId)
+    if (chosenOption != null) return chosenOption.decryptorName
+  }
   if (props.bestDecryptorIndex >= 0 && props.bestDecryptorIndex < props.options.length) {
     return props.options[props.bestDecryptorIndex].decryptorName
   }
