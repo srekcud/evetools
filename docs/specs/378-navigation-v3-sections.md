@@ -20,7 +20,7 @@ Depuis #362 le projet à plusieurs et le projet solo forment un seul module, ser
 | E1 | Barre latérale, `/dashboard` | liens Tableau de bord, Industrie, Appraisal, PI, Opérations de minage, Marché, Revenus, Inventaire, Personnages ; aucun lien « Group Industry » |
 | E2 | Groupe « Economy » | bouton d'en-tête `aria-expanded`, contient Market, Revenue, Inventory ; replié, ces liens disparaissent |
 | E3 | `/group-industry` | seul le lien Industry porte `aria-current`, titre de page « Industry » |
-| E4 | Réglages | cases : Industry, Appraisal, PI, Mining operations, Market, Revenue, Inventory ; pas « Group Industry » |
+| E4 | Réglages | cases : Dashboard, Industry, Appraisal, PI, Mining operations, Market, Revenue, Inventory ; pas « Group Industry » |
 | E5 | Palette EN, rien masqué | Dashboard, Industry (+6 onglets), Industry › Projects, Industry › Projects › Available, Appraisal, PI, Mining operations (+1), Market (+1), Revenue (+4), Inventory (+1), Characters |
 | E6 | `industry` masqué | plus aucune entrée `/industry` ni `/group-industry` |
 | E7 | `group-industry` seul masqué (hérité) | entrées `/group-industry*` absentes, `/industry` et ses onglets présents ; stockage inchangé |

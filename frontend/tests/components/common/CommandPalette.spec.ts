@@ -211,13 +211,13 @@ describe('CommandPalette', () => {
 
       expect(optionLabels()).toEqual([
         'Dashboard',
-        'Revenue',
         'Industry',
-        'Group Industry',
+        'Industry › Projects',
         'Appraisal',
         'PI',
         'Mining operations',
         'Market',
+        'Revenue',
         'Inventory',
         'Characters',
       ])
@@ -243,7 +243,7 @@ describe('CommandPalette', () => {
       expect(optionLabels()).toEqual(['Industry › Buy vs Build'])
     })
 
-    it('lists Industry and its tabs before Group Industry for ind, ten rows at most', async () => {
+    it('lists Industry, its tabs and its projects for ind, ten rows at most', async () => {
       await mountOpenPalette()
 
       await typeQuery('ind')
@@ -256,8 +256,8 @@ describe('CommandPalette', () => {
         'Industry › Pivot',
         'Industry › Slots',
         'Industry › Stockpile',
-        'Group Industry',
-        'Group Industry › Available',
+        'Industry › Projects',
+        'Industry › Projects › Available',
       ])
     })
 
@@ -268,15 +268,15 @@ describe('CommandPalette', () => {
 
       expect(optionLabels()).toEqual([
         'Appraisal',
-        'Group Industry › Available',
+        'Industry › Projects › Available',
         'Mining operations › Available',
         'Market › Alerts',
         'Dashboard',
-        'Revenue › Escalations',
         'Industry › Margins',
         'Industry › Batch Scan',
         'Mining operations',
         'Market',
+        'Revenue › Escalations',
       ])
     })
 
@@ -344,12 +344,12 @@ describe('CommandPalette', () => {
 
       expect(optionLabels()).toEqual([
         'Dashboard',
-        'Revenue',
         'Industry',
-        'Group Industry',
+        'Industry › Projects',
         'Appraisal',
         'PI',
         'Mining operations',
+        'Revenue',
         'Inventory',
         'Characters',
       ])
@@ -402,7 +402,7 @@ describe('CommandPalette', () => {
 
     it('navigates to a screen without a tab query', async () => {
       const { router } = await mountOpenPalette()
-      await pressArrowDown(7)
+      await pressArrowDown(6)
 
       await pressKey('Enter')
 
@@ -439,14 +439,14 @@ describe('CommandPalette', () => {
 
       await pressKey('ArrowUp')
 
-      expect(activeOptionLabel()).toBe('Group Industry › Available')
+      expect(activeOptionLabel()).toBe('Industry › Projects › Available')
     })
 
     it('wraps ArrowDown from the last row to the first', async () => {
       await mountOpenPalette()
       await typeQuery('ind')
       await pressArrowDown(8)
-      expect(activeOptionLabel()).toBe('Group Industry › Available')
+      expect(activeOptionLabel()).toBe('Industry › Projects › Available')
 
       await pressKey('ArrowDown')
 
@@ -465,14 +465,14 @@ describe('CommandPalette', () => {
 
     it('activates a row hovered with the mouse', async () => {
       await mountOpenPalette()
-      const hoveredOption = optionElements()[3]
+      const hoveredOption = optionElements()[2]
       expect(hoveredOption).toBeDefined()
 
       hoveredOption.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
       hoveredOption.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
       await flushPromises()
 
-      expect(activeOptionLabel()).toBe('Group Industry')
+      expect(activeOptionLabel()).toBe('Industry › Projects')
     })
 
     it.each([
