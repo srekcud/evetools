@@ -15,6 +15,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Tests\Integration\IntegrationTestCase;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use PHPUnit\Framework\Attributes\Group;
 
 #[Group('issue-156')]
@@ -122,6 +123,21 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         $this->em->flush();
 
         self::assertSame($declared, $this->repository->findByMemberBomItemAndType($owner, $tritanium, ContributionType::Material, $statuses));
+    }
+
+    #[Group('issue-363')]
+    public function testASecondDerivedContributionOfTheSameMemberLineAndTypeIsRejectedByTheDatabase(): void
+    {
+        $ishtar = $this->createProject('Ishtar fleet');
+        $owner = $this->addMember($ishtar, ParticipantRole::Owner);
+        $tritanium = $this->addBomLine($ishtar, 34, 'Tritanium', 1_000);
+        $this->addContributionOn($owner, $tritanium, ContributionStatus::Approved)->setIsAutoDetected(true);
+        $this->em->flush();
+
+        $this->addContributionOn($owner, $tritanium, ContributionStatus::Approved)->setIsAutoDetected(true);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+        $this->em->flush();
     }
 
     public function testNoProjectGivesNoApprovedValue(): void

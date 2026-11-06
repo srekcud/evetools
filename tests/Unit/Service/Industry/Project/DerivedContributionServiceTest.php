@@ -15,6 +15,7 @@ use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -186,6 +187,19 @@ final class DerivedContributionServiceTest extends TestCase
         $this->assertSame([$manual], $this->project->getContributions()->toArray());
         $this->assertSame([ContributionStatus::Approved, false, 900.0], [$manual->getStatus(), $manual->isAutoDetected(), $manual->getEstimatedValue()]);
         $this->assertSame([$derived], $this->removedContributions);
+    }
+
+    public function testCompletedProjectKeepsItsContributionsWhateverTheLinksBecome(): void
+    {
+        $this->linkPurchase($this->tritaniumLine, self::TRITANIUM_TYPE_ID, 400, 6.5, 'esi_wallet');
+        $this->project->setStatus(ProjectStatus::Completed);
+
+        $this->service->refreshLine($this->tritaniumLine);
+
+        $this->assertSame([], $this->project->getContributions()->toArray());
+        $this->assertSame([], $this->persistedContributions);
+        $this->assertSame([], $this->publishedUpdates);
+        $this->assertSame(0, $this->tritaniumLine->getFulfilledQuantity());
     }
 
     public function testPurchaseOfAnotherTypeMakesNoDerivedContributionAndChangesNothing(): void
