@@ -148,6 +148,7 @@ function selectedDecryptorName(): string {
             <th class="text-center py-2.5 px-2">{{ t('industry.bpcKitTab.runsBpc') }}</th>
             <th class="text-right py-2.5 px-3">{{ t('industry.margins.probability') }} <span v-if="props.selectedInventorId == null" class="normal-case tracking-normal text-slate-500">{{ t('industry.margins.probabilityWithoutSkills') }}</span></th>
             <th class="text-right py-2.5 px-3">{{ t('industry.margins.attemptsCol') }}</th>
+            <th class="text-right py-2.5 px-3">{{ t('industry.margins.manufacturingJobsCol') }}</th>
             <th class="text-right py-2.5 px-3">{{ t('industry.margins.decryptorCostCol') }}</th>
             <th class="text-right py-2.5 px-3">{{ t('industry.margins.costPerUnitCol') }}</th>
             <th class="text-right py-2.5 px-3">{{ t('industry.margins.deltaPerUnitCol') }}</th>
@@ -221,6 +222,10 @@ function selectedDecryptorName(): string {
 
             <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
               {{ formatAttempts(option.expectedAttempts) }}
+            </td>
+
+            <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+              {{ option.manufacturingJobs }}
             </td>
 
             <td class="py-2.5 px-3 text-right font-mono" :class="isInventionBest(index) ? 'text-slate-100 font-semibold' : 'text-slate-300'">

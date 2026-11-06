@@ -1125,6 +1125,7 @@
       "withoutSkills": "Sans competences",
       "probabilityWithoutSkills": "(sans competences)",
       "attemptsCol": "Tentatives",
+      "manufacturingJobsCol": "Jobs",
       "decryptorCostCol": "Decrypteur / tentative",
       "costPerUnitCol": "Cout / unite",
       "deltaPerUnitCol": "Ecart / unite",

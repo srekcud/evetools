@@ -182,7 +182,7 @@ async function chooseDecryptor(wrapper: VueWrapper, rowLabel: string): Promise<v
 }
 
 function decryptorRow(wrapper: VueWrapper, rowLabel: string): DOMWrapper<Element> {
-  const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 13 && candidate.text().includes(rowLabel))
+  const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 14 && candidate.text().includes(rowLabel))
   expect(row, `decryptor row ${rowLabel}`).toBeDefined()
   return row!
 }

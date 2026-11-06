@@ -135,7 +135,7 @@ async function mountSabreAnalysis(): Promise<VueWrapper> {
 }
 
 async function chooseAttainment(wrapper: VueWrapper): Promise<void> {
-  const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 13 && candidate.text().includes('Attainment Decryptor'))
+  const row = wrapper.findAll('tbody tr').find(candidate => candidate.findAll('td').length === 14 && candidate.text().includes('Attainment Decryptor'))
   expect(row, 'Attainment Decryptor row').toBeDefined()
   await row!.trigger('click')
   await flushPromises()
