@@ -287,7 +287,7 @@ describe('CommandPalette types', () => {
 
   describe('hidden modules', () => {
     it('keeps searching for the Market action when industry is hidden', async () => {
-      await mountOpenPalette({ hiddenModules: ['industry'] })
+      await mountOpenPalette({ hiddenModules: ['industry', 'group-industry'] })
 
       await typeQueryAndWaitForTypes('raven')
 
@@ -296,7 +296,7 @@ describe('CommandPalette types', () => {
     })
 
     it('moves the Market action to Enter when industry is hidden', async () => {
-      const { router } = await mountOpenPalette({ hiddenModules: ['industry'] })
+      const { router } = await mountOpenPalette({ hiddenModules: ['industry', 'group-industry'] })
       await typeQueryAndWaitForTypes('rav')
       expect(activeOptionText()?.startsWith('Raven ')).toBe(true)
 

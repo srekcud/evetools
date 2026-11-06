@@ -35,7 +35,6 @@ const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
     { query: 'settings', labelKey: 'ledger.tabs.settings' },
   ],
   industry: [
-    { query: 'projects', labelKey: 'industry.tabs.projects' },
     { query: 'margins', labelKey: 'industry.tabs.margins' },
     { query: 'batch', labelKey: 'industry.tabs.batch' },
     { query: 'buy-vs-build', labelKey: 'industry.tabs.buyVsBuild' },

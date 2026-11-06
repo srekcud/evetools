@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useIndustryStore } from '@/stores/industry'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ProjectKpiCards from '@/components/group-industry/ProjectKpiCards.vue'
 import ProjectCard from '@/components/group-industry/ProjectCard.vue'
@@ -15,12 +16,14 @@ import LineRentalModal from '@/components/group-industry/LineRentalModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { joinOutcome } from '@/views/GroupIndustry/joinOutcome'
 import type { GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
+import type { ProjectPrefill } from '@/stores/industry/types'
 
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { getCorporationLogoUrl, onImageError } = useEveImages()
 const groupProjectStore = useGroupProjectStore()
+const industryStore = useIndustryStore()
 
 // --- Data ---
 
@@ -61,6 +64,7 @@ const filteredProjects = computed(() => {
 // --- Modals ---
 
 const showNewProjectModal = ref(false)
+const newProjectPrefill = ref<ProjectPrefill | null>(null)
 const showLineRentalModal = ref(false)
 
 function openNewProjectModal() {
@@ -69,6 +73,7 @@ function openNewProjectModal() {
 
 function closeNewProjectModal() {
   showNewProjectModal.value = false
+  newProjectPrefill.value = null
 }
 
 function openLineRentalModal() {
@@ -102,7 +107,7 @@ async function handleJoinProject(shortLinkCode: string) {
 }
 
 async function handleProjectCreated() {
-  showNewProjectModal.value = false
+  closeNewProjectModal()
   await fetchProjects()
 }
 
@@ -130,7 +135,20 @@ const corporationId = computed(() => authStore.user?.corporationId ?? 0)
 
 // --- Lifecycle ---
 
+function consumeNavigationIntent() {
+  const intent = industryStore.navigationIntent
+  if (!intent || intent.target !== 'projects') return
+  industryStore.navigationIntent = null
+  if (intent.prefill) {
+    newProjectPrefill.value = intent.prefill
+    openNewProjectModal()
+  } else if (intent.openCreateModal) {
+    openNewProjectModal()
+  }
+}
+
 onMounted(() => {
+  consumeNavigationIntent()
   fetchProjects()
 })
 </script>
@@ -322,6 +340,7 @@ onMounted(() => {
     <!-- Modals -->
     <NewProjectModal
       :show="showNewProjectModal"
+      :prefill="newProjectPrefill"
       @close="closeNewProjectModal"
       @created="handleProjectCreated"
     />

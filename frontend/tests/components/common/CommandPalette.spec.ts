@@ -250,7 +250,6 @@ describe('CommandPalette', () => {
 
       expect(optionLabels()).toEqual([
         'Industry',
-        'Industry › Projects',
         'Industry › Margins',
         'Industry › Batch Scan',
         'Industry › Buy vs Build',
@@ -413,9 +412,9 @@ describe('CommandPalette', () => {
     it('navigates to a clicked row and closes', async () => {
       const { wrapper, router } = await mountOpenPalette()
       await typeQuery('ind')
-      expect(optionLabels()[2]).toBe('Industry › Margins')
+      expect(optionLabels()[1]).toBe('Industry › Margins')
 
-      optionElements()[2].click()
+      optionElements()[1].click()
       await flushPromises()
 
       expect(router.currentRoute.value.fullPath).toBe('/industry?tab=margins')
@@ -428,10 +427,10 @@ describe('CommandPalette', () => {
       await mountOpenPalette()
       await typeQuery('ind')
 
-      await pressArrowDown(2)
+      await pressArrowDown(1)
 
       expect(activeOptionLabel()).toBe('Industry › Margins')
-      expect(searchInput()?.getAttribute('aria-activedescendant')).toBe(optionElements()[2].id)
+      expect(searchInput()?.getAttribute('aria-activedescendant')).toBe(optionElements()[1].id)
     })
 
     it('wraps ArrowUp from the first row to the last', async () => {
@@ -446,7 +445,7 @@ describe('CommandPalette', () => {
     it('wraps ArrowDown from the last row to the first', async () => {
       await mountOpenPalette()
       await typeQuery('ind')
-      await pressArrowDown(9)
+      await pressArrowDown(8)
       expect(activeOptionLabel()).toBe('Group Industry › Available')
 
       await pressKey('ArrowDown')

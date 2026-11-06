@@ -10,7 +10,6 @@ import type { SearchResult } from '@/stores/industry/types'
 import { searchNavigationEntries, normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { listTypeActions, typeActionForClick, typeActionForEvent, type TypeAction } from '@/utils/commandPaletteTypeActions'
 
-const INDUSTRY_MODULE = 'industry'
 const GROUP_INDUSTRY_MODULE = 'group-industry'
 
 const props = defineProps<{
@@ -100,8 +99,7 @@ watch(() => props.show, async (isShown) => {
     navigationEntries.value = listNavigationEntries({ isAdmin: props.isAdmin })
     typeActions.value = listTypeActions(hiddenModules)
     void loadProjects({
-      industry: !hiddenModules.includes(INDUSTRY_MODULE),
-      groupIndustry: !hiddenModules.includes(GROUP_INDUSTRY_MODULE),
+      enabled: !hiddenModules.includes(GROUP_INDUSTRY_MODULE),
     })
     await nextTick()
     searchInput.value?.focus()
@@ -257,9 +255,6 @@ function onKeydown(event: KeyboardEvent): void {
               @keydown.enter.self.stop.prevent="executeActiveRow($event)"
             >
               <span class="truncate">{{ project.label }}</span>
-              <span class="shrink-0 text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded-sm">
-                {{ project.origin === 'industry' ? t('nav.industry') : t('nav.groupIndustry') }}
-              </span>
               <span
                 v-if="project.isCompleted"
                 class="shrink-0 text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-sm"
