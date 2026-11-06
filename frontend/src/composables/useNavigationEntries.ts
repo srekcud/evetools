@@ -1,5 +1,5 @@
 import { useI18n } from 'vue-i18n'
-import { adminNavItem, allNavEntries, isNavGroup, readHiddenModules, type NavItem } from '@/constants/sidebarNavigation'
+import { adminNavItem, allNavEntries, isNavGroup, isProjectsHidden, readHiddenModules, type NavItem } from '@/constants/sidebarNavigation'
 
 export interface NavigationEntry {
   route: string
@@ -17,6 +17,7 @@ interface ScreenTab {
   labelKey: string
 }
 
+const INDUSTRY_MODULE = 'industry'
 const ALIAS_LOCALE = 'en'
 const LABEL_SEPARATOR = ' › '
 
@@ -26,6 +27,15 @@ const CHARACTERS_SCREEN: Screen = {
   labelKey: 'nav.characters',
   route: '/characters',
 }
+
+const PROJECTS_SCREEN: Screen = {
+  labelKey: 'nav.projects',
+  route: '/group-industry',
+}
+
+const PROJECTS_TABS: ScreenTab[] = [
+  { query: 'available', labelKey: 'groupIndustry.tabs.available' },
+]
 
 const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
   ledger: [
@@ -41,9 +51,6 @@ const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
     { query: 'pivot', labelKey: 'industry.tabs.pivot' },
     { query: 'slots', labelKey: 'industry.tabs.slots' },
     { query: 'stockpile', labelKey: 'industry.tabs.stockpile' },
-  ],
-  'group-industry': [
-    { query: 'available', labelKey: 'groupIndustry.tabs.available' },
   ],
   'mining-operations': [
     { query: 'available', labelKey: 'miningOperation.tabs.available' },
@@ -80,13 +87,26 @@ export function useNavigationEntries(): {
     }
   }
 
-  function tabEntry(screen: Screen, tab: ScreenTab): NavigationEntry {
+  function tabEntry(screen: Screen, tab: ScreenTab, parent?: Screen): NavigationEntry {
+    const labelKeys = [...(parent ? [parent.labelKey] : []), screen.labelKey, tab.labelKey]
     return {
       route: `${screen.route}?tab=${tab.query}`,
-      label: `${labelInInterfaceLanguage(screen.labelKey)}${LABEL_SEPARATOR}${labelInInterfaceLanguage(tab.labelKey)}`,
-      aliasLabel: `${labelInAliasLanguage(screen.labelKey)}${LABEL_SEPARATOR}${labelInAliasLanguage(tab.labelKey)}`,
+      label: labelKeys.map(labelInInterfaceLanguage).join(LABEL_SEPARATOR),
+      aliasLabel: labelKeys.map(labelInAliasLanguage).join(LABEL_SEPARATOR),
       isTab: true,
     }
+  }
+
+  function projectEntries(industry: Screen): NavigationEntry[] {
+    return [
+      {
+        route: PROJECTS_SCREEN.route,
+        label: [industry.labelKey, PROJECTS_SCREEN.labelKey].map(labelInInterfaceLanguage).join(LABEL_SEPARATOR),
+        aliasLabel: [industry.labelKey, PROJECTS_SCREEN.labelKey].map(labelInAliasLanguage).join(LABEL_SEPARATOR),
+        isTab: false,
+      },
+      ...PROJECTS_TABS.map(tab => tabEntry(PROJECTS_SCREEN, tab, industry)),
+    ]
   }
 
   function listNavigationEntries({ isAdmin }: NavigationEntriesOptions): NavigationEntry[] {
@@ -96,6 +116,7 @@ export function useNavigationEntries(): {
       .flatMap(screen => [
         screenEntry(screen),
         ...(TABS_BY_MODULE[screen.id] ?? []).map(tab => tabEntry(screen, tab)),
+        ...(screen.id === INDUSTRY_MODULE && !isProjectsHidden(hiddenModules) ? projectEntries(screen) : []),
       ])
     entries.push(screenEntry(CHARACTERS_SCREEN))
     if (isAdmin) {

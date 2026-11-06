@@ -132,6 +132,8 @@
     "market": "Market",
     "appraisal": "Appraisal",
     "groupIndustry": "Group Industry",
+    "projects": "Projects",
+    "economy": "Economy",
     "mining": "Mining",
     "miningOperations": "Mining operations",
     "admin": "Administration",

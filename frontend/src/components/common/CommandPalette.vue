@@ -5,12 +5,10 @@ import { useI18n } from 'vue-i18n'
 import { useNavigationEntries, type NavigationEntry } from '@/composables/useNavigationEntries'
 import { useCommandPaletteProjects, type ProjectEntry } from '@/composables/useCommandPaletteProjects'
 import { useCommandPaletteTypeSearch } from '@/composables/useCommandPaletteTypeSearch'
-import { readHiddenModules } from '@/constants/sidebarNavigation'
+import { isProjectsHidden, readHiddenModules } from '@/constants/sidebarNavigation'
 import type { SearchResult } from '@/stores/industry/types'
 import { searchNavigationEntries, normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { listTypeActions, typeActionForClick, typeActionForEvent, type TypeAction } from '@/utils/commandPaletteTypeActions'
-
-const GROUP_INDUSTRY_MODULE = 'group-industry'
 
 const props = defineProps<{
   show: boolean
@@ -99,7 +97,7 @@ watch(() => props.show, async (isShown) => {
     navigationEntries.value = listNavigationEntries({ isAdmin: props.isAdmin })
     typeActions.value = listTypeActions(hiddenModules)
     void loadProjects({
-      enabled: !hiddenModules.includes(GROUP_INDUSTRY_MODULE),
+      enabled: !isProjectsHidden(hiddenModules),
     })
     await nextTick()
     searchInput.value?.focus()

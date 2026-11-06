@@ -17,6 +17,7 @@ import {
   adminNavItem,
   allNavEntries,
   isNavGroup,
+  isNavItemActive,
   readHiddenModules,
   saveHiddenModules,
   settableModules,
@@ -141,7 +142,7 @@ function toggleGroup(groupId: string): void {
 function isGroupExpanded(group: NavGroup): boolean {
   // Auto-expand if a child route is active
   const currentPath = router.currentRoute.value.path
-  const hasActiveChild = group.children.some(child => currentPath === child.route)
+  const hasActiveChild = group.children.some(child => isNavItemActive(child, currentPath))
   if (hasActiveChild) return true
   // Otherwise use stored state (default expanded)
   return !collapsedGroups.value[group.id]
@@ -263,7 +264,7 @@ const filteredNavEntries = computed((): NavEntry[] => {
 })
 
 function isActiveRoute(item: NavItem): boolean {
-  return router.currentRoute.value.path === item.route
+  return isNavItemActive(item, router.currentRoute.value.path)
 }
 
 // Current page title - search all entries including group children
@@ -271,10 +272,10 @@ const currentPageTitle = computed(() => {
   const currentPath = router.currentRoute.value.path
   for (const entry of allNavEntries) {
     if (isNavGroup(entry)) {
-      const child = entry.children.find(c => currentPath === c.route)
+      const child = entry.children.find(c => isNavItemActive(c, currentPath))
       if (child) return t(child.labelKey)
     } else {
-      if (currentPath === entry.route) return t(entry.labelKey)
+      if (isNavItemActive(entry, currentPath)) return t(entry.labelKey)
     }
   }
   if (currentPath === adminNavItem.route) return t(adminNavItem.labelKey)
