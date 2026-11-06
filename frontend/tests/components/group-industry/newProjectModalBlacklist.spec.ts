@@ -11,6 +11,8 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PRIVATE_CHECKBOX = '[data-testid="project-private"]'
+const OUTSIDE_FAVORITE_CHECKBOX = '[data-testid="project-outside-favorite"]'
+const DEFAULT_MINIMUM_OUTSIDE_SAVING = 500_000
 const BULK_ITEMS = 'Ferox 2 4 x100\nSabre 4 8 x20'
 
 function mountNewProjectModal() {
@@ -68,7 +70,7 @@ describe('NewProjectModal production blacklist', () => {
   it('still lists the ten blacklist categories, unchecked', () => {
     const wrapper = mountNewProjectModal()
 
-    const categories = wrapper.findAll('label').filter(label => label.find('input[type="checkbox"]').exists() && !label.find(PRIVATE_CHECKBOX).exists())
+    const categories = wrapper.findAll('label').filter(label => label.find('input[type="checkbox"]').exists() && !label.find(PRIVATE_CHECKBOX).exists() && !label.find(OUTSIDE_FAVORITE_CHECKBOX).exists())
 
     expect(categories.map(label => [label.text(), (label.get('input').element as HTMLInputElement).checked])).toEqual([
       ['Advanced Components', false],
@@ -101,6 +103,8 @@ describe('NewProjectModal production blacklist', () => {
       ],
       blacklistCategoryKeys: ['fuel_blocks', 'complex_reactions'],
       private: true,
+      acceptsOutsideFavoriteSystem: false,
+      minimumOutsideSaving: DEFAULT_MINIMUM_OUTSIDE_SAVING,
     })
     expect(body).not.toHaveProperty('blacklistTypeIds')
   })
