@@ -2340,6 +2340,7 @@
         "launch_job": {
           "title": "Launch a job",
           "description": "{quantity} runs of {typeName} are left to launch.",
+          "descriptionUnknownRuns": "{typeName} has jobs left to launch, the remaining runs are unknown.",
           "button": "See the jobs"
         },
         "start_selling": {
