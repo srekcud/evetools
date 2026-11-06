@@ -75,11 +75,11 @@ const SALE_OF_T7: GroupSale = {
 }
 
 function suggestionsPath(projectId: string): string {
-  return `/group-industry/projects/${projectId}/sale-suggestions`
+  return `/industry/projects/${projectId}/sale-suggestions`
 }
 
 function saleFromWalletTransactionPath(projectId: string): string {
-  return `/group-industry/projects/${projectId}/sales/from-wallet-transaction`
+  return `/industry/projects/${projectId}/sales/from-wallet-transaction`
 }
 
 beforeEach(() => {

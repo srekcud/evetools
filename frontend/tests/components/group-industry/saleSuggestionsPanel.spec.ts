@@ -15,9 +15,9 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PROJECT_ID = 'project-sabre'
-const SUGGESTIONS_PATH = `/group-industry/projects/${PROJECT_ID}/sale-suggestions`
-const SALES_PATH = `/group-industry/projects/${PROJECT_ID}/sales`
-const SALE_FROM_WALLET_TRANSACTION_PATH = `/group-industry/projects/${PROJECT_ID}/sales/from-wallet-transaction`
+const SUGGESTIONS_PATH = `/industry/projects/${PROJECT_ID}/sale-suggestions`
+const SALES_PATH = `/industry/projects/${PROJECT_ID}/sales`
+const SALE_FROM_WALLET_TRANSACTION_PATH = `/industry/projects/${PROJECT_ID}/sales/from-wallet-transaction`
 const T1_ID = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e01'
 const T7_ID = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e07'
 const ALREADY_LINKED = 'This transaction is already linked to a sale.'

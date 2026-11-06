@@ -10,6 +10,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
+const PRIVATE_CHECKBOX = '[data-testid="project-private"]'
 const BULK_ITEMS = 'Ferox 2 4 x100\nSabre 4 8 x20'
 
 function mountNewProjectModal() {
@@ -40,9 +41,15 @@ async function addItemsByBulkPaste(wrapper: VueWrapper) {
 }
 
 function sentCreationBody(): Record<string, unknown> {
-  const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === '/group-industry/projects')
+  const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === '/industry/projects')
   expect(creationCall, 'project creation request').toBeDefined()
   return JSON.parse(String(creationCall![1]!.body))
+}
+
+async function createProjectAfterUnchecking(wrapper: VueWrapper) {
+  await wrapper.get(PRIVATE_CHECKBOX).setValue(false)
+  await clickButton(wrapper, 'Create Project')
+  await flushPromises()
 }
 
 describe('NewProjectModal production blacklist', () => {
@@ -61,7 +68,7 @@ describe('NewProjectModal production blacklist', () => {
   it('still lists the ten blacklist categories, unchecked', () => {
     const wrapper = mountNewProjectModal()
 
-    const categories = wrapper.findAll('label').filter(label => label.find('input[type="checkbox"]').exists())
+    const categories = wrapper.findAll('label').filter(label => label.find('input[type="checkbox"]').exists() && !label.find(PRIVATE_CHECKBOX).exists())
 
     expect(categories.map(label => [label.text(), (label.get('input').element as HTMLInputElement).checked])).toEqual([
       ['Advanced Components', false],
@@ -93,6 +100,7 @@ describe('NewProjectModal production blacklist', () => {
         { typeId: 0, typeName: 'Sabre', meLevel: 4, teLevel: 8, runs: 20 },
       ],
       blacklistCategoryKeys: ['fuel_blocks', 'complex_reactions'],
+      private: true,
     })
     expect(body).not.toHaveProperty('blacklistTypeIds')
   })
@@ -107,5 +115,32 @@ describe('NewProjectModal production blacklist', () => {
     const body = sentCreationBody()
     expect(body.blacklistCategoryKeys).toEqual([])
     expect(body).not.toHaveProperty('blacklistTypeIds')
+  })
+})
+
+describe('NewProjectModal privacy', () => {
+  beforeEach(() => {
+    vi.mocked(apiRequest).mockReset()
+    vi.mocked(apiRequest).mockResolvedValue({ id: 'group-project-created' })
+  })
+
+  it('sends the project as private when the private checkbox is left untouched', async () => {
+    const wrapper = mountNewProjectModal()
+    await addItemsByBulkPaste(wrapper)
+
+    expect((wrapper.get(PRIVATE_CHECKBOX).element as HTMLInputElement).checked).toBe(true)
+    await clickButton(wrapper, 'Create Project')
+    await flushPromises()
+
+    expect(sentCreationBody().private).toBe(true)
+  })
+
+  it('sends the project as not private when the private checkbox is unchecked', async () => {
+    const wrapper = mountNewProjectModal()
+    await addItemsByBulkPaste(wrapper)
+
+    await createProjectAfterUnchecking(wrapper)
+
+    expect(sentCreationBody().private).toBe(false)
   })
 })

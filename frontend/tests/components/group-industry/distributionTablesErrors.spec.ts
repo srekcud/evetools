@@ -23,9 +23,9 @@ type PendingResponse = {
 }
 
 const PROJECT_ID = 'project-sabre-batch'
-const DISTRIBUTION_PATH = `/group-industry/projects/${PROJECT_ID}/distribution`
-const SALES_PATH = `/group-industry/projects/${PROJECT_ID}/sales`
-const MEMBERS_PATH = `/group-industry/projects/${PROJECT_ID}/members`
+const DISTRIBUTION_PATH = `/industry/projects/${PROJECT_ID}/distribution`
+const SALES_PATH = `/industry/projects/${PROJECT_ID}/sales`
+const MEMBERS_PATH = `/industry/projects/${PROJECT_ID}/members`
 
 const DISTRIBUTION_UNAVAILABLE = 'Distribution unavailable: ESI wallet journal timed out'
 const SALES_UNAVAILABLE = 'Sales unavailable: database connection lost'

@@ -26,9 +26,9 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PROJECT_ID = 'project-sabre'
-const SALES_PATH = `/group-industry/projects/${PROJECT_ID}/sales`
-const SUGGESTIONS_PATH = `/group-industry/projects/${PROJECT_ID}/sale-suggestions`
-const SALE_FROM_WALLET_TRANSACTION_PATH = `/group-industry/projects/${PROJECT_ID}/sales/from-wallet-transaction`
+const SALES_PATH = `/industry/projects/${PROJECT_ID}/sales`
+const SUGGESTIONS_PATH = `/industry/projects/${PROJECT_ID}/sale-suggestions`
+const SALE_FROM_WALLET_TRANSACTION_PATH = `/industry/projects/${PROJECT_ID}/sales/from-wallet-transaction`
 const ALREADY_LINKED = 'This transaction is already linked to a sale.'
 const DELETION_REFUSED = 'Cannot delete a sale on a completed project'
 
@@ -84,6 +84,10 @@ function sabreProject(status: GroupProjectStatus, myRole: GroupMemberRole): Grou
     createdAt: '2026-10-20T10:00:00+00:00',
     myRole,
     myStatus: 'accepted',
+    private: false,
+    notes: null,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 5,
   }
 }
 

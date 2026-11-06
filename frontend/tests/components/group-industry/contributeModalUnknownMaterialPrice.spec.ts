@@ -35,6 +35,10 @@ function materialBomItem(overrides: Partial<BomItem>): BomItem {
     teLevel: null,
     runs: null,
     isFulfilled: false,
+    jobMatches: [],
+    matchedRuns: 0,
+    purchases: [],
+    purchasedQuantity: 0,
     ...overrides,
   }
 }
@@ -103,7 +107,7 @@ function submitButton(wrapper: VueWrapper): DOMWrapper<HTMLButtonElement> {
 function submittedBody(): Record<string, unknown> {
   expect(apiRequest).toHaveBeenCalledTimes(1)
   const [endpoint, options] = vi.mocked(apiRequest).mock.calls[0]!
-  expect(endpoint).toBe(`/group-industry/projects/${PROJECT_ID}/contributions`)
+  expect(endpoint).toBe(`/industry/projects/${PROJECT_ID}/contributions`)
   expect(options?.method).toBe('POST')
   return JSON.parse(String(options?.body))
 }

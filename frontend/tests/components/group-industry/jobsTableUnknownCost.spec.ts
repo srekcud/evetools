@@ -26,6 +26,10 @@ function jobLine(overrides: Partial<BomItem>): BomItem {
     teLevel: 20,
     runs: 0,
     isFulfilled: false,
+    jobMatches: [],
+    matchedRuns: 0,
+    purchases: [],
+    purchasedQuantity: 0,
     ...overrides,
   }
 }

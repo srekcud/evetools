@@ -26,6 +26,10 @@ const JACKDAW_PROJECT: GroupProject = {
   createdAt: '2026-10-20T18:30:00+00:00',
   myRole: 'admin',
   myStatus: 'accepted',
+  private: false,
+  notes: null,
+  acceptsOutsideFavoriteSystem: false,
+  minimumOutsideSaving: 5,
 }
 
 function mountProjectCard(project: GroupProject): VueWrapper {

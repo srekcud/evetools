@@ -23,10 +23,10 @@ vi.mock(import('@/services/api'), async importOriginal => ({
   apiRequest: vi.fn(),
 }))
 
-const MY_PROJECTS_URL = '/group-industry/projects'
-const AVAILABLE_PROJECTS_URL = '/group-industry/projects/available'
+const MY_PROJECTS_URL = '/industry/projects'
+const AVAILABLE_PROJECTS_URL = '/industry/projects/available'
 const SHORT_LINK_CODE = 'R4T8VN'
-const JOIN_URL = `/group-industry/projects/join/${SHORT_LINK_CODE}`
+const JOIN_URL = `/industry/projects/join/${SHORT_LINK_CODE}`
 
 const AVAILABLE_PROJECT = { id: 'project-512', shortLinkCode: SHORT_LINK_CODE, myStatus: null, status: 'published', items: [] } as unknown as GroupProject
 const ACCEPTED_PROJECT = { ...AVAILABLE_PROJECT, myStatus: 'accepted' } as GroupProject

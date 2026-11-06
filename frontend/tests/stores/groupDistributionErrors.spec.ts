@@ -71,15 +71,15 @@ const SABRE_BATCH_MEMBERS: GroupMember[] = [
 let pendingResponses: Record<string, PendingResponse[]> = {}
 
 function distributionPath(projectId: string): string {
-  return `/group-industry/projects/${projectId}/distribution`
+  return `/industry/projects/${projectId}/distribution`
 }
 
 function salesPath(projectId: string): string {
-  return `/group-industry/projects/${projectId}/sales`
+  return `/industry/projects/${projectId}/sales`
 }
 
 function membersPath(projectId: string): string {
-  return `/group-industry/projects/${projectId}/members`
+  return `/industry/projects/${projectId}/members`
 }
 
 function nextPendingResponse(endpoint: string): PendingResponse {

@@ -35,6 +35,10 @@ function materialBomItem(overrides: Partial<BomItem>): BomItem {
     teLevel: null,
     runs: null,
     isFulfilled: false,
+    jobMatches: [],
+    matchedRuns: 0,
+    purchases: [],
+    purchasedQuantity: 0,
     ...overrides,
   }
 }
@@ -61,6 +65,10 @@ function hullRunProject(createdAt: string): GroupProject {
     createdAt,
     myRole: 'member',
     myStatus: 'accepted',
+    private: false,
+    notes: null,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 5,
   }
 }
 

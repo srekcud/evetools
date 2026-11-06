@@ -15,7 +15,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PROJECT_ID = 'project-sabre'
-const SALES_PATH = `/group-industry/projects/${PROJECT_ID}/sales`
+const SALES_PATH = `/industry/projects/${PROJECT_ID}/sales`
 const O_MAIN_EVE_CHARACTER_ID = 2_120_000_001
 const O_ALT_EVE_CHARACTER_ID = 2_120_000_002
 

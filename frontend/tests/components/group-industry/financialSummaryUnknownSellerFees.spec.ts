@@ -33,6 +33,10 @@ const PROJECT_WITHOUT_SELLER_FEES: GroupProject = {
   createdAt: '2026-10-19T12:00:00+00:00',
   myRole: 'owner',
   myStatus: 'accepted',
+  private: false,
+  notes: null,
+  acceptsOutsideFavoriteSystem: false,
+  minimumOutsideSaving: 5,
 }
 
 const DISTRIBUTION_WITH_UNKNOWN_FEES: Distribution = {
