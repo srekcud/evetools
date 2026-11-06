@@ -41,7 +41,7 @@ const activeTab = useTabQuery(MAIN_TABS, 'my-projects')
 type StatusFilter = 'all' | GroupProjectStatus
 const statusFilter = ref<StatusFilter>('all')
 
-const STATUS_FILTERS: StatusFilter[] = ['all', 'published', 'in_progress', 'selling', 'completed']
+const STATUS_FILTERS: StatusFilter[] = ['all', 'draft', 'published', 'in_progress', 'selling', 'completed']
 
 function statusFilterLabel(filter: StatusFilter): string {
   if (filter === 'all') return t('common.status.all')

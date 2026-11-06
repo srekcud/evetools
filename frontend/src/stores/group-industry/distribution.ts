@@ -63,7 +63,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     loadingIndicator.value = true
     fetchError.value = null
     try {
-      const fetched = await apiRequest<T>(`/group-industry/projects/${projectId}/${resource}`)
+      const fetched = await apiRequest<T>(`/industry/projects/${projectId}/${resource}`)
       if (openedProjectId.value === projectId) {
         held.value = fetched
       }
@@ -89,7 +89,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
 
   async function postSale(projectId: string, resource: string, input: RecordSaleInput | RecordSaleFromWalletTransactionInput): Promise<GroupSale> {
     const sale = await apiRequest<GroupSale>(
-      `/group-industry/projects/${projectId}/${resource}`,
+      `/industry/projects/${projectId}/${resource}`,
       {
         method: 'POST',
         body: JSON.stringify(input),
@@ -117,7 +117,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     error.value = null
     try {
       const corrected = await apiRequest<GroupSale>(
-        `/group-industry/projects/${projectId}/sales/${saleId}`,
+        `/industry/projects/${projectId}/sales/${saleId}`,
         {
           method: 'PATCH',
           body: JSON.stringify(input),
@@ -135,7 +135,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     error.value = null
     try {
       await apiRequest(
-        `/group-industry/projects/${projectId}/sales/${saleId}`,
+        `/industry/projects/${projectId}/sales/${saleId}`,
         { method: 'DELETE' },
       )
       sales.value = sales.value.filter(sale => sale.id !== saleId)
@@ -161,7 +161,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     error.value = null
     try {
       const updated = await apiRequest<GroupMember>(
-        `/group-industry/projects/${projectId}/members/${memberId}`,
+        `/industry/projects/${projectId}/members/${memberId}`,
         {
           method: 'PATCH',
           body: JSON.stringify(input),
@@ -180,7 +180,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     error.value = null
     try {
       await apiRequest(
-        `/group-industry/projects/${projectId}/members/${memberId}`,
+        `/industry/projects/${projectId}/members/${memberId}`,
         { method: 'DELETE' },
       )
       members.value = members.value.filter(m => m.id !== memberId)
@@ -193,7 +193,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     error.value = null
     try {
       await apiRequest(
-        `/group-industry/projects/${projectId}/leave`,
+        `/industry/projects/${projectId}/leave`,
         { method: 'POST' },
       )
       return true
@@ -206,7 +206,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
   async function fetchLineRentalRates(): Promise<void> {
     try {
       lineRentalRates.value = await apiRequest<LineRentalRates>(
-        '/group-industry/line-rental-rates',
+        '/industry/line-rental-rates',
       )
     } catch {
       // best-effort, don't block the UI
@@ -217,7 +217,7 @@ export const useGroupDistributionStore = defineStore('group-distribution', () =>
     error.value = null
     try {
       lineRentalRates.value = await apiRequest<LineRentalRates>(
-        '/group-industry/line-rental-rates',
+        '/industry/line-rental-rates',
         {
           method: 'PATCH',
           body: JSON.stringify({ rates }),

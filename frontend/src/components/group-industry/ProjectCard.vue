@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import { useEveImages } from '@/composables/useEveImages'
@@ -7,6 +8,7 @@ import type { GroupProject } from '@/stores/group-industry/types'
 import { CHART_COLORS } from '@/utils/chartColors'
 import { groupProjectLabel } from '@/utils/groupProjectLabel'
 
+const { t } = useI18n()
 const { formatIsk, formatDate } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 
@@ -127,6 +129,10 @@ function progressBarClass(): string {
           >
             {{ statusStyle.label }}
           </span>
+          <span
+            v-if="project.private"
+            class="text-xs px-2 py-0.5 rounded border flex-shrink-0 bg-amber-500/15 text-amber-400 border-amber-500/20"
+          >{{ t('groupIndustry.private') }}</span>
         </div>
         <p class="text-sm text-slate-500">{{ subtitle }}</p>
       </div>

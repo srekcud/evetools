@@ -5,7 +5,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
-import type { BomItem } from '@/stores/group-industry/types'
+import type { BomItem, CharacterMatchFailure } from '@/stores/group-industry/types'
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
@@ -27,6 +27,26 @@ const blueprintJobs = computed(() => projectStore.blueprintJobs)
 const componentJobs = computed(() => projectStore.componentJobs)
 const finalJobs = computed(() => projectStore.finalJobs)
 const allJobs = computed(() => projectStore.jobs)
+
+const isProjectOwner = computed(() => projectStore.currentProject?.myRole === 'owner')
+const isMatchingJobs = ref(false)
+const matchJobsError = ref<string | null>(null)
+const failedCharacters = ref<CharacterMatchFailure[]>([])
+
+async function matchJobs(): Promise<void> {
+  const project = projectStore.currentProject
+  if (project === null) return
+  isMatchingJobs.value = true
+  matchJobsError.value = null
+  try {
+    failedCharacters.value = await projectStore.matchJobs(project.id)
+  } catch (e) {
+    failedCharacters.value = []
+    matchJobsError.value = e instanceof Error ? e.message : t('groupIndustry.jobs.matchError')
+  } finally {
+    isMatchingJobs.value = false
+  }
+}
 
 const totalJobCount = computed(() => allJobs.value.length)
 
@@ -135,6 +155,14 @@ function isJobDimmed(job: BomItem): boolean {
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold text-slate-100">{{ t('groupIndustry.jobs.title') }}</h2>
       <div class="flex items-center gap-2 text-xs">
+        <button
+          v-if="isProjectOwner"
+          class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-xs font-medium transition-colors disabled:opacity-50 mr-2"
+          :disabled="isMatchingJobs"
+          @click="matchJobs"
+        >
+          {{ t('groupIndustry.jobs.matchJobs') }}
+        </button>
         <span class="text-slate-400">{{ statusCounts.toLaunch }} to launch</span>
         <span class="text-slate-500">&middot;</span>
         <span class="text-cyan-400">{{ statusCounts.active }} active</span>
@@ -147,6 +175,15 @@ function isJobDimmed(job: BomItem): boolean {
       </div>
     </div>
 
+    <p v-if="matchJobsError" class="mb-3 text-sm text-red-400">{{ matchJobsError }}</p>
+    <div v-if="failedCharacters.length > 0" class="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+      <p class="text-sm text-amber-400">{{ t('groupIndustry.jobs.matchFailedCharacters') }}</p>
+      <ul class="mt-1 space-y-0.5 text-xs text-amber-400/80">
+        <li v-for="failure in failedCharacters" :key="failure.characterName">
+          <span class="font-medium">{{ failure.characterName }}</span>: {{ failure.reason }}
+        </li>
+      </ul>
+    </div>
     <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
       <!-- Loading -->
       <div v-if="projectStore.bomLoading && allJobs.length === 0" class="p-8 text-center text-slate-500">
@@ -219,7 +256,21 @@ function isJobDimmed(job: BomItem): boolean {
                     </td>
 
                     <!-- Product name -->
-                    <td class="py-2.5 px-3 text-slate-200">{{ job.typeName }}</td>
+                    <td class="py-2.5 px-3 text-slate-200">
+                      {{ job.typeName }}
+                      <ul v-if="job.jobMatches !== undefined && job.jobMatches.length > 0" class="mt-1 space-y-0.5">
+                        <li
+                          v-for="jobMatch in job.jobMatches"
+                          :key="jobMatch.id"
+                          data-testid="job-match"
+                          class="text-xs text-slate-500"
+                        >
+                          <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
+                          &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
+                          &middot; {{ jobMatch.status }}
+                        </li>
+                      </ul>
+                    </td>
 
                     <!-- Activity badge -->
                     <td class="py-2.5 px-3">
@@ -235,6 +286,11 @@ function isJobDimmed(job: BomItem): boolean {
                     <td class="py-2.5 px-3 text-right font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                       {{ job.runs != null ? formatNumber(job.runs, 0) : '---' }}
                       <span v-if="job.activityType === 'invention'" class="block text-xs font-sans text-slate-500">{{ t('groupIndustry.jobs.attempts') }}</span>
+                      <span
+                        v-if="job.matchedRuns !== undefined"
+                        data-testid="matched-runs"
+                        class="block text-xs font-sans text-cyan-400"
+                      >{{ t('groupIndustry.jobs.matchedRuns', { runs: formatNumber(job.matchedRuns, 0) }) }}</span>
                     </td>
 
                     <!-- ME/TE -->

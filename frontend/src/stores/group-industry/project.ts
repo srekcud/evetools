@@ -6,6 +6,8 @@ import type {
   BomItem,
   ContainerVerification,
   CreateGroupProjectInput,
+  CharacterMatchFailure,
+  MatchJobsResult,
 } from './types'
 
 export const useGroupProjectStore = defineStore('group-project', () => {
@@ -29,7 +31,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     loading.value = true
     error.value = null
     try {
-      myProjects.value = await apiRequest<GroupProject[]>('/group-industry/projects')
+      myProjects.value = await apiRequest<GroupProject[]>('/industry/projects')
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch projects'
     } finally {
@@ -41,7 +43,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     loading.value = true
     error.value = null
     try {
-      availableProjects.value = await apiRequest<GroupProject[]>('/group-industry/projects/available')
+      availableProjects.value = await apiRequest<GroupProject[]>('/industry/projects/available')
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch available projects'
     } finally {
@@ -53,7 +55,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     loading.value = true
     error.value = null
     try {
-      currentProject.value = await apiRequest<GroupProject>(`/group-industry/projects/${id}`)
+      currentProject.value = await apiRequest<GroupProject>(`/industry/projects/${id}`)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch project'
     } finally {
@@ -64,7 +66,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
   async function fetchBom(projectId: string): Promise<void> {
     bomLoading.value = true
     try {
-      bomItems.value = await apiRequest<BomItem[]>(`/group-industry/projects/${projectId}/bom`)
+      bomItems.value = await apiRequest<BomItem[]>(`/industry/projects/${projectId}/bom`)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch BOM'
     } finally {
@@ -75,7 +77,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
   async function fetchContainerVerification(projectId: string): Promise<void> {
     try {
       containerVerification.value = await apiRequest<ContainerVerification[]>(
-        `/group-industry/projects/${projectId}/container-verification`,
+        `/industry/projects/${projectId}/container-verification`,
       )
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to verify container'
@@ -85,7 +87,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
   async function createProject(input: CreateGroupProjectInput): Promise<GroupProject | null> {
     error.value = null
     try {
-      const project = await apiRequest<GroupProject>('/group-industry/projects', {
+      const project = await apiRequest<GroupProject>('/industry/projects', {
         method: 'POST',
         body: JSON.stringify(input),
       })
@@ -100,7 +102,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
   async function updateProject(id: string, data: Partial<GroupProject>): Promise<GroupProject | null> {
     error.value = null
     try {
-      const updated = await apiRequest<GroupProject>(`/group-industry/projects/${id}`, {
+      const updated = await apiRequest<GroupProject>(`/industry/projects/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       })
@@ -121,7 +123,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
   async function deleteProject(id: string): Promise<void> {
     error.value = null
     try {
-      await apiRequest(`/group-industry/projects/${id}`, { method: 'DELETE' })
+      await apiRequest(`/industry/projects/${id}`, { method: 'DELETE' })
       myProjects.value = myProjects.value.filter(p => p.id !== id)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to delete project'
@@ -132,12 +134,27 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     error.value = null
     try {
       const project = await apiRequest<GroupProject>(
-        `/group-industry/projects/join/${shortLinkCode}`,
+        `/industry/projects/join/${shortLinkCode}`,
         { method: 'POST', body: '{}' },
       )
       return project
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to join project'
+      throw e
+    }
+  }
+
+  async function matchJobs(projectId: string): Promise<CharacterMatchFailure[]> {
+    error.value = null
+    try {
+      const result = await apiRequest<MatchJobsResult>(
+        `/industry/projects/${projectId}/match-jobs`,
+        { method: 'POST', body: '{}' },
+      )
+      await fetchBom(projectId)
+      return result.failedCharacters
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to match jobs'
       throw e
     }
   }
@@ -169,6 +186,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     updateProject,
     deleteProject,
     joinProject,
+    matchJobs,
     clearError,
   }
 })
