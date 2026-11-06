@@ -126,7 +126,7 @@ describe('CommandPalette types', () => {
       await typeQueryAndWaitForTypes('rav')
 
       expect(groupNames()).toEqual(['Projects', 'Types'])
-      expect(groupOptionTexts('Projects')).toEqual(['Raven batch Industry'])
+      expect(groupOptionTexts('Projects')).toEqual(['Raven batch'])
       expect(groupOptionTexts('Types')).toEqual(['Raven', 'Raven Navy Issue'])
     })
 
@@ -153,12 +153,12 @@ describe('CommandPalette types', () => {
     it('keeps the active row when the types arrive', async () => {
       await mountOpenPalette()
       await typeQuery('rav')
-      expect(activeOptionText()).toBe('Raven batch Industry')
+      expect(activeOptionText()).toBe('Raven batch')
 
       await waitForTypeSearch()
 
       expect(groupOptionTexts('Types')).toEqual(['Raven', 'Raven Navy Issue'])
-      expect(activeOptionText()).toBe('Raven batch Industry')
+      expect(activeOptionText()).toBe('Raven batch')
     })
 
     it('shows no types group for an empty answer', async () => {
@@ -200,7 +200,7 @@ describe('CommandPalette types', () => {
       expect(groupNames()).toEqual(['Projects', 'Types'])
       expect(groupText('Types')).toContain('Type search unavailable')
       expect(groupOptions('Types')).toEqual([])
-      expect(groupOptionTexts('Projects')).toEqual(['Raven batch Industry'])
+      expect(groupOptionTexts('Projects')).toEqual(['Raven batch'])
       expect(paletteText()).not.toContain('No results for')
     })
   })

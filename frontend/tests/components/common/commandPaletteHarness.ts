@@ -6,15 +6,14 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import CommandPalette from '@/components/common/CommandPalette.vue'
 import { apiRequest } from '@/services/api'
-import type { IndustryProject, SearchResult } from '@/stores/industry/types'
+import type { SearchResult } from '@/stores/industry/types'
 import type { GroupProject, GroupProjectItem, GroupProjectStatus } from '@/stores/group-industry/types'
 
 export const TYPE_SEARCH_DEBOUNCE_MS = 250
 export const STARTING_ROUTE = '/characters'
 
 const HIDDEN_MODULES_STORAGE_KEY = 'evetools_hidden_modules'
-const INDUSTRY_PROJECTS_ENDPOINT = '/industry/projects'
-const GROUP_INDUSTRY_PROJECTS_ENDPOINT = '/group-industry/projects'
+const PROJECTS_ENDPOINT = '/industry/projects'
 const TYPE_SEARCH_ENDPOINT_PREFIX = '/industry/search?q='
 
 const appRoutes = [
@@ -34,51 +33,13 @@ const appRoutes = [
 export type ApiAnswer<T> = T | Error | Promise<T>
 
 export interface PaletteApi {
-  industryProjects: ApiAnswer<IndustryProject[]>
-  groupIndustryProjects: ApiAnswer<GroupProject[]>
+  projects: ApiAnswer<GroupProject[]>
   typesForQuery: (query: string) => ApiAnswer<SearchResult[]>
 }
 
 interface PaletteMountOptions {
   locale?: 'en' | 'fr'
   hiddenModules?: string[]
-}
-
-export function industryProject(id: string, overrides: Partial<IndustryProject>): IndustryProject {
-  return {
-    id,
-    productTypeName: 'Raven',
-    productTypeId: 638,
-    displayName: null,
-    runs: 1,
-    meLevel: 10,
-    teLevel: 20,
-    maxJobDurationDays: 2,
-    acceptsOutsideFavoriteSystem: false,
-    minimumOutsideSaving: 500000,
-    status: 'active',
-    personalUse: false,
-    isT2: false,
-    bpoCost: null,
-    materialCost: null,
-    transportCost: null,
-    jobsCost: null,
-    taxAmount: null,
-    sellPrice: null,
-    totalCost: null,
-    estimatedJobCost: null,
-    estimatedSellPrice: null,
-    estimatedSellPriceSource: null,
-    estimatedTaxAmount: null,
-    estimatedMaterialCost: null,
-    profit: null,
-    profitPercent: null,
-    notes: null,
-    createdAt: '2026-10-20T10:00:00Z',
-    completedAt: null,
-    jobsStartDate: null,
-    ...overrides,
-  }
 }
 
 export function groupIndustryProject(id: string, name: string | null, status: GroupProjectStatus, items: GroupProjectItem[]): GroupProject {
@@ -88,6 +49,10 @@ export function groupIndustryProject(id: string, name: string | null, status: Gr
     status,
     shortLinkCode: `link-${id}`,
     containerName: null,
+    private: true,
+    acceptsOutsideFavoriteSystem: false,
+    minimumOutsideSaving: 500000,
+    notes: null,
     ownerCharacterName: 'Sylvain Duckers',
     ownerCorporationId: 98000001,
     membersCount: 3,
@@ -110,15 +75,8 @@ export function groupProjectItem(typeId: number, typeName: string, runs: number)
   return { typeId, typeName, meLevel: 10, teLevel: 20, runs }
 }
 
-export const RAVEN_BATCH = industryProject('p1', { displayName: 'Raven batch', productTypeId: 638, productTypeName: 'Raven', runs: 3 })
-export const UNNAMED_COMPLETED_PROJECT = industryProject('p2', {
-  displayName: null,
-  rootProducts: [],
-  productTypeName: null,
-  productTypeId: 99000001,
-  runs: 5,
-  status: 'completed',
-})
+export const RAVEN_BATCH = groupIndustryProject('p1', 'Raven batch', 'in_progress', [groupProjectItem(638, 'Raven', 3)])
+export const UNNAMED_COMPLETED_PROJECT = groupIndustryProject('p2', null, 'completed', [groupProjectItem(22544, 'Hulk', 5)])
 export const CORP_TITAN = groupIndustryProject('g1', 'Corp Titan', 'in_progress', [groupProjectItem(11567, 'Avatar', 1)])
 
 export const RAVEN: SearchResult = { typeId: 638, typeName: 'Raven', isT2: false }
@@ -136,8 +94,7 @@ let paletteApi: PaletteApi = defaultPaletteApi()
 
 function defaultPaletteApi(): PaletteApi {
   return {
-    industryProjects: [RAVEN_BATCH, UNNAMED_COMPLETED_PROJECT],
-    groupIndustryProjects: [CORP_TITAN],
+    projects: [RAVEN_BATCH, UNNAMED_COMPLETED_PROJECT, CORP_TITAN],
     typesForQuery: commonTypesForQuery,
   }
 }
@@ -156,11 +113,8 @@ export function stubPaletteApi(overrides: Partial<PaletteApi> = {}): void {
   paletteApi = { ...defaultPaletteApi(), ...overrides }
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
-    if (endpoint === INDUSTRY_PROJECTS_ENDPOINT) {
-      return settle(paletteApi.industryProjects, projects => ({ projects }))
-    }
-    if (endpoint === GROUP_INDUSTRY_PROJECTS_ENDPOINT) {
-      return settle(paletteApi.groupIndustryProjects, projects => projects)
+    if (endpoint === PROJECTS_ENDPOINT) {
+      return settle(paletteApi.projects, projects => projects)
     }
     if (endpoint.startsWith(TYPE_SEARCH_ENDPOINT_PREFIX)) {
       const query = decodeURIComponent(endpoint.slice(TYPE_SEARCH_ENDPOINT_PREFIX.length))

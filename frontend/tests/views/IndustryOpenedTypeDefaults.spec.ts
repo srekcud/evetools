@@ -6,7 +6,6 @@ import type { LocationQuery } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
 import { ApiError, apiRequest } from '@/services/api'
-import { useProjectsStore } from '@/stores/industry/projects'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 import type { ProfitMarginResult, SearchResult, UserSettings } from '@/stores/industry/types'
@@ -46,8 +45,6 @@ const stubbedChildren = {
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
-  ProjectTable: true,
-  ProjectDetail: true,
   BlacklistConfig: true,
   StructureConfig: true,
   SkillsConfig: true,
@@ -82,7 +79,6 @@ beforeEach(() => {
   setActivePinia(createPinia())
   outcomes.clear()
   useIndustryStore().navigationIntent = null
-  vi.spyOn(useProjectsStore(), 'fetchProjects').mockResolvedValue(undefined as never)
   vi.spyOn(useAdminStore(), 'checkAccess').mockResolvedValue(false)
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
@@ -105,7 +101,7 @@ describe('Industry margins of an opened type (issue 238)', () => {
     ])
   })
 
-  it.each(['projects', 'batch'] as const)('looks the T2 type of a margins link from the %s tab up, then analyzes it with ME 2 and TE 4', async (sourceTab) => {
+  it.each(['batch'] as const)('looks the T2 type of a margins link from the %s tab up, then analyzes it with ME 2 and TE 4', async (sourceTab) => {
     outcomes.respondTo(`${TYPE_LOOKUP_ENDPOINT}${SABRE_TYPE_ID}`, respondWith(SABRE))
     outcomes.respondTo(`${PROFIT_MARGIN_ENDPOINT}${SABRE_TYPE_ID}`, awaiting(deferred<ProfitMarginResult>()))
     await mountIndustryWithQuery({ tab: sourceTab })
