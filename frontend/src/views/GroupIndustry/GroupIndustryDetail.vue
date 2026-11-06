@@ -23,9 +23,13 @@ import DistributionTable from '@/components/group-industry/DistributionTable.vue
 import MemberTable from '@/components/group-industry/MemberTable.vue'
 import PendingRequestsTable from '@/components/group-industry/PendingRequestsTable.vue'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
-import type { BomItem, GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
+import ProjectPhaseRail from '@/components/group-industry/ProjectPhaseRail.vue'
+import ProjectNextActionCard from '@/components/group-industry/ProjectNextActionCard.vue'
+import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
+import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
 import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
+import { DETAIL_TABS, detailTabOfNextAction, type ProjectDetailTab } from './projectDetailTabs'
 import { groupProjectRefreshes, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
 
@@ -45,9 +49,7 @@ const { showToast } = useToast()
 
 const projectId = computed(() => route.params.id as string)
 
-type DetailTab = 'bom' | 'contributions' | 'distribution' | 'members'
-const DETAIL_TABS: DetailTab[] = ['bom', 'contributions', 'distribution', 'members']
-const activeTab = useTabQuery(DETAIL_TABS, 'bom')
+const activeTab = useTabQuery<ProjectDetailTab>(DETAIL_TABS, 'bom')
 
 // Contribute modal state
 const showContributeModal = ref(false)
@@ -94,10 +96,18 @@ function statusLabel(status: GroupProjectStatus): string {
   return t(`groupIndustry.status.${status}`)
 }
 
+const cockpit = ref<ProjectCockpit | null>(null)
+
+async function loadCockpit(id: string): Promise<void> {
+  await projectStore.fetchCockpit(id)
+  cockpit.value = projectStore.cockpit
+}
+
 onMounted(async () => {
   await Promise.all([
     projectStore.fetchProjectDetail(projectId.value),
     projectStore.fetchBom(projectId.value),
+    loadCockpit(projectId.value),
   ])
 })
 
@@ -109,6 +119,7 @@ const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<v
   sales: distributionStore.fetchSales,
   saleSuggestions: id => (isOwnerOrAdmin.value ? distributionStore.fetchSaleSuggestions(id) : Promise.resolve()),
   distribution: distributionStore.fetchDistribution,
+  cockpit: loadCockpit,
 }
 
 const { isFlashing: projectUpdated, flash: flashProject } = useFlash()
@@ -129,6 +140,7 @@ watch(
     Promise.all([
       refreshGroupProject.bom(projectId.value),
       refreshGroupProject.projectDetail(projectId.value),
+      refreshGroupProject.cockpit(projectId.value),
     ]).then(flashProject)
   },
 )
@@ -202,6 +214,25 @@ async function handleEditSave(): Promise<void> {
   }
 }
 
+function actOnNextAction(): void {
+  const action = cockpit.value?.nextAction
+  if (!action) return
+  if (action.targetStatus !== null) {
+    requestNextStatus(action.targetStatus)
+    return
+  }
+  const bomLine = action.code === 'source_material' && action.bomLineId !== null
+    ? projectStore.bomItems.find(item => item.id === action.bomLineId)
+    : undefined
+  if (bomLine) {
+    openContributeModal(bomLine)
+    return
+  }
+  if (action.tab !== null) {
+    activeTab.value = detailTabOfNextAction(action.tab)
+  }
+}
+
 function nextStatusLabel(target: GroupProjectStatus): string {
   if (project.value?.status === 'draft') {
     return t(`groupIndustry.detail.draftActions.${target}`)
@@ -226,6 +257,7 @@ async function advanceStatus(): Promise<void> {
   try {
     await projectStore.updateProject(projectId.value, { status: pendingStatus.value })
     showCompleteConfirm.value = false
+    await loadCockpit(projectId.value)
   } catch (e) {
     statusError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
   }
@@ -249,6 +281,7 @@ function handleLeaveProject(): void {
 function onContributionSubmitted(): void {
   showContributeModal.value = false
   projectStore.fetchBom(projectId.value)
+  loadCockpit(projectId.value)
   if (activeTab.value === 'contributions') {
     contributionStore.fetchContributions(projectId.value)
   }
@@ -266,6 +299,9 @@ const totalRuns = computed(() =>
 
 const bomItemCount = computed(() => projectStore.materials.length)
 const jobCount = computed(() => projectStore.jobs.length)
+const materialsCount = computed(() =>
+  `${bomItemCount.value} ${bomItemCount.value === 1 ? 'item' : 'items'} · ${jobCount.value} ${jobCount.value === 1 ? 'job' : 'jobs'}`
+)
 const contributionCount = computed(() => contributionStore.contributions.length)
 const memberCount = computed(() => project.value?.membersCount ?? 0)
 </script>
@@ -387,57 +423,20 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <p v-if="statusError && !showCompleteConfirm" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>
 
-      <!-- Tab Bar -->
-      <div class="border-b border-slate-800 mb-6">
-        <div class="flex gap-6">
-          <button
-            @click="activeTab = 'bom'"
-            class="px-1 pb-3 text-sm font-medium transition-colors border-b-2"
-            :class="activeTab === 'bom' ? 'text-sky-400 border-sky-400' : 'text-slate-500 border-transparent hover:text-slate-400'"
-          >
-            {{ t('groupIndustry.tabs.materialsJobs') }}
-            <span
-              class="ml-1.5 text-xs px-1.5 py-0.5 rounded"
-              :class="activeTab === 'bom' ? 'bg-cyan-500/15 text-cyan-400' : 'bg-slate-700 text-slate-400'"
-            >
-              {{ bomItemCount }} {{ bomItemCount === 1 ? 'item' : 'items' }} &middot; {{ jobCount }} {{ jobCount === 1 ? 'job' : 'jobs' }}
-            </span>
-          </button>
-          <button
-            @click="activeTab = 'contributions'"
-            class="px-1 pb-3 text-sm font-medium transition-colors border-b-2"
-            :class="activeTab === 'contributions' ? 'text-sky-400 border-sky-400' : 'text-slate-500 border-transparent hover:text-slate-400'"
-          >
-            {{ t('groupIndustry.tabs.contributions') }}
-            <span
-              class="ml-1.5 text-xs px-1.5 py-0.5 rounded"
-              :class="activeTab === 'contributions' ? 'bg-cyan-500/15 text-cyan-400' : 'bg-slate-700 text-slate-400'"
-            >
-              {{ contributionCount }}
-            </span>
-          </button>
-          <button
-            @click="activeTab = 'distribution'"
-            class="px-1 pb-3 text-sm font-medium transition-colors border-b-2"
-            :class="activeTab === 'distribution' ? 'text-sky-400 border-sky-400' : 'text-slate-500 border-transparent hover:text-slate-400'"
-          >
-            {{ t('groupIndustry.tabs.distribution') }}
-          </button>
-          <button
-            @click="activeTab = 'members'"
-            class="px-1 pb-3 text-sm font-medium transition-colors border-b-2"
-            :class="activeTab === 'members' ? 'text-sky-400 border-sky-400' : 'text-slate-500 border-transparent hover:text-slate-400'"
-          >
-            {{ t('groupIndustry.tabs.members') }}
-            <span
-              class="ml-1.5 text-xs px-1.5 py-0.5 rounded"
-              :class="activeTab === 'members' ? 'bg-cyan-500/15 text-cyan-400' : 'bg-slate-700 text-slate-400'"
-            >
-              {{ memberCount }}
-            </span>
-          </button>
-        </div>
-      </div>
+      <template v-if="cockpit">
+        <ProjectPhaseRail :phases="cockpit.phases" />
+        <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" @act="actOnNextAction" />
+      </template>
+      <p v-else-if="projectStore.cockpitError" class="mb-6 text-xs text-slate-500">
+        {{ t('groupIndustry.cockpit.unavailable') }}
+      </p>
+
+      <ProjectTabBar
+        v-model="activeTab"
+        :materials-count="materialsCount"
+        :contribution-count="contributionCount"
+        :member-count="memberCount"
+      />
 
       <!-- Tab Content: Materials & Jobs -->
       <div v-if="activeTab === 'bom'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
@@ -487,10 +486,13 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <!-- Tab Content: Distribution -->
       <div v-else-if="activeTab === 'distribution'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
-        <SalesTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
-        <SaleSuggestionsPanel v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
         <FinancialSummary />
         <DistributionTable />
+      </div>
+
+      <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
+        <SalesTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
+        <SaleSuggestionsPanel v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
       </div>
 
       <!-- Tab Content: Members -->

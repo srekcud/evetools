@@ -2286,7 +2286,82 @@
       "materialsJobs": "Materials & Jobs",
       "contributions": "Contributions",
       "distribution": "Distribution",
-      "members": "Members"
+      "members": "Members",
+      "finances": "Finances",
+      "sales": "Sales",
+      "team": "Team",
+      "chain": "Chain",
+      "invention": "Invention",
+      "planning": "Planning",
+      "journal": "Journal",
+      "comingSoon": "Coming soon"
+    },
+    "cockpit": {
+      "railLabel": "Project phases",
+      "unavailable": "Phases and next action are unavailable for now.",
+      "phases": {
+        "prepare": "Prepare",
+        "supply": "Supply",
+        "produce": "Produce",
+        "sell": "Sell",
+        "close": "Close"
+      },
+      "states": {
+        "done": "Done",
+        "current": "In progress",
+        "blocked": "Blocked",
+        "upcoming": "Upcoming"
+      },
+      "blockedReasons": {
+        "materials_missing": "{count} materials to cover",
+        "jobs_unfinished": "{count} jobs to finish"
+      },
+      "nextAction": {
+        "label": "Next action",
+        "project_completed": {
+          "title": "Project completed",
+          "description": "The accounts are frozen: there is nothing left to do on this project."
+        },
+        "review_contributions": {
+          "title": "Contributions to review",
+          "description": "{quantity} contributions are waiting for your decision before they count in the BOM.",
+          "button": "Review contributions"
+        },
+        "start_project": {
+          "title": "Start the project",
+          "description": "Materials are ready to be contributed: move the project to in progress.",
+          "button": "Start the project"
+        },
+        "source_material": {
+          "title": "Source a material",
+          "description": "{quantity} {typeName} are still missing to cover the BOM.",
+          "button": "Contribute"
+        },
+        "launch_job": {
+          "title": "Launch a job",
+          "description": "{quantity} runs of {typeName} are left to launch.",
+          "button": "See the jobs"
+        },
+        "start_selling": {
+          "title": "Move to selling",
+          "description": "Production is finished: open the sale of the products.",
+          "button": "Move to selling"
+        },
+        "record_sale": {
+          "title": "Record the sales",
+          "description": "{quantity} units are left to sell or to record.",
+          "button": "Open the sales"
+        },
+        "complete_project": {
+          "title": "Close the project",
+          "description": "Everything is sold: complete the project to freeze the accounts.",
+          "button": "Close the project"
+        },
+        "nothing_to_do": {
+          "title": "Nothing to do for you",
+          "description": "The project is moving along without you for now."
+        }
+      }
     },
     "available": {
       "runs": "Runs",

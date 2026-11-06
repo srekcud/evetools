@@ -116,9 +116,15 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/industry/projects/:id',
+      name: 'industry-project',
+      component: () => import('@/views/GroupIndustry/GroupIndustryDetail.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/group-industry/:id',
       name: 'group-industry-detail',
-      component: () => import('@/views/GroupIndustry/GroupIndustryDetail.vue'),
+      redirect: to => ({ name: 'industry-project', params: to.params, query: to.query }),
       meta: { requiresAuth: true },
     },
     {

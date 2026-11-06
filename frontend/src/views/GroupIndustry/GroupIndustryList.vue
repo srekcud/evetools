@@ -87,7 +87,7 @@ function closeLineRentalModal() {
 // --- Actions ---
 
 function navigateToProject(project: GroupProject) {
-  router.push({ name: 'group-industry-detail', params: { id: project.id } })
+  router.push({ name: 'industry-project', params: { id: project.id } })
 }
 
 async function handleJoinProject(shortLinkCode: string) {
@@ -96,7 +96,7 @@ async function handleJoinProject(shortLinkCode: string) {
     const project = await groupProjectStore.joinProject(shortLinkCode)
     if (!project) return
     if (joinOutcome(project) === 'redirect') {
-      router.push({ name: 'group-industry-detail', params: { id: project.id } })
+      router.push({ name: 'industry-project', params: { id: project.id } })
       return
     }
     await fetchProjects()

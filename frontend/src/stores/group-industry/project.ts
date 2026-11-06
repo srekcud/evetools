@@ -80,7 +80,15 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     }
   }
 
-  async function fetchCockpit(_projectId: string): Promise<void> {}
+  async function fetchCockpit(projectId: string): Promise<void> {
+    cockpitError.value = null
+    try {
+      cockpit.value = await apiRequest<ProjectCockpit>(`/industry/projects/${projectId}/cockpit`)
+    } catch (e) {
+      cockpit.value = null
+      cockpitError.value = e instanceof Error ? e.message : 'Failed to fetch cockpit'
+    }
+  }
 
   async function fetchContainerVerification(projectId: string): Promise<void> {
     try {

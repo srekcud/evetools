@@ -30,7 +30,7 @@ onMounted(async () => {
 
     // Pending members also have a role: only an accepted membership can open the detail page
     if (project && joinOutcome(project) === 'redirect') {
-      router.replace({ name: 'group-industry-detail', params: { id: project.id } })
+      router.replace({ name: 'industry-project', params: { id: project.id } })
       return
     }
 
