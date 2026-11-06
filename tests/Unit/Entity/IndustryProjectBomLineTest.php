@@ -36,4 +36,25 @@ final class IndustryProjectBomLineTest extends TestCase
 
         self::assertSame([false, 39, 2.5], [$finalJob->isFulfilled(), $finalJob->getRemainingQuantity(), $finalJob->getFulfillmentPercent()]);
     }
+
+    #[Group('issue-337')]
+    public function testLineHasNoPlannedStructureUntilThePlanSetsOne(): void
+    {
+        $line = new IndustryProjectBomLine();
+
+        self::assertSame([null, null], [$line->getPlannedStructureId(), $line->getPlannedStructureStatus()]);
+    }
+
+    #[Group('issue-337')]
+    public function testLineKeepsThePlannedStructureAndHowItWasChosen(): void
+    {
+        $finalJob = (new IndustryProjectBomLine())
+            ->setPlannedStructureId('01970000-0000-7000-8000-0000000000a1')
+            ->setPlannedStructureStatus('best_in_favorite_system');
+
+        self::assertSame(
+            ['01970000-0000-7000-8000-0000000000a1', 'best_in_favorite_system'],
+            [$finalJob->getPlannedStructureId(), $finalJob->getPlannedStructureStatus()],
+        );
+    }
 }

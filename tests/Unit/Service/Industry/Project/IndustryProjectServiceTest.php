@@ -8,6 +8,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
+use App\Entity\IndustryUserSettings;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
@@ -24,6 +25,7 @@ use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
+use App\Industry\Domain\SecurityClass;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -40,6 +42,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemoryMarketPrices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -84,6 +87,10 @@ final class IndustryProjectServiceTest extends TestCase
     private const int MORPHITE = 11399;
     private const int DATACORE_NUCLEAR_PHYSICS = 20423;
     private const int DATACORE_MECHANICAL_ENGINEERING = 20424;
+    private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30_002_187;
+    private const int REFINERY_SYSTEM_ID = 30_004_759;
+    private const string RAITARU_ID = '01970000-0000-7000-8000-0000000000a1';
+    private const string TATARA_ID = '01970000-0000-7000-8000-0000000000a2';
 
     private const array SDE_TYPE_NAMES = [
         self::TRITANIUM => 'Tritanium',
@@ -103,6 +110,10 @@ final class IndustryProjectServiceTest extends TestCase
     private array $typeNames = self::SDE_TYPE_NAMES;
 
     private array $t1ProductByBlueprint = [];
+
+    private array $ownerStructures = [];
+
+    private ?IndustryUserSettings $ownerSettings = null;
 
     private JitaMarketService&MockObject $jitaMarketService;
     private EntityManagerInterface&MockObject $entityManager;
@@ -689,6 +700,93 @@ final class IndustryProjectServiceTest extends TestCase
         $this->assertSame([self::TRITANIUM => 14_986], $this->materialQuantities($project));
     }
 
+    #[Group('issue-337')]
+    public function testJobLinesOfTheProductAndOfItsComponentsKeepThePlannedStructureAndHowItWasChosenWhileTheCopyAndMaterialsHaveNone(): void
+    {
+        $this->givenOwnerStructuresInHisFavoriteManufacturingSystemAndAnotherSystem();
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 28_000, self::COMPONENT => 10, self::REACTION_PRODUCT => 20]);
+        $this->givenRecipe(self::COMPONENT, 'Advanced Component', [self::PYERITE => 250], hasCopyActivity: true);
+        $this->givenRecipe(self::REACTION_PRODUCT, 'Reaction Product', [self::MEXALLON => 500], outputPerRun: 100, activity: ActivityKind::Reaction);
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifters with their own components',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 4]],
+        ));
+
+        $this->assertSame(
+            [
+                [self::RIFTER, 'manufacturing', 'final', self::RAITARU_ID, 'best_in_favorite_system'],
+                [self::COMPONENT, 'copy', 'blueprint', null, null],
+                [self::COMPONENT, 'manufacturing', 'component', self::RAITARU_ID, 'best_in_favorite_system'],
+                [self::REACTION_PRODUCT, 'reaction', 'component', self::TATARA_ID, 'best_configured'],
+            ],
+            $this->plannedStructuresOfJobLines($project),
+        );
+        $this->assertSame(
+            [self::TRITANIUM => [null, null], self::PYERITE => [null, null], self::MEXALLON => [null, null]],
+            $this->plannedStructuresOfMaterialLines($project),
+        );
+    }
+
+    #[Group('issue-337')]
+    public function testInventionAndCopyOfAnInventedProductHaveNoPlannedStructureNextToItsPlannedManufacturingJob(): void
+    {
+        $this->givenOwnerStructuresInHisFavoriteManufacturingSystemAndAnotherSystem();
+        $this->givenInventedProducts();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 3]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', null, null],
+                [self::HAIL_L, 'invention', 'blueprint', null, null],
+                [self::HAIL_L, 'manufacturing', 'final', self::RAITARU_ID, 'best_in_favorite_system'],
+            ],
+            $this->plannedStructuresOfJobLines($project),
+        );
+    }
+
+    #[Group('issue-337')]
+    public function testJobLineOfAnOwnerWithoutConfiguredStructureIsPlannedWithoutStructure(): void
+    {
+        $this->givenRifter();
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifters without structure',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 4]],
+        ));
+
+        $this->assertSame(
+            [[self::RIFTER, 'manufacturing', 'final', null, 'not_configured']],
+            $this->plannedStructuresOfJobLines($project),
+        );
+    }
+
+    #[Group('issue-337')]
+    public function testRebuildingTheBomUpdatesThePlannedStructureOfAJobLineInPlace(): void
+    {
+        $this->givenRifter();
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifters planned before the Raitaru',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 4]],
+        ));
+        $rifterJob = $this->getJobBomItems($project)[0];
+        $this->givenOwnerStructuresInHisFavoriteManufacturingSystemAndAnotherSystem();
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [[$rifterJob->getId()->toRfc4122()], self::RAITARU_ID, 'best_in_favorite_system'],
+            [
+                array_map(static fn (IndustryProjectBomLine $job): string => $job->getId()->toRfc4122(), $this->getJobBomItems($project)),
+                $rifterJob->getPlannedStructureId(),
+                $rifterJob->getPlannedStructureStatus(),
+            ],
+        );
+    }
+
     private function service(): IndustryProjectService
     {
         $recipes = [];
@@ -714,15 +812,57 @@ final class IndustryProjectServiceTest extends TestCase
                 new InMemoryRigCategories(),
                 new StructureTotalCostComparator(new InMemoryMarketPrices([]), new InMemoryAdjustedPrices([]), InMemorySystemCostIndices::none(), new InMemoryJumpDistances(), new InMemoryItemVolumes()),
             ),
-            new InMemoryUserProductionStructures(),
+            new InMemoryUserProductionStructures([self::OWNER_ID => $this->ownerStructures]),
             $this->jitaMarketService,
             $this->entityManager,
             $this->inventionService,
             $this->activityProductRepository(),
             $this->activityRepository(),
             $this->createStub(IndustryProjectContributionRepository::class),
-            $this->createStub(IndustryUserSettingsRepository::class),
+            $this->settingsRepository(),
         );
+    }
+
+    private function settingsRepository(): IndustryUserSettingsRepository
+    {
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn($this->ownerSettings);
+
+        return $settingsRepository;
+    }
+
+    private function givenOwnerStructuresInHisFavoriteManufacturingSystemAndAnotherSystem(): void
+    {
+        $this->ownerStructures = [
+            ProductionStructures::raitaru(self::RAITARU_ID, SecurityClass::NullSec, self::FAVORITE_MANUFACTURING_SYSTEM_ID),
+            ProductionStructures::tatara(self::TATARA_ID, SecurityClass::NullSec, self::REFINERY_SYSTEM_ID),
+        ];
+        $this->ownerSettings = (new IndustryUserSettings())->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID);
+    }
+
+    private function plannedStructuresOfJobLines(IndustryProject $project): array
+    {
+        $plannedStructures = array_map(static fn (IndustryProjectBomLine $job): array => [
+            $job->getTypeId(),
+            $job->getActivityType(),
+            $job->getJobGroup(),
+            $job->getPlannedStructureId(),
+            $job->getPlannedStructureStatus(),
+        ], $this->getJobBomItems($project));
+        usort($plannedStructures, static fn (array $left, array $right): int => $left <=> $right);
+
+        return $plannedStructures;
+    }
+
+    private function plannedStructuresOfMaterialLines(IndustryProject $project): array
+    {
+        $plannedStructures = [];
+        foreach ($this->getMaterialBomItems($project) as $material) {
+            $plannedStructures[$material->getTypeId()] = [$material->getPlannedStructureId(), $material->getPlannedStructureStatus()];
+        }
+        ksort($plannedStructures);
+
+        return $plannedStructures;
     }
 
     private function activityProductRepository(): IndustryActivityProductRepository
