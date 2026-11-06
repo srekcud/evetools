@@ -2244,6 +2244,7 @@
       "pipelineDesc": "estimated material cost",
       "unknownValueExcluded": "{count} project with unknown value excluded | {count} projects with unknown value excluded"
     },
+    "private": "Private",
     "status": {
       "draft": "Draft",
       "published": "Published",
@@ -2269,7 +2270,8 @@
       "estimatedTotal": "Est. Total",
       "totalItems": "Total Items",
       "totalEstCost": "Total Est. Cost",
-      "overallFulfillment": "Overall Fulfillment"
+      "overallFulfillment": "Overall Fulfillment",
+      "purchasedQuantity": "{quantity} purchased"
     },
     "jobs": {
       "title": "Jobs to Launch",
@@ -2281,7 +2283,11 @@
       "totalJobs": "Total Jobs",
       "blueprints": "Blueprints",
       "components": "Components",
-      "finalProducts": "Final Products"
+      "finalProducts": "Final Products",
+      "matchJobs": "Match jobs",
+      "matchError": "Failed to match jobs",
+      "matchFailedCharacters": "Some characters could not be synced:",
+      "matchedRuns": "{runs} runs matched"
     },
     "contribute": {
       "title": "Add Contribution",
@@ -2497,7 +2503,9 @@
         "createButton": "Create Project",
         "feesLabel": "Fees",
         "brokerFee": "Broker Fee %",
-        "salesTax": "Sales Tax %"
+        "salesTax": "Sales Tax %",
+        "privateLabel": "Private project",
+        "privateHint": "Absent from corporation discovery, no membership by code."
       },
       "contribute": {
         "title": "Add Contribution",
@@ -2584,13 +2592,18 @@
         "containerPlaceholder": "e.g. Fleet Doctrine Materials",
         "brokerFee": "Broker Fee %",
         "salesTax": "Sales Tax %",
-        "feesUnknownHint": "Left empty, the fees stay unknown until the owner syncs skills and standings."
+        "feesUnknownHint": "Left empty, the fees stay unknown until the owner syncs skills and standings.",
+        "private": "Private project"
       },
       "deleteConfirm": {
         "title": "Delete Project",
         "message": "Are you sure you want to delete this project? This action cannot be undone. All contributions, sales, and distribution data will be permanently lost."
       },
       "nextStatus": "Move to {status}",
+      "draftActions": {
+        "published": "Publish",
+        "in_progress": "Start"
+      },
       "completeConfirm": {
         "title": "Complete Project",
         "message": "Completing the project freezes its accounts: no more contributions, reviews, sales or fee changes, and it can no longer be deleted. This action cannot be undone.",

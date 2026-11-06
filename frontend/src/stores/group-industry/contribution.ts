@@ -13,7 +13,7 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     error.value = null
     try {
       contributions.value = await apiRequest<GroupContribution[]>(
-        `/group-industry/projects/${projectId}/contributions`,
+        `/industry/projects/${projectId}/contributions`,
       )
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch contributions'
@@ -29,7 +29,7 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     error.value = null
     try {
       const contribution = await apiRequest<GroupContribution>(
-        `/group-industry/projects/${projectId}/contributions`,
+        `/industry/projects/${projectId}/contributions`,
         {
           method: 'POST',
           body: JSON.stringify(input),
@@ -47,7 +47,7 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     error.value = null
     try {
       const updated = await apiRequest<GroupContribution>(
-        `/group-industry/projects/${projectId}/contributions/${id}`,
+        `/industry/projects/${projectId}/contributions/${id}`,
         {
           method: 'PATCH',
           body: JSON.stringify({ status: 'approved' }),
@@ -66,7 +66,7 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     error.value = null
     try {
       const updated = await apiRequest<GroupContribution>(
-        `/group-industry/projects/${projectId}/contributions/${id}`,
+        `/industry/projects/${projectId}/contributions/${id}`,
         {
           method: 'PATCH',
           body: JSON.stringify({ status: 'rejected' }),

@@ -116,6 +116,7 @@ const items = ref<ProjectItem[]>([])
 // Project metadata
 const projectName = ref('')
 const containerName = ref('')
+const isPrivate = ref(true)
 
 // Blacklist categories
 type BlacklistCategory = {
@@ -192,6 +193,7 @@ function resetForm() {
   items.value = []
   projectName.value = ''
   containerName.value = ''
+  isPrivate.value = true
   showLineRentalOverride.value = false
   lineRentalOverrideEnabled.value = false
   lineRentalRates.value.forEach(r => {
@@ -246,6 +248,7 @@ async function handleCreate() {
 
   const input: CreateGroupProjectInput = {
     name: projectName.value.trim() || undefined,
+    private: isPrivate.value,
     items: items.value.map(i => ({
       typeId: i.typeId,
       typeName: i.typeName,
@@ -551,6 +554,19 @@ function handleClose() {
           :placeholder="t('groupIndustry.modals.newProject.namePlaceholder')"
           class="form-input w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500"
         />
+      </div>
+
+      <div>
+        <label class="flex items-center gap-2.5 cursor-pointer">
+          <input
+            v-model="isPrivate"
+            data-testid="project-private"
+            type="checkbox"
+            class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
+          />
+          <span class="text-sm font-medium text-slate-300">{{ t('groupIndustry.modals.newProject.privateLabel') }}</span>
+        </label>
+        <p class="text-xs text-slate-500 mt-1.5">{{ t('groupIndustry.modals.newProject.privateHint') }}</p>
       </div>
 
       <!-- Production Blacklist -->

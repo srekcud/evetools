@@ -35,6 +35,10 @@ export type GroupProject = {
   status: GroupProjectStatus
   shortLinkCode: string
   containerName: string | null
+  private: boolean
+  acceptsOutsideFavoriteSystem: boolean
+  minimumOutsideSaving: number
+  notes: string | null
   ownerCharacterName: string
   ownerCorporationId: number | null
   membersCount: number
@@ -54,6 +58,46 @@ export type GroupProject = {
 
 // --- BOM ---
 
+export type JobMatch = {
+  id: string
+  bomLineId: string
+  esiJobId: number
+  cost: number | null
+  status: string
+  endDate: string | null
+  runs: number
+  characterName: string | null
+  matchedAt: string
+  facilityId: number | null
+  facilityName: string | null
+  manual: boolean
+}
+
+export type ProjectPurchase = {
+  id: string
+  bomLineId: string
+  typeId: number
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  source: string
+  transactionId: string | null
+  createdAt: string
+}
+
+export type CharacterMatchFailure = {
+  characterName: string
+  reason: string
+  statusCode: number | null
+}
+
+export type MatchJobsResult = {
+  jobMatches: JobMatch[]
+  jobsCost: number | null
+  syncedCharacters: number
+  failedCharacters: CharacterMatchFailure[]
+}
+
 export type BomItem = {
   id: string
   typeId: number
@@ -72,6 +116,10 @@ export type BomItem = {
   teLevel: number | null
   runs: number | null
   isFulfilled: boolean
+  jobMatches: JobMatch[]
+  matchedRuns: number
+  purchases: ProjectPurchase[]
+  purchasedQuantity: number
 }
 
 // --- Contributions ---
@@ -190,6 +238,7 @@ export type LineRentalRates = {
 
 export type CreateGroupProjectInput = {
   name?: string
+  private: boolean
   items: { typeId: number; typeName: string; meLevel: number; teLevel: number; runs: number }[]
   blacklistCategoryKeys?: string[]
   blacklistGroupIds?: number[]

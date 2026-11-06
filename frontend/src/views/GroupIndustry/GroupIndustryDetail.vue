@@ -24,7 +24,7 @@ import MemberTable from '@/components/group-industry/MemberTable.vue'
 import PendingRequestsTable from '@/components/group-industry/PendingRequestsTable.vue'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import type { BomItem, GroupProject, GroupProjectStatus } from '@/stores/group-industry/types'
-import { nextProjectStatus } from './nextProjectStatus'
+import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
 import { groupProjectRefreshes, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
@@ -60,6 +60,7 @@ const editForm = ref({
   containerName: '',
   brokerFeePercent: null as number | null,
   salesTaxPercent: null as number | null,
+  private: true,
 })
 const isEditSaving = ref(false)
 const editError = ref<string | null>(null)
@@ -78,7 +79,8 @@ const isOwnerOrAdmin = computed(() =>
 )
 const isOwner = computed(() => project.value?.myRole === 'owner')
 const isCompleted = computed(() => project.value?.status === 'completed')
-const nextStatus = computed(() => (project.value ? nextProjectStatus(project.value.status) : null))
+const nextStatuses = computed(() => (project.value ? nextProjectStatuses(project.value.status) : []))
+const pendingStatus = ref<GroupProjectStatus | null>(null)
 
 const statusConfig: Record<GroupProjectStatus, { bg: string; text: string; border: string }> = {
   draft: { bg: 'bg-slate-700', text: 'text-slate-400', border: 'border-slate-600' },
@@ -117,6 +119,17 @@ watch(
     if (!event) return
     const refreshes = groupProjectRefreshes(event.action).map(refresh => refreshGroupProject[refresh](projectId.value))
     Promise.all(refreshes).then(flashProject)
+  },
+)
+
+watch(
+  () => syncStore.getSyncProgress('industry-project'),
+  (progress) => {
+    if (progress?.data?.projectId !== projectId.value) return
+    Promise.all([
+      refreshGroupProject.bom(projectId.value),
+      refreshGroupProject.projectDetail(projectId.value),
+    ]).then(flashProject)
   },
 )
 
@@ -164,6 +177,7 @@ function openEditModal(): void {
     containerName: project.value.containerName ?? '',
     brokerFeePercent: project.value.brokerFeePercent,
     salesTaxPercent: project.value.salesTaxPercent,
+    private: project.value.private,
   }
   editError.value = null
   isEditSaving.value = false
@@ -179,6 +193,7 @@ async function handleEditSave(): Promise<void> {
       containerName: editForm.value.containerName || null,
       brokerFeePercent: feeOrNull(editForm.value.brokerFeePercent),
       salesTaxPercent: feeOrNull(editForm.value.salesTaxPercent),
+      private: editForm.value.private,
     } as Partial<GroupProject>)
     showEditModal.value = false
   } catch (e) {
@@ -187,9 +202,17 @@ async function handleEditSave(): Promise<void> {
   }
 }
 
-function requestNextStatus(): void {
+function nextStatusLabel(target: GroupProjectStatus): string {
+  if (project.value?.status === 'draft') {
+    return t(`groupIndustry.detail.draftActions.${target}`)
+  }
+  return t('groupIndustry.detail.nextStatus', { status: statusLabel(target) })
+}
+
+function requestNextStatus(target: GroupProjectStatus): void {
   statusError.value = null
-  if (nextStatus.value === 'completed') {
+  pendingStatus.value = target
+  if (target === 'completed') {
     showCompleteConfirm.value = true
     return
   }
@@ -197,11 +220,11 @@ function requestNextStatus(): void {
 }
 
 async function advanceStatus(): Promise<void> {
-  if (!nextStatus.value) return
+  if (!pendingStatus.value) return
   isAdvancingStatus.value = true
   statusError.value = null
   try {
-    await projectStore.updateProject(projectId.value, { status: nextStatus.value })
+    await projectStore.updateProject(projectId.value, { status: pendingStatus.value })
     showCompleteConfirm.value = false
   } catch (e) {
     statusError.value = e instanceof Error ? e.message : t('groupIndustry.detail.editError')
@@ -301,6 +324,10 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
                 {{ statusLabel(project.status) }}
               </span>
               <span
+                v-if="project.private"
+                class="text-xs px-2.5 py-1 rounded-lg font-medium border bg-amber-500/15 text-amber-400 border-amber-500/20"
+              >{{ t('groupIndustry.private') }}</span>
+              <span
                 v-if="project.containerName"
                 class="text-xs px-2 py-0.5 rounded-lg bg-violet-500/12 text-violet-400 border border-violet-500/25 font-medium inline-flex items-center gap-1.5"
               >
@@ -326,14 +353,17 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
               {{ t('groupIndustry.detail.shareLink') }}
             </button>
-            <button
-              v-if="isOwnerOrAdmin && nextStatus"
-              class="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-all hover:-translate-y-px disabled:opacity-50"
-              :disabled="isAdvancingStatus"
-              @click="requestNextStatus"
-            >
-              {{ t('groupIndustry.detail.nextStatus', { status: t(`groupIndustry.status.${nextStatus}`) }) }}
-            </button>
+            <template v-if="isOwnerOrAdmin">
+              <button
+                v-for="target in nextStatuses"
+                :key="target"
+                class="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-all hover:-translate-y-px disabled:opacity-50"
+                :disabled="isAdvancingStatus"
+                @click="requestNextStatus(target)"
+              >
+                {{ nextStatusLabel(target) }}
+              </button>
+            </template>
             <button
               v-if="isOwnerOrAdmin"
               class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all hover:-translate-y-px"
@@ -579,6 +609,18 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           </div>
         </div>
         <p v-if="editFeesUnknown" class="text-xs text-amber-400">{{ t('groupIndustry.detail.editFields.feesUnknownHint') }}</p>
+        <div>
+          <label class="flex items-center gap-2.5 cursor-pointer">
+            <input
+              v-model="editForm.private"
+              data-testid="edit-project-private"
+              type="checkbox"
+              class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
+            />
+            <span class="text-sm font-medium text-slate-400">{{ t('groupIndustry.detail.editFields.private') }}</span>
+          </label>
+          <p class="text-xs text-slate-500 mt-1.5">{{ t('groupIndustry.modals.newProject.privateHint') }}</p>
+        </div>
 
         <p v-if="editError" class="text-sm text-red-400">{{ editError }}</p>
       </div>

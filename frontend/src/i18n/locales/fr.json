@@ -2244,6 +2244,7 @@
       "pipelineDesc": "coût matériaux estimé",
       "unknownValueExcluded": "{count} projet à la valeur inconnue exclu | {count} projets à la valeur inconnue exclus"
     },
+    "private": "Privé",
     "status": {
       "draft": "Brouillon",
       "published": "Publie",
@@ -2269,7 +2270,8 @@
       "estimatedTotal": "Total est.",
       "totalItems": "Total items",
       "totalEstCost": "Cout total est.",
-      "overallFulfillment": "Progression globale"
+      "overallFulfillment": "Progression globale",
+      "purchasedQuantity": "{quantity} achetés"
     },
     "jobs": {
       "title": "Jobs a lancer",
@@ -2281,7 +2283,11 @@
       "totalJobs": "Total jobs",
       "blueprints": "Blueprints",
       "components": "Composants",
-      "finalProducts": "Produits finaux"
+      "finalProducts": "Produits finaux",
+      "matchJobs": "Associer les jobs",
+      "matchError": "Échec de l'association des jobs",
+      "matchFailedCharacters": "Certains personnages n'ont pas pu être synchronisés :",
+      "matchedRuns": "{runs} runs associés"
     },
     "contribute": {
       "title": "Ajouter une contribution",
@@ -2497,7 +2503,9 @@
         "createButton": "Creer le projet",
         "feesLabel": "Frais",
         "brokerFee": "Frais courtier %",
-        "salesTax": "Taxe de vente %"
+        "salesTax": "Taxe de vente %",
+        "privateLabel": "Projet privé",
+        "privateHint": "Absent de la découverte de la corporation, sans adhésion par code."
       },
       "contribute": {
         "title": "Ajouter une contribution",
@@ -2584,13 +2592,18 @@
         "containerPlaceholder": "ex: Fleet Doctrine Materials",
         "brokerFee": "Frais courtier %",
         "salesTax": "Taxe de vente %",
-        "feesUnknownHint": "Laissé vide, les frais restent inconnus tant que le propriétaire n'a pas synchronisé ses compétences et ses standings."
+        "feesUnknownHint": "Laissé vide, les frais restent inconnus tant que le propriétaire n'a pas synchronisé ses compétences et ses standings.",
+        "private": "Projet privé"
       },
       "deleteConfirm": {
         "title": "Supprimer le projet",
         "message": "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible. Toutes les contributions, ventes et donnees de distribution seront definitivement perdues."
       },
       "nextStatus": "Passer à {status}",
+      "draftActions": {
+        "published": "Publier",
+        "in_progress": "Démarrer"
+      },
       "completeConfirm": {
         "title": "Terminer le projet",
         "message": "Terminer le projet fige ses comptes : plus de contribution, de revue, de vente ni de changement de frais, et il ne pourra plus être supprimé. Cette action est irréversible.",
