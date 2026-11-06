@@ -79,6 +79,7 @@ final class GroupProjectReadApiTest extends WebTestCase
         yield 'bom' => ['/bom'];
         yield 'sales' => ['/sales'];
         yield 'distribution' => ['/distribution'];
+        yield 'cockpit' => ['/cockpit'];
     }
 
     public static function projectReadRoutesForTheOwnerAndTheAcceptedMember(): iterable
@@ -273,6 +274,7 @@ final class GroupProjectReadApiTest extends WebTestCase
         yield 'distribution' => ['GET', '/distribution', null];
         yield 'container verification' => ['GET', '/container-verification', null];
         yield 'sales' => ['GET', '/sales', null];
+        yield 'cockpit' => ['GET', '/cockpit', null];
     }
 
     private function projectDetailRow(): array
