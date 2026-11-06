@@ -35,6 +35,8 @@ class ProjectResourceMapper
         $resource->shortLinkCode = $project->getShortLinkCode();
         $resource->containerName = $project->getContainerName();
         $resource->private = $project->isPrivate();
+        $resource->acceptsOutsideFavoriteSystem = $project->isAcceptsOutsideFavoriteSystem();
+        $resource->minimumOutsideSaving = $project->getMinimumOutsideSaving();
         $resource->notes = $project->getNotes();
         $resource->ownerCharacterName = $project->getOwner()->getMainCharacter()?->getName() ?? 'Unknown';
         $resource->ownerCorporationId = $project->getOwner()->getCorporationId();

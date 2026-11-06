@@ -17,9 +17,11 @@ use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\ProductionPlanRequest;
+use App\Industry\Application\StructureSelectionPolicy;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\Isk;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\Plan;
@@ -28,6 +30,7 @@ use App\Industry\Domain\ProductionPlanner;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\InventionService;
@@ -50,6 +53,7 @@ class IndustryProjectService
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly IndustryActivityRepository $activityRepository,
         private readonly IndustryProjectContributionRepository $contributionRepository,
+        private readonly IndustryUserSettingsRepository $settingsRepository,
     ) {
     }
 
@@ -65,6 +69,8 @@ class IndustryProjectService
         $project->setBrokerFeePercent($data->brokerFeePercent);
         $project->setSalesTaxPercent($data->salesTaxPercent);
         $project->setPrivate($data->private);
+        $project->setAcceptsOutsideFavoriteSystem($data->acceptsOutsideFavoriteSystem);
+        $project->setMinimumOutsideSaving($data->minimumOutsideSaving);
 
         $project->enrolOwner();
 
@@ -258,12 +264,22 @@ class IndustryProjectService
             return $this->productionPlanning->planOf(new ProductionPlanRequest(
                 $this->targetsOf($project),
                 $this->userStructures->configuredBy($this->idOf($owner)),
-                FavoriteSystems::none(),
+                $this->favoriteSystemsOf($owner),
                 $blacklistedTypeIds,
+                selectionPolicy: new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving())),
             ));
         } catch (\DomainException $e) {
             throw new \RuntimeException($e->getMessage(), 0, $e);
         }
+    }
+
+    private function favoriteSystemsOf(User $owner): FavoriteSystems
+    {
+        $settings = $this->settingsRepository->findOneBy(['user' => $owner]);
+
+        return null === $settings
+            ? FavoriteSystems::none()
+            : new FavoriteSystems($settings->getFavoriteManufacturingSystemId(), $settings->getFavoriteReactionSystemId());
     }
 
     /**

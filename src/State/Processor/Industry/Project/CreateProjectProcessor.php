@@ -86,6 +86,8 @@ class CreateProjectProcessor implements ProcessorInterface
                 brokerFeePercent: $brokerFeePercent,
                 salesTaxPercent: $salesTaxPercent,
                 private: $data->private,
+                acceptsOutsideFavoriteSystem: $data->acceptsOutsideFavoriteSystem,
+                minimumOutsideSaving: $data->minimumOutsideSaving,
             );
 
             $project = $this->projectService->createProject($user, $projectData);
