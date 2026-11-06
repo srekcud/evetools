@@ -59,6 +59,7 @@ async function mountDetailOf(project: GroupProject): Promise<VueWrapper> {
   const projectStore = useGroupProjectStore()
   detailFetch = vi.spyOn(projectStore, 'fetchProjectDetail').mockResolvedValue(undefined as never)
   bomFetch = vi.spyOn(projectStore, 'fetchBom').mockResolvedValue(undefined as never)
+  vi.spyOn(projectStore, 'fetchCockpit').mockResolvedValue(undefined as never)
   projectStore.currentProject = project
   const wrapper = mount(GroupIndustryDetail, {
     global: {

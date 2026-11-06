@@ -301,6 +301,7 @@ async function mountGroupIndustryDetail(locale: Locale): Promise<MountedComponen
   const groupProjectStore = useGroupProjectStore()
   vi.spyOn(groupProjectStore, 'fetchProjectDetail').mockResolvedValue(undefined as never)
   vi.spyOn(groupProjectStore, 'fetchBom').mockResolvedValue(undefined as never)
+  vi.spyOn(groupProjectStore, 'fetchCockpit').mockResolvedValue(undefined as never)
   groupProjectStore.currentProject = GROUP_PROJECT
   const wrapper = mount(GroupIndustryDetail, {
     global: {

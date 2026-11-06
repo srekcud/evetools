@@ -330,3 +330,49 @@ export type RecordSaleFromWalletTransactionInput = {
   transactionId: string
   quantity?: number
 }
+
+// --- Cockpit ---
+
+export type ProjectPhaseKey = 'prepare' | 'supply' | 'produce' | 'sell' | 'close'
+
+export type ProjectPhaseState = 'done' | 'current' | 'blocked' | 'upcoming'
+
+export type ProjectPhaseBlockedReasonCode = 'materials_missing' | 'jobs_unfinished'
+
+export type ProjectNextActionCode =
+  | 'project_completed'
+  | 'review_contributions'
+  | 'start_project'
+  | 'source_material'
+  | 'launch_job'
+  | 'start_selling'
+  | 'record_sale'
+  | 'complete_project'
+  | 'nothing_to_do'
+
+export type ProjectNextActionTab = 'materials' | 'contributions' | 'sales' | 'finances' | 'members'
+
+export type ProjectPhase = {
+  key: ProjectPhaseKey
+  state: ProjectPhaseState
+  counter: { done: number; total: number }
+  blockedReason: { code: ProjectPhaseBlockedReasonCode; count: number } | null
+}
+
+export type ProjectNextAction = {
+  code: ProjectNextActionCode
+  blocked: boolean
+  tab: ProjectNextActionTab | null
+  targetStatus: GroupProjectStatus | null
+  bomLineId: string | null
+  typeId: number | null
+  typeName: string | null
+  quantity: number | null
+}
+
+export type ProjectCockpit = {
+  projectId: string
+  status: GroupProjectStatus
+  phases: ProjectPhase[]
+  nextAction: ProjectNextAction
+}

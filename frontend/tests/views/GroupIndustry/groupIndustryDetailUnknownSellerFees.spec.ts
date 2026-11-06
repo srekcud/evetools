@@ -59,6 +59,7 @@ async function openEditModal(): Promise<VueWrapper> {
   const projectStore = useGroupProjectStore()
   vi.spyOn(projectStore, 'fetchProjectDetail').mockResolvedValue(undefined as never)
   vi.spyOn(projectStore, 'fetchBom').mockResolvedValue(undefined as never)
+  vi.spyOn(projectStore, 'fetchCockpit').mockResolvedValue(undefined as never)
   projectStore.currentProject = SABRE_BATCH_WITHOUT_SELLER_FEES
   const wrapper = mount(GroupIndustryDetail, {
     global: {

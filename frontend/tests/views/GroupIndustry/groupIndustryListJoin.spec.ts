@@ -87,7 +87,7 @@ describe('GroupIndustryList join from the available projects', () => {
     await mountListAndJoin()
 
     expect(push).toHaveBeenCalledTimes(1)
-    expect(push).toHaveBeenCalledWith({ name: 'group-industry-detail', params: { id: 'project-512' } })
+    expect(push).toHaveBeenCalledWith({ name: 'industry-project', params: { id: 'project-512' } })
   })
 
   it('stays on the list when the membership is pending', async () => {

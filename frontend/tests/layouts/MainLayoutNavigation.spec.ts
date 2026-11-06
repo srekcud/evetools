@@ -78,7 +78,7 @@ describe('MainLayout sidebar navigation', () => {
     expect(navigationLink(wrapper, 'Dashboard')?.attributes('aria-current')).toBeUndefined()
   })
 
-  it.each(['/group-industry', '/group-industry/p1'])('keeps the industry entry current and titles the page Industry on %s', async (path) => {
+  it.each(['/group-industry', '/group-industry/p1', '/industry/projects/p1'])('keeps the industry entry current and titles the page Industry on %s', async (path) => {
     const { wrapper } = await mountMainLayoutAt(path)
 
     const currentPageLinks = wrapper.findAll('a[aria-current="page"]')

@@ -94,10 +94,11 @@ function sabreProject(status: GroupProjectStatus, myRole: GroupMemberRole): Grou
 let recording: () => Promise<unknown>
 const syncEvent = ref<GroupProjectEvent | null>(null)
 
-async function mountDistributionTabOf(project: GroupProject): Promise<VueWrapper> {
+async function mountSalesTabOf(project: GroupProject): Promise<VueWrapper> {
   const projectStore = useGroupProjectStore()
   vi.spyOn(projectStore, 'fetchProjectDetail').mockResolvedValue(undefined as never)
   vi.spyOn(projectStore, 'fetchBom').mockResolvedValue(undefined as never)
+  vi.spyOn(projectStore, 'fetchCockpit').mockResolvedValue(undefined as never)
   projectStore.currentProject = project
   vi.spyOn(useSyncStore(), 'getGroupProjectEvent').mockImplementation(() => syncEvent.value)
   const wrapper = mount(GroupIndustryDetail, {
@@ -150,7 +151,7 @@ enableAutoUnmount(afterEach)
 
 beforeEach(() => {
   setActivePinia(createPinia())
-  route.query = { tab: 'distribution' }
+  route.query = { tab: 'sales' }
   syncEvent.value = null
   recording = async () => {
     throw new ApiError(ALREADY_LINKED, 409)
@@ -166,7 +167,7 @@ beforeEach(() => {
 
 describe('errors of the sales and of their suggestions on the detail view', () => {
   it('shows a refused recording from a wallet transaction once on the page', async () => {
-    const wrapper = await mountDistributionTabOf(sabreProject('selling', 'owner'))
+    const wrapper = await mountSalesTabOf(sabreProject('selling', 'owner'))
 
     await recordAsSaleButtons(wrapper)[0].trigger('click')
     await flushPromises()
@@ -175,7 +176,7 @@ describe('errors of the sales and of their suggestions on the detail view', () =
   })
 
   it('shows an error of the sales table once on the page', async () => {
-    const wrapper = await mountDistributionTabOf(sabreProject('selling', 'owner'))
+    const wrapper = await mountSalesTabOf(sabreProject('selling', 'owner'))
 
     useGroupDistributionStore().error = DELETION_REFUSED
     await nextTick()
@@ -186,7 +187,7 @@ describe('errors of the sales and of their suggestions on the detail view', () =
 
 describe('sale suggestions refreshed by the sale events', () => {
   it.each(['sale_recorded', 'sale_updated', 'sale_deleted'])('reads the suggestions again for the owner on %s', async (action) => {
-    await mountDistributionTabOf(sabreProject('selling', 'owner'))
+    await mountSalesTabOf(sabreProject('selling', 'owner'))
     const readsBeforeTheEvent = suggestionReads()
 
     await publish(action)
@@ -195,7 +196,7 @@ describe('sale suggestions refreshed by the sale events', () => {
   })
 
   it('never asks a plain member for the suggestions he cannot read', async () => {
-    await mountDistributionTabOf(sabreProject('selling', 'member'))
+    await mountSalesTabOf(sabreProject('selling', 'member'))
 
     await publish('sale_recorded')
 
@@ -205,7 +206,7 @@ describe('sale suggestions refreshed by the sale events', () => {
 
 describe('sale suggestions of a completed project', () => {
   it('shows the suggestions to the owner of a completed project with recording disabled', async () => {
-    const wrapper = await mountDistributionTabOf(sabreProject('completed', 'owner'))
+    const wrapper = await mountSalesTabOf(sabreProject('completed', 'owner'))
 
     expect([
       wrapper.findComponent(SaleSuggestionsPanel).exists(),
@@ -214,13 +215,13 @@ describe('sale suggestions of a completed project', () => {
   })
 
   it('lets the owner of a selling project record a suggestion', async () => {
-    const wrapper = await mountDistributionTabOf(sabreProject('selling', 'owner'))
+    const wrapper = await mountSalesTabOf(sabreProject('selling', 'owner'))
 
     expect(recordAsSaleButtons(wrapper).map(button => button.element.disabled)).toEqual([false])
   })
 
   it('shows no suggestion to a plain member of a completed project', async () => {
-    const wrapper = await mountDistributionTabOf(sabreProject('completed', 'member'))
+    const wrapper = await mountSalesTabOf(sabreProject('completed', 'member'))
 
     expect([wrapper.findComponent(SaleSuggestionsPanel).exists(), suggestionReads()]).toEqual([false, 0])
   })

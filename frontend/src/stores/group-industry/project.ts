@@ -11,6 +11,7 @@ import type {
   AvailableJob,
   PurchaseSuggestions,
   CreatePurchaseInput,
+  ProjectCockpit,
 } from './types'
 
 export const useGroupProjectStore = defineStore('group-project', () => {
@@ -22,6 +23,8 @@ export const useGroupProjectStore = defineStore('group-project', () => {
   const loading = ref(false)
   const bomLoading = ref(false)
   const error = ref<string | null>(null)
+  const cockpit = ref<ProjectCockpit | null>(null)
+  const cockpitError = ref<string | null>(null)
 
   // BOM computed filters
   const materials = computed(() => bomItems.value.filter(i => !i.isJob))
@@ -76,6 +79,8 @@ export const useGroupProjectStore = defineStore('group-project', () => {
       bomLoading.value = false
     }
   }
+
+  async function fetchCockpit(_projectId: string): Promise<void> {}
 
   async function fetchContainerVerification(projectId: string): Promise<void> {
     try {
@@ -209,6 +214,8 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     loading,
     bomLoading,
     error,
+    cockpit,
+    cockpitError,
     materials,
     jobs,
     blueprintJobs,
@@ -218,6 +225,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     fetchAvailableProjects,
     fetchProjectDetail,
     fetchBom,
+    fetchCockpit,
     fetchContainerVerification,
     createProject,
     updateProject,
