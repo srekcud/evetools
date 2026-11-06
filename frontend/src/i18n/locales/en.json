@@ -1919,6 +1919,65 @@
     "available": "Available Projects",
     "noProjects": "No group projects yet. Create one to get started!",
     "noAvailable": "No available projects from your corporation.",
+    "chain": {
+      "title": "Production chain",
+      "loading": "Reading the production chain...",
+      "loadError": "The production chain could not be read",
+      "views": {
+        "flow": "Overview",
+        "tree": "Job tree"
+      },
+      "flow": {
+        "inventionMaterials": "Invention and materials",
+        "components": "Components",
+        "product": "Product",
+        "sale": "Sale",
+        "soldUnits": "Units sold",
+        "grossRevenue": "Gross revenue",
+        "openInTree": "Open in the job tree",
+        "supplied": "{fulfilled} / {required} supplied"
+      },
+      "columns": {
+        "element": "Element",
+        "activity": "Activity",
+        "runs": "Runs",
+        "meTe": "ME / TE",
+        "character": "Character",
+        "status": "Status",
+        "realCost": "Real cost",
+        "end": "End",
+        "inOut": "Input → output",
+        "structure": "Structure"
+      },
+      "activity": {
+        "manufacturing": "Manufacturing",
+        "reaction": "Reaction",
+        "copy": "Copy",
+        "invention": "Invention"
+      },
+      "status": {
+        "done": "Done",
+        "active": "In progress",
+        "todo": "To do",
+        "blocked": "Blocked",
+        "unknown": "Unknown"
+      },
+      "legendTitle": "Status legend",
+      "meTeValue": "ME {me} · TE {te}",
+      "characterUnknown": "Character unknown",
+      "ioUnknownCause": "job locations not synchronized (#319)",
+      "unknownCostCause": "a contribution has no known price: the cost stays unknown, never partial",
+      "structure": {
+        "unknown": "Unknown structure: no structure configured for this job",
+        "deleted": "Planned structure deleted",
+        "planned": "Planned",
+        "outsideFavoriteSystem": "Outside your favorite system"
+      },
+      "toggle": {
+        "fold": "Fold the rows under {name}",
+        "unfold": "Unfold the rows under {name}"
+      }
+    },
     "kpis": {
       "activeProjects": "Active Projects",
       "activeDesc": "currently running",

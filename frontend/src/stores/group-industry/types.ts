@@ -376,3 +376,68 @@ export type ProjectCockpit = {
   phases: ProjectPhase[]
   nextAction: ProjectNextAction
 }
+
+export type ChainStage = 'blueprint' | 'material' | 'component' | 'product' | 'sale'
+
+export type ChainActivity = 'manufacturing' | 'reaction' | 'copy' | 'invention'
+
+export type ChainStatus = 'done' | 'active' | 'todo' | 'blocked' | 'unknown'
+
+export type ChainCostState = 'none' | 'unknown' | 'known'
+
+export type PlannedStructureStatus =
+  | 'assigned'
+  | 'best_in_favorite_system'
+  | 'best_configured'
+  | 'best_outside_favorite_system'
+  | 'best_by_total_cost'
+
+export type ChainSupplier = {
+  participantId: string
+  characterName: string | null
+  type: ContributionType
+  quantity: number
+}
+
+export type ChainJob = {
+  esiJobId: number
+  status: string
+  runs: number
+  characterName: string | null
+  endDate: string | null
+  cost: number | null
+  facilityName: string | null
+}
+
+export type ChainPlannedStructure = {
+  name: string | null
+  status: PlannedStructureStatus
+}
+
+export type ChainNode = {
+  id: string
+  stage: ChainStage
+  parentId: string | null
+  typeId: number | null
+  typeName: string | null
+  activity: ChainActivity | null
+  runs: number | null
+  meLevel: number | null
+  teLevel: number | null
+  requiredQuantity: number | null
+  fulfilledQuantity: number | null
+  status: ChainStatus
+  costState: ChainCostState
+  realCost: number | null
+  suppliers: ChainSupplier[]
+  jobs: ChainJob[]
+  structures: string[]
+  plannedStructure: ChainPlannedStructure | null
+  soldQuantity: number | null
+  grossRevenue: number | null
+}
+
+export type ProjectChain = {
+  id: string
+  nodes: ChainNode[]
+}

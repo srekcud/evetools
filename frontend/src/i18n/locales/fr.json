@@ -1919,6 +1919,65 @@
     "available": "Projets disponibles",
     "noProjects": "Aucun projet de groupe. Creez-en un pour commencer !",
     "noAvailable": "Aucun projet disponible dans votre corporation.",
+    "chain": {
+      "title": "Chaîne de production",
+      "loading": "Lecture de la chaîne de production...",
+      "loadError": "La chaîne de production n'a pas pu être lue",
+      "views": {
+        "flow": "Vue d'ensemble",
+        "tree": "Arbre des jobs"
+      },
+      "flow": {
+        "inventionMaterials": "Invention et matériaux",
+        "components": "Composants",
+        "product": "Produit",
+        "sale": "Vente",
+        "soldUnits": "Unités vendues",
+        "grossRevenue": "Revenu brut",
+        "openInTree": "Ouvrir dans l'arbre des jobs",
+        "supplied": "{fulfilled} / {required} fournis"
+      },
+      "columns": {
+        "element": "Élément",
+        "activity": "Activité",
+        "runs": "Runs",
+        "meTe": "ME / TE",
+        "character": "Personnage",
+        "status": "Statut",
+        "realCost": "Coût réel",
+        "end": "Fin",
+        "inOut": "Entrée → sortie",
+        "structure": "Structure"
+      },
+      "activity": {
+        "manufacturing": "Fabrication",
+        "reaction": "Réaction",
+        "copy": "Copie",
+        "invention": "Invention"
+      },
+      "status": {
+        "done": "Terminé",
+        "active": "En cours",
+        "todo": "À lancer",
+        "blocked": "Bloqué",
+        "unknown": "Inconnu"
+      },
+      "legendTitle": "Légende des statuts",
+      "meTeValue": "ME {me} · TE {te}",
+      "characterUnknown": "Personnage inconnu",
+      "ioUnknownCause": "lieux des jobs non synchronisés (#319)",
+      "unknownCostCause": "un apport n'a pas de prix connu : le coût reste inconnu, jamais partiel",
+      "structure": {
+        "unknown": "Structure inconnue : aucune structure configurée pour ce job",
+        "deleted": "Structure conseillée supprimée",
+        "planned": "Conseillée",
+        "outsideFavoriteSystem": "Hors de votre système préféré"
+      },
+      "toggle": {
+        "fold": "Replier les lignes sous {name}",
+        "unfold": "Déplier les lignes sous {name}"
+      }
+    },
     "kpis": {
       "activeProjects": "Projets actifs",
       "activeDesc": "en cours de production",
