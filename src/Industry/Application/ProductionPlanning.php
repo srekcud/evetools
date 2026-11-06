@@ -26,7 +26,7 @@ final readonly class ProductionPlanning
     {
         $recipes = new RecipeMemory($this->blueprints);
         $planner = new ProductionPlanner($this->blueprints);
-        $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices, $this->totalCostComparator, null === $this->totalCostComparator ? StructureSelectionPolicy::favoriteSystemOnly() : $request->selectionPolicy);
+        $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices, $this->totalCostComparator, $request->selectionPolicy);
         $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories, [], self::referenceRunsOf($request->targets));
 
         $uncappedPlan = $planner->plan(new PlanRequest($request->targets, $materialModifiers, $request->startingStock, $request->blacklist), $recipes);
