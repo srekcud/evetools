@@ -26,6 +26,31 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<int> $jobIds
+     *
+     * @return array<int, CachedIndustryJob> indexed by job id
+     */
+    public function findByJobIds(array $jobIds): array
+    {
+        if ([] === $jobIds) {
+            return [];
+        }
+
+        $jobs = $this->createQueryBuilder('j')
+            ->where('j.jobId IN (:jobIds)')
+            ->setParameter('jobIds', $jobIds)
+            ->getQuery()
+            ->getResult();
+
+        $indexed = [];
+        foreach ($jobs as $job) {
+            $indexed[$job->getJobId()] = $job;
+        }
+
+        return $indexed;
+    }
+
+    /**
      * Find active jobs for a character.
      *
      * @return CachedIndustryJob[]
