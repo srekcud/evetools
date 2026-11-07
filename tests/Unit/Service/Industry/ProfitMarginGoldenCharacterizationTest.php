@@ -619,71 +619,29 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
         );
     }
 
-    #[Group('issue-192')]
-    public function testEveryDecryptorOptionSplitsItsProductionCostIntoMaterialCostJobInstallCostAndInventionCost(): void
+    #[Group('issue-394')]
+    public function testDecryptorOptionsExposeNeitherMaterialCostNorJobInstallCost(): void
     {
         $result = $this->analyzeHailL(runs: 1);
 
         $this->assertCount(9, $result['invention']['options']);
         foreach ($result['invention']['options'] as $option) {
-            $this->assertArrayHasKey('materialCost', $option);
-            $this->assertArrayHasKey('jobInstallCost', $option);
-            $this->assertNotNull($option['materialCost']);
-            $this->assertNotNull($option['jobInstallCost']);
-            $this->assertEqualsWithDelta(
-                $option['materialCost'] + $option['jobInstallCost'] + $option['inventionCost'],
-                $option['totalProductionCost'],
-                0.01,
-            );
+            $this->assertArrayNotHasKey('materialCost', $option);
+            $this->assertArrayNotHasKey('jobInstallCost', $option);
+            $this->assertNotNull($option['inventionCost']);
+            $this->assertNotNull($option['totalProductionCost']);
         }
     }
 
-    #[Group('issue-192')]
-    public function testDecryptorOptionsCarryTheMaterialCostAndJobInstallCostOfTheirOwnMaterialEfficiency(): void
+    #[Group('issue-394')]
+    public function testTopLevelMaterialCostAndJobInstallCostFollowTheSelectedDecryptorOnceTheOptionsDropThem(): void
     {
-        $result = $this->analyzeHailL(runs: 1);
+        $result = $this->analyzeHailL(runs: 1, decryptorTypeId: self::PROCESS_DECRYPTOR);
 
-        $noDecryptorOption = $result['invention']['options'][0];
-        $this->assertArrayHasKey('materialCost', $noDecryptorOption);
-        $this->assertArrayHasKey('jobInstallCost', $noDecryptorOption);
-        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_MATERIAL_COST, $noDecryptorOption['materialCost'], 1e-6);
-        $this->assertEqualsWithDelta($result['jobInstallCost'], $noDecryptorOption['jobInstallCost'], 1e-6);
-        $processOption = $this->decryptorOption($result, self::PROCESS_DECRYPTOR);
-        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_PROCESS_MATERIAL_COST, $processOption['materialCost'], 1e-6);
-        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_PROCESS_INSTALL_COST, $processOption['jobInstallCost'], 1e-6);
-        $parityOption = $this->decryptorOption($result, self::PARITY_DECRYPTOR);
-        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_PARITY_MATERIAL_COST, $parityOption['materialCost'], 1e-6);
-        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_PARITY_INSTALL_COST, $parityOption['jobInstallCost'], 1e-6);
-    }
-
-    #[Group('issue-192')]
-    public function testMaterialWithoutJitaPriceLeavesTheMaterialCostOfEveryDecryptorOptionUnknownRatherThanZero(): void
-    {
-        $this->leavesWithoutJitaPrice = [self::MORPHITE];
-
-        $result = $this->analyzeHailL(runs: 1);
-
-        $this->assertCount(9, $result['invention']['options']);
-        foreach ($result['invention']['options'] as $option) {
-            $this->assertArrayHasKey('materialCost', $option);
-            $this->assertNull($option['materialCost']);
-            $this->assertNotNull($option['jobInstallCost']);
-        }
-    }
-
-    #[Group('issue-192')]
-    public function testUnknownJobInstallCostLeavesTheJobInstallCostOfEveryDecryptorOptionUnknownRatherThanZero(): void
-    {
-        $this->withManufacturingCostIndex = false;
-
-        $result = $this->analyzeHailL(runs: 1);
-
-        $this->assertCount(9, $result['invention']['options']);
-        foreach ($result['invention']['options'] as $option) {
-            $this->assertArrayHasKey('jobInstallCost', $option);
-            $this->assertNull($option['jobInstallCost']);
-            $this->assertNotNull($option['materialCost']);
-        }
+        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_PROCESS_MATERIAL_COST, $result['materialCost'], 1e-6);
+        $this->assertEqualsWithDelta(self::HAIL_L_ONE_RUN_PROCESS_INSTALL_COST, $result['jobInstallCost'], 1e-6);
+        $this->assertArrayNotHasKey('materialCost', $this->decryptorOption($result, self::PROCESS_DECRYPTOR));
+        $this->assertArrayNotHasKey('jobInstallCost', $this->decryptorOption($result, self::PROCESS_DECRYPTOR));
     }
 
     public function testDecryptorOptionCarriesTotalCostAndBestVenueMargin(): void
@@ -1603,7 +1561,6 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
             foreach (['probability', 'expectedAttempts', 'inventionCost', 'totalProductionCost', 'costPerUnit', 'costPerUnitDelta', 'bestMargin'] as $unknownField) {
                 $this->assertNull($option[$unknownField], $unknownField);
             }
-            $this->assertNotNull($option['materialCost']);
         }
         $this->assertSame('missing_inventor_skills', $result['invention']['unknownReason']);
         $this->assertFalse($result['invention']['inventor']['skillsKnown']);

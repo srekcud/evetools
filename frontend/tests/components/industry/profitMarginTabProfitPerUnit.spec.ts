@@ -25,8 +25,6 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   te: 4,
   runs: 10,
   probability: 0.34,
-  materialCost: 400,
-  jobInstallCost: 160,
   inventionCost: 300,
   totalProductionCost: BASE_TOTAL_COST,
   bestMargin: 116.28,
@@ -43,8 +41,6 @@ const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
   te: 4,
   runs: 14,
   probability: 0.4,
-  materialCost: 350,
-  jobInstallCost: 150,
   inventionCost: 300,
   totalProductionCost: 800,
   bestMargin: 132.5,
@@ -140,8 +136,8 @@ const SABRE_SOLD_AT_A_LOSS: ProfitMarginResult = {
 
 const SABRE_WITH_ATTAINMENT_CHOSEN: ProfitMarginResult = {
   ...SABRE_WITH_JITA_SELL,
-  materialCost: ATTAINMENT_OPTION.materialCost,
-  jobInstallCost: ATTAINMENT_OPTION.jobInstallCost,
+  materialCost: 350,
+  jobInstallCost: 150,
   inventionCost: ATTAINMENT_OPTION.inventionCost,
   totalCost: ATTAINMENT_OPTION.totalProductionCost,
   margins: jitaSellMargin(1_060),

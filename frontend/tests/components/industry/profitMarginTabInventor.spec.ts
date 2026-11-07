@@ -66,8 +66,6 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
       te: 4,
       runs: 10,
       probability: 0.4958,
-      materialCost: 100_000,
-      jobInstallCost: 5_000,
       inventionCost: 26_000,
       totalProductionCost: 131_000,
       bestMargin: 19.69,
