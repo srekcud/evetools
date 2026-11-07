@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IskAmount from '@/components/common/IskAmount.vue'
+import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ChainJob, ChainNode, ChainStage } from '@/stores/group-industry/types'
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
@@ -37,6 +38,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { getTypeIconUrl, onImageError } = useEveImages()
 const { formatDateTime, formatNumber } = useFormatters()
 
 const COLUMN_KEYS = ['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure'] as const
@@ -156,6 +158,14 @@ function plansStructure(node: ChainNode): boolean {
                 @click="toggle(row.node.id)"
               >{{ foldedIds.has(row.node.id) ? '▸' : '▾' }}</button>
               <span v-else class="w-5 shrink-0"></span>
+              <img
+                v-if="row.node.typeId !== null"
+                :src="getTypeIconUrl(row.node.typeId, 32)"
+                alt=""
+                class="w-6 h-6 rounded border border-slate-700 shrink-0"
+                @error="onImageError"
+              />
+              <span v-else data-testid="chain-icon-placeholder" class="w-6 h-6 shrink-0" aria-hidden="true"></span>
               <span class="block truncate min-w-0 max-w-64 font-medium text-slate-200" :title="row.node.typeName ?? undefined">{{ row.node.typeName }}</span>
               <span
                 v-if="row.node.stage === 'material' && row.node.requiredQuantity !== null && row.node.fulfilledQuantity !== null"
