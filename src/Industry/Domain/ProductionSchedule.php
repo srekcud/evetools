@@ -61,8 +61,8 @@ final class ProductionSchedule
         $slotsFreeAt = [];
         foreach ($workers as $worker) {
             $slotsFreeAt[$worker->id] = [
-                ActivityKind::Manufacturing->name => array_fill(0, max(0, $worker->manufacturingSlots), $start),
-                ActivityKind::Reaction->name => array_fill(0, max(0, $worker->reactionSlots), $start),
+                ActivityKind::Manufacturing->name => array_pad([], max(0, $worker->manufacturingSlots), $start),
+                ActivityKind::Reaction->name => array_pad([], max(0, $worker->reactionSlots), $start),
             ];
         }
 
@@ -101,14 +101,9 @@ final class ProductionSchedule
      */
     private static function firstFreeSlot(array $slots): int
     {
-        $firstFreeIndex = 0;
-        foreach ($slots as $index => $freeAt) {
-            if ($freeAt < $slots[$firstFreeIndex]) {
-                $firstFreeIndex = $index;
-            }
-        }
+        asort($slots);
 
-        return $firstFreeIndex;
+        return array_key_first($slots);
     }
 
     /**
@@ -118,10 +113,7 @@ final class ProductionSchedule
      */
     private static function inTopologicalOrder(array $jobs): array
     {
-        $knownIds = [];
-        foreach ($jobs as $job) {
-            $knownIds[$job->id] = true;
-        }
+        $knownIds = array_flip(array_map(static fn (ScheduleJob $job): string => $job->id, $jobs));
         foreach ($jobs as $job) {
             foreach ($job->dependsOn as $dependencyId) {
                 if (!isset($knownIds[$dependencyId])) {
@@ -147,7 +139,7 @@ final class ProductionSchedule
             }
 
             $ordered[] = $remaining[$next];
-            $placedIds[$remaining[$next]->id] = true;
+            $placedIds[$remaining[$next]->id] = $remaining[$next]->id;
             unset($remaining[$next]);
         }
 
