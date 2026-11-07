@@ -67,6 +67,7 @@ async function confirmDelete(): Promise<void> {
             <th class="text-left py-2.5 px-3">{{ t('groupIndustry.templates.templateColumn') }}</th>
             <th class="text-center py-2.5 px-2">{{ t('groupIndustry.templates.itemsColumn') }}</th>
             <th class="text-center py-2.5 px-2">{{ t('groupIndustry.templates.sharedColumn') }}</th>
+            <th class="text-center py-2.5 px-2">{{ t('groupIndustry.templates.usageColumn') }}</th>
             <th class="py-2.5 px-3"></th>
           </tr>
         </thead>
@@ -101,6 +102,9 @@ async function confirmDelete(): Promise<void> {
                   ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20'
                   : 'bg-slate-700 text-slate-400 border-slate-600'"
               >{{ template.sharedWithCorporation ? t('groupIndustry.templates.scopeCorporation') : t('groupIndustry.templates.scopePersonal') }}</span>
+            </td>
+            <td data-testid="project-template-usage" class="py-2.5 px-2 text-center font-mono text-slate-300">
+              {{ template.usageCount }}×
             </td>
             <td class="py-2.5 px-3">
               <div class="flex items-center justify-end gap-1.5">

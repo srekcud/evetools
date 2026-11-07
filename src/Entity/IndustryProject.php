@@ -34,6 +34,8 @@ class IndustryProject
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $name = null;
 
+    #[ORM\ManyToOne(targetEntity: IndustryProjectTemplate::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?IndustryProjectTemplate $template = null;
 
     #[ORM\Column(type: 'string', length: 20, enumType: ProjectStatus::class)]

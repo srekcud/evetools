@@ -270,6 +270,7 @@ export type CreateGroupProjectInput = {
   salesTaxPercent?: number
   acceptsOutsideFavoriteSystem: boolean
   minimumOutsideSaving: number
+  templateId?: string
 }
 
 export type AvailableJob = {

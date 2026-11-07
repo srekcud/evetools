@@ -35,9 +35,12 @@ class ProjectTemplateCollectionProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
+        $templates = $this->templateRepository->findVisibleTo($user);
+        $usageCounts = $this->projectRepository->countByTemplate($templates);
+
         return array_map(
-            static fn (IndustryProjectTemplate $template): IndustryProjectTemplateResource => IndustryProjectTemplateResource::fromTemplate($template, $user, 0),
-            $this->templateRepository->findVisibleTo($user),
+            static fn (IndustryProjectTemplate $template): IndustryProjectTemplateResource => IndustryProjectTemplateResource::fromTemplate($template, $user, $usageCounts[(string) $template->getId()]),
+            $templates,
         );
     }
 }

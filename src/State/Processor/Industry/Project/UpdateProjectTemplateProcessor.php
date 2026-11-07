@@ -62,6 +62,6 @@ class UpdateProjectTemplateProcessor implements ProcessorInterface
         $template->setUpdatedAt(new \DateTimeImmutable());
         $this->entityManager->flush();
 
-        return IndustryProjectTemplateResource::fromTemplate($template, $user, 0);
+        return IndustryProjectTemplateResource::fromTemplate($template, $user, $this->projectRepository->countByTemplate([$template])[(string) $template->getId()]);
     }
 }

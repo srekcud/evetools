@@ -76,6 +76,7 @@ class IndustryProjectService
         $project->setPrivate($data->private);
         $project->setAcceptsOutsideFavoriteSystem($data->acceptsOutsideFavoriteSystem);
         $project->setMinimumOutsideSaving($data->minimumOutsideSaving);
+        $project->setTemplate($data->template);
 
         $project->enrolOwner();
 

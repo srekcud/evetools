@@ -52,9 +52,27 @@ class IndustryProjectRepository extends ServiceEntityRepository
      */
     public function countByTemplate(array $templates): array
     {
+        if ($templates === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('p')
+            ->select('IDENTITY(p.template) AS templateId', 'COUNT(p.id) AS usageCount')
+            ->where('p.template IN (:templates)')
+            ->setParameter('templates', $templates)
+            ->groupBy('p.template')
+            ->getQuery()
+            ->getArrayResult();
+
+        $countsByTemplateId = [];
+        foreach ($rows as $row) {
+            $countsByTemplateId[(string) $row['templateId']] = (int) $row['usageCount'];
+        }
+
         $counts = [];
         foreach ($templates as $template) {
-            $counts[(string) $template->getId()] = 0;
+            $templateId = (string) $template->getId();
+            $counts[$templateId] = array_key_exists($templateId, $countsByTemplateId) ? $countsByTemplateId[$templateId] : 0;
         }
 
         return $counts;
