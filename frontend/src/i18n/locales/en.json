@@ -643,6 +643,7 @@
     "title": "Industry",
     "subtitle": "Manufacturing and reaction projects",
     "tabs": {
+      "workshop": "Workshop",
       "dashboard": "Dashboard",
       "scanner": "Scanner",
       "slots": "Slots",
@@ -870,6 +871,72 @@
         "margin": "Margin",
         "dailyVol": "Daily Vol.",
         "unitsDay": "units/day"
+      }
+    },
+    "workshop": {
+      "unnamedProject": "Unnamed",
+      "noPendingAction": "No pending action",
+      "queue": {
+        "title": "Action queue",
+        "count": "{count} to process",
+        "empty": "Nothing to do right now",
+        "blocked": "Blocked"
+      },
+      "actions": {
+        "record_sale": {
+          "text": "{quantity} units are left to sell or to record.",
+          "textUnknownQuantity": "Units are left to sell or to record, the quantity is unknown.",
+          "button": "Open the sales"
+        },
+        "complete_project": {
+          "text": "Everything is sold: close the project to freeze the accounts.",
+          "button": "Close the project"
+        },
+        "launch_job": {
+          "text": "{quantity} runs of {typeName} are left to launch.",
+          "textUnknownQuantity": "{typeName} has jobs left to launch, the remaining runs are unknown.",
+          "button": "See the jobs"
+        },
+        "source_material": {
+          "text": "{quantity} {typeName} are still missing to cover the BOM.",
+          "textUnknownQuantity": "{typeName} is still missing to cover the BOM, the quantity is unknown.",
+          "button": "Contribute"
+        },
+        "start_selling": {
+          "text": "Production is finished: open the sale of the products.",
+          "button": "Move to selling"
+        },
+        "review_contributions": {
+          "text": "{quantity} contributions are waiting for your decision.",
+          "textUnknownQuantity": "Contributions are waiting for your decision, their number is unknown.",
+          "button": "Review contributions"
+        },
+        "start_project": {
+          "text": "Materials are ready to be contributed: move the project to in progress.",
+          "button": "Start the project"
+        }
+      },
+      "jobs": {
+        "title": "Next job completions",
+        "empty": "No job running",
+        "endsIn": "in {duration}",
+        "unknownProduct": "Unknown product"
+      },
+      "projects": {
+        "title": "Projects",
+        "empty": "No project yet",
+        "emptyFilter": "No project matches this filter",
+        "openCockpit": "Open the cockpit",
+        "actionUnavailable": "The next action could not be loaded.",
+        "filters": {
+          "all": "All",
+          "solo": "Solo",
+          "group": "Group"
+        }
+      },
+      "team": {
+        "solo": "Solo",
+        "group": "Group · {count}"
       }
     },
     "slots": {

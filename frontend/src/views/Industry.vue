@@ -14,6 +14,7 @@ import StructureConfig from '@/components/industry/StructureConfig.vue'
 import SkillsConfig from '@/components/industry/SkillsConfig.vue'
 import FeesConfig from '@/components/industry/FeesConfig.vue'
 import IndustryDashboard from '@/components/industry/IndustryDashboard.vue'
+import IndustryWorkshop from '@/components/industry/IndustryWorkshop.vue'
 import IndustrySlotsSection from '@/components/industry/IndustrySlotsSection.vue'
 import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import BatchScanTab from '@/components/industry/BatchScanTab.vue'
@@ -36,9 +37,9 @@ function typeIdFromQuery(): number | undefined {
 }
 
 // Flat pill navigation (single level)
-type MainTab = 'dashboard' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile'
-const MAIN_TABS: MainTab[] = ['dashboard', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile']
-const mainTab = useTabQuery(MAIN_TABS, 'dashboard')
+type MainTab = 'workshop' | 'dashboard' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile'
+const MAIN_TABS: MainTab[] = ['workshop', 'dashboard', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile']
+const mainTab = useTabQuery(MAIN_TABS, 'workshop')
 const DATA_FRESHNESS_TABS: readonly MainTab[] = ['margins', 'batch', 'buy-vs-build', 'pivot']
 
 // Props for analysis tabs that accept an initial type ID
@@ -78,6 +79,7 @@ const navGroups: NavGroup[] = [
   {
     label: () => t('industry.groups.overview'),
     pills: [
+      { key: 'workshop', label: () => t('industry.tabs.workshop') },
       { key: 'dashboard', label: () => t('industry.tabs.dashboard') },
     ],
   },
@@ -192,8 +194,12 @@ watch(() => store.navigationIntent, (intent) => {
         class="mb-4"
       />
 
+      <div v-if="mainTab === 'workshop'" key="workshop">
+        <IndustryWorkshop />
+      </div>
+
       <!-- Dashboard -->
-      <div v-if="mainTab === 'dashboard'" key="dashboard">
+      <div v-else-if="mainTab === 'dashboard'" key="dashboard">
         <IndustryDashboard />
       </div>
 

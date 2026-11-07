@@ -643,6 +643,7 @@
     "title": "Industrie",
     "subtitle": "Projets de fabrication et reactions",
     "tabs": {
+      "workshop": "Atelier",
       "dashboard": "Tableau de bord",
       "scanner": "Scanner",
       "slots": "Slots",
@@ -870,6 +871,72 @@
         "margin": "Marge",
         "dailyVol": "Vol. Quotid.",
         "unitsDay": "unites/jour"
+      }
+    },
+    "workshop": {
+      "unnamedProject": "Sans nom",
+      "noPendingAction": "Aucune action en attente",
+      "queue": {
+        "title": "File d'actions",
+        "count": "{count} à traiter",
+        "empty": "Rien à faire maintenant",
+        "blocked": "À l'arrêt"
+      },
+      "actions": {
+        "record_sale": {
+          "text": "{quantity} unités restent à vendre ou à enregistrer.",
+          "textUnknownQuantity": "Des unités restent à vendre ou à enregistrer, la quantité est inconnue.",
+          "button": "Ouvrir les ventes"
+        },
+        "complete_project": {
+          "text": "Tout est vendu : clôturez le projet pour figer les comptes.",
+          "button": "Clôturer le projet"
+        },
+        "launch_job": {
+          "text": "{quantity} runs de {typeName} restent à lancer.",
+          "textUnknownQuantity": "{typeName} a des jobs à lancer, les runs restants sont inconnus.",
+          "button": "Voir les jobs"
+        },
+        "source_material": {
+          "text": "Il manque encore {quantity} {typeName} pour couvrir la BOM.",
+          "textUnknownQuantity": "Il manque encore du {typeName} pour couvrir la BOM, la quantité est inconnue.",
+          "button": "Contribuer"
+        },
+        "start_selling": {
+          "text": "La production est terminée : ouvrez la vente des produits.",
+          "button": "Passer en vente"
+        },
+        "review_contributions": {
+          "text": "{quantity} contributions attendent votre décision.",
+          "textUnknownQuantity": "Des contributions attendent votre décision, leur nombre est inconnu.",
+          "button": "Examiner les contributions"
+        },
+        "start_project": {
+          "text": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
+          "button": "Démarrer le projet"
+        }
+      },
+      "jobs": {
+        "title": "Prochaines fins de jobs",
+        "empty": "Aucun job en cours",
+        "endsIn": "dans {duration}",
+        "unknownProduct": "Produit inconnu"
+      },
+      "projects": {
+        "title": "Projets",
+        "empty": "Aucun projet pour l'instant",
+        "emptyFilter": "Aucun projet ne correspond à ce filtre",
+        "openCockpit": "Ouvrir le cockpit",
+        "actionUnavailable": "La prochaine action n'a pas pu être chargée.",
+        "filters": {
+          "all": "Tous",
+          "solo": "Solo",
+          "group": "Groupe"
+        }
+      },
+      "team": {
+        "solo": "Solo",
+        "group": "Groupe · {count}"
       }
     },
     "slots": {

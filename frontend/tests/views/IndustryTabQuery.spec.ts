@@ -69,12 +69,14 @@ describe('Industry tab in the URL', () => {
     const wrapper = await mountIndustryWithQuery({})
     const firstPill = wrapper.findAll('button')[0]
     const defaultView = [wrapper.findComponent(IndustryWorkshop).exists(), wrapper.findComponent(IndustryDashboard).exists()]
+    const firstPillLabel = firstPill.text().trim()
+    const firstPillClasses = firstPill.classes()
 
     const dashboardWrapper = await mountIndustryWithQuery({ tab: 'dashboard' })
     const dashboardView = [dashboardWrapper.findComponent(IndustryWorkshop).exists(), dashboardWrapper.findComponent(IndustryDashboard).exists()]
 
-    expect(firstPill.text().trim()).toBe(en.industry.tabs.workshop)
-    expect(firstPill.classes()).toContain('nav-pill-active')
+    expect(firstPillLabel).toBe(en.industry.tabs.workshop)
+    expect(firstPillClasses).toContain('nav-pill-active')
     expect(defaultView).toEqual([true, false])
     expect(dashboardView).toEqual([false, true])
     expect(buttonNamed(dashboardWrapper, en.industry.tabs.dashboard).classes()).toContain('nav-pill-active')
