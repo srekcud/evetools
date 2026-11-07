@@ -79,6 +79,7 @@ function progressPercent(node: ChainNode): number | null {
                   class="w-6 h-6 rounded border border-slate-700 shrink-0"
                   @error="onImageError"
                 />
+                <span v-else data-testid="chain-icon-placeholder" class="w-6 h-6 shrink-0" aria-hidden="true"></span>
                 <span class="block truncate min-w-0 text-sm font-semibold text-slate-200" :title="node.typeName ?? undefined">{{ node.typeName }}</span>
               </span>
               <span class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
