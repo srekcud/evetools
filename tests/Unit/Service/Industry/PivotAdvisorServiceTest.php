@@ -44,6 +44,8 @@ class PivotAdvisorServiceTest extends TestCase
     private User&MockObject $user;
     private InventionService&MockObject $inventionService;
     private PivotAdvisorService $service;
+    private array $inventionCostPerRun = ['cost' => 0.0, 'unknownReason' => null];
+    private array $inventionCostRequests = [];
 
     private const SOLAR_SYSTEM_ID = 30002510;
     private const int REACTION_SOLAR_SYSTEM_ID = 30000144;
@@ -954,6 +956,59 @@ class PivotAdvisorServiceTest extends TestCase
         $this->assertSame(179902.0, $candidate['profitPerUnit']);
     }
 
+    #[Group('issue-124')]
+    public function testCandidateT2ProfitPerUnitPaysTheExpectedInventionCostPerRun(): void
+    {
+        $this->inventionCostPerRun = ['cost' => 1000.0, 'unknownReason' => null];
+
+        $candidate = $this->candidateOf(self::CANDIDATE_2, $this->analyzeT1T2AndReactionCandidates());
+
+        $this->assertSame(178902.0, $candidate['profitPerUnit']);
+        $this->assertNull($candidate['unknownReason']);
+    }
+
+    #[Group('issue-124')]
+    public function testCandidateT2WithAnUnknownInventionCostHasUnknownMarginProfitAndScoreWithTheInventionReason(): void
+    {
+        $this->inventionCostPerRun = ['cost' => null, 'unknownReason' => 'missing_invention_probability'];
+
+        $candidate = $this->candidateOf(self::CANDIDATE_2, $this->analyzeT1T2AndReactionCandidates());
+
+        $this->assertNull($candidate['marginPercent']);
+        $this->assertNull($candidate['profitPerUnit']);
+        $this->assertNull($candidate['score']);
+        $this->assertSame('missing_invention_probability', $candidate['unknownReason']);
+    }
+
+    #[Group('issue-124')]
+    public function testInventionCostIsAskedOnlyForTheT2CandidateWithTheManufacturingSystemAndFacilityTax(): void
+    {
+        $this->analyzeT1T2AndReactionCandidates();
+
+        $this->assertSame([[self::CANDIDATE_2, self::SOLAR_SYSTEM_ID, 0.25]], $this->inventionCostRequests);
+    }
+
+    #[Group('issue-124')]
+    public function testSourceProductDeclaredT2MarginPaysTheExpectedInventionCostPerRun(): void
+    {
+        $this->inventionCostPerRun = ['cost' => 1000.0, 'unknownReason' => null];
+
+        $result = $this->analyzeT1T2AndReactionCandidates(self::SOURCE_PRODUCT);
+
+        $this->assertSame(350.57, $result['sourceProduct']['marginPercent']);
+    }
+
+    #[Group('issue-124')]
+    public function testSourceProductDeclaredT2WithAnUnknownInventionCostHasAnUnknownMarginWithTheInventionReason(): void
+    {
+        $this->inventionCostPerRun = ['cost' => null, 'unknownReason' => 'missing_market_price'];
+
+        $result = $this->analyzeT1T2AndReactionCandidates(self::SOURCE_PRODUCT);
+
+        $this->assertNull($result['sourceProduct']['marginPercent']);
+        $this->assertSame('missing_market_price', $result['sourceProduct']['unknownReason']);
+    }
+
     public function testCandidateMaterialQuantitiesOfAReactionKeepTheBaseQuantities(): void
     {
         $candidate = $this->candidateOf(self::REACTION_CANDIDATE, $this->analyzeT1T2AndReactionCandidates());
@@ -1025,6 +1080,13 @@ class PivotAdvisorServiceTest extends TestCase
 
     private function givenProductTypeIdsDeclaredT2ByTheInventionService(array $productTypeIdsDeclaredT2): void
     {
+        $this->inventionService->method('expectedCostPerRun')->willReturnCallback(
+            function (int $typeId, int $solarSystemId, ?float $facilityTaxPercent): array {
+                $this->inventionCostRequests[] = [$typeId, $solarSystemId, $facilityTaxPercent];
+
+                return $this->inventionCostPerRun;
+            },
+        );
         $this->inventionService->method('isT2')->willReturnCallback(
             static fn (int $productTypeId): bool => in_array($productTypeId, $productTypeIdsDeclaredT2, true),
         );

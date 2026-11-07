@@ -455,6 +455,38 @@ class InventionServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-124')]
+    public function testExpectedCostPerRunIsTheCostPerAttemptOverTheProbabilityTimesTheRunsOfTheInventedBlueprint(): void
+    {
+        $this->setupPricedSabreInvention(0.25, 10);
+
+        $result = $this->service->expectedCostPerRun(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertSame(['cost' => 187068.0, 'unknownReason' => null], $result);
+    }
+
+    #[Group('issue-124')]
+    public function testExpectedCostPerRunIsUnknownWhenTheSdeHasNoInventionProbability(): void
+    {
+        $this->setupSabreInventionAt(null, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback([self::DATACORE_1_TYPE_ID => 100.0, self::DATACORE_2_TYPE_ID => 200.0]);
+
+        $result = $this->service->expectedCostPerRun(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertSame(['cost' => null, 'unknownReason' => self::MISSING_INVENTION_PROBABILITY], $result);
+    }
+
+    #[Group('issue-124')]
+    public function testExpectedCostPerRunIsUnknownWhenADatacoreHasNoPrice(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
+        $this->stubMarketPricesWithFallback([self::DATACORE_2_TYPE_ID => 200.0]);
+
+        $result = $this->service->expectedCostPerRun(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertSame(['cost' => null, 'unknownReason' => self::MISSING_MARKET_PRICE], $result);
+    }
+
     public function testCalculateInventionCostReturnsNullForNonT2(): void
     {
         $this->activityProductRepository

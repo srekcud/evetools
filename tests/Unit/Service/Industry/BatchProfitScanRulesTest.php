@@ -1087,6 +1087,7 @@ class BatchProfitScanRulesTest extends TestCase
         $inventionService->method('identifyT2Products')->willReturnCallback(
             fn (array $products): array => array_intersect_key($this->t2ProductIds, array_flip(array_column($products, 'productTypeId'))),
         );
+        $inventionService->method('expectedCostPerRun')->willReturn(['cost' => 0.0, 'unknownReason' => null]);
 
         $activitySkillRepository = $this->createStub(IndustryActivitySkillRepository::class);
         $activitySkillRepository->method('findSkillsForBlueprints')->willReturnCallback(
