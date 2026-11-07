@@ -18,6 +18,7 @@ use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\PlannedProduction;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\ProductionPlanRequest;
+use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureChoiceStatus;
 use App\Industry\Application\StructureSelectionPolicy;
 use App\Industry\Application\UserProductionStructures;
@@ -262,7 +263,7 @@ class IndustryProjectService
         $line->setEstimatedPrice($plannedLine->getEstimatedPrice());
     }
 
-    private function planOf(IndustryProject $project, User $owner): PlannedProduction
+    public function planOf(IndustryProject $project, User $owner): PlannedProduction
     {
         $blacklistedTypeIds = $this->resolveBlacklistedTypeIds(
             $project->getBlacklistGroupIds(),
@@ -272,7 +273,7 @@ class IndustryProjectService
         try {
             return $this->productionPlanning->planWithStructuresOf(new ProductionPlanRequest(
                 $this->targetsOf($project),
-                $this->userStructures->configuredBy($this->idOf($owner)),
+                $this->structuresOf($owner),
                 $this->favoriteSystemsOf($owner),
                 $blacklistedTypeIds,
                 selectionPolicy: new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving())),
@@ -282,7 +283,15 @@ class IndustryProjectService
         }
     }
 
-    private function favoriteSystemsOf(User $owner): FavoriteSystems
+    /**
+     * @return list<ProductionStructure>
+     */
+    public function structuresOf(User $owner): array
+    {
+        return $this->userStructures->configuredBy($this->idOf($owner));
+    }
+
+    public function favoriteSystemsOf(User $owner): FavoriteSystems
     {
         $settings = $this->settingsRepository->findOneBy(['user' => $owner]);
 

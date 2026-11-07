@@ -2116,6 +2116,33 @@
         "unfold": "Déplier les lignes sous {name}"
       }
     },
+    "buyOrBuild": {
+      "title": "Acheter ou fabriquer",
+      "loading": "Comparaison de l'achat et de la fabrication...",
+      "loadError": "La comparaison acheter ou fabriquer n'a pas pu être lue",
+      "empty": "Aucun intermédiaire à comparer : le plan ne fabrique rien entre les matériaux et le produit.",
+      "importRate": "import Jita : {rate} ISK / m³ / saut",
+      "columns": {
+        "intermediate": "Intermédiaire",
+        "quantity": "Qté",
+        "build": "Fabriquer / u",
+        "jita": "Jita / u",
+        "import": "Import / u",
+        "buy": "Acheter / u",
+        "choice": "Choix"
+      },
+      "choice": {
+        "build": "fabriquer",
+        "buy": "acheter",
+        "unknown": "inconnu"
+      },
+      "ifSurplusReused": "{amount} si le surplus resert",
+      "importDetail": "{volume} m³ × {jumps} sauts",
+      "saving": "économie {amount}",
+      "savingIfSurplusReused": "avec réemploi du surplus, fabriquer économise {amount}",
+      "withoutImport": "sans l'import : acheter",
+      "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet."
+    },
     "kpis": {
       "activeProjects": "Projets actifs",
       "activeDesc": "en cours de production",

@@ -61,6 +61,24 @@ final class IskTest extends TestCase
         yield 'exactly 1 ISK apart' => [190000.0, 190001.0];
     }
 
+    #[DataProvider('atMostProvider')]
+    public function testAmountIsAtMostAnotherWhenLowerEqualOrWithinOneIskAbove(float $amount, float $otherAmount, bool $expected): void
+    {
+        $this->assertSame($expected, (new Isk($amount))->isAtMost(new Isk($otherAmount)));
+    }
+
+    /**
+     * @return iterable<string, array{float, float, bool}>
+     */
+    public static function atMostProvider(): iterable
+    {
+        yield 'lower' => [100000.0, 190000.0, true];
+        yield 'identical' => [190000.0, 190000.0, true];
+        yield 'exactly 1 ISK above' => [190001.0, 190000.0, true];
+        yield 'just over 1 ISK above' => [190001.01, 190000.0, false];
+        yield 'far above' => [190000.0, 55000.0, false];
+    }
+
     #[DataProvider('differentByMoreThanOneIskProvider')]
     public function testAmountsMoreThanOneIskApartDiffer(float $amount, float $otherAmount): void
     {

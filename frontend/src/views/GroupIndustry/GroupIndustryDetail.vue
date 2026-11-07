@@ -29,6 +29,7 @@ import ProjectPhaseRail from '@/components/group-industry/ProjectPhaseRail.vue'
 import ProjectNextActionCard from '@/components/group-industry/ProjectNextActionCard.vue'
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
+import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
 import { nextProjectStatuses } from './nextProjectStatus'
@@ -501,8 +502,9 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <SaleSuggestionsPanel v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
       </div>
 
-      <div v-else-if="activeTab === 'chain'" class="relative rounded-xl">
+      <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
         <ProductionChain :project-id="projectId" />
+        <ProjectBuyOrBuild :project-id="projectId" />
       </div>
 
       <div v-else-if="activeTab === 'planning'" class="relative rounded-xl">
