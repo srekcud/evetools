@@ -460,6 +460,89 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->assertSame(0.0, $result[0]['exportCost']);
     }
 
+    #[Group('issue-419')]
+    public function testStructureVenueReadsTheRegionalVolumesFromTheCacheOnlyAndKeepsTheKnownOnes(): void
+    {
+        $this->givenOneFrigateScannedForAStructureInRegion(10000060);
+        $this->jitaMarketService->expects($this->never())->method('getAverageDailyVolumesForRegion');
+        $this->jitaMarketService->expects($this->once())->method('getCachedDailyVolumesForRegion')
+            ->with(10000060, [587])
+            ->willReturn([587 => 20.0]);
+
+        $result = $this->service->scan('all', null, 5.0, 'structure', 1035466617946, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertCount(1, $result);
+        $this->assertSame(20.0, $result[0]['dailyVolume']);
+    }
+
+    #[Group('issue-419')]
+    public function testStructureVenueWithAnEmptyVolumeCacheLeavesTheVolumeUnknownAndMakesNoEsiCall(): void
+    {
+        $this->givenOneFrigateScannedForAStructureInRegion(10000060);
+        $this->jitaMarketService->expects($this->never())->method('getAverageDailyVolumesForRegion');
+        $this->jitaMarketService->method('getCachedDailyVolumesForRegion')->willReturn([]);
+
+        $result = $this->service->scan('all', null, null, 'structure', 1035466617946, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertCount(1, $result);
+        $this->assertNull($result[0]['dailyVolume']);
+        $this->assertNull($result[0]['iskPerDay']);
+        $this->assertSame('missing_daily_volume', $result[0]['unknownReason']);
+    }
+
+    #[Group('issue-419')]
+    public function testStructureVenueExcludesTheTypesWithoutVolumeWhenAMinimumDailyVolumeIsSet(): void
+    {
+        $this->givenOneFrigateScannedForAStructureInRegion(10000060);
+        $this->jitaMarketService->method('getCachedDailyVolumesForRegion')->willReturn([]);
+
+        $result = $this->service->scan('all', null, 5.0, 'structure', 1035466617946, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertSame([], $result);
+    }
+
+    #[Group('issue-419')]
+    public function testStructureVenueWithAnUnknownRegionLeavesTheVolumeUnknownInsteadOfUsingJitaVolumes(): void
+    {
+        $this->givenOneFrigateScannedForAStructureInRegion(null);
+        $this->jitaMarketService->expects($this->never())->method('getAverageDailyVolumesForRegion');
+        $this->jitaMarketService->expects($this->never())->method('getCachedDailyVolumes');
+        $this->jitaMarketService->expects($this->never())->method('getCachedDailyVolumesForRegion');
+
+        $result = $this->service->scan('all', null, null, 'structure', 1035466617946, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertCount(1, $result);
+        $this->assertNull($result[0]['dailyVolume']);
+    }
+
+    private function givenOneFrigateScannedForAStructureInRegion(?int $regionId): void
+    {
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => 586, 'productTypeId' => 587, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [['type_id' => 587, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 28100.0]]
+                : [['type_id' => 34, 'volume' => 0.01]]
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            586 => [['materialTypeId' => 34, 'quantity' => 100]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 100000.0]);
+        $this->structureMarketService->method('getLowestSellPrices')->willReturn([587 => 3000000.0]);
+
+        $structure = $this->createMock(\App\Entity\CachedStructure::class);
+        $structure->method('getSolarSystemId')->willReturn(30004759);
+        $this->cachedStructureRepository->method('findByStructureId')->willReturn($structure);
+        $solarSystem = null;
+        if ($regionId !== null) {
+            $solarSystem = $this->createMock(\App\Entity\Sde\MapSolarSystem::class);
+            $solarSystem->method('getRegionId')->willReturn($regionId);
+        }
+        $this->solarSystemRepository->method('find')->willReturn($solarSystem);
+        $this->givenZeroEstimatedItemValue();
+    }
+
     public function testScanHandlesMultipleOutputPerRun(): void
     {
         // Ammo blueprint: 100 units per run (e.g., Scourge Heavy Missile)

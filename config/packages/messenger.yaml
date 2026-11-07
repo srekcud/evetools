@@ -30,6 +30,7 @@ framework:
             App\Message\TriggerAnsiblexSync: async
             App\Message\TriggerJitaMarketSync: async
             App\Message\TriggerStructureMarketSync: async
+            App\Message\SyncRegionalMarketVolumes: async
             App\Message\SyncUserPveData: async
             App\Message\SyncUserMiningData: async
             App\Message\SyncAnsiblexGates: async

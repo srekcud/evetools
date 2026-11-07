@@ -32,6 +32,7 @@ class SyncTracker
         'corporation-mining-extractions' => 1800,
         'moon-tax' => 3600,
         'blueprints' => 3600,
+        'market-volumes' => 86400,
     ];
 
     /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */
@@ -60,6 +61,7 @@ class SyncTracker
         'corporation-mining-extractions' => 'Corporation Moon Chunks',
         'moon-tax' => 'Moon Tax',
         'blueprints' => 'Blueprints',
+        'market-volumes' => 'Market Volumes',
     ];
 
     public function __construct(

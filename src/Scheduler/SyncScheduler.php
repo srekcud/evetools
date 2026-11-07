@@ -10,6 +10,7 @@ use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
 use App\Message\SyncAdjustedPrices;
 use App\Message\SyncBlueprints;
+use App\Message\SyncRegionalMarketVolumes;
 use App\Message\SyncCostIndices;
 use App\Message\SyncPublicContracts;
 use App\Message\TriggerAnsiblexSync;
@@ -109,6 +110,9 @@ class SyncScheduler implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::every('30 minutes', new TriggerMiningOperationRecurrences())
+            )
+            ->add(
+                RecurringMessage::every('24 hours', new SyncRegionalMarketVolumes())
             )
             // Purge old notifications daily
             ->add(

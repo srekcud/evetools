@@ -261,11 +261,9 @@ class BatchProfitScannerService
 
         if ($sellVenue === 'structure' && $structureId !== null) {
             $volumeRegionId = $this->resolveStructureRegionId($structureId);
-            if ($volumeRegionId !== null) {
-                $dailyVolumes = $this->jitaMarketService->getAverageDailyVolumesForRegion($volumeRegionId, $productTypeIdsFiltered);
-            } else {
-                $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes($productTypeIdsFiltered);
-            }
+            $dailyVolumes = $volumeRegionId !== null
+                ? $this->jitaMarketService->getCachedDailyVolumesForRegion($volumeRegionId, $productTypeIdsFiltered)
+                : [];
         } else {
             $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes($productTypeIdsFiltered);
         }
