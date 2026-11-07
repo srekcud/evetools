@@ -44,6 +44,14 @@ describe('ProjectTemplatesPanel', () => {
     expect(ownRow!.find('[data-testid="project-template-delete"]').exists()).toBe(true)
   })
 
+  it('shows how many times each template was used in the usage column', async () => {
+    const wrapper = await mountPanel([HAMMERHEAD_LINE_FROM_ALICE, SABRE_LINE_OF_BOB])
+
+    const [sharedRow, ownRow] = wrapper.findAll(ROW)
+    expect(sharedRow!.get('[data-testid="project-template-usage"]').text()).toBe('3×')
+    expect(ownRow!.get('[data-testid="project-template-usage"]').text()).toBe('0×')
+  })
+
   it('emits the whole template with its items, efficiencies, runs, blacklist and options when Use is clicked', async () => {
     const wrapper = await mountPanel([HAMMERHEAD_LINE_FROM_ALICE, SABRE_LINE_OF_BOB])
 

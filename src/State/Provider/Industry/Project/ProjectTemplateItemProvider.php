@@ -42,7 +42,7 @@ class ProjectTemplateItemProvider implements ProviderInterface
                 throw new AccessDeniedHttpException('Only the template owner can perform this action');
             }
 
-            return IndustryProjectTemplateResource::fromTemplate($template, $user);
+            return IndustryProjectTemplateResource::fromTemplate($template, $user, 0);
         }
 
         throw new NotFoundHttpException('Template not found');

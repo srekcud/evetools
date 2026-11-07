@@ -36,6 +36,19 @@ final class CreateProjectInputValidationTest extends TestCase
         self::assertSame([], $this->violatedPathsOf([$this->ishtarItem()]));
     }
 
+    #[Group('issue-355')]
+    public function testTemplateIdThatIsNotAUuidIsRejectedOnTheTemplateIdAndAUuidOrNoneIsAccepted(): void
+    {
+        $violatedPathsByTemplateId = [];
+        foreach (['not-a-uuid', '018f3c6e-7b1a-7c3d-9e2f-4a5b6c7d8e9f', null] as $templateId) {
+            $input = $this->inputWithItems([$this->ishtarItem()]);
+            $input->templateId = $templateId;
+            $violatedPathsByTemplateId[(string) $templateId] = $this->violatedPathsOfTheInput($input);
+        }
+
+        self::assertSame(['not-a-uuid' => ['templateId'], '018f3c6e-7b1a-7c3d-9e2f-4a5b6c7d8e9f' => [], '' => []], $violatedPathsByTemplateId);
+    }
+
     public function testItemWithZeroRunsIsRejectedOnItsRuns(): void
     {
         self::assertSame(['items[0][runs]'], $this->violatedPathsOf([$this->ishtarItem(['runs' => 0])]));

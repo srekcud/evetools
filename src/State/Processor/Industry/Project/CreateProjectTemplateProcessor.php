@@ -72,7 +72,7 @@ class CreateProjectTemplateProcessor implements ProcessorInterface
         $this->entityManager->persist($template);
         $this->entityManager->flush();
 
-        return IndustryProjectTemplateResource::fromTemplate($template, $user);
+        return IndustryProjectTemplateResource::fromTemplate($template, $user, 0);
     }
 
     /** @return list<array{typeId: int, typeName: string, meLevel: int, teLevel: int, runs: int}> */

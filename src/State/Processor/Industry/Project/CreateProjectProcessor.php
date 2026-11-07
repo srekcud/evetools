@@ -9,9 +9,11 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\ApiResource\Input\Industry\Project\CreateProjectInput;
 use App\ApiResource\Input\Industry\Project\ProjectFees;
+use App\Entity\IndustryProjectTemplate;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectTemplateRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\Project\CreateProjectData;
@@ -21,6 +23,7 @@ use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -39,6 +42,7 @@ class CreateProjectProcessor implements ProcessorInterface
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly SellerSalesFeesResolver $salesFeesResolver,
+        private readonly IndustryProjectTemplateRepository $templateRepository,
     ) {
     }
 
@@ -75,6 +79,8 @@ class CreateProjectProcessor implements ProcessorInterface
             ProjectFees::rejectEffectiveFeesAboveMaximum($brokerFeePercent, $salesTaxPercent);
         }
 
+        $template = $this->resolveVisibleTemplate($user, $data->templateId);
+
         try {
             $projectData = new CreateProjectData(
                 name: $data->name ?? '',
@@ -88,6 +94,7 @@ class CreateProjectProcessor implements ProcessorInterface
                 private: $data->private,
                 acceptsOutsideFavoriteSystem: $data->acceptsOutsideFavoriteSystem,
                 minimumOutsideSaving: $data->minimumOutsideSaving,
+                template: $template,
             );
 
             $project = $this->projectService->createProject($user, $projectData);
@@ -103,6 +110,21 @@ class CreateProjectProcessor implements ProcessorInterface
         ]);
 
         return $this->mapper->projectToResource($project, $ownerMembership);
+    }
+
+    private function resolveVisibleTemplate(User $user, ?string $templateId): ?IndustryProjectTemplate
+    {
+        if ($templateId === null) {
+            return null;
+        }
+
+        foreach ($this->templateRepository->findVisibleTo($user) as $template) {
+            if ((string) $template->getId() === $templateId) {
+                return $template;
+            }
+        }
+
+        throw new NotFoundHttpException('Template not found');
     }
 
     private static function percentOf(float $rate): float

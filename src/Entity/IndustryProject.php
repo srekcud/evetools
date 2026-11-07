@@ -34,6 +34,10 @@ class IndustryProject
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $name = null;
 
+    #[ORM\ManyToOne(targetEntity: IndustryProjectTemplate::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?IndustryProjectTemplate $template = null;
+
     #[ORM\Column(type: 'string', length: 20, enumType: ProjectStatus::class)]
     private ProjectStatus $status = ProjectStatus::Draft;
 
@@ -132,6 +136,17 @@ class IndustryProject
     public function setOwner(User $owner): static
     {
         $this->owner = $owner;
+        return $this;
+    }
+
+    public function getTemplate(): ?IndustryProjectTemplate
+    {
+        return $this->template;
+    }
+
+    public function setTemplate(?IndustryProjectTemplate $template): static
+    {
+        $this->template = $template;
         return $this;
     }
 

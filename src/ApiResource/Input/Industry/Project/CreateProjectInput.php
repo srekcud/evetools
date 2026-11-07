@@ -68,6 +68,9 @@ class CreateProjectInput
     #[Assert\PositiveOrZero]
     public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
+    #[Assert\Uuid]
+    public ?string $templateId = null;
+
     #[Assert\Callback]
     public function validateTheSumOfTheRuns(ExecutionContextInterface $context): void
     {

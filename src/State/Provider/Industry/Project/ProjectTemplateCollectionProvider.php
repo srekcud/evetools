@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\IndustryProjectTemplateResource;
 use App\Entity\IndustryProjectTemplate;
 use App\Entity\User;
+use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectTemplateRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -21,6 +22,7 @@ class ProjectTemplateCollectionProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectTemplateRepository $templateRepository,
+        private readonly IndustryProjectRepository $projectRepository,
     ) {
     }
 
@@ -33,9 +35,12 @@ class ProjectTemplateCollectionProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
+        $templates = $this->templateRepository->findVisibleTo($user);
+        $usageCounts = $this->projectRepository->countByTemplate($templates);
+
         return array_map(
-            static fn (IndustryProjectTemplate $template): IndustryProjectTemplateResource => IndustryProjectTemplateResource::fromTemplate($template, $user),
-            $this->templateRepository->findVisibleTo($user),
+            static fn (IndustryProjectTemplate $template): IndustryProjectTemplateResource => IndustryProjectTemplateResource::fromTemplate($template, $user, $usageCounts[(string) $template->getId()]),
+            $templates,
         );
     }
 }

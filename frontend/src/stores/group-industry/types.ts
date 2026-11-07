@@ -40,6 +40,7 @@ export type ProjectTemplate = {
   sharedWithCorporation: boolean
   ownerName: string | null
   isOwn: boolean
+  usageCount: number
   createdAt: string
 }
 
@@ -269,6 +270,7 @@ export type CreateGroupProjectInput = {
   salesTaxPercent?: number
   acceptsOutsideFavoriteSystem: boolean
   minimumOutsideSaving: number
+  templateId?: string
 }
 
 export type AvailableJob = {

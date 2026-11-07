@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectTemplate;
 use App\Enum\ProjectStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -43,6 +44,38 @@ class IndustryProjectRepository extends ServiceEntityRepository
         $qb->orderBy('p.createdAt', 'DESC');
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @param list<IndustryProjectTemplate> $templates
+     * @return array<string, int>
+     */
+    public function countByTemplate(array $templates): array
+    {
+        if ($templates === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('p')
+            ->select('IDENTITY(p.template) AS templateId', 'COUNT(p.id) AS usageCount')
+            ->where('p.template IN (:templates)')
+            ->setParameter('templates', $templates)
+            ->groupBy('p.template')
+            ->getQuery()
+            ->getArrayResult();
+
+        $countsByTemplateId = [];
+        foreach ($rows as $row) {
+            $countsByTemplateId[(string) $row['templateId']] = (int) $row['usageCount'];
+        }
+
+        $counts = [];
+        foreach ($templates as $template) {
+            $templateId = (string) $template->getId();
+            $counts[$templateId] = array_key_exists($templateId, $countsByTemplateId) ? $countsByTemplateId[$templateId] : 0;
+        }
+
+        return $counts;
     }
 
     public function findByShortLinkCode(string $code): ?IndustryProject

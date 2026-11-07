@@ -73,9 +73,11 @@ class IndustryProjectTemplateResource
 
     public bool $isOwn = false;
 
+    public int $usageCount = 0;
+
     public string $createdAt;
 
-    public static function fromTemplate(IndustryProjectTemplate $template, User $viewer): self
+    public static function fromTemplate(IndustryProjectTemplate $template, User $viewer, int $usageCount): self
     {
         $resource = new self();
         $resource->id = (string) $template->getId();
@@ -88,6 +90,7 @@ class IndustryProjectTemplateResource
         $resource->sharedWithCorporation = $template->isSharedWithCorporation();
         $resource->ownerName = $template->getOwner()->getMainCharacter()?->getName();
         $resource->isOwn = $template->getOwner() === $viewer;
+        $resource->usageCount = $usageCount;
         $resource->createdAt = $template->getCreatedAt()->format(\DateTimeInterface::ATOM);
 
         return $resource;

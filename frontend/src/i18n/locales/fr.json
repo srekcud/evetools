@@ -2624,6 +2624,7 @@
       "templateColumn": "Modèle",
       "itemsColumn": "Items",
       "sharedColumn": "Partagé",
+      "usageColumn": "Utilisé",
       "byOwner": "par {owner}",
       "scopePersonal": "Perso",
       "scopeCorporation": "Corpo",

@@ -2624,6 +2624,7 @@
       "templateColumn": "Template",
       "itemsColumn": "Items",
       "sharedColumn": "Shared",
+      "usageColumn": "Used",
       "byOwner": "by {owner}",
       "scopePersonal": "Personal",
       "scopeCorporation": "Corp",

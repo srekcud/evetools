@@ -126,6 +126,7 @@ const blacklistGroupIds = ref<number[]>([])
 const projectName = ref('')
 const containerName = ref('')
 const isPrivate = ref(true)
+const usedTemplateId = ref<string | null>(null)
 const acceptsOutsideFavoriteSystem = ref(false)
 const minimumOutsideSaving = ref<number | string>(DEFAULT_MINIMUM_OUTSIDE_SAVING)
 const hasValidMinimumOutsideSaving = computed(() =>
@@ -210,6 +211,7 @@ function applyPrefill() {
 
 function resetForm() {
   addMode.value = 'add-item'
+  usedTemplateId.value = null
   searchQuery.value = ''
   selectedItem.value = null
   showDropdown.value = false
@@ -247,6 +249,7 @@ function resetForm() {
 }
 
 function applyTemplate(template: ProjectTemplate) {
+  usedTemplateId.value = template.id
   items.value = template.items.map(item => ({ ...item }))
   blacklistTypeIds.value = [...template.blacklistTypeIds]
   blacklistGroupIds.value = [...template.blacklistGroupIds]
@@ -310,6 +313,7 @@ async function handleCreate() {
       : undefined,
     acceptsOutsideFavoriteSystem: acceptsOutsideFavoriteSystem.value,
     minimumOutsideSaving: minimumOutsideSaving.value,
+    templateId: usedTemplateId.value ?? undefined,
   }
 
   try {

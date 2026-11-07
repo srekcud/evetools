@@ -14,35 +14,71 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const TEMPLATES_ENDPOINT = '/industry/project-templates'
 const PROJECTS_ENDPOINT = '/industry/projects'
 
+const SABRE_PREFILL = { typeId: 22456, typeName: 'Sabre' }
+
+async function mountModal() {
+  setActivePinia(createPinia())
+  vi.mocked(apiRequest).mockReset()
+  vi.mocked(apiRequest).mockImplementation(async endpoint => (
+    endpoint === TEMPLATES_ENDPOINT ? [HAMMERHEAD_LINE_FROM_ALICE] : { id: 'group-project-created' }
+  ))
+  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+  return mount(NewProjectModal, {
+    global: { plugins: [i18n], stubs: { teleport: true } },
+    props: { show: true },
+  })
+}
+
+async function useTheTemplateOfAlice(wrapper: Awaited<ReturnType<typeof mountModal>>) {
+  await wrapper.get('[data-testid="new-project-template-tab"]').trigger('click')
+  await flushPromises()
+  await wrapper.get('[data-testid="project-template-use"]').trigger('click')
+}
+
+async function submitAndReadCreationBody(wrapper: Awaited<ReturnType<typeof mountModal>>) {
+  const createButton = wrapper.findAll('button').find(candidate => candidate.text() === 'Create Project')
+  expect(createButton, 'create button').toBeDefined()
+  await createButton!.trigger('click')
+  await flushPromises()
+  const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === PROJECTS_ENDPOINT)
+  expect(creationCall, 'project creation request').toBeDefined()
+  return JSON.parse(String(creationCall![1]!.body)) as Record<string, unknown>
+}
+
 describe('NewProjectModal from a template', () => {
   it('creates the project with the items, efficiencies, runs, blacklist and options of the used template', async () => {
-    setActivePinia(createPinia())
-    vi.mocked(apiRequest).mockReset()
-    vi.mocked(apiRequest).mockImplementation(async endpoint => (
-      endpoint === TEMPLATES_ENDPOINT ? [HAMMERHEAD_LINE_FROM_ALICE] : { id: 'group-project-created' }
-    ))
-    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-    const wrapper = mount(NewProjectModal, {
-      global: { plugins: [i18n], stubs: { teleport: true } },
-      props: { show: true },
-    })
+    const wrapper = await mountModal()
 
-    await wrapper.get('[data-testid="new-project-template-tab"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="project-template-use"]').trigger('click')
-    const createButton = wrapper.findAll('button').find(candidate => candidate.text() === 'Create Project')
-    expect(createButton, 'create button').toBeDefined()
-    await createButton!.trigger('click')
-    await flushPromises()
+    await useTheTemplateOfAlice(wrapper)
+    const body = await submitAndReadCreationBody(wrapper)
 
-    const creationCall = vi.mocked(apiRequest).mock.calls.find(([endpoint]) => endpoint === PROJECTS_ENDPOINT)
-    expect(creationCall, 'project creation request').toBeDefined()
-    expect(JSON.parse(String(creationCall![1]!.body))).toMatchObject({
+    expect(body).toMatchObject({
       items: HAMMERHEAD_LINE_FROM_ALICE.items,
       blacklistGroupIds: [18],
       blacklistTypeIds: [34],
       acceptsOutsideFavoriteSystem: true,
       minimumOutsideSaving: 5_000_000,
     })
+  })
+
+  it('sends the id of the used template as templateId when the project is created', async () => {
+    const wrapper = await mountModal()
+
+    await useTheTemplateOfAlice(wrapper)
+    const body = await submitAndReadCreationBody(wrapper)
+
+    expect(body.templateId).toBe('template-hammerhead-line')
+  })
+
+  it('sends no templateId when the modal is reopened after a template was used', async () => {
+    const wrapper = await mountModal()
+    await useTheTemplateOfAlice(wrapper)
+
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true, prefill: SABRE_PREFILL })
+    const body = await submitAndReadCreationBody(wrapper)
+
+    expect(body.items).toMatchObject([{ typeId: 22456, typeName: 'Sabre' }])
+    expect(body).not.toHaveProperty('templateId')
   })
 })
