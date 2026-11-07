@@ -73,6 +73,41 @@ class BatchScanProviderTest extends TestCase
         $this->assertSame(5000000.0, $slasher->sellPrice);
     }
 
+    #[Group('issue-420')]
+    public function testUnknownDailyVolumeIsExposedAsNullNextToItsReason(): void
+    {
+        $slasherWithUnknownDailyVolume = [
+            'typeId' => self::SLASHER_TYPE_ID,
+            'typeName' => 'Slasher',
+            'groupName' => 'Frigate',
+            'categoryLabel' => 'T1 Ships',
+            'marginPercent' => 12.5,
+            'profitPerUnit' => 600000.0,
+            'dailyVolume' => null,
+            'iskPerDay' => null,
+            'materialCost' => 4000000.0,
+            'importCost' => 9.09,
+            'exportCost' => 2500.0,
+            'sellPrice' => 5000000.0,
+            'meUsed' => 10,
+            'activityType' => 'manufacturing',
+            'isFactionBlueprint' => false,
+            'bpcCostPerRun' => null,
+            'hasAllSkills' => true,
+            'missingSkillCount' => 0,
+            'unknownReason' => 'missing_daily_volume',
+            'missingPriceTypeIds' => [],
+        ];
+
+        $resources = $this->provideScanReturning([$slasherWithUnknownDailyVolume]);
+
+        $this->assertCount(1, $resources);
+        $this->assertNull($resources[0]->dailyVolume);
+        $this->assertNull($resources[0]->iskPerDay);
+        $this->assertSame('missing_daily_volume', $resources[0]->unknownReason);
+        $this->assertSame(600000.0, $resources[0]->profitPerUnit);
+    }
+
     #[Group('issue-255')]
     public function testUnknownTransportCostsAreExposedAsNullNextToTheKnownOne(): void
     {

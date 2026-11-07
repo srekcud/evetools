@@ -49,7 +49,7 @@ class BatchScanResultResource
 
     public ?float $profitPerUnit = null;
 
-    public float $dailyVolume = 0;
+    public ?float $dailyVolume = null;
 
     public ?float $iskPerDay = null;
 

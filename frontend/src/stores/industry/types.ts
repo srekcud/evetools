@@ -234,7 +234,7 @@ export type BatchScanItem = {
   categoryLabel: string
   marginPercent: number | null
   profitPerUnit: number | null
-  dailyVolume: number
+  dailyVolume: number | null
   iskPerDay: number | null
   materialCost: number | null
   exportCost: number | null

@@ -638,6 +638,7 @@
       "missing_material_price": "Un materiau n'a aucun prix a Jita : cout de fabrication et marges inconnus.",
       "missing_sale_price": "Le produit n'a aucun prix de vente a Jita : prix de vente inconnu, profit et marges inconnus.",
       "missing_volume": "Un produit ou un materiau n'a aucun volume dans les donnees statiques (SDE) : cout de transport et marges inconnus.",
+      "missing_daily_volume": "Le produit n'a aucun volume journalier dans l'historique du marche : volume journalier et ISK par jour inconnus.",
       "missingPriceTypes": "Materiaux sans prix : {types}"
     },
     "title": "Industrie",

@@ -89,7 +89,7 @@ const filteredResults = computed((): BatchScanItem[] => {
     items = items.filter(i => i.marginPercent != null && i.marginPercent >= minMargin)
   }
   if (minDailyVolFilter.value != null) {
-    items = items.filter(i => i.dailyVolume >= minDailyVolFilter.value!)
+    items = items.filter(i => i.dailyVolume != null && i.dailyVolume >= minDailyVolFilter.value!)
   }
 
   items.sort((a, b) => {
@@ -748,7 +748,10 @@ onBeforeUnmount(() => {
                 <td v-else class="py-3 px-3 text-right font-mono" :class="item.profitPerUnit < 0 ? 'text-red-400/70' : 'text-slate-200'">
                   {{ formatIsk(item.profitPerUnit) }}
                 </td>
-                <td class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
+                <td v-if="item.dailyVolume == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="t('industry.inventionUnknown.missing_daily_volume')">
+                  {{ t('industry.inventionUnknown.label') }}
+                </td>
+                <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
                   {{ formatNumber(item.dailyVolume, 0) }}
                 </td>
                 <td v-if="item.iskPerDay == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">

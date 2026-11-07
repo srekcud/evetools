@@ -638,6 +638,7 @@
       "missing_material_price": "A material has no Jita price: the manufacturing cost and margins are unknown.",
       "missing_sale_price": "The product has no Jita sale price: the sale price, profit and margins are unknown.",
       "missing_volume": "A product or a material has no volume in the static data (SDE): the transport cost and margins are unknown.",
+      "missing_daily_volume": "The product has no daily volume in the market history: the daily volume and the ISK per day are unknown.",
       "missingPriceTypes": "Materials without a price: {types}"
     },
     "title": "Industry",
