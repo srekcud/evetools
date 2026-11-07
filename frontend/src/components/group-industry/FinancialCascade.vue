@@ -5,7 +5,7 @@ import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 
-type CascadeStepKey = 'revenue' | 'brokerFee' | 'salesTax' | 'materials' | 'jobInstall' | 'bpc' | 'lineRental'
+type CascadeStepKey = 'revenue' | 'brokerFee' | 'salesTax' | 'materials' | 'jobInstall' | 'bpc' | 'lineRental' | 'courier'
 
 type CascadeStep = {
   key: CascadeStepKey
@@ -48,8 +48,9 @@ const steps = computed((): CascadeStep[] => {
     { key: 'jobInstall', isCost: true, amount: sumOrUnknown(members.map(m => m.jobInstallCosts)) },
     { key: 'bpc', isCost: true, amount: sumOrUnknown(members.map(m => m.bpcCosts)) },
     { key: 'lineRental', isCost: true, amount: sumOrUnknown(members.map(m => m.lineRentalCosts)) },
+    { key: 'courier', isCost: true, amount: sumOrUnknown(members.map(m => m.courierCosts)) },
   ]
-  const optionalKeys: CascadeStepKey[] = ['bpc', 'lineRental']
+  const optionalKeys: CascadeStepKey[] = ['bpc', 'lineRental', 'courier']
   return all.filter(step => !(optionalKeys.includes(step.key) && step.amount === 0))
 })
 

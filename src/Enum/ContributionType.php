@@ -10,4 +10,5 @@ enum ContributionType: string
     case JobInstall = 'job_install';
     case Bpc = 'bpc';
     case LineRental = 'line_rental';
+    case Courier = 'courier';
 }

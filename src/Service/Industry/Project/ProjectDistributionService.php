@@ -90,6 +90,7 @@ class ProjectDistributionService
             $jobInstallCosts = $costOfType(ContributionType::JobInstall);
             $bpcCosts = $costOfType(ContributionType::Bpc);
             $lineRentalCosts = $costOfType(ContributionType::LineRental);
+            $courierCosts = $costOfType(ContributionType::Courier);
 
             $sharePercent = $totalCosts !== null && $totalProjectCost !== null && $totalProjectCost > 0
                 ? $totalCosts / $totalProjectCost * 100
@@ -108,6 +109,7 @@ class ProjectDistributionService
                 jobInstallCosts: $jobInstallCosts,
                 bpcCosts: $bpcCosts,
                 lineRentalCosts: $lineRentalCosts,
+                courierCosts: $courierCosts,
                 sharePercent: $sharePercent,
                 profitPart: $profitPart,
                 payoutTotal: $payoutTotal,

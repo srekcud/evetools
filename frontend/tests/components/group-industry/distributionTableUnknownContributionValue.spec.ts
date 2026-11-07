@@ -18,6 +18,7 @@ function memberDistribution(overrides: Partial<MemberDistribution>): MemberDistr
     jobInstallCosts: 0,
     bpcCosts: 0,
     lineRentalCosts: 0,
+    courierCosts: 0,
     sharePercent: null,
     profitPart: null,
     payoutTotal: null,

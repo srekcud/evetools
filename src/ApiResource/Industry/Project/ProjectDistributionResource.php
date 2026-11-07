@@ -56,6 +56,7 @@ class ProjectDistributionResource
      *     jobInstallCosts: float|null,
      *     bpcCosts: float|null,
      *     lineRentalCosts: float|null,
+     *     courierCosts: float|null,
      *     sharePercent: float|null,
      *     profitPart: float|null,
      *     payoutTotal: float|null,

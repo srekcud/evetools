@@ -44,6 +44,7 @@ class ProjectContributionService
             ContributionType::Material => $this->resolveMaterialValue($bomItem, $quantity, $estimatedValue),
             ContributionType::JobInstall, ContributionType::Bpc => $this->requirePositiveEnteredValue($type, $estimatedValue),
             ContributionType::LineRental => $this->requireEnteredValue($type, $estimatedValue),
+            ContributionType::Courier => throw new \DomainException('The courier reward is derived from the linked courier contract and cannot be submitted'),
         };
 
         $contribution = new IndustryProjectContribution();

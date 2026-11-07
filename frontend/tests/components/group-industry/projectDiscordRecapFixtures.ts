@@ -42,6 +42,7 @@ export function memberDistribution(overrides: Partial<MemberDistribution> = {}):
     jobInstallCosts: 0,
     bpcCosts: 0,
     lineRentalCosts: 0,
+    courierCosts: 0,
     sharePercent: 66.67,
     profitPart: 440_000,
     payoutTotal: 1_240_000,

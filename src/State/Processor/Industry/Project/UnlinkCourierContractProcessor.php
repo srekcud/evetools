@@ -9,6 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\Project\ProjectCourierResource;
 use App\Repository\IndustryProjectCourierContractRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\UuidOrNotFound;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -22,6 +23,7 @@ final readonly class UnlinkCourierContractProcessor implements ProcessorInterfac
         private IndustryProjectRepository $projectRepository,
         private IndustryProjectCourierContractRepository $linkRepository,
         private EntityManagerInterface $entityManager,
+        private DerivedContributionService $derivedContributions,
     ) {
     }
 
@@ -41,5 +43,6 @@ final readonly class UnlinkCourierContractProcessor implements ProcessorInterfac
 
         $this->entityManager->remove($link);
         $this->entityManager->flush();
+        $this->derivedContributions->syncCourier($project, null);
     }
 }

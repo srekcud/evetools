@@ -23,6 +23,7 @@ const SALE_WITH_AN_UNKNOWN_CONTRIBUTION: Distribution = {
     jobInstallCosts: null,
     bpcCosts: 0,
     lineRentalCosts: 0,
+    courierCosts: 0,
     sharePercent: null,
     profitPart: null,
     payoutTotal: null,

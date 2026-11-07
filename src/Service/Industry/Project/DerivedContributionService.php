@@ -10,12 +10,15 @@ use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
+use App\Service\Industry\Project\Courier\CourierContractState;
+use App\Service\Industry\Project\Courier\CourierLinkedContract;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 
 class DerivedContributionService
 {
     private const string CONTRIBUTION_SYNCED_ACTION = 'contribution_synced';
+    private const int COURIER_QUANTITY = 1;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -58,6 +61,28 @@ class DerivedContributionService
         }
     }
 
+    public function syncCourier(IndustryProject $project, ?CourierLinkedContract $contract): void
+    {
+        if ($project->isCompleted()) {
+            return;
+        }
+
+        $existing = $this->courierContributionOf($project);
+        $contributionId = null !== $contract && CourierContractState::Delivered === $contract->state
+            ? $this->countCourierReward($project, $existing, $contract->reward)
+            : $this->uncountCourierReward($project, $existing);
+        if (null === $contributionId) {
+            return;
+        }
+
+        $this->entityManager->flush();
+        $this->mercurePublisher->publishGroupProjectEvent(
+            $project->getId()->toRfc4122(),
+            self::CONTRIBUTION_SYNCED_ACTION,
+            ['contributionId' => $contributionId, 'bomItemId' => null],
+        );
+    }
+
     private function synchronize(
         IndustryProjectBomLine $line,
         IndustryProjectParticipant $ownerParticipant,
@@ -93,11 +118,55 @@ class DerivedContributionService
         int $quantity,
         ?float $value,
     ): string {
+        $contribution = $this->approvedDerivedContribution($line->getProject(), $ownerParticipant, $type, $quantity, $value)->setBomItem($line);
+        $this->persistDerived($contribution);
+        $this->shiftFulfillment($line, $type, $quantity);
+
+        return $contribution->getId()->toRfc4122();
+    }
+
+    private function countCourierReward(IndustryProject $project, ?IndustryProjectContribution $existing, ?float $reward): ?string
+    {
+        if (null === $existing) {
+            $contribution = $this->approvedDerivedContribution($project, $this->ownerParticipantOf($project), ContributionType::Courier, self::COURIER_QUANTITY, $reward);
+            $this->persistDerived($contribution);
+
+            return $contribution->getId()->toRfc4122();
+        }
+
+        if ($existing->getEstimatedValue() === $reward) {
+            return null;
+        }
+
+        $existing->setEstimatedValue($reward);
+
+        return $existing->getId()->toRfc4122();
+    }
+
+    private function uncountCourierReward(IndustryProject $project, ?IndustryProjectContribution $existing): ?string
+    {
+        if (null === $existing) {
+            return null;
+        }
+
+        $project->getContributions()->removeElement($existing);
+        $this->entityManager->remove($existing);
+
+        return $existing->getId()->toRfc4122();
+    }
+
+    private function approvedDerivedContribution(
+        IndustryProject $project,
+        IndustryProjectParticipant $ownerParticipant,
+        ContributionType $type,
+        int $quantity,
+        ?float $value,
+    ): IndustryProjectContribution {
         $now = new \DateTimeImmutable();
-        $contribution = (new IndustryProjectContribution())
-            ->setProject($line->getProject())
+
+        return (new IndustryProjectContribution())
+            ->setProject($project)
             ->setMember($ownerParticipant)
-            ->setBomItem($line)
             ->setType($type)
             ->setQuantity($quantity)
             ->setEstimatedValue($value)
@@ -107,12 +176,12 @@ class DerivedContributionService
             ->setVerifiedAt($now)
             ->setReviewedBy($ownerParticipant->getUser())
             ->setReviewedAt($now);
+    }
 
-        $line->getProject()->addContribution($contribution);
+    private function persistDerived(IndustryProjectContribution $contribution): void
+    {
+        $contribution->getProject()->addContribution($contribution);
         $this->entityManager->persist($contribution);
-        $this->shiftFulfillment($line, $type, $quantity);
-
-        return $contribution->getId()->toRfc4122();
     }
 
     private function remove(IndustryProjectBomLine $line, IndustryProjectContribution $contribution): string
@@ -173,6 +242,17 @@ class DerivedContributionService
     private function isDerivedOn(IndustryProjectContribution $contribution, IndustryProjectBomLine $line): bool
     {
         return $contribution->isAutoDetected() && $contribution->getBomItem() === $line;
+    }
+
+    private function courierContributionOf(IndustryProject $project): ?IndustryProjectContribution
+    {
+        foreach ($project->getContributions() as $contribution) {
+            if ($contribution->isAutoDetected() && ContributionType::Courier === $contribution->getType() && null === $contribution->getBomItem()) {
+                return $contribution;
+            }
+        }
+
+        return null;
     }
 
     private function derivedContributionOf(IndustryProjectBomLine $line, IndustryProjectParticipant $ownerParticipant, ContributionType $type): ?IndustryProjectContribution

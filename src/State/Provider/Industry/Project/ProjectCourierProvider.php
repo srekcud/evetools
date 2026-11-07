@@ -10,6 +10,7 @@ use App\ApiResource\Industry\Project\ProjectCourierResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\Courier\CourierOverviewBuilder;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -26,6 +27,7 @@ final readonly class ProjectCourierProvider implements ProviderInterface
         private ProjectAccessChecker $accessChecker,
         private CourierOverviewBuilder $overviewBuilder,
         private ProjectCourierResourceMapper $mapper,
+        private DerivedContributionService $derivedContributions,
     ) {
     }
 
@@ -48,6 +50,9 @@ final readonly class ProjectCourierProvider implements ProviderInterface
 
         $this->accessChecker->assertAcceptedMember($user, $project);
 
-        return $this->mapper->toResource($project, $this->overviewBuilder->build($project, $user));
+        $overview = $this->overviewBuilder->build($project, $user);
+        $this->derivedContributions->syncCourier($project, $overview->contract);
+
+        return $this->mapper->toResource($project, $overview);
     }
 }
