@@ -32,6 +32,7 @@ import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
+import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
@@ -482,6 +483,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
         <!-- Materials Table -->
         <BomTable @contribute="openContributeModal" />
+
+        <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
 
         <!-- Jobs Table -->
         <JobsTable />
