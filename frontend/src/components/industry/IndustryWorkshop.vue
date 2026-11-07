@@ -8,12 +8,16 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { GroupProject, GroupProjectStatus, ProjectNextActionCode } from '@/stores/group-industry/types'
+import { useIndustryStore } from '@/stores/industry'
 import { useIndustryActionsStore, type IndustryAction } from '@/stores/industry/actions'
 import { useSlotsStore } from '@/stores/industry/slots'
+import { useStockpileStore } from '@/stores/industry/stockpile'
+import type { StockpileItemStatus } from '@/stores/industry/types'
 import { useSyncStore } from '@/stores/sync'
 import { detailTabOfNextAction } from '@/views/GroupIndustry/projectDetailTabs'
 
 type TeamFilter = 'all' | 'solo' | 'group'
+type StockpileProposal = StockpileItemStatus & { suggestedProjectRuns: number }
 
 const MAX_UPCOMING_JOBS = 8
 const SECONDS_PER_HOUR = 3600
@@ -42,6 +46,8 @@ const { t, n } = useI18n()
 const router = useRouter()
 const actionsStore = useIndustryActionsStore()
 const slotsStore = useSlotsStore()
+const industryStore = useIndustryStore()
+const stockpileStore = useStockpileStore()
 const groupProjectStore = useGroupProjectStore()
 const syncStore = useSyncStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
@@ -49,7 +55,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 useIndustryJobsSync(() => slotsStore.fetchSlots())
 
 onMounted(() => {
-  void Promise.all([actionsStore.fetchActions(), slotsStore.fetchSlots(), groupProjectStore.fetchMyProjects()])
+  void Promise.all([actionsStore.fetchActions(), slotsStore.fetchSlots(), groupProjectStore.fetchMyProjects(), stockpileStore.fetchStockpileStatus()])
 })
 
 watch(() => syncStore.getSyncProgress('industry-project'), () => {
@@ -67,6 +73,28 @@ function actionPhrase(action: IndustryAction): string {
     typeName: action.typeName,
     quantity: action.quantity === null ? '' : n(action.quantity),
   })
+}
+
+const stockpileProposals = computed<StockpileProposal[]>(() =>
+  Object.values(stockpileStore.stockpileStatus?.stages ?? {})
+    .flatMap(stage => stage.items)
+    .filter((item): item is StockpileProposal => item.suggestedProjectRuns !== null)
+    .sort((left, right) => left.percent - right.percent),
+)
+
+const queueCount = computed(() =>
+  actionsStore.count === null ? null : actionsStore.count + stockpileProposals.value.length,
+)
+
+const isQueueEmpty = computed(() =>
+  actionsStore.isLoaded && actionsStore.actions.length === 0 && stockpileProposals.value.length === 0,
+)
+
+function createStockpileProject(proposal: StockpileProposal): void {
+  industryStore.navigationIntent = {
+    target: 'projects',
+    prefill: { typeId: proposal.typeId, typeName: proposal.typeName, runs: proposal.suggestedProjectRuns },
+  }
 }
 
 function openCockpit(projectId: string, action: IndustryAction | null = null): void {
@@ -155,13 +183,20 @@ function statusLabel(status: GroupProjectStatus): string {
       <header class="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-slate-800">
         <h2 class="font-display text-base font-bold uppercase tracking-[0.14em] text-slate-100">{{ t('industry.workshop.queue.title') }}</h2>
         <span
-          v-if="actionsStore.count !== null"
+          v-if="queueCount !== null"
           data-testid="workshop-action-count"
           class="text-xs font-mono px-2 py-0.5 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-400"
         >
-          {{ t('industry.workshop.queue.count', { count: actionsStore.count }) }}
+          {{ t('industry.workshop.queue.count', { count: queueCount }) }}
         </span>
       </header>
+
+      <ErrorBanner
+        v-if="stockpileStore.error !== null"
+        data-testid="workshop-stockpile-error"
+        :message="stockpileStore.error"
+        class="m-4"
+      />
 
       <ErrorBanner
         v-if="actionsStore.error !== null"
@@ -171,7 +206,7 @@ function statusLabel(status: GroupProjectStatus): string {
       />
 
       <p
-        v-else-if="actionsStore.isLoaded && actionsStore.actions.length === 0"
+        v-else-if="isQueueEmpty"
         data-testid="workshop-empty-queue"
         class="px-4 py-8 text-center text-sm text-slate-500"
       >
@@ -208,6 +243,32 @@ function statusLabel(status: GroupProjectStatus): string {
             @click="openCockpit(action.projectId, action)"
           >
             {{ t(`industry.workshop.actions.${action.code}.button`) }}
+          </button>
+        </li>
+        <li
+          v-for="proposal in stockpileProposals"
+          :key="proposal.id"
+          data-testid="workshop-stockpile-row"
+          class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="min-w-0">
+            <p
+              class="truncate font-medium text-slate-100"
+              :title="t('industry.workshop.queue.stockpileLow', { typeName: proposal.typeName, stock: n(proposal.stock), target: n(proposal.remainingTargetQuantity) })"
+            >
+              {{ t('industry.workshop.queue.stockpileLow', { typeName: proposal.typeName, stock: n(proposal.stock), target: n(proposal.remainingTargetQuantity) }) }}
+            </p>
+            <p class="break-words text-sm text-slate-400">
+              {{ t('industry.workshop.queue.stockpileRuns', { runs: n(proposal.suggestedProjectRuns) }) }}
+            </p>
+          </div>
+          <button
+            type="button"
+            data-testid="workshop-stockpile-button"
+            class="shrink-0 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-all hover:-translate-y-px hover:bg-amber-500"
+            @click="createStockpileProject(proposal)"
+          >
+            {{ t('industry.workshop.queue.stockpileCreateProject') }}
           </button>
         </li>
       </ul>

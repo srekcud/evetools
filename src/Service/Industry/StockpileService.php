@@ -8,6 +8,7 @@ use App\Entity\IndustryStockpileImport;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
 use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\UserProductionStructures;
@@ -25,6 +26,7 @@ class StockpileService
 
     private const int FULL_PERMILLE = 1000;
     private const float PERMILLE_PER_PERCENT = 10.0;
+    private const float LOW_TARGET_PERCENT = 25.0;
 
     private const array EMPTY_STAGES = [
         'raw_material' => ['items' => [], 'totalValue' => 0.0, 'healthPercent' => 100.0],
@@ -214,6 +216,7 @@ class StockpileService
                 'stage' => $target->getStage(),
                 'sourceProductTypeId' => $target->getSourceProductTypeId(),
                 'locations' => $stockData[$tid]['locations'] ?? [],
+                'suggestedProjectRuns' => $percent < self::LOW_TARGET_PERCENT ? $this->runsCoveringDeficit($tid, $deficit) : null,
             ];
 
             $stage = $target->getStage();
@@ -285,6 +288,14 @@ class StockpileService
             'failedProducts' => $startingStockReduction['failedProducts'],
             'missingPriceTypeIds' => $this->typeIdsWithoutPrice($typeIds, $prices),
         ];
+    }
+
+    private function runsCoveringDeficit(int $typeId, int $deficit): ?int
+    {
+        $producer = $this->activityProductRepository->findBlueprintForProduct($typeId, IndustryActivityType::Manufacturing->value)
+            ?? $this->activityProductRepository->findBlueprintForProduct($typeId, IndustryActivityType::Reaction->value);
+
+        return $producer === null ? null : intdiv($deficit + $producer->getQuantity() - 1, $producer->getQuantity());
     }
 
     private function amountOf(int $quantity, ?float $unitPrice): ?float
