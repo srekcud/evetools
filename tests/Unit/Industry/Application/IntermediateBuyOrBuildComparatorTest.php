@@ -26,6 +26,7 @@ use App\Tests\Unit\Industry\Application\Double\FixedIntermediateBuildCosts;
 use App\Tests\Unit\Industry\Application\Double\InMemoryItemVolumes;
 use App\Tests\Unit\Industry\Application\Double\InMemoryJumpDistances;
 use App\Tests\Unit\Industry\Application\Double\InMemoryMarketPrices;
+use App\Tests\Unit\Industry\Application\Double\RecordingMarketPrices;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -367,6 +368,127 @@ final class IntermediateBuyOrBuildComparatorTest extends TestCase
         self::assertEquals(
             [new PartialPrice(self::HOBGOBLIN_II, new OrderBookCoverage(0.6))],
             $comparisons[0]->buyCost()->partialPrices,
+        );
+    }
+
+    public function testPlanWithoutBuiltIntermediateGivesNoRowAndRequestsNoPrice(): void
+    {
+        $marketPrices = new RecordingMarketPrices(new InMemoryMarketPrices([]));
+        $comparator = new IntermediateBuyOrBuildComparator(
+            new FixedIntermediateBuildCosts(),
+            $marketPrices,
+            new InMemoryItemVolumes([]),
+            new InMemoryJumpDistances([]),
+        );
+
+        $comparisons = $comparator->compare(
+            $this->planOf([self::CAPACITOR_BATTERY => new Intermediate(new Quantity(10), new Quantity(10), new Quantity(0), new Quantity(0), [])]),
+            [],
+            $this->favoriteSystems(),
+        );
+
+        self::assertSame([[], []], [$comparisons, $marketPrices->requests]);
+    }
+
+    public function testBuildingStaysTheChoiceWhenItCostsLessThanOneIskMoreThanBuying(): void
+    {
+        $plan = $this->planOf([self::HOBGOBLIN_II => $this->intermediate(demand: 10, produced: 10, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 1)])]);
+
+        $comparisons = $this->comparator(
+            [self::HOBGOBLIN_II => Cost::known(new Isk(2_500.5))],
+            [self::HOBGOBLIN_II => 100.0],
+            [self::HOBGOBLIN_II => 1.0],
+            [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
+        )->compare($plan, [], $this->favoriteSystems());
+
+        self::assertSame(BuyOrBuildChoice::Build, $comparisons[0]->choice);
+    }
+
+    public function testBuyingBecomesTheChoiceWhenBuildingCostsMoreThanOneIskMoreThanBuying(): void
+    {
+        $plan = $this->planOf([self::HOBGOBLIN_II => $this->intermediate(demand: 10, produced: 10, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 1)])]);
+
+        $comparisons = $this->comparator(
+            [self::HOBGOBLIN_II => Cost::known(new Isk(2_501.5))],
+            [self::HOBGOBLIN_II => 100.0],
+            [self::HOBGOBLIN_II => 1.0],
+            [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
+        )->compare($plan, [], $this->favoriteSystems());
+
+        self::assertSame(BuyOrBuildChoice::Buy, $comparisons[0]->choice);
+    }
+
+    public function testJitaPricesAreRequestedOnceForTheDemandOfEveryBuiltIntermediate(): void
+    {
+        $plan = $this->planOf([
+            self::WARRIOR_II => $this->intermediate(demand: 50, produced: 60, jobs: [$this->manufacturingJob(self::WARRIOR_II, runs: 6)]),
+            self::CAPACITOR_BATTERY => new Intermediate(new Quantity(10), new Quantity(10), new Quantity(0), new Quantity(0), []),
+            self::HOBGOBLIN_II => $this->intermediate(demand: 20, produced: 20, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 2)]),
+        ]);
+        $marketPrices = new RecordingMarketPrices(new InMemoryMarketPrices([self::WARRIOR_II => 100.0, self::HOBGOBLIN_II => 100.0]));
+        $comparator = new IntermediateBuyOrBuildComparator(
+            new FixedIntermediateBuildCosts([
+                self::WARRIOR_II => Cost::known(new Isk(500_000.0)),
+                self::HOBGOBLIN_II => Cost::known(new Isk(200_000.0)),
+            ]),
+            $marketPrices,
+            new InMemoryItemVolumes([self::WARRIOR_II => 1.0, self::HOBGOBLIN_II => 1.0]),
+            new InMemoryJumpDistances([]),
+        );
+
+        $comparator->compare($plan, [], $this->favoriteSystems());
+
+        self::assertSame([[self::WARRIOR_II => 50.0, self::HOBGOBLIN_II => 20.0]], $marketPrices->requests);
+    }
+
+    public function testBuiltIntermediateWithSurplusGivesNoReuseSavingWhenBuildingIsTheChoice(): void
+    {
+        $plan = $this->planOf([self::HOBGOBLIN_II => $this->intermediate(demand: 10, produced: 20, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 2)])]);
+
+        $comparisons = $this->comparator(
+            [self::HOBGOBLIN_II => Cost::known(new Isk(1_000.0))],
+            [self::HOBGOBLIN_II => 100.0],
+            [self::HOBGOBLIN_II => 1.0],
+            [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
+        )->compare($plan, [], $this->favoriteSystems());
+
+        self::assertCount(1, $comparisons);
+        self::assertSame(
+            [BuyOrBuildChoice::Build, 2_500.0, null],
+            [$comparisons[0]->choice, $this->amountOf($comparisons[0]->buyCost()), $comparisons[0]->savingIfSurplusReused],
+        );
+    }
+
+    public function testBuiltIntermediateWithSurplusGivesNoReuseSavingWhenTheChoiceIsUnknown(): void
+    {
+        $plan = $this->planOf([self::HOBGOBLIN_II => $this->intermediate(demand: 10, produced: 20, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 2)])]);
+
+        $comparisons = $this->comparator(
+            [self::HOBGOBLIN_II => Cost::known(new Isk(1_000.0))],
+            [],
+            [self::HOBGOBLIN_II => 1.0],
+            [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
+        )->compare($plan, [], $this->favoriteSystems());
+
+        self::assertCount(1, $comparisons);
+        self::assertSame([BuyOrBuildChoice::Unknown, null], [$comparisons[0]->choice, $comparisons[0]->savingIfSurplusReused]);
+    }
+
+    public function testReuseSavingIsNullWhenBuildingWithTheSurplusReusedCostsExactlyTheBuyCost(): void
+    {
+        $plan = $this->planOf([self::HOBGOBLIN_II => $this->intermediate(demand: 10, produced: 20, jobs: [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 2)])]);
+
+        $comparisons = $this->comparator(
+            [self::HOBGOBLIN_II => Cost::known(new Isk(5_000.0))],
+            [self::HOBGOBLIN_II => 100.0],
+            [self::HOBGOBLIN_II => 1.0],
+            [EveConstants::JITA_SOLAR_SYSTEM_ID => [self::MANUFACTURING_SYSTEM_ID => 1]],
+        )->compare($plan, [], $this->favoriteSystems());
+
+        self::assertCount(1, $comparisons);
+        self::assertSame(
+            [BuyOrBuildChoice::Buy, 2_500.0, 2_500.0, null],
+            [$comparisons[0]->choice, $this->amountOf($comparisons[0]->buyCost()), $comparisons[0]->saving?->amount, $comparisons[0]->savingIfSurplusReused],
         );
     }
 

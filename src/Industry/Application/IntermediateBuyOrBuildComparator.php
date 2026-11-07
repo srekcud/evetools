@@ -43,7 +43,7 @@ final readonly class IntermediateBuyOrBuildComparator
         }
 
         $jitaPrices = $this->marketPrices->unitPricesFor(array_map(
-            static fn (Intermediate $intermediate): float => (float) $intermediate->demand->value,
+            static fn (Intermediate $intermediate): float => $intermediate->demand->value,
             $builtIntermediates,
         ));
 
@@ -142,7 +142,7 @@ final readonly class IntermediateBuyOrBuildComparator
             return BuyOrBuildChoice::Unknown;
         }
 
-        return $buildCost->amount()->equals($buyCost->amount()) || $buildCost->amount()->amount < $buyCost->amount()->amount
+        return $buildCost->amount()->isAtMost($buyCost->amount())
             ? BuyOrBuildChoice::Build
             : BuyOrBuildChoice::Buy;
     }
@@ -158,7 +158,7 @@ final readonly class IntermediateBuyOrBuildComparator
 
     private static function savingIfSurplusReusedOf(BuyOrBuildChoice $choice, Intermediate $intermediate, Cost $buildCost, Cost $buyCost): ?Isk
     {
-        if (BuyOrBuildChoice::Buy !== $choice || $intermediate->surplus->value <= 0) {
+        if (BuyOrBuildChoice::Buy !== $choice) {
             return null;
         }
 

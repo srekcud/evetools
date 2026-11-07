@@ -19,6 +19,11 @@ final readonly class Isk
         }
     }
 
+    public function isAtMost(self $other): bool
+    {
+        return $this->amount <= $other->amount + self::EQUALITY_TOLERANCE;
+    }
+
     public function equals(self $other): bool
     {
         return abs($this->amount - $other->amount) <= self::EQUALITY_TOLERANCE;
