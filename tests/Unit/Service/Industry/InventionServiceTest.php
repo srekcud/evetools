@@ -354,44 +354,6 @@ class InventionServiceTest extends TestCase
         ], $result);
     }
 
-    public function testDecryptorOptionsExposeTheHandComputedInventionCostOfTheNoDecryptorAndParityOptions(): void
-    {
-        $this->setupPricedSabreInvention(0.25, 1);
-
-        $options = $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510, 3);
-
-        $this->assertSame([
-            'decryptorTypeId' => null,
-            'decryptorName' => 'No Decryptor',
-            'me' => 2,
-            'te' => 4,
-            'runs' => 1,
-            'probability' => 0.25,
-            'costPerAttempt' => 467670.0,
-            'expectedAttempts' => 12,
-            'totalCost' => 5612040.0,
-            'costBreakdown' => ['datacores' => 463400.0, 'decryptor' => 0.0, 'copyCost' => 0.0, 'inventionInstall' => 4270.0],
-            'missingPriceTypeIds' => [],
-            'missingAdjustedPriceTypeIds' => [],
-            'unknownReason' => null,
-        ], $options[0]);
-        $this->assertSame([
-            'decryptorTypeId' => self::PARITY_DECRYPTOR_ID,
-            'decryptorName' => 'Parity Decryptor',
-            'me' => 3,
-            'te' => 2,
-            'runs' => 4,
-            'probability' => 0.375,
-            'costPerAttempt' => 1701670.0,
-            'expectedAttempts' => 8,
-            'totalCost' => 13613360.0,
-            'costBreakdown' => ['datacores' => 463400.0, 'decryptor' => 1234000.0, 'copyCost' => 0.0, 'inventionInstall' => 4270.0],
-            'missingPriceTypeIds' => [],
-            'missingAdjustedPriceTypeIds' => [],
-            'unknownReason' => null,
-        ], $this->findOptionByDecryptorTypeId($options, self::PARITY_DECRYPTOR_ID));
-    }
-
     #[Group('issue-7')]
     public function testInventionCostChargesAOneRunCopyOfTheT1BlueprintAtTheCopyingIndexOfTheRequestedSystemWithTheReceivedTaxCurrentlyOnTheProductAdjustedPriceIssue7(): void
     {
@@ -562,86 +524,6 @@ class InventionServiceTest extends TestCase
     }
 
     // ===========================================
-    // buildDecryptorOptions() tests
-    // ===========================================
-
-    public function testBuildDecryptorOptionsReturnsAllOptions(): void
-    {
-        $this->setupSabreInventionChain(0.30, 10);
-
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
-            self::DATACORE_1_TYPE_ID => 10000.0,
-            self::DATACORE_2_TYPE_ID => 10000.0,
-        ]);
-        $this->jitaMarketService->method('getPrice')->willReturn(100000.0);
-
-        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
-        $this->activityProductRepository->method('findBy')->willReturn([]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.01);
-
-        $options = $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510);
-
-        // 1 "No decryptor" + 8 decryptors = 9 total
-        $this->assertCount(9, $options);
-
-        // First is "No Decryptor"
-        $this->assertNull($options[0]['decryptorTypeId']);
-        $this->assertSame('No Decryptor', $options[0]['decryptorName']);
-        $this->assertSame(2, $options[0]['me']); // BASE_INVENTION_ME
-        $this->assertSame(4, $options[0]['te']); // BASE_INVENTION_TE
-        $this->assertSame(10, $options[0]['runs']); // baseRuns
-
-        // Verify Accelerant Decryptor option is present
-        $accelerant = null;
-        foreach ($options as $option) {
-            if ($option['decryptorTypeId'] === self::ACCELERANT_DECRYPTOR_ID) {
-                $accelerant = $option;
-                break;
-            }
-        }
-        $this->assertNotNull($accelerant);
-        $this->assertSame(4, $accelerant['me']); // 2 + 2
-        $this->assertSame(14, $accelerant['te']); // 4 + 10
-        $this->assertSame(11, $accelerant['runs']); // 10 + 1
-    }
-
-    public function testBuildDecryptorOptionsMEModifiers(): void
-    {
-        $this->setupSabreInventionChain(0.30, 10);
-
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
-            self::DATACORE_1_TYPE_ID => 0.0,
-            self::DATACORE_2_TYPE_ID => 0.0,
-        ]);
-        $this->jitaMarketService->method('getPrice')->willReturn(0.0);
-        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0));
-        $this->activityProductRepository->method('findBy')->willReturn([]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
-
-        $options = $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510);
-
-        // Build a lookup by decryptorTypeId
-        $optionMap = [];
-        foreach ($options as $opt) {
-            $optionMap[$opt['decryptorTypeId'] ?? 'none'] = $opt;
-        }
-
-        // Attainment: meModifier=-1 => ME=1, teModifier=4 => TE=8, runModifier=4 => runs=14
-        $attainment = $optionMap[self::ATTAINMENT_DECRYPTOR_ID];
-        $this->assertSame(1, $attainment['me']);
-        $this->assertSame(8, $attainment['te']);
-        $this->assertSame(14, $attainment['runs']);
-
-        // Augmentation: meModifier=-2 => ME=0, teModifier=2 => TE=6, runModifier=9 => runs=19
-        $augmentation = $optionMap[self::AUGMENTATION_DECRYPTOR_ID];
-        $this->assertSame(0, $augmentation['me']);
-        $this->assertSame(6, $augmentation['te']);
-        $this->assertSame(19, $augmentation['runs']);
-    }
-
-    // ===========================================
     // Decryptor modifiers per typeId (issue #70)
     // Reference: SDE dgmTypeAttributes 1112 (probability), 1113 (ME), 1114 (TE), 1124 (max runs)
     // ===========================================
@@ -662,7 +544,7 @@ class InventionServiceTest extends TestCase
     }
 
     #[DataProvider('decryptorModifiersFromSde')]
-    public function testBuildDecryptorOptionsAppliesSdeModifiersOfEachTypeId(
+    public function testInventionCostAppliesSdeModifiersOfEachDecryptorTypeId(
         int $decryptorTypeId,
         string $decryptorName,
         float $probabilityMultiplier,
@@ -675,16 +557,13 @@ class InventionServiceTest extends TestCase
         $this->setupSabreInventionChain($baseProbability, $baseRuns);
         $this->stubZeroCostsExceptDecryptorPrices([]);
 
-        $option = $this->findOptionByDecryptorTypeId(
-            $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510),
-            $decryptorTypeId,
-        );
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, $decryptorTypeId);
 
-        $this->assertSame($decryptorName, $option['decryptorName']);
-        $this->assertSame(InventionService::BASE_INVENTION_ME + $meModifier, $option['me']);
-        $this->assertSame(InventionService::BASE_INVENTION_TE + $teModifier, $option['te']);
-        $this->assertSame($baseRuns + $runModifier, $option['runs']);
-        $this->assertEqualsWithDelta($baseProbability * $probabilityMultiplier, $option['probability'], 1e-12);
+        $this->assertSame($decryptorName, $result['decryptorName']);
+        $this->assertSame(InventionService::BASE_INVENTION_ME + $meModifier, $result['me']);
+        $this->assertSame(InventionService::BASE_INVENTION_TE + $teModifier, $result['te']);
+        $this->assertSame($baseRuns + $runModifier, $result['runs']);
+        $this->assertEqualsWithDelta($baseProbability * $probabilityMultiplier, $result['effectiveProbability'], 1e-12);
     }
 
     /**
@@ -698,10 +577,9 @@ class InventionServiceTest extends TestCase
     }
 
     #[DataProvider('decryptorTypeIds')]
-    public function testBuildDecryptorOptionsChargesThePriceOfItsOwnTypeId(int $decryptorTypeId): void
+    public function testInventionCostChargesThePriceOfTheDecryptorOwnTypeId(int $decryptorTypeId): void
     {
         $this->setupSabreInventionChain(0.30, 10);
-        // Distinct Jita price per decryptor typeId, so a mix-up between rows shows up
         $decryptorPrices = [
             34201 => 1_100_000.0,
             34202 => 1_200_000.0,
@@ -714,13 +592,10 @@ class InventionServiceTest extends TestCase
         ];
         $this->stubZeroCostsExceptDecryptorPrices($decryptorPrices);
 
-        $option = $this->findOptionByDecryptorTypeId(
-            $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510),
-            $decryptorTypeId,
-        );
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510, $decryptorTypeId);
 
-        $this->assertSame($decryptorPrices[$decryptorTypeId], $option['costBreakdown']['decryptor']);
-        $this->assertSame($decryptorPrices[$decryptorTypeId], $option['costPerAttempt']);
+        $this->assertSame($decryptorPrices[$decryptorTypeId], $result['costBreakdown']['decryptor']);
+        $this->assertSame($decryptorPrices[$decryptorTypeId], $result['costPerAttempt']);
     }
 
     /**
@@ -738,22 +613,6 @@ class InventionServiceTest extends TestCase
         $this->activityProductRepository->method('findBy')->willReturn([]);
         $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(0.0);
         $this->esiCostIndexService->method('getCostIndex')->willReturn(0.0);
-    }
-
-    /**
-     * @param list<array<string, mixed>> $options
-     *
-     * @return array<string, mixed>
-     */
-    private function findOptionByDecryptorTypeId(array $options, int $decryptorTypeId): array
-    {
-        foreach ($options as $option) {
-            if ($option['decryptorTypeId'] === $decryptorTypeId) {
-                return $option;
-            }
-        }
-
-        $this->fail(sprintf('No decryptor option for typeId %d', $decryptorTypeId));
     }
 
     // ===========================================
@@ -843,23 +702,6 @@ class InventionServiceTest extends TestCase
         $this->assertNull($result['unknownReason']);
         $this->assertSame(4, $result['expectedAttempts']); // ceil(1 / 0.30)
         $this->assertSame(1040000.0, $result['totalCost']); // 4 attempts x 260 000
-    }
-
-    public function testBuildDecryptorOptionsWithMissingProbabilityExposesUnknownCostForEveryOption(): void
-    {
-        $this->setupSabreInventionChain(null, 10);
-        $this->stubKnownCostsPerAttempt();
-
-        $options = $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510);
-
-        $this->assertCount(9, $options); // No Decryptor + 8 decryptors
-        foreach ($options as $option) {
-            $this->assertNull($option['probability'], $option['decryptorName']);
-            $this->assertNull($option['expectedAttempts'], $option['decryptorName']);
-            $this->assertNull($option['totalCost'], $option['decryptorName']);
-        }
-        $this->assertSame(260000.0, $options[0]['costPerAttempt']);
-        $this->assertSame(760000.0, $this->findOptionByDecryptorTypeId($options, self::ACCELERANT_DECRYPTOR_ID)['costPerAttempt']);
     }
 
     private const int THRASHER_TYPE_ID = 16242;
@@ -1102,46 +944,6 @@ class InventionServiceTest extends TestCase
             'missingPriceTypeIds' => [],
             'unknownReason' => null,
         ], $result);
-    }
-
-    #[Group('issue-8')]
-    public function testDecryptorOptionWithoutPriceHasAnUnknownCostWhileTheOtherOptionsStayPriced(): void
-    {
-        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE);
-        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES + [
-            34201 => 50000.0,
-            34202 => 61000.0,
-            34203 => 72000.0,
-            34205 => 83000.0,
-            34206 => 94000.0,
-            34207 => 105000.0,
-            34208 => 116000.0,
-        ]);
-
-        $options = $this->service->buildDecryptorOptions(self::SABRE_TYPE_ID, 30002510);
-
-        $this->assertInventionCostOutcome([
-            'decryptorTypeId' => self::PARITY_DECRYPTOR_ID,
-            'costPerAttempt' => null,
-            'totalCost' => null,
-            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => null, 'copyCost' => 1000.0, 'inventionInstall' => 500.0],
-            'missingPriceTypeIds' => [self::PARITY_DECRYPTOR_ID],
-            'unknownReason' => self::MISSING_MARKET_PRICE,
-        ], $this->findOptionByDecryptorTypeId($options, self::PARITY_DECRYPTOR_ID));
-        $this->assertInventionCostOutcome([
-            'decryptorTypeId' => null,
-            'costPerAttempt' => 2300.0,
-            'totalCost' => 6900.0,
-            'missingPriceTypeIds' => [],
-            'unknownReason' => null,
-        ], $options[0]);
-        $this->assertInventionCostOutcome([
-            'decryptorTypeId' => self::ACCELERANT_DECRYPTOR_ID,
-            'costPerAttempt' => 52300.0,
-            'totalCost' => 156900.0,
-            'missingPriceTypeIds' => [],
-            'unknownReason' => null,
-        ], $this->findOptionByDecryptorTypeId($options, self::ACCELERANT_DECRYPTOR_ID));
     }
 
     #[Group('issue-8')]

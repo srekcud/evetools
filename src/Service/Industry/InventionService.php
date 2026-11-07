@@ -347,50 +347,6 @@ class InventionService
     }
 
     /**
-     * Build all decryptor options (including "no decryptor") for a T2 item.
-     *
-     * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: ?float, costPerAttempt: ?float, expectedAttempts: ?int, totalCost: ?float, costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: ?float}, missingPriceTypeIds: list<int>, missingAdjustedPriceTypeIds: list<int>, unknownReason: ?string}>
-     */
-    public function buildDecryptorOptions(
-        int $t2TypeId,
-        int $solarSystemId,
-        int $desiredSuccesses = 1,
-        ?float $facilityTaxPercent = null,
-    ): array {
-        $options = [];
-
-        foreach ([null, ...array_keys(self::DECRYPTORS)] as $decryptorTypeId) {
-            $result = $this->calculateInventionCost(
-                $t2TypeId,
-                $solarSystemId,
-                $decryptorTypeId,
-                $desiredSuccesses,
-                $facilityTaxPercent,
-            );
-
-            if ($result !== null) {
-                $options[] = [
-                    'decryptorTypeId' => $decryptorTypeId,
-                    'decryptorName' => $decryptorTypeId === null ? self::NO_DECRYPTOR_NAME : self::DECRYPTORS[$decryptorTypeId]['name'],
-                    'me' => $result['me'],
-                    'te' => $result['te'],
-                    'runs' => $result['runs'],
-                    'probability' => $result['effectiveProbability'],
-                    'costPerAttempt' => $result['costPerAttempt'],
-                    'expectedAttempts' => $result['expectedAttempts'],
-                    'totalCost' => $result['totalCost'],
-                    'costBreakdown' => $result['costBreakdown'],
-                    'missingPriceTypeIds' => $result['missingPriceTypeIds'],
-                    'missingAdjustedPriceTypeIds' => $result['missingAdjustedPriceTypeIds'],
-                    'unknownReason' => $result['unknownReason'],
-                ];
-            }
-        }
-
-        return $options;
-    }
-
-    /**
      * Calculate the Estimated Item Value (EIV) for a blueprint.
      * EIV = sum of (adjusted_price x quantity) for each manufacturing output.
      */
