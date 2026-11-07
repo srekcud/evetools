@@ -25,6 +25,7 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
+use App\Entity\IndustryProjectTemplate;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\IndustryUserSettings;
 use App\Entity\MarketFavorite;
@@ -148,6 +149,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             'escalations.user_id' => 1,
             'eve_tokens.character_id' => 2,
             'industry_project_sales.seller_character_id' => 1,
+            'industry_project_templates.owner_id' => 1,
             'industry_projects.owner_id' => 2,
             'industry_structure_configs.user_id' => 1,
             'industry_user_settings.user_id' => 1,
@@ -1191,6 +1193,11 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setLocationId(60_003_760)
             ->setClientId(2_112_100_000 + $seed)
             ->setDate($start));
+        $this->em->persist((new IndustryProjectTemplate())
+            ->setOwner($user)
+            ->setName(sprintf('Template %d', $seed))
+            ->setItems([['typeId' => 2_185 + $seed, 'typeName' => sprintf('Hull %d', $seed), 'meLevel' => 5 + $seed, 'teLevel' => 10 * $seed, 'runs' => 20 * $seed]])
+            ->setSharedWithCorporation($seed === 1));
         $this->em->persist((new PlanetaryColony())
             ->setCharacter($character)
             ->setPlanetId(40_009_000 + $seed)

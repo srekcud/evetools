@@ -2554,7 +2554,8 @@
         "privateLabel": "Private project",
         "privateHint": "Absent from corporation discovery, no membership by code.",
         "outsideFavoriteLabel": "Accept structures outside favorite systems",
-        "minimumSavingLabel": "Minimum saving"
+        "minimumSavingLabel": "Minimum saving",
+        "fromTemplate": "From a template"
       },
       "contribute": {
         "title": "Add Contribution",
@@ -2618,6 +2619,28 @@
       "planning": "Planning",
       "journal": "Journal",
       "comingSoon": "Coming soon"
+    },
+    "templates": {
+      "templateColumn": "Template",
+      "itemsColumn": "Items",
+      "sharedColumn": "Shared",
+      "byOwner": "by {owner}",
+      "scopePersonal": "Personal",
+      "scopeCorporation": "Corp",
+      "use": "Use",
+      "shareWithCorporation": "Share with my corporation",
+      "stopSharing": "Stop sharing with my corporation",
+      "deleteTitle": "Delete this template?",
+      "deleteMessage": "{name} will be deleted. Projects already created from it are not affected.",
+      "empty": "No template: save a project as a template",
+      "loadError": "Templates could not be loaded",
+      "saveTitle": "Save as template",
+      "saveSubtitle": "Keep the items, the blacklist and the options of this project for the next ones",
+      "nameLabel": "Template name",
+      "namePlaceholder": "e.g. Hammerhead line",
+      "shareLabel": "Share with my corporation",
+      "shareHint": "Members of your corporation can start a project from it.",
+      "saveButton": "Save template"
     },
     "cockpit": {
       "railLabel": "Project phases",
@@ -2708,6 +2731,7 @@
       "shareLink": "Share Link",
       "edit": "Edit",
       "delete": "Delete",
+      "saveAsTemplate": "Save as template",
       "editProject": "Edit Project",
       "editError": "Failed to update project",
       "editFields": {

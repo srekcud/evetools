@@ -29,6 +29,26 @@ export type GroupProjectItem = {
   runs: number
 }
 
+export type ProjectTemplate = {
+  id: string
+  name: string
+  items: GroupProjectItem[]
+  blacklistGroupIds: number[]
+  blacklistTypeIds: number[]
+  acceptsOutsideFavoriteSystem: boolean
+  minimumOutsideSaving: number
+  sharedWithCorporation: boolean
+  ownerName: string | null
+  isOwn: boolean
+  createdAt: string
+}
+
+export type SaveProjectTemplateInput = {
+  projectId: string
+  name: string
+  sharedWithCorporation: boolean
+}
+
 export type GroupProject = {
   id: string
   name: string | null
