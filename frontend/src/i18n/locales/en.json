@@ -2257,6 +2257,21 @@
       },
       "hint": "Total = materials (structure and rigs) + installation (cost index, role bonus, tax) + transport (m³ of materials and products × jumps × the rate). Gap = total minus the retained structure."
     },
+    "structureHealth": {
+      "title": "Structure health",
+      "loading": "Reading the structures...",
+      "loadError": "The structure health could not be read",
+      "empty": "No structure to check: the plan retains no structure.",
+      "fuel": "fuel {days} d",
+      "offlineServices": "offline: {services}",
+      "unknownReason": "fuel and services unknown: Station_Manager role missing or structure unreadable",
+      "state": {
+        "ok": "OK",
+        "lowFuel": "Low fuel",
+        "offlineService": "Service offline",
+        "unknown": "Unknown"
+      }
+    },
     "kpis": {
       "activeProjects": "Active Projects",
       "activeDesc": "currently running",

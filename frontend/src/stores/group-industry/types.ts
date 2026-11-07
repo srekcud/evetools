@@ -690,3 +690,20 @@ export interface ProjectCourier {
   lines: CourierLine[]
   candidates: CourierCandidate[]
 }
+
+export type StructureHealthState = 'ok' | 'low-fuel' | 'offline-service' | 'unknown'
+
+export interface StructureHealthRow {
+  structureId: string
+  name: string
+  kind: string
+  state: StructureHealthState
+  fuelDays: number | null
+  offlineServices: string[]
+}
+
+export interface ProjectStructureHealth {
+  id: string
+  lowFuelThresholdDays: number
+  rows: StructureHealthRow[]
+}
