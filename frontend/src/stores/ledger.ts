@@ -232,8 +232,23 @@ export const useLedgerStore = defineStore('ledger', () => {
     }
   }
 
+  let latestIndustryRequest = 0
+
   async function fetchIndustry(days?: number) {
-    void days
+    const request = ++latestIndustryRequest
+    error.value = null
+
+    try {
+      const d = days ?? selectedDays.value
+      const report = await apiRequest<LedgerIndustry>(`/ledger/industry?days=${d}`)
+      if (request === latestIndustryRequest) {
+        industry.value = report
+      }
+    } catch (e) {
+      if (request === latestIndustryRequest) {
+        error.value = e instanceof Error ? e.message : 'Failed to fetch industry revenue'
+      }
+    }
   }
 
   async function fetchDailyStats(days?: number) {

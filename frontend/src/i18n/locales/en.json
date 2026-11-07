@@ -1327,6 +1327,7 @@
     "tabs": {
       "dashboard": "Overview",
       "mining": "Mining",
+      "industry": "Industry",
       "pve": "PVE",
       "settings": "Settings",
       "escalations": "Escalations"
@@ -1590,6 +1591,28 @@
       "missionRewards": "Mission rewards",
       "marketSales": "Market sales",
       "corpProject": "Corp projects"
+    },
+    "industry": {
+      "monthlyProfit": "Real profit by month",
+      "completedProjects": "completed projects",
+      "byProduct": "By product",
+      "columns": {
+        "month": "Month",
+        "projects": "Projects",
+        "profit": "Profit",
+        "margin": "Margin",
+        "slotHours": "Slot hours",
+        "iskPerHour": "ISK / h",
+        "capital": "Capital engaged",
+        "product": "Product"
+      },
+      "multiProduct": "Multi-product projects",
+      "projectCount": "{count} project | {count} projects",
+      "unknownProjects": "of which {count} with unknown profit, not counted | of which {count} with unknown profit, not counted",
+      "empty": "No project completed over the period",
+      "hint": "Real profit of the projects completed over the period (your share for a group project). A project with an unknown profit is counted apart, never as 0.",
+      "totalProfit": "Profit over the period",
+      "hoursUnit": "h"
     },
     "kpi": {
       "totalIncome": "Total income",

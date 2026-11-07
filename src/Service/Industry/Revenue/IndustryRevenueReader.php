@@ -16,6 +16,6 @@ class IndustryRevenueReader
 
     public function reportFor(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): IndustryRevenueReport
     {
-        return new IndustryRevenueReport(new IndustryRevenueTotals(0.0, 0, 0, 0.0, null, null), [], []);
+        return $this->aggregator->aggregate($this->loader->loadFor($user, $from, $to));
     }
 }
