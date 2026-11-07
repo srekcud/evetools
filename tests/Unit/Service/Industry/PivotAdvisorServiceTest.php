@@ -743,7 +743,7 @@ class PivotAdvisorServiceTest extends TestCase
                 'groupName' => '',
                 'marginPercent' => null,
                 'sellPrice' => null,
-                'dailyVolume' => 0.0,
+                'dailyVolume' => null,
                 'keyComponents' => [],
             ],
             'matrix' => [],
