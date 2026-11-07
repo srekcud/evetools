@@ -192,8 +192,23 @@ final class DerivedContributionServiceCourierTest extends TestCase
     public static function stateRemovingTheContribution(): iterable
     {
         yield 'failed' => [CourierContractState::Failed];
-        yield 'unknown' => [CourierContractState::Unknown];
         yield 'unlinked' => [null];
+    }
+
+    public function testUnreadableContractKeepsTheLastCountedRewardUntouched(): void
+    {
+        $this->service->syncCourier($this->project, $this->linkedContract(CourierContractState::Delivered, self::COURIER_REWARD));
+        $contribution = $this->singleCourierContribution();
+        $this->publishedUpdates = [];
+        $this->flushCount = 0;
+
+        $this->service->syncCourier($this->project, $this->linkedContract(CourierContractState::Unknown, null));
+
+        self::assertSame([$contribution], $this->courierContributions());
+        self::assertSame(self::COURIER_REWARD, $contribution->getEstimatedValue());
+        self::assertSame([], $this->removedContributions);
+        self::assertSame(0, $this->flushCount);
+        self::assertSame([], $this->publishedUpdates);
     }
 
     public function testCompletedProjectKeepsItsCourierContributionWhateverTheContractBecomes(): void
