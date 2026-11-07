@@ -9,6 +9,7 @@ use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
 use App\Message\SyncAdjustedPrices;
+use App\Message\SyncBlueprints;
 use App\Message\SyncCostIndices;
 use App\Message\SyncPublicContracts;
 use App\Message\TriggerAnsiblexSync;
@@ -79,6 +80,9 @@ class SyncScheduler implements ScheduleProviderInterface
             // Moon tax ledger and wallet journal sync every hour
             ->add(
                 RecurringMessage::every('1 hour', new TriggerMoonTaxSync())
+            )
+            ->add(
+                RecurringMessage::every('1 hour', new SyncBlueprints())
             )
             // Planetary colonies sync every 30 minutes
             ->add(

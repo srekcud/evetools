@@ -574,6 +574,7 @@ class MercurePublisherServiceTest extends TestCase
             '/user/user-uuid-123/sync/admin-sync',
             '/user/user-uuid-123/sync/mining-operation-snapshot',
             '/user/user-uuid-123/sync/moon-tax',
+            '/user/user-uuid-123/sync/blueprints',
             '/user/user-uuid-123/alerts/planetary-expiry',
             '/user/user-uuid-123/alerts/market-price',
             '/user/user-uuid-123/notifications',
@@ -587,7 +588,7 @@ class MercurePublisherServiceTest extends TestCase
     {
         $topics = MercurePublisherService::getTopicsForUser('any-user');
 
-        $this->assertCount(19, $topics);
+        $this->assertCount(20, $topics);
     }
 
     #[Group('issue-262')]

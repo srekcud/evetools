@@ -38,6 +38,8 @@ framework:
             App\Message\SyncCorporationMiningExtractions: async
             App\Message\TriggerMoonTaxSync: async
             App\Message\SyncMoonTax: async
+            App\Message\SyncBlueprints: async
+            App\Message\SyncUserBlueprints: async
             App\Message\SyncAdjustedPrices: async
             App\Message\SyncCostIndices: async
             App\Message\CheckAlertPrices: async

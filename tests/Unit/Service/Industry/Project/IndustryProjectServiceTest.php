@@ -31,6 +31,7 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\InventionService;
@@ -875,6 +876,7 @@ final class IndustryProjectServiceTest extends TestCase
             $this->activityRepository(),
             $this->createStub(IndustryProjectContributionRepository::class),
             $this->settingsRepository(),
+            $this->createStub(OriginalBlueprintFinder::class),
         );
     }
 

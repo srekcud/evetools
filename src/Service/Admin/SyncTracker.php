@@ -31,6 +31,7 @@ class SyncTracker
         'public-contracts' => 1800, // 30 min
         'corporation-mining-extractions' => 1800,
         'moon-tax' => 3600,
+        'blueprints' => 3600,
     ];
 
     /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */
@@ -58,6 +59,7 @@ class SyncTracker
         'public-contracts' => 'Public Contracts',
         'corporation-mining-extractions' => 'Corporation Moon Chunks',
         'moon-tax' => 'Moon Tax',
+        'blueprints' => 'Blueprints',
     ];
 
     public function __construct(
