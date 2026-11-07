@@ -636,6 +636,7 @@ class BatchProfitScanRulesTest extends TestCase
         $this->givenProduct(15404, 5404, self::MANUFACTURING, 1, []);
         $this->givenType(5404, '38', 'Shield Extender', '7', '5.0');
         $this->jitaPrices = [5404 => 310.0];
+        $this->jitaDailyVolumes = [5404 => 0.0];
 
         $row = $this->scan(exportCostPerM3: 2.0)[0];
 
@@ -655,6 +656,8 @@ class BatchProfitScanRulesTest extends TestCase
         $this->givenType(5406, '38', 'Shield Extender', '7', '3.0');
         $this->jitaPrices[5405] = 280.0;
         $this->jitaPrices[5406] = 260.0;
+        $this->jitaDailyVolumes[5405] = 0.0;
+        $this->jitaDailyVolumes[5406] = 0.0;
         $this->materialVolumeRows[self::TRITANIUM_TYPE_ID] = null;
 
         $result = $this->scan(exportCostPerM3: 2.0);
@@ -917,6 +920,7 @@ class BatchProfitScanRulesTest extends TestCase
         $this->jitaPrices[self::TRITANIUM_TYPE_ID] = 5.0;
         $this->jitaPrices[self::PYERITE_TYPE_ID] = 11.0;
         $this->jitaPrices[$typeId] = 310.0;
+        $this->jitaDailyVolumes[$typeId] = 0.0;
     }
 
     private function givenProduct(int $blueprintTypeId, int $productTypeId, int $activityId, int $outputPerRun, array $baseQuantities): void

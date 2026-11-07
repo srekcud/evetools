@@ -315,11 +315,25 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
     // Daily volumes
     // ===========================================
 
-    public function testCachedDailyVolumeOfAnUnknownTypeIsZero(): void
+    #[Group('issue-420')]
+    public function testCachedDailyVolumeOfAnUncachedTypeIsAbsentInsteadOfZero(): void
     {
         $service = $this->createService([]);
 
-        $this->assertSame([self::TRITANIUM => 0.0], $service->getCachedDailyVolumes([self::TRITANIUM]));
+        $this->assertSame([], $service->getCachedDailyVolumes([self::TRITANIUM]));
+    }
+
+    #[Group('issue-420')]
+    public function testCachedDailyVolumesKeepAKnownZeroNextToAnAbsentType(): void
+    {
+        $this->storeInMarketCache('jita_volume_' . self::TRITANIUM, 0.0);
+        $this->storeInMarketCache('jita_volume_' . self::PYERITE, 42.5);
+        $service = $this->createService([]);
+
+        $this->assertSame(
+            [self::TRITANIUM => 0.0, self::PYERITE => 42.5],
+            $service->getCachedDailyVolumes([self::TRITANIUM, self::PYERITE, self::MEXALLON]),
+        );
     }
 
     public function testCachedAverageDailyVolumesAreServedPerTypeWithoutEsiRequest(): void
@@ -351,7 +365,7 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
         $this->assertCount(1, $this->requestedUrls);
 
         $this->clock->sleep(2);
-        $this->assertSame([self::TRITANIUM => 0.0], $service->getCachedDailyVolumes([self::TRITANIUM]));
+        $this->assertSame([], $service->getCachedDailyVolumes([self::TRITANIUM]));
         $this->assertSame([self::TRITANIUM => 90.0], $service->getAverageDailyVolumes([self::TRITANIUM]));
         $this->assertCount(2, $this->requestedUrls);
     }

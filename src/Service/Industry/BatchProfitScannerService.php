@@ -49,6 +49,7 @@ class BatchProfitScannerService
     public const UNKNOWN_REASON_MISSING_MATERIAL_PRICE = 'missing_material_price';
     public const UNKNOWN_REASON_MISSING_SALE_PRICE = 'missing_sale_price';
     public const UNKNOWN_REASON_MISSING_VOLUME = 'missing_volume';
+    public const UNKNOWN_REASON_MISSING_DAILY_VOLUME = 'missing_daily_volume';
 
     private const CAPITAL_GROUP_IDS = [
         30,   // Titan
@@ -144,7 +145,7 @@ class BatchProfitScannerService
      * profitPerUnit and iskPerDay are null, unknownReason and missingPriceTypeIds explain why.
      * Products with a known cost are ranked first, by iskPerDay descending.
      *
-     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float|null, exportCost: float|null, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
+     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, iskPerDay: float|null, materialCost: float|null, importCost: float|null, exportCost: float|null, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
      */
     public function scan(
         ?string $category,
@@ -368,7 +369,7 @@ class BatchProfitScannerService
                 continue;
             }
 
-            $dailyVolume = $dailyVolumes[$typeId] ?? 0.0;
+            $dailyVolume = $dailyVolumes[$typeId] ?? null;
 
             // A cost summing an unknown material price is unknown: so are the margins derived from it
             $netProfitPerUnit = null;
@@ -380,14 +381,14 @@ class BatchProfitScannerService
                 $netSellPrice = $sellPrice - $fees;
                 $netProfitPerUnit = ($netSellPrice * $outputPerRun - $totalCost) / $outputPerRun;
                 $marginPercent = ($netProfitPerUnit * $outputPerRun / $totalCost) * 100;
-                $iskPerDay = $netProfitPerUnit * $dailyVolume;
+                $iskPerDay = $dailyVolume !== null ? $netProfitPerUnit * $dailyVolume : null;
             }
 
             // Apply filters — an unknown margin never satisfies a minimum margin
             if ($minMarginPercent !== null && ($marginPercent === null || $marginPercent < $minMarginPercent)) {
                 continue;
             }
-            if ($minDailyVolume !== null && $dailyVolume < $minDailyVolume) {
+            if ($minDailyVolume !== null && ($dailyVolume === null || $dailyVolume < $minDailyVolume)) {
                 continue;
             }
 
@@ -418,6 +419,7 @@ class BatchProfitScannerService
                     $isMaterialCostUnknown => self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
                     $jobInstallCost === null => $jobInstallEstimate['unknownReason'],
                     $isTransportCostUnknown => self::UNKNOWN_REASON_MISSING_VOLUME,
+                    $dailyVolume === null => self::UNKNOWN_REASON_MISSING_DAILY_VOLUME,
                     default => null,
                 },
                 'missingPriceTypeIds' => array_keys($missingPriceTypeIds),

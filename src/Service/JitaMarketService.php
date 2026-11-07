@@ -434,7 +434,7 @@ class JitaMarketService
 
     /**
      * Get cached daily volumes only (no ESI fetch for uncached types).
-     * Returns 0.0 for types without cached volume data.
+     * Types without cached volume data are absent from the result.
      * Uses Jita (The Forge) cache keys.
      *
      * @param int[] $typeIds
@@ -445,7 +445,9 @@ class JitaMarketService
         $result = [];
         foreach ($typeIds as $typeId) {
             $cacheItem = $this->cache->getItem(self::VOLUME_CACHE_PREFIX . $typeId);
-            $result[$typeId] = $cacheItem->isHit() ? (float) $cacheItem->get() : 0.0;
+            if ($cacheItem->isHit()) {
+                $result[$typeId] = (float) $cacheItem->get();
+            }
         }
 
         return $result;

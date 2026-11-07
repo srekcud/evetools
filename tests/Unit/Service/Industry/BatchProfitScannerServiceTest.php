@@ -892,6 +892,79 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->assertSame(85.19, $this->rowOf(self::RIFTER_TYPE_ID, $result)['marginPercent']);
     }
 
+    private const string UNKNOWN_REASON_MISSING_DAILY_VOLUME = 'missing_daily_volume';
+
+    #[Group('issue-420')]
+    public function testProductWithoutCachedDailyVolumeHasUnknownVolumeAndIskPerDayNextToItsKnownMargins(): void
+    {
+        $this->givenRifterWithKnownVolumeAndSlasherWithoutCachedVolume();
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+        $slasher = $this->rowOf(self::SLASHER_TYPE_ID, $result);
+
+        $this->assertNull($slasher['dailyVolume']);
+        $this->assertNull($slasher['iskPerDay']);
+        $this->assertSame(self::UNKNOWN_REASON_MISSING_DAILY_VOLUME, $slasher['unknownReason']);
+        $this->assertSame(1460.0, $slasher['profitPerUnit']);
+        $this->assertSame(270.37, $slasher['marginPercent']);
+    }
+
+    #[Group('issue-420')]
+    public function testMinDailyVolumeFilterExcludesProductWithUnknownDailyVolume(): void
+    {
+        $this->givenRifterWithKnownVolumeAndSlasherWithoutCachedVolume();
+
+        $result = $this->service->scan('all', null, 5.0, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertSame([self::RIFTER_TYPE_ID], array_column($result, 'typeId'));
+    }
+
+    #[Group('issue-420')]
+    public function testProductWithoutCachedDailyVolumeStaysListedWhenNoMinDailyVolumeIsAsked(): void
+    {
+        $this->givenRifterWithKnownVolumeAndSlasherWithoutCachedVolume();
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertEqualsCanonicalizing([self::RIFTER_TYPE_ID, self::SLASHER_TYPE_ID], array_column($result, 'typeId'));
+    }
+
+    #[Group('issue-420')]
+    public function testProductWithAKnownZeroDailyVolumeKeepsItAsZeroWithoutUnknownReason(): void
+    {
+        $this->givenFrigates([
+            self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.0,
+            self::PYERITE_TYPE_ID => 10.0,
+            self::RIFTER_TYPE_ID => 1000.0,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([self::RIFTER_TYPE_ID => 0.0]);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+        $rifter = $this->rowOf(self::RIFTER_TYPE_ID, $result);
+
+        $this->assertSame(0.0, $rifter['dailyVolume']);
+        $this->assertSame(0.0, $rifter['iskPerDay']);
+        $this->assertNull($rifter['unknownReason']);
+    }
+
+    private function givenRifterWithKnownVolumeAndSlasherWithoutCachedVolume(): void
+    {
+        $this->givenFrigates([
+            self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
+            self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
+        ]);
+        $this->jitaMarketService->method('getPrices')->willReturn([
+            self::TRITANIUM_TYPE_ID => 5.0,
+            self::PYERITE_TYPE_ID => 10.0,
+            self::RIFTER_TYPE_ID => 1000.0,
+            self::SLASHER_TYPE_ID => 2000.0,
+        ]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([self::RIFTER_TYPE_ID => 10.0]);
+    }
+
     // ---------------------------------------------------------------------
     // Issue #22: a product outside the Jita sync has no sale price; it stays in the
     // scan as unknown instead of disappearing from the ranking.
