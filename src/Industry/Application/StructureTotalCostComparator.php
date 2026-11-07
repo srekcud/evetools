@@ -40,14 +40,45 @@ final readonly class StructureTotalCostComparator
         int $favoriteSolarSystemId,
         bool $alphaClone,
     ): Cost {
+        return $this->breakdownOf($recipe, $referenceRuns, $productCategory, $structure, $favoriteSolarSystemId, $alphaClone)->total();
+    }
+
+    public function breakdownOf(
+        Recipe $recipe,
+        Runs $referenceRuns,
+        ?string $productCategory,
+        ProductionStructure $structure,
+        ?int $favoriteSolarSystemId,
+        bool $alphaClone,
+    ): StructureCostBreakdown {
         $structureSolarSystemId = $structure->solarSystemId;
+        $materials = $this->materialCost($recipe, $referenceRuns, $productCategory, $structure);
         if (null === $structureSolarSystemId) {
-            return Cost::unknown(MissingData::jumpRoute());
+            return new StructureCostBreakdown($materials, Cost::unknown(MissingData::costIndex()), Cost::unknown(MissingData::jumpRoute()), null, null);
         }
 
-        return $this->materialCost($recipe, $referenceRuns, $productCategory, $structure)
-            ->plus($this->installCost($recipe, $referenceRuns, $structure, $structureSolarSystemId, $alphaClone))
-            ->plus($this->transportCost($recipe, $referenceRuns, $favoriteSolarSystemId, $structureSolarSystemId));
+        $installation = $this->installCost($recipe, $referenceRuns, $structure, $structureSolarSystemId, $alphaClone);
+        if (null === $favoriteSolarSystemId) {
+            return new StructureCostBreakdown($materials, $installation, Cost::unknown(MissingData::jumpRoute()), null, null);
+        }
+
+        $jumps = $this->jumpDistances->jumpsBetween($favoriteSolarSystemId, $structureSolarSystemId);
+        if (null === $jumps) {
+            return new StructureCostBreakdown($materials, $installation, Cost::unknown(MissingData::jumpRoute()), null, null);
+        }
+
+        $cubicMeters = $this->transportedCubicMeters($recipe, $referenceRuns);
+        if ($cubicMeters instanceof Cost) {
+            return new StructureCostBreakdown($materials, $installation, $cubicMeters, null, $jumps);
+        }
+
+        return new StructureCostBreakdown(
+            $materials,
+            $installation,
+            Cost::known(new Isk($cubicMeters * $jumps * self::TRANSPORT_ISK_PER_CUBIC_METER_JUMP)),
+            $cubicMeters,
+            $jumps,
+        );
     }
 
     private function materialCost(Recipe $recipe, Runs $referenceRuns, ?string $productCategory, ProductionStructure $structure): Cost
@@ -94,13 +125,8 @@ final readonly class StructureTotalCostComparator
         )->total;
     }
 
-    private function transportCost(Recipe $recipe, Runs $referenceRuns, int $favoriteSolarSystemId, int $structureSolarSystemId): Cost
+    private function transportedCubicMeters(Recipe $recipe, Runs $referenceRuns): float|Cost
     {
-        $jumps = $this->jumpDistances->jumpsBetween($favoriteSolarSystemId, $structureSolarSystemId);
-        if (null === $jumps) {
-            return Cost::unknown(MissingData::jumpRoute());
-        }
-
         $transported = [[$recipe->productTypeId, $recipe->outputPerRun->value * $referenceRuns->value]];
         foreach ($recipe->materials as $material) {
             $transported[] = [$material->typeId, $material->baseQuantityPerRun->value * $referenceRuns->value];
@@ -117,10 +143,7 @@ final readonly class StructureTotalCostComparator
             }
             $cubicMeters += $units * $cubicMetersPerUnit;
         }
-        if ([] !== $missingVolumes) {
-            return Cost::unknown(...$missingVolumes);
-        }
 
-        return Cost::known(new Isk($cubicMeters * $jumps * self::TRANSPORT_ISK_PER_CUBIC_METER_JUMP));
+        return [] === $missingVolumes ? $cubicMeters : Cost::unknown(...$missingVolumes);
     }
 }
