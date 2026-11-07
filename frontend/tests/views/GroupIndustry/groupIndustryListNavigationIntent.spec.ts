@@ -22,6 +22,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const CREATE_PROJECT_LABEL = 'Create Project'
 const PROJECTS_ENDPOINT = '/industry/projects'
+const REFERENCES_ENDPOINT = '/industry/project-references'
 
 const SABRE_PREFILL = {
   typeId: 22456,
@@ -70,6 +71,7 @@ beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation((async (url: string, options?: { method?: string }) => {
     if (url === PROJECTS_ENDPOINT && options?.method === 'POST') return { id: 'created-project' }
+    if (url === REFERENCES_ENDPOINT) return { id: 'project-references', rows: [] }
     return []
   }) as never)
 })

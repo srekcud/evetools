@@ -12,6 +12,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const TEMPLATES_ENDPOINT = '/industry/project-templates'
+const REFERENCES_ENDPOINT = '/industry/project-references'
 const PROJECTS_ENDPOINT = '/industry/projects'
 
 const SABRE_PREFILL = { typeId: 22456, typeName: 'Sabre' }
@@ -19,9 +20,11 @@ const SABRE_PREFILL = { typeId: 22456, typeName: 'Sabre' }
 async function mountModal() {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockImplementation(async endpoint => (
-    endpoint === TEMPLATES_ENDPOINT ? [HAMMERHEAD_LINE_FROM_ALICE] : { id: 'group-project-created' }
-  ))
+  vi.mocked(apiRequest).mockImplementation(async endpoint => {
+    if (endpoint === TEMPLATES_ENDPOINT) return [HAMMERHEAD_LINE_FROM_ALICE]
+    if (endpoint === REFERENCES_ENDPOINT) return { id: 'project-references', rows: [] }
+    return { id: 'group-project-created' }
+  })
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   return mount(NewProjectModal, {
     global: { plugins: [i18n], stubs: { teleport: true } },

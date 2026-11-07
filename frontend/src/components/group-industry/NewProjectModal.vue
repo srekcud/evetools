@@ -5,8 +5,10 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { DEFAULT_MINIMUM_OUTSIDE_SAVING, useProjectsStore } from '@/stores/industry/projects'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useGroupProjectReferencesStore } from '@/stores/group-industry/projectReferences'
+import { useFormatters } from '@/composables/useFormatters'
 import type { ProjectPrefill, SearchResult } from '@/stores/industry/types'
-import type { CreateGroupProjectInput, ProjectTemplate } from '@/stores/group-industry/types'
+import type { CreateGroupProjectInput, ProjectReferenceRow, ProjectTemplate } from '@/stores/group-industry/types'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesPanel.vue'
@@ -22,6 +24,8 @@ const minimumOutsideSavingFieldId = useId()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const projectsStore = useProjectsStore()
 const groupProjectStore = useGroupProjectStore()
+const referencesStore = useGroupProjectReferencesStore()
+const { formatIskFull, formatNumber, formatDate } = useFormatters()
 
 const props = defineProps<{
   show: boolean
@@ -194,8 +198,26 @@ watch(() => props.show, (newVal) => {
   if (newVal) {
     resetForm()
     applyPrefill()
+    void referencesStore.fetchReferences()
   }
 })
+
+function referencesOf(productTypeId: number): ProjectReferenceRow[] {
+  const reference = referencesStore.referenceOf(productTypeId)
+  return reference === undefined ? [] : [reference]
+}
+
+function referenceCostLabel(unitCost: number | null): string {
+  return t('groupIndustry.modals.newProject.reference.unitCost', {
+    value: unitCost === null ? t('groupIndustry.modals.newProject.reference.unknown') : formatIskFull(unitCost),
+  })
+}
+
+function referenceMarginLabel(marginPercent: number | null): string {
+  return t('groupIndustry.modals.newProject.reference.margin', {
+    value: marginPercent === null ? t('groupIndustry.modals.newProject.reference.unknown') : `${formatNumber(marginPercent, 1)} %`,
+  })
+}
 
 function applyPrefill() {
   if (!props.prefill) return
@@ -531,11 +553,11 @@ function handleClose() {
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-700/50">
-                <tr
+                <template
                   v-for="(item, index) in items"
                   :key="`${item.typeName}-${index}`"
-                  class="hover:bg-slate-800/30"
                 >
+                <tr class="hover:bg-slate-800/30">
                   <td class="py-2 px-3">
                     <div class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden">
                       <img
@@ -591,9 +613,27 @@ function handleClose() {
                     </button>
                   </td>
                 </tr>
+                <tr
+                  v-for="reference in referencesOf(item.typeId)"
+                  :key="reference.projectId"
+                  data-testid="project-reference"
+                  class="bg-slate-900/40"
+                >
+                  <td></td>
+                  <td colspan="5" class="pb-2 px-3 text-xs text-slate-400">
+                    <span class="uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.modals.newProject.reference.label') }}</span>
+                    &middot; {{ formatDate(reference.completedAt) }}
+                    &middot; {{ referenceCostLabel(reference.unitCost) }}
+                    &middot; {{ referenceMarginLabel(reference.marginPercent) }}
+                  </td>
+                </tr>
+                </template>
               </tbody>
             </table>
           </DataTable>
+          <p v-if="referencesStore.error !== null" data-testid="project-reference-error" class="px-3 py-2 text-xs text-slate-500 border-t border-slate-700">
+            {{ referencesStore.error }}
+          </p>
           <!-- Table Footer -->
           <div class="px-3 py-2 border-t border-slate-700 flex items-center justify-between">
             <span class="text-xs text-slate-400 font-medium">

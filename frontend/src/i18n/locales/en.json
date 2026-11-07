@@ -2602,6 +2602,12 @@
         "columnRuns": "Runs",
         "noItems": "No items added yet",
         "noItemsHint": "Search for items above or use bulk paste",
+        "reference": {
+          "label": "Reference",
+          "unitCost": "Unit cost {value}",
+          "margin": "Margin {value}",
+          "unknown": "unknown"
+        },
         "totalRuns": "total runs",
         "containerLabel": "Corp Container",
         "containerPlaceholder": "e.g. Fleet Doctrine Materials",
