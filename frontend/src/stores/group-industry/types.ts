@@ -441,3 +441,53 @@ export type ProjectChain = {
   id: string
   nodes: ChainNode[]
 }
+
+export type PlanningActivity = 'manufacturing' | 'reaction'
+
+export type PlanningWaitKind = 'waiting_job' | 'waiting_materials' | 'unknown'
+
+export type PlanningUnscheduledReason = 'no_eligible_worker' | 'dependency_unscheduled' | 'duration_unknown'
+
+export type PlanningWait = {
+  kind: PlanningWaitKind
+  names: string[]
+  lateSeconds: number
+}
+
+export type PlanningJob = {
+  lineId: string
+  typeId: number
+  typeName: string
+  activity: PlanningActivity
+  runs: number
+  planned: { start: string; end: string } | null
+  real: { start: string; end: string; status: 'done' | 'active' } | null
+  wait: PlanningWait | null
+}
+
+export type PlanningCharacter = {
+  characterName: string
+  skillsUnknown: boolean
+  slots: { manufacturing: number; reaction: number } | null
+  skills: { industry: number; advancedIndustry: number; reactions: number } | null
+  endsAt: string | null
+  jobs: PlanningJob[]
+}
+
+export type PlanningUnscheduled = {
+  lineId: string
+  typeName: string
+  reason: PlanningUnscheduledReason
+}
+
+export type ProjectPlanning = {
+  id: string
+  anchor: string
+  structureTimeBonusIncluded: boolean
+  plannedEnd: string | null
+  expectedEnd: string | null
+  delaySeconds: number | null
+  delayCause: PlanningWait | null
+  characters: PlanningCharacter[]
+  unscheduled: PlanningUnscheduled[]
+}
