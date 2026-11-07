@@ -45,6 +45,7 @@ const stubbedChildren = {
   SkillsConfig: true,
   FeesConfig: true,
   IndustryDashboard: true,
+  IndustryWorkshop: true,
   IndustrySlotsSection: true,
   ProfitMarginTab: true,
   BatchScanTab: true,
@@ -104,7 +105,7 @@ describe('Industry data freshness (issue 292)', () => {
     expect(shownFreshness(wrapper)).toEqual(TYPICAL_RESPONSE_SHOWN)
   })
 
-  it.each(['dashboard', 'slots', 'stockpile'] as const)('W2: shows no data freshness on the %s tab', async (tab) => {
+  it.each(['workshop', 'dashboard', 'slots', 'stockpile'] as const)('W2: shows no data freshness on the %s tab', async (tab) => {
     outcomes.respondTo(DATA_FRESHNESS_ENDPOINT, respondWith(TYPICAL_DATA_FRESHNESS_RESPONSE))
 
     const wrapper = await mountIndustryWithQuery({ tab })

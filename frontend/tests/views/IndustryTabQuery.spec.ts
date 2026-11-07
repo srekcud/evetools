@@ -6,6 +6,8 @@ import type { LocationQuery } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
 import BatchScanTab from '@/components/industry/BatchScanTab.vue'
+import IndustryDashboard from '@/components/industry/IndustryDashboard.vue'
+import IndustryWorkshop from '@/components/industry/IndustryWorkshop.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 
@@ -28,6 +30,7 @@ const stubbedChildren = {
   SkillsConfig: true,
   FeesConfig: true,
   IndustryDashboard: true,
+  IndustryWorkshop: true,
   IndustrySlotsSection: true,
   ProfitMarginTab: true,
   BatchScanTab: true,
@@ -62,6 +65,21 @@ beforeEach(() => {
 })
 
 describe('Industry tab in the URL', () => {
+  it('opens the workshop by default on its pill, the first of the overview group, and still opens the dashboard when the query names it', async () => {
+    const wrapper = await mountIndustryWithQuery({})
+    const firstPill = wrapper.findAll('button')[0]
+    const defaultView = [wrapper.findComponent(IndustryWorkshop).exists(), wrapper.findComponent(IndustryDashboard).exists()]
+
+    const dashboardWrapper = await mountIndustryWithQuery({ tab: 'dashboard' })
+    const dashboardView = [dashboardWrapper.findComponent(IndustryWorkshop).exists(), dashboardWrapper.findComponent(IndustryDashboard).exists()]
+
+    expect(firstPill.text().trim()).toBe(en.industry.tabs.workshop)
+    expect(firstPill.classes()).toContain('nav-pill-active')
+    expect(defaultView).toEqual([true, false])
+    expect(dashboardView).toEqual([false, true])
+    expect(buttonNamed(dashboardWrapper, en.industry.tabs.dashboard).classes()).toContain('nav-pill-active')
+  })
+
   it('shows the batch scan tab when mounted with the batch tab in the query', async () => {
     const wrapper = await mountIndustryWithQuery({ tab: 'batch' })
 

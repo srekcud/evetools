@@ -50,6 +50,7 @@ const stubbedChildren = {
   SkillsConfig: true,
   FeesConfig: true,
   IndustryDashboard: true,
+  IndustryWorkshop: true,
   IndustrySlotsSection: true,
   BatchScanTab: true,
   BuyVsBuildTab: true,

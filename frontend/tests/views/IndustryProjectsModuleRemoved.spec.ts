@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import type { LocationQuery } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
-import IndustryDashboard from '@/components/industry/IndustryDashboard.vue'
+import IndustryWorkshop from '@/components/industry/IndustryWorkshop.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 
@@ -32,6 +32,7 @@ const stubbedChildren = {
   SkillsConfig: true,
   FeesConfig: true,
   IndustryDashboard: true,
+  IndustryWorkshop: true,
   IndustrySlotsSection: true,
   ProfitMarginTab: true,
   BatchScanTab: true,
@@ -65,10 +66,10 @@ describe('Industry without the solo projects module', () => {
     expect(wrapper.findAll('button').map(button => button.text().trim())).not.toContain(PROJECTS_PILL_LABEL)
   })
 
-  it('falls back to the dashboard for the old projects tab of the query', async () => {
+  it('falls back to the workshop for the old projects tab of the query', async () => {
     const wrapper = await mountIndustryWithQuery({ tab: 'projects', project: 'p1' })
 
-    expect(wrapper.findComponent(IndustryDashboard).exists()).toBe(true)
+    expect(wrapper.findComponent(IndustryWorkshop).exists()).toBe(true)
     expect(routerReplace).not.toHaveBeenCalled()
   })
 

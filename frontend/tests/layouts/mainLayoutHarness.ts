@@ -23,13 +23,22 @@ const navigationRoutes = [
   '/characters',
 ]
 
+interface ApiAnswer {
+  status: number
+  body: unknown
+}
+
 interface MainLayoutMountOptions {
   viewportWidth?: number
   storedCollapsedGroups?: string
+  storedHiddenModules?: string[]
+  industryActionsAnswer?: ApiAnswer
 }
 
+export const INDUSTRY_ACTIONS_URL = '/api/industry/actions'
+
 function stubbedApiAnswer(url: string): unknown {
-  if (url === '/api/industry/projects') {
+  if (url === '/api/industry/projects' || url === INDUSTRY_ACTIONS_URL) {
     return []
   }
   if (url.startsWith('/api/industry/search?q=')) {
@@ -44,16 +53,25 @@ export function setViewportWidth(width: number): void {
 
 export async function mountMainLayoutAt(
   path: string,
-  { viewportWidth = WIDE_VIEWPORT_WIDTH, storedCollapsedGroups }: MainLayoutMountOptions = {},
+  { viewportWidth = WIDE_VIEWPORT_WIDTH, storedCollapsedGroups, storedHiddenModules, industryActionsAnswer }: MainLayoutMountOptions = {},
 ) {
   localStorage.clear()
+  if (storedHiddenModules !== undefined) {
+    localStorage.setItem('evetools_hidden_modules', JSON.stringify(storedHiddenModules))
+  }
   if (storedCollapsedGroups !== undefined) {
     localStorage.setItem('evetools_nav_collapsed', storedCollapsedGroups)
   }
   setViewportWidth(viewportWidth)
   const pinia = createPinia()
   setActivePinia(pinia)
-  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => new Response(JSON.stringify(stubbedApiAnswer(String(input))), { status: 200 })))
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input)
+    if (url === INDUSTRY_ACTIONS_URL && industryActionsAnswer !== undefined) {
+      return new Response(JSON.stringify(industryActionsAnswer.body), { status: industryActionsAnswer.status })
+    }
+    return new Response(JSON.stringify(stubbedApiAnswer(url)), { status: 200 })
+  }))
   const router = createRouter({
     history: createMemoryHistory(),
     routes: navigationRoutes.map(route => ({ path: route, component: { template: '<div />' } })),
