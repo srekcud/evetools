@@ -9,6 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\Project\IndustryProjectTemplateResource;
 use App\ApiResource\Input\Industry\Project\UpdateProjectTemplateInput;
 use App\Entity\User;
+use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectTemplateRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,6 +27,7 @@ class UpdateProjectTemplateProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly IndustryProjectTemplateRepository $templateRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly IndustryProjectRepository $projectRepository,
     ) {
     }
 
@@ -60,6 +62,6 @@ class UpdateProjectTemplateProcessor implements ProcessorInterface
         $template->setUpdatedAt(new \DateTimeImmutable());
         $this->entityManager->flush();
 
-        return IndustryProjectTemplateResource::fromTemplate($template, $user);
+        return IndustryProjectTemplateResource::fromTemplate($template, $user, 0);
     }
 }

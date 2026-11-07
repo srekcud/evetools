@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectTemplate;
 use App\Enum\ProjectStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -43,6 +44,20 @@ class IndustryProjectRepository extends ServiceEntityRepository
         $qb->orderBy('p.createdAt', 'DESC');
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @param list<IndustryProjectTemplate> $templates
+     * @return array<string, int>
+     */
+    public function countByTemplate(array $templates): array
+    {
+        $counts = [];
+        foreach ($templates as $template) {
+            $counts[(string) $template->getId()] = 0;
+        }
+
+        return $counts;
     }
 
     public function findByShortLinkCode(string $code): ?IndustryProject

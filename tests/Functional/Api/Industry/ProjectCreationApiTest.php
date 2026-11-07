@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\Industry;
 
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectTemplate;
 use App\Entity\Sde\InvCategory;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
+use App\Entity\User;
 use App\Tests\Functional\Api\Industry\Project\BuildsIshtarGroupProject;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -149,10 +151,113 @@ final class ProjectCreationApiTest extends WebTestCase
         self::assertSame($projectsBefore, $this->em->getRepository(IndustryProject::class)->count([]));
     }
 
+    #[Group('issue-355')]
+    public function testEachProjectCreatedFromASharedTemplateIsLinkedToItAndCountsInItsUsageForTheOwnerAndTheCorpmate(): void
+    {
+        $alphaHullLine = $this->persistTemplate($this->owner, 'Alpha hull line', true);
+        $this->em->flush();
+
+        $corpmateProjectId = $this->createAlphaProjectFromTemplate($this->ownerCorpmate, $alphaHullLine);
+        $usageAfterTheCorpmate = [$this->usageCountSeenBy($this->owner, $alphaHullLine), $this->usageCountSeenBy($this->ownerCorpmate, $alphaHullLine)];
+        $ownerProjectId = $this->createAlphaProjectFromTemplate($this->owner, $alphaHullLine);
+        $usageAfterTheOwner = [$this->usageCountSeenBy($this->owner, $alphaHullLine), $this->usageCountSeenBy($this->ownerCorpmate, $alphaHullLine)];
+
+        $this->em->clear();
+        self::assertSame([1, 1], $usageAfterTheCorpmate);
+        self::assertSame([2, 2], $usageAfterTheOwner);
+        self::assertSame((string) $alphaHullLine->getId(), (string) $this->em->find(IndustryProject::class, $corpmateProjectId)?->getTemplate()?->getId());
+        self::assertSame((string) $alphaHullLine->getId(), (string) $this->em->find(IndustryProject::class, $ownerProjectId)?->getTemplate()?->getId());
+    }
+
+    #[Group('issue-355')]
+    public function testCreationFromAnUnsharedTemplateOfAnotherPilotIsNotFoundAndCreatesNoProject(): void
+    {
+        $privateLine = $this->persistTemplate($this->owner, 'Private alpha hull line', false);
+        $this->em->flush();
+        $projectsBefore = $this->em->getRepository(IndustryProject::class)->count([]);
+
+        $this->actAs($this->ownerCorpmate);
+        $this->request('POST', '/api/industry/projects', [
+            'name' => 'Borrowed line',
+            'templateId' => (string) $privateLine->getId(),
+            'items' => [['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
+        ]);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame('Template not found', $this->responseJson()['detail']);
+        self::assertSame($projectsBefore, $this->em->getRepository(IndustryProject::class)->count([]));
+    }
+
+    #[Group('issue-355')]
+    public function testDeletingAUsedTemplateKeepsItsTwoProjectsWithoutLink(): void
+    {
+        $alphaHullLine = $this->persistTemplate($this->owner, 'Alpha hull line', true);
+        $this->em->flush();
+        $corpmateProjectId = $this->createAlphaProjectFromTemplate($this->ownerCorpmate, $alphaHullLine);
+        $ownerProjectId = $this->createAlphaProjectFromTemplate($this->owner, $alphaHullLine);
+        $this->em->clear();
+        $linkedTemplateIds = array_map(
+            fn (string $projectId): ?string => $this->em->find(IndustryProject::class, $projectId)?->getTemplate()?->getId()->toRfc4122(),
+            [$corpmateProjectId, $ownerProjectId],
+        );
+        self::assertSame([$alphaHullLine->getId()->toRfc4122(), $alphaHullLine->getId()->toRfc4122()], $linkedTemplateIds);
+
+        $this->actAs($this->owner);
+        $this->request('DELETE', '/api/industry/project-templates/'.$alphaHullLine->getId());
+        self::assertResponseStatusCodeSame(204);
+
+        $this->em->clear();
+        $corpmateProject = $this->em->find(IndustryProject::class, $corpmateProjectId);
+        $ownerProject = $this->em->find(IndustryProject::class, $ownerProjectId);
+        self::assertNotNull($corpmateProject);
+        self::assertNotNull($ownerProject);
+        self::assertNull($corpmateProject->getTemplate());
+        self::assertNull($ownerProject->getTemplate());
+        self::assertSame('Alpha run', $ownerProject->getName());
+    }
+
     public static function invalidProductLists(): iterable
     {
         yield 'no product' => [[]];
         yield 'eleven products' => [array_fill(0, self::MAXIMUM_PRODUCTS + 1, ['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1])];
+    }
+
+    private function persistTemplate(User $owner, string $name, bool $sharedWithCorporation): IndustryProjectTemplate
+    {
+        $template = (new IndustryProjectTemplate())
+            ->setOwner($owner)
+            ->setName($name)
+            ->setItems([['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]])
+            ->setBlacklistGroupIds([])
+            ->setBlacklistTypeIds([])
+            ->setSharedWithCorporation($sharedWithCorporation);
+        $this->em->persist($template);
+
+        return $template;
+    }
+
+    private function createAlphaProjectFromTemplate(User $creator, IndustryProjectTemplate $template): string
+    {
+        $this->actAs($creator);
+        $this->request('POST', '/api/industry/projects', [
+            'name' => 'Alpha run',
+            'templateId' => (string) $template->getId(),
+            'items' => [['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]],
+        ]);
+        self::assertResponseStatusCodeSame(201);
+
+        return $this->responseJson()['id'];
+    }
+
+    private function usageCountSeenBy(User $viewer, IndustryProjectTemplate $template): int
+    {
+        $this->actAs($viewer);
+        $this->request('GET', '/api/industry/project-templates');
+        self::assertResponseStatusCodeSame(200);
+        $seen = array_values(array_filter($this->responseJson(), static fn (array $row): bool => $row['id'] === (string) $template->getId()));
+        self::assertCount(1, $seen);
+
+        return $seen[0]['usageCount'];
     }
 
     private function participantRowsOf(string $projectId): array

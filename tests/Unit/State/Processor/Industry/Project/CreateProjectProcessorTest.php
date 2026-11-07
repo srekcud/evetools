@@ -11,11 +11,13 @@ use App\ApiResource\Input\Industry\Project\CreateProjectInput;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectProduct;
+use App\Entity\IndustryProjectTemplate;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectTemplateRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\Project\CreateProjectData;
@@ -33,6 +35,7 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 #[CoversClass(CreateProjectProcessor::class)]
@@ -47,6 +50,7 @@ class CreateProjectProcessorTest extends TestCase
     private IndustryProjectService&Stub $projectService;
     private IndustryProjectParticipantRepository&Stub $memberRepository;
     private ProjectResourceMapper&Stub $mapper;
+    private IndustryProjectTemplateRepository&Stub $templateRepository;
     private InvTypeRepository&MockObject $invTypeRepository;
     private IndustryActivityProductRepository&MockObject $activityProductRepository;
     private CreateProjectProcessor $processor;
@@ -60,6 +64,7 @@ class CreateProjectProcessorTest extends TestCase
         $this->projectService = $this->createStub(IndustryProjectService::class);
         $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->mapper = $this->createStub(ProjectResourceMapper::class);
+        $this->templateRepository = $this->createStub(IndustryProjectTemplateRepository::class);
         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
         $this->activityProductRepository = $this->createMock(IndustryActivityProductRepository::class);
         $this->owner = $this->createUser();
@@ -76,6 +81,7 @@ class CreateProjectProcessorTest extends TestCase
             $this->invTypeRepository,
             $this->activityProductRepository,
             $salesFeesResolver,
+            $this->templateRepository,
         );
     }
 
@@ -289,6 +295,51 @@ class CreateProjectProcessorTest extends TestCase
         );
 
         $this->processor->process($input, new Post());
+    }
+
+    #[Group('issue-355')]
+    public function testTemplateVisibleToTheUserIsLinkedToTheCreatedProject(): void
+    {
+        $hammerheadLine = (new IndustryProjectTemplate())->setOwner($this->owner)->setName('Hammerhead line');
+        $warriorLine = (new IndustryProjectTemplate())->setOwner($this->owner)->setName('Warrior line');
+        $this->templateRepository->method('findVisibleTo')->willReturn([$hammerheadLine, $warriorLine]);
+        $input = $this->sabreInput();
+        $input->templateId = (string) $warriorLine->getId();
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame($warriorLine, $this->createdProjectData->template);
+    }
+
+    #[Group('issue-355')]
+    public function testTemplateNotVisibleToTheUserIsNotFoundAndNoProjectIsCreated(): void
+    {
+        $aliceWarriorLine = (new IndustryProjectTemplate())->setOwner($this->createUser())->setName('Warrior line');
+        $this->templateRepository->method('findVisibleTo')->willReturn([]);
+        $input = $this->sabreInput();
+        $input->templateId = (string) $aliceWarriorLine->getId();
+
+        try {
+            $this->createProjectFrom($input);
+            self::fail('A template not visible to the user must be refused');
+        } catch (NotFoundHttpException $exception) {
+            self::assertSame('Template not found', $exception->getMessage());
+        }
+
+        self::assertNull($this->createdProjectData);
+    }
+
+    #[Group('issue-355')]
+    public function testProjectCreatedWithoutTemplateIdHasNoTemplate(): void
+    {
+        $hammerheadLine = (new IndustryProjectTemplate())->setOwner($this->owner)->setName('Hammerhead line');
+        $this->templateRepository->method('findVisibleTo')->willReturn([$hammerheadLine]);
+
+        $this->createProjectFrom($this->sabreInput());
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertNull($this->createdProjectData->template);
     }
 
     public function testThrowsUnauthorizedWhenNoUser(): void

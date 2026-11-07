@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Industry\Project\IndustryProjectTemplateResource;
 use App\ApiResource\Input\Industry\Project\UpdateProjectTemplateInput;
 use App\Entity\IndustryProjectTemplate;
+use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectTemplateRepository;
 use App\State\Processor\Industry\Project\UpdateProjectTemplateProcessor;
 use App\Tests\Unit\State\Provider\Industry\Project\BuildsProjectTemplates;
@@ -40,7 +41,9 @@ final class UpdateProjectTemplateProcessorTest extends TestCase
         $security->method('getUser')->willReturn($alice);
         $repository = $this->createStub(IndustryProjectTemplateRepository::class);
         $repository->method('find')->willReturn($this->template);
-        $this->processor = new UpdateProjectTemplateProcessor($security, $repository, $this->entityManager);
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('countByTemplate')->willReturn([(string) $this->template->getId() => 2]);
+        $this->processor = new UpdateProjectTemplateProcessor($security, $repository, $this->entityManager, $projectRepository);
     }
 
     public function testOwnerRenamesTheTemplateAndSharesItWithTheCorporation(): void
@@ -56,6 +59,7 @@ final class UpdateProjectTemplateProcessorTest extends TestCase
         self::assertTrue($this->template->isSharedWithCorporation());
         self::assertSame('Hammerhead line, ME 10', $resource->name);
         self::assertTrue($resource->sharedWithCorporation);
+        self::assertSame(2, $resource->usageCount);
     }
 
     public function testPatchWithoutNameKeepsTheNameAndOnlyChangesTheSharing(): void

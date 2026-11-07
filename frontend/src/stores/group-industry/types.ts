@@ -40,6 +40,7 @@ export type ProjectTemplate = {
   sharedWithCorporation: boolean
   ownerName: string | null
   isOwn: boolean
+  usageCount: number
   createdAt: string
 }
 

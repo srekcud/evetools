@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Industry\Project;
 
 use ApiPlatform\Metadata\GetCollection;
+use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectTemplateRepository;
 use App\State\Provider\Industry\Project\ProjectTemplateCollectionProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -35,7 +36,13 @@ final class ProjectTemplateCollectionProviderTest extends TestCase
         $repository = $this->createStub(IndustryProjectTemplateRepository::class);
         $repository->method('findVisibleTo')->willReturn([$aliceSharedTemplate, $bobOwnTemplate]);
 
-        $resources = (new ProjectTemplateCollectionProvider($security, $repository))->provide(new GetCollection());
+        $projectRepository = $this->createStub(IndustryProjectRepository::class);
+        $projectRepository->method('countByTemplate')->willReturn([
+            (string) $aliceSharedTemplate->getId() => 3,
+            (string) $bobOwnTemplate->getId() => 0,
+        ]);
+
+        $resources = (new ProjectTemplateCollectionProvider($security, $repository, $projectRepository))->provide(new GetCollection());
 
         self::assertCount(2, $resources);
         [$sharedByAlice, $ownByBob] = $resources;
@@ -50,6 +57,8 @@ final class ProjectTemplateCollectionProviderTest extends TestCase
         self::assertTrue($sharedByAlice->acceptsOutsideFavoriteSystem);
         self::assertSame(5_000_000.0, $sharedByAlice->minimumOutsideSaving);
         self::assertSame($aliceSharedTemplate->getCreatedAt()->format(\DateTimeInterface::ATOM), $sharedByAlice->createdAt);
+        self::assertSame(3, $sharedByAlice->usageCount);
+        self::assertSame(0, $ownByBob->usageCount);
         self::assertSame((string) $bobOwnTemplate->getId(), $ownByBob->id);
         self::assertSame('Bob Lenoir', $ownByBob->ownerName);
         self::assertTrue($ownByBob->isOwn);

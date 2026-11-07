@@ -14,6 +14,7 @@ export const HAMMERHEAD_LINE_FROM_ALICE: ProjectTemplate = {
   sharedWithCorporation: true,
   ownerName: 'Alice Ferrand',
   isOwn: false,
+  usageCount: 3,
   createdAt: '2026-11-02T09:30:00+00:00',
 }
 
@@ -28,5 +29,6 @@ export const SABRE_LINE_OF_BOB: ProjectTemplate = {
   sharedWithCorporation: false,
   ownerName: 'Bob Lenoir',
   isOwn: true,
+  usageCount: 0,
   createdAt: '2026-11-04T18:05:00+00:00',
 }

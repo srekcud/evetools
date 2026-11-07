@@ -12,6 +12,7 @@ use App\ApiResource\Input\Industry\Project\ProjectFees;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Repository\IndustryProjectParticipantRepository;
+use App\Repository\IndustryProjectTemplateRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\Project\CreateProjectData;
@@ -39,6 +40,7 @@ class CreateProjectProcessor implements ProcessorInterface
         private readonly InvTypeRepository $invTypeRepository,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly SellerSalesFeesResolver $salesFeesResolver,
+        private readonly IndustryProjectTemplateRepository $templateRepository,
     ) {
     }
 

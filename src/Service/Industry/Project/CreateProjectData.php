@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry\Project;
 
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectTemplate;
 
 /**
  * Data transfer object for creating a Group Industry project.
@@ -30,6 +31,7 @@ final readonly class CreateProjectData
         public bool $private = true,
         public bool $acceptsOutsideFavoriteSystem = false,
         public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING,
+        public ?IndustryProjectTemplate $template = null,
     ) {
     }
 }
