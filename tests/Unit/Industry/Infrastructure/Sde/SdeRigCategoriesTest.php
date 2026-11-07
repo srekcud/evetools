@@ -17,8 +17,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Adapter of the RigCategories port (spec R4, D10): the IndustryRigCategory of a job product is the category of the
- * group of the product in manufacturing, of the group of its reaction formula in reaction (rule of
- * IndustryBonusService::getCategoryForProduct()). null = no rig targets the group: the role bonus only, a game rule,
+ * group of the product in manufacturing, of the group of its reaction formula in reaction. null = no rig targets the group: the role bonus only, a game rule,
  * not a default. The group → category map is read once, on the first lookup.
  *
  * Constructor: (IndustryRigCategoryRepository, IndustryActivityProductRepository, InvTypeRepository).
