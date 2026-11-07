@@ -89,7 +89,7 @@ function stateLabel(state: CourierTransportState): string {
 }
 
 function lineLabel(line: CourierLine): string {
-  return `#${line.typeId}`
+  return line.typeName ?? `#${line.typeId}`
 }
 
 function isLinked(candidate: CourierCandidate): boolean {

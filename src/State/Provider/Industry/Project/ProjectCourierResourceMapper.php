@@ -12,9 +12,14 @@ use App\Service\Industry\Project\Courier\CourierLine;
 use App\Service\Industry\Project\Courier\CourierLinkedContract;
 use App\Service\Industry\Project\Courier\CourierOverview;
 use App\Service\Industry\Project\Courier\CourierQuoteCalculator;
+use App\Service\TypeNameResolver;
 
 final readonly class ProjectCourierResourceMapper
 {
+    public function __construct(private TypeNameResolver $typeNameResolver)
+    {
+    }
+
     public function toResource(IndustryProject $project, CourierOverview $overview): ProjectCourierResource
     {
         $resource = new ProjectCourierResource();
@@ -33,7 +38,8 @@ final readonly class ProjectCourierResourceMapper
         $resource->workshopSolarSystemName = $overview->workshopSolarSystemName;
         $resource->canLink = $overview->canLink;
         $resource->contract = null === $overview->contract ? null : $this->linkedContractRow($overview->contract);
-        $resource->lines = array_map($this->lineRow(...), $overview->lines);
+        $typeNames = $this->typeNameResolver->findNames(array_map(static fn (CourierLine $line): int => $line->typeId, $overview->lines));
+        $resource->lines = array_map(fn (CourierLine $line): array => $this->lineRow($line, $typeNames[$line->typeId] ?? null), $overview->lines);
         $resource->candidates = array_map($this->candidateRow(...), $overview->candidates);
 
         return $resource;
@@ -62,11 +68,12 @@ final readonly class ProjectCourierResourceMapper
     /**
      * @return array<string, mixed>
      */
-    private function lineRow(CourierLine $line): array
+    private function lineRow(CourierLine $line, ?string $typeName): array
     {
         return [
             'bomLineId' => $line->bomLineId,
             'typeId' => $line->typeId,
+            'typeName' => $typeName,
             'purchasedQuantity' => $line->purchasedQuantity,
             'transportState' => $line->transportState->value,
         ];

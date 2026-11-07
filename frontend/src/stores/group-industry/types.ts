@@ -642,6 +642,7 @@ export type CourierTransportState = 'not_shipped' | 'waiting' | 'in_transit' | '
 export interface CourierLine {
   bomLineId: string
   typeId: number
+  typeName?: string | null
   purchasedQuantity: number
   transportState: CourierTransportState
 }
