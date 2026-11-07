@@ -11,6 +11,7 @@ use App\ApiResource\Input\Assets\UpdateCorpVisibilityInput;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\User;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Repository\UserRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,6 +31,7 @@ class UpdateCorpVisibilityProcessor implements ProcessorInterface
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly CharacterService $characterService,
         private readonly CorporationService $corporationService,
+        private readonly UserRepository $userRepository,
     ) {
     }
 

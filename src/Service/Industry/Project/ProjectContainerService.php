@@ -8,6 +8,7 @@ use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
@@ -23,12 +24,14 @@ class ProjectContainerService
     private const string REASON_OWNER_WITHOUT_CORPORATION = 'owner_without_corporation';
     private const string REASON_CORPORATION_ASSETS_NOT_SYNCED = 'corporation_assets_not_synced';
     private const string REASON_NO_VISIBLE_DIVISION = 'no_visible_division';
+    private const string REASON_NO_DIRECTOR = 'no_director';
 
     public function __construct(
         private readonly VisibleCorporationAssetsFinder $visibleAssetsFinder,
         private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
+        private readonly CharacterRepository $characterRepository,
     ) {
     }
 

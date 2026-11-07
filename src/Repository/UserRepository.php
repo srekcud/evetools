@@ -76,4 +76,12 @@ class UserRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return list<User>
+     */
+    public function findPlayersOfCorporation(int $corporationId): array
+    {
+        return [];
+    }
 }

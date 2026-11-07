@@ -27,6 +27,9 @@ class CorpAssetVisibility
     #[ORM\Column(type: 'json')]
     private array $visibleDivisions = [];
 
+    /** @var array<int, list<string>> */
+    private array $restrictedDivisions = [];
+
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $configuredBy = null;
@@ -66,6 +69,30 @@ class CorpAssetVisibility
     {
         $this->visibleDivisions = $visibleDivisions;
         return $this;
+    }
+
+    /** @return array<int, list<string>> */
+    public function getRestrictedDivisions(): array
+    {
+        return $this->restrictedDivisions;
+    }
+
+    /** @param array<int, list<string>> $restrictedDivisions */
+    public function setRestrictedDivisions(array $restrictedDivisions): static
+    {
+        $this->restrictedDivisions = $restrictedDivisions;
+        return $this;
+    }
+
+    public function isVisibleTo(int $division, ?User $viewer): bool
+    {
+        return false;
+    }
+
+    /** @return list<int> */
+    public function divisionsVisibleTo(?User $viewer): array
+    {
+        return [];
     }
 
     public function getConfiguredBy(): ?User

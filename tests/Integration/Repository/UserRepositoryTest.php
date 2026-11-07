@@ -9,8 +9,10 @@ use App\Entity\EveToken;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Tests\Integration\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Uid\Uuid;
 
+#[Group('issue-358')]
 final class UserRepositoryTest extends IntegrationTestCase
 {
     private UserRepository $repository;
@@ -54,6 +56,33 @@ final class UserRepositoryTest extends IntegrationTestCase
         $this->flushAndClear();
 
         self::assertNotContains($userId->toRfc4122(), $this->activeUserIds());
+    }
+
+    public function testFindPlayersOfCorporationReturnsTheUsersWhoseMainCharacterIsInTheCorporationSortedByMainCharacterName(): void
+    {
+        $zeno = $this->createPlayerOfCorporation('Zeno Aldric', 98_358_001);
+        $alice = $this->createPlayerOfCorporation('Alice Voss', 98_358_001);
+        $this->createPlayerOfCorporation('Bob Tamm', 98_358_002);
+        $this->createCharacter(name: 'Pilot Without Main')->setCorporationId(98_358_001);
+        $mainElsewhere = $this->createPlayerOfCorporation('Mira Sol', 98_358_002);
+        $mainElsewhere->addCharacter($this->createCharacter($mainElsewhere, 'Mira Alt')->setCorporationId(98_358_001));
+        $this->flushAndClear();
+
+        $players = $this->repository->findPlayersOfCorporation(98_358_001);
+
+        self::assertSame(
+            [$alice->getId()->toRfc4122(), $zeno->getId()->toRfc4122()],
+            array_map(static fn (User $player): string => $player->getId()->toRfc4122(), $players),
+        );
+        self::assertSame(['Alice Voss', 'Zeno Aldric'], array_map(static fn (User $player): string => $player->getMainCharacter()->getName(), $players));
+    }
+
+    private function createPlayerOfCorporation(string $mainCharacterName, int $corporationId): User
+    {
+        $user = $this->createUser();
+        $user->setMainCharacter($this->createCharacter($user, $mainCharacterName)->setCorporationId($corporationId));
+
+        return $user;
     }
 
     private function activeUserWithId(?Uuid $userId): ?User

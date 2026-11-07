@@ -51,10 +51,13 @@ use App\Enum\PveIncomeType;
 use App\Message\SyncCharacterAssets;
 use App\MessageHandler\SyncCharacterAssetsHandler;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectSaleRepository;
+use App\Repository\UserRepository;
 use App\Service\Account\AccountDeletionService;
+use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\EveSsoTokenRevoker;
@@ -1049,6 +1052,9 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             self::getContainer()->get(CorpAssetVisibilityRepository::class),
             self::getContainer()->get(CachedAssetRepository::class),
             $this->createStub(CorporationService::class),
+            $this->createStub(CharacterService::class),
+            self::getContainer()->get(CharacterRepository::class),
+            self::getContainer()->get(UserRepository::class),
         );
 
         return $provider->provide(new Get());

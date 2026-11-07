@@ -13,11 +13,13 @@ use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Repository\UserRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
 use App\State\Processor\Assets\UpdateCorpVisibilityProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -28,13 +30,19 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(UpdateCorpVisibilityProcessor::class)]
+#[Group('issue-358')]
 class UpdateCorpVisibilityProcessorTest extends TestCase
 {
+    private const string ALICE_ID = '0199a1f0-0000-7000-8000-000000358001';
+    private const string BOB_ID = '0199a1f0-0000-7000-8000-000000358002';
+    private const string OTHER_CORPORATION_PLAYER_ID = '0199a1f0-0000-7000-8000-000000358003';
+
     private Security&Stub $security;
     private EntityManagerInterface&MockObject $em;
     private CorpAssetVisibilityRepository&Stub $visibilityRepository;
     private CharacterService&Stub $characterService;
     private CorporationService&Stub $corporationService;
+    private UserRepository&Stub $userRepository;
     private UpdateCorpVisibilityProcessor $processor;
 
     protected function setUp(): void
@@ -44,6 +52,12 @@ class UpdateCorpVisibilityProcessorTest extends TestCase
         $this->visibilityRepository = $this->createStub(CorpAssetVisibilityRepository::class);
         $this->characterService = $this->createStub(CharacterService::class);
         $this->corporationService = $this->createStub(CorporationService::class);
+        $this->userRepository = $this->createStub(UserRepository::class);
+        $this->userRepository->method('findPlayersOfCorporation')->willReturnCallback(
+            fn (int $corporationId): array => $corporationId === 98000001
+                ? [$this->player(self::ALICE_ID, 'Alice Voss'), $this->player(self::BOB_ID, 'Bob Tamm')]
+                : [],
+        );
 
         $this->processor = new UpdateCorpVisibilityProcessor(
             $this->security,
@@ -51,6 +65,7 @@ class UpdateCorpVisibilityProcessorTest extends TestCase
             $this->visibilityRepository,
             $this->characterService,
             $this->corporationService,
+            $this->userRepository,
         );
     }
 
@@ -284,6 +299,86 @@ class UpdateCorpVisibilityProcessorTest extends TestCase
     }
 
     // ===========================================
+    // Restricted divisions (issue #358)
+    // ===========================================
+
+    public function testRestrictedDivisionIsSavedWithItsPlayersDedupedAndReturnedWithTheirNames(): void
+    {
+        $user = $this->createDirectorUser();
+        $this->security->method('getUser')->willReturn($user);
+        $this->characterService->method('canReadCorporationAssets')->willReturn(true);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Materials', 2 => 'Ships', 3 => 'Ammo']);
+        $existing = new CorpAssetVisibility();
+        $existing->setCorporationId(98000001);
+        $this->visibilityRepository->method('findByCorporationId')->willReturn($existing);
+
+        $input = new UpdateCorpVisibilityInput();
+        $input->visibleDivisions = [2];
+        $input->restrictedDivisions = [3 => [self::BOB_ID, self::ALICE_ID, self::BOB_ID]];
+
+        $result = $this->processor->process($input, new Put());
+
+        $this->assertSame([3 => [self::BOB_ID, self::ALICE_ID]], $existing->getRestrictedDivisions());
+        $this->assertSame([2], $existing->getVisibleDivisions());
+        $this->assertSame(
+            [3 => [['id' => self::BOB_ID, 'name' => 'Bob Tamm'], ['id' => self::ALICE_ID, 'name' => 'Alice Voss']]],
+            $result->restrictedDivisions,
+        );
+    }
+
+    public function testDivisionBothVisibleToAllMembersAndRestrictedToAListIsRejectedAndNothingIsSaved(): void
+    {
+        $user = $this->createDirectorUser();
+        $this->security->method('getUser')->willReturn($user);
+        $this->characterService->method('canReadCorporationAssets')->willReturn(true);
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+
+        $input = new UpdateCorpVisibilityInput();
+        $input->visibleDivisions = [1];
+        $input->restrictedDivisions = [1 => [self::ALICE_ID]];
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $this->createProcessorThatMustNotSave()->process($input, new Put());
+    }
+
+    public function testPlayerOfAnotherCorporationInAListIsRejectedAndNothingIsSaved(): void
+    {
+        $user = $this->createDirectorUser();
+        $this->security->method('getUser')->willReturn($user);
+        $this->characterService->method('canReadCorporationAssets')->willReturn(true);
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+
+        $input = new UpdateCorpVisibilityInput();
+        $input->restrictedDivisions = [3 => [self::ALICE_ID, self::OTHER_CORPORATION_PLAYER_ID]];
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $this->createProcessorThatMustNotSave()->process($input, new Put());
+    }
+
+    public function testDivisionWithAnEmptyListIsSavedMaskedAndLeavesTheRestrictedDivisions(): void
+    {
+        $user = $this->createDirectorUser();
+        $this->security->method('getUser')->willReturn($user);
+        $this->characterService->method('canReadCorporationAssets')->willReturn(true);
+        $this->corporationService->method('getDivisions')->willReturn([1 => 'Materials', 3 => 'Ammo']);
+        $existing = new CorpAssetVisibility();
+        $existing->setCorporationId(98000001);
+        $existing->setRestrictedDivisions([3 => [self::ALICE_ID]]);
+        $this->visibilityRepository->method('findByCorporationId')->willReturn($existing);
+
+        $input = new UpdateCorpVisibilityInput();
+        $input->restrictedDivisions = [3 => [], 1 => [self::BOB_ID]];
+
+        $result = $this->processor->process($input, new Put());
+
+        $this->assertSame([1 => [self::BOB_ID]], $existing->getRestrictedDivisions());
+        $this->assertSame([], $existing->getVisibleDivisions());
+        $this->assertSame([1], array_keys($result->restrictedDivisions));
+    }
+
+    // ===========================================
     // Helpers
     // ===========================================
 
@@ -296,6 +391,18 @@ class UpdateCorpVisibilityProcessorTest extends TestCase
         $this->em->expects($this->never())->method('flush');
 
         return $this->processor;
+    }
+
+    private function player(string $userId, string $name): User&Stub
+    {
+        $character = $this->createStub(Character::class);
+        $character->method('getName')->willReturn($name);
+
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::fromString($userId));
+        $user->method('getMainCharacter')->willReturn($character);
+
+        return $user;
     }
 
     private function createDirectorUser(): User&Stub

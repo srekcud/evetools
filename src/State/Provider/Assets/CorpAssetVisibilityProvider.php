@@ -9,7 +9,10 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Assets\CorpAssetVisibilityResource;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Repository\UserRepository;
+use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -25,6 +28,9 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CorporationService $corporationService,
+        private readonly CharacterService $characterService,
+        private readonly CharacterRepository $characterRepository,
+        private readonly UserRepository $userRepository,
     ) {
     }
 

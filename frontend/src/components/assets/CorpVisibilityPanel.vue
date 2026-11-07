@@ -9,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  save: [divisions: number[]]
+  save: [payload: { visibleDivisions: number[]; restrictedDivisions: Record<number, string[]> }]
 }>()
 
 const { t } = useI18n()
@@ -57,7 +57,7 @@ function toggleDivision(divisionNumber: number) {
 function handleSave() {
   isSaving.value = true
   saveSuccess.value = false
-  emit('save', Array.from(selectedDivisions.value).sort())
+  emit('save', { visibleDivisions: Array.from(selectedDivisions.value).sort(), restrictedDivisions: {} })
 }
 
 // Called by parent after save completes
@@ -95,6 +95,7 @@ defineExpose({ onSaveComplete, onSaveError })
   <div class="bg-slate-900 rounded-lg border border-slate-800">
     <!-- Collapsed header / summary -->
     <button
+      data-testid="visibility-panel-toggle"
       @click="togglePanel"
       class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/50 transition-colors rounded-lg"
     >

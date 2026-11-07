@@ -266,7 +266,7 @@ async function fetchVisibility() {
   }
 }
 
-async function saveVisibility(divisions: number[]) {
+async function saveVisibility(payload: { visibleDivisions: number[]; restrictedDivisions: Record<number, string[]> }) {
   try {
     const response = await fetch('/api/me/corporation/assets/visibility', {
       method: 'PUT',
@@ -274,7 +274,7 @@ async function saveVisibility(divisions: number[]) {
         'Authorization': `Bearer ${authStore.token}`,
         'Content-Type': 'application/ld+json'
       },
-      body: JSON.stringify({ visibleDivisions: divisions })
+      body: JSON.stringify(payload)
     })
     if (!response.ok) throw new Error('Failed to save visibility')
     visibilityPanel.value?.onSaveComplete()
