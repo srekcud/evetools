@@ -1986,6 +1986,24 @@
     "available": "Available Projects",
     "noProjects": "No group projects yet. Create one to get started!",
     "noAvailable": "No available projects from your corporation.",
+    "reactionSteps": {
+      "title": "Reactions",
+      "loading": "Reading the reactions...",
+      "loadError": "The reactions could not be read",
+      "hours": "{hours} h",
+      "columns": {
+        "reaction": "Reaction (formula per run)",
+        "needed": "Needed",
+        "runsDuration": "Runs · base duration",
+        "produced": "Produced",
+        "surplus": "Surplus"
+      },
+      "formulaUnknown": "Formula missing from the SDE",
+      "surplusUnknown": "Surplus not recorded (project created before this feature)",
+      "warning": "A whole run produces more than the need. The surplus is only worth something if another project or the Stockpile uses it; otherwise the whole runs are paid for.",
+      "baseDurationHint": "Base duration from the SDE, without skill or structure bonuses.",
+      "costsHint": "Costs and the comparison with buying are in the Buy or build card."
+    },
     "chain": {
       "title": "Production chain",
       "loading": "Reading the production chain...",

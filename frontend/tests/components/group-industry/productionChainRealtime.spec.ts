@@ -40,7 +40,9 @@ function linkedJobProgress(projectId: string) {
 }
 
 async function mountChain() {
-  vi.mocked(apiRequest).mockResolvedValue({ id: PROJECT_ID, nodes: [TRITANIUM] })
+  vi.mocked(apiRequest).mockImplementation(async endpoint => (
+    endpoint === `/industry/projects/${PROJECT_ID}/reactions` ? { id: PROJECT_ID, steps: [] } : { id: PROJECT_ID, nodes: [TRITANIUM] }
+  ))
   setActivePinia(createPinia())
   const syncStore = useSyncStore()
   vi.spyOn(syncStore, 'getGroupProjectEvent').mockImplementation(projectId => projectEvents.value[projectId] ?? null)
