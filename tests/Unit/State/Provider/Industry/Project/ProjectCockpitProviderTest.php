@@ -18,6 +18,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
+use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
 use App\State\Provider\Industry\Project\ProjectCockpitProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -195,6 +196,7 @@ final class ProjectCockpitProviderTest extends TestCase
             $this->sabreBatchProjectRepository(),
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             new ProjectCockpitCalculator(),
+            new ProjectCockpitInputFactory(),
         );
     }
 }

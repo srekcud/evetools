@@ -36,6 +36,7 @@ const stubbedChildren = {
   SkillsConfig: true,
   FeesConfig: true,
   IndustryDashboard: true,
+  IndustryWorkshop: true,
   IndustrySlotsSection: true,
   ProfitMarginTab: true,
   BatchScanTab: true,
@@ -78,7 +79,8 @@ beforeEach(() => {
 describe('Industry type in the URL when a tab pill is clicked', () => {
   it.each([
     [en.industry.tabs.pivot, { tab: 'pivot', origin: 'dashboard' }],
-    [en.industry.tabs.dashboard, { origin: 'dashboard' }],
+    [en.industry.tabs.dashboard, { tab: 'dashboard', origin: 'dashboard' }],
+    [en.industry.tabs.workshop, { origin: 'dashboard' }],
   ])('removes the type from the query and keeps the other parameters when the %s pill is clicked', async (pillLabel, expectedQuery) => {
     const wrapper = await mountIndustryWithQuery({ tab: 'margins', typeId: String(RAVEN_TYPE_ID), origin: 'dashboard' })
 

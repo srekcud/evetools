@@ -9,6 +9,7 @@ import { useAdminStore } from '@/stores/admin'
 import { useFormatters } from '@/composables/useFormatters'
 import { apiRequest } from '@/services/api'
 import { useStructuresStore } from '@/stores/industry/structures'
+import { useIndustryActionsStore } from '@/stores/industry/actions'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CommandPalette from '@/components/common/CommandPalette.vue'
@@ -18,6 +19,7 @@ import {
   allNavEntries,
   isNavGroup,
   isNavItemActive,
+  isProjectsHidden,
   readHiddenModules,
   saveHiddenModules,
   settableModules,
@@ -33,6 +35,8 @@ const rateLimitStore = useRateLimitStore()
 const adminStore = useAdminStore()
 const { dateFormat, setDateFormat } = useFormatters()
 const industryStructuresStore = useStructuresStore()
+const industryActionsStore = useIndustryActionsStore()
+const INDUSTRY_NAV_ITEM_ID = 'industry'
 
 // Check admin access on mount
 const isAdmin = ref(false)
@@ -220,6 +224,9 @@ watch(showSettings, (opened) => {
 onMounted(() => {
   loadCollapsedGroups()
   hiddenModules.value = readHiddenModules()
+  if (!isProjectsHidden(hiddenModules.value)) {
+    void industryActionsStore.fetchActions()
+  }
 })
 
 // Save settings to localStorage
@@ -487,6 +494,11 @@ watch(showSettings, (opened) => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="child.icon"/>
                   </svg>
                   <span class="truncate">{{ t(child.labelKey) }}</span>
+                  <span
+                    v-if="child.id === INDUSTRY_NAV_ITEM_ID && industryActionsStore.count"
+                    data-testid="nav-industry-action-count"
+                    class="ml-auto shrink-0 rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 font-mono text-xs text-cyan-400"
+                  >{{ industryActionsStore.count }}</span>
                 </RouterLink>
               </div>
             </div>

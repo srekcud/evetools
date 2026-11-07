@@ -33,6 +33,7 @@ const stubbedChildren = {
   SkillsConfig: true,
   FeesConfig: true,
   IndustryDashboard: true,
+  IndustryWorkshop: true,
   IndustrySlotsSection: true,
   ProfitMarginTab: true,
   BatchScanTab: true,
