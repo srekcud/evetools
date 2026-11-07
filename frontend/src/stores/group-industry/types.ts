@@ -655,15 +655,16 @@ export interface CourierContractFigures {
   collateral: number | null
   startLocationId: number | null
   endLocationId: number | null
-  issuedAt: string
 }
 
 export interface CourierLinkedContract extends CourierContractFigures {
+  issuedAt: string | null
   unknownReason: string | null
   linkedAt: string
 }
 
 export interface CourierCandidate extends CourierContractFigures {
+  issuedAt: string
   matchesQuote: boolean
 }
 
@@ -678,7 +679,7 @@ export interface ProjectCourier {
   daysToComplete: number
   expirationDays: number
   originSolarSystemId: number
-  originSolarSystemName: string
+  originSolarSystemName: string | null
   workshopSolarSystemId: number | null
   workshopSolarSystemName: string | null
   canLink: boolean

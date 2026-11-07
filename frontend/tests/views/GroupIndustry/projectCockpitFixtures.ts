@@ -173,6 +173,7 @@ export async function mountCockpitDetail(answers: CockpitAnswers, locale: TestLo
         BomTable: true,
         JobsTable: true,
         ContainerBanner: true,
+        ProjectCourier: true,
         ContributeModal: true,
         ContributionTable: true,
         SalesTable: true,

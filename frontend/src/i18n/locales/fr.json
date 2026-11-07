@@ -2169,6 +2169,53 @@
       "withoutImport": "sans l'import : acheter",
       "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet."
     },
+    "courier": {
+      "title": "Contrat de courrier",
+      "loading": "Lecture du devis de courrier...",
+      "error": "Le contrat de courrier n'a pas pu être lu ou modifié",
+      "empty": "Aucun achat n'est rattaché à ce projet : rien à expédier, donc aucun contrat n'est chiffré.",
+      "days": "{count} jour | {count} jours",
+      "contract": {
+        "route": "Trajet",
+        "from": "De",
+        "to": "Vers",
+        "volume": "Volume",
+        "collateral": "Collatéral",
+        "reward": "Récompense",
+        "jumps": "Sauts",
+        "daysToComplete": "Jours pour livrer",
+        "expiration": "Expiration"
+      },
+      "cause": {
+        "volume_unknown": "Le volume est inconnu, la récompense ne peut pas être chiffrée.",
+        "workshop_unknown": "Le système de l'atelier est inconnu, le trajet et la récompense ne peuvent pas être chiffrés.",
+        "route_unknown": "Aucune route connue entre les deux systèmes, les sauts et la récompense ne peuvent pas être chiffrés.",
+        "missingTypes": "Types sans volume dans la SDE : {types}."
+      },
+      "copy": "Copier le contrat",
+      "copied": "Contrat copié",
+      "copyFailed": "Le contrat n'a pas pu être copié.",
+      "state": {
+        "not_shipped": "non expédié",
+        "waiting": "en attente",
+        "in_transit": "en route",
+        "delivered": "livré",
+        "failed": "échoué",
+        "unknown": "inconnu"
+      },
+      "linked": {
+        "title": "Contrat lié n°{id}",
+        "issuedAt": "Émis"
+      },
+      "lines": "Lignes achetées",
+      "candidates": {
+        "title": "Vos contrats de courrier",
+        "empty": "Aucun contrat de courrier de votre part n'a été trouvé dans les contrats synchronisés.",
+        "matches": "correspond"
+      },
+      "link": "Lier",
+      "unlink": "Délier"
+    },
     "structures": {
       "title": "Structures",
       "loading": "Comparaison des structures...",
