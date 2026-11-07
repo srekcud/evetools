@@ -9,6 +9,7 @@ use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
 use App\Message\SyncAdjustedPrices;
+use App\Message\SyncBlueprints;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
@@ -59,6 +60,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         SyncPublicContracts::class => 'public-contracts',
         TriggerCorporationMiningExtractionsSync::class => 'corporation-mining-extractions',
         TriggerMoonTaxSync::class => 'moon-tax',
+        SyncBlueprints::class => 'blueprints',
     ];
 
     /** Maintenance planifiée dont les handlers n'utilisent pas le SyncTracker. */
@@ -96,6 +98,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'adjusted-prices' => 86400,
             'alert-prices' => 1800,
             'ansiblex' => 43200,
+            'blueprints' => 3600,
             'corporation-mining-extractions' => 1800,
             'cost-indices' => 7200,
             'industry' => 1800,

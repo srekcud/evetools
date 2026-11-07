@@ -36,6 +36,7 @@ use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
+use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -57,6 +58,7 @@ class IndustryProjectService
         private readonly IndustryActivityRepository $activityRepository,
         private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly IndustryUserSettingsRepository $settingsRepository,
+        private readonly OriginalBlueprintFinder $originalBlueprintFinder,
     ) {
     }
 

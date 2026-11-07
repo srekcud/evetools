@@ -149,6 +149,11 @@ class CharacterRepository extends ServiceEntityRepository
         return $this->findWithCorpScope($corporationId, 'esi-assets.read_corporation_assets.v1');
     }
 
+    public function findWithCorpBlueprintsAccess(int $corporationId): ?Character
+    {
+        return null;
+    }
+
     /**
      * Find a character in a corporation with a specific scope.
      */

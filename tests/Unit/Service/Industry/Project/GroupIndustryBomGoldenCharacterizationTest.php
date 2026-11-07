@@ -43,6 +43,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\InventionService;
@@ -2498,6 +2499,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
             $activityRepository,
             $this->contributionRepositoryOnTheContributionsOfTheProject(),
             $this->createStub(IndustryUserSettingsRepository::class),
+            $this->createStub(OriginalBlueprintFinder::class),
         );
     }
 

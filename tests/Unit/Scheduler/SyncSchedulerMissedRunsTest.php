@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Scheduler;
 
 use App\Message\CheckAlertPrices;
+use App\Message\SyncBlueprints;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
@@ -65,6 +66,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
                 TriggerMiningSync::class,
                 SyncWalletTransactions::class,
                 TriggerMoonTaxSync::class,
+                SyncBlueprints::class,
                 SyncCostIndices::class,
             ],
             $this->drainMessageClasses($workerAfterDowntime->getMessages()),

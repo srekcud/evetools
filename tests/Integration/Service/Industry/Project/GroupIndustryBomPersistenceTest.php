@@ -23,6 +23,7 @@ use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryUserSettingsRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
+use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\InventionService;
@@ -92,6 +93,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
             self::getContainer()->get(IndustryActivityRepository::class),
             self::getContainer()->get(IndustryProjectContributionRepository::class),
             self::getContainer()->get(IndustryUserSettingsRepository::class),
+            $this->createStub(OriginalBlueprintFinder::class),
         );
     }
 
