@@ -298,8 +298,7 @@ class BatchProfitScannerService
             $isT2 = isset($t2ProductIds[$typeId]);
             $isReaction = $activityId === IndustryActivityType::Reaction->value;
 
-            // ME: 2 for T2 (Attainment decryptor default), 0 for reaction, 10 otherwise
-            $me = $isT2 ? 2 : ($isReaction ? 0 : 10);
+            $me = $isT2 ? InventionService::BASE_INVENTION_ME : ($isReaction ? 0 : 10);
 
             $activityType = $isReaction ? 'reaction' : 'manufacturing';
 
@@ -365,6 +364,19 @@ class BatchProfitScannerService
 
             $isSalePriceUnknown = $sellPrice === null;
 
+            $isInventionCostUnknown = false;
+            $inventionUnknownReason = null;
+            if ($isT2 && !$isSalePriceUnknown && !$isCostUnknown) {
+                $inventionCost = $this->inventionService->expectedCostPerRun($typeId, $solarSystemId, $manufacturingFacilityTax);
+                if ($inventionCost['cost'] === null) {
+                    $isInventionCostUnknown = true;
+                    $inventionUnknownReason = $inventionCost['unknownReason'];
+                    $isCostUnknown = true;
+                } else {
+                    $totalCost += $inventionCost['cost'];
+                }
+            }
+
             if (($sellPrice !== null && $sellPrice <= 0.0) || (!$isCostUnknown && $totalCost <= 0.0)) {
                 continue;
             }
@@ -418,6 +430,7 @@ class BatchProfitScannerService
                     $isSalePriceUnknown => self::UNKNOWN_REASON_MISSING_SALE_PRICE,
                     $isMaterialCostUnknown => self::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
                     $jobInstallCost === null => $jobInstallEstimate['unknownReason'],
+                    $isInventionCostUnknown => $inventionUnknownReason,
                     $isTransportCostUnknown => self::UNKNOWN_REASON_MISSING_VOLUME,
                     $dailyVolume === null => self::UNKNOWN_REASON_MISSING_DAILY_VOLUME,
                     default => null,
