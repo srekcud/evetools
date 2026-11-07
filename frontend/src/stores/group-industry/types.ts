@@ -720,4 +720,20 @@ export interface ProjectReferenceRow {
 export interface ProjectReferences {
   id: string
   rows: ProjectReferenceRow[]
+
+export interface ProjectSurplusLine {
+  lineId: string
+  typeId: number
+  typeName: string
+  requiredQuantity: number
+  contributedQuantity: number
+  surplusQuantity: number
+  unitPrice: number | null
+  surplusValue: number | null
+}
+
+export interface ProjectSurplus {
+  id: string
+  totalValue: number | null
+  lines: ProjectSurplusLine[]
 }

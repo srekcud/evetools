@@ -2257,6 +2257,23 @@
       },
       "hint": "Total = materials (structure and rigs) + installation (cost index, role bonus, tax) + transport (m³ of materials and products × jumps × the rate). Gap = total minus the retained structure."
     },
+    "surplus": {
+      "title": "Material surplus",
+      "loading": "Reading the surplus...",
+      "loadError": "The material surplus could not be read",
+      "empty": "No surplus: no material line was contributed above its required quantity.",
+      "readOnly": "Read only: nothing is added to the Stockpile and the profit is unchanged. Valued at the price of the contributions.",
+      "unknown": "unknown",
+      "total": "Total value of the surplus",
+      "columns": {
+        "type": "Material",
+        "required": "Required",
+        "contributed": "Contributed",
+        "surplus": "Surplus",
+        "unitPrice": "Contribution price",
+        "value": "Value"
+      }
+    },
     "structureHealth": {
       "title": "Structure health",
       "loading": "Reading the structures...",
