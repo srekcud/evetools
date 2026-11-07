@@ -20,6 +20,7 @@ import SalesTable from '@/components/group-industry/SalesTable.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
 import FinancialSummary from '@/components/group-industry/FinancialSummary.vue'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
+import ProjectDiscordRecap from '@/components/group-industry/ProjectDiscordRecap.vue'
 import MemberTable from '@/components/group-industry/MemberTable.vue'
 import PendingRequestsTable from '@/components/group-industry/PendingRequestsTable.vue'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
@@ -489,6 +490,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <div v-else-if="activeTab === 'distribution'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <FinancialSummary />
         <DistributionTable />
+        <ProjectDiscordRecap class="mt-8" />
       </div>
 
       <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
