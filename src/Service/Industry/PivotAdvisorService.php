@@ -166,7 +166,7 @@ class PivotAdvisorService
             $cpIsT2 = isset($t2ProductIds[$cpTypeId]);
             $cpIsReaction = $cpActivityId === IndustryActivityType::Reaction->value;
 
-            $me = $cpIsT2 ? 2 : ($cpIsReaction ? 0 : 10);
+            $me = $cpIsT2 ? InventionService::BASE_INVENTION_ME : ($cpIsReaction ? 0 : 10);
             $activityType = $cpIsReaction ? 'reaction' : 'manufacturing';
 
             $cpMaterials = $candidateMaterialsByBp[$cpBpId] ?? [];
@@ -174,7 +174,14 @@ class PivotAdvisorService
             $materialCost = $this->materialCostPerRun($cpMaterials, $cpIsReaction ? 0 : $me, $jitaPrices);
 
             $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($cpMaterials, 1, $solarSystemIdByActivity[$activityType], $activityType, $facilityTaxByActivity[$activityType]);
-            $totalCost = $this->totalCostPerRun($materialCost, $jobInstallCost);
+            $totalCostWithInvention = $this->totalCostWithInvention(
+                $this->totalCostPerRun($materialCost, $jobInstallCost),
+                $cpIsT2,
+                $cpTypeId,
+                $solarSystemIdByActivity['manufacturing'],
+                $facilityTaxByActivity['manufacturing'],
+            );
+            $totalCost = $totalCostWithInvention['totalCost'];
 
             // Sell price
             $sellPrice = $jitaPrices[$cpTypeId] ?? null;
@@ -255,7 +262,7 @@ class PivotAdvisorService
                 'estimatedProfit' => $profitPerUnit !== null ? round($profitPerUnit * $cpOutputPerRun * $runs, 2) : null,
                 'score' => $score !== null ? round($score, 2) : null,
                 'blueprintTypeId' => $cpBpId,
-                'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost),
+                'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'],
                 'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($cpMaterials, $jitaPrices),
             ];
         }
@@ -419,13 +426,20 @@ class PivotAdvisorService
         array $userStock,
         array $facilityTaxByActivity,
     ): array {
-        $me = $isT2 ? 2 : ($isReaction ? 0 : 10);
+        $me = $isT2 ? InventionService::BASE_INVENTION_ME : ($isReaction ? 0 : 10);
         $activityType = $isReaction ? 'reaction' : 'manufacturing';
 
         $materialCost = $this->materialCostPerRun($sourceMaterials, $isReaction ? 0 : $me, $jitaPrices);
 
         $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($sourceMaterials, 1, $solarSystemIdByActivity[$activityType], $activityType, $facilityTaxByActivity[$activityType]);
-        $totalCost = $this->totalCostPerRun($materialCost, $jobInstallCost);
+        $totalCostWithInvention = $this->totalCostWithInvention(
+            $this->totalCostPerRun($materialCost, $jobInstallCost),
+            $isT2,
+            $sourceTypeId,
+            $solarSystemIdByActivity[$activityType],
+            $facilityTaxByActivity[$activityType],
+        );
+        $totalCost = $totalCostWithInvention['totalCost'];
 
         $sellPrice = $jitaPrices[$sourceTypeId] ?? null;
         $marginPercent = null;
@@ -454,8 +468,25 @@ class PivotAdvisorService
             'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
             'dailyVolume' => $dailyVolumes[$sourceTypeId] ?? 0.0,
             'keyComponents' => $keyComponents,
-            'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost),
+            'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'],
             'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($sourceMaterials, $jitaPrices),
+        ];
+    }
+
+    /**
+     * @return array{totalCost: ?float, unknownReason: ?string}
+     */
+    private function totalCostWithInvention(?float $totalCost, bool $isT2, int $typeId, int $solarSystemId, float $facilityTaxPercent): array
+    {
+        if (!$isT2 || $totalCost === null) {
+            return ['totalCost' => $totalCost, 'unknownReason' => null];
+        }
+
+        $inventionCost = $this->inventionService->expectedCostPerRun($typeId, $solarSystemId, $facilityTaxPercent);
+
+        return [
+            'totalCost' => $inventionCost['cost'] === null ? null : $totalCost + $inventionCost['cost'],
+            'unknownReason' => $inventionCost['unknownReason'],
         ];
     }
 

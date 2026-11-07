@@ -541,6 +541,7 @@ class BatchProfitScannerServiceTest extends TestCase
         // Mark Jaguar as T2 via invention service
         $this->inventionService = $this->createMock(InventionService::class);
         $this->inventionService->method('identifyT2Products')->willReturn([11393 => true]);
+        $this->inventionService->method('expectedCostPerRun')->willReturn(['cost' => 187068.0, 'unknownReason' => null]);
 
         // Rebuild service with the new invention mock
         $this->service = new BatchProfitScannerService(
@@ -592,6 +593,104 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->assertSame('Jaguar', $result[0]['typeName']);
         $this->assertSame('T2 Ships', $result[0]['categoryLabel']);
         $this->assertSame(2, $result[0]['meUsed']); // T2 = ME 2 (Attainment decryptor default)
+    }
+
+    #[Group('issue-124')]
+    public function testScanAddsTheExpectedInventionCostPerRunToTheCostOfAT2Product(): void
+    {
+        $this->givenAScannedJaguarAtAnInventionCost(['cost' => 187068.0, 'unknownReason' => null]);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertCount(1, $result);
+        $this->assertSame(211952.0, $result[0]['profitPerUnit']);
+        $this->assertSame(112.71, $result[0]['marginPercent']);
+        $this->assertNull($result[0]['unknownReason']);
+    }
+
+    #[Group('issue-124')]
+    public function testScanAsksTheInventionCostOfTheManufacturingSystemOnlyForAT2Product(): void
+    {
+        $this->givenAScannedJaguarAtAnInventionCost(['cost' => 187068.0, 'unknownReason' => null]);
+        $this->inventionService->expects($this->once())->method('expectedCostPerRun')->with(11393, self::SOLAR_SYSTEM_ID, 0.25);
+
+        $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+    }
+
+    #[Group('issue-124')]
+    public function testScanKeepsTheMarginUnknownWhenTheInventionCostIsUnknown(): void
+    {
+        $this->givenAScannedJaguarAtAnInventionCost(['cost' => null, 'unknownReason' => 'missing_invention_probability']);
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertCount(1, $result);
+        $this->assertNull($result[0]['marginPercent']);
+        $this->assertNull($result[0]['profitPerUnit']);
+        $this->assertNull($result[0]['iskPerDay']);
+        $this->assertSame('missing_invention_probability', $result[0]['unknownReason']);
+    }
+
+    #[Group('issue-124')]
+    public function testScanNeverAsksTheInventionCostOfAT1Product(): void
+    {
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => 586, 'productTypeId' => 587, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [['type_id' => 587, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 28100.0]]
+                : [['type_id' => 34, 'volume' => 0.01]]
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([586 => [['materialTypeId' => 34, 'quantity' => 100]]]);
+        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+        $this->givenZeroEstimatedItemValue();
+        $this->inventionService->expects($this->never())->method('expectedCostPerRun');
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertCount(1, $result);
+        $this->assertSame(4999550.0, $result[0]['profitPerUnit']);
+    }
+
+    /**
+     * @param array{cost: ?float, unknownReason: ?string} $inventionCost
+     */
+    private function givenAScannedJaguarAtAnInventionCost(array $inventionCost): void
+    {
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => 11400, 'productTypeId' => 11393, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+        $this->inventionService = $this->createMock(InventionService::class);
+        $this->inventionService->method('identifyT2Products')->willReturn([11393 => true]);
+        $this->inventionService->method('expectedCostPerRun')->willReturn($inventionCost);
+        $this->service = new BatchProfitScannerService(
+            $this->productRepository,
+            $this->materialRepository,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $this->esiCostIndexService,
+            $this->typeNameResolver,
+            $this->entityManager,
+            $this->cachedStructureRepository,
+            $this->solarSystemRepository,
+            $this->inventionService,
+            $this->bpcPriceRepository,
+            $this->activitySkillRepository,
+            $this->characterSkillRepository,
+            new JobInstallCostEstimator(),
+            new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
+        );
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [['type_id' => 11393, 'group_id' => 324, 'group_name' => 'Assault Frigate', 'category_id' => 6, 'volume' => 28600.0]]
+                : [['type_id' => 34, 'volume' => 0.01]]
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([11400 => [['materialTypeId' => 34, 'quantity' => 200]]]);
+        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 11393 => 400000.0]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([11393 => 5.0]);
+        $this->givenZeroEstimatedItemValue();
     }
 
     public function testScanIncludesFactionBlueprintFlag(): void
@@ -1215,6 +1314,7 @@ class BatchProfitScannerServiceTest extends TestCase
     {
         $this->inventionService = $this->createMock(InventionService::class);
         $this->inventionService->method('identifyT2Products')->willReturn([self::JAGUAR_TYPE_ID => true]);
+        $this->inventionService->method('expectedCostPerRun')->willReturn(['cost' => 187068.0, 'unknownReason' => null]);
         $scanner = new BatchProfitScannerService(
             $this->productRepository,
             $this->materialRepository,

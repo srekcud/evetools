@@ -330,6 +330,23 @@ class InventionService
     }
 
     /**
+     * @return array{cost: ?float, unknownReason: ?string}
+     */
+    public function expectedCostPerRun(int $t2TypeId, int $solarSystemId, ?float $facilityTaxPercent = null): array
+    {
+        $invention = $this->calculateInventionCost($t2TypeId, $solarSystemId, null, 1, $facilityTaxPercent);
+        if ($invention === null) {
+            return ['cost' => null, 'unknownReason' => self::UNKNOWN_REASON_MISSING_PROBABILITY];
+        }
+
+        if ($invention['costPerAttempt'] === null || $invention['effectiveProbability'] === null) {
+            return ['cost' => null, 'unknownReason' => $invention['unknownReason']];
+        }
+
+        return ['cost' => $invention['costPerAttempt'] / ($invention['effectiveProbability'] * $invention['runs']), 'unknownReason' => null];
+    }
+
+    /**
      * Build all decryptor options (including "no decryptor") for a T2 item.
      *
      * @return list<array{decryptorTypeId: ?int, decryptorName: string, me: int, te: int, runs: int, probability: ?float, costPerAttempt: ?float, expectedAttempts: ?int, totalCost: ?float, costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: ?float}, missingPriceTypeIds: list<int>, missingAdjustedPriceTypeIds: list<int>, unknownReason: ?string}>
