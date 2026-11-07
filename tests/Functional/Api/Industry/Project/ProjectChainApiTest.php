@@ -37,6 +37,27 @@ final class ProjectChainApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-416')]
+    public function testMaterialAndSaleNodesKeepTheirNullFieldsInTheResponse(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->chainUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $nodes = $this->nodesById();
+        $material = $nodes[$this->idOf($this->morphiteLine)];
+        $sale = $nodes['sale'];
+
+        foreach (['parentId', 'activity', 'runs', 'meLevel', 'teLevel', 'plannedStructure', 'soldQuantity', 'grossRevenue'] as $field) {
+            self::assertArrayHasKey($field, $material, $field);
+            self::assertNull($material[$field], $field);
+        }
+        foreach (['parentId', 'typeId', 'typeName', 'activity', 'runs', 'meLevel', 'teLevel', 'requiredQuantity', 'fulfilledQuantity', 'realCost', 'plannedStructure'] as $field) {
+            self::assertArrayHasKey($field, $sale, $field);
+            self::assertNull($sale[$field], $field);
+        }
+    }
+
     public function testOwnerReadsWhoSuppliedTheProductAndWhatTheSalesBrought(): void
     {
         $this->client->loginUser($this->owner, 'api');

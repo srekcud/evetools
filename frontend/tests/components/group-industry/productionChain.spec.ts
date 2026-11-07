@@ -18,6 +18,7 @@ import {
   PARTICLE_ACCELERATOR_UNIT,
   PARTICLE_ACCELERATOR_UNIT_ID,
   PRODUCTION_CHAIN,
+  SALE,
   SALE_ID,
   TRITANIUM,
   TRITANIUM_ID,
@@ -101,6 +102,38 @@ enableAutoUnmount(afterEach)
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
+})
+
+describe('ProductionChain tree with the null fields omitted by the API', () => {
+  const OMITTED_NULL_FIELDS = ['parentId', 'activity', 'runs', 'meLevel', 'teLevel', 'realCost', 'plannedStructure', 'soldQuantity', 'grossRevenue'] as const
+
+  function withoutNullFields(node: ChainNode): ChainNode {
+    const sent: Record<string, unknown> = { ...node }
+    for (const field of OMITTED_NULL_FIELDS) {
+      if (sent[field] === null) delete sent[field]
+    }
+    return sent as ChainNode
+  }
+
+  it('shows a material row without any structure or activity text', async () => {
+    const wrapper = await mountChain([withoutNullFields(TRITANIUM), withoutNullFields(SALE)])
+
+    await openTree(wrapper)
+
+    const material = row(wrapper, TRITANIUM_ID)
+    expect(material.text()).toContain('Tritanium')
+    expect(material.text()).not.toContain('undefined')
+    expect(material.find('[data-testid="chain-planned-structure"]').exists()).toBe(false)
+    expect(material.find('[data-testid="chain-io-unknown"]').exists()).toBe(false)
+  })
+
+  it('shows no NaN progress on the sale node of the overview', async () => {
+    const wrapper = await mountChain([withoutNullFields(TRITANIUM), withoutNullFields(SALE)])
+
+    const sale = wrapper.get(`[data-testid="chain-node-${SALE_ID}"]`)
+
+    expect(sale.html()).not.toContain('NaN')
+  })
 })
 
 describe('ProductionChain overview', () => {
