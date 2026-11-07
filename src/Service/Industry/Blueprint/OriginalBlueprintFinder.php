@@ -24,7 +24,7 @@ class OriginalBlueprintFinder
 
         $corporationId = $user->getMainCharacter()?->getCorporationId();
         if ($corporationId !== null) {
-            $visibleDivisions = $this->visibilityRepository->findByCorporationId($corporationId)?->getVisibleDivisions();
+            $visibleDivisions = $this->visibilityRepository->findByCorporationId($corporationId)?->divisionsVisibleTo($user);
             if ($visibleDivisions !== null && $visibleDivisions !== []) {
                 $blueprints = [
                     ...$blueprints,

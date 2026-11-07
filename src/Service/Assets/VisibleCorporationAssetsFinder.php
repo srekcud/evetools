@@ -27,7 +27,7 @@ class VisibleCorporationAssetsFinder
             return [];
         }
 
-        $allowedDivisions = $visibility->getVisibleDivisions();
+        $allowedDivisions = $visibility->divisionsVisibleTo($viewer);
         if ($allowedDivisions === []) {
             return [];
         }

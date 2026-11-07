@@ -47,7 +47,7 @@ class CorporationAssetsProvider implements ProviderInterface
         $request = $this->requestStack->getCurrentRequest();
         $divisionName = $request?->query->get('divisionName');
 
-        $assets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, $divisionName);
+        $assets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, $divisionName, $user);
 
         // Resolve categoryId from SDE for each unique typeId
         $categoryMap = $this->resolveCategoryIds($assets);

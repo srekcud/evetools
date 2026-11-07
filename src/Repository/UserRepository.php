@@ -82,6 +82,12 @@ class UserRepository extends ServiceEntityRepository
      */
     public function findPlayersOfCorporation(int $corporationId): array
     {
-        return [];
+        return $this->createQueryBuilder('u')
+            ->innerJoin('u.mainCharacter', 'mainCharacter')
+            ->where('mainCharacter.corporationId = :corporationId')
+            ->setParameter('corporationId', $corporationId)
+            ->orderBy('mainCharacter.name', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 }

@@ -7,6 +7,7 @@ namespace App\Tests\Integration\Service\Industry\Project;
 use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
+use App\Entity\EveToken;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\User;
@@ -268,6 +269,13 @@ final class ProjectContainerServiceTest extends IntegrationTestCase
         $user = $character->getUser();
         \assert($user instanceof User);
         $user->setMainCharacter($character);
+        $token = (new EveToken())
+            ->setAccessToken('access-token')
+            ->setRefreshTokenEncrypted('encrypted-refresh-token')
+            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
+            ->setScopes(['esi-assets.read_corporation_assets.v1']);
+        $character->setEveToken($token);
+        $this->em->persist($token);
         $this->em->flush();
 
         return $user;

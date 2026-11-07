@@ -1687,7 +1687,13 @@
       "showPanel": "Gérer la visibilité",
       "hidePanel": "Masquer",
       "sharedDivisions": "Divisions partagées",
-      "sharedDivisionsNone": "Aucune division n'est actuellement partagée avec vous"
+      "sharedDivisionsNone": "Aucune division n'est actuellement partagée avec vous",
+      "modeAll": "Tous les membres",
+      "modeList": "Liste",
+      "modeHidden": "Masquée",
+      "noPlayerListed": "Aucun joueur listé : la division reste masquée",
+      "readOnlyDescription": "Qui voit chaque division de hangar de la corporation. Seul un directeur peut la modifier.",
+      "noDirectorWarning": "Aucun directeur connecté : le contenu des containers corpo est inconnu, pas vide."
     }
   },
   "contracts": {
@@ -2495,6 +2501,7 @@
       "unknownReasons": {
         "corporation_assets_not_synced": "Synchronisez les assets corpo",
         "no_visible_division": "Aucune division partagée",
+        "no_director": "Aucun directeur connecté",
         "owner_without_corporation": "L'owner n'a pas de corporation"
       },
       "containerName": "Nom du container",
@@ -3344,6 +3351,7 @@
           "not_corporation_member": "Les assets corpo ne sont visibles que des membres de la corporation.",
           "corporation_assets_not_synced": "Assets corpo jamais synchronisés.",
           "no_visible_division": "Aucune division corpo partagée.",
+          "no_director": "Aucun directeur connecté : les containers corpo sont illisibles.",
           "assets_synced_before_end": "Assets corpo lus à {time}, avant la fin de l'opération ({end}).",
           "container_not_found": "Aucun container « {name} » dans les divisions partagées.",
           "delivered_quantity_unknown": "Quantité versée inconnue : {names}."

@@ -55,7 +55,7 @@ const noDivisionsShared = computed(() =>
   isCorpView.value
   && !isDirector.value
   && visibility.value != null
-  && visibility.value.visibleDivisions.length === 0
+  && visibility.value.accessibleDivisions.length === 0
   && visibility.value.updatedAt == null
 )
 
@@ -63,12 +63,12 @@ const hasSharedDivisions = computed(() =>
   isCorpView.value
   && !isDirector.value
   && visibility.value != null
-  && visibility.value.visibleDivisions.length > 0
+  && visibility.value.accessibleDivisions.length > 0
 )
 
 const sharedDivisionNames = computed(() => {
   if (!visibility.value) return []
-  return visibility.value.visibleDivisions
+  return visibility.value.accessibleDivisions
     .map(num => visibility.value!.allDivisions[num])
     .filter((name): name is string => name != null)
     .sort((a, b) => a.localeCompare(b))
@@ -474,7 +474,7 @@ watch([selectedCharacterId, viewMode], () => {
 
         <!-- Corp visibility panel (Director only) -->
         <CorpVisibilityPanel
-          v-if="isCorpView && isDirector && visibility"
+          v-if="isCorpView && visibility"
           ref="visibilityPanel"
           :visibility="visibility"
           @save="saveVisibility"
