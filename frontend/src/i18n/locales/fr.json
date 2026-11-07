@@ -2142,6 +2142,20 @@
       "marginLabel": "Marge :",
       "unknownContributionValue": "Un apport approuvé n'a pas de prix connu : le coût de production, le profit et les payouts restent inconnus tant qu'il n'en a pas."
     },
+    "financialCascade": {
+      "title": "Du revenu au profit",
+      "waterfallLabel": "Cascade du revenu au profit",
+      "unavailable": "La cascade demande que chaque frais et chaque coût soient connus.",
+      "revenue": "Revenu",
+      "brokerFee": "Courtage",
+      "salesTax": "Taxe de vente",
+      "materials": "Matériaux",
+      "jobInstall": "Installation des jobs",
+      "bpc": "BPC",
+      "lineRental": "Location de lignes",
+      "profit": "Profit",
+      "loss": "Perte"
+    },
     "sales": {
       "title": "Ventes",
       "recordSale": "Enregistrer une vente",
