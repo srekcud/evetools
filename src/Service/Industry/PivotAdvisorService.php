@@ -166,12 +166,12 @@ class PivotAdvisorService
             $cpIsT2 = isset($t2ProductIds[$cpTypeId]);
             $cpIsReaction = $cpActivityId === IndustryActivityType::Reaction->value;
 
-            $me = $cpIsT2 ? InventionService::BASE_INVENTION_ME : ($cpIsReaction ? 0 : 10);
+            $me = $this->materialEfficiencyOf($cpIsT2, $cpIsReaction);
             $activityType = $cpIsReaction ? 'reaction' : 'manufacturing';
 
             $cpMaterials = $candidateMaterialsByBp[$cpBpId] ?? [];
 
-            $materialCost = $this->materialCostPerRun($cpMaterials, $cpIsReaction ? 0 : $me, $jitaPrices);
+            $materialCost = $this->materialCostPerRun($cpMaterials, $me, $jitaPrices);
 
             $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($cpMaterials, 1, $solarSystemIdByActivity[$activityType], $activityType, $facilityTaxByActivity[$activityType]);
             $totalCostWithInvention = $this->totalCostWithInvention(
@@ -213,7 +213,7 @@ class PivotAdvisorService
                     continue;
                 }
 
-                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], $runs, $cpIsReaction ? 0 : $me, 0.0, 0.0);
+                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], $runs, $me, 0.0, 0.0);
                 $matPrice = $jitaPrices[$matTypeId] ?? null;
                 $inStock = $userStock[$matTypeId] ?? 0;
 
@@ -317,6 +317,14 @@ class PivotAdvisorService
             $sourceMaterialSet[$mat['materialTypeId']] = $mat['quantity'];
         }
 
+        $materialEfficiencyByProduct = [$sourceTypeId => $this->materialEfficiencyOf($sourceIsT2, $sourceIsReaction)];
+        foreach ($candidateProducts as $cp) {
+            $materialEfficiencyByProduct[$cp['productTypeId']] = $this->materialEfficiencyOf(
+                isset($t2ProductIds[$cp['productTypeId']]),
+                $cp['activityId'] === IndustryActivityType::Reaction->value,
+            );
+        }
+
         $matrix = [];
         foreach ($buildableMaterials as $mat) {
             $matTypeId = $mat['materialTypeId'];
@@ -324,11 +332,12 @@ class PivotAdvisorService
 
             $candidates = [];
             foreach ($matrixProductIds as $productTypeId) {
-                if ($productTypeId === $sourceTypeId) {
-                    $needed = $sourceMaterialSet[$matTypeId] ?? 0;
-                } else {
-                    $needed = $candidateMaterialsByProduct[$productTypeId][$matTypeId] ?? 0;
-                }
+                $baseQuantity = $productTypeId === $sourceTypeId
+                    ? ($sourceMaterialSet[$matTypeId] ?? 0)
+                    : ($candidateMaterialsByProduct[$productTypeId][$matTypeId] ?? 0);
+                $needed = $baseQuantity === 0
+                    ? 0
+                    : MaterialQuantityFormula::forJob($baseQuantity, $runs, $materialEfficiencyByProduct[$productTypeId], 0.0, 0.0);
 
                 if ($needed === 0) {
                     $candidates[$productTypeId] = ['needed' => 0, 'status' => 'none'];
@@ -426,10 +435,10 @@ class PivotAdvisorService
         array $userStock,
         array $facilityTaxByActivity,
     ): array {
-        $me = $isT2 ? InventionService::BASE_INVENTION_ME : ($isReaction ? 0 : 10);
+        $me = $this->materialEfficiencyOf($isT2, $isReaction);
         $activityType = $isReaction ? 'reaction' : 'manufacturing';
 
-        $materialCost = $this->materialCostPerRun($sourceMaterials, $isReaction ? 0 : $me, $jitaPrices);
+        $materialCost = $this->materialCostPerRun($sourceMaterials, $me, $jitaPrices);
 
         $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($sourceMaterials, 1, $solarSystemIdByActivity[$activityType], $activityType, $facilityTaxByActivity[$activityType]);
         $totalCostWithInvention = $this->totalCostWithInvention(
@@ -471,6 +480,15 @@ class PivotAdvisorService
             'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'],
             'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($sourceMaterials, $jitaPrices),
         ];
+    }
+
+    private function materialEfficiencyOf(bool $isT2, bool $isReaction): int
+    {
+        if ($isReaction) {
+            return 0;
+        }
+
+        return $isT2 ? InventionService::BASE_INVENTION_ME : 10;
     }
 
     /**
