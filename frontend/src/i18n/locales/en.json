@@ -2209,6 +2209,20 @@
       "marginLabel": "Margin:",
       "unknownContributionValue": "An approved contribution has no known price: the production cost, the profit and the payouts stay unknown until it has one."
     },
+    "financialCascade": {
+      "title": "From revenue to profit",
+      "waterfallLabel": "Waterfall from the revenue to the profit",
+      "unavailable": "The waterfall needs every fee and cost to be known.",
+      "revenue": "Revenue",
+      "brokerFee": "Broker fee",
+      "salesTax": "Sales tax",
+      "materials": "Materials",
+      "jobInstall": "Job install",
+      "bpc": "BPC",
+      "lineRental": "Line rental",
+      "profit": "Profit",
+      "loss": "Loss"
+    },
     "sales": {
       "title": "Sales",
       "recordSale": "Record Sale",

@@ -18,6 +18,7 @@ import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
+import FinancialCascade from '@/components/group-industry/FinancialCascade.vue'
 import FinancialSummary from '@/components/group-industry/FinancialSummary.vue'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
 import MemberTable from '@/components/group-industry/MemberTable.vue'
@@ -487,6 +488,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <!-- Tab Content: Distribution -->
       <div v-else-if="activeTab === 'distribution'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
+        <FinancialCascade />
         <FinancialSummary />
         <DistributionTable />
       </div>
