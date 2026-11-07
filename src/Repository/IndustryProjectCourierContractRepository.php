@@ -21,6 +21,6 @@ class IndustryProjectCourierContractRepository extends ServiceEntityRepository
 
     public function findOneByProject(IndustryProject $project): ?IndustryProjectCourierContract
     {
-        return null;
+        return $this->findOneBy(['project' => $project]);
     }
 }

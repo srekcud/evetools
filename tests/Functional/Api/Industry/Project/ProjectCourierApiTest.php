@@ -69,7 +69,7 @@ final class ProjectCourierApiTest extends WebTestCase
 
     public function testOwnerReadsTheQuoteTheLinesWithoutLinkAndTheCandidatesOfTheProject(): void
     {
-        $this->client->loginUser($this->owner, 'api');
+        $this->actAs($this->owner);
         $this->request('GET', $this->courierUri());
 
         self::assertResponseStatusCodeSame(200);
@@ -86,7 +86,7 @@ final class ProjectCourierApiTest extends WebTestCase
             ],
         );
         self::assertSame(
-            [[self::MORPHITE_TYPE_ID, 20, 'not_shipped'], [self::TRITANIUM_TYPE_ID, 1_500, 'not_shipped']],
+            [[self::TRITANIUM_TYPE_ID, 1_500, 'not_shipped'], [self::MORPHITE_TYPE_ID, 20, 'not_shipped']],
             $this->linesOf($body),
         );
         self::assertSame(
@@ -103,12 +103,13 @@ final class ProjectCourierApiTest extends WebTestCase
 
     public function testOwnerLinksTheInTransitContractThenReadsItsStateOnTheContractAndOnEveryLine(): void
     {
-        $this->client->loginUser($this->owner, 'api');
+        $this->actAs($this->owner);
         $this->request('POST', $this->linkUri(), ['contractId' => self::IN_TRANSIT_CONTRACT_ID]);
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame([[self::IN_TRANSIT_CONTRACT_ID, $this->ownerEveCharacterId()]], $this->storedLinks());
 
+        $this->actAs($this->owner);
         $this->request('GET', $this->courierUri());
 
         self::assertResponseStatusCodeSame(200);
@@ -121,20 +122,22 @@ final class ProjectCourierApiTest extends WebTestCase
             ],
         );
         self::assertSame(
-            [[self::MORPHITE_TYPE_ID, 20, 'in_transit'], [self::TRITANIUM_TYPE_ID, 1_500, 'in_transit']],
+            [[self::TRITANIUM_TYPE_ID, 1_500, 'in_transit'], [self::MORPHITE_TYPE_ID, 20, 'in_transit']],
             $this->linesOf($body),
         );
     }
 
     public function testLinkingAnotherContractReplacesThePreviousLink(): void
     {
-        $this->client->loginUser($this->owner, 'api');
+        $this->actAs($this->owner);
         $this->request('POST', $this->linkUri(), ['contractId' => self::IN_TRANSIT_CONTRACT_ID]);
+        $this->actAs($this->owner);
         $this->request('POST', $this->linkUri(), ['contractId' => self::OUTSTANDING_CONTRACT_ID]);
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame([[self::OUTSTANDING_CONTRACT_ID, $this->ownerEveCharacterId()]], $this->storedLinks());
 
+        $this->actAs($this->owner);
         $this->request('GET', $this->courierUri());
 
         self::assertSame([self::OUTSTANDING_CONTRACT_ID, 'waiting'], [$this->responseJson()['contract']['contractId'], $this->responseJson()['contract']['state']]);
@@ -143,18 +146,19 @@ final class ProjectCourierApiTest extends WebTestCase
     public function testOwnerUnlinksTheContractAndTheLinesAreNotShippedAgain(): void
     {
         $this->linkContractDirectly(self::IN_TRANSIT_CONTRACT_ID);
-        $this->client->loginUser($this->owner, 'api');
+        $this->actAs($this->owner);
         $this->request('DELETE', $this->linkUri());
 
         self::assertResponseStatusCodeSame(204);
         self::assertSame([], $this->storedLinks());
 
+        $this->actAs($this->owner);
         $this->request('GET', $this->courierUri());
 
         $body = $this->responseJson();
         self::assertNull($body['contract']);
         self::assertSame(
-            [[self::MORPHITE_TYPE_ID, 20, 'not_shipped'], [self::TRITANIUM_TYPE_ID, 1_500, 'not_shipped']],
+            [[self::TRITANIUM_TYPE_ID, 1_500, 'not_shipped'], [self::MORPHITE_TYPE_ID, 20, 'not_shipped']],
             $this->linesOf($body),
         );
     }
@@ -162,7 +166,7 @@ final class ProjectCourierApiTest extends WebTestCase
     public function testAcceptedAdminWhoIsNotTheOwnerReadsTheLinkedContractWithoutCandidates(): void
     {
         $this->linkContractDirectly(self::IN_TRANSIT_CONTRACT_ID);
-        $this->client->loginUser($this->member, 'api');
+        $this->actAs($this->member);
         $this->request('GET', $this->courierUri());
 
         self::assertResponseStatusCodeSame(200);
@@ -176,12 +180,13 @@ final class ProjectCourierApiTest extends WebTestCase
     public function testAcceptedAdminWhoIsNotTheOwnerIsDeniedLinkingAndUnlinking(): void
     {
         $this->linkContractDirectly(self::IN_TRANSIT_CONTRACT_ID);
-        $this->client->loginUser($this->member, 'api');
+        $this->actAs($this->member);
 
         $this->request('POST', $this->linkUri(), ['contractId' => self::OUTSTANDING_CONTRACT_ID]);
         self::assertResponseStatusCodeSame(403);
         self::assertSame([403, 'Only the project owner can perform this action'], $this->errorDetail());
 
+        $this->actAs($this->member);
         $this->request('DELETE', $this->linkUri());
         self::assertResponseStatusCodeSame(403);
         self::assertSame([403, 'Only the project owner can perform this action'], $this->errorDetail());
@@ -190,7 +195,7 @@ final class ProjectCourierApiTest extends WebTestCase
 
     public function testLinkingAContractThatIsNotACourierContractIsRefusedAndKeepsNoLink(): void
     {
-        $this->client->loginUser($this->owner, 'api');
+        $this->actAs($this->owner);
         $this->request('POST', $this->linkUri(), ['contractId' => self::ITEM_EXCHANGE_CONTRACT_ID]);
 
         self::assertResponseStatusCodeSame(400);
@@ -199,7 +204,7 @@ final class ProjectCourierApiTest extends WebTestCase
 
     public function testUnknownProjectIsNotFoundWhateverTheRights(): void
     {
-        $this->client->loginUser($this->outsider, 'api');
+        $this->actAs($this->outsider);
         $this->request('GET', '/api/industry/projects/'.Uuid::v4()->toRfc4122().'/courier');
 
         self::assertResponseStatusCodeSame(404);

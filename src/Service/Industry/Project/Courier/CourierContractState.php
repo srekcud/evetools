@@ -15,6 +15,12 @@ enum CourierContractState: string
 
     public static function fromEsiStatus(string $esiStatus): self
     {
-        return self::NotShipped;
+        return match ($esiStatus) {
+            'outstanding' => self::Waiting,
+            'in_progress' => self::InTransit,
+            'finished', 'finished_issuer', 'finished_contractor' => self::Delivered,
+            'failed', 'rejected', 'cancelled', 'deleted', 'reversed' => self::Failed,
+            default => self::Unknown,
+        };
     }
 }

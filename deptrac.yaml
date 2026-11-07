@@ -146,6 +146,9 @@ deptrac:
       - App\State\Provider\Industry\Project\ProjectResourceMapper
     App\State\Processor\Industry\Project\CreateProjectTemplateProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\LinkCourierContractProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+      - App\State\Provider\Industry\Project\ProjectCourierResourceMapper
     App\State\Processor\Industry\Project\DeleteSaleProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\JoinProjectProcessor:
