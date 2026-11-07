@@ -30,6 +30,7 @@ import ProjectNextActionCard from '@/components/group-industry/ProjectNextAction
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
+import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
 import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
@@ -504,6 +505,10 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
         <ProductionChain :project-id="projectId" />
         <ProjectBuyOrBuild :project-id="projectId" />
+      </div>
+
+      <div v-else-if="activeTab === 'planning'" class="relative rounded-xl">
+        <ProjectPlanning :project-id="projectId" />
       </div>
 
       <!-- Tab Content: Members -->
