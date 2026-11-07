@@ -40,7 +40,7 @@ use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * @phpstan-type JobLine array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, outputPerRun: int, plannedStructureId: string|null, plannedStructureStatus: string|null}
+ * @phpstan-type JobLine array{typeId: int, typeName: string, runs: int, meLevel: int, teLevel: int, activityType: string, jobGroup: string, parentTypeId: int|null, outputPerRun: int, plannedStructureId: string|null, plannedStructureStatus: string|null, surplusQuantity: int|null}
  */
 class IndustryProjectService
 {
@@ -156,6 +156,7 @@ class IndustryProjectService
             $bomItem->setParentTypeId($jobData['parentTypeId']);
             $bomItem->setPlannedStructureId($jobData['plannedStructureId']);
             $bomItem->setPlannedStructureStatus($jobData['plannedStructureStatus']);
+            $bomItem->setSurplusQuantity($jobData['surplusQuantity']);
             $plannedLines[] = $bomItem;
         }
 
@@ -253,6 +254,7 @@ class IndustryProjectService
             $line->setParentTypeId($plannedLine->getParentTypeId());
             $line->setPlannedStructureId($plannedLine->getPlannedStructureId());
             $line->setPlannedStructureStatus($plannedLine->getPlannedStructureStatus());
+            $line->setSurplusQuantity($plannedLine->getSurplusQuantity());
 
             return;
         }
@@ -375,6 +377,7 @@ class IndustryProjectService
                 'outputPerRun' => $producers[$job->productTypeId]->getQuantity(),
                 'plannedStructureId' => $structureChoice->structure?->id,
                 'plannedStructureStatus' => $this->plannedStructureStatusOf($structureChoice->status),
+                'surplusQuantity' => $isComponent ? $plan->intermediates[$job->productTypeId]->surplus->value : null,
             ];
         }
 
@@ -415,6 +418,7 @@ class IndustryProjectService
                 'outputPerRun' => $jobLine['outputPerRun'],
                 'plannedStructureId' => null,
                 'plannedStructureStatus' => null,
+                'surplusQuantity' => null,
             ];
         }
 
@@ -503,6 +507,7 @@ class IndustryProjectService
                 'outputPerRun' => 1,
                 'plannedStructureId' => null,
                 'plannedStructureStatus' => null,
+                'surplusQuantity' => null,
             ];
 
             $t1CopyKey = $t1ProductTypeId . ':copy:invention';
@@ -521,6 +526,7 @@ class IndustryProjectService
                     'outputPerRun' => 1,
                     'plannedStructureId' => null,
                     'plannedStructureStatus' => null,
+                    'surplusQuantity' => null,
                 ];
             }
 
