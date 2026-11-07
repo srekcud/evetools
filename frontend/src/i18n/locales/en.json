@@ -740,6 +740,8 @@
         "profitableItems": "profitable items",
         "infoIskDay": "Est. ISK/day = Profit per unit x Daily volume. This is a theoretical maximum assuming you capture 100% of market volume.",
         "infoPrices": "Material costs use Jita weighted prices. Job install costs use ESI system cost indices for your selected system. T2 items assume Attainment decryptor. Click any row to open detailed Profit Analyzer.",
+        "contractMonthlySales": "{count} / mo",
+        "contractSalesNotice": "Contract sales are estimated: a public contract that disappears before its expiry without being republished by the same issuer is counted as a probable sale, which a cancellation cannot be told apart from. Daily volume is the sales rate over the last 30 days.",
         "noResults": "No results. Try adjusting filters or run a scan.",
         "manufacturing": "Manufacturing",
         "reaction": "Reaction",
