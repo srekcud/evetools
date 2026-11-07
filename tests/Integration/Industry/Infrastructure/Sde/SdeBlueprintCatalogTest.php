@@ -149,9 +149,6 @@ final class SdeBlueprintCatalogTest extends IntegrationTestCase
         $this->assertNull($this->catalog()->recipeFor(self::SYNTHETIC_T2_BLUEPRINT));
     }
 
-    /**
-     * Same rule as IndustryTreeService::findProducerFor(): manufacturing first, reaction as a fallback.
-     */
     public function testManufacturingIsPreferredWhenAProductHasBothABlueprintAndAReactionFormula(): void
     {
         $this->insertProducer(self::SYNTHETIC_REACTION_FORMULA, self::ACTIVITY_REACTION, self::SYNTHETIC_PRODUCT, 200, 3_600, 1_000, [

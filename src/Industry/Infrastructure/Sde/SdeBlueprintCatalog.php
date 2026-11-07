@@ -33,9 +33,6 @@ final readonly class SdeBlueprintCatalog implements BlueprintCatalog
     ) {
     }
 
-    /**
-     * Manufacturing first, reaction as a fallback, as IndustryTreeService::findProducerFor().
-     */
     public function recipeFor(int $productTypeId): ?Recipe
     {
         $manufacturing = $this->activityProductRepository->findBlueprintForProduct($productTypeId, self::ACTIVITY_MANUFACTURING);
