@@ -31,6 +31,9 @@ const minDailyVolFilter = ref<number | null>(50)
 const sellVenueFilter = ref('structure')
 const structureIdFilter = ref<number | null>(null)
 const marketStructures = ref<Array<{ id: number; name: string }>>([])
+const appliedMinMargin = computed((): number | null =>
+  typeof minMarginFilter.value === 'number' && Number.isFinite(minMarginFilter.value) ? minMarginFilter.value : null,
+)
 
 // Sorting
 type SortKey = 'typeName' | 'categoryLabel' | 'marginPercent' | 'profitPerUnit' | 'dailyVolume' | 'iskPerDay' | 'materialCost' | 'exportCost' | 'importCost' | 'sellPrice' | 'meUsed' | 'activityType'
@@ -80,7 +83,7 @@ const filteredResults = computed((): BatchScanItem[] => {
     const label = CATEGORY_LABEL_MAP[categoryFilter.value]
     items = items.filter(i => i.categoryLabel === label)
   }
-  const minMargin = minMarginFilter.value
+  const minMargin = appliedMinMargin.value
   if (minMargin != null) {
     // An unknown margin never satisfies a minimum margin
     items = items.filter(i => i.marginPercent != null && i.marginPercent >= minMargin)
@@ -174,7 +177,7 @@ function onScan(): void {
   currentPage.value = 1
   scannerStore.fetchBatchScan({
     category: categoryFilter.value,
-    minMargin: minMarginFilter.value,
+    minMargin: appliedMinMargin.value,
     minDailyVolume: minDailyVolFilter.value,
     sellVenue: sellVenueFilter.value,
     structureId: structureIdFilter.value,
