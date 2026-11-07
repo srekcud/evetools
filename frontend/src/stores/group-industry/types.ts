@@ -655,7 +655,9 @@ export interface CourierContractFigures {
   reward: number | null
   collateral: number | null
   startLocationId: number | null
+  startLocationName: string | null
   endLocationId: number | null
+  endLocationName: string | null
 }
 
 export interface CourierLinkedContract extends CourierContractFigures {

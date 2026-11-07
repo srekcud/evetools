@@ -12,12 +12,15 @@ use App\Service\Industry\Project\Courier\CourierLine;
 use App\Service\Industry\Project\Courier\CourierLinkedContract;
 use App\Service\Industry\Project\Courier\CourierOverview;
 use App\Service\Industry\Project\Courier\CourierQuoteCalculator;
+use App\Service\Industry\IndustryCalculationService;
 use App\Service\TypeNameResolver;
 
 final readonly class ProjectCourierResourceMapper
 {
-    public function __construct(private TypeNameResolver $typeNameResolver)
-    {
+    public function __construct(
+        private TypeNameResolver $typeNameResolver,
+        private IndustryCalculationService $calculationService,
+    ) {
     }
 
     public function toResource(IndustryProject $project, CourierOverview $overview): ProjectCourierResource
@@ -59,7 +62,9 @@ final readonly class ProjectCourierResourceMapper
             'reward' => $contract->reward,
             'collateral' => $contract->collateral,
             'startLocationId' => $contract->startLocationId,
+            'startLocationName' => $this->locationName($contract->startLocationId),
             'endLocationId' => $contract->endLocationId,
+            'endLocationName' => $this->locationName($contract->endLocationId),
             'issuedAt' => $contract->issuedAt?->format('c'),
             'linkedAt' => $contract->linkedAt->format('c'),
         ];
@@ -100,8 +105,15 @@ final readonly class ProjectCourierResourceMapper
             'reward' => $contract->reward,
             'collateral' => $contract->collateral,
             'startLocationId' => $contract->startLocationId,
+            'startLocationName' => $this->locationName($contract->startLocationId),
             'endLocationId' => $contract->endLocationId,
+            'endLocationName' => $this->locationName($contract->endLocationId),
             'issuedAt' => $contract->issuedAt->format('c'),
         ];
+    }
+
+    private function locationName(?int $locationId): ?string
+    {
+        return null === $locationId ? null : $this->calculationService->resolveFacilityName($locationId);
     }
 }

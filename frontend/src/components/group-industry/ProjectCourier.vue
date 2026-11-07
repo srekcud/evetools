@@ -57,8 +57,9 @@ function iskText(amount: number | null): string {
   return amount === null ? DASH : formatIskFull(amount)
 }
 
-function locationText(locationId: number | null): string {
-  return locationId === null ? DASH : `#${locationId}`
+function locationText(locationId: number | null, locationName: string | null): string {
+  if (locationId === null) return DASH
+  return locationName ?? `#${locationId}`
 }
 
 const contractText = computed(() => {
@@ -268,6 +269,10 @@ onBeforeUnmount(() => {
           </div>
           <dl class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-400">
             <div class="flex gap-1">
+              <dt>{{ t('groupIndustry.courier.contract.route') }}</dt>
+              <dd data-testid="courier-linked-route" class="min-w-0 text-slate-300 break-words">{{ locationText(courier.contract.startLocationId, courier.contract.startLocationName) }} → {{ locationText(courier.contract.endLocationId, courier.contract.endLocationName) }}</dd>
+            </div>
+            <div class="flex gap-1">
               <dt>{{ t('groupIndustry.courier.contract.volume') }}</dt>
               <dd class="font-mono tabular-nums text-slate-300"><UnknownContributionValue v-if="courier.contract.volume === null" /><template v-else>{{ volumeText(courier.contract.volume) }}</template></dd>
             </div>
@@ -345,7 +350,7 @@ onBeforeUnmount(() => {
               class="inline-block px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-xs uppercase tracking-wider text-emerald-300"
             >{{ t('groupIndustry.courier.candidates.matches') }}</span>
             <span class="min-w-0 text-xs text-slate-400 break-words">
-              {{ locationText(candidate.startLocationId) }} → {{ locationText(candidate.endLocationId) }}
+              {{ locationText(candidate.startLocationId, candidate.startLocationName) }} → {{ locationText(candidate.endLocationId, candidate.endLocationName) }}
               &middot; {{ volumeText(candidate.volume) }}
               &middot; {{ iskText(candidate.reward) }}
               &middot; {{ iskText(candidate.collateral) }}
