@@ -6,6 +6,7 @@ import { useSyncStore } from '@/stores/sync'
 import { CHAIN_STATUSES, chainStatusDotClass } from './chainStatus'
 import ProductionChainFlow from './ProductionChainFlow.vue'
 import ProductionChainJobTree from './ProductionChainJobTree.vue'
+import ProjectReactionSteps from './ProjectReactionSteps.vue'
 
 type ChainView = 'flow' | 'tree'
 
@@ -105,6 +106,8 @@ watch(
           {{ t(`groupIndustry.chain.status.${status}`) }}
         </span>
       </footer>
+
+      <ProjectReactionSteps :project-id="projectId" />
     </template>
   </section>
 </template>

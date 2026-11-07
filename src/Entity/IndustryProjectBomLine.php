@@ -66,6 +66,9 @@ class IndustryProjectBomLine
     private ?string $plannedStructureStatus = null;
 
     #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $surplusQuantity = null;
+
+    #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $meLevel = null;
 
     #[ORM\Column(type: 'integer', nullable: true)]
@@ -223,6 +226,17 @@ class IndustryProjectBomLine
     public function setParentTypeId(?int $parentTypeId): static
     {
         $this->parentTypeId = $parentTypeId;
+        return $this;
+    }
+
+    public function getSurplusQuantity(): ?int
+    {
+        return $this->surplusQuantity;
+    }
+
+    public function setSurplusQuantity(?int $surplusQuantity): static
+    {
+        $this->surplusQuantity = $surplusQuantity;
         return $this;
     }
 

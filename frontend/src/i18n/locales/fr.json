@@ -1986,6 +1986,24 @@
     "available": "Projets disponibles",
     "noProjects": "Aucun projet de groupe. Creez-en un pour commencer !",
     "noAvailable": "Aucun projet disponible dans votre corporation.",
+    "reactionSteps": {
+      "title": "Réactions",
+      "loading": "Lecture des réactions...",
+      "loadError": "Les réactions n'ont pas pu être lues",
+      "hours": "{hours} h",
+      "columns": {
+        "reaction": "Réaction (formule par run)",
+        "needed": "Besoin",
+        "runsDuration": "Runs · durée de base",
+        "produced": "Produit",
+        "surplus": "Surplus"
+      },
+      "formulaUnknown": "Formule absente du SDE",
+      "surplusUnknown": "Surplus non enregistré (projet créé avant cette fonction)",
+      "warning": "Un run entier produit plus que le besoin. Le surplus ne vaut quelque chose que si un autre projet ou le Stockpile l'utilise ; sinon on paie les runs entiers.",
+      "baseDurationHint": "Durée de base du SDE, sans bonus de compétence ni de structure.",
+      "costsHint": "Les coûts et la comparaison à l'achat sont dans la carte Acheter ou fabriquer."
+    },
     "planning": {
       "title": "Planning",
       "loading": "Calcul du planning...",

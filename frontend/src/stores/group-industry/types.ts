@@ -442,6 +442,32 @@ export type ProjectChain = {
   nodes: ChainNode[]
 }
 
+export type ReactionStepInput = {
+  typeId: number
+  typeName: string | null
+  quantityPerRun: number
+  totalQuantity: number
+  isFuelBlock: boolean
+}
+
+export type ReactionStep = {
+  typeId: number
+  typeName: string
+  runs: number
+  producedQuantity: number
+  surplusQuantity: number | null
+  neededQuantity: number | null
+  outputPerRun: number | null
+  baseSecondsPerRun: number | null
+  baseTotalSeconds: number | null
+  inputs: ReactionStepInput[] | null
+}
+
+export type ProjectReactionSteps = {
+  id: string
+  steps: ReactionStep[]
+}
+
 export type PlanningActivity = 'manufacturing' | 'reaction'
 
 export type PlanningWaitKind = 'waiting_job' | 'waiting_materials' | 'unknown'

@@ -36,7 +36,9 @@ function label(locale: TestLocale, key: string): string {
 }
 
 function answerWith(nodes: ChainNode[]): void {
-  vi.mocked(apiRequest).mockResolvedValue({ id: PROJECT_ID, nodes })
+  vi.mocked(apiRequest).mockImplementation(async endpoint => (
+    endpoint === `/industry/projects/${PROJECT_ID}/reactions` ? { id: PROJECT_ID, steps: [] } : { id: PROJECT_ID, nodes }
+  ))
 }
 
 async function mountChain(nodes: ChainNode[], locale: TestLocale = 'en'): Promise<VueWrapper> {
