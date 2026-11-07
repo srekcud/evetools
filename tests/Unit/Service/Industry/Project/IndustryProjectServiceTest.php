@@ -728,6 +728,61 @@ final class IndustryProjectServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-345')]
+    public function testReactionJobLineKeepsTheSurplusOfItsIntermediateWhileTheFinalJobLineAndTheMaterialsHaveNone(): void
+    {
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 28_000, self::REACTION_PRODUCT => 491]);
+        $this->givenRecipe(self::REACTION_PRODUCT, 'Reaction Product', [self::MEXALLON => 500], outputPerRun: 3_000, activity: ActivityKind::Reaction);
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifter with a reaction',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]],
+        ));
+
+        $this->assertSame(
+            [
+                [self::RIFTER, 'final', 1, 1, null],
+                [self::REACTION_PRODUCT, 'component', 1, 3_000, 2_509],
+            ],
+            array_map(
+                static fn (IndustryProjectBomLine $job): array => [$job->getTypeId(), $job->getJobGroup(), $job->getRuns(), $job->getRequiredQuantity(), $job->getSurplusQuantity()],
+                $this->getJobBomItems($project),
+            ),
+        );
+        $this->assertSame(
+            [self::TRITANIUM => null, self::MEXALLON => null],
+            array_column(
+                array_map(static fn (IndustryProjectBomLine $material): array => [$material->getTypeId(), $material->getSurplusQuantity()], $this->getMaterialBomItems($project)),
+                1,
+                0,
+            ),
+        );
+    }
+
+    #[Group('issue-345')]
+    public function testEveryJobLineOfAReactionSplitByTheMaxProductionLimitCarriesTheSurplusOfTheIntermediate(): void
+    {
+        $this->givenRecipe(self::RIFTER, 'Rifter', [self::REACTION_PRODUCT => 250]);
+        $this->givenRecipe(self::REACTION_PRODUCT, 'Reaction Product', [self::MEXALLON => 500], outputPerRun: 100, maxProductionLimit: 10, activity: ActivityKind::Reaction);
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Rifters with a split reaction',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 5]],
+        ));
+
+        $this->assertSame(
+            [50, 50],
+            array_map(
+                static fn (IndustryProjectBomLine $job): ?int => $job->getSurplusQuantity(),
+                $this->jobBomItemsOfActivity($project, 'reaction'),
+            ),
+        );
+        $this->assertSame(
+            [1_300],
+            [array_sum(array_map(static fn (IndustryProjectBomLine $job): int => $job->getRequiredQuantity(), $this->jobBomItemsOfActivity($project, 'reaction')))],
+        );
+    }
+
     #[Group('issue-337')]
     public function testInventionAndCopyOfAnInventedProductHaveNoPlannedStructureNextToItsPlannedManufacturingJob(): void
     {
