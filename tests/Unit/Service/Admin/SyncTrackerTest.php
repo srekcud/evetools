@@ -83,6 +83,7 @@ class SyncTrackerTest extends TestCase
                 ['corporation-mining-extractions', 'Corporation Moon Chunks', 1800, false],
                 ['moon-tax', 'Moon Tax', 3600, false],
                 ['blueprints', 'Blueprints', 3600, false],
+                ['market-volumes', 'Market Volumes', 86400, false],
                 ['assets', 'Assets', null, true],
                 ['market-alerts', 'Market Alerts', null, true],
             ],

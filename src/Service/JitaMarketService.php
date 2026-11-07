@@ -31,6 +31,8 @@ class JitaMarketService
     private const VOLUME_CACHE_PREFIX = 'jita_volume_';
     private const REGIONAL_VOLUME_CACHE_FORMAT_PREFIX = 'volume_%d_';
     private const VOLUME_CACHE_TTL = 86400; // 24 hours
+    private const REGIONAL_VOLUME_CACHE_TTL = 172800;
+    private const MAX_CONSECUTIVE_FAILED_BATCHES = 3;
     private const VOLUME_HISTORY_DAYS = 30;
     private const ON_DEMAND_CACHE_PREFIX = 'jita_ondemand_';
     private const ON_DEMAND_CACHE_TTL = 300; // 5 minutes
@@ -451,6 +453,70 @@ class JitaMarketService
         }
 
         return $result;
+    }
+
+    /**
+     * @param int[] $typeIds
+     * @return array<int, float> typeId => avgDailyVolume
+     */
+    public function getCachedDailyVolumesForRegion(int $regionId, array $typeIds): array
+    {
+        $cachePrefix = sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT_PREFIX, $regionId);
+
+        $result = [];
+        foreach ($typeIds as $typeId) {
+            $cacheItem = $this->cache->getItem($cachePrefix . $typeId);
+            if ($cacheItem->isHit()) {
+                $result[$typeId] = (float) $cacheItem->get();
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param int[] $typeIds
+     * @return array{synced: int, failed: int, aborted: bool}
+     */
+    public function syncRegionalDailyVolumes(int $regionId, array $typeIds): array
+    {
+        $cachePrefix = sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT_PREFIX, $regionId);
+        $synced = 0;
+        $failed = 0;
+        $consecutiveFailedBatches = 0;
+
+        foreach (array_chunk($typeIds, self::SYNC_BATCH_SIZE) as $batch) {
+            $endpoints = [];
+            foreach ($batch as $typeId) {
+                $endpoints[$typeId] = sprintf('/markets/%d/history/?type_id=%d', $regionId, $typeId);
+            }
+
+            $histories = $this->fetchSuccessfulResponses($endpoints);
+
+            foreach ($histories as $typeId => $history) {
+                /** @var list<array{date: string, order_count: int, volume: int, lowest: float, highest: float, average: float}> $history */
+                $cacheItem = $this->cache->getItem($cachePrefix . $typeId);
+                $cacheItem->set($this->computeAverageDailyVolume($history));
+                $cacheItem->expiresAfter(self::REGIONAL_VOLUME_CACHE_TTL);
+                $this->cache->save($cacheItem);
+            }
+
+            $synced += count($histories);
+            $failed += count($batch) - count($histories);
+            $consecutiveFailedBatches = $histories === [] ? $consecutiveFailedBatches + 1 : 0;
+
+            if ($consecutiveFailedBatches >= self::MAX_CONSECUTIVE_FAILED_BATCHES) {
+                $this->logger->warning('Regional volume sync abandoned, ESI keeps failing', [
+                    'regionId' => $regionId,
+                    'synced' => $synced,
+                    'failed' => $failed,
+                ]);
+
+                return ['synced' => $synced, 'failed' => $failed, 'aborted' => true];
+            }
+        }
+
+        return ['synced' => $synced, 'failed' => $failed, 'aborted' => false];
     }
 
     /**

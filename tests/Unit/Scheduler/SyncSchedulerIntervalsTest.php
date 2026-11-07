@@ -13,6 +13,7 @@ use App\Message\SyncBlueprints;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
+use App\Message\SyncRegionalMarketVolumes;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerCorporationMiningExtractionsSync;
@@ -61,6 +62,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         TriggerCorporationMiningExtractionsSync::class => 'corporation-mining-extractions',
         TriggerMoonTaxSync::class => 'moon-tax',
         SyncBlueprints::class => 'blueprints',
+        SyncRegionalMarketVolumes::class => 'market-volumes',
     ];
 
     /** Maintenance planifiée dont les handlers n'utilisent pas le SyncTracker. */
@@ -104,6 +106,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'industry' => 1800,
             'market-jita' => 3600,
             'market-structure' => 3600,
+            'market-volumes' => 86400,
             'mining' => 3600,
             'moon-tax' => 3600,
             'planetary' => 1800,

@@ -509,6 +509,9 @@ class BatchProfitScanRulesTest extends TestCase
     {
         $this->givenShieldExtenderOfTheTransportExample(5402, null);
         $this->structurePrices = [self::AMARR_STRUCTURE_ID => [5402 => 310.0]];
+        $this->givenCachedStructureIn(self::AMARR_SYSTEM_ID);
+        $this->givenSolarSystemInRegion(self::AMARR_SYSTEM_ID, self::DOMAIN_REGION_ID);
+        $this->regionDailyVolumes = [self::DOMAIN_REGION_ID => [5402 => 8.0]];
 
         $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID, exportCostPerM3: 2.0)[0];
 
@@ -749,33 +752,33 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertSame([1200.0, 8.0, 0.0], [$row['sellPrice'], $row['dailyVolume'], $row['exportCost']]);
     }
 
-    public function testStructureVenueFallsBackToJitaDailyVolumeWhenTheStructureIsNotCached(): void
+    public function testStructureVenueLeavesTheDailyVolumeUnknownWhenTheStructureIsNotCached(): void
     {
         $this->givenStructureMarketScenario();
 
         $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID)[0];
 
-        $this->assertSame([1200.0, 30.0], [$row['sellPrice'], $row['dailyVolume']]);
+        $this->assertSame([1200.0, null], [$row['sellPrice'], $row['dailyVolume']]);
     }
 
-    public function testStructureVenueFallsBackToJitaDailyVolumeWhenTheStructureSolarSystemIsUnknown(): void
+    public function testStructureVenueLeavesTheDailyVolumeUnknownWhenTheStructureSolarSystemIsUnknown(): void
     {
         $this->givenStructureMarketScenario();
         $this->givenCachedStructureIn(null);
 
         $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID)[0];
 
-        $this->assertSame([1200.0, 30.0], [$row['sellPrice'], $row['dailyVolume']]);
+        $this->assertSame([1200.0, null], [$row['sellPrice'], $row['dailyVolume']]);
     }
 
-    public function testStructureVenueFallsBackToJitaDailyVolumeWhenTheSolarSystemIsMissingFromTheSde(): void
+    public function testStructureVenueLeavesTheDailyVolumeUnknownWhenTheSolarSystemIsMissingFromTheSde(): void
     {
         $this->givenStructureMarketScenario();
         $this->givenCachedStructureIn(self::AMARR_SYSTEM_ID);
 
         $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID)[0];
 
-        $this->assertSame([1200.0, 30.0], [$row['sellPrice'], $row['dailyVolume']]);
+        $this->assertSame([1200.0, null], [$row['sellPrice'], $row['dailyVolume']]);
     }
 
     public function testJitaVenueIgnoresAGivenStructure(): void
@@ -1038,7 +1041,7 @@ class BatchProfitScanRulesTest extends TestCase
         $jitaMarketService->method('getCachedDailyVolumes')->willReturnCallback(
             fn (array $typeIds): array => $this->onlyRequested($this->jitaDailyVolumes, $typeIds),
         );
-        $jitaMarketService->method('getAverageDailyVolumesForRegion')->willReturnCallback(
+        $jitaMarketService->method('getCachedDailyVolumesForRegion')->willReturnCallback(
             fn (int $regionId, array $typeIds): array => $this->onlyRequested($this->regionDailyVolumes[$regionId] ?? [], $typeIds),
         );
 
