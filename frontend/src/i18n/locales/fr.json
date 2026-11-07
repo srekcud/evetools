@@ -1986,6 +1986,59 @@
     "available": "Projets disponibles",
     "noProjects": "Aucun projet de groupe. Creez-en un pour commencer !",
     "noAvailable": "Aucun projet disponible dans votre corporation.",
+    "planning": {
+      "title": "Planning",
+      "loading": "Calcul du planning...",
+      "loadError": "Le planning n'a pas pu être lu",
+      "plannedEnd": "Fin prévue",
+      "expectedEnd": "Fin attendue",
+      "delayTitle": "Écart",
+      "delay": {
+        "late": "{duration} de retard",
+        "early": "{duration} d'avance",
+        "onTime": "Dans les temps"
+      },
+      "structureNotice": "Durées sans bonus de structure : les jobs réels peuvent finir plus tôt.",
+      "unscheduledTitle": "Jobs impossibles à planifier",
+      "unscheduledReason": {
+        "no_eligible_worker": "Aucun personnage ne peut lancer ce job",
+        "dependency_unscheduled": "Un job dont il dépend ne peut pas être planifié",
+        "duration_unknown": "Durée inconnue"
+      },
+      "noCharacters": "Aucun personnage ne participe encore à ce projet.",
+      "ganttCharacter": "Personnage",
+      "now": "Maintenant",
+      "noJob": "Aucun job",
+      "skillsUnknownCause": "Compétences non synchronisées : aucun job ne peut être confié à ce personnage",
+      "runs": "{runs} runs",
+      "activity": {
+        "manufacturing": "Fabrication",
+        "reaction": "Réaction"
+      },
+      "wait": {
+        "waitingJob": "Attend {names}",
+        "waitingMaterials": "Attend des matériaux : {names}",
+        "unknown": "Cause de l'attente inconnue",
+        "late": "{duration} de retard"
+      },
+      "legend": {
+        "planned": "Prévu",
+        "active": "En cours",
+        "done": "Fait",
+        "wait": "Attente"
+      },
+      "assignmentsTitle": "Qui lance quoi",
+      "columns": {
+        "character": "Personnage",
+        "manufacturingSlots": "Slots fabrication",
+        "reactionSlots": "Slots réaction",
+        "industry": "Industry",
+        "advancedIndustry": "Advanced Industry",
+        "reactions": "Reactions",
+        "jobs": "Jobs",
+        "endsAt": "Fin"
+      }
+    },
     "chain": {
       "title": "Chaîne de production",
       "loading": "Lecture de la chaîne de production...",
