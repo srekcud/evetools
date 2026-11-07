@@ -2143,6 +2143,40 @@
       "withoutImport": "without the import: buy",
       "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × jumps × the rate). The surplus of a run is not credited to the project."
     },
+    "structures": {
+      "title": "Structures",
+      "loading": "Comparing the structures...",
+      "loadError": "The structure comparison could not be read",
+      "empty": "Nothing to compare: the plan has no manufacturing or reaction job.",
+      "noStructure": "No structure of the owner can run this activity.",
+      "transportRate": "Transport: {rate} ISK / m³ / jump",
+      "groupTitle": "{product} · {activity} · {jobs} jobs, {runs} runs",
+      "activity": {
+        "manufacturing": "manufacturing",
+        "reaction": "reaction"
+      },
+      "columns": {
+        "structure": "Structure",
+        "materialBonus": "Material bonus",
+        "materials": "Materials",
+        "installation": "Installation",
+        "transport": "Transport",
+        "total": "Total",
+        "delta": "Gap"
+      },
+      "preferred": "preferred",
+      "jumps": "{count} jump | {count} jumps",
+      "retained": "Structure retained by the plan",
+      "taxDetail": "tax {percent}",
+      "transportDetail": "{volume} m³ × {jumps}",
+      "banner": {
+        "onlyFavoriteSystem": "{structure} would cost {amount} less, transport included. Not retained: the project only accepts the favorite system.",
+        "belowThreshold": "{structure} would cost {amount} less, transport included. Saving under the project threshold ({threshold}): the plan stays on the retained structure.",
+        "notRetained": "{structure} would cost {amount} less, transport included. Not retained.",
+        "byTotalCost": "{structure} is retained outside the favorite system: lowest total cost."
+      },
+      "hint": "Total = materials (structure and rigs) + installation (cost index, role bonus, tax) + transport (m³ of materials and products × jumps × the rate). Gap = total minus the retained structure."
+    },
     "kpis": {
       "activeProjects": "Active Projects",
       "activeDesc": "currently running",

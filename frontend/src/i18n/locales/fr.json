@@ -2143,6 +2143,40 @@
       "withoutImport": "sans l'import : acheter",
       "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet."
     },
+    "structures": {
+      "title": "Structures",
+      "loading": "Comparaison des structures...",
+      "loadError": "La comparaison des structures n'a pas pu être lue",
+      "empty": "Rien à comparer : le plan ne contient aucun job de fabrication ni de réaction.",
+      "noStructure": "Aucune structure du propriétaire ne peut faire cette activité.",
+      "transportRate": "Transport : {rate} ISK / m³ / saut",
+      "groupTitle": "{product} · {activity} · {jobs} jobs, {runs} runs",
+      "activity": {
+        "manufacturing": "fabrication",
+        "reaction": "réaction"
+      },
+      "columns": {
+        "structure": "Structure",
+        "materialBonus": "Bonus matériaux",
+        "materials": "Matériaux",
+        "installation": "Installation",
+        "transport": "Transport",
+        "total": "Total",
+        "delta": "Écart"
+      },
+      "preferred": "préférée",
+      "jumps": "{count} saut | {count} sauts",
+      "retained": "Structure retenue par le plan",
+      "taxDetail": "taxe {percent}",
+      "transportDetail": "{volume} m³ × {jumps}",
+      "banner": {
+        "onlyFavoriteSystem": "{structure} reviendrait {amount} moins cher, transport compris. Non retenue : le projet n'accepte que le système préféré.",
+        "belowThreshold": "{structure} reviendrait {amount} moins cher, transport compris. Économie sous le seuil du projet ({threshold}) : le plan reste sur la structure retenue.",
+        "notRetained": "{structure} reviendrait {amount} moins cher, transport compris. Non retenue.",
+        "byTotalCost": "{structure} est retenue hors du système préféré : coût total le plus bas."
+      },
+      "hint": "Total = matériaux (structure et rigs) + installation (indice de coût, bonus de rôle, taxe) + transport (m³ des matériaux et des produits × sauts × le barème). Écart = total moins la structure retenue."
+    },
     "kpis": {
       "activeProjects": "Projets actifs",
       "activeDesc": "en cours de production",
