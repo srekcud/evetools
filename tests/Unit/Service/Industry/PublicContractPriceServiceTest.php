@@ -8,6 +8,8 @@ use App\Message\SyncPublicContracts;
 use App\MessageHandler\SyncPublicContractsHandler;
 use App\Service\Admin\SyncTracker;
 use App\Service\ESI\EsiClient;
+use App\Service\Industry\ContractSales\PublicContractHistoryRecorder;
+use App\Service\Industry\ContractSales\PublicContractRegions;
 use App\Service\Industry\PublicContractPriceService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -79,11 +81,16 @@ final class PublicContractPriceServiceTest extends TestCase
             static fn (array $endpoints): array => array_intersect_key($itemsByContractId, $endpoints),
         );
 
+        $regions = $this->createStub(PublicContractRegions::class);
+        $regions->method('resolve')->willReturn(['regionIds' => [10000002], 'unknownStructureIds' => []]);
+
         $handler = new SyncPublicContractsHandler(
             esiClient: $esiClient,
             cache: $this->publicContractsCache,
             logger: new NullLogger(),
             syncTracker: $this->createStub(SyncTracker::class),
+            historyRecorder: $this->createStub(PublicContractHistoryRecorder::class),
+            regions: $regions,
         );
         $handler(new SyncPublicContracts());
     }

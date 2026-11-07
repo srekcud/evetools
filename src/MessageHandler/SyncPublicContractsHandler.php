@@ -8,6 +8,9 @@ use App\Constant\EveConstants;
 use App\Message\SyncPublicContracts;
 use App\Service\Admin\SyncTracker;
 use App\Service\ESI\EsiClient;
+use App\Service\Industry\ContractSales\ObservedContract;
+use App\Service\Industry\ContractSales\PublicContractHistoryRecorder;
+use App\Service\Industry\ContractSales\PublicContractRegions;
 use App\Service\Industry\PublicContractPriceService;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
@@ -28,21 +31,30 @@ final readonly class SyncPublicContractsHandler
         private CacheItemPoolInterface $cache,
         private LoggerInterface $logger,
         private SyncTracker $syncTracker,
+        private PublicContractHistoryRecorder $historyRecorder,
+        private PublicContractRegions $regions,
     ) {
     }
 
     public function __invoke(SyncPublicContracts $message): void
     {
         $this->syncTracker->start('public-contracts');
-        $this->logger->info('Starting public contracts sync for The Forge');
+        $this->logger->info('Starting public contracts sync');
 
         try {
-            [$count, $unreadContracts] = $this->sync();
+            $regions = $this->regions->resolve();
+            $result = $this->sync($regions['regionIds']);
 
-            $this->logger->info('Public contracts sync completed', ['types' => $count, 'unreadContracts' => $unreadContracts]);
-            $summary = $count . ' types indexed';
-            if ($unreadContracts > 0) {
-                $summary .= ', ' . $unreadContracts . ' contracts unread';
+            $this->logger->info('Public contracts sync completed', [
+                'types' => $result['indexedTypes'],
+                'unreadContracts' => $result['unreadContracts'],
+                'failedRegionIds' => $result['failedRegionIds'],
+            ]);
+            $summary = $this->summarize($result, $regions['unknownStructureIds']);
+            if ($result['failedRegionIds'] !== []) {
+                $this->syncTracker->fail('public-contracts', $summary);
+
+                return;
             }
             $this->syncTracker->complete('public-contracts', $summary);
         } catch (\Throwable $e) {
@@ -54,17 +66,69 @@ final readonly class SyncPublicContractsHandler
     }
 
     /**
-     * @return array{int, int}
+     * @param array{indexedTypes: int, unreadContracts: int, failedRegionIds: list<int>} $result
+     * @param list<int> $unknownStructureIds
      */
-    private function sync(): array
+    private function summarize(array $result, array $unknownStructureIds): string
     {
-        // 1. Fetch all pages of public contracts for The Forge
-        /** @var list<array<string, mixed>> $contracts */
-        $contracts = $this->esiClient->getPaginated('/contracts/public/' . EveConstants::THE_FORGE_REGION_ID . '/');
-        $this->logger->info('Fetched public contracts', ['count' => count($contracts)]);
+        $summary = $result['indexedTypes'] . ' types indexed';
+        if ($result['unreadContracts'] > 0) {
+            $summary .= ', ' . $result['unreadContracts'] . ' contracts unread';
+        }
+        if ($unknownStructureIds !== []) {
+            $summary .= '; skipped (region unknown): ' . implode(', ', $unknownStructureIds);
+        }
+        if ($result['failedRegionIds'] !== []) {
+            $summary .= '; failed regions: ' . implode(', ', $result['failedRegionIds']);
+        }
 
-        // 2. Filter: item_exchange only, not expired
+        return $summary;
+    }
+
+    /**
+     * @param list<int> $regionIds
+     * @return array{indexedTypes: int, unreadContracts: int, failedRegionIds: list<int>}
+     */
+    private function sync(array $regionIds): array
+    {
         $now = new \DateTimeImmutable();
+        $indexedTypes = 0;
+        $unreadContracts = 0;
+        $failedRegionIds = [];
+
+        foreach ($regionIds as $regionId) {
+            try {
+                [$contracts, $contractItems] = $this->pollRegion($regionId, $now);
+            } catch (\Throwable $e) {
+                if ($regionId === EveConstants::THE_FORGE_REGION_ID) {
+                    throw $e;
+                }
+                $this->logger->error('Public contracts region sync failed', ['regionId' => $regionId, 'error' => $e->getMessage()]);
+                $failedRegionIds[] = $regionId;
+                continue;
+            }
+
+            if ($regionId === EveConstants::THE_FORGE_REGION_ID) {
+                $indexedTypes = $this->indexPrices($contracts, $contractItems);
+            }
+            $this->recordHistory($regionId, $contracts, $contractItems, $now);
+            $unreadContracts += count($contracts) - count($contractItems);
+        }
+
+        $this->historyRecorder->purgeExpiredHistory($now);
+
+        return ['indexedTypes' => $indexedTypes, 'unreadContracts' => $unreadContracts, 'failedRegionIds' => $failedRegionIds];
+    }
+
+    /**
+     * @return array{list<array<string, mixed>>, array<int, list<array<string, mixed>>>}
+     */
+    private function pollRegion(int $regionId, \DateTimeImmutable $now): array
+    {
+        /** @var list<array<string, mixed>> $contracts */
+        $contracts = $this->esiClient->getPaginated('/contracts/public/' . $regionId . '/');
+        $this->logger->info('Fetched public contracts', ['regionId' => $regionId, 'count' => count($contracts)]);
+
         $itemExchangeContracts = [];
         foreach ($contracts as $contract) {
             if (($contract['type'] ?? '') !== 'item_exchange') {
@@ -86,11 +150,17 @@ final readonly class SyncPublicContractsHandler
             $itemExchangeContracts[] = $contract;
         }
 
-        $this->logger->info('Filtered item_exchange contracts', ['count' => count($itemExchangeContracts)]);
+        $this->logger->info('Filtered item_exchange contracts', ['regionId' => $regionId, 'count' => count($itemExchangeContracts)]);
 
-        // 3. Fetch items for each contract
-        $contractItems = $this->fetchContractItems($itemExchangeContracts);
+        return [$itemExchangeContracts, $this->fetchContractItems($itemExchangeContracts)];
+    }
 
+    /**
+     * @param list<array<string, mixed>> $itemExchangeContracts
+     * @param array<int, list<array<string, mixed>>> $contractItems
+     */
+    private function indexPrices(array $itemExchangeContracts, array $contractItems): int
+    {
         // 4. Filter for mono-item contracts and compute unit prices
         // Index: typeId => list<{unitPrice, quantity, contractId}>
         /** @var array<int, list<array{unitPrice: float, quantity: int, contractId: int}>> $priceIndex */
@@ -162,7 +232,39 @@ final readonly class SyncPublicContractsHandler
         $metaItem->expiresAfter(self::CACHE_TTL);
         $this->cache->save($metaItem);
 
-        return [count($priceIndex), count($itemExchangeContracts) - count($contractItems)];
+        return count($priceIndex);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $itemExchangeContracts
+     * @param array<int, list<array<string, mixed>>> $contractItems
+     */
+    private function recordHistory(int $regionId, array $itemExchangeContracts, array $contractItems, \DateTimeImmutable $now): void
+    {
+        $readableContracts = [];
+        $listedContractIds = [];
+        foreach ($itemExchangeContracts as $contract) {
+            $contractId = (int) $contract['contract_id'];
+            $listedContractIds[] = $contractId;
+
+            $issuerId = $contract['issuer_id'] ?? null;
+            $dateExpired = $contract['date_expired'] ?? null;
+            $price = $contract['price'] ?? null;
+            if ($issuerId === null || $dateExpired === null || $price === null || !isset($contractItems[$contractId])) {
+                continue;
+            }
+
+            $includedItems = [];
+            foreach ($contractItems[$contractId] as $item) {
+                if (($item['is_included'] ?? true) === true) {
+                    $includedItems[] = ['typeId' => (int) $item['type_id'], 'quantity' => (int) ($item['quantity'] ?? 1)];
+                }
+            }
+
+            $readableContracts[] = new ObservedContract($contractId, (int) $issuerId, (float) $price, $includedItems, new \DateTimeImmutable($dateExpired));
+        }
+
+        $this->historyRecorder->record($regionId, $readableContracts, $listedContractIds, $now);
     }
 
     /**
