@@ -24,8 +24,6 @@ const OPTION: ProfitMarginInventionOption = {
   te: 4,
   runs: 10,
   probability: 0.4958,
-  materialCost: 8_000,
-  jobInstallCost: 1_000,
   inventionCost: 2_400,
   totalProductionCost: 11_400,
   bestMargin: 12,

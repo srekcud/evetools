@@ -25,8 +25,6 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   te: 4,
   runs: 10,
   probability: 0.34,
-  materialCost: null,
-  jobInstallCost: 5_000,
   inventionCost: 26_000,
   totalProductionCost: null,
   bestMargin: null,
@@ -43,8 +41,6 @@ const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
   te: 8,
   runs: 14,
   probability: 0.612,
-  materialCost: null,
-  jobInstallCost: 9_000,
   inventionCost: 45_000,
   totalProductionCost: null,
   bestMargin: null,
@@ -109,7 +105,7 @@ const SABRE_WITH_UNPRICED_MATERIALS: ProfitMarginResult = {
 
 const SABRE_WITH_ATTAINMENT_CHOSEN: ProfitMarginResult = {
   ...SABRE_WITH_UNPRICED_MATERIALS,
-  jobInstallCost: ATTAINMENT_OPTION.jobInstallCost,
+  jobInstallCost: 9_000,
   inventionCost: ATTAINMENT_OPTION.inventionCost,
   invention: {
     ...SABRE_WITH_UNPRICED_MATERIALS.invention!,

@@ -117,8 +117,6 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   te: 4,
   runs: 10,
   probability: 0.34,
-  materialCost: 647_325.76,
-  jobInstallCost: null,
   inventionCost: 254.424,
   totalProductionCost: null,
   bestMargin: null,
@@ -135,8 +133,6 @@ const PROCESS_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
   te: 10,
   runs: 10,
   probability: 0.374,
-  materialCost: 631_480.12,
-  jobInstallCost: null,
   inventionCost: 1_280.574,
   totalProductionCost: null,
   bestMargin: null,
@@ -196,7 +192,7 @@ const HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST: ProfitMarginResult = {
 
 const HAIL_L_WITH_PROCESS_CHOSEN: ProfitMarginResult = {
   ...HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST,
-  materialCost: PROCESS_DECRYPTOR_OPTION.materialCost,
+  materialCost: 631_480.12,
   inventionCost: PROCESS_DECRYPTOR_OPTION.inventionCost,
   invention: {
     ...HAIL_L_WITH_AN_UNKNOWN_JOB_INSTALL_COST.invention!,
