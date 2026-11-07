@@ -1687,7 +1687,13 @@
       "showPanel": "Manage visibility",
       "hidePanel": "Hide",
       "sharedDivisions": "Shared divisions",
-      "sharedDivisionsNone": "No divisions are currently shared with you"
+      "sharedDivisionsNone": "No divisions are currently shared with you",
+      "modeAll": "All members",
+      "modeList": "List",
+      "modeHidden": "Hidden",
+      "noPlayerListed": "No player listed: the division stays hidden",
+      "readOnlyDescription": "Who can see each hangar division of the corporation. Only a Director can change it.",
+      "noDirectorWarning": "No Director connected: the content of the corporation containers is unknown, not empty."
     }
   },
   "contracts": {
@@ -2495,6 +2501,7 @@
       "unknownReasons": {
         "corporation_assets_not_synced": "Sync the corp assets",
         "no_visible_division": "No division is shared",
+        "no_director": "No Director is connected",
         "owner_without_corporation": "The owner has no corporation"
       },
       "containerName": "Container Name",
@@ -3344,6 +3351,7 @@
           "not_corporation_member": "Corporation assets are only shown to corporation members.",
           "corporation_assets_not_synced": "Corporation assets never synced.",
           "no_visible_division": "No shared corporation division.",
+          "no_director": "No Director is connected: the corporation containers cannot be read.",
           "assets_synced_before_end": "Corporation assets read at {time}, before the operation ended ({end}).",
           "container_not_found": "No “{name}” container in the shared divisions.",
           "delivered_quantity_unknown": "Delivered quantity unknown: {names}."

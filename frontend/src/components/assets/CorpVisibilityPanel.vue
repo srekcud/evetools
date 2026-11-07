@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePilotName } from '@/composables/usePilotName'
 import type { CorpAssetVisibility } from '@/types'
@@ -9,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  save: [divisions: number[]]
+  save: [payload: { visibleDivisions: number[]; restrictedDivisions: Record<number, string[]> }]
 }>()
 
 const { t } = useI18n()
@@ -19,22 +19,40 @@ const isExpanded = ref(false)
 const isSaving = ref(false)
 const saveSuccess = ref(false)
 
-// Local copy of selected divisions for editing
-const selectedDivisions = ref<Set<number>>(new Set(props.visibility.visibleDivisions))
+type DivisionMode = 'all' | 'list' | 'hidden'
 
-// Reset local state when visibility prop changes
-function resetSelections() {
-  selectedDivisions.value = new Set(props.visibility.visibleDivisions)
+const DIVISION_MODES: DivisionMode[] = ['all', 'list', 'hidden']
+const MODE_LABEL_KEYS: Record<DivisionMode, string> = {
+  all: 'assets.visibility.modeAll',
+  list: 'assets.visibility.modeList',
+  hidden: 'assets.visibility.modeHidden',
 }
 
-const hasChanges = computed(() => {
-  const current = new Set(props.visibility.visibleDivisions)
-  if (current.size !== selectedDivisions.value.size) return true
-  for (const div of selectedDivisions.value) {
-    if (!current.has(div)) return true
+const divisionModes = ref<Record<number, DivisionMode>>({})
+const listedPlayerIds = ref<Record<number, string[]>>({})
+
+const isEditable = computed(() => props.visibility.isDirector)
+
+function modeOf(divisionNumber: number): DivisionMode {
+  if (props.visibility.visibleDivisions.includes(divisionNumber)) return 'all'
+  if (props.visibility.restrictedDivisions[divisionNumber] !== undefined) return 'list'
+  return 'hidden'
+}
+
+function savedPlayerIds(divisionNumber: number): string[] {
+  return (props.visibility.restrictedDivisions[divisionNumber] ?? []).map(player => player.id)
+}
+
+function resetSelections() {
+  const modes: Record<number, DivisionMode> = {}
+  const players: Record<number, string[]> = {}
+  for (const division of sortedDivisions.value) {
+    modes[division.number] = modeOf(division.number)
+    players[division.number] = savedPlayerIds(division.number)
   }
-  return false
-})
+  divisionModes.value = modes
+  listedPlayerIds.value = players
+}
 
 const sortedDivisions = computed(() =>
   Object.entries(props.visibility.allDivisions)
@@ -42,22 +60,63 @@ const sortedDivisions = computed(() =>
     .sort((a, b) => a.number - b.number)
 )
 
-const visibleCount = computed(() => selectedDivisions.value.size)
+resetSelections()
 
-function toggleDivision(divisionNumber: number) {
-  const next = new Set(selectedDivisions.value)
-  if (next.has(divisionNumber)) {
-    next.delete(divisionNumber)
-  } else {
-    next.add(divisionNumber)
+watch(() => props.visibility, resetSelections)
+
+function currentMode(divisionNumber: number): DivisionMode {
+  return divisionModes.value[divisionNumber] ?? modeOf(divisionNumber)
+}
+
+const pendingPayload = computed(() => {
+  const visibleDivisions: number[] = []
+  const restrictedDivisions: Record<number, string[]> = {}
+  for (const division of sortedDivisions.value) {
+    const mode = currentMode(division.number)
+    const playerIds = listedPlayerIds.value[division.number] ?? []
+    if (mode === 'all') {
+      visibleDivisions.push(division.number)
+    } else if (mode === 'list' && playerIds.length > 0) {
+      restrictedDivisions[division.number] = [...playerIds].sort()
+    }
   }
-  selectedDivisions.value = next
+  return { visibleDivisions, restrictedDivisions }
+})
+
+const savedPayload = computed(() => {
+  const restrictedDivisions: Record<number, string[]> = {}
+  for (const [number, players] of Object.entries(props.visibility.restrictedDivisions)) {
+    if (players.length > 0) restrictedDivisions[Number(number)] = players.map(player => player.id).sort()
+  }
+  return { visibleDivisions: [...props.visibility.visibleDivisions].sort(), restrictedDivisions }
+})
+
+const hasChanges = computed(() => JSON.stringify(pendingPayload.value) !== JSON.stringify(savedPayload.value))
+
+const visibleCount = computed(() =>
+  isEditable.value
+    ? sortedDivisions.value.filter(division => currentMode(division.number) !== 'hidden').length
+    : props.visibility.accessibleDivisions.length
+)
+
+function setMode(divisionNumber: number, mode: DivisionMode) {
+  divisionModes.value = { ...divisionModes.value, [divisionNumber]: mode }
+}
+
+function isPlayerListed(divisionNumber: number, playerId: string): boolean {
+  return (listedPlayerIds.value[divisionNumber] ?? []).includes(playerId)
+}
+
+function togglePlayer(divisionNumber: number, playerId: string) {
+  const current = listedPlayerIds.value[divisionNumber] ?? []
+  const next = current.includes(playerId) ? current.filter(id => id !== playerId) : [...current, playerId]
+  listedPlayerIds.value = { ...listedPlayerIds.value, [divisionNumber]: next }
 }
 
 function handleSave() {
   isSaving.value = true
   saveSuccess.value = false
-  emit('save', Array.from(selectedDivisions.value).sort())
+  emit('save', pendingPayload.value)
 }
 
 // Called by parent after save completes
@@ -95,6 +154,7 @@ defineExpose({ onSaveComplete, onSaveError })
   <div class="bg-slate-900 rounded-lg border border-slate-800">
     <!-- Collapsed header / summary -->
     <button
+      data-testid="visibility-panel-toggle"
       @click="togglePanel"
       class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-800/50 transition-colors rounded-lg"
     >
@@ -129,37 +189,104 @@ defineExpose({ onSaveComplete, onSaveError })
 
     <!-- Expanded content -->
     <div v-if="isExpanded" class="px-4 pb-4 space-y-4 border-t border-slate-800">
-      <p class="text-xs text-slate-400 mt-3">{{ t('assets.visibility.description') }}</p>
+      <p class="text-xs text-slate-400 mt-3">
+        {{ t(isEditable ? 'assets.visibility.description' : 'assets.visibility.readOnlyDescription') }}
+      </p>
 
-      <!-- Division toggles -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-        <button
+      <div
+        v-if="!props.visibility.directorConnected"
+        data-testid="no-director-warning"
+        class="flex items-start gap-2 px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300"
+      >
+        <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        </svg>
+        <span>{{ t('assets.visibility.noDirectorWarning') }}</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
+        <div
           v-for="division in sortedDivisions"
           :key="division.number"
-          @click="toggleDivision(division.number)"
-          :class="[
-            'flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors text-left',
-            selectedDivisions.has(division.number)
-              ? 'border-cyan-500/50 bg-cyan-500/10 text-slate-200'
-              : 'border-slate-700 bg-slate-800/50 text-slate-500 hover:border-slate-600'
-          ]"
+          :data-testid="`division-${division.number}`"
+          class="rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 space-y-2"
         >
-          <!-- Toggle indicator -->
-          <div
-            :class="[
-              'w-8 h-5 rounded-full relative transition-colors shrink-0',
-              selectedDivisions.has(division.number) ? 'bg-cyan-600' : 'bg-slate-700'
-            ]"
-          >
-            <div
-              :class="[
-                'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all',
-                selectedDivisions.has(division.number) ? 'left-3.5' : 'left-0.5'
-              ]"
-            ></div>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-sm text-slate-200 truncate min-w-0" :title="division.name">{{ division.name }}</span>
+            <div v-if="isEditable" class="inline-flex rounded-lg border border-slate-700 overflow-hidden shrink-0">
+              <button
+                v-for="mode in DIVISION_MODES"
+                :key="mode"
+                type="button"
+                :data-testid="`division-${division.number}-mode-${mode}`"
+                :aria-pressed="currentMode(division.number) === mode"
+                :class="[
+                  'px-2.5 py-1 text-xs font-medium transition-colors',
+                  currentMode(division.number) === mode
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-slate-900 text-slate-400 hover:text-slate-200'
+                ]"
+                @click="setMode(division.number, mode)"
+              >
+                {{ t(MODE_LABEL_KEYS[mode]) }}
+              </button>
+            </div>
+            <span
+              v-else
+              :data-testid="`division-${division.number}-mode-label`"
+              class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-900 text-cyan-400 border border-slate-700"
+            >
+              {{ t(MODE_LABEL_KEYS[modeOf(division.number)]) }}
+            </span>
           </div>
-          <span class="text-sm truncate">{{ division.name }}</span>
-        </button>
+
+          <div
+            v-if="isEditable && currentMode(division.number) === 'list'"
+            :data-testid="`division-${division.number}-players`"
+            class="space-y-1.5"
+          >
+            <p
+              v-if="(listedPlayerIds[division.number] ?? []).length === 0"
+              class="text-xs text-slate-500"
+            >
+              {{ t('assets.visibility.noPlayerListed') }}
+            </p>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="player in props.visibility.players"
+                :key="player.id"
+                type="button"
+                :data-testid="`division-${division.number}-player-${player.id}`"
+                :aria-pressed="isPlayerListed(division.number, player.id)"
+                :title="player.name"
+                :class="[
+                  'max-w-[12rem] truncate px-2 py-0.5 rounded text-xs font-medium border transition-colors',
+                  isPlayerListed(division.number, player.id)
+                    ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/40'
+                    : 'bg-slate-900 text-slate-500 border-slate-700 hover:border-slate-600'
+                ]"
+                @click="togglePlayer(division.number, player.id)"
+              >
+                {{ player.name }}
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-else-if="!isEditable && modeOf(division.number) === 'list'"
+            :data-testid="`division-${division.number}-listed-players`"
+            class="flex flex-wrap gap-1.5"
+          >
+            <span
+              v-for="player in props.visibility.restrictedDivisions[division.number] ?? []"
+              :key="player.id"
+              :title="player.name"
+              class="max-w-[12rem] truncate inline-flex px-2 py-0.5 rounded text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+            >
+              {{ player.name }}
+            </span>
+          </div>
+        </div>
       </div>
 
       <!-- Footer: metadata + save -->
@@ -173,6 +300,8 @@ defineExpose({ onSaveComplete, onSaveError })
           </div>
         </div>
         <button
+          v-if="isEditable"
+          data-testid="save"
           @click="handleSave"
           :disabled="!hasChanges || isSaving"
           :class="[

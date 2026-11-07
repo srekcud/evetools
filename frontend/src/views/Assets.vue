@@ -55,7 +55,7 @@ const noDivisionsShared = computed(() =>
   isCorpView.value
   && !isDirector.value
   && visibility.value != null
-  && visibility.value.visibleDivisions.length === 0
+  && visibility.value.accessibleDivisions.length === 0
   && visibility.value.updatedAt == null
 )
 
@@ -63,12 +63,12 @@ const hasSharedDivisions = computed(() =>
   isCorpView.value
   && !isDirector.value
   && visibility.value != null
-  && visibility.value.visibleDivisions.length > 0
+  && visibility.value.accessibleDivisions.length > 0
 )
 
 const sharedDivisionNames = computed(() => {
   if (!visibility.value) return []
-  return visibility.value.visibleDivisions
+  return visibility.value.accessibleDivisions
     .map(num => visibility.value!.allDivisions[num])
     .filter((name): name is string => name != null)
     .sort((a, b) => a.localeCompare(b))
@@ -266,7 +266,7 @@ async function fetchVisibility() {
   }
 }
 
-async function saveVisibility(divisions: number[]) {
+async function saveVisibility(payload: { visibleDivisions: number[]; restrictedDivisions: Record<number, string[]> }) {
   try {
     const response = await fetch('/api/me/corporation/assets/visibility', {
       method: 'PUT',
@@ -274,7 +274,7 @@ async function saveVisibility(divisions: number[]) {
         'Authorization': `Bearer ${authStore.token}`,
         'Content-Type': 'application/ld+json'
       },
-      body: JSON.stringify({ visibleDivisions: divisions })
+      body: JSON.stringify(payload)
     })
     if (!response.ok) throw new Error('Failed to save visibility')
     visibilityPanel.value?.onSaveComplete()
@@ -474,7 +474,7 @@ watch([selectedCharacterId, viewMode], () => {
 
         <!-- Corp visibility panel (Director only) -->
         <CorpVisibilityPanel
-          v-if="isCorpView && isDirector && visibility"
+          v-if="isCorpView && visibility"
           ref="visibilityPanel"
           :visibility="visibility"
           @save="saveVisibility"

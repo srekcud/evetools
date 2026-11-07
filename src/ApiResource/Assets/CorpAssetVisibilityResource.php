@@ -51,6 +51,17 @@ class CorpAssetVisibilityResource
     /** @var array<int, string> All 7 divisions with their ESI names */
     public array $allDivisions = [];
 
+    /** @var array<int, list<array{id: string, name: string}>> */
+    public array $restrictedDivisions = [];
+
+    /** @var list<int> */
+    public array $accessibleDivisions = [];
+
+    /** @var list<array{id: string, name: string}> */
+    public array $players = [];
+
+    public bool $directorConnected = false;
+
     public bool $isDirector = false;
 
     public ?string $configuredByName = null;

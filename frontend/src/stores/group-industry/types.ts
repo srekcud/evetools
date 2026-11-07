@@ -15,7 +15,7 @@ export type ContributionStatus = 'pending' | 'approved' | 'rejected'
 
 export type ContainerVerificationStatus = 'verified' | 'partial' | 'missing' | 'container_not_found' | 'unknown'
 
-export type ContainerCheckUnknownReason = 'owner_without_corporation' | 'corporation_assets_not_synced' | 'no_visible_division'
+export type ContainerCheckUnknownReason = 'owner_without_corporation' | 'corporation_assets_not_synced' | 'no_visible_division' | 'no_director'
 
 export type JobGroup = 'blueprint' | 'component' | 'final'
 

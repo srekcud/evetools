@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry\Blueprint;
 
 use App\Entity\Character;
+use App\Entity\CorpAssetVisibility;
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
 use App\Repository\CharacterRepository;
+use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\Industry\Blueprint\BlueprintLibrary;
 use App\Service\Industry\Blueprint\BlueprintLibraryReader;
 use App\Service\Industry\Blueprint\BlueprintLibraryRow;
@@ -19,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(BlueprintLibraryReader::class)]
 #[Group('issue-357')]
+#[Group('issue-358')]
 final class BlueprintLibraryReaderTest extends TestCase
 {
     use BuildsBlueprintLibrary;
@@ -163,6 +166,29 @@ final class BlueprintLibraryReaderTest extends TestCase
         ));
     }
 
+    public function testCorporationBlueprintOfADivisionRestrictedToAListIsReadOnlyByTheListedUser(): void
+    {
+        $otherPilot = $this->pilot('Corin Vale', self::MAIN_CORPORATION_ID, self::MAIN_CORPORATION_NAME, [self::PERSONAL_SCOPE]);
+        $otherUser = $this->userOf(self::OTHER_USER_ID, $otherPilot);
+        $blueprints = [
+            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_061, self::HURRICANE_BLUEPRINT, -2, 30, 4, 8, 4),
+            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_062, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3),
+        ];
+        $reader = $this->readerWithRestrictedDivision($blueprints, visibleDivisions: [3], restrictedDivision: 4, listedUserIds: [self::MAIN_USER_ID]);
+
+        $listedLibrary = $reader->readFor($this->user);
+        $otherLibrary = $reader->readFor($otherUser);
+
+        self::assertSame(
+            [self::HAMMERHEAD_II_BLUEPRINT, self::HURRICANE_BLUEPRINT],
+            array_map(static fn (BlueprintLibraryRow $row): int => $row->typeId, $listedLibrary->rows),
+        );
+        self::assertSame(
+            [self::HAMMERHEAD_II_BLUEPRINT],
+            array_map(static fn (BlueprintLibraryRow $row): int => $row->typeId, $otherLibrary->rows),
+        );
+    }
+
     private function reader(
         array $blueprints,
         ?array $visibleDivisions,
@@ -185,6 +211,25 @@ final class BlueprintLibraryReaderTest extends TestCase
         return new BlueprintLibraryReader(
             $this->repositoryHolding($blueprints),
             $this->visibilityOf($visibleDivisionsByCorporationId),
+            $characterRepository,
+            new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
+        );
+    }
+
+    private function readerWithRestrictedDivision(array $blueprints, array $visibleDivisions, int $restrictedDivision, array $listedUserIds): BlueprintLibraryReader
+    {
+        $visibility = (new CorpAssetVisibility())
+            ->setCorporationId(self::MAIN_CORPORATION_ID)
+            ->setVisibleDivisions($visibleDivisions)
+            ->setRestrictedDivisions([$restrictedDivision => $listedUserIds]);
+        $visibilityRepository = $this->createStub(CorpAssetVisibilityRepository::class);
+        $visibilityRepository->method('findByCorporationId')->willReturn($visibility);
+        $characterRepository = $this->createStub(CharacterRepository::class);
+        $characterRepository->method('findWithCorpBlueprintsAccess')->willReturn($this->main);
+
+        return new BlueprintLibraryReader(
+            $this->repositoryHolding($blueprints),
+            $visibilityRepository,
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
         );
