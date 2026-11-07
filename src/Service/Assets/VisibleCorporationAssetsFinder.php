@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Assets;
 
 use App\Entity\CachedAsset;
+use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 
@@ -19,14 +20,14 @@ class VisibleCorporationAssetsFinder
     /**
      * @return CachedAsset[]
      */
-    public function findVisibleAssets(int $corporationId, ?string $divisionName = null): array
+    public function findVisibleAssets(int $corporationId, ?string $divisionName = null, ?User $viewer = null): array
     {
         $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
         if ($visibility === null) {
             return [];
         }
 
-        $allowedDivisions = $visibility->getVisibleDivisions();
+        $allowedDivisions = $visibility->divisionsVisibleTo($viewer);
         if ($allowedDivisions === []) {
             return [];
         }

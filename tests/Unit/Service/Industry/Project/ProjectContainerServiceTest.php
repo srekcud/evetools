@@ -6,11 +6,13 @@ namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
 use App\Entity\CachedAsset;
+use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
@@ -22,6 +24,7 @@ use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(ProjectContainerService::class)]
 #[Group('issue-158')]
+#[Group('issue-358')]
 final class ProjectContainerServiceTest extends TestCase
 {
     private const int CORPORATION_ID = 98_000_001;
@@ -29,6 +32,9 @@ final class ProjectContainerServiceTest extends TestCase
     private const string CONTAINER_NAME = 'Build';
     private const int OFFICE_ITEM_ID = 1_050_000_000_001;
     private const int STATION_CONTAINER = 17_366;
+    private const string ALICE_ID = '0199a1f0-0000-7000-8000-000000358001';
+    private const string BOB_ID = '0199a1f0-0000-7000-8000-000000358002';
+    private const int ALICE_LIST_DIVISION = 4;
 
     private const int TRITANIUM = 34;
     private const int PYERITE = 35;
@@ -50,11 +56,14 @@ final class ProjectContainerServiceTest extends TestCase
 
     private array $materialLines = [];
 
+    private ?Character $directorCharacter = null;
+
     private int $nextItemId = 1_050_000_001_000;
 
     private CachedAssetRepository $cachedAssetRepository;
     private CorpAssetVisibilityRepository $visibilityRepository;
     private IndustryProjectBomLineRepository $bomItemRepository;
+    private CharacterRepository $characterRepository;
     private ProjectContainerService $service;
 
     protected function setUp(): void
@@ -89,6 +98,12 @@ final class ProjectContainerServiceTest extends TestCase
 
         $this->bomItemRepository = $this->createStub(IndustryProjectBomLineRepository::class);
         $this->bomItemRepository->method('findMaterialsByProject')->willReturnCallback(fn (): array => $this->materialLines);
+
+        $this->directorCharacter = $this->createStub(Character::class);
+        $this->characterRepository = $this->createStub(CharacterRepository::class);
+        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturnCallback(
+            fn (int $corporationId): ?Character => $corporationId === self::CORPORATION_ID ? $this->directorCharacter : null,
+        );
 
         $this->service = $this->serviceReading($this->cachedAssetRepository);
     }
@@ -536,6 +551,51 @@ final class ProjectContainerServiceTest extends TestCase
         );
     }
 
+    public function testCheckIsUnknownWithoutDirectorConnectedEvenWithCorporationAssetsInCacheAndBeforeTheNeverSyncedCheck(): void
+    {
+        $this->directorCharacter = null;
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::TRITANIUM, 1_000);
+        $this->allowDivisions(2);
+        $expected = [
+            [self::TRITANIUM, 500, null, 'unknown', 'no_director'],
+            [self::PYERITE, 800, null, 'unknown', 'no_director'],
+        ];
+
+        self::assertSame($expected, $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)));
+
+        $this->cachedAssets = [];
+
+        self::assertSame($expected, $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)));
+    }
+
+    public function testOwnerListedForADivisionHasTheContainerOfThatDivisionChecked(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG'.self::ALICE_LIST_DIVISION), self::TRITANIUM, 600);
+        $this->restrictDivisionToPlayers(self::ALICE_LIST_DIVISION, self::ALICE_ID);
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, 600, 'verified', null],
+                [self::PYERITE, 800, 0, 'missing', null],
+            ],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME, $this->playerOfTheCorporation(self::ALICE_ID))),
+        );
+    }
+
+    public function testOwnerNotListedForAnyDivisionGetsNoVisibleDivision(): void
+    {
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG'.self::ALICE_LIST_DIVISION), self::TRITANIUM, 600);
+        $this->restrictDivisionToPlayers(self::ALICE_LIST_DIVISION, self::ALICE_ID);
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, null, 'unknown', 'no_visible_division'],
+                [self::PYERITE, 800, null, 'unknown', 'no_visible_division'],
+            ],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME, $this->playerOfTheCorporation(self::BOB_ID))),
+        );
+    }
+
     private function serviceReading(CachedAssetRepository $cachedAssetRepository): ProjectContainerService
     {
         return new ProjectContainerService(
@@ -543,6 +603,7 @@ final class ProjectContainerServiceTest extends TestCase
             $this->bomItemRepository,
             $cachedAssetRepository,
             $this->visibilityRepository,
+            $this->characterRepository,
         );
     }
 
@@ -567,6 +628,22 @@ final class ProjectContainerServiceTest extends TestCase
         $owner->method('getCorporationId')->willReturn($corporationId);
 
         return $owner;
+    }
+
+    private function playerOfTheCorporation(string $userId): User
+    {
+        $player = $this->createStub(User::class);
+        $player->method('getId')->willReturn(Uuid::fromString($userId));
+        $player->method('getCorporationId')->willReturn(self::CORPORATION_ID);
+
+        return $player;
+    }
+
+    private function restrictDivisionToPlayers(int $divisionNumber, string ...$userIds): void
+    {
+        $this->visibility = (new CorpAssetVisibility())
+            ->setCorporationId(self::CORPORATION_ID)
+            ->setRestrictedDivisions([$divisionNumber => $userIds]);
     }
 
     private function materialLine(int $typeId, int $requiredQuantity): IndustryProjectBomLine

@@ -7,7 +7,9 @@ namespace App\Service\Industry\Project;
 use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
+use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
@@ -23,12 +25,14 @@ class ProjectContainerService
     private const string REASON_OWNER_WITHOUT_CORPORATION = 'owner_without_corporation';
     private const string REASON_CORPORATION_ASSETS_NOT_SYNCED = 'corporation_assets_not_synced';
     private const string REASON_NO_VISIBLE_DIVISION = 'no_visible_division';
+    private const string REASON_NO_DIRECTOR = 'no_director';
 
     public function __construct(
         private readonly VisibleCorporationAssetsFinder $visibleAssetsFinder,
         private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
+        private readonly CharacterRepository $characterRepository,
     ) {
     }
 
@@ -55,16 +59,21 @@ class ProjectContainerService
             return $this->buildAllUnknown($materialItems, self::REASON_OWNER_WITHOUT_CORPORATION);
         }
 
+        if ($this->characterRepository->findWithCorpAssetsAccess($corporationId) === null) {
+            return $this->buildAllUnknown($materialItems, self::REASON_NO_DIRECTOR);
+        }
+
         if (!$this->cachedAssetRepository->hasCorporationAssets($corporationId)) {
             return $this->buildAllUnknown($materialItems, self::REASON_CORPORATION_ASSETS_NOT_SYNCED);
         }
 
         $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
-        if ($visibility === null || $visibility->getVisibleDivisions() === []) {
+        $owner = $project->getOwner();
+        if ($visibility === null || $visibility->divisionsVisibleTo($owner) === []) {
             return $this->buildAllUnknown($materialItems, self::REASON_NO_VISIBLE_DIVISION);
         }
 
-        $containerQuantities = $this->getContainerQuantities($corporationId, $containerName);
+        $containerQuantities = $this->getContainerQuantities($corporationId, $containerName, $owner);
 
         if ($containerQuantities === null) {
             return $this->buildAllContainerNotFound($materialItems);
@@ -79,9 +88,9 @@ class ProjectContainerService
      *
      * @return array<int, int>|null typeId => total quantity across all matching containers, null when no container has that name
      */
-    private function getContainerQuantities(int $corporationId, string $containerName): ?array
+    private function getContainerQuantities(int $corporationId, string $containerName, User $owner): ?array
     {
-        $visibleAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId);
+        $visibleAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner);
 
         $assetsByLocationId = [];
         $pendingContainerItemIds = [];

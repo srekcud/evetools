@@ -12,11 +12,15 @@ use App\Entity\User;
 use App\Entity\EveToken;
 use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Repository\UserRepository;
+use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
 use App\State\Provider\Assets\CorpAssetVisibilityProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -26,12 +30,19 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(CorpAssetVisibilityProvider::class)]
+#[Group('issue-358')]
 class CorpAssetVisibilityProviderTest extends TestCase
 {
+    private const string ALICE_ID = '0199a1f0-0000-7000-8000-000000358001';
+    private const string BOB_ID = '0199a1f0-0000-7000-8000-000000358002';
+
     private Security&Stub $security;
     private CorpAssetVisibilityRepository&Stub $visibilityRepository;
     private CachedAssetRepository&Stub $cachedAssetRepository;
     private CorporationService&MockObject $corporationService;
+    private CharacterService&Stub $characterService;
+    private CharacterRepository&Stub $characterRepository;
+    private UserRepository&Stub $userRepository;
     private CorpAssetVisibilityProvider $provider;
 
     protected function setUp(): void
@@ -40,12 +51,18 @@ class CorpAssetVisibilityProviderTest extends TestCase
         $this->visibilityRepository = $this->createStub(CorpAssetVisibilityRepository::class);
         $this->cachedAssetRepository = $this->createStub(CachedAssetRepository::class);
         $this->corporationService = $this->createMock(CorporationService::class);
+        $this->characterService = $this->createStub(CharacterService::class);
+        $this->characterRepository = $this->createStub(CharacterRepository::class);
+        $this->userRepository = $this->createStub(UserRepository::class);
 
         $this->provider = new CorpAssetVisibilityProvider(
             $this->security,
             $this->visibilityRepository,
             $this->cachedAssetRepository,
             $this->corporationService,
+            $this->characterService,
+            $this->characterRepository,
+            $this->userRepository,
         );
     }
 
@@ -212,6 +229,97 @@ class CorpAssetVisibilityProviderTest extends TestCase
     }
 
     // ===========================================
+    // Visibility per player (issue #358)
+    // ===========================================
+
+    public function testMainCharacterWithTheDirectorRoleMakesTheUserADirector(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createUserWithCharacter());
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+        $this->cachedAssetRepository->method('findDistinctDivisions')->willReturn([1 => 'Minerals']);
+        $this->characterService->method('canReadCorporationAssets')->willReturn(true);
+
+        $result = $this->provider->provide(new Get());
+
+        $this->assertTrue($result->isDirector);
+    }
+
+    public function testPlayersOfTheCorporationAreListedForADirectorOnly(): void
+    {
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+        $this->cachedAssetRepository->method('findDistinctDivisions')->willReturn([1 => 'Minerals']);
+        $this->userRepository->method('findPlayersOfCorporation')->willReturnCallback(
+            fn (int $corporationId): array => $corporationId === 98000001
+                ? [$this->createUserWithId(self::ALICE_ID, 'Alice Voss'), $this->createUserWithId(self::BOB_ID, 'Bob Tamm')]
+                : [],
+        );
+        $director = $this->createUserWithCharacter('Director');
+        $member = $this->createUserWithCharacter('Member');
+        $this->characterService->method('canReadCorporationAssets')->willReturnCallback(
+            static fn (Character $character): bool => $character === $director->getMainCharacter(),
+        );
+        $this->security->method('getUser')->willReturn($director, $member);
+
+        $asDirector = $this->provider->provide(new Get());
+        $asMember = $this->provider->provide(new Get());
+
+        $this->assertSame(
+            [['id' => self::ALICE_ID, 'name' => 'Alice Voss'], ['id' => self::BOB_ID, 'name' => 'Bob Tamm']],
+            $asDirector->players,
+        );
+        $this->assertSame([], $asMember->players);
+    }
+
+    public function testAccessibleDivisionsAreTheOnesVisibleToTheCurrentUser(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createUserWithId(self::ALICE_ID, 'Alice Voss'));
+        $visibility = new CorpAssetVisibility();
+        $visibility->setCorporationId(98000001);
+        $visibility->setVisibleDivisions([2]);
+        $visibility->setRestrictedDivisions([1 => [self::ALICE_ID], 4 => [self::BOB_ID]]);
+        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
+        $this->cachedAssetRepository->method('findDistinctDivisions')->willReturn([1 => 'Minerals', 2 => 'Fuel', 4 => 'Ammo']);
+
+        $result = $this->provider->provide(new Get());
+
+        $this->assertSame([1, 2], $result->accessibleDivisions);
+        $this->assertSame([2], $result->visibleDivisions);
+    }
+
+    public function testDirectorConnectedWhenACharacterOfTheCorporationHasTheCorporationAssetsAccess(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createUserWithCharacter());
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+        $this->cachedAssetRepository->method('findDistinctDivisions')->willReturn([1 => 'Minerals']);
+        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturnCallback(
+            fn (int $corporationId): ?Character => $corporationId === 98000001 ? $this->createStub(Character::class) : null,
+        );
+
+        $this->assertTrue($this->provider->provide(new Get())->directorConnected);
+    }
+
+    public function testRestrictedDivisionsAreReturnedWithTheNamesOfTheirPlayers(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createUserWithCharacter());
+        $visibility = new CorpAssetVisibility();
+        $visibility->setCorporationId(98000001);
+        $visibility->setRestrictedDivisions([4 => [self::BOB_ID, self::ALICE_ID]]);
+        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
+        $this->cachedAssetRepository->method('findDistinctDivisions')->willReturn([4 => 'Ammo']);
+        $this->userRepository->method('findPlayersOfCorporation')->willReturn([
+            $this->createUserWithId(self::ALICE_ID, 'Alice Voss'),
+            $this->createUserWithId(self::BOB_ID, 'Bob Tamm'),
+        ]);
+
+        $result = $this->provider->provide(new Get());
+
+        $this->assertSame(
+            [4 => [['id' => self::BOB_ID, 'name' => 'Bob Tamm'], ['id' => self::ALICE_ID, 'name' => 'Alice Voss']]],
+            $result->restrictedDivisions,
+        );
+    }
+
+    // ===========================================
     // Auth errors
     // ===========================================
 
@@ -239,6 +347,19 @@ class CorpAssetVisibilityProviderTest extends TestCase
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function createUserWithId(string $userId, string $characterName): User&Stub
+    {
+        $character = $this->createStub(Character::class);
+        $character->method('getCorporationId')->willReturn(98000001);
+        $character->method('getName')->willReturn($characterName);
+
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn(Uuid::fromString($userId));
+        $user->method('getMainCharacter')->willReturn($character);
+
+        return $user;
+    }
 
     private function createUserWithCharacter(string $characterName = 'TestPilot'): User&Stub
     {

@@ -27,6 +27,10 @@ class CorpAssetVisibility
     #[ORM\Column(type: 'json')]
     private array $visibleDivisions = [];
 
+    /** @var array<int, list<string>> */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $restrictedDivisions = [];
+
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $configuredBy = null;
@@ -66,6 +70,49 @@ class CorpAssetVisibility
     {
         $this->visibleDivisions = $visibleDivisions;
         return $this;
+    }
+
+    /** @return array<int, list<string>> */
+    public function getRestrictedDivisions(): array
+    {
+        return $this->restrictedDivisions;
+    }
+
+    /** @param array<int, list<string>> $restrictedDivisions */
+    public function setRestrictedDivisions(array $restrictedDivisions): static
+    {
+        $this->restrictedDivisions = $restrictedDivisions;
+        return $this;
+    }
+
+    public function isVisibleTo(int $division, ?User $viewer): bool
+    {
+        if (in_array($division, $this->visibleDivisions, true)) {
+            return true;
+        }
+
+        $viewerId = $viewer?->getId();
+        if ($viewerId === null) {
+            return false;
+        }
+
+        return in_array($viewerId->toRfc4122(), $this->restrictedDivisions[$division] ?? [], true);
+    }
+
+    /** @return list<int> */
+    public function divisionsVisibleTo(?User $viewer): array
+    {
+        $divisions = array_unique([
+            ...array_map(intval(...), $this->visibleDivisions),
+            ...array_map(intval(...), array_keys($this->restrictedDivisions)),
+        ]);
+        $visibleDivisions = array_values(array_filter(
+            $divisions,
+            fn (int $division): bool => $this->isVisibleTo($division, $viewer),
+        ));
+        sort($visibleDivisions);
+
+        return $visibleDivisions;
     }
 
     public function getConfiguredBy(): ?User

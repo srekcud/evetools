@@ -40,7 +40,7 @@ class BlueprintLibraryReader
         $corporationId = $main->getCorporationId();
 
         $personal = $this->ownedBlueprintRepository->findByCharacters($user->getCharacters()->getValues());
-        [$corporationState, $corporate] = $this->corporationBlueprints($corporationId);
+        [$corporationState, $corporate] = $this->corporationBlueprints($corporationId, $user);
 
         $blueprints = [...$personal, ...$corporate];
         $names = $this->typeNameResolver->findNames(array_values(array_unique(array_map(
@@ -58,13 +58,13 @@ class BlueprintLibraryReader
     }
 
     /** @return array{string, list<OwnedBlueprint>} */
-    private function corporationBlueprints(int $corporationId): array
+    private function corporationBlueprints(int $corporationId, User $user): array
     {
         if ($this->characterRepository->findWithCorpBlueprintsAccess($corporationId) === null) {
             return [self::STATE_NO_DIRECTOR, []];
         }
 
-        $visibleDivisions = $this->visibilityRepository->findByCorporationId($corporationId)?->getVisibleDivisions();
+        $visibleDivisions = $this->visibilityRepository->findByCorporationId($corporationId)?->divisionsVisibleTo($user);
         if ($visibleDivisions === null || $visibleDivisions === []) {
             return [self::STATE_NO_VISIBILITY, []];
         }

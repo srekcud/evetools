@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\CachedAsset;
 use App\Entity\CorpAssetVisibility;
+use App\Entity\EveToken;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -215,6 +216,8 @@ final class GroupProjectReadApiTest extends WebTestCase
 
     public function testOwnerVerifyingWithoutSyncedCorporationAssetsGetsEveryMaterialLineUnknown(): void
     {
+        $this->connectDirectorOfTheOwnerCorporation();
+        $this->em->flush();
         $this->client->loginUser($this->owner, 'api');
         $this->request('GET', $this->containerVerificationUri());
 
@@ -290,8 +293,20 @@ final class GroupProjectReadApiTest extends WebTestCase
         return $this->projectUri($this->ishtarBatch).'/container-verification';
     }
 
+    private function connectDirectorOfTheOwnerCorporation(): void
+    {
+        $token = (new EveToken())
+            ->setAccessToken('access-token')
+            ->setRefreshTokenEncrypted('encrypted-refresh-token')
+            ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
+            ->setScopes(['esi-assets.read_corporation_assets.v1']);
+        $this->owner->getMainCharacter()?->setEveToken($token);
+        $this->em->persist($token);
+    }
+
     private function persistIshtarContainerInTheFirstDivision(): void
     {
+        $this->connectDirectorOfTheOwnerCorporation();
         $this->em->persist((new CorpAssetVisibility())->setCorporationId(self::OWNER_CORPORATION_ID)->setVisibleDivisions([1])->setConfiguredBy($this->owner));
         $this->persistCorporationAsset(self::CONTAINER_ITEM_ID, self::STATION_CONTAINER_TYPE_ID, 1, self::JITA_STATION_ID, 'station', 'CorpSAG1', self::CONTAINER_NAME);
         $this->persistCorporationAsset(1_020_600_011, self::TRITANIUM_TYPE_ID, 7_000, self::CONTAINER_ITEM_ID, 'item', null, null);

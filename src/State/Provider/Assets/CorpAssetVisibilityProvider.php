@@ -9,7 +9,11 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Assets\CorpAssetVisibilityResource;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Repository\UserRepository;
+use App\Service\Assets\CorpVisibilityPlayers;
+use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -25,6 +29,9 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CorporationService $corporationService,
+        private readonly CharacterService $characterService,
+        private readonly CharacterRepository $characterRepository,
+        private readonly UserRepository $userRepository,
     ) {
     }
 
@@ -56,12 +63,24 @@ class CorpAssetVisibilityProvider implements ProviderInterface
             }
         }
 
+        $isDirector = $this->characterService->canReadCorporationAssets($mainCharacter);
+        $restrictedDivisions = $visibility?->getRestrictedDivisions() ?? [];
+        $players = $isDirector || $restrictedDivisions !== []
+            ? $this->userRepository->findPlayersOfCorporation($corporationId)
+            : [];
+
         $resource = new CorpAssetVisibilityResource();
         $resource->visibleDivisions = $visibility !== null
             ? $visibility->getVisibleDivisions()
             : array_keys($allDivisions);
+        $resource->restrictedDivisions = CorpVisibilityPlayers::namedByDivision($restrictedDivisions, $players);
+        $resource->accessibleDivisions = $visibility?->divisionsVisibleTo($user) ?? [];
+        $resource->players = $isDirector
+            ? array_map(CorpVisibilityPlayers::describe(...), $players)
+            : [];
+        $resource->directorConnected = $this->characterRepository->findWithCorpAssetsAccess($corporationId) !== null;
         $resource->allDivisions = $allDivisions;
-        $resource->isDirector = false;
+        $resource->isDirector = $isDirector;
         $resource->configuredByName = $directorUser?->getMainCharacter()?->getName();
         $resource->updatedAt = $visibility?->getUpdatedAt()->format('c');
 

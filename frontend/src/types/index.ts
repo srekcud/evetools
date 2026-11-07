@@ -55,6 +55,10 @@ export interface LocationGroup {
 
 export type CorpAssetVisibility = {
   visibleDivisions: number[]
+  restrictedDivisions: Record<number, { id: string; name: string }[]>
+  accessibleDivisions: number[]
+  players: { id: string; name: string }[]
+  directorConnected: boolean
   allDivisions: Record<number, string>
   isDirector: boolean
   configuredByName: string | null
