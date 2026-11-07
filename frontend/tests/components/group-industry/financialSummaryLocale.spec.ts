@@ -28,6 +28,7 @@ const DISTRIBUTION: Distribution = {
     jobInstallCosts: 300_000,
     bpcCosts: 100_000,
     lineRentalCosts: 100_000,
+    courierCosts: 0,
     sharePercent: 100,
     profitPart: 1_302_000,
     payoutTotal: 2_802_000,

@@ -9,7 +9,7 @@ export type GroupMemberRole = 'owner' | 'admin' | 'member'
 
 export type GroupMemberStatus = 'pending' | 'accepted' | 'removed'
 
-export type ContributionType = 'material' | 'job_install' | 'bpc' | 'line_rental'
+export type ContributionType = 'material' | 'job_install' | 'bpc' | 'line_rental' | 'courier'
 
 export type ContributionStatus = 'pending' | 'approved' | 'rejected'
 
@@ -220,6 +220,7 @@ export type MemberDistribution = {
   jobInstallCosts: number | null
   bpcCosts: number | null
   lineRentalCosts: number | null
+  courierCosts: number | null
   sharePercent: number | null
   profitPart: number | null
   payoutTotal: number | null

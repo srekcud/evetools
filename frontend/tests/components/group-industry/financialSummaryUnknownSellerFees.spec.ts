@@ -55,6 +55,7 @@ const DISTRIBUTION_WITH_UNKNOWN_FEES: Distribution = {
     jobInstallCosts: 0,
     bpcCosts: 0,
     lineRentalCosts: 0,
+    courierCosts: 0,
     sharePercent: 100,
     profitPart: null,
     payoutTotal: null,

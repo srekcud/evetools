@@ -74,6 +74,7 @@ class ProjectDistributionProvider implements ProviderInterface
                 'jobInstallCosts' => $member->jobInstallCosts,
                 'bpcCosts' => $member->bpcCosts,
                 'lineRentalCosts' => $member->lineRentalCosts,
+                'courierCosts' => $member->courierCosts,
                 'sharePercent' => $member->sharePercent,
                 'profitPart' => $member->profitPart,
                 'payoutTotal' => $member->payoutTotal,

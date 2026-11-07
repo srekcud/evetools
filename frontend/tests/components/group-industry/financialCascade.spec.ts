@@ -16,6 +16,7 @@ function member(costs: Partial<MemberDistribution>): MemberDistribution {
     jobInstallCosts: 0,
     bpcCosts: 0,
     lineRentalCosts: 0,
+    courierCosts: 0,
     sharePercent: null,
     profitPart: null,
     payoutTotal: null,

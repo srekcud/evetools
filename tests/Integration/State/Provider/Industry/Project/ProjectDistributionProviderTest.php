@@ -139,6 +139,7 @@ final class ProjectDistributionProviderTest extends IntegrationTestCase
                 'jobInstallCosts' => 0.0,
                 'bpcCosts' => 0.0,
                 'lineRentalCosts' => 0.0,
+                'courierCosts' => 0.0,
                 'sharePercent' => null,
                 'profitPart' => null,
                 'payoutTotal' => null,

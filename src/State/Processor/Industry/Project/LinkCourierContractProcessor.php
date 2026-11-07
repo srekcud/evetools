@@ -15,6 +15,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\Courier\CourierContract;
 use App\Service\Industry\Project\Courier\CourierContractReader;
 use App\Service\Industry\Project\Courier\CourierOverviewBuilder;
+use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectCourierResourceMapper;
@@ -40,6 +41,7 @@ final readonly class LinkCourierContractProcessor implements ProcessorInterface
         private CourierOverviewBuilder $overviewBuilder,
         private ProjectCourierResourceMapper $mapper,
         private EntityManagerInterface $entityManager,
+        private DerivedContributionService $derivedContributions,
     ) {
     }
 
@@ -73,7 +75,10 @@ final readonly class LinkCourierContractProcessor implements ProcessorInterface
         $this->entityManager->persist($link);
         $this->entityManager->flush();
 
-        return $this->mapper->toResource($project, $this->overviewBuilder->build($project, $user));
+        $overview = $this->overviewBuilder->build($project, $user);
+        $this->derivedContributions->syncCourier($project, $overview->contract);
+
+        return $this->mapper->toResource($project, $overview);
     }
 
     private function linkableContract(User $owner, \DateTimeImmutable $issuedAfter, int $contractId): CourierContract

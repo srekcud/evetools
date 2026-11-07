@@ -61,6 +61,7 @@ const TYPE_BADGE_CLASSES: Record<ContributionType, string> = {
   job_install: 'bg-amber-500/[0.12] text-amber-400 border-amber-500/25',
   bpc: 'bg-violet-500/[0.12] text-violet-400 border-violet-500/25',
   line_rental: 'bg-pink-500/[0.12] text-pink-400 border-pink-500/25',
+  courier: 'bg-sky-500/[0.12] text-sky-400 border-sky-500/25',
 }
 
 const STATUS_BADGE_CLASSES: Record<ContributionStatus, string> = {
@@ -74,6 +75,7 @@ const TYPE_LABELS: Record<ContributionType, string> = {
   job_install: 'Job Install',
   bpc: 'BPC',
   line_rental: 'Line Rental',
+  courier: 'Courier',
 }
 
 const STATUS_LABELS: Record<ContributionStatus, string> = {

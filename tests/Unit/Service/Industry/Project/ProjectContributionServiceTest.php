@@ -216,6 +216,14 @@ class ProjectContributionServiceTest extends TestCase
         $this->assertSame('No market price for type 34: no Jita price for the deposit day.', $refusal->getMessage());
     }
 
+    #[Group('issue-421')]
+    public function testSubmitCourierContributionIsRefusedBecauseOnlyTheDeliveredContractDerivesIt(): void
+    {
+        $refusal = $this->refusalOf($this->bomItem, ContributionType::Courier, 1, 376550.0);
+
+        $this->assertSame('The courier reward is derived from the linked courier contract and cannot be submitted', $refusal->getMessage());
+    }
+
     public static function contributionOtherThanMaterialProvider(): iterable
     {
         yield 'job install' => [ContributionType::JobInstall, 2, 1834250.5];

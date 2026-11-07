@@ -2402,7 +2402,8 @@
         "material": "Materiau",
         "job_install": "Installation job",
         "bpc": "BPC",
-        "line_rental": "Location de ligne"
+        "line_rental": "Location de ligne",
+        "courier": "Courrier"
       },
       "statuses": {
         "pending": "En attente",
@@ -2439,7 +2440,8 @@
       "materialCosts": "Couts materiaux",
       "jobInstallCosts": "Couts installation",
       "bpcCosts": "Couts BPC",
-      "lineRentalCosts": "Couts location ligne"
+      "lineRentalCosts": "Couts location ligne",
+      "courierCosts": "Couts courrier"
     },
     "financialSummary": {
       "title": "Résumé financier",
@@ -2449,6 +2451,7 @@
       "materials": "Matériaux",
       "jobInstallAndLineRental": "Installation jobs + location ligne",
       "bpc": "BPC",
+      "courier": "Courrier",
       "profit": "Profit",
       "marginLabel": "Marge :",
       "unknownContributionValue": "Un apport approuvé n'a pas de prix connu : le coût de production, le profit et les payouts restent inconnus tant qu'il n'en a pas."
@@ -2488,6 +2491,7 @@
       "jobInstall": "Installation des jobs",
       "bpc": "BPC",
       "lineRental": "Location de lignes",
+      "courier": "Courrier",
       "profit": "Profit",
       "loss": "Perte"
     },

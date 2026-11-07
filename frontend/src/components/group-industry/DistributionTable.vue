@@ -92,6 +92,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
   job_install: 'bg-amber-400',
   bpc: 'bg-violet-400',
   line_rental: 'bg-pink-400',
+  courier: 'bg-sky-400',
 }
 </script>
 
@@ -274,6 +275,16 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                         <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
                           <UnknownContributionValue v-if="member.lineRentalCosts === null" />
                           <template v-else>{{ formatIsk(member.lineRentalCosts) }}</template>
+                        </span>
+                      </div>
+                      <div v-if="member.courierCosts === null || member.courierCosts > 0" class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                          <span class="w-2 h-2 rounded-full" :class="BREAKDOWN_COLORS.courier"></span>
+                          <span class="text-slate-400">{{ t('groupIndustry.distribution.courierCosts') }}</span>
+                        </div>
+                        <span class="font-mono text-slate-300" style="font-variant-numeric: tabular-nums;">
+                          <UnknownContributionValue v-if="member.courierCosts === null" />
+                          <template v-else>{{ formatIsk(member.courierCosts) }}</template>
                         </span>
                       </div>
                     </div>

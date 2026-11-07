@@ -36,6 +36,7 @@ function sumOrUnknown(values: (number | null)[]): number | null {
 const materialCosts = computed(() => dist.value ? sumOrUnknown(dist.value.members.map(m => m.materialCosts)) : null)
 const jobInstallAndLineRentalCosts = computed(() => dist.value ? sumOrUnknown(dist.value.members.flatMap(m => [m.jobInstallCosts, m.lineRentalCosts])) : null)
 const bpcCosts = computed(() => dist.value ? sumOrUnknown(dist.value.members.map(m => m.bpcCosts)) : null)
+const courierCosts = computed(() => dist.value ? sumOrUnknown(dist.value.members.map(m => m.courierCosts)) : null)
 
 const brokerFeeLabel = computed(() => {
   const pct = projectStore.currentProject?.brokerFeePercent
@@ -111,6 +112,13 @@ const salesTaxLabel = computed(() => {
             <UnknownContributionValue v-if="bpcCosts === null" />
             <span v-else class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
               {{ formatIsk(bpcCosts) }}
+            </span>
+          </div>
+          <div v-if="courierCosts === null || courierCosts > 0" class="flex items-center justify-between">
+            <span class="text-sm text-slate-500">{{ t('groupIndustry.financialSummary.courier') }}</span>
+            <UnknownContributionValue v-if="courierCosts === null" />
+            <span v-else class="font-mono text-sm text-slate-400" style="font-variant-numeric: tabular-nums;">
+              {{ formatIsk(courierCosts) }}
             </span>
           </div>
           <p v-if="dist.totalProjectCost === null" class="text-xs text-violet-300">{{ t('groupIndustry.financialSummary.unknownContributionValue') }}</p>

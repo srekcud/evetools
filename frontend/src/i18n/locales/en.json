@@ -2402,7 +2402,8 @@
         "material": "Material",
         "job_install": "Job Install",
         "bpc": "BPC",
-        "line_rental": "Line Rental"
+        "line_rental": "Line Rental",
+        "courier": "Courier"
       },
       "statuses": {
         "pending": "Pending",
@@ -2439,7 +2440,8 @@
       "materialCosts": "Material Costs",
       "jobInstallCosts": "Job Install Costs",
       "bpcCosts": "BPC Costs",
-      "lineRentalCosts": "Line Rental Costs"
+      "lineRentalCosts": "Line Rental Costs",
+      "courierCosts": "Courier Costs"
     },
     "financialSummary": {
       "title": "Financial Summary",
@@ -2449,6 +2451,7 @@
       "materials": "Materials",
       "jobInstallAndLineRental": "Job Install + Line Rental",
       "bpc": "BPC",
+      "courier": "Courier",
       "profit": "Profit",
       "marginLabel": "Margin:",
       "unknownContributionValue": "An approved contribution has no known price: the production cost, the profit and the payouts stay unknown until it has one."
@@ -2488,6 +2491,7 @@
       "jobInstall": "Job install",
       "bpc": "BPC",
       "lineRental": "Line rental",
+      "courier": "Courier",
       "profit": "Profit",
       "loss": "Loss"
     },
