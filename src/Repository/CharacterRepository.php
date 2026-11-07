@@ -151,7 +151,7 @@ class CharacterRepository extends ServiceEntityRepository
 
     public function findWithCorpBlueprintsAccess(int $corporationId): ?Character
     {
-        return null;
+        return $this->findWithCorpScope($corporationId, EveConstants::CORPORATION_BLUEPRINTS_SCOPE);
     }
 
     /**

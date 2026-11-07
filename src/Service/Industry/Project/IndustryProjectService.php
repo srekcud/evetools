@@ -117,7 +117,7 @@ class IndustryProjectService
         foreach ($plan->leaves as $typeId => $quantity) {
             $materialAggregation[$typeId] = ['typeName' => $typeNames[$typeId], 'quantity' => $quantity->value];
         }
-        $jobAggregation = $this->jobLinesOf($plannedProduction, $producers, $typeNames);
+        $jobAggregation = $this->jobLinesOf($plannedProduction, $producers, $typeNames, $owner);
 
         $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation);
 
@@ -352,7 +352,7 @@ class IndustryProjectService
      * @param array<int, string>                  $typeNames
      * @return array<int|string, JobLine>
      */
-    private function jobLinesOf(PlannedProduction $plannedProduction, array $producers, array $typeNames): array
+    private function jobLinesOf(PlannedProduction $plannedProduction, array $producers, array $typeNames, User $owner): array
     {
         $plan = $plannedProduction->plan;
         $componentJobIds = [];
@@ -392,7 +392,7 @@ class IndustryProjectService
             ];
         }
 
-        return $lines + $this->copyLinesOf($lines, $producers);
+        return $lines + $this->copyLinesOf($lines, $producers, $owner);
     }
 
     /**
@@ -400,8 +400,9 @@ class IndustryProjectService
      * @param array<int, IndustryActivityProduct> $producers
      * @return array<string, JobLine>
      */
-    private function copyLinesOf(array $jobLines, array $producers): array
+    private function copyLinesOf(array $jobLines, array $producers, User $owner): array
     {
+        $ownedOriginalTypeIds = array_flip($this->originalBlueprintFinder->typeIdsOwnedBy($owner));
         $blueprintTypeIds = array_map(static fn (IndustryActivityProduct $producer): int => $producer->getTypeId(), $producers);
         $copying = IndustryActivityType::Copying->value;
         $copyActivities = $this->activityRepository->findByTypeIdsAndActivityIds(array_values($blueprintTypeIds), [$copying]);
@@ -409,7 +410,7 @@ class IndustryProjectService
         $copyLines = [];
         foreach ($jobLines as $jobLine) {
             $productTypeId = $jobLine['typeId'];
-            if (!isset($copyActivities[$blueprintTypeIds[$productTypeId] . '-' . $copying])) {
+            if (!isset($copyActivities[$blueprintTypeIds[$productTypeId] . '-' . $copying]) || isset($ownedOriginalTypeIds[$blueprintTypeIds[$productTypeId]])) {
                 continue;
             }
             $copyKey = $productTypeId . ':copy';

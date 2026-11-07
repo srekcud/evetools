@@ -26,22 +26,46 @@ class OwnedBlueprintRepository extends ServiceEntityRepository
      */
     public function findByCharacters(array $characters): array
     {
-        return [];
+        if ($characters === []) {
+            return [];
+        }
+
+        return array_values($this->createQueryBuilder('b')
+            ->where('b.character IN (:characters)')
+            ->setParameter('characters', $characters)
+            ->orderBy('b.itemId', 'ASC')
+            ->getQuery()
+            ->getResult());
     }
 
     /** @return list<OwnedBlueprint> */
     public function findByCorporationId(int $corporationId): array
     {
-        return [];
+        return array_values($this->createQueryBuilder('b')
+            ->where('b.corporationId = :corporationId')
+            ->setParameter('corporationId', $corporationId)
+            ->orderBy('b.itemId', 'ASC')
+            ->getQuery()
+            ->getResult());
     }
 
     public function deleteByCharacter(Character $character): int
     {
-        return 0;
+        return (int) $this->createQueryBuilder('b')
+            ->delete()
+            ->where('b.character = :character')
+            ->setParameter('character', $character)
+            ->getQuery()
+            ->execute();
     }
 
     public function deleteByCorporationId(int $corporationId): int
     {
-        return 0;
+        return (int) $this->createQueryBuilder('b')
+            ->delete()
+            ->where('b.corporationId = :corporationId')
+            ->setParameter('corporationId', $corporationId)
+            ->getQuery()
+            ->execute();
     }
 }

@@ -4,22 +4,67 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Repository\OwnedBlueprintRepository;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
+
+#[ORM\Entity(repositoryClass: OwnedBlueprintRepository::class)]
+#[ORM\Table(name: 'owned_blueprints')]
+#[ORM\Index(columns: ['character_id'])]
+#[ORM\Index(columns: ['corporation_id'])]
+#[ORM\Index(columns: ['type_id'])]
 class OwnedBlueprint
 {
     private const int COPY_QUANTITY = -2;
 
+    #[ORM\Id]
+    #[ORM\Column(type: UuidType::NAME, unique: true)]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
+    private ?Uuid $id = null;
+
+    #[ORM\Column(type: 'bigint')]
     private int $itemId;
+
+    #[ORM\Column(type: 'integer')]
     private int $typeId;
+
+    #[ORM\Column(type: 'bigint')]
     private int $locationId;
+
+    #[ORM\Column(type: 'string', length: 50)]
     private string $locationFlag;
+
+    #[ORM\Column(type: 'integer')]
     private int $quantity;
+
+    #[ORM\Column(type: 'integer')]
     private int $materialEfficiency;
+
+    #[ORM\Column(type: 'integer')]
     private int $timeEfficiency;
+
+    #[ORM\Column(type: 'integer')]
     private int $runs;
+
+    #[ORM\ManyToOne(targetEntity: Character::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     private ?Character $character = null;
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $corporationId = null;
+
+    #[ORM\Column(type: 'smallint', nullable: true)]
     private ?int $divisionNumber = null;
+
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $syncedAt;
+
+    public function getId(): ?Uuid
+    {
+        return $this->id;
+    }
 
     public function getItemId(): int
     {
@@ -167,11 +212,11 @@ class OwnedBlueprint
 
     public function isOriginal(): bool
     {
-        return false;
+        return $this->quantity !== self::COPY_QUANTITY;
     }
 
     public function isCopy(): bool
     {
-        return false;
+        return $this->quantity === self::COPY_QUANTITY;
     }
 }
