@@ -2554,7 +2554,8 @@
         "privateLabel": "Projet privé",
         "privateHint": "Absent de la découverte de la corporation, sans adhésion par code.",
         "outsideFavoriteLabel": "Accepter les structures hors systèmes favoris",
-        "minimumSavingLabel": "Économie minimale"
+        "minimumSavingLabel": "Économie minimale",
+        "fromTemplate": "Depuis un modèle"
       },
       "contribute": {
         "title": "Ajouter une contribution",
@@ -2618,6 +2619,28 @@
       "planning": "Planning",
       "journal": "Journal",
       "comingSoon": "À venir"
+    },
+    "templates": {
+      "templateColumn": "Modèle",
+      "itemsColumn": "Items",
+      "sharedColumn": "Partagé",
+      "byOwner": "par {owner}",
+      "scopePersonal": "Perso",
+      "scopeCorporation": "Corpo",
+      "use": "Utiliser",
+      "shareWithCorporation": "Partager avec ma corporation",
+      "stopSharing": "Ne plus partager avec ma corporation",
+      "deleteTitle": "Supprimer ce modèle ?",
+      "deleteMessage": "{name} sera supprimé. Les projets déjà créés avec ce modèle ne sont pas touchés.",
+      "empty": "Aucun modèle : enregistre un projet comme modèle",
+      "loadError": "Impossible de charger les modèles",
+      "saveTitle": "Enregistrer comme modèle",
+      "saveSubtitle": "Garde les items, la liste noire et les options de ce projet pour les suivants",
+      "nameLabel": "Nom du modèle",
+      "namePlaceholder": "ex. Chaîne Hammerhead",
+      "shareLabel": "Partager avec ma corporation",
+      "shareHint": "Les membres de ta corporation peuvent créer un projet à partir de ce modèle.",
+      "saveButton": "Enregistrer le modèle"
     },
     "cockpit": {
       "railLabel": "Phases du projet",
@@ -2708,6 +2731,7 @@
       "shareLink": "Lien de partage",
       "edit": "Modifier",
       "delete": "Supprimer",
+      "saveAsTemplate": "Enregistrer comme modèle",
       "editProject": "Modifier le projet",
       "editError": "Echec de la mise a jour du projet",
       "editFields": {

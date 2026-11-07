@@ -6,9 +6,10 @@ import { useEveImages } from '@/composables/useEveImages'
 import { DEFAULT_MINIMUM_OUTSIDE_SAVING, useProjectsStore } from '@/stores/industry/projects'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { ProjectPrefill, SearchResult } from '@/stores/industry/types'
-import type { CreateGroupProjectInput } from '@/stores/group-industry/types'
+import type { CreateGroupProjectInput, ProjectTemplate } from '@/stores/group-industry/types'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesPanel.vue'
 
 const DEFAULT_PREFILL_LEVEL = 0
 const DEFAULT_PREFILL_RUNS = 1
@@ -34,7 +35,7 @@ const emit = defineEmits<{
 
 // --- Form state ---
 
-type AddMode = 'add-item' | 'bulk-paste'
+type AddMode = 'add-item' | 'bulk-paste' | 'from-template'
 const addMode = ref<AddMode>('add-item')
 
 // Single item add fields
@@ -119,6 +120,7 @@ type ProjectItem = {
 }
 const items = ref<ProjectItem[]>([])
 const blacklistTypeIds = ref<number[]>([])
+const blacklistGroupIds = ref<number[]>([])
 
 // Project metadata
 const projectName = ref('')
@@ -219,6 +221,7 @@ function resetForm() {
   bulkText.value = ''
   items.value = []
   blacklistTypeIds.value = []
+  blacklistGroupIds.value = []
   projectName.value = ''
   containerName.value = ''
   isPrivate.value = true
@@ -241,6 +244,15 @@ function resetForm() {
   blacklistCategories.value.forEach(cat => {
     cat.checked = false
   })
+}
+
+function applyTemplate(template: ProjectTemplate) {
+  items.value = template.items.map(item => ({ ...item }))
+  blacklistTypeIds.value = [...template.blacklistTypeIds]
+  blacklistGroupIds.value = [...template.blacklistGroupIds]
+  acceptsOutsideFavoriteSystem.value = template.acceptsOutsideFavoriteSystem
+  minimumOutsideSaving.value = template.minimumOutsideSaving
+  addMode.value = 'add-item'
 }
 
 function removeItem(index: number) {
@@ -291,6 +303,7 @@ async function handleCreate() {
     blacklistCategoryKeys: blacklistCategories.value
       .filter(cat => cat.checked)
       .map(cat => cat.id),
+    blacklistGroupIds: blacklistGroupIds.value.length > 0 ? blacklistGroupIds.value : undefined,
     blacklistTypeIds: blacklistTypeIds.value.length > 0 ? blacklistTypeIds.value : undefined,
     lineRentalRatesOverride: lineRentalOverrideEnabled.value
       ? Object.fromEntries(lineRentalRates.value.map(r => [r.key, r.value]))
@@ -362,6 +375,14 @@ function handleClose() {
             @click="addMode = 'bulk-paste'"
           >
             {{ t('groupIndustry.modals.newProject.bulkPaste') }}
+          </button>
+          <button
+            data-testid="new-project-template-tab"
+            class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+            :class="addMode === 'from-template' ? 'bg-cyan-500/15 text-cyan-400' : 'text-slate-500 hover:text-slate-300'"
+            @click="addMode = 'from-template'"
+          >
+            {{ t('groupIndustry.modals.newProject.fromTemplate') }}
           </button>
         </div>
 
@@ -449,6 +470,9 @@ function handleClose() {
             <span class="w-[88px]"></span>
           </div>
         </div>
+
+        <!-- Mode C: From a template -->
+        <ProjectTemplatesPanel v-else-if="addMode === 'from-template'" @use="applyTemplate" />
 
         <!-- Mode B: Bulk Paste -->
         <div v-else>

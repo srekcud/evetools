@@ -32,6 +32,7 @@ import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
+import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
 import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
@@ -74,6 +75,7 @@ const isEditSaving = ref(false)
 const editError = ref<string | null>(null)
 
 // Delete confirm state
+const showSaveTemplateModal = ref(false)
 const showDeleteConfirm = ref(false)
 const isDeleting = ref(false)
 
@@ -86,6 +88,7 @@ const isOwnerOrAdmin = computed(() =>
   project.value?.myRole === 'owner' || project.value?.myRole === 'admin'
 )
 const isOwner = computed(() => project.value?.myRole === 'owner')
+const isAcceptedMember = computed(() => project.value?.myStatus === 'accepted')
 const isCompleted = computed(() => project.value?.status === 'completed')
 const nextStatuses = computed(() => (project.value ? nextProjectStatuses(project.value.status) : []))
 const pendingStatus = ref<GroupProjectStatus | null>(null)
@@ -395,6 +398,14 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
               {{ t('groupIndustry.detail.shareLink') }}
             </button>
+            <button
+              v-if="isAcceptedMember"
+              data-testid="save-as-template"
+              class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all hover:-translate-y-px"
+              @click="showSaveTemplateModal = true"
+            >
+              {{ t('groupIndustry.detail.saveAsTemplate') }}
+            </button>
             <template v-if="isOwnerOrAdmin">
               <button
                 v-for="target in nextStatuses"
@@ -555,6 +566,15 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       :prefilled-bom-item="prefilledBomItem"
       @close="showContributeModal = false"
       @submitted="onContributionSubmitted"
+    />
+
+    <SaveProjectTemplateModal
+      v-if="project"
+      :show="showSaveTemplateModal"
+      :project-id="projectId"
+      :default-name="projectDisplayName"
+      @close="showSaveTemplateModal = false"
+      @saved="showSaveTemplateModal = false"
     />
 
     <!-- Edit Project Modal -->
