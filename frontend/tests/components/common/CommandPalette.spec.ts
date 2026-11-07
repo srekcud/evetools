@@ -256,6 +256,7 @@ describe('CommandPalette', () => {
         'Industry › Pivot',
         'Industry › Slots',
         'Industry › Stockpile',
+        'Industry › Blueprints',
         'Industry › Projects',
         'Industry › Projects › Available',
       ])
@@ -445,7 +446,7 @@ describe('CommandPalette', () => {
     it('wraps ArrowDown from the last row to the first', async () => {
       await mountOpenPalette()
       await typeQuery('ind')
-      await pressArrowDown(8)
+      await pressArrowDown(9)
       expect(activeOptionLabel()).toBe('Industry › Projects › Available')
 
       await pressKey('ArrowDown')

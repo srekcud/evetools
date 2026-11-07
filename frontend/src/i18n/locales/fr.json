@@ -655,7 +655,8 @@
       "batch": "Scan",
       "buyVsBuild": "Achat vs Prod",
       "pivot": "Pivot",
-      "stockpile": "Stockpile"
+      "stockpile": "Stockpile",
+      "blueprints": "Blueprints"
     },
     "groups": {
       "overview": "Vue d'ensemble",
@@ -1099,6 +1100,44 @@
         "sync_failed": "échec de la synchronisation"
       },
       "reconnectLink": "Reconnecter des personnages"
+    },
+    "blueprints": {
+      "title": "Blueprints",
+      "subtitle": "Vos BPO et BPC, et ceux de la corpo que vous pouvez voir.",
+      "library": "Bibliothèque",
+      "refresh": "Rafraîchir",
+      "filter": {
+        "all": "Tous",
+        "personal": "Personnels",
+        "corporation": "Corpo"
+      },
+      "columns": {
+        "blueprint": "Blueprint",
+        "kind": "Type",
+        "efficiency": "ME / TE",
+        "runs": "Runs",
+        "where": "Où"
+      },
+      "kind": {
+        "bpo": "BPO",
+        "bpc": "BPC"
+      },
+      "efficiency": "ME {me} · TE {te}",
+      "runs": "{count} runs",
+      "unlimitedRuns": "∞",
+      "corporation": "corpo",
+      "division": "Division {number}",
+      "empty": "Aucun blueprint à afficher.",
+      "noDirector": {
+        "title": "Blueprints corpo inconnus.",
+        "detail": "L'ESI ne les donne qu'au jeton d'un directeur. Vos blueprints personnels restent à jour."
+      },
+      "noVisibility": {
+        "title": "Aucune division corpo ne vous est visible.",
+        "detail": "Les blueprints corpo ne sont listés que pour les divisions rendues visibles pour vous. Vos blueprints personnels restent à jour."
+      },
+      "syncErrorTitle": "Synchronisation des blueprints en échec ({count} erreur), la liste affichée peut être périmée : | Synchronisation des blueprints en échec ({count} erreurs), la liste affichée peut être périmée :",
+      "syncFailuresTitle": "Blueprints non synchronisés pour {count} personnage à la dernière synchronisation : | Blueprints non synchronisés pour {count} personnages à la dernière synchronisation :"
     },
     "jobsSyncError": {
       "title": "Échec de la synchronisation des jobs ({count} erreur), les jobs affichés peuvent être périmés : | Échec de la synchronisation des jobs ({count} erreurs), les jobs affichés peuvent être périmés :"

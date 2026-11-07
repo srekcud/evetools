@@ -55,6 +55,7 @@ describe('useNavigationEntries', () => {
       ['/industry?tab=pivot', 'Industry › Pivot', true],
       ['/industry?tab=slots', 'Industry › Slots', true],
       ['/industry?tab=stockpile', 'Industry › Stockpile', true],
+      ['/industry?tab=blueprints', 'Industry › Blueprints', true],
       ['/group-industry', 'Industry › Projects', false],
       ['/group-industry?tab=available', 'Industry › Projects › Available', true],
       ['/appraisal', 'Appraisal', false],
@@ -94,6 +95,7 @@ describe('useNavigationEntries', () => {
       ['Industrie › Pivot', 'Industry › Pivot'],
       ['Industrie › Slots', 'Industry › Slots'],
       ['Industrie › Stockpile', 'Industry › Stockpile'],
+      ['Industrie › Blueprints', 'Industry › Blueprints'],
       ['Industrie › Projets', 'Industry › Projects'],
       ['Industrie › Projets › Disponibles', 'Industry › Projects › Available'],
       ['Appraisal', 'Appraisal'],
@@ -127,8 +129,8 @@ describe('useNavigationEntries', () => {
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(25)
-    expect(entries[24]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(26)
+    expect(entries[25]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -167,7 +169,7 @@ describe('useNavigationEntries', () => {
     expect(routes).toContain('/industry')
     expect(routes).toContain('/industry?tab=stockpile')
     expect(routes.filter(route => route.startsWith('/group-industry'))).toEqual([])
-    expect(routes).toHaveLength(22)
+    expect(routes).toHaveLength(23)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["group-industry"]')
   })
 
@@ -188,6 +190,6 @@ describe('useNavigationEntries', () => {
     hideModules(['planetary'])
 
     expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/planetary')
-    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(23)
+    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(24)
   })
 })

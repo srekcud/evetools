@@ -546,3 +546,26 @@ export interface SellMarketResponse {
   markets: SellMarketLine[]
   immediateSale: SellMarketImmediateSale
 }
+
+export type BlueprintKind = 'bpo' | 'bpc'
+export type BlueprintScope = 'personal' | 'corporation'
+export type CorporationBlueprintState = 'known' | 'no_director' | 'no_visibility'
+
+export interface BlueprintLibraryEntry {
+  typeId: number
+  name: string
+  kind: BlueprintKind
+  me: number
+  te: number
+  runs: number | null
+  scope: BlueprintScope
+  ownerName: string | null
+  locationId: number
+  divisionNumber: number | null
+  count: number
+}
+
+export interface BlueprintLibrary {
+  corporationState: CorporationBlueprintState
+  blueprints: BlueprintLibraryEntry[]
+}
