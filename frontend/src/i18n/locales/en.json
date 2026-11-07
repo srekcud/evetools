@@ -2004,6 +2004,59 @@
       "baseDurationHint": "Base duration from the SDE, without skill or structure bonuses.",
       "costsHint": "Costs and the comparison with buying are in the Buy or build card."
     },
+    "planning": {
+      "title": "Planning",
+      "loading": "Computing the planning...",
+      "loadError": "The planning could not be read",
+      "plannedEnd": "Planned end",
+      "expectedEnd": "Expected end",
+      "delayTitle": "Gap",
+      "delay": {
+        "late": "{duration} late",
+        "early": "{duration} ahead",
+        "onTime": "On schedule"
+      },
+      "structureNotice": "Durations carry no structure bonus: the real jobs may finish earlier.",
+      "unscheduledTitle": "Jobs that cannot be planned",
+      "unscheduledReason": {
+        "no_eligible_worker": "No character can launch this job",
+        "dependency_unscheduled": "A job it depends on cannot be planned",
+        "duration_unknown": "Duration unknown"
+      },
+      "noCharacters": "No character takes part in this project yet.",
+      "ganttCharacter": "Character",
+      "now": "Now",
+      "noJob": "No job",
+      "skillsUnknownCause": "Skills not synchronized: no job can be given to this character",
+      "runs": "{runs} runs",
+      "activity": {
+        "manufacturing": "Manufacturing",
+        "reaction": "Reaction"
+      },
+      "wait": {
+        "waitingJob": "Waits for {names}",
+        "waitingMaterials": "Waits for materials: {names}",
+        "unknown": "Wait cause unknown",
+        "late": "{duration} late"
+      },
+      "legend": {
+        "planned": "Planned",
+        "active": "In progress",
+        "done": "Done",
+        "wait": "Wait"
+      },
+      "assignmentsTitle": "Who launches what",
+      "columns": {
+        "character": "Character",
+        "manufacturingSlots": "Manufacturing slots",
+        "reactionSlots": "Reaction slots",
+        "industry": "Industry",
+        "advancedIndustry": "Advanced Industry",
+        "reactions": "Reactions",
+        "jobs": "Jobs",
+        "endsAt": "End"
+      }
+    },
     "chain": {
       "title": "Production chain",
       "loading": "Reading the production chain...",
