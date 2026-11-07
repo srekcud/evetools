@@ -708,6 +708,20 @@ export interface ProjectStructureHealth {
   rows: StructureHealthRow[]
 }
 
+export interface ProjectReferenceRow {
+  productTypeId: number
+  projectId: string
+  completedAt: string
+  units: number | null
+  unitCost: number | null
+  marginPercent: number | null
+}
+
+export interface ProjectReferences {
+  id: string
+  rows: ProjectReferenceRow[]
+}
+
 export interface ProjectSurplusLine {
   lineId: string
   typeId: number
