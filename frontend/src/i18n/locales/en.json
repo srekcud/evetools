@@ -2045,6 +2045,33 @@
         "unfold": "Unfold the rows under {name}"
       }
     },
+    "buyOrBuild": {
+      "title": "Buy or build",
+      "loading": "Comparing buying and building...",
+      "loadError": "The buy or build comparison could not be read",
+      "empty": "No intermediate to compare: the plan builds nothing between the materials and the product.",
+      "importRate": "Jita import: {rate} ISK / m³ / jump",
+      "columns": {
+        "intermediate": "Intermediate",
+        "quantity": "Qty",
+        "build": "Build / unit",
+        "jita": "Jita / unit",
+        "import": "Import / unit",
+        "buy": "Buy / unit",
+        "choice": "Choice"
+      },
+      "choice": {
+        "build": "build",
+        "buy": "buy",
+        "unknown": "unknown"
+      },
+      "ifSurplusReused": "{amount} if the surplus is reused",
+      "importDetail": "{volume} m³ × {jumps} jumps",
+      "saving": "saving {amount}",
+      "savingIfSurplusReused": "with the surplus reused, building saves {amount}",
+      "withoutImport": "without the import: buy",
+      "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × jumps × the rate). The surplus of a run is not credited to the project."
+    },
     "kpis": {
       "activeProjects": "Active Projects",
       "activeDesc": "currently running",

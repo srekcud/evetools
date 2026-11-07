@@ -441,3 +441,45 @@ export type ProjectChain = {
   id: string
   nodes: ChainNode[]
 }
+
+export type BuyOrBuildChoice = 'build' | 'buy' | 'unknown'
+
+export interface BuyOrBuildMissingData {
+  reason: string
+  typeId: number | null
+}
+
+export interface BuyOrBuildWarning {
+  reason: string
+  typeId: number
+  coveragePercent: number
+}
+
+export interface BuyOrBuildRow {
+  typeId: number
+  typeName: string | null
+  activity: 'manufacturing' | 'reaction'
+  quantity: number
+  runs: number
+  producedQuantity: number
+  surplus: number
+  volumePerUnit: number | null
+  jumps: number | null
+  buildPerUnit: number | null
+  buildPerUnitIfSurplusReused: number | null
+  jitaPerUnit: number | null
+  importPerUnit: number | null
+  buyPerUnit: number | null
+  choice: BuyOrBuildChoice
+  choiceWithoutImport: BuyOrBuildChoice
+  saving: number | null
+  savingIfSurplusReused: number | null
+  missingData: BuyOrBuildMissingData[]
+  warnings: BuyOrBuildWarning[]
+}
+
+export interface ProjectBuyOrBuild {
+  id: string
+  importIskPerCubicMeterJump: number
+  rows: BuyOrBuildRow[]
+}

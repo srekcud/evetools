@@ -94,6 +94,7 @@ services:
     App\Industry\Application\JumpDistances: '@App\Industry\Infrastructure\Sde\SdeJumpDistances'
     App\Industry\Application\ItemVolumes: '@App\Industry\Infrastructure\Sde\SdeItemVolumes'
     App\Industry\Application\InventionSkillRequirements: '@App\Industry\Infrastructure\Sde\SdeInventionSkillRequirements'
+    App\Industry\Application\IntermediateBuildCosts: '@App\Industry\Application\ProductionCostIntermediateBuildCosts'
 
 when@test:
     services:
