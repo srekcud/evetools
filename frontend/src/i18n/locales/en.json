@@ -880,7 +880,10 @@
         "title": "Action queue",
         "count": "{count} to process",
         "empty": "Nothing to do right now",
-        "blocked": "Blocked"
+        "blocked": "Blocked",
+        "stockpileLow": "Stockpile · {typeName} is below the threshold ({stock} / {target})",
+        "stockpileRuns": "{runs} runs to launch to get back to the target",
+        "stockpileCreateProject": "Create the project"
       },
       "actions": {
         "record_sale": {

@@ -104,6 +104,7 @@ final class StockpileStatusProviderTest extends TestCase
             'stage' => 'raw_material',
             'sourceProductTypeId' => 4051,
             'locations' => [],
+            'suggestedProjectRuns' => null,
         ];
         self::assertSame(1, $resource->targetCount);
         self::assertSame(

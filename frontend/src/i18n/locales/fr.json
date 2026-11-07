@@ -880,7 +880,10 @@
         "title": "File d'actions",
         "count": "{count} à traiter",
         "empty": "Rien à faire maintenant",
-        "blocked": "À l'arrêt"
+        "blocked": "À l'arrêt",
+        "stockpileLow": "Stockpile · {typeName} sous le seuil ({stock} / {target})",
+        "stockpileRuns": "{runs} runs à lancer pour revenir à la cible",
+        "stockpileCreateProject": "Créer le projet"
       },
       "actions": {
         "record_sale": {

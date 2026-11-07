@@ -223,6 +223,7 @@ final class StockpileStatusCharacterizationTest extends TestCase
                 'stage' => 'intermediate',
                 'sourceProductTypeId' => self::WIDGET_SOURCE,
                 'locations' => [['locationId' => 60003760, 'locationName' => self::JITA_LOCATION_NAME, 'systemName' => 'Jita', 'quantity' => 45]],
+                'suggestedProjectRuns' => null,
             ],
             $status['stages']['intermediate']['items'][0],
         );

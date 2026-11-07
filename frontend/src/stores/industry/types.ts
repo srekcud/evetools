@@ -396,9 +396,11 @@ export type StockpileItemStatus = {
   status: 'met' | 'partial' | 'critical'
   unitPrice: number | null
   stockValue: number | null
+  deficit: number
   deficitCost: number | null
   sourceProductTypeId: number | null
   locations: StockpileLocation[]
+  suggestedProjectRuns: number | null
 }
 
 export type StockpileStageStatus = {
