@@ -263,6 +263,51 @@ final class ProductionScheduleTest extends TestCase
         );
     }
 
+    public function testWorkerWithNegativeManufacturingSlotCountIsNotEligible(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [$this->manufacturing('M', ['W1' => 3300])],
+            [new ScheduleWorker('W1', -1, 2)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'assignments' => [],
+            'unscheduled' => ['M' => Schedule::NO_ELIGIBLE_WORKER],
+            'end' => null,
+        ], $this->outcomeOf($schedule));
+    }
+
+    public function testWorkerWithNegativeReactionSlotCountIsNotEligible(): void
+    {
+        $schedule = ProductionSchedule::earliest(
+            [new ScheduleJob('R', ActivityKind::Reaction, ['W1' => 4200])],
+            [new ScheduleWorker('W1', 3, -2)],
+            $this->at('00:00'),
+        );
+
+        self::assertEquals([
+            'assignments' => [],
+            'unscheduled' => ['R' => Schedule::NO_ELIGIBLE_WORKER],
+            'end' => null,
+        ], $this->outcomeOf($schedule));
+    }
+
+    public function testDependencyOnAnUnknownJobIsRejectedWithTheJobAndTheUnknownDependency(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Job "B" depends on the unknown job "ghost".');
+
+        ProductionSchedule::earliest(
+            [
+                $this->manufacturing('A', ['W1' => 1200], ['B']),
+                $this->manufacturing('B', ['W1' => 2400], ['ghost']),
+            ],
+            [new ScheduleWorker('W1', 1, 0)],
+            $this->at('00:00'),
+        );
+    }
+
     /**
      * @param array<string, int> $durationSecondsByWorker
      * @param list<string>       $dependsOn
