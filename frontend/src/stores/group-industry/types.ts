@@ -634,3 +634,55 @@ export interface ProjectStructures {
   transportIskPerCubicMeterJump: number
   groups: StructureComparisonGroup[]
 }
+
+export type CourierQuoteStatus = 'ready' | 'no_purchases' | 'volume_unknown' | 'workshop_unknown' | 'route_unknown'
+
+export type CourierTransportState = 'not_shipped' | 'waiting' | 'in_transit' | 'delivered' | 'failed' | 'unknown'
+
+export interface CourierLine {
+  bomLineId: string
+  typeId: number
+  purchasedQuantity: number
+  transportState: CourierTransportState
+}
+
+export interface CourierContractFigures {
+  contractId: number
+  characterId: number
+  state: CourierTransportState
+  volume: number | null
+  reward: number | null
+  collateral: number | null
+  startLocationId: number | null
+  endLocationId: number | null
+  issuedAt: string
+}
+
+export interface CourierLinkedContract extends CourierContractFigures {
+  unknownReason: string | null
+  linkedAt: string
+}
+
+export interface CourierCandidate extends CourierContractFigures {
+  matchesQuote: boolean
+}
+
+export interface ProjectCourier {
+  id: string
+  volumeCubicMeters: number | null
+  collateral: number | null
+  reward: number | null
+  jumps: number | null
+  quoteStatus: CourierQuoteStatus
+  missingVolumeTypeIds: number[]
+  daysToComplete: number
+  expirationDays: number
+  originSolarSystemId: number
+  originSolarSystemName: string
+  workshopSolarSystemId: number | null
+  workshopSolarSystemName: string | null
+  canLink: boolean
+  contract: CourierLinkedContract | null
+  lines: CourierLine[]
+  candidates: CourierCandidate[]
+}
