@@ -156,6 +156,30 @@ describe('ProjectCourier', () => {
     expect(wrapper.get(`[data-testid="courier-candidate-${IN_TRANSIT_CONTRACT_ID}"]`).attributes('data-state')).toBe('in_transit')
   })
 
+  it('shows the station names of a candidate and the explicit location id when the name is unknown', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID))
+
+    const matching = shown(wrapper, `courier-candidate-${OUTSTANDING_CONTRACT_ID}`)
+    expect(matching).toContain('Jita IV - Moon 4 - Caldari Navy Assembly Plant → Perimeter - Ishtar Workshop')
+    expect(matching).not.toContain('#60003760')
+    const other = shown(wrapper, `courier-candidate-${IN_TRANSIT_CONTRACT_ID}`)
+    expect(other).toContain('Jita IV - Moon 4 - Caldari Navy Assembly Plant → #1035466617946')
+  })
+
+  it('shows the station names of the linked contract', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, {
+      contract: { ...LINKED_IN_TRANSIT, endLocationName: 'Perimeter - Ishtar Workshop' },
+    }))
+
+    expect(shown(wrapper, 'courier-linked-route')).toContain('Jita IV - Moon 4 - Caldari Navy Assembly Plant → Perimeter - Ishtar Workshop')
+  })
+
+  it('shows the location id of the linked contract when its station name is unknown', async () => {
+    const wrapper = await mountCourier(readyCourier(PROJECT_ID, { contract: LINKED_IN_TRANSIT }))
+
+    expect(shown(wrapper, 'courier-linked-route')).toContain('Jita IV - Moon 4 - Caldari Navy Assembly Plant → #1035466617946')
+  })
+
   it('shows no candidate and no link or unlink button to a participant who is not the owner', async () => {
     const wrapper = await mountCourier(readyCourier(PROJECT_ID, { canLink: false, candidates: [], contract: LINKED_IN_TRANSIT }))
 

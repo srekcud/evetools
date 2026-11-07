@@ -26,7 +26,9 @@ export const MATCHING_CANDIDATE: CourierCandidate = {
   reward: 1287225,
   collateral: 22632500,
   startLocationId: 60003760,
+  startLocationName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
   endLocationId: 1035466617946,
+  endLocationName: 'Perimeter - Ishtar Workshop',
   issuedAt: '2026-11-05T10:00:00+00:00',
   matchesQuote: true,
 }
@@ -39,7 +41,9 @@ export const OTHER_CANDIDATE: CourierCandidate = {
   reward: 9000,
   collateral: 5000000,
   startLocationId: 60003760,
+  startLocationName: 'Jita IV - Moon 4 - Caldari Navy Assembly Plant',
   endLocationId: 1035466617946,
+  endLocationName: null,
   issuedAt: '2026-11-03T10:00:00+00:00',
   matchesQuote: false,
 }
