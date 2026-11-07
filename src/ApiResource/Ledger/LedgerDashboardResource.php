@@ -52,9 +52,16 @@ class LedgerDashboardResource
 
     /**
      * Combined totals.
-     * @var array{total: float|null, pve: float, mining: float|null, expenses: float, profit: float|null}
+     * @var array{total: float|null, pve: float, mining: float|null, industry: float|null, expenses: float, profit: float|null}
      */
-    public array $totals = ['total' => 0.0, 'pve' => 0.0, 'mining' => 0.0, 'expenses' => 0.0, 'profit' => 0.0];
+    public array $totals = ['total' => 0.0, 'pve' => 0.0, 'mining' => 0.0, 'industry' => null, 'expenses' => 0.0, 'profit' => 0.0];
+
+    /**
+     * @var array{profit: float, projectCount: int, unknownProjectCount: int}
+     */
+    public array $industryBreakdown = ['profit' => 0.0, 'projectCount' => 0, 'unknownProjectCount' => 0];
+
+    public ?float $industryPercent = 0.0;
 
     /**
      * PVE breakdown.

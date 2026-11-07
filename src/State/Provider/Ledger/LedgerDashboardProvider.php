@@ -17,6 +17,7 @@ use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
+use App\Service\Industry\Revenue\IndustryRevenueReader;
 use App\Service\MiningBestValueCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -36,6 +37,7 @@ class LedgerDashboardProvider implements ProviderInterface
         private readonly MiningBestValueCalculator $miningBestValueCalculator,
         private readonly RequestStack $requestStack,
         private readonly MiningEntryRepository $miningEntryRepository,
+        private readonly IndustryRevenueReader $industryRevenueReader,
     ) {
     }
 
@@ -112,6 +114,7 @@ class LedgerDashboardProvider implements ProviderInterface
             'total' => $totalIncome,
             'pve' => $pveTotal,
             'mining' => $miningTotal,
+            'industry' => null,
             'expenses' => $expensesTotal,
             'profit' => $profit,
         ];

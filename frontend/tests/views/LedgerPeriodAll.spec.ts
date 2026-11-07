@@ -33,13 +33,15 @@ const MainLayoutStub = defineComponent({
 function dashboard(oldestEntryDate: string | null): LedgerDashboard {
   return {
     period: { from: '2026-09-30', to: '2026-10-30', days: 30 },
-    totals: { total: 7_250_000, pve: 6_100_000, mining: 1_150_000, expenses: 320_000, profit: 6_930_000 },
+    totals: { total: 7_250_000, pve: 6_100_000, mining: 1_150_000, industry: 0, expenses: 320_000, profit: 6_930_000 },
+    industryBreakdown: { profit: 0, projectCount: 0, unknownProjectCount: 0 },
     pveBreakdown: { bounties: 4_400_000, ess: 700_000, missions: 250_000, lootSales: 125_000, corpProjects: 625_000 },
     miningBreakdown: { sold: 1_150_000, corpProject: 0, industry: 0, unknown: 0 },
     expensesByType: { ammo: 320_000 },
     iskPerDay: 231_000,
     pvePercent: 84.14,
     miningPercent: 15.86,
+    industryPercent: 0,
     missingPriceTypeIds: [],
     lastSync: { pve: null, mining: null },
     settings: { corpProjectAccounting: 'pve' },

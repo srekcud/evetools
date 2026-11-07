@@ -15,6 +15,9 @@ use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
+use App\Service\Industry\Revenue\IndustryRevenueReader;
+use App\Service\Industry\Revenue\IndustryRevenueReport;
+use App\Service\Industry\Revenue\IndustryRevenueTotals;
 use App\Service\MiningBestValueCalculator;
 use App\State\Provider\Ledger\LedgerDashboardProvider;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
@@ -289,6 +292,10 @@ final class LedgerDashboardProviderTest extends TestCase
         $pveSettingsRepository->method('findByUser')->willReturn(null);
         $requestStack = new RequestStack();
         $requestStack->push(new Request($query));
+        $industryRevenueReader = $this->createStub(IndustryRevenueReader::class);
+        $industryRevenueReader->method('reportFor')->willReturn(
+            new IndustryRevenueReport(new IndustryRevenueTotals(0.0, 0, 0, 0.0, null, null), [], []),
+        );
 
         return new LedgerDashboardProvider(
             $security,
@@ -302,6 +309,7 @@ final class LedgerDashboardProviderTest extends TestCase
             ),
             $requestStack,
             $miningEntryRepository,
+            $industryRevenueReader,
         );
     }
 }
