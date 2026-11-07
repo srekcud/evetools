@@ -25,6 +25,7 @@ use App\State\Provider\Industry\Project\IndustryActionsProvider;
         ),
     ],
     security: "is_granted('ROLE_USER')",
+    normalizationContext: ['skip_null_values' => false],
     paginationEnabled: false,
 )]
 class IndustryActionResource

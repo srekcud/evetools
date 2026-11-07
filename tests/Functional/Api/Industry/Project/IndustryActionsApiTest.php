@@ -71,17 +71,20 @@ final class IndustryActionsApiTest extends WebTestCase
         );
     }
 
-    public function testPendingParticipantAndOutsiderReadAnEmptyQueue(): void
+    public function testPendingParticipantReadsAnEmptyQueue(): void
     {
         $this->client->loginUser($this->pendingMember, 'api');
         $this->request('GET', self::ACTIONS_URI);
-        $pendingMemberOutcome = [$this->client->getResponse()->getStatusCode(), $this->responseJson()];
 
+        self::assertSame([200, []], [$this->client->getResponse()->getStatusCode(), $this->responseJson()]);
+    }
+
+    public function testOutsiderReadsAnEmptyQueue(): void
+    {
         $this->client->loginUser($this->outsider, 'api');
         $this->request('GET', self::ACTIONS_URI);
-        $outsiderOutcome = [$this->client->getResponse()->getStatusCode(), $this->responseJson()];
 
-        self::assertSame([[200, []], [200, []]], [$pendingMemberOutcome, $outsiderOutcome]);
+        self::assertSame([200, []], [$this->client->getResponse()->getStatusCode(), $this->responseJson()]);
     }
 
     public function testQueueIsRefusedWithoutConnectedUser(): void
