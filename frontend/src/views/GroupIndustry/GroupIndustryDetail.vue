@@ -31,6 +31,7 @@ import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
+import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
@@ -521,6 +522,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <ProductionChain :project-id="projectId" />
         <ProjectBuyOrBuild :project-id="projectId" />
         <ProjectStructures :project-id="projectId" />
+        <ProjectStructureHealth :project-id="projectId" />
       </div>
 
       <div v-else-if="activeTab === 'planning'" class="relative rounded-xl">

@@ -2257,6 +2257,21 @@
       },
       "hint": "Total = matériaux (structure et rigs) + installation (indice de coût, bonus de rôle, taxe) + transport (m³ des matériaux et des produits × sauts × le barème). Écart = total moins la structure retenue."
     },
+    "structureHealth": {
+      "title": "Santé des structures",
+      "loading": "Lecture des structures...",
+      "loadError": "La santé des structures n'a pas pu être lue",
+      "empty": "Aucune structure à vérifier : le plan ne retient aucune structure.",
+      "fuel": "carburant {days} j",
+      "offlineServices": "hors ligne : {services}",
+      "unknownReason": "carburant et services inconnus : rôle Station_Manager absent ou structure illisible",
+      "state": {
+        "ok": "OK",
+        "lowFuel": "Carburant bas",
+        "offlineService": "Service hors ligne",
+        "unknown": "Inconnu"
+      }
+    },
     "kpis": {
       "activeProjects": "Projets actifs",
       "activeDesc": "en cours de production",
