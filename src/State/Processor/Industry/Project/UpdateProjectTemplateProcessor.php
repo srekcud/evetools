@@ -7,12 +7,18 @@ namespace App\State\Processor\Industry\Project;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\Project\IndustryProjectTemplateResource;
+use App\ApiResource\Input\Industry\Project\UpdateProjectTemplateInput;
+use App\Entity\User;
 use App\Repository\IndustryProjectTemplateRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\Uid\Uuid;
 
 /**
- * @implements ProcessorInterface<mixed, IndustryProjectTemplateResource>
+ * @implements ProcessorInterface<UpdateProjectTemplateInput, IndustryProjectTemplateResource>
  */
 class UpdateProjectTemplateProcessor implements ProcessorInterface
 {
@@ -25,6 +31,35 @@ class UpdateProjectTemplateProcessor implements ProcessorInterface
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): IndustryProjectTemplateResource
     {
-        throw new \LogicException('not implemented');
+        $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
+        }
+
+        $template = $this->templateRepository->find(Uuid::fromString($uriVariables['id']));
+
+        if ($template === null) {
+            throw new NotFoundHttpException('Template not found');
+        }
+
+        if ($template->getOwner() !== $user) {
+            throw new AccessDeniedHttpException('Only the template owner can perform this action');
+        }
+
+        assert($data instanceof UpdateProjectTemplateInput);
+
+        if ($data->name !== null) {
+            $template->setName($data->name);
+        }
+
+        if ($data->sharedWithCorporation !== null) {
+            $template->setSharedWithCorporation($data->sharedWithCorporation);
+        }
+
+        $template->setUpdatedAt(new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        return IndustryProjectTemplateResource::fromTemplate($template, $user);
     }
 }

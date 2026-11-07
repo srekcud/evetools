@@ -4,25 +4,44 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Repository\IndustryProjectTemplateRepository;
+use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
+#[ORM\Entity(repositoryClass: IndustryProjectTemplateRepository::class)]
+#[ORM\Table(name: 'industry_project_templates')]
+#[ORM\Index(columns: ['owner_id'])]
 class IndustryProjectTemplate
 {
     public const int MAXIMUM_PER_OWNER = 50;
 
+    #[ORM\Id]
+    #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $owner;
+    #[ORM\Column(type: 'string', length: 255)]
     private string $name = '';
     /** @var list<array{typeId: int, typeName: string, meLevel: int, teLevel: int, runs: int}> */
+    #[ORM\Column(type: 'json')]
     private array $items = [];
     /** @var list<int> */
+    #[ORM\Column(type: 'json')]
     private array $blacklistGroupIds = [];
     /** @var list<int> */
+    #[ORM\Column(type: 'json')]
     private array $blacklistTypeIds = [];
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $acceptsOutsideFavoriteSystem = false;
+    #[ORM\Column(type: 'float')]
     private float $minimumOutsideSaving = 0.0;
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $sharedWithCorporation = false;
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
 
     public function __construct()

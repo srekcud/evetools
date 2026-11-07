@@ -144,6 +144,8 @@ deptrac:
       - App\State\Provider\Escalation\EscalationResourceMapper
     App\State\Processor\Industry\Project\CreateProjectProcessor:
       - App\State\Provider\Industry\Project\ProjectResourceMapper
+    App\State\Processor\Industry\Project\CreateProjectTemplateProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\DeleteSaleProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\JoinProjectProcessor:

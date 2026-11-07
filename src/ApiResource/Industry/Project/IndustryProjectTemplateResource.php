@@ -12,6 +12,8 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\ApiResource\Input\Industry\Project\CreateProjectTemplateInput;
 use App\ApiResource\Input\Industry\Project\UpdateProjectTemplateInput;
+use App\Entity\IndustryProjectTemplate;
+use App\Entity\User;
 use App\State\Processor\Industry\Project\CreateProjectTemplateProcessor;
 use App\State\Processor\Industry\Project\DeleteProjectTemplateProcessor;
 use App\State\Processor\Industry\Project\UpdateProjectTemplateProcessor;
@@ -72,4 +74,22 @@ class IndustryProjectTemplateResource
     public bool $isOwn = false;
 
     public string $createdAt;
+
+    public static function fromTemplate(IndustryProjectTemplate $template, User $viewer): self
+    {
+        $resource = new self();
+        $resource->id = (string) $template->getId();
+        $resource->name = $template->getName();
+        $resource->items = $template->getItems();
+        $resource->blacklistGroupIds = $template->getBlacklistGroupIds();
+        $resource->blacklistTypeIds = $template->getBlacklistTypeIds();
+        $resource->acceptsOutsideFavoriteSystem = $template->isAcceptsOutsideFavoriteSystem();
+        $resource->minimumOutsideSaving = $template->getMinimumOutsideSaving();
+        $resource->sharedWithCorporation = $template->isSharedWithCorporation();
+        $resource->ownerName = $template->getOwner()->getMainCharacter()?->getName();
+        $resource->isOwn = $template->getOwner() === $viewer;
+        $resource->createdAt = $template->getCreatedAt()->format(\DateTimeInterface::ATOM);
+
+        return $resource;
+    }
 }

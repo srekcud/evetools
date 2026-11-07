@@ -7,6 +7,7 @@ namespace App\Service\Account;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectTemplate;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
@@ -44,6 +45,7 @@ class AccountDeletionService
             $this->handOverStartedMiningOperations($user);
             $deletedProjects = $this->handOverOwnedProjects($user);
             $this->anonymizeMemberships($user, $deletedProjects);
+            $this->removeProjectTemplates($user);
             $this->structureConfigRepository()->removeUserFromHiddenByUsers($this->idOf($user));
             $this->entityManager->remove($user);
         });
@@ -167,6 +169,13 @@ class AccountDeletionService
             }
 
             $membership->anonymize();
+        }
+    }
+
+    private function removeProjectTemplates(User $user): void
+    {
+        foreach ($this->entityManager->getRepository(IndustryProjectTemplate::class)->findBy(['owner' => $user]) as $template) {
+            $this->entityManager->remove($template);
         }
     }
 
