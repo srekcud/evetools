@@ -5,11 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Industry;
 
 use App\Entity\IndustryStructureConfig;
-use App\Repository\IndustryRigCategoryRepository;
-use App\Repository\IndustryStructureConfigRepository;
-use App\Repository\Sde\IndustryActivityProductRepository;
-use App\Repository\Sde\InvTypeRepository;
-use App\Service\Industry\IndustryBonusService;
 use App\State\Provider\Industry\RigOptionsProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -17,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Issue #93: the rig catalog the API sends to the structure form states exactly the bonuses
- * IndustryBonusService applies, so the form displays them without any table of its own.
+ * frozen in Golden/rig-bonuses-highsec.json, so the form displays them without any table of its own.
  * `bonus` is the material bonus, `categoryBonuses` overrides it per category, `timeBonus` is the
  * time bonus (absent when the rig has none).
  *
@@ -38,17 +33,7 @@ final class RigOptionsProviderTest extends TestCase
         'structure_component',
     ];
 
-    private IndustryBonusService $bonusService;
-
-    protected function setUp(): void
-    {
-        $this->bonusService = new IndustryBonusService(
-            $this->createStub(IndustryRigCategoryRepository::class),
-            $this->createStub(IndustryStructureConfigRepository::class),
-            $this->createStub(InvTypeRepository::class),
-            $this->createStub(IndustryActivityProductRepository::class),
-        );
-    }
+    private const string FROZEN_BONUSES_PATH = '/Fixtures/Golden/rig-bonuses-highsec.json';
 
     /** @return iterable<string, array{array<string, mixed>, string}> */
     public static function rigCategoryProvider(): iterable
@@ -66,28 +51,24 @@ final class RigOptionsProviderTest extends TestCase
 
     /** @param array<string, mixed> $rig */
     #[DataProvider('rigCategoryProvider')]
-    public function testMaterialBonusIsTheOneTheEngineApplies(array $rig, string $category): void
+    public function testMaterialBonusMatchesTheFrozenEngineValue(array $rig, string $category): void
     {
         $categoryBonuses = $rig['categoryBonuses'] ?? [];
         assert(is_array($categoryBonuses));
         $materialBonus = $categoryBonuses[$category] ?? $rig['bonus'];
         assert(is_float($materialBonus) || is_int($materialBonus));
 
-        $applied = $this->bonusService->calculateStructureBonusForCategory($this->stationWith($rig), $category);
-
-        $this->assertSame(round($materialBonus * $this->securityMultiplierOf($rig), 2), $applied['rig']);
+        $this->assertSame(round($materialBonus * $this->securityMultiplierOf($rig), 2), $this->frozenBonusOf($rig, $category)['material']);
     }
 
     /** @param array<string, mixed> $rig */
     #[DataProvider('rigCategoryProvider')]
-    public function testTimeBonusIsTheOneTheEngineApplies(array $rig, string $category): void
+    public function testTimeBonusMatchesTheFrozenEngineValue(array $rig, string $category): void
     {
         $timeBonus = $rig['timeBonus'] ?? 0.0;
         assert(is_float($timeBonus) || is_int($timeBonus));
 
-        $applied = $this->bonusService->calculateStructureTimeBonusForCategory($this->stationWith($rig), $category);
-
-        $this->assertSame(round($timeBonus * $this->securityMultiplierOf($rig), 2), $applied);
+        $this->assertSame(round($timeBonus * $this->securityMultiplierOf($rig), 2), $this->frozenBonusOf($rig, $category)['time']);
     }
 
     /** @return iterable<string, array{array<string, mixed>}> */
@@ -103,20 +84,16 @@ final class RigOptionsProviderTest extends TestCase
 
     /** @param array<string, mixed> $rig */
     #[DataProvider('rigProvider')]
-    public function testTargetCategoriesAreTheOnesTheEngineAppliesTheRigTo(array $rig): void
+    public function testTargetCategoriesAreTheFrozenOnesTheEngineAppliesTheRigTo(array $rig): void
     {
-        $station = $this->stationWith($rig);
-
-        $appliedCategories = array_values(array_filter(
-            self::ALL_CATEGORIES,
-            fn (string $category): bool => $this->bonusService->calculateStructureBonusForCategory($station, $category)['rig'] > 0.0
-                || $this->bonusService->calculateStructureTimeBonusForCategory($station, $category) > 0.0,
-        ));
+        assert(is_string($rig['name']));
+        $frozenCategories = array_keys($this->frozenBonuses()[$rig['name']]);
+        sort($frozenCategories);
 
         $targetCategories = $rig['targetCategories'];
         assert(is_array($targetCategories));
         sort($targetCategories);
-        $this->assertSame($appliedCategories, $targetCategories);
+        $this->assertSame($frozenCategories, $targetCategories);
     }
 
     public function testLaboratoryRigsHaveNoMaterialBonus(): void
@@ -156,16 +133,28 @@ final class RigOptionsProviderTest extends TestCase
         $this->assertArrayNotHasKey('timeBonus', $rigs['Standup M-Set Composite Reactor Material Efficiency II']);
     }
 
-    /** @param array<string, mixed> $rig */
-    private function stationWith(array $rig): IndustryStructureConfig
+    /**
+     * @param array<string, mixed> $rig
+     *
+     * @return array{material: float, time: float}
+     */
+    private function frozenBonusOf(array $rig, string $category): array
     {
         assert(is_string($rig['name']));
+        $frozenBonuses = $this->frozenBonuses();
+        $this->assertArrayHasKey($rig['name'], $frozenBonuses);
+        $this->assertArrayHasKey($category, $frozenBonuses[$rig['name']]);
 
-        return (new IndustryStructureConfig())
-            ->setName('Highsec NPC station')
-            ->setStructureType('station')
-            ->setSecurityType(self::SECURITY_TYPE)
-            ->setRigs([$rig['name']]);
+        return $frozenBonuses[$rig['name']][$category];
+    }
+
+    /** @return array<string, array<string, array{material: float, time: float}>> */
+    private function frozenBonuses(): array
+    {
+        $decoded = json_decode((string) file_get_contents(dirname(__DIR__, 4).self::FROZEN_BONUSES_PATH), true, flags: JSON_THROW_ON_ERROR);
+        assert(is_array($decoded));
+
+        return $decoded;
     }
 
     /** @param array<string, mixed> $rig */

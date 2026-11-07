@@ -1,0 +1,738 @@
+{
+    "Standup L-Set Advanced Component Manufacturing Efficiency I": {
+        "advanced_component": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Advanced Component Manufacturing Efficiency II": {
+        "advanced_component": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Advanced Large Ship Manufacturing Efficiency I": {
+        "advanced_large_ship": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Advanced Large Ship Manufacturing Efficiency II": {
+        "advanced_large_ship": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Advanced Medium Ship Manufacturing Efficiency I": {
+        "advanced_medium_ship": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Advanced Medium Ship Manufacturing Efficiency II": {
+        "advanced_medium_ship": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Advanced Small Ship Manufacturing Efficiency I": {
+        "advanced_small_ship": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Advanced Small Ship Manufacturing Efficiency II": {
+        "advanced_small_ship": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Ammunition Manufacturing Efficiency I": {
+        "ammunition": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Ammunition Manufacturing Efficiency II": {
+        "ammunition": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Basic Capital Component Manufacturing Efficiency I": {
+        "basic_capital_component": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Basic Capital Component Manufacturing Efficiency II": {
+        "basic_capital_component": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Basic Large Ship Manufacturing Efficiency I": {
+        "basic_large_ship": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Basic Large Ship Manufacturing Efficiency II": {
+        "basic_large_ship": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Basic Medium Ship Manufacturing Efficiency I": {
+        "basic_medium_ship": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Basic Medium Ship Manufacturing Efficiency II": {
+        "basic_medium_ship": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Basic Small Ship Manufacturing Efficiency I": {
+        "basic_small_ship": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Basic Small Ship Manufacturing Efficiency II": {
+        "basic_small_ship": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Capital Ship Manufacturing Efficiency I": {
+        "capital_ship": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Capital Ship Manufacturing Efficiency II": {
+        "capital_ship": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Drone and Fighter Manufacturing Efficiency I": {
+        "drone": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "fighter": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Drone and Fighter Manufacturing Efficiency II": {
+        "drone": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "fighter": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Equipment Manufacturing Efficiency I": {
+        "equipment": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Equipment Manufacturing Efficiency II": {
+        "equipment": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Laboratory Optimization I": [],
+    "Standup L-Set Laboratory Optimization II": [],
+    "Standup L-Set Reactor Efficiency I": {
+        "biochemical_reaction": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "composite_reaction": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "hybrid_reaction": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Reactor Efficiency II": {
+        "biochemical_reaction": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "composite_reaction": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "hybrid_reaction": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Structure Manufacturing Efficiency I": {
+        "structure": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "structure_component": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup L-Set Structure Manufacturing Efficiency II": {
+        "structure": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "structure_component": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup L-Set Thukker Advanced Component Manufacturing Efficiency": {
+        "advanced_component": {
+            "material": 0.2,
+            "time": 2.0
+        }
+    },
+    "Standup L-Set Thukker Basic Capital Component Manufacturing Efficiency": {
+        "basic_capital_component": {
+            "material": 0.37,
+            "time": 2.0
+        }
+    },
+    "Standup M-Set Advanced Component Manufacturing Material Efficiency I": {
+        "advanced_component": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Advanced Component Manufacturing Material Efficiency II": {
+        "advanced_component": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Advanced Component Manufacturing Time Efficiency I": {
+        "advanced_component": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Advanced Component Manufacturing Time Efficiency II": {
+        "advanced_component": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Advanced Large Ship Manufacturing Material Efficiency I": {
+        "advanced_large_ship": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Advanced Large Ship Manufacturing Material Efficiency II": {
+        "advanced_large_ship": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Advanced Large Ship Manufacturing Time Efficiency I": {
+        "advanced_large_ship": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Advanced Large Ship Manufacturing Time Efficiency II": {
+        "advanced_large_ship": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Advanced Medium Ship Manufacturing Material Efficiency I": {
+        "advanced_medium_ship": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Advanced Medium Ship Manufacturing Material Efficiency II": {
+        "advanced_medium_ship": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Advanced Medium Ship Manufacturing Time Efficiency I": {
+        "advanced_medium_ship": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Advanced Medium Ship Manufacturing Time Efficiency II": {
+        "advanced_medium_ship": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Advanced Small Ship Manufacturing Material Efficiency I": {
+        "advanced_small_ship": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Advanced Small Ship Manufacturing Material Efficiency II": {
+        "advanced_small_ship": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Advanced Small Ship Manufacturing Time Efficiency I": {
+        "advanced_small_ship": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Advanced Small Ship Manufacturing Time Efficiency II": {
+        "advanced_small_ship": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Ammunition Manufacturing Material Efficiency I": {
+        "ammunition": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Ammunition Manufacturing Material Efficiency II": {
+        "ammunition": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Ammunition Manufacturing Time Efficiency I": {
+        "ammunition": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Ammunition Manufacturing Time Efficiency II": {
+        "ammunition": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Basic Capital Component Manufacturing Material Efficiency I": {
+        "basic_capital_component": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Basic Capital Component Manufacturing Material Efficiency II": {
+        "basic_capital_component": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Basic Capital Component Manufacturing Time Efficiency I": {
+        "basic_capital_component": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Basic Capital Component Manufacturing Time Efficiency II": {
+        "basic_capital_component": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Basic Large Ship Manufacturing Material Efficiency I": {
+        "basic_large_ship": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Basic Large Ship Manufacturing Material Efficiency II": {
+        "basic_large_ship": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Basic Large Ship Manufacturing Time Efficiency I": {
+        "basic_large_ship": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Basic Large Ship Manufacturing Time Efficiency II": {
+        "basic_large_ship": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Basic Medium Ship Manufacturing Material Efficiency I": {
+        "basic_medium_ship": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Basic Medium Ship Manufacturing Material Efficiency II": {
+        "basic_medium_ship": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Basic Medium Ship Manufacturing Time Efficiency I": {
+        "basic_medium_ship": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Basic Medium Ship Manufacturing Time Efficiency II": {
+        "basic_medium_ship": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Basic Small Ship Manufacturing Material Efficiency I": {
+        "basic_small_ship": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Basic Small Ship Manufacturing Material Efficiency II": {
+        "basic_small_ship": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Basic Small Ship Manufacturing Time Efficiency I": {
+        "basic_small_ship": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Basic Small Ship Manufacturing Time Efficiency II": {
+        "basic_small_ship": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Biochemical Reactor Material Efficiency I": {
+        "biochemical_reaction": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Biochemical Reactor Material Efficiency II": {
+        "biochemical_reaction": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Composite Reactor Material Efficiency I": {
+        "composite_reaction": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Composite Reactor Material Efficiency II": {
+        "composite_reaction": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Drone and Fighter Manufacturing Material Efficiency I": {
+        "drone": {
+            "material": 2.0,
+            "time": 0.0
+        },
+        "fighter": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Drone and Fighter Manufacturing Material Efficiency II": {
+        "drone": {
+            "material": 2.4,
+            "time": 0.0
+        },
+        "fighter": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Drone and Fighter Manufacturing Time Efficiency I": {
+        "drone": {
+            "material": 0.0,
+            "time": 20.0
+        },
+        "fighter": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Drone and Fighter Manufacturing Time Efficiency II": {
+        "drone": {
+            "material": 0.0,
+            "time": 24.0
+        },
+        "fighter": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Equipment Manufacturing Material Efficiency I": {
+        "equipment": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Equipment Manufacturing Material Efficiency II": {
+        "equipment": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Equipment Manufacturing Time Efficiency I": {
+        "equipment": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Equipment Manufacturing Time Efficiency II": {
+        "equipment": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Hybrid Reactor Material Efficiency I": {
+        "hybrid_reaction": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Hybrid Reactor Material Efficiency II": {
+        "hybrid_reaction": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Laboratory Optimization I": [],
+    "Standup M-Set Laboratory Optimization II": [],
+    "Standup M-Set Structure Manufacturing Material Efficiency I": {
+        "structure": {
+            "material": 2.0,
+            "time": 0.0
+        },
+        "structure_component": {
+            "material": 2.0,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Structure Manufacturing Material Efficiency II": {
+        "structure": {
+            "material": 2.4,
+            "time": 0.0
+        },
+        "structure_component": {
+            "material": 2.4,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Structure Manufacturing Time Efficiency I": {
+        "structure": {
+            "material": 0.0,
+            "time": 20.0
+        },
+        "structure_component": {
+            "material": 0.0,
+            "time": 20.0
+        }
+    },
+    "Standup M-Set Structure Manufacturing Time Efficiency II": {
+        "structure": {
+            "material": 0.0,
+            "time": 24.0
+        },
+        "structure_component": {
+            "material": 0.0,
+            "time": 24.0
+        }
+    },
+    "Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency": {
+        "advanced_component": {
+            "material": 0.2,
+            "time": 0.0
+        }
+    },
+    "Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency": {
+        "basic_capital_component": {
+            "material": 0.37,
+            "time": 0.0
+        }
+    },
+    "Standup XL-Set Equipment and Consumable Manufacturing Efficiency I": {
+        "ammunition": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "drone": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "equipment": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "fighter": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup XL-Set Equipment and Consumable Manufacturing Efficiency II": {
+        "ammunition": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "drone": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "equipment": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "fighter": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup XL-Set Laboratory Optimization I": [],
+    "Standup XL-Set Laboratory Optimization II": [],
+    "Standup XL-Set Ship Manufacturing Efficiency I": {
+        "advanced_large_ship": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "advanced_medium_ship": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "advanced_small_ship": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "basic_large_ship": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "basic_medium_ship": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "basic_small_ship": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "capital_ship": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup XL-Set Ship Manufacturing Efficiency II": {
+        "advanced_large_ship": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "advanced_medium_ship": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "advanced_small_ship": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "basic_large_ship": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "basic_medium_ship": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "basic_small_ship": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "capital_ship": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup XL-Set Structure and Component Manufacturing Efficiency I": {
+        "advanced_component": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "basic_capital_component": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "structure": {
+            "material": 2.0,
+            "time": 20.0
+        },
+        "structure_component": {
+            "material": 2.0,
+            "time": 20.0
+        }
+    },
+    "Standup XL-Set Structure and Component Manufacturing Efficiency II": {
+        "advanced_component": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "basic_capital_component": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "structure": {
+            "material": 2.4,
+            "time": 24.0
+        },
+        "structure_component": {
+            "material": 2.4,
+            "time": 24.0
+        }
+    },
+    "Standup XL-Set Thukker Structure and Component Manufacturing Efficiency": {
+        "advanced_component": {
+            "material": 0.2,
+            "time": 2.0
+        },
+        "basic_capital_component": {
+            "material": 0.37,
+            "time": 2.0
+        },
+        "structure": {
+            "material": 0.2,
+            "time": 2.0
+        },
+        "structure_component": {
+            "material": 0.2,
+            "time": 2.0
+        }
+    }
+}
