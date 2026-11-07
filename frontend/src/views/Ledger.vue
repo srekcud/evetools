@@ -11,6 +11,7 @@ import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
 import MiningTab from '@/components/ledger/MiningTab.vue'
 import LedgerSettingsTab from '@/components/ledger/LedgerSettingsTab.vue'
 import EscalationsTab from '@/components/ledger/EscalationsTab.vue'
+import LedgerIndustryTab from '@/components/ledger/LedgerIndustryTab.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
@@ -18,8 +19,8 @@ const ledgerStore = useLedgerStore()
 const pveStore = usePveStore()
 
 // Tab state
-type TabId = 'dashboard' | 'pve' | 'mining' | 'settings' | 'escalations'
-const validTabs: TabId[] = ['dashboard', 'pve', 'mining', 'settings', 'escalations']
+type TabId = 'dashboard' | 'pve' | 'mining' | 'industry' | 'settings' | 'escalations'
+const validTabs: TabId[] = ['dashboard', 'pve', 'mining', 'industry', 'settings', 'escalations']
 const activeTab = useTabQuery(validTabs, 'dashboard')
 
 // Period selection (cached in localStorage)
@@ -150,6 +151,7 @@ onMounted(async () => {
               { id: 'dashboard', label: t('ledger.tabs.dashboard') },
               { id: 'pve', label: t('ledger.tabs.pve') },
               { id: 'mining', label: t('ledger.tabs.mining') },
+              { id: 'industry', label: t('ledger.tabs.industry') },
               { id: 'escalations', label: t('ledger.tabs.escalations') },
               { id: 'settings', label: t('ledger.tabs.settings') },
             ]"
@@ -196,6 +198,10 @@ onMounted(async () => {
           :selected-days="selectedDays"
           @sync="fetchData"
         />
+      </div>
+
+      <div v-else-if="activeTab === 'industry'" key="industry">
+        <LedgerIndustryTab :selected-days="selectedDays" />
       </div>
 
       <!-- Escalations Tab -->

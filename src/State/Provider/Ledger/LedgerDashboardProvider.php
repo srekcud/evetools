@@ -17,6 +17,7 @@ use App\Repository\PveExpenseRepository;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserLedgerSettingsRepository;
 use App\Repository\UserPveSettingsRepository;
+use App\Service\Industry\Revenue\IndustryRevenueReader;
 use App\Service\MiningBestValueCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -36,6 +37,7 @@ class LedgerDashboardProvider implements ProviderInterface
         private readonly MiningBestValueCalculator $miningBestValueCalculator,
         private readonly RequestStack $requestStack,
         private readonly MiningEntryRepository $miningEntryRepository,
+        private readonly IndustryRevenueReader $industryRevenueReader,
     ) {
     }
 
@@ -88,17 +90,22 @@ class LedgerDashboardProvider implements ProviderInterface
         $miningTotal = $miningValue['totalValue'];
         $miningByUsage = $this->miningBestValueCalculator->getTotalsByUsageBestValue($user, $from, $to);
 
+        $industryTotals = $this->industryRevenueReader->reportFor($user, $from, $to)->totals;
+        $industryTotal = $industryTotals->profit;
+
         $totalIncome = null;
         $profit = null;
         $iskPerDay = null;
         $pvePercent = null;
         $miningPercent = null;
+        $industryPercent = null;
         if ($miningTotal !== null) {
-            $totalIncome = $pveTotal + $miningTotal;
+            $totalIncome = $pveTotal + $miningTotal + $industryTotal;
             $profit = $totalIncome - $expensesTotal;
             $iskPerDay = $days > 0 ? $profit / $days : 0.0;
             $pvePercent = $totalIncome > 0 ? ($pveTotal / $totalIncome) * 100 : 0.0;
             $miningPercent = $totalIncome > 0 ? ($miningTotal / $totalIncome) * 100 : 0.0;
+            $industryPercent = $totalIncome > 0 ? ($industryTotal / $totalIncome) * 100 : 0.0;
         }
 
         // Build resource
@@ -112,9 +119,16 @@ class LedgerDashboardProvider implements ProviderInterface
             'total' => $totalIncome,
             'pve' => $pveTotal,
             'mining' => $miningTotal,
+            'industry' => $industryTotal,
             'expenses' => $expensesTotal,
             'profit' => $profit,
         ];
+        $resource->industryBreakdown = [
+            'profit' => $industryTotal,
+            'projectCount' => $industryTotals->projectCount,
+            'unknownProjectCount' => $industryTotals->unknownProjectCount,
+        ];
+        $resource->industryPercent = $industryPercent;
         $resource->pveBreakdown = [
             'bounties' => $bountyTotal,
             'ess' => $essTotal,

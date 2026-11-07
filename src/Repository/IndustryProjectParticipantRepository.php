@@ -9,6 +9,7 @@ use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Enum\ProjectStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -61,6 +62,36 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('status', ParticipantStatus::Accepted->value)
             ->orderBy('m.joinedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $this->loadItemsAndBomItems(
+            array_map(static fn (IndustryProjectParticipant $m): IndustryProject => $m->getProject(), $memberships),
+        );
+
+        return $memberships;
+    }
+
+    /**
+     * @return IndustryProjectParticipant[]
+     */
+    public function findAcceptedOnProjectsCompletedBetween(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        /** @var IndustryProjectParticipant[] $memberships */
+        $memberships = $this->createQueryBuilder('m')
+            ->addSelect('p')
+            ->join('m.project', 'p')
+            ->andWhere('m.user = :user')
+            ->andWhere('m.status = :status')
+            ->andWhere('p.status = :projectStatus')
+            ->andWhere('p.completedAt >= :from')
+            ->andWhere('p.completedAt <= :to')
+            ->setParameter('user', $user)
+            ->setParameter('status', ParticipantStatus::Accepted->value)
+            ->setParameter('projectStatus', ProjectStatus::Completed->value)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->orderBy('p.completedAt', 'DESC')
             ->getQuery()
             ->getResult();
 

@@ -33,6 +33,19 @@ function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
 }
 
+const hasNoKnownIndustryProfit = computed(() =>
+  props.dashboard.industryBreakdown.projectCount > 0
+  && props.dashboard.industryBreakdown.unknownProjectCount === props.dashboard.industryBreakdown.projectCount,
+)
+
+const industrySummary = computed(() => {
+  const { projectCount, unknownProjectCount } = props.dashboard.industryBreakdown
+  if (projectCount === 0) return t('ledger.industry.empty')
+  const projects = `${t('ledger.industry.columns.projects')} : ${projectCount}`
+  if (unknownProjectCount === 0) return projects
+  return `${projects} · ${t('ledger.industry.unknownProjects', { count: unknownProjectCount }, unknownProjectCount)}`
+})
+
 function formatIskFullOrUnknown(value: number | null): string {
   return value === null ? t('common.unknownValue') : formatIskFull(value)
 }
@@ -146,7 +159,7 @@ const chartOptions = computed(() => ({
 <template>
   <div class="space-y-4">
     <!-- KPI Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
       <!-- Total -->
       <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
         <div class="flex items-center justify-between">
@@ -157,11 +170,21 @@ const chartOptions = computed(() => ({
           <IskAmount :value="dashboard.totals.total" short />
         </div>
         <div class="mt-2 flex items-center gap-2">
-          <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div class="flex flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
             <div
               v-if="dashboard.pvePercent !== null"
               class="h-full bg-linear-to-r from-cyan-500 to-blue-500"
               :style="{ width: `${dashboard.pvePercent}%` }"
+            />
+            <div
+              v-if="dashboard.miningPercent !== null"
+              class="h-full bg-amber-500"
+              :style="{ width: `${dashboard.miningPercent}%` }"
+            />
+            <div
+              v-if="dashboard.industryPercent !== null"
+              class="h-full bg-emerald-500"
+              :style="{ width: `${dashboard.industryPercent}%` }"
             />
           </div>
         </div>
@@ -175,6 +198,11 @@ const chartOptions = computed(() => ({
             Mining
             <UnknownValue v-if="dashboard.miningPercent === null" />
             <template v-else>{{ formatPercent(dashboard.miningPercent) }}</template>
+          </span>
+          <span>
+            {{ t('ledger.tabs.industry') }}
+            <UnknownValue v-if="dashboard.industryPercent === null" />
+            <template v-else>{{ formatPercent(dashboard.industryPercent) }}</template>
           </span>
         </div>
       </div>
@@ -212,6 +240,20 @@ const chartOptions = computed(() => ({
         <div v-if="dashboard.missingPriceTypeIds.length > 0" class="mt-1 text-xs text-amber-400">
           {{ t('ledger.dashboard.miningMissingPrices', { count: dashboard.missingPriceTypeIds.length }, dashboard.missingPriceTypeIds.length) }}
         </div>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl p-4 border border-emerald-500/20">
+        <div class="flex items-center justify-between">
+          <span class="text-emerald-400 text-sm">{{ t('ledger.tabs.industry') }}</span>
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        </div>
+        <div class="mt-2 text-2xl font-bold text-emerald-400">
+          <UnknownValue v-if="hasNoKnownIndustryProfit" />
+          <IskAmount v-else :value="dashboard.totals.industry" short />
+        </div>
+        <div class="mt-2 text-xs text-slate-500">{{ industrySummary }}</div>
       </div>
     </div>
 

@@ -13,8 +13,14 @@ export interface LedgerDashboard {
     total: number | null
     pve: number
     mining: number | null
+    industry: number
     expenses: number
     profit: number | null
+  }
+  industryBreakdown: {
+    profit: number
+    projectCount: number
+    unknownProjectCount: number
   }
   pveBreakdown: {
     bounties: number
@@ -33,6 +39,7 @@ export interface LedgerDashboard {
   iskPerDay: number | null
   pvePercent: number | null
   miningPercent: number | null
+  industryPercent: number | null
   missingPriceTypeIds: number[]
   lastSync: {
     pve: string | null
@@ -42,6 +49,39 @@ export interface LedgerDashboard {
     corpProjectAccounting: 'pve' | 'mining'
   }
   oldestEntryDate: string | null
+}
+
+export interface LedgerIndustry {
+  period: {
+    from: string
+    to: string
+    days: number
+  }
+  totals: {
+    profit: number
+    projectCount: number
+    unknownProjectCount: number
+    capital: number
+    slotHours: number | null
+    iskPerHour: number | null
+  }
+  months: {
+    month: string
+    projectCount: number
+    unknownProjectCount: number
+    profit: number
+    capital: number
+    marginPercent: number | null
+    slotHours: number | null
+    iskPerHour: number | null
+  }[]
+  products: {
+    typeId: number | null
+    typeName: string | null
+    projectCount: number
+    unknownProjectCount: number
+    profit: number
+  }[]
 }
 
 export interface LedgerDailyStats {
@@ -161,6 +201,7 @@ export const useLedgerStore = defineStore('ledger', () => {
   // State
   const dashboard = ref<LedgerDashboard | null>(null)
   const dailyStats = ref<LedgerDailyStats | null>(null)
+  const industry = ref<LedgerIndustry | null>(null)
   const miningEntries = ref<MiningEntry[]>([])
   const miningStats = ref<MiningStats | null>(null)
   const miningDailyStats = ref<MiningDailyStats | null>(null)
@@ -188,6 +229,25 @@ export const useLedgerStore = defineStore('ledger', () => {
       error.value = e instanceof Error ? e.message : 'Failed to fetch dashboard'
     } finally {
       isLoading.value = false
+    }
+  }
+
+  let latestIndustryRequest = 0
+
+  async function fetchIndustry(days?: number) {
+    const request = ++latestIndustryRequest
+    error.value = null
+
+    try {
+      const d = days ?? selectedDays.value
+      const report = await apiRequest<LedgerIndustry>(`/ledger/industry?days=${d}`)
+      if (request === latestIndustryRequest) {
+        industry.value = report
+      }
+    } catch (e) {
+      if (request === latestIndustryRequest) {
+        error.value = e instanceof Error ? e.message : 'Failed to fetch industry revenue'
+      }
     }
   }
 
@@ -346,6 +406,7 @@ export const useLedgerStore = defineStore('ledger', () => {
     // State
     dashboard,
     dailyStats,
+    industry,
     miningEntries,
     miningStats,
     miningDailyStats,
@@ -363,6 +424,7 @@ export const useLedgerStore = defineStore('ledger', () => {
     // Actions
     fetchDashboard,
     fetchDailyStats,
+    fetchIndustry,
     fetchMiningEntries,
     fetchMiningStats,
     fetchMiningDailyStats,

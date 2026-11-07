@@ -1330,6 +1330,7 @@
     "tabs": {
       "dashboard": "Vue d'ensemble",
       "mining": "Minage",
+      "industry": "Industrie",
       "pve": "PVE",
       "settings": "Parametres",
       "escalations": "Escalations"
@@ -1593,6 +1594,28 @@
       "missionRewards": "Recompenses de mission",
       "marketSales": "Ventes marche",
       "corpProject": "Projets corp"
+    },
+    "industry": {
+      "monthlyProfit": "Profit réel par mois",
+      "completedProjects": "projets terminés",
+      "byProduct": "Par produit",
+      "columns": {
+        "month": "Mois",
+        "projects": "Projets",
+        "profit": "Profit",
+        "margin": "Marge",
+        "slotHours": "Heures de slot",
+        "iskPerHour": "ISK / h",
+        "capital": "Capital engagé",
+        "product": "Produit"
+      },
+      "multiProduct": "Multi-produits",
+      "projectCount": "{count} projet | {count} projets",
+      "unknownProjects": "dont {count} à profit inconnu, non compté | dont {count} à profit inconnu, non comptés",
+      "empty": "Aucun projet terminé sur la période",
+      "hint": "Profit réel des projets terminés sur la période (votre part pour un projet de groupe). Un projet à profit inconnu est compté à part, jamais à 0.",
+      "totalProfit": "Profit de la période",
+      "hoursUnit": "h"
     },
     "kpi": {
       "totalIncome": "Revenus totaux",
