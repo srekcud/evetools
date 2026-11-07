@@ -2257,6 +2257,23 @@
       },
       "hint": "Total = matériaux (structure et rigs) + installation (indice de coût, bonus de rôle, taxe) + transport (m³ des matériaux et des produits × sauts × le barème). Écart = total moins la structure retenue."
     },
+    "surplus": {
+      "title": "Surplus de matières",
+      "loading": "Lecture du surplus...",
+      "loadError": "Le surplus de matières n'a pas pu être lu",
+      "empty": "Aucun surplus : aucune ligne de matière n'a été apportée au-delà de sa quantité requise.",
+      "readOnly": "Lecture seule : rien n'est versé au Stockpile et le profit n'est pas modifié. Valorisé au prix des apports.",
+      "unknown": "inconnu",
+      "total": "Valeur totale du surplus",
+      "columns": {
+        "type": "Matière",
+        "required": "Requis",
+        "contributed": "Apporté",
+        "surplus": "Surplus",
+        "unitPrice": "Prix d'apport",
+        "value": "Valeur"
+      }
+    },
     "structureHealth": {
       "title": "Santé des structures",
       "loading": "Lecture des structures...",
