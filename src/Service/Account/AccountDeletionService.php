@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Account;
 
 use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectCourierContract;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectTemplate;
@@ -133,6 +134,7 @@ class AccountDeletionService
             }
 
             $project->transferOwnershipTo($successor);
+            $this->removeCourierLinkOf($project);
 
             foreach ($project->getBomItems() as $line) {
                 $this->derivedContributionService->refreshLine($line);
@@ -140,6 +142,14 @@ class AccountDeletionService
         }
 
         return $deletedProjects;
+    }
+
+    private function removeCourierLinkOf(IndustryProject $project): void
+    {
+        $link = $this->entityManager->getRepository(IndustryProjectCourierContract::class)->findOneBy(['project' => $project]);
+        if ($link !== null) {
+            $this->entityManager->remove($link);
+        }
     }
 
     /**

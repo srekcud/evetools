@@ -312,6 +312,7 @@ async function mountGroupIndustryDetail(locale: Locale): Promise<MountedComponen
         BomTable: true,
         JobsTable: true,
         ContainerBanner: true,
+        ProjectCourier: true,
         ContributeModal: true,
         ContributionTable: true,
         SalesTable: true,

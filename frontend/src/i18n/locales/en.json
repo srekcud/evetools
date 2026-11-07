@@ -2175,6 +2175,53 @@
       "withoutImport": "without the import: buy",
       "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × jumps × the rate). The surplus of a run is not credited to the project."
     },
+    "courier": {
+      "title": "Courier contract",
+      "loading": "Reading the courier quote...",
+      "error": "The courier contract could not be read or changed",
+      "empty": "No purchase is attached to this project: there is nothing to ship, so no contract is quoted.",
+      "days": "{count} day | {count} days",
+      "contract": {
+        "route": "Route",
+        "from": "From",
+        "to": "To",
+        "volume": "Volume",
+        "collateral": "Collateral",
+        "reward": "Reward",
+        "jumps": "Jumps",
+        "daysToComplete": "Days to complete",
+        "expiration": "Expiration"
+      },
+      "cause": {
+        "volume_unknown": "The volume is unknown, so the reward cannot be quoted.",
+        "workshop_unknown": "The workshop system is unknown, so the route and the reward cannot be quoted.",
+        "route_unknown": "No route is known between the two systems, so the jumps and the reward cannot be quoted.",
+        "missingTypes": "Types without volume in the SDE: {types}."
+      },
+      "copy": "Copy the contract",
+      "copied": "Contract copied",
+      "copyFailed": "The contract could not be copied.",
+      "state": {
+        "not_shipped": "not shipped",
+        "waiting": "waiting",
+        "in_transit": "in transit",
+        "delivered": "delivered",
+        "failed": "failed",
+        "unknown": "unknown"
+      },
+      "linked": {
+        "title": "Linked contract #{id}",
+        "issuedAt": "Issued"
+      },
+      "lines": "Purchased lines",
+      "candidates": {
+        "title": "Your courier contracts",
+        "empty": "No courier contract of yours was found in the synced contracts.",
+        "matches": "matches"
+      },
+      "link": "Link",
+      "unlink": "Unlink"
+    },
     "structures": {
       "title": "Structures",
       "loading": "Comparing the structures...",

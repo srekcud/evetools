@@ -70,6 +70,7 @@ async function openEditModal(): Promise<VueWrapper> {
         BomTable: true,
         JobsTable: true,
         ContainerBanner: true,
+        ProjectCourier: true,
         ContributeModal: true,
         ContributionTable: true,
         FinancialSummary: true,

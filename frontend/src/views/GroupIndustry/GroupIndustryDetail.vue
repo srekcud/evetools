@@ -30,6 +30,7 @@ import ProjectNextActionCard from '@/components/group-industry/ProjectNextAction
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
+import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
@@ -475,6 +476,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           :container-name="project.containerName"
           :project-id="projectId"
         />
+
+        <ProjectCourier :project-id="projectId" />
 
         <!-- Materials Table -->
         <BomTable @contribute="openContributeModal" />
