@@ -720,6 +720,7 @@ export interface ProjectReferenceRow {
 export interface ProjectReferences {
   id: string
   rows: ProjectReferenceRow[]
+}
 
 export interface ProjectSurplusLine {
   lineId: string
