@@ -74,6 +74,7 @@ export const useSyncStore = defineStore('sync', () => {
   const miningProgress = computed(() => getSyncProgress('mining'))
   const corporationMiningExtractionsProgress = computed(() => getSyncProgress('corporation-mining-extractions'))
   const walletTransactionsProgress = computed(() => getSyncProgress('wallet-transactions'))
+  const moonTaxProgress = computed(() => getSyncProgress('moon-tax'))
   const planetaryProgress = computed(() => getSyncProgress('planetary'))
   const adminSyncProgress = computed(() => getSyncProgress('admin-sync'))
   const notificationsProgress = computed(() => getSyncProgress('notifications'))
@@ -307,6 +308,7 @@ export const useSyncStore = defineStore('sync', () => {
     miningProgress,
     corporationMiningExtractionsProgress,
     walletTransactionsProgress,
+    moonTaxProgress,
     planetaryProgress,
     adminSyncProgress,
     notificationsProgress,

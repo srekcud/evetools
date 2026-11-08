@@ -25,8 +25,11 @@ final readonly class MoonTaxManagerAccess
         $rolesByCharacterName = [];
         $unreadableCharacterNames = [];
 
-        foreach ($this->readersOf($user, $corporationId) as $character) {
+        foreach ($this->readersOf($user) as $character) {
             try {
+                if ($this->characterService->readCorporationId($character->getEveCharacterId()) !== $corporationId) {
+                    continue;
+                }
                 $roles = $this->characterService->readCorporationRoles($character);
             } catch (EsiApiException|\UnexpectedValueException) {
                 $unreadableCharacterNames[] = $character->getName();
@@ -49,12 +52,11 @@ final readonly class MoonTaxManagerAccess
     /**
      * @return list<Character>
      */
-    private function readersOf(User $user, int $corporationId): array
+    private function readersOf(User $user): array
     {
         return array_values(array_filter(
             $user->getCharacters()->toArray(),
-            static fn (Character $character): bool => $character->getCorporationId() === $corporationId
-                && $character->isAuthValid()
+            static fn (Character $character): bool => $character->isAuthValid()
                 && $character->getEveToken()?->hasScope(self::ROLES_SCOPE) === true,
         ));
     }

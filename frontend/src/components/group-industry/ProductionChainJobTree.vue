@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
@@ -93,10 +93,23 @@ function unfoldAncestorsOf(nodeId: string): void {
   foldedIds.value = next
 }
 
+const rowElements = new Map<string, HTMLElement>()
+
+function trackRow(nodeId: string, element: unknown): void {
+  if (element instanceof HTMLElement) rowElements.set(nodeId, element)
+  else rowElements.delete(nodeId)
+}
+
+function scrollToRow(nodeId: string): void {
+  rowElements.get(nodeId)?.scrollIntoView({ block: 'center' })
+}
+
 watch(
   () => props.selectedId,
   (selectedId) => {
-    if (selectedId !== null) unfoldAncestorsOf(selectedId)
+    if (selectedId === null) return
+    unfoldAncestorsOf(selectedId)
+    void nextTick(() => scrollToRow(selectedId))
   },
   { immediate: true },
 )
@@ -141,6 +154,7 @@ function plansStructure(node: ChainNode): boolean {
         <tr
           v-for="row in rows"
           :key="row.node.id"
+          :ref="element => trackRow(row.node.id, element)"
           :data-testid="`chain-row-${row.node.id}`"
           :aria-selected="row.node.id === selectedId"
           class="hover:bg-slate-800/30 align-top"

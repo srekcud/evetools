@@ -90,6 +90,22 @@ final class ProjectLifecycleApiTest extends WebTestCase
         yield 'draft to selling' => ['selling', 400, 'Cannot transition from "draft" to "selling"'];
     }
 
+    #[Group('issue-445')]
+    public function testOwnerCannotChangeTheBlacklistOfAProjectThatIsNotADraft(): void
+    {
+        $this->hecateBatch->setStatus(ProjectStatus::Published);
+        $this->hecateBatch->setBlacklistGroupIds([334]);
+        $this->em->flush();
+
+        $this->actAs($this->owner);
+        $this->request('PATCH', $this->projectUri($this->hecateBatch), ['blacklistCategoryKeys' => ['fuel_blocks'], 'blacklistTypeIds' => [34]]);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame([400, 'The blacklist of a project can only be changed while it is a draft'], $this->errorDetail());
+        $this->em->refresh($this->hecateBatch);
+        self::assertSame([[334], []], [$this->hecateBatch->getBlacklistGroupIds(), $this->hecateBatch->getBlacklistTypeIds()]);
+    }
+
     public function testSameCorporationJoinsByCodeAcceptedAndOtherCorporationPendingOnceTheOwnerOpensTheProject(): void
     {
         $this->ishtarBatch->setStatus(ProjectStatus::Published);

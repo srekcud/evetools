@@ -43,7 +43,7 @@ class PivotAdvisorService
      *     typeId: int,
      *     sourceProduct: array<string, mixed>,
      *     matrix: list<array<string, mixed>>,
-     *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>}>,
+     *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>}>,
      *     matrixProductIds: list<int>,
      * }
      */
@@ -166,12 +166,12 @@ class PivotAdvisorService
             $cpIsT2 = isset($t2ProductIds[$cpTypeId]);
             $cpIsReaction = $cpActivityId === IndustryActivityType::Reaction->value;
 
-            $me = $cpIsT2 ? InventionService::BASE_INVENTION_ME : ($cpIsReaction ? 0 : 10);
+            $me = $this->materialEfficiencyOf($cpIsT2, $cpIsReaction);
             $activityType = $cpIsReaction ? 'reaction' : 'manufacturing';
 
             $cpMaterials = $candidateMaterialsByBp[$cpBpId] ?? [];
 
-            $materialCost = $this->materialCostPerRun($cpMaterials, $cpIsReaction ? 0 : $me, $jitaPrices);
+            $materialCost = $this->materialCostPerRun($cpMaterials, $me, $jitaPrices);
 
             $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($cpMaterials, 1, $solarSystemIdByActivity[$activityType], $activityType, $facilityTaxByActivity[$activityType]);
             $totalCostWithInvention = $this->totalCostWithInvention(
@@ -197,7 +197,7 @@ class PivotAdvisorService
                 $marginPercent = ($netSellPrice * $cpOutputPerRun - $totalCost) / $totalCost * 100;
                 $profitPerUnit = ($netSellPrice * $cpOutputPerRun - $totalCost) / $cpOutputPerRun;
             }
-            $dailyVolume = $dailyVolumes[$cpTypeId] ?? 0.0;
+            $dailyVolume = $dailyVolumes[$cpTypeId] ?? null;
 
             // Coverage (value-weighted): how much of the candidate's buildable materials
             // overlap with the source product's buildable materials, weighted by stock
@@ -213,7 +213,7 @@ class PivotAdvisorService
                     continue;
                 }
 
-                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], $runs, $cpIsReaction ? 0 : $me, 0.0, 0.0);
+                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], $runs, $me, 0.0, 0.0);
                 $matPrice = $jitaPrices[$matTypeId] ?? null;
                 $inStock = $userStock[$matTypeId] ?? 0;
 
@@ -245,7 +245,7 @@ class PivotAdvisorService
                 : 0.0;
 
             $score = null;
-            if ($marginPercent !== null && !$isCoverageUnknown) {
+            if ($marginPercent !== null && !$isCoverageUnknown && $dailyVolume !== null) {
                 $score = $coveragePercent * $marginPercent * log10($dailyVolume + 1);
             }
 
@@ -262,7 +262,7 @@ class PivotAdvisorService
                 'estimatedProfit' => $profitPerUnit !== null ? round($profitPerUnit * $cpOutputPerRun * $runs, 2) : null,
                 'score' => $score !== null ? round($score, 2) : null,
                 'blueprintTypeId' => $cpBpId,
-                'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'],
+                'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'] ?? $this->unknownDailyVolumeReason($dailyVolume),
                 'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($cpMaterials, $jitaPrices),
             ];
         }
@@ -317,6 +317,14 @@ class PivotAdvisorService
             $sourceMaterialSet[$mat['materialTypeId']] = $mat['quantity'];
         }
 
+        $materialEfficiencyByProduct = [$sourceTypeId => $this->materialEfficiencyOf($sourceIsT2, $sourceIsReaction)];
+        foreach ($candidateProducts as $cp) {
+            $materialEfficiencyByProduct[$cp['productTypeId']] = $this->materialEfficiencyOf(
+                isset($t2ProductIds[$cp['productTypeId']]),
+                $cp['activityId'] === IndustryActivityType::Reaction->value,
+            );
+        }
+
         $matrix = [];
         foreach ($buildableMaterials as $mat) {
             $matTypeId = $mat['materialTypeId'];
@@ -324,11 +332,12 @@ class PivotAdvisorService
 
             $candidates = [];
             foreach ($matrixProductIds as $productTypeId) {
-                if ($productTypeId === $sourceTypeId) {
-                    $needed = $sourceMaterialSet[$matTypeId] ?? 0;
-                } else {
-                    $needed = $candidateMaterialsByProduct[$productTypeId][$matTypeId] ?? 0;
-                }
+                $baseQuantity = $productTypeId === $sourceTypeId
+                    ? ($sourceMaterialSet[$matTypeId] ?? 0)
+                    : ($candidateMaterialsByProduct[$productTypeId][$matTypeId] ?? 0);
+                $needed = $baseQuantity === 0
+                    ? 0
+                    : MaterialQuantityFormula::forJob($baseQuantity, $runs, $materialEfficiencyByProduct[$productTypeId], 0.0, 0.0);
 
                 if ($needed === 0) {
                     $candidates[$productTypeId] = ['needed' => 0, 'status' => 'none'];
@@ -426,10 +435,10 @@ class PivotAdvisorService
         array $userStock,
         array $facilityTaxByActivity,
     ): array {
-        $me = $isT2 ? InventionService::BASE_INVENTION_ME : ($isReaction ? 0 : 10);
+        $me = $this->materialEfficiencyOf($isT2, $isReaction);
         $activityType = $isReaction ? 'reaction' : 'manufacturing';
 
-        $materialCost = $this->materialCostPerRun($sourceMaterials, $isReaction ? 0 : $me, $jitaPrices);
+        $materialCost = $this->materialCostPerRun($sourceMaterials, $me, $jitaPrices);
 
         $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($sourceMaterials, 1, $solarSystemIdByActivity[$activityType], $activityType, $facilityTaxByActivity[$activityType]);
         $totalCostWithInvention = $this->totalCostWithInvention(
@@ -442,6 +451,7 @@ class PivotAdvisorService
         $totalCost = $totalCostWithInvention['totalCost'];
 
         $sellPrice = $jitaPrices[$sourceTypeId] ?? null;
+        $dailyVolume = $dailyVolumes[$sourceTypeId] ?? null;
         $marginPercent = null;
         if ($salesFees !== null && $totalCost !== null && $sellPrice !== null && $sellPrice > 0 && $totalCost > 0) {
             $fees = $sellPrice * ($salesFees->brokerFeeRate + $salesFees->salesTaxRate);
@@ -466,11 +476,20 @@ class PivotAdvisorService
             'groupName' => $groupNames[$sourceTypeId] ?? '',
             'marginPercent' => $marginPercent,
             'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
-            'dailyVolume' => $dailyVolumes[$sourceTypeId] ?? 0.0,
+            'dailyVolume' => $dailyVolume,
             'keyComponents' => $keyComponents,
-            'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'],
+            'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'] ?? $this->unknownDailyVolumeReason($dailyVolume),
             'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($sourceMaterials, $jitaPrices),
         ];
+    }
+
+    private function materialEfficiencyOf(bool $isT2, bool $isReaction): int
+    {
+        if ($isReaction) {
+            return 0;
+        }
+
+        return $isT2 ? InventionService::BASE_INVENTION_ME : 10;
     }
 
     /**
@@ -512,6 +531,11 @@ class PivotAdvisorService
         }
 
         return $jobInstallCost['unknownReason'];
+    }
+
+    private function unknownDailyVolumeReason(?float $dailyVolume): ?string
+    {
+        return $dailyVolume === null ? BatchProfitScannerService::UNKNOWN_REASON_MISSING_DAILY_VOLUME : null;
     }
 
     /**
@@ -565,7 +589,7 @@ class PivotAdvisorService
                 'groupName' => '',
                 'marginPercent' => null,
                 'sellPrice' => null,
-                'dailyVolume' => 0.0,
+                'dailyVolume' => null,
                 'keyComponents' => [],
             ],
             'matrix' => [],

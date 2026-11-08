@@ -14,14 +14,24 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Industry\Application\PlannedProduction;
+use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\Job;
+use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\Plan;
+use App\Industry\Domain\Quantity;
+use App\Industry\Domain\Runs;
+use App\Industry\Domain\TimeEfficiency;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectChainBuilder;
 use App\Service\Industry\Project\ProjectChainNode;
+use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectChainProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -49,6 +59,7 @@ final class ProjectChainProviderTest extends TestCase
     private IndustryProjectContributionRepository&MockObject $contributionRepository;
     private IndustryProjectSaleRepository&MockObject $saleRepository;
     private IndustryStructureConfigRepository&MockObject $structureConfigRepository;
+    private IndustryProjectService&Stub $projectService;
     private User $owner;
     private User $member;
     private User $outsider;
@@ -63,6 +74,8 @@ final class ProjectChainProviderTest extends TestCase
         $this->contributionRepository = $this->createMock(IndustryProjectContributionRepository::class);
         $this->saleRepository = $this->createMock(IndustryProjectSaleRepository::class);
         $this->structureConfigRepository = $this->createMock(IndustryStructureConfigRepository::class);
+        $this->projectService = $this->createStub(IndustryProjectService::class);
+        $this->projectService->method('planOf')->willThrowException(new \RuntimeException('No blueprint or reaction found for product type ID 337002'));
 
         $this->owner = $this->pilot('Aria Solberg');
         $this->member = $this->pilot('Brann Holt');
@@ -156,6 +169,60 @@ final class ProjectChainProviderTest extends TestCase
         );
     }
 
+    public function testJobsThatWouldBeToLaunchAreUnknownWhenThePlanOfTheProjectCannotBeComputed(): void
+    {
+        $this->security->method('getUser')->willReturn($this->member);
+        $job = $this->jobLine(449_001, 'Hammerhead II', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $this->bomLineRepository->method('findBy')->willReturn([$job]);
+        $this->contributionRepository->method('findApprovedByProject')->willReturn([]);
+        $this->saleRepository->method('findByProjectForListing')->willReturn([]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+
+        $chain = $this->provider()->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame('unknown', $chain->nodes[0]->status);
+    }
+
+    public function testJobWhoseMaterialsAreNotFulfilledIsMissingMaterialsFromThePlanOfTheOwner(): void
+    {
+        $this->security->method('getUser')->willReturn($this->member);
+        $job = $this->jobLine(449_001, 'Hammerhead II', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $tritanium = $this->materialLine();
+        $planJob = new Job(449_001, ActivityKind::Manufacturing, new Runs(10), new MaterialEfficiency(0), new TimeEfficiency(0), [34 => new Quantity(1_000)]);
+        $projectService = $this->createMock(IndustryProjectService::class);
+        $projectService->expects(self::once())->method('planOf')->with($this->project, $this->owner)->willReturn(new PlannedProduction(new Plan([$planJob], [], []), []));
+        $this->bomLineRepository->method('findBy')->willReturn([$job, $tritanium]);
+        $this->contributionRepository->method('findApprovedByProject')->willReturn([]);
+        $this->saleRepository->method('findByProjectForListing')->willReturn([]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+        $provider = new ProjectChainProvider(
+            $this->security,
+            $this->projectRepository,
+            $this->bomLineRepository,
+            $this->contributionRepository,
+            $this->saleRepository,
+            $this->structureConfigRepository,
+            new ProjectAccessChecker($this->participantRepository),
+            new ProjectChainBuilder(),
+            new ProjectJobMaterialNeedsLoader($projectService),
+        );
+
+        $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+
+        self::assertSame('missing_materials', $this->node($chain, $job->getId()->toRfc4122())->status);
+    }
+
+    private function node(ProjectChainResource $chain, string $id): ProjectChainNode
+    {
+        foreach ($chain->nodes as $node) {
+            if ($node->id === $id) {
+                return $node;
+            }
+        }
+
+        self::fail(\sprintf('The chain has no node %s.', $id));
+    }
+
     private function provider(): ProjectChainProvider
     {
         return new ProjectChainProvider(
@@ -167,6 +234,7 @@ final class ProjectChainProviderTest extends TestCase
             $this->structureConfigRepository,
             new ProjectAccessChecker($this->participantRepository),
             new ProjectChainBuilder(),
+            new ProjectJobMaterialNeedsLoader($this->projectService),
         );
     }
 

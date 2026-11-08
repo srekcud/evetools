@@ -33,6 +33,7 @@ final readonly class ProjectChainNode
         public ?array $plannedStructure,
         public ?int $soldQuantity,
         public ?float $grossRevenue,
+        public ?int $level,
     ) {
     }
 }

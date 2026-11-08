@@ -25,22 +25,22 @@ class MiningSiteScanRepository extends ServiceEntityRepository
      */
     public function findBySiteChronological(MiningSite $site): array
     {
-        return $this->findBy(['site' => $site], ['scannedAt' => 'ASC']);
+        return $this->findBy(['site' => $site, 'hiddenAt' => null], ['scannedAt' => 'ASC']);
     }
 
     public function findFirstOf(MiningSite $site): ?MiningSiteScan
     {
-        return $this->findOneBy(['site' => $site], ['scannedAt' => 'ASC']);
+        return $this->findOneBy(['site' => $site, 'hiddenAt' => null], ['scannedAt' => 'ASC']);
     }
 
     public function findLastOf(MiningSite $site): ?MiningSiteScan
     {
-        return $this->findOneBy(['site' => $site], ['scannedAt' => 'DESC']);
+        return $this->findOneBy(['site' => $site, 'hiddenAt' => null], ['scannedAt' => 'DESC']);
     }
 
     public function findOfSite(MiningSite $site, Uuid $id): ?MiningSiteScan
     {
-        return $this->findOneBy(['id' => $id, 'site' => $site]);
+        return $this->findOneBy(['id' => $id, 'site' => $site, 'hiddenAt' => null]);
     }
 
     public function countUpTo(MiningSite $site, \DateTimeImmutable $instant): int
@@ -48,6 +48,7 @@ class MiningSiteScanRepository extends ServiceEntityRepository
         return (int) $this->createQueryBuilder('scan')
             ->select('COUNT(scan.id)')
             ->where('scan.site = :site')
+            ->andWhere('scan.hiddenAt IS NULL')
             ->andWhere('scan.scannedAt <= :instant')
             ->setParameter('site', $site)
             ->setParameter('instant', $instant)
