@@ -188,6 +188,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Opérations de minage récurrentes (occurrences `weekly` et `chunk`) | 30 min |
 | Taxe lunaire (ledger des observers + journal wallet corpo, par corporation à raffinerie ouverte) | 1h |
 | Blueprints sync (blueprints personnels + corpo, par utilisateur actif) | 1h |
+| Alerte d'un contrat de courrier lié à un projet qui échoue (une notification par contrat, propriétaire du projet) | 30 min |
 | Volumes journaliers régionaux (régions de la structure par défaut et des structures préférées, produits fabricables) | 24h |
 | Cost indices | 2h |
 | Adjusted prices | 24h |

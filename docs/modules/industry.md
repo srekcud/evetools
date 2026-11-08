@@ -47,6 +47,8 @@ Contrat de courrier (#351, spec `docs/specs/351-courier-contract.md`), préfixe 
 | `GET /courier` | `assertAcceptedMember` (candidats seulement pour le propriétaire) |
 | `POST /courier-contract` (`{contractId}`), `DELETE /courier-contract` | `assertOwner` |
 
+Alerte d'échec (#422, spec `docs/specs/422-courier-failure-alert.md`) : `CourierFailureNotifier::notifyFailedContracts` (`src/Service/Industry/Project/Courier/`), déclenché toutes les 30 minutes par `CheckCourierContracts` / `CheckCourierContractsHandler` (clé `SyncTracker` `courier-contracts`), lit une fois par propriétaire les contrats des liens dont `failureNotifiedAt` est `null` (projet non `completed`, `IndustryProjectCourierContractRepository::findPendingFailureCheck`) et envoie une notification `industry` de niveau `warning` quand l'état est `Failed`, puis renseigne `failureNotifiedAt` ; `IndustryProjectCourierContract::link` remet la date à `null`. Tests : `CourierFailureNotifierTest`, `CheckCourierContractsHandlerTest`, `IndustryProjectCourierContractFailureNotificationTest`, `IndustryProjectCourierContractRepositoryTest`.
+
 Les tables d'étapes sont supprimées par la migration `Version20261105190000`, qui supprime aussi les colonnes solo de `industry_projects` et ajoute `private` ; les tables de liens de jobs et d'achats viennent de `Version20261105180000`. Les deux sont irréversibles.
 
 Services déjà branchés sur le noyau (`grep -rln 'App\\Industry\\' src`) :
