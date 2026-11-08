@@ -2298,6 +2298,15 @@
       },
       "hint": "Total = materials (structure and rigs) + installation (cost index, role bonus, tax) + transport (m³ of materials and products × jumps × the rate). Gap = total minus the retained structure."
     },
+    "blacklistEditor": {
+      "edit": "Edit blacklist",
+      "title": "Production blacklist",
+      "description": "The materials of a blacklisted category are bought instead of produced. The materials and jobs are recalculated on save; lines carrying a contribution are kept.",
+      "kept": "Kept as they are: {groups} other group(s), {types} individual item(s).",
+      "save": "Save and recalculate",
+      "cancel": "Cancel",
+      "saveError": "The blacklist could not be saved"
+    },
     "surplus": {
       "title": "Material surplus",
       "loading": "Reading the surplus...",

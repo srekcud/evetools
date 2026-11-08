@@ -258,6 +258,10 @@ export type LineRentalRates = {
 
 // --- Input types for API calls ---
 
+export type UpdateGroupProjectInput = Partial<GroupProject> & {
+  blacklistCategoryKeys?: string[]
+}
+
 export type CreateGroupProjectInput = {
   name?: string
   private: boolean
