@@ -1742,7 +1742,11 @@
         "loadError": "Could not load the ore sale.",
         "copy": "Copy summary",
         "copied": "Summary copied",
-        "copyFailed": "Could not copy the summary"
+        "copyFailed": "Could not copy the summary",
+        "operationSubtitle": "Compressed equivalent of the ore you mined in this operation, valued at the best known price, with a summary to paste into a contract.",
+        "operationEmpty": "No compressed ore from this operation.",
+        "notKnownYet": "Your mined quantities are not known yet: the ledger snapshots are still being read or could not be read. Correct them in the operation to get a sale.",
+        "unconverted": "Not valued, no compressed variant or batch size known: {types}."
       }
     },
     "pve": {

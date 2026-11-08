@@ -1,9 +1,10 @@
 import { computed, ref } from 'vue'
-import { apiRequest } from '@/services/api'
+import { ApiError, apiRequest } from '@/services/api'
 
 const SELECTED_STRUCTURE_STORAGE_KEY = 'miningSelectedStructure'
 const SUMMARY_DECIMALS = 2
 const UNKNOWN_SUMMARY_VALUE = 'unknown'
+const CONFLICT_STATUS = 409
 
 export type OreSaleBestSource = 'jita_buy' | 'jita_sell' | 'structure_buy' | 'structure_sell'
 
@@ -30,10 +31,17 @@ export interface OreSaleTotals {
   missingVolumeTypeIds: number[]
 }
 
+export interface OreSaleUnconvertedType {
+  typeId: number
+  typeName: string | null
+}
+
 export interface OreSaleResponse {
+  operationId?: string | null
   structureId: number | null
   rows: OreSaleRow[]
   totals: OreSaleTotals
+  unconvertedTypes?: OreSaleUnconvertedType[]
 }
 
 function summaryTypeLabel(typeId: number, typeName: string | null): string {
@@ -64,28 +72,37 @@ function selectedStructureId(): number | null {
   return structure.id
 }
 
-export function useOreSale() {
+export function useOreSale(operationId?: string) {
   const sale = ref<OreSaleResponse | null>(null)
   const isLoading = ref(false)
   const hasError = ref(false)
+  const notKnownYet = ref(false)
   const isEmpty = computed(() => sale.value !== null && sale.value.rows.length === 0)
   const summary = computed(() => sale.value === null ? '' : buildSaleSummary(sale.value))
 
   async function load(): Promise<void> {
     isLoading.value = true
     hasError.value = false
+    notKnownYet.value = false
     try {
       const structureId = selectedStructureId()
       const query = structureId === null ? '' : `?structureId=${structureId}`
-      sale.value = await apiRequest<OreSaleResponse>(`/mining/ore-sale${query}`)
+      const endpoint = operationId === undefined ? '/mining/ore-sale' : `/mining-operations/${operationId}/ore-sale`
+      const response = await apiRequest<OreSaleResponse | undefined>(`${endpoint}${query}`)
+      if (!response || !Array.isArray(response.rows)) throw new Error('Unexpected ore sale payload')
+      sale.value = response
     } catch (e) {
-      console.error('Failed to load the ore sale:', e)
       sale.value = null
-      hasError.value = true
+      if (e instanceof ApiError && e.status === CONFLICT_STATUS) {
+        notKnownYet.value = true
+      } else {
+        console.error('Failed to load the ore sale:', e)
+        hasError.value = true
+      }
     } finally {
       isLoading.value = false
     }
   }
 
-  return { sale, isLoading, hasError, isEmpty, summary, load }
+  return { sale, isLoading, hasError, notKnownYet, isEmpty, summary, load }
 }
