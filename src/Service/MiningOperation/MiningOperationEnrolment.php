@@ -54,6 +54,7 @@ final readonly class MiningOperationEnrolment
             $characters,
         );
         $operation->declareBoostFit($input->declaredBoostShip(), $input->declaredCompressorKinds());
+        $operation->setChunk($chunk);
 
         if ($input->recurrence !== null) {
             $recurrence = $this->recurrenceOf($operation, $input->recurrence->kind, $input->recurrence->structureId);

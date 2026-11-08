@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Mining\CorporationMiningExtractionsResource;
 use App\Entity\CorporationMiningExtraction;
 use App\Entity\CorporationMiningSyncState;
+use App\Entity\MoonRefineryFollow;
 use App\Entity\User;
 use App\Enum\CorporationMiningSyncFailure;
 use App\Enum\MoonChunkStatus;
@@ -53,7 +54,7 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
 
         $resource = new CorporationMiningExtractionsResource();
         $resource->corporations = array_map(
-            fn (int $corporationId, array $extractions): array => $this->corporationEntry($corporationId, $now, $extractions, $chunkValues),
+            fn (int $corporationId, array $extractions): array => $this->corporationEntry($user, $corporationId, $now, $extractions, $chunkValues),
             array_keys($visibleExtractions),
             $visibleExtractions,
         );
@@ -78,9 +79,9 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
      * @param list<CorporationMiningExtraction> $extractions
      * @param \SplObjectStorage<CorporationMiningExtraction, array<string, mixed>> $chunkValues
      *
-     * @return array{corporationId: int, access: string, lastSuccessAt: ?string, extractions: list<array<string, mixed>>}
+     * @return array{corporationId: int, access: string, lastSuccessAt: ?string, followedStructureIds: list<int>, extractions: list<array<string, mixed>>}
      */
-    private function corporationEntry(int $corporationId, \DateTimeImmutable $now, array $extractions, \SplObjectStorage $chunkValues): array
+    private function corporationEntry(User $user, int $corporationId, \DateTimeImmutable $now, array $extractions, \SplObjectStorage $chunkValues): array
     {
         $state = $this->syncStateRepository->findOneBy(['corporationId' => $corporationId]);
 
@@ -88,11 +89,23 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
             'corporationId' => $corporationId,
             'access' => $this->access($state),
             'lastSuccessAt' => $this->formatTime($state?->getLastSuccessAt()),
+            'followedStructureIds' => $this->followedStructureIds($user, $corporationId),
             'extractions' => array_map(
                 fn (CorporationMiningExtraction $extraction): array => $this->extractionView($extraction, $now, $chunkValues),
                 $extractions,
             ),
         ];
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function followedStructureIds(User $user, int $corporationId): array
+    {
+        return array_map(
+            static fn (MoonRefineryFollow $follow): int => $follow->getStructureId(),
+            $this->followRepository->findBy(['user' => $user, 'corporationId' => $corporationId]),
+        );
     }
 
     private function access(?CorporationMiningSyncState $state): string

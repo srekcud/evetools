@@ -37,7 +37,9 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
 
         $this->boostFit->assertConsistent($data->declaredBoostShip(), $data->declaredCompressorKinds());
 
-        $miningOperation = $this->enrolment->create($user, $data);
+        $chunk = $data->chunkId === null ? null : $this->chunkResolver->resolve($user, $data->chunkId);
+
+        $miningOperation = $this->enrolment->create($user, $data, $chunk);
 
         return $this->mapper->operationToResource($miningOperation, $miningOperation->membershipOf($user), true);
     }
