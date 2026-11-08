@@ -256,6 +256,28 @@ export type LineRentalRates = {
   rates: Record<string, number>
 }
 
+export type LineRentalCategory =
+  | 'component_t1'
+  | 'module_t1'
+  | 'ship_t1'
+  | 'module_t2'
+  | 'ship_t2'
+  | 'capital_t1'
+  | 'capital_t2'
+
+export type LineRentalUnknownReason = 'unknown_category' | 'no_linked_job' | 'job_data_missing'
+
+export type LineRentalSuggestion = {
+  bomItemId: string
+  suggestedValue: number | null
+  unknownReason: LineRentalUnknownReason | null
+  category: LineRentalCategory | null
+  days: number | null
+  runs: number | null
+  dayFactor: number | null
+  ratePerRun: number | null
+}
+
 // --- Input types for API calls ---
 
 export type UpdateGroupProjectInput = Partial<GroupProject> & {

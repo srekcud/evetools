@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { GroupContribution, SubmitContributionInput } from './types'
+import type { GroupContribution, LineRentalSuggestion, SubmitContributionInput } from './types'
 
 export const useGroupContributionStore = defineStore('group-contribution', () => {
   const contributions = ref<GroupContribution[]>([])
@@ -41,6 +41,15 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
       error.value = e instanceof Error ? e.message : 'Failed to submit contribution'
       throw e
     }
+  }
+
+  async function fetchLineRentalSuggestion(
+    projectId: string,
+    bomItemId: string,
+  ): Promise<LineRentalSuggestion> {
+    return apiRequest<LineRentalSuggestion>(
+      `/industry/projects/${projectId}/line-rental-suggestions/${bomItemId}`,
+    )
   }
 
   async function approveContribution(projectId: string, id: string): Promise<void> {
@@ -91,6 +100,7 @@ export const useGroupContributionStore = defineStore('group-contribution', () =>
     error,
     fetchContributions,
     submitContribution,
+    fetchLineRentalSuggestion,
     approveContribution,
     rejectContribution,
     clearError,

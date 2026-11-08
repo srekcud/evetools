@@ -6,7 +6,23 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
-import type { BomItem, ContributionType, SubmitContributionInput } from '@/stores/group-industry/types'
+import type {
+  BomItem,
+  ContributionType,
+  LineRentalCategory,
+  LineRentalSuggestion,
+  SubmitContributionInput,
+} from '@/stores/group-industry/types'
+
+const LINE_RENTAL_CATEGORY_LABEL_KEYS: Record<LineRentalCategory, string> = {
+  component_t1: 'componentT1',
+  module_t1: 'moduleT1',
+  ship_t1: 'shipT1',
+  module_t2: 'moduleT2',
+  ship_t2: 'shipT2',
+  capital_t1: 'capitalT1',
+  capital_t2: 'capitalT2',
+}
 
 const { t } = useI18n()
 const bomItemFieldId = useId()
@@ -33,13 +49,17 @@ const emit = defineEmits<{
 const selectedType = ref<ContributionType>('material')
 const selectedBomItemId = ref<string>('')
 const quantity = ref<number>(0)
-const estimatedValue = ref<number>(0)
+const estimatedValue = ref<number | ''>(0)
+const lineRentalSuggestion = ref<LineRentalSuggestion | null>(null)
+const isSuggestionLoadFailed = ref(false)
 const note = ref('')
 const isSubmitting = ref(false)
 
 // Reset form when modal opens
 watch(() => props.show, (visible) => {
   if (visible) {
+    lineRentalSuggestion.value = null
+    isSuggestionLoadFailed.value = false
     note.value = ''
     isSubmitting.value = false
     if (props.prefilledBomItem) {
@@ -73,11 +93,40 @@ const requiresEnteredValue = computed(() =>
   selectedType.value === 'job_install' || selectedType.value === 'bpc' || selectedType.value === 'line_rental'
 )
 
+const enteredValue = computed(() => typeof estimatedValue.value === 'number' ? estimatedValue.value : 0)
+
 const isFormValid = computed(() => {
-  if (!selectedBomItemId.value && selectedType.value !== 'line_rental') return false
+  if (!selectedBomItemId.value) return false
   if (quantity.value <= 0) return false
-  if ((selectedType.value === 'job_install' || selectedType.value === 'bpc') && estimatedValue.value <= 0) return false
+  if (selectedType.value === 'line_rental' && estimatedValue.value === '') return false
+  if ((selectedType.value === 'job_install' || selectedType.value === 'bpc') && enteredValue.value <= 0) return false
   return true
+})
+
+const suggestionCategoryLabel = computed(() => {
+  const category = lineRentalSuggestion.value?.category
+  return category ? t(`groupIndustry.modals.lineRental.${LINE_RENTAL_CATEGORY_LABEL_KEYS[category]}`) : ''
+})
+
+watch(selectedBomItemId, async (bomItemId) => {
+  lineRentalSuggestion.value = null
+  isSuggestionLoadFailed.value = false
+  if (selectedType.value !== 'line_rental') return
+  estimatedValue.value = ''
+  if (!bomItemId) return
+
+  try {
+    const suggestion = await contributionStore.fetchLineRentalSuggestion(props.projectId, bomItemId)
+    if (selectedBomItemId.value !== bomItemId) return
+    lineRentalSuggestion.value = suggestion
+    if (suggestion.suggestedValue !== null) {
+      estimatedValue.value = suggestion.suggestedValue
+    }
+  } catch {
+    if (selectedBomItemId.value === bomItemId) {
+      isSuggestionLoadFailed.value = true
+    }
+  }
 })
 
 const contributionTypeOptions: { key: ContributionType; icon: string; label: string; activeColor: string }[] = [
@@ -129,7 +178,7 @@ async function submit(): Promise<void> {
   }
 
   if (requiresEnteredValue.value) {
-    input.estimatedValue = estimatedValue.value
+    input.estimatedValue = enteredValue.value
   }
 
   if (note.value.trim()) {
@@ -291,11 +340,50 @@ async function submit(): Promise<void> {
           />
         </div>
 
+        <div
+          v-if="lineRentalSuggestion && lineRentalSuggestion.suggestedValue !== null"
+          data-testid="line-rental-suggestion-detail"
+          class="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4"
+        >
+          <p class="text-xs font-medium uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.contribute.lineRentalSuggestion.title') }}</p>
+          <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dt class="text-slate-500">{{ t('groupIndustry.contribute.lineRentalSuggestion.category') }}:</dt>
+            <dd class="text-right font-mono text-slate-200">{{ suggestionCategoryLabel }}</dd>
+            <dt class="text-slate-500">{{ t('groupIndustry.contribute.lineRentalSuggestion.dayFactor') }}:</dt>
+            <dd class="text-right font-mono text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatNumber(lineRentalSuggestion.dayFactor, 0) }} {{ t('groupIndustry.modals.lineRental.perDay') }}</dd>
+            <dt class="text-slate-500">{{ t('groupIndustry.contribute.lineRentalSuggestion.days') }}:</dt>
+            <dd class="text-right font-mono text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatNumber(lineRentalSuggestion.days, 2) }}</dd>
+            <dt class="text-slate-500">{{ t('groupIndustry.contribute.lineRentalSuggestion.ratePerRun') }}:</dt>
+            <dd class="text-right font-mono text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatNumber(lineRentalSuggestion.ratePerRun, 0) }} {{ t('groupIndustry.modals.lineRental.perRun') }}</dd>
+            <dt class="text-slate-500">{{ t('groupIndustry.contribute.lineRentalSuggestion.runs') }}:</dt>
+            <dd class="text-right font-mono text-slate-200" style="font-variant-numeric: tabular-nums;">{{ formatNumber(lineRentalSuggestion.runs, 0) }}</dd>
+          </dl>
+        </div>
+
+        <div
+          v-else-if="lineRentalSuggestion"
+          data-testid="line-rental-suggestion-unknown"
+          class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4"
+        >
+          <p class="text-xs font-medium uppercase tracking-wider text-amber-400">{{ t('groupIndustry.contribute.lineRentalSuggestion.unknownTitle') }}</p>
+          <p v-if="lineRentalSuggestion.unknownReason" class="mt-1.5 text-xs text-slate-400">
+            {{ t(`groupIndustry.contribute.lineRentalSuggestion.unknownReasons.${lineRentalSuggestion.unknownReason}`) }}
+          </p>
+        </div>
+
+        <div
+          v-else-if="isSuggestionLoadFailed"
+          data-testid="line-rental-suggestion-error"
+          class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4"
+        >
+          <p class="text-xs text-slate-400">{{ t('groupIndustry.contribute.lineRentalSuggestion.loadError') }}</p>
+        </div>
+
         <!-- Total Valuation display -->
-        <div v-if="requiresEnteredValue && estimatedValue > 0" class="bg-emerald-500/5 rounded-xl border border-emerald-500/30 p-5 text-center">
+        <div v-if="requiresEnteredValue && enteredValue > 0" class="bg-emerald-500/5 rounded-xl border border-emerald-500/30 p-5 text-center">
           <p class="text-xs text-emerald-400/60 uppercase tracking-wider mb-1">{{ t('groupIndustry.contribute.totalValuation') }}</p>
           <p class="text-3xl font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
-            {{ formatIskFull(estimatedValue) }}
+            {{ formatIskFull(enteredValue) }}
           </p>
         </div>
 

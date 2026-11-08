@@ -2446,7 +2446,22 @@
       "submit": "Submit Contribution",
       "pendingNote": "Your contribution will be reviewed by a project admin.",
       "depositDayPrice": "Jita price of the deposit day (5th percentile)",
-      "depositDayPriceNote": "Read from the market when the contribution is submitted and kept as is when it is reviewed."
+      "depositDayPriceNote": "Read from the market when the contribution is submitted and kept as is when it is reviewed.",
+      "lineRentalSuggestion": {
+        "title": "Suggested from your rate schedule",
+        "category": "Category",
+        "days": "Days occupied",
+        "runs": "Runs",
+        "dayFactor": "Day factor",
+        "ratePerRun": "Rate per run",
+        "unknownTitle": "No suggestion",
+        "unknownReasons": {
+          "unknown_category": "This product has no rate category. Enter the value by hand.",
+          "no_linked_job": "None of your jobs is linked to this line. Enter the value by hand.",
+          "job_data_missing": "A linked job is missing from the synced jobs. Enter the value by hand."
+        },
+        "loadError": "The suggestion could not be loaded. Enter the value by hand."
+      }
     },
     "contributions": {
       "title": "Contributions",
