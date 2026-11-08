@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Scheduler;
 
 use App\Message\CheckAlertPrices;
+use App\Message\CheckCourierContracts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
@@ -64,6 +65,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         TriggerMoonTaxSync::class => 'moon-tax',
         SyncBlueprints::class => 'blueprints',
         SyncRegionalMarketVolumes::class => 'market-volumes',
+        CheckCourierContracts::class => 'courier-contracts',
     ];
 
     /** Maintenance planifiée dont les handlers n'utilisent pas le SyncTracker. */
@@ -107,6 +109,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'blueprints' => 3600,
             'corporation-mining-extractions' => 1800,
             'cost-indices' => 7200,
+            'courier-contracts' => 1800,
             'industry' => 1800,
             'market-jita' => 3600,
             'market-structure' => 3600,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Scheduler;
 
 use App\Message\CheckAlertPrices;
+use App\Message\CheckCourierContracts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
@@ -111,6 +112,9 @@ class SyncScheduler implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::every('30 minutes', new TriggerMiningOperationRecurrences())
+            )
+            ->add(
+                RecurringMessage::every('30 minutes', new CheckCourierContracts())
             )
             ->add(
                 RecurringMessage::every('5 minutes', new CheckMoonChunkAlerts())

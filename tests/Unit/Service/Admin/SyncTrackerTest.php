@@ -84,6 +84,7 @@ class SyncTrackerTest extends TestCase
                 ['moon-tax', 'Moon Tax', 3600, false],
                 ['blueprints', 'Blueprints', 3600, false],
                 ['market-volumes', 'Market Volumes', 86400, false],
+                ['courier-contracts', 'Courier Contracts', 1800, false],
                 ['assets', 'Assets', null, true],
                 ['market-alerts', 'Market Alerts', null, true],
             ],

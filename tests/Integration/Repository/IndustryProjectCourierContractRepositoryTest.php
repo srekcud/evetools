@@ -59,6 +59,26 @@ final class IndustryProjectCourierContractRepositoryTest extends IntegrationTest
         self::assertSame([], $this->em->getRepository(IndustryProjectCourierContract::class)->findAll());
     }
 
+    #[Group('issue-422')]
+    public function testPendingFailureCheckSkipsNotifiedLinksAndCompletedProjects(): void
+    {
+        $owner = $this->createUser();
+        $watched = $this->createProject($owner, 'Ishtar batch');
+        $notified = $this->createProject($owner, 'Hecate batch');
+        $completed = $this->createProject($owner, 'Deimos batch')->setStatus(ProjectStatus::Completed);
+        $this->linkContract($watched);
+        $this->linkContract($notified)->markFailureNotified(new \DateTimeImmutable('2026-11-06T10:00:00+00:00'));
+        $this->linkContract($completed);
+        $this->flushAndClear();
+
+        $pending = $this->repository->findPendingFailureCheck();
+
+        self::assertSame(
+            [$watched->getId()->toRfc4122()],
+            array_map(static fn (IndustryProjectCourierContract $link): string => $link->getProject()->getId()->toRfc4122(), $pending),
+        );
+    }
+
     private function createProject(User $owner, string $name): IndustryProject
     {
         $project = (new IndustryProject())->setOwner($owner)->setName($name)->setStatus(ProjectStatus::InProgress);
@@ -67,12 +87,15 @@ final class IndustryProjectCourierContractRepositoryTest extends IntegrationTest
         return $project;
     }
 
-    private function linkContract(IndustryProject $project): void
+    private function linkContract(IndustryProject $project): IndustryProjectCourierContract
     {
-        $this->em->persist((new IndustryProjectCourierContract())
+        $link = (new IndustryProjectCourierContract())
             ->setProject($project)
             ->setContractId(self::AMBER_CONTRACT_ID)
             ->setCharacterId(self::AMBER_PILOT_ID)
-            ->setLinkedAt(new \DateTimeImmutable('2026-11-05T10:00:00+00:00')));
+            ->setLinkedAt(new \DateTimeImmutable('2026-11-05T10:00:00+00:00'));
+        $this->em->persist($link);
+
+        return $link;
     }
 }

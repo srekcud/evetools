@@ -68,9 +68,7 @@ final readonly class LinkCourierContractProcessor implements ProcessorInterface
 
         $contract = $this->linkableContract($user, $project->getCreatedAt(), $data->contractId);
         $link = $this->linkRepository->findOneByProject($project) ?? (new IndustryProjectCourierContract())->setProject($project);
-        $link->setContractId($contract->contractId)
-            ->setCharacterId($contract->characterId)
-            ->setLinkedAt(new \DateTimeImmutable());
+        $link->link($contract->contractId, $contract->characterId, new \DateTimeImmutable());
 
         $this->entityManager->persist($link);
         $this->entityManager->flush();

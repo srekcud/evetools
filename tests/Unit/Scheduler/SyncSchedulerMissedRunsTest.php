@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Scheduler;
 
 use App\Message\CheckAlertPrices;
+use App\Message\CheckCourierContracts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\SyncBlueprints;
 use App\Message\SyncCostIndices;
@@ -62,6 +63,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
                 SyncPublicContracts::class,
                 TriggerCorporationMiningExtractionsSync::class,
                 TriggerMiningOperationRecurrences::class,
+                CheckCourierContracts::class,
                 TriggerStructureMarketSync::class,
                 TriggerJitaMarketSync::class,
                 TriggerPveSync::class,
