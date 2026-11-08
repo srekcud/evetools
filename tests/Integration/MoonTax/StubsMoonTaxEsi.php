@@ -87,6 +87,11 @@ trait StubsMoonTaxEsi
         return sprintf('/corporations/%d/wallets/%d/journal/', $corporationId, $division);
     }
 
+    protected static function characterEndpoint(int $eveCharacterId): string
+    {
+        return sprintf('/characters/%d/', $eveCharacterId);
+    }
+
     protected static function rolesEndpoint(int $eveCharacterId): string
     {
         return sprintf('/characters/%d/roles/', $eveCharacterId);

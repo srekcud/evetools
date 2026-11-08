@@ -31,6 +31,9 @@ class MiningSiteScan
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $scannedAt;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $hiddenAt = null;
+
     #[ORM\Column(type: 'bigint')]
     private int $totalUnits = 0;
 
@@ -93,6 +96,23 @@ class MiningSiteScan
         $this->scannedAt = $scannedAt;
 
         return $this;
+    }
+
+    public function getHiddenAt(): ?\DateTimeImmutable
+    {
+        return $this->hiddenAt;
+    }
+
+    public function hide(\DateTimeImmutable $hiddenAt): static
+    {
+        $this->hiddenAt = $hiddenAt;
+
+        return $this;
+    }
+
+    public function isHidden(): bool
+    {
+        return $this->hiddenAt !== null;
     }
 
     public function getTotalUnits(): int

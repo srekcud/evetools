@@ -1,0 +1,214 @@
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import CharacterSyncFailuresAlert from '@/components/industry/CharacterSyncFailuresAlert.vue'
+import SyncErrorAlert from '@/components/industry/SyncErrorAlert.vue'
+import { useEveImages } from '@/composables/useEveImages'
+import { useTypeNames } from '@/composables/useTypeNames'
+import { useBlueprintsStore } from '@/stores/industry/blueprints'
+import type { BlueprintLibraryEntry, BlueprintScope, CharacterSyncFailure } from '@/stores/industry/types'
+import { useSyncStore } from '@/stores/sync'
+
+type ScopeFilter = 'all' | BlueprintScope
+
+const UNKNOWN_TYPE_MARKER = 'unknown_type'
+const SYNC_TYPE = 'blueprints'
+const FILTERS: ScopeFilter[] = ['all', 'personal', 'corporation']
+
+const { t } = useI18n()
+const { getTypeIconUrl, onImageError } = useEveImages()
+const { typeNameLabel } = useTypeNames()
+const store = useBlueprintsStore()
+const syncStore = useSyncStore()
+
+const filter = ref<ScopeFilter>('all')
+const syncErrors = ref<string[]>([])
+const lastSyncFailures = ref<CharacterSyncFailure[]>([])
+
+const entries = computed<BlueprintLibraryEntry[]>(() => {
+  const blueprints = store.library?.blueprints ?? []
+  return filter.value === 'all' ? blueprints : blueprints.filter(blueprint => blueprint.scope === filter.value)
+})
+
+const syncing = computed(() => store.requestingRefresh || syncStore.isLoading(SYNC_TYPE))
+
+const alertMessages = computed(() => [
+  ...syncErrors.value,
+  ...(store.refreshError ? [store.refreshError] : []),
+  ...(store.library && store.error ? [store.error] : []),
+])
+
+function nameOf(entry: BlueprintLibraryEntry): string {
+  return entry.name === UNKNOWN_TYPE_MARKER ? typeNameLabel(null, entry.typeId) : entry.name
+}
+
+function dismissAlerts(): void {
+  syncErrors.value = []
+  store.clearErrors()
+}
+
+watch(() => syncStore.getSyncProgress(SYNC_TYPE), (progress) => {
+  if (!progress) return
+  if (progress.status === 'completed') {
+    const failedCharacters = progress.data?.failedCharacters
+    lastSyncFailures.value = Array.isArray(failedCharacters) ? failedCharacters as CharacterSyncFailure[] : []
+    store.fetchLibrary()
+  } else if (progress.status === 'error') {
+    syncErrors.value = [...syncErrors.value, progress.message || t('notifications.syncError')]
+  }
+})
+
+onMounted(() => {
+  store.fetchLibrary()
+})
+</script>
+
+<template>
+  <div class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-bold text-white">{{ t('industry.blueprints.title') }}</h1>
+        <p class="text-sm text-slate-400">{{ t('industry.blueprints.subtitle') }}</p>
+      </div>
+      <button
+        data-testid="blueprints-refresh"
+        class="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+        :disabled="syncing"
+        @click="store.requestRefresh()"
+      >
+        <svg aria-hidden="true" class="w-4 h-4" :class="{ 'animate-spin': syncing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        {{ t('industry.blueprints.refresh') }}
+      </button>
+    </div>
+
+    <SyncErrorAlert
+      v-if="alertMessages.length > 0"
+      data-testid="blueprints-sync-error"
+      :title="t('industry.blueprints.syncErrorTitle', alertMessages.length)"
+      :messages="alertMessages"
+      @dismiss="dismissAlerts"
+    />
+
+    <CharacterSyncFailuresAlert
+      v-if="lastSyncFailures.length > 0"
+      data-testid="blueprints-sync-failures"
+      :title="t('industry.blueprints.syncFailuresTitle', lastSyncFailures.length)"
+      :failures="lastSyncFailures"
+      @dismiss="lastSyncFailures = []"
+    />
+
+    <div v-if="store.loading && !store.library" class="bg-slate-900 rounded-xl border border-slate-800 p-8 flex items-center justify-center text-slate-400 text-sm">
+      {{ t('common.actions.loading') }}
+    </div>
+
+    <div v-else-if="store.error && !store.library" data-testid="blueprints-load-error" class="bg-slate-900 rounded-xl border border-red-800/30 p-6 text-center">
+      <p class="text-red-400 text-sm">{{ store.error }}</p>
+      <button
+        data-testid="blueprints-retry"
+        class="mt-3 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
+        @click="store.fetchLibrary()"
+      >
+        {{ t('common.actions.retry') }}
+      </button>
+    </div>
+
+    <template v-else-if="store.library">
+      <div
+        v-if="store.library.corporationState === 'no_director'"
+        data-testid="blueprints-no-director"
+        role="status"
+        class="p-3 bg-amber-500/20 border border-amber-500/50 rounded-lg text-sm text-amber-200"
+      >
+        <p class="font-semibold">{{ t('industry.blueprints.noDirector.title') }}</p>
+        <p>{{ t('industry.blueprints.noDirector.detail') }}</p>
+      </div>
+
+      <div
+        v-if="store.library.corporationState === 'no_visibility'"
+        data-testid="blueprints-no-visibility"
+        role="status"
+        class="p-3 bg-amber-500/20 border border-amber-500/50 rounded-lg text-sm text-amber-200"
+      >
+        <p class="font-semibold">{{ t('industry.blueprints.noVisibility.title') }}</p>
+        <p>{{ t('industry.blueprints.noVisibility.detail') }}</p>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between p-4 border-b border-slate-800">
+          <h2 class="text-base font-semibold text-white">{{ t('industry.blueprints.library') }}</h2>
+          <div class="inline-flex rounded-lg border border-slate-700 overflow-hidden" role="group" :aria-label="t('industry.blueprints.library')">
+            <button
+              v-for="option in FILTERS"
+              :key="option"
+              :data-testid="`blueprints-filter-${option}`"
+              :aria-pressed="filter === option"
+              class="px-3 py-1.5 text-sm transition-colors"
+              :class="filter === option ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+              @click="filter = option"
+            >
+              {{ t(`industry.blueprints.filter.${option}`) }}
+            </button>
+          </div>
+        </div>
+
+        <p v-if="entries.length === 0" data-testid="blueprints-empty" class="p-6 text-sm text-slate-500">
+          {{ t('industry.blueprints.empty') }}
+        </p>
+
+        <div v-else class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs uppercase text-slate-500">
+                <th class="px-4 py-2">{{ t('industry.blueprints.columns.blueprint') }}</th>
+                <th class="px-4 py-2">{{ t('industry.blueprints.columns.kind') }}</th>
+                <th class="px-4 py-2 text-right">{{ t('industry.blueprints.columns.efficiency') }}</th>
+                <th class="px-4 py-2 text-right">{{ t('industry.blueprints.columns.runs') }}</th>
+                <th class="px-4 py-2">{{ t('industry.blueprints.columns.where') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(entry, index) in entries"
+                :key="`${entry.typeId}-${entry.kind}-${entry.scope}-${entry.locationId}-${index}`"
+                data-testid="blueprint-row"
+                class="border-t border-slate-800"
+              >
+                <td class="px-4 py-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <img :src="getTypeIconUrl(entry.typeId)" alt="" class="w-6 h-6 rounded-sm" @error="onImageError" />
+                    <span class="truncate text-slate-200">{{ nameOf(entry) }}</span>
+                    <span v-if="entry.count > 1" class="text-xs text-slate-500">×{{ entry.count }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-2">
+                  <span
+                    class="px-2 py-0.5 rounded-sm text-xs border"
+                    :class="entry.kind === 'bpo' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'"
+                  >{{ t(`industry.blueprints.kind.${entry.kind}`) }}</span>
+                </td>
+                <td class="px-4 py-2 text-right font-mono text-slate-300">
+                  {{ t('industry.blueprints.efficiency', { me: entry.me, te: entry.te }) }}
+                </td>
+                <td class="px-4 py-2 text-right font-mono text-slate-300">
+                  <template v-if="entry.runs === null">{{ t('industry.blueprints.unlimitedRuns') }}</template>
+                  <template v-else>{{ t('industry.blueprints.runs', { count: entry.runs }) }}</template>
+                </td>
+                <td class="px-4 py-2 text-slate-300">
+                  <span
+                    v-if="entry.scope === 'corporation'"
+                    class="mr-1 px-2 py-0.5 rounded-sm text-xs border bg-slate-500/10 text-slate-400 border-slate-500/20"
+                  >{{ t('industry.blueprints.corporation') }}</span>
+                  <span v-if="entry.ownerName !== null">{{ entry.ownerName }}</span>
+                  <span v-if="entry.divisionNumber !== null" class="text-slate-500"> · {{ t('industry.blueprints.division', { number: entry.divisionNumber }) }}</span>
+                  <span class="text-slate-500 font-mono text-xs"> · #{{ entry.locationId }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>

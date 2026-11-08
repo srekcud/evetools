@@ -14,6 +14,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Service\Industry\Project\ProjectChainBuilder;
+use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -33,6 +34,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
         private IndustryStructureConfigRepository $structureConfigRepository,
         private ProjectAccessChecker $accessChecker,
         private ProjectChainBuilder $chainBuilder,
+        private ProjectJobMaterialNeedsLoader $jobMaterialNeedsLoader,
     ) {
     }
 
@@ -69,6 +71,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
             $this->contributionRepository->findApprovedByProject($project),
             $this->saleRepository->findByProjectForListing($project),
             $structureNamesById,
+            $this->jobMaterialNeedsLoader->load($project, $bomLines),
         );
 
         $resource = new ProjectChainResource();
