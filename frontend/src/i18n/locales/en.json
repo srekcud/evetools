@@ -2094,6 +2094,12 @@
       "title": "Production chain",
       "loading": "Reading the production chain...",
       "loadError": "The production chain could not be read",
+      "level": {
+        "title": "Level {level}",
+        "count": "{count} job | {count} jobs",
+        "unknown": "Level unknown",
+        "unknownCause": "the production plan could not be computed"
+      },
       "views": {
         "flow": "Overview",
         "tree": "Job tree"

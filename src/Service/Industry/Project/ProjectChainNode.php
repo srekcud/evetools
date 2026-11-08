@@ -16,6 +16,7 @@ final readonly class ProjectChainNode
         public string $id,
         public string $stage,
         public ?string $parentId,
+        public ?int $level,
         public ?int $typeId,
         public ?string $typeName,
         public ?string $activity,

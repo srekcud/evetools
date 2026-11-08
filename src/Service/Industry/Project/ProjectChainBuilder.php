@@ -60,8 +60,9 @@ final readonly class ProjectChainBuilder
      * @param array<IndustryProjectContribution> $contributions
      * @param array<IndustryProjectSale>         $sales
      * @param array<string, string>              $structureNamesById
+     * @param array<int, int>                    $levelByTypeId
      */
-    public function build(IndustryProject $project, array $bomLines, array $contributions, array $sales, array $structureNamesById): ProjectChain
+    public function build(IndustryProject $project, array $bomLines, array $contributions, array $sales, array $structureNamesById, array $levelByTypeId = []): ProjectChain
     {
         $orderedLines = $this->orderedLines($bomLines);
         $contributionsByLineId = $this->approvedContributionsByLineId($contributions);
@@ -87,6 +88,7 @@ final readonly class ProjectChainBuilder
                 $structureNamesById,
                 $componentsByParentId,
                 $jobStatusByLineId,
+                $levelByTypeId,
             );
         }
         $nodes[] = $this->saleNode($project, $sales);
@@ -179,6 +181,7 @@ final readonly class ProjectChainBuilder
      * @param array<string, string>                         $structureNamesById
      * @param array<string, list<IndustryProjectBomLine>>   $componentsByParentId
      * @param array<string, string>                         $jobStatusByLineId
+     * @param array<int, int>                               $levelByTypeId
      */
     private function nodeOf(
         IndustryProjectBomLine $line,
@@ -187,6 +190,7 @@ final readonly class ProjectChainBuilder
         array $structureNamesById,
         array $componentsByParentId,
         array &$jobStatusByLineId,
+        array $levelByTypeId,
     ): ProjectChainNode {
         $stage = $this->stageOf($line);
         [$costState, $realCost] = $this->costOf($approvedContributions);
@@ -197,6 +201,7 @@ final readonly class ProjectChainBuilder
             self::lineId($line),
             $stage,
             $parentId,
+            $isJob ? $levelByTypeId[$line->getTypeId()] ?? null : null,
             $line->getTypeId(),
             $line->getTypeName(),
             $line->getActivityType(),
@@ -402,6 +407,7 @@ final readonly class ProjectChainBuilder
         return new ProjectChainNode(
             self::SALE_NODE_ID,
             self::STAGE_SALE,
+            null,
             null,
             null,
             null,

@@ -42,6 +42,16 @@ describe('group chain store', () => {
     })
   })
 
+  it('keeps the level of a node and turns a level omitted by the API into an explicit null', async () => {
+    const { level: _omitted, ...withoutLevel } = HAMMERHEAD_II
+    vi.mocked(apiRequest).mockResolvedValue({ id: HAMMERHEAD_BATCH_ID, nodes: [HAMMERHEAD_I, withoutLevel] })
+    const store = useGroupChainStore()
+
+    await store.fetchChain(HAMMERHEAD_BATCH_ID)
+
+    expect(store.nodes.map(node => node.level)).toEqual([1, null])
+  })
+
   it('exposes the API error instead of an empty chain when the request fails', async () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('Chain unavailable: project not found'))
     const store = useGroupChainStore()

@@ -441,6 +441,7 @@ export type ChainNode = {
   id: string
   stage: ChainStage
   parentId: string | null
+  level: number | null
   typeId: number | null
   typeName: string | null
   activity: ChainActivity | null

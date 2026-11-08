@@ -11,7 +11,6 @@ import {
   HAMMERHEAD_I,
   HAMMERHEAD_I_ID,
   PRODUCTION_CHAIN,
-  TRITANIUM_ID,
 } from '../../productionChainNodes'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -20,13 +19,15 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const PROJECT_ID = 'project-hammerhead-batch'
-const TRITANIUM_ICON_URL = 'https://images.evetech.net/types/34/icon?size=32'
 const HAMMERHEAD_I_ICON_URL = 'https://images.evetech.net/types/2183/icon?size=32'
 const UNTYPED_ID = 'node-without-type'
 const UNTYPED_NODE = chainNode({
   id: UNTYPED_ID,
-  stage: 'material',
+  stage: 'component',
   parentId: HAMMERHEAD_I.id,
+  level: 1,
+  activity: 'manufacturing',
+  runs: 1,
   typeId: null,
   typeName: 'Unresolved material',
 })
@@ -58,9 +59,9 @@ describe('ProductionChain tree item icons', () => {
     const wrapper = await mountChain(CHAIN_WITH_UNTYPED_NODE)
     await openTree(wrapper)
 
-    const icon = wrapper.get(`[data-testid="chain-row-${TRITANIUM_ID}"] td img`)
+    const icon = wrapper.get(`[data-testid="chain-row-${HAMMERHEAD_I_ID}"] td img`)
 
-    expect(icon.attributes('src')).toBe(TRITANIUM_ICON_URL)
+    expect(icon.attributes('src')).toBe(HAMMERHEAD_I_ICON_URL)
   })
 
   it('keeps an empty slot of the icon size on a row without type id, with no icon', async () => {

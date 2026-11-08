@@ -438,6 +438,69 @@ final class ProjectChainBuilderTest extends TestCase
         self::assertSame('done', $sale->status);
     }
 
+    #[Group('issue-418')]
+    public function testJobNodesCarryTheLevelOfTheirTypeAndTheBlueprintsOfThatTypeShareIt(): void
+    {
+        $chain = $this->chainOfHammerheadsWithLevels([self::HAMMERHEAD_I => 1, self::HAMMERHEAD_II => 2]);
+
+        self::assertSame(
+            [self::PRODUCT_LINE_ID => 2, self::INVENTION_LINE_ID => 2, self::COMPONENT_LINE_ID => 1, self::COPY_LINE_ID => 1],
+            $this->levelsByNodeId($chain, [self::PRODUCT_LINE_ID, self::INVENTION_LINE_ID, self::COMPONENT_LINE_ID, self::COPY_LINE_ID]),
+        );
+    }
+
+    #[Group('issue-418')]
+    public function testMaterialAndSaleNodesHaveNoLevel(): void
+    {
+        $chain = $this->chainOfHammerheadsWithLevels([self::HAMMERHEAD_I => 1, self::HAMMERHEAD_II => 2, self::TRITANIUM => 1]);
+
+        self::assertSame(
+            [self::TRITANIUM_LINE_ID => null, self::PARTICLE_ACCELERATOR_UNIT_LINE_ID => null, self::SALE_NODE_ID => null],
+            $this->levelsByNodeId($chain, [self::TRITANIUM_LINE_ID, self::PARTICLE_ACCELERATOR_UNIT_LINE_ID, self::SALE_NODE_ID]),
+        );
+    }
+
+    #[Group('issue-418')]
+    public function testJobNodesWhoseTypeIsMissingFromTheLevelsHaveAnUnknownLevelNeverADefaultOne(): void
+    {
+        $chain = $this->chainOfHammerheadsWithLevels([self::HAMMERHEAD_I => 1]);
+
+        self::assertSame(
+            [self::PRODUCT_LINE_ID => null, self::COMPONENT_LINE_ID => 1],
+            $this->levelsByNodeId($chain, [self::PRODUCT_LINE_ID, self::COMPONENT_LINE_ID]),
+        );
+    }
+
+    #[Group('issue-418')]
+    public function testChainBuiltWithoutLevelsLeavesEveryLevelUnknown(): void
+    {
+        $levels = array_map(static fn (ProjectChainNode $node): ?int => $node->level, $this->chainOfHammerheads()->nodes);
+
+        self::assertSame(array_fill(0, 7, null), $levels);
+    }
+
+    /**
+     * @param array<int, int> $levelByTypeId
+     */
+    private function chainOfHammerheadsWithLevels(array $levelByTypeId): ProjectChain
+    {
+        return (new ProjectChainBuilder())->build($this->project, $this->hammerheadLines(), [], [], [], $levelByTypeId);
+    }
+
+    /**
+     * @param list<string> $nodeIds
+     * @return array<string, int|null>
+     */
+    private function levelsByNodeId(ProjectChain $chain, array $nodeIds): array
+    {
+        $levels = [];
+        foreach ($nodeIds as $nodeId) {
+            $levels[$nodeId] = $this->node($chain, $nodeId)->level;
+        }
+
+        return $levels;
+    }
+
     private function chainOfHammerheads(array $contributions = [], array $sales = [], array $structureNamesById = []): ProjectChain
     {
         return $this->chainOf($this->hammerheadLines(), $contributions, $sales, $structureNamesById);

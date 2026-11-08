@@ -58,6 +58,22 @@ final class ProjectChainApiTest extends WebTestCase
         }
     }
 
+    #[Group('issue-418')]
+    public function testEveryNodeCarriesALevelKeyNullForMaterialsAndTheSale(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->chainUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $nodes = $this->nodesById();
+
+        foreach ($nodes as $node) {
+            self::assertArrayHasKey('level', $node);
+        }
+        self::assertNull($nodes[$this->idOf($this->morphiteLine)]['level']);
+        self::assertNull($nodes['sale']['level']);
+    }
+
     public function testOwnerReadsWhoSuppliedTheProductAndWhatTheSalesBrought(): void
     {
         $this->client->loginUser($this->owner, 'api');

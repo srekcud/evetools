@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
@@ -8,10 +8,18 @@ import type { ChainJob, ChainNode, ChainStage } from '@/stores/group-industry/ty
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
-type TreeRow = {
+type LevelHeader = {
+  kind: 'header'
+  key: string
+  levelKey: string
+  level: number | null
+  jobCount: number
+}
+
+type JobRow = {
+  kind: 'row'
+  key: string
   node: ChainNode
-  depth: number
-  hasChildren: boolean
   endDate: string | null
 }
 
@@ -21,15 +29,13 @@ type CharacterEntry = {
   quantity: number | null
 }
 
-const STAGE_RANK: Record<ChainStage, number> = {
-  product: 0,
+const STAGE_RANK: Partial<Record<ChainStage, number>> = {
+  blueprint: 0,
   component: 1,
-  blueprint: 2,
-  material: 3,
-  sale: 4,
+  product: 2,
 }
 
-const INDENT_PX = 20
+const UNKNOWN_LEVEL_KEY = 'unknown'
 const PLANNED_OUTSIDE_FAVORITE_SYSTEM = 'best_outside_favorite_system'
 
 const props = defineProps<{
@@ -43,62 +49,63 @@ const { formatDateTime, formatNumber } = useFormatters()
 
 const COLUMN_KEYS = ['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure'] as const
 
-const foldedIds = ref<ReadonlySet<string>>(new Set())
+const rowElements = new Map<string, Element>()
 
-const treeNodes = computed(() => props.nodes.filter(node => node.stage !== 'sale'))
-const nodeById = computed(() => new Map(treeNodes.value.map(node => [node.id, node])))
+const jobNodes = computed(() => props.nodes.filter(node => STAGE_RANK[node.stage] !== undefined))
 
-function byStage(nodes: ChainNode[]): ChainNode[] {
-  return [...nodes].sort((left, right) => STAGE_RANK[left.stage] - STAGE_RANK[right.stage])
+function levelKeyOf(level: number | null): string {
+  return level === null ? UNKNOWN_LEVEL_KEY : String(level)
 }
 
-const childrenByParentId = computed(() => {
-  const children = new Map<string, ChainNode[]>()
-  for (const node of treeNodes.value) {
-    if (node.parentId === null || !nodeById.value.has(node.parentId)) continue
-    children.set(node.parentId, [...(children.get(node.parentId) ?? []), node])
+function levelRank(node: ChainNode): number {
+  return node.level ?? Number.POSITIVE_INFINITY
+}
+
+function stageRank(node: ChainNode): number {
+  return STAGE_RANK[node.stage] ?? Number.POSITIVE_INFINITY
+}
+
+const jobNodeById = computed(() => new Map(jobNodes.value.map(node => [node.id, node])))
+
+function sortName(node: ChainNode): string {
+  const target = node.stage === 'blueprint' && node.parentId !== null ? jobNodeById.value.get(node.parentId) : undefined
+  return (target ?? node).typeName ?? ''
+}
+
+function compareJobs(left: ChainNode, right: ChainNode): number {
+  if (levelRank(left) !== levelRank(right)) return levelRank(left) < levelRank(right) ? -1 : 1
+  return sortName(left).localeCompare(sortName(right)) || stageRank(left) - stageRank(right)
+}
+
+const listItems = computed<(LevelHeader | JobRow)[]>(() => {
+  const items: (LevelHeader | JobRow)[] = []
+  let currentHeader: LevelHeader | null = null
+  for (const node of [...jobNodes.value].sort(compareJobs)) {
+    if (currentHeader === null || currentHeader.level !== node.level) {
+      currentHeader = { kind: 'header', key: `level-${levelKeyOf(node.level)}`, levelKey: levelKeyOf(node.level), level: node.level, jobCount: 0 }
+      items.push(currentHeader)
+    }
+    currentHeader.jobCount += 1
+    items.push({ kind: 'row', key: `row-${node.id}`, node, endDate: latestEndDate(node.jobs) })
   }
-  return children
+  return items
 })
 
-const rootNodes = computed(() => byStage(
-  treeNodes.value.filter(node => node.parentId === null || !nodeById.value.has(node.parentId)),
-))
-
-const rows = computed<TreeRow[]>(() => {
-  const shown: TreeRow[] = []
-  const visit = (node: ChainNode, depth: number): void => {
-    const children = byStage(childrenByParentId.value.get(node.id) ?? [])
-    shown.push({ node, depth, hasChildren: children.length > 0, endDate: latestEndDate(node.jobs) })
-    if (foldedIds.value.has(node.id)) return
-    for (const child of children) visit(child, depth + 1)
-  }
-  for (const root of rootNodes.value) visit(root, 0)
-  return shown
-})
-
-function toggle(nodeId: string): void {
-  const next = new Set(foldedIds.value)
-  if (!next.delete(nodeId)) next.add(nodeId)
-  foldedIds.value = next
+function trackRow(nodeId: string, element: unknown): void {
+  if (element instanceof Element) rowElements.set(nodeId, element)
+  else rowElements.delete(nodeId)
 }
 
-function unfoldAncestorsOf(nodeId: string): void {
-  const next = new Set(foldedIds.value)
-  let parentId = nodeById.value.get(nodeId)?.parentId ?? null
-  while (parentId !== null) {
-    next.delete(parentId)
-    parentId = nodeById.value.get(parentId)?.parentId ?? null
-  }
-  foldedIds.value = next
+function scrollToSelected(): void {
+  if (props.selectedId === null) return
+  rowElements.get(props.selectedId)?.scrollIntoView({ block: 'center' })
 }
+
+onMounted(scrollToSelected)
 
 watch(
   () => props.selectedId,
-  (selectedId) => {
-    if (selectedId !== null) unfoldAncestorsOf(selectedId)
-  },
-  { immediate: true },
+  () => { void nextTick(scrollToSelected) },
 )
 
 function characterEntries(node: ChainNode): CharacterEntry[] {
@@ -138,56 +145,57 @@ function plansStructure(node: ChainNode): boolean {
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-800/30">
-        <tr
-          v-for="row in rows"
-          :key="row.node.id"
-          :data-testid="`chain-row-${row.node.id}`"
-          :aria-selected="row.node.id === selectedId"
-          class="hover:bg-slate-800/30 align-top"
-          :class="row.node.id === selectedId ? 'bg-cyan-500/10' : ''"
-        >
+        <template v-for="item in listItems" :key="item.key">
+          <tr
+            v-if="item.kind === 'header'"
+            :data-testid="`chain-level-${item.levelKey}`"
+            class="bg-slate-800/40"
+          >
+            <th :colspan="COLUMN_KEYS.length" scope="colgroup" class="py-1.5 px-3 text-left text-xs uppercase tracking-wider text-cyan-300">
+              <template v-if="item.level !== null">{{ t('groupIndustry.chain.level.title', { level: item.level }) }}</template>
+              <template v-else>
+                {{ t('groupIndustry.chain.level.unknown') }}
+                <span class="ml-2 normal-case tracking-normal text-violet-300">{{ t('groupIndustry.chain.level.unknownCause') }}</span>
+              </template>
+              <span class="ml-2 font-mono normal-case tracking-normal text-slate-500">{{ t('groupIndustry.chain.level.count', item.jobCount) }}</span>
+            </th>
+          </tr>
+          <tr
+            v-else
+            :ref="element => trackRow(item.node.id, element)"
+            :data-testid="`chain-row-${item.node.id}`"
+            :aria-selected="item.node.id === selectedId"
+            class="hover:bg-slate-800/30 align-top"
+            :class="item.node.id === selectedId ? 'bg-cyan-500/10' : ''"
+          >
           <td class="py-2 px-3">
-            <div class="flex items-center gap-1.5 min-w-0" :style="{ paddingLeft: `${row.depth * INDENT_PX}px` }">
-              <button
-                v-if="row.hasChildren"
-                type="button"
-                :data-testid="`chain-toggle-${row.node.id}`"
-                :aria-expanded="!foldedIds.has(row.node.id)"
-                :aria-label="t(foldedIds.has(row.node.id) ? 'groupIndustry.chain.toggle.unfold' : 'groupIndustry.chain.toggle.fold', { name: row.node.typeName })"
-                class="w-5 h-5 shrink-0 text-slate-400 hover:text-cyan-300"
-                @click="toggle(row.node.id)"
-              >{{ foldedIds.has(row.node.id) ? '▸' : '▾' }}</button>
-              <span v-else class="w-5 shrink-0"></span>
+            <div class="flex items-center gap-1.5 min-w-0">
               <img
-                v-if="row.node.typeId !== null"
-                :src="getTypeIconUrl(row.node.typeId, 32)"
+                v-if="item.node.typeId !== null"
+                :src="getTypeIconUrl(item.node.typeId, 32)"
                 alt=""
                 class="w-6 h-6 rounded border border-slate-700 shrink-0"
                 @error="onImageError"
               />
               <span v-else data-testid="chain-icon-placeholder" class="w-6 h-6 shrink-0" aria-hidden="true"></span>
-              <span class="block truncate min-w-0 max-w-64 font-medium text-slate-200" :title="row.node.typeName ?? undefined">{{ row.node.typeName }}</span>
-              <span
-                v-if="row.node.stage === 'material' && row.node.requiredQuantity !== null && row.node.fulfilledQuantity !== null"
-                class="shrink-0 text-xs font-mono text-slate-500"
-              >{{ formatNumber(row.node.fulfilledQuantity, 0) }} / {{ formatNumber(row.node.requiredQuantity, 0) }}</span>
+              <span class="block truncate min-w-0 max-w-64 font-medium text-slate-200" :title="item.node.typeName ?? undefined">{{ item.node.typeName }}</span>
             </div>
           </td>
 
           <td class="py-2 px-3 text-slate-300">
-            <template v-if="row.node.activity !== null">{{ t(`groupIndustry.chain.activity.${row.node.activity}`) }}</template>
+            <template v-if="item.node.activity !== null">{{ t(`groupIndustry.chain.activity.${item.node.activity}`) }}</template>
           </td>
 
           <td class="py-2 px-3 text-right font-mono text-slate-300">
-            <template v-if="row.node.runs !== null">{{ formatNumber(row.node.runs, 0) }}</template>
+            <template v-if="item.node.runs !== null">{{ formatNumber(item.node.runs, 0) }}</template>
           </td>
 
           <td class="py-2 px-3 text-slate-400 whitespace-nowrap">
-            <template v-if="row.node.meLevel !== null && row.node.teLevel !== null">{{ t('groupIndustry.chain.meTeValue', { me: row.node.meLevel, te: row.node.teLevel }) }}</template>
+            <template v-if="item.node.meLevel !== null && item.node.teLevel !== null">{{ t('groupIndustry.chain.meTeValue', { me: item.node.meLevel, te: item.node.teLevel }) }}</template>
           </td>
 
           <td class="py-2 px-3 text-slate-300">
-            <span v-for="entry in characterEntries(row.node)" :key="entry.key" class="block truncate max-w-48" :title="entry.name ?? undefined">
+            <span v-for="entry in characterEntries(item.node)" :key="entry.key" class="block truncate max-w-48" :title="entry.name ?? undefined">
               <template v-if="entry.name !== null">{{ entry.name }}</template>
               <span v-else class="text-violet-300">{{ t('groupIndustry.chain.characterUnknown') }}</span>
               <span v-if="entry.quantity !== null" class="ml-1 font-mono text-xs text-slate-500">×{{ formatNumber(entry.quantity, 0) }}</span>
@@ -197,15 +205,15 @@ function plansStructure(node: ChainNode): boolean {
           <td class="py-2 px-3">
             <span
               class="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm border text-xs whitespace-nowrap"
-              :class="chainStatusChipClass(row.node.status)"
+              :class="chainStatusChipClass(item.node.status)"
             >
-              <i class="inline-block w-1.5 h-1.5 rounded-full" :class="chainStatusDotClass(row.node.status)"></i>{{ t(`groupIndustry.chain.status.${row.node.status}`) }}
+              <i class="inline-block w-1.5 h-1.5 rounded-full" :class="chainStatusDotClass(item.node.status)"></i>{{ t(`groupIndustry.chain.status.${item.node.status}`) }}
             </span>
           </td>
 
           <td class="py-2 px-3 text-right font-mono text-slate-300">
-            <IskAmount v-if="row.node.costState === 'known'" :value="row.node.realCost" short />
-            <template v-else-if="row.node.costState === 'unknown'">
+            <IskAmount v-if="item.node.costState === 'known'" :value="item.node.realCost" short />
+            <template v-else-if="item.node.costState === 'unknown'">
               <UnknownContributionValue data-testid="chain-cost-unknown" />
               <span class="block mt-1 text-xs font-sans text-violet-300 whitespace-normal max-w-56 ml-auto">{{ t('groupIndustry.chain.unknownCostCause') }}</span>
             </template>
@@ -213,37 +221,38 @@ function plansStructure(node: ChainNode): boolean {
           </td>
 
           <td class="py-2 px-3 text-slate-400 whitespace-nowrap">
-            <template v-if="row.endDate !== null">{{ formatDateTime(row.endDate) }}</template>
+            <template v-if="item.endDate !== null">{{ formatDateTime(item.endDate) }}</template>
           </td>
 
           <td class="py-2 px-3">
-            <template v-if="row.node.activity !== null">
+            <template v-if="item.node.activity !== null">
               <UnknownContributionValue data-testid="chain-io-unknown" />
               <span class="block mt-1 text-xs text-violet-300 whitespace-normal max-w-48">{{ t('groupIndustry.chain.ioUnknownCause') }}</span>
             </template>
           </td>
 
           <td class="py-2 px-3 text-slate-300">
-            <span v-for="structure in row.node.structures" :key="structure" class="block truncate max-w-48" :title="structure">{{ structure }}</span>
-            <template v-if="row.node.plannedStructure !== null">
+            <span v-for="structure in item.node.structures" :key="structure" class="block truncate max-w-48" :title="structure">{{ structure }}</span>
+            <template v-if="item.node.plannedStructure !== null">
               <span data-testid="chain-planned-structure" class="block text-xs text-slate-400">
                 <span class="text-cyan-400" aria-hidden="true">★</span>
                 {{ t('groupIndustry.chain.structure.planned') }}
-                <span v-if="row.node.plannedStructure.name !== null" class="block truncate max-w-48 text-slate-300" :title="row.node.plannedStructure.name">{{ row.node.plannedStructure.name }}</span>
+                <span v-if="item.node.plannedStructure.name !== null" class="block truncate max-w-48 text-slate-300" :title="item.node.plannedStructure.name">{{ item.node.plannedStructure.name }}</span>
                 <span v-else class="block text-violet-300">{{ t('groupIndustry.chain.structure.deleted') }}</span>
               </span>
               <span
-                v-if="row.node.plannedStructure.status === PLANNED_OUTSIDE_FAVORITE_SYSTEM"
+                v-if="item.node.plannedStructure.status === PLANNED_OUTSIDE_FAVORITE_SYSTEM"
                 data-testid="chain-structure-warning"
                 class="block mt-0.5 text-xs text-amber-400"
               >{{ t('groupIndustry.chain.structure.outsideFavoriteSystem') }}</span>
             </template>
-            <template v-else-if="row.node.structures.length === 0 && plansStructure(row.node)">
+            <template v-else-if="item.node.structures.length === 0 && plansStructure(item.node)">
               <UnknownContributionValue />
               <span class="block mt-1 text-xs text-violet-300 whitespace-normal max-w-48">{{ t('groupIndustry.chain.structure.unknown') }}</span>
             </template>
           </td>
-        </tr>
+                  </tr>
+        </template>
       </tbody>
     </table>
   </div>
