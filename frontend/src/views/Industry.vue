@@ -21,6 +21,7 @@ import BatchScanTab from '@/components/industry/BatchScanTab.vue'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
 import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
+import BlueprintLibraryTab from '@/components/industry/BlueprintLibraryTab.vue'
 
 const { t } = useI18n()
 const maxJobDurationFieldId = useId()
@@ -37,8 +38,8 @@ function typeIdFromQuery(): number | undefined {
 }
 
 // Flat pill navigation (single level)
-type MainTab = 'workshop' | 'dashboard' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile'
-const MAIN_TABS: MainTab[] = ['workshop', 'dashboard', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile']
+type MainTab = 'workshop' | 'dashboard' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile' | 'blueprints'
+const MAIN_TABS: MainTab[] = ['workshop', 'dashboard', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile', 'blueprints']
 const mainTab = useTabQuery(MAIN_TABS, 'workshop')
 const DATA_FRESHNESS_TABS: readonly MainTab[] = ['margins', 'batch', 'buy-vs-build', 'pivot']
 
@@ -97,6 +98,7 @@ const navGroups: NavGroup[] = [
     pills: [
       { key: 'slots', label: () => t('industry.tabs.slots') },
       { key: 'stockpile', label: () => t('industry.tabs.stockpile') },
+      { key: 'blueprints', label: () => t('industry.tabs.blueprints') },
     ],
   },
 ]
@@ -231,6 +233,11 @@ watch(() => store.navigationIntent, (intent) => {
       <!-- Stockpile -->
       <div v-else-if="mainTab === 'stockpile'" key="stockpile">
         <StockpileDashboard />
+      </div>
+
+      <!-- Blueprints -->
+      <div v-else-if="mainTab === 'blueprints'" key="blueprints">
+        <BlueprintLibraryTab />
       </div>
 
       <!-- Config Slide-Over Panel -->

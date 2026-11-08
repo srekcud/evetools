@@ -655,7 +655,8 @@
       "batch": "Batch Scan",
       "buyVsBuild": "Buy vs Build",
       "pivot": "Pivot",
-      "stockpile": "Stockpile"
+      "stockpile": "Stockpile",
+      "blueprints": "Blueprints"
     },
     "groups": {
       "overview": "Overview",
@@ -1101,6 +1102,44 @@
         "sync_failed": "sync failed"
       },
       "reconnectLink": "Reconnect characters"
+    },
+    "blueprints": {
+      "title": "Blueprints",
+      "subtitle": "Your BPOs and BPCs, and the corporation ones you can see.",
+      "library": "Library",
+      "refresh": "Refresh",
+      "filter": {
+        "all": "All",
+        "personal": "Personal",
+        "corporation": "Corporation"
+      },
+      "columns": {
+        "blueprint": "Blueprint",
+        "kind": "Type",
+        "efficiency": "ME / TE",
+        "runs": "Runs",
+        "where": "Where"
+      },
+      "kind": {
+        "bpo": "BPO",
+        "bpc": "BPC"
+      },
+      "efficiency": "ME {me} · TE {te}",
+      "runs": "{count} runs",
+      "unlimitedRuns": "∞",
+      "corporation": "corp",
+      "division": "Division {number}",
+      "empty": "No blueprint to show.",
+      "noDirector": {
+        "title": "Corporation blueprints unknown.",
+        "detail": "The ESI only gives them to the token of a Director. Your personal blueprints stay up to date."
+      },
+      "noVisibility": {
+        "title": "No corporation division is visible to you.",
+        "detail": "The corporation blueprints are listed only for the divisions made visible to you. Your personal blueprints stay up to date."
+      },
+      "syncErrorTitle": "Blueprints sync failed ({count} error), the list shown may be out of date: | Blueprints sync failed ({count} errors), the list shown may be out of date:",
+      "syncFailuresTitle": "Blueprints not synced for {count} character at the last sync: | Blueprints not synced for {count} characters at the last sync:"
     },
     "jobsSyncError": {
       "title": "Industry jobs sync failed ({count} error), the jobs shown may be out of date: | Industry jobs sync failed ({count} errors), the jobs shown may be out of date:"
