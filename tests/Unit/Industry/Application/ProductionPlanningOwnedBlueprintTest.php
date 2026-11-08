@@ -111,6 +111,25 @@ final class ProductionPlanningOwnedBlueprintTest extends TestCase
         }
     }
 
+    public function testOwnedOriginalTargetStillLeavesTheRunCapOnTheIntermediatePlannedAfterIt(): void
+    {
+        $plan = self::planOf([self::target(self::TARGET, 2, 0, 0)], [self::TARGET => self::owned(6, 12, true)]);
+
+        self::assertSame([[2, 6, 12]], self::jobsOf($plan, self::TARGET));
+        self::assertSame(
+            [...array_fill(0, 12, [4, 10, 20]), ...array_fill(0, 3, [3, 10, 20])],
+            self::jobsOf($plan, self::INTERMEDIATE),
+        );
+    }
+
+    public function testOwnedBlueprintOfATargetWithoutRecipeIsRejectedAsNotBuildable(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage(\sprintf('Target %d has no blueprint nor reaction: it cannot be built.', self::UNRELATED_PRODUCT));
+
+        self::planOf([self::target(self::UNRELATED_PRODUCT, 3, 0, 0)], [self::UNRELATED_PRODUCT => self::owned(7, 14, false)]);
+    }
+
     /**
      * @param list<PlanTarget>              $targets
      * @param array<int, OwnedBlueprintUse> $ownedBlueprints
