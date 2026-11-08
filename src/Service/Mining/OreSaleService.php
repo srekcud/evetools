@@ -53,6 +53,15 @@ final readonly class OreSaleService
     }
 
     /**
+     * @param array<int, int> $quantitiesByTypeId
+     * @return array{rows: list<array<string, mixed>>, totals: array<string, mixed>}
+     */
+    public function buildFromQuantities(array $quantitiesByTypeId, ?int $structureId): array
+    {
+        return ['rows' => [], 'totals' => $this->totalsOf([])];
+    }
+
+    /**
      * @param list<int> $typeIds
      * @return array<string, array<int, float|null>>
      */
