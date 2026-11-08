@@ -1447,7 +1447,8 @@
         "label": "Mining views",
         "entries": "Entries",
         "oreValue": "Value per m³",
-        "moonChunks": "Moon chunks"
+        "moonChunks": "Moon chunks",
+        "moonTax": "Moon tax"
       },
       "moonChunks": {
         "title": "Moon chunks",
@@ -1527,6 +1528,115 @@
             "forbidden": "Only the author of the scan or a Director or Station Manager of the corporation can replace it.",
             "roles_unavailable": "Your corporation roles could not be read, try again later."
           }
+        }
+      },
+      "moonTax": {
+        "title": "Moon tax",
+        "subtitle": "Tax owed on the moon ore mined at the corporation refineries, per miner and per period. Dates are in EVE time (UTC).",
+        "viewLabel": "Moon tax views",
+        "views": {
+          "manager": "Manager",
+          "miner": "My tax"
+        },
+        "corporation": "Corporation {id}",
+        "structure": "Structure {id}",
+        "requestFailed": "The request failed.",
+        "corporationsLoadError": "The corporations could not be loaded.",
+        "noCorporation": "No corporation with a known refinery. Sync the moon chunks first.",
+        "loadError": "The moon tax of this corporation could not be loaded.",
+        "statementsLoadError": "The statements could not be loaded.",
+        "mineLoadError": "Your moon tax could not be loaded.",
+        "denied": "Manager access denied",
+        "unreadable": "Corporation roles unreadable",
+        "noRefinery": "No known refinery, sync the extractions.",
+        "filterLabel": "Statement filter",
+        "filters": {
+          "all": "All",
+          "late": "Late"
+        },
+        "exportCsv": "Export CSV",
+        "exportError": "The CSV export failed.",
+        "emptyStatements": "No statement",
+        "emptyMine": "No moon tax for your characters",
+        "unknown": "unknown",
+        "withoutPrice": "no price: {ids}",
+        "periodInProgress": "period in progress",
+        "outsideAlliance": "Outside alliance",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyFailed": "The reference could not be copied.",
+        "access": {
+          "ledger": "Mining ledger",
+          "payments": "Payments",
+          "states": {
+            "never_synced": "not synced yet",
+            "denied": "access denied",
+            "reconnect": "to reconnect",
+            "error": "ESI error"
+          },
+          "reconnectScope": "grant the scope {scope} again",
+          "lastRead": "last read on"
+        },
+        "sync": {
+          "button": "Sync",
+          "syncing": "Syncing...",
+          "progress": "Sync {percent} %",
+          "failed": "The moon tax sync failed."
+        },
+        "refinery": {
+          "openToAlliance": "Open to the alliance",
+          "period": "Period",
+          "periods": {
+            "weekly": "Weekly",
+            "monthly": "Monthly"
+          },
+          "walletDivision": "Wallet division",
+          "chooseDivision": "Choose",
+          "rate": "{rank} rate (%)",
+          "save": "Save",
+          "saving": "Saving...",
+          "saved": "Settings saved"
+        },
+        "totals": {
+          "due": "Due",
+          "paid": "Paid",
+          "remaining": "Remaining",
+          "outside": "Outside alliance",
+          "unknown": "unknown",
+          "knownPart": "of which {amount} known"
+        },
+        "columns": {
+          "character": "Character",
+          "refinery": "Refinery",
+          "period": "Period",
+          "reference": "Reference",
+          "tax": "Due",
+          "paid": "Paid",
+          "remaining": "Remaining",
+          "status": "Status",
+          "outside": "Alliance",
+          "actions": "Actions"
+        },
+        "status": {
+          "provisional": "Provisional",
+          "unknown": "Unknown",
+          "cancelled": "Cancelled",
+          "paid": "Paid",
+          "late": "Late",
+          "partial": "Partial",
+          "due": "Due"
+        },
+        "actions": {
+          "markPaid": "Mark paid",
+          "cancel": "Cancel",
+          "confirmCancel": "Confirm the cancellation",
+          "keep": "Keep"
+        },
+        "howToPay": {
+          "title": "How to pay",
+          "donation": "Donate the remaining amount in game to the corporation, with the reference of the statement as the reason.",
+          "recognition": "The payment is recognised after the next wallet journal sync, which can take up to one hour.",
+          "alt": "Paid from another character than the one that mined? The manager matches the payment by hand."
         }
       },
       "reprocessingProfile": {

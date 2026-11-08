@@ -1447,7 +1447,8 @@
         "label": "Vues du minage",
         "entries": "Entrées",
         "oreValue": "Valeur au m³",
-        "moonChunks": "Chunks lunaires"
+        "moonChunks": "Chunks lunaires",
+        "moonTax": "Taxe lunaire"
       },
       "moonChunks": {
         "title": "Chunks lunaires",
@@ -1527,6 +1528,115 @@
             "forbidden": "Seuls l'auteur du scan, un Director ou un Station Manager de la corporation peuvent le remplacer.",
             "roles_unavailable": "Vos rôles de corporation n'ont pas pu être lus, réessayez plus tard."
           }
+        }
+      },
+      "moonTax": {
+        "title": "Taxe lunaire",
+        "subtitle": "Taxe due sur le minerai lunaire extrait aux raffineries de la corporation, par mineur et par période. Les dates sont en EVE time (UTC).",
+        "viewLabel": "Vues de la taxe lunaire",
+        "views": {
+          "manager": "Gestionnaire",
+          "miner": "Ma taxe"
+        },
+        "corporation": "Corporation {id}",
+        "structure": "Structure {id}",
+        "requestFailed": "La requête a échoué.",
+        "corporationsLoadError": "Les corporations n'ont pas pu être chargées.",
+        "noCorporation": "Aucune corporation avec une raffinerie connue. Synchronisez d'abord les chunks lunaires.",
+        "loadError": "La taxe lunaire de cette corporation n'a pas pu être chargée.",
+        "statementsLoadError": "Les relevés n'ont pas pu être chargés.",
+        "mineLoadError": "Votre taxe lunaire n'a pas pu être chargée.",
+        "denied": "Accès gestionnaire refusé",
+        "unreadable": "Rôles de la corporation illisibles",
+        "noRefinery": "Aucune raffinerie connue, synchronisez les extractions.",
+        "filterLabel": "Filtre des relevés",
+        "filters": {
+          "all": "Tous",
+          "late": "En retard"
+        },
+        "exportCsv": "Exporter CSV",
+        "exportError": "L'export CSV a échoué.",
+        "emptyStatements": "Aucun relevé",
+        "emptyMine": "Aucune taxe lunaire pour vos personnages",
+        "unknown": "inconnue",
+        "withoutPrice": "sans prix : {ids}",
+        "periodInProgress": "période en cours",
+        "outsideAlliance": "Hors alliance",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyFailed": "La référence n'a pas pu être copiée.",
+        "access": {
+          "ledger": "Ledger de minage",
+          "payments": "Paiements",
+          "states": {
+            "never_synced": "pas encore synchronisé",
+            "denied": "accès refusé",
+            "reconnect": "à reconnecter",
+            "error": "erreur ESI"
+          },
+          "reconnectScope": "accordez à nouveau le scope {scope}",
+          "lastRead": "dernière lecture le"
+        },
+        "sync": {
+          "button": "Synchroniser",
+          "syncing": "Synchronisation...",
+          "progress": "Sync {percent} %",
+          "failed": "La synchronisation de la taxe lunaire a échoué."
+        },
+        "refinery": {
+          "openToAlliance": "Ouverte à l'alliance",
+          "period": "Période",
+          "periods": {
+            "weekly": "Hebdomadaire",
+            "monthly": "Mensuelle"
+          },
+          "walletDivision": "Division du wallet",
+          "chooseDivision": "Choisir",
+          "rate": "Taux {rank} (%)",
+          "save": "Enregistrer",
+          "saving": "Enregistrement...",
+          "saved": "Réglage enregistré"
+        },
+        "totals": {
+          "due": "Dû",
+          "paid": "Payé",
+          "remaining": "Reste",
+          "outside": "Hors alliance",
+          "unknown": "inconnu",
+          "knownPart": "dont {amount} connus"
+        },
+        "columns": {
+          "character": "Personnage",
+          "refinery": "Raffinerie",
+          "period": "Période",
+          "reference": "Référence",
+          "tax": "Dû",
+          "paid": "Payé",
+          "remaining": "Reste",
+          "status": "Statut",
+          "outside": "Alliance",
+          "actions": "Actions"
+        },
+        "status": {
+          "provisional": "Provisoire",
+          "unknown": "Inconnu",
+          "cancelled": "Annulé",
+          "paid": "Payé",
+          "late": "En retard",
+          "partial": "Partiel",
+          "due": "À payer"
+        },
+        "actions": {
+          "markPaid": "Marquer payé",
+          "cancel": "Annuler",
+          "confirmCancel": "Confirmer l'annulation",
+          "keep": "Garder"
+        },
+        "howToPay": {
+          "title": "Comment payer",
+          "donation": "Faites un don en jeu du montant restant à la corporation, avec la référence du relevé en motif.",
+          "recognition": "Le paiement est reconnu après la prochaine synchronisation du journal du wallet, ce qui peut prendre jusqu'à une heure.",
+          "alt": "Payé depuis un autre personnage que celui qui a miné ? Le gestionnaire rapproche le paiement à la main."
         }
       },
       "reprocessingProfile": {
