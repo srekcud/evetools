@@ -47,7 +47,13 @@ class CharacterService
 
     public function readCorporationId(int $characterId): int
     {
-        throw new \LogicException('Not implemented');
+        $endpoint = "/characters/{$characterId}/";
+        $corporationId = $this->esiClient->getWithCache($endpoint)['corporation_id'] ?? null;
+        if (!is_int($corporationId)) {
+            throw new \UnexpectedValueException("ESI response from {$endpoint} has no integer 'corporation_id'");
+        }
+
+        return $corporationId;
     }
 
     /**
