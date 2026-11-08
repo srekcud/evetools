@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   calendarDays,
@@ -19,14 +20,17 @@ import {
 } from '@/composables/useCorporationMiningExtractions'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
+import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
 import MoonChunkName from './MoonChunkName.vue'
+import MoonChunkOperationButton from './MoonChunkOperationButton.vue'
+import MoonChunkRefineryFollow from './MoonChunkRefineryFollow.vue'
 import MoonChunkValueCell from './MoonChunkValueCell.vue'
 import MoonChunkValueDetail from './MoonChunkValueDetail.vue'
 import MoonChunkValuePanel from './MoonChunkValuePanel.vue'
 
 const CLOCK_TICK_MS = 30_000
 
-const LIST_COLUMNS = ['moon', 'structure', 'system', 'arrival', 'decay', 'countdown', 'status', 'value']
+const LIST_COLUMNS = ['moon', 'structure', 'system', 'arrival', 'decay', 'countdown', 'status', 'value', 'operation']
 
 const views: ChunkView[] = ['list', 'week', 'month']
 const timeModes: ChunkTimeMode[] = ['eve', 'local']
@@ -38,11 +42,13 @@ const statusClasses: Record<MoonChunkStatus, string> = {
 }
 
 const { t, locale } = useI18n()
+const router = useRouter()
 const authStore = useAuthStore()
-const { corporations, isLoading, hasError, isRefreshing, syncProgress, timeMode, load, refresh } = useCorporationMiningExtractions()
+const { corporations, isLoading, hasError, isRefreshing, syncProgress, timeMode, pendingFollowStructureId, hasFollowError, load, refresh, setRefineryFollowed } = useCorporationMiningExtractions()
 
 const view = ref<ChunkView>('list')
 const openDetailIds = ref<Set<string>>(new Set())
+const operationChunk = ref<CorporationMiningExtraction | null>(null)
 const now = ref(new Date())
 let clockTimer: ReturnType<typeof setInterval> | null = null
 
@@ -68,6 +74,33 @@ function openCalendarDetails(entry: CorporationMiningExtractions): CorporationMi
     && openDetailIds.value.has(extraction.id)
     && days.value.includes(chunkDay(extraction.chunkArrivalTime, timeZone.value)),
   )
+}
+
+interface Refinery {
+  structureId: number
+  name: string | null
+}
+
+function refineriesOf(entry: CorporationMiningExtractions): Refinery[] {
+  const known = new Map<number, Refinery>()
+  for (const extraction of entry.extractions) {
+    const name = known.get(extraction.structureId)?.name ?? extraction.structureName
+    known.set(extraction.structureId, { structureId: extraction.structureId, name })
+  }
+  return [...known.values()]
+}
+
+function moonLabel(extraction: CorporationMiningExtraction): string {
+  return extraction.moonName ?? String(extraction.moonId)
+}
+
+function canCreateOperation(extraction: CorporationMiningExtraction): boolean {
+  return statusOf(extraction) !== 'exploded'
+}
+
+function openCreatedOperation(operationId: string): void {
+  operationChunk.value = null
+  void router.push({ name: 'mining-operation-detail', params: { id: operationId } })
 }
 
 function corporationLabel(corporationId: number): string {
@@ -174,6 +207,27 @@ onUnmounted(() => {
     >
       <h4 class="text-sm font-semibold uppercase tracking-wider text-slate-300">{{ corporationLabel(entry.corporationId) }}</h4>
 
+      <div v-if="refineriesOf(entry).length > 0" class="space-y-2">
+        <h5 class="text-xs font-medium uppercase tracking-wider text-slate-400">{{ t('ledger.mining.moonChunks.refineries') }}</h5>
+        <ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <MoonChunkRefineryFollow
+            v-for="refinery in refineriesOf(entry)"
+            :key="refinery.structureId"
+            :structure-id="refinery.structureId"
+            :name="refinery.name"
+            :followed="entry.followedStructureIds.includes(refinery.structureId)"
+            :pending="pendingFollowStructureId === refinery.structureId"
+            @toggle="setRefineryFollowed(entry.corporationId, refinery.structureId, !entry.followedStructureIds.includes(refinery.structureId))"
+          />
+        </ul>
+        <p data-follow-hint class="text-xs text-slate-400">
+          <span aria-hidden="true">ⓘ </span>{{ t('ledger.mining.moonChunks.followHint', { category: t('notificationHub.categories.moon_chunk') }) }}
+        </p>
+        <p v-if="hasFollowError" role="alert" class="text-xs text-red-400">
+          <span aria-hidden="true">⚠ </span>{{ t('ledger.mining.moonChunks.followError') }}
+        </p>
+      </div>
+
       <p
         v-if="entry.access !== 'ok'"
         :data-access-state="entry.access"
@@ -234,6 +288,9 @@ onUnmounted(() => {
                   </span>
                 </td>
                 <MoonChunkValueCell :value="extraction.chunkValue" :expanded="openDetailIds.has(extraction.id)" @toggle="toggleDetail(extraction.id)" />
+                <td data-cell="operation" class="px-3 py-2 max-w-[12rem]">
+                  <MoonChunkOperationButton v-if="canCreateOperation(extraction)" :moon="moonLabel(extraction)" @create="operationChunk = extraction" />
+                </td>
               </tr>
               <MoonChunkValueDetail
                 v-if="extraction.chunkValue !== null && openDetailIds.has(extraction.id)"
@@ -278,6 +335,12 @@ onUnmounted(() => {
                 :expanded="openDetailIds.has(extraction.id)"
                 @toggle="toggleDetail(extraction.id)"
               />
+              <MoonChunkOperationButton
+                v-if="canCreateOperation(extraction)"
+                class="mt-1 block max-w-full"
+                :moon="moonLabel(extraction)"
+                @create="operationChunk = extraction"
+              />
             </div>
           </div>
         </div>
@@ -295,5 +358,12 @@ onUnmounted(() => {
         </div>
       </div>
     </section>
+
+    <NewMiningOperationModal
+      :show="operationChunk !== null"
+      :chunk="operationChunk ?? undefined"
+      @close="operationChunk = null"
+      @open="openCreatedOperation"
+    />
   </div>
 </template>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Scheduler;
 
 use App\Message\CheckAlertPrices;
+use App\Message\CheckMoonChunkAlerts;
 use App\Message\SyncBlueprints;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
@@ -54,6 +55,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
 
         $this->assertSame(
             [
+                CheckMoonChunkAlerts::class,
                 SyncIndustryJobs::class,
                 TriggerPlanetarySync::class,
                 CheckAlertPrices::class,

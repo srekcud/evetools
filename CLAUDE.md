@@ -186,6 +186,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Public contracts (The Forge) | 30 min |
 | Corporation moon chunks (extractions) | 30 min |
 | Opérations de minage récurrentes (occurrences `weekly` et `chunk`) | 30 min |
+| Alertes de chunk lunaire (suiveurs d'une raffinerie : prêt dans 1 h, arrivé) | 5 min |
 | Taxe lunaire (ledger des observers + journal wallet corpo, par corporation à raffinerie ouverte) | 1h |
 | Blueprints sync (blueprints personnels + corpo, par utilisateur actif) | 1h |
 | Volumes journaliers régionaux (régions de la structure par défaut et des structures préférées, produits fabricables) | 24h |

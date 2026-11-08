@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, type RouteLocationNormalizedLoaded } from 'vue-router'
 import { useLedgerStore, type MiningEntry } from '@/stores/ledger'
 import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
@@ -21,13 +22,15 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const route: RouteLocationNormalizedLoaded | undefined = useRoute()
 const ledgerStore = useLedgerStore()
 const authStore = useAuthStore()
 const { formatDateTime } = useFormatters()
 
 type MiningView = 'entries' | 'oreValue' | 'moonChunks' | 'moonTax'
 const miningViews: MiningView[] = ['entries', 'oreValue', 'moonChunks', 'moonTax']
-const activeMiningView = ref<MiningView>('entries')
+const requestedView = miningViews.find(candidate => candidate === route?.query.view)
+const activeMiningView = ref<MiningView>(requestedView ?? 'entries')
 
 // Structure selection for mining prices
 interface StructureSearchResult {

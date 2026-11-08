@@ -1469,6 +1469,13 @@
         "syncing": "Synchronisation...",
         "syncProgress": "Synchronisation {percent} %",
         "loadError": "Impossible de charger les chunks lunaires.",
+        "createOperation": "Créer une opération de minage",
+        "createOperationFor": "Créer une opération de minage pour {moon}",
+        "refineries": "Raffineries",
+        "follow": "Suivre",
+        "unfollow": "Ne plus suivre",
+        "followError": "Le suivi de cette raffinerie n'a pas pu être modifié.",
+        "followHint": "Les raffineries suivies vous notifient une heure avant l'arrivée d'un chunk et à son arrivée. Réglez-le dans vos préférences de notification (catégorie « {category} »).",
         "unknownName": "nom inconnu",
         "lastSuccess": "dernière synchronisation réussie",
         "empty": "Aucune extraction",
@@ -1485,7 +1492,8 @@
           "decay": "Décroissance naturelle",
           "countdown": "Compte à rebours",
           "status": "Statut",
-          "value": "Valeur"
+          "value": "Valeur",
+          "operation": "Opération"
         },
         "status": {
           "extracting": "Extraction",
@@ -2150,7 +2158,8 @@
       "escalation": "Escalations",
       "esi": "Notifications EVE",
       "price": "Alertes prix",
-      "mining_operation": "Opérations de minage"
+      "mining_operation": "Opérations de minage",
+      "moon_chunk": "Chunks lunaires"
     },
     "settingsModal": {
       "title": "Preferences de notifications",
@@ -3168,6 +3177,8 @@
       "splitMode": "Répartition",
       "characters": "Vos personnages",
       "corporationUnavailable": "Corporation inconnue : visibilité privée seulement.",
+      "chunkSystem": "Système du chunk",
+      "chunkSystemHint": "Le système est fixé au démarrage de l'opération.",
       "submit": "Créer l'opération"
     },
     "recurrence": {
