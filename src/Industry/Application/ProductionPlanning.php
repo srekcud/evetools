@@ -46,7 +46,7 @@ final readonly class ProductionPlanning
             if ($request->ownedBlueprints[$job->productTypeId]->original ?? false) {
                 continue;
             }
-            $maxRunsByProduct[$job->productTypeId] ??= $recipes->recipeFor($job->productTypeId)->maxProductionLimit
+            $maxRunsByProduct[$job->productTypeId] = $recipes->recipeFor($job->productTypeId)->maxProductionLimit
                 ?? throw new \LogicException(\sprintf('Job of product %d has no recipe.', $job->productTypeId));
         }
 
@@ -79,10 +79,10 @@ final readonly class ProductionPlanning
     private static function targetsWithOwnedEfficiency(ProductionPlanRequest $request, RecipeMemory $recipes): array
     {
         $targets = [];
-        foreach ($request->targets as $index => $target) {
+        foreach ($request->targets as $target) {
             $owned = $request->ownedBlueprints[$target->productTypeId] ?? null;
             if (null === $owned || ActivityKind::Reaction === $recipes->recipeFor($target->productTypeId)?->activity) {
-                $targets['requested:'.$index] = $target;
+                $targets[] = $target;
                 continue;
             }
 
