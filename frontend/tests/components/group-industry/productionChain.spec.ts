@@ -262,7 +262,7 @@ describe('ProductionChain job tree', () => {
     for (const ioCell of ioCells) {
       const unknown = ioCell.get('[data-testid="chain-io-unknown"]')
       expect(unknown.attributes('title')).toBe(messageOf('en', 'common.unknownValue'))
-      expect(ioCell.text()).toBe('')
+      expect(ioCell.text()).toBe(unknown.text())
     }
   })
 
