@@ -45,6 +45,11 @@ class CharacterService
         );
     }
 
+    public function readCorporationId(int $characterId): int
+    {
+        throw new \LogicException('Not implemented');
+    }
+
     /**
      * @return array<string>
      */
