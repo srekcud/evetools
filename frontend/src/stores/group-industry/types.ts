@@ -408,7 +408,7 @@ export type ChainStage = 'blueprint' | 'material' | 'component' | 'product' | 's
 
 export type ChainActivity = 'manufacturing' | 'reaction' | 'copy' | 'invention'
 
-export type ChainStatus = 'done' | 'active' | 'todo' | 'blocked' | 'unknown'
+export type ChainStatus = 'done' | 'active' | 'todo' | 'missing_materials' | 'blocked' | 'unknown'
 
 export type ChainCostState = 'none' | 'unknown' | 'known'
 
@@ -453,6 +453,7 @@ export type ChainNode = {
   teLevel: number | null
   requiredQuantity: number | null
   fulfilledQuantity: number | null
+  level: number | null
   status: ChainStatus
   costState: ChainCostState
   realCost: number | null

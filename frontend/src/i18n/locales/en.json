@@ -2147,7 +2147,8 @@
         "soldUnits": "Units sold",
         "grossRevenue": "Gross revenue",
         "openInTree": "Open in the job tree",
-        "supplied": "{fulfilled} / {required} supplied"
+        "supplied": "{fulfilled} / {required} supplied",
+        "doneCount": "Done: {count}"
       },
       "columns": {
         "element": "Element",
@@ -2172,6 +2173,7 @@
         "active": "In progress",
         "todo": "To do",
         "blocked": "Blocked",
+        "missing_materials": "Missing materials",
         "unknown": "Unknown"
       },
       "legendTitle": "Status legend",
