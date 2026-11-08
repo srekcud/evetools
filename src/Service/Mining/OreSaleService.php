@@ -31,8 +31,17 @@ final readonly class OreSaleService
      */
     public function build(User $user, ?int $structureId): array
     {
+        return $this->buildFromQuantities($this->cachedAssetRepository->getAggregatedQuantitiesByUser($user), $structureId);
+    }
+
+    /**
+     * @param array<int, int> $quantitiesByTypeId
+     * @return array{rows: list<array<string, mixed>>, totals: array<string, mixed>}
+     */
+    public function buildFromQuantities(array $quantitiesByTypeId, ?int $structureId): array
+    {
         $heldQuantities = array_filter(
-            $this->cachedAssetRepository->getAggregatedQuantitiesByUser($user),
+            $quantitiesByTypeId,
             static fn (int $quantity): bool => $quantity > 0,
         );
         $types = $this->invTypeRepository->findCompressedMineableTypes(array_keys($heldQuantities));

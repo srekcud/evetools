@@ -48,6 +48,7 @@ function extractionsOf(structureIds: number[]) {
       corporationId: 98_262_101,
       access: 'ok',
       lastSuccessAt: '2026-11-03T09:00:00+00:00',
+      followedStructureIds: [],
       extractions: structureIds.map((structureId, index) => ({
         id: `0199a1f0-0000-7000-8000-00000000031${index}`,
         structureId,

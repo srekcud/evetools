@@ -9,6 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Input\MiningOperation\CreateMiningOperationInput;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\Service\MiningOperation\MiningBoostFit;
+use App\Service\MiningOperation\MiningOperationChunkResolver;
 use App\Service\MiningOperation\MiningOperationEnrolment;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -24,6 +25,7 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
         private MiningOperationEnrolment $enrolment,
         private MiningOperationResourceMapper $mapper,
         private MiningBoostFit $boostFit,
+        private MiningOperationChunkResolver $chunkResolver,
     ) {
     }
 
@@ -35,7 +37,9 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
 
         $this->boostFit->assertConsistent($data->declaredBoostShip(), $data->declaredCompressorKinds());
 
-        $miningOperation = $this->enrolment->create($user, $data);
+        $chunk = $data->chunkId === null ? null : $this->chunkResolver->resolve($user, $data->chunkId);
+
+        $miningOperation = $this->enrolment->create($user, $data, $chunk);
 
         return $this->mapper->operationToResource($miningOperation, $miningOperation->membershipOf($user), true);
     }

@@ -408,6 +408,7 @@ export interface CreateMiningOperationInput {
   recurrence?: MiningOperationRecurrenceInput
   boostShipTypeId?: number | null
   mountedCompressorKinds?: MiningCompressorKind[]
+  chunkId?: string
 }
 
 export interface UpdateMiningOperationMemberInput {
@@ -797,7 +798,9 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   async function fetchBoostShips(): Promise<void> {
     error.value = null
     try {
-      boostShips.value = await apiRequest<MiningBoostShipOption[]>('/mining-boost-ships')
+      const options = await apiRequest<MiningBoostShipOption[]>('/mining-boost-ships')
+      if (!Array.isArray(options)) throw new Error('Unexpected boost ships payload')
+      boostShips.value = options
     } catch (cause) {
       error.value = messageOf(cause, 'Failed to fetch the boost ships')
     }

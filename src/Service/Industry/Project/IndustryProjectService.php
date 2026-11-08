@@ -15,6 +15,7 @@ use App\Exception\InventionProbabilityMissingException;
 use App\Exception\InventionT1ProductMissingException;
 use App\Exception\TypeMissingFromSdeException;
 use App\Industry\Application\FavoriteSystems;
+use App\Industry\Application\OwnedBlueprintUse;
 use App\Industry\Application\PlannedProduction;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\ProductionPlanRequest;
@@ -280,10 +281,38 @@ class IndustryProjectService
                 $this->favoriteSystemsOf($owner),
                 $blacklistedTypeIds,
                 selectionPolicy: new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving())),
+                ownedBlueprints: $this->ownedBlueprintsByProductOf($owner),
             ));
         } catch (\DomainException $e) {
             throw new \RuntimeException($e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * @return array<int, OwnedBlueprintUse> by product typeId
+     */
+    private function ownedBlueprintsByProductOf(User $owner): array
+    {
+        $usesByBlueprint = $this->originalBlueprintFinder->bestUsesOwnedBy($owner);
+        if ([] === $usesByBlueprint) {
+            return [];
+        }
+
+        $products = $this->activityProductRepository->findProductsForBlueprints(
+            array_keys($usesByBlueprint),
+            [IndustryActivityType::Manufacturing->value, IndustryActivityType::Reaction->value],
+        );
+
+        $usesByProduct = [];
+        foreach ($products as $product) {
+            $use = $usesByBlueprint[$product->getTypeId()];
+            $productTypeId = $product->getProductTypeId();
+            if (!isset($usesByProduct[$productTypeId]) || $use->isBetterThan($usesByProduct[$productTypeId])) {
+                $usesByProduct[$productTypeId] = $use;
+            }
+        }
+
+        return $usesByProduct;
     }
 
     /**

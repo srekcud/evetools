@@ -8,8 +8,10 @@ use ApiPlatform\Metadata\Post;
 use App\ApiResource\Input\MiningOperation\CreateMiningOperationInput;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\Entity\User;
+use App\Repository\CorporationMiningExtractionRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\MiningOperation\MiningBoostFit;
+use App\Service\MiningOperation\MiningOperationChunkResolver;
 use App\Service\MiningOperation\MiningOperationEnrolment;
 use App\Service\MiningOperation\MiningPresenceResolver;
 use App\Service\MiningOperation\MountableCompressorCatalog;
@@ -45,6 +47,7 @@ final class CreateMiningOperationProcessorTest extends TestCase
             new MiningOperationEnrolment($this->characterRepositoryReadingOpenEnrolments(), $this->createMock(EntityManagerInterface::class)),
             new MiningOperationResourceMapper(new MiningPresenceResolver(new MockClock())),
             new MiningBoostFit($this->createStub(MountableCompressorCatalog::class)),
+            new MiningOperationChunkResolver($this->createStub(CorporationMiningExtractionRepository::class), new MockClock()),
         );
     }
 

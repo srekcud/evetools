@@ -50,6 +50,7 @@ framework:
             App\Message\WarmupStructureOwnersMessage: async
             App\Message\TakeMiningLedgerSnapshot: async
             App\Message\TriggerMiningOperationRecurrences: async
+            App\Message\CheckMoonChunkAlerts: async
             App\Message\CreateRecurringMiningOperations: async
 
 when@test:

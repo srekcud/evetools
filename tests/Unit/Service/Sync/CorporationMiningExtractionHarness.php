@@ -16,6 +16,7 @@ use App\Repository\CharacterRepository;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\CorporationMiningSyncStateRepository;
 use App\Repository\MoonCompositionRepository;
+use App\Repository\MoonRefineryFollowRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Admin\SyncTracker;
@@ -98,6 +99,8 @@ trait CorporationMiningExtractionHarness
     private array $storedExtractions = [];
 
     private array $storedSyncStates = [];
+
+    private array $storedFollows = [];
 
     private array $removedEntities = [];
 
@@ -394,6 +397,11 @@ trait CorporationMiningExtractionHarness
             fn (array $criteria): ?CorporationMiningSyncState => self::matching($this->storedSyncStates, $criteria, null)[0] ?? null,
         );
 
+        $followRepository = $this->createStub(MoonRefineryFollowRepository::class);
+        $followRepository->method('findBy')->willReturnCallback(
+            fn (array $criteria, ?array $orderBy = null): array => self::matching($this->storedFollows, $criteria, $orderBy),
+        );
+
         $solarSystemRepository = $this->createStub(MapSolarSystemRepository::class);
         foreach (['find', 'findBySolarSystemId'] as $method) {
             $solarSystemRepository->method($method)->willReturnCallback(static fn (int $solarSystemId): ?MapSolarSystem => self::solarSystem($solarSystemId));
@@ -437,6 +445,7 @@ trait CorporationMiningExtractionHarness
             $characterRepository,
             $extractionRepository,
             $syncStateRepository,
+            $followRepository,
             $solarSystemRepository,
             $entityManager,
             $this->mercurePublisher(),

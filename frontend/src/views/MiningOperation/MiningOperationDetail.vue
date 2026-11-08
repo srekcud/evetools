@@ -24,6 +24,7 @@ import MiningStartModal from '@/components/mining-operation/MiningStartModal.vue
 import MiningStartSnapshots from '@/components/mining-operation/MiningStartSnapshots.vue'
 import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.vue'
 import MiningStockpileCoverage from '@/components/mining-operation/MiningStockpileCoverage.vue'
+import OreSalePanel from '@/components/ledger/OreSalePanel.vue'
 import { useStockpileCoverage } from '@/composables/useStockpileCoverage'
 import MiningUnitPrices from '@/components/mining-operation/MiningUnitPrices.vue'
 import MiningValuationRules from '@/components/mining-operation/MiningValuationRules.vue'
@@ -117,6 +118,9 @@ const canEnd = computed(() => canAdminister.value && operation.value?.status ===
 const canDepart = computed(() => participates.value && operation.value?.status === 'in_progress' && operation.value.myDepartedAt === null)
 const tracksPresence = computed(() => participates.value && operation.value?.status === 'in_progress')
 const sendsHeartbeat = computed(() => tracksPresence.value && operation.value?.myDepartedAt === null)
+const ORE_SALE_STATUSES = ['closing', 'shares', 'settled', 'completed']
+const showsOreSale = computed(() => participates.value && ORE_SALE_STATUSES.includes(operation.value?.status ?? ''))
+const oreSaleKey = computed(() => `${operation.value?.status}:${operationLedger.value?.participants.find(participant => participant.memberId === ownMemberId.value)?.state}`)
 const showsStockpileCoverage = computed(() => participates.value && (operation.value?.status === 'closing' || operation.value?.status === 'completed'))
 const valuation = computed(() => (store.valuation?.operationId === operationId.value ? store.valuation : null))
 const fleetStorage = computed(() => (store.fleetStorage?.operationId === operationId.value ? store.fleetStorage : null))
@@ -670,6 +674,8 @@ onBeforeUnmount(() => {
         </div>
 
         <MiningOperationShareRecap v-if="showsShareRecap && valuation !== null && operationLedger !== null" :operation="operation" :valuation="valuation" :ledger="operationLedger" :market-label="marketLabel" />
+
+        <OreSalePanel v-if="showsOreSale" :key="oreSaleKey" :operation-id="operationId" />
 
         <template v-if="showsStockpileCoverage">
           <MiningStockpileCoverage v-if="stockpileCoverage !== null" :coverage="stockpileCoverage" />

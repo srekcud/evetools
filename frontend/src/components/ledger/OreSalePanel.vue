@@ -14,9 +14,12 @@ const { t } = useI18n()
 const { formatNumber } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { showToast } = useToast()
-const { sale, isLoading, hasError, isEmpty, summary, load } = useOreSale()
+const props = defineProps<{ operationId?: string }>()
+
+const { sale, isLoading, hasError, notKnownYet, isEmpty, summary, load } = useOreSale(props.operationId)
 
 const hasStructure = computed(() => sale.value?.structureId != null)
+const unconvertedTypeNames = computed(() => (sale.value?.unconvertedTypes ?? []).map(type => type.typeName ?? String(type.typeId)))
 
 async function copySummary(): Promise<void> {
   try {
@@ -32,10 +35,10 @@ onMounted(load)
 </script>
 
 <template>
-  <section class="space-y-3" :aria-label="t('ledger.mining.oreSale.title')">
+  <section class="space-y-3" data-ore-sale :aria-label="t('ledger.mining.oreSale.title')">
     <div>
       <h3 class="text-lg font-semibold text-white">{{ t('ledger.mining.oreSale.title') }}</h3>
-      <p class="text-sm text-slate-400">{{ t('ledger.mining.oreSale.subtitle') }}</p>
+      <p class="text-sm text-slate-400">{{ t(props.operationId === undefined ? 'ledger.mining.oreSale.subtitle' : 'ledger.mining.oreSale.operationSubtitle') }}</p>
     </div>
 
     <ErrorBanner v-if="hasError" data-load-error :message="t('ledger.mining.oreSale.loadError')" />
@@ -44,8 +47,12 @@ onMounted(load)
       <LoadingSpinner size="lg" class="text-cyan-500" />
     </div>
 
+    <p v-else-if="notKnownYet" data-not-known-yet class="rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-200" role="status">
+      {{ t('ledger.mining.oreSale.notKnownYet') }}
+    </p>
+
     <p v-else-if="isEmpty" data-empty-state class="text-sm text-slate-500">
-      {{ t('ledger.mining.oreSale.empty') }}
+      {{ t(props.operationId === undefined ? 'ledger.mining.oreSale.empty' : 'ledger.mining.oreSale.operationEmpty') }}
     </p>
 
     <div v-else-if="sale !== null" class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
@@ -124,6 +131,10 @@ onMounted(load)
         </table>
       </div>
     </div>
+
+    <p v-if="unconvertedTypeNames.length > 0" data-unconverted class="rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-200" role="status">
+      {{ t('ledger.mining.oreSale.unconverted', { types: unconvertedTypeNames.join(', ') }) }}
+    </p>
 
     <div v-if="sale !== null && !isEmpty" class="space-y-2">
       <pre data-sale-summary class="p-3 rounded-sm border border-slate-700 bg-slate-950 text-xs text-slate-300 whitespace-pre-wrap break-words">{{ summary }}</pre>

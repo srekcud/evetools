@@ -51,6 +51,25 @@ final class NotificationPreferencesApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-274')]
+    public function testMoonChunkCategoryIsListedByDefaultAmongTheSevenCategoriesAndCanBeDisabled(): void
+    {
+        $user = $this->persistPilot();
+        $this->client->loginUser($user, 'api');
+
+        $this->request('PUT', ['preferences' => [['category' => 'moon_chunk', 'enabled' => false]]]);
+
+        self::assertResponseIsSuccessful();
+        $preferences = $this->responseJson()['preferences'];
+        $categories = array_column($preferences, 'category');
+        sort($categories);
+        self::assertSame(['escalation', 'esi', 'industry', 'mining_operation', 'moon_chunk', 'planetary', 'price'], $categories);
+        $moonChunk = array_values(array_filter($preferences, static fn (array $preference): bool => $preference['category'] === 'moon_chunk'))[0];
+        self::assertSame([false, false], [$moonChunk['enabled'], $moonChunk['pushEnabled']]);
+        self::assertArrayHasKey('thresholdMinutes', $moonChunk);
+        self::assertNull($moonChunk['thresholdMinutes']);
+    }
+
     private function persistPilot(): User
     {
         $user = new User();

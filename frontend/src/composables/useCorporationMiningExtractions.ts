@@ -57,6 +57,7 @@ export interface CorporationMiningExtractions {
   access: CorporationMiningAccess
   lastSuccessAt: string | null
   extractions: CorporationMiningExtraction[]
+  followedStructureIds: number[]
 }
 
 export interface CorporationMiningExtractionsResponse {
@@ -65,6 +66,7 @@ export interface CorporationMiningExtractionsResponse {
 
 const EXTRACTIONS_ENDPOINT = '/mining/corporation-extractions'
 const COMPOSITIONS_ENDPOINT = '/mining/moon-compositions'
+const FOLLOWED_REFINERIES_ENDPOINT = '/mining/followed-refineries'
 const EVE_TIME_ZONE = 'UTC'
 const MS_PER_MINUTE = 60_000
 const MINUTES_PER_HOUR = 60
@@ -161,6 +163,8 @@ export function useCorporationMiningExtractions() {
   const hasError = ref(false)
   const isRefreshing = ref(false)
   const timeMode = ref<ChunkTimeMode>('eve')
+  const pendingFollowStructureId = ref<number | null>(null)
+  const hasFollowError = ref(false)
 
   const syncProgress = computed<SyncProgress | null>(() => {
     const progress = syncStore.corporationMiningExtractionsProgress
@@ -193,6 +197,32 @@ export function useCorporationMiningExtractions() {
     }
   }
 
+  function applyFollow(corporationId: number, structureId: number, followed: boolean): void {
+    corporations.value = corporations.value.map(entry => {
+      if (entry.corporationId !== corporationId) return entry
+      const others = entry.followedStructureIds.filter(candidate => candidate !== structureId)
+      return { ...entry, followedStructureIds: followed ? [...others, structureId] : others }
+    })
+  }
+
+  async function setRefineryFollowed(corporationId: number, structureId: number, followed: boolean): Promise<void> {
+    pendingFollowStructureId.value = structureId
+    try {
+      if (followed) {
+        await apiRequest(FOLLOWED_REFINERIES_ENDPOINT, { method: 'POST', body: JSON.stringify({ structureId }) })
+      } else {
+        await apiRequest(`${FOLLOWED_REFINERIES_ENDPOINT}/${structureId}`, { method: 'DELETE' })
+      }
+      applyFollow(corporationId, structureId, followed)
+      hasFollowError.value = false
+    } catch (e) {
+      console.error('Failed to change the follow of a refinery:', e)
+      hasFollowError.value = true
+    } finally {
+      pendingFollowStructureId.value = null
+    }
+  }
+
   watch(() => syncStore.corporationMiningExtractionsProgress, progress => {
     if (progress?.status === 'completed') {
       isRefreshing.value = false
@@ -202,5 +232,5 @@ export function useCorporationMiningExtractions() {
     }
   })
 
-  return { corporations, isLoading, hasError, isRefreshing, syncProgress, timeMode, load, refresh }
+  return { corporations, isLoading, hasError, isRefreshing, syncProgress, timeMode, pendingFollowStructureId, hasFollowError, load, refresh, setRefineryFollowed }
 }
