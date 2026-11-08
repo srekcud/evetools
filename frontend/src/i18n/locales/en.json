@@ -3563,6 +3563,17 @@
       "submit": "Record the scan",
       "allDepleted": "Everything depleted",
       "reminder": "Scan from the same position with the same range as before, otherwise an asteroid out of range counts as depleted.",
+      "paste": {
+        "label": "Paste the Survey Chipset results",
+        "placeholder": "Select all in the Survey Scanner results (every group expanded), copy, then paste here",
+        "read": "Read the paste",
+        "issues": {
+          "unreadable": "Line {line} could not be read.",
+          "unknown_ore": "Line {line}: \"{name}\" is not an ore known to the SDE.",
+          "volume_mismatch": "Line {line}: the quantity of {name} does not match its volume.",
+          "collapsed_group": "{name} is collapsed: expand every group before copying."
+        }
+      },
       "added": "Scan {number} added · trend ETA {from} → {to}",
       "errors": {
         "noLines": "Add at least one ore line.",
