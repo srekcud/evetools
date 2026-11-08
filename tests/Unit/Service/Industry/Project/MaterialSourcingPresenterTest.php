@@ -18,6 +18,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(MaterialSourcingPresenter::class)]
+#[CoversClass(MaterialSourcing::class)]
 #[Group('issue-466')]
 final class MaterialSourcingPresenterTest extends TestCase
 {

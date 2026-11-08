@@ -55,6 +55,16 @@ final class ConsumingActivitiesTest extends TestCase
         self::assertSame([self::PYERITE => ActivityKind::Manufacturing], $activities);
     }
 
+    public function testMaterialConsumedByAManufacturingJobThenByAReactionStaysDeliveredToTheManufacturingWorkshop(): void
+    {
+        $activities = ConsumingActivities::of($this->planOf(
+            $this->job(ActivityKind::Manufacturing, [self::PYERITE => 20]),
+            $this->job(ActivityKind::Reaction, [self::PYERITE => 10]),
+        ));
+
+        self::assertSame([self::PYERITE => ActivityKind::Manufacturing], $activities);
+    }
+
     public function testMaterialConsumedByNoJobIsAbsent(): void
     {
         self::assertSame([], ConsumingActivities::of($this->planOf()));

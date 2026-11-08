@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Industry\Application;
 
 use App\Constant\EveConstants;
 use App\Industry\Application\FavoriteSystems;
+use App\Industry\Application\JitaPurchase;
 use App\Industry\Application\MaterialSourcing;
 use App\Industry\Application\MaterialSourcingComparator;
 use App\Industry\Application\MaterialToSource;
@@ -23,6 +24,9 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(MaterialSourcingComparator::class)]
+#[CoversClass(MaterialSourcing::class)]
+#[CoversClass(JitaPurchase::class)]
+#[CoversClass(MissingData::class)]
 #[Group('issue-466')]
 final class MaterialSourcingComparatorTest extends TestCase
 {
@@ -51,6 +55,7 @@ final class MaterialSourcingComparatorTest extends TestCase
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
+        self::assertEqualsWithDelta(20_000.0, $sourcings[0]->bestCost()->amount()->amount, self::DELTA);
     }
 
     public function testExampleBJitaWithImportCheaperThanTheStructureIsBoughtAtJita(): void
@@ -66,6 +71,7 @@ final class MaterialSourcingComparatorTest extends TestCase
             $this->rowOf($sourcings[0]),
             self::DELTA,
         );
+        self::assertEqualsWithDelta(185_000.0, $sourcings[0]->bestCost()->amount()->amount, self::DELTA);
     }
 
     public function testExampleCTieBetweenJitaWithImportAndTheStructureGoesToJitaAndSavesNothing(): void
@@ -212,7 +218,14 @@ final class MaterialSourcingComparatorTest extends TestCase
 
     public function testNoMaterialAsksForNothingAndReturnsNothing(): void
     {
-        self::assertSame([], $this->comparator([], [], [])->compare([], self::STRUCTURE_ID, $this->favoriteSystems()));
+        $marketPrices = new RecordingMarketPrices(new InMemoryMarketPrices([]));
+        $structurePrices = new InMemoryStructureMarketPrices([self::STRUCTURE_ID => []]);
+
+        $sourcings = $this->comparatorWith($marketPrices, $structurePrices, [], [])->compare([], self::STRUCTURE_ID, $this->favoriteSystems());
+
+        self::assertSame([], $sourcings);
+        self::assertSame([], $marketPrices->requests);
+        self::assertSame([], $structurePrices->requests);
     }
 
     /**
