@@ -9,6 +9,9 @@ use App\MessageHandler\SyncPublicContractsHandler;
 use App\Service\Admin\SyncTracker;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
+use App\Service\Industry\ContractSales\ObservedContract;
+use App\Service\Industry\ContractSales\PublicContractHistoryRecorder;
+use App\Service\Industry\ContractSales\PublicContractRegions;
 use App\Service\Industry\PublicContractPriceService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -39,6 +42,10 @@ final class SyncPublicContractsHandlerTest extends TestCase
     private const CONFIGURED_ESI_BASE_URL = 'https://esi.test/latest';
     private const THE_FORGE_CONTRACTS_PATH = '/contracts/public/10000002/';
     private const SYNC_TYPE = 'public-contracts';
+    private const THE_FORGE_REGION_ID = 10000002;
+    private const CAPITAL_REGION_ID = 10000030;
+    private const CAPITAL_CONTRACTS_PATH = '/contracts/public/10000030/';
+    private const HULL = 19720;
 
     private const TRITANIUM = 34;
     private const PYERITE = 35;
@@ -230,6 +237,8 @@ final class SyncPublicContractsHandlerTest extends TestCase
             cache: $this->publicContractsCache,
             logger: new NullLogger(),
             syncTracker: $this->createRecordingSyncTracker(),
+            historyRecorder: $this->createStub(PublicContractHistoryRecorder::class),
+            regions: $this->regionsInUse([self::THE_FORGE_REGION_ID]),
         );
 
         $handler(new SyncPublicContracts());
@@ -542,14 +551,124 @@ final class SyncPublicContractsHandlerTest extends TestCase
         ];
     }
 
+    // ---------------------------------------------------------------
+    // Issue #334: contract history of every region in use
+    // ---------------------------------------------------------------
+
+    public function testEveryRegionInUseIsPolledAndItsReadableContractsAreRecorded(): void
+    {
+        $calls = [];
+        $handler = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[$this->makeIssuedContract(60001, 5001, 1_000_000.0)]],
+            '/contracts/public/items/60001/' => [['type_id' => self::TRITANIUM, 'quantity' => 100, 'is_included' => true]],
+            self::CAPITAL_CONTRACTS_PATH => [[
+                $this->makeIssuedContract(60002, 5002, 2_000_000.0),
+                $this->makeIssuedContract(60003, 5003, 3_000_000.0),
+            ]],
+            '/contracts/public/items/60002/' => [
+                ['type_id' => self::HULL, 'quantity' => 1, 'is_included' => true],
+                ['type_id' => self::TRITANIUM, 'quantity' => 5, 'is_included' => false],
+            ],
+            '/contracts/public/items/60003/' => new MockResponse('{"error":"Contract not found"}', ['http_code' => 404]),
+        ], self::PRODUCTION_ESI_BASE_URL, $this->regionsInUse([self::THE_FORGE_REGION_ID, self::CAPITAL_REGION_ID]), $this->recorderCapturingInto($calls));
+
+        $handler(new SyncPublicContracts());
+
+        $this->assertSame([
+            self::THE_FORGE_REGION_ID => [[60001], [60001]],
+            self::CAPITAL_REGION_ID => [[60002], [60002, 60003]],
+        ], $this->recordedContractIdsByRegion($calls));
+        $capitalContract = $calls[1][1][0];
+        $this->assertSame(5002, $capitalContract->issuerId);
+        $this->assertEqualsWithDelta(2_000_000.0, $capitalContract->price, 0.001);
+        $this->assertSame([['typeId' => self::HULL, 'quantity' => 1]], $capitalContract->items);
+    }
+
+    public function testThePriceIndexStaysFedByTheForgeAloneWhateverTheOtherRegions(): void
+    {
+        $calls = [];
+        $handler = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[$this->makeIssuedContract(60001, 5001, 1_000_000.0)]],
+            '/contracts/public/items/60001/' => [['type_id' => self::TRITANIUM, 'quantity' => 100, 'is_included' => true]],
+            self::CAPITAL_CONTRACTS_PATH => [[$this->makeIssuedContract(60002, 5002, 2_000_000.0)]],
+            '/contracts/public/items/60002/' => [['type_id' => self::HULL, 'quantity' => 1, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL, $this->regionsInUse([self::THE_FORGE_REGION_ID, self::CAPITAL_REGION_ID]), $this->recorderCapturingInto($calls));
+
+        $handler(new SyncPublicContracts());
+
+        $this->assertSame([['unitPrice' => 10_000.0, 'quantity' => 100, 'contractId' => 60001]], $this->storedContractPrices(self::TRITANIUM));
+        $this->assertNull($this->storedContractPrices(self::HULL));
+        $this->assertSame([['start', self::SYNC_TYPE, null], ['complete', self::SYNC_TYPE, '1 types indexed']], $this->syncTrackerCalls);
+    }
+
+    public function testContractWithoutIssuerIsListedButNeverRecorded(): void
+    {
+        $calls = [];
+        $handler = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[$this->makeContract(60001, 'item_exchange', 1_000_000.0)]],
+            '/contracts/public/items/60001/' => [['type_id' => self::TRITANIUM, 'quantity' => 100, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL, null, $this->recorderCapturingInto($calls));
+
+        $handler(new SyncPublicContracts());
+
+        $this->assertSame([self::THE_FORGE_REGION_ID => [[], [60001]]], $this->recordedContractIdsByRegion($calls));
+    }
+
+    public function testRegionWhoseContractsCannotBeReadIsNotRecordedAndFailsTheSyncWithoutLosingTheOthers(): void
+    {
+        $calls = [];
+        $handler = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[$this->makeIssuedContract(60001, 5001, 1_000_000.0)]],
+            '/contracts/public/items/60001/' => [['type_id' => self::TRITANIUM, 'quantity' => 100, 'is_included' => true]],
+            self::CAPITAL_CONTRACTS_PATH => new MockResponse('{"error":"Internal server error"}', ['http_code' => 500]),
+        ], self::PRODUCTION_ESI_BASE_URL, $this->regionsInUse([self::THE_FORGE_REGION_ID, self::CAPITAL_REGION_ID]), $this->recorderCapturingInto($calls));
+
+        $handler(new SyncPublicContracts());
+
+        $this->assertSame([self::THE_FORGE_REGION_ID], array_keys($this->recordedContractIdsByRegion($calls)));
+        $this->assertSame([['unitPrice' => 10_000.0, 'quantity' => 100, 'contractId' => 60001]], $this->storedContractPrices(self::TRITANIUM));
+        $this->assertSame('fail', $this->syncTrackerCalls[1][0]);
+        $this->assertStringContainsString((string) self::CAPITAL_REGION_ID, $this->syncTrackerCalls[1][2]);
+    }
+
+    public function testStructuresWhoseRegionIsUnknownAreNamedInTheSummary(): void
+    {
+        $handler = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[$this->makeIssuedContract(60001, 5001, 1_000_000.0)]],
+            '/contracts/public/items/60001/' => [['type_id' => self::TRITANIUM, 'quantity' => 100, 'is_included' => true]],
+        ], self::PRODUCTION_ESI_BASE_URL, $this->regionsInUse([self::THE_FORGE_REGION_ID], [1_046_664_001_933]));
+
+        $handler(new SyncPublicContracts());
+
+        $this->assertSame('1 types indexed; skipped (region unknown): 1046664001933', $this->syncTrackerCalls[1][2]);
+        $this->assertSame('complete', $this->syncTrackerCalls[1][0]);
+    }
+
+    public function testHistoryOlderThanTheRetentionIsPurgedAfterEachSync(): void
+    {
+        $calls = [];
+        $purges = 0;
+        $handler = $this->createHandler([
+            self::THE_FORGE_CONTRACTS_PATH => [[]],
+        ], self::PRODUCTION_ESI_BASE_URL, null, $this->recorderCapturingInto($calls, $purges));
+
+        $handler(new SyncPublicContracts());
+
+        $this->assertSame(1, $purges);
+    }
+
     /**
      * Builds the handler on a real EsiClient pointed at $esiBaseUrl and the simulated ESI.
      *
      * @param array<string, list<mixed>|MockResponse> $esiResponsesByPath contracts list: one entry
      *        per page or call; contract items: the JSON body; or a single MockResponse
      */
-    private function createHandler(array $esiResponsesByPath, string $esiBaseUrl): SyncPublicContractsHandler
-    {
+    private function createHandler(
+        array $esiResponsesByPath,
+        string $esiBaseUrl,
+        ?PublicContractRegions $regions = null,
+        ?PublicContractHistoryRecorder $historyRecorder = null,
+    ): SyncPublicContractsHandler {
         $esiHttpClient = $this->createSimulatedEsi($esiResponsesByPath, $esiBaseUrl);
         $syncTracker = $this->createRecordingSyncTracker();
 
@@ -566,7 +685,63 @@ final class SyncPublicContractsHandlerTest extends TestCase
             cache: $this->publicContractsCache,
             logger: $this->createRecordingLogger(),
             syncTracker: $syncTracker,
+            historyRecorder: $historyRecorder ?? $this->createStub(PublicContractHistoryRecorder::class),
+            regions: $regions ?? $this->regionsInUse([self::THE_FORGE_REGION_ID]),
         );
+    }
+
+    /**
+     * @param list<int> $regionIds
+     * @param list<int> $unknownStructureIds
+     */
+    private function regionsInUse(array $regionIds, array $unknownStructureIds = []): PublicContractRegions
+    {
+        $regions = $this->createStub(PublicContractRegions::class);
+        $regions->method('resolve')->willReturn(['regionIds' => $regionIds, 'unknownStructureIds' => $unknownStructureIds]);
+
+        return $regions;
+    }
+
+    /**
+     * @param list<array{int, list<ObservedContract>, list<int>}> $calls filled with [regionId, readableContracts, listedContractIds]
+     */
+    private function recorderCapturingInto(array &$calls, int &$purges = 0): PublicContractHistoryRecorder
+    {
+        $recorder = $this->createMock(PublicContractHistoryRecorder::class);
+        $recorder->method('record')->willReturnCallback(
+            function (int $regionId, array $readableContracts, array $listedContractIds, \DateTimeImmutable $now) use (&$calls): void {
+                $calls[] = [$regionId, $readableContracts, $listedContractIds];
+            },
+        );
+        $recorder->method('purgeExpiredHistory')->willReturnCallback(function () use (&$purges): int {
+            ++$purges;
+
+            return 0;
+        });
+
+        return $recorder;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function makeIssuedContract(int $contractId, int $issuerId, float $price): array
+    {
+        return [...$this->makeContract($contractId, 'item_exchange', $price), 'issuer_id' => $issuerId];
+    }
+
+    /**
+     * @param list<array{int, list<ObservedContract>, list<int>}> $calls
+     * @return array<int, array{list<int>, list<int>}> regionId => [readable contract ids, listed contract ids]
+     */
+    private function recordedContractIdsByRegion(array $calls): array
+    {
+        $byRegion = [];
+        foreach ($calls as [$regionId, $readableContracts, $listedContractIds]) {
+            $byRegion[$regionId] = [array_map(static fn (ObservedContract $contract): int => $contract->contractId, $readableContracts), $listedContractIds];
+        }
+
+        return $byRegion;
     }
 
     /**

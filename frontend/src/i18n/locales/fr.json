@@ -740,6 +740,8 @@
         "profitableItems": "items rentables",
         "infoIskDay": "Est. ISK/jour = Profit par unite x Volume quotidien. C'est un maximum theorique en supposant que vous capturez 100% du volume du marche.",
         "infoPrices": "Les couts materiaux utilisent les prix ponderes Jita. Les couts d'installation de job utilisent les indices de cout ESI pour votre systeme selectionne. Les items T2 supposent un decrypteur Attainment. Cliquez sur une ligne pour ouvrir l'Analyseur de Profit detaille.",
+        "contractMonthlySales": "{count} / mois",
+        "contractSalesNotice": "Les ventes par contrat sont estimees : un contrat public qui disparait avant son expiration sans etre republie par le meme emetteur est compte comme une vente probable, dont une annulation ne se distingue pas. Le volume quotidien est le rythme de vente des 30 derniers jours.",
         "noResults": "Aucun resultat. Essayez d'ajuster les filtres ou lancez un scan.",
         "manufacturing": "Fabrication",
         "reaction": "Reaction",

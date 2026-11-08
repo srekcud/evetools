@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry;
 
 use App\Service\Industry\BatchProfitScannerService;
+use App\Service\Industry\ContractSales\ContractSalesReader;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
@@ -109,6 +110,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
             new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
+            $this->createStub(ContractSalesReader::class),
         );
     }
 
@@ -643,6 +645,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
             new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
+            $this->createStub(ContractSalesReader::class),
         );
 
         $this->connection->method('fetchAllAssociative')->willReturnCallback(
@@ -764,6 +767,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
             new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
+            $this->createStub(ContractSalesReader::class),
         );
         $this->connection->method('fetchAllAssociative')->willReturnCallback(
             fn (string $sql): array => str_contains($sql, 'group_id')
@@ -801,6 +805,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
             new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
+            $this->createStub(ContractSalesReader::class),
         );
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
@@ -858,6 +863,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
             new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
+            $this->createStub(ContractSalesReader::class),
         );
 
         $this->connection->method('fetchFirstColumn')->willReturn([]);
@@ -1414,6 +1420,7 @@ class BatchProfitScannerServiceTest extends TestCase
             $this->characterSkillRepository,
             new JobInstallCostEstimator(),
             new FacilityTaxResolver(new InMemoryUserProductionStructures(), InMemorySystemCostIndices::none()),
+            $this->createStub(ContractSalesReader::class),
         );
 
         $this->productRepository->method('findAllManufacturableProducts')->willReturn([

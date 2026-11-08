@@ -65,10 +65,13 @@ const CATEGORY_LABEL_MAP: Record<string, string> = Object.fromEntries(
   CATEGORY_OPTIONS.map(o => [o.value, o.label]),
 )
 
+const CONTRACTS_VENUE = 'contracts'
+const DAYS_PER_MONTH = 30
+
 const SELL_VENUE_OPTIONS = [
   { value: 'jita', label: 'Jita' },
   { value: 'structure', label: 'Structure' },
-  { value: 'contracts', label: 'Public Contracts' },
+  { value: CONTRACTS_VENUE, label: 'Public Contracts' },
 ]
 
 function sortValue(item: BatchScanItem): BatchScanItem[SortKey] {
@@ -410,8 +413,8 @@ onBeforeUnmount(() => {
           </select>
         </div>
 
-        <!-- Structure (shown when venue = structure) -->
-        <div v-if="sellVenueFilter === 'structure'" class="w-64">
+        <!-- Structure (shown when venue = structure or contracts) -->
+        <div v-if="sellVenueFilter === 'structure' || sellVenueFilter === CONTRACTS_VENUE" class="w-64">
           <label :for="`${uid}-structure`" class="block text-xs text-slate-500 uppercase tracking-wider mb-1.5">{{ t('industry.scanner.batch.structure') }}</label>
           <select
             v-model="structureIdFilter"
@@ -752,7 +755,7 @@ onBeforeUnmount(() => {
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
                 <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
-                  {{ formatNumber(item.dailyVolume, 0) }}
+                  {{ sellVenueFilter === CONTRACTS_VENUE ? t('industry.scanner.batch.contractMonthlySales', { count: formatNumber(Math.round(item.dailyVolume * DAYS_PER_MONTH), 0) }) : formatNumber(item.dailyVolume, 0) }}
                 </td>
                 <td v-if="item.iskPerDay == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
@@ -854,6 +857,7 @@ onBeforeUnmount(() => {
         <div class="text-body text-cyan-300/70 space-y-1">
           <p><strong class="text-cyan-300/90">{{ t('industry.scanner.batch.estIskDay') }}</strong> {{ t('industry.scanner.batch.infoIskDay') }}</p>
           <p>{{ t('industry.scanner.batch.infoPrices') }}</p>
+          <p v-if="sellVenueFilter === CONTRACTS_VENUE">{{ t('industry.scanner.batch.contractSalesNotice') }}</p>
         </div>
       </div>
 

@@ -17,6 +17,9 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\BatchProfitScannerService;
+use App\Service\Industry\ContractSales\ContractSalesConfidence;
+use App\Service\Industry\ContractSales\ContractSalesIndicators;
+use App\Service\Industry\ContractSales\ContractSalesReader;
 use App\Service\Industry\EsiCostIndexService;
 use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
@@ -93,6 +96,8 @@ class BatchProfitScanRulesTest extends TestCase
     private array $cachedStructures = [];
     private array $solarSystems = [];
     private array $structuresByUserId = [];
+    private array $contractIndicatorsByRegion = [];
+    private array $contractRegionsRead = [];
 
     public function testProfitableT1ModuleReportsEveryFigureRoundedToTheCent(): void
     {
@@ -801,6 +806,101 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertSame([null, 30.0, 'missing_sale_price'], [$row['sellPrice'], $row['dailyVolume'], $row['unknownReason']]);
     }
 
+    public function testContractVenueSellsAtTheMedianSoldContractPriceOfTheCapitalRegionWithNoExportCost(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID, exportCostPerM3: 300.0)[0];
+
+        $this->assertSame([1500.0, 2.0, 0.0], [$row['sellPrice'], $row['dailyVolume'], $row['exportCost']]);
+        $this->assertSame([self::DOMAIN_REGION_ID], $this->contractRegionsRead);
+    }
+
+    public function testContractVenueChargesNeitherBrokerFeeNorSalesTaxAndCapsIskPerDayAtTheContractSalesRate(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID, salesFees: new SalesFees(0.03, 0.05))[0];
+
+        $this->assertSame([1455.0, 2910.0], [$row['profitPerUnit'], $row['iskPerDay']]);
+    }
+
+    public function testContractVenueHasNoSalePriceForATypeWithoutAnySoldContract(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: null, soldQuantity: 0);
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID)[0];
+
+        $this->assertSame([null, 0.0, 'missing_sale_price'], [$row['sellPrice'], $row['dailyVolume'], $row['unknownReason']]);
+    }
+
+    public function testContractVenueHasNoSalePriceForATypeAbsentFromTheHistory(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+        $this->contractIndicatorsByRegion[self::DOMAIN_REGION_ID] = [];
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID)[0];
+
+        $this->assertSame([null, null, 'missing_sale_price'], [$row['sellPrice'], $row['dailyVolume'], $row['unknownReason']]);
+    }
+
+    public function testContractVenueHasNoSalePriceWhenTheRegionOfTheStructureIsUnknown(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+        $this->cachedStructures = [];
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID)[0];
+
+        $this->assertSame([null, null, 'missing_sale_price'], [$row['sellPrice'], $row['dailyVolume'], $row['unknownReason']]);
+        $this->assertSame([], $this->contractRegionsRead);
+    }
+
+    public function testContractVenueWithoutStructureHasNoSalePrice(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+
+        $row = $this->scan(sellVenue: 'contracts')[0];
+
+        $this->assertSame([null, 'missing_sale_price'], [$row['sellPrice'], $row['unknownReason']]);
+    }
+
+    public function testMinimumDailyVolumeFiltersOnTheContractSalesRate(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+
+        $kept = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID, minDailyVolume: 2.0);
+        $dropped = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID, minDailyVolume: 2.5);
+
+        $this->assertCount(1, $kept);
+        $this->assertSame([], $dropped);
+    }
+
+    public function testStructureVenueIsUnchangedByTheContractHistory(): void
+    {
+        $this->givenStructureMarketScenario();
+        $this->givenCachedStructureIn(self::AMARR_SYSTEM_ID);
+        $this->givenSolarSystemInRegion(self::AMARR_SYSTEM_ID, self::DOMAIN_REGION_ID);
+        $this->contractIndicatorsByRegion[self::DOMAIN_REGION_ID] = [801 => $this->contractIndicators(801, 1500.0, 60)];
+
+        $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID)[0];
+
+        $this->assertSame([1200.0, 8.0], [$row['sellPrice'], $row['dailyVolume']]);
+        $this->assertSame([], $this->contractRegionsRead);
+    }
+
+    private function givenContractMarketScenario(?float $medianSoldUnitPrice, int $soldQuantity): void
+    {
+        $this->givenStructureMarketScenario();
+        $this->givenCachedStructureIn(self::AMARR_SYSTEM_ID);
+        $this->givenSolarSystemInRegion(self::AMARR_SYSTEM_ID, self::DOMAIN_REGION_ID);
+        $this->contractIndicatorsByRegion[self::DOMAIN_REGION_ID] = [801 => $this->contractIndicators(801, $medianSoldUnitPrice, $soldQuantity)];
+    }
+
+    private function contractIndicators(int $typeId, ?float $medianSoldUnitPrice, int $soldQuantity): ContractSalesIndicators
+    {
+        return new ContractSalesIndicators($typeId, $soldQuantity, $soldQuantity, 0.5, $medianSoldUnitPrice, 3.0, ContractSalesConfidence::Medium);
+    }
+
     public function testSkillCheckUsesTheBestCharacterOfTheUser(): void
     {
         $this->givenModuleSoldAt(701, 500.0, 2.0);
@@ -1121,7 +1221,22 @@ class BatchProfitScanRulesTest extends TestCase
             $characterSkillRepository,
             new JobInstallCostEstimator(),
             new FacilityTaxResolver(new InMemoryUserProductionStructures($this->structuresByUserId), InMemorySystemCostIndices::none()),
+            $this->contractSalesReader(),
         );
+    }
+
+    private function contractSalesReader(): ContractSalesReader
+    {
+        $reader = $this->createStub(ContractSalesReader::class);
+        $reader->method('indicatorsFor')->willReturnCallback(
+            function (int $regionId): array {
+                $this->contractRegionsRead[] = $regionId;
+
+                return $this->contractIndicatorsByRegion[$regionId] ?? [];
+            },
+        );
+
+        return $reader;
     }
 
     private function onlyRequested(array $valuesByTypeId, array $typeIds): array
