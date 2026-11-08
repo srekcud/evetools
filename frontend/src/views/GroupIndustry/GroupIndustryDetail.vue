@@ -32,6 +32,7 @@ import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
+import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklistEditor.vue'
 import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
@@ -290,6 +291,11 @@ function handleLeaveProject(): void {
   router.push({ name: 'group-industry' })
 }
 
+function onBlacklistSaved(): void {
+  projectStore.fetchBom(projectId.value)
+  loadCockpit(projectId.value)
+}
+
 function onContributionSubmitted(): void {
   showContributeModal.value = false
   projectStore.fetchBom(projectId.value)
@@ -471,6 +477,15 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           </template>
           &middot; <span class="text-slate-400">Components &amp; BPCs in Jobs below</span>
         </p>
+
+        <ProjectBlacklistEditor
+          :project-id="projectId"
+          :status="project.status"
+          :can-edit="isOwnerOrAdmin"
+          :blacklist-group-ids="project.blacklistGroupIds"
+          :blacklist-type-ids="project.blacklistTypeIds"
+          @saved="onBlacklistSaved"
+        />
 
         <!-- Container Banner -->
         <ContainerBanner

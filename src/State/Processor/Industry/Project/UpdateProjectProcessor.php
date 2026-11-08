@@ -9,10 +9,13 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\ApiResource\Input\Industry\Project\ProjectFees;
 use App\ApiResource\Input\Industry\Project\UpdateProjectInput;
+use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\IndustryBlacklistService;
+use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -43,6 +46,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly ProjectResourceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly IndustryProjectService $projectService,
     ) {
     }
 
@@ -79,6 +83,8 @@ class UpdateProjectProcessor implements ProcessorInterface
                 ProjectFees::rejectEffectiveFeesAboveMaximum($effectiveBrokerFeePercent, $effectiveSalesTaxPercent);
             }
         }
+
+        $this->changeTheBlacklist($project, $data);
 
         if ($data->name !== null) {
             $name = trim($data->name);
@@ -143,5 +149,33 @@ class UpdateProjectProcessor implements ProcessorInterface
         ]);
 
         return $this->mapper->projectToResource($project, $membership);
+    }
+
+    private function changeTheBlacklist(IndustryProject $project, UpdateProjectInput $data): void
+    {
+        $groupsAreSent = $data->blacklistGroupIds !== null || $data->blacklistCategoryKeys !== null;
+        $typesAreSent = $data->blacklistTypeIds !== null;
+
+        if (!$groupsAreSent && !$typesAreSent) {
+            return;
+        }
+
+        if ($project->getStatus() !== ProjectStatus::Draft) {
+            throw new BadRequestHttpException('The blacklist of a project can only be changed while it is a draft');
+        }
+
+        if ($groupsAreSent) {
+            $project->setBlacklistGroupIds(IndustryBlacklistService::resolveGroupIds($data->blacklistGroupIds ?? [], $data->blacklistCategoryKeys ?? []));
+        }
+
+        if ($data->blacklistTypeIds !== null) {
+            $project->setBlacklistTypeIds($data->blacklistTypeIds);
+        }
+
+        try {
+            $this->projectService->buildBom($project, $project->getOwner());
+        } catch (\RuntimeException $e) {
+            throw new BadRequestHttpException($e->getMessage());
+        }
     }
 }

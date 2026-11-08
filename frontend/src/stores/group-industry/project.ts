@@ -12,6 +12,7 @@ import type {
   PurchaseSuggestions,
   CreatePurchaseInput,
   ProjectCockpit,
+  UpdateGroupProjectInput,
 } from './types'
 
 export const useGroupProjectStore = defineStore('group-project', () => {
@@ -115,7 +116,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     }
   }
 
-  async function updateProject(id: string, data: Partial<GroupProject>): Promise<GroupProject | null> {
+  async function updateProject(id: string, data: UpdateGroupProjectInput): Promise<GroupProject | null> {
     error.value = null
     try {
       const updated = await apiRequest<GroupProject>(`/industry/projects/${id}`, {

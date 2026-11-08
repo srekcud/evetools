@@ -72,6 +72,23 @@ class IndustryBlacklistService
     }
 
     /**
+     * @param int[] $groupIds
+     * @param string[] $categoryKeys
+     * @return list<int>
+     */
+    public static function resolveGroupIds(array $groupIds, array $categoryKeys): array
+    {
+        $resolvedGroupIds = $groupIds;
+        foreach (self::BLACKLIST_CATEGORIES as $category) {
+            if (in_array($category['key'], $categoryKeys, true)) {
+                $resolvedGroupIds = array_merge($resolvedGroupIds, $category['groupIds']);
+            }
+        }
+
+        return array_values(array_unique($resolvedGroupIds));
+    }
+
+    /**
      * Resolve the user's blacklist (groups + individual types) into a flat array of type IDs.
      */
     /** @return list<int> */

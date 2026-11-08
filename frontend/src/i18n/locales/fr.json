@@ -2257,6 +2257,15 @@
       },
       "hint": "Total = matériaux (structure et rigs) + installation (indice de coût, bonus de rôle, taxe) + transport (m³ des matériaux et des produits × sauts × le barème). Écart = total moins la structure retenue."
     },
+    "blacklistEditor": {
+      "edit": "Modifier la blacklist",
+      "title": "Blacklist de production",
+      "description": "Les matériaux d'une catégorie en blacklist sont achetés au lieu d'être produits. Les matériaux et les jobs sont recalculés à l'enregistrement ; les lignes qui portent un apport sont conservées.",
+      "kept": "Conservés tels quels : {groups} autre(s) groupe(s), {types} objet(s) individuel(s).",
+      "save": "Enregistrer et recalculer",
+      "cancel": "Annuler",
+      "saveError": "La blacklist n'a pas pu être enregistrée"
+    },
     "surplus": {
       "title": "Surplus de matières",
       "loading": "Lecture du surplus...",
