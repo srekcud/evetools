@@ -271,7 +271,7 @@ describe('ProductionChain job tree', () => {
     expect(hammerheadI('structure').text()).toContain('Raitaru Alpha')
   })
 
-  it('always shows the input and output locations as unknown with their cause, never a location', async () => {
+  it('shows the input and output locations as unknown on each job without repeating their cause in the cell', async () => {
     const wrapper = await mountChain(PRODUCTION_CHAIN)
     await openTree(wrapper)
 
@@ -280,8 +280,57 @@ describe('ProductionChain job tree', () => {
     for (const ioCell of ioCells) {
       const unknown = ioCell.get('[data-testid="chain-io-unknown"]')
       expect(unknown.attributes('title')).toBe(messageOf('en', 'common.unknownValue'))
-      expect(ioCell.text()).toContain(label('en', 'ioUnknownCause'))
+      expect(ioCell.text()).toBe(unknown.text())
     }
+  })
+
+  it('shows the cause of the unknown input and output locations once in the job tree and not in the flow view', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await openTree(wrapper)
+
+    const causes = wrapper.findAll('[data-testid="chain-io-unknown-cause"]')
+    await wrapper.get('[data-testid="chain-view-flow"]').trigger('click')
+
+    expect(causes).toHaveLength(1)
+    expect(causes[0]?.text()).toContain(label('en', 'ioUnknownCause'))
+    expect(wrapper.find('[data-testid="chain-io-unknown-cause"]').exists()).toBe(false)
+  })
+
+  it.each<TestLocale>(['en', 'fr'])('never names an issue number in the %s cause of the unknown input and output locations', locale => {
+    expect(label(locale, 'ioUnknownCause')).not.toContain('#319')
+  })
+
+  it('keeps the structure names in a fixed-width wrapper, each name truncated on one line with its full name as title', async () => {
+    const longStructureName = '1DQ1-A - 1-st Thetastar of Dickbutt Engineering Complex'
+    const plannedStructureName = '4-HWWF - Warpgate Assembly Sotiyo of the Northern Fleet Reserve'
+    const jobWith = (id: string, overrides: Partial<ChainNode>): ChainNode => chainNode({
+      id,
+      stage: 'component',
+      typeName: id,
+      activity: 'manufacturing',
+      runs: 10,
+      status: 'todo',
+      ...overrides,
+    })
+    const wrapper = await mountChain([
+      jobWith('job-launched', { structures: [longStructureName] }),
+      jobWith('job-planned', { plannedStructure: { name: plannedStructureName, status: 'best_outside_favorite_system' } }),
+    ])
+    await openTree(wrapper)
+
+    const launched = cell(wrapper, 'job-launched', 'structure')
+    const planned = cell(wrapper, 'job-planned', 'structure')
+    const launchedName = launched.get(`[title="${longStructureName}"]`)
+    const plannedName = planned.get(`[title="${plannedStructureName}"]`)
+
+    expect(launched.get('div').classes()).toContain('w-48')
+    expect(launched.get('div').element.contains(launchedName.element)).toBe(true)
+    expect(launchedName.classes()).toContain('truncate')
+    expect(launchedName.text()).toBe(longStructureName)
+    expect(planned.get('div').classes()).toContain('w-48')
+    expect(plannedName.classes()).toContain('truncate')
+    expect(plannedName.text()).toBe(plannedStructureName)
+    expect(planned.get('[data-testid="chain-structure-warning"]').classes()).toContain('whitespace-normal')
   })
 
   it('lists only the jobs, ordered by level from the lowest, with the blueprint of a type just before it and no material nor sale row', async () => {

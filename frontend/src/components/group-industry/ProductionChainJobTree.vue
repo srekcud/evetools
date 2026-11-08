@@ -228,29 +228,30 @@ function plansStructure(node: ChainNode): boolean {
           <td class="py-2 px-3">
             <template v-if="item.node.activity !== null">
               <UnknownContributionValue data-testid="chain-io-unknown" />
-              <span class="block mt-1 text-xs text-violet-300 whitespace-normal max-w-48">{{ t('groupIndustry.chain.ioUnknownCause') }}</span>
             </template>
           </td>
 
           <td class="py-2 px-3 text-slate-300">
-            <span v-for="structure in item.node.structures" :key="structure" class="block truncate max-w-48" :title="structure">{{ structure }}</span>
-            <template v-if="item.node.plannedStructure !== null">
-              <span data-testid="chain-planned-structure" class="block text-xs text-slate-400">
-                <span class="text-cyan-400" aria-hidden="true">★</span>
-                {{ t('groupIndustry.chain.structure.planned') }}
-                <span v-if="item.node.plannedStructure.name !== null" class="block truncate max-w-48 text-slate-300" :title="item.node.plannedStructure.name">{{ item.node.plannedStructure.name }}</span>
-                <span v-else class="block text-violet-300">{{ t('groupIndustry.chain.structure.deleted') }}</span>
-              </span>
-              <span
-                v-if="item.node.plannedStructure.status === PLANNED_OUTSIDE_FAVORITE_SYSTEM"
-                data-testid="chain-structure-warning"
-                class="block mt-0.5 text-xs text-amber-400"
-              >{{ t('groupIndustry.chain.structure.outsideFavoriteSystem') }}</span>
-            </template>
-            <template v-else-if="item.node.structures.length === 0 && plansStructure(item.node)">
-              <UnknownContributionValue />
-              <span class="block mt-1 text-xs text-violet-300 whitespace-normal max-w-48">{{ t('groupIndustry.chain.structure.unknown') }}</span>
-            </template>
+            <div class="w-48">
+              <span v-for="structure in item.node.structures" :key="structure" class="block truncate" :title="structure">{{ structure }}</span>
+              <template v-if="item.node.plannedStructure !== null">
+                <span data-testid="chain-planned-structure" class="block text-xs text-slate-400">
+                  <span class="text-cyan-400" aria-hidden="true">★</span>
+                  {{ t('groupIndustry.chain.structure.planned') }}
+                  <span v-if="item.node.plannedStructure.name !== null" class="block truncate text-slate-300" :title="item.node.plannedStructure.name">{{ item.node.plannedStructure.name }}</span>
+                  <span v-else class="block text-violet-300">{{ t('groupIndustry.chain.structure.deleted') }}</span>
+                </span>
+                <span
+                  v-if="item.node.plannedStructure.status === PLANNED_OUTSIDE_FAVORITE_SYSTEM"
+                  data-testid="chain-structure-warning"
+                  class="block mt-0.5 text-xs text-amber-400 whitespace-normal"
+                >{{ t('groupIndustry.chain.structure.outsideFavoriteSystem') }}</span>
+              </template>
+              <template v-else-if="item.node.structures.length === 0 && plansStructure(item.node)">
+                <UnknownContributionValue />
+                <span class="block mt-1 text-xs text-violet-300 whitespace-normal">{{ t('groupIndustry.chain.structure.unknown') }}</span>
+              </template>
+            </div>
           </td>
                   </tr>
         </template>

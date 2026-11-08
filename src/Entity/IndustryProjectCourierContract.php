@@ -33,6 +33,9 @@ class IndustryProjectCourierContract
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $linkedAt;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $failureNotifiedAt = null;
+
     public function __construct()
     {
         $this->linkedAt = new \DateTimeImmutable();
@@ -87,6 +90,28 @@ class IndustryProjectCourierContract
     public function setLinkedAt(\DateTimeImmutable $linkedAt): static
     {
         $this->linkedAt = $linkedAt;
+
+        return $this;
+    }
+
+    public function getFailureNotifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->failureNotifiedAt;
+    }
+
+    public function markFailureNotified(\DateTimeImmutable $notifiedAt): static
+    {
+        $this->failureNotifiedAt = $notifiedAt;
+
+        return $this;
+    }
+
+    public function link(int $contractId, int $characterId, \DateTimeImmutable $linkedAt): static
+    {
+        $this->contractId = $contractId;
+        $this->characterId = $characterId;
+        $this->linkedAt = $linkedAt;
+        $this->failureNotifiedAt = null;
 
         return $this;
     }

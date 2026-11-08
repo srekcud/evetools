@@ -33,6 +33,7 @@ class SyncTracker
         'moon-tax' => 3600,
         'blueprints' => 3600,
         'market-volumes' => 86400,
+        'courier-contracts' => 1800,
     ];
 
     /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */
@@ -62,6 +63,7 @@ class SyncTracker
         'moon-tax' => 'Moon Tax',
         'blueprints' => 'Blueprints',
         'market-volumes' => 'Market Volumes',
+        'courier-contracts' => 'Courier Contracts',
     ];
 
     public function __construct(
