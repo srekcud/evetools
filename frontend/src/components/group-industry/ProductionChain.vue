@@ -98,6 +98,9 @@ watch(
         :nodes="chainStore.nodes"
         :selected-id="selectedNodeId"
       />
+      <p v-if="view !== 'flow'" data-testid="chain-io-unknown-cause" class="px-4 pt-3 text-xs text-violet-300">
+        {{ t('groupIndustry.chain.ioUnknownCause') }}
+      </p>
 
       <footer class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 border-t border-slate-800 text-xs text-slate-400">
         <span class="uppercase tracking-wider text-slate-500">{{ t('groupIndustry.chain.legendTitle') }}</span>
