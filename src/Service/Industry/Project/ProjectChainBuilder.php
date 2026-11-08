@@ -269,6 +269,7 @@ final readonly class ProjectChainBuilder
             match ($stage) {
                 self::STAGE_COMPONENT, self::STAGE_PRODUCT => $levelByTypeId[$line->getTypeId()] ?? throw new \UnexpectedValueException(\sprintf('Job line %s has no manufacturing level.', self::lineId($line))),
                 self::STAGE_MATERIAL => $supply->firstConsumerLevel($line->getTypeId()),
+                self::STAGE_BLUEPRINT => $levelByTypeId[$line->getTypeId()] ?? null,
                 default => null,
             },
         );

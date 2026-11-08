@@ -11,6 +11,7 @@ import { messageOf, type TestLocale } from '../../localeTexts'
 import {
   chainNode,
   HAMMERHEAD_I,
+  HAMMERHEAD_I_COPY,
   HAMMERHEAD_I_COPY_ID,
   HAMMERHEAD_I_ID,
   HAMMERHEAD_II_ID,
@@ -98,10 +99,18 @@ function nodeIdsOf(column: FoundElement): string[] {
   return column.findAll('[data-testid^="chain-node-"]').map(node => testIdOf(node, 'chain-node-'))
 }
 
+const scrollIntoView = vi.fn()
+
+function scrolledRowIds(): (string | undefined)[] {
+  return scrollIntoView.mock.contexts.map(scrolled => (scrolled as Element).getAttribute('data-testid') ?? undefined)
+}
+
 enableAutoUnmount(afterEach)
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
+  scrollIntoView.mockReset()
+  Element.prototype.scrollIntoView = scrollIntoView
 })
 
 describe('ProductionChain tree with the null fields omitted by the API', () => {
@@ -115,16 +124,13 @@ describe('ProductionChain tree with the null fields omitted by the API', () => {
     return sent as ChainNode
   }
 
-  it('shows a material row without any structure or activity text', async () => {
-    const wrapper = await mountChain([withoutNullFields(TRITANIUM), withoutNullFields(SALE)])
+  it('lists a job whose nullable fields are omitted without any undefined text and leaves the omitted-null material out of the job list', async () => {
+    const wrapper = await mountChain([withoutNullFields(TRITANIUM), withoutNullFields(HAMMERHEAD_I_COPY), withoutNullFields(SALE)])
 
     await openTree(wrapper)
 
-    const material = row(wrapper, TRITANIUM_ID)
-    expect(material.text()).toContain('Tritanium')
-    expect(material.text()).not.toContain('undefined')
-    expect(material.find('[data-testid="chain-planned-structure"]').exists()).toBe(false)
-    expect(material.find('[data-testid="chain-io-unknown"]').exists()).toBe(false)
+    expect(shownRowIds(wrapper)).toEqual([HAMMERHEAD_I_COPY_ID])
+    expect(row(wrapper, HAMMERHEAD_I_COPY_ID).text()).not.toContain('undefined')
   })
 
   it('shows no NaN progress on the sale node of the overview', async () => {
@@ -169,6 +175,18 @@ describe('ProductionChain overview', () => {
     expect(wrapper.findAll('[data-testid^="chain-row-"][aria-selected="true"]').map(selected => selected.attributes('data-testid'))).toEqual([
       `chain-row-${HAMMERHEAD_I_ID}`,
     ])
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrolledRowIds()).toEqual([`chain-row-${HAMMERHEAD_I_ID}`])
+  })
+
+  it('selects and scrolls to nothing when the clicked node of the overview is a material, which the job list does not show', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+
+    await wrapper.get(`[data-testid="chain-node-${TRITANIUM_ID}"]`).trigger('click')
+
+    expect(wrapper.find('[data-testid="chain-tree"]').exists()).toBe(true)
+    expect(wrapper.findAll('[aria-selected="true"]')).toEqual([])
+    expect(scrollIntoView).not.toHaveBeenCalled()
   })
 })
 
@@ -198,11 +216,11 @@ describe('ProductionChain scroll to the opened node', () => {
     await wrapper.get('[data-testid="chain-view-flow"]').trigger('click')
     scrollIntoView.mockClear()
 
-    await wrapper.get(`[data-testid="chain-node-${TRITANIUM_ID}"]`).trigger('click')
+    await wrapper.get(`[data-testid="chain-node-${HAMMERHEAD_II_ID}"]`).trigger('click')
     await flushPromises()
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1)
-    expect(scrollIntoView.mock.contexts[0]).toBe(row(wrapper, TRITANIUM_ID).element)
+    expect(scrollIntoView.mock.contexts[0]).toBe(row(wrapper, HAMMERHEAD_II_ID).element)
   })
 
   it('scrolls again when the same node is clicked a second time from the overview', async () => {
@@ -315,27 +333,82 @@ describe('ProductionChain job tree', () => {
     expect(planned.get('[data-testid="chain-structure-warning"]').classes()).toContain('whitespace-normal')
   })
 
-  it('folds and unfolds the rows under a node', async () => {
+  it('lists only the jobs, ordered by level from the lowest, with the blueprint of a type just before it and no material nor sale row', async () => {
     const wrapper = await mountChain(PRODUCTION_CHAIN)
     await openTree(wrapper)
-    const everyRow = [
-      HAMMERHEAD_II_INVENTION_ID,
+
+    expect(shownRowIds(wrapper)).toEqual([
       HAMMERHEAD_I_COPY_ID,
-      TRITANIUM_ID,
-      PARTICLE_ACCELERATOR_UNIT_ID,
       HAMMERHEAD_I_ID,
+      HAMMERHEAD_II_INVENTION_ID,
       HAMMERHEAD_II_ID,
-    ]
+    ])
+  })
 
-    const unfolded = shownRowIds(wrapper)
-    await wrapper.get(`[data-testid="chain-toggle-${HAMMERHEAD_II_ID}"]`).trigger('click')
-    const folded = shownRowIds(wrapper)
-    await wrapper.get(`[data-testid="chain-toggle-${HAMMERHEAD_II_ID}"]`).trigger('click')
-    const unfoldedAgain = shownRowIds(wrapper)
+  it('puts a header before each level with its number and its job count, in the order of the levels', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await openTree(wrapper)
 
-    expect([...unfolded].sort()).toEqual([...everyRow].sort())
-    expect([...folded].sort()).toEqual([TRITANIUM_ID, PARTICLE_ACCELERATOR_UNIT_ID, HAMMERHEAD_II_ID].sort())
-    expect([...unfoldedAgain].sort()).toEqual([...everyRow].sort())
+    const headers = wrapper.findAll('[data-testid^="chain-level-"]')
+    const order = wrapper.findAll('[data-testid^="chain-level-"], [data-testid^="chain-row-"]').map(shown => shown.attributes('data-testid'))
+
+    expect(headers.map(header => header.attributes('data-testid'))).toEqual(['chain-level-1', 'chain-level-2'])
+    expect(headers[0]?.text()).toContain(label('en', 'level.title').replace('{level}', '1'))
+    expect(headers[0]?.text()).toContain('2')
+    expect(headers[1]?.text()).toContain(label('en', 'level.title').replace('{level}', '2'))
+    expect(order).toEqual([
+      'chain-level-1',
+      `chain-row-${HAMMERHEAD_I_COPY_ID}`,
+      `chain-row-${HAMMERHEAD_I_ID}`,
+      'chain-level-2',
+      `chain-row-${HAMMERHEAD_II_INVENTION_ID}`,
+      `chain-row-${HAMMERHEAD_II_ID}`,
+    ])
+  })
+
+  it('shows a type once, at the level the API gives it, whatever the order of the nodes and the number of branches that use it', async () => {
+    const job = (id: string, level: number | null, parentId: string | null): ChainNode => chainNode({
+      id,
+      stage: 'component',
+      typeName: id,
+      activity: 'manufacturing',
+      runs: 1,
+      level,
+      parentId,
+    })
+    const wrapper = await mountChain([
+      job('product', 3, null),
+      job('branch', 2, 'product'),
+      job('shared', 1, 'branch'),
+      job('other-shared', 1, 'product'),
+    ])
+    await openTree(wrapper)
+
+    expect(shownRowIds(wrapper)).toEqual(['other-shared', 'shared', 'branch', 'product'])
+  })
+
+  it('puts the jobs without a known level last, under their own header with the cause, never at a default level', async () => {
+    const wrapper = await mountChain([
+      chainNode({ ...HAMMERHEAD_I, id: 'node-unleveled', typeName: 'Unleveled job', level: null }),
+      HAMMERHEAD_I,
+    ])
+    await openTree(wrapper)
+
+    const order = wrapper.findAll('[data-testid^="chain-level-"], [data-testid^="chain-row-"]').map(shown => shown.attributes('data-testid'))
+
+    expect(order).toEqual(['chain-level-1', `chain-row-${HAMMERHEAD_I_ID}`, 'chain-level-unknown', 'chain-row-node-unleveled'])
+    expect(wrapper.get('[data-testid="chain-level-unknown"]').text()).toContain(label('en', 'level.unknown'))
+    expect(wrapper.get('[data-testid="chain-level-unknown"]').text()).toContain(label('en', 'level.unknownCause'))
+  })
+
+  it('draws a flat list: no fold button and no indentation on any row', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await openTree(wrapper)
+
+    expect(wrapper.findAll('[data-testid^="chain-toggle-"]')).toEqual([])
+    for (const rowId of shownRowIds(wrapper)) {
+      expect(cell(wrapper, rowId, 'element').html()).not.toContain('padding-left')
+    }
   })
 
   it('renders each status with its own label, an unknown job status never as to do', async () => {
@@ -358,8 +431,8 @@ describe('ProductionChain job tree', () => {
   it('shows a known real cost, a dash when nothing is paid and an unknown cost with its cause and its suppliers, never 0', async () => {
     const wrapper = await mountChain([
       HAMMERHEAD_I,
-      TRITANIUM,
-      PARTICLE_ACCELERATOR_UNIT,
+      chainNode({ ...TRITANIUM, stage: 'component', activity: 'manufacturing', runs: 1, level: 1 }),
+      chainNode({ ...PARTICLE_ACCELERATOR_UNIT, stage: 'component', activity: 'manufacturing', runs: 1, level: 1 }),
     ])
     await openTree(wrapper)
 

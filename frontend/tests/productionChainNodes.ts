@@ -38,6 +38,7 @@ export const SALE_ID = 'sale'
 export const HAMMERHEAD_II = chainNode({
   id: HAMMERHEAD_II_ID,
   stage: 'product',
+  level: 2,
   typeId: 2_205,
   typeName: 'Hammerhead II',
   activity: 'manufacturing',
@@ -51,6 +52,7 @@ export const HAMMERHEAD_II = chainNode({
 export const HAMMERHEAD_I = chainNode({
   id: HAMMERHEAD_I_ID,
   stage: 'component',
+  level: 1,
   parentId: HAMMERHEAD_II_ID,
   typeId: 2_183,
   typeName: 'Hammerhead I',
@@ -74,6 +76,7 @@ export const HAMMERHEAD_I = chainNode({
 export const HAMMERHEAD_I_COPY = chainNode({
   id: HAMMERHEAD_I_COPY_ID,
   stage: 'blueprint',
+  level: 1,
   parentId: HAMMERHEAD_I_ID,
   typeId: 2_184,
   typeName: 'Hammerhead I Blueprint',
@@ -86,6 +89,7 @@ export const HAMMERHEAD_I_COPY = chainNode({
 export const HAMMERHEAD_II_INVENTION = chainNode({
   id: HAMMERHEAD_II_INVENTION_ID,
   stage: 'blueprint',
+  level: 2,
   parentId: HAMMERHEAD_II_ID,
   typeId: 2_206,
   typeName: 'Hammerhead II Blueprint',

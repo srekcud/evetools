@@ -2258,6 +2258,12 @@
       "title": "Chaîne de production",
       "loading": "Lecture de la chaîne de production...",
       "loadError": "La chaîne de production n'a pas pu être lue",
+      "level": {
+        "title": "Niveau {level}",
+        "count": "{count} job | {count} jobs",
+        "unknown": "Niveau inconnu",
+        "unknownCause": "le plan de production n'a pas pu être calculé"
+      },
       "views": {
         "flow": "Vue d'ensemble",
         "tree": "Arbre des jobs"

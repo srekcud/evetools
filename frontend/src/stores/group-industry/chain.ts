@@ -5,6 +5,7 @@ import type { ChainNode, ProjectChain } from './types'
 
 const NULLABLE_NODE_FIELDS = [
   'parentId',
+  'level',
   'typeId',
   'typeName',
   'activity',

@@ -513,7 +513,7 @@ final class ProjectChainBuilderTest extends TestCase
         self::assertSame('unknown', $this->node($chain, self::COMPONENT_LINE_ID)->status);
     }
 
-    public function testNodesCarryTheManufacturingLevelOfTheirJobAndTheLevelOfTheFirstConsumerOfTheirMaterial(): void
+    public function testNodesCarryTheManufacturingLevelOfTheirJobOrOfTheTypeOfTheirBlueprintAndTheLevelOfTheFirstConsumerOfTheirMaterial(): void
     {
         $chain = $this->chainWithNeeds($this->hammerheadLines(), [
             self::PRODUCT_LINE_ID => [self::PARTICLE_ACCELERATOR_UNIT => 4_000, self::TRITANIUM => 10],
@@ -521,7 +521,7 @@ final class ProjectChainBuilderTest extends TestCase
         ]);
 
         self::assertEquals(
-            [self::COMPONENT_LINE_ID => 1, self::PRODUCT_LINE_ID => 2, self::COPY_LINE_ID => null, self::INVENTION_LINE_ID => null, self::TRITANIUM_LINE_ID => 1, self::PARTICLE_ACCELERATOR_UNIT_LINE_ID => 2, self::SALE_NODE_ID => null],
+            [self::COMPONENT_LINE_ID => 1, self::PRODUCT_LINE_ID => 2, self::COPY_LINE_ID => 1, self::INVENTION_LINE_ID => 2, self::TRITANIUM_LINE_ID => 1, self::PARTICLE_ACCELERATOR_UNIT_LINE_ID => 2, self::SALE_NODE_ID => null],
             $this->levelsByNodeId($chain),
         );
     }
