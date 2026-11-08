@@ -21,6 +21,10 @@ export function eveInputToIso(inputValue: string): string {
   return `${inputValue}:00+00:00`
 }
 
+export function isoToEveInput(isoDateTime: string): string {
+  return `${formatEveDate(isoDateTime)}T${formatEveClock(isoDateTime)}`
+}
+
 export function nextFullHourAsEveInput(now: Date): string {
   const nextHour = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours() + 1))
   return `${nextHour.getUTCFullYear()}-${twoDigits(nextHour.getUTCMonth() + 1)}-${twoDigits(nextHour.getUTCDate())}T${twoDigits(nextHour.getUTCHours())}:00`
