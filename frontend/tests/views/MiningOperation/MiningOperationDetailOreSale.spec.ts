@@ -1,6 +1,6 @@
 import { enableAutoUnmount, flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { nextTick, reactive } from 'vue'
+import { reactive } from 'vue'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
