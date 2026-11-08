@@ -8,16 +8,12 @@ use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\Cost;
 use App\Industry\Domain\Intermediate;
 use App\Industry\Domain\Isk;
-use App\Industry\Domain\MissingData;
-use App\Industry\Domain\PartialPrice;
 use App\Industry\Domain\Plan;
 use App\Industry\Domain\Runs;
 
 final readonly class IntermediateBuyOrBuildComparator
 {
-    public const float IMPORT_ISK_PER_CUBIC_METER_JUMP = StructureTotalCostComparator::TRANSPORT_ISK_PER_CUBIC_METER_JUMP;
-
-    private const int JITA_SOLAR_SYSTEM_ID = 30_000_142;
+    public const float IMPORT_ISK_PER_CUBIC_METER_JUMP = JitaPurchase::IMPORT_ISK_PER_CUBIC_METER_JUMP;
 
     public function __construct(
         private IntermediateBuildCosts $buildCosts,
@@ -72,10 +68,10 @@ final readonly class IntermediateBuyOrBuildComparator
             $structures,
             $favoriteSystems,
         );
-        $jitaCost = self::jitaCostOf($typeId, $demand, $jitaPrice);
+        $jitaCost = JitaPurchase::priceCostOf($typeId, $demand, $jitaPrice);
         $volumePerUnit = $this->itemVolumes->volumeOf($typeId);
         $jumps = $this->jumpsToWorkshopOf($favoriteSystems->forActivity($activity));
-        $importCost = self::importCostOf($volumePerUnit, $demand, $jumps, $typeId);
+        $importCost = JitaPurchase::importCostOf($typeId, $demand, $volumePerUnit, $jumps);
         $buyCost = $jitaCost->plus($importCost);
         $choice = self::choiceOf($buildCost, $buyCost);
 
@@ -104,36 +100,7 @@ final readonly class IntermediateBuyOrBuildComparator
             return null;
         }
 
-        return $this->jumpDistances->jumpsBetween(self::JITA_SOLAR_SYSTEM_ID, $workshopSolarSystemId);
-    }
-
-    private static function jitaCostOf(int $typeId, int $demand, ?WeightedPrice $jitaPrice): Cost
-    {
-        if (null === $jitaPrice) {
-            return Cost::unknown(MissingData::marketPrice($typeId));
-        }
-
-        $cost = Cost::known(new Isk($demand * $jitaPrice->unitPrice->amount));
-
-        return $jitaPrice->coverage->isPartial()
-            ? $cost->withPartialPrice(new PartialPrice($typeId, $jitaPrice->coverage))
-            : $cost;
-    }
-
-    private static function importCostOf(?float $volumePerUnit, int $demand, ?int $jumps, int $typeId): Cost
-    {
-        $missingData = [];
-        if (null === $jumps) {
-            $missingData[] = MissingData::jumpRoute();
-        }
-        if (null === $volumePerUnit) {
-            $missingData[] = MissingData::itemVolume($typeId);
-        }
-        if ([] !== $missingData) {
-            return Cost::unknown(...$missingData);
-        }
-
-        return Cost::known(new Isk($volumePerUnit * $demand * $jumps * self::IMPORT_ISK_PER_CUBIC_METER_JUMP));
+        return $this->jumpDistances->jumpsBetween(JitaPurchase::JITA_SOLAR_SYSTEM_ID, $workshopSolarSystemId);
     }
 
     private static function choiceOf(Cost $buildCost, Cost $buyCost): BuyOrBuildChoice

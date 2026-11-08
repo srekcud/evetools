@@ -2348,6 +2348,35 @@
       "withoutImport": "sans l'import : acheter",
       "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet."
     },
+    "materialSourcing": {
+      "title": "Où acheter les matériaux",
+      "loading": "Comparaison de Jita et de la structure...",
+      "loadError": "L'approvisionnement des matériaux n'a pas pu être lu",
+      "empty": "Plus aucun matériau à sourcer.",
+      "importRate": "Import depuis Jita : {rate} ISK / m³ / saut",
+      "columns": {
+        "material": "Matériau",
+        "quantity": "Restant",
+        "jitaWithImport": "Jita + import",
+        "structure": "Structure",
+        "best": "Acheter à"
+      },
+      "side": {
+        "jita": "Jita",
+        "structure": "structure",
+        "unknown": "inconnu"
+      },
+      "saving": "économie {amount}",
+      "structureFallback": "pas de prix structure : acheté à Jita",
+      "noStructure": "Aucune structure de marché préférée : choisis-en une dans tes réglages pour la comparer à Jita.",
+      "structureNotSynced": "Le marché de ta structure préférée n'est pas synchronisé : ses prix sont inconnus, tout part à Jita.",
+      "totals": {
+        "jitaWithImport": "Jita + import",
+        "structure": "Structure",
+        "best": "Meilleur"
+      },
+      "hint": "Jita = prix de vente pondéré de la quantité restante plus l'import jusqu'à l'atelier (m³ × sauts × le tarif). Structure = prix de vente le plus bas de ta structure de marché préférée."
+    },
     "courier": {
       "title": "Contrat de courrier",
       "loading": "Lecture du devis de courrier...",
