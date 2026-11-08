@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\MiningOperation;
 
 use App\Entity\Sde\InvType;
+use App\Entity\User;
 use App\Service\JitaMarketService;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 
@@ -26,9 +29,8 @@ final class MiningOperationOreSaleApiTest extends WebTestCase
     public function testAParticipantGetsTheCompressedEquivalentOfHisMinedOreWithAnUnknownTotalWhenOneTypeHasNoPrice(): void
     {
         $this->closingE1();
-        $this->as($this->aria);
+        $this->asPricingOnlyCompressedVeldspar($this->aria);
         $this->compressedVariantsKeepOneUnitPerBatch();
-        $this->pricingOnlyCompressedVeldspar();
 
         $this->request('GET', $this->oreSaleUri());
         $sale = $this->responseJson();
@@ -90,12 +92,18 @@ final class MiningOperationOreSaleApiTest extends WebTestCase
         $this->em->flush();
     }
 
-    private function pricingOnlyCompressedVeldspar(): void
+    private function asPricingOnlyCompressedVeldspar(User $user): void
     {
+        self::ensureKernelShutdown();
+        $this->client = self::createClient();
+        $this->client->disableReboot();
         $jitaMarket = $this->createStub(JitaMarketService::class);
         $jitaMarket->method('getPricesWithFallback')->willReturnCallback(fn (array $typeIds): array => $this->pricesOf($typeIds, [self::COMPRESSED_VELDSPAR => 19.61]));
         $jitaMarket->method('getBuyPricesWithFallback')->willReturnCallback(fn (array $typeIds): array => $this->pricesOf($typeIds, []));
         $jitaMarket->method('getLastSyncTime')->willReturn(new \DateTimeImmutable(self::JITA_SYNCED_AT));
         self::getContainer()->set(JitaMarketService::class, $jitaMarket);
+        self::getContainer()->set('logger', new NullLogger());
+        $this->em = self::getContainer()->get(EntityManagerInterface::class);
+        $this->client->loginUser($this->em->find(User::class, $user->getId()), 'api');
     }
 }
