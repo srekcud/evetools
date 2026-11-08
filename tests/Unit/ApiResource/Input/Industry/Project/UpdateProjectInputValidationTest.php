@@ -50,6 +50,25 @@ final class UpdateProjectInputValidationTest extends TestCase
         yield 'sales tax absent' => ['salesTaxPercent', null, []];
     }
 
+    #[DataProvider('blacklistFields')]
+    #[Group('issue-445')]
+    public function testEachBlacklistFieldHoldsAtMostTwoHundredEntries(string $field, mixed $entry): void
+    {
+        $atTheLimit = new UpdateProjectInput();
+        $atTheLimit->{$field} = array_fill(0, UpdateProjectInput::MAXIMUM_BLACKLIST_ENTRIES, $entry);
+        $overTheLimit = new UpdateProjectInput();
+        $overTheLimit->{$field} = array_fill(0, UpdateProjectInput::MAXIMUM_BLACKLIST_ENTRIES + 1, $entry);
+
+        self::assertSame([[], [$field]], [$this->violatedPathsOf($atTheLimit), $this->violatedPathsOf($overTheLimit)]);
+    }
+
+    public static function blacklistFields(): iterable
+    {
+        yield 'groups' => ['blacklistGroupIds', 334];
+        yield 'types' => ['blacklistTypeIds', 34];
+        yield 'categories' => ['blacklistCategoryKeys', 'fuel_blocks'];
+    }
+
     public function testNotesAreAtMostTheMaximumLength(): void
     {
         $atTheLimit = new UpdateProjectInput();

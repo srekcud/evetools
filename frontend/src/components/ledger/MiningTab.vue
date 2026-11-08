@@ -10,6 +10,7 @@ import MiningStatsCards from './MiningStatsCards.vue'
 import MiningEntriesTable from './MiningEntriesTable.vue'
 import OreValueTab from './OreValueTab.vue'
 import MoonChunksTab from './MoonChunksTab.vue'
+import MoonTaxTab from './moon-tax/MoonTaxTab.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const props = defineProps<{
@@ -26,8 +27,8 @@ const ledgerStore = useLedgerStore()
 const authStore = useAuthStore()
 const { formatDateTime } = useFormatters()
 
-type MiningView = 'entries' | 'oreValue' | 'moonChunks'
-const miningViews: MiningView[] = ['entries', 'oreValue', 'moonChunks']
+type MiningView = 'entries' | 'oreValue' | 'moonChunks' | 'moonTax'
+const miningViews: MiningView[] = ['entries', 'oreValue', 'moonChunks', 'moonTax']
 const requestedView = miningViews.find(candidate => candidate === route?.query.view)
 const activeMiningView = ref<MiningView>(requestedView ?? 'entries')
 
@@ -438,6 +439,8 @@ defineExpose({
       :structure-id="selectedStructureId"
     />
 
-    <MoonChunksTab v-else />
+    <MoonChunksTab v-else-if="activeMiningView === 'moonChunks'" />
+
+    <MoonTaxTab v-else />
   </div>
 </template>

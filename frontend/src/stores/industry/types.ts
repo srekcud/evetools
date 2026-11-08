@@ -324,7 +324,7 @@ export type PivotComponentCoverage = {
   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
 }
 
-export type PivotUnknownReason = 'missing_material_price' | InventionUnknownReason | JobInstallCostUnknownReason
+export type PivotUnknownReason = 'missing_material_price' | 'missing_daily_volume' | InventionUnknownReason | JobInstallCostUnknownReason
 
 export type PivotCandidate = {
   typeId: number
@@ -332,7 +332,7 @@ export type PivotCandidate = {
   groupName: string
   marginPercent: number | null
   profitPerUnit: number | null
-  dailyVolume: number
+  dailyVolume: number | null
   coveragePercent: number | null
   missingComponents: PivotMissingComponent[]
   additionalCost: number | null
@@ -348,7 +348,7 @@ export type PivotSourceProduct = {
   groupName: string
   marginPercent: number | null
   sellPrice: number
-  dailyVolume: number
+  dailyVolume: number | null
   keyComponents: { typeId: number; typeName: string | null; inStock: number }[]
   unknownReason?: PivotUnknownReason | null
   missingPriceTypeIds?: number[]
@@ -545,4 +545,27 @@ export interface SellMarketResponse {
   sellShareOfDailyVolume: number
   markets: SellMarketLine[]
   immediateSale: SellMarketImmediateSale
+}
+
+export type BlueprintKind = 'bpo' | 'bpc'
+export type BlueprintScope = 'personal' | 'corporation'
+export type CorporationBlueprintState = 'known' | 'no_director' | 'no_visibility'
+
+export interface BlueprintLibraryEntry {
+  typeId: number
+  name: string
+  kind: BlueprintKind
+  me: number
+  te: number
+  runs: number | null
+  scope: BlueprintScope
+  ownerName: string | null
+  locationId: number
+  divisionNumber: number | null
+  count: number
+}
+
+export interface BlueprintLibrary {
+  corporationState: CorporationBlueprintState
+  blueprints: BlueprintLibraryEntry[]
 }

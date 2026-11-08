@@ -11,29 +11,20 @@ final class Version20261108120000 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create the refinery follows and the moon chunk alerts';
+        return 'Create the history of public item exchange contracts used to estimate contract sales';
     }
 
     public function up(Schema $schema): void
     {
-        $this->addSql('CREATE TABLE moon_chunk_alerts (id UUID NOT NULL, kind VARCHAR(16) NOT NULL, sent_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, user_id UUID NOT NULL, extraction_id UUID NOT NULL, PRIMARY KEY (id))');
-        $this->addSql('CREATE INDEX IDX_4FABC89BA76ED395 ON moon_chunk_alerts (user_id)');
-        $this->addSql('CREATE INDEX IDX_4FABC89BF992488A ON moon_chunk_alerts (extraction_id)');
-        $this->addSql('CREATE UNIQUE INDEX uniq_moon_chunk_alert_user_extraction_kind ON moon_chunk_alerts (user_id, extraction_id, kind)');
-        $this->addSql('CREATE TABLE moon_refinery_follows (id UUID NOT NULL, corporation_id BIGINT NOT NULL, structure_id BIGINT NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, user_id UUID NOT NULL, PRIMARY KEY (id))');
-        $this->addSql('CREATE INDEX IDX_4354D2A1A76ED395 ON moon_refinery_follows (user_id)');
-        $this->addSql('CREATE UNIQUE INDEX uniq_moon_refinery_follow_user_structure ON moon_refinery_follows (user_id, structure_id)');
-        $this->addSql('ALTER TABLE moon_chunk_alerts ADD CONSTRAINT FK_4FABC89BA76ED395 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE NOT DEFERRABLE');
-        $this->addSql('ALTER TABLE moon_chunk_alerts ADD CONSTRAINT FK_4FABC89BF992488A FOREIGN KEY (extraction_id) REFERENCES corporation_mining_extractions (id) ON DELETE CASCADE NOT DEFERRABLE');
-        $this->addSql('ALTER TABLE moon_refinery_follows ADD CONSTRAINT FK_4354D2A1A76ED395 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE NOT DEFERRABLE');
+        $this->addSql('CREATE TABLE public_contract_listings (id UUID NOT NULL, contract_id BIGINT NOT NULL, region_id INT NOT NULL, issuer_id BIGINT NOT NULL, price DOUBLE PRECISION NOT NULL, items JSON NOT NULL, items_signature VARCHAR(1000) NOT NULL, type_id INT DEFAULT NULL, quantity INT DEFAULT NULL, date_expired TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, first_seen_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, last_seen_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, missed_polls INT DEFAULT 0 NOT NULL, disappeared_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE INDEX IDX_1A61CEB198260155C54C8C93 ON public_contract_listings (region_id, type_id)');
+        $this->addSql('CREATE INDEX IDX_1A61CEB198260155F3D58F47 ON public_contract_listings (region_id, missed_polls)');
+        $this->addSql('CREATE INDEX IDX_1A61CEB1B81C492A ON public_contract_listings (last_seen_at)');
+        $this->addSql('CREATE UNIQUE INDEX UNIQ_1A61CEB12576E0FD ON public_contract_listings (contract_id)');
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE moon_chunk_alerts DROP CONSTRAINT FK_4FABC89BA76ED395');
-        $this->addSql('ALTER TABLE moon_chunk_alerts DROP CONSTRAINT FK_4FABC89BF992488A');
-        $this->addSql('ALTER TABLE moon_refinery_follows DROP CONSTRAINT FK_4354D2A1A76ED395');
-        $this->addSql('DROP TABLE moon_chunk_alerts');
-        $this->addSql('DROP TABLE moon_refinery_follows');
+        $this->addSql('DROP TABLE public_contract_listings');
     }
 }

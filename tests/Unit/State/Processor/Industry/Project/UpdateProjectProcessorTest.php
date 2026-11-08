@@ -16,6 +16,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\UpdateProjectProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -42,6 +43,7 @@ class UpdateProjectProcessorTest extends TestCase
     private EntityManagerInterface&MockObject $entityManager;
     private UpdateProjectProcessor $processor;
     private HubInterface&MockObject $hub;
+    private IndustryProjectService&MockObject $projectService;
     private IndustryProject $project;
     private User $owner;
 
@@ -59,6 +61,7 @@ class UpdateProjectProcessorTest extends TestCase
 
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
+        $this->projectService = $this->createMock(IndustryProjectService::class);
 
         $this->processor = $this->processorActingAs($this->owner, null);
     }
@@ -505,6 +508,149 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertSame('salesTaxPercent', $refusal->getConstraintViolationList()->get(0)->getPropertyPath());
     }
 
+    #[Group('issue-445')]
+    public function testOwnerChangesTheBlacklistOfADraftProjectAndTheBomIsRebuiltWithTheNewBlacklist(): void
+    {
+        $this->project->setStatus(ProjectStatus::Draft);
+        $input = new UpdateProjectInput();
+        $input->blacklistCategoryKeys = ['fuel_blocks'];
+        $input->blacklistGroupIds = [999];
+        $input->blacklistTypeIds = [34];
+
+        $seenByTheRebuild = null;
+        $this->projectService->expects($this->once())->method('buildBom')
+            ->with($this->project, $this->owner)
+            ->willReturnCallback(function () use (&$seenByTheRebuild): void {
+                $seenByTheRebuild = [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()];
+            });
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->update($input);
+
+        self::assertSame([[999, 1136], [34]], $seenByTheRebuild);
+        self::assertSame([999, 1136], $resource->blacklistGroupIds);
+        self::assertSame([34], $resource->blacklistTypeIds);
+    }
+
+    #[Group('issue-445')]
+    public function testAdminChangesTheBlacklistOfADraftProjectAndTheBomIsRebuiltForTheOwner(): void
+    {
+        $admin = $this->createStub(User::class);
+        $this->processor = $this->processorActingAs($admin, $this->membershipOf($admin, ParticipantRole::Admin));
+        $input = new UpdateProjectInput();
+        $input->blacklistTypeIds = [35];
+
+        $this->projectService->expects($this->once())->method('buildBom')->with($this->project, $this->owner);
+
+        $this->update($input);
+
+        self::assertSame([35], $this->project->getBlacklistTypeIds());
+    }
+
+    #[DataProvider('statusesAfterTheDraft')]
+    #[Group('issue-445')]
+    public function testTheBlacklistOfAProjectThatIsNotADraftIsRefusedAndNothingIsChanged(ProjectStatus $status): void
+    {
+        $this->project->setStatus($status);
+        $this->project->setBlacklistGroupIds([334]);
+        $this->project->setBlacklistTypeIds([34]);
+        $input = new UpdateProjectInput();
+        $input->blacklistGroupIds = [999];
+        $input->blacklistTypeIds = [35];
+        $input->blacklistCategoryKeys = ['fuel_blocks'];
+
+        $this->projectService->expects($this->never())->method('buildBom');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertSame('The blacklist of a project can only be changed while it is a draft', $refusal?->getMessage());
+        self::assertSame([[334], [34]], [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()]);
+    }
+
+    public static function statusesAfterTheDraft(): iterable
+    {
+        yield 'published' => [ProjectStatus::Published];
+        yield 'in progress' => [ProjectStatus::InProgress];
+        yield 'selling' => [ProjectStatus::Selling];
+        yield 'completed' => [ProjectStatus::Completed];
+    }
+
+    #[Group('issue-445')]
+    public function testEmptyListsClearTheBlacklistAndTheBomIsRebuilt(): void
+    {
+        $this->project->setBlacklistGroupIds([334]);
+        $this->project->setBlacklistTypeIds([34]);
+        $input = new UpdateProjectInput();
+        $input->blacklistGroupIds = [];
+        $input->blacklistTypeIds = [];
+        $input->blacklistCategoryKeys = [];
+
+        $this->projectService->expects($this->once())->method('buildBom')->with($this->project, $this->owner);
+
+        $this->update($input);
+
+        self::assertSame([[], []], [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()]);
+    }
+
+    #[Group('issue-445')]
+    public function testSendingOnlyTheTypesKeepsTheGroupsAndSendingOnlyTheCategoriesReplacesTheGroups(): void
+    {
+        $this->project->setBlacklistGroupIds([334, 999]);
+        $this->project->setBlacklistTypeIds([34]);
+
+        $onlyTypes = new UpdateProjectInput();
+        $onlyTypes->blacklistTypeIds = [35];
+        $this->update($onlyTypes);
+        $afterTheTypes = [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()];
+
+        $onlyCategories = new UpdateProjectInput();
+        $onlyCategories->blacklistCategoryKeys = ['fuel_blocks'];
+        $this->update($onlyCategories);
+        $afterTheCategories = [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()];
+
+        self::assertSame([[[334, 999], [35]], [[1136], [35]]], [$afterTheTypes, $afterTheCategories]);
+    }
+
+    #[Group('issue-445')]
+    public function testNoBlacklistFieldKeepsTheBlacklistAndDoesNotRebuildTheBom(): void
+    {
+        $this->project->setBlacklistGroupIds([334]);
+        $this->project->setBlacklistTypeIds([34]);
+        $input = new UpdateProjectInput();
+        $input->name = 'Rorqual batch';
+
+        $this->projectService->expects($this->never())->method('buildBom');
+
+        $this->update($input);
+
+        self::assertSame([[334], [34]], [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()]);
+    }
+
+    #[Group('issue-445')]
+    public function testABomThatCannotBeRebuiltIsRefusedAsABadRequestWithItsMessage(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->blacklistTypeIds = [35];
+
+        $this->projectService->method('buildBom')->willThrowException(new \RuntimeException('The production plan has 301 BOM lines, above the limit of 300 BOM lines per project.'));
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertSame('The production plan has 301 BOM lines, above the limit of 300 BOM lines per project.', $refusal?->getMessage());
+    }
+
     private function assertUpdateIsRefused(UpdateProjectInput $input): void
     {
         $this->entityManager->expects($this->never())->method('flush');
@@ -545,6 +691,7 @@ class UpdateProjectProcessorTest extends TestCase
             new ProjectResourceMapper(),
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
+            $this->projectService,
         );
     }
 

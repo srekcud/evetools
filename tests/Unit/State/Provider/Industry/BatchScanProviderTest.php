@@ -317,6 +317,55 @@ class BatchScanProviderTest extends TestCase
         return $salesFeesResolver;
     }
 
+    #[Group('issue-334')]
+    public function testContractVenueFallsBackToThePreferredMarketStructureOfTheUser(): void
+    {
+        $this->assertSame(1_046_664_001_931, $this->structureIdPassedToTheScanner(['sellVenue' => 'contracts'], 1_046_664_001_931));
+    }
+
+    #[Group('issue-334')]
+    public function testContractVenueKeepsAnExplicitStructure(): void
+    {
+        $this->assertSame(1_035_466_617_946, $this->structureIdPassedToTheScanner(['sellVenue' => 'contracts', 'structureId' => '1035466617946'], 1_046_664_001_931));
+    }
+
+    #[Group('issue-334')]
+    public function testJitaVenueDoesNotFallBackToThePreferredMarketStructure(): void
+    {
+        $this->assertNull($this->structureIdPassedToTheScanner(['sellVenue' => 'jita'], 1_046_664_001_931));
+    }
+
+    /**
+     * @param array<string, string> $query
+     */
+    private function structureIdPassedToTheScanner(array $query, int $preferredStructureId): ?int
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getPreferredMarketStructureId')->willReturn($preferredStructureId);
+        $security = $this->createStub(Security::class);
+        $security->method('getUser')->willReturn($user);
+
+        $requestStack = new RequestStack();
+        $requestStack->push(new Request($query));
+
+        $passedStructureId = 'never called';
+        $scanner = $this->createStub(BatchProfitScannerService::class);
+        $scanner->method('scan')->willReturnCallback(
+            function (string $category, ?float $minMargin, ?float $minVolume, string $sellVenue, ?int $structureId) use (&$passedStructureId): array {
+                $passedStructureId = $structureId;
+
+                return [];
+            },
+        );
+
+        $settingsRepository = $this->createStub(IndustryUserSettingsRepository::class);
+        $settingsRepository->method('findOneBy')->willReturn(null);
+
+        (new BatchScanProvider($security, $requestStack, $scanner, $settingsRepository, $this->createStub(SellerSalesFeesResolver::class)))->provide(new GetCollection());
+
+        return $passedStructureId;
+    }
+
     /**
      * @param list<array<string, mixed>> $scanRows
      * @return list<\App\ApiResource\Industry\BatchScanResultResource>

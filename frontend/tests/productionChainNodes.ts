@@ -13,6 +13,7 @@ export function chainNode(overrides: Partial<ChainNode>): ChainNode {
     teLevel: null,
     requiredQuantity: 0,
     fulfilledQuantity: 0,
+    level: null,
     status: 'todo',
     costState: 'none',
     realCost: null,
