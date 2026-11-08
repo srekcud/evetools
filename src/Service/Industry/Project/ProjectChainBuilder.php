@@ -32,6 +32,22 @@ final readonly class ProjectChainBuilder
     private const string STATUS_DONE = 'done';
     private const string STATUS_BLOCKED = 'blocked';
     private const string STATUS_UNKNOWN = 'unknown';
+    private const string STATUS_MISSING_MATERIALS = 'missing_materials';
+
+    private const array COMPONENT_STATUS_ORDER = [
+        self::STATUS_TODO => 0,
+        self::STATUS_MISSING_MATERIALS => 1,
+        self::STATUS_UNKNOWN => 2,
+        self::STATUS_ACTIVE => 3,
+        self::STATUS_BLOCKED => 4,
+        self::STATUS_DONE => 5,
+    ];
+
+    private const array MATERIAL_STATUS_ORDER = [
+        self::STATUS_TODO => 0,
+        self::STATUS_ACTIVE => 1,
+        self::STATUS_DONE => 2,
+    ];
 
     private const string COST_NONE = 'none';
     private const string COST_UNKNOWN = 'unknown';
@@ -60,8 +76,9 @@ final readonly class ProjectChainBuilder
      * @param array<IndustryProjectContribution> $contributions
      * @param array<IndustryProjectSale>         $sales
      * @param array<string, string>              $structureNamesById
+     * @param array<string, array<int, int>>|null $jobMaterialNeeds null when the plan of the owner could not be computed
      */
-    public function build(IndustryProject $project, array $bomLines, array $contributions, array $sales, array $structureNamesById): ProjectChain
+    public function build(IndustryProject $project, array $bomLines, array $contributions, array $sales, array $structureNamesById, ?array $jobMaterialNeeds): ProjectChain
     {
         $orderedLines = $this->orderedLines($bomLines);
         $contributionsByLineId = $this->approvedContributionsByLineId($contributions);
@@ -77,6 +94,9 @@ final readonly class ProjectChainBuilder
             }
         }
 
+        $levelByTypeId = ChainManufacturingLevels::byTypeId($bomLines);
+        $supply = ChainMaterialSupply::allocate($bomLines, $levelByTypeId, $jobMaterialNeeds);
+
         $jobStatusByLineId = [];
         $nodes = [];
         foreach ($orderedLines as $line) {
@@ -87,8 +107,12 @@ final readonly class ProjectChainBuilder
                 $structureNamesById,
                 $componentsByParentId,
                 $jobStatusByLineId,
+                $levelByTypeId,
+                $supply,
             );
         }
+        usort($nodes, fn (ProjectChainNode $left, ProjectChainNode $right): int => self::STAGE_ORDER[$left->stage] <=> self::STAGE_ORDER[$right->stage]
+            ?: $this->compareWithinStage($left, $right));
         $nodes[] = $this->saleNode($project, $sales);
 
         return new ProjectChain($nodes);
@@ -105,6 +129,31 @@ final readonly class ProjectChainBuilder
             ?: self::lineId($left) <=> self::lineId($right));
 
         return $bomLines;
+    }
+
+    private function compareWithinStage(ProjectChainNode $left, ProjectChainNode $right): int
+    {
+        $byNameThenId = ($left->typeName <=> $right->typeName) ?: ($left->id <=> $right->id);
+
+        return match ($left->stage) {
+            self::STAGE_COMPONENT => (self::COMPONENT_STATUS_ORDER[$left->status] <=> self::COMPONENT_STATUS_ORDER[$right->status])
+                ?: ($left->level <=> $right->level)
+                ?: $byNameThenId,
+            self::STAGE_MATERIAL => (self::MATERIAL_STATUS_ORDER[$left->status] <=> self::MATERIAL_STATUS_ORDER[$right->status])
+                ?: (($left->level ?? \PHP_INT_MAX) <=> ($right->level ?? \PHP_INT_MAX))
+                ?: (self::remainingShareOf($right) <=> self::remainingShareOf($left))
+                ?: $byNameThenId,
+            default => $byNameThenId,
+        };
+    }
+
+    private static function remainingShareOf(ProjectChainNode $material): float
+    {
+        if (null === $material->requiredQuantity || null === $material->fulfilledQuantity) {
+            throw new \UnexpectedValueException(\sprintf('Material node %s has no quantities.', $material->id));
+        }
+
+        return 0 === $material->requiredQuantity ? 0.0 : ($material->requiredQuantity - $material->fulfilledQuantity) / $material->requiredQuantity;
     }
 
     private function stageOf(IndustryProjectBomLine $line): string
@@ -179,6 +228,7 @@ final readonly class ProjectChainBuilder
      * @param array<string, string>                         $structureNamesById
      * @param array<string, list<IndustryProjectBomLine>>   $componentsByParentId
      * @param array<string, string>                         $jobStatusByLineId
+     * @param array<int, int>                               $levelByTypeId
      */
     private function nodeOf(
         IndustryProjectBomLine $line,
@@ -187,6 +237,8 @@ final readonly class ProjectChainBuilder
         array $structureNamesById,
         array $componentsByParentId,
         array &$jobStatusByLineId,
+        array $levelByTypeId,
+        ChainMaterialSupply $supply,
     ): ProjectChainNode {
         $stage = $this->stageOf($line);
         [$costState, $realCost] = $this->costOf($approvedContributions);
@@ -205,7 +257,7 @@ final readonly class ProjectChainBuilder
             $isJob ? $line->getTeLevel() : null,
             $line->getRequiredQuantity(),
             $line->getFulfilledQuantity(),
-            $isJob ? $this->jobStatusOf($line, $componentsByParentId, $jobStatusByLineId) : $this->materialStatusOf($line),
+            $isJob ? $this->jobStatusOf($line, $componentsByParentId, $jobStatusByLineId, $supply) : $this->materialStatusOf($line),
             $costState,
             $realCost,
             $this->suppliersOf($approvedContributions),
@@ -214,6 +266,11 @@ final readonly class ProjectChainBuilder
             \in_array($stage, [self::STAGE_COMPONENT, self::STAGE_PRODUCT], true) ? $this->plannedStructureOf($line, $structureNamesById) : null,
             null,
             null,
+            match ($stage) {
+                self::STAGE_COMPONENT, self::STAGE_PRODUCT => $levelByTypeId[$line->getTypeId()] ?? throw new \UnexpectedValueException(\sprintf('Job line %s has no manufacturing level.', self::lineId($line))),
+                self::STAGE_MATERIAL => $supply->firstConsumerLevel($line->getTypeId()),
+                default => null,
+            },
         );
     }
 
@@ -230,21 +287,21 @@ final readonly class ProjectChainBuilder
      * @param array<string, list<IndustryProjectBomLine>> $componentsByParentId
      * @param array<string, string>                       $jobStatusByLineId
      */
-    private function jobStatusOf(IndustryProjectBomLine $line, array $componentsByParentId, array &$jobStatusByLineId): string
+    private function jobStatusOf(IndustryProjectBomLine $line, array $componentsByParentId, array &$jobStatusByLineId, ChainMaterialSupply $supply): string
     {
         $lineId = self::lineId($line);
         if (isset($jobStatusByLineId[$lineId])) {
             return $jobStatusByLineId[$lineId];
         }
 
-        return $jobStatusByLineId[$lineId] = $this->computedJobStatusOf($line, $componentsByParentId, $jobStatusByLineId);
+        return $jobStatusByLineId[$lineId] = $this->computedJobStatusOf($line, $componentsByParentId, $jobStatusByLineId, $supply);
     }
 
     /**
      * @param array<string, list<IndustryProjectBomLine>> $componentsByParentId
      * @param array<string, string>                       $jobStatusByLineId
      */
-    private function computedJobStatusOf(IndustryProjectBomLine $line, array $componentsByParentId, array &$jobStatusByLineId): string
+    private function computedJobStatusOf(IndustryProjectBomLine $line, array $componentsByParentId, array &$jobStatusByLineId, ChainMaterialSupply $supply): string
     {
         $deliveredRuns = 0;
         $hasJobInProgress = false;
@@ -268,12 +325,20 @@ final readonly class ProjectChainBuilder
         }
 
         foreach ($componentsByParentId[self::lineId($line)] ?? [] as $component) {
-            if (self::STATUS_DONE !== $this->jobStatusOf($component, $componentsByParentId, $jobStatusByLineId)) {
+            if (self::STATUS_DONE !== $this->jobStatusOf($component, $componentsByParentId, $jobStatusByLineId, $supply)) {
                 return self::STATUS_BLOCKED;
             }
         }
 
-        return self::STATUS_TODO;
+        if (!\in_array($this->stageOf($line), [self::STAGE_COMPONENT, self::STAGE_PRODUCT], true)) {
+            return self::STATUS_TODO;
+        }
+
+        return match ($supply->isSupplied(self::lineId($line))) {
+            true => self::STATUS_TODO,
+            false => self::STATUS_MISSING_MATERIALS,
+            null => self::STATUS_UNKNOWN,
+        };
     }
 
     /**
@@ -424,6 +489,7 @@ final readonly class ProjectChainBuilder
             null,
             $soldQuantity,
             $grossRevenue,
+            null,
         );
     }
 

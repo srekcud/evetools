@@ -51,6 +51,7 @@ const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
     { query: 'pivot', labelKey: 'industry.tabs.pivot' },
     { query: 'slots', labelKey: 'industry.tabs.slots' },
     { query: 'stockpile', labelKey: 'industry.tabs.stockpile' },
+    { query: 'blueprints', labelKey: 'industry.tabs.blueprints' },
   ],
   'mining-operations': [
     { query: 'available', labelKey: 'miningOperation.tabs.available' },

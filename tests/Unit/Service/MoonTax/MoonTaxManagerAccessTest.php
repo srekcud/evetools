@@ -20,6 +20,7 @@ use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 #[CoversClass(MoonTaxManagerAccess::class)]
 #[Group('issue-273')]
+#[Group('issue-369')]
 final class MoonTaxManagerAccessTest extends TestCase
 {
     private const int CORPORATION = 98_000_001;
@@ -38,12 +39,22 @@ final class MoonTaxManagerAccessTest extends TestCase
 
     private array $rolesReadBy = [];
 
+    private array $corporationsReadFor = [];
+
     protected function setUp(): void
     {
         $this->user = new User();
         $esiClient = $this->createStub(EsiClient::class);
         $esiClient->method('get')->willReturnCallback(function (string $endpoint): array {
             $this->rolesReadBy[] = $endpoint;
+            if (isset($this->esiFailures[$endpoint])) {
+                throw $this->esiFailures[$endpoint];
+            }
+
+            return $this->esiResponses[$endpoint];
+        });
+        $esiClient->method('getWithCache')->willReturnCallback(function (string $endpoint): array {
+            $this->corporationsReadFor[] = $endpoint;
             if (isset($this->esiFailures[$endpoint])) {
                 throw $this->esiFailures[$endpoint];
             }
@@ -143,6 +154,50 @@ final class MoonTaxManagerAccessTest extends TestCase
         }
     }
 
+    public function testACharacterStoredInTheCorporationButReadInAnotherOneIsRefusedWithoutReadingItsRoles(): void
+    {
+        $this->character('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Accountant'], currentCorporationId: self::OTHER_CORPORATION);
+
+        try {
+            $this->access->assertManages($this->user, self::CORPORATION);
+            self::fail('The access should be refused');
+        } catch (AccessDeniedHttpException $refusal) {
+            self::assertSame(
+                [403, false, [$this->characterEndpoint(self::ILYRA_ID)], []],
+                [$refusal->getStatusCode(), str_contains($refusal->getMessage(), 'Ilyra Voss'), $this->corporationsReadFor, $this->rolesReadBy],
+            );
+        }
+    }
+
+    public function testACharacterStoredInAnotherCorporationButReadInTheCorporationManagesIt(): void
+    {
+        $this->character('Ilyra Voss', self::ILYRA_ID, self::OTHER_CORPORATION, ['Accountant'], currentCorporationId: self::CORPORATION);
+
+        $refusal = null;
+        try {
+            $this->access->assertManages($this->user, self::CORPORATION);
+        } catch (AccessDeniedHttpException|ServiceUnavailableHttpException $refusal) {
+        }
+
+        self::assertSame(
+            [null, [$this->characterEndpoint(self::ILYRA_ID)], [$this->rolesEndpoint(self::ILYRA_ID)]],
+            [$refusal?->getStatusCode(), $this->corporationsReadFor, $this->rolesReadBy],
+        );
+    }
+
+    public function testAFailedAffiliationReadIsAServiceUnavailableErrorNotAGrantedAccess(): void
+    {
+        $this->character('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Accountant']);
+        $this->esiFailures[$this->characterEndpoint(self::ILYRA_ID)] = EsiApiException::fromResponse(503, 'ESI 503', $this->characterEndpoint(self::ILYRA_ID));
+
+        try {
+            $this->access->assertManages($this->user, self::CORPORATION);
+            self::fail('The affiliation read failure should be reported');
+        } catch (ServiceUnavailableHttpException $unavailable) {
+            self::assertSame([503, []], [$unavailable->getStatusCode(), $this->rolesReadBy]);
+        }
+    }
+
     #[DataProvider('unreadableRolesAnswers')]
     public function testAnUnreadableRolesAnswerIsAServiceUnavailableErrorNotAnEmptyRoleList(array $answer): void
     {
@@ -161,7 +216,7 @@ final class MoonTaxManagerAccessTest extends TestCase
         yield 'roles as null' => [['roles' => null]];
     }
 
-    private function character(string $name, int $eveCharacterId, int $corporationId, array $roles, array $scopes = [self::ROLES_SCOPE]): Character
+    private function character(string $name, int $eveCharacterId, int $corporationId, array $roles, array $scopes = [self::ROLES_SCOPE], ?int $currentCorporationId = null): Character
     {
         $character = (new Character())
             ->setName($name)
@@ -176,8 +231,14 @@ final class MoonTaxManagerAccessTest extends TestCase
         );
         $this->user->addCharacter($character);
         $this->esiResponses[$this->rolesEndpoint($eveCharacterId)] = ['roles' => $roles];
+        $this->esiResponses[$this->characterEndpoint($eveCharacterId)] = ['name' => $name, 'corporation_id' => $currentCorporationId ?? $corporationId];
 
         return $character;
+    }
+
+    private function characterEndpoint(int $eveCharacterId): string
+    {
+        return sprintf('/characters/%d/', $eveCharacterId);
     }
 
     private function rolesEndpoint(int $eveCharacterId): string

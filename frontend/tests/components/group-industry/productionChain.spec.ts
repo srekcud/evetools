@@ -149,7 +149,7 @@ describe('ProductionChain overview', () => {
     const sale = wrapper.get(`[data-testid="chain-node-${SALE_ID}"]`).text()
 
     expect(columns).toEqual({
-      inventionMaterials: [HAMMERHEAD_II_INVENTION_ID, HAMMERHEAD_I_COPY_ID, TRITANIUM_ID, PARTICLE_ACCELERATOR_UNIT_ID],
+      inventionMaterials: [HAMMERHEAD_II_INVENTION_ID, TRITANIUM_ID, HAMMERHEAD_I_COPY_ID, PARTICLE_ACCELERATOR_UNIT_ID],
       components: [HAMMERHEAD_I_ID],
       product: [HAMMERHEAD_II_ID],
       sale: [SALE_ID],
@@ -169,6 +169,63 @@ describe('ProductionChain overview', () => {
     expect(wrapper.findAll('[data-testid^="chain-row-"][aria-selected="true"]').map(selected => selected.attributes('data-testid'))).toEqual([
       `chain-row-${HAMMERHEAD_I_ID}`,
     ])
+  })
+})
+
+describe('ProductionChain scroll to the opened node', () => {
+  const scrollIntoView = vi.fn()
+
+  beforeEach(() => {
+    scrollIntoView.mockReset()
+    Element.prototype.scrollIntoView = scrollIntoView
+  })
+
+  it('centers the row of the node clicked in the overview once the job tree is shown', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+
+    await wrapper.get(`[data-testid="chain-node-${HAMMERHEAD_I_ID}"]`).trigger('click')
+    await flushPromises()
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' })
+    expect(scrollIntoView.mock.contexts[0]).toBe(row(wrapper, HAMMERHEAD_I_ID).element)
+  })
+
+  it('scrolls again to another node clicked later from the overview', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await wrapper.get(`[data-testid="chain-node-${HAMMERHEAD_I_ID}"]`).trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="chain-view-flow"]').trigger('click')
+    scrollIntoView.mockClear()
+
+    await wrapper.get(`[data-testid="chain-node-${TRITANIUM_ID}"]`).trigger('click')
+    await flushPromises()
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView.mock.contexts[0]).toBe(row(wrapper, TRITANIUM_ID).element)
+  })
+
+  it('scrolls again when the same node is clicked a second time from the overview', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+    await wrapper.get(`[data-testid="chain-node-${HAMMERHEAD_I_ID}"]`).trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="chain-view-flow"]').trigger('click')
+    scrollIntoView.mockClear()
+
+    await wrapper.get(`[data-testid="chain-node-${HAMMERHEAD_I_ID}"]`).trigger('click')
+    await flushPromises()
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView.mock.contexts[0]).toBe(row(wrapper, HAMMERHEAD_I_ID).element)
+  })
+
+  it('does not scroll when the job tree is opened from the view switch without a selected node', async () => {
+    const wrapper = await mountChain(PRODUCTION_CHAIN)
+
+    await openTree(wrapper)
+    await flushPromises()
+
+    expect(scrollIntoView).not.toHaveBeenCalled()
   })
 })
 

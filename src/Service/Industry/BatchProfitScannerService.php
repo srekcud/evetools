@@ -15,6 +15,9 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\ContractSales\ContractSalesAnalyzer;
+use App\Service\Industry\ContractSales\ContractSalesIndicators;
+use App\Service\Industry\ContractSales\ContractSalesReader;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -119,6 +122,8 @@ class BatchProfitScannerService
         30 => 10_000_000,   // Titan
     ];
 
+    private const string VENUE_CONTRACTS = 'contracts';
+
     public function __construct(
         private readonly IndustryActivityProductRepository $productRepository,
         private readonly IndustryActivityMaterialRepository $materialRepository,
@@ -135,6 +140,7 @@ class BatchProfitScannerService
         private readonly CachedCharacterSkillRepository $characterSkillRepository,
         private readonly JobInstallCostEstimator $jobInstallCostEstimator,
         private readonly FacilityTaxResolver $facilityTaxResolver,
+        private readonly ContractSalesReader $contractSalesReader,
     ) {
     }
 
@@ -256,10 +262,23 @@ class BatchProfitScannerService
             $structurePrices = $this->structureMarketService->getLowestSellPrices($structureId, $productTypeIdsForStructure);
         }
 
+        $contractIndicators = [];
+        if ($sellVenue === self::VENUE_CONTRACTS && $structureId !== null) {
+            $contractRegionId = $this->resolveStructureRegionId($structureId);
+            if ($contractRegionId !== null) {
+                $contractIndicators = $this->contractSalesReader->indicatorsFor($contractRegionId, new \DateTimeImmutable());
+            }
+        }
+
         // 8. Batch daily volumes — use sell region if structure, else The Forge (Jita)
         $productTypeIdsFiltered = array_map(fn (array $p) => $p['productTypeId'], $filteredProducts);
 
-        if ($sellVenue === 'structure' && $structureId !== null) {
+        if ($sellVenue === self::VENUE_CONTRACTS) {
+            $dailyVolumes = array_map(
+                static fn (ContractSalesIndicators $indicators): float => $indicators->soldQuantity / (float) ContractSalesAnalyzer::WINDOW_DAYS,
+                $contractIndicators,
+            );
+        } elseif ($sellVenue === 'structure' && $structureId !== null) {
             $volumeRegionId = $this->resolveStructureRegionId($structureId);
             $dailyVolumes = $volumeRegionId !== null
                 ? $this->jitaMarketService->getCachedDailyVolumesForRegion($volumeRegionId, $productTypeIdsFiltered)
@@ -328,7 +347,7 @@ class BatchProfitScannerService
 
             // Export cost: only when selling remotely (Jita), not at local structure
             $exportCost = 0.0;
-            if ($sellVenue !== 'structure') {
+            if ($sellVenue !== 'structure' && $sellVenue !== self::VENUE_CONTRACTS) {
                 $exportVolume = $this->getExportVolume($typeId, $typeMetadata);
                 $exportCost = $this->transportCost($exportVolume, $exportCostPerM3);
             }
@@ -353,6 +372,7 @@ class BatchProfitScannerService
             // Sell price based on venue
             $sellPrice = match ($sellVenue) {
                 'structure' => $structureId !== null ? ($structurePrices[$typeId] ?? null) : null,
+                self::VENUE_CONTRACTS => ($contractIndicators[$typeId] ?? null)?->medianSoldUnitPrice,
                 default => $jitaPrices[$typeId] ?? null,
             };
 
@@ -385,9 +405,14 @@ class BatchProfitScannerService
             $netProfitPerUnit = null;
             $marginPercent = null;
             $iskPerDay = null;
-            if ($sellPrice !== null && !$isCostUnknown && $salesFees !== null) {
+            $feeRate = match (true) {
+                $sellVenue === self::VENUE_CONTRACTS => 0.0,
+                $salesFees !== null => $salesFees->brokerFeeRate + $salesFees->salesTaxRate,
+                default => null,
+            };
+            if ($sellPrice !== null && !$isCostUnknown && $feeRate !== null) {
                 // Apply broker + sales tax to sell price
-                $fees = $sellPrice * ($salesFees->brokerFeeRate + $salesFees->salesTaxRate);
+                $fees = $sellPrice * $feeRate;
                 $netSellPrice = $sellPrice - $fees;
                 $netProfitPerUnit = ($netSellPrice * $outputPerRun - $totalCost) / $outputPerRun;
                 $marginPercent = ($netProfitPerUnit * $outputPerRun / $totalCost) * 100;

@@ -111,6 +111,7 @@ trait SeedsMoonTax
         $user->setMainCharacter($character);
         $this->em->persist($user);
         $this->esiResponses[self::rolesEndpoint($eveCharacterId)] = ['roles' => $roles];
+        $this->esiResponses[self::characterEndpoint($eveCharacterId)] = ['name' => $name, 'corporation_id' => $corporationId];
         $this->usersByEveCharacterId[$eveCharacterId] = $user;
 
         return $character;
