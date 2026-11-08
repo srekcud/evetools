@@ -88,6 +88,7 @@ export function corporation(overrides: Partial<CorporationMiningExtractions>): C
     access: 'ok',
     lastSuccessAt: '2026-11-05T18:30:00+00:00',
     extractions: [],
+    followedStructureIds: [],
     ...overrides,
   }
 }

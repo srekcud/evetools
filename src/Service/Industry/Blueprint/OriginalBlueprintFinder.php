@@ -6,6 +6,10 @@ namespace App\Service\Industry\Blueprint;
 
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
+use App\Industry\Application\OwnedBlueprintUse;
+use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\TimeEfficiency;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
 
@@ -19,6 +23,32 @@ class OriginalBlueprintFinder
 
     /** @return list<int> */
     public function typeIdsOwnedBy(User $user): array
+    {
+        return array_values(array_unique(array_map(
+            static fn (OwnedBlueprint $blueprint): int => $blueprint->getTypeId(),
+            array_filter($this->visibleBlueprintsOf($user), static fn (OwnedBlueprint $blueprint): bool => $blueprint->isOriginal()),
+        )));
+    }
+
+    /** @return array<int, OwnedBlueprintUse> by blueprint typeId */
+    public function bestUsesOwnedBy(User $user): array
+    {
+        $uses = [];
+        foreach ($this->visibleBlueprintsOf($user) as $blueprint) {
+            $use = new OwnedBlueprintUse(
+                new BlueprintEfficiency(new MaterialEfficiency($blueprint->getMaterialEfficiency()), new TimeEfficiency($blueprint->getTimeEfficiency())),
+                $blueprint->isOriginal(),
+            );
+            if (!isset($uses[$blueprint->getTypeId()]) || $use->isBetterThan($uses[$blueprint->getTypeId()])) {
+                $uses[$blueprint->getTypeId()] = $use;
+            }
+        }
+
+        return $uses;
+    }
+
+    /** @return list<OwnedBlueprint> */
+    private function visibleBlueprintsOf(User $user): array
     {
         $blueprints = $this->ownedBlueprintRepository->findByCharacters($user->getCharacters()->getValues());
 
@@ -36,9 +66,6 @@ class OriginalBlueprintFinder
             }
         }
 
-        return array_values(array_unique(array_map(
-            static fn (OwnedBlueprint $blueprint): int => $blueprint->getTypeId(),
-            array_filter($blueprints, static fn (OwnedBlueprint $blueprint): bool => $blueprint->isOriginal()),
-        )));
+        return $blueprints;
     }
 }

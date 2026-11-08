@@ -6,7 +6,8 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import MiningBoostFitField, { type MiningBoostFit } from '@/components/mining-operation/MiningBoostFitField.vue'
 import MiningCharacterPicker, { type PickableCharacter } from '@/components/mining-operation/MiningCharacterPicker.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
-import { useCorporationMiningExtractions } from '@/composables/useCorporationMiningExtractions'
+import MoonChunkName from '@/components/ledger/MoonChunkName.vue'
+import { useCorporationMiningExtractions, type CorporationMiningExtraction } from '@/composables/useCorporationMiningExtractions'
 import { useKnownCorporation } from '@/composables/useKnownCorporation'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -16,7 +17,7 @@ import {
   type MiningOperationVisibility,
   type MiningSplitMode,
 } from '@/stores/miningOperation'
-import { eveInputToIso, nextFullHourAsEveInput } from '@/views/MiningOperation/miningOperationTime'
+import { eveInputToIso, isoToEveInput, nextFullHourAsEveInput } from '@/views/MiningOperation/miningOperationTime'
 
 type Step = 'form' | 'created'
 
@@ -31,6 +32,7 @@ const RECURRENCE_CHOICES = ['once', 'weekly', 'chunk'] as const satisfies readon
 
 const props = defineProps<{
   show: boolean
+  chunk?: CorporationMiningExtraction
 }>()
 
 const emit = defineEmits<{
@@ -109,8 +111,8 @@ const canSubmit = computed(() => label.value.trim().length > 0 && tickedCharacte
 
 function resetForm(): void {
   step.value = 'form'
-  label.value = ''
-  startInput.value = nextFullHourAsEveInput(new Date())
+  label.value = props.chunk === undefined ? '' : (props.chunk.moonName ?? String(props.chunk.moonId))
+  startInput.value = props.chunk === undefined ? nextFullHourAsEveInput(new Date()) : isoToEveInput(props.chunk.chunkArrivalTime)
   visibility.value = hasKnownCorporation.value ? 'corporation' : 'private'
   splitMode.value = 'value_prorata'
   boostFit.value = { boostShipTypeId: null, mountedCompressorKinds: [] }
@@ -134,6 +136,7 @@ async function submit(): Promise<void> {
       ...(recurrenceInput.value === undefined ? {} : { recurrence: recurrenceInput.value }),
       boostShipTypeId: boostFit.value.boostShipTypeId,
       mountedCompressorKinds: boostFit.value.mountedCompressorKinds,
+      ...(props.chunk === undefined ? {} : { chunkId: props.chunk.id }),
     })
     step.value = 'created'
   } catch (cause) {
@@ -173,6 +176,14 @@ watch(() => props.show, (show) => {
         <input :id="`${fieldId}-start`" v-model="startInput" type="datetime-local" required class="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-slate-100" />
       </div>
 
+      <div v-if="chunk !== undefined" data-chunk-system class="min-w-0 rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2">
+        <span class="block text-xs font-medium uppercase tracking-wider text-slate-400">{{ t('miningOperation.create.chunkSystem') }}</span>
+        <span class="block text-sm text-slate-100">
+          <span aria-hidden="true" class="text-cyan-300">◔ </span><MoonChunkName :name="chunk.solarSystemName" :id="chunk.solarSystemId" />
+        </span>
+        <span class="mt-1 block text-xs text-slate-400">{{ t('miningOperation.create.chunkSystemHint') }}</span>
+      </div>
+
       <fieldset>
         <legend class="mb-1 text-sm font-medium text-slate-300">{{ t('miningOperation.create.visibility') }}</legend>
         <div class="flex flex-wrap gap-4">
@@ -210,7 +221,7 @@ watch(() => props.show, (show) => {
 
       <MiningBoostFitField v-model="boostFit" />
 
-      <fieldset>
+      <fieldset v-if="chunk === undefined">
         <legend class="mb-1 text-sm font-medium text-slate-300">{{ t('miningOperation.recurrence.field.legend') }}</legend>
         <div class="flex flex-wrap gap-4">
           <label v-for="choice in availableRecurrenceChoices" :key="choice" class="flex items-center gap-2 text-sm text-slate-200">

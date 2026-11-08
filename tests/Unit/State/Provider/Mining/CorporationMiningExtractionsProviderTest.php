@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Mining;
 
 use ApiPlatform\Metadata\Get;
+use App\Entity\MoonRefineryFollow;
+use App\Entity\User;
 use App\Enum\CorporationMiningSyncFailure;
 use App\State\Provider\Mining\CorporationMiningExtractionsProvider;
 use App\Tests\Unit\Service\Sync\CorporationMiningExtractionHarness;
@@ -115,6 +117,20 @@ final class CorporationMiningExtractionsProviderTest extends TestCase
         );
     }
 
+    public function testEachCorporationListsTheRefineriesTheUserFollowsThere(): void
+    {
+        $this->storeFollow($this->userA, self::CORPORATION_A, self::ROCK_HOLLOW_ID, '2026-11-04T12:00:00+00:00');
+        $this->storeFollow($this->userB, self::CORPORATION_A, self::DEEP_CORE_ID, '2026-11-04T12:00:00+00:00');
+
+        self::assertSame(
+            [[self::CORPORATION_A, [self::ROCK_HOLLOW_ID]], [self::CORPORATION_B, []]],
+            array_map(
+                static fn (array $corporation): array => [$corporation['corporationId'], $corporation['followedStructureIds']],
+                $this->provide(),
+            ),
+        );
+    }
+
     public function testAUserOfAnotherCorporationSeesNeitherOfTheTwo(): void
     {
         $this->currentUser = $this->userC;
@@ -171,6 +187,15 @@ final class CorporationMiningExtractionsProviderTest extends TestCase
         $entry = $this->corporationEntry(self::CORPORATION_A);
 
         self::assertSame(['error', null], [$entry['access'], $entry['lastSuccessAt']]);
+    }
+
+    private function storeFollow(User $user, int $corporationId, int $structureId, string $createdAt): void
+    {
+        $this->storedFollows[] = (new MoonRefineryFollow())
+            ->setUser($user)
+            ->setCorporationId($corporationId)
+            ->setStructureId($structureId)
+            ->setCreatedAt(new \DateTimeImmutable($createdAt));
     }
 
     private function provide(): array

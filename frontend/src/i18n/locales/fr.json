@@ -1469,6 +1469,13 @@
         "syncing": "Synchronisation...",
         "syncProgress": "Synchronisation {percent} %",
         "loadError": "Impossible de charger les chunks lunaires.",
+        "createOperation": "Créer une opération de minage",
+        "createOperationFor": "Créer une opération de minage pour {moon}",
+        "refineries": "Raffineries",
+        "follow": "Suivre",
+        "unfollow": "Ne plus suivre",
+        "followError": "Le suivi de cette raffinerie n'a pas pu être modifié.",
+        "followHint": "Les raffineries suivies vous notifient une heure avant l'arrivée d'un chunk et à son arrivée. Réglez-le dans vos préférences de notification (catégorie « {category} »).",
         "unknownName": "nom inconnu",
         "lastSuccess": "dernière synchronisation réussie",
         "empty": "Aucune extraction",
@@ -1485,7 +1492,8 @@
           "decay": "Décroissance naturelle",
           "countdown": "Compte à rebours",
           "status": "Statut",
-          "value": "Valeur"
+          "value": "Valeur",
+          "operation": "Opération"
         },
         "status": {
           "extracting": "Extraction",
@@ -1734,7 +1742,11 @@
         "loadError": "Impossible de charger l'aide à la vente.",
         "copy": "Copier le résumé",
         "copied": "Résumé copié",
-        "copyFailed": "Impossible de copier le résumé"
+        "copyFailed": "Impossible de copier le résumé",
+        "operationSubtitle": "Équivalent compressé du minerai que vous avez miné dans cette opération, valorisé au meilleur prix connu, avec un résumé à coller dans un contrat.",
+        "operationEmpty": "Aucun minerai compressé issu de cette opération.",
+        "notKnownYet": "Vos quantités minées ne sont pas encore connues : les instantanés du ledger sont en cours de lecture ou n'ont pas pu être lus. Corrigez-les dans l'opération pour obtenir une vente.",
+        "unconverted": "Non valorisé, variante compressée ou taille de lot inconnue : {types}."
       }
     },
     "pve": {
@@ -2150,7 +2162,8 @@
       "escalation": "Escalations",
       "esi": "Notifications EVE",
       "price": "Alertes prix",
-      "mining_operation": "Opérations de minage"
+      "mining_operation": "Opérations de minage",
+      "moon_chunk": "Chunks lunaires"
     },
     "settingsModal": {
       "title": "Preferences de notifications",
@@ -3174,6 +3187,8 @@
       "splitMode": "Répartition",
       "characters": "Vos personnages",
       "corporationUnavailable": "Corporation inconnue : visibilité privée seulement.",
+      "chunkSystem": "Système du chunk",
+      "chunkSystemHint": "Le système est fixé au démarrage de l'opération.",
       "submit": "Créer l'opération"
     },
     "recurrence": {
@@ -3746,6 +3761,17 @@
       "submit": "Enregistrer le scan",
       "allDepleted": "Tout épuisé",
       "reminder": "Scannez depuis la même position avec la même portée qu'avant, sinon un astéroïde hors de portée passe pour épuisé.",
+      "paste": {
+        "label": "Coller les résultats du Survey Chipset",
+        "placeholder": "Sélectionnez tout dans les résultats du Survey Scanner (tous les groupes dépliés), copiez, puis collez ici",
+        "read": "Lire le collage",
+        "issues": {
+          "unreadable": "La ligne {line} n'a pas pu être lue.",
+          "unknown_ore": "Ligne {line} : « {name} » n'est pas un minerai connu du SDE.",
+          "volume_mismatch": "Ligne {line} : la quantité de {name} ne correspond pas à son volume.",
+          "collapsed_group": "{name} est replié : déplie tous les groupes avant de copier."
+        }
+      },
       "added": "Scan {number} ajouté · ETA tendance {from} → {to}",
       "errors": {
         "noLines": "Ajoutez au moins une ligne de minerai.",

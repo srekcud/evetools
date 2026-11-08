@@ -7,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
 import JobLinkModal from './JobLinkModal.vue'
 import LinePurchases from './LinePurchases.vue'
+import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import type { AvailableJob, BomItem, CharacterMatchFailure } from '@/stores/group-industry/types'
 
 const { t } = useI18n()
@@ -384,7 +385,7 @@ function isJobDimmed(job: BomItem): boolean {
 
                     <!-- ME/TE -->
                     <td class="py-2.5 px-3 text-center text-xs text-slate-400">
-                      <template v-if="job.meLevel != null && job.teLevel != null">
+                      <template v-if="showsBlueprintEfficiency(job.activityType) && job.meLevel != null && job.teLevel != null">
                         ME {{ job.meLevel }} / TE {{ job.teLevel }}
                       </template>
                       <template v-else>&mdash;</template>

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Security;
 
+use Symfony\Component\Clock\ClockInterface;
+
 /**
  * Stateless HMAC-signed OAuth state generator/verifier.
  *
@@ -18,6 +20,7 @@ final class OAuthStateSigner
 {
     public function __construct(
         private readonly string $secret,
+        private readonly ClockInterface $clock,
         private readonly int $ttl = 600,
     ) {
     }
@@ -25,7 +28,7 @@ final class OAuthStateSigner
     public function generate(): string
     {
         $nonce = bin2hex(random_bytes(16));
-        $timestamp = time();
+        $timestamp = $this->clock->now()->getTimestamp();
         $signature = $this->sign($nonce, $timestamp);
 
         return $nonce . '.' . $timestamp . '.' . $signature;
@@ -57,7 +60,7 @@ final class OAuthStateSigner
         }
 
         $timestamp = (int) $timestampStr;
-        $age = time() - $timestamp;
+        $age = $this->clock->now()->getTimestamp() - $timestamp;
         if ($age < 0 || $age > $this->ttl) {
             return false;
         }

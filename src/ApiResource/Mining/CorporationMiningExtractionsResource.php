@@ -33,6 +33,7 @@ class CorporationMiningExtractionsResource
      *     corporationId: int,
      *     access: string,
      *     lastSuccessAt: ?string,
+     *     followedStructureIds: list<int>,
      *     extractions: list<array<string, int|string|null>>
      * }>
      */

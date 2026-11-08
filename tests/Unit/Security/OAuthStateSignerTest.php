@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Security;
 use App\Security\OAuthStateSigner;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 #[CoversClass(OAuthStateSigner::class)]
 class OAuthStateSignerTest extends TestCase
@@ -16,9 +17,12 @@ class OAuthStateSignerTest extends TestCase
 
     private OAuthStateSigner $signer;
 
+    private MockClock $clock;
+
     protected function setUp(): void
     {
-        $this->signer = new OAuthStateSigner(self::SECRET, self::TTL);
+        $this->clock = new MockClock();
+        $this->signer = new OAuthStateSigner(self::SECRET, $this->clock, self::TTL);
     }
 
     public function testGenerateReturnsThreeDotSeparatedSegmentsWithValidFormats(): void
@@ -69,7 +73,7 @@ class OAuthStateSignerTest extends TestCase
     public function testExpiredStateIsRejected(): void
     {
         $nonce = bin2hex(random_bytes(16));
-        $oldTimestamp = time() - self::TTL - 1;
+        $oldTimestamp = $this->clock->now()->getTimestamp() - self::TTL - 1;
         $signature = hash_hmac('sha256', $nonce . '.' . $oldTimestamp, self::SECRET);
         $state = $nonce . '.' . $oldTimestamp . '.' . $signature;
 
@@ -79,7 +83,7 @@ class OAuthStateSignerTest extends TestCase
     public function testStateAtBoundaryIsAccepted(): void
     {
         $nonce = bin2hex(random_bytes(16));
-        $timestamp = time() - self::TTL;
+        $timestamp = $this->clock->now()->getTimestamp() - self::TTL;
         $signature = hash_hmac('sha256', $nonce . '.' . $timestamp, self::SECRET);
         $state = $nonce . '.' . $timestamp . '.' . $signature;
 
@@ -89,7 +93,7 @@ class OAuthStateSignerTest extends TestCase
     public function testFutureTimestampIsRejected(): void
     {
         $nonce = bin2hex(random_bytes(16));
-        $futureTimestamp = time() + 60;
+        $futureTimestamp = $this->clock->now()->getTimestamp() + 60;
         $signature = hash_hmac('sha256', $nonce . '.' . $futureTimestamp, self::SECRET);
         $state = $nonce . '.' . $futureTimestamp . '.' . $signature;
 
@@ -120,7 +124,7 @@ class OAuthStateSignerTest extends TestCase
     public function testNonHexNonceIsRejected(): void
     {
         $nonce = str_repeat('z', 32);
-        $timestamp = time();
+        $timestamp = $this->clock->now()->getTimestamp();
         $signature = hash_hmac('sha256', $nonce . '.' . $timestamp, self::SECRET);
         $state = $nonce . '.' . $timestamp . '.' . $signature;
 
@@ -130,7 +134,7 @@ class OAuthStateSignerTest extends TestCase
     public function testNonceWithWrongLengthIsRejected(): void
     {
         $nonce = bin2hex(random_bytes(8)); // 16 chars instead of 32
-        $timestamp = time();
+        $timestamp = $this->clock->now()->getTimestamp();
         $signature = hash_hmac('sha256', $nonce . '.' . $timestamp, self::SECRET);
         $state = $nonce . '.' . $timestamp . '.' . $signature;
 
@@ -150,7 +154,7 @@ class OAuthStateSignerTest extends TestCase
     public function testNonHexSignatureIsRejected(): void
     {
         $nonce = bin2hex(random_bytes(16));
-        $timestamp = time();
+        $timestamp = $this->clock->now()->getTimestamp();
         $signature = str_repeat('z', 64);
         $state = $nonce . '.' . $timestamp . '.' . $signature;
 
@@ -159,7 +163,7 @@ class OAuthStateSignerTest extends TestCase
 
     public function testStateSignedWithDifferentSecretIsRejected(): void
     {
-        $other = new OAuthStateSigner('different-secret', self::TTL);
+        $other = new OAuthStateSigner('different-secret', $this->clock, self::TTL);
         $foreignState = $other->generate();
 
         $this->assertFalse($this->signer->verify($foreignState));

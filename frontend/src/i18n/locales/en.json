@@ -1469,6 +1469,13 @@
         "syncing": "Syncing...",
         "syncProgress": "Sync {percent} %",
         "loadError": "The moon chunks could not be loaded.",
+        "createOperation": "Create a mining operation",
+        "createOperationFor": "Create a mining operation for {moon}",
+        "refineries": "Refineries",
+        "follow": "Follow",
+        "unfollow": "Unfollow",
+        "followError": "The follow of this refinery could not be changed.",
+        "followHint": "Followed refineries notify you one hour before a chunk arrives and when it arrives. Set this in your notification preferences (category \"{category}\").",
         "unknownName": "unknown name",
         "lastSuccess": "last successful sync",
         "empty": "No extraction",
@@ -1485,7 +1492,8 @@
           "decay": "Natural decay",
           "countdown": "Countdown",
           "status": "Status",
-          "value": "Value"
+          "value": "Value",
+          "operation": "Operation"
         },
         "status": {
           "extracting": "Extracting",
@@ -1734,7 +1742,11 @@
         "loadError": "Could not load the ore sale.",
         "copy": "Copy summary",
         "copied": "Summary copied",
-        "copyFailed": "Could not copy the summary"
+        "copyFailed": "Could not copy the summary",
+        "operationSubtitle": "Compressed equivalent of the ore you mined in this operation, valued at the best known price, with a summary to paste into a contract.",
+        "operationEmpty": "No compressed ore from this operation.",
+        "notKnownYet": "Your mined quantities are not known yet: the ledger snapshots are still being read or could not be read. Correct them in the operation to get a sale.",
+        "unconverted": "Not valued, no compressed variant or batch size known: {types}."
       }
     },
     "pve": {
@@ -2150,7 +2162,8 @@
       "escalation": "Escalations",
       "esi": "EVE Notifications",
       "price": "Price Alerts",
-      "mining_operation": "Mining Operations"
+      "mining_operation": "Mining Operations",
+      "moon_chunk": "Moon Chunks"
     },
     "settingsModal": {
       "title": "Notification Preferences",
@@ -3174,6 +3187,8 @@
       "splitMode": "Split",
       "characters": "Your characters",
       "corporationUnavailable": "Unknown corporation: private visibility only.",
+      "chunkSystem": "Chunk system",
+      "chunkSystemHint": "The system is set when the operation starts.",
       "submit": "Create operation"
     },
     "recurrence": {
@@ -3746,6 +3761,17 @@
       "submit": "Record the scan",
       "allDepleted": "Everything depleted",
       "reminder": "Scan from the same position with the same range as before, otherwise an asteroid out of range counts as depleted.",
+      "paste": {
+        "label": "Paste the Survey Chipset results",
+        "placeholder": "Select all in the Survey Scanner results (every group expanded), copy, then paste here",
+        "read": "Read the paste",
+        "issues": {
+          "unreadable": "Line {line} could not be read.",
+          "unknown_ore": "Line {line}: \"{name}\" is not an ore known to the SDE.",
+          "volume_mismatch": "Line {line}: the quantity of {name} does not match its volume.",
+          "collapsed_group": "{name} is collapsed: expand every group before copying."
+        }
+      },
       "added": "Scan {number} added · trend ETA {from} → {to}",
       "errors": {
         "noLines": "Add at least one ore line.",

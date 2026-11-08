@@ -32,6 +32,9 @@ class CreateMiningOperationInput
     #[Assert\Valid]
     public ?MiningOperationRecurrenceInput $recurrence = null;
 
+    #[Assert\Uuid]
+    public ?string $chunkId = null;
+
     #[Assert\Choice(callback: [MiningBoostShip::class, 'values'])]
     public ?int $boostShipTypeId = null;
 

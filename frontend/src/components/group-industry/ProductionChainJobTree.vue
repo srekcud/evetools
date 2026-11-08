@@ -5,6 +5,7 @@ import IskAmount from '@/components/common/IskAmount.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ChainJob, ChainNode, ChainStage } from '@/stores/group-industry/types'
+import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import { chainStatusChipClass, chainStatusDotClass } from './chainStatus'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -191,7 +192,7 @@ function plansStructure(node: ChainNode): boolean {
           </td>
 
           <td class="py-2 px-3 text-slate-400 whitespace-nowrap">
-            <template v-if="item.node.meLevel !== null && item.node.teLevel !== null">{{ t('groupIndustry.chain.meTeValue', { me: item.node.meLevel, te: item.node.teLevel }) }}</template>
+            <template v-if="showsBlueprintEfficiency(item.node.activity) && item.node.meLevel !== null && item.node.teLevel !== null">{{ t('groupIndustry.chain.meTeValue', { me: item.node.meLevel, te: item.node.teLevel }) }}</template>
           </td>
 
           <td class="py-2 px-3 text-slate-300">
