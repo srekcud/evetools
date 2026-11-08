@@ -149,7 +149,7 @@ describe('ProductionChain overview', () => {
     const sale = wrapper.get(`[data-testid="chain-node-${SALE_ID}"]`).text()
 
     expect(columns).toEqual({
-      inventionMaterials: [HAMMERHEAD_II_INVENTION_ID, HAMMERHEAD_I_COPY_ID, TRITANIUM_ID, PARTICLE_ACCELERATOR_UNIT_ID],
+      inventionMaterials: [HAMMERHEAD_II_INVENTION_ID, TRITANIUM_ID, HAMMERHEAD_I_COPY_ID, PARTICLE_ACCELERATOR_UNIT_ID],
       components: [HAMMERHEAD_I_ID],
       product: [HAMMERHEAD_II_ID],
       sale: [SALE_ID],

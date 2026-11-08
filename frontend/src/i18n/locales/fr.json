@@ -2106,7 +2106,8 @@
         "soldUnits": "Unités vendues",
         "grossRevenue": "Revenu brut",
         "openInTree": "Ouvrir dans l'arbre des jobs",
-        "supplied": "{fulfilled} / {required} fournis"
+        "supplied": "{fulfilled} / {required} fournis",
+        "doneCount": "Terminés : {count}"
       },
       "columns": {
         "element": "Élément",
@@ -2131,6 +2132,7 @@
         "active": "En cours",
         "todo": "À lancer",
         "blocked": "Bloqué",
+        "missing_materials": "Matériaux manquants",
         "unknown": "Inconnu"
       },
       "legendTitle": "Légende des statuts",
