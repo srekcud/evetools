@@ -160,13 +160,12 @@ final readonly class ProductionPlanner
 
     private static function intermediateEfficiency(Recipe $recipe, PlanRequest $request): BlueprintEfficiency
     {
-        if (isset($request->intermediateEfficiencies[$recipe->productTypeId])) {
-            return $request->intermediateEfficiencies[$recipe->productTypeId];
+        if (ActivityKind::Reaction === $recipe->activity) {
+            return new BlueprintEfficiency(new MaterialEfficiency(self::REACTION_EFFICIENCY_LEVEL), new TimeEfficiency(self::REACTION_EFFICIENCY_LEVEL));
         }
 
-        return ActivityKind::Reaction === $recipe->activity
-            ? new BlueprintEfficiency(new MaterialEfficiency(self::REACTION_EFFICIENCY_LEVEL), new TimeEfficiency(self::REACTION_EFFICIENCY_LEVEL))
-            : new BlueprintEfficiency(new MaterialEfficiency(self::MANUFACTURED_INTERMEDIATE_ME), new TimeEfficiency(self::MANUFACTURED_INTERMEDIATE_TE));
+        return $request->intermediateEfficiencies[$recipe->productTypeId]
+            ?? new BlueprintEfficiency(new MaterialEfficiency(self::MANUFACTURED_INTERMEDIATE_ME), new TimeEfficiency(self::MANUFACTURED_INTERMEDIATE_TE));
     }
 
     private static function stockOf(int $typeId, PlanRequest $request): int

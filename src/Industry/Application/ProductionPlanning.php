@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Industry\Application;
 
+use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintCatalog;
+use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\Plan;
 use App\Industry\Domain\PlanRequest;
 use App\Industry\Domain\PlanTarget;
@@ -32,18 +34,24 @@ final readonly class ProductionPlanning
         $recipes = new RecipeMemory($this->blueprints);
         $planner = new ProductionPlanner($this->blueprints);
         $selector = new StructureSelector($request->structures, $request->favoriteSystems, $this->costIndices, $this->totalCostComparator, $request->selectionPolicy);
-        $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories, [], self::referenceRunsOf($request->targets));
+        $targets = self::targetsWithOwnedEfficiency($request, $recipes);
+        $materialModifiers = new StructureMaterialModifiers($selector, $this->rigCategories, [], self::referenceRunsOf($targets));
 
-        $uncappedPlan = $planner->plan(new PlanRequest($request->targets, $materialModifiers, $request->startingStock, $request->blacklist), $recipes);
+        $ownedEfficiencies = array_map(static fn (OwnedBlueprintUse $use): BlueprintEfficiency => $use->efficiency, $request->ownedBlueprints);
+
+        $uncappedPlan = $planner->plan(new PlanRequest($targets, $materialModifiers, $request->startingStock, $request->blacklist, intermediateEfficiencies: $ownedEfficiencies), $recipes);
 
         $maxRunsByProduct = [];
         foreach ($uncappedPlan->jobs as $job) {
+            if ($request->ownedBlueprints[$job->productTypeId]->original ?? false) {
+                continue;
+            }
             $maxRunsByProduct[$job->productTypeId] ??= $recipes->recipeFor($job->productTypeId)->maxProductionLimit
                 ?? throw new \LogicException(\sprintf('Job of product %d has no recipe.', $job->productTypeId));
         }
 
         $plan = $planner->plan(
-            new PlanRequest($request->targets, $materialModifiers, $request->startingStock, $request->blacklist, $maxRunsByProduct),
+            new PlanRequest($targets, $materialModifiers, $request->startingStock, $request->blacklist, $maxRunsByProduct, $ownedEfficiencies),
             $recipes,
         );
 
@@ -63,5 +71,26 @@ final readonly class ProductionPlanning
     private static function referenceRunsOf(array $targets): ?Runs
     {
         return 1 === \count($targets) ? $targets[0]->runs : null;
+    }
+
+    /**
+     * @return list<PlanTarget>
+     */
+    private static function targetsWithOwnedEfficiency(ProductionPlanRequest $request, RecipeMemory $recipes): array
+    {
+        $targets = [];
+        foreach ($request->targets as $index => $target) {
+            $owned = $request->ownedBlueprints[$target->productTypeId] ?? null;
+            if (null === $owned || ActivityKind::Reaction === $recipes->recipeFor($target->productTypeId)?->activity) {
+                $targets['requested:'.$index] = $target;
+                continue;
+            }
+
+            $key = \sprintf('owned:%d:%d:%d', $target->productTypeId, $owned->efficiency->materialEfficiency->value, $owned->efficiency->timeEfficiency->value);
+            $runs = ($targets[$key]->runs->value ?? 0) + $target->runs->value;
+            $targets[$key] = new PlanTarget($target->productTypeId, new Runs($runs), $owned->efficiency);
+        }
+
+        return array_values($targets);
     }
 }
