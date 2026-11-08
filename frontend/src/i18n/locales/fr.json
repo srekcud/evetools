@@ -3740,6 +3740,17 @@
       "submit": "Enregistrer le scan",
       "allDepleted": "Tout épuisé",
       "reminder": "Scannez depuis la même position avec la même portée qu'avant, sinon un astéroïde hors de portée passe pour épuisé.",
+      "paste": {
+        "label": "Coller les résultats du Survey Chipset",
+        "placeholder": "Sélectionnez tout dans les résultats du Survey Scanner (tous les groupes dépliés), copiez, puis collez ici",
+        "read": "Lire le collage",
+        "issues": {
+          "unreadable": "La ligne {line} n'a pas pu être lue.",
+          "unknown_ore": "Ligne {line} : « {name} » n'est pas un minerai connu du SDE.",
+          "volume_mismatch": "Ligne {line} : la quantité de {name} ne correspond pas à son volume.",
+          "collapsed_group": "{name} est replié : déplie tous les groupes avant de copier."
+        }
+      },
       "added": "Scan {number} ajouté · ETA tendance {from} → {to}",
       "errors": {
         "noLines": "Ajoutez au moins une ligne de minerai.",

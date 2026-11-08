@@ -6,6 +6,7 @@ import { useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
 import { useMiningSiteOreTypes } from '@/composables/useMiningSiteOreTypes'
 import { useMiningSiteStore, type MiningSite, type MiningSiteScan, type MiningSiteScanLine } from '@/stores/miningSite'
 import { isEverythingDepleted } from '@/views/MiningSite/miningSiteEstimate'
+import { parseSurveyPaste, type SurveyPasteIssue } from '@/views/MiningSite/miningSurveyPaste'
 
 interface DraftLine {
   key: number
@@ -25,6 +26,8 @@ const store = useMiningSiteStore()
 const oreTypes = useMiningSiteOreTypes()
 
 const lines = ref<DraftLine[]>([])
+const pastedText = ref('')
+const pasteIssues = ref<SurveyPasteIssue[]>([])
 const submitting = ref(false)
 const failure = ref<string | null>(null)
 const addedMessage = ref<string | null>(null)
@@ -40,6 +43,28 @@ function addLine(): void {
 
 function removeLine(key: number): void {
   lines.value = lines.value.filter(line => line.key !== key)
+}
+
+function readPaste(): void {
+  const text = pastedText.value
+  pastedText.value = ''
+  failure.value = null
+  addedMessage.value = null
+  if (text.trim() === '') {
+    pasteIssues.value = []
+    failure.value = t('miningSite.scan.errors.noLines')
+    return
+  }
+  const oreRows = oreTypes.rows.value.map(row => ({ typeId: row.typeId, typeName: row.typeName, volume: row.volume }))
+  const result = parseSurveyPaste(text, oreRows)
+  pasteIssues.value = result.issues
+  const hasCollapsedGroup = result.issues.some(issue => issue.kind === 'collapsed_group')
+  if (hasCollapsedGroup || result.lines.length === 0) return
+  lines.value = result.lines.slice(0, MAX_LINES).map(line => ({ key: nextKey++, typeId: String(line.typeId), units: String(line.units) }))
+}
+
+function issueText(issue: SurveyPasteIssue): string {
+  return t(`miningSite.scan.paste.issues.${issue.kind}`, { line: issue.line, name: issue.name ?? '' })
 }
 
 function validationFailure(): string | null {
@@ -86,6 +111,28 @@ onMounted(oreTypes.load)
 <template>
   <form class="eve-card space-y-4 p-5" data-testid="scan-form" @submit.prevent="submit">
     <h2 class="font-display text-lg font-semibold text-slate-100">{{ t('miningSite.scan.title') }}</h2>
+
+    <div class="space-y-2">
+      <label class="block text-sm text-slate-300" for="survey-paste">{{ t('miningSite.scan.paste.label') }}</label>
+      <textarea
+        id="survey-paste"
+        v-model="pastedText"
+        data-testid="survey-paste"
+        rows="4"
+        spellcheck="false"
+        :placeholder="t('miningSite.scan.paste.placeholder')"
+        class="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-2 font-mono text-xs text-slate-100"
+      ></textarea>
+      <button
+        type="button"
+        data-testid="survey-read"
+        class="rounded-md border border-cyan-500/40 px-3 py-1.5 text-sm text-cyan-200 hover:bg-cyan-500/10"
+        @click="readPaste"
+      >{{ t('miningSite.scan.paste.read') }}</button>
+      <ul v-if="pasteIssues.length > 0" class="space-y-1 text-sm text-amber-300" role="alert" data-testid="survey-issues">
+        <li v-for="(issue, position) in pasteIssues" :key="position">{{ issueText(issue) }}</li>
+      </ul>
+    </div>
 
     <ul v-if="lines.length > 0" class="space-y-2">
       <li v-for="line in lines" :key="line.key" class="flex items-center gap-2" data-testid="scan-line">
