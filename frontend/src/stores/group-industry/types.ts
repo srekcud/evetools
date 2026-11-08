@@ -534,6 +534,43 @@ export interface ProjectBuyOrBuild {
   rows: BuyOrBuildRow[]
 }
 
+export type MaterialSourcingSide = 'jita' | 'structure' | 'unknown'
+
+export interface MaterialSourcingRow {
+  typeId: number
+  typeName: string
+  quantity: number
+  volumePerUnit: number | null
+  jumps: number | null
+  jitaTotal: number | null
+  importTotal: number | null
+  jitaWithImportTotal: number | null
+  structureTotal: number | null
+  bestTotal: number | null
+  side: MaterialSourcingSide
+  structureFallback: boolean
+  saving: number | null
+  missingData: BuyOrBuildMissingData[]
+  warnings: BuyOrBuildWarning[]
+}
+
+export interface MaterialSourcingTotals {
+  jitaWithImport: number | null
+  structure: number | null
+  best: number | null
+}
+
+export interface ProjectMaterialSourcing {
+  id: string
+  importIskPerCubicMeterJump: number
+  structureId: number | null
+  structureName: string | null
+  structureSynced: boolean
+  structureLastSync: string | null
+  totals: MaterialSourcingTotals
+  rows: MaterialSourcingRow[]
+}
+
 export type ReactionStepInput = {
   typeId: number
   typeName: string | null

@@ -16,6 +16,7 @@ final readonly class MissingData
     private const string JUMP_ROUTE = 'jump_route';
     private const string INVENTOR_SKILLS = 'inventor_skills';
     private const string MARKET_PRICE = 'market_price';
+    private const string STRUCTURE_PRICE = 'structure_price';
 
     private function __construct(public string $reason, public ?int $typeId)
     {
@@ -29,6 +30,11 @@ final readonly class MissingData
     public static function marketPrice(int $typeId): self
     {
         return new self(self::MARKET_PRICE, $typeId);
+    }
+
+    public static function structurePrice(int $typeId): self
+    {
+        return new self(self::STRUCTURE_PRICE, $typeId);
     }
 
     public static function costIndex(): self

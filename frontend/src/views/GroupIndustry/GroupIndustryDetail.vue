@@ -12,6 +12,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
 import { useTabQuery } from '@/composables/useTabQuery'
 import BomTable from '@/components/group-industry/BomTable.vue'
+import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
 import JobsTable from '@/components/group-industry/JobsTable.vue'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
@@ -498,6 +499,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
         <!-- Materials Table -->
         <BomTable @contribute="openContributeModal" />
+
+        <MaterialSourcing :project-id="projectId" />
 
         <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
 

@@ -86,6 +86,7 @@ services:
     App\Industry\Domain\BlueprintCatalog: '@App\Industry\Infrastructure\Sde\SdeBlueprintCatalog'
     App\Industry\Application\InventionCatalog: '@App\Industry\Infrastructure\Sde\SdeInventionCatalog'
     App\Industry\Application\MarketPrices: '@App\Industry\Infrastructure\Market\JitaMarketPrices'
+    App\Industry\Application\StructureMarketPrices: '@App\Industry\Infrastructure\Market\StructureMarketCachePrices'
     App\Industry\Application\AdjustedPrices: '@App\Industry\Infrastructure\Esi\EsiAdjustedPrices'
     App\Industry\Application\SystemCostIndices: '@App\Industry\Infrastructure\Esi\EsiSystemCostIndices'
     App\Industry\Application\RigCategories: '@App\Industry\Infrastructure\Sde\SdeRigCategories'
@@ -116,6 +117,9 @@ when@test:
             public: true
         App\Industry\Application\MarketPrices:
             alias: App\Industry\Infrastructure\Market\JitaMarketPrices
+            public: true
+        App\Industry\Application\StructureMarketPrices:
+            alias: App\Industry\Infrastructure\Market\StructureMarketCachePrices
             public: true
         App\Industry\Application\AdjustedPrices:
             alias: App\Industry\Infrastructure\Esi\EsiAdjustedPrices

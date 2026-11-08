@@ -2342,6 +2342,35 @@
       "withoutImport": "without the import: buy",
       "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × jumps × the rate). The surplus of a run is not credited to the project."
     },
+    "materialSourcing": {
+      "title": "Where to buy the materials",
+      "loading": "Comparing Jita and the structure...",
+      "loadError": "The material sourcing could not be read",
+      "empty": "No material left to source.",
+      "importRate": "Jita import: {rate} ISK / m³ / jump",
+      "columns": {
+        "material": "Material",
+        "quantity": "Remaining",
+        "jitaWithImport": "Jita + import",
+        "structure": "Structure",
+        "best": "Buy at"
+      },
+      "side": {
+        "jita": "Jita",
+        "structure": "structure",
+        "unknown": "unknown"
+      },
+      "saving": "saving {amount}",
+      "structureFallback": "no structure price: bought at Jita",
+      "noStructure": "No preferred market structure: choose one in your settings to compare it with Jita.",
+      "structureNotSynced": "The market of your preferred structure is not synced: its prices are unknown, everything goes to Jita.",
+      "totals": {
+        "jitaWithImport": "Jita + import",
+        "structure": "Structure",
+        "best": "Best"
+      },
+      "hint": "Jita = weighted sell price of the remaining quantity plus the import to the workshop (m³ × jumps × the rate). Structure = lowest sell price of your preferred market structure."
+    },
     "courier": {
       "title": "Courier contract",
       "loading": "Reading the courier quote...",
