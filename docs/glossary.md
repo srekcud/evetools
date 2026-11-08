@@ -218,24 +218,24 @@ surplus           = quantité produite − (demande − stock)
 
 ## Minage
 
-Termes proposés pour le minage groupé (#261), en attente de validation : seuls **Ligne du ledger de minage** et **Rendement de retraitement** ont déjà un symbole.
+Termes du minage groupé et du minage lunaire (#261) : un symbole métier du minage porte un de ces noms.
 
 | Terme FR | Term EN | Définition | Symbole(s) |
 |---|---|---|---|
 | **Ligne du ledger de minage** | Mining ledger entry | Quantité d'un type de minerai minée par un personnage, un jour donné, dans un système (ledger ESI `/characters/{id}/mining`, agrégé par jour, 30 jours, cache 600 s). | `MiningEntry` (clé : personnage, date, type, système) |
-| **Opération de minage** | Mining operation | Session de minage de plusieurs joueurs, avec un début, une fin et une répartition des gains. Ne pas l'appeler « flotte », qui désigne l'objet ESI. Une session de minage lunaire est une opération comme une autre. | à venir (#262) |
-| **Participant** | Participant | Utilisateur inscrit à une opération de minage avec un ou plusieurs de ses personnages. | à venir (#262) |
-| **Instantané du ledger** | Ledger snapshot | Copie des lignes du ledger de minage d'un personnage à un instant donné, prise au début et à la fin d'une opération. | à venir (#263) |
-| **Quantité minée d'une opération** | Operation mined quantity | Différence, par personnage et par type, entre l'instantané de fin et celui de début. Inconnue pour un personnage dont un instantané n'a pas pu être lu, jamais 0. | à venir (#263) |
-| **Base de valorisation** | Valuation basis | Prix unitaire retenu pour valoriser le minerai d'une opération : brut, compressé (une unité compressée vaut une unité brute, #259) ou retraité, avec son marché (Jita ou structure). Une seule base par opération. | à venir (#264) |
-| **Rendement de retraitement** | Reprocessing yield | Fraction des minéraux obtenus au retraitement d'un minerai, de 0 à 1. | paramètre `reprocessYield` (`OreValueService::getBatchOrePrices()`) |
+| **Opération de minage** | Mining operation | Session de minage de plusieurs joueurs, avec un début, une fin et une répartition des gains. Ne pas l'appeler « flotte », qui désigne l'objet ESI. Une session de minage lunaire est une opération comme une autre. | `MiningOperation`, `MiningOperationResource`, `MiningOperationStatus` |
+| **Participant** | Participant | Utilisateur inscrit à une opération de minage avec un ou plusieurs de ses personnages. | `MiningOperationMember`, `MiningOperationCharacter` |
+| **Instantané du ledger** | Ledger snapshot | Copie des lignes du ledger de minage d'un personnage à un instant donné, prise au début et à la fin d'une opération. | `MiningLedgerSnapshot`, `MiningLedgerSnapshotLine`, `MiningLedgerSnapshotKind` (`start`, `end`), `MiningLedgerSnapshotTaker` |
+| **Quantité minée d'une opération** | Operation mined quantity | Différence, par personnage et par type, entre l'instantané de fin et celui de début. Inconnue pour un personnage dont un instantané n'a pas pu être lu, jamais 0. | `MinedQuantityCalculator`, `MinedQuantity` |
+| **Base de valorisation** | Valuation basis | Prix unitaire retenu pour valoriser le minerai d'une opération : brut, compressé (une unité compressée vaut une unité brute, #259) ou retraité, avec son marché (Jita ou structure). Une seule base par opération. | `MiningValuationForm` (`raw`, `compressed`, `reprocessed`), `MiningValuationMarket` (`jita`, `structure`), `MiningOperationValuator` |
+| **Rendement de retraitement** | Reprocessing yield | Fraction des minéraux obtenus au retraitement d'un minerai, de 0 à 1. | `ReprocessingYieldCalculator`, `ReprocessingProfileResource` ; paramètre `reprocessYield` (`OreValueService::getBatchOrePrices()`) |
 | **Présence** | Presence | État d'écran d'un participant pendant une opération en cours (`online`, `afk` avec ses minutes, `left`, `unknown`), calculé d'après son dernier battement dans evetools (`lastSeenAt`) ou son départ anticipé ; ce n'est pas l'état en jeu, que l'ESI ne donne pas (spec #307). | `MiningPresenceResolver`, `MiningPresence`, `MiningOperationMember::$lastSeenAt` |
-| **Part** | Share | Montant dû à un participant après répartition de la valeur d'une opération. | à venir (#264) |
-| **Part du booster** | Booster cut | Pourcentage de la valeur d'une opération réservé au booster avant répartition. | à venir (#264) |
-| **Vaisseau de boost** | Boost ship | Coque du booster de l'opération : Porpoise, Orca ou Rorqual. | à venir (#311) |
-| **Compresseur monté** | Mounted compressor | Genre de compresseur (minerai d'astéroïde, gaz, glace, mercoxit, minerai lunaire) monté sur le vaisseau de boost. | à venir (#311) |
-| **Compressible sur place** | Compressible on site | Un type miné dont le genre a un compresseur monté sur le vaisseau de boost. | à venir (#311) |
-| **Fleet storage** | Fleet storage | Minerai versé par un participant à un destinataire pendant l'opération ; il crée une dette du destinataire envers le participant. | à venir (#266) |
+| **Part** | Share | Montant dû à un participant après répartition de la valeur d'une opération. | `MiningShareCalculator`, `MiningShareSplit`, `MiningShareFreezer`, `MiningFrozenMinedValue` |
+| **Part du booster** | Booster cut | Pourcentage de la valeur d'une opération réservé au booster avant répartition. | `MiningOperation::$boosterCutPercent` |
+| **Vaisseau de boost** | Boost ship | Coque du booster de l'opération : Porpoise, Orca ou Rorqual. | `MiningBoostShip`, `MiningOperation::$boostShip` |
+| **Compresseur monté** | Mounted compressor | Genre de compresseur (minerai d'astéroïde, gaz, glace, mercoxit, minerai lunaire) monté sur le vaisseau de boost. | `MiningCompressorKind`, `MountableCompressorCatalog` |
+| **Compressible sur place** | Compressible on site | Un type miné dont le genre a un compresseur monté sur le vaisseau de boost. | `MiningCompressionAssessor`, `MiningCompressionStatus` |
+| **Fleet storage** | Fleet storage | Minerai versé par un participant à un destinataire pendant l'opération ; il crée une dette du destinataire envers le participant. | `MiningFleetStorageCalculator`, `MiningFleetStorageSettlement`, `MiningFleetStorageResource` |
 | **Scan de site** | Site scan | Relevé horodaté du restant, par type de minerai, d'une belt ou d'une anomalie, saisi aujourd'hui comme liste structurée {typeId, unités} horodatée par le serveur ; la lecture du collage du Mining Survey Chipset attend un exemple réel (spec #267). | `MiningSiteScan`, `SiteScanSample`, `MiningSiteScanRecorder` |
 | **Site de minage** | Mining site | Belt ou anomalie suivie par des scans de site, avec son historique de métriques ; le texte collé n'est jamais enregistré (spec #267). | `MiningSite`, `MiningSiteStatus`, `SiteDepletionEstimator` |
 | **Débit récent** | Recent depletion rate | Unités d'un type retirées d'un site par minute entre les deux derniers scans où il est présent (spec #267). | `SiteTypeEstimate`, `SiteDepletionEstimator` |
@@ -249,8 +249,8 @@ Termes proposés pour le minage groupé (#261), en attente de validation : seuls
 | **Composition d'une lune** | Moon composition | Liste `(typeId, part)` de la part du volume d'un chunk occupée par chaque minerai, collée par un joueur d'après le scan de la lune et enregistrée par `(corporationId, moonId)` ; un nouveau collage la remplace, sans historique ; le premier collage est ouvert à tout membre, le remplacement à l'auteur ou à un `Director` ou `Station_Manager` de la corporation, rôles illisibles = 503 (specs #308, #368). | `MoonComposition`, `MoonScanParser`, `MoonCompositionRecorder`, `MoonCompositionReplacementPolicy`, `MoonCompositionResource` |
 | **Valeur d'un chunk** | Chunk value | Estimation avant l'opération d'un chunk `extracting` ou `ready` : pour chaque minerai de la composition, `part × volume du chunk ÷ volume SDE de l'unité brute × prix compressé équivalent Jita buy`, avant booster et taxe, avec sa part à 4, 6 et 8 participants. Inconnue (`no_scan`, `no_price`, `no_volume`), jamais 0 ni somme partielle ; absente d'un chunk explosé (spec #308). | `MoonChunkValuer`, `MoonChunkValue`, `MoonChunkValueReader`, `CorporationMiningExtractionsProvider` (`chunkValue`) |
 | **Débit d'extraction** | Extraction rate | Volume extrait par heure d'une extraction lunaire, constante de 25 000 m³/h : volume d'un chunk = durée de l'extraction en heures × débit (spec #308). | `MoonChunkVolumeEstimator::EXTRACTION_RATE_M3_PER_HOUR` |
-| **Récurrence** | Recurrence | Règle qui crée une opération de minage chaque semaine (`weekly`) ou à chaque chunk d'une raffinerie (`chunk`), avec les mêmes règles (spec #310). | à venir (#310) |
-| **Occurrence** | Occurrence | Opération de minage créée par une récurrence (spec #310). | à venir (#310) |
+| **Récurrence** | Recurrence | Règle qui crée une opération de minage chaque semaine (`weekly`) ou à chaque chunk d'une raffinerie (`chunk`), avec les mêmes règles (spec #310). | `MiningOperationRecurrence`, `MiningOperationRecurrenceKind` |
+| **Occurrence** | Occurrence | Opération de minage créée par une récurrence (spec #310). | `MiningOperationOccurrenceCreator`, `MiningOperation::$recurrence` |
 | **Saison** | Season | Agrégat sur une période des opérations de minage de la corporation de l'utilisateur (spec #317). | `MiningSeasonSummary`, `MiningSeasonResource` |
 | **Valeur connue** | Known value | Somme des valeurs figées des opérations dont les parts sont gelées ; une opération non gelée est inconnue, jamais comptée pour 0 (spec #317). | `MiningSeasonSummary::$knownValue` |
 | **Heures minées** | Mined hours | Minutes de présence d'un joueur, du premier instantané de début lu à sa fin (spec #317). | `MiningSeasonParticipant::$minutes` |
