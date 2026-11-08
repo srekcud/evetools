@@ -51,5 +51,14 @@ La vue « Arbre des jobs » de l'onglet Chaîne (`ProductionChainJobTree.vue`) d
 
 ## Fichiers
 
-Prod : `src/Service/Industry/Project/ProjectChainLevels.php` (nouveau), `ProjectChainNode.php` (`level`), `ProjectChainBuilder.php` (`levelByTypeId`), `ProjectChainProvider.php`, `frontend/src/components/group-industry/ProductionChainJobTree.vue`, `ProductionChain.vue` (sélection), `stores/group-industry/{types,chain}.ts`, locales fr et en.
-Tests : `ProjectChainLevelsTest`, `ProjectChainBuilderTest`, `ProjectChainProviderTest`, `ProjectChainApiTest`, `productionChain.spec.ts`, `productionChainIcons.spec.ts`, `groupChain.spec.ts`.
+Prod : `ProjectChainBuilder.php` (niveau d'un nœud blueprint), `frontend/src/components/group-industry/ProductionChainJobTree.vue`, `ProductionChain.vue` (sélection), `stores/group-industry/{types,chain}.ts`, locales fr et en.
+Tests : `ProjectChainBuilderTest`, `ProjectChainApiTest`, `productionChain.spec.ts`, `productionChainIcons.spec.ts`, `groupChain.spec.ts`.
+
+## Merge avec #449
+
+#449 a livré avant cette issue `ProjectChainNode::$level`, calculé par `ChainManufacturingLevels::byTypeId` sur les lignes de BOM. Ce calcul remplace `ProjectChainLevels` : un seul niveau par nœud, plus de recalcul du plan dans `ProjectChainProvider`. Écarts avec les règles ci-dessus :
+
+- Règle 2 : la BOM ne garde que le premier consommateur (`parentTypeId`), donc un job qui consomme un intermédiaire dont il n'est pas le premier consommateur peut recevoir un niveau trop bas.
+- Règle 5 : un nœud matériau porte le niveau de son premier consommateur (#449) ; la liste des jobs ne l'affiche toujours pas.
+- Règle 6 : un job de composant ou de produit a toujours un niveau ; seul un nœud blueprint sans job de son type reste à `null`.
+

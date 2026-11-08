@@ -7,16 +7,14 @@ namespace App\State\Provider\Industry\Project;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\ProjectChainResource;
-use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryStructureConfigRepository;
-use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectChainBuilder;
-use App\Service\Industry\Project\ProjectChainLevels;
+use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -36,8 +34,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
         private IndustryStructureConfigRepository $structureConfigRepository,
         private ProjectAccessChecker $accessChecker,
         private ProjectChainBuilder $chainBuilder,
-        private IndustryProjectService $projectService,
-        private ProjectChainLevels $chainLevels,
+        private ProjectJobMaterialNeedsLoader $jobMaterialNeedsLoader,
     ) {
     }
 
@@ -74,7 +71,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
             $this->contributionRepository->findApprovedByProject($project),
             $this->saleRepository->findByProjectForListing($project),
             $structureNamesById,
-            $this->levelByTypeIdOf($project),
+            $this->jobMaterialNeedsLoader->load($project, $bomLines),
         );
 
         $resource = new ProjectChainResource();
@@ -82,17 +79,5 @@ final readonly class ProjectChainProvider implements ProviderInterface
         $resource->nodes = $chain->nodes;
 
         return $resource;
-    }
-
-    /**
-     * @return array<int, int>
-     */
-    private function levelByTypeIdOf(IndustryProject $project): array
-    {
-        try {
-            return $this->chainLevels->of($this->projectService->planOf($project, $project->getOwner()));
-        } catch (\RuntimeException) {
-            return [];
-        }
     }
 }

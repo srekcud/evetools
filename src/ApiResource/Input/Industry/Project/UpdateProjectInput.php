@@ -10,6 +10,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 class UpdateProjectInput
 {
     public const int MAXIMUM_NOTES_LENGTH = 5000;
+    public const int MAXIMUM_BLACKLIST_ENTRIES = 200;
 
     #[Assert\Length(max: 255)]
     public ?string $name = null;
@@ -30,6 +31,18 @@ class UpdateProjectInput
 
     #[Assert\Length(max: self::MAXIMUM_NOTES_LENGTH)]
     public ?string $notes = null;
+
+    /** @var int[]|null */
+    #[Assert\Count(max: self::MAXIMUM_BLACKLIST_ENTRIES)]
+    public ?array $blacklistGroupIds = null;
+
+    /** @var int[]|null */
+    #[Assert\Count(max: self::MAXIMUM_BLACKLIST_ENTRIES)]
+    public ?array $blacklistTypeIds = null;
+
+    /** @var string[]|null */
+    #[Assert\Count(max: self::MAXIMUM_BLACKLIST_ENTRIES)]
+    public ?array $blacklistCategoryKeys = null;
 
     #[Assert\Callback]
     public function validateTheSumOfTheFees(ExecutionContextInterface $context): void

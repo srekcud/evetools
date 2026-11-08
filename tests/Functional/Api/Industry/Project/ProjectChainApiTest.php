@@ -26,10 +26,10 @@ final class ProjectChainApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         self::assertSame(
             [
-                [$this->idOf($this->morphiteLine), 'material', 'Morphite', 'active', 'known', 55_500.0, null],
                 [$this->idOf($this->nocxiumLine), 'material', 'Nocxium', 'todo', 'none', null, null],
                 [$this->idOf($this->tritaniumLine), 'material', 'Tritanium', 'todo', 'none', null, null],
-                [$this->idOf($this->ramJobLine), 'component', 'R.A.M.- Starship Tech', 'todo', 'none', null, $this->idOf($this->ishtarJobLine)],
+                [$this->idOf($this->morphiteLine), 'material', 'Morphite', 'active', 'known', 55_500.0, null],
+                [$this->idOf($this->ramJobLine), 'component', 'R.A.M.- Starship Tech', 'unknown', 'none', null, $this->idOf($this->ishtarJobLine)],
                 [$this->idOf($this->ishtarJobLine), 'product', 'Ishtar', 'blocked', 'known', 499_500.0, null],
                 ['sale', 'sale', null, 'active', 'none', null, null],
             ],
@@ -59,7 +59,7 @@ final class ProjectChainApiTest extends WebTestCase
     }
 
     #[Group('issue-418')]
-    public function testEveryNodeCarriesALevelKeyNullForMaterialsAndTheSale(): void
+    public function testEveryNodeCarriesALevelKeyNullForTheSale(): void
     {
         $this->client->loginUser($this->owner, 'api');
         $this->request('GET', $this->chainUri($this->ishtarBatch->getId()->toRfc4122()));
@@ -70,7 +70,6 @@ final class ProjectChainApiTest extends WebTestCase
         foreach ($nodes as $node) {
             self::assertArrayHasKey('level', $node);
         }
-        self::assertNull($nodes[$this->idOf($this->morphiteLine)]['level']);
         self::assertNull($nodes['sale']['level']);
     }
 
@@ -109,9 +108,9 @@ final class ProjectChainApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         self::assertSame(
             [
-                $this->idOf($this->morphiteLine),
                 $this->idOf($this->nocxiumLine),
                 $this->idOf($this->tritaniumLine),
+                $this->idOf($this->morphiteLine),
                 $this->idOf($this->ramJobLine),
                 $this->idOf($this->ishtarJobLine),
                 'sale',

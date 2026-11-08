@@ -44,7 +44,7 @@ const sortedCandidates = computed((): PivotCandidate[] => {
     case 'coverage':
       return candidates.sort((a, b) => compareKnownFirstDescending(a.coveragePercent, b.coveragePercent))
     case 'volume':
-      return candidates.sort((a, b) => b.dailyVolume - a.dailyVolume)
+      return candidates.sort((a, b) => compareKnownFirstDescending(a.dailyVolume, b.dailyVolume))
     case 'profit':
       return candidates.sort((a, b) => compareKnownFirstDescending(a.estimatedProfit, b.estimatedProfit))
     default: // score
@@ -247,7 +247,8 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
               </div>
               <div>
                 <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.dailyVolume') }}</span>
-                <div class="font-mono text-sm text-slate-300">{{ formatNumber(result.sourceProduct.dailyVolume, 0) }} {{ t('industry.scanner.pivotAdvisor.unitsDay') }}</div>
+                <div v-if="result.sourceProduct.dailyVolume == null" class="font-mono text-sm text-amber-400 cursor-help" :title="t('industry.inventionUnknown.missing_daily_volume')">{{ t('industry.inventionUnknown.label') }}</div>
+                <div v-else class="font-mono text-sm text-slate-300">{{ formatNumber(result.sourceProduct.dailyVolume, 0) }} {{ t('industry.scanner.pivotAdvisor.unitsDay') }}</div>
               </div>
               <div>
                 <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.sellPriceLabel') }}</span>
@@ -482,8 +483,11 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
               </div>
               <div class="bg-slate-800 rounded-lg p-2">
                 <div class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.dailyVol') }}</div>
-                <div class="font-mono text-sm font-bold text-slate-200">{{ formatNumber(candidate.dailyVolume, 0) }}</div>
-                <div class="text-xs text-slate-500">{{ t('industry.scanner.pivotAdvisor.unitsDay') }}</div>
+                <div v-if="candidate.dailyVolume == null" class="font-mono text-sm font-bold text-amber-400 cursor-help" :title="t('industry.inventionUnknown.missing_daily_volume')">{{ t('industry.inventionUnknown.label') }}</div>
+                <template v-else>
+                  <div class="font-mono text-sm font-bold text-slate-200">{{ formatNumber(candidate.dailyVolume, 0) }}</div>
+                  <div class="text-xs text-slate-500">{{ t('industry.scanner.pivotAdvisor.unitsDay') }}</div>
+                </template>
               </div>
             </div>
 

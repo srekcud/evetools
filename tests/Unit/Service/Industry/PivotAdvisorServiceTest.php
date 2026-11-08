@@ -678,7 +678,7 @@ class PivotAdvisorServiceTest extends TestCase
     }
 
     #[Group('issue-115')]
-    public function testMaterialMissingFromTheSdeHasAnUnknownNameInThePivotMatrixWithUnchangedQuantitiesAndCosts(): void
+    public function testMaterialMissingFromTheSdeHasAnUnknownNameInThePivotMatrixWithTheMeAdjustedQuantitiesAndUnchangedCosts(): void
     {
         $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::ROBOTICS_TYPE_ID, self::CANDIDATE_1);
 
@@ -690,9 +690,9 @@ class PivotAdvisorServiceTest extends TestCase
                 'typeName' => 'Component A',
                 'inStock' => 50,
                 'candidates' => [
-                    self::SOURCE_PRODUCT => ['needed' => 10, 'status' => 'covered'],
-                    self::CANDIDATE_1 => ['needed' => 30, 'status' => 'covered'],
-                    self::CANDIDATE_2 => ['needed' => 60, 'status' => 'partial'],
+                    self::SOURCE_PRODUCT => ['needed' => 9, 'status' => 'covered'],
+                    self::CANDIDATE_1 => ['needed' => 27, 'status' => 'covered'],
+                    self::CANDIDATE_2 => ['needed' => 54, 'status' => 'partial'],
                 ],
             ],
             [
@@ -700,8 +700,8 @@ class PivotAdvisorServiceTest extends TestCase
                 'typeName' => null,
                 'inStock' => 6,
                 'candidates' => [
-                    self::SOURCE_PRODUCT => ['needed' => 20, 'status' => 'partial'],
-                    self::CANDIDATE_1 => ['needed' => 40, 'status' => 'partial'],
+                    self::SOURCE_PRODUCT => ['needed' => 18, 'status' => 'partial'],
+                    self::CANDIDATE_1 => ['needed' => 36, 'status' => 'partial'],
                     self::CANDIDATE_2 => ['needed' => 0, 'status' => 'none'],
                 ],
             ],
@@ -743,7 +743,7 @@ class PivotAdvisorServiceTest extends TestCase
                 'groupName' => '',
                 'marginPercent' => null,
                 'sellPrice' => null,
-                'dailyVolume' => 0.0,
+                'dailyVolume' => null,
                 'keyComponents' => [],
             ],
             'matrix' => [],
@@ -794,7 +794,69 @@ class PivotAdvisorServiceTest extends TestCase
         $this->assertSame([self::SOURCE_PRODUCT, self::ROBOTICS_TYPE_ID, self::CANDIDATE_2], $result['matrixProductIds']);
     }
 
-    private function givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(int $sharedMaterialTypeId, int $firstCandidateTypeId): void
+    #[Group('issue-132')]
+    public function testPivotMatrixNeedMinusStockOfACandidateComponentEqualsItsMissingQuantity(): void
+    {
+        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::BUILDABLE_MAT_B, self::CANDIDATE_1);
+
+        $result = $this->analyzeOnSdeKnowingPivotTypes();
+
+        $row = $this->matrixRowOf(self::BUILDABLE_MAT_B, $result);
+        $this->assertSame(36, $row['candidates'][self::CANDIDATE_1]['needed']);
+        $this->assertSame(6, $row['inStock']);
+        $this->assertSame(30, $result['candidates'][0]['missingComponents'][0]['quantity']);
+        $this->assertSame(18, $row['candidates'][self::SOURCE_PRODUCT]['needed']);
+    }
+
+    #[Group('issue-132')]
+    public function testPivotMatrixNeedScalesWithTheRunsLikeTheMissingQuantity(): void
+    {
+        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::BUILDABLE_MAT_B, self::CANDIDATE_1);
+
+        $result = $this->analyzeOnSdeKnowingPivotTypes(3);
+
+        $row = $this->matrixRowOf(self::BUILDABLE_MAT_B, $result);
+        $this->assertSame(108, $row['candidates'][self::CANDIDATE_1]['needed']);
+        $this->assertSame(54, $row['candidates'][self::SOURCE_PRODUCT]['needed']);
+        $missingByType = array_column($result['candidates'][0]['missingComponents'], 'quantity', 'typeId');
+        $this->assertSame(102, $missingByType[self::BUILDABLE_MAT_B]);
+    }
+
+    #[Group('issue-132')]
+    public function testPivotMatrixCellIsCoveredWhenTheStockCoversTheMeAdjustedNeedButNotTheBaseNeed(): void
+    {
+        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::BUILDABLE_MAT_B, self::CANDIDATE_1, 38);
+
+        $result = $this->analyzeOnSdeKnowingPivotTypes();
+
+        $row = $this->matrixRowOf(self::BUILDABLE_MAT_B, $result);
+        $this->assertSame(['needed' => 36, 'status' => 'covered'], $row['candidates'][self::CANDIDATE_1]);
+        $this->assertSame([], $result['candidates'][0]['missingComponents']);
+    }
+
+    #[Group('issue-132')]
+    public function testPivotMatrixNeedOfEachCandidateAppliesItsOwnMeAndMatchesItsMissingQuantity(): void
+    {
+        $result = $this->analyzeT1T2AndReactionCandidates();
+
+        $row = $this->matrixRowOf(self::BUILDABLE_MAT_A, $result);
+        $this->assertSame(30, $row['candidates'][self::CANDIDATE_1]['needed']);
+        $this->assertSame(147, $row['candidates'][self::CANDIDATE_2]['needed']);
+        $this->assertSame(33, $row['candidates'][self::REACTION_CANDIDATE]['needed']);
+    }
+
+    private function matrixRowOf(int $materialTypeId, array $result): array
+    {
+        foreach ($result['matrix'] as $row) {
+            if ($row['typeId'] === $materialTypeId) {
+                return $row;
+            }
+        }
+
+        $this->fail('No matrix row for the material ' . $materialTypeId);
+    }
+
+    private function givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(int $sharedMaterialTypeId, int $firstCandidateTypeId, int $sharedMaterialStock = 6): void
     {
         $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
         $componentBlueprint = $this->createBlueprintProduct(99001, self::BUILDABLE_MAT_A, 1, 1);
@@ -835,7 +897,7 @@ class PivotAdvisorServiceTest extends TestCase
 
         $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
             self::BUILDABLE_MAT_A => 50,
-            $sharedMaterialTypeId => 6,
+            $sharedMaterialTypeId => $sharedMaterialStock,
         ]);
         $this->jitaMarketService->method('getPrices')->willReturn([
             self::SOURCE_PRODUCT => 900000.0,
@@ -859,11 +921,11 @@ class PivotAdvisorServiceTest extends TestCase
         $this->givenAJobInstallCostPerRunOf(self::JOB_INSTALL_COST_PER_RUN);
     }
 
-    private function analyzeOnSdeKnowingPivotTypes(): array
+    private function analyzeOnSdeKnowingPivotTypes(int $runs = 1): array
     {
         return $this->pivotAdvisorOnSdeKnowing(self::PIVOT_SDE_TYPE_NAMES)->analyze(
             self::SOURCE_PRODUCT,
-            1,
+            $runs,
             self::SOLAR_SYSTEM_ID,
             new SalesFees(self::BROKER_FEE, self::SALES_TAX),
             $this->user,

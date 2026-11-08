@@ -16,7 +16,6 @@ final readonly class ProjectChainNode
         public string $id,
         public string $stage,
         public ?string $parentId,
-        public ?int $level,
         public ?int $typeId,
         public ?string $typeName,
         public ?string $activity,
@@ -34,6 +33,7 @@ final readonly class ProjectChainNode
         public ?array $plannedStructure,
         public ?int $soldQuantity,
         public ?float $grossRevenue,
+        public ?int $level,
     ) {
     }
 }

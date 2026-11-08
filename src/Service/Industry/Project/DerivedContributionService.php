@@ -63,7 +63,7 @@ class DerivedContributionService
 
     public function syncCourier(IndustryProject $project, ?CourierLinkedContract $contract): void
     {
-        if ($project->isCompleted()) {
+        if ($project->isCompleted() || CourierContractState::Unknown === $contract?->state) {
             return;
         }
 

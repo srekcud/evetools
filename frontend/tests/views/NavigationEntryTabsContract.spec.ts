@@ -98,6 +98,7 @@ describe('navigation entry tabs contract', () => {
       '/industry?tab=pivot',
       '/industry?tab=slots',
       '/industry?tab=stockpile',
+      '/industry?tab=blueprints',
       '/group-industry?tab=available',
       '/mining-operations?tab=available',
       '/market?tab=alerts',

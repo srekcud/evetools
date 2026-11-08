@@ -62,7 +62,7 @@ class BatchScanProvider implements ProviderInterface
 
         // Resolve structure ID
         $structureId = $structureIdParam !== null ? (int) $structureIdParam : null;
-        if ($structureId === null && $sellVenue === 'structure') {
+        if ($structureId === null && in_array($sellVenue, ['structure', 'contracts'], true)) {
             $structureId = $user->getPreferredMarketStructureId();
         }
 

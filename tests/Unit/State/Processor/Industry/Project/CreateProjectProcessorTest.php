@@ -114,6 +114,21 @@ class CreateProjectProcessorTest extends TestCase
         self::assertSame($expectedSalesTaxPercent, $this->createdProjectData->salesTaxPercent);
     }
 
+    #[Group('issue-445')]
+    public function testCategoryKeysSentAtCreationAreResolvedIntoTheGroupsOfTheBlacklistAfterTheGroupsSent(): void
+    {
+        $input = $this->sabreInput();
+        $input->blacklistGroupIds = [999];
+        $input->blacklistTypeIds = [34];
+        $input->blacklistCategoryKeys = ['fuel_blocks', 'biochem_reactions'];
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame([999, 1136, 661, 662], $this->createdProjectData->blacklistGroupIds);
+        self::assertSame([34], $this->createdProjectData->blacklistTypeIds);
+    }
+
     #[Group('issue-347')]
     public function testSellerFeesOfFiveAccountingFiveBrokerRelationsAndStandingsGiveTheProjectFeesInPercent(): void
     {

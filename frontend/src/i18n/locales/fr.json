@@ -655,7 +655,8 @@
       "batch": "Scan",
       "buyVsBuild": "Achat vs Prod",
       "pivot": "Pivot",
-      "stockpile": "Stockpile"
+      "stockpile": "Stockpile",
+      "blueprints": "Blueprints"
     },
     "groups": {
       "overview": "Vue d'ensemble",
@@ -740,6 +741,8 @@
         "profitableItems": "items rentables",
         "infoIskDay": "Est. ISK/jour = Profit par unite x Volume quotidien. C'est un maximum theorique en supposant que vous capturez 100% du volume du marche.",
         "infoPrices": "Les couts materiaux utilisent les prix ponderes Jita. Les couts d'installation de job utilisent les indices de cout ESI pour votre systeme selectionne. Les items T2 supposent un decrypteur Attainment. Cliquez sur une ligne pour ouvrir l'Analyseur de Profit detaille.",
+        "contractMonthlySales": "{count} / mois",
+        "contractSalesNotice": "Les ventes par contrat sont estimees : un contrat public qui disparait avant son expiration sans etre republie par le meme emetteur est compte comme une vente probable, dont une annulation ne se distingue pas. Le volume quotidien est le rythme de vente des 30 derniers jours.",
         "noResults": "Aucun resultat. Essayez d'ajuster les filtres ou lancez un scan.",
         "manufacturing": "Fabrication",
         "reaction": "Reaction",
@@ -1100,6 +1103,44 @@
       },
       "reconnectLink": "Reconnecter des personnages"
     },
+    "blueprints": {
+      "title": "Blueprints",
+      "subtitle": "Vos BPO et BPC, et ceux de la corpo que vous pouvez voir.",
+      "library": "Bibliothèque",
+      "refresh": "Rafraîchir",
+      "filter": {
+        "all": "Tous",
+        "personal": "Personnels",
+        "corporation": "Corpo"
+      },
+      "columns": {
+        "blueprint": "Blueprint",
+        "kind": "Type",
+        "efficiency": "ME / TE",
+        "runs": "Runs",
+        "where": "Où"
+      },
+      "kind": {
+        "bpo": "BPO",
+        "bpc": "BPC"
+      },
+      "efficiency": "ME {me} · TE {te}",
+      "runs": "{count} runs",
+      "unlimitedRuns": "∞",
+      "corporation": "corpo",
+      "division": "Division {number}",
+      "empty": "Aucun blueprint à afficher.",
+      "noDirector": {
+        "title": "Blueprints corpo inconnus.",
+        "detail": "L'ESI ne les donne qu'au jeton d'un directeur. Vos blueprints personnels restent à jour."
+      },
+      "noVisibility": {
+        "title": "Aucune division corpo ne vous est visible.",
+        "detail": "Les blueprints corpo ne sont listés que pour les divisions rendues visibles pour vous. Vos blueprints personnels restent à jour."
+      },
+      "syncErrorTitle": "Synchronisation des blueprints en échec ({count} erreur), la liste affichée peut être périmée : | Synchronisation des blueprints en échec ({count} erreurs), la liste affichée peut être périmée :",
+      "syncFailuresTitle": "Blueprints non synchronisés pour {count} personnage à la dernière synchronisation : | Blueprints non synchronisés pour {count} personnages à la dernière synchronisation :"
+    },
     "jobsSyncError": {
       "title": "Échec de la synchronisation des jobs ({count} erreur), les jobs affichés peuvent être périmés : | Échec de la synchronisation des jobs ({count} erreurs), les jobs affichés peuvent être périmés :"
     },
@@ -1406,7 +1447,8 @@
         "label": "Vues du minage",
         "entries": "Entrées",
         "oreValue": "Valeur au m³",
-        "moonChunks": "Chunks lunaires"
+        "moonChunks": "Chunks lunaires",
+        "moonTax": "Taxe lunaire"
       },
       "moonChunks": {
         "title": "Chunks lunaires",
@@ -1486,6 +1528,115 @@
             "forbidden": "Seuls l'auteur du scan, un Director ou un Station Manager de la corporation peuvent le remplacer.",
             "roles_unavailable": "Vos rôles de corporation n'ont pas pu être lus, réessayez plus tard."
           }
+        }
+      },
+      "moonTax": {
+        "title": "Taxe lunaire",
+        "subtitle": "Taxe due sur le minerai lunaire extrait aux raffineries de la corporation, par mineur et par période. Les dates sont en EVE time (UTC).",
+        "viewLabel": "Vues de la taxe lunaire",
+        "views": {
+          "manager": "Gestionnaire",
+          "miner": "Ma taxe"
+        },
+        "corporation": "Corporation {id}",
+        "structure": "Structure {id}",
+        "requestFailed": "La requête a échoué.",
+        "corporationsLoadError": "Les corporations n'ont pas pu être chargées.",
+        "noCorporation": "Aucune corporation avec une raffinerie connue. Synchronisez d'abord les chunks lunaires.",
+        "loadError": "La taxe lunaire de cette corporation n'a pas pu être chargée.",
+        "statementsLoadError": "Les relevés n'ont pas pu être chargés.",
+        "mineLoadError": "Votre taxe lunaire n'a pas pu être chargée.",
+        "denied": "Accès gestionnaire refusé",
+        "unreadable": "Rôles de la corporation illisibles",
+        "noRefinery": "Aucune raffinerie connue, synchronisez les extractions.",
+        "filterLabel": "Filtre des relevés",
+        "filters": {
+          "all": "Tous",
+          "late": "En retard"
+        },
+        "exportCsv": "Exporter CSV",
+        "exportError": "L'export CSV a échoué.",
+        "emptyStatements": "Aucun relevé",
+        "emptyMine": "Aucune taxe lunaire pour vos personnages",
+        "unknown": "inconnue",
+        "withoutPrice": "sans prix : {ids}",
+        "periodInProgress": "période en cours",
+        "outsideAlliance": "Hors alliance",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyFailed": "La référence n'a pas pu être copiée.",
+        "access": {
+          "ledger": "Ledger de minage",
+          "payments": "Paiements",
+          "states": {
+            "never_synced": "pas encore synchronisé",
+            "denied": "accès refusé",
+            "reconnect": "à reconnecter",
+            "error": "erreur ESI"
+          },
+          "reconnectScope": "accordez à nouveau le scope {scope}",
+          "lastRead": "dernière lecture le"
+        },
+        "sync": {
+          "button": "Synchroniser",
+          "syncing": "Synchronisation...",
+          "progress": "Sync {percent} %",
+          "failed": "La synchronisation de la taxe lunaire a échoué."
+        },
+        "refinery": {
+          "openToAlliance": "Ouverte à l'alliance",
+          "period": "Période",
+          "periods": {
+            "weekly": "Hebdomadaire",
+            "monthly": "Mensuelle"
+          },
+          "walletDivision": "Division du wallet",
+          "chooseDivision": "Choisir",
+          "rate": "Taux {rank} (%)",
+          "save": "Enregistrer",
+          "saving": "Enregistrement...",
+          "saved": "Réglage enregistré"
+        },
+        "totals": {
+          "due": "Dû",
+          "paid": "Payé",
+          "remaining": "Reste",
+          "outside": "Hors alliance",
+          "unknown": "inconnu",
+          "knownPart": "dont {amount} connus"
+        },
+        "columns": {
+          "character": "Personnage",
+          "refinery": "Raffinerie",
+          "period": "Période",
+          "reference": "Référence",
+          "tax": "Dû",
+          "paid": "Payé",
+          "remaining": "Reste",
+          "status": "Statut",
+          "outside": "Alliance",
+          "actions": "Actions"
+        },
+        "status": {
+          "provisional": "Provisoire",
+          "unknown": "Inconnu",
+          "cancelled": "Annulé",
+          "paid": "Payé",
+          "late": "En retard",
+          "partial": "Partiel",
+          "due": "À payer"
+        },
+        "actions": {
+          "markPaid": "Marquer payé",
+          "cancel": "Annuler",
+          "confirmCancel": "Confirmer l'annulation",
+          "keep": "Garder"
+        },
+        "howToPay": {
+          "title": "Comment payer",
+          "donation": "Faites un don en jeu du montant restant à la corporation, avec la référence du relevé en motif.",
+          "recognition": "Le paiement est reconnu après la prochaine synchronisation du journal du wallet, ce qui peut prendre jusqu'à une heure.",
+          "alt": "Payé depuis un autre personnage que celui qui a miné ? Le gestionnaire rapproche le paiement à la main."
         }
       },
       "reprocessingProfile": {
@@ -2112,7 +2263,8 @@
         "soldUnits": "Unités vendues",
         "grossRevenue": "Revenu brut",
         "openInTree": "Ouvrir dans l'arbre des jobs",
-        "supplied": "{fulfilled} / {required} fournis"
+        "supplied": "{fulfilled} / {required} fournis",
+        "doneCount": "Terminés : {count}"
       },
       "columns": {
         "element": "Élément",
@@ -2137,6 +2289,7 @@
         "active": "En cours",
         "todo": "À lancer",
         "blocked": "Bloqué",
+        "missing_materials": "Matériaux manquants",
         "unknown": "Inconnu"
       },
       "legendTitle": "Légende des statuts",
@@ -2262,6 +2415,15 @@
         "byTotalCost": "{structure} est retenue hors du système préféré : coût total le plus bas."
       },
       "hint": "Total = matériaux (structure et rigs) + installation (indice de coût, bonus de rôle, taxe) + transport (m³ des matériaux et des produits × sauts × le barème). Écart = total moins la structure retenue."
+    },
+    "blacklistEditor": {
+      "edit": "Modifier la blacklist",
+      "title": "Blacklist de production",
+      "description": "Les matériaux d'une catégorie en blacklist sont achetés au lieu d'être produits. Les matériaux et les jobs sont recalculés à l'enregistrement ; les lignes qui portent un apport sont conservées.",
+      "kept": "Conservés tels quels : {groups} autre(s) groupe(s), {types} objet(s) individuel(s).",
+      "save": "Enregistrer et recalculer",
+      "cancel": "Annuler",
+      "saveError": "La blacklist n'a pas pu être enregistrée"
     },
     "surplus": {
       "title": "Surplus de matières",
@@ -2400,7 +2562,22 @@
       "submit": "Soumettre la contribution",
       "pendingNote": "Votre contribution sera examinee par un admin du projet.",
       "depositDayPrice": "Prix Jita du jour d'apport (percentile 5 %)",
-      "depositDayPriceNote": "Lu sur le marché au dépôt de la contribution et conservé tel quel lors de sa revue."
+      "depositDayPriceNote": "Lu sur le marché au dépôt de la contribution et conservé tel quel lors de sa revue.",
+      "lineRentalSuggestion": {
+        "title": "Suggestion issue de votre barème",
+        "category": "Catégorie",
+        "days": "Jours occupés",
+        "runs": "Runs",
+        "dayFactor": "Facteur par jour",
+        "ratePerRun": "Montant par run",
+        "unknownTitle": "Aucune suggestion",
+        "unknownReasons": {
+          "unknown_category": "Ce produit n'a pas de catégorie de barème. Saisissez la valeur à la main.",
+          "no_linked_job": "Aucun de vos jobs n'est lié à cette ligne. Saisissez la valeur à la main.",
+          "job_data_missing": "Un job lié est absent des jobs synchronisés. Saisissez la valeur à la main."
+        },
+        "loadError": "La suggestion n'a pas pu être chargée. Saisissez la valeur à la main."
+      }
     },
     "contributions": {
       "title": "Contributions",

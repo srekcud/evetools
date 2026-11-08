@@ -6,12 +6,14 @@ namespace App\ApiResource\MiningSite;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\MiningSite\RecordMiningSiteScanInput;
+use App\State\Processor\MiningSite\HideMiningSiteScanProcessor;
 use App\State\Processor\MiningSite\RecordMiningSiteScanProcessor;
 use App\State\Provider\MiningSite\MiningSiteScanCollectionProvider;
 use App\State\Provider\MiningSite\MiningSiteScanItemProvider;
@@ -45,6 +47,16 @@ use App\State\Provider\MiningSite\MiningSiteScanItemProvider;
             ],
             provider: MiningSiteScanItemProvider::class,
             openapi: new Model\Operation(summary: 'Get a scan of a mining site', tags: ['Mining Sites']),
+        ),
+        new Delete(
+            uriTemplate: '/mining-sites/{siteId}/scans/{id}',
+            uriVariables: [
+                'siteId' => new Link(fromClass: MiningSiteResource::class),
+                'id' => new Link(fromClass: self::class),
+            ],
+            provider: MiningSiteScanItemProvider::class,
+            processor: HideMiningSiteScanProcessor::class,
+            openapi: new Model\Operation(summary: 'Hide a scan of a mining site from the estimates to come', tags: ['Mining Sites']),
         ),
     ],
     security: "is_granted('ROLE_USER')",
