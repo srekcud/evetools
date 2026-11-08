@@ -324,7 +324,7 @@ export type PivotComponentCoverage = {
   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
 }
 
-export type PivotUnknownReason = 'missing_material_price' | InventionUnknownReason | JobInstallCostUnknownReason
+export type PivotUnknownReason = 'missing_material_price' | 'missing_daily_volume' | InventionUnknownReason | JobInstallCostUnknownReason
 
 export type PivotCandidate = {
   typeId: number
@@ -332,7 +332,7 @@ export type PivotCandidate = {
   groupName: string
   marginPercent: number | null
   profitPerUnit: number | null
-  dailyVolume: number
+  dailyVolume: number | null
   coveragePercent: number | null
   missingComponents: PivotMissingComponent[]
   additionalCost: number | null
@@ -348,7 +348,7 @@ export type PivotSourceProduct = {
   groupName: string
   marginPercent: number | null
   sellPrice: number
-  dailyVolume: number
+  dailyVolume: number | null
   keyComponents: { typeId: number; typeName: string | null; inStock: number }[]
   unknownReason?: PivotUnknownReason | null
   missingPriceTypeIds?: number[]

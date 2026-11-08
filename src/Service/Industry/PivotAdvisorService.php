@@ -43,7 +43,7 @@ class PivotAdvisorService
      *     typeId: int,
      *     sourceProduct: array<string, mixed>,
      *     matrix: list<array<string, mixed>>,
-     *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>}>,
+     *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>}>,
      *     matrixProductIds: list<int>,
      * }
      */
@@ -197,7 +197,7 @@ class PivotAdvisorService
                 $marginPercent = ($netSellPrice * $cpOutputPerRun - $totalCost) / $totalCost * 100;
                 $profitPerUnit = ($netSellPrice * $cpOutputPerRun - $totalCost) / $cpOutputPerRun;
             }
-            $dailyVolume = $dailyVolumes[$cpTypeId] ?? 0.0;
+            $dailyVolume = $dailyVolumes[$cpTypeId] ?? null;
 
             // Coverage (value-weighted): how much of the candidate's buildable materials
             // overlap with the source product's buildable materials, weighted by stock
@@ -245,7 +245,7 @@ class PivotAdvisorService
                 : 0.0;
 
             $score = null;
-            if ($marginPercent !== null && !$isCoverageUnknown) {
+            if ($marginPercent !== null && !$isCoverageUnknown && $dailyVolume !== null) {
                 $score = $coveragePercent * $marginPercent * log10($dailyVolume + 1);
             }
 
@@ -262,7 +262,7 @@ class PivotAdvisorService
                 'estimatedProfit' => $profitPerUnit !== null ? round($profitPerUnit * $cpOutputPerRun * $runs, 2) : null,
                 'score' => $score !== null ? round($score, 2) : null,
                 'blueprintTypeId' => $cpBpId,
-                'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'],
+                'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'] ?? $this->unknownDailyVolumeReason($dailyVolume),
                 'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($cpMaterials, $jitaPrices),
             ];
         }
@@ -451,6 +451,7 @@ class PivotAdvisorService
         $totalCost = $totalCostWithInvention['totalCost'];
 
         $sellPrice = $jitaPrices[$sourceTypeId] ?? null;
+        $dailyVolume = $dailyVolumes[$sourceTypeId] ?? null;
         $marginPercent = null;
         if ($salesFees !== null && $totalCost !== null && $sellPrice !== null && $sellPrice > 0 && $totalCost > 0) {
             $fees = $sellPrice * ($salesFees->brokerFeeRate + $salesFees->salesTaxRate);
@@ -475,9 +476,9 @@ class PivotAdvisorService
             'groupName' => $groupNames[$sourceTypeId] ?? '',
             'marginPercent' => $marginPercent,
             'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
-            'dailyVolume' => $dailyVolumes[$sourceTypeId] ?? 0.0,
+            'dailyVolume' => $dailyVolume,
             'keyComponents' => $keyComponents,
-            'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'],
+            'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'] ?? $this->unknownDailyVolumeReason($dailyVolume),
             'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($sourceMaterials, $jitaPrices),
         ];
     }
@@ -532,6 +533,11 @@ class PivotAdvisorService
         return $jobInstallCost['unknownReason'];
     }
 
+    private function unknownDailyVolumeReason(?float $dailyVolume): ?string
+    {
+        return $dailyVolume === null ? BatchProfitScannerService::UNKNOWN_REASON_MISSING_DAILY_VOLUME : null;
+    }
+
     /**
      * @param list<array{materialTypeId: int, quantity: int}> $materials
      * @param array<int, float|null> $jitaPrices
@@ -583,7 +589,7 @@ class PivotAdvisorService
                 'groupName' => '',
                 'marginPercent' => null,
                 'sellPrice' => null,
-                'dailyVolume' => 0.0,
+                'dailyVolume' => null,
                 'keyComponents' => [],
             ],
             'matrix' => [],
