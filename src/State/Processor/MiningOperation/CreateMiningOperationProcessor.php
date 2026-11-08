@@ -9,6 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Input\MiningOperation\CreateMiningOperationInput;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\Service\MiningOperation\MiningBoostFit;
+use App\Service\MiningOperation\MiningOperationChunkResolver;
 use App\Service\MiningOperation\MiningOperationEnrolment;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\State\Provider\MiningOperation\MiningOperationResourceMapper;
@@ -24,6 +25,7 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
         private MiningOperationEnrolment $enrolment,
         private MiningOperationResourceMapper $mapper,
         private MiningBoostFit $boostFit,
+        private MiningOperationChunkResolver $chunkResolver,
     ) {
     }
 

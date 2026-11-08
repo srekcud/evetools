@@ -14,6 +14,7 @@ use App\Enum\CorporationMiningSyncFailure;
 use App\Enum\MoonChunkStatus;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\CorporationMiningSyncStateRepository;
+use App\Repository\MoonRefineryFollowRepository;
 use App\Service\MoonChunk\MoonChunkValueReader;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Clock\ClockInterface;
@@ -30,6 +31,7 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
         private Security $security,
         private CorporationMiningExtractionRepository $extractionRepository,
         private CorporationMiningSyncStateRepository $syncStateRepository,
+        private MoonRefineryFollowRepository $followRepository,
         private ClockInterface $clock,
         private MoonChunkValueReader $chunkValueReader,
     ) {

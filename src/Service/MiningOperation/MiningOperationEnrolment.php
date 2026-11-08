@@ -32,7 +32,7 @@ final readonly class MiningOperationEnrolment
     ) {
     }
 
-    public function create(User $owner, CreateMiningOperationInput $input): MiningOperation
+    public function create(User $owner, CreateMiningOperationInput $input, ?CorporationMiningExtraction $chunk = null): MiningOperation
     {
         $visibility = MiningOperationVisibility::from($input->visibility);
         $corporationId = $owner->getCorporationId();

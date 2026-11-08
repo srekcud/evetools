@@ -21,6 +21,7 @@ class Notification
     public const CATEGORY_ESI = 'esi';
     public const CATEGORY_PRICE = 'price';
     public const CATEGORY_MINING_OPERATION = 'mining_operation';
+    public const CATEGORY_MOON_CHUNK = 'moon_chunk';
 
     public const LEVEL_INFO = 'info';
     public const LEVEL_SUCCESS = 'success';
