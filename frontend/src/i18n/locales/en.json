@@ -2302,7 +2302,7 @@
       "legendTitle": "Status legend",
       "meTeValue": "ME {me} · TE {te}",
       "characterUnknown": "Character unknown",
-      "ioUnknownCause": "job locations not synchronized (#319)",
+      "ioUnknownCause": "Input → output: job locations not synchronized yet",
       "unknownCostCause": "a contribution has no known price: the cost stays unknown, never partial",
       "structure": {
         "unknown": "Unknown structure: no structure configured for this job",

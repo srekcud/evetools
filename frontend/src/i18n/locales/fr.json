@@ -2302,7 +2302,7 @@
       "legendTitle": "Légende des statuts",
       "meTeValue": "ME {me} · TE {te}",
       "characterUnknown": "Personnage inconnu",
-      "ioUnknownCause": "lieux des jobs non synchronisés (#319)",
+      "ioUnknownCause": "Entrée → sortie : lieux des jobs pas encore synchronisés",
       "unknownCostCause": "un apport n'a pas de prix connu : le coût reste inconnu, jamais partiel",
       "structure": {
         "unknown": "Structure inconnue : aucune structure configurée pour ce job",
