@@ -103,7 +103,7 @@ describe('production chain overview urgency', () => {
     await wrapper.get('[data-testid="chain-node-component-done"]').trigger('click')
 
     expect(wrapper.find('[data-testid="chain-flow"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="chain-row-component-done"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="chain-row-component-done"]').exists()).toBe(true)
   })
 
   it.each(TEST_LOCALES)('labels the missing materials status in %s on the node chip and in the legend', async (locale) => {
