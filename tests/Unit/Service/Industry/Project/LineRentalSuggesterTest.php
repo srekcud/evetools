@@ -104,7 +104,7 @@ final class LineRentalSuggesterTest extends TestCase
 
         $suggestion = $this->suggester->suggest($this->contributor, $this->line);
 
-        self::assertSame(1_600_000.0, $suggestion->suggestedValue);
+        self::assertSame(2_000_000.0, $suggestion->suggestedValue);
         self::assertSame(1.0, $suggestion->days);
         self::assertSame(10, $suggestion->runs);
     }

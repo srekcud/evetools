@@ -2394,7 +2394,22 @@
       "submit": "Soumettre la contribution",
       "pendingNote": "Votre contribution sera examinee par un admin du projet.",
       "depositDayPrice": "Prix Jita du jour d'apport (percentile 5 %)",
-      "depositDayPriceNote": "Lu sur le marché au dépôt de la contribution et conservé tel quel lors de sa revue."
+      "depositDayPriceNote": "Lu sur le marché au dépôt de la contribution et conservé tel quel lors de sa revue.",
+      "lineRentalSuggestion": {
+        "title": "Suggestion issue de votre barème",
+        "category": "Catégorie",
+        "days": "Jours occupés",
+        "runs": "Runs",
+        "dayFactor": "Facteur par jour",
+        "ratePerRun": "Montant par run",
+        "unknownTitle": "Aucune suggestion",
+        "unknownReasons": {
+          "unknown_category": "Ce produit n'a pas de catégorie de barème. Saisissez la valeur à la main.",
+          "no_linked_job": "Aucun de vos jobs n'est lié à cette ligne. Saisissez la valeur à la main.",
+          "job_data_missing": "Un job lié est absent des jobs synchronisés. Saisissez la valeur à la main."
+        },
+        "loadError": "La suggestion n'a pas pu être chargée. Saisissez la valeur à la main."
+      }
     },
     "contributions": {
       "title": "Contributions",
