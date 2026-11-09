@@ -134,9 +134,15 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/join/:code',
+      path: '/industry/join/:code',
       name: 'group-industry-join',
       component: () => import('@/views/GroupIndustry/GroupIndustryJoin.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/join/:code',
+      name: 'group-industry-join-shared-link',
+      redirect: to => ({ name: 'group-industry-join', params: to.params, query: to.query }),
       meta: { requiresAuth: true },
     },
     {

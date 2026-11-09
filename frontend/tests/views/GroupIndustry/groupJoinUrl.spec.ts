@@ -11,7 +11,7 @@ const SHORT_LINK_CODE = 'K7Q2MX'
 
 describe('groupJoinUrl', () => {
   it('builds the join link from the origin and the short link code', () => {
-    expect(groupJoinUrl(ORIGIN, SHORT_LINK_CODE)).toBe('https://evetools.example/join/K7Q2MX')
+    expect(groupJoinUrl(ORIGIN, SHORT_LINK_CODE)).toBe('https://evetools.example/industry/join/K7Q2MX')
   })
 
   it('resolves the join link path to the group industry join route with the short link code', () => {
