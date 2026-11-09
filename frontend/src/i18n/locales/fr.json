@@ -3053,6 +3053,7 @@
       "projectNotFound": "Projet non trouve ou lien expire.",
       "invalidLink": "Lien d'invitation invalide",
       "joinFailed": "Échec de l'adhésion au projet",
+      "moduleLabel": "Invitation à un projet d'industrie",
       "joining": "Adhésion au projet...",
       "joiningWait": "Veuillez patienter pendant le traitement de votre demande",
       "requestSent": "Demande envoyée",

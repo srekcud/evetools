@@ -54,6 +54,7 @@ onMounted(async () => {
 <template>
   <MainLayout>
     <div class="max-w-lg mx-auto px-6 py-16">
+      <p class="mb-3 text-center text-xs font-semibold uppercase tracking-widest text-cyan-400">{{ t('groupIndustry.join.moduleLabel') }}</p>
       <!-- Loading -->
       <div v-if="state === 'loading'" class="text-center">
         <div class="bg-slate-900/80 rounded-2xl border border-slate-800 p-12">
