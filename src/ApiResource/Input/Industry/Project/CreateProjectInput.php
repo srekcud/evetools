@@ -15,13 +15,14 @@ class CreateProjectInput
     private const int MAXIMUM_TIME_EFFICIENCY = 20;
     private const int MAXIMUM_RUNS = 100000;
     private const int MAXIMUM_BLACKLIST_ENTRIES = 200;
+    private const int MAXIMUM_ITEMS = 100;
 
     #[Assert\Length(max: 255)]
     public ?string $name = null;
 
     /** @var list<array{typeId: int, typeName: string, meLevel: int, teLevel: int, runs: int}> */
     #[Assert\NotBlank]
-    #[Assert\Count(min: 1, max: 10)]
+    #[Assert\Count(min: 1, max: self::MAXIMUM_ITEMS)]
     #[Assert\All([
         new Assert\Sequentially([
             new Assert\NotNull(),
