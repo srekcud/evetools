@@ -90,14 +90,6 @@ function onSearchFocus() {
 
 function addSelectedItem() {
   if (!selectedItem.value) return
-  // Prevent duplicates
-  const alreadyExists = items.value.some(item => item.typeId === selectedItem.value!.typeId)
-  if (alreadyExists) {
-    // Clear and ignore silently
-    searchQuery.value = ''
-    selectedItem.value = null
-    return
-  }
   items.value.push({
     typeId: selectedItem.value.typeId,
     typeName: selectedItem.value.typeName,

@@ -342,19 +342,14 @@ class IndustryProjectService
             $isReaction = $this->producerOf($item->getTypeId())->getActivityId() === IndustryActivityType::Reaction->value;
             $materialEfficiency = $isReaction ? ProductionPlanner::REACTION_EFFICIENCY_LEVEL : $item->getMeLevel();
             $timeEfficiency = $isReaction ? ProductionPlanner::REACTION_EFFICIENCY_LEVEL : $item->getTeLevel();
-            $key = $item->getTypeId() . ':' . $materialEfficiency . ':' . $timeEfficiency;
-            $runs = ($targets[$key]['runs'] ?? 0) + $item->getRuns();
-            $targets[$key] = ['typeId' => $item->getTypeId(), 'runs' => $runs, 'me' => $materialEfficiency, 'te' => $timeEfficiency];
+            $targets[] = new PlanTarget(
+                $item->getTypeId(),
+                new Runs($item->getRuns()),
+                new BlueprintEfficiency(new MaterialEfficiency($materialEfficiency), new TimeEfficiency($timeEfficiency)),
+            );
         }
 
-        return array_values(array_map(
-            static fn (array $target): PlanTarget => new PlanTarget(
-                $target['typeId'],
-                new Runs($target['runs']),
-                new BlueprintEfficiency(new MaterialEfficiency($target['me']), new TimeEfficiency($target['te'])),
-            ),
-            $targets,
-        ));
+        return $targets;
     }
 
     /**

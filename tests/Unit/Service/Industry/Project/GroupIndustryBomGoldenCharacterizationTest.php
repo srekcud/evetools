@@ -389,14 +389,18 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     #[Group('issue-23')]
     #[Group('issue-141')]
-    public function testTwoReactionItemsOfTheSameProductAtDifferentMeShareOneFinalJobAtMeZeroAndTeZero(): void
+    #[Group('issue-49')]
+    public function testTwoReactionItemsOfTheSameProductAtDifferentMeGetOneFinalJobEachAtMeZeroAndTeZero(): void
     {
         $project = $this->projectOf([[self::FERNITE_CARBIDE, 1, 0, 0], [self::FERNITE_CARBIDE, 2, 10, 20]]);
 
         $this->service->buildBom($project, $this->owner);
 
         self::assertSame(
-            [[self::FERNITE_CARBIDE, 'reaction', 'final', 3, 0, 0, 30_000, null]],
+            [
+                [self::FERNITE_CARBIDE, 'reaction', 'final', 1, 0, 0, 10_000, null],
+                [self::FERNITE_CARBIDE, 'reaction', 'final', 2, 0, 0, 20_000, null],
+            ],
             $this->jobsOfType($project, self::FERNITE_CARBIDE),
         );
     }
@@ -452,7 +456,8 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
 
     #[Group('issue-23')]
     #[Group('issue-141')]
-    public function testSameProductOnTwoItemsAtTheSameMeAndTeSharesOneFinalJobWhoseMaterialsAreRoundedOnceForItsSummedRuns(): void
+    #[Group('issue-49')]
+    public function testSameProductOnTwoItemsAtTheSameMeAndTeGetsOneFinalJobPerItemWhoseMaterialsAreRoundedSeparately(): void
     {
         $project = $this->projectOf([[self::NITROGEN_FUEL_BLOCK, 1, 10, 20], [self::NITROGEN_FUEL_BLOCK, 1, 10, 20]]);
 
@@ -461,14 +466,30 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
         self::assertSame(
             [
                 [self::NITROGEN_FUEL_BLOCK, 'copy', 'blueprint', 2, 2, null],
-                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 2, 80, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 40, null],
+                [self::NITROGEN_FUEL_BLOCK, 'manufacturing', 'final', 1, 40, null],
             ],
             $this->jobsIgnoringMeAndTe($project),
         );
         self::assertSame(
-            [44 => 8, 3683 => 40, 3689 => 8, 9832 => 17, 9848 => 2, 16272 => 306, 16273 => 630, 16275 => 36, 17888 => 810],
+            [44 => 8, 3683 => 40, 3689 => 8, 9832 => 18, 9848 => 2, 16272 => 306, 16273 => 630, 16275 => 36, 17888 => 810],
             $this->materials($project),
         );
+    }
+
+    #[Group('issue-49')]
+    public function testTwentyItemsOfTheSameProductMakeTwentyFinalJobsOfTheirOwnRuns(): void
+    {
+        $project = $this->projectOf(array_fill(0, 20, [self::NITROGEN_FUEL_BLOCK, 3, 10, 20]));
+
+        $this->service->buildBom($project, $this->owner);
+
+        $finalJobs = array_values(array_filter(
+            $this->jobsOfTypeAndActivity($project, self::NITROGEN_FUEL_BLOCK, 'manufacturing'),
+            static fn (array $job): bool => 'final' === $job[2],
+        ));
+        self::assertCount(20, $finalJobs);
+        self::assertSame([3], array_values(array_unique(array_column($finalJobs, 3))));
     }
 
     public function testSameProductOnTwoItemsAtTheSameTeButDifferentMeGetsOneFinalJobPerItem(): void

@@ -29,7 +29,7 @@ final class ProjectCreationApiTest extends WebTestCase
     private const int FIXTURE_ORE = 990_362_101;
     private const int FIXTURE_ALLOY = 990_362_102;
     private const int MANUFACTURING_ACTIVITY = 1;
-    private const int MAXIMUM_PRODUCTS = 10;
+    private const int MAXIMUM_PRODUCTS = 100;
     private const float MINIMUM_OUTSIDE_SAVING = 125_000.5;
 
     protected function setUp(): void
@@ -99,6 +99,32 @@ final class ProjectCreationApiTest extends WebTestCase
                 [self::BETA_HULL, 3, null, true, 'final', 'manufacturing', 3, 0, 0],
             ],
             $this->bomRowsOf($project['id']),
+        );
+    }
+
+    #[Group('issue-49')]
+    public function testCreationWithTwoLinesOfTheSameProductGivesOneFinalJobPerLine(): void
+    {
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', [
+            'name' => 'Two lines of one hull',
+            'items' => [
+                ['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
+                ['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5],
+            ],
+        ]);
+
+        self::assertResponseStatusCodeSame(201);
+        $finalJobs = array_values(array_filter(
+            $this->bomRowsOf($this->responseJson()['id']),
+            static fn (array $row): bool => true === $row[3] && 'final' === $row[4],
+        ));
+        self::assertSame(
+            [
+                [self::ALPHA_HULL, 5, null, true, 'final', 'manufacturing', 5, 10, 20],
+                [self::ALPHA_HULL, 5, null, true, 'final', 'manufacturing', 5, 10, 20],
+            ],
+            $finalJobs,
         );
     }
 
@@ -219,7 +245,7 @@ final class ProjectCreationApiTest extends WebTestCase
     public static function invalidProductLists(): iterable
     {
         yield 'no product' => [[]];
-        yield 'eleven products' => [array_fill(0, self::MAXIMUM_PRODUCTS + 1, ['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1])];
+        yield 'one hundred and one products' => [array_fill(0, self::MAXIMUM_PRODUCTS + 1, ['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1])];
     }
 
     private function persistTemplate(User $owner, string $name, bool $sharedWithCorporation): IndustryProjectTemplate
