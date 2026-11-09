@@ -9,9 +9,12 @@ use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\IndustryProjectParticipant;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -257,6 +260,75 @@ final class IndustryJobMatcherTest extends TestCase
 
         self::assertSame([7_362_071, 7_362_072], $this->matchedJobIdsOf($ishtarLine));
         self::assertSame(5, $ishtarLine->getMatchedRuns());
+    }
+
+    #[Group('issue-318')]
+    public function testJobsOfAnAcceptedParticipantAreMatchedAlongsideTheOwnersAndKeepTheirInstaller(): void
+    {
+        $participantCharacter = $this->character('Sana Vel');
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $this->givenParticipant($project, ParticipantStatus::Accepted, $participantCharacter);
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_318_001, 2, '2026-11-02 08:00:00'),
+            $this->job(7_318_002, 3, '2026-11-03 08:00:00', $participantCharacter),
+        );
+
+        $this->matcher->matchEsiJobs($project);
+
+        self::assertSame([7_318_001, 7_318_002], $this->matchedJobIdsOf($ishtarLine));
+        self::assertSame(['Aria Solberg', 'Sana Vel'], array_map(
+            static fn (IndustryProjectJobMatch $match): ?string => $match->getCharacterName(),
+            $ishtarLine->getJobMatches()->toArray(),
+        ));
+        self::assertEqualsCanonicalizing(
+            [$this->mainCharacter->getId(), $this->altCharacter->getId(), $participantCharacter->getId()],
+            $this->jobQueries[0][1],
+        );
+    }
+
+    #[Group('issue-318')]
+    public function testCharactersOfAPendingOrRemovedParticipantAreNotRead(): void
+    {
+        $pendingCharacter = $this->character('Pending Pilot');
+        $removedCharacter = $this->character('Removed Pilot');
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $this->givenParticipant($project, ParticipantStatus::Pending, $pendingCharacter);
+        $this->givenParticipant($project, ParticipantStatus::Removed, $removedCharacter);
+        $this->givenJobs(
+            self::ISHTAR_BLUEPRINT_TYPE_ID,
+            $this->job(7_318_003, 2, '2026-11-02 08:00:00', $pendingCharacter),
+            $this->job(7_318_004, 3, '2026-11-03 08:00:00', $removedCharacter),
+        );
+
+        $this->matcher->matchEsiJobs($project);
+
+        self::assertSame([$this->mainCharacter->getId(), $this->altCharacter->getId()], $this->jobQueries[0][1]);
+    }
+
+    #[Group('issue-318')]
+    public function testTheOwnerEnrolledAsAParticipantIsReadOnce(): void
+    {
+        $ishtarLine = $this->jobLine(self::ISHTAR_TYPE_ID, 'Ishtar', 'final', self::ISHTAR_FINAL_LINE_RUNS, 'manufacturing');
+        $project = $this->project($ishtarLine);
+        $project->enrolOwner();
+        $this->givenJobs(self::ISHTAR_BLUEPRINT_TYPE_ID, $this->job(7_318_005, 5, '2026-11-02 08:00:00'));
+
+        $this->matcher->matchEsiJobs($project);
+
+        self::assertSame([$this->mainCharacter->getId(), $this->altCharacter->getId()], $this->jobQueries[0][1]);
+    }
+
+    private function givenParticipant(IndustryProject $project, ParticipantStatus $status, Character $character): void
+    {
+        $project->addMember(
+            (new IndustryProjectParticipant())
+                ->setUser((new User())->addCharacter($character))
+                ->setRole(ParticipantRole::Member)
+                ->setStatus($status),
+        );
     }
 
     private static function producer(int $blueprintTypeId, IndustryActivityType $activity, int $productTypeId): IndustryActivityProduct

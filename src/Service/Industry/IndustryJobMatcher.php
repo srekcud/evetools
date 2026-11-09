@@ -8,7 +8,9 @@ use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Enum\ParticipantStatus;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -34,8 +36,10 @@ class IndustryJobMatcher
     public function matchEsiJobs(IndustryProject $project): void
     {
         $characterIds = [];
-        foreach ($project->getOwner()->getCharacters() as $character) {
-            $characterIds[] = $character->getId();
+        foreach ($this->usersWhoseJobsAreMatched($project) as $user) {
+            foreach ($user->getCharacters() as $character) {
+                $characterIds[] = $character->getId();
+            }
         }
 
         if ($characterIds === []) {
@@ -162,6 +166,22 @@ class IndustryJobMatcher
         }
 
         return $jobIds;
+    }
+
+    /**
+     * @return list<User>
+     */
+    private function usersWhoseJobsAreMatched(IndustryProject $project): array
+    {
+        $users = [$project->getOwner()];
+        foreach ($project->getMembers() as $member) {
+            $user = $member->getUser();
+            if (ParticipantStatus::Accepted === $member->getStatus() && null !== $user && !\in_array($user, $users, true)) {
+                $users[] = $user;
+            }
+        }
+
+        return $users;
     }
 
     private function createJobMatch(CachedIndustryJob $job, IndustryProjectBomLine $line, bool $manual): IndustryProjectJobMatch

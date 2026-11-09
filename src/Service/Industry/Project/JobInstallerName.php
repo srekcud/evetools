@@ -11,10 +11,12 @@ final class JobInstallerName
 {
     public static function seenBy(?string $installerName, IndustryProject $project, User $viewer): ?string
     {
-        if ($installerName === null || $project->getOwner() === $viewer) {
-            return $installerName;
+        if ($installerName === null) {
+            return null;
         }
 
-        return PilotName::of($project->getOwner());
+        $installer = ProjectJobInstaller::userOf($project, $installerName);
+
+        return $installer === $viewer ? $installerName : PilotName::of($installer);
     }
 }
