@@ -2821,6 +2821,9 @@
       "payout": "Payout",
       "total": "Total",
       "unknown": "unknown",
+      "referenceShort": "ref.",
+      "transfers": "Transfers",
+      "reference": "reference",
       "footer": "EVE Tools"
     },
     "financialCascade": {
@@ -3231,7 +3234,36 @@
       "completeConfirm": {
         "title": "Complete Project",
         "message": "Completing the project freezes its accounts: no more contributions, reviews, sales or fee changes, and it can no longer be deleted. This action cannot be undone.",
+        "checksTitle": "Before completing",
         "confirm": "Complete"
+      }
+    },
+    "closingChecks": {
+      "pendingContributions": "{count} contribution awaiting review | {count} contributions awaiting review",
+      "nothingUnsold": "Everything is sold",
+      "unsoldProducts": "Unsold products:",
+      "finalMargin": "Final margin: {margin}%",
+      "marginUnknown": "Final margin unknown: a cost or a fee is missing",
+      "transfers": "Transfers ticked as received: {received} / {total}",
+      "transfersUnavailable": "Transfers cannot be computed yet"
+    },
+    "transfers": {
+      "title": "Transfers between members",
+      "reference": "Payment reference",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyFailed": "The clipboard refused the copy: select the reference and copy it by hand.",
+      "hint": "Each seller keeps the net revenue of their sales. Put the reference in the reason of each in-game transfer; the recipient ticks it once received.",
+      "received": "Received",
+      "onlyRecipient": "Only the recipient can tick this transfer",
+      "none": "Nothing to transfer: everyone already holds their payout.",
+      "roundingGap": "Rounding gap absorbed by the largest payout: {amount}",
+      "unavailable": {
+        "awaiting_sales": "Awaiting sales: transfers are computed once every product is sold.",
+        "unsold_products": "Some products are still unsold: transfers are computed once every product is sold.",
+        "unknown_fees": "The broker fee or the sales tax of the project is unknown: transfers cannot be computed.",
+        "unknown_cost": "A cost is unknown or the total cost is zero: payouts, and so transfers, cannot be computed.",
+        "unknown_seller": "A sale was recorded by someone who is no longer an accepted participant: transfers cannot be computed."
       }
     }
   },

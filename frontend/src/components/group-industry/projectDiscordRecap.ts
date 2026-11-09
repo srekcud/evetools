@@ -1,12 +1,14 @@
-import type { Distribution, GroupProject, GroupProjectItem } from '@/stores/group-industry/types'
+import type { Distribution, GroupProject, GroupProjectItem, ProjectSettlement } from '@/stores/group-industry/types'
 
 export type RecapTranslate = (key: string, named?: Record<string, unknown>, plural?: number) => string
 
 export interface ProjectDiscordRecapInput {
   project: GroupProject
   distribution: Distribution
+  settlement?: ProjectSettlement | null
   t: RecapTranslate
   formatIsk: (value: number) => string
+  formatExactIsk?: (value: number) => string
   pilotName: (name: string | null) => string
 }
 
@@ -57,7 +59,7 @@ function alignedTable(rows: PayoutRow[]): string[] {
   ].join(COLUMN_SEPARATOR))
 }
 
-export function buildProjectDiscordRecap({ project, distribution, t, formatIsk, pilotName }: ProjectDiscordRecapInput): string {
+export function buildProjectDiscordRecap({ project, distribution, settlement = null, t, formatIsk, formatExactIsk = formatIsk, pilotName }: ProjectDiscordRecapInput): string {
   const label = (key: string, named?: Record<string, unknown>, plural?: number): string => t(`${KEY_PREFIX}${key}`, named, plural)
   const unknown = label('unknown')
   const money = (value: number | null): string => (value === null ? unknown : formatIsk(value))
@@ -80,9 +82,17 @@ export function buildProjectDiscordRecap({ project, distribution, t, formatIsk, 
     },
   ]
 
+  const reference = settlement === null ? '' : `${SEGMENT_SEPARATOR}${label('referenceShort')} ${settlement.reference}`
+  const transferLines = settlement === null || settlement.transfers === null || settlement.transfers.length === 0
+    ? []
+    : [
+        `**${label('transfers')}** · ${label('reference')} \`${settlement.reference}\``,
+        ...settlement.transfers.map(transfer => `- ${pilotName(transfer.fromName)} → ${pilotName(transfer.toName)}: **${formatExactIsk(transfer.amount)}**`),
+      ]
+
   return [
     `## 🏭 ${label('completed', { name: project.name ?? label('unnamedProject') })}`,
-    `-# ${label('subline', { count: participantsCount }, participantsCount)}`,
+    `-# ${label('subline', { count: participantsCount }, participantsCount)}${reference}`,
     '',
     ...project.items.map(productLine),
     `**${label('profit')} ${money(profit)}** · ${label('margin')} **${margin}**`,
@@ -97,6 +107,7 @@ export function buildProjectDiscordRecap({ project, distribution, t, formatIsk, 
     CODE_FENCE,
     ...alignedTable(payoutRows),
     CODE_FENCE,
+    ...transferLines,
     `-# ${label('footer')}`,
   ].join('\n')
 }

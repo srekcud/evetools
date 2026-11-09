@@ -5,22 +5,32 @@ import { useFormatters } from '@/composables/useFormatters'
 import { usePilotName } from '@/composables/usePilotName'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
 import { buildProjectDiscordRecap } from '@/components/group-industry/projectDiscordRecap'
 
 const DISCORD_MESSAGE_LIMIT = 2000
 const COPIED_FEEDBACK_MILLISECONDS = 2000
 
 const { t } = useI18n()
-const { formatIsk } = useFormatters()
+const { formatIsk, formatIskExact } = useFormatters()
 const { pilotName } = usePilotName()
 const projectStore = useGroupProjectStore()
 const distributionStore = useGroupDistributionStore()
+const settlementStore = useGroupSettlementStore()
 
 const recap = computed((): string | null => {
   const project = projectStore.currentProject
   const distribution = distributionStore.distribution
   if (project === null || project.status !== 'completed' || distribution === null) return null
-  return buildProjectDiscordRecap({ project, distribution, t, formatIsk: value => formatIsk(value), pilotName })
+  return buildProjectDiscordRecap({
+    project,
+    distribution,
+    settlement: settlementStore.settlement,
+    t,
+    formatIsk: value => formatIsk(value),
+    formatExactIsk: formatIskExact,
+    pilotName,
+  })
 })
 
 const overLimit = computed(() => recap.value !== null && recap.value.length > DISCORD_MESSAGE_LIMIT)

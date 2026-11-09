@@ -52,6 +52,10 @@ export function useFormatters() {
     return amount.toLocaleString(getLocaleStr(), { maximumFractionDigits: 0 }) + ' ISK'
   }
 
+  function formatIskExact(amount: number): string {
+    return amount.toLocaleString(getLocaleStr(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ISK'
+  }
+
   function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString(getDateLocaleStr(), {
       day: '2-digit',
@@ -106,6 +110,7 @@ export function useFormatters() {
     formatIsk,
     formatIskShort,
     formatIskFull,
+    formatIskExact,
     formatDate,
     formatDateTime,
     formatTimeSince,

@@ -7,6 +7,7 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
@@ -24,6 +25,8 @@ import FinancialSummary from '@/components/group-industry/FinancialSummary.vue'
 import SellForecastCard from '@/components/group-industry/SellForecastCard.vue'
 import DistributionTable from '@/components/group-industry/DistributionTable.vue'
 import ProjectDiscordRecap from '@/components/group-industry/ProjectDiscordRecap.vue'
+import ProjectTransfers from '@/components/group-industry/ProjectTransfers.vue'
+import ClosingChecksList from '@/components/group-industry/ClosingChecksList.vue'
 import MemberTable from '@/components/group-industry/MemberTable.vue'
 import PendingRequestsTable from '@/components/group-industry/PendingRequestsTable.vue'
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
@@ -58,6 +61,7 @@ const router = useRouter()
 const projectStore = useGroupProjectStore()
 const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
+const settlementStore = useGroupSettlementStore()
 const syncStore = useSyncStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { showToast } = useToast()
@@ -136,7 +140,8 @@ const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<v
   projectDetail: projectStore.fetchProjectDetail,
   sales: distributionStore.fetchSales,
   saleSuggestions: id => (isOwnerOrAdmin.value ? distributionStore.fetchSaleSuggestions(id) : Promise.resolve()),
-  distribution: distributionStore.fetchDistribution,
+  distribution: id => Promise.all([distributionStore.fetchDistribution(id), settlementStore.fetchForProject(id)]).then(() => undefined),
+  settlement: settlementStore.fetchForProject,
   cockpit: loadCockpit,
 }
 
@@ -169,6 +174,7 @@ watch(activeTab, (tab) => {
     contributionStore.fetchContributions(projectId.value)
   } else if (tab === 'distribution') {
     distributionStore.fetchDistribution(projectId.value)
+    settlementStore.fetchForProject(projectId.value)
   } else if (tab === 'members') {
     distributionStore.fetchMembers(projectId.value)
   }
@@ -272,6 +278,7 @@ function requestNextStatus(target: GroupProjectStatus): void {
   statusError.value = null
   pendingStatus.value = target
   if (target === 'completed') {
+    settlementStore.fetchForProject(projectId.value)
     showCompleteConfirm.value = true
     return
   }
@@ -547,6 +554,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <FinancialSummary />
         <SellForecastCard :project-id="projectId" />
         <DistributionTable />
+        <ProjectTransfers :project-id="projectId" />
         <ProjectDiscordRecap class="mt-8" />
       </div>
 
@@ -779,7 +787,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
     <BaseModal
       :show="showCompleteConfirm"
       :title="t('groupIndustry.detail.completeConfirm.title')"
-      panel-class="border-slate-700 max-w-sm"
+      panel-class="border-slate-700 max-w-lg"
       @close="showCompleteConfirm = false"
     >
       <template #title="{ titleId }">
@@ -790,6 +798,10 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <div class="px-6 py-5">
         <p class="text-sm text-slate-400">{{ t('groupIndustry.detail.completeConfirm.message') }}</p>
+        <template v-if="settlementStore.settlement">
+          <h3 class="mt-4 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">{{ t('groupIndustry.detail.completeConfirm.checksTitle') }}</h3>
+          <ClosingChecksList :checks="settlementStore.settlement.checks" />
+        </template>
         <p v-if="statusError" class="mt-3 text-sm text-red-400">{{ statusError }}</p>
       </div>
 
