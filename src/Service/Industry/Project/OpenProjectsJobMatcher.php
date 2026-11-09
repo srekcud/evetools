@@ -16,6 +16,7 @@ class OpenProjectsJobMatcher
         private readonly IndustryJobMatcher $jobMatcher,
         private readonly DerivedContributionService $derivedContributionService,
         private readonly LoggerInterface $logger,
+        private readonly ProjectJobActivityRecorder $jobActivityRecorder,
     ) {
     }
 
@@ -24,6 +25,7 @@ class OpenProjectsJobMatcher
         foreach ($this->projectRepository->findOpenOfAcceptedParticipant($user) as $project) {
             try {
                 $this->jobMatcher->matchEsiJobs($project);
+                $this->jobActivityRecorder->recordJobsOf($project);
                 foreach ($project->getBomItems() as $line) {
                     if ($line->isManufacturingOrReactionJob()) {
                         $this->derivedContributionService->refreshLine($line);

@@ -22,6 +22,7 @@ use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Industry\Project\DerivedContributionService;
+use App\Service\Industry\Project\ProjectJobActivityRecorder;
 use App\Service\Sync\CharacterSyncFailure;
 use App\Service\Sync\IndustryJobSyncService;
 use App\State\Processor\Industry\MatchJobsProcessor;
@@ -71,6 +72,8 @@ final class MatchJobsProcessorTest extends TestCase
     private int $projectLookups = 0;
 
     private array $refreshedLines = [];
+
+    private array $recordedProjects = [];
 
     protected function setUp(): void
     {
@@ -232,6 +235,24 @@ final class MatchJobsProcessorTest extends TestCase
         $this->assertSame(1, $this->matchEsiJobsCalls);
     }
 
+    #[Group('issue-321')]
+    public function testTheJobsOfTheProjectAreRecordedOnceAfterTheyAreMatched(): void
+    {
+        $this->matchJobs();
+
+        self::assertSame([[$this->project, 1]], $this->recordedProjects);
+    }
+
+    #[Group('issue-321')]
+    public function testTheJobsAreNotRecordedWhenTheOwnerCheckRefusesTheMatch(): void
+    {
+        $this->authenticatedUser = $this->admin;
+
+        $this->outcomeOfMatchJobs();
+
+        self::assertSame([], $this->recordedProjects);
+    }
+
     public function testAnswersWithoutWarningField(): void
     {
         $this->syncFailuresByCharacterName[self::PILOT_TWO] = new EsiApiException('Service unavailable for Pilot Two', 503);
@@ -384,6 +405,11 @@ final class MatchJobsProcessorTest extends TestCase
             $this->refreshedLines[] = [$line->getId()->toRfc4122(), $this->matchEsiJobsCalls];
         });
 
+        $jobActivityRecorder = $this->createStub(ProjectJobActivityRecorder::class);
+        $jobActivityRecorder->method('recordJobsOf')->willReturnCallback(function (IndustryProject $project): void {
+            $this->recordedProjects[] = [$project, $this->matchEsiJobsCalls];
+        });
+
         $participantRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $participantRepository->method('findOneBy')->willReturnCallback(
             fn (array $criteria): ?IndustryProjectParticipant => array_find(
@@ -402,6 +428,7 @@ final class MatchJobsProcessorTest extends TestCase
             new ProjectAccessChecker($participantRepository),
             $this->logger,
             $derivedContributionService,
+            $jobActivityRecorder,
         );
 
         return $processor->process(null, new Post(), ['projectId' => $this->projectIdInUrl]);

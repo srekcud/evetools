@@ -14,6 +14,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\PilotName;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
@@ -97,6 +98,9 @@ class ReviewContributionProcessor implements ProcessorInterface
             [
                 'contributionId' => $contribution->getId()->toRfc4122(),
                 'reviewedBy' => $user->getMainCharacter()?->getName() ?? 'Unknown',
+                'characterName' => PilotName::of($contribution->getMember()->getUser()),
+                'bomItemName' => $contribution->getBomItem()?->getTypeName(),
+                'quantity' => $contribution->getQuantity(),
             ],
         );
 

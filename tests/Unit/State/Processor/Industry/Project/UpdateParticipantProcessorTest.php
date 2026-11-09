@@ -6,11 +6,13 @@ namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Input\Industry\Project\UpdateParticipantInput;
+use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\UpdateParticipantProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -18,8 +20,12 @@ use App\Tests\Unit\State\Provider\Industry\Project\GroupProjectAccessProfiles;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\Stub;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
 #[CoversClass(UpdateParticipantProcessor::class)]
@@ -35,6 +41,7 @@ class UpdateParticipantProcessorTest extends TestCase
     private EntityManagerInterface&Stub $entityManager;
     private UpdateParticipantProcessor $processor;
     private int $flushes = 0;
+    private array $publishedPayloads = [];
 
     private User $adminA;
     private IndustryProjectParticipant $ownerMembership;
@@ -61,6 +68,12 @@ class UpdateParticipantProcessorTest extends TestCase
             ++$this->flushes;
         });
         $memberRepository = $this->sabreBatchMemberRepository();
+        $hub = $this->createStub(HubInterface::class);
+        $hub->method('publish')->willReturnCallback(function (Update $update): string {
+            $this->publishedPayloads[] = json_decode($update->getData(), true);
+
+            return 'update-id';
+        });
 
         $this->processor = new UpdateParticipantProcessor(
             $this->security,
@@ -69,6 +82,7 @@ class UpdateParticipantProcessorTest extends TestCase
             $this->entityManager,
             new ProjectAccessChecker($memberRepository),
             new ProjectResourceMapper(),
+            new MercurePublisherService($hub, new NullLogger()),
         );
     }
 
@@ -164,6 +178,43 @@ class UpdateParticipantProcessorTest extends TestCase
 
         self::assertSame('granted member/accepted', $this->patch($this->pendingQ, status: 'accepted'));
         self::assertSame(['member', 'accepted', 1], $this->stateOf($this->pendingQ));
+    }
+
+    #[Group('issue-321')]
+    public function testAcceptingAPendingMemberPublishesMemberAcceptedWithTheMemberIdAndThePilotName(): void
+    {
+        $this->pendingQ->getUser()->method('getMainCharacter')->willReturn((new Character())->setName('Vex Tanner'));
+        $this->actAs($this->adminA);
+
+        $this->patch($this->pendingQ, status: 'accepted');
+
+        self::assertCount(1, $this->publishedPayloads);
+        self::assertSame('member_accepted', $this->publishedPayloads[0]['action']);
+        self::assertSame($this->sabreBatch->getId()->toRfc4122(), $this->publishedPayloads[0]['projectId']);
+        self::assertSame(
+            ['memberId' => $this->pendingQ->getId()->toRfc4122(), 'characterName' => 'Vex Tanner'],
+            $this->publishedPayloads[0]['data'],
+        );
+    }
+
+    #[Group('issue-321')]
+    public function testChangingOnlyTheRoleOfAnAcceptedMemberPublishesNoMemberAccepted(): void
+    {
+        $this->actAs($this->sabreBatchOwner);
+
+        $this->patch($this->memberM, role: 'admin');
+
+        self::assertSame([], $this->publishedPayloads);
+    }
+
+    #[Group('issue-321')]
+    public function testARefusedAcceptancePublishesNothing(): void
+    {
+        $this->actAs($this->adminA);
+
+        $this->patch($this->memberM, status: 'accepted');
+
+        self::assertSame([], $this->publishedPayloads);
     }
 
     public function testPlainMemberCannotManageAnAdmin(): void
