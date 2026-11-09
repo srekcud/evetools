@@ -2675,6 +2675,21 @@
       "lineRentalCosts": "Couts location ligne",
       "courierCosts": "Couts courrier"
     },
+    "sellForecast": {
+      "title": "Prévision de vente",
+      "sellStructure": "Structure de vente : {name}",
+      "noSellStructure": "Aucune structure de vente définie : prévision sur Jita seulement.",
+      "product": "Produit",
+      "quantity": "Reste à vendre",
+      "netUnitPrice": "Prix net unitaire",
+      "netRevenue": "Revenu net",
+      "jita": "Jita",
+      "total": "Total",
+      "unknownProducts": "{count} produit(s) sans prix ou aux frais inconnus",
+      "netRevenueOnly": "Revenu net prévu avant coûts : pas de profit prévu.",
+      "nothingToSell": "Rien à vendre.",
+      "loadError": "Impossible de charger la prévision de vente."
+    },
     "financialSummary": {
       "title": "Résumé financier",
       "feesUnknown": "Frais inconnus : le propriétaire du projet n'a pas synchronisé ses compétences et ses standings, le revenu net, le profit et la marge ne peuvent pas être calculés.",

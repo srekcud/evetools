@@ -2675,6 +2675,21 @@
       "lineRentalCosts": "Line Rental Costs",
       "courierCosts": "Courier Costs"
     },
+    "sellForecast": {
+      "title": "Sell forecast",
+      "sellStructure": "Sell structure: {name}",
+      "noSellStructure": "No sell structure set: forecast on Jita only.",
+      "product": "Product",
+      "quantity": "Left to sell",
+      "netUnitPrice": "Net unit price",
+      "netRevenue": "Net revenue",
+      "jita": "Jita",
+      "total": "Total",
+      "unknownProducts": "{count} product(s) without a price or with unknown fees",
+      "netRevenueOnly": "Forecast net revenue before costs: no forecast profit.",
+      "nothingToSell": "Nothing left to sell.",
+      "loadError": "Could not load the sell forecast."
+    },
     "financialSummary": {
       "title": "Financial Summary",
       "feesUnknown": "Fees unknown: the project owner has no synced skills and standings, so the net revenue, the profit and the margin cannot be computed.",

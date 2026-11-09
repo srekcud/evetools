@@ -20,6 +20,7 @@ Décision de Sylvain (2026-11-09, option B) : la prévision valorise la quantit�
    - tableau : produit, quantité restante, colonne structure (prix net unitaire, revenu net) sauf sans structure, colonne Jita idem ; valeur nulle = `UnknownValue` ; ligne Jita avec `PartialPriceMarker` quand `coveragePercent` est renseigné ;
    - ligne de total par colonne : somme, ou `UnknownValue` avec « N produit(s) sans prix ou frais inconnus » ;
    - mention « Revenu net prévu, hors coûts : pas de profit prévu » ;
+   - la carte recharge la prévision quand `projectId`, la distribution du store (`distStore.distribution`, remplacée après une vente) ou `projectStore.currentProject.sellStructureId` changent ;
    - aucun reste à vendre : message « Rien à vendre » ; erreur de chargement : message d'erreur dans la carte, le reste de l'onglet inchangé ; chargement : indicateur.
 
 ## Exemples (frais 4,755 % = 1,38 % courtage + 3,375 % taxe)
