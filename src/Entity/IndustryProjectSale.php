@@ -59,6 +59,9 @@ class IndustryProjectSale
     #[ORM\JoinColumn(name: 'wallet_transaction_id', nullable: true, onDelete: 'SET NULL')]
     private ?CachedWalletTransaction $walletTransaction = null;
 
+    #[ORM\Column(type: 'bigint', nullable: true, unique: true)]
+    private ?int $contractId = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -153,6 +156,18 @@ class IndustryProjectSale
     public function setVenue(?string $venue): static
     {
         $this->venue = $venue;
+        return $this;
+    }
+
+    public function getContractId(): ?int
+    {
+        return $this->contractId;
+    }
+
+    public function setContractId(?int $contractId): static
+    {
+        $this->contractId = $contractId;
+
         return $this;
     }
 

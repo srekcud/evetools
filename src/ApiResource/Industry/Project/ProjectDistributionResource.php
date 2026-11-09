@@ -41,6 +41,8 @@ class ProjectDistributionResource
 
     public float $contractRevenue = 0.0;
 
+    public ?float $contractFees = 0.0;
+
     public ?float $brokerFee;
 
     public ?float $salesTax;

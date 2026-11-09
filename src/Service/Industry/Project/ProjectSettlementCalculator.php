@@ -26,6 +26,7 @@ final readonly class ProjectSettlementCalculator
         private IndustryProjectTransferReceiptRepository $receiptRepository,
         private TransferPlanner $transferPlanner,
         private UnsoldProductsOfProject $unsoldProducts,
+        private ContractSaleFees $contractSaleFees,
     ) {
     }
 
@@ -35,8 +36,9 @@ final readonly class ProjectSettlementCalculator
         $distribution = $this->distributionService->calculateDistribution($project);
         $unsoldProducts = $this->unsoldProducts->of($project, $sales);
 
-        $reason = $this->unavailableReason($project, $sales, $unsoldProducts, $distribution);
-        $heldCents = $reason === null ? $this->heldCentsByParticipant($project, $sales, $this->marketNetFactor($project)) : null;
+        $contractFeesByContractId = $this->contractSaleFees->knownFeesByContractId($sales);
+        $reason = $this->unavailableReason($project, $sales, $unsoldProducts, $distribution, $contractFeesByContractId);
+        $heldCents = $reason === null ? $this->heldCentsByParticipant($project, $sales, $this->marketNetFactor($project), $contractFeesByContractId) : null;
         if ($reason === null && $heldCents === null) {
             $reason = TransfersUnavailableReason::UnknownSeller;
         }
@@ -67,8 +69,9 @@ final readonly class ProjectSettlementCalculator
     /**
      * @param list<IndustryProjectSale> $sales
      * @param list<UnsoldProduct> $unsoldProducts
+     * @param array<int, float> $contractFeesByContractId
      */
-    private function unavailableReason(IndustryProject $project, array $sales, array $unsoldProducts, DistributionResult $distribution): ?TransfersUnavailableReason
+    private function unavailableReason(IndustryProject $project, array $sales, array $unsoldProducts, DistributionResult $distribution, array $contractFeesByContractId): ?TransfersUnavailableReason
     {
         if ($sales === []) {
             return TransfersUnavailableReason::AwaitingSales;
@@ -81,6 +84,12 @@ final readonly class ProjectSettlementCalculator
         $hasMarketSale = array_filter($sales, static fn (IndustryProjectSale $sale): bool => $sale->getChannel() === SaleChannel::Market) !== [];
         if ($hasMarketSale && $this->marketNetFactor($project) === null) {
             return TransfersUnavailableReason::UnknownFees;
+        }
+
+        foreach ($sales as $sale) {
+            if ($sale->getContractId() !== null && !isset($contractFeesByContractId[$sale->getContractId()])) {
+                return TransfersUnavailableReason::UnknownFees;
+            }
         }
 
         if ($distribution->marginPercent === null) {
@@ -98,10 +107,11 @@ final readonly class ProjectSettlementCalculator
 
     /**
      * @param list<IndustryProjectSale> $sales
+     * @param array<int, float> $contractFeesByContractId
      *
      * @return array<string, int>|null
      */
-    private function heldCentsByParticipant(IndustryProject $project, array $sales, ?float $marketNetFactor): ?array
+    private function heldCentsByParticipant(IndustryProject $project, array $sales, ?float $marketNetFactor, array $contractFeesByContractId): ?array
     {
         $acceptedParticipantIdByUserId = [];
         foreach ($project->getMembers() as $participant) {
@@ -122,7 +132,8 @@ final readonly class ProjectSettlementCalculator
             $netFactor = $sale->getChannel() === SaleChannel::Market
                 ? $marketNetFactor ?? throw new \LogicException('The fees of a market sale are checked before the revenue is held')
                 : self::NO_FEE_FACTOR;
-            $held[$participantId] = ($held[$participantId] ?? 0.0) + $sale->getTotalPrice() * $netFactor;
+            $contractFees = $sale->getContractId() === null ? 0.0 : $contractFeesByContractId[$sale->getContractId()] ?? throw new \LogicException('The fees of a contract sale are checked before the revenue is held');
+            $held[$participantId] = ($held[$participantId] ?? 0.0) + $sale->getTotalPrice() * $netFactor - $contractFees;
         }
 
         return array_map(static fn (float $isk): int => (int) round($isk * self::CENTS_PER_ISK), $held);

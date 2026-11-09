@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
+use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\UuidOrNotFound;
@@ -26,6 +27,7 @@ class ProjectSaleCollectionProvider implements ProviderInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly IndustryProjectSaleRepository $saleRepository,
+        private readonly CachedWalletJournalEntryRepository $journalRepository,
     ) {
     }
 
@@ -54,8 +56,17 @@ class ProjectSaleCollectionProvider implements ProviderInterface
 
         $sales = $this->saleRepository->findByProjectForListing($project);
 
+        $feesByContractId = $this->journalRepository->contractFeesByContractId(array_values(array_filter(array_map(
+            static fn (IndustryProjectSale $sale): ?int => $sale->getContractId(),
+            $sales,
+        ))));
+
         return array_map(
-            static fn (IndustryProjectSale $sale): ProjectSaleResource => ProjectSaleResource::fromSale($sale, $user),
+            static fn (IndustryProjectSale $sale): ProjectSaleResource => ProjectSaleResource::fromSale(
+                $sale,
+                $user,
+                $sale->getContractId() === null ? null : $feesByContractId[$sale->getContractId()] ?? null,
+            ),
             $sales,
         );
     }

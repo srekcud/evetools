@@ -51,6 +51,7 @@ use App\Enum\PveIncomeType;
 use App\Message\SyncCharacterAssets;
 use App\MessageHandler\SyncCharacterAssetsHandler;
 use App\Repository\CachedAssetRepository;
+use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectRepository;
@@ -1036,6 +1037,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(ProjectAccessChecker::class),
             self::getContainer()->get(IndustryProjectSaleRepository::class),
+            self::getContainer()->get(CachedWalletJournalEntryRepository::class),
         );
 
         return $provider->provide(new GetCollection(), ['projectId' => $projectId]);

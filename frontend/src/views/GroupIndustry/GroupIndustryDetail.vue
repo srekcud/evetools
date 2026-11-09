@@ -21,6 +21,7 @@ import ContributionTable from '@/components/group-industry/ContributionTable.vue
 import JobContainersTable from '@/components/group-industry/JobContainersTable.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
+import ContractSaleSuggestions from '@/components/group-industry/ContractSaleSuggestions.vue'
 import FinancialCascade from '@/components/group-industry/FinancialCascade.vue'
 import FinancialSummary from '@/components/group-industry/FinancialSummary.vue'
 import SellForecastCard from '@/components/group-industry/SellForecastCard.vue'
@@ -563,6 +564,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <SalesTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
         <SaleSuggestionsPanel v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
+        <ContractSaleSuggestions v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
       </div>
 
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">

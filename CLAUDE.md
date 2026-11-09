@@ -179,7 +179,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Industry jobs sync | 30 min |
 | PVE data sync | 1h |
 | Mining ledger sync | 1h |
-| Wallet transactions sync | 1h |
+| Wallet transactions sync (et lignes de frais de contrat du journal wallet, #500) | 1h |
 | Market sync (Jita + Structure) | 1h |
 | Planetary colonies sync | 30 min |
 | Alert prices check | 30 min |

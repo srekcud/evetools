@@ -9,6 +9,7 @@ use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\Entity\Character;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
+use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleCollectionProvider;
@@ -49,6 +50,7 @@ class ProjectSaleCollectionProviderTest extends TestCase
             $this->sabreBatchProjectRepository(),
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             $saleRepository,
+            $this->createStub(CachedWalletJournalEntryRepository::class),
         );
     }
 

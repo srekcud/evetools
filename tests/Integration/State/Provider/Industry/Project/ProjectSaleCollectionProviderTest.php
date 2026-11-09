@@ -15,6 +15,7 @@ use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleCollectionProvider;
@@ -340,6 +341,7 @@ final class ProjectSaleCollectionProviderTest extends IntegrationTestCase
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(ProjectAccessChecker::class),
             self::getContainer()->get(IndustryProjectSaleRepository::class),
+            self::getContainer()->get(CachedWalletJournalEntryRepository::class),
         );
 
         return $provider->provide(new GetCollection(), ['projectId' => $projectId]);

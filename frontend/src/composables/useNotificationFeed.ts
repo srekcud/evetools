@@ -45,7 +45,7 @@ const SYNC_TITLE_KEYS: Record<string, string> = {
   'planetary': 'notifications.syncTitles.planetary',
 }
 
-const SILENT_SYNC_TYPES = new Set(['corporation-mining-extractions'])
+const SILENT_SYNC_TYPES = new Set(['corporation-mining-extractions', 'wallet-journal'])
 
 export function useNotificationFeed() {
   const syncStore = useSyncStore()

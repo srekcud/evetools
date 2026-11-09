@@ -228,6 +228,8 @@ export type GroupSale = {
   sellerCharacterId: number | null
   sellerCharacterName: string | null
   linkedToWalletTransaction: boolean
+  contractId?: number | null
+  contractFees?: number | null
   createdAt: string
 }
 
@@ -309,7 +311,29 @@ export type Distribution = {
   awaitingSales: boolean
   unsoldProducts: UnsoldProduct[]
   projectedMarginPercent: number | null
+  marketRevenue?: number
+  contractRevenue?: number
+  contractFees?: number | null
   members: MemberDistribution[]
+}
+
+export type ContractSaleCandidate = {
+  contractId: number
+  typeId: number
+  typeName: string
+  quantity: number
+  price: number
+  unitPrice: number
+  completedAt: string
+  sellerCharacterId: number
+  sellerCharacterName: string
+  contractFees: number | null
+}
+
+export type ContractSaleSuggestions = {
+  projectId: string
+  candidates: ContractSaleCandidate[]
+  unreadableCharacters: { characterId: number; reason: string }[]
 }
 
 // --- Settlement ---

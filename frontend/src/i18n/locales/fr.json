@@ -2752,6 +2752,9 @@
       "loadError": "Impossible de charger la prévision de vente."
     },
     "financialSummary": {
+      "marketRevenue": "Marché",
+      "contractRevenue": "Contrats",
+      "contractFees": "Frais des contrats",
       "title": "Résumé financier",
       "feesUnknown": "Frais inconnus : le propriétaire du projet n'a pas synchronisé ses compétences et ses standings, le revenu net, le profit et la marge ne peuvent pas être calculés.",
       "brokerFeeWithRate": "Frais courtier ({percent}%)",
@@ -2788,6 +2791,7 @@
       "total": "Total",
       "unknown": "inconnu",
       "referenceShort": "réf.",
+      "contractFees": "frais des contrats",
       "transfers": "Virements",
       "reference": "motif",
       "footer": "EVE Tools"
@@ -3185,6 +3189,15 @@
         "checksTitle": "Avant de terminer",
         "confirm": "Terminer"
       }
+    },
+    "contractSales": {
+      "title": "Rattacher un contrat",
+      "hint": "Contrats item exchange terminés de tes personnages qui ont vendu un item du projet. Quantité, prix et date sont figés d'après le contrat.",
+      "fees": "Frais",
+      "link": "Rattacher",
+      "linkFailed": "Le contrat n'a pas pu être rattaché.",
+      "empty": "Aucun contrat terminé à rattacher.",
+      "unreadable": "{count} personnage n'a pas pu être lu (pas de jeton ou erreur ESI). | {count} personnages n'ont pas pu être lus (pas de jeton ou erreur ESI)."
     },
     "closingChecks": {
       "pendingContributions": "{count} contribution en attente de revue | {count} contributions en attente de revue",

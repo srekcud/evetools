@@ -43,6 +43,13 @@ function profitOf(distribution: Distribution): number | null {
   return distribution.netRevenue - distribution.totalProjectCost
 }
 
+function contractFeesSegment(distribution: Distribution, label: (key: string) => string, money: (value: number | null) => string): string[] {
+  if (distribution.contractRevenue === undefined || distribution.contractRevenue <= 0) return []
+  const fees = distribution.contractFees ?? null
+  if (fees === 0) return []
+  return [`${label('contractFees')} ${fees === null ? label('unknown') : money(fees)}`]
+}
+
 function productLine(item: GroupProjectItem): string {
   return `**${item.runs} × ${item.typeName}** · ME ${item.meLevel} / TE ${item.teLevel}`
 }
@@ -90,6 +97,8 @@ export function buildProjectDiscordRecap({ project, distribution, settlement = n
         ...settlement.transfers.map(transfer => `- ${pilotName(transfer.fromName)} → ${pilotName(transfer.toName)}: **${formatExactIsk(transfer.amount)}**`),
       ]
 
+  const contractFees = contractFeesSegment(distribution, label, money)
+
   return [
     `## 🏭 ${label('completed', { name: project.name ?? label('unnamedProject') })}`,
     `-# ${label('subline', { count: participantsCount }, participantsCount)}${reference}`,
@@ -100,6 +109,7 @@ export function buildProjectDiscordRecap({ project, distribution, settlement = n
       `${label('sales')} ${formatIsk(distribution.totalRevenue)}`,
       `${label('brokerFee')} ${money(distribution.brokerFee)}`,
       `${label('salesTax')} ${money(distribution.salesTax)}`,
+      ...contractFees,
       `${label('cost')} ${money(distribution.totalProjectCost)}`,
     ].join(SEGMENT_SEPARATOR)}`,
     '',
