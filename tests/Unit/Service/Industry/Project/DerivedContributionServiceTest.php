@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry\Project;
 
+use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
@@ -38,6 +39,9 @@ final class DerivedContributionServiceTest extends TestCase
     private const int ISHTAR_TYPE_ID = 12005;
     private const int TRITANIUM_LINE_QUANTITY = 1_000;
     private const int MANUALLY_DEPOSITED_QUANTITY = 250;
+    private const string OWNER_CHARACTER_NAME = 'Aria Solberg';
+    private const string PARTICIPANT_CHARACTER_NAME = 'Sana Vel';
+    private const string PARTICIPANT_ALT_CHARACTER_NAME = 'Sana Vel Alt';
 
     private EntityManagerInterface&MockObject $entityManager;
     private HubInterface&MockObject $hub;
@@ -333,6 +337,192 @@ final class DerivedContributionServiceTest extends TestCase
         $this->assertSame(self::MANUALLY_DEPOSITED_QUANTITY, $this->tritaniumLine->getFulfilledQuantity());
         $this->assertSame(0, $this->ishtarLine->getFulfilledQuantity());
         $this->assertCount(1, $this->project->getContributions());
+    }
+
+    #[Group('issue-318')]
+    public function testJobStartedByAnotherParticipantMakesADerivedJobInstallInTheirNameAtTheCostPaid(): void
+    {
+        $this->givenCharactersOfTheOwnerAndTheParticipant();
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_001, 2, 100_000.0, self::OWNER_CHARACTER_NAME);
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_002, 3, 214_000.0, self::PARTICIPANT_CHARACTER_NAME);
+
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->assertSame(
+            [
+                [$this->ownerParticipant, ContributionType::JobInstall, 2, 100_000.0],
+                [$this->successorParticipant, ContributionType::JobInstall, 3, 214_000.0],
+            ],
+            $this->derivedFiguresOf($this->ishtarLine),
+        );
+        $participantContribution = $this->derivedContributionOfParticipant($this->ishtarLine, $this->successorParticipant);
+        $this->assertSame(
+            [ContributionStatus::Approved, true, true, 0],
+            [$participantContribution->getStatus(), $participantContribution->isAutoDetected(), $participantContribution->isVerified(), $this->ishtarLine->getFulfilledQuantity()],
+        );
+    }
+
+    #[Group('issue-318')]
+    public function testSeveralJobsOfTheSameParticipantAddUpInTheirOwnContribution(): void
+    {
+        $this->givenCharactersOfTheOwnerAndTheParticipant();
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_001, 3, 214_000.0, self::PARTICIPANT_CHARACTER_NAME);
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_002, 2, 150_000.0, self::PARTICIPANT_ALT_CHARACTER_NAME);
+
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->assertSame(
+            [[$this->successorParticipant, ContributionType::JobInstall, 5, 364_000.0]],
+            $this->derivedFiguresOf($this->ishtarLine),
+        );
+    }
+
+    #[Group('issue-318')]
+    public function testParticipantJobWithoutACostMakesOnlyTheirValueUnknown(): void
+    {
+        $this->givenCharactersOfTheOwnerAndTheParticipant();
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_001, 2, 100_000.0, self::OWNER_CHARACTER_NAME);
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_002, 3, null, self::PARTICIPANT_CHARACTER_NAME);
+
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->assertSame(
+            [
+                [$this->ownerParticipant, ContributionType::JobInstall, 2, 100_000.0],
+                [$this->successorParticipant, ContributionType::JobInstall, 3, null],
+            ],
+            $this->derivedFiguresOf($this->ishtarLine),
+        );
+    }
+
+    #[Group('issue-318')]
+    public function testUnlinkingTheJobOfAParticipantRemovesTheirContributionAndKeepsTheOwners(): void
+    {
+        $this->givenCharactersOfTheOwnerAndTheParticipant();
+        $ownerJob = $this->linkJobStartedBy($this->ishtarLine, 6_318_000_001, 2, 100_000.0, self::OWNER_CHARACTER_NAME);
+        $participantJob = $this->linkJobStartedBy($this->ishtarLine, 6_318_000_002, 3, 214_000.0, self::PARTICIPANT_CHARACTER_NAME);
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->ishtarLine->getJobMatches()->removeElement($participantJob);
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->assertSame(
+            [[$this->ownerParticipant, ContributionType::JobInstall, 2, 100_000.0]],
+            $this->derivedFiguresOf($this->ishtarLine),
+        );
+        $this->assertTrue($this->ishtarLine->getJobMatches()->contains($ownerJob));
+    }
+
+    #[Group('issue-318')]
+    public function testCostCopiedByTheSyncOntoAParticipantJobChangesOnlyTheirValueAndPublishesContributionSynced(): void
+    {
+        $this->givenCharactersOfTheOwnerAndTheParticipant();
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_001, 2, 100_000.0, self::OWNER_CHARACTER_NAME);
+        $participantJob = $this->linkJobStartedBy($this->ishtarLine, 6_318_000_002, 3, 214_000.0, self::PARTICIPANT_CHARACTER_NAME);
+        $this->service->refreshLine($this->ishtarLine);
+        $publishedBefore = \count($this->publishedUpdates);
+
+        $participantJob->setCost(220_000.0);
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->assertSame(
+            [
+                [$this->ownerParticipant, ContributionType::JobInstall, 2, 100_000.0],
+                [$this->successorParticipant, ContributionType::JobInstall, 3, 220_000.0],
+            ],
+            $this->derivedFiguresOf($this->ishtarLine),
+        );
+        $this->assertCount($publishedBefore + 1, $this->publishedUpdates);
+        $this->assertSame(
+            $this->derivedContributionOfParticipant($this->ishtarLine, $this->successorParticipant)->getId()->toRfc4122(),
+            $this->publishedPayloads()[$publishedBefore]['data']['contributionId'],
+        );
+    }
+
+    #[Group('issue-318')]
+    public function testRefreshingAgainWhenNothingChangedPersistsAndPublishesNothingMoreForParticipants(): void
+    {
+        $this->givenCharactersOfTheOwnerAndTheParticipant();
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_002, 3, 214_000.0, self::PARTICIPANT_CHARACTER_NAME);
+        $this->service->refreshLine($this->ishtarLine);
+        $persistedBefore = \count($this->persistedContributions);
+        $publishedBefore = \count($this->publishedUpdates);
+
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->assertCount($persistedBefore, $this->persistedContributions);
+        $this->assertCount($publishedBefore, $this->publishedUpdates);
+    }
+
+    #[Group('issue-318')]
+    public function testJobWhoseInstallerNoParticipantOwnsStaysWithTheOwner(): void
+    {
+        $this->givenCharactersOfTheOwnerAndTheParticipant();
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_003, 4, 90_000.0, 'Departed Pilot');
+
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->assertSame(
+            [[$this->ownerParticipant, ContributionType::JobInstall, 4, 90_000.0]],
+            $this->derivedFiguresOf($this->ishtarLine),
+        );
+    }
+
+    #[Group('issue-318')]
+    public function testMaterialContributionsStayWithTheOwnerWhenAParticipantInstallsJobsOnTheSameLine(): void
+    {
+        $this->givenCharactersOfTheOwnerAndTheParticipant();
+        $this->linkPurchase($this->ishtarLine, self::ISHTAR_TYPE_ID, 2, 90_500_000.0, 'esi_wallet');
+        $this->linkJobStartedBy($this->ishtarLine, 6_318_000_002, 3, 214_000.0, self::PARTICIPANT_CHARACTER_NAME);
+
+        $this->service->refreshLine($this->ishtarLine);
+
+        $this->assertSame(
+            [
+                [$this->ownerParticipant, ContributionType::Material, 2, 181_000_000.0],
+                [$this->successorParticipant, ContributionType::JobInstall, 3, 214_000.0],
+            ],
+            $this->derivedFiguresOf($this->ishtarLine),
+        );
+        $this->assertSame(2, $this->ishtarLine->getFulfilledQuantity());
+    }
+
+    private function givenCharactersOfTheOwnerAndTheParticipant(): void
+    {
+        $this->owner->addCharacter((new Character())->setEveCharacterId(2_318_000_001)->setName(self::OWNER_CHARACTER_NAME));
+        $this->successor->addCharacter((new Character())->setEveCharacterId(2_318_000_002)->setName(self::PARTICIPANT_CHARACTER_NAME));
+        $this->successor->addCharacter((new Character())->setEveCharacterId(2_318_000_003)->setName(self::PARTICIPANT_ALT_CHARACTER_NAME));
+    }
+
+    private function linkJobStartedBy(IndustryProjectBomLine $line, int $esiJobId, int $runs, ?float $cost, string $characterName): IndustryProjectJobMatch
+    {
+        $jobMatch = $this->linkJob($line, $esiJobId, $runs, $cost);
+        $jobMatch->setCharacterName($characterName);
+
+        return $jobMatch;
+    }
+
+    private function derivedContributionOfParticipant(IndustryProjectBomLine $line, IndustryProjectParticipant $participant): IndustryProjectContribution
+    {
+        foreach ($this->derivedContributionsOf($line) as $contribution) {
+            if ($contribution->getMember() === $participant) {
+                return $contribution;
+            }
+        }
+
+        $this->fail('The participant has no derived contribution on the line.');
+    }
+
+    private function derivedFiguresOf(IndustryProjectBomLine $line): array
+    {
+        $participantRank = [spl_object_id($this->ownerParticipant) => 0, spl_object_id($this->successorParticipant) => 1];
+        $derived = $this->derivedContributionsOf($line);
+        usort($derived, static fn (IndustryProjectContribution $left, IndustryProjectContribution $right): int => [$participantRank[spl_object_id($left->getMember())], $left->getType()->value] <=> [$participantRank[spl_object_id($right->getMember())], $right->getType()->value]);
+
+        return array_map(
+            static fn (IndustryProjectContribution $contribution): array => [$contribution->getMember(), $contribution->getType(), $contribution->getQuantity(), $contribution->getEstimatedValue()],
+            $derived,
+        );
     }
 
     private function givenAManualMaterialContributionOfTheOwnerServingTheTritaniumLine(): IndustryProjectContribution

@@ -7,6 +7,7 @@ namespace App\Service\Industry\Project;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectParticipant;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
@@ -35,15 +36,25 @@ class DerivedContributionService
 
         $ownerParticipant = $this->ownerParticipantOf($project);
 
+        $jobMatchesByInstaller = $this->jobMatchesByInstaller($line, $ownerParticipant);
+
         $syncedContributionIds = [];
         foreach ($project->getContributions()->toArray() as $contribution) {
-            if ($this->isDerivedOn($contribution, $line) && $contribution->getMember() !== $ownerParticipant) {
+            if ($this->isDerivedOn($contribution, $line) && $contribution->getMember() !== $ownerParticipant && !$this->isKeptJobInstall($contribution, $jobMatchesByInstaller)) {
                 $syncedContributionIds[] = $this->remove($line, $contribution);
             }
         }
 
         $syncedContributionIds[] = $this->synchronize($line, $ownerParticipant, ContributionType::Material, $line->getPurchasedQuantity(), $this->paidPriceOf($line));
-        $syncedContributionIds[] = $this->synchronize($line, $ownerParticipant, ContributionType::JobInstall, $line->getMatchedRuns(), $this->installCostOf($line));
+        foreach ($jobMatchesByInstaller as $installer) {
+            $syncedContributionIds[] = $this->synchronize(
+                $line,
+                $installer['participant'],
+                ContributionType::JobInstall,
+                array_sum(array_map(static fn (IndustryProjectJobMatch $match): int => $match->getRuns(), $installer['matches'])),
+                $this->installCostOf($installer['matches']),
+            );
+        }
 
         $syncedContributionIds = array_filter($syncedContributionIds, static fn (?string $contributionId): bool => $contributionId !== null);
         if ($syncedContributionIds === []) {
@@ -214,10 +225,13 @@ class DerivedContributionService
         return $paidPrice;
     }
 
-    private function installCostOf(IndustryProjectBomLine $line): ?float
+    /**
+     * @param list<IndustryProjectJobMatch> $jobMatches
+     */
+    private function installCostOf(array $jobMatches): ?float
     {
         $installCost = 0.0;
-        foreach ($line->getJobMatches() as $jobMatch) {
+        foreach ($jobMatches as $jobMatch) {
             $cost = $jobMatch->getCost();
             if ($cost === null) {
                 return null;
@@ -226,6 +240,45 @@ class DerivedContributionService
         }
 
         return $installCost;
+    }
+
+    /**
+     * @return array<int, array{participant: IndustryProjectParticipant, matches: list<IndustryProjectJobMatch>}>
+     */
+    private function jobMatchesByInstaller(IndustryProjectBomLine $line, IndustryProjectParticipant $ownerParticipant): array
+    {
+        $byInstaller = [spl_object_id($ownerParticipant) => ['participant' => $ownerParticipant, 'matches' => []]];
+        foreach ($line->getJobMatches() as $jobMatch) {
+            $installer = $this->participantInstalling($line->getProject(), $jobMatch, $ownerParticipant);
+            $byInstaller[spl_object_id($installer)] ??= ['participant' => $installer, 'matches' => []];
+            $byInstaller[spl_object_id($installer)]['matches'][] = $jobMatch;
+        }
+
+        return $byInstaller;
+    }
+
+    private function participantInstalling(IndustryProject $project, IndustryProjectJobMatch $jobMatch, IndustryProjectParticipant $ownerParticipant): IndustryProjectParticipant
+    {
+        $installer = ProjectJobInstaller::userOf($project, $jobMatch->getCharacterName());
+        foreach ($project->getMembers() as $member) {
+            if ($member->getUser() === $installer) {
+                return $member;
+            }
+        }
+
+        return $ownerParticipant;
+    }
+
+    /**
+     * @param array<int, array{participant: IndustryProjectParticipant, matches: list<IndustryProjectJobMatch>}> $jobMatchesByInstaller
+     */
+    private function isKeptJobInstall(IndustryProjectContribution $contribution, array $jobMatchesByInstaller): bool
+    {
+        $member = $contribution->getMember();
+
+        return ContributionType::JobInstall === $contribution->getType()
+            && isset($jobMatchesByInstaller[spl_object_id($member)])
+            && $jobMatchesByInstaller[spl_object_id($member)]['matches'] !== [];
     }
 
     private function ownerParticipantOf(IndustryProject $project): IndustryProjectParticipant
