@@ -6,6 +6,8 @@ namespace App\Repository;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectTemplate;
+use App\Entity\User;
+use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -44,6 +46,23 @@ class IndustryProjectRepository extends ServiceEntityRepository
         $qb->orderBy('p.createdAt', 'DESC');
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @return list<IndustryProject>
+     */
+    public function findOpenOfAcceptedParticipant(User $user): array
+    {
+        return $this->createQueryBuilder('p')
+            ->join('p.members', 'm')
+            ->where('m.user = :user')
+            ->andWhere('m.status = :accepted')
+            ->andWhere('p.status != :completed')
+            ->setParameter('user', $user)
+            ->setParameter('accepted', ParticipantStatus::Accepted)
+            ->setParameter('completed', ProjectStatus::Completed)
+            ->getQuery()
+            ->getResult();
     }
 
     /**
