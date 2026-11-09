@@ -135,6 +135,10 @@ class BatchProfitScanRulesTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
+            'blueprintTypeId' => self::SHIELD_EXTENDER_BLUEPRINT_ID,
+            'outputPerRun' => 1,
+            'unitCost' => 4331.31,
+            'teUsed' => 20,
         ]], $result);
     }
 
@@ -182,6 +186,55 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertSame(0, $ferrogel['meUsed']);
         $this->assertSame('reaction', $ferrogel['activityType']);
         $this->assertSame('Reaction', $ferrogel['categoryLabel']);
+    }
+
+    #[Group('issue-356')]
+    public function testReactionReportsItsUnitCostPerOutputUnitItsFormulaAndNoTimeEfficiency(): void
+    {
+        $this->givenProduct(self::FERROGEL_FORMULA_ID, self::FERROGEL_TYPE_ID, self::REACTION, 100, [
+            self::HAFNIUM_TYPE_ID => 100,
+            self::HYDROCARBONS_TYPE_ID => 100,
+        ]);
+        $this->givenType(self::FERROGEL_TYPE_ID, '429', 'Composite', '4', '1.0');
+        $this->jitaPrices = [self::HAFNIUM_TYPE_ID => 1450.0, self::HYDROCARBONS_TYPE_ID => 520.0, self::FERROGEL_TYPE_ID => 2400.0];
+        $this->adjustedPrices = [self::HAFNIUM_TYPE_ID => 1400.0, self::HYDROCARBONS_TYPE_ID => 500.0];
+        $this->costIndices = ['manufacturing' => 0.0437, 'reaction' => 0.0713];
+
+        $ferrogel = $this->scan()[0];
+
+        $this->assertSame(self::FERROGEL_FORMULA_ID, $ferrogel['blueprintTypeId']);
+        $this->assertSame(100, $ferrogel['outputPerRun']);
+        $this->assertSame(2186.22, $ferrogel['unitCost']);
+        $this->assertSame(0, $ferrogel['teUsed']);
+    }
+
+    #[Group('issue-356')]
+    public function testT2ModuleAssumesTheTimeEfficiencyOfAnInventedBlueprint(): void
+    {
+        $this->givenProduct(self::SHIELD_EXTENDER_II_BLUEPRINT_ID, self::SHIELD_EXTENDER_II_TYPE_ID, self::MANUFACTURING, 1, [
+            self::TRITANIUM_TYPE_ID => 50,
+            self::MORPHITE_TYPE_ID => 7,
+        ]);
+        $this->givenType(self::SHIELD_EXTENDER_II_TYPE_ID, '38', 'Shield Extender', '7', '5.0');
+        $this->t2ProductIds = [self::SHIELD_EXTENDER_II_TYPE_ID => true];
+        $this->jitaPrices = [self::TRITANIUM_TYPE_ID => 6.0, self::MORPHITE_TYPE_ID => 9750.0, self::SHIELD_EXTENDER_II_TYPE_ID => 95000.0];
+
+        $shieldExtenderII = $this->scan()[0];
+
+        $this->assertSame(4, $shieldExtenderII['teUsed']);
+        $this->assertSame(self::SHIELD_EXTENDER_II_BLUEPRINT_ID, $shieldExtenderII['blueprintTypeId']);
+    }
+
+    #[Group('issue-356')]
+    public function testUnitCostIsUnknownWhenTheCostIs(): void
+    {
+        $this->givenModuleSoldAt(5301, 100.0, 10.0);
+        $this->adjustedPrices = [self::TRITANIUM_TYPE_ID => 4.0];
+        $this->costIndices = ['manufacturing' => null, 'reaction' => 0.0711];
+
+        $result = $this->scan();
+
+        $this->assertNull($result[0]['unitCost']);
     }
 
     public function testManufacturingInstallCostUsesTheFacilityTaxOfTheUserStructureInTheSystem(): void
