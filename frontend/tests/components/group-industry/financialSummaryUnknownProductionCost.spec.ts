@@ -15,6 +15,9 @@ const SALE_WITH_AN_UNKNOWN_CONTRIBUTION: Distribution = {
   netRevenue: 4_750,
   totalProjectCost: null,
   marginPercent: null,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [{
     memberId: 'member-wenzel',
     characterName: 'Wenzel Roth',

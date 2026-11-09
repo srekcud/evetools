@@ -226,6 +226,13 @@ export type MemberDistribution = {
   payoutTotal: number | null
 }
 
+export type UnsoldProduct = {
+  typeId: number
+  typeName: string
+  unsoldQuantity: number
+  lastUnitPrice: number | null
+}
+
 export type Distribution = {
   id: string
   totalRevenue: number
@@ -234,6 +241,9 @@ export type Distribution = {
   netRevenue: number | null
   totalProjectCost: number | null
   marginPercent: number | null
+  awaitingSales: boolean
+  unsoldProducts: UnsoldProduct[]
+  projectedMarginPercent: number | null
   members: MemberDistribution[]
 }
 

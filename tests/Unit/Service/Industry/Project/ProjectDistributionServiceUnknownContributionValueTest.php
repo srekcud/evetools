@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\Entity\Character;
 use App\Entity\IndustryProject;
+use Doctrine\Common\Collections\ArrayCollection;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
@@ -110,6 +111,7 @@ final class ProjectDistributionServiceUnknownContributionValueTest extends TestC
         $project = $this->createStub(IndustryProject::class);
         $project->method('getBrokerFeePercent')->willReturn(2.0);
         $project->method('getSalesTaxPercent')->willReturn(3.0);
+        $project->method('getBomItems')->willReturn(new ArrayCollection());
         $this->saleRepository->method('findBy')->willReturn([(new IndustryProjectSale())->setTotalPrice(5_000.0)]);
         $this->contributionRepository->method('findApprovedByProject')->willReturn($approvedContributions);
 

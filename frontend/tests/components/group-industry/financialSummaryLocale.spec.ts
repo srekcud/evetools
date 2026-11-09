@@ -20,6 +20,9 @@ const DISTRIBUTION: Distribution = {
   netRevenue: 2_802_000,
   totalProjectCost: 1_500_000,
   marginPercent: 86.8,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [{
     memberId: 'member-218',
     characterName: 'Torvald Ek',

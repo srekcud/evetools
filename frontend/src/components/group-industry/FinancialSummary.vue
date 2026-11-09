@@ -6,6 +6,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
+import AwaitingSalesValue from '@/components/group-industry/AwaitingSalesValue.vue'
 
 const { t } = useI18n()
 const distStore = useGroupDistributionStore()
@@ -14,10 +15,16 @@ const { formatIsk } = useFormatters()
 
 const dist = computed(() => distStore.distribution)
 
+const isAwaitingSales = computed(() => dist.value?.awaitingSales === true)
+
+const isProvisional = computed(() => !isAwaitingSales.value && (dist.value?.unsoldProducts.length ?? 0) > 0)
+
+const profitLabel = computed(() => t(isProvisional.value ? 'groupIndustry.financialSummary.provisionalProfit' : 'groupIndustry.financialSummary.profit'))
+
 const feesUnknown = computed(() => dist.value?.brokerFee === null || dist.value?.salesTax === null)
 
 const profit = computed((): number | null => {
-  if (!dist.value || dist.value.netRevenue === null || dist.value.totalProjectCost === null) return null
+  if (!dist.value || isAwaitingSales.value || dist.value.netRevenue === null || dist.value.totalProjectCost === null) return null
   return dist.value.netRevenue - dist.value.totalProjectCost
 })
 
@@ -60,7 +67,8 @@ const salesTaxLabel = computed(() => {
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-400">{{ t('groupIndustry.distribution.totalRevenue') }}</span>
             <span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
-              {{ formatIsk(dist.totalRevenue) }}
+              <template v-if="isAwaitingSales">{{ t('groupIndustry.distribution.noSale') }}</template>
+              <template v-else>{{ formatIsk(dist.totalRevenue) }}</template>
             </span>
           </div>
           <div class="flex items-center justify-between">
@@ -78,7 +86,7 @@ const salesTaxLabel = computed(() => {
           <div class="border-t border-slate-700 pt-2 flex items-center justify-between">
             <span class="text-sm font-semibold text-slate-300">{{ t('groupIndustry.distribution.netRevenue') }}</span>
             <span class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
-              <UnknownValue v-if="dist.netRevenue === null" /><template v-else>{{ formatIsk(dist.netRevenue) }}</template>
+              <AwaitingSalesValue v-if="isAwaitingSales" /><UnknownValue v-else-if="dist.netRevenue === null" /><template v-else>{{ formatIsk(dist.netRevenue) }}</template>
             </span>
           </div>
           <p v-if="feesUnknown" class="text-xs text-amber-400">{{ t('groupIndustry.financialSummary.feesUnknown') }}</p>
@@ -132,16 +140,16 @@ const salesTaxLabel = computed(() => {
           <p
             class="text-xs uppercase tracking-wider mb-1"
             :class="profitUnknown ? 'text-slate-500' : isProfit ? 'text-emerald-400/60' : 'text-red-400/60'"
-          >{{ t('groupIndustry.financialSummary.profit') }}</p>
+          >{{ profitLabel }}</p>
           <p
             class="text-3xl font-mono font-bold"
             :class="profitUnknown ? 'text-slate-500' : isProfit ? 'text-emerald-400' : 'text-red-400'"
             style="font-variant-numeric: tabular-nums;"
-          ><UnknownValue v-if="profit === null" /><template v-else>{{ isProfit ? '+' : '' }}{{ formatIsk(profit) }}</template></p>
+          ><AwaitingSalesValue v-if="isAwaitingSales" /><UnknownValue v-else-if="profit === null" /><template v-else>{{ isProfit ? '+' : '' }}{{ formatIsk(profit) }}</template></p>
           <p
             class="text-sm font-mono mt-1"
             :class="profitUnknown ? 'text-slate-500' : isProfit ? 'text-emerald-400/80' : 'text-red-400/80'"
-          >{{ t('groupIndustry.financialSummary.marginLabel') }} <UnknownValue v-if="dist.marginPercent === null" /><template v-else>{{ dist.marginPercent >= 0 ? '+' : '' }}{{ dist.marginPercent.toFixed(1) }}%</template></p>
+          >{{ t('groupIndustry.financialSummary.marginLabel') }} <AwaitingSalesValue v-if="isAwaitingSales" /><UnknownValue v-else-if="dist.marginPercent === null" /><template v-else>{{ dist.marginPercent >= 0 ? '+' : '' }}{{ dist.marginPercent.toFixed(1) }}%</template></p>
         </div>
       </div>
     </div>

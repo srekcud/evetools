@@ -38,6 +38,9 @@ function undistributableSale(members: MemberDistribution[]): Distribution {
     netRevenue: 928_000,
     totalProjectCost: 0,
     marginPercent: null,
+    awaitingSales: false,
+    unsoldProducts: [],
+    projectedMarginPercent: null,
     members,
   }
 }
@@ -50,6 +53,9 @@ const SALE_WITH_A_FREE_LINE_RENTAL_NEXT_TO_A_PRICED_MATERIAL: Distribution = {
   netRevenue: 2_000_000,
   totalProjectCost: 1_000_000,
   marginPercent: 100,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [
     memberDistribution({ memberId: 'member-aria', characterName: 'Aria Solberg', sharePercent: 0, profitPart: 0, payoutTotal: 0 }),
     memberDistribution({

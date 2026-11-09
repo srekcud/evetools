@@ -34,6 +34,9 @@ const SALE_WITH_AN_UNKNOWN_CONTRIBUTION: Distribution = {
   netRevenue: 4_750,
   totalProjectCost: null,
   marginPercent: null,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [
     memberDistribution({ memberId: 'member-ursula', characterName: 'Ursula Kane', totalCostsEngaged: 3_000, materialCosts: 3_000 }),
     memberDistribution({ memberId: 'member-valdis', characterName: 'Valdis Orn', totalCostsEngaged: 1_000, jobInstallCosts: 1_000 }),

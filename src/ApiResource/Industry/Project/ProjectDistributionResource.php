@@ -47,6 +47,15 @@ class ProjectDistributionResource
 
     public ?float $marginPercent;
 
+    public bool $awaitingSales = false;
+
+    /**
+     * @var list<array{typeId: int, typeName: string, unsoldQuantity: int, lastUnitPrice: float|null}>
+     */
+    public array $unsoldProducts = [];
+
+    public ?float $projectedMarginPercent = null;
+
     /**
      * @var list<array{
      *     memberId: string,

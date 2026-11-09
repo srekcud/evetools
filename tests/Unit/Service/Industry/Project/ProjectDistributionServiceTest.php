@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry\Project;
 use App\Entity\Character;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
@@ -17,6 +18,8 @@ use App\Repository\IndustryProjectSaleRepository;
 use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Industry\Project\ParticipantDistribution;
+use App\Service\Industry\Project\UnsoldProduct;
+use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -46,13 +49,58 @@ class ProjectDistributionServiceTest extends TestCase
     // Helper methods
     // ===========================================
 
-    private function stubProject(float $brokerFeePercent = 3.6, float $salesTaxPercent = 3.6): IndustryProject&Stub
+    private function stubProject(?float $brokerFeePercent = 3.6, ?float $salesTaxPercent = 3.6, array $bomLines = []): IndustryProject&Stub
     {
         $project = $this->createStub(IndustryProject::class);
         $project->method('getBrokerFeePercent')->willReturn($brokerFeePercent);
         $project->method('getSalesTaxPercent')->willReturn($salesTaxPercent);
+        $project->method('getBomItems')->willReturn(new ArrayCollection($bomLines));
 
         return $project;
+    }
+
+    private function stubBomLine(
+        int $typeId,
+        string $typeName,
+        int $requiredQuantity,
+        bool $isJob = true,
+        ?string $jobGroup = 'final',
+    ): IndustryProjectBomLine&Stub {
+        $line = $this->createStub(IndustryProjectBomLine::class);
+        $line->method('getTypeId')->willReturn($typeId);
+        $line->method('getTypeName')->willReturn($typeName);
+        $line->method('getRequiredQuantity')->willReturn($requiredQuantity);
+        $line->method('isJob')->willReturn($isJob);
+        $line->method('getJobGroup')->willReturn($jobGroup);
+
+        return $line;
+    }
+
+    private function stubProductSale(
+        int $typeId,
+        int $quantity,
+        float $unitPrice,
+        string $soldAt = '2026-11-01 10:00:00',
+    ): IndustryProjectSale&Stub {
+        $sale = $this->stubSale($quantity * $unitPrice);
+        $sale->method('getTypeId')->willReturn($typeId);
+        $sale->method('getQuantity')->willReturn($quantity);
+        $sale->method('getUnitPrice')->willReturn($unitPrice);
+        $sale->method('getSoldAt')->willReturn(new \DateTimeImmutable($soldAt));
+        $sale->method('getCreatedAt')->willReturn(new \DateTimeImmutable($soldAt));
+
+        return $sale;
+    }
+
+    private function standardContributions(): array
+    {
+        $alice = $this->stubMember('Alice', '00000000-0000-0000-0000-000000000001');
+        $bob = $this->stubMember('Bob', '00000000-0000-0000-0000-000000000002');
+
+        return [
+            $this->stubContribution($alice, ContributionType::Material, 600_000.0),
+            $this->stubContribution($bob, ContributionType::Material, 400_000.0),
+        ];
     }
 
     private function stubMember(string $characterName, ?string $memberId = null): IndustryProjectParticipant&Stub
@@ -317,39 +365,208 @@ class ProjectDistributionServiceTest extends TestCase
         );
     }
 
-    public function testZeroRevenueNoSales(): void
+    #[Group('issue-323')]
+    public function testNoSalesAwaitsSalesInsteadOfReportingTotalLoss(): void
     {
-        $project = $this->stubProject(3.0, 3.0);
+        $project = $this->stubProject(3.0, 3.0, [$this->stubBomLine(1, 'Hammerhead II', 50)]);
 
-        $alice = $this->stubMember('Alice', '00000000-0000-0000-0000-000000000001');
-        $bob = $this->stubMember('Bob', '00000000-0000-0000-0000-000000000002');
-
-        $contributions = [
-            $this->stubContribution($alice, ContributionType::Material, 600_000.0),
-            $this->stubContribution($bob, ContributionType::Material, 400_000.0),
-        ];
-
-        $this->configureRepositories($project, [], $contributions);
+        $this->configureRepositories($project, [], $this->standardContributions());
 
         $result = $this->service->calculateDistribution($project);
 
-        // Revenue = 0, Net = 0, Cost = 1,000,000
-        // Margin = (0 - 1,000,000) / 1,000,000 * 100 = -100%
+        self::assertTrue($result->awaitingSales);
         self::assertSame(0.0, $result->totalRevenue);
-        self::assertSame(0.0, $result->netRevenue);
         self::assertSame(0.0, $result->brokerFee);
         self::assertSame(0.0, $result->salesTax);
+        self::assertNull($result->netRevenue);
+        self::assertNull($result->marginPercent);
         self::assertSame(1_000_000.0, $result->totalProjectCost);
-        self::assertEqualsWithDelta(-100.0, $result->marginPercent, 0.001);
+        self::assertSame([], $result->unsoldProducts);
+        self::assertNull($result->projectedMarginPercent);
 
-        // Each member loses 100% => payout = 0
         $aliceDist = $this->findMember($result, '00000000-0000-0000-0000-000000000001');
-        self::assertEqualsWithDelta(-600_000.0, $aliceDist->profitPart, 1.0);
-        self::assertEqualsWithDelta(0.0, $aliceDist->payoutTotal, 1.0);
+        self::assertSame(600_000.0, $aliceDist->totalCostsEngaged);
+        self::assertEqualsWithDelta(60.0, $aliceDist->sharePercent, 0.001);
+        self::assertNull($aliceDist->profitPart);
+        self::assertNull($aliceDist->payoutTotal);
 
         $bobDist = $this->findMember($result, '00000000-0000-0000-0000-000000000002');
-        self::assertEqualsWithDelta(-400_000.0, $bobDist->profitPart, 1.0);
-        self::assertEqualsWithDelta(0.0, $bobDist->payoutTotal, 1.0);
+        self::assertSame(400_000.0, $bobDist->totalCostsEngaged);
+        self::assertEqualsWithDelta(40.0, $bobDist->sharePercent, 0.001);
+        self::assertNull($bobDist->profitPart);
+        self::assertNull($bobDist->payoutTotal);
+    }
+
+    #[Group('issue-323')]
+    public function testPartialSalesListUnsoldProductsAndProjectMarginAtLastUnitPrice(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [$this->stubBomLine(1, 'Hammerhead II', 50)]);
+
+        $this->configureRepositories($project, [$this->stubProductSale(1, 30, 40_000.0)], $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertFalse($result->awaitingSales);
+        self::assertSame(1_200_000.0, $result->totalRevenue);
+        self::assertEqualsWithDelta(1_140_000.0, $result->netRevenue, 0.001);
+        self::assertEqualsWithDelta(14.0, $result->marginPercent, 0.001);
+        self::assertEquals([new UnsoldProduct(1, 'Hammerhead II', 20, 40_000.0)], $result->unsoldProducts);
+        self::assertEqualsWithDelta(90.0, $result->projectedMarginPercent, 0.001);
+
+        $aliceDist = $this->findMember($result, '00000000-0000-0000-0000-000000000001');
+        self::assertEqualsWithDelta(84_000.0, $aliceDist->profitPart, 0.001);
+        self::assertEqualsWithDelta(684_000.0, $aliceDist->payoutTotal, 0.001);
+    }
+
+    #[Group('issue-323')]
+    public function testLastUnitPriceIsTheOneOfTheMostRecentSale(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [$this->stubBomLine(1, 'Hammerhead II', 50)]);
+
+        $sales = [
+            $this->stubProductSale(1, 20, 40_000.0, '2026-11-02 10:00:00'),
+            $this->stubProductSale(1, 10, 30_000.0, '2026-11-01 10:00:00'),
+        ];
+        $this->configureRepositories($project, $sales, $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertEquals([new UnsoldProduct(1, 'Hammerhead II', 20, 40_000.0)], $result->unsoldProducts);
+    }
+
+    #[Group('issue-323')]
+    public function testNeverSoldProductHasNoLastUnitPriceAndMakesProjectedMarginUnknown(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [
+            $this->stubBomLine(1, 'Hammerhead II', 50),
+            $this->stubBomLine(2, 'Warrior II', 30),
+        ]);
+
+        $this->configureRepositories($project, [$this->stubProductSale(1, 25, 40_000.0)], $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertEquals(
+            [
+                new UnsoldProduct(1, 'Hammerhead II', 25, 40_000.0),
+                new UnsoldProduct(2, 'Warrior II', 30, null),
+            ],
+            $result->unsoldProducts,
+        );
+        self::assertNull($result->projectedMarginPercent);
+        self::assertEqualsWithDelta(-5.0, $result->marginPercent, 0.001);
+    }
+
+    #[Group('issue-323')]
+    public function testFullySoldProjectKeepsItsLossAndHasNoUnsoldProducts(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [$this->stubBomLine(1, 'Hammerhead II', 50)]);
+
+        $this->configureRepositories($project, [$this->stubProductSale(1, 50, 16_000.0)], $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertFalse($result->awaitingSales);
+        self::assertSame([], $result->unsoldProducts);
+        self::assertNull($result->projectedMarginPercent);
+        self::assertEqualsWithDelta(-24.0, $result->marginPercent, 0.001);
+    }
+
+    #[Group('issue-323')]
+    public function testProjectedMarginIsUnknownWhenFeesAreUnknown(): void
+    {
+        $project = $this->stubProject(null, 3.5, [$this->stubBomLine(1, 'Hammerhead II', 50)]);
+
+        $this->configureRepositories($project, [$this->stubProductSale(1, 30, 40_000.0)], $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertNull($result->netRevenue);
+        self::assertEquals([new UnsoldProduct(1, 'Hammerhead II', 20, 40_000.0)], $result->unsoldProducts);
+        self::assertNull($result->projectedMarginPercent);
+    }
+
+    #[Group('issue-323')]
+    public function testProjectedMarginIsUnknownWhenProjectCostIsZero(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [$this->stubBomLine(1, 'Hammerhead II', 50)]);
+
+        $this->configureRepositories($project, [$this->stubProductSale(1, 30, 40_000.0)], []);
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertEquals([new UnsoldProduct(1, 'Hammerhead II', 20, 40_000.0)], $result->unsoldProducts);
+        self::assertNull($result->projectedMarginPercent);
+    }
+
+    #[Group('issue-323')]
+    public function testSaleOfTypeOutsideFinalBomCountsInRevenueButNotInUnsoldProducts(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [$this->stubBomLine(1, 'Hammerhead II', 50)]);
+
+        $sales = [
+            $this->stubProductSale(1, 30, 40_000.0),
+            $this->stubProductSale(99, 5, 10_000.0),
+        ];
+        $this->configureRepositories($project, $sales, $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertSame(1_250_000.0, $result->totalRevenue);
+        self::assertEqualsWithDelta(1_187_500.0, $result->netRevenue, 0.001);
+        self::assertEquals([new UnsoldProduct(1, 'Hammerhead II', 20, 40_000.0)], $result->unsoldProducts);
+        self::assertEqualsWithDelta(94.75, $result->projectedMarginPercent, 0.001);
+    }
+
+    #[Group('issue-323')]
+    public function testOversoldProductNeverGivesNegativeUnsoldQuantity(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [
+            $this->stubBomLine(1, 'Hammerhead II', 50),
+            $this->stubBomLine(2, 'Warrior II', 30),
+        ]);
+
+        $sales = [
+            $this->stubProductSale(1, 60, 20_000.0),
+            $this->stubProductSale(2, 10, 5_000.0),
+        ];
+        $this->configureRepositories($project, $sales, $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertEquals([new UnsoldProduct(2, 'Warrior II', 20, 5_000.0)], $result->unsoldProducts);
+    }
+
+    #[Group('issue-323')]
+    public function testSeveralFinalLinesOfTheSameTypeAddUpIntoOneUnsoldProduct(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [
+            $this->stubBomLine(1, 'Hammerhead II', 30),
+            $this->stubBomLine(1, 'Hammerhead II', 20),
+        ]);
+
+        $this->configureRepositories($project, [$this->stubProductSale(1, 30, 40_000.0)], $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertEquals([new UnsoldProduct(1, 'Hammerhead II', 20, 40_000.0)], $result->unsoldProducts);
+    }
+
+    #[Group('issue-323')]
+    public function testBomLinesThatAreNotFinalJobsAreNotProductsToSell(): void
+    {
+        $project = $this->stubProject(1.5, 3.5, [
+            $this->stubBomLine(1, 'Hammerhead II', 50),
+            $this->stubBomLine(5, 'Tritanium', 400, false, null),
+            $this->stubBomLine(6, 'Hobgoblin II', 15, true, 'intermediate'),
+            $this->stubBomLine(7, 'Warrior II', 12, false, 'final'),
+        ]);
+
+        $this->configureRepositories($project, [$this->stubProductSale(1, 30, 40_000.0)], $this->standardContributions());
+
+        $result = $this->service->calculateDistribution($project);
+
+        self::assertEquals([new UnsoldProduct(1, 'Hammerhead II', 20, 40_000.0)], $result->unsoldProducts);
     }
 
     public function testMixedContributionTypesBreakdown(): void

@@ -38,6 +38,9 @@ function distributionOf(owner: Partial<MemberDistribution>, totalProjectCost: nu
     netRevenue: 1_856_000,
     totalProjectCost,
     marginPercent: null,
+    awaitingSales: false,
+    unsoldProducts: [],
+    projectedMarginPercent: null,
     members: [memberDistribution(owner)],
   }
 }

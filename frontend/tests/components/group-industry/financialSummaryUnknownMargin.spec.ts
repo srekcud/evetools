@@ -15,6 +15,9 @@ const UNDISTRIBUTABLE_SALE: Distribution = {
   netRevenue: 928_000,
   totalProjectCost: 0,
   marginPercent: null,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [{
     memberId: 'member-aria',
     characterName: 'Aria Solberg',
@@ -38,6 +41,9 @@ const PROFITABLE_SALE: Distribution = {
   netRevenue: 1_856_000,
   totalProjectCost: 1_172_498.42,
   marginPercent: 58.3,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [{
     memberId: 'member-brann',
     characterName: 'Brann Holt',
