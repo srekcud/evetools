@@ -53,6 +53,8 @@ const SABRE_BATCH_WITHOUT_SELLER_FEES: GroupProject = {
   notes: null,
   acceptsOutsideFavoriteSystem: false,
   minimumOutsideSaving: 5,
+  sellStructureId: null,
+  sellStructureName: null,
 }
 
 async function openEditModal(): Promise<VueWrapper> {

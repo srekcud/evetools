@@ -128,6 +128,10 @@ class IndustryProjectResource
 
     public ?string $notes = null;
 
+    public ?int $sellStructureId = null;
+
+    public ?string $sellStructureName = null;
+
     public string $ownerCharacterName;
 
     public ?int $ownerCorporationId = null;

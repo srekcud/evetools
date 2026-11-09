@@ -52,6 +52,8 @@ export function groupIndustryProject(id: string, name: string | null, status: Gr
     private: true,
     acceptsOutsideFavoriteSystem: false,
     minimumOutsideSaving: 500000,
+    sellStructureId: null,
+    sellStructureName: null,
     notes: null,
     ownerCharacterName: 'Sylvain Duckers',
     ownerCorporationId: 98000001,

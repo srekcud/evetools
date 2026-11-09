@@ -22,6 +22,8 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\ProjectSellStructures;
+use App\Service\Industry\Project\SellStructure;
 use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\State\Processor\Industry\Project\CreateProjectProcessor;
@@ -45,6 +47,8 @@ class CreateProjectProcessorTest extends TestCase
     private const int SABRE_TYPE_ID = 22456;
     private const int SABRE_BLUEPRINT_TYPE_ID = 22457;
     private const float MINIMUM_OUTSIDE_SAVING = 125_000.0;
+    private const int JITA_STRUCTURE_ID = 60003760;
+    private const int KEEPSTAR_STRUCTURE_ID = 1042000000001;
 
     private Security&Stub $security;
     private IndustryProjectService&Stub $projectService;
@@ -82,6 +86,7 @@ class CreateProjectProcessorTest extends TestCase
             $this->activityProductRepository,
             $salesFeesResolver,
             $this->templateRepository,
+            new ProjectSellStructures(),
         );
     }
 
@@ -310,6 +315,57 @@ class CreateProjectProcessorTest extends TestCase
         );
 
         $this->processor->process($input, new Post());
+    }
+
+    #[Group('issue-50')]
+    public function testSellStructureAbsentAtCreationIsThePreferredMarketStructureOfTheOwner(): void
+    {
+        $this->owner->method('getPreferredMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
+        $this->owner->method('getPreferredMarketStructureName')->willReturn('Jita 4-4');
+
+        $this->createProjectFrom($this->sabreInput());
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertEquals(new SellStructure(self::JITA_STRUCTURE_ID, 'Jita 4-4'), $this->createdProjectData->sellStructure);
+    }
+
+    #[Group('issue-50')]
+    public function testSellStructureAbsentAtCreationStaysUnsetWhenTheOwnerHasNoMarketStructure(): void
+    {
+        $this->createProjectFrom($this->sabreInput());
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertNull($this->createdProjectData->sellStructure);
+    }
+
+    #[Group('issue-50')]
+    public function testSellStructureSentAtCreationTakesItsNameFromTheMarketStructuresOfTheOwner(): void
+    {
+        $this->owner->method('getPreferredMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
+        $this->owner->method('getPreferredMarketStructureName')->willReturn('Jita 4-4');
+        $this->owner->method('getMarketStructures')->willReturn([['id' => self::KEEPSTAR_STRUCTURE_ID, 'name' => 'Keepstar A']]);
+        $input = $this->sabreInput();
+        $input->sellStructureId = self::KEEPSTAR_STRUCTURE_ID;
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertEquals(new SellStructure(self::KEEPSTAR_STRUCTURE_ID, 'Keepstar A'), $this->createdProjectData->sellStructure);
+    }
+
+    #[Group('issue-50')]
+    public function testSellStructureSentAtCreationOutsideTheMarketStructuresOfTheOwnerIsABadRequestAndNoProjectIsCreated(): void
+    {
+        $this->owner->method('getPreferredMarketStructureId')->willReturn(self::JITA_STRUCTURE_ID);
+        $input = $this->sabreInput();
+        $input->sellStructureId = 999;
+
+        try {
+            $this->createProjectFrom($input);
+            self::fail('A sell structure the owner does not have must be refused');
+        } catch (BadRequestHttpException) {
+            self::assertNull($this->createdProjectData);
+        }
     }
 
     #[Group('issue-355')]

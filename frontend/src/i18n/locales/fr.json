@@ -2835,6 +2835,12 @@
       "advanceStatus": "Avancer le statut",
       "deleteProject": "Supprimer le projet"
     },
+    "sellStructure": {
+      "label": "Structure de vente",
+      "none": "Aucune structure de marché configurée",
+      "notSet": "Non définie",
+      "loadFailed": "Les structures de marché n'ont pas pu être chargées"
+    },
     "modals": {
       "newProject": {
         "title": "Nouveau projet de groupe",

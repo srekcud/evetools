@@ -2835,6 +2835,12 @@
       "advanceStatus": "Advance Status",
       "deleteProject": "Delete Project"
     },
+    "sellStructure": {
+      "label": "Sell structure",
+      "none": "No market structure configured",
+      "notSet": "Not set",
+      "loadFailed": "Market structures could not be loaded"
+    },
     "modals": {
       "newProject": {
         "title": "New Group Project",

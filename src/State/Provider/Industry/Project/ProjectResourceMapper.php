@@ -39,6 +39,8 @@ class ProjectResourceMapper
         $resource->acceptsOutsideFavoriteSystem = $project->isAcceptsOutsideFavoriteSystem();
         $resource->minimumOutsideSaving = $project->getMinimumOutsideSaving();
         $resource->notes = $project->getNotes();
+        $resource->sellStructureId = $project->getSellStructureId();
+        $resource->sellStructureName = $project->getSellStructureName();
         $resource->ownerCharacterName = $project->getOwner()->getMainCharacter()?->getName() ?? 'Unknown';
         $resource->ownerCorporationId = $project->getOwner()->getCorporationId();
         $resource->brokerFeePercent = $project->getBrokerFeePercent();

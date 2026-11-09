@@ -71,6 +71,9 @@ class CreateProjectInput
     #[Assert\Uuid]
     public ?string $templateId = null;
 
+    #[Assert\Positive]
+    public ?int $sellStructureId = null;
+
     #[Assert\Callback]
     public function validateTheSumOfTheRuns(ExecutionContextInterface $context): void
     {

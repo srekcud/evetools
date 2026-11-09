@@ -71,6 +71,12 @@ class IndustryProject
     #[ORM\Column(type: 'float', options: ['default' => self::DEFAULT_MINIMUM_OUTSIDE_SAVING])]
     private float $minimumOutsideSaving = self::DEFAULT_MINIMUM_OUTSIDE_SAVING;
 
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $sellStructureId = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $sellStructureName = null;
+
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $private = true;
 
@@ -136,6 +142,24 @@ class IndustryProject
     public function setOwner(User $owner): static
     {
         $this->owner = $owner;
+        return $this;
+    }
+
+    public function getSellStructureId(): ?int
+    {
+        return $this->sellStructureId;
+    }
+
+    public function getSellStructureName(): ?string
+    {
+        return $this->sellStructureName;
+    }
+
+    public function setSellStructure(?int $id, ?string $name): static
+    {
+        $this->sellStructureId = $id;
+        $this->sellStructureName = $name;
+
         return $this;
     }
 

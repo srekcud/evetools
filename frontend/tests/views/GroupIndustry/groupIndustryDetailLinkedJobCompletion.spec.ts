@@ -50,6 +50,8 @@ const FEROX_BATCH: GroupProject = {
   notes: null,
   acceptsOutsideFavoriteSystem: false,
   minimumOutsideSaving: 5,
+  sellStructureId: null,
+  sellStructureName: null,
 }
 
 let detailFetch: ReturnType<typeof vi.spyOn>

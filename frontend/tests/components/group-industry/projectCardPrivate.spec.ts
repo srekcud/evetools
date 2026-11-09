@@ -30,6 +30,8 @@ const HECATE_PROJECT: GroupProject = {
   notes: null,
   acceptsOutsideFavoriteSystem: false,
   minimumOutsideSaving: 5,
+  sellStructureId: null,
+  sellStructureName: null,
 }
 
 function mountProjectCard(privacy: Pick<GroupProject, 'private'>): VueWrapper {

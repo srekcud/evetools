@@ -36,6 +36,19 @@ final class CreateProjectInputValidationTest extends TestCase
         self::assertSame([], $this->violatedPathsOf([$this->ishtarItem()]));
     }
 
+    #[Group('issue-50')]
+    public function testSellStructureSentIsStrictlyPositiveAndAbsentIsAccepted(): void
+    {
+        $violatedPathsBySellStructureId = [];
+        foreach ([0, -5, 60003760, null] as $sellStructureId) {
+            $input = $this->inputWithItems([$this->ishtarItem()]);
+            $input->sellStructureId = $sellStructureId;
+            $violatedPathsBySellStructureId[(string) $sellStructureId] = $this->violatedPathsOfTheInput($input);
+        }
+
+        self::assertSame(['0' => ['sellStructureId'], '-5' => ['sellStructureId'], '60003760' => [], '' => []], $violatedPathsBySellStructureId);
+    }
+
     #[Group('issue-355')]
     public function testTemplateIdThatIsNotAUuidIsRejectedOnTheTemplateIdAndAUuidOrNoneIsAccepted(): void
     {

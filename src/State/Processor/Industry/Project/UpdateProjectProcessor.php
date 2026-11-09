@@ -16,6 +16,7 @@ use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\ProjectSellStructures;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -47,6 +48,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
         private readonly IndustryProjectService $projectService,
+        private readonly ProjectSellStructures $sellStructures,
     ) {
     }
 
@@ -85,6 +87,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         }
 
         $this->changeTheBlacklist($project, $data);
+        $this->changeTheSellStructure($user, $project, $data);
 
         if ($data->name !== null) {
             $name = trim($data->name);
@@ -149,6 +152,25 @@ class UpdateProjectProcessor implements ProcessorInterface
         ]);
 
         return $this->mapper->projectToResource($project, $membership);
+    }
+
+    private function changeTheSellStructure(User $user, IndustryProject $project, UpdateProjectInput $data): void
+    {
+        if (null === $data->sellStructureId) {
+            return;
+        }
+
+        if ($project->isCompleted()) {
+            throw new BadRequestHttpException('Cannot change the sell structure of a completed project');
+        }
+
+        try {
+            $sellStructure = $this->sellStructures->choose($user, $data->sellStructureId);
+        } catch (\InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage());
+        }
+
+        $project->setSellStructure($sellStructure->id, $sellStructure->name);
     }
 
     private function changeTheBlacklist(IndustryProject $project, UpdateProjectInput $data): void

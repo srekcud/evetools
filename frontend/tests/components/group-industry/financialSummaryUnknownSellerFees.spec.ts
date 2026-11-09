@@ -37,6 +37,8 @@ const PROJECT_WITHOUT_SELLER_FEES: GroupProject = {
   notes: null,
   acceptsOutsideFavoriteSystem: false,
   minimumOutsideSaving: 5,
+  sellStructureId: null,
+  sellStructureName: null,
 }
 
 const DISTRIBUTION_WITH_UNKNOWN_FEES: Distribution = {

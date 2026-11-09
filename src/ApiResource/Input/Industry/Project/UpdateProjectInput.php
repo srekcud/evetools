@@ -29,6 +29,9 @@ class UpdateProjectInput
 
     public ?bool $private = null;
 
+    #[Assert\Positive]
+    public ?int $sellStructureId = null;
+
     #[Assert\Length(max: self::MAXIMUM_NOTES_LENGTH)]
     public ?string $notes = null;
 

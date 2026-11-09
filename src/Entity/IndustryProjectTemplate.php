@@ -37,6 +37,10 @@ class IndustryProjectTemplate
     private bool $acceptsOutsideFavoriteSystem = false;
     #[ORM\Column(type: 'float')]
     private float $minimumOutsideSaving = 0.0;
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $sellStructureId = null;
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $sellStructureName = null;
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $sharedWithCorporation = false;
     #[ORM\Column(type: 'datetime_immutable')]
@@ -118,6 +122,24 @@ class IndustryProjectTemplate
     public function setBlacklistTypeIds(array $blacklistTypeIds): static
     {
         $this->blacklistTypeIds = $blacklistTypeIds;
+
+        return $this;
+    }
+
+    public function getSellStructureId(): ?int
+    {
+        return $this->sellStructureId;
+    }
+
+    public function getSellStructureName(): ?string
+    {
+        return $this->sellStructureName;
+    }
+
+    public function setSellStructure(?int $id, ?string $name): static
+    {
+        $this->sellStructureId = $id;
+        $this->sellStructureName = $name;
 
         return $this;
     }

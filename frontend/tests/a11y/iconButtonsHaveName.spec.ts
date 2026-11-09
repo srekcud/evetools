@@ -186,6 +186,8 @@ const GROUP_PROJECT: GroupProject = {
   notes: null,
   acceptsOutsideFavoriteSystem: false,
   minimumOutsideSaving: 5,
+  sellStructureId: null,
+  sellStructureName: null,
 }
 
 interface MountedComponent {

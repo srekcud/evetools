@@ -84,6 +84,31 @@ final class CreateProjectTemplateProcessorTest extends TestCase
         self::assertSame('Alice Ferrand', $resource->ownerName);
     }
 
+    #[Group('issue-50')]
+    public function testTemplateCopiesTheSellStructureOfTheProjectAndExposesIt(): void
+    {
+        $this->hammerheadBatch->setSellStructure(1042000000001, 'Keepstar A');
+        $persisted = $this->capturePersistedTemplate();
+
+        $resource = $this->process($this->alice, $this->inputFor('Hammerhead line', false));
+
+        $template = $persisted[0] ?? self::fail('No template persisted');
+        self::assertSame([1042000000001, 'Keepstar A'], [$template->getSellStructureId(), $template->getSellStructureName()]);
+        self::assertSame([1042000000001, 'Keepstar A'], [$resource->sellStructureId, $resource->sellStructureName]);
+    }
+
+    #[Group('issue-50')]
+    public function testTemplateOfAProjectWithoutSellStructureHasNone(): void
+    {
+        $persisted = $this->capturePersistedTemplate();
+
+        $resource = $this->process($this->alice, $this->inputFor('Hammerhead line', false));
+
+        $template = $persisted[0] ?? self::fail('No template persisted');
+        self::assertSame([null, null], [$template->getSellStructureId(), $template->getSellStructureName()]);
+        self::assertSame([null, null], [$resource->sellStructureId, $resource->sellStructureName]);
+    }
+
     public function testProjectWithAnEmptyBlacklistGivesATemplateWithEmptyListsNeverNull(): void
     {
         $this->hammerheadBatch->setBlacklistGroupIds([]);

@@ -12,6 +12,7 @@ import type { CreateGroupProjectInput, ProjectReferenceRow, ProjectTemplate } fr
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesPanel.vue'
+import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 
 const DEFAULT_PREFILL_LEVEL = 0
 const DEFAULT_PREFILL_RUNS = 1
@@ -131,6 +132,8 @@ const projectName = ref('')
 const containerName = ref('')
 const isPrivate = ref(true)
 const usedTemplateId = ref<string | null>(null)
+const sellStructureId = ref<number | null>(null)
+const selectableSellStructureIds = ref<number[]>([])
 const acceptsOutsideFavoriteSystem = ref(false)
 const minimumOutsideSaving = ref<number | string>(DEFAULT_MINIMUM_OUTSIDE_SAVING)
 const hasValidMinimumOutsideSaving = computed(() =>
@@ -234,6 +237,7 @@ function applyPrefill() {
 function resetForm() {
   addMode.value = 'add-item'
   usedTemplateId.value = null
+  sellStructureId.value = null
   searchQuery.value = ''
   selectedItem.value = null
   showDropdown.value = false
@@ -277,6 +281,9 @@ function applyTemplate(template: ProjectTemplate) {
   blacklistGroupIds.value = [...template.blacklistGroupIds]
   acceptsOutsideFavoriteSystem.value = template.acceptsOutsideFavoriteSystem
   minimumOutsideSaving.value = template.minimumOutsideSaving
+  if (template.sellStructureId !== null && selectableSellStructureIds.value.includes(template.sellStructureId)) {
+    sellStructureId.value = template.sellStructureId
+  }
   addMode.value = 'add-item'
 }
 
@@ -336,6 +343,7 @@ async function handleCreate() {
     acceptsOutsideFavoriteSystem: acceptsOutsideFavoriteSystem.value,
     minimumOutsideSaving: minimumOutsideSaving.value,
     templateId: usedTemplateId.value ?? undefined,
+    sellStructureId: sellStructureId.value ?? undefined,
   }
 
   try {
@@ -670,6 +678,11 @@ function handleClose() {
         </label>
         <p class="text-xs text-slate-500 mt-1.5">{{ t('groupIndustry.modals.newProject.privateHint') }}</p>
       </div>
+
+      <SellStructureSelect
+        v-model="sellStructureId"
+        @loaded="selectableSellStructureIds = $event"
+      />
 
       <div>
         <label class="flex items-center gap-2.5 cursor-pointer">

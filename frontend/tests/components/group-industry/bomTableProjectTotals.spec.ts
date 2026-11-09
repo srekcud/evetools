@@ -62,6 +62,8 @@ function sabreProject(overrides: Partial<GroupProject>): GroupProject {
     notes: null,
     acceptsOutsideFavoriteSystem: false,
     minimumOutsideSaving: 5,
+    sellStructureId: null,
+    sellStructureName: null,
     ...overrides,
   }
 }

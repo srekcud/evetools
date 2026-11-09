@@ -50,6 +50,18 @@ final class UpdateProjectInputValidationTest extends TestCase
         yield 'sales tax absent' => ['salesTaxPercent', null, []];
     }
 
+    #[Group('issue-50')]
+    public function testSellStructureSentIsStrictlyPositive(): void
+    {
+        $zero = new UpdateProjectInput();
+        $zero->sellStructureId = 0;
+        $positive = new UpdateProjectInput();
+        $positive->sellStructureId = 60003760;
+
+        self::assertSame(['sellStructureId'], $this->violatedPathsOf($zero));
+        self::assertSame([], $this->violatedPathsOf($positive));
+    }
+
     #[DataProvider('blacklistFields')]
     #[Group('issue-445')]
     public function testEachBlacklistFieldHoldsAtMostTwoHundredEntries(string $field, mixed $entry): void

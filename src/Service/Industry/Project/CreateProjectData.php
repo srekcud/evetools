@@ -32,6 +32,7 @@ final readonly class CreateProjectData
         public bool $acceptsOutsideFavoriteSystem = false,
         public float $minimumOutsideSaving = IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING,
         public ?IndustryProjectTemplate $template = null,
+        public ?SellStructure $sellStructure = null,
     ) {
     }
 }
