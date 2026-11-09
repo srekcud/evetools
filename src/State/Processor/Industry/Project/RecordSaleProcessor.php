@@ -10,6 +10,7 @@ use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\ApiResource\Input\Industry\Project\RecordSaleInput;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
+use App\Enum\SaleChannel;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\ResolvesSellerOfUser;
 use App\Service\Mercure\MercurePublisherService;
@@ -77,6 +78,7 @@ class RecordSaleProcessor implements ProcessorInterface
         $sale->setUnitPrice($data->unitPrice);
         $sale->recalculateTotalPrice();
         $sale->setVenue($data->venue);
+        $sale->setChannel($data->channel ?? SaleChannel::Market);
         $sale->setSoldAt($soldAt);
         $sale->setRecordedBy($user);
         $sale->setSeller($seller);

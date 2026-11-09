@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useFormatters } from '@/composables/useFormatters'
-import type { GroupSale, RecordSaleInput, UpdateSaleInput } from '@/stores/group-industry/types'
+import type { GroupSale, RecordSaleInput, SaleChannel, UpdateSaleInput } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 
@@ -14,6 +14,7 @@ const saleTypeNameFieldId = useId()
 const saleQuantityFieldId = useId()
 const saleUnitPriceFieldId = useId()
 const saleVenueFieldId = useId()
+const saleChannelFieldId = useId()
 const saleSellerFieldId = useId()
 const mySalesToggleId = useId()
 
@@ -26,6 +27,8 @@ const store = useGroupDistributionStore()
 const authStore = useAuthStore()
 const { formatNumber, formatDate } = useFormatters()
 
+const SALE_CHANNELS: readonly SaleChannel[] = ['market', 'contract']
+
 // Inline sale form state
 const showSaleForm = ref(false)
 const saleForm = ref<RecordSaleInput>({
@@ -34,6 +37,7 @@ const saleForm = ref<RecordSaleInput>({
   quantity: 1,
   unitPrice: 0,
   venue: '',
+  channel: 'market',
 })
 const submittingSale = ref(false)
 const correctedSale = ref<GroupSale | null>(null)
@@ -67,7 +71,7 @@ function toggleSaleForm(): void {
   correctedSale.value = null
   showSaleForm.value = !showSaleForm.value
   if (showSaleForm.value) {
-    saleForm.value = { typeId: 0, typeName: '', quantity: 1, unitPrice: 0, venue: '' }
+    saleForm.value = { typeId: 0, typeName: '', quantity: 1, unitPrice: 0, venue: '', channel: 'market' }
     chosenSellerCharacterId.value = null
   }
 }
@@ -80,6 +84,7 @@ function startCorrection(sale: GroupSale): void {
     quantity: sale.quantity,
     unitPrice: sale.unitPrice,
     venue: sale.venue ?? '',
+    channel: sale.channel,
   }
   chosenSellerCharacterId.value = ownSellerOf(sale)
   showSaleForm.value = true
@@ -91,6 +96,7 @@ function changesOf(sale: GroupSale, form: RecordSaleInput): UpdateSaleInput {
   if (form.quantity !== sale.quantity) changes.quantity = form.quantity
   if (form.unitPrice !== sale.unitPrice) changes.unitPrice = form.unitPrice
   if (form.venue && form.venue !== sale.venue) changes.venue = form.venue
+  if (form.channel !== undefined && form.channel !== sale.channel) changes.channel = form.channel
   if (chosenSellerCharacterId.value !== null && chosenSellerCharacterId.value !== sale.sellerCharacterId) {
     changes.sellerCharacterId = chosenSellerCharacterId.value
   }
@@ -190,6 +196,7 @@ onMounted(() => {
                 <th class="text-right py-3 px-3">Quantity</th>
                 <th class="text-right py-3 px-3">Unit Price</th>
                 <th class="text-right py-3 px-3">Revenue</th>
+                <th class="text-left py-3 px-3">{{ t('groupIndustry.sales.channelColumn') }}</th>
                 <th class="text-left py-3 px-6">Venue</th>
                 <th v-if="isAdmin" class="py-3 px-6"><span class="sr-only">{{ t('groupIndustry.sales.actionsColumn') }}</span></th>
               </tr>
@@ -217,6 +224,7 @@ onMounted(() => {
                 <td class="py-3 px-3 text-right font-mono text-emerald-400" style="font-variant-numeric: tabular-nums;">
                   {{ formatNumber(sale.totalPrice, 0) }}
                 </td>
+                <td class="py-3 px-3 text-slate-300">{{ t(`groupIndustry.sales.channels.${sale.channel}`) }}</td>
                 <td class="py-3 px-6">
                   <span
                     v-if="sale.venue"
@@ -246,6 +254,7 @@ onMounted(() => {
                 <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400" style="font-variant-numeric: tabular-nums;">
                   {{ formatNumber(totalRevenue, 0) }}
                 </td>
+                <td class="py-3 px-3"></td>
                 <td class="py-3 px-6"></td>
                 <td v-if="isAdmin" class="py-3 px-6"></td>
               </tr>
@@ -260,7 +269,7 @@ onMounted(() => {
         class="mt-4 bg-slate-900/80 rounded-xl border border-cyan-500/20 p-5"
       >
         <h3 class="text-sm font-semibold text-slate-200 mb-4">{{ correctedSale ? t('groupIndustry.sales.correctTitle') : 'Record a Sale' }}</h3>
-        <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        <div class="grid grid-cols-2 lg:grid-cols-7 gap-3">
           <div>
             <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">Item Name</label>
             <input
@@ -291,6 +300,16 @@ onMounted(() => {
               :disabled="correctedSaleIsLinked"
               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:border-cyan-500 focus:outline-none disabled:opacity-50"
             />
+          </div>
+          <div>
+            <label :for="saleChannelFieldId" class="text-xs text-slate-500 mb-1 block">{{ t('groupIndustry.sales.channelColumn') }}</label>
+            <select
+              :id="saleChannelFieldId"
+              v-model="saleForm.channel"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+            >
+              <option v-for="channel in SALE_CHANNELS" :key="channel" :value="channel">{{ t(`groupIndustry.sales.channels.${channel}`) }}</option>
+            </select>
           </div>
           <div>
             <label :for="saleVenueFieldId" class="text-xs text-slate-500 mb-1 block">Venue</label>

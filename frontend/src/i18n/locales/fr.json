@@ -2839,6 +2839,11 @@
       "recordedBy": "Enregistre par",
       "correctTitle": "Corriger une vente",
       "actionsColumn": "Actions",
+      "channelColumn": "Canal",
+      "channels": {
+        "market": "Ordre de marché",
+        "contract": "Contrat"
+      },
       "sellerColumn": "Vendeur",
       "unknownSeller": "Vendeur inconnu",
       "mySales": "Mes ventes",

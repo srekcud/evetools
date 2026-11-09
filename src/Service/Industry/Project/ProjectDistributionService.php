@@ -6,7 +6,9 @@ namespace App\Service\Industry\Project;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectSale;
 use App\Enum\ContributionType;
+use App\Enum\SaleChannel;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectSaleRepository;
 
@@ -23,17 +25,16 @@ class ProjectDistributionService
     public function calculateDistribution(IndustryProject $project): DistributionResult
     {
         $sales = $this->saleRepository->findBy(['project' => $project]);
-        $totalRevenue = array_sum(array_map(
-            static fn ($sale) => $sale->getTotalPrice(),
-            $sales,
-        ));
+        $marketRevenue = $this->revenueOfChannel($sales, SaleChannel::Market);
+        $contractRevenue = $this->revenueOfChannel($sales, SaleChannel::Contract);
+        $totalRevenue = $marketRevenue + $contractRevenue;
 
         $brokerFeePercent = $project->getBrokerFeePercent();
         $salesTaxPercent = $project->getSalesTaxPercent();
-        $feesAreKnown = $brokerFeePercent !== null && $salesTaxPercent !== null;
-        $brokerFee = $feesAreKnown ? $totalRevenue * $brokerFeePercent / 100 : null;
-        $salesTax = $feesAreKnown ? $totalRevenue * $salesTaxPercent / 100 : null;
-        $netRevenue = $feesAreKnown ? $totalRevenue - $brokerFee - $salesTax : null;
+        $feesAreKnown = $marketRevenue <= 0.0 || ($brokerFeePercent !== null && $salesTaxPercent !== null);
+        $brokerFee = $feesAreKnown ? $this->feeOn($marketRevenue, $brokerFeePercent) : null;
+        $salesTax = $feesAreKnown ? $this->feeOn($marketRevenue, $salesTaxPercent) : null;
+        $netRevenue = $brokerFee === null || $salesTax === null ? null : $totalRevenue - $brokerFee - $salesTax;
 
         $approvedContributions = $this->contributionRepository->findApprovedByProject($project);
         $totalProjectCost = $this->sumOfValues(...$approvedContributions);
@@ -63,7 +64,29 @@ class ProjectDistributionService
                 $brokerFeePercent,
                 $salesTaxPercent,
             ),
+            marketRevenue: $marketRevenue,
+            contractRevenue: $contractRevenue,
         );
+    }
+
+    private function feeOn(float $marketRevenue, ?float $feePercent): ?float
+    {
+        if ($marketRevenue <= 0.0) {
+            return 0.0;
+        }
+
+        return $feePercent === null ? null : $marketRevenue * $feePercent / self::PERCENT;
+    }
+
+    /**
+     * @param list<IndustryProjectSale> $sales
+     */
+    private function revenueOfChannel(array $sales, SaleChannel $channel): float
+    {
+        return array_sum(array_map(
+            static fn (IndustryProjectSale $sale): float => $sale->getTotalPrice(),
+            array_filter($sales, static fn (IndustryProjectSale $sale): bool => $sale->getChannel() === $channel),
+        ));
     }
 
     /**

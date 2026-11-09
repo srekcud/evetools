@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\SaleChannel;
 use App\Repository\IndustryProjectSaleRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -39,6 +40,9 @@ class IndustryProjectSale
 
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $venue = null;
+
+    #[ORM\Column(type: 'string', length: 20, enumType: SaleChannel::class, options: ['default' => 'market'])]
+    private SaleChannel $channel = SaleChannel::Market;
 
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $soldAt;
@@ -149,6 +153,17 @@ class IndustryProjectSale
     public function setVenue(?string $venue): static
     {
         $this->venue = $venue;
+        return $this;
+    }
+
+    public function getChannel(): SaleChannel
+    {
+        return $this->channel;
+    }
+
+    public function setChannel(SaleChannel $channel): static
+    {
+        $this->channel = $channel;
         return $this;
     }
 

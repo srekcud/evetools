@@ -12,6 +12,7 @@ use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ContributionType;
+use App\Enum\SaleChannel;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectSaleRepository;
@@ -137,6 +138,7 @@ class ProjectDistributionServiceTest extends TestCase
     {
         $sale = $this->createStub(IndustryProjectSale::class);
         $sale->method('getTotalPrice')->willReturn($totalPrice);
+        $sale->method('getChannel')->willReturn(SaleChannel::Market);
 
         return $sale;
     }

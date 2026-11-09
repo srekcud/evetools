@@ -61,6 +61,8 @@ class ProjectDistributionProvider implements ProviderInterface
         $resource = new ProjectDistributionResource();
         $resource->id = $projectId;
         $resource->totalRevenue = $result->totalRevenue;
+        $resource->marketRevenue = $result->marketRevenue;
+        $resource->contractRevenue = $result->contractRevenue;
         $resource->brokerFee = $result->brokerFee;
         $resource->salesTax = $result->salesTax;
         $resource->netRevenue = $result->netRevenue;

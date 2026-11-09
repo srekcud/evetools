@@ -21,5 +21,7 @@ class DistributionResult
         public readonly bool $awaitingSales = false,
         public readonly array $unsoldProducts = [],
         public readonly ?float $projectedMarginPercent = null,
+        public readonly float $marketRevenue = 0.0,
+        public readonly float $contractRevenue = 0.0,
     ) {}
 }

@@ -117,6 +117,8 @@ class ProjectSaleResource
 
     public ?string $venue = null;
 
+    public string $channel = 'market';
+
     public string $soldAt;
 
     public ?string $recordedByCharacterName = null;
@@ -139,6 +141,7 @@ class ProjectSaleResource
         $resource->unitPrice = $sale->getUnitPrice();
         $resource->totalPrice = $sale->getTotalPrice();
         $resource->venue = $sale->getVenue();
+        $resource->channel = $sale->getChannel()->value;
         $resource->soldAt = $sale->getSoldAt()->format(\DateTimeInterface::ATOM);
         $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
         $seller = $sale->getSeller();

@@ -185,6 +185,8 @@ export type GroupMember = {
 
 // --- Sales ---
 
+export type SaleChannel = 'market' | 'contract'
+
 export type GroupSale = {
   id: string
   typeId: number
@@ -193,6 +195,7 @@ export type GroupSale = {
   unitPrice: number
   totalPrice: number
   venue: string | null
+  channel: SaleChannel
   soldAt: string
   recordedByCharacterName: string | null
   sellerCharacterId: number | null
@@ -407,6 +410,7 @@ export type RecordSaleInput = {
   quantity: number
   unitPrice: number
   venue?: string
+  channel?: SaleChannel
   soldAt?: string
   sellerCharacterId?: number
 }
@@ -417,6 +421,7 @@ export type UpdateSaleInput = {
   quantity?: number
   unitPrice?: number
   venue?: string
+  channel?: SaleChannel
   soldAt?: string
   sellerCharacterId?: number
 }

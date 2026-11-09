@@ -84,6 +84,34 @@ final class GroupSaleApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
+    #[Group('issue-325')]
+    public function testAdminRecordsASaleSoldByContractAndItIsStoredWithItsChannel(): void
+    {
+        $this->client->loginUser($this->admin, 'api');
+        $this->postIshtarSale(['channel' => 'contract']);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('contract', $this->responseJson()['channel']);
+
+        $this->em->clear();
+        $channels = array_map(
+            static fn (IndustryProjectSale $sale): string => $sale->getChannel()->value,
+            $this->em->getRepository(IndustryProjectSale::class)->findBy(['project' => $this->sabreDoctrine->getId()]),
+        );
+        sort($channels);
+        self::assertSame(['contract', 'market'], $channels);
+    }
+
+    #[Group('issue-325')]
+    public function testSaleWithAnUnknownChannelIsRejectedAndNothingIsRecorded(): void
+    {
+        $this->client->loginUser($this->admin, 'api');
+        $this->postIshtarSale(['channel' => 'barter']);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(1, $this->salesCountOf($this->sabreDoctrine));
+    }
+
     public function testSaleWithoutQuantityIsRejectedOnTheQuantity(): void
     {
         $this->client->loginUser($this->admin, 'api');
