@@ -9,6 +9,7 @@ import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
 import { useGroupActivityStore } from '@/stores/group-industry/activity'
+import { useGroupCompanionStore } from '@/stores/group-industry/companion'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
@@ -67,6 +68,7 @@ const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
 const settlementStore = useGroupSettlementStore()
 const activityStore = useGroupActivityStore()
+const companionStore = useGroupCompanionStore()
 const syncStore = useSyncStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { showToast } = useToast()
@@ -139,6 +141,7 @@ onMounted(async () => {
   if (activeTab.value === 'journal') {
     await activityStore.fetchActivity(projectId.value)
   }
+  openContributionOfQuery()
 })
 
 const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<void>> = {
@@ -212,6 +215,21 @@ async function copyShareLink(): Promise<void> {
 function openContributeModal(bomItem?: BomItem): void {
   prefilledBomItem.value = bomItem
   showContributeModal.value = true
+}
+
+function openContributionOfQuery(): void {
+  const lineId = route.query.contribute
+  if (typeof lineId !== 'string') return
+  const line = projectStore.bomItems.find(item => item.id === lineId)
+  if (line !== undefined) openContributeModal(line)
+  const { contribute: _consumed, ...remainingQuery } = route.query
+  router.replace({ query: remainingQuery })
+}
+
+watch(() => route.query.contribute, openContributionOfQuery)
+
+function openCompanion(): void {
+  companionStore.open(projectId.value)
 }
 
 function feeOrNull(percent: number | string | null): number | null {
@@ -442,6 +460,16 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
               {{ t('groupIndustry.detail.shareLink') }}
+            </button>
+            <button
+              v-if="isAcceptedMember && !isCompleted"
+              type="button"
+              data-testid="open-companion"
+              class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all hover:-translate-y-px"
+              :title="t('groupIndustry.companion.openTitle')"
+              @click="openCompanion"
+            >
+              {{ t('groupIndustry.companion.open') }}
             </button>
             <button
               v-if="isAcceptedMember"
