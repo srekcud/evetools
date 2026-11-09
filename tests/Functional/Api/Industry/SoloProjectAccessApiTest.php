@@ -19,7 +19,6 @@ final class SoloProjectAccessApiTest extends WebTestCase
     use BuildsIshtarGroupProject;
 
     private const string UNKNOWN_PROJECT = '0192f5c2-7c3e-7d4a-9b1e-3f6a2c8d4e51';
-    private const string ADMINISTRATION_REFUSAL = 'Only project owner or admin can perform this action';
     private const string READ_REFUSAL = 'You do not have access to this project';
 
     protected function setUp(): void
@@ -70,7 +69,7 @@ final class SoloProjectAccessApiTest extends WebTestCase
     {
         yield 'detail' => ['GET', '', null, self::READ_REFUSAL];
         yield 'members' => ['GET', '/members', null, self::READ_REFUSAL];
-        yield 'container verification' => ['GET', '/container-verification', null, self::ADMINISTRATION_REFUSAL];
+        yield 'container verification' => ['GET', '/container-verification', null, self::READ_REFUSAL];
         yield 'update' => ['PATCH', '', ['notes' => 'Bring the fuel blocks'], self::READ_REFUSAL];
     }
 

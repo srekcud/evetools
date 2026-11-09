@@ -49,7 +49,7 @@ class ContainerVerificationProvider implements ProviderInterface
             throw new NotFoundHttpException('Project not found');
         }
 
-        $this->accessChecker->assertAdminOrOwner($user, $project);
+        $this->accessChecker->assertAcceptedMember($user, $project);
 
         return $this->containerService->verifyContainer($project);
     }

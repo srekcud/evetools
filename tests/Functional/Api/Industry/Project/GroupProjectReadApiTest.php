@@ -81,6 +81,7 @@ final class GroupProjectReadApiTest extends WebTestCase
         yield 'sales' => ['/sales'];
         yield 'distribution' => ['/distribution'];
         yield 'cockpit' => ['/cockpit'];
+        yield 'container verification' => ['/container-verification'];
     }
 
     public static function projectReadRoutesForTheOwnerAndTheAcceptedMember(): iterable
@@ -232,14 +233,31 @@ final class GroupProjectReadApiTest extends WebTestCase
         );
     }
 
-    public function testPlainMemberIsRefusedTheContainerVerification(): void
+    public function testAcceptedMemberReadsTheSameContainerVerificationAsTheOwner(): void
     {
         $this->persistIshtarContainerInTheFirstDivision();
         $this->client->loginUser($this->member, 'api');
         $this->request('GET', $this->containerVerificationUri());
 
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [
+                [$this->idOf($this->tritaniumLine), self::TRITANIUM_TYPE_ID, 'Tritanium', 12_000, 12_000, 'verified', null],
+                [$this->idOf($this->nocxiumLine), self::NOCXIUM_TYPE_ID, 'Nocxium', 600, 0, 'missing', null],
+                [$this->idOf($this->morphiteLine), self::MORPHITE_TYPE_ID, 'Morphite', 150, 100, 'partial', null],
+            ],
+            $this->containerRows(),
+        );
+    }
+
+    public function testPendingMemberIsRefusedTheContainerVerificationEvenWhenTheContainerIsReadable(): void
+    {
+        $this->persistIshtarContainerInTheFirstDivision();
+        $this->client->loginUser($this->pendingMember, 'api');
+        $this->request('GET', $this->containerVerificationUri());
+
         self::assertResponseStatusCodeSame(403);
-        self::assertSame([403, 'Only project owner or admin can perform this action'], $this->errorDetail());
+        self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
     }
 
     public function testOutsiderIsRefusedTheContainerVerification(): void
@@ -249,7 +267,7 @@ final class GroupProjectReadApiTest extends WebTestCase
         $this->request('GET', $this->containerVerificationUri());
 
         self::assertResponseStatusCodeSame(403);
-        self::assertSame([403, 'Only project owner or admin can perform this action'], $this->errorDetail());
+        self::assertSame([403, 'You do not have access to this project'], $this->errorDetail());
     }
 
     #[DataProvider('projectRoutes')]
