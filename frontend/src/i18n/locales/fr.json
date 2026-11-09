@@ -3731,6 +3731,48 @@
       }
     }
   },
+  "miningCompanion": {
+    "title": "Compagnon",
+    "windowTitle": "EVE Tools · compagnon de minage",
+    "detach": "Détacher",
+    "detachTitle": "Détacher le compagnon dans une petite fenêtre (touche D)",
+    "sizes": {
+      "bar": "Barre",
+      "compact": "Compact",
+      "detail": "Détail"
+    },
+    "paste": "Coller un scan",
+    "pasteTitle": "Enregistrer le scan du presse-papiers (touche V ou Ctrl+V)",
+    "desk": "Poste",
+    "deskTitle": "Revenir à la fenêtre principale sur cette page",
+    "empty": "Aucun site actif sur cette opération.",
+    "noScan": "Aucun scan : collez le premier scan (Ctrl+V).",
+    "loading": "Chargement du site…",
+    "leave": "Je pars",
+    "leaveConfirm": "Confirmer : quitter l'opération",
+    "settings": {
+      "open": "Réglages d'affichage",
+      "opacity": "Opacité du fond",
+      "textSize": "Taille du texte",
+      "textSizes": {
+        "S": "S",
+        "M": "M",
+        "L": "L"
+      },
+      "rescan": "Rappel de re-scan après",
+      "minutes": "min"
+    },
+    "notices": {
+      "popupBlocked": "Le navigateur a bloqué la popup : autorisez les popups pour ce site, puis détachez à nouveau.",
+      "popupFallback": "Picture-in-Picture indisponible : le compagnon s'est ouvert en popup.",
+      "resizeRefused": "Le navigateur a refusé de redimensionner la fenêtre : ajustez-la à la main.",
+      "clipboardDenied": "Le navigateur refuse l'accès au presse-papiers : utilisez Ctrl+V."
+    },
+    "errors": {
+      "noActiveSite": "Aucun site actif sur lequel enregistrer le scan.",
+      "oreTypesUnavailable": "La liste des minerais n'a pas pu être chargée : le collage ne peut pas être lu."
+    }
+  },
   "miningSite": {
     "feed": {
       "title": "Fil des scans",

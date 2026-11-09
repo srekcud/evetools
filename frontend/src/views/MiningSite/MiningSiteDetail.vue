@@ -9,13 +9,17 @@ import MiningCompressionBanners from '@/components/mining-operation/MiningCompre
 import MiningSiteCurve from '@/components/mining-site/MiningSiteCurve.vue'
 import MiningSiteScanFeed from '@/components/mining-site/MiningSiteScanFeed.vue'
 import MiningSiteScanForm from '@/components/mining-site/MiningSiteScanForm.vue'
+import { useCompanionDetachShortcut } from '@/composables/useCompanionDetachShortcut'
 import { useMiningCompression } from '@/composables/useMiningCompression'
 import { UNKNOWN_DASH, useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
 import { useMiningSiteOreTypes } from '@/composables/useMiningSiteOreTypes'
+import { useMiningCompanionStore } from '@/stores/miningCompanion'
 import { useMiningSiteStore, type MiningSiteScanType } from '@/stores/miningSite'
 import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import { formatCountdown, formatEveClock } from '@/views/MiningOperation/miningOperationTime'
 import {
+  COUNTING_TIERS,
+  ETA_TIER_CLASSES,
   RESCAN_MINUTES_MAX,
   RESCAN_MINUTES_MIN,
   RESCAN_MINUTES_STORAGE_KEY,
@@ -27,7 +31,6 @@ import {
   mostProfitableTypeOf,
   readRescanMinutes,
   remainingVolumeRingOf,
-  type EtaTier,
 } from './miningSiteEstimate'
 
 const COUNTDOWN_TICK_MS = 1000
@@ -35,21 +38,13 @@ const SITE_SCAN_RECORDED_ACTION = 'site_scan_recorded'
 const PERCENT_MAX = 100
 const RING_RADIUS = 34
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
-const COUNTING_TIERS: readonly EtaTier[] = ['normal', 'orange', 'red']
-const TIER_CLASSES: Record<EtaTier, string> = {
-  normal: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200',
-  orange: 'border-orange-400/50 bg-orange-500/10 text-orange-300',
-  red: 'border-red-500/50 bg-red-500/10 text-red-300',
-  reached: 'border-violet-400/50 bg-violet-500/10 text-violet-200',
-  depleted: 'border-slate-500/60 bg-slate-800 text-slate-300',
-  unknown: 'border-amber-400/50 bg-amber-500/10 text-amber-300',
-}
 const EVOLUTION_COLUMNS = ['number', 'time', 'trend', 'recent'] as const
 const TYPE_COLUMNS = ['type', 'remaining', 'recentRate', 'recentEta', 'trendRate', 'trendEta', 'value'] as const
 
 const { t } = useI18n()
 const route = useRoute()
 const store = useMiningSiteStore()
+const companion = useMiningCompanionStore()
 const syncStore = useSyncStore()
 const oreTypes = useMiningSiteOreTypes()
 const { etaText, dateTimeText, wholeText, valueText, lastScanText } = useMiningSiteFormat()
@@ -120,6 +115,13 @@ function changeRescanMinutes(event: Event): void {
   rescanMinutes.value = clampRescanMinutes(typed)
   localStorage.setItem(RESCAN_MINUTES_STORAGE_KEY, String(rescanMinutes.value))
 }
+
+async function detachCompanion(): Promise<void> {
+  if (!isActive.value) return
+  await companion.detach({ siteId, operationId: null })
+}
+
+useCompanionDetachShortcut(detachCompanion)
 
 async function reloadSite(): Promise<void> {
   await store.fetchSite(siteId)
@@ -194,6 +196,14 @@ onBeforeUnmount(() => {
               <button
                 v-if="isActive"
                 type="button"
+                data-testid="site-detach"
+                :title="t('miningCompanion.detachTitle')"
+                class="rounded-md border border-cyan-500/40 px-3 py-1.5 text-sm text-cyan-200 hover:bg-cyan-500/10"
+                @click="detachCompanion"
+              >{{ t('miningCompanion.detach') }}</button>
+              <button
+                v-if="isActive"
+                type="button"
                 data-testid="site-close"
                 class="rounded-md border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
                 @click="confirmingClose = true"
@@ -222,7 +232,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <p v-if="tier !== null" class="mt-3">
-                <span class="inline-block rounded-sm border px-2 py-0.5 font-mono text-xs" :class="TIER_CLASSES[tier]" data-testid="site-tier">{{ t(`miningSite.tier.${tier}`) }}</span>
+                <span class="inline-block rounded-sm border px-2 py-0.5 font-mono text-xs" :class="ETA_TIER_CLASSES[tier]" data-testid="site-tier">{{ t(`miningSite.tier.${tier}`) }}</span>
               </p>
               <p v-if="hasSingleScan" class="mt-3 text-sm text-amber-300" data-testid="site-single-scan-hint">{{ t('miningSite.single.hint') }}</p>
               <p v-else-if="lastTypeId !== null" class="mt-3 text-sm text-slate-300" data-testid="site-last-type">

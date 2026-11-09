@@ -29,7 +29,9 @@ import { useStockpileCoverage } from '@/composables/useStockpileCoverage'
 import MiningUnitPrices from '@/components/mining-operation/MiningUnitPrices.vue'
 import MiningValuationRules from '@/components/mining-operation/MiningValuationRules.vue'
 import MiningValuationSettings from '@/components/mining-operation/MiningValuationSettings.vue'
+import { useCompanionDetachShortcut } from '@/composables/useCompanionDetachShortcut'
 import { useAuthStore } from '@/stores/auth'
+import { useMiningCompanionStore } from '@/stores/miningCompanion'
 import {
   useMiningOperationStore,
   type DeclareMiningFleetStorageInput,
@@ -80,6 +82,7 @@ const authStore = useAuthStore()
 const { coverage: stockpileCoverage, hasError: stockpileCoverageFailed, load: loadStockpileCoverage } = useStockpileCoverage()
 const syncStore = useSyncStore()
 const siteStore = useMiningSiteStore()
+const companion = useMiningCompanionStore()
 
 const operationId = computed(() => String(route.params.id))
 const operation = computed(() => store.currentOperation)
@@ -190,6 +193,15 @@ const runningMeta = computed(() => {
 const endSubmitLabel = computed(() => t('miningOperation.end.submit', { time: formatEveClock(new Date(now.value).toISOString()) }))
 const ownCharacterIds = computed(() => (authStore.user?.characters ?? []).map(character => character.id))
 const ownerName = computed(() => operation.value?.ownerCharacterName ?? t('miningOperation.unknownPilot'))
+
+const canDetachCompanion = computed(() => participates.value && operation.value?.status === 'in_progress')
+
+async function detachCompanion(): Promise<void> {
+  if (!canDetachCompanion.value) return
+  await companion.detach({ siteId: null, operationId: operationId.value })
+}
+
+useCompanionDetachShortcut(detachCompanion)
 
 async function loadSites(): Promise<void> {
   await siteStore.fetchOperationSites(operationId.value)
@@ -458,6 +470,14 @@ onBeforeUnmount(() => {
             <p v-if="runningMeta !== null" class="mt-1 truncate font-mono text-xs text-cyan-200" :title="runningMeta">{{ runningMeta }}</p>
           </div>
           <div class="flex items-center gap-2">
+            <button
+              v-if="canDetachCompanion"
+              type="button"
+              data-testid="operation-detach"
+              :title="t('miningCompanion.detachTitle')"
+              class="rounded-md border border-cyan-500/40 px-3 py-1.5 text-sm text-cyan-200 hover:bg-cyan-500/10"
+              @click="detachCompanion"
+            >{{ t('miningCompanion.detach') }}</button>
             <MiningStatusBadge :status="operation.status" />
             <span class="shrink-0 rounded-sm border border-slate-600 bg-slate-800 px-2 py-0.5 font-mono text-xs text-slate-300">{{ t(`miningOperation.visibility.${operation.visibility}`) }}</span>
           </div>

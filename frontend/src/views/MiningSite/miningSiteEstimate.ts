@@ -12,6 +12,16 @@ const MILLISECONDS_PER_MINUTE = 60_000
 const PERCENT_MAX = 100
 
 export type EtaTier = 'normal' | 'orange' | 'red' | 'reached' | 'depleted' | 'unknown'
+
+export const COUNTING_TIERS: readonly EtaTier[] = ['normal', 'orange', 'red']
+export const ETA_TIER_CLASSES: Record<EtaTier, string> = {
+  normal: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200',
+  orange: 'border-orange-400/50 bg-orange-500/10 text-orange-300',
+  red: 'border-red-500/50 bg-red-500/10 text-red-300',
+  reached: 'border-violet-400/50 bg-violet-500/10 text-violet-200',
+  depleted: 'border-slate-500/60 bg-slate-800 text-slate-300',
+  unknown: 'border-amber-400/50 bg-amber-500/10 text-amber-300',
+}
 export type CurveUnit = 'units' | 'm3'
 
 export interface CurvePoint {
