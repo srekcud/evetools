@@ -56,26 +56,28 @@ class InventionService
      *
      * EVE formula: 0.02 x EIV x runs x system_cost_index x (1 + facility_tax / 100)
      * Where EIV = sum of (adjusted_price x quantity) of the blueprint's manufacturing outputs.
+     *
+     * @return array{cost: ?float, unknownReason: ?string, missingAdjustedPriceTypeIds: list<int>}
      */
-    public function getCopyJobCost(
+    public function estimateCopyJobCost(
         int $blueprintTypeId,
         int $runs,
         int $solarSystemId,
         ?float $facilityTaxPercent = null,
-    ): float {
-        $eiv = $this->calculateBlueprintEiv($blueprintTypeId);
-        if ($eiv <= 0.0) {
-            return 0.0;
-        }
-
+    ): array {
         $costIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'copying');
         if ($costIndex === null) {
-            return 0.0;
+            return ['cost' => null, 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX, 'missingAdjustedPriceTypeIds' => []];
+        }
+
+        $eiv = $this->calculateBlueprintEiv($blueprintTypeId);
+        if ($eiv['missingAdjustedPriceTypeIds'] !== []) {
+            return ['cost' => null, 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => $eiv['missingAdjustedPriceTypeIds']];
         }
 
         $taxMultiplier = 1.0 + ($facilityTaxPercent ?? 0.0) / 100.0;
 
-        return 0.02 * $eiv * $runs * $costIndex * $taxMultiplier;
+        return ['cost' => 0.02 * $eiv['value'] * $runs * $costIndex * $taxMultiplier, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
     }
 
     /**
@@ -192,7 +194,7 @@ class InventionService
      *     runs: int,
      *     costPerAttempt: ?float,
      *     totalCost: ?float,
-     *     costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: float, inventionInstall: ?float},
+     *     costBreakdown: array{datacores: ?float, decryptor: ?float, copyCost: ?float, inventionInstall: ?float},
      *     datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: ?float, totalPrice: ?float}>,
      *     decryptorName: ?string,
      *     missingPriceTypeIds: list<int>,
@@ -273,7 +275,8 @@ class InventionService
             ];
         }
 
-        $copyCost = $this->getCopyJobCost($t1BlueprintTypeId, 1, $solarSystemId, $facilityTaxPercent);
+        $copyEstimate = $this->estimateCopyJobCost($t1BlueprintTypeId, 1, $solarSystemId, $facilityTaxPercent);
+        $copyCost = $copyEstimate['cost'];
 
         $inventionInstallEstimate = $this->esiCostIndexService->estimateJobInstallCost(
             $this->activityMaterialRepository->findMaterialsForBlueprints([$t2BlueprintTypeId], [IndustryActivityType::Manufacturing->value])[$t2BlueprintTypeId] ?? [],
@@ -286,7 +289,7 @@ class InventionService
 
         $isDatacoreCostUnknown = in_array(null, array_column($datacores, 'unitPrice'), true);
         $datacoreCost = $isDatacoreCostUnknown ? null : $datacoreTotalCost;
-        $costPerAttempt = $missingPriceTypeIds === [] && $inventionInstallCost !== null
+        $costPerAttempt = $missingPriceTypeIds === [] && $inventionInstallCost !== null && $copyCost !== null
             ? $datacoreTotalCost + $decryptorPrice + $copyCost + $inventionInstallCost
             : null;
 
@@ -301,6 +304,8 @@ class InventionService
 
         $missingPriceTypeIds = array_unique($missingPriceTypeIds);
         sort($missingPriceTypeIds);
+        $missingAdjustedPriceTypeIds = array_values(array_unique([...$inventionInstallEstimate['missingAdjustedPriceTypeIds'], ...$copyEstimate['missingAdjustedPriceTypeIds']]));
+        sort($missingAdjustedPriceTypeIds);
 
         return [
             'baseProbability' => $baseProbability,
@@ -320,11 +325,11 @@ class InventionService
             'datacores' => $datacores,
             'decryptorName' => $decryptorName,
             'missingPriceTypeIds' => $missingPriceTypeIds,
-            'missingAdjustedPriceTypeIds' => $inventionInstallEstimate['missingAdjustedPriceTypeIds'],
+            'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds,
             'unknownReason' => match (true) {
                 $baseProbability === null => self::UNKNOWN_REASON_MISSING_PROBABILITY,
                 $missingPriceTypeIds !== [] => self::UNKNOWN_REASON_MISSING_MARKET_PRICE,
-                default => $inventionInstallEstimate['unknownReason'],
+                default => $inventionInstallEstimate['unknownReason'] ?? $copyEstimate['unknownReason'],
             },
         ];
     }
@@ -349,22 +354,28 @@ class InventionService
     /**
      * Calculate the Estimated Item Value (EIV) for a blueprint.
      * EIV = sum of (adjusted_price x quantity) for each manufacturing output.
+     *
+     * @return array{value: float, missingAdjustedPriceTypeIds: list<int>}
      */
-    private function calculateBlueprintEiv(int $blueprintTypeId): float
+    private function calculateBlueprintEiv(int $blueprintTypeId): array
     {
         $products = $this->activityProductRepository->findBy([
             'typeId' => $blueprintTypeId,
             'activityId' => IndustryActivityType::Manufacturing->value,
         ]);
 
-        $eiv = 0.0;
+        $value = 0.0;
+        $missingAdjustedPriceTypeIds = [];
         foreach ($products as $product) {
             $adjustedPrice = $this->esiCostIndexService->getAdjustedPrice($product->getProductTypeId());
-            if ($adjustedPrice !== null) {
-                $eiv += $adjustedPrice * $product->getQuantity();
+            if ($adjustedPrice === null) {
+                $missingAdjustedPriceTypeIds[] = $product->getProductTypeId();
+
+                continue;
             }
+            $value += $adjustedPrice * $product->getQuantity();
         }
 
-        return $eiv;
+        return ['value' => $value, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
     }
 }
