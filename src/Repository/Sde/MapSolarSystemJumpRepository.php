@@ -30,17 +30,14 @@ class MapSolarSystemJumpRepository extends ServiceEntityRepository
             ->getQuery()
             ->getArrayResult();
 
-        $graph = [];
+        $neighborsBySystem = [];
         foreach ($jumps as $jump) {
             $from = $jump['fromSolarSystemId'];
             $to = $jump['toSolarSystemId'];
-
-            if (!isset($graph[$from])) {
-                $graph[$from] = [];
-            }
-            $graph[$from][] = $to;
+            $neighborsBySystem[$from][$to] = $to;
+            $neighborsBySystem[$to][$from] = $from;
         }
 
-        return $graph;
+        return array_map(array_values(...), $neighborsBySystem);
     }
 }
