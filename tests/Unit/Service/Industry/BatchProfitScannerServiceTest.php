@@ -149,7 +149,7 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
 
         // Jita prices: Trit=5.0, Pyr=12.0, Rifter=2500000.0
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             34 => 5.0,
             35 => 12.0,
             587 => 2500000.0,
@@ -214,7 +214,7 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
 
         // Expensive materials, cheap sell price
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             34 => 10.0,
             587 => 5000000.0,
         ]);
@@ -247,7 +247,7 @@ class BatchProfitScannerServiceTest extends TestCase
             586 => [['materialTypeId' => 34, 'quantity' => 100]],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 100000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 100000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 2.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -256,6 +256,34 @@ class BatchProfitScannerServiceTest extends TestCase
 
         // Volume is 2.0, below 5.0 threshold
         $this->assertCount(0, $result);
+    }
+
+    #[Group('issue-135')]
+    public function testScanPricesJitaThroughTheOnDemandFallbackAndNeverFromTheCacheAlone(): void
+    {
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => 586, 'productTypeId' => 587, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+
+        $this->connection->method('fetchFirstColumn')->willReturn([]);
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [['type_id' => 587, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 28100.0]]
+                : [['type_id' => 34, 'volume' => 0.01]]
+        );
+
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            586 => [['materialTypeId' => 34, 'quantity' => 100]],
+        ]);
+
+        $this->jitaMarketService->expects($this->never())->method('getPrices');
+        $this->jitaMarketService->expects($this->atLeastOnce())->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 100000.0]);
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 2.0]);
+        $this->givenZeroEstimatedItemValue();
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.036, 0.036), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertCount(1, $result);
     }
 
     public function testScanReactionUsesNoME(): void
@@ -275,7 +303,7 @@ class BatchProfitScannerServiceTest extends TestCase
             100 => [['materialTypeId' => 200, 'quantity' => 1000]],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([200 => 10.0, 101 => 50000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([200 => 10.0, 101 => 50000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([101 => 100.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -319,7 +347,7 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
 
         // Cheap materials, expensive product to ensure positive margin even with export cost
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -362,7 +390,7 @@ class BatchProfitScannerServiceTest extends TestCase
             586 => [['materialTypeId' => 34, 'quantity' => 100]],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -398,7 +426,7 @@ class BatchProfitScannerServiceTest extends TestCase
             ],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             34 => 5.0,
             35 => 12.0,
             587 => 50000000.0, // High sell price to ensure positive margin
@@ -436,7 +464,7 @@ class BatchProfitScannerServiceTest extends TestCase
         ]);
 
         // Jita prices for materials only (product sell price comes from structure)
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 100000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 100000.0]);
 
         // Structure sell price is different (higher) than Jita
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([587 => 3000000.0]);
@@ -530,7 +558,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             586 => [['materialTypeId' => 34, 'quantity' => 100]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 100000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 100000.0]);
         $this->structureMarketService->method('getLowestSellPrices')->willReturn([587 => 3000000.0]);
 
         $structure = $this->createMock(\App\Entity\CachedStructure::class);
@@ -564,7 +592,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         // Material cost per run (ME10): ceil(5000 * 0.9) = 4500 * 5.0 = 22500 ISK
         // 100 units per run, unit sell price = 500 ISK, revenue per run = 50000 ISK
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 2001 => 500.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 2001 => 500.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([2001 => 5000.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -604,7 +632,7 @@ class BatchProfitScannerServiceTest extends TestCase
             586 => [],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([587 => 2500000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([587 => 2500000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -662,7 +690,7 @@ class BatchProfitScannerServiceTest extends TestCase
             11400 => [['materialTypeId' => 34, 'quantity' => 200]],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             34 => 5.0,
             587 => 5000000.0,
             11393 => 80000000.0,
@@ -729,7 +757,7 @@ class BatchProfitScannerServiceTest extends TestCase
                 : [['type_id' => 34, 'volume' => 0.01]]
         );
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([586 => [['materialTypeId' => 34, 'quantity' => 100]]]);
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
         $this->inventionService->expects($this->never())->method('expectedCostPerRun');
@@ -775,7 +803,7 @@ class BatchProfitScannerServiceTest extends TestCase
                 : [['type_id' => 34, 'volume' => 0.01]]
         );
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([11400 => [['materialTypeId' => 34, 'quantity' => 200]]]);
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 11393 => 400000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 11393 => 400000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([11393 => 5.0]);
         $this->givenZeroEstimatedItemValue();
     }
@@ -819,7 +847,7 @@ class BatchProfitScannerServiceTest extends TestCase
             586 => [['materialTypeId' => 34, 'quantity' => 100]],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -877,7 +905,7 @@ class BatchProfitScannerServiceTest extends TestCase
             586 => [['materialTypeId' => 34, 'quantity' => 100]],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -912,7 +940,7 @@ class BatchProfitScannerServiceTest extends TestCase
             586 => [['materialTypeId' => 34, 'quantity' => 100]],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 5.0, 587 => 5000000.0]);
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -945,7 +973,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenFrigates([
             self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 1000, self::MORPHITE_TYPE_ID => 10]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::MORPHITE_TYPE_ID => null, // JitaMarketService::getPrices() returns null for a type without sell order
             self::SLASHER_TYPE_ID => 5000000.0,
@@ -982,7 +1010,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenFrigates([
             self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::MORPHITE_TYPE_ID => 10]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::MORPHITE_TYPE_ID => null,
             self::SLASHER_TYPE_ID => 5000000.0,
         ]);
@@ -1016,7 +1044,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::BREACHER_BLUEPRINT_ID => [self::BREACHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 1000]],
             self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::MORPHITE_TYPE_ID => 10]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 10.0,
             self::MORPHITE_TYPE_ID => null,
@@ -1123,7 +1151,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenFrigates([
             self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 10.0,
             self::RIFTER_TYPE_ID => 1000.0,
@@ -1144,7 +1172,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
             self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 10.0,
             self::RIFTER_TYPE_ID => 1000.0,
@@ -1165,7 +1193,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenFrigates([
             self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 10.0,
             self::RIFTER_TYPE_ID => null, // product outside the background Jita sync
@@ -1200,7 +1228,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::BREACHER_BLUEPRINT_ID => [self::BREACHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 1000]],
             self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 10.0,
             self::RIFTER_TYPE_ID => 1000.0,
@@ -1228,7 +1256,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
             self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 10.0,
             self::RIFTER_TYPE_ID => 1000.0,
@@ -1266,7 +1294,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
             self::ROBOTICS_BLUEPRINT_TYPE_ID => [self::ROBOTICS_TYPE_ID, [self::TRITANIUM_TYPE_ID => 300, self::PYERITE_TYPE_ID => 40]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 10.0,
             self::RIFTER_TYPE_ID => 1000.0,
@@ -1295,7 +1323,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
             self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::MORPHITE_TYPE_ID => 10]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 10.0,
             self::MORPHITE_TYPE_ID => null,
@@ -1460,7 +1488,7 @@ class BatchProfitScannerServiceTest extends TestCase
                     ['type_id' => self::SECOND_RAW_MATERIAL_TYPE_ID, 'volume' => 0.25],
                 ]
         );
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::TRITANIUM_TYPE_ID => 5.0,
             self::PYERITE_TYPE_ID => 11.0,
             self::MEXALLON_TYPE_ID => 47.0,

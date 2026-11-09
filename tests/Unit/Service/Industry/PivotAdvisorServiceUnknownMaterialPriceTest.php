@@ -633,7 +633,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         $assetRepository->method('getAggregatedQuantitiesByUser')->willReturn($stockByTypeId);
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturn($jitaPrices);
+        $jitaMarketService->method('getPricesWithFallback')->willReturn($jitaPrices);
         $jitaMarketService->method('getCachedDailyVolumes')->willReturn($dailyVolumes);
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);

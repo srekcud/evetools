@@ -1188,7 +1188,7 @@ class BatchProfitScanRulesTest extends TestCase
         );
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturnCallback(
+        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
             fn (array $typeIds): array => $this->onlyRequested($this->jitaPrices, $typeIds),
         );
         $jitaMarketService->method('getCachedDailyVolumes')->willReturnCallback(

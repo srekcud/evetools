@@ -138,7 +138,7 @@ class PivotAdvisorService
         }
         $allTypeIds = array_values(array_unique($allTypeIds));
 
-        $jitaPrices = $this->jitaMarketService->getPrices($allTypeIds);
+        $jitaPrices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
         $productTypeIds = array_merge([$sourceTypeId], array_map(fn (array $p) => $p['productTypeId'], $candidateProducts));
         $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes($productTypeIds);
 
@@ -625,7 +625,7 @@ class PivotAdvisorService
         }
         $allTypeIds = array_values(array_unique($allTypeIds));
 
-        $jitaPrices = $this->jitaMarketService->getPrices($allTypeIds);
+        $jitaPrices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
         $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes([$sourceTypeId]);
         $typeNames = $this->typeNameResolver->findNames($allTypeIds);
         $groupNames = $this->loadGroupNames([$sourceTypeId]);
