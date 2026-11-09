@@ -65,7 +65,8 @@ final readonly class ProjectPlanningProvider implements ProviderInterface
         $resource->expectedEnd = $planning->expectedEnd?->format(\DATE_ATOM);
         $resource->delaySeconds = $planning->delaySeconds;
         $resource->delayCause = null === $planning->delayCause ? null : $this->waitOf($planning->delayCause);
-        $resource->characters = array_map($this->laneOf(...), $planning->characters);
+        $resource->lanesShown = $project->isSoloProjectOf($project->getOwner());
+        $resource->characters = $resource->lanesShown ? array_map($this->laneOf(...), $planning->characters) : [];
         $resource->unscheduled = array_map(
             static fn (PlanningUnscheduled $line): array => ['lineId' => $line->lineId, 'typeName' => $line->typeName, 'reason' => $line->reason],
             $planning->unscheduled,

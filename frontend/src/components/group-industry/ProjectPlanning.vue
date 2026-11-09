@@ -152,12 +152,12 @@ watch(
       </div>
 
       <p
-        v-if="planning.characters.length === 0"
+        v-if="planning.lanesShown && planning.characters.length === 0"
         data-testid="planning-no-characters"
         class="p-6 text-center text-slate-500"
       >{{ t('groupIndustry.planning.noCharacters') }}</p>
 
-      <template v-else>
+      <template v-else-if="planning.lanesShown">
         <ProjectPlanningGantt :planning="planning" />
 
         <footer class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 border-t border-slate-800 text-xs text-slate-400">

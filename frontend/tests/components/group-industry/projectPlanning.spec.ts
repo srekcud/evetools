@@ -261,6 +261,30 @@ describe('ProjectPlanning who launches what', () => {
   })
 })
 
+describe('ProjectPlanning of a group project', () => {
+  it('shows the ends and the delay without lane, assignment or missing-character message when the API hides the lanes', async () => {
+    const wrapper = await mountPlanning(projectPlanning({
+      plannedEnd: '2026-11-08T10:00:00+00:00',
+      expectedEnd: '2026-11-08T12:00:00+00:00',
+      delaySeconds: 7_200,
+      lanesShown: false,
+      characters: [],
+    }))
+
+    expect(byTestId(wrapper, 'planning-planned-end').attributes('data-value')).toBe('2026-11-08T10:00:00+00:00')
+    expect(byTestId(wrapper, 'planning-delay').attributes('data-direction')).toBe('late')
+    expect(wrapper.find('[data-testid="planning-gantt"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="planning-no-characters"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="assignment-name"]').exists()).toBe(false)
+  })
+
+  it('still says there is no character when the lanes are shown and the player has none', async () => {
+    const wrapper = await mountPlanning(projectPlanning({ lanesShown: true, characters: [] }))
+
+    expect(wrapper.find('[data-testid="planning-no-characters"]').exists()).toBe(true)
+  })
+})
+
 describe('ProjectPlanning long names', () => {
   it('truncates a very long character name and type name with their full name as title in the gantt and in the table', async () => {
     const wrapper = await mountPlanning(projectPlanning({

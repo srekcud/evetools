@@ -689,6 +689,7 @@ export type ProjectPlanning = {
   expectedEnd: string | null
   delaySeconds: number | null
   delayCause: PlanningWait | null
+  lanesShown: boolean
   characters: PlanningCharacter[]
   unscheduled: PlanningUnscheduled[]
 }
