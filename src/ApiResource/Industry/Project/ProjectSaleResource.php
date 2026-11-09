@@ -16,6 +16,7 @@ use App\ApiResource\Input\Industry\Project\RecordSaleFromWalletTransactionInput;
 use App\ApiResource\Input\Industry\Project\RecordSaleInput;
 use App\ApiResource\Input\Industry\Project\UpdateSaleInput;
 use App\Entity\IndustryProjectSale;
+use App\Entity\User;
 use App\Service\Industry\Project\PilotName;
 use App\State\Processor\Industry\Project\DeleteSaleProcessor;
 use App\State\Processor\Industry\Project\RecordSaleFromWalletTransactionProcessor;
@@ -128,7 +129,7 @@ class ProjectSaleResource
 
     public string $createdAt;
 
-    public static function fromSale(IndustryProjectSale $sale): self
+    public static function fromSale(IndustryProjectSale $sale, User $viewer): self
     {
         $resource = new self();
         $resource->id = $sale->getId()->toRfc4122();
@@ -140,8 +141,18 @@ class ProjectSaleResource
         $resource->venue = $sale->getVenue();
         $resource->soldAt = $sale->getSoldAt()->format(\DateTimeInterface::ATOM);
         $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
-        $resource->sellerCharacterId = $sale->getSeller()?->getEveCharacterId();
-        $resource->sellerCharacterName = $sale->getSeller()?->getName();
+        $seller = $sale->getSeller();
+        if ($seller === null) {
+            $resource->sellerCharacterId = null;
+            $resource->sellerCharacterName = null;
+        } elseif ($viewer->getCharacters()->contains($seller)) {
+            $resource->sellerCharacterId = $seller->getEveCharacterId();
+            $resource->sellerCharacterName = $seller->getName();
+        } else {
+            $sellerUser = $seller->getUser();
+            $resource->sellerCharacterId = $sellerUser?->getMainCharacter()?->getEveCharacterId();
+            $resource->sellerCharacterName = PilotName::of($sellerUser);
+        }
         $resource->linkedToWalletTransaction = $sale->getWalletTransaction() !== null;
         $resource->createdAt = $sale->getCreatedAt()->format(\DateTimeInterface::ATOM);
 

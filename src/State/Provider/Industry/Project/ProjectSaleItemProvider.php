@@ -40,6 +40,6 @@ final readonly class ProjectSaleItemProvider implements ProviderInterface
         $project = $this->projectOf($this->projectRepository, $uriVariables);
         $this->accessChecker->assertAdminOrOwner($user, $project);
 
-        return ProjectSaleResource::fromSale($this->saleOf($this->saleRepository, $project, $uriVariables));
+        return ProjectSaleResource::fromSale($this->saleOf($this->saleRepository, $project, $uriVariables), $user);
     }
 }

@@ -6,7 +6,9 @@ namespace App\Tests\Unit\State\Provider\Industry\Project;
 
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\Industry\Project\ProjectBomLineResource;
+use App\Entity\Character;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
@@ -19,6 +21,7 @@ use App\State\Provider\Industry\Project\ProjectBomProvider;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -159,6 +162,33 @@ class ProjectBomProviderTest extends TestCase
     // ===========================================
     // BOM mapping
     // ===========================================
+
+    #[Group('issue-339')]
+    public function testJobMatchesShowTheMainCharacterOfTheOwnerToAnotherPlayerAndTheAltToTheOwner(): void
+    {
+        $main = (new Character())->setEveCharacterId(2120000001)->setName('O-Main');
+        $alt = (new Character())->setEveCharacterId(2120000002)->setName('O-Alt');
+        $owner = (new User())->addCharacter($main)->addCharacter($alt)->setMainCharacter($main);
+        $member = $this->createUserStub(98000099);
+        $project = (new IndustryProject())->setOwner($owner);
+        $this->projectRepository->method('find')->willReturn($project);
+        $participant = (new IndustryProjectParticipant())->setUser($member)->setProject($project)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted);
+        $this->memberRepository->method('findOneBy')->willReturn($participant);
+        $line = $this->createBomItem(34, 'Hammerhead II', 10, 0, null, true, 'final', 'manufacturing', null, 0, 0, 10);
+        $line->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(1)->setStatus('active')->setRuns(10)->setCharacterName('O-Alt'));
+        $this->bomItemRepository->method('findBy')->willReturn([$line]);
+        $installersByViewer = [];
+
+        foreach ([$member, $owner] as $viewer) {
+            $security = $this->createStub(Security::class);
+            $security->method('getUser')->willReturn($viewer);
+            $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository));
+            $installersByViewer[] = $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0]->jobMatches[0]['characterName'];
+        }
+
+        $this->assertSame(['O-Main', 'O-Alt'], $installersByViewer);
+    }
+
 
     public function testMapsBomItemToResource(): void
     {

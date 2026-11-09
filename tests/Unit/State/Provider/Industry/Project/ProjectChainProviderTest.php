@@ -9,6 +9,7 @@ use App\ApiResource\Industry\Project\ProjectChainResource;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
@@ -210,6 +211,40 @@ final class ProjectChainProviderTest extends TestCase
         $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
 
         self::assertSame('missing_materials', $this->node($chain, $job->getId()->toRfc4122())->status);
+    }
+
+    #[Group('issue-339')]
+    public function testJobsShowTheMainCharacterOfTheOwnerToAMemberAndTheAltToTheOwner(): void
+    {
+        $alt = (new Character())->setEveCharacterId(2120000002)->setName('Aria Alt');
+        $this->owner->addCharacter($alt);
+        $job = $this->jobLine(449_001, 'Hammerhead II', 'manufacturing', Uuid::v7()->toRfc4122(), 'best_configured');
+        $job->addJobMatch((new IndustryProjectJobMatch())->setEsiJobId(1)->setStatus('active')->setRuns(10)->setCharacterName('Aria Alt'));
+        $this->bomLineRepository->method('findBy')->willReturn([$job]);
+        $this->contributionRepository->method('findApprovedByProject')->willReturn([]);
+        $this->saleRepository->method('findByProjectForListing')->willReturn([]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+        $installersByViewer = [];
+
+        foreach ([$this->member, $this->owner] as $viewer) {
+            $security = $this->createStub(Security::class);
+            $security->method('getUser')->willReturn($viewer);
+            $provider = new ProjectChainProvider(
+                $security,
+                $this->projectRepository,
+                $this->bomLineRepository,
+                $this->contributionRepository,
+                $this->saleRepository,
+                $this->structureConfigRepository,
+                new ProjectAccessChecker($this->participantRepository),
+                new ProjectChainBuilder(),
+                new ProjectJobMaterialNeedsLoader($this->projectService),
+            );
+            $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
+            $installersByViewer[] = array_column($this->node($chain, $job->getId()->toRfc4122())->jobs, 'characterName');
+        }
+
+        self::assertSame([['Aria Solberg'], ['Aria Alt']], $installersByViewer);
     }
 
     private function node(ProjectChainResource $chain, string $id): ProjectChainNode

@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Repository\IndustryProjectSaleRepository;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleCollectionProvider;
+use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -107,14 +108,17 @@ class ProjectSaleCollectionProviderTest extends TestCase
     }
 
     #[Group('issue-241')]
-    public function testSalesAreListedWithTheirSellerOrAnUnknownSeller(): void
+    #[Group('issue-339')]
+    public function testSalesSoldByTheAltOfAnotherPlayerAreListedWithTheirMainAsSeller(): void
     {
         $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
-        $owner = $this->pilot('O-Main');
+        [$owner, $ownerMain, $ownerAlt] = $this->playerWithAlt();
+        $aMain = $this->seller(2120000011, 'A-Main');
+        $aPlayer = (new User())->addCharacter($aMain)->setMainCharacter($aMain);
         $this->listedSales = [
-            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 3, 61_250_000.0, '2026-10-24T21:05:00+00:00', $owner)->setSeller($this->seller(2120000001, 'O-Main')),
-            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 2, 60_000_000.0, '2026-10-23T19:10:00+00:00', $owner)->setSeller($this->seller(2120000002, 'O-Alt')),
-            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 1, 62_000_000.0, '2026-10-22T11:20:00+00:00', $this->pilot('A-Main'))->setSeller($this->seller(2120000011, 'A-Main')),
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 3, 61_250_000.0, '2026-10-24T21:05:00+00:00', $owner)->setSeller($ownerMain),
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 2, 60_000_000.0, '2026-10-23T19:10:00+00:00', $owner)->setSeller($ownerAlt),
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 1, 62_000_000.0, '2026-10-22T11:20:00+00:00', $aPlayer)->setSeller($aMain),
             $this->sale(self::SABRE_TYPE_ID, 'Sabre', 1, 59_500_000.0, '2026-10-21T08:00:00+00:00', $owner),
         ];
 
@@ -123,19 +127,61 @@ class ProjectSaleCollectionProviderTest extends TestCase
         self::assertSame(
             [
                 [2120000001, 'O-Main', 'O-Main', 183_750_000.0],
-                [2120000002, 'O-Alt', 'O-Main', 120_000_000.0],
+                [2120000001, 'O-Main', 'O-Main', 120_000_000.0],
                 [2120000011, 'A-Main', 'A-Main', 62_000_000.0],
                 [null, null, 'O-Main', 59_500_000.0],
             ],
-            array_map(
-                static fn (ProjectSaleResource $resource): array => [
-                    $resource->sellerCharacterId,
-                    $resource->sellerCharacterName,
-                    $resource->recordedByCharacterName,
-                    $resource->totalPrice,
-                ],
-                $resources,
-            ),
+            $this->sellersOf($resources),
+        );
+    }
+
+    #[Group('issue-339')]
+    public function testSalesSoldByTheAltOfThePlayerReadingThemKeepTheirAltAsSeller(): void
+    {
+        $player = $this->userWithProfile(self::ACCEPTED_MEMBER);
+        $main = $this->seller(2120000001, 'O-Main');
+        $alt = $this->seller(2120000002, 'O-Alt');
+        $player->method('getCharacters')->willReturn(new ArrayCollection([$main, $alt]));
+        $player->method('getMainCharacter')->willReturn($main);
+        $this->security->method('getUser')->willReturn($player);
+        $this->listedSales = [
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 3, 61_250_000.0, '2026-10-24T21:05:00+00:00', $player)->setSeller($alt),
+            $this->sale(self::SABRE_TYPE_ID, 'Sabre', 2, 60_000_000.0, '2026-10-23T19:10:00+00:00', $player)->setSeller($main),
+        ];
+
+        $resources = $this->salesOf($this->sabreBatch->getId());
+
+        self::assertSame(
+            [[2120000002, 'O-Alt', 'O-Main', 183_750_000.0], [2120000001, 'O-Main', 'O-Main', 120_000_000.0]],
+            $this->sellersOf($resources),
+        );
+    }
+
+    /**
+     * @return array{User, Character, Character}
+     */
+    private function playerWithAlt(): array
+    {
+        $main = $this->seller(2120000001, 'O-Main');
+        $alt = $this->seller(2120000002, 'O-Alt');
+        $player = (new User())->addCharacter($main)->addCharacter($alt)->setMainCharacter($main);
+
+        return [$player, $main, $alt];
+    }
+
+    /**
+     * @param ProjectSaleResource[] $resources
+     */
+    private function sellersOf(array $resources): array
+    {
+        return array_map(
+            static fn (ProjectSaleResource $resource): array => [
+                $resource->sellerCharacterId,
+                $resource->sellerCharacterName,
+                $resource->recordedByCharacterName,
+                $resource->totalPrice,
+            ],
+            $resources,
         );
     }
 

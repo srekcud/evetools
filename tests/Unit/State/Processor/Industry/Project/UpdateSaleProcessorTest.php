@@ -9,6 +9,7 @@ use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\ApiResource\Input\Industry\Project\UpdateSaleInput;
 use App\Entity\CachedWalletTransaction;
 use App\Entity\IndustryProjectSale;
+use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\UpdateSaleProcessor;
@@ -359,15 +360,17 @@ final class UpdateSaleProcessorTest extends TestCase
 
     #[Group('issue-241')]
     #[DataProvider('correctionsThatLeaveTheSellerOut')]
+    #[Group('issue-339')]
     public function testCorrectionThatLeavesTheSellerOutKeepsTheSellerOfTheSale(array $changes, float $expectedTotalPrice): void
     {
+        (new User())->addCharacter($this->oMain)->addCharacter($this->oAlt)->setMainCharacter($this->oMain);
         $this->sabreSale->setSeller($this->oAlt);
         $this->security->method('getUser')->willReturn($this->withCharacters($this->userWithProfile(self::ACCEPTED_ADMIN), $this->aMain));
 
         $sale = $this->correctSabreSale($changes);
 
         self::assertSame(
-            [self::O_ALT_EVE_CHARACTER_ID, 'O-Alt', $expectedTotalPrice],
+            [self::O_MAIN_EVE_CHARACTER_ID, 'O-Main', $expectedTotalPrice],
             [$sale->sellerCharacterId, $sale->sellerCharacterName, $sale->totalPrice],
         );
         self::assertSame($this->oAlt, $this->sabreSale->getSeller());

@@ -7,9 +7,11 @@ namespace App\Tests\Unit\State\Provider\Industry\Project;
 use ApiPlatform\Metadata\Patch;
 use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\Entity\Character;
+use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
+use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -59,12 +61,29 @@ final class ProjectSaleItemProviderTest extends TestCase
     #[Group('issue-241')]
     public function testAdminLoadsTheSaleToCorrectWithItsSeller(): void
     {
-        $this->sabreSale->setSeller((new Character())->setEveCharacterId(2120000002)->setName('O-Alt'));
-        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+        $admin = $this->userWithProfile(self::ACCEPTED_ADMIN);
+        $seller = (new Character())->setEveCharacterId(2120000002)->setName('O-Alt');
+        $admin->method('getCharacters')->willReturn(new ArrayCollection([$seller]));
+        $this->sabreSale->setSeller($seller);
+        $this->security->method('getUser')->willReturn($admin);
 
         $sale = $this->provideSale($this->sabreSaleUri());
 
         self::assertSame([2120000002, 'O-Alt', self::SABRE_SALE_RECORDER_NAME], [$sale->sellerCharacterId, $sale->sellerCharacterName, $sale->recordedByCharacterName]);
+    }
+
+    #[Group('issue-339')]
+    public function testAdminLoadsTheSaleToCorrectSoldByTheAltOfAnotherPlayerWithTheirMainAsSeller(): void
+    {
+        $otherMain = (new Character())->setEveCharacterId(2120000001)->setName('O-Main');
+        $otherAlt = (new Character())->setEveCharacterId(2120000002)->setName('O-Alt');
+        (new User())->addCharacter($otherMain)->addCharacter($otherAlt)->setMainCharacter($otherMain);
+        $this->sabreSale->setSeller($otherAlt);
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $sale = $this->provideSale($this->sabreSaleUri());
+
+        self::assertSame([2120000001, 'O-Main'], [$sale->sellerCharacterId, $sale->sellerCharacterName]);
     }
 
     public static function saleAccessMatrix(): iterable

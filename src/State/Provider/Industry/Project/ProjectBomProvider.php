@@ -9,12 +9,14 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\ProjectBomLineResource;
 use App\ApiResource\Industry\ProjectJobMatchResource;
 use App\ApiResource\Industry\ProjectPurchaseResource;
+use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\JobInstallerName;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -59,12 +61,12 @@ class ProjectBomProvider implements ProviderInterface
         $bomItems = $this->bomItemRepository->findBy(['project' => $project]);
 
         return array_map(
-            fn (IndustryProjectBomLine $item) => $this->mapToResource($item),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user),
             $bomItems,
         );
     }
 
-    private function mapToResource(IndustryProjectBomLine $item): ProjectBomLineResource
+    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer): ProjectBomLineResource
     {
         $resource = new ProjectBomLineResource();
         $resource->id = $item->getId()->toString();
@@ -87,7 +89,12 @@ class ProjectBomProvider implements ProviderInterface
         $resource->runs = $item->getRuns();
         $resource->isFulfilled = $item->isFulfilled();
         $resource->jobMatches = array_values($item->getJobMatches()->map(
-            static fn (IndustryProjectJobMatch $match): array => get_object_vars(ProjectJobMatchResource::fromEntity($match)),
+            static function (IndustryProjectJobMatch $match) use ($project, $viewer): array {
+                $jobMatch = get_object_vars(ProjectJobMatchResource::fromEntity($match));
+                $jobMatch['characterName'] = JobInstallerName::seenBy($match->getCharacterName(), $project, $viewer);
+
+                return $jobMatch;
+            },
         )->toArray());
         $resource->matchedRuns = $item->getMatchedRuns();
         $resource->purchases = array_values($item->getPurchases()->map(

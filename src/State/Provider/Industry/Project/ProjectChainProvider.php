@@ -13,7 +13,9 @@ use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryStructureConfigRepository;
+use App\Service\Industry\Project\JobInstallerName;
 use App\Service\Industry\Project\ProjectChainBuilder;
+use App\Service\Industry\Project\ProjectChainNode;
 use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -76,7 +78,13 @@ final readonly class ProjectChainProvider implements ProviderInterface
 
         $resource = new ProjectChainResource();
         $resource->id = $projectId;
-        $resource->nodes = $chain->nodes;
+        $resource->nodes = array_map(
+            static fn (ProjectChainNode $node): ProjectChainNode => $node->withJobs(array_map(
+                static fn (array $job): array => [...$job, 'characterName' => JobInstallerName::seenBy($job['characterName'], $project, $user)],
+                $node->jobs,
+            )),
+            $chain->nodes,
+        );
 
         return $resource;
     }

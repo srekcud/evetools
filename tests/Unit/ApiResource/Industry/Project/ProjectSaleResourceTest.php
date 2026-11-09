@@ -29,12 +29,40 @@ final class ProjectSaleResourceTest extends TestCase
         $oAlt = (new Character())->setEveCharacterId(self::O_ALT_EVE_CHARACTER_ID)->setName('O-Alt');
         $recorder->addCharacter($oMain)->addCharacter($oAlt)->setMainCharacter($oMain);
 
-        $resource = ProjectSaleResource::fromSale($this->sabreSale(3, 61_250_000.0, $recorder)->setSeller($oAlt));
+        $resource = ProjectSaleResource::fromSale($this->sabreSale(3, 61_250_000.0, $recorder)->setSeller($oAlt), $recorder);
 
         self::assertSame(
             [self::O_ALT_EVE_CHARACTER_ID, 'O-Alt', 'O-Main', 183_750_000.0],
             [$resource->sellerCharacterId, $resource->sellerCharacterName, $resource->recordedByCharacterName, $resource->totalPrice],
         );
+    }
+
+    #[Group('issue-339')]
+    public function testSaleSoldByTheAltOfAnotherPlayerExposesTheirMainAsSeller(): void
+    {
+        $recorder = new User();
+        $oMain = (new Character())->setEveCharacterId(self::O_MAIN_EVE_CHARACTER_ID)->setName('O-Main');
+        $oAlt = (new Character())->setEveCharacterId(self::O_ALT_EVE_CHARACTER_ID)->setName('O-Alt');
+        $recorder->addCharacter($oMain)->addCharacter($oAlt)->setMainCharacter($oMain);
+        $otherPlayer = new User();
+
+        $resource = ProjectSaleResource::fromSale($this->sabreSale(3, 61_250_000.0, $recorder)->setSeller($oAlt), $otherPlayer);
+
+        self::assertSame(
+            [self::O_MAIN_EVE_CHARACTER_ID, 'O-Main', 'O-Main', 183_750_000.0],
+            [$resource->sellerCharacterId, $resource->sellerCharacterName, $resource->recordedByCharacterName, $resource->totalPrice],
+        );
+    }
+
+    #[Group('issue-339')]
+    public function testSaleSoldByAnotherPlayerWithoutMainCharacterHasAnUnknownSellerIdentifier(): void
+    {
+        $aMain = (new Character())->setEveCharacterId(self::A_MAIN_EVE_CHARACTER_ID)->setName('A-Main');
+        (new User())->addCharacter($aMain);
+
+        $resource = ProjectSaleResource::fromSale($this->sabreSale(1, 62_000_000.0, null)->setSeller($aMain), new User());
+
+        self::assertSame([null, 'Unknown', 62_000_000.0], [$resource->sellerCharacterId, $resource->sellerCharacterName, $resource->totalPrice]);
     }
 
     public function testSaleWithoutSellerExposesNeitherSellerIdentifierNorSellerName(): void
@@ -43,7 +71,7 @@ final class ProjectSaleResourceTest extends TestCase
         $oMain = (new Character())->setEveCharacterId(self::O_MAIN_EVE_CHARACTER_ID)->setName('O-Main');
         $recorder->addCharacter($oMain)->setMainCharacter($oMain);
 
-        $resource = ProjectSaleResource::fromSale($this->sabreSale(2, 60_000_000.0, $recorder)->setSeller(null));
+        $resource = ProjectSaleResource::fromSale($this->sabreSale(2, 60_000_000.0, $recorder)->setSeller(null), $recorder);
 
         self::assertSame(
             [null, null, 'O-Main', 120_000_000.0],
@@ -54,9 +82,9 @@ final class ProjectSaleResourceTest extends TestCase
     public function testSellerNameIsTheNameOfTheCharacterEvenWhenItsAccountHasNoMainCharacter(): void
     {
         $aMain = (new Character())->setEveCharacterId(self::A_MAIN_EVE_CHARACTER_ID)->setName('A-Main');
-        (new User())->addCharacter($aMain);
+        $seller = (new User())->addCharacter($aMain);
 
-        $resource = ProjectSaleResource::fromSale($this->sabreSale(1, 62_000_000.0, null)->setSeller($aMain));
+        $resource = ProjectSaleResource::fromSale($this->sabreSale(1, 62_000_000.0, null)->setSeller($aMain), $seller);
 
         self::assertSame(
             [self::A_MAIN_EVE_CHARACTER_ID, 'A-Main', null, 62_000_000.0],
@@ -78,14 +106,14 @@ final class ProjectSaleResourceTest extends TestCase
             ->setLocationId(60003760)
             ->setClientId(2119000001);
 
-        $resource = ProjectSaleResource::fromSale($this->sabreSale(3, 61_250_000.0, null)->setSeller($oMain)->setWalletTransaction($t1));
+        $resource = ProjectSaleResource::fromSale($this->sabreSale(3, 61_250_000.0, null)->setSeller($oMain)->setWalletTransaction($t1), new User());
 
         self::assertSame([true, 183_750_000.0], [$resource->linkedToWalletTransaction, $resource->totalPrice]);
     }
 
     public function testSaleRecordedByHandIsNotLinkedToAnyWalletTransaction(): void
     {
-        $resource = ProjectSaleResource::fromSale($this->sabreSale(3, 61_250_000.0, null)->setWalletTransaction(null));
+        $resource = ProjectSaleResource::fromSale($this->sabreSale(3, 61_250_000.0, null)->setWalletTransaction(null), new User());
 
         self::assertSame([false, 183_750_000.0], [$resource->linkedToWalletTransaction, $resource->totalPrice]);
     }

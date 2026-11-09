@@ -95,6 +95,6 @@ class RecordSaleProcessor implements ProcessorInterface
             ],
         );
 
-        return ProjectSaleResource::fromSale($sale);
+        return ProjectSaleResource::fromSale($sale, $user);
     }
 }

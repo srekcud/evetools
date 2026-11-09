@@ -7,6 +7,7 @@ namespace App\State\Provider\Industry\Project;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\ProjectSaleResource;
+use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\IndustryProjectRepository;
@@ -54,7 +55,7 @@ class ProjectSaleCollectionProvider implements ProviderInterface
         $sales = $this->saleRepository->findByProjectForListing($project);
 
         return array_map(
-            ProjectSaleResource::fromSale(...),
+            static fn (IndustryProjectSale $sale): ProjectSaleResource => ProjectSaleResource::fromSale($sale, $user),
             $sales,
         );
     }

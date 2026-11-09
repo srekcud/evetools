@@ -36,4 +36,12 @@ final readonly class ProjectChainNode
         public ?int $level,
     ) {
     }
+
+    /**
+     * @param list<array{esiJobId: int, status: string, runs: int, characterName: string|null, endDate: string|null, cost: float|null, facilityName: string|null}> $jobs
+     */
+    public function withJobs(array $jobs): self
+    {
+        return clone($this, ['jobs' => $jobs]);
+    }
 }
