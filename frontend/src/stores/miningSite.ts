@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
+import type { MiningCompression } from '@/stores/miningOperation'
 
 export type MiningSiteStatus = 'active' | 'closed'
 export type MiningSiteScanTypeStatus = 'present' | 'depleted'
@@ -26,6 +27,7 @@ export interface MiningSite {
   trendEta?: string | null
   lastScanNumber?: number | null
   lastScanAuthorName?: string | null
+  compression?: MiningCompression | null
 }
 
 export interface MiningSiteScanType {

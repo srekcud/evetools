@@ -368,3 +368,11 @@ describe('IndustryWorkshop projects', () => {
     expect(routerPush).toHaveBeenCalledWith(expect.objectContaining({ name: 'industry-project', params: { id: HECATE_PROJECT_ID } }))
   })
 })
+
+describe('IndustryWorkshop production opportunities', () => {
+  it('shows the what-to-produce card next to the action queue', async () => {
+    const wrapper = await mountWorkshop()
+
+    expect(wrapper.find('[data-testid="production-opportunities-card"]').exists()).toBe(true)
+  })
+})

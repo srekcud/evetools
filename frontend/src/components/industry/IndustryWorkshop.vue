@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import ProductionOpportunitiesCard from '@/components/industry/ProductionOpportunitiesCard.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
@@ -300,6 +301,8 @@ function statusLabel(status: GroupProjectStatus): string {
         </li>
       </ul>
     </section>
+
+    <ProductionOpportunitiesCard />
 
     <section class="bg-slate-900 rounded-xl border border-slate-800">
       <header class="px-4 py-3 border-b border-slate-800">

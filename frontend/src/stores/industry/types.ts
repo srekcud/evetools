@@ -547,6 +547,45 @@ export interface SellMarketResponse {
   immediateSale: SellMarketImmediateSale
 }
 
+export type OpportunityMarket = 'all' | 'jita' | 'capital'
+export type OpportunitySort = 'week' | 'hour'
+export type OpportunityLimit = 'market' | 'capital' | 'slots'
+
+export interface OpportunityMissingSkill {
+  skillId: number
+  name: string | null
+  level: number
+}
+
+export interface ProductionOpportunity {
+  typeId: number
+  typeName: string | null
+  categoryLabel: string
+  market: 'jita' | 'capital'
+  sellPrice: number
+  dailyVolume: number
+  unitCost: number
+  profitPerUnit: number
+  marginPercent: number | null
+  weeklyQuantity: number | null
+  limitedBy: OpportunityLimit | null
+  weeklyProfit: number | null
+  iskPerSlotHour: number | null
+  missingSkills: OpportunityMissingSkill[]
+  groupHint: boolean
+  loss: boolean
+}
+
+export interface ProductionOpportunitiesResponse {
+  capitalCap: number | null
+  capitalStructureName: string | null
+  freeSlots: { manufacturing: number; reaction: number } | null
+  sellShareOfDailyVolume: number
+  salesFeesKnown: boolean
+  unknownProductCount: number
+  rows: ProductionOpportunity[]
+}
+
 export type BlueprintKind = 'bpo' | 'bpc'
 export type BlueprintScope = 'personal' | 'corporation'
 export type CorporationBlueprintState = 'known' | 'no_director' | 'no_visibility'

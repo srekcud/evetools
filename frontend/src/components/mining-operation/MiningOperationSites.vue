@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import MiningCompressionBanners from '@/components/mining-operation/MiningCompressionBanners.vue'
 import MiningSiteCreateModal from '@/components/mining-site/MiningSiteCreateModal.vue'
 import { useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
+import type { MiningCompression, MiningCompressorKind } from '@/stores/miningOperation'
 import type { MiningSite } from '@/stores/miningSite'
 
-defineProps<{
+const props = defineProps<{
   operationId: string
   sites: MiningSite[]
   failure: string | null
@@ -17,6 +19,26 @@ const { t } = useI18n()
 const { lastScanText } = useMiningSiteFormat()
 
 const creating = ref(false)
+
+function distinctKinds(lists: MiningCompressorKind[][]): MiningCompressorKind[] {
+  return [...new Set(lists.flat())]
+}
+
+const sitesCompression = computed<MiningCompression | null>(() => {
+  const boosted = props.sites
+    .map(site => site.compression)
+    .filter((compression): compression is MiningCompression => compression !== null && compression !== undefined && compression.boostShipTypeId !== null && compression.boostShipTypeId !== undefined)
+  const [first] = boosted
+  if (first === undefined) return null
+  return {
+    ...first,
+    types: [],
+    gaps: {
+      noHull: distinctKinds(boosted.map(compression => compression.gaps.noHull)),
+      notMounted: distinctKinds(boosted.map(compression => compression.gaps.notMounted)),
+    },
+  }
+})
 </script>
 
 <template>
@@ -33,6 +55,8 @@ const creating = ref(false)
     </div>
 
     <p v-if="failure !== null" class="mb-3 text-sm text-red-400" role="alert">{{ failure }}</p>
+
+    <MiningCompressionBanners :compression="sitesCompression" />
 
     <p v-if="sites.length === 0" class="text-sm text-slate-400" data-testid="operation-sites-empty">{{ t('miningOperationSites.empty') }}</p>
     <ul v-else class="grid gap-3 sm:grid-cols-2">
