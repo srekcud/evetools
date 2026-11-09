@@ -18,23 +18,18 @@
       "clear": "Clear",
       "copy": "Copy",
       "share": "Share",
-      "search": "Search",
-      "create": "Create",
       "back": "Back",
       "loading": "Loading..."
     },
     "status": {
       "loading": "Loading...",
       "error": "Error",
-      "empty": "No results",
       "active": "Active",
       "expired": "Expired",
       "valid": "Valid",
-      "invalid": "Invalid",
       "never": "never",
       "total": "Total",
-      "all": "All",
-      "none": "None"
+      "all": "All"
     },
     "time": {
       "justNow": "just now",
@@ -44,10 +39,8 @@
       "day": "day | day | days",
       "hour": "hour | hour | hours",
       "minute": "minute | minute | minutes",
-      "second": "second | second | seconds",
       "remaining": "remaining",
-      "perDay": "/ day",
-      "perHour": "/ hour"
+      "perDay": "/ day"
     },
     "dataFreshness": {
       "sources": {
@@ -60,9 +53,7 @@
     },
     "units": {
       "colony": "colony | colony | colonies",
-      "character": "character | character | characters",
-      "extractor": "extractor | extractor | extractors",
-      "item": "product | product | products"
+      "extractor": "extractor | extractor | extractors"
     },
     "errors": {
       "copyFailed": "Copy failed",
@@ -112,19 +103,13 @@
   "nav": {
     "dashboard": "Dashboard",
     "characters": "Characters",
-    "ledger": "Ledger",
     "revenue": "Revenue",
     "industry": "Industry",
-    "escalations": "Escalations",
     "pi": "PI",
-    "shoppingList": "Valuator",
     "production": "Production",
     "inventory": "Inventory",
-    "assets": "Inventory",
-    "contracts": "Contracts",
     "market": "Market",
     "appraisal": "Appraisal",
-    "groupIndustry": "Group Industry",
     "projects": "Projects",
     "economy": "Economy",
     "mining": "Mining",
@@ -176,7 +161,6 @@
     "marketStructureSaved": "Structure saved"
   },
   "auth": {
-    "login": "Login",
     "logout": "Logout",
     "loggingOut": "Logging out...",
     "connectingToEve": "Connecting to EVE Online...",
@@ -208,7 +192,6 @@
     "accountMenu": "Account menu"
   },
   "dashboard": {
-    "title": "Dashboard",
     "kpi": {
       "characters": "Characters",
       "linkedAccounts": "linked accounts",
@@ -243,7 +226,6 @@
     "subtitle": "Manage your EVE Online characters and authorizations",
     "walletUnknown": "Unknown",
     "mainCharacter": "Main character",
-    "altCharacters": "Alt characters",
     "sameCorp": "Same corporation",
     "otherCorps": "Other corporations",
     "addCharacter": "Add character",
@@ -251,20 +233,14 @@
     "setAsMain": "Set as main",
     "reauthorize": "Reauthorize",
     "tokenValid": "Valid token",
-    "tokenInvalid": "Invalid token",
     "tokenExpired": "Token expired",
     "missingScopes": "Missing scopes",
-    "lastSync": "Last sync",
     "loading": "Loading characters...",
     "noMainCharacter": "No main character configured",
     "noAlts": "No alt characters",
-    "skillQueue": "Skill queue",
     "skillTraining": "Training",
     "skillsInQueue": "{count} in queue",
     "noSkillTraining": "No skill training",
-    "confirmDelete": "Confirm removal",
-    "confirmSetMain": "Set as main?",
-    "done": "Done",
     "deleteAccount": {
       "dangerZone": "Danger zone",
       "description": "Permanently delete your EVE Tools account. This action cannot be undone.",
@@ -331,10 +307,7 @@
     },
     "colony": {
       "unknown": "Unknown",
-      "ccLevel": "CC Lv",
-      "installations": "inst.",
       "noExtractors": "No extractors",
-      "updated": "Updated {time}",
       "stale": "STALE",
       "noDetail": "No details available for this colony. Sync to load installation data.",
       "extractors": "Extractors",
@@ -488,7 +461,6 @@
     }
   },
   "escalations": {
-    "title": "Escalations",
     "filters": {
       "active": "Active",
       "all": "All",
@@ -540,10 +512,6 @@
       "forSale": "For sale",
       "sold": "Sold"
     },
-    "bmStatus": {
-      "new": "New",
-      "bm": "BM"
-    },
     "timer": {
       "expired": "Expired"
     },
@@ -558,11 +526,7 @@
       "selectType": "Select a type",
       "system": "Solar system",
       "searchSystem": "Search a system...",
-      "noResults": "No results",
       "timer": "Time remaining",
-      "days": "Days",
-      "hours": "Hours",
-      "minutes": "Minutes",
       "price": "Asking price",
       "notes": "Notes",
       "optional": "optional",
@@ -577,12 +541,10 @@
     },
     "deleteModal": {
       "title": "Delete this escalation?",
-      "message": "This action cannot be undone.",
       "deleting": "Deleting..."
     },
     "sellModal": {
       "title": "Mark as sold?",
-      "message": "The escalation will be marked as sold.",
       "confirming": "Updating..."
     },
     "toast": {
@@ -598,9 +560,6 @@
       "visibilityError": "Failed to change visibility"
     },
     "pagination": {
-      "previous": "Previous",
-      "next": "Next",
-      "page": "Page {current} / {total}",
       "showing": "{from}-{to} of {total}"
     }
   },
@@ -629,17 +588,13 @@
       "missing_daily_volume": "The product has no daily volume in the market history: the daily volume and the ISK per day are unknown.",
       "missingPriceTypes": "Materials without a price: {types}"
     },
-    "title": "Industry",
     "subtitle": "Manufacturing and reaction projects",
     "tabs": {
       "workshop": "Workshop",
       "dashboard": "Dashboard",
-      "scanner": "Scanner",
       "slots": "Slots",
       "config": "Configuration",
-      "profit": "Profit",
       "margins": "Margins",
-      "invention": "Invention",
       "batch": "Batch Scan",
       "buyVsBuild": "Buy vs Build",
       "pivot": "Pivot",
@@ -682,7 +637,6 @@
     },
     "scanner": {
       "pivot": "Pivot",
-      "createProject": "Create Project",
       "batch": {
         "title": "Profit Scanner",
         "subtitle": "Analyze profitability of all manufacturable items. Find the best things to build.",
@@ -704,7 +658,6 @@
         "buildableSoon": "soon",
         "results": "Scan Results",
         "sortedBy": "Sorted by",
-        "system": "System",
         "rank": "#",
         "itemName": "Item Name",
         "marginPercent": "Margin %",
@@ -729,7 +682,6 @@
         "reaction": "Reaction",
         "copyMultibuy": "Copy Multibuy",
         "copied": "Copied!",
-        "noStructure": "Set market structure in Settings",
         "selectStructure": "Select a structure...",
         "factionBpc": "Faction BPC",
         "setBpcPrice": "Set BPC price per run",
@@ -747,14 +699,12 @@
         "title": "Buy vs Build Advisor",
         "subtitle": "Each production stage should be profitable on its own",
         "product": "Product",
-        "searchPlaceholder": "Search for a product to analyze...",
         "runs": "Runs",
         "me": "ME",
         "systemLabel": "System",
         "analyze": "Analyze",
         "analyzing": "Analyzing stages",
         "components": "components",
-        "stages": "intermediate stages",
         "totalProductionCost": "Total Production Cost",
         "sellPriceLabel": "Sell Price (C-J6MT)",
         "noSellStructure": "No market structure chosen: Jita prices only",
@@ -776,7 +726,6 @@
         "verdictLoss": "Building at a loss",
         "verdictUnknown": "Unknown price",
         "save": "Save",
-        "details": "Details",
         "needed": "needed",
         "summaryTitle": "Optimal Strategy Summary",
         "buildEverything": "Build Everything",
@@ -796,7 +745,6 @@
         "loss": "loss",
         "refreshPrices": "Refresh Prices",
         "export": "Export",
-        "pricesUpdated": "Prices updated",
         "infoNote": "Build costs assume ME 10 / TE 20 for intermediate components. Buy prices use Jita weighted average. Job install costs from ESI cost indices.",
         "noResult": "Search for a product and click Analyze to compare building vs buying components.",
         "t2Component": "T2 Component",
@@ -817,7 +765,6 @@
         "systemLabel": "System",
         "analyze": "Analyze",
         "analyzing": "Analyzing pivot options",
-        "refresh": "Refresh",
         "profitabilityAlert": "Profitability Alert",
         "marginWarning": "Margin dropped below 0% — consider pivoting production to an alternative product",
         "keyComponents": "Key Components in Stock",
@@ -1028,11 +975,6 @@
         "failed": "Failed to save the fees."
       }
     },
-    "activity": {
-      "reaction": "Reaction",
-      "copy": "Copy",
-      "manufacturing": "Manufacturing"
-    },
     "table": {
       "product": "Product"
     },
@@ -1066,8 +1008,6 @@
       "none": "None"
     },
     "blacklist": {
-      "title": "Blacklist",
-      "description": "Exclude specific categories or items from automatic project decomposition.",
       "loadError": "The blacklist could not be loaded.",
       "saveError": "The blacklist change was not saved.",
       "categories": "Categories",
@@ -1420,7 +1360,6 @@
     }
   },
   "ledger": {
-    "title": "Ledger",
     "tabs": {
       "dashboard": "Overview",
       "mining": "Mining",
@@ -1441,16 +1380,11 @@
       "loot": "Loot"
     },
     "mining": {
-      "title": "Mining ledger",
       "subtitle": "Mining history and valuation",
       "lastSync": "Last sync:",
       "noSync": "Never synced",
       "ore": "Ore",
-      "quantity": "Quantity",
       "qty": "Qty",
-      "volume": "Volume",
-      "value": "Value",
-      "system": "System",
       "date": "Date",
       "type": "Type",
       "status": "Status",
@@ -1480,11 +1414,7 @@
       "exportTaxTooltip": "Export tax Jita (ISK/m3)",
       "yield": "Yield",
       "structureLabel": "Structure",
-      "structurePrice": "Structure price",
-      "searchStructure": "Search a structure...",
-      "clearStructure": "Remove structure",
       "syncStructure": "Sync structure prices",
-      "jitaPrice": "Jita price",
       "usage": {
         "sold": "Sold",
         "corpProject": "Corp project",
@@ -1798,11 +1728,6 @@
       }
     },
     "pve": {
-      "title": "PVE",
-      "income": "Income",
-      "expenses": "Expenses",
-      "profit": "Profit",
-      "bounties": "Bounties",
       "missionRewards": "Mission rewards",
       "corpProject": "Corp projects"
     },
@@ -1821,7 +1746,6 @@
         "product": "Product"
       },
       "multiProduct": "Multi-product projects",
-      "projectCount": "{count} project | {count} projects",
       "unknownProjects": "of which {count} with unknown profit, not counted | of which {count} with unknown profit, not counted",
       "empty": "No project completed over the period",
       "hint": "Real profit of the projects completed over the period (your share for a group project). A project with an unknown profit is counted apart, never as 0.",
@@ -1846,7 +1770,6 @@
     }
   },
   "assets": {
-    "title": "Inventory",
     "subtitle": "Browse and search your EVE Online assets",
     "tabs": {
       "assets": "Inventory",
@@ -1859,15 +1782,9 @@
     "allSystems": "All systems",
     "location": "Location",
     "allLocations": "All locations",
-    "quantity": "Quantity",
-    "type": "Type",
-    "name": "Name",
-    "syncAssets": "Sync assets",
     "syncing": "Syncing...",
     "noAssets": "No assets",
-    "containerContents": "Container contents",
     "selectCharacter": "Select a character",
-    "lastSync": "Last sync",
     "loading": "Loading assets...",
     "clearFilters": "Clear filters",
     "stats": {
@@ -1905,7 +1822,6 @@
   "contracts": {
     "partialList": "Partial list: {count} contract could not be read | Partial list: {count} contract could not be read | Partial list: {count} contracts could not be read",
     "publicComparisonUnavailable": "Public contracts comparison unavailable (ESI) — verdict based on Jita",
-    "title": "Contracts",
     "filters": {
       "outstanding": "Outstanding",
       "finished": "Finished",
@@ -1915,12 +1831,8 @@
     "noContractsHint": "No contracts match the selected filters",
     "loading": "Loading contracts...",
     "loadingHint": "Fetching contracts from ESI...",
-    "price": "Price",
-    "type": "Type",
     "status": "Status",
     "expires": "Expires",
-    "completed": "Completed on",
-    "items": "Items",
     "itemExchange": "Item exchange",
     "jitaComparison": "Jita comparison",
     "thresholds": "Thresholds: < -5% competitive, > +5% not competitive",
@@ -1931,8 +1843,6 @@
     "contractPrice": "Contract price",
     "contractContents": "Contract contents",
     "similar": "Similar",
-    "lowestSimilar": "Lowest",
-    "avgSimilar": "Average",
     "kpi": {
       "totalContracts": "Total contracts",
       "sales": "Sales"
@@ -1970,7 +1880,6 @@
     "noStructureFound": "No structure found",
     "syncPrices": "Sync prices",
     "calculate": "Calculate",
-    "shareList": "Share list",
     "sharing": "Sharing...",
     "linkCopied": "Link copied!",
     "sharedAppraisal": "Shared Appraisal",
@@ -2005,7 +1914,6 @@
     "appraise": "Appraise",
     "analyze": "Analyze",
     "appraising": "Analyzing...",
-    "infoBanner": "Sell value = cost to buy (lowest sell orders). Buy value = what you receive selling to buy orders (highest buy orders). All prices from Jita 4-4.",
     "sellValue": "Sell Value",
     "sellValueDesc": "Cost to buy these items",
     "buyValue": "Buy Value",
@@ -2056,12 +1964,7 @@
   "admin": {
     "title": "Administration",
     "subtitle": "Platform statistics and metrics",
-    "stats": "Statistics",
     "users": "Users",
-    "queues": "Message queues",
-    "registrations": "Registrations",
-    "activity": "Activity",
-    "syncAll": "Sync all",
     "triggerSync": "Trigger sync",
     "actions": {
       "retryFailed": "Retry Failed",
@@ -2073,8 +1976,6 @@
     },
     "maintenance": "Maintenance",
     "clearCache": "Clear Cache",
-    "syncAssets": "Sync assets",
-    "syncMarket": "Sync market",
     "kpi": {
       "validAuth": "Valid auth",
       "invalidAuth": "Invalid auth",
@@ -2206,8 +2107,6 @@
   },
   "groupIndustry": {
     "title": "Group Industry",
-    "subtitle": "Collaborative manufacturing projects",
-    "myProjects": "My Projects",
     "available": {
       "runs": "Runs",
       "members": "members",
@@ -2552,20 +2451,13 @@
       "completed": "Completed"
     },
     "bom": {
-      "title": "Bill of Materials",
       "materialsToSource": "Materials to Source",
-      "blueprints": "Blueprints",
-      "components": "Components",
-      "finalProducts": "Final Products",
       "item": "Item",
       "required": "Required",
       "fulfilled": "Fulfilled",
       "remaining": "Remaining",
       "progress": "Progress",
-      "fulfillment": "Fulfillment",
       "estCost": "Est. Cost",
-      "estimatedPrice": "Est. Price",
-      "estimatedTotal": "Est. Total",
       "totalItems": "Total Items",
       "totalEstCost": "Total Est. Cost",
       "overallFulfillment": "Overall Fulfillment",
@@ -2688,20 +2580,6 @@
       }
     },
     "contributions": {
-      "title": "Contributions",
-      "types": {
-        "material": "Material",
-        "job_install": "Job Install",
-        "bpc": "BPC",
-        "line_rental": "Line Rental",
-        "courier": "Courier"
-      },
-      "statuses": {
-        "pending": "Pending",
-        "approved": "Approved",
-        "rejected": "Rejected"
-      },
-      "verified": "Verified",
       "unknownValueCause": "A contribution has no known price: the totals that include it are unknown, never partial.",
       "methods": {
         "paidPrice": "paid price (wallet)",
@@ -2711,7 +2589,6 @@
       }
     },
     "distribution": {
-      "title": "Distribution",
       "undistributable": "Undistributable distribution: no approved contribution has a cost, the net revenue cannot be split",
       "unknownContributionValue": "An approved contribution has no known price: the production cost, the profit and the payouts stay unknown until it has one.",
       "awaitingSales": "Awaiting sales",
@@ -2726,14 +2603,6 @@
       "salesTax": "Sales Tax",
       "netRevenue": "Net Revenue",
       "totalCost": "Total Project Cost",
-      "margin": "Margin",
-      "payout": "Payout",
-      "share": "Share",
-      "profitPart": "Profit Part",
-      "materialCosts": "Material Costs",
-      "jobInstallCosts": "Job Install Costs",
-      "bpcCosts": "BPC Costs",
-      "lineRentalCosts": "Line Rental Costs",
       "courierCosts": "Courier Costs"
     },
     "sellForecast": {
@@ -2817,13 +2686,6 @@
       "itemWithRemaining": "{name} · {remaining} left to sell",
       "soldVsProduced": "Sold out of produced",
       "soldLabel": "sold",
-      "title": "Sales",
-      "recordSale": "Record Sale",
-      "noSales": "No sales recorded yet.",
-      "unitPrice": "Unit Price",
-      "totalPrice": "Total Price",
-      "venue": "Venue",
-      "soldAt": "Sold At",
       "correctTitle": "Correct a Sale",
       "actionsColumn": "Actions",
       "channelColumn": "Channel",
@@ -2859,14 +2721,11 @@
       "quantityLabel": "Quantity to record"
     },
     "members": {
-      "title": "Members",
       "roles": {
         "owner": "Owner",
         "admin": "Admin",
         "member": "Member"
       },
-      "promote": "Promote to Admin",
-      "kick": "Kick",
       "acceptRequest": "Accept",
       "rejectRequest": "Reject",
       "pendingRequests": "Pending Requests",
@@ -2889,21 +2748,17 @@
         "shortLinkApproved": "short link, approved"
       },
       "viaShortLink": "Short Link",
-      "contributionCount": "Contributions",
-      "joinedAt": "Joined",
       "leaveProject": "Leave",
       "leaveConfirm": "Are you sure you want to leave this project? You can rejoin later via the invite link.",
       "leaveSuccess": "You have left the project."
     },
     "shareLink": {
       "title": "Invite Link",
-      "description": "Share this link to invite players to the project.",
       "copied": "Link copied!",
       "sameCorp": "Same-corp members are auto-accepted.",
       "otherCorp": "Other players will need approval."
     },
     "container": {
-      "title": "Container Verification",
       "verify": "Verify All",
       "verifyAll": "Verify All",
       "verifying": "Verifying...",
@@ -2922,18 +2777,10 @@
       },
       "verifyFailed": "Verification failed",
       "approvedGapTitle": "Approved contributions missing from the container, check again before the jobs",
-      "approvedGapLine": "{name}: {container} / {approved} in the container, {approved} approved",
-      "containerName": "Container Name",
-      "containerQuantity": "Container Qty"
+      "approvedGapLine": "{name}: {container} / {approved} in the container, {approved} approved"
     },
     "actions": {
-      "createProject": "New Project",
-      "joinProject": "Join Project",
-      "submitContribution": "Add Contribution",
-      "recordSale": "Record Sale",
-      "copyLink": "Copy Link",
-      "advanceStatus": "Advance Status",
-      "deleteProject": "Delete Project"
+      "createProject": "New Project"
     },
     "sellStructure": {
       "label": "Sell structure",
@@ -2997,18 +2844,11 @@
         "lineRentalOverrideHint": "These rates override your default settings for this project only.",
         "bomNote": "BOM will be aggregated from all items",
         "createButton": "Create Project",
-        "brokerFee": "Broker Fee %",
-        "salesTax": "Sales Tax %",
         "privateLabel": "Private project",
         "privateHint": "Absent from corporation discovery, no membership by code.",
         "outsideFavoriteLabel": "Accept structures outside favorite systems",
         "minimumSavingLabel": "Minimum saving",
         "fromTemplate": "From a template"
-      },
-      "contribute": {
-        "title": "Add Contribution",
-        "typeLabel": "Contribution Type",
-        "quantityLabel": "Quantity"
       },
       "lineRental": {
         "title": "Default Line Rental Rates",
@@ -3031,9 +2871,6 @@
       }
     },
     "join": {
-      "title": "Join Project",
-      "description": "You have been invited to join this group industry project.",
-      "alreadyMember": "You are already a member of this project.",
       "pendingApproval": "Your membership request is pending approval.",
       "invalidLink": "Invalid join link",
       "joinFailed": "Failed to join the project",
@@ -3077,7 +2914,6 @@
       "deleteTitle": "Delete this template?",
       "deleteMessage": "{name} will be deleted. Projects already created from it are not affected.",
       "empty": "No template: save a project as a template",
-      "loadError": "Templates could not be loaded",
       "saveTitle": "Save as template",
       "saveSubtitle": "Keep the items, the blacklist and the options of this project for the next ones",
       "nameLabel": "Template name",
@@ -3159,9 +2995,6 @@
       "description": "Create a new project to start collaborating with your corporation."
     },
     "detail": {
-      "owner": "Owner: {name}",
-      "members": "{count} member | {count} member | {count} members",
-      "items": "{count} item | {count} item | {count} items",
       "backToList": "Back to Projects",
       "shareLink": "Share Link",
       "edit": "Edit",
@@ -3236,13 +3069,10 @@
   "market": {
     "title": "Market Browser",
     "subtitle": "Real-time prices, history, and alerts",
-    "syncStructure": "Structure synced",
     "recentSearches": "Recent Searches",
-    "clearRecent": "Clear",
     "favorites": "Favorites",
     "showingResults": "Showing {count} results",
     "jitaSell": "Jita sell",
-    "filterLabel": "Filter:",
     "categories": {
       "all": "All",
       "hiddenCount": "{count} hidden"
@@ -3253,7 +3083,6 @@
     },
     "tabs": {
       "browse": "Browse",
-      "favorites": "Favorites",
       "alerts": "Alerts"
     },
     "detail": {
@@ -3267,7 +3096,6 @@
       "avgDaily": "30 day avg",
       "change30d": "30d Change",
       "orderBook": "Order Book",
-      "comparison": "Comparison",
       "jitaVsStructure": "Jita vs Your Structure",
       "sell": "Sell",
       "buy": "Buy",
@@ -3275,9 +3103,7 @@
       "buyOrders": "Buy Orders",
       "difference": "Difference",
       "structureNote": "Structure market data may be incomplete",
-      "category": "Category",
       "priceHistory": "Price History",
-      "dailyVolume": "Daily Volume",
       "structureHistoryAccumulating": "Structure price history is being collected. Full chart will appear in a few days.",
       "sourceJita": "Jita (The Forge)",
       "sourceStructure": "Structure",
@@ -3286,7 +3112,6 @@
       "spreadArea": "Spread Area",
       "priceUp": "Price up",
       "priceDown": "Price down",
-      "totalVolume": "Total volume (sell + buy)",
       "noOrders": "No orders",
       "structureSell": "Structure Sell",
       "structureBuy": "Structure Buy",
