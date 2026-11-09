@@ -196,6 +196,46 @@ final class MiningSiteApiTest extends WebTestCase
         self::assertSame([[200, 'closed'], 400], [$closed, $this->client->getResponse()->getStatusCode()]);
     }
 
+    #[Group('issue-305')]
+    public function testSiteExposesItsScanCountAndTheValueExtractedBetweenItsFirstAndLastScansAndLeavesItOutWithFewerThanTwoScans(): void
+    {
+        $this->as($this->aria);
+        $this->request('GET', '/api/mining-sites');
+        $ariaSites = array_column($this->responseJson(), null, 'label');
+        $this->as($this->brann);
+        $this->request('GET', '/api/mining-sites');
+        $brannSites = array_column($this->responseJson(), null, 'label');
+
+        $twoScans = $ariaSites['Belt Aldranette'] ?? [];
+        $noScan = $ariaSites['Anomalie Spodumain'] ?? [];
+        $oneScan = $brannSites['Belt Jaspet'] ?? [];
+        self::assertSame(
+            [[2, 180_000.0, false], [0, false, false], [1, false, false]],
+            [
+                [$twoScans['scanCount'] ?? null, $this->rounded($twoScans['extractedValue'] ?? null), array_key_exists('closedAt', $twoScans)],
+                [$noScan['scanCount'] ?? null, array_key_exists('extractedValue', $noScan), array_key_exists('closedAt', $noScan)],
+                [$oneScan['scanCount'] ?? null, array_key_exists('extractedValue', $oneScan), array_key_exists('closedAt', $oneScan)],
+            ],
+        );
+    }
+
+    #[Group('issue-305')]
+    public function testManualClosureDatesTheSiteWithTheClockAndASecondClosureKeepsTheFirstDate(): void
+    {
+        $this->as($this->aria);
+        self::mockTime(new \DateTimeImmutable('2026-11-05T20:30:00+00:00'));
+        $this->request('POST', sprintf('/api/mining-sites/%s/close', $this->ariaAnomalyId), []);
+        $firstClosure = [$this->client->getResponse()->getStatusCode(), $this->instant($this->responseJson()['closedAt'] ?? null)];
+        self::mockTime(new \DateTimeImmutable('2026-11-05T20:45:00+00:00'));
+
+        $this->request('POST', sprintf('/api/mining-sites/%s/close', $this->ariaAnomalyId), []);
+
+        self::assertSame(
+            [[200, '20:30:00'], [200, '20:30:00'], '20:30:00'],
+            [$firstClosure, [$this->client->getResponse()->getStatusCode(), $this->instant($this->responseJson()['closedAt'] ?? null)], $this->instant($this->storedClosedAtOf($this->ariaAnomalyId))],
+        );
+    }
+
     public function testInvalidInputIsRefusedWithAValidationError(): void
     {
         $this->as($this->aria);
@@ -284,6 +324,13 @@ final class MiningSiteApiTest extends WebTestCase
         }
 
         return $responses;
+    }
+
+    private function storedClosedAtOf(string $siteId): ?string
+    {
+        $closedAt = $this->em->getConnection()->fetchOne('SELECT closed_at FROM mining_sites WHERE id = ?', [$siteId]);
+
+        return $closedAt === false || $closedAt === null ? null : (string) $closedAt;
     }
 
     private function persistUser(): User

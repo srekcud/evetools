@@ -19,6 +19,18 @@ final class MiningSiteHistorySummarizer
             $first->getTotalVolumeM3(),
             $first->getRemainingValue(),
             $observedSeconds === 0 ? null : ($first->getTotalUnits() - $last->getTotalUnits()) * self::SECONDS_PER_MINUTE / $observedSeconds,
+            $this->extractedValueOf($first, $last, $observedSeconds),
         );
+    }
+
+    private function extractedValueOf(MiningSiteScan $first, MiningSiteScan $last, int $observedSeconds): ?float
+    {
+        $firstValue = $first->getRemainingValue();
+        $remainingValue = $last->getRemainingValue();
+        if ($observedSeconds === 0 || $firstValue === null || $remainingValue === null) {
+            return null;
+        }
+
+        return $firstValue - $remainingValue;
     }
 }

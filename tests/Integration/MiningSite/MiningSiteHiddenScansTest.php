@@ -16,6 +16,7 @@ use App\Repository\MiningSiteScanRepository;
 use App\Service\MiningSite\MiningSiteScanHider;
 use App\Service\MiningSite\MiningSiteScanRecorder;
 use App\Service\MiningSite\ScanLine;
+use App\State\Provider\MiningSite\MiningSiteResourceMapper;
 use App\Tests\Integration\IntegrationTestCase;
 use App\Tests\Integration\MiningOperation\PersistsMiningOperations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -101,6 +102,19 @@ final class MiningSiteHiddenScansTest extends IntegrationTestCase
                 $this->scanRepository->countUpTo($site, new \DateTimeImmutable('2026-11-05T21:00:00+00:00')),
             ],
         );
+    }
+
+    #[Group('issue-305')]
+    public function testHiddenScanIsLeftOutOfTheScanCountAndOfTheExtractedValueBetweenTheFirstAndLastVisibleScans(): void
+    {
+        $site = $this->persistSite('Belt Aldranette');
+        $scans = $this->recordSeries($site, [$this->aria, $this->aria, $this->aria]);
+        $mapper = self::getContainer()->get(MiningSiteResourceMapper::class);
+
+        $this->hider->hide($this->aria, $scans[2]);
+        $resource = $mapper->siteToResource($site);
+
+        self::assertSame([2, 75_000.0], [$resource->scanCount, $resource->extractedValue]);
     }
 
     public function testHiddenScanStillOccupiesItsSecond(): void

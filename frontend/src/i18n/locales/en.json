@@ -3866,7 +3866,8 @@
       "labelRequired": "The site name is required.",
       "system": "Solar system (optional)",
       "systemNone": "No solar system",
-      "submit": "Create the site"
+      "submit": "Create the site",
+      "closesActive": "Active sites of this operation will be closed."
     },
     "history": {
       "hint": "The sites you scanned, newest first.",
@@ -3942,6 +3943,15 @@
     "title": "Mining sites",
     "create": "New site",
     "empty": "No site for this operation yet. Create one to share your scans with the fleet.",
-    "noScan": "no scan"
+    "noScan": "no scan",
+    "next": "Next site",
+    "start": "Start",
+    "end": "End",
+    "endOngoing": "ongoing",
+    "endUnknown": "end unknown",
+    "scans": "Scans",
+    "extracted": "Extracted",
+    "extractedUnknown": "unknown",
+    "extractedHint": "measured between the first and the last scan"
   }
 }

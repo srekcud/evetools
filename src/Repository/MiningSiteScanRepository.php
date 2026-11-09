@@ -56,6 +56,17 @@ class MiningSiteScanRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    public function countVisibleOf(MiningSite $site): int
+    {
+        return (int) $this->createQueryBuilder('scan')
+            ->select('COUNT(scan.id)')
+            ->where('scan.site = :site')
+            ->andWhere('scan.hiddenAt IS NULL')
+            ->setParameter('site', $site)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function existsAt(MiningSite $site, \DateTimeImmutable $instant): bool
     {
         return $this->findOneBy(['site' => $site, 'scannedAt' => $instant]) !== null;

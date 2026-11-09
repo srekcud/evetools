@@ -155,4 +155,63 @@ describe('mining site store', () => {
       error: 'Mining operation not found',
     })
   })
+
+  it('starts the next site of an operation, then reloads the sites of the operation and returns the new site', async () => {
+    const previous = siteAfterThreeScans({ operationId: OPERATION_ID, status: 'closed', closedAt: at('20:30:00'), scanCount: 3, extractedValue: 180_000 })
+    const next = siteOf({ id: ANOMALY_ID, operationId: OPERATION_ID, label: 'Belt Jaspet', solarSystemId: ALDRANETTE })
+    const operationSitesPath = `${SITES_PATH}?operationId=${OPERATION_ID}`
+    const nextSitePath = `/mining-operations/${OPERATION_ID}/next-site`
+    vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
+      if (endpoint === nextSitePath && options?.method === 'POST') return next as never
+      if (endpoint === operationSitesPath) return [next, previous] as never
+      throw new Error(`Unexpected request ${endpoint}`)
+    })
+    const store = useMiningSiteStore()
+    store.operationSites = [siteAfterThreeScans({ operationId: OPERATION_ID })]
+
+    const outcome = await outcomeOf(store.startNextSite(OPERATION_ID, { label: 'Belt Jaspet', solarSystemId: ALDRANETTE }))
+
+    expect({
+      outcome,
+      requests: vi.mocked(apiRequest).mock.calls.map(call => call[0]),
+      body: postedBody(nextSitePath),
+      operationSites: store.operationSites,
+      error: store.error,
+    }).toEqual({
+      outcome: { value: next },
+      requests: [nextSitePath, operationSitesPath],
+      body: { label: 'Belt Jaspet', solarSystemId: ALDRANETTE },
+      operationSites: [next, previous],
+      error: null,
+    })
+  })
+
+  it('keeps the message of the server and rethrows when the next site is refused, without reloading nor changing the sites of the operation', async () => {
+    const forbidden = new ApiError('Only the site owner or an operation admin can close this site', 403)
+    const archived = new ApiError('This operation is archived', 400)
+    const ownSites = [siteAfterThreeScans({ operationId: OPERATION_ID })]
+    vi.mocked(apiRequest).mockRejectedValueOnce(forbidden).mockRejectedValueOnce(archived)
+    const store = useMiningSiteStore()
+    store.operationSites = ownSites
+
+    const refused = await outcomeOf(store.startNextSite(OPERATION_ID, { label: 'Belt Jaspet', solarSystemId: null }))
+    const errorAfterForbidden = store.error
+    const archivedRefusal = await outcomeOf(store.startNextSite(OPERATION_ID, { label: 'Belt Jaspet', solarSystemId: null }))
+
+    expect({
+      refused,
+      errorAfterForbidden,
+      archivedRefusal,
+      errorAfterArchived: store.error,
+      requests: vi.mocked(apiRequest).mock.calls.map(call => call[0]),
+      operationSites: store.operationSites,
+    }).toEqual({
+      refused: { rejection: String(forbidden) },
+      errorAfterForbidden: 'Only the site owner or an operation admin can close this site',
+      archivedRefusal: { rejection: String(archived) },
+      errorAfterArchived: 'This operation is archived',
+      requests: [`/mining-operations/${OPERATION_ID}/next-site`, `/mining-operations/${OPERATION_ID}/next-site`],
+      operationSites: ownSites,
+    })
+  })
 })

@@ -9,7 +9,7 @@ import { useMiningSiteStore } from '@/stores/miningSite'
 
 const LABEL_MAX_LENGTH = 100
 
-const props = defineProps<{ show: boolean; operationId?: string }>()
+const props = defineProps<{ show: boolean; operationId?: string; closesActive?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { t } = useI18n()
@@ -30,11 +30,10 @@ async function submit(): Promise<void> {
   failure.value = null
   submitting.value = true
   try {
-    const created = await store.create({
-      label: trimmedLabel,
-      solarSystemId: system.value === null ? null : system.value.solarSystemId,
-      operationId: props.operationId,
-    })
+    const solarSystemId = system.value === null ? null : system.value.solarSystemId
+    const created = props.closesActive === true && props.operationId !== undefined
+      ? await store.startNextSite(props.operationId, { label: trimmedLabel, solarSystemId })
+      : await store.create({ label: trimmedLabel, solarSystemId, operationId: props.operationId })
     emit('close')
     await router.push({ name: 'mining-site-detail', params: { id: created.id } })
   } catch (cause) {
@@ -71,6 +70,8 @@ watch(() => props.show, (show) => {
           class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
         />
       </div>
+
+      <p v-if="closesActive === true" class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200" data-testid="create-closes-active">{{ t('miningSite.create.closesActive') }}</p>
 
       <MiningSolarSystemSearch v-model="system" :label="t('miningSite.create.system')" :none-label="t('miningSite.create.systemNone')" />
 

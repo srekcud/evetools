@@ -37,6 +37,7 @@ final class MiningSiteSubResourceUriVariablesTest extends TestCase
 
         yield 'GET site' => [MiningSiteResource::class, 'GET', '/mining-sites/'.$id, ['id']];
         yield 'POST close' => [MiningSiteResource::class, 'POST', '/mining-sites/'.$id.'/close', ['id']];
+        yield 'POST next site' => [MiningSiteResource::class, 'POST', '/mining-operations/{operationId}/next-site', ['operationId']];
         yield 'POST scan' => [MiningSiteScanResource::class, 'POST', '/mining-sites/'.$siteId.'/scans', ['siteId']];
         yield 'GET scans' => [MiningSiteScanResource::class, 'GET', '/mining-sites/'.$siteId.'/scans', ['siteId']];
         yield 'GET scan' => [MiningSiteScanResource::class, 'GET', '/mining-sites/'.$siteId.'/scans/'.$id, ['siteId', 'id']];

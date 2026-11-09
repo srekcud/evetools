@@ -11,6 +11,7 @@ final readonly class MiningSiteHistorySummary
         public ?float $firstVolumeM3,
         public ?float $firstValue,
         public ?float $averageTrendRate,
+        public ?float $extractedValue = null,
     ) {
     }
 }

@@ -90,6 +90,7 @@ final readonly class MiningSiteScanRecorder
 
         if ($estimate->allDepleted) {
             $site->setStatus(MiningSiteStatus::Closed);
+            $site->setClosedAt($scannedAt);
         }
         $this->entityManager->flush();
 

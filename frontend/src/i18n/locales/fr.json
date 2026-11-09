@@ -3866,7 +3866,8 @@
       "labelRequired": "Le nom du site est obligatoire.",
       "system": "Système solaire (facultatif)",
       "systemNone": "Aucun système solaire",
-      "submit": "Créer le site"
+      "submit": "Créer le site",
+      "closesActive": "Les sites actifs de cette opération seront clôturés."
     },
     "history": {
       "hint": "Les sites que vous avez scannés, du plus récent au plus ancien.",
@@ -3942,6 +3943,15 @@
     "title": "Sites de minage",
     "create": "Nouveau site",
     "empty": "Aucun site pour cette opération. Créez-en un pour partager vos scans avec la flotte.",
-    "noScan": "aucun scan"
+    "noScan": "aucun scan",
+    "next": "Site suivant",
+    "start": "Début",
+    "end": "Fin",
+    "endOngoing": "en cours",
+    "endUnknown": "fin inconnue",
+    "scans": "Scans",
+    "extracted": "Extrait",
+    "extractedUnknown": "inconnue",
+    "extractedHint": "mesurée entre le premier et le dernier scan"
   }
 }
