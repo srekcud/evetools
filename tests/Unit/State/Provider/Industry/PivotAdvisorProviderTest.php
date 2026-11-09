@@ -14,11 +14,13 @@ use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\State\Provider\Industry\PivotAdvisorProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 #[Group('issue-128')]
 #[CoversClass(PivotAdvisorProvider::class)]
@@ -66,6 +68,45 @@ final class PivotAdvisorProviderTest extends TestCase
         $arguments = $this->argumentsReceivedByTheService($user, new Request(), new IndustryUserSettings(), new SalesFees(0.0215, 0.0337));
 
         $this->assertEquals(new SalesFees(0.0215, 0.0337), $arguments[3]);
+    }
+
+    public function testServiceReceivesOneRunWhenTheRunsParameterIsAbsent(): void
+    {
+        $arguments = $this->argumentsReceivedByTheService(new User(), new Request(), null, new SalesFees(0.036, 0.036));
+
+        $this->assertSame(1, $arguments[1]);
+    }
+
+    public function testServiceReceivesTheRequestedRuns(): void
+    {
+        $arguments = $this->argumentsReceivedByTheService(new User(), new Request(['runs' => '12']), null, new SalesFees(0.036, 0.036));
+
+        $this->assertSame(12, $arguments[1]);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function invalidPositiveIntegerParameters(): iterable
+    {
+        yield 'runs is not a number' => ['runs', 'abc'];
+        yield 'runs is zero' => ['runs', '0'];
+        yield 'runs is negative' => ['runs', '-2'];
+        yield 'runs is a decimal' => ['runs', '1.5'];
+        yield 'runs is empty' => ['runs', ''];
+        yield 'solarSystemId is not a number' => ['solarSystemId', 'abc'];
+        yield 'solarSystemId is zero' => ['solarSystemId', '0'];
+        yield 'solarSystemId is negative' => ['solarSystemId', '-30002187'];
+    }
+
+    #[Group('issue-331')]
+    #[DataProvider('invalidPositiveIntegerParameters')]
+    public function testAnInvalidQueryParameterIsRejectedInsteadOfBeingReadAsADefault(string $parameter, string $value): void
+    {
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage(sprintf('%s must be a positive integer.', $parameter));
+
+        $this->argumentsReceivedByTheService(new User(), new Request([$parameter => $value]), null, new SalesFees(0.036, 0.036));
     }
 
     private function settings(?int $favoriteManufacturingSystemId, ?int $favoriteReactionSystemId): IndustryUserSettings

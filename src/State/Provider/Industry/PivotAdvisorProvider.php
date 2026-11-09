@@ -13,7 +13,9 @@ use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\PivotAdvisorService;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -21,6 +23,8 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class PivotAdvisorProvider implements ProviderInterface
 {
+    private const int DEFAULT_RUNS = 1;
+
     public function __construct(
         private readonly Security $security,
         private readonly RequestStack $requestStack,
@@ -41,16 +45,14 @@ class PivotAdvisorProvider implements ProviderInterface
         $request = $this->requestStack->getCurrentRequest();
         $typeId = (int) $uriVariables['typeId'];
 
-        // Parse query params with defaults
-        $runs = max(1, (int) ($request?->query->get('runs', '1') ?? '1'));
-
-        $solarSystemIdParam = $request?->query->get('solarSystemId');
+        $runs = $this->positiveIntegerQueryParameter($request, 'runs') ?? self::DEFAULT_RUNS;
+        $solarSystemId = $this->positiveIntegerQueryParameter($request, 'solarSystemId');
 
         // Load user settings
         $settings = $this->settingsRepository->findOneBy(['user' => $user]);
 
 
-        $solarSystems = AnalysisSolarSystems::resolve($solarSystemIdParam !== null ? (int) $solarSystemIdParam : null, $settings);
+        $solarSystems = AnalysisSolarSystems::resolve($solarSystemId, $settings);
 
         $result = $this->pivotAdvisorService->analyze(
             $typeId,
@@ -62,6 +64,20 @@ class PivotAdvisorProvider implements ProviderInterface
         );
 
         return $this->mapToResource($result);
+    }
+
+    private function positiveIntegerQueryParameter(?Request $request, string $name): ?int
+    {
+        if ($request === null || !$request->query->has($name)) {
+            return null;
+        }
+
+        $value = filter_var($request->query->get($name), FILTER_VALIDATE_INT);
+        if ($value === false || $value <= 0) {
+            throw new BadRequestHttpException(sprintf('%s must be a positive integer.', $name));
+        }
+
+        return $value;
     }
 
     /**
