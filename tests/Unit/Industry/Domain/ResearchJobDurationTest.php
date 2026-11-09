@@ -9,6 +9,7 @@ use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\MissingData;
 use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\ResearchJobDuration;
+use App\Industry\Domain\ResearchLevels;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -19,6 +20,8 @@ use PHPUnit\Framework\TestCase;
  * round(base time / 6000 × level time (rank 1) × (1 − 5 % × research skill) × (1 − 3 % × Advanced Industry) × structure)
  */
 #[CoversClass(ResearchJobDuration::class)]
+#[CoversClass(ResearchLevels::class)]
+#[CoversClass(MissingData::class)]
 final class ResearchJobDurationTest extends TestCase
 {
     private const int RANK_ONE_BASE_TIME = 6_000;
@@ -33,6 +36,8 @@ final class ResearchJobDurationTest extends TestCase
         yield 'TE level 3, rank 2, Research IV' => [ActivityKind::ResearchTime, 12_000, 3, 4, 0, 1.0, 952];
         yield 'ME level 2, structure time bonus' => [ActivityKind::ResearchMaterial, 6_000, 2, 0, 0, 0.8, 200];
         yield 'one single rounding: 595 × 1.5 × 0.9' => [ActivityKind::ResearchMaterial, 9_000, 3, 2, 0, 1.0, 803];
+        yield 'half a second rounds up: 595 × 1.5' => [ActivityKind::ResearchMaterial, 9_000, 3, 0, 0, 1.0, 893];
+        yield 'zero base time gives a zero duration' => [ActivityKind::ResearchTime, 0, 5, 3, 3, 1.0, 0];
     }
 
     #[DataProvider('knownDurationProvider')]
@@ -138,6 +143,44 @@ final class ResearchJobDurationTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         ResearchJobDuration::of(ActivityKind::ResearchMaterial, self::RANK_ONE_BASE_TIME, $targetLevel, $researchSkillLevel, $advancedIndustryLevel, Multiplier::one());
+    }
+
+    public function testNegativeBaseTimeIsRefused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('base time cannot be negative');
+
+        ResearchJobDuration::of(ActivityKind::ResearchTime, -1, 1, 0, 0, Multiplier::one());
+    }
+
+    #[DataProvider('researchLevelBoundaryProvider')]
+    public function testResearchLevelBoundsAreOneAndTen(int $targetLevel, bool $accepted): void
+    {
+        if (!$accepted) {
+            $this->expectException(\InvalidArgumentException::class);
+        }
+
+        $duration = ResearchJobDuration::of(ActivityKind::ResearchMaterial, self::RANK_ONE_BASE_TIME, $targetLevel, 0, 0, Multiplier::one());
+
+        $this->assertTrue($duration->isKnown());
+    }
+
+    /**
+     * @return iterable<string, array{int, bool}>
+     */
+    public static function researchLevelBoundaryProvider(): iterable
+    {
+        yield 'level 0' => [0, false];
+        yield 'level 1' => [1, true];
+        yield 'level 10' => [10, true];
+        yield 'level 11' => [11, false];
+    }
+
+    public function testLevelCostMultiplierIsTheLevelTimeOverTheLevelOneTime(): void
+    {
+        $this->assertEqualsWithDelta(1.0, ResearchLevels::costMultiplier(1), 1e-12);
+        $this->assertEqualsWithDelta(250 / 105, ResearchLevels::costMultiplier(2), 1e-12);
+        $this->assertEqualsWithDelta(256_000 / 105, ResearchLevels::costMultiplier(10), 1e-12);
     }
 
     public function testAnActivityThatIsNotResearchIsRefused(): void

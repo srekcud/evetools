@@ -36,6 +36,22 @@ final class StructureTotalCostComparatorGuardsTest extends TestCase
         $this->totalCostOfRecipeOf(ActivityKind::Invention);
     }
 
+    public function testMaterialResearchRecipeCannotBeComparedAtTotalCost(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('manufacturing and reactions only, got ResearchMaterial');
+
+        $this->totalCostOfRecipeOf(ActivityKind::ResearchMaterial);
+    }
+
+    public function testTimeResearchRecipeCannotBeComparedAtTotalCost(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('manufacturing and reactions only, got ResearchTime');
+
+        $this->totalCostOfRecipeOf(ActivityKind::ResearchTime);
+    }
+
     public function testMaterialQuantitiesAreHandedToTheMarketAsFloats(): void
     {
         $marketPrices = new MarketPricesByQuantity([self::QUANTITY_OF_STRUCTURE_C => self::UNIT_PRICE]);

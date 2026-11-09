@@ -10,6 +10,7 @@ use App\Industry\Domain\InstallCost;
 use App\Industry\Domain\Isk;
 use App\Industry\Domain\MissingData;
 use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\ResearchLevels;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -22,6 +23,7 @@ use PHPUnit\Framework\TestCase;
  * SCC         = base × 2 %
  */
 #[CoversClass(InstallCost::class)]
+#[CoversClass(ResearchLevels::class)]
 final class ResearchInstallCostTest extends TestCase
 {
     private const float EIV = 10_000_000.0;
