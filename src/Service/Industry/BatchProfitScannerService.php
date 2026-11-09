@@ -255,7 +255,7 @@ class BatchProfitScannerService
         $materialVolumes = $this->loadTypeVolumes(array_keys($materialTypeIds));
 
         // 7. Batch prices
-        $jitaPrices = $this->jitaMarketService->getPrices($uniqueTypeIds);
+        $jitaPrices = $this->jitaMarketService->getPricesWithFallback($uniqueTypeIds);
 
         // Structure prices if needed
         $structurePrices = [];

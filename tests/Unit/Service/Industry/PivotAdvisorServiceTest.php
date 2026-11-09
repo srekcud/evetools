@@ -165,7 +165,7 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
 
         // Jita prices
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000000.0,
             self::BUILDABLE_MAT_A => 100000.0,
             self::BUILDABLE_MAT_B => 50000.0,
@@ -283,7 +283,7 @@ class PivotAdvisorServiceTest extends TestCase
         ]);
 
         // A costs 1000, B costs 100
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000.0,
             self::BUILDABLE_MAT_A => 1000.0,
             self::BUILDABLE_MAT_B => 100.0,
@@ -363,7 +363,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => self::CANDIDATE_1, 'outputPerRun' => 1, 'activityId' => 1],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000.0,
             self::BUILDABLE_MAT_A => 1000.0,
             self::BUILDABLE_MAT_B => 2000.0,
@@ -448,7 +448,7 @@ class PivotAdvisorServiceTest extends TestCase
 
         $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000.0,
             self::RAW_MAT => 5.0,
         ]);
@@ -513,7 +513,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => self::CANDIDATE_1, 'outputPerRun' => 1, 'activityId' => 1],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000.0,
             self::BUILDABLE_MAT_A => 1000.0,
             self::CANDIDATE_1 => 40000.0,
@@ -587,7 +587,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => self::CANDIDATE_1, 'outputPerRun' => 1, 'activityId' => 1],
         ]);
 
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000.0,
             self::BUILDABLE_MAT_A => 1000.0,
             self::BUILDABLE_MAT_B => 2000.0,
@@ -899,7 +899,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::BUILDABLE_MAT_A => 50,
             $sharedMaterialTypeId => $sharedMaterialStock,
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 900000.0,
             self::BUILDABLE_MAT_A => 1000.0,
             $sharedMaterialTypeId => 2500.0,
@@ -1121,7 +1121,7 @@ class PivotAdvisorServiceTest extends TestCase
             self::SOURCE_BLUEPRINT => [['materialTypeId' => self::RAW_MAT, 'quantity' => 1000]],
         ]);
         $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000.0,
             self::RAW_MAT => 5.0,
         ]);
@@ -1177,6 +1177,23 @@ class PivotAdvisorServiceTest extends TestCase
         $this->assertSame([['manufacturing', 0.25], ['manufacturing', 0.25], ['reaction', 2.0]], $this->sorted($installCostRequests));
     }
 
+    #[Group('issue-135')]
+    public function testSourceProductIsPricedThroughTheOnDemandFallbackAndNeverFromTheCacheAlone(): void
+    {
+        $sourceFormula = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 11);
+        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
+            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => self::SOURCE_PRODUCT === $typeId && 11 === $activityId ? $sourceFormula : null,
+        );
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            self::SOURCE_BLUEPRINT => [['materialTypeId' => self::RAW_MAT, 'quantity' => 33]],
+        ]);
+        $this->jitaMarketService->expects($this->never())->method('getPrices');
+        $this->jitaMarketService->expects($this->atLeastOnce())->method('getPricesWithFallback')->willReturn([self::SOURCE_PRODUCT => 50000.0, self::RAW_MAT => 6.0]);
+        $this->givenJobInstallCostsRecorded();
+
+        $this->pivotAdvisorOnSdeKnowing([], new InMemoryUserProductionStructures())->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, new SalesFees(self::BROKER_FEE, self::SALES_TAX), $this->user, self::SOLAR_SYSTEM_ID);
+    }
+
     public function testInstallCostOfAReactionSourceProductUsesTheFacilityTaxOfTheUserRefinery(): void
     {
         $sourceFormula = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 11);
@@ -1186,7 +1203,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             self::SOURCE_BLUEPRINT => [['materialTypeId' => self::RAW_MAT, 'quantity' => 33]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([self::SOURCE_PRODUCT => 50000.0, self::RAW_MAT => 6.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([self::SOURCE_PRODUCT => 50000.0, self::RAW_MAT => 6.0]);
         $installCostRequests = $this->givenJobInstallCostsRecorded();
         $productionStructures = new InMemoryUserProductionStructures([self::USER_ID => [
             ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
@@ -1225,7 +1242,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
             self::SOURCE_BLUEPRINT => [['materialTypeId' => self::RAW_MAT, 'quantity' => 33]],
         ]);
-        $this->jitaMarketService->method('getPrices')->willReturn([self::SOURCE_PRODUCT => 50000.0, self::RAW_MAT => 6.0]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([self::SOURCE_PRODUCT => 50000.0, self::RAW_MAT => 6.0]);
         $installCostRequests = $this->givenJobInstallCostsRecorded();
         $productionStructures = new InMemoryUserProductionStructures([self::USER_ID => [
             ProductionStructures::tataraWithFacilityTax('tatara-manufacturing-system', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.07),
@@ -1276,7 +1293,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['blueprintTypeId' => self::REACTION_CANDIDATE_FORMULA, 'productTypeId' => self::REACTION_CANDIDATE, 'outputPerRun' => 1, 'activityId' => 11],
         ]);
         $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000.0,
             self::BUILDABLE_MAT_A => 1300.0,
             self::RAW_MAT => 6.0,
@@ -1335,7 +1352,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['blueprintTypeId' => self::REACTION_CANDIDATE_FORMULA, 'productTypeId' => self::REACTION_CANDIDATE, 'outputPerRun' => 1, 'activityId' => 11],
         ]);
         $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 50000.0,
             self::BUILDABLE_MAT_A => 1300.0,
             self::RAW_MAT => 6.0,
@@ -1475,7 +1492,7 @@ class PivotAdvisorServiceTest extends TestCase
             ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => self::CANDIDATE_1, 'outputPerRun' => $outputPerRun, 'activityId' => 1],
         ]);
         $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::BUILDABLE_MAT_A => $componentStock]);
-        $this->jitaMarketService->method('getPrices')->willReturn([
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
             self::SOURCE_PRODUCT => 900000.0,
             self::BUILDABLE_MAT_A => 100.0,
             self::CANDIDATE_1 => 1000.0,

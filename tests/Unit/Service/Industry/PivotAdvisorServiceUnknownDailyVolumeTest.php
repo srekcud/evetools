@@ -214,7 +214,7 @@ final class PivotAdvisorServiceUnknownDailyVolumeTest extends TestCase
         $assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::COMPONENT_TWO => 1]);
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPrices')->willReturn($jitaPrices);
+        $jitaMarketService->method('getPricesWithFallback')->willReturn($jitaPrices);
         $jitaMarketService->method('getCachedDailyVolumes')->willReturn($dailyVolumes);
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);
