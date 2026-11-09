@@ -10,11 +10,12 @@ import { useSyncStore } from '@/stores/sync'
 import { industryAction } from '../../industryActionFixtures'
 
 const routerPush = vi.fn()
+const routerResolve = vi.fn((location: { params: { id: string } }) => ({ href: `/industry/projects/${location.params.id}` }))
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
   useRoute: (() => ({ query: {}, params: {} })) as never,
-  useRouter: (() => ({ push: routerPush, replace: vi.fn() })) as never,
+  useRouter: (() => ({ push: routerPush, replace: vi.fn(), resolve: routerResolve })) as never,
 }))
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -287,6 +288,50 @@ describe('IndustryWorkshop projects', () => {
     expect(queueRows(wrapper)).toHaveLength(4)
   })
 
+  it('opens the project when its row is clicked or entered with the keyboard', async () => {
+    const wrapper = await mountWorkshop()
+    const rows = testIds(wrapper, 'workshop-project-row')
+
+    await rows[2].trigger('click')
+    await rows[0].trigger('keydown', { key: 'Enter' })
+
+    expect(routerPush.mock.calls).toEqual([
+      [{ name: 'industry-project', params: { id: HECATE_PROJECT_ID } }],
+      [{ name: 'industry-project', params: { id: SABRE_PROJECT_ID } }],
+    ])
+  })
+
+  it('opens the project in a new tab on ctrl click, cmd click and middle click, without leaving the workshop', async () => {
+    const openWindow = vi.spyOn(window, 'open').mockReturnValue(null)
+    const wrapper = await mountWorkshop()
+    const hecateRow = testIds(wrapper, 'workshop-project-row')[2]
+
+    await hecateRow.trigger('click', { ctrlKey: true })
+    await hecateRow.trigger('click', { metaKey: true })
+    await hecateRow.trigger('auxclick', { button: 1 })
+
+    expect(openWindow.mock.calls).toEqual([
+      [`/industry/projects/${HECATE_PROJECT_ID}`, '_blank'],
+      [`/industry/projects/${HECATE_PROJECT_ID}`, '_blank'],
+      [`/industry/projects/${HECATE_PROJECT_ID}`, '_blank'],
+    ])
+    expect(routerPush).not.toHaveBeenCalled()
+    openWindow.mockRestore()
+  })
+
+  it('shows in the panel the project hovered or focused', async () => {
+    const wrapper = await mountWorkshop()
+    const rows = testIds(wrapper, 'workshop-project-row')
+
+    await rows[2].trigger('focus')
+    const focused = selectedProjectName(wrapper)
+    await rows[1].trigger('mouseenter')
+
+    expect(focused).toBe('Hecate in progress')
+    expect(selectedProjectName(wrapper)).toBe(projectOfRow(rows[1]))
+    expect(routerPush).not.toHaveBeenCalled()
+  })
+
   it('selects the first project by default and shows in the panel its status, its action or the absence of action, and a button to open its cockpit', async () => {
     const wrapper = await mountWorkshop({ actions: QUEUE.filter(entry => entry.projectId !== HECATE_PROJECT_ID) })
     const panelOfFirstProject = wrapper.get('[data-testid="workshop-project-panel"]')
@@ -296,7 +341,7 @@ describe('IndustryWorkshop projects', () => {
       actionButton: panelOfFirstProject.find('[data-testid="workshop-action-button"]').exists(),
     }
 
-    await testIds(wrapper, 'workshop-project-row')[2].trigger('click')
+    await testIds(wrapper, 'workshop-project-row')[2].trigger('mouseenter')
     const panelOfHecate = wrapper.get('[data-testid="workshop-project-panel"]')
     await panelOfHecate.get('[data-testid="workshop-open-cockpit"]').trigger('click')
 
