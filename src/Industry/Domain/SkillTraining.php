@@ -10,7 +10,6 @@ final class SkillTraining
     private const int LAST_LEVEL = 5;
     private const int BASE_POINTS_PER_RANK = 250;
     private const int LEVEL_POINTS_MULTIPLIER = 32;
-    private const int POINTS_ROUNDING_PRECISION = 6;
     private const int SECONDS_PER_MINUTE = 60;
     private const int SECONDARY_ATTRIBUTE_DIVISOR = 2;
 
@@ -23,16 +22,11 @@ final class SkillTraining
             throw new \InvalidArgumentException("A skill level is between 1 and 5, {$level} given");
         }
 
-        $exactPoints = self::BASE_POINTS_PER_RANK * $rank * self::LEVEL_POINTS_MULTIPLIER ** (($level - 1) / 2);
-
-        return (int) ceil(round($exactPoints, self::POINTS_ROUNDING_PRECISION));
+        return (int) ceil(self::BASE_POINTS_PER_RANK * $rank * self::LEVEL_POINTS_MULTIPLIER ** (($level - 1) / 2));
     }
 
     public static function secondsToNextLevel(int $rank, int $currentLevel, int $primaryAttribute, int $secondaryAttribute): int
     {
-        if ($currentLevel < 0 || $currentLevel >= self::LAST_LEVEL) {
-            throw new \InvalidArgumentException("A skill with a next level is at level 0 to 4, {$currentLevel} given");
-        }
         if ($primaryAttribute < 1 || $secondaryAttribute < 1) {
             throw new \InvalidArgumentException('A training speed needs a primary and a secondary attribute of at least 1');
         }

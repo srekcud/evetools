@@ -49,6 +49,16 @@ final class SkillTrainingTest extends TestCase
         $this->assertSame(2_292, SkillTraining::secondsToNextLevel(1, 1, 22, 17));
     }
 
+    public function testAnAttributeOfExactlyOnePointIsAccepted(): void
+    {
+        $this->assertSame(10_000, SkillTraining::secondsToNextLevel(1, 0, 1, 1));
+    }
+
+    public function testADurationJustAboveAWholeSecondIsRoundedUp(): void
+    {
+        $this->assertSame(1_970, SkillTraining::secondsToNextLevel(1, 1, 21, 29));
+    }
+
     public function testAHigherPrimaryAttributeShortensTheTraining(): void
     {
         $this->assertLessThan(
