@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Mining;
 use App\Entity\MiningEntry;
 use App\Entity\User;
 use App\Repository\MiningEntryRepository;
+use App\Repository\ReprocessingProfileRepository;
 use App\Service\MiningBestValueCalculator;
 use App\Service\StructureMarketService;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -41,9 +42,10 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         $calculator = new MiningBestValueCalculator(
             $this->createStub(MiningEntryRepository::class),
             $this->oreValueServiceThatMustNotLookUpAnything(),
+            $this->profileRepositoryWithYield(0.78),
         );
 
-        $this->assertSame([], $calculator->getBestUnitPrices([]));
+        $this->assertSame([], $calculator->getBestUnitPrices($this->user, []));
     }
 
     #[Group('issue-38')]
@@ -51,7 +53,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     {
         $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class));
 
-        $bestUnitPrices = $calculator->getBestUnitPrices([self::BITUMENS, self::CLEAR_ICICLE]);
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::BITUMENS, self::CLEAR_ICICLE]);
 
         $this->assertSame([self::BITUMENS, self::CLEAR_ICICLE], array_keys($bestUnitPrices));
         $this->assertEqualsWithDelta(self::BITUMENS_REPROCESS_VALUE, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
@@ -62,7 +64,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     {
         $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class));
 
-        $bestUnitPrices = $calculator->getBestUnitPrices([self::FULLERITE_C50, self::TRITANIUM, self::TYPE_UNKNOWN_TO_SDE]);
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::FULLERITE_C50, self::TRITANIUM, self::TYPE_UNKNOWN_TO_SDE]);
 
         $this->assertSame([self::FULLERITE_C50, self::TRITANIUM, self::TYPE_UNKNOWN_TO_SDE], array_keys($bestUnitPrices));
         $this->assertEqualsWithDelta(self::FULLERITE_C50_RAW_PRICE, $bestUnitPrices[self::FULLERITE_C50], self::PRICE_DELTA);
@@ -79,7 +81,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         unset($jitaSellPrices[self::FULLERITE_C50]);
         $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class), $jitaSellPrices);
 
-        $bestUnitPrices = $calculator->getBestUnitPrices([self::VELDSPAR, self::FULLERITE_C50]);
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::VELDSPAR, self::FULLERITE_C50]);
 
         $this->assertEqualsWithDelta(19.61, $bestUnitPrices[self::VELDSPAR], self::PRICE_DELTA);
         $this->assertEqualsWithDelta(2813.0, $bestUnitPrices[self::FULLERITE_C50], self::PRICE_DELTA);
@@ -90,9 +92,66 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     {
         $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class), $this->jitaSellPrices());
 
-        $bestUnitPrices = $calculator->getBestUnitPrices([self::BITUMENS]);
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::BITUMENS]);
 
         $this->assertEqualsWithDelta(self::BITUMENS_REPROCESS_VALUE, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
+    }
+
+    #[Group('issue-269')]
+    public function testBestUnitPriceUsesTheYieldOfTheUserProfile(): void
+    {
+        $calculator = $this->createCalculator(
+            $this->createStub(MiningEntryRepository::class),
+            null,
+            $this->profileRepositoryWithYield(0.7236),
+        );
+
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::BITUMENS]);
+
+        $this->assertEqualsWithDelta(self::BITUMENS_REPROCESS_VALUE * 0.7236 / 0.78, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
+    }
+
+    #[Group('issue-269')]
+    public function testBestUnitPriceLeavesTheReprocessedSourcesOutWhenTheUserHasNoProfile(): void
+    {
+        $calculator = $this->createCalculator(
+            $this->createStub(MiningEntryRepository::class),
+            $this->jitaSellPrices(),
+            $this->profileRepositoryWithNoProfile(),
+        );
+
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::BITUMENS, self::CLEAR_ICICLE]);
+
+        $this->assertEqualsWithDelta(221.45, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(158700.0, $bestUnitPrices[self::CLEAR_ICICLE], self::PRICE_DELTA);
+    }
+
+    #[Group('issue-269')]
+    public function testBestUnitPriceFallsBackToTheRawPriceWhenTheProfileYieldIsUnreadable(): void
+    {
+        $calculator = $this->createCalculator(
+            $this->createStub(MiningEntryRepository::class),
+            null,
+            $this->profileRepositoryWithUnreadableYield(),
+        );
+
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::BITUMENS]);
+
+        $this->assertEqualsWithDelta(213.9, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
+    }
+
+    #[Group('issue-269')]
+    public function testTotalsUseTheProfileYieldAndNeverTheOldDefaultWhenTheUserHasNoProfile(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([
+            self::BITUMENS => ['typeId' => self::BITUMENS, 'quantity' => 1000],
+        ]);
+        $withoutProfile = $this->createCalculator($miningEntryRepository, null, $this->profileRepositoryWithNoProfile());
+        $withProfile = $this->createCalculator($miningEntryRepository, null, $this->profileRepositoryWithYield(0.7236));
+
+        $this->assertMiningValue(213_900.0, [], $withoutProfile->getTotalBestValue($this->user, $this->from, $this->to));
+        $this->assertMiningValue(self::BITUMENS_REPROCESS_VALUE * 0.7236 / 0.78 * 1000, [], $withProfile->getTotalBestValue($this->user, $this->from, $this->to));
     }
 
     #[Group('mining-audit-P2-5')]
@@ -102,7 +161,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         $jitaSellPrices[self::CLEAR_ICICLE] = 231400.0;
         $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class), $jitaSellPrices);
 
-        $bestUnitPrices = $calculator->getBestUnitPrices([self::CLEAR_ICICLE]);
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::CLEAR_ICICLE]);
 
         $this->assertEqualsWithDelta(self::CLEAR_ICICLE_REPROCESS_VALUE, $bestUnitPrices[self::CLEAR_ICICLE], self::PRICE_DELTA);
     }
@@ -124,7 +183,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         ]);
         $calculator = $this->createCalculator($miningEntryRepository);
 
-        $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE => null], $calculator->getBestUnitPrices([self::TYPE_WITHOUT_ANY_PRICE]));
+        $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE => null], $calculator->getBestUnitPrices($this->user, [self::TYPE_WITHOUT_ANY_PRICE]));
         $this->assertMiningValue(null, [self::TYPE_WITHOUT_ANY_PRICE], $calculator->getTotalBestValue($this->user, $this->from, $this->to));
         $this->assertDailyMiningValues(
             ['2026-10-09' => null],
@@ -145,9 +204,10 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         $calculator = new MiningBestValueCalculator(
             $this->createStub(MiningEntryRepository::class),
             $this->createOreValueService($this->jitaSellPricesWithoutCompressedOre(), $structureMarketService),
+            $this->profileRepositoryWithYield(0.78),
         );
 
-        $bestUnitPrices = $calculator->getBestUnitPrices([self::BITUMENS]);
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::BITUMENS]);
 
         $this->assertEqualsWithDelta(self::BITUMENS_REPROCESS_VALUE, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
     }
@@ -175,7 +235,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     {
         $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
         $miningEntryRepository->method('getQuantitiesByType')->willReturn([]);
-        $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything());
+        $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything(), $this->profileRepositoryWithYield(0.78));
 
         $this->assertSame(
             ['totalValue' => 0.0, 'missingPriceTypeIds' => []],
@@ -205,7 +265,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     {
         $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
         $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([]);
-        $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything());
+        $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything(), $this->profileRepositoryWithYield(0.78));
 
         $this->assertSame(
             ['byDate' => [], 'missingPriceTypeIds' => []],
@@ -240,7 +300,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     {
         $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
         $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([]);
-        $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything());
+        $calculator = new MiningBestValueCalculator($miningEntryRepository, $this->oreValueServiceThatMustNotLookUpAnything(), $this->profileRepositoryWithYield(0.78));
 
         $this->assertSame([], $calculator->getTotalsByUsageBestValue($this->user, $this->from, $this->to));
     }
@@ -250,7 +310,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     {
         $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class));
 
-        $bestUnitPrices = $calculator->getBestUnitPrices([self::BITUMENS, self::TYPE_WITHOUT_ANY_PRICE]);
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::BITUMENS, self::TYPE_WITHOUT_ANY_PRICE]);
 
         $this->assertSame([self::BITUMENS, self::TYPE_WITHOUT_ANY_PRICE], array_keys($bestUnitPrices));
         $this->assertEqualsWithDelta(self::BITUMENS_REPROCESS_VALUE, $bestUnitPrices[self::BITUMENS], self::PRICE_DELTA);
@@ -393,7 +453,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         ]);
         $calculator = $this->createCalculator($miningEntryRepository, $jitaSellPrices);
 
-        $this->assertSame([self::FULLERITE_C50 => 0.0], $calculator->getBestUnitPrices([self::FULLERITE_C50]));
+        $this->assertSame([self::FULLERITE_C50 => 0.0], $calculator->getBestUnitPrices($this->user, [self::FULLERITE_C50]));
         $this->assertMiningValue(0.0, [], $calculator->getTotalBestValue($this->user, $this->from, $this->to));
     }
 
@@ -404,7 +464,7 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
         $jitaSellPrices[self::COMPRESSED_FULLERITE_C50] = 0.0;
         $calculator = $this->createCalculator($this->createStub(MiningEntryRepository::class), $jitaSellPrices);
 
-        $bestUnitPrices = $calculator->getBestUnitPrices([self::FULLERITE_C50]);
+        $bestUnitPrices = $calculator->getBestUnitPrices($this->user, [self::FULLERITE_C50]);
 
         $this->assertEqualsWithDelta(self::FULLERITE_C50_RAW_PRICE, $bestUnitPrices[self::FULLERITE_C50], self::PRICE_DELTA);
     }
@@ -462,10 +522,12 @@ final class MiningBestValueCalculatorCharacterizationTest extends TestCase
     private function createCalculator(
         MiningEntryRepository $miningEntryRepository,
         ?array $jitaSellPrices = null,
+        ?ReprocessingProfileRepository $profileRepository = null,
     ): MiningBestValueCalculator {
         return new MiningBestValueCalculator(
             $miningEntryRepository,
             $this->createOreValueService($jitaSellPrices ?? $this->jitaSellPricesWithoutCompressedOre()),
+            $profileRepository ?? $this->profileRepositoryWithYield(0.78),
         );
     }
 

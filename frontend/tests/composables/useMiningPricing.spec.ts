@@ -9,10 +9,8 @@ import {
   miningEntry,
 } from '../components/ledger/miningLedgerHarness'
 
-const REPROCESS_YIELD = 78
-
 function pricing(entries: MiningEntry[] = []) {
-  return useMiningPricing(ref(entries), ref(REPROCESS_YIELD))
+  return useMiningPricing(ref(entries))
 }
 
 const STRUCTURE_COMPRESSED_VELDSPAR = miningEntry({ id: 'structure-compressed-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 3_000, structureCompressedUnitPrice: 1_100, structureCompressedEquivalentPrice: 1_100, reprocessValue: 13.32, usage: 'sold' })
@@ -28,11 +26,28 @@ describe('useMiningPricing best unit price of an entry', () => {
   })
 
   it('ignores the compressed unit price of the structure when its compressed equivalent price is unknown', () => {
-    const scorditeWithoutStructureEquivalent = miningEntry({ id: 'scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 6_400, structureCompressedUnitPrice: 2_350, structureCompressedEquivalentPrice: null, reprocessValue: 9.5 })
+    const scorditeWithoutStructureEquivalent = miningEntry({ id: 'scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 6_400, structureCompressedUnitPrice: 2_350, structureCompressedEquivalentPrice: null, reprocessValue: 9.5, reprocessYield: 0.78 })
     const { getBestPriceValue, getBestPrice } = pricing()
 
     expect(getBestPriceValue(scorditeWithoutStructureEquivalent)).toBe(9.5)
     expect(getBestPrice(scorditeWithoutStructureEquivalent)).toEqual({ value: 9.5, color: 'text-purple-400', source: 'Jita reprocess 78%' })
+  })
+
+  it('labels the reprocess sources with the yield carried by the entry', () => {
+    const jitaReprocessedScordite = miningEntry({ id: 'jita-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_000, reprocessValue: 9.5, reprocessYield: 0.7236 })
+    const structureReprocessedScordite = miningEntry({ id: 'structure-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_000, structureReprocessValue: 11.2, reprocessYield: 0.9063 })
+    const { getBestPrice } = pricing()
+
+    expect(getBestPrice(jitaReprocessedScordite)).toEqual({ value: 9.5, color: 'text-purple-400', source: 'Jita reprocess 72%' })
+    expect(getBestPrice(structureReprocessedScordite)).toEqual({ value: 11.2, color: 'text-lime-400', source: 'Structure reprocess 91%' })
+  })
+
+  it('values an entry without a known yield from its other sources only', () => {
+    const scorditeWithUnknownYield = miningEntry({ id: 'scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 6_400, compressedEquivalentPrice: 8.1, reprocessValue: null, reprocessYield: null })
+    const { getBestPrice, getEntryValue } = pricing()
+
+    expect(getBestPrice(scorditeWithUnknownYield)).toEqual({ value: 8.1, color: 'text-cyan-400', source: 'Jita compresse' })
+    expect(getEntryValue(scorditeWithUnknownYield)).toBeCloseTo(51_840, 6)
   })
 
   it('falls back to the raw unit price when no other source exists', () => {
@@ -95,7 +110,7 @@ describe('useMiningPricing mining value by usage', () => {
   })
 
   it('makes unknown the usage holding an ore without any price, and the total, while the other usages stay known', () => {
-    const soldVeldspar = miningEntry({ id: 'sold-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 7_000, reprocessValue: 15.5, usage: 'sold' })
+    const soldVeldspar = miningEntry({ id: 'sold-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 7_000, reprocessValue: 15.5, reprocessYield: 0.78, usage: 'sold' })
     const industryTritanium = miningEntry({ id: 'industry-tritanium', typeId: TRITANIUM_TYPE_ID, typeName: 'Tritanium', quantity: 2_500, rawUnitPrice: 4.27, usage: 'industry' })
     const corpScordite = miningEntry({ id: 'corp-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_800, compressedEquivalentPrice: 24.25, usage: 'corp_project' })
 

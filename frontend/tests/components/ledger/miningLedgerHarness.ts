@@ -37,6 +37,7 @@ export function miningEntry(overrides: Partial<MiningEntry>): MiningEntry {
     structureCompressedEquivalentPrice: null,
     reprocessValue: null,
     structureReprocessValue: null,
+    reprocessYield: null,
     rawUnitPrice: null,
     usage: 'unknown',
     linkedProjectId: null,

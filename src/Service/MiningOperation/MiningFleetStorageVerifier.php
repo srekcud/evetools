@@ -164,7 +164,7 @@ final readonly class MiningFleetStorageVerifier
         sort($typeIds);
         $compressedTypeIds = array_map(
             static fn (array $prices): ?int => $prices['compressedTypeId'],
-            $this->oreValueService->getBatchOrePrices($typeIds),
+            $this->oreValueService->getBatchOrePrices($typeIds, null, null),
         );
         $typeNames = $this->typeNameResolver->findNames($typeIds);
 

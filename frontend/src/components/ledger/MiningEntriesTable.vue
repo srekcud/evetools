@@ -14,7 +14,6 @@ import MiningEntryMenu from './MiningEntryMenu.vue'
 const props = defineProps<{
   entries: MiningEntry[]
   selectedStructureId: number | null
-  reprocessYield: number
 }>()
 
 const emit = defineEmits<{
@@ -26,10 +25,18 @@ const { formatIskShort, formatNumber, formatDate } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
-// Wrap reprocessYield as a ref for the composable
-const reprocessYieldRef = computed(() => props.reprocessYield)
 const entriesRef = computed(() => props.entries)
-const { getBestPrice, getEntryValue } = useMiningPricing(entriesRef, reprocessYieldRef)
+const { getBestPrice, getEntryValue } = useMiningPricing(entriesRef)
+
+const UNKNOWN_YIELD_LABEL = '?'
+const UNKNOWN_YIELD_TITLE = 'Rendement inconnu : profil de retraitement absent ou illisible'
+
+function yieldPercentLabel(reprocessYield: number | null): string {
+  return reprocessYield === null ? UNKNOWN_YIELD_LABEL : `${(reprocessYield * 100).toFixed(2)}%`
+}
+
+const sharedReprocessYield = computed(() => props.entries.find(entry => entry.reprocessYield !== null)?.reprocessYield ?? null)
+const reprocessColumnTitle = computed(() => sharedReprocessYield.value === null ? UNKNOWN_YIELD_TITLE : `Valeur reprocess par unite (${yieldPercentLabel(sharedReprocessYield.value)} yield)`)
 
 // Context menu
 const { menuPosition, activeMenuId: activeMenuEntryId, openMenu, closeMenu } = useContextMenu()
@@ -221,7 +228,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
             <th class="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">{{ t('ledger.mining.type') }}</th>
             <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">{{ t('ledger.mining.qty') }}</th>
             <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider" title="Prix equivalent compresse Jita (divise par 100)">Compress</th>
-            <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider" :title="`Valeur reprocess par unite (${reprocessYield.toFixed(2)}% yield)`">Reproc. {{ reprocessYield.toFixed(2) }}%</th>
+            <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider" :title="reprocessColumnTitle">Reproc. {{ yieldPercentLabel(sharedReprocessYield) }}</th>
             <th v-if="selectedStructureId" class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider" title="Prix structure selectionnee">Structure</th>
             <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">{{ t('common.status.total') }}</th>
             <th class="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">{{ t('ledger.mining.status') }}</th>
@@ -268,10 +275,10 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
               <span v-else class="text-slate-500">-</span>
             </td>
             <td class="px-3 py-3 text-sm text-right">
-              <span v-if="entry.reprocessValue" class="text-purple-400" :title="`Valeur reprocess par unite (${reprocessYield.toFixed(2)}% yield)`">
+              <span v-if="entry.reprocessValue" class="text-purple-400" :title="`Valeur reprocess par unite (${yieldPercentLabel(entry.reprocessYield)} yield)`">
                 {{ formatNumber(entry.reprocessValue, 2) }}
               </span>
-              <span v-else class="text-slate-500">-</span>
+              <span v-else class="text-slate-500" :title="entry.reprocessYield === null ? UNKNOWN_YIELD_TITLE : undefined">-</span>
             </td>
             <td v-if="selectedStructureId" class="px-3 py-3 text-sm text-right">
               <span v-if="entry.structureCompressedEquivalentPrice" class="text-emerald-400" :title="`Compresse: ${formatNumber(entry.structureCompressedUnitPrice, 0)} ISK/u`">

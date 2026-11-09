@@ -13,9 +13,6 @@ use App\Repository\Sde\InvTypeRepository;
  */
 class OreValueService
 {
-    // Default reprocessing yield (can be configured by user)
-    private const DEFAULT_REPROCESS_YIELD = 0.78; // 78% yield with skills
-
     // Cache for compressed type mappings
     /** @var array<int, array{typeId: int, typeName: string}|null> */
     private array $compressedTypeCache = [];
@@ -36,7 +33,7 @@ class OreValueService
      * @param float $exportTax Export tax in ISK/m³ to subtract from Jita prices
      * @return array<int, array<string, mixed>> typeId => price data
      */
-    public function getBatchOrePrices(array $typeIds, ?int $structureId = null, float $reprocessYield = self::DEFAULT_REPROCESS_YIELD, float $exportTax = 0.0, MarketSide $side = MarketSide::Sell): array
+    public function getBatchOrePrices(array $typeIds, ?int $structureId = null, ?float $reprocessYield = null, float $exportTax = 0.0, MarketSide $side = MarketSide::Sell): array
     {
         if (empty($typeIds)) {
             return [];
@@ -144,7 +141,7 @@ class OreValueService
             }
 
             // Reprocess value calculation
-            if (isset($reprocessMaterials[$typeId])) {
+            if ($reprocessYield !== null && isset($reprocessMaterials[$typeId])) {
                 $portionSize = $rawType?->getPortionSize() ?? 100;
 
                 // Jita reprocess value

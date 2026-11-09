@@ -54,7 +54,7 @@ class MiningStatsByTypeProvider implements ProviderInterface
 
         // Get best unit prices for all ore types
         $typeIds = array_column($byType, 'typeId');
-        $bestPrices = $this->miningBestValueCalculator->getBestUnitPrices($typeIds);
+        $bestPrices = $this->miningBestValueCalculator->getBestUnitPrices($user, $typeIds);
 
         // Convert to resource objects with best-price values
         $typeStats = [];

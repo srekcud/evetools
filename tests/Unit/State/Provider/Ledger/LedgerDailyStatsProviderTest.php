@@ -129,6 +129,7 @@ final class LedgerDailyStatsProviderTest extends TestCase
             new MiningBestValueCalculator(
                 $miningEntryRepository,
                 $this->createOreValueService($jitaSellPrices ?? $this->jitaSellPricesWithoutCompressedOre()),
+                $this->profileRepositoryWithYield(0.78),
             ),
             $requestStack,
         );

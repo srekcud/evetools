@@ -29,11 +29,29 @@ final class OreValueServiceCharacterizationTest extends TestCase
         $this->assertSame([], $oreValueService->getBatchOrePrices([]));
     }
 
-    public function testPricesVeldsparRawCompressedAndReprocessedOnJitaAtDefaultYield(): void
+    #[Group('issue-269')]
+    public function testWithoutAYieldTheReprocessedValuesAndTheYieldAreUnknownAndOtherPricesUnchanged(): void
+    {
+        $oreValueService = $this->createOreValueService(
+            $this->jitaSellPrices(),
+            $this->structureMarketSelling(self::MARKET_STRUCTURE_ID, [self::COMPRESSED_VELDSPAR => 1100.0, self::TRITANIUM => 4.5]),
+        );
+
+        $veldspar = $oreValueService->getBatchOrePrices([self::VELDSPAR], self::MARKET_STRUCTURE_ID)[self::VELDSPAR];
+
+        $this->assertNull($veldspar['reprocessValue']);
+        $this->assertNull($veldspar['structureReprocessValue']);
+        $this->assertNull($veldspar['reprocessYield']);
+        $this->assertEqualsWithDelta(18.37, $veldspar['rawUnitPrice'], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(19.61, $veldspar['compressedEquivalentPrice'], self::PRICE_DELTA);
+        $this->assertEqualsWithDelta(1100.0, $veldspar['structureCompressedEquivalentPrice'], self::PRICE_DELTA);
+    }
+
+    public function testPricesVeldsparRawCompressedAndReprocessedOnJitaAtAGivenYield(): void
     {
         $oreValueService = $this->createOreValueService($this->jitaSellPrices());
 
-        $orePrices = $oreValueService->getBatchOrePrices([self::VELDSPAR]);
+        $orePrices = $oreValueService->getBatchOrePrices([self::VELDSPAR], null, self::DEFAULT_REPROCESS_YIELD);
 
         $this->assertSame([self::VELDSPAR], array_keys($orePrices));
         $this->assertSame(
@@ -240,7 +258,7 @@ final class OreValueServiceCharacterizationTest extends TestCase
     {
         $oreValueService = $this->createOreValueService($this->jitaSellPrices());
 
-        $veldspar = $oreValueService->getBatchOrePrices([self::VELDSPAR], self::MARKET_STRUCTURE_ID)[self::VELDSPAR];
+        $veldspar = $oreValueService->getBatchOrePrices([self::VELDSPAR], self::MARKET_STRUCTURE_ID, self::DEFAULT_REPROCESS_YIELD)[self::VELDSPAR];
 
         $this->assertNull($veldspar['structureUnitPrice']);
         $this->assertNull($veldspar['structureCompressedUnitPrice']);
@@ -258,7 +276,7 @@ final class OreValueServiceCharacterizationTest extends TestCase
         );
         $oreValueService = $this->createOreValueService($jitaSellPrices);
 
-        $orePrices = $oreValueService->getBatchOrePrices([self::VELDSPAR, self::BITUMENS]);
+        $orePrices = $oreValueService->getBatchOrePrices([self::VELDSPAR, self::BITUMENS], null, self::DEFAULT_REPROCESS_YIELD);
 
         $this->assertNull($orePrices[self::VELDSPAR]['rawUnitPrice']);
         $this->assertEqualsWithDelta(13.3224, $orePrices[self::VELDSPAR]['reprocessValue'], self::PRICE_DELTA);
@@ -291,7 +309,7 @@ final class OreValueServiceCharacterizationTest extends TestCase
     {
         $oreValueService = $this->createOreValueService($this->jitaSellPrices());
 
-        $compressedVeldspar = $oreValueService->getBatchOrePrices([self::COMPRESSED_VELDSPAR])[self::COMPRESSED_VELDSPAR];
+        $compressedVeldspar = $oreValueService->getBatchOrePrices([self::COMPRESSED_VELDSPAR], null, self::DEFAULT_REPROCESS_YIELD)[self::COMPRESSED_VELDSPAR];
 
         $this->assertEqualsWithDelta(19.61, $compressedVeldspar['rawUnitPrice'], self::PRICE_DELTA);
         $this->assertNull($compressedVeldspar['compressedTypeId']);
@@ -339,7 +357,7 @@ final class OreValueServiceCharacterizationTest extends TestCase
         $sdeTypes[self::CLEAR_ICICLE]['portionSize'] = null;
         $oreValueService = $this->createOreValueService($this->jitaSellPrices(), null, $sdeTypes);
 
-        $clearIcicle = $oreValueService->getBatchOrePrices([self::CLEAR_ICICLE])[self::CLEAR_ICICLE];
+        $clearIcicle = $oreValueService->getBatchOrePrices([self::CLEAR_ICICLE], null, self::DEFAULT_REPROCESS_YIELD)[self::CLEAR_ICICLE];
 
         $this->assertEqualsWithDelta(2158.52598, $clearIcicle['reprocessValue'], self::PRICE_DELTA);
     }
@@ -351,7 +369,7 @@ final class OreValueServiceCharacterizationTest extends TestCase
         unset($sdeTypes[self::CLEAR_ICICLE]);
         $oreValueService = $this->createOreValueService($this->jitaSellPrices(), null, $sdeTypes);
 
-        $clearIcicle = $oreValueService->getBatchOrePrices([self::CLEAR_ICICLE])[self::CLEAR_ICICLE];
+        $clearIcicle = $oreValueService->getBatchOrePrices([self::CLEAR_ICICLE], null, self::DEFAULT_REPROCESS_YIELD)[self::CLEAR_ICICLE];
 
         $this->assertEqualsWithDelta(2158.52598, $clearIcicle['reprocessValue'], self::PRICE_DELTA);
         $this->assertEqualsWithDelta(152300.0, $clearIcicle['rawUnitPrice'], self::PRICE_DELTA);

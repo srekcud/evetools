@@ -18,7 +18,7 @@ const UNPRICED_MYSTERY_ORE = miningEntry({ id: 'mystery-ore', typeId: MYSTERY_OR
 function mountTable(entries: MiningEntry[]) {
   setActivePinia(createPinia())
   return mount(MiningEntriesTable, {
-    props: { entries, selectedStructureId: ASTRAHUS_STRUCTURE_ID, reprocessYield: 78 },
+    props: { entries, selectedStructureId: ASTRAHUS_STRUCTURE_ID },
     global: { plugins: [i18nPlugin()] },
   })
 }

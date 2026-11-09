@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Mining;
 
+use App\Entity\ReprocessingProfile;
 use App\Entity\Sde\InvCategory;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Entity\Sde\InvTypeMaterial;
+use App\Repository\ReprocessingProfileRepository;
 use App\Repository\Sde\InvTypeMaterialRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
@@ -266,6 +268,29 @@ trait BuildsOreValueServiceOnSdeOres
             $typeIds,
             array_map(static fn (int $typeId): ?float => $prices[$typeId] ?? null, $typeIds),
         );
+    }
+
+    private function profileRepositoryWithYield(float $reprocessYield): ReprocessingProfileRepository
+    {
+        return $this->profileRepositoryReturning((new ReprocessingProfile())->setReprocessYield($reprocessYield));
+    }
+
+    private function profileRepositoryWithNoProfile(): ReprocessingProfileRepository
+    {
+        return $this->profileRepositoryReturning(null);
+    }
+
+    private function profileRepositoryWithUnreadableYield(): ReprocessingProfileRepository
+    {
+        return $this->profileRepositoryReturning((new ReprocessingProfile())->setReprocessYield(null));
+    }
+
+    private function profileRepositoryReturning(?ReprocessingProfile $profile): ReprocessingProfileRepository
+    {
+        $profileRepository = $this->createStub(ReprocessingProfileRepository::class);
+        $profileRepository->method('findOneBy')->willReturn($profile);
+
+        return $profileRepository;
     }
 
     private function oreValueServiceThatMustNotLookUpAnything(): OreValueService

@@ -10,6 +10,7 @@ use App\ApiResource\Ledger\MiningEntryResource;
 use App\Entity\MiningEntry;
 use App\Entity\User;
 use App\Repository\MiningEntryRepository;
+use App\Repository\ReprocessingProfileRepository;
 use App\Service\OreValueService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -25,6 +26,7 @@ class MiningEntryCollectionProvider implements ProviderInterface
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly RequestStack $requestStack,
         private readonly OreValueService $oreValueService,
+        private readonly ReprocessingProfileRepository $profileRepository,
     ) {
     }
 
@@ -45,8 +47,6 @@ class MiningEntryCollectionProvider implements ProviderInterface
         $usage = $request?->query->get('usage');
         $structureId = $request?->query->get('structureId');
         $structureIdInt = $structureId !== null ? (int) $structureId : null;
-        $reprocessYield = $request?->query->get('reprocessYield');
-        $reprocessYieldFloat = $reprocessYield !== null ? ((float) $reprocessYield) / 100 : null;
         $exportTax = $request?->query->get('exportTax');
         $exportTaxFloat = $exportTax !== null ? (float) $exportTax : null;
 
@@ -72,7 +72,7 @@ class MiningEntryCollectionProvider implements ProviderInterface
         $orePrices = $this->oreValueService->getBatchOrePrices(
             $uniqueTypeIds,
             $structureIdInt,
-            $reprocessYieldFloat ?? 0.78,
+            $this->profileRepository->findOneBy(['user' => $user])?->getReprocessYield(),
             $exportTaxFloat ?? 0.0
         );
 
@@ -112,6 +112,7 @@ class MiningEntryCollectionProvider implements ProviderInterface
             $resource->structureCompressedUnitPrice = $prices['structureCompressedUnitPrice'];
             $resource->structureCompressedEquivalentPrice = $prices['structureCompressedEquivalentPrice'];
             $resource->rawUnitPrice = $prices['rawUnitPrice'];
+            $resource->reprocessYield = $prices['reprocessYield'] ?? null;
             $resource->reprocessValue = $prices['reprocessValue'] ?? null;
             $resource->structureReprocessValue = $prices['structureReprocessValue'] ?? null;
         }

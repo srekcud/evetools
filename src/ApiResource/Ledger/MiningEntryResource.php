@@ -29,7 +29,6 @@ use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
                     new Model\Parameter(name: 'typeId', in: 'query', schema: ['type' => 'integer']),
                     new Model\Parameter(name: 'usage', in: 'query', schema: ['type' => 'string']),
                     new Model\Parameter(name: 'structureId', in: 'query', schema: ['type' => 'integer']),
-                    new Model\Parameter(name: 'reprocessYield', in: 'query', schema: ['type' => 'integer']),
                 ],
             ),
         ),
@@ -106,6 +105,8 @@ class MiningEntryResource
     public ?float $structureCompressedEquivalentPrice = null;
 
     public ?float $rawUnitPrice = null;
+
+    public ?float $reprocessYield = null;
 
     // Reprocess value (value of minerals after reprocessing, per unit)
     public ?float $reprocessValue = null;
