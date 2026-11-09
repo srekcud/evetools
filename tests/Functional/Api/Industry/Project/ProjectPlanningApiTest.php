@@ -34,6 +34,7 @@ final class ProjectPlanningApiTest extends WebTestCase
         'delaySeconds',
         'expectedEnd',
         'id',
+        'lanesShown',
         'plannedEnd',
         'structureTimeBonusIncluded',
         'unscheduled',
@@ -46,10 +47,9 @@ final class ProjectPlanningApiTest extends WebTestCase
         $this->setUpIshtarGroupProject();
     }
 
-    public function testAcceptedParticipantReadsThePlanningOfAProjectWithoutJobLineWithItsCharactersAndNullEnds(): void
+    public function testOwnerOfAProjectWithoutOtherParticipantReadsThePlanningWithOneLanePerCharacterAndNullEnds(): void
     {
-        $ariaSolberg = $this->owner->getMainCharacter();
-        $this->cacheSkills($ariaSolberg, [
+        $this->cacheSkills($this->owner->getMainCharacter(), [
             CachedCharacterSkill::SKILL_INDUSTRY => 4,
             CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 3,
             CachedCharacterSkill::SKILL_REACTIONS => 2,
@@ -58,10 +58,9 @@ final class ProjectPlanningApiTest extends WebTestCase
             CachedCharacterSkill::SKILL_MASS_REACTIONS => 1,
         ]);
         $this->persistCharacterOf($this->owner, 'Brin Solberg');
-        $this->addMembership($this->hecateBatch, $this->member, ParticipantRole::Member, ParticipantStatus::Accepted);
         $this->em->flush();
 
-        $this->client->loginUser($this->member, 'api');
+        $this->client->loginUser($this->owner, 'api');
         $this->request('GET', $this->planningUri($this->hecateBatch));
 
         self::assertResponseStatusCodeSame(200);
@@ -75,6 +74,7 @@ final class ProjectPlanningApiTest extends WebTestCase
                 $this->idOfProject($this->hecateBatch),
                 $this->hecateBatch->getCreatedAt()->getTimestamp(),
                 false,
+                true,
                 [null, null, null, null],
                 [],
                 [self::CHARACTER_KEYS, self::CHARACTER_KEYS],
@@ -88,6 +88,7 @@ final class ProjectPlanningApiTest extends WebTestCase
                 $planning['id'],
                 (new \DateTimeImmutable($planning['anchor']))->getTimestamp(),
                 $planning['structureTimeBonusIncluded'],
+                $planning['lanesShown'],
                 [$planning['plannedEnd'], $planning['expectedEnd'], $planning['delaySeconds'], $planning['delayCause']],
                 $planning['unscheduled'],
                 array_map(static function (array $character): array {
@@ -109,6 +110,45 @@ final class ProjectPlanningApiTest extends WebTestCase
                 ),
             ],
         );
+    }
+
+    #[Group('issue-339')]
+    public function testMemberOfAGroupProjectReadsTheEndsAndTheDelayWithoutAnyLane(): void
+    {
+        self::assertSame([false, [], [null, null, null]], $this->planningOfAGroupProjectSeenBy($this->member));
+    }
+
+    #[Group('issue-339')]
+    public function testOwnerOfAGroupProjectReadsTheEndsAndTheDelayWithoutAnyLane(): void
+    {
+        self::assertSame([false, [], [null, null, null]], $this->planningOfAGroupProjectSeenBy($this->owner));
+    }
+
+    private function planningOfAGroupProjectSeenBy(User $reader): array
+    {
+        $this->persistCharacterOf($this->owner, 'Brin Solberg');
+        $this->addMembership($this->hecateBatch, $this->member, ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->em->flush();
+
+        $this->client->loginUser($reader, 'api');
+        $this->request('GET', $this->planningUri($this->hecateBatch));
+        self::assertResponseStatusCodeSame(200);
+        $planning = $this->responseJson();
+
+        return [$planning['lanesShown'], $planning['characters'], [$planning['plannedEnd'], $planning['expectedEnd'], $planning['delaySeconds']]];
+    }
+
+    #[Group('issue-339')]
+    public function testPendingParticipantDoesNotTakeTheLanesAwayFromTheOwnerOfAProject(): void
+    {
+        $this->addMembership($this->hecateBatch, $this->pendingMember, ParticipantRole::Member, ParticipantStatus::Pending);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->planningUri($this->hecateBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(true, $this->responseJson()['lanesShown']);
     }
 
     public function testPlannedEndIsTheCreationOfTheProjectPlusTheDurationOfItsManufacturingJobWithTheSkillsOfTheCharacter(): void

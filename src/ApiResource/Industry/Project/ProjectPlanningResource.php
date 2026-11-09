@@ -51,6 +51,8 @@ class ProjectPlanningResource
      */
     public ?array $delayCause = null;
 
+    public bool $lanesShown = false;
+
     /**
      * @var list<array<string, mixed>>
      */
