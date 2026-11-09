@@ -74,7 +74,7 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
             ],
         );
 
-        return ProjectSaleResource::fromSale($sale);
+        return ProjectSaleResource::fromSale($sale, $user);
     }
 
     private function assertCorrectionKeepsTheWalletTransaction(IndustryProjectSale $sale, UpdateSaleInput $correction): void

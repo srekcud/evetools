@@ -104,7 +104,7 @@ final readonly class RecordSaleFromWalletTransactionProcessor implements Process
             ],
         );
 
-        return ProjectSaleResource::fromSale($sale);
+        return ProjectSaleResource::fromSale($sale, $user);
     }
 
     private function transactionOf(User $user, string $transactionId): CachedWalletTransaction
