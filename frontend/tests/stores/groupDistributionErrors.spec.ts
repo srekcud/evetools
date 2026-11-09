@@ -50,6 +50,9 @@ const SABRE_BATCH_DISTRIBUTION: Distribution = {
   netRevenue: 90_598_000,
   totalProjectCost: 70_000_000,
   marginPercent: 29.43,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [],
 }
 

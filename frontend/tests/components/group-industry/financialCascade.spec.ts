@@ -32,6 +32,9 @@ const PROFITABLE_SALE: Distribution = {
   netRevenue: 1_856_000,
   totalProjectCost: 1_172_498.42,
   marginPercent: 58.3,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [
     member({ materialCosts: 700_000, jobInstallCosts: 100_000, lineRentalCosts: 20_000 }),
     member({ memberId: 'member-aria', materialCosts: 200_000, jobInstallCosts: 100_000, lineRentalCosts: 52_498.42 }),
@@ -46,6 +49,9 @@ const LOSING_SALE: Distribution = {
   netRevenue: 928_000,
   totalProjectCost: 1_300_000,
   marginPercent: -28.6,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [member({ materialCosts: 1_000_000, jobInstallCosts: 200_000, bpcCosts: 100_000 })],
 }
 

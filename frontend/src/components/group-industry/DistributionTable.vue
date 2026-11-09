@@ -3,6 +3,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
+import AwaitingSalesValue from '@/components/group-industry/AwaitingSalesValue.vue'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
@@ -22,7 +23,18 @@ const expandedMemberId = ref<string | null>(null)
 
 const dist = computed(() => store.distribution)
 
-const isUndistributable = computed(() => dist.value?.marginPercent === null)
+const isAwaitingSales = computed(() => dist.value?.awaitingSales === true)
+
+const unsoldProducts = computed(() => dist.value?.unsoldProducts ?? [])
+
+const isProvisional = computed(() => !isAwaitingSales.value && unsoldProducts.value.length > 0)
+
+const isUndistributable = computed(() => !isAwaitingSales.value && dist.value?.marginPercent === null)
+
+const showLossScenario = computed(() => {
+  const margin = dist.value?.marginPercent ?? null
+  return !isAwaitingSales.value && !isProvisional.value && margin !== null && margin < 0
+})
 
 const RING_RADIUS = 80
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
@@ -103,7 +115,15 @@ const BREAKDOWN_COLORS: Record<string, string> = {
   <div v-if="dist">
     <h2 class="text-lg font-semibold text-slate-100 mb-4">Profit Distribution</h2>
     <div
-      v-if="isContributionValueUnknown"
+      v-if="isAwaitingSales"
+      data-testid="awaiting-sales-banner"
+      class="bg-cyan-500/5 rounded-xl border border-dashed border-cyan-400/40 p-4 mb-4 text-sm text-cyan-300"
+    >
+      <p class="font-semibold">{{ t('groupIndustry.distribution.awaitingSales') }}</p>
+      <p class="text-xs text-cyan-300/80 mt-1">{{ t('groupIndustry.distribution.awaitingSalesBanner') }}</p>
+    </div>
+    <div
+      v-else-if="isContributionValueUnknown"
       class="bg-violet-500/5 rounded-xl border border-dashed border-violet-400/40 p-4 mb-4 text-sm text-violet-300"
     >
       {{ t('groupIndustry.distribution.unknownContributionValue') }}
@@ -113,6 +133,35 @@ const BREAKDOWN_COLORS: Record<string, string> = {
       class="bg-amber-500/5 rounded-xl border border-amber-500/20 p-4 mb-4 text-sm text-amber-300"
     >
       {{ t('groupIndustry.distribution.undistributable') }}
+    </div>
+    <div
+      v-if="isProvisional"
+      data-testid="provisional-margin-banner"
+      class="bg-amber-500/5 rounded-xl border border-amber-500/20 p-4 mb-4 text-sm"
+    >
+      <h4 class="font-semibold text-amber-300 mb-2">{{ t('groupIndustry.distribution.provisionalMarginTitle') }}</h4>
+      <p class="text-xs text-slate-400 mb-1">{{ t('groupIndustry.distribution.provisionalMarginUnsold') }}</p>
+      <ul class="space-y-1 mb-3">
+        <li
+          v-for="product in unsoldProducts"
+          :key="product.typeId"
+          data-testid="unsold-product"
+          class="flex items-center justify-between text-xs"
+        >
+          <span class="text-slate-300">{{ product.typeName }} &times; {{ product.unsoldQuantity }}</span>
+          <span class="font-mono text-slate-400">
+            <template v-if="product.lastUnitPrice === null">{{ t('groupIndustry.distribution.neverSold') }}</template>
+            <template v-else>{{ formatIsk(product.lastUnitPrice) }}</template>
+          </span>
+        </li>
+      </ul>
+      <p data-testid="projected-margin" class="text-xs text-slate-300">
+        {{ t('groupIndustry.distribution.projectedMargin') }}
+        <span class="font-mono font-semibold text-amber-300">
+          <UnknownValue v-if="dist.projectedMarginPercent === null" />
+          <template v-else>{{ dist.projectedMarginPercent.toFixed(1) }}%</template>
+        </span>
+      </p>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Ring Chart -->
@@ -138,8 +187,9 @@ const BREAKDOWN_COLORS: Record<string, string> = {
           </svg>
           <div class="absolute inset-0 flex flex-col items-center justify-center">
             <p class="text-xs text-slate-500 uppercase tracking-wider">Total Payout</p>
-            <p class="text-xl font-mono font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
-              <IskAmount :value="totalPayout" />
+            <p data-testid="total-payout" class="text-xl font-mono font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
+              <AwaitingSalesValue v-if="isAwaitingSales" />
+              <IskAmount v-else :value="totalPayout" />
             </p>
           </div>
         </div>
@@ -222,7 +272,8 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                     :class="profitColorClass(member.profitPart)"
                     style="font-variant-numeric: tabular-nums;"
                   >
-                    <UnknownValue v-if="member.profitPart === null" />
+                    <AwaitingSalesValue v-if="isAwaitingSales" />
+                    <UnknownValue v-else-if="member.profitPart === null" />
                     <template v-else>{{ formatProfit(member.profitPart) }}</template>
                   </td>
                   <td class="py-3.5 px-6 text-right">
@@ -230,7 +281,7 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                       class="font-mono font-bold text-lg"
                       :class="profitColorClass(member.payoutTotal)"
                       style="font-variant-numeric: tabular-nums;"
-                    ><IskAmount :value="member.payoutTotal" /></span>
+                    ><AwaitingSalesValue v-if="isAwaitingSales" /><IskAmount v-else :value="member.payoutTotal" /></span>
                   </td>
                 </tr>
                 <!-- Breakdown row (expanded) -->
@@ -307,7 +358,8 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                   :class="profitColorClass(totalProfit)"
                   style="font-variant-numeric: tabular-nums;"
                 >
-                  <UnknownValue v-if="totalProfit === null" />
+                  <AwaitingSalesValue v-if="isAwaitingSales" />
+                  <UnknownValue v-else-if="totalProfit === null" />
                   <template v-else>{{ formatProfit(totalProfit) }}</template>
                 </td>
                 <td
@@ -315,7 +367,8 @@ const BREAKDOWN_COLORS: Record<string, string> = {
                   :class="profitColorClass(totalPayout)"
                   style="font-variant-numeric: tabular-nums;"
                 >
-                  <IskAmount :value="totalPayout" />
+                  <AwaitingSalesValue v-if="isAwaitingSales" />
+                  <IskAmount v-else :value="totalPayout" />
                 </td>
               </tr>
             </tbody>
@@ -344,7 +397,8 @@ const BREAKDOWN_COLORS: Record<string, string> = {
 
     <!-- Loss scenario warning -->
     <div
-      v-if="dist.marginPercent !== null && dist.marginPercent < 0"
+      v-if="showLossScenario"
+      data-testid="loss-scenario"
       class="bg-red-500/5 rounded-xl border border-red-500/20 p-5 mt-4"
     >
       <div class="flex items-start gap-4">

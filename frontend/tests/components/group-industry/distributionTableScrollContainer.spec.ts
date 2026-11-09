@@ -45,6 +45,9 @@ function mountDistribution() {
     netRevenue: 4_400_000,
     totalProjectCost: 4_000_000,
     marginPercent: 10,
+    awaitingSales: false,
+    unsoldProducts: [],
+    projectedMarginPercent: null,
     members: [BUILDER_SHARE, MINER_SHARE],
   }
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })

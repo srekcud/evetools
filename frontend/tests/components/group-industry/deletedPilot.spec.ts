@@ -55,6 +55,9 @@ function mountDistribution(locale: 'en' | 'fr'): VueWrapper {
     netRevenue: 4_400_000,
     totalProjectCost: 4_000_000,
     marginPercent: 10,
+    awaitingSales: false,
+    unsoldProducts: [],
+    projectedMarginPercent: null,
     members: [DELETED_MEMBER, ACTIVE_MEMBER],
   }
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })

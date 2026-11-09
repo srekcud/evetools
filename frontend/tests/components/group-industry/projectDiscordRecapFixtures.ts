@@ -59,6 +59,9 @@ export function profitableDistribution(overrides: Partial<Distribution> = {}): D
     netRevenue: 1_860_000,
     totalProjectCost: 1_200_000,
     marginPercent: 55,
+    awaitingSales: false,
+    unsoldProducts: [],
+    projectedMarginPercent: null,
     members: [
       memberDistribution(),
       memberDistribution({

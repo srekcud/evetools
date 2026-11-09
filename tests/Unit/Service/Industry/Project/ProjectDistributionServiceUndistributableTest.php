@@ -77,7 +77,7 @@ final class ProjectDistributionServiceUndistributableTest extends TestCase
     {
         $result = $this->distributionOf($this->project(brokerFeePercent: 3.6, salesTaxPercent: 3.6), [], []);
 
-        self::assertSame([0.0, 0.0, 0.0, 0.0, 0.0, null], $this->totalsOf($result));
+        self::assertSame([0.0, 0.0, 0.0, null, 0.0, null], $this->totalsOf($result));
         self::assertSame([], $result->members);
     }
 

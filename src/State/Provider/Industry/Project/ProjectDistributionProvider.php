@@ -12,6 +12,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Industry\Project\ParticipantDistribution;
+use App\Service\Industry\Project\UnsoldProduct;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -65,6 +66,17 @@ class ProjectDistributionProvider implements ProviderInterface
         $resource->netRevenue = $result->netRevenue;
         $resource->totalProjectCost = $result->totalProjectCost;
         $resource->marginPercent = $result->marginPercent;
+        $resource->awaitingSales = $result->awaitingSales;
+        $resource->unsoldProducts = array_map(
+            static fn (UnsoldProduct $unsoldProduct): array => [
+                'typeId' => $unsoldProduct->typeId,
+                'typeName' => $unsoldProduct->typeName,
+                'unsoldQuantity' => $unsoldProduct->unsoldQuantity,
+                'lastUnitPrice' => $unsoldProduct->lastUnitPrice,
+            ],
+            $result->unsoldProducts,
+        );
+        $resource->projectedMarginPercent = $result->projectedMarginPercent;
         $resource->members = array_values(array_map(
             fn (ParticipantDistribution $member) => [
                 'memberId' => $member->memberId,

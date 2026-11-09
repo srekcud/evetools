@@ -80,6 +80,9 @@ const SABRE_BATCH_DISTRIBUTION: Distribution = {
   netRevenue: 7_254_000,
   totalProjectCost: 5_000_000,
   marginPercent: 45.08,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [],
 }
 
@@ -91,6 +94,9 @@ const HECATE_BATCH_DISTRIBUTION: Distribution = {
   netRevenue: 115_785_000,
   totalProjectCost: 90_000_000,
   marginPercent: 28.65,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [],
 }
 

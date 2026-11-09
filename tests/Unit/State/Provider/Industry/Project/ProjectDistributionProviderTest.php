@@ -17,6 +17,7 @@ use App\Repository\IndustryProjectSaleRepository;
 use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Industry\Project\ParticipantDistribution;
+use App\Service\Industry\Project\UnsoldProduct;
 use App\State\Provider\Industry\Project\ProjectDistributionProvider;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -293,6 +294,58 @@ class ProjectDistributionProviderTest extends TestCase
             ),
         );
         self::assertNull($resource->members[1]['jobInstallCosts']);
+    }
+
+    #[Group('issue-323')]
+    public function testAwaitingSalesUnsoldProductsAndProjectedMarginReachTheApi(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+        $distributionService = $this->createStub(ProjectDistributionService::class);
+        $distributionService->method('calculateDistribution')->willReturn(new DistributionResult(
+            totalRevenue: 1_200_000.0,
+            brokerFee: 18_000.0,
+            salesTax: 42_000.0,
+            netRevenue: 1_140_000.0,
+            totalProjectCost: 1_000_000.0,
+            marginPercent: 14.0,
+            members: [],
+            awaitingSales: true,
+            unsoldProducts: [
+                new UnsoldProduct(587, 'Rifter', 20, 40_000.0),
+                new UnsoldProduct(11_184, 'Hammerhead II', 7, null),
+            ],
+            projectedMarginPercent: 90.0,
+        ));
+        $provider = new ProjectDistributionProvider(
+            $this->security,
+            $this->sabreBatchProjectRepository(),
+            new ProjectAccessChecker($this->sabreBatchMemberRepository()),
+            $distributionService,
+        );
+
+        $resource = $provider->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertTrue($resource->awaitingSales);
+        self::assertSame(
+            [
+                ['typeId' => 587, 'typeName' => 'Rifter', 'unsoldQuantity' => 20, 'lastUnitPrice' => 40_000.0],
+                ['typeId' => 11_184, 'typeName' => 'Hammerhead II', 'unsoldQuantity' => 7, 'lastUnitPrice' => null],
+            ],
+            $resource->unsoldProducts,
+        );
+        self::assertSame(90.0, $resource->projectedMarginPercent);
+    }
+
+    #[Group('issue-323')]
+    public function testDistributionWithEveryProductSoldReachesTheApiWithoutUnsoldProductsNorProjectedMargin(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+
+        $resource = $this->distributionOf($this->sabreBatch->getId());
+
+        self::assertFalse($resource->awaitingSales);
+        self::assertSame([], $resource->unsoldProducts);
+        self::assertNull($resource->projectedMarginPercent);
     }
 
     private function distributionOf(Uuid $projectId): ProjectDistributionResource

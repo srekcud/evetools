@@ -8,6 +8,7 @@ class DistributionResult
 {
     /**
      * @param ParticipantDistribution[] $members
+     * @param list<UnsoldProduct> $unsoldProducts
      */
     public function __construct(
         public readonly float $totalRevenue,
@@ -17,5 +18,8 @@ class DistributionResult
         public readonly ?float $totalProjectCost,
         public readonly ?float $marginPercent,
         public readonly array $members,
+        public readonly bool $awaitingSales = false,
+        public readonly array $unsoldProducts = [],
+        public readonly ?float $projectedMarginPercent = null,
     ) {}
 }

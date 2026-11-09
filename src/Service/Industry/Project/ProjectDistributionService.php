@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project;
 
-use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
+use App\Entity\IndustryProjectContribution;
+use App\Entity\IndustryProjectSale;
 use App\Enum\ContributionType;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectSaleRepository;
 
 class ProjectDistributionService
 {
+    private const string FINAL_JOB_GROUP = 'final';
+    private const float PERCENT = 100.0;
+
     public function __construct(
         private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly IndustryProjectSaleRepository $saleRepository,
@@ -35,9 +39,11 @@ class ProjectDistributionService
         $approvedContributions = $this->contributionRepository->findApprovedByProject($project);
         $totalProjectCost = $this->sumOfValues(...$approvedContributions);
 
-        $marginRatio = $netRevenue !== null && $totalProjectCost !== null && $totalProjectCost > 0
+        $awaitingSales = $sales === [];
+        $marginRatio = !$awaitingSales && $netRevenue !== null && $totalProjectCost !== null && $totalProjectCost > 0
             ? ($netRevenue - $totalProjectCost) / $totalProjectCost
             : null;
+        $unsoldProducts = $awaitingSales ? [] : $this->unsoldProducts($project, $sales);
 
         $members = $this->buildMemberDistributions($approvedContributions, $totalProjectCost, $marginRatio);
 
@@ -45,11 +51,110 @@ class ProjectDistributionService
             totalRevenue: $totalRevenue,
             brokerFee: $brokerFee,
             salesTax: $salesTax,
-            netRevenue: $netRevenue,
+            netRevenue: $awaitingSales ? null : $netRevenue,
             totalProjectCost: $totalProjectCost,
-            marginPercent: $marginRatio === null ? null : $marginRatio * 100.0,
+            marginPercent: $marginRatio === null ? null : $marginRatio * self::PERCENT,
             members: $members,
+            awaitingSales: $awaitingSales,
+            unsoldProducts: $unsoldProducts,
+            projectedMarginPercent: $this->projectedMarginPercent(
+                $unsoldProducts,
+                $netRevenue,
+                $totalProjectCost,
+                $brokerFeePercent,
+                $salesTaxPercent,
+            ),
         );
+    }
+
+    /**
+     * @param IndustryProjectSale[] $sales
+     *
+     * @return list<UnsoldProduct>
+     */
+    private function unsoldProducts(IndustryProject $project, array $sales): array
+    {
+        /** @var array<int, array{typeName: string, required: int}> $toSellByTypeId */
+        $toSellByTypeId = [];
+        foreach ($project->getBomItems() as $line) {
+            if (!$line->isJob() || $line->getJobGroup() !== self::FINAL_JOB_GROUP) {
+                continue;
+            }
+
+            $typeId = $line->getTypeId();
+            $toSellByTypeId[$typeId] = [
+                'typeName' => $toSellByTypeId[$typeId]['typeName'] ?? $line->getTypeName(),
+                'required' => ($toSellByTypeId[$typeId]['required'] ?? 0) + $line->getRequiredQuantity(),
+            ];
+        }
+
+        if ($toSellByTypeId === []) {
+            return [];
+        }
+
+        $soldByTypeId = [];
+        $latestSaleByTypeId = [];
+        foreach ($sales as $sale) {
+            $typeId = $sale->getTypeId();
+            $soldByTypeId[$typeId] = ($soldByTypeId[$typeId] ?? 0) + $sale->getQuantity();
+            $latest = $latestSaleByTypeId[$typeId] ?? null;
+            if ($latest === null || $this->isMoreRecent($sale, $latest)) {
+                $latestSaleByTypeId[$typeId] = $sale;
+            }
+        }
+
+        $unsoldProducts = [];
+        foreach ($toSellByTypeId as $typeId => $toSell) {
+            $unsoldQuantity = $toSell['required'] - ($soldByTypeId[$typeId] ?? 0);
+            if ($unsoldQuantity <= 0) {
+                continue;
+            }
+
+            $unsoldProducts[] = new UnsoldProduct(
+                $typeId,
+                $toSell['typeName'],
+                $unsoldQuantity,
+                isset($latestSaleByTypeId[$typeId]) ? $latestSaleByTypeId[$typeId]->getUnitPrice() : null,
+            );
+        }
+
+        return $unsoldProducts;
+    }
+
+    private function isMoreRecent(IndustryProjectSale $candidate, IndustryProjectSale $reference): bool
+    {
+        $bySoldAt = $candidate->getSoldAt() <=> $reference->getSoldAt();
+
+        return $bySoldAt !== 0 ? $bySoldAt > 0 : $candidate->getCreatedAt() > $reference->getCreatedAt();
+    }
+
+    /**
+     * @param list<UnsoldProduct> $unsoldProducts
+     */
+    private function projectedMarginPercent(
+        array $unsoldProducts,
+        ?float $netRevenue,
+        ?float $totalProjectCost,
+        ?float $brokerFeePercent,
+        ?float $salesTaxPercent,
+    ): ?float {
+        if ($unsoldProducts === [] || $netRevenue === null || $totalProjectCost === null || $totalProjectCost <= 0
+            || $brokerFeePercent === null || $salesTaxPercent === null) {
+            return null;
+        }
+
+        $unsoldRevenue = 0.0;
+        foreach ($unsoldProducts as $unsoldProduct) {
+            if ($unsoldProduct->lastUnitPrice === null) {
+                return null;
+            }
+
+            $unsoldRevenue += $unsoldProduct->unsoldQuantity * $unsoldProduct->lastUnitPrice;
+        }
+
+        $projectedNetRevenue = $netRevenue + $unsoldRevenue * (1 - ($brokerFeePercent + $salesTaxPercent) / self::PERCENT);
+
+        return ($projectedNetRevenue - $totalProjectCost) / $totalProjectCost * self::PERCENT;
     }
 
     /**

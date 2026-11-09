@@ -47,6 +47,9 @@ const DISTRIBUTION_WITH_UNKNOWN_FEES: Distribution = {
   netRevenue: null,
   totalProjectCost: 600_000,
   marginPercent: null,
+  awaitingSales: false,
+  unsoldProducts: [],
+  projectedMarginPercent: null,
   members: [{
     memberId: 'member-aria',
     characterName: 'Aria Solberg',
