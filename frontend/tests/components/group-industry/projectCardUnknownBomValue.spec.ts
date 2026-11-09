@@ -30,6 +30,8 @@ const JACKDAW_PROJECT: GroupProject = {
   notes: null,
   acceptsOutsideFavoriteSystem: false,
   minimumOutsideSaving: 5,
+  sellStructureId: null,
+  sellStructureName: null,
 }
 
 function mountProjectCard(project: GroupProject): VueWrapper {

@@ -50,6 +50,16 @@ final class ProjectResourceMapperProjectTest extends TestCase
         $this->project->addMember($this->ownerMembership);
     }
 
+    #[Group('issue-50')]
+    public function testResourceExposesTheSellStructureOfTheProjectOrNothing(): void
+    {
+        self::assertSame([null, null], [$this->resource()->sellStructureId, $this->resource()->sellStructureName]);
+
+        $this->project->setSellStructure(60003760, 'Jita 4-4');
+
+        self::assertSame([60003760, 'Jita 4-4'], [$this->resource()->sellStructureId, $this->resource()->sellStructureName]);
+    }
+
     public function testBomValueIsUnknownWhenOneMaterialHasNoPrice(): void
     {
         $this->addMaterial(self::TRITANIUM_TYPE_ID, estimatedPrice: 10.0, requiredQuantity: 1_000);

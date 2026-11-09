@@ -78,6 +78,7 @@ class IndustryProjectService
         $project->setAcceptsOutsideFavoriteSystem($data->acceptsOutsideFavoriteSystem);
         $project->setMinimumOutsideSaving($data->minimumOutsideSaving);
         $project->setTemplate($data->template);
+        $project->setSellStructure($data->sellStructure?->id, $data->sellStructure?->name);
 
         $project->enrolOwner();
 

@@ -67,6 +67,8 @@ export function nyxProject(status: GroupProjectStatus, myRole: GroupMemberRole =
     notes: null,
     acceptsOutsideFavoriteSystem: false,
     minimumOutsideSaving: 5,
+    sellStructureId: null,
+    sellStructureName: null,
     ...overrides,
   }
 }

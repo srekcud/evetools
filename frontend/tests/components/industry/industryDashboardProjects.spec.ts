@@ -23,6 +23,8 @@ function groupProject(id: string, name: string, status: GroupProjectStatus): Gro
     private: true,
     acceptsOutsideFavoriteSystem: false,
     minimumOutsideSaving: 500000,
+    sellStructureId: null,
+    sellStructureName: null,
     notes: null,
     ownerCharacterName: 'Ilyra Castell',
     ownerCorporationId: 98000001,

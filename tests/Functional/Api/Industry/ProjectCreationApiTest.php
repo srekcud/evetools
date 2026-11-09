@@ -69,6 +69,42 @@ final class ProjectCreationApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-50')]
+    public function testSellStructureDefaultsToThePreferredOneIsChosenAmongTheMarketStructuresChangedByPatchAndCopiedIntoATemplate(): void
+    {
+        $this->owner->setPreferredMarketStructureId(60_003_760)->setPreferredMarketStructureName('Jita 4-4')->addMarketStructure(1_042_000_000_001, 'Keepstar A');
+        $this->em->flush();
+        $items = [['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]];
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Default structure', 'items' => $items]);
+        self::assertResponseStatusCodeSame(201);
+        $byDefault = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Chosen structure', 'items' => $items, 'sellStructureId' => 1_042_000_000_001]);
+        self::assertResponseStatusCodeSame(201);
+        $chosen = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'Unknown structure', 'items' => $items, 'sellStructureId' => 999]);
+        self::assertResponseStatusCodeSame(400);
+
+        $this->actAs($this->owner);
+        $this->request('PATCH', '/api/industry/projects/'.$byDefault['id'], ['sellStructureId' => 1_042_000_000_001]);
+        self::assertResponseStatusCodeSame(200);
+        $patched = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/project-templates', ['projectId' => $chosen['id'], 'name' => 'Keepstar line', 'sharedWithCorporation' => false]);
+        self::assertResponseStatusCodeSame(201);
+        $template = $this->responseJson();
+
+        self::assertSame([60_003_760, 'Jita 4-4'], [$byDefault['sellStructureId'], $byDefault['sellStructureName']]);
+        self::assertSame([1_042_000_000_001, 'Keepstar A'], [$chosen['sellStructureId'], $chosen['sellStructureName']]);
+        self::assertSame([1_042_000_000_001, 'Keepstar A'], [$patched['sellStructureId'], $patched['sellStructureName']]);
+        self::assertSame([1_042_000_000_001, 'Keepstar A'], [$template['sellStructureId'], $template['sellStructureName']]);
+    }
+
     public function testCreationOfAnOpenProjectOfTwoProductsGivesTheAggregatedBom(): void
     {
         $this->actAs($this->owner);

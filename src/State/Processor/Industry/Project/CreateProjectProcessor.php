@@ -18,6 +18,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\ProjectSellStructures;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -43,6 +44,7 @@ class CreateProjectProcessor implements ProcessorInterface
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly SellerSalesFeesResolver $salesFeesResolver,
         private readonly IndustryProjectTemplateRepository $templateRepository,
+        private readonly ProjectSellStructures $sellStructures,
     ) {
     }
 
@@ -88,6 +90,7 @@ class CreateProjectProcessor implements ProcessorInterface
                 acceptsOutsideFavoriteSystem: $data->acceptsOutsideFavoriteSystem,
                 minimumOutsideSaving: $data->minimumOutsideSaving,
                 template: $template,
+                sellStructure: null === $data->sellStructureId ? $this->sellStructures->defaultFor($user) : $this->sellStructures->choose($user, $data->sellStructureId),
             );
 
             $project = $this->projectService->createProject($user, $projectData);

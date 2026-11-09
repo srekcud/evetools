@@ -38,6 +38,7 @@ import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
+import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
 import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
@@ -76,6 +77,7 @@ const editForm = ref({
   brokerFeePercent: null as number | null,
   salesTaxPercent: null as number | null,
   private: true,
+  sellStructureId: null as number | null,
 })
 const isEditSaving = ref(false)
 const editError = ref<string | null>(null)
@@ -197,6 +199,14 @@ function feeOrNull(percent: number | string | null): number | null {
 
 const editFeesUnknown = computed(() => feeOrNull(editForm.value.brokerFeePercent) === null || feeOrNull(editForm.value.salesTaxPercent) === null)
 
+const sellStructureChanged = computed(() => editForm.value.sellStructureId !== null && editForm.value.sellStructureId !== project.value?.sellStructureId)
+
+const currentSellStructure = computed(() => {
+  const current = project.value
+  if (!current || current.sellStructureId === null) return null
+  return { id: current.sellStructureId, name: current.sellStructureName ?? `Structure ${current.sellStructureId}` }
+})
+
 function openEditModal(): void {
   if (!project.value) return
   editForm.value = {
@@ -205,6 +215,7 @@ function openEditModal(): void {
     brokerFeePercent: project.value.brokerFeePercent,
     salesTaxPercent: project.value.salesTaxPercent,
     private: project.value.private,
+    sellStructureId: project.value.sellStructureId,
   }
   editError.value = null
   isEditSaving.value = false
@@ -221,6 +232,7 @@ async function handleEditSave(): Promise<void> {
       brokerFeePercent: feeOrNull(editForm.value.brokerFeePercent),
       salesTaxPercent: feeOrNull(editForm.value.salesTaxPercent),
       private: editForm.value.private,
+      ...(sellStructureChanged.value ? { sellStructureId: editForm.value.sellStructureId } : {}),
     } as Partial<GroupProject>)
     showEditModal.value = false
   } catch (e) {
@@ -676,6 +688,13 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           </div>
         </div>
         <p v-if="editFeesUnknown" class="text-xs text-amber-400">{{ t('groupIndustry.detail.editFields.feesUnknownHint') }}</p>
+        <SellStructureSelect
+          v-model="editForm.sellStructureId"
+          :current-structure="currentSellStructure"
+          :disabled="isCompleted"
+          :preselect-preferred="false"
+        />
+        <p v-if="editForm.sellStructureId === null" data-testid="sell-structure-unset" class="text-xs text-slate-500">{{ t('groupIndustry.sellStructure.notSet') }}</p>
         <div>
           <label class="flex items-center gap-2.5 cursor-pointer">
             <input

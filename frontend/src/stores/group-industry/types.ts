@@ -37,6 +37,8 @@ export type ProjectTemplate = {
   blacklistTypeIds: number[]
   acceptsOutsideFavoriteSystem: boolean
   minimumOutsideSaving: number
+  sellStructureId: number | null
+  sellStructureName: string | null
   sharedWithCorporation: boolean
   ownerName: string | null
   isOwn: boolean
@@ -59,6 +61,8 @@ export type GroupProject = {
   private: boolean
   acceptsOutsideFavoriteSystem: boolean
   minimumOutsideSaving: number
+  sellStructureId: number | null
+  sellStructureName: string | null
   notes: string | null
   ownerCharacterName: string
   ownerCorporationId: number | null
@@ -308,6 +312,7 @@ export type CreateGroupProjectInput = {
   acceptsOutsideFavoriteSystem: boolean
   minimumOutsideSaving: number
   templateId?: string
+  sellStructureId?: number
 }
 
 export type AvailableJob = {

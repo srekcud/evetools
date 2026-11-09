@@ -13,6 +13,8 @@ export function completedProject(overrides: Partial<GroupProject> = {}): GroupPr
     private: false,
     acceptsOutsideFavoriteSystem: false,
     minimumOutsideSaving: 0,
+    sellStructureId: null,
+    sellStructureName: null,
     notes: null,
     ownerCharacterName: 'Aria Solberg',
     ownerCorporationId: null,

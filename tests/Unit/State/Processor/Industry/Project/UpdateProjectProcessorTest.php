@@ -17,6 +17,7 @@ use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\ProjectSellStructures;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\UpdateProjectProcessor;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
@@ -27,6 +28,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -45,7 +47,7 @@ class UpdateProjectProcessorTest extends TestCase
     private HubInterface&MockObject $hub;
     private IndustryProjectService&MockObject $projectService;
     private IndustryProject $project;
-    private User $owner;
+    private User&Stub $owner;
 
     protected function setUp(): void
     {
@@ -64,6 +66,91 @@ class UpdateProjectProcessorTest extends TestCase
         $this->projectService = $this->createMock(IndustryProjectService::class);
 
         $this->processor = $this->processorActingAs($this->owner, null);
+    }
+
+    #[Group('issue-50')]
+    public function testOwnerChangesTheSellStructureToOneOfTheirMarketStructures(): void
+    {
+        $this->owner->method('getMarketStructures')->willReturn([['id' => 1042000000001, 'name' => 'Keepstar A']]);
+        $input = new UpdateProjectInput();
+        $input->sellStructureId = 1042000000001;
+
+        $resource = $this->update($input);
+
+        self::assertSame([1042000000001, 'Keepstar A'], [$this->project->getSellStructureId(), $this->project->getSellStructureName()]);
+        self::assertSame([1042000000001, 'Keepstar A'], [$resource->sellStructureId, $resource->sellStructureName]);
+    }
+
+    #[Group('issue-50')]
+    public function testSellStructureAbsentFromThePatchLeavesTheSellStructureUnchanged(): void
+    {
+        $this->project->setSellStructure(60003760, 'Jita 4-4');
+        $input = new UpdateProjectInput();
+        $input->name = 'Rorqual batch';
+
+        $resource = $this->update($input);
+
+        self::assertSame([60003760, 'Jita 4-4'], [$resource->sellStructureId, $resource->sellStructureName]);
+    }
+
+    #[Group('issue-50')]
+    public function testAdminChoosesAmongTheirOwnMarketStructuresNotThoseOfTheOwner(): void
+    {
+        $this->owner->method('getMarketStructures')->willReturn([['id' => 1042000000001, 'name' => 'Keepstar A']]);
+        $admin = (new User())->addMarketStructure(1042000000002, 'Fortizar B');
+        $this->processor = $this->processorActingAs($admin, $this->membershipOf($admin, ParticipantRole::Admin));
+        $ownerStructure = new UpdateProjectInput();
+        $ownerStructure->sellStructureId = 1042000000001;
+        $ownStructure = new UpdateProjectInput();
+        $ownStructure->sellStructureId = 1042000000002;
+
+        try {
+            $this->update($ownerStructure);
+            self::fail('A structure the admin does not have must be refused');
+        } catch (BadRequestHttpException) {
+            self::assertNull($this->project->getSellStructureId());
+        }
+
+        $resource = $this->update($ownStructure);
+
+        self::assertSame([1042000000002, 'Fortizar B'], [$resource->sellStructureId, $resource->sellStructureName]);
+    }
+
+    #[Group('issue-50')]
+    public function testSellStructureOutsideTheMarketStructuresOfTheActorIsABadRequestAndNothingIsSaved(): void
+    {
+        $this->project->setSellStructure(60003760, 'Jita 4-4');
+        $this->entityManager->expects($this->never())->method('flush');
+        $input = new UpdateProjectInput();
+        $input->sellStructureId = 999;
+
+        $this->expectException(BadRequestHttpException::class);
+
+        try {
+            $this->update($input);
+        } finally {
+            self::assertSame(60003760, $this->project->getSellStructureId());
+        }
+    }
+
+    #[Group('issue-50')]
+    public function testOwnerCannotChangeTheSellStructureOfACompletedProject(): void
+    {
+        $this->project->setStatus(ProjectStatus::Completed);
+        $this->project->setSellStructure(60003760, 'Jita 4-4');
+        $this->owner->method('getMarketStructures')->willReturn([['id' => 1042000000001, 'name' => 'Keepstar A']]);
+        $this->entityManager->expects($this->never())->method('flush');
+        $input = new UpdateProjectInput();
+        $input->sellStructureId = 1042000000001;
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('Cannot change the sell structure of a completed project');
+
+        try {
+            $this->update($input);
+        } finally {
+            self::assertSame(60003760, $this->project->getSellStructureId());
+        }
     }
 
     public function testOwnerCannotChangeTheSalesTaxOfACompletedProject(): void
@@ -692,6 +779,7 @@ class UpdateProjectProcessorTest extends TestCase
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->projectService,
+            new ProjectSellStructures(),
         );
     }
 

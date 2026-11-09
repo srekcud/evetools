@@ -67,6 +67,10 @@ class IndustryProjectTemplateResource
 
     public float $minimumOutsideSaving = 0.0;
 
+    public ?int $sellStructureId = null;
+
+    public ?string $sellStructureName = null;
+
     public bool $sharedWithCorporation = false;
 
     public ?string $ownerName = null;
@@ -87,6 +91,8 @@ class IndustryProjectTemplateResource
         $resource->blacklistTypeIds = $template->getBlacklistTypeIds();
         $resource->acceptsOutsideFavoriteSystem = $template->isAcceptsOutsideFavoriteSystem();
         $resource->minimumOutsideSaving = $template->getMinimumOutsideSaving();
+        $resource->sellStructureId = $template->getSellStructureId();
+        $resource->sellStructureName = $template->getSellStructureName();
         $resource->sharedWithCorporation = $template->isSharedWithCorporation();
         $resource->ownerName = $template->getOwner()->getMainCharacter()?->getName();
         $resource->isOwn = $template->getOwner() === $viewer;

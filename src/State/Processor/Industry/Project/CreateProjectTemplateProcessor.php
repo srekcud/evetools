@@ -67,6 +67,7 @@ class CreateProjectTemplateProcessor implements ProcessorInterface
             ->setBlacklistTypeIds(array_values($project->getBlacklistTypeIds()))
             ->setAcceptsOutsideFavoriteSystem($project->isAcceptsOutsideFavoriteSystem())
             ->setMinimumOutsideSaving($project->getMinimumOutsideSaving())
+            ->setSellStructure($project->getSellStructureId(), $project->getSellStructureName())
             ->setSharedWithCorporation($data->sharedWithCorporation);
 
         $this->entityManager->persist($template);

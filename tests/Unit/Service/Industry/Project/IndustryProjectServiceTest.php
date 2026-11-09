@@ -34,6 +34,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\Project\CreateProjectData;
 use App\Service\Industry\Project\IndustryProjectService;
+use App\Service\Industry\Project\SellStructure;
 use App\Service\Industry\InventionService;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
@@ -232,6 +233,19 @@ final class IndustryProjectServiceTest extends TestCase
 
         $this->assertFalse($project->isPrivate());
         $this->assertSame(ProjectStatus::Draft, $project->getStatus());
+    }
+
+    #[Group('issue-50')]
+    public function testCreateProjectTakesTheSellStructureOfTheDataOrNone(): void
+    {
+        $this->givenRifter();
+        $items = [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 0, 'teLevel' => 0, 'runs' => 1]];
+
+        $withStructure = $this->service()->createProject($this->createUser(), new CreateProjectData(name: 'Sold in Keepstar A', items: $items, sellStructure: new SellStructure(1042000000001, 'Keepstar A')));
+        $withoutStructure = $this->service()->createProject($this->createUser(), new CreateProjectData(name: 'Sold nowhere', items: $items));
+
+        $this->assertSame([1042000000001, 'Keepstar A'], [$withStructure->getSellStructureId(), $withStructure->getSellStructureName()]);
+        $this->assertSame([null, null], [$withoutStructure->getSellStructureId(), $withoutStructure->getSellStructureName()]);
     }
 
     public function testCreateProjectPersistsAndFlushes(): void
