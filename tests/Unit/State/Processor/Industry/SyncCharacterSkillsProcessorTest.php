@@ -776,6 +776,68 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertCount(1, $result->failedCharacters);
     }
 
+    #[Group('issue-359')]
+    public function testWritesTheSkillPointsReadFromEsi(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            ['skill_id' => CachedCharacterSkill::SKILL_SCIENCE, 'active_skill_level' => 4, 'trained_skill_level' => 4, 'skillpoints_in_skill' => 181_019],
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame(181_019, $this->persistedScience()->getSkillPoints());
+    }
+
+    #[Group('issue-359')]
+    public function testWritesUnknownSkillPointsWhenTheEsiEntryHasNone(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            ['skill_id' => CachedCharacterSkill::SKILL_SCIENCE, 'active_skill_level' => 4, 'trained_skill_level' => 4],
+        ];
+
+        $this->syncSkills();
+
+        $this->assertNull($this->persistedScience()->getSkillPoints());
+    }
+
+    #[Group('issue-359')]
+    public function testWritesUnknownSkillPointsWhenTheEsiValueIsNotAnInteger(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            ['skill_id' => CachedCharacterSkill::SKILL_SCIENCE, 'active_skill_level' => 4, 'trained_skill_level' => 4, 'skillpoints_in_skill' => '181019'],
+        ];
+
+        $this->syncSkills();
+
+        $this->assertNull($this->persistedScience()->getSkillPoints());
+    }
+
+    #[Group('issue-359')]
+    public function testWritesZeroSkillPointsForASkillEsiDoesNotList(): void
+    {
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [];
+
+        $this->syncSkills();
+
+        $this->assertSame(0, $this->persistedScience()->getSkillPoints());
+    }
+
+    #[Group('issue-359')]
+    public function testUpdatesTheSkillPointsOfAnExistingEsiLineAndKeepsThoseOfAManualLine(): void
+    {
+        $industry = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_INDUSTRY, 3, false, '2026-10-13T08:00:00+00:00')->setSkillPoints(10_000);
+        $advancedIndustry = $this->cachedSkill($this->pilotOne, CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY, 5, true, '2026-10-11T22:40:00+00:00')->setSkillPoints(777);
+        $this->cachedSkillsByCharacterName[self::PILOT_ONE] = [$industry, $advancedIndustry];
+        $this->esiSkillsByEndpoint[self::PILOT_ONE_SKILLS_ENDPOINT] = [
+            ['skill_id' => CachedCharacterSkill::SKILL_INDUSTRY, 'active_skill_level' => 4, 'trained_skill_level' => 4, 'skillpoints_in_skill' => 52_000],
+            ['skill_id' => CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY, 'active_skill_level' => 2, 'trained_skill_level' => 2, 'skillpoints_in_skill' => 9_000],
+        ];
+
+        $this->syncSkills();
+
+        $this->assertSame([52_000, 777], [$industry->getSkillPoints(), $advancedIndustry->getSkillPoints()]);
+    }
+
     private function persistedScience(): CachedCharacterSkill
     {
         foreach ($this->persistedSkills as $skill) {

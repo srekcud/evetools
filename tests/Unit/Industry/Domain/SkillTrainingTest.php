@@ -36,34 +36,34 @@ final class SkillTrainingTest extends TestCase
 
     public function testTheLastLevelOfARankOneSkillIsTrainedAtThirtyPointsPerMinute(): void
     {
-        $this->assertSame(421_490, SkillTraining::secondsToNextLevel(1, 4, 20, 20));
+        $this->assertSame(421_490, SkillTraining::secondsToNextLevel(1, 4, 20, 20, 45_255));
     }
 
     public function testTheFirstLevelIsTrainedFromZeroPoints(): void
     {
-        $this->assertSame(1_200, SkillTraining::secondsToNextLevel(3, 0, 27, 21));
+        $this->assertSame(1_200, SkillTraining::secondsToNextLevel(3, 0, 27, 21, 0));
     }
 
     public function testTheDurationIsRoundedUpToTheNextSecond(): void
     {
-        $this->assertSame(2_292, SkillTraining::secondsToNextLevel(1, 1, 22, 17));
+        $this->assertSame(2_292, SkillTraining::secondsToNextLevel(1, 1, 22, 17, 250));
     }
 
     public function testAnAttributeOfExactlyOnePointIsAccepted(): void
     {
-        $this->assertSame(10_000, SkillTraining::secondsToNextLevel(1, 0, 1, 1));
+        $this->assertSame(10_000, SkillTraining::secondsToNextLevel(1, 0, 1, 1, 0));
     }
 
     public function testADurationJustAboveAWholeSecondIsRoundedUp(): void
     {
-        $this->assertSame(1_970, SkillTraining::secondsToNextLevel(1, 1, 21, 29));
+        $this->assertSame(1_970, SkillTraining::secondsToNextLevel(1, 1, 21, 29, 250));
     }
 
     public function testAHigherPrimaryAttributeShortensTheTraining(): void
     {
         $this->assertLessThan(
-            SkillTraining::secondsToNextLevel(1, 3, 20, 20),
-            SkillTraining::secondsToNextLevel(1, 3, 25, 20),
+            SkillTraining::secondsToNextLevel(1, 3, 20, 20, 8_000),
+            SkillTraining::secondsToNextLevel(1, 3, 25, 20, 8_000),
         );
     }
 
@@ -93,22 +93,43 @@ final class SkillTrainingTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{int, int, int, int}>
+     * @return iterable<string, array{int, int, int, int, int}>
      */
     public static function invalidTrainingInputs(): iterable
     {
-        yield 'already level five' => [1, 5, 20, 20];
-        yield 'negative level' => [1, -1, 20, 20];
-        yield 'zero primary attribute' => [1, 2, 0, 20];
-        yield 'zero secondary attribute' => [1, 2, 20, 0];
-        yield 'rank zero' => [0, 2, 20, 20];
+        yield 'already level five' => [1, 5, 20, 20, 256_000];
+        yield 'negative level' => [1, -1, 20, 20, 0];
+        yield 'zero primary attribute' => [1, 2, 0, 20, 1_415];
+        yield 'zero secondary attribute' => [1, 2, 20, 0, 1_415];
+        yield 'rank zero' => [0, 2, 20, 20, 0];
+        yield 'negative trained points' => [1, 2, 20, 20, -1];
+        yield 'points already at the next level threshold' => [1, 2, 20, 20, 8_000];
+        yield 'points beyond the next level threshold' => [1, 2, 20, 20, 9_000];
     }
 
     #[DataProvider('invalidTrainingInputs')]
-    public function testRefusesInputsThatHaveNoNextLevelOrNoTrainingSpeed(int $rank, int $currentLevel, int $primary, int $secondary): void
+    public function testRefusesInputsThatHaveNoNextLevelNoTrainingSpeedOrNothingLeftToTrain(int $rank, int $currentLevel, int $primary, int $secondary, int $trainedPoints): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        SkillTraining::secondsToNextLevel($rank, $currentLevel, $primary, $secondary);
+        SkillTraining::secondsToNextLevel($rank, $currentLevel, $primary, $secondary, $trainedPoints);
+    }
+
+    public function testOnlyThePointsLeftToTheNextLevelAreTrained(): void
+    {
+        $this->assertSame(212_000, SkillTraining::secondsToNextLevel(1, 4, 20, 20, 150_000));
+    }
+
+    public function testPointsBelowTheThresholdOfTheCurrentLevelCountFromTheThreshold(): void
+    {
+        $this->assertSame(
+            SkillTraining::secondsToNextLevel(1, 4, 20, 20, 45_255),
+            SkillTraining::secondsToNextLevel(1, 4, 20, 20, 1_000),
+        );
+    }
+
+    public function testTheLastPointBeforeTheNextLevelTakesOneSecondAtMost(): void
+    {
+        $this->assertSame(2, SkillTraining::secondsToNextLevel(1, 2, 20, 20, 7_999));
     }
 }
