@@ -5,6 +5,7 @@ import { formatChunkTime, type CorporationMiningExtractions } from '@/composable
 import { MOON_TAX_WALLET_SCOPE, useMoonTaxCorporation, type MoonTaxRefinerySetting } from '@/composables/useMoonTax'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import MoonTaxDonationsPanel from './MoonTaxDonationsPanel.vue'
 import MoonTaxRefineryForm from './MoonTaxRefineryForm.vue'
 import MoonTaxStatementsTable from './MoonTaxStatementsTable.vue'
 import MoonTaxTotals from './MoonTaxTotals.vue'
@@ -51,6 +52,7 @@ const {
   isExporting,
   exportError,
   loadAll,
+  loadStatements,
   setLateOnly,
   saveRefinery,
   runStatementAction,
@@ -229,6 +231,8 @@ onMounted(() => {
         >
           {{ t('ledger.mining.moonTax.emptyStatements') }}
         </p>
+
+        <MoonTaxDonationsPanel :corporation-id="entry.corporationId" :statements="statements" @attributed="loadStatements" />
       </template>
     </template>
   </section>

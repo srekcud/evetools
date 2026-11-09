@@ -120,9 +120,19 @@ trait StubsMoonTaxEsi
         $this->esiResponses[self::journalEndpoint($corporationId, $division)] = $entries;
     }
 
-    protected function respondWithCorporation(int $corporationId, ?int $allianceId): void
+    protected static function allianceEndpoint(int $allianceId): string
     {
-        $this->esiResponses[self::corporationEndpoint($corporationId)] = ['name' => 'Corporation ' . $corporationId] + ($allianceId === null ? [] : ['alliance_id' => $allianceId]);
+        return sprintf('/alliances/%d/', $allianceId);
+    }
+
+    protected function respondWithCorporation(int $corporationId, ?int $allianceId, ?string $name = null): void
+    {
+        $this->esiResponses[self::corporationEndpoint($corporationId)] = ['name' => $name ?? 'Corporation ' . $corporationId] + ($allianceId === null ? [] : ['alliance_id' => $allianceId]);
+    }
+
+    protected function respondWithAlliance(int $allianceId, string $name): void
+    {
+        $this->esiResponses[self::allianceEndpoint($allianceId)] = ['name' => $name];
     }
 
     protected function respondWithCharacterNames(array $namesByCharacterId): void

@@ -18,7 +18,7 @@ const emit = defineEmits<{
   cancel: [statementId: string]
 }>()
 
-const COLUMNS = ['character', 'refinery', 'period', 'reference', 'tax', 'paid', 'remaining', 'status', 'outside', 'actions']
+const COLUMNS = ['character', 'corporation', 'alliance', 'refinery', 'period', 'reference', 'tax', 'paid', 'remaining', 'status', 'outside', 'actions']
 const ACTION_BUTTON_CLASSES = 'rounded-sm border px-2 py-0.5 text-xs font-medium uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-40'
 
 const { t } = useI18n()
@@ -27,6 +27,17 @@ const confirmingCancelId = ref<string | null>(null)
 
 function characterLabel(statement: MoonTaxStatement): string {
   return statement.characterName ?? `#${statement.characterId}`
+}
+
+function corporationLabel(statement: MoonTaxStatement): string {
+  if (statement.recordedCorporationId === null) return t('ledger.mining.moonTax.affiliation.unknown')
+  return statement.recordedCorporationName ?? `#${statement.recordedCorporationId}`
+}
+
+function allianceLabel(statement: MoonTaxStatement): string {
+  if (!statement.affiliationKnown) return t('ledger.mining.moonTax.affiliation.unknown')
+  if (statement.allianceId === null) return t('ledger.mining.moonTax.affiliation.noAlliance')
+  return statement.allianceName ?? `#${statement.allianceId}`
 }
 
 function confirmCancel(statementId: string): void {
@@ -55,6 +66,12 @@ function confirmCancel(statementId: string): void {
           <tr data-statement-row class="transition-colors hover:bg-slate-900/30">
             <td data-cell="character" class="max-w-[14rem] px-3 py-2 text-sm text-white">
               <span class="block truncate" :title="characterLabel(statement)">{{ characterLabel(statement) }}</span>
+            </td>
+            <td data-cell="corporation" class="max-w-[14rem] px-3 py-2 text-sm text-slate-300">
+              <span class="block truncate" :title="corporationLabel(statement)">{{ corporationLabel(statement) }}</span>
+            </td>
+            <td data-cell="alliance" class="max-w-[14rem] px-3 py-2 text-sm text-slate-300">
+              <span class="block truncate" :title="allianceLabel(statement)">{{ allianceLabel(statement) }}</span>
             </td>
             <td data-cell="refinery" class="max-w-[18rem] px-3 py-2 text-sm text-slate-300">
               <span class="block truncate" :title="structureLabel(statement.structureId)">{{ structureLabel(statement.structureId) }}</span>

@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Link;
 use App\ApiResource\MoonTax\MoonTaxCorporationResource;
+use App\ApiResource\MoonTax\MoonTaxDonationEntryResource;
 use App\ApiResource\MoonTax\MoonTaxDonationResource;
 use App\ApiResource\MoonTax\MoonTaxMineResource;
 use App\ApiResource\MoonTax\MoonTaxRefineryResource;
@@ -43,6 +44,7 @@ final class MoonTaxSubResourceUriVariablesTest extends TestCase
         yield 'GET mine' => [MoonTaxMineResource::class, 'GET', '/mining/moon-tax/mine', []];
         yield 'PUT refinery' => [MoonTaxRefineryResource::class, 'PUT', '/mining/moon-tax/'.$corporationId.'/refineries/{structureId}', ['corporationId', 'structureId']];
         yield 'POST sync' => [MoonTaxSyncResource::class, 'POST', '/mining/moon-tax/'.$corporationId.'/sync', ['corporationId']];
+        yield 'GET donations' => [MoonTaxDonationEntryResource::class, 'GET', '/mining/moon-tax/'.$corporationId.'/donations', ['corporationId']];
         yield 'POST attribute donation' => [MoonTaxDonationResource::class, 'POST', '/mining/moon-tax/'.$corporationId.'/donations/{journalId}/attribute', ['corporationId', 'journalId']];
     }
 
