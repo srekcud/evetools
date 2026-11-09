@@ -188,6 +188,7 @@ export type GroupContribution = {
   estimatedValue: number | null
   status: ContributionStatus
   isAutoDetected: boolean
+  duplicatesDerived: boolean
   isVerified: boolean
   reviewedByCharacterName: string | null
   reviewedAt: string | null

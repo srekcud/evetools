@@ -89,6 +89,8 @@ class ProjectContributionResource
 
     public bool $isAutoDetected;
 
+    public bool $duplicatesDerived = false;
+
     public bool $isVerified;
 
     public ?string $reviewedByCharacterName = null;

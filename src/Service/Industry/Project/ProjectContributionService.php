@@ -111,10 +111,16 @@ class ProjectContributionService
      */
     public function reject(IndustryProjectContribution $contribution, User $reviewer): void
     {
-        if ($contribution->getStatus() !== ContributionStatus::Pending) {
+        $isDuplicate = $contribution->duplicatesDerived();
+        if ($contribution->getStatus() !== ContributionStatus::Pending && !$isDuplicate) {
             throw new \DomainException(
                 sprintf('Cannot reject a contribution with status "%s"', $contribution->getStatus()->value),
             );
+        }
+
+        $bomItem = $contribution->getBomItem();
+        if ($isDuplicate && $bomItem !== null && ContributionType::Material === $contribution->getType()) {
+            $bomItem->setFulfilledQuantity(max(0, $bomItem->getFulfilledQuantity() - $contribution->getQuantity()));
         }
 
         $contribution->setStatus(ContributionStatus::Rejected);

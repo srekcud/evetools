@@ -14,17 +14,24 @@ use App\Enum\ContributionType;
 use App\Service\Industry\Project\Courier\CourierContractState;
 use App\Service\Industry\Project\Courier\CourierLinkedContract;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 
 class DerivedContributionService
 {
     private const string CONTRIBUTION_SYNCED_ACTION = 'contribution_synced';
     private const int COURIER_QUANTITY = 1;
+    private const string REPLACED_NOTE = 'Replaced by the ESI/wallet contribution';
+    private const string DECLARED_NOTE_TEMPLATE = '%s. Declared note: %s';
+
+    private readonly DuplicateContributionNotifier $duplicateNotifier;
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
+        NotificationDispatcher $notificationDispatcher,
     ) {
+        $this->duplicateNotifier = new DuplicateContributionNotifier($notificationDispatcher);
     }
 
     public function refreshLine(IndustryProjectBomLine $line): void
@@ -130,10 +137,64 @@ class DerivedContributionService
         ?float $value,
     ): string {
         $contribution = $this->approvedDerivedContribution($line->getProject(), $ownerParticipant, $type, $quantity, $value)->setBomItem($line);
+        $hasApprovedDeclared = $this->hasApprovedDeclared($line, $ownerParticipant, $type);
+        $hasRejectedPendingDeclared = $this->rejectPendingDeclared($line, $ownerParticipant, $type);
         $this->persistDerived($contribution);
         $this->shiftFulfillment($line, $type, $quantity);
+        if ($hasApprovedDeclared || $hasRejectedPendingDeclared) {
+            $this->duplicateNotifier->notifyReviewers($contribution);
+        }
 
         return $contribution->getId()->toRfc4122();
+    }
+
+    private function rejectPendingDeclared(IndustryProjectBomLine $line, IndustryProjectParticipant $participant, ContributionType $type): bool
+    {
+        $project = $line->getProject();
+        $now = new \DateTimeImmutable();
+        $rejected = false;
+        foreach ($this->declaredOf($line, $participant, $type) as $declared) {
+            if (ContributionStatus::Pending !== $declared->getStatus()) {
+                continue;
+            }
+
+            $declaredNote = $declared->getNote();
+            $declared
+                ->setStatus(ContributionStatus::Rejected)
+                ->setReviewedBy($project->getOwner())
+                ->setReviewedAt($now)
+                ->setNote(null === $declaredNote || '' === $declaredNote
+                    ? self::REPLACED_NOTE
+                    : sprintf(self::DECLARED_NOTE_TEMPLATE, self::REPLACED_NOTE, $declaredNote));
+            $rejected = true;
+        }
+
+        return $rejected;
+    }
+
+    private function hasApprovedDeclared(IndustryProjectBomLine $line, IndustryProjectParticipant $participant, ContributionType $type): bool
+    {
+        foreach ($this->declaredOf($line, $participant, $type) as $declared) {
+            if (ContributionStatus::Approved === $declared->getStatus()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<IndustryProjectContribution>
+     */
+    private function declaredOf(IndustryProjectBomLine $line, IndustryProjectParticipant $participant, ContributionType $type): array
+    {
+        return array_values(array_filter(
+            $line->getProject()->getContributions()->toArray(),
+            static fn (IndustryProjectContribution $contribution): bool => !$contribution->isAutoDetected()
+                && $contribution->getBomItem() === $line
+                && $contribution->getMember() === $participant
+                && $contribution->getType() === $type,
+        ));
     }
 
     private function countCourierReward(IndustryProject $project, ?IndustryProjectContribution $existing, ?float $reward): ?string

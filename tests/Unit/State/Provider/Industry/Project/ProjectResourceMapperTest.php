@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Provider\Industry\Project;
 
 use App\ApiResource\Industry\Project\ProjectParticipantResource;
 use App\Entity\Character;
+use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
@@ -107,6 +108,7 @@ class ProjectResourceMapperTest extends TestCase
     public function testContributionOfADeletedAccountHasNoMemberCharacterName(): void
     {
         $contribution = (new IndustryProjectContribution())
+            ->setProject(new IndustryProject())
             ->setMember($this->anonymizedMember())
             ->setType(ContributionType::Material)
             ->setQuantity(12_000)
@@ -125,6 +127,7 @@ class ProjectResourceMapperTest extends TestCase
     public function testContributionWithAnUnknownValueIsMappedWithANullValueNotZero(): void
     {
         $contribution = (new IndustryProjectContribution())
+            ->setProject(new IndustryProject())
             ->setMember($this->anonymizedMember())
             ->setType(ContributionType::JobInstall)
             ->setQuantity(5)

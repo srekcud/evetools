@@ -2615,6 +2615,7 @@
     },
     "contributions": {
       "unknownValueCause": "A contribution has no known price: the totals that include it are unknown, never partial.",
+      "duplicatesDerived": "Duplicate of an ESI contribution",
       "methods": {
         "paidPrice": "paid price (wallet)",
         "esiCost": "real cost (ESI)",

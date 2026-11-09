@@ -378,6 +378,68 @@ class ReviewContributionProcessorTest extends TestCase
         self::assertSame(3500, $this->bomItem->getFulfilledQuantity());
     }
 
+    #[Group('issue-510')]
+    public function testAdminRejectsAnApprovedDeclaredContributionThatDuplicatesADerivedOneAndTheLineIsDowngraded(): void
+    {
+        $admin = $this->createStub(User::class);
+        $this->addMember($admin, ParticipantRole::Admin);
+        $contributor = $this->addMember($this->createStub(User::class), ParticipantRole::Member);
+        $declared = $this->approvedDeclaredDoublingADerivedOne($contributor);
+        $payloads = $this->capturePublishedPayloads();
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->review($admin, $declared, 'rejected');
+
+        self::assertSame('rejected', $resource->status);
+        self::assertFalse($resource->duplicatesDerived);
+        self::assertSame(ContributionStatus::Rejected, $declared->getStatus());
+        self::assertSame($admin, $declared->getReviewedBy());
+        self::assertSame(self::ALREADY_FULFILLED_QUANTITY - self::CONTRIBUTED_QUANTITY, $this->bomItem->getFulfilledQuantity());
+        self::assertCount(1, $payloads);
+        self::assertSame('contribution_rejected', $payloads[0]['action']);
+        self::assertSame($declared->getId()->toRfc4122(), $payloads[0]['data']['contributionId']);
+    }
+
+    #[Group('issue-510')]
+    public function testRejectingTheDerivedContributionIsABadRequestAndNothingChanges(): void
+    {
+        $admin = $this->createStub(User::class);
+        $this->addMember($admin, ParticipantRole::Admin);
+        $contributor = $this->addMember($this->createStub(User::class), ParticipantRole::Member);
+        $this->approvedDeclaredDoublingADerivedOne($contributor);
+        $derived = $this->project->getContributions()->filter(static fn (IndustryProjectContribution $contribution): bool => $contribution->isAutoDetected())->first();
+        $this->entityManager->expects($this->never())->method('flush');
+        $this->hub->expects($this->never())->method('publish');
+
+        try {
+            $this->review($admin, $derived, 'rejected');
+            self::fail('The derived contribution was rejected');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame('Cannot reject a contribution with status "approved"', $refusal->getMessage());
+        }
+
+        self::assertSame(ContributionStatus::Approved, $derived->getStatus());
+        self::assertSame(self::ALREADY_FULFILLED_QUANTITY, $this->bomItem->getFulfilledQuantity());
+    }
+
+    #[Group('issue-510')]
+    public function testOwnerCannotRejectHisOwnApprovedDuplicateWhenAnAdminCanReviewIt(): void
+    {
+        $this->addMember($this->createStub(User::class), ParticipantRole::Admin);
+        $declared = $this->approvedDeclaredDoublingADerivedOne($this->ownerMember);
+        $this->entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->review($this->owner, $declared, 'rejected');
+            self::fail('The owner rejected his own contribution');
+        } catch (BadRequestHttpException $refusal) {
+            self::assertSame('You cannot review your own contribution', $refusal->getMessage());
+        }
+
+        self::assertSame(ContributionStatus::Approved, $declared->getStatus());
+        self::assertSame(self::ALREADY_FULFILLED_QUANTITY, $this->bomItem->getFulfilledQuantity());
+    }
+
     // --- Helpers --------------------------------------------------------------------------
 
     private function assertReviewOnCompletedProjectIsRefused(IndustryProjectContribution $contribution, string $decision): void
@@ -568,6 +630,22 @@ class ReviewContributionProcessorTest extends TestCase
         $this->assignId($contribution);
 
         return $contribution;
+    }
+
+    private function approvedDeclaredDoublingADerivedOne(IndustryProjectParticipant $contributor): IndustryProjectContribution
+    {
+        $declared = $this->pendingContributionOf($contributor);
+        $declared->setStatus(ContributionStatus::Approved);
+        $this->project->addContribution($declared);
+
+        $derived = $this->pendingContributionOf($contributor);
+        $derived->setStatus(ContributionStatus::Approved);
+        $derived->setIsAutoDetected(true);
+        $derived->setIsVerified(true);
+        $derived->setQuantity(600);
+        $this->project->addContribution($derived);
+
+        return $declared;
     }
 
     private function capturePublishedPayloads(): \ArrayObject

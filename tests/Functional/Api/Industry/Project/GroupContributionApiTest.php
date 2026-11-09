@@ -6,6 +6,11 @@ namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
+use App\Entity\User;
+use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
+use App\Enum\ParticipantRole;
+use App\Enum\ParticipantStatus;
 use App\Service\JitaMarketService;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -209,6 +214,77 @@ final class GroupContributionApiTest extends WebTestCase
         $this->request('PATCH', $this->contributionsUri().'/'.self::NOT_A_UUID, ['status' => 'approved']);
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    #[Group('issue-510')]
+    public function testAdminRejectsTheApprovedDeclaredMaterialThatDuplicatesADerivedOneAndTheLineIsDowngraded(): void
+    {
+        $admin = $this->givenAnAcceptedAdmin();
+        $declared = $this->givenAnApprovedDeclaredMaterialOfTheOwnerDoublingADerivedOne();
+
+        $this->client->loginUser($admin, 'api');
+        $this->request('PATCH', $this->contributionUri($declared), ['status' => 'rejected']);
+
+        self::assertResponseStatusCodeSame(200);
+        $contribution = $this->responseJson();
+        self::assertSame(['rejected', 'Kira Doran', 400], [$contribution['status'], $contribution['reviewedByCharacterName'], $contribution['quantity']]);
+        self::assertArrayHasKey('duplicatesDerived', $contribution);
+        self::assertFalse($contribution['duplicatesDerived']);
+        self::assertSame(['rejected', 600], [$this->storedStatusOf($declared), $this->storedFulfilledQuantityOf($this->tritaniumLine)]);
+    }
+
+    #[Group('issue-510')]
+    public function testListFlagsOnlyTheApprovedDeclaredContributionThatDuplicatesADerivedOne(): void
+    {
+        $declared = $this->givenAnApprovedDeclaredMaterialOfTheOwnerDoublingADerivedOne();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->contributionsUri());
+
+        self::assertResponseStatusCodeSame(200);
+        $flagsById = [];
+        foreach ($this->responseJson() as $contribution) {
+            self::assertArrayHasKey('duplicatesDerived', $contribution);
+            $flagsById[$contribution['id']] = $contribution['duplicatesDerived'];
+        }
+        self::assertTrue($flagsById[$this->idOf($declared)]);
+        self::assertSame([$this->idOf($declared)], array_keys(array_filter($flagsById)));
+    }
+
+    #[Group('issue-510')]
+    public function testRejectionOfAnApprovedDeclaredContributionWithoutDerivedTwinIsRefused(): void
+    {
+        $admin = $this->givenAnAcceptedAdmin();
+        $declared = $this->addContribution($this->ownerMembership, $this->tritaniumLine, ContributionType::Material, 400, 2_800.0, ContributionStatus::Approved);
+        $this->tritaniumLine->setFulfilledQuantity(400);
+        $this->em->flush();
+
+        $this->client->loginUser($admin, 'api');
+        $this->request('PATCH', $this->contributionUri($declared), ['status' => 'rejected']);
+
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame([400, 'Cannot reject a contribution with status "approved"'], $this->errorDetail());
+        self::assertSame(['approved', 400], [$this->storedStatusOf($declared), $this->storedFulfilledQuantityOf($this->tritaniumLine)]);
+    }
+
+    private function givenAnAcceptedAdmin(): User
+    {
+        $admin = $this->persistPilot('Kira Doran', 98_510_001);
+        $this->addMembership($this->ishtarBatch, $admin, ParticipantRole::Admin, ParticipantStatus::Accepted);
+        $this->em->flush();
+
+        return $admin;
+    }
+
+    private function givenAnApprovedDeclaredMaterialOfTheOwnerDoublingADerivedOne(): IndustryProjectContribution
+    {
+        $declared = $this->addContribution($this->ownerMembership, $this->tritaniumLine, ContributionType::Material, 400, 2_800.0, ContributionStatus::Approved);
+        $derived = $this->addContribution($this->ownerMembership, $this->tritaniumLine, ContributionType::Material, 600, 4_200.0, ContributionStatus::Approved);
+        $derived->setIsAutoDetected(true)->setIsVerified(true);
+        $this->tritaniumLine->setFulfilledQuantity(1_000);
+        $this->em->flush();
+
+        return $declared;
     }
 
     private function givenJitaPercentilePrices(array $pricesByTypeId): void
