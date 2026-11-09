@@ -268,6 +268,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertSame(
             [
                 CachedCharacterSkill::SKILL_SCIENCE => 4,
+                CachedCharacterSkill::SKILL_RESEARCH => 0,
+                CachedCharacterSkill::SKILL_METALLURGY => 0,
                 CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
                 CachedCharacterSkill::SKILL_ACCOUNTING => 0,
             ],
@@ -283,6 +285,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertSame(
             [
                 CachedCharacterSkill::SKILL_SCIENCE => 0,
+                CachedCharacterSkill::SKILL_RESEARCH => 0,
+                CachedCharacterSkill::SKILL_METALLURGY => 0,
                 CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
                 CachedCharacterSkill::SKILL_ACCOUNTING => 0,
             ],
@@ -305,6 +309,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             [
                 [
                     CachedCharacterSkill::SKILL_SCIENCE => 0,
+                    CachedCharacterSkill::SKILL_RESEARCH => 0,
+                    CachedCharacterSkill::SKILL_METALLURGY => 0,
                     CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
                     CachedCharacterSkill::SKILL_ACCOUNTING => 0,
                 ],
@@ -326,7 +332,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->syncSkills();
 
         $this->assertSame(
-            [4, [CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
+            [4, [CachedCharacterSkill::SKILL_RESEARCH => 0, CachedCharacterSkill::SKILL_METALLURGY => 0, CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
             [$science->getLevel(), $this->persistedLevelsBySkillIdOf(self::PILOT_ONE)],
         );
     }
@@ -340,7 +346,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->syncSkills();
 
         $this->assertSame(
-            [0, [CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
+            [0, [CachedCharacterSkill::SKILL_RESEARCH => 0, CachedCharacterSkill::SKILL_METALLURGY => 0, CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0, CachedCharacterSkill::SKILL_ACCOUNTING => 0]],
             [$science->getLevel(), $this->persistedLevelsBySkillIdOf(self::PILOT_ONE)],
         );
     }
@@ -467,6 +473,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 [],
                 [
                     CachedCharacterSkill::SKILL_SCIENCE => 3,
+                    CachedCharacterSkill::SKILL_RESEARCH => 0,
+                    CachedCharacterSkill::SKILL_METALLURGY => 0,
                     CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
                     CachedCharacterSkill::SKILL_ACCOUNTING => 0,
                 ],
@@ -501,7 +509,9 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 CachedCharacterSkill::SKILL_MASS_PRODUCTION => 2,
                 CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
                 CachedCharacterSkill::SKILL_SCIENCE => 5,
+                CachedCharacterSkill::SKILL_RESEARCH => 0,
                 CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 4,
+                CachedCharacterSkill::SKILL_METALLURGY => 0,
                 CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
                 CachedCharacterSkill::SKILL_ACCOUNTING => 0,
                 CachedCharacterSkill::SKILL_ADVANCED_LABORATORY_OPERATION => 1,
@@ -533,11 +543,13 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 [
                     CachedCharacterSkill::SKILL_INDUSTRY => 5,
                     CachedCharacterSkill::SKILL_SCIENCE => 0,
+                    CachedCharacterSkill::SKILL_RESEARCH => 0,
+                    CachedCharacterSkill::SKILL_METALLURGY => 0,
                     CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
                     CachedCharacterSkill::SKILL_ACCOUNTING => 0,
                     self::BLUEPRINT_SCIENCE_SKILL => 4,
                 ],
-                5,
+                7,
             ],
             [$this->persistedLevelsBySkillIdOf(self::PILOT_ONE), count($this->persistedSkillsOf(self::PILOT_ONE))],
         );
@@ -633,6 +645,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertSame(
             [
                 CachedCharacterSkill::SKILL_SCIENCE => 0,
+                CachedCharacterSkill::SKILL_RESEARCH => 0,
+                CachedCharacterSkill::SKILL_METALLURGY => 0,
                 CachedCharacterSkill::SKILL_BROKER_RELATIONS => 3,
                 CachedCharacterSkill::SKILL_ACCOUNTING => 4,
             ],
@@ -687,6 +701,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
                 [['characterName' => self::PILOT_ONE, 'reason' => 'missing_scope', 'statusCode' => null]],
                 [
                     CachedCharacterSkill::SKILL_SCIENCE => 0,
+                    CachedCharacterSkill::SKILL_RESEARCH => 0,
+                    CachedCharacterSkill::SKILL_METALLURGY => 0,
                     CachedCharacterSkill::SKILL_BROKER_RELATIONS => 0,
                     CachedCharacterSkill::SKILL_ACCOUNTING => 4,
                 ],

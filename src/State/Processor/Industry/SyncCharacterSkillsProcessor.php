@@ -33,6 +33,8 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
 
     private const array SKILLS_WRITTEN_AT_ZERO = [
         CachedCharacterSkill::SKILL_SCIENCE,
+        CachedCharacterSkill::SKILL_METALLURGY,
+        CachedCharacterSkill::SKILL_RESEARCH,
         CachedCharacterSkill::SKILL_ACCOUNTING,
         CachedCharacterSkill::SKILL_BROKER_RELATIONS,
     ];

@@ -76,7 +76,7 @@ final class JobMaterialNeedsMapper
         return match ($activity) {
             ActivityKind::Manufacturing => 'manufacturing',
             ActivityKind::Reaction => 'reaction',
-            ActivityKind::Copying, ActivityKind::Invention => throw new \LogicException(\sprintf('A plan has no %s job.', $activity->name)),
+            ActivityKind::Copying, ActivityKind::Invention, ActivityKind::ResearchMaterial, ActivityKind::ResearchTime => throw new \LogicException(\sprintf('A plan has no %s job.', $activity->name)),
         };
     }
 }

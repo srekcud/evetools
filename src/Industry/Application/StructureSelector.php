@@ -58,7 +58,7 @@ final readonly class StructureSelector
         }
 
         return match ($activity) {
-            ActivityKind::Copying, ActivityKind::Invention => $this->lowestInstallRate($candidates, $activity),
+            ActivityKind::Copying, ActivityKind::Invention, ActivityKind::ResearchMaterial, ActivityKind::ResearchTime => $this->lowestInstallRate($candidates, $activity),
             ActivityKind::Manufacturing, ActivityKind::Reaction => $this->bestMaterialMultiplierOrTotalCost($candidates, $activity, $productCategory, $basis),
         };
     }

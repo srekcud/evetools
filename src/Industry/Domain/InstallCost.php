@@ -15,6 +15,8 @@ final readonly class InstallCost
     /** Same SCC for every activity in scope; the July 2025 drop to 2 % only targets ME/TE research (D11a pending for copying). */
     private const float SCC_SURCHARGE_RATE = 0.04;
 
+    private const float RESEARCH_SCC_SURCHARGE_RATE = 0.02;
+
     private const float ALPHA_CLONE_TAX_RATE = 0.0025;
 
     private const float MAX_FACILITY_TAX_RATE = 0.5;
@@ -41,22 +43,55 @@ final readonly class InstallCost
         float $facilityTaxRate,
         bool $alphaClone,
     ): self {
+        $base = match ($activity) {
+            ActivityKind::Manufacturing, ActivityKind::Reaction => $estimatedItemValue,
+            ActivityKind::Copying, ActivityKind::Invention => $estimatedItemValue->times(self::JOB_COST_BASE_RATE),
+            ActivityKind::ResearchMaterial, ActivityKind::ResearchTime => throw new \InvalidArgumentException('A research job has a target level: use InstallCost::forResearch().'),
+        };
+
+        return self::fromBase($base, self::SCC_SURCHARGE_RATE, $systemCostIndex, $structureCostModifier, $facilityTaxRate, $alphaClone);
+    }
+
+    /**
+     * @param ?float $systemCostIndex null when the ESI has no index for the system: the cost is then unknown, never 0
+     */
+    public static function forResearch(
+        ActivityKind $activity,
+        Cost $manufacturingEstimatedItemValue,
+        int $targetLevel,
+        ?float $systemCostIndex,
+        Multiplier $structureCostModifier,
+        float $facilityTaxRate,
+        bool $alphaClone,
+    ): self {
+        if (ActivityKind::ResearchMaterial !== $activity && ActivityKind::ResearchTime !== $activity) {
+            throw new \InvalidArgumentException(\sprintf('%s is not a research activity.', $activity->name));
+        }
+
+        $base = $manufacturingEstimatedItemValue->times(self::JOB_COST_BASE_RATE * ResearchLevels::costMultiplier($targetLevel));
+
+        return self::fromBase($base, self::RESEARCH_SCC_SURCHARGE_RATE, $systemCostIndex, $structureCostModifier, $facilityTaxRate, $alphaClone);
+    }
+
+    private static function fromBase(
+        Cost $base,
+        float $sccSurchargeRate,
+        ?float $systemCostIndex,
+        Multiplier $structureCostModifier,
+        float $facilityTaxRate,
+        bool $alphaClone,
+    ): self {
         if (null !== $systemCostIndex) {
             self::assertRate($systemCostIndex, 'cost index', self::MAX_COST_INDEX);
         }
         self::assertRate($facilityTaxRate, 'facility tax rate', self::MAX_FACILITY_TAX_RATE);
-
-        $base = match ($activity) {
-            ActivityKind::Manufacturing, ActivityKind::Reaction => $estimatedItemValue,
-            ActivityKind::Copying, ActivityKind::Invention => $estimatedItemValue->times(self::JOB_COST_BASE_RATE),
-        };
 
         // The structure cost role bonus applies to the cost index term only, never to the taxes.
         $systemCost = null === $systemCostIndex
             ? $base->plus(Cost::unknown(MissingData::costIndex()))
             : $base->times($systemCostIndex * $structureCostModifier->value);
         $facilityTax = $base->times($facilityTaxRate);
-        $sccSurcharge = $base->times(self::SCC_SURCHARGE_RATE);
+        $sccSurcharge = $base->times($sccSurchargeRate);
         $alphaCloneTax = $base->times($alphaClone ? self::ALPHA_CLONE_TAX_RATE : 0.0);
 
         return new self(

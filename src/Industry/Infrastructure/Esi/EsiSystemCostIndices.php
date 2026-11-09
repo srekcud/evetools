@@ -26,6 +26,8 @@ final readonly class EsiSystemCostIndices implements SystemCostIndices
             ActivityKind::Reaction => 'reaction',
             ActivityKind::Copying => 'copying',
             ActivityKind::Invention => 'invention',
+            ActivityKind::ResearchMaterial => 'researching_material_efficiency',
+            ActivityKind::ResearchTime => 'researching_time_efficiency',
         };
     }
 }

@@ -10,4 +10,6 @@ enum ActivityKind
     case Reaction;
     case Copying;
     case Invention;
+    case ResearchMaterial;
+    case ResearchTime;
 }

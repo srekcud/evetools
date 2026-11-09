@@ -89,7 +89,7 @@ final readonly class StructureTotalCostComparator
             $quantities[$material->typeId] = (float) match ($recipe->activity) {
                 ActivityKind::Manufacturing => MaterialQuantity::forManufacturingJob($material->baseQuantityPerRun, $referenceRuns, new MaterialEfficiency(self::NO_MATERIAL_EFFICIENCY), $multiplier)->value,
                 ActivityKind::Reaction => MaterialQuantity::forReactionJob($material->baseQuantityPerRun, $referenceRuns, $multiplier)->value,
-                ActivityKind::Copying, ActivityKind::Invention => throw new \DomainException(\sprintf('Structures are compared at total cost for manufacturing and reactions only, got %s.', $recipe->activity->name)),
+                ActivityKind::Copying, ActivityKind::Invention, ActivityKind::ResearchMaterial, ActivityKind::ResearchTime => throw new \DomainException(\sprintf('Structures are compared at total cost for manufacturing and reactions only, got %s.', $recipe->activity->name)),
             };
         }
 
