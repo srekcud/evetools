@@ -65,6 +65,8 @@ final class EsiSystemCostIndicesTest extends TestCase
         yield 'reaction' => [ActivityKind::Reaction, 0.0343];
         yield 'copying' => [ActivityKind::Copying, 0.0215];
         yield 'invention' => [ActivityKind::Invention, 0.0634];
+        yield 'ME research' => [ActivityKind::ResearchMaterial, 0.0922];
+        yield 'TE research' => [ActivityKind::ResearchTime, 0.0911];
     }
 
     #[DataProvider('costIndexOfJitaByActivityProvider')]

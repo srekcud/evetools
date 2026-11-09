@@ -55,7 +55,7 @@ final class BuyOrBuildRowPresenter
         return match ($activity) {
             ActivityKind::Manufacturing => 'manufacturing',
             ActivityKind::Reaction => 'reaction',
-            ActivityKind::Copying, ActivityKind::Invention => throw new \LogicException(\sprintf('A buy or build comparison has no %s activity.', $activity->name)),
+            ActivityKind::Copying, ActivityKind::Invention, ActivityKind::ResearchMaterial, ActivityKind::ResearchTime => throw new \LogicException(\sprintf('A buy or build comparison has no %s activity.', $activity->name)),
         };
     }
 

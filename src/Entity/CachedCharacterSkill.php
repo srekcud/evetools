@@ -20,6 +20,8 @@ class CachedCharacterSkill
     public const SKILL_ADVANCED_INDUSTRY = 3388;
     public const SKILL_REACTIONS = 45746;
     public const SKILL_SCIENCE = 3402;
+    public const SKILL_METALLURGY = 3409;
+    public const SKILL_RESEARCH = 3403;
     public const SKILL_ACCOUNTING = 16622;
     public const SKILL_BROKER_RELATIONS = 3446;
 
@@ -34,6 +36,8 @@ class CachedCharacterSkill
         self::SKILL_INDUSTRY,
         self::SKILL_ADVANCED_INDUSTRY,
         self::SKILL_REACTIONS,
+        self::SKILL_METALLURGY,
+        self::SKILL_RESEARCH,
     ];
 
     /** Slot-related skill type IDs */

@@ -93,7 +93,7 @@ final class StructureComparisonPresenter
         return match ($activity) {
             ActivityKind::Manufacturing => 'manufacturing',
             ActivityKind::Reaction => 'reaction',
-            ActivityKind::Copying, ActivityKind::Invention => throw new \LogicException(\sprintf('A structure comparison has no %s activity.', $activity->name)),
+            ActivityKind::Copying, ActivityKind::Invention, ActivityKind::ResearchMaterial, ActivityKind::ResearchTime => throw new \LogicException(\sprintf('A structure comparison has no %s activity.', $activity->name)),
         };
     }
 

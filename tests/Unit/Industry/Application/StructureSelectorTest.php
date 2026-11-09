@@ -548,6 +548,32 @@ final class StructureSelectorTest extends TestCase
         $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
     }
 
+    /**
+     * @return iterable<string, array{ActivityKind}>
+     */
+    public static function researchProvider(): iterable
+    {
+        yield 'ME research' => [ActivityKind::ResearchMaterial];
+        yield 'TE research' => [ActivityKind::ResearchTime];
+    }
+
+    #[DataProvider('researchProvider')]
+    public function testResearchPicksTheLowestInstallRateFromTheResearchCostIndexOfEachSystem(ActivityKind $activity): void
+    {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaruConfiguredWithFacilityTax('expensive-research-system', self::OTHER_SYSTEM_ID, '2026-09-01 00:00:00', 0.0),
+            ProductionStructures::raitaruConfiguredWithFacilityTax('cheap-research-system', self::SECOND_OTHER_SYSTEM_ID, '2026-01-01 00:00:00', 0.0),
+        ], FavoriteSystems::none(), new InMemorySystemCostIndices([
+            self::OTHER_SYSTEM_ID => [$activity->name => 0.10, ActivityKind::Manufacturing->name => 0.01],
+            self::SECOND_OTHER_SYSTEM_ID => [$activity->name => 0.02, ActivityKind::Manufacturing->name => 0.20],
+        ]));
+
+        $choice = $selector->select($activity, null);
+
+        $this->assertSame('cheap-research-system', $choice->structure?->id);
+        $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
+    }
+
     #[DataProvider('copyingAndInventionProvider')]
     public function testCopyingAndInventionReadTheCostIndexOfTheActivityInTheSystemOfEachStructure(ActivityKind $activity): void
     {
