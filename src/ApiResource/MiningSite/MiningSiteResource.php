@@ -96,4 +96,7 @@ class MiningSiteResource
     public ?int $lastScanNumber = null;
 
     public ?string $lastScanAuthorName = null;
+
+    /** @var array<string, mixed>|null */
+    public ?array $compression = null;
 }

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { MinedQuantityState, MiningCompressionStatus, MiningCompressorKind, MiningLedgerCharacterQuantity, MiningLedgerParticipant, MiningOperationLedger } from '@/stores/miningOperation'
+import MiningCompressionBanners from '@/components/mining-operation/MiningCompressionBanners.vue'
+import { useMiningCompression } from '@/composables/useMiningCompression'
+import type { MinedQuantityState, MiningLedgerCharacterQuantity, MiningLedgerParticipant, MiningOperationLedger } from '@/stores/miningOperation'
 import { formatCount } from '@/views/MiningOperation/miningOperationQuantity'
 import { formatEveClock } from '@/views/MiningOperation/miningOperationTime'
 
@@ -13,36 +15,7 @@ const { t, locale } = useI18n()
 
 const unknownParticipants = computed(() => props.ledger.participants.filter(participant => participant.state === 'unknown'))
 
-interface CompressionBadge {
-  text: string
-  classes: string
-  hint: string
-}
-
-const compressionBadges = computed(() => {
-  const badges = new Map<number, CompressionBadge>()
-  if (props.ledger.compression.boostShipTypeId === null) return badges
-  for (const type of props.ledger.compression.types) badges.set(type.typeId, compressionBadgeOf(type.status))
-  return badges
-})
-const compressionBanners = computed(() => {
-  const { gaps, boostShipName } = props.ledger.compression
-  const banners: string[] = []
-  if (gaps.noHull.length > 0) banners.push(t('miningOperation.boostFit.noHullBanner', { ship: boostShipName, kinds: kindsText(gaps.noHull) }))
-  if (gaps.notMounted.length > 0) banners.push(t('miningOperation.boostFit.notMountedBanner', { kinds: kindsText(gaps.notMounted) }))
-  return banners
-})
-
-function kindsText(kinds: MiningCompressorKind[]): string {
-  return kinds.map(kind => t(`miningOperation.boostFit.kind.${kind}`).toLocaleLowerCase(locale.value)).join(', ')
-}
-
-function compressionBadgeOf(status: MiningCompressionStatus): CompressionBadge {
-  const hint = t(`miningOperation.boostFit.badgeHint.${status}`)
-  if (status === 'on_site') return { text: t('miningOperation.boostFit.badge.onSite'), classes: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300', hint }
-  if (status === 'unknown_ore_kind') return { text: t('miningOperation.boostFit.badge.unknown'), classes: 'border-slate-600 text-slate-400', hint }
-  return { text: t('miningOperation.boostFit.badge.none'), classes: 'border-amber-500/40 bg-amber-500/10 text-amber-300', hint }
-}
+const { badges: compressionBadges } = useMiningCompression(() => props.ledger.compression)
 
 function participantName(participant: MiningLedgerParticipant): string {
   return participant.characterName ?? t('miningOperation.unknownPilot')
@@ -86,13 +59,7 @@ function correctionTrace(quantity: MiningLedgerCharacterQuantity): string {
       role="alert"
     >{{ t('miningOperation.quantities.unknownBanner', { name: participantName(participant) }) }}</p>
 
-    <p
-      v-for="banner in compressionBanners"
-      :key="banner"
-      class="mb-3 rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-200"
-      role="alert"
-    >{{ banner }}</p>
-    <p v-if="compressionBanners.length > 0" class="mb-3 text-xs text-slate-400">{{ t('miningOperation.boostFit.sharesUnchanged') }}</p>
+    <MiningCompressionBanners :compression="ledger.compression" />
 
     <ul class="divide-y divide-slate-800">
       <li v-for="participant in ledger.participants" :key="participant.memberId" class="py-2">

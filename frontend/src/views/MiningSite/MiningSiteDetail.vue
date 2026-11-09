@@ -5,9 +5,11 @@ import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import MiningCompressionBanners from '@/components/mining-operation/MiningCompressionBanners.vue'
 import MiningSiteCurve from '@/components/mining-site/MiningSiteCurve.vue'
 import MiningSiteScanFeed from '@/components/mining-site/MiningSiteScanFeed.vue'
 import MiningSiteScanForm from '@/components/mining-site/MiningSiteScanForm.vue'
+import { useMiningCompression } from '@/composables/useMiningCompression'
 import { UNKNOWN_DASH, useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
 import { useMiningSiteOreTypes } from '@/composables/useMiningSiteOreTypes'
 import { useMiningSiteStore, type MiningSiteScanType } from '@/stores/miningSite'
@@ -51,6 +53,7 @@ const store = useMiningSiteStore()
 const syncStore = useSyncStore()
 const oreTypes = useMiningSiteOreTypes()
 const { etaText, dateTimeText, wholeText, valueText, lastScanText } = useMiningSiteFormat()
+const { badges: compressionBadges } = useMiningCompression(() => site.value?.compression)
 
 const siteId = String(route.params.id)
 const loading = ref(true)
@@ -285,6 +288,7 @@ onBeforeUnmount(() => {
 
         <section v-if="lastScan !== null" class="eve-card p-2">
           <h2 class="px-3 pt-3 font-display text-lg font-semibold text-slate-100">{{ t('miningSite.table.title') }}</h2>
+          <MiningCompressionBanners :compression="site.compression" class="px-3 pt-2" />
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
               <thead>
@@ -297,6 +301,7 @@ onBeforeUnmount(() => {
                   <td class="max-w-56 px-3 py-2.5">
                     <span class="block truncate font-display font-semibold text-slate-100" :title="oreTypes.nameOf(type.typeId)">{{ oreTypes.nameOf(type.typeId) }}</span>
                     <span class="mt-1 flex flex-wrap gap-1">
+                      <span v-if="compressionBadges.has(type.typeId)" data-testid="type-compression" class="rounded-sm border px-1.5 py-0.5 font-mono text-xs" :class="compressionBadges.get(type.typeId)?.classes" :title="compressionBadges.get(type.typeId)?.hint">{{ compressionBadges.get(type.typeId)?.text }}</span>
                       <span v-if="isNotMined(type)" class="rounded-sm border border-slate-600 px-1.5 py-0.5 font-mono text-xs text-slate-300">{{ t('miningSite.badge.notMined') }}</span>
                       <span v-if="type.etaUnknownReason === 'single_scan'" class="rounded-sm border border-amber-400/40 px-1.5 py-0.5 font-mono text-xs text-amber-300">{{ t('miningSite.badge.singleScan') }}</span>
                       <span v-if="isIrregularRate(type)" class="rounded-sm border border-orange-400/40 px-1.5 py-0.5 font-mono text-xs text-orange-300">{{ t('miningSite.badge.irregular') }}</span>
