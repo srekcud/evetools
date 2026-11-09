@@ -32,6 +32,14 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     }
   }
 
+  async function findManufacturableProducts(query: string): Promise<SearchResult[]> {
+    if (query.length < 2) return []
+    const data = await apiRequest<{ results: SearchResult[] }>(
+      `/industry/search?q=${encodeURIComponent(query)}`,
+    )
+    return data.results
+  }
+
   async function fetchManufacturableType(typeId: number): Promise<SearchResult> {
     return apiRequest<SearchResult>(`/industry/types/${typeId}`)
   }
@@ -96,6 +104,7 @@ export const useProjectsStore = defineStore('industry-projects', () => {
     defaultMaxJobDurationDays,
     setDefaultMaxJobDurationDays,
     searchProducts,
+    findManufacturableProducts,
     fetchManufacturableType,
     analyzeMargin,
     clearError,
