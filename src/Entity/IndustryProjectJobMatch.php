@@ -37,6 +37,9 @@ class IndustryProjectJobMatch
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $endDate = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $startDate = null;
+
     #[ORM\Column(type: 'integer')]
     private int $runs;
 
@@ -125,6 +128,18 @@ class IndustryProjectJobMatch
         return $this;
     }
 
+    public function getStartDate(): ?\DateTimeImmutable
+    {
+        return $this->startDate;
+    }
+
+    public function setStartDate(?\DateTimeImmutable $startDate): static
+    {
+        $this->startDate = $startDate;
+
+        return $this;
+    }
+
     public function getRuns(): int
     {
         return $this->runs;
@@ -200,6 +215,7 @@ class IndustryProjectJobMatch
     public function copyJobState(CachedIndustryJob $job): static
     {
         $this->status = $job->getStatus();
+        $this->startDate = $job->getStartDate();
         $this->endDate = $job->getEndDate();
         $this->cost = $job->getCost();
         $this->runs = $job->getRuns();

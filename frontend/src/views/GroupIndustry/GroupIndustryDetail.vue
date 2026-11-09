@@ -8,6 +8,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
+import { useGroupActivityStore } from '@/stores/group-industry/activity'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
@@ -43,6 +44,7 @@ import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklist
 import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
+import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '@/stores/group-industry/types'
@@ -50,7 +52,7 @@ import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, detailTabOfNextAction, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
-import { groupProjectRefreshes, type GroupProjectRefresh } from './groupProjectRefreshes'
+import { groupProjectRefreshes, refreshesActivityOn, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
@@ -64,6 +66,7 @@ const projectStore = useGroupProjectStore()
 const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
 const settlementStore = useGroupSettlementStore()
+const activityStore = useGroupActivityStore()
 const syncStore = useSyncStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { showToast } = useToast()
@@ -133,6 +136,9 @@ onMounted(async () => {
     projectStore.fetchBom(projectId.value),
     loadCockpit(projectId.value),
   ])
+  if (activeTab.value === 'journal') {
+    await activityStore.fetchActivity(projectId.value)
+  }
 })
 
 const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<void>> = {
@@ -145,6 +151,7 @@ const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<v
   distribution: id => Promise.all([distributionStore.fetchDistribution(id), settlementStore.fetchForProject(id)]).then(() => undefined),
   settlement: settlementStore.fetchForProject,
   cockpit: loadCockpit,
+  activity: activityStore.fetchActivity,
 }
 
 const { isFlashing: projectUpdated, flash: flashProject } = useFlash()
@@ -153,7 +160,10 @@ watch(
   () => syncStore.getGroupProjectEvent(projectId.value),
   (event) => {
     if (!event) return
-    const refreshes = groupProjectRefreshes(event.action).map(refresh => refreshGroupProject[refresh](projectId.value))
+    const refreshKinds = refreshesActivityOn(event.action)
+      ? [...groupProjectRefreshes(event.action), 'activity' as const]
+      : groupProjectRefreshes(event.action)
+    const refreshes = refreshKinds.map(refresh => refreshGroupProject[refresh](projectId.value))
     Promise.all(refreshes).then(flashProject)
   },
 )
@@ -179,6 +189,8 @@ watch(activeTab, (tab) => {
     settlementStore.fetchForProject(projectId.value)
   } else if (tab === 'members') {
     distributionStore.fetchMembers(projectId.value)
+  } else if (tab === 'journal') {
+    activityStore.fetchActivity(projectId.value)
   }
 })
 
@@ -576,6 +588,23 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <div v-else-if="activeTab === 'planning'" class="relative rounded-xl">
         <ProjectPlanning :project-id="projectId" />
+      </div>
+
+      <div v-else-if="activeTab === 'journal'" class="relative rounded-xl">
+        <div
+          v-if="activityStore.error !== null"
+          data-testid="project-journal-error"
+          role="alert"
+          class="mb-4 p-3 rounded border border-red-500/30 bg-red-500/10 text-sm text-red-300"
+        >
+          <p class="font-semibold">{{ t('groupIndustry.journal.loadError') }}</p>
+          <p class="mt-1 break-words">{{ activityStore.error }}</p>
+        </div>
+        <ProjectJournal
+          :events="activityStore.events"
+          :running-jobs="activityStore.runningJobs"
+          :live="syncStore.isConnected"
+        />
       </div>
 
       <!-- Tab Content: Members -->

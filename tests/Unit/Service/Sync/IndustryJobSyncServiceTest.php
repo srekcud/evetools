@@ -3142,6 +3142,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $job->setJobId($jobId);
         $job->setCharacter($character);
         $job->setStatus($status);
+        $job->setStartDate(new \DateTimeImmutable('2026-10-20T08:00:00Z'));
         $job->setEndDate(new \DateTimeImmutable($endDate));
         $job->setRuns(5);
         $job->setCost(100_000.0);

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Mercure;
 
+use App\Event\GroupProjectEventPublished;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 
@@ -13,6 +15,7 @@ final readonly class MercurePublisherService
     public function __construct(
         private HubInterface $hub,
         private LoggerInterface $logger,
+        private ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -188,12 +191,15 @@ final readonly class MercurePublisherService
         array $data = [],
     ): void {
         $topic = sprintf('/group-project/%s/events', $projectId);
+        $occurredAt = new \DateTimeImmutable();
+
+        $this->dispatchGroupProjectEvent(new GroupProjectEventPublished($projectId, $action, $data, $occurredAt));
 
         $payload = [
             'action' => $action,
             'projectId' => $projectId,
             'data' => $data,
-            'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            'timestamp' => $occurredAt->format(\DateTimeInterface::ATOM),
         ];
 
         try {
@@ -213,6 +219,19 @@ final readonly class MercurePublisherService
             $this->logger->warning('Failed to publish Group Industry Mercure update', [
                 'projectId' => $projectId,
                 'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function dispatchGroupProjectEvent(GroupProjectEventPublished $event): void
+    {
+        try {
+            $this->eventDispatcher?->dispatch($event);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to record Group Industry project activity', [
+                'projectId' => $event->projectId,
+                'action' => $event->action,
                 'error' => $e->getMessage(),
             ]);
         }

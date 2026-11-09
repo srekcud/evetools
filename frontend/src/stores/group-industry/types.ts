@@ -937,3 +937,26 @@ export interface ProjectSurplus {
   totalValue: number | null
   lines: ProjectSurplusLine[]
 }
+
+export interface ProjectActivityEvent {
+  id: string
+  kind: string
+  occurredAt: string
+  data: Record<string, unknown>
+}
+
+export interface ProjectRunningJob {
+  characterName: string
+  typeId: number
+  typeName: string
+  jobCount: number
+  runs: number
+  startedAt: string | null
+  endsAt: string
+  cost: number | null
+}
+
+export interface ProjectActivity {
+  events: ProjectActivityEvent[]
+  runningJobs: ProjectRunningJob[]
+}

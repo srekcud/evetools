@@ -1,12 +1,12 @@
 import type { ProjectNextActionTab } from '@/stores/group-industry/types'
 
-export type ProjectDetailTab = 'bom' | 'contributions' | 'distribution' | 'sales' | 'members' | 'chain' | 'planning'
+export type ProjectDetailTab = 'bom' | 'contributions' | 'distribution' | 'sales' | 'members' | 'chain' | 'planning' | 'journal'
 
-export type ProjectComingSoonTab = 'invention' | 'journal'
+export type ProjectComingSoonTab = 'invention'
 
-export const DETAIL_TABS: ProjectDetailTab[] = ['bom', 'contributions', 'distribution', 'sales', 'members', 'chain', 'planning']
+export const DETAIL_TABS: ProjectDetailTab[] = ['bom', 'contributions', 'distribution', 'sales', 'members', 'chain', 'planning', 'journal']
 
-export const COMING_SOON_TABS: ProjectComingSoonTab[] = ['invention', 'journal']
+export const COMING_SOON_TABS: ProjectComingSoonTab[] = ['invention']
 
 const TAB_OF_NEXT_ACTION: Record<ProjectNextActionTab, ProjectDetailTab> = {
   materials: 'bom',

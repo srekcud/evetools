@@ -13,6 +13,8 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\PilotName;
+use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectResourceMapper;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -36,6 +38,7 @@ class UpdateParticipantProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $entityManager,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly ProjectResourceMapper $mapper,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -89,6 +92,7 @@ class UpdateParticipantProcessor implements ProcessorInterface
             $member->setRole($newRole);
         }
 
+        $accepted = false;
         if ($data->status !== null) {
             $newStatus = ParticipantStatus::tryFrom($data->status);
             if ($newStatus !== ParticipantStatus::Accepted) {
@@ -100,9 +104,21 @@ class UpdateParticipantProcessor implements ProcessorInterface
             }
 
             $member->setStatus(ParticipantStatus::Accepted);
+            $accepted = true;
         }
 
         $this->entityManager->flush();
+
+        if ($accepted) {
+            $this->mercurePublisher->publishGroupProjectEvent(
+                $project->getId()->toRfc4122(),
+                'member_accepted',
+                [
+                    'memberId' => $member->getId()->toRfc4122(),
+                    'characterName' => PilotName::of($member->getUser()),
+                ],
+            );
+        }
 
         return $this->mapper->memberToResource($member);
     }

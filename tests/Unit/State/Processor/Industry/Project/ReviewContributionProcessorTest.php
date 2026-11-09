@@ -431,10 +431,50 @@ class ReviewContributionProcessorTest extends TestCase
 
         self::assertCount(1, $payloads);
         self::assertSame('contribution_approved', $payloads[0]['action']);
-        self::assertSame(
-            ['contributionId' => $contribution->getId()->toRfc4122(), 'reviewedBy' => 'Mira Dane'],
-            $payloads[0]['data'],
-        );
+        self::assertSame($contribution->getId()->toRfc4122(), $payloads[0]['data']['contributionId']);
+        self::assertSame('Mira Dane', $payloads[0]['data']['reviewedBy']);
+    }
+
+    #[Group('issue-321')]
+    public function testApprovalNamesTheContributorPilotTheBomLineAndTheQuantity(): void
+    {
+        $payloads = $this->capturePublishedPayloads();
+
+        $this->review($this->owner, $this->pendingContributionOfPilot('Vex Tanner'), 'approved');
+
+        self::assertSame('contribution_approved', $payloads[0]['action']);
+        self::assertSame(['Vex Tanner', 'Tritanium', self::CONTRIBUTED_QUANTITY], [
+            $payloads[0]['data']['characterName'] ?? 'absent',
+            $payloads[0]['data']['bomItemName'] ?? 'absent',
+            $payloads[0]['data']['quantity'] ?? 'absent',
+        ]);
+    }
+
+    #[Group('issue-321')]
+    public function testRejectionNamesTheContributorPilotTheBomLineAndTheQuantity(): void
+    {
+        $payloads = $this->capturePublishedPayloads();
+
+        $this->review($this->owner, $this->pendingContributionOfPilot('Vex Tanner'), 'rejected');
+
+        self::assertSame('contribution_rejected', $payloads[0]['action']);
+        self::assertSame(['Vex Tanner', 'Tritanium', self::CONTRIBUTED_QUANTITY], [
+            $payloads[0]['data']['characterName'] ?? 'absent',
+            $payloads[0]['data']['bomItemName'] ?? 'absent',
+            $payloads[0]['data']['quantity'] ?? 'absent',
+        ]);
+    }
+
+    #[Group('issue-321')]
+    public function testAContributorWithoutMainCharacterIsPublishedAsUnknownAndNeverByTheNameOfAnAlt(): void
+    {
+        $contributor = $this->addMember($this->createStub(User::class), ParticipantRole::Member);
+        $contribution = $this->pendingContributionOf($contributor);
+        $payloads = $this->capturePublishedPayloads();
+
+        $this->review($this->owner, $contribution, 'approved');
+
+        self::assertSame('Unknown', $payloads[0]['data']['characterName'] ?? 'absent');
     }
 
     #[Group('issue-168')]
@@ -448,10 +488,8 @@ class ReviewContributionProcessorTest extends TestCase
 
         self::assertCount(1, $payloads);
         self::assertSame('contribution_rejected', $payloads[0]['action']);
-        self::assertSame(
-            ['contributionId' => $contribution->getId()->toRfc4122(), 'reviewedBy' => 'Unknown'],
-            $payloads[0]['data'],
-        );
+        self::assertSame($contribution->getId()->toRfc4122(), $payloads[0]['data']['contributionId']);
+        self::assertSame('Unknown', $payloads[0]['data']['reviewedBy']);
     }
 
     #[Group('issue-168')]
@@ -478,6 +516,14 @@ class ReviewContributionProcessorTest extends TestCase
         $this->expectExceptionMessage('Contribution not found');
 
         $this->processor->process($input, new Patch(), ['id' => Uuid::v4()->toRfc4122()]);
+    }
+
+    private function pendingContributionOfPilot(string $pilotName): IndustryProjectContribution
+    {
+        $contributorUser = new User();
+        $contributorUser->setMainCharacter((new Character())->setName($pilotName));
+
+        return $this->pendingContributionOf($this->addMember($contributorUser, ParticipantRole::Member));
     }
 
     private function review(User $reviewer, IndustryProjectContribution $contribution, string $decision): ProjectContributionResource

@@ -398,6 +398,53 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertNull($this->project->getContainerName());
     }
 
+    #[Group('issue-321')]
+    public function testChangingTheBrokerFeePublishesFeesUpdatedWithTheNewAndThePreviousFees(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->brokerFeePercent = 2.5;
+        $payloads = $this->capturePublishedPayloads();
+
+        $this->update($input);
+
+        self::assertCount(1, $payloads);
+        self::assertSame('fees_updated', $payloads[0]['action']);
+        self::assertSame($this->project->getId()->toRfc4122(), $payloads[0]['projectId']);
+        self::assertSame(
+            ['brokerFeePercent' => 2.5, 'salesTaxPercent' => 3.6, 'previousBrokerFeePercent' => 3.0, 'previousSalesTaxPercent' => 3.6],
+            $payloads[0]['data'],
+        );
+    }
+
+    #[Group('issue-321')]
+    public function testChangingTheSalesTaxPublishesFeesUpdatedWithTheNewAndThePreviousFees(): void
+    {
+        $this->project->setStatus(ProjectStatus::Selling);
+        $input = new UpdateProjectInput();
+        $input->salesTaxPercent = 2.0;
+        $payloads = $this->capturePublishedPayloads();
+
+        $this->update($input);
+
+        self::assertCount(1, $payloads);
+        self::assertSame('fees_updated', $payloads[0]['action']);
+        self::assertSame(
+            ['brokerFeePercent' => 3.0, 'salesTaxPercent' => 2.0, 'previousBrokerFeePercent' => 3.0, 'previousSalesTaxPercent' => 3.6],
+            $payloads[0]['data'],
+        );
+    }
+
+    #[Group('issue-321')]
+    public function testPatchingTheFeesWithTheirCurrentValuesPublishesNothing(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->brokerFeePercent = 3.0;
+        $input->salesTaxPercent = 3.6;
+        $this->hub->expects($this->never())->method('publish');
+
+        $this->update($input);
+    }
+
     #[Group('issue-168')]
     public function testStatusChangeIsPublishedWithTheOldAndTheNewStatus(): void
     {
@@ -419,7 +466,7 @@ class UpdateProjectProcessorTest extends TestCase
     {
         $this->project->setStatus(ProjectStatus::Selling);
         $input = new UpdateProjectInput();
-        $input->salesTaxPercent = 2.0;
+        $input->name = 'Rorqual batch';
         $this->hub->expects($this->never())->method('publish');
 
         $this->update($input);

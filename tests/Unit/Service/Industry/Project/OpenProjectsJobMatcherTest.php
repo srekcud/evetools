@@ -11,6 +11,7 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\IndustryJobMatcher;
 use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Industry\Project\OpenProjectsJobMatcher;
+use App\Service\Industry\Project\ProjectJobActivityRecorder;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -25,6 +26,7 @@ final class OpenProjectsJobMatcherTest extends TestCase
 
     private array $steps = [];
     private array $projectsOfUser = [];
+    private array $recordedProjects = [];
     private ?IndustryProject $failingProject = null;
     private BufferingLogger $logger;
     private OpenProjectsJobMatcher $matcher;
@@ -49,8 +51,13 @@ final class OpenProjectsJobMatcherTest extends TestCase
             $this->steps[] = ['refresh', $line->getTypeName()];
         });
 
+        $jobActivityRecorder = $this->createStub(ProjectJobActivityRecorder::class);
+        $jobActivityRecorder->method('recordJobsOf')->willReturnCallback(function (IndustryProject $project): void {
+            $this->recordedProjects[] = [$project->getName(), \in_array(['match', $project->getName()], $this->steps, true)];
+        });
+
         $this->logger = new BufferingLogger();
-        $this->matcher = new OpenProjectsJobMatcher($projectRepository, $jobMatcher, $derivedContributionService, $this->logger);
+        $this->matcher = new OpenProjectsJobMatcher($projectRepository, $jobMatcher, $derivedContributionService, $this->logger, $jobActivityRecorder);
     }
 
     public function testEachOpenProjectOfTheUserIsMatchedThenItsJobLinesAreRefreshedAndNothingElse(): void
@@ -77,6 +84,29 @@ final class OpenProjectsJobMatcherTest extends TestCase
         $warnings = array_filter($this->logger->cleanLogs(), static fn (array $record): bool => 'warning' === $record[0]);
         self::assertCount(1, $warnings);
         self::assertSame('Failed to match jobs of project', array_values($warnings)[0][1]);
+    }
+
+    #[Group('issue-321')]
+    public function testTheJobsOfEveryOpenProjectAreRecordedAfterTheyAreMatched(): void
+    {
+        $this->projectsOfUser = [$this->project('Ishtar batch'), $this->project('Ishtar again')];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        self::assertSame([['Ishtar batch', true], ['Ishtar again', true]], $this->recordedProjects);
+    }
+
+    #[Group('issue-321')]
+    public function testAProjectWhoseMatchingFailsIsNotRecordedAndTheOthersAre(): void
+    {
+        $failing = $this->project('Broken batch');
+        $this->failingProject = $failing;
+        $this->projectsOfUser = [$failing, $this->project('Ishtar batch')];
+
+        $this->matcher->matchOpenProjectsOf(new User());
+
+        self::assertSame([['Ishtar batch', true]], $this->recordedProjects);
+        $this->logger->cleanLogs();
     }
 
     public function testAUserWithoutOpenProjectMatchesNothing(): void

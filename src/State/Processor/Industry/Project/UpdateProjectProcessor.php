@@ -73,6 +73,8 @@ class UpdateProjectProcessor implements ProcessorInterface
         assert($data instanceof UpdateProjectInput);
 
         $oldStatus = $project->getStatus();
+        $previousBrokerFeePercent = $project->getBrokerFeePercent();
+        $previousSalesTaxPercent = $project->getSalesTaxPercent();
 
         $feesAreChanged = $data->brokerFeePercent !== null || $data->salesTaxPercent !== null;
 
@@ -145,6 +147,19 @@ class UpdateProjectProcessor implements ProcessorInterface
                 [
                     'oldStatus' => $oldStatus->value,
                     'newStatus' => $project->getStatus()->value,
+                ],
+            );
+        }
+
+        if ($previousBrokerFeePercent !== $project->getBrokerFeePercent() || $previousSalesTaxPercent !== $project->getSalesTaxPercent()) {
+            $this->mercurePublisher->publishGroupProjectEvent(
+                $project->getId()->toRfc4122(),
+                'fees_updated',
+                [
+                    'brokerFeePercent' => $project->getBrokerFeePercent(),
+                    'salesTaxPercent' => $project->getSalesTaxPercent(),
+                    'previousBrokerFeePercent' => $previousBrokerFeePercent,
+                    'previousSalesTaxPercent' => $previousSalesTaxPercent,
                 ],
             );
         }
