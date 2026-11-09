@@ -106,6 +106,7 @@ final class OpenProjectsJobMatcherTest extends TestCase
         $this->matcher->matchOpenProjectsOf(new User());
 
         self::assertSame([['Ishtar batch', true]], $this->recordedProjects);
+        $this->logger->cleanLogs();
     }
 
     public function testAUserWithoutOpenProjectMatchesNothing(): void
