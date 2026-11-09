@@ -237,6 +237,36 @@ export type UnsoldProduct = {
   lastUnitPrice: number | null
 }
 
+export type SellForecastMarket = {
+  name: string
+  unitPrice: number | null
+  coveragePercent: number | null
+  feeRate: number | null
+  netUnitPrice: number | null
+  netRevenue: number | null
+  daysToSell: number | null
+}
+
+export type SellForecastProduct = {
+  typeId: number
+  typeName: string
+  quantity: number
+  structure: SellForecastMarket | null
+  jita: SellForecastMarket
+}
+
+export type SellForecast = {
+  projectId: string
+  sellStructure: { id: number; name: string } | null
+  products: SellForecastProduct[]
+  totals: {
+    structureNetRevenue: number | null
+    jitaNetRevenue: number | null
+    structureUnknownProductCount: number
+    jitaUnknownProductCount: number
+  }
+}
+
 export type Distribution = {
   id: string
   totalRevenue: number

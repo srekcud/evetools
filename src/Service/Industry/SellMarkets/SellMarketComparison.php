@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Industry\SellMarkets;
 
 use App\Entity\User;
+use App\Service\Industry\Project\ProjectSellStructures;
+use App\Service\Industry\Project\SellStructure;
 use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\JitaMarketService;
@@ -21,7 +23,6 @@ class SellMarketComparison
     public const string STRUCTURE_ESTIMATE_VOLUME = 'structure_estimate';
     private const float FULL_COVERAGE = 1.0;
     private const float NO_VOLUME = 0.0;
-    private const string UNNAMED_STRUCTURE_FORMAT = 'Structure %d';
 
     public function __construct(
         private readonly JitaMarketService $jitaMarketService,
@@ -33,12 +34,16 @@ class SellMarketComparison
 
     public function compare(User $user, int $typeId, int $quantity, \DateTimeImmutable $today): SellMarketComparisonResult
     {
-        $fees = $this->salesFeesResolver->forUser($user);
+        return $this->compareAt($user, (new ProjectSellStructures())->defaultFor($user), $typeId, $quantity, $today);
+    }
+
+    public function compareAt(User $seller, ?SellStructure $structure, int $typeId, int $quantity, \DateTimeImmutable $today): SellMarketComparisonResult
+    {
+        $fees = $this->salesFeesResolver->forUser($seller);
         $markets = [$this->jitaRow($typeId, $quantity, $fees)];
 
-        $structureId = $user->getPreferredMarketStructureId();
-        if (null !== $structureId) {
-            $markets[] = $this->capitalRow($structureId, $user->getPreferredMarketStructureName() ?? \sprintf(self::UNNAMED_STRUCTURE_FORMAT, $structureId), $typeId, $quantity, $today, $fees);
+        if (null !== $structure) {
+            $markets[] = $this->capitalRow($structure->id, $structure->name, $typeId, $quantity, $today, $fees);
         }
 
         return new SellMarketComparisonResult($typeId, $quantity, $markets, $this->immediateSale($typeId, $quantity, $fees));
