@@ -69,6 +69,9 @@ const CAPITAL_ARMOR_PLATES: BomItem = {
   jobMatches: [],
   matchedRuns: 0,
   purchasedQuantity: 50,
+  reservations: [],
+  reservedQuantity: 0,
+  freeQuantity: 0,
   purchases: [
     purchase({ id: 'purchase-transaction', quantity: 40, unitPrice: 1_150_000, totalPrice: 46_000_000, transactionId: 'transaction-uuid-1' }),
     purchase({ id: 'purchase-manual', quantity: 10, unitPrice: 1_200_000, totalPrice: 12_000_000, source: 'manual' }),
@@ -85,6 +88,9 @@ const PYERITE: BomItem = {
   activityType: null,
   requiredQuantity: 45_000,
   purchasedQuantity: 15_000,
+  reservations: [],
+  reservedQuantity: 0,
+  freeQuantity: 0,
   purchases: [purchase({ id: 'purchase-pyerite', bomLineId: 'bom-pyerite', typeId: 35, quantity: 15_000, unitPrice: 9, totalPrice: 135_000 })],
 }
 

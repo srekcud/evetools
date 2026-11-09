@@ -7,8 +7,13 @@ import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
 import JobLinkModal from './JobLinkModal.vue'
 import LinePurchases from './LinePurchases.vue'
+import LineReservation from './LineReservation.vue'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import type { AvailableJob, BomItem, CharacterMatchFailure } from '@/stores/group-industry/types'
+
+const emit = defineEmits<{
+  contribute: [bomItem: BomItem]
+}>()
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
@@ -282,6 +287,7 @@ function isJobDimmed(job: BomItem): boolean {
                 <th class="text-center py-2.5 px-3">ME/TE</th>
                 <th class="text-center py-2.5 px-3">{{ t('groupIndustry.jobs.status') }}</th>
                 <th class="text-right py-2.5 px-6">{{ t('groupIndustry.bom.estCost') }}</th>
+                <th class="text-left py-2.5 px-3">{{ t('groupIndustry.reservation.reservedBy') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/30">
@@ -292,7 +298,7 @@ function isJobDimmed(job: BomItem): boolean {
                   class="bg-slate-800/40 cursor-pointer hover:bg-slate-800/60 transition-colors"
                   @click="toggleGroup(group.key)"
                 >
-                  <td colspan="7" class="px-6 py-2">
+                  <td colspan="8" class="px-6 py-2">
                     <div class="flex items-center gap-2">
                       <svg
                         class="w-3 h-3 text-slate-500 transition-transform"
@@ -417,6 +423,10 @@ function isJobDimmed(job: BomItem): boolean {
                     <!-- Est. Cost -->
                     <td class="py-2.5 px-6 text-right font-mono" :class="isJobDimmed(job) ? 'text-slate-500' : 'text-slate-400'" style="font-variant-numeric: tabular-nums;">
                       {{ job.estimatedTotal != null ? formatIsk(job.estimatedTotal, 1) : '&mdash;' }}
+                    </td>
+
+                    <td class="py-2.5 px-3">
+                      <LineReservation :item="job" @contribute="emit('contribute', $event)" />
                     </td>
                   </tr>
                 </template>

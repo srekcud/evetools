@@ -7,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import LinePurchases from './LinePurchases.vue'
+import LineReservation from './LineReservation.vue'
 import type { BomItem, ContainerVerification, ContainerVerificationStatus } from '@/stores/group-industry/types'
 import { CHART_COLORS } from '@/utils/chartColors'
 
@@ -15,7 +16,7 @@ const projectStore = useGroupProjectStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { formatIsk, formatNumber } = useFormatters()
 
-defineEmits<{
+const emit = defineEmits<{
   contribute: [bomItem: BomItem]
 }>()
 
@@ -105,6 +106,7 @@ function ringStrokeColor(percent: number): string {
               <th class="text-right py-2.5 px-3">{{ t('groupIndustry.bom.fulfilled') }}</th>
               <th class="text-right py-2.5 px-3">{{ t('groupIndustry.bom.remaining') }}</th>
               <th class="text-left py-2.5 px-3 w-36">{{ t('groupIndustry.bom.progress') }}</th>
+              <th class="text-left py-2.5 px-3">{{ t('groupIndustry.reservation.reservedBy') }}</th>
               <th class="text-right py-2.5 px-6">
                 <div class="flex items-center justify-end gap-1">
                   {{ t('groupIndustry.bom.estCost') }}
@@ -206,6 +208,10 @@ function ringStrokeColor(percent: number): string {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
+              </td>
+
+              <td class="py-2.5 px-3">
+                <LineReservation :item="item" @contribute="emit('contribute', $event)" />
               </td>
 
               <!-- Est. Cost -->

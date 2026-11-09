@@ -32,6 +32,9 @@ function material(overrides: Partial<BomItem>): BomItem {
     matchedRuns: 0,
     purchases: [],
     purchasedQuantity: 0,
+    reservations: [],
+    reservedQuantity: 0,
+    freeQuantity: 0,
     ...overrides,
   }
 }

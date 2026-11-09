@@ -30,6 +30,9 @@ function jobLine(overrides: Partial<BomItem>): BomItem {
     matchedRuns: 0,
     purchases: [],
     purchasedQuantity: 0,
+    reservations: [],
+    reservedQuantity: 0,
+    freeQuantity: 0,
     ...overrides,
   }
 }
@@ -82,7 +85,7 @@ describe('JobsTable footer total', () => {
   it('keeps every job cost cell unknown when no job has an estimated total', () => {
     const wrapper = mountJobsTable([SABRE_BLUEPRINT_COPY, SABRE_JOB, PURIFIER_JOB])
 
-    const costCells = wrapper.findAll('tbody tr').filter(row => row.findAll('td').length === 7).map(row => row.findAll('td')[6]!.text())
+    const costCells = wrapper.findAll('tbody tr').filter(row => row.findAll('td').length === 8).map(row => row.findAll('td')[6]!.text())
     expect(costCells).toEqual(['—', '—', '—'])
   })
 

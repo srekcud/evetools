@@ -208,6 +208,19 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     await fetchBom(projectId)
   }
 
+  async function reserveLine(projectId: string, lineId: string, quantity: number): Promise<void> {
+    await apiRequest(`/industry/projects/${projectId}/bom/${lineId}/reservation`, {
+      method: 'POST',
+      body: JSON.stringify({ quantity }),
+    })
+    await fetchBom(projectId)
+  }
+
+  async function releaseLine(projectId: string, lineId: string): Promise<void> {
+    await apiRequest(`/industry/projects/${projectId}/bom/${lineId}/reservation`, { method: 'DELETE' })
+    await fetchBom(projectId)
+  }
+
   async function deletePurchase(projectId: string, purchaseId: string): Promise<void> {
     await apiRequest(`/industry/projects/${projectId}/purchases/${purchaseId}`, { method: 'DELETE' })
     await fetchBom(projectId)
@@ -251,6 +264,8 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     fetchPurchaseSuggestions,
     createPurchase,
     deletePurchase,
+    reserveLine,
+    releaseLine,
     clearError,
   }
 })

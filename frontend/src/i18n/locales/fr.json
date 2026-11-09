@@ -2624,6 +2624,16 @@
       "overallFulfillment": "Progression globale",
       "purchasedQuantity": "{quantity} achetés"
     },
+    "reservation": {
+      "reservedBy": "Réservé par",
+      "reserve": "Je m'en charge",
+      "release": "Libérer",
+      "contribute": "Contribuer",
+      "quantity": "Quantité à prendre",
+      "free": "{quantity} libres",
+      "mine": "vous",
+      "failed": "La réservation n'a pas pu être enregistrée"
+    },
     "jobs": {
       "title": "Jobs a lancer",
       "product": "Produit",

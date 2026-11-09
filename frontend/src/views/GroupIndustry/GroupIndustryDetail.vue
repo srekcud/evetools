@@ -520,7 +520,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
 
         <!-- Jobs Table -->
-        <JobsTable />
+        <JobsTable @contribute="openContributeModal" />
       </div>
 
       <!-- Tab Content: Contributions -->
