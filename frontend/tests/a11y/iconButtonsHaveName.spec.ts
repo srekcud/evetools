@@ -274,6 +274,10 @@ async function mountPveTab(locale: Locale): Promise<MountedComponent> {
 }
 
 async function mountNewProjectModal(locale: Locale): Promise<MountedComponent> {
+  vi.mocked(apiRequest).mockImplementation(async endpoint => {
+    if (endpoint.startsWith('/industry/search')) return { results: [{ typeId: 16227, typeName: 'Ferox', isT2: false }] }
+    return undefined
+  })
   const wrapper = mount(NewProjectModal, {
     props: { show: true },
     global: { plugins: [i18nFor(locale)], stubs: { teleport: true } },

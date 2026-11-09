@@ -34,6 +34,7 @@ async function addSabreByBulkPaste(wrapper: VueWrapper) {
   await clickButton(wrapper, 'Bulk Paste')
   await wrapper.get('textarea').setValue('Sabre 4 8 x20')
   await clickButton(wrapper, 'Parse & Add')
+  await flushPromises()
 }
 
 async function createProject(wrapper: VueWrapper): Promise<Record<string, unknown>> {
@@ -46,7 +47,10 @@ async function createProject(wrapper: VueWrapper): Promise<Record<string, unknow
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockResolvedValue({ id: 'group-project-created' })
+  vi.mocked(apiRequest).mockImplementation(async endpoint => {
+    if (endpoint.startsWith('/industry/search')) return { results: [{ typeId: 22456, typeName: 'Sabre', isT2: false }] }
+    return { id: 'group-project-created' }
+  })
 })
 
 describe('NewProjectModal outside favorite systems', () => {

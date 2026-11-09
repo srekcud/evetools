@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import DataTable from '@/components/common/DataTable.vue'
-import { ref, computed, watch, useId } from 'vue'
+import { ref, computed, watch, useId, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { DEFAULT_MINIMUM_OUTSIDE_SAVING, useProjectsStore } from '@/stores/industry/projects'
+import { useBlacklistStore } from '@/stores/industry/blacklist'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupProjectReferencesStore } from '@/stores/group-industry/projectReferences'
 import { useFormatters } from '@/composables/useFormatters'
@@ -13,6 +14,16 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesPanel.vue'
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
+import {
+  MAXIMUM_MATERIAL_EFFICIENCY,
+  MAXIMUM_RUNS,
+  MAXIMUM_TIME_EFFICIENCY,
+  MINIMUM_RUNS,
+  parseBulkLine,
+  splitBulkLines,
+  type BulkLineRejection,
+  type BulkLineRequest,
+} from '@/components/group-industry/bulkPasteLines'
 
 const DEFAULT_PREFILL_LEVEL = 0
 const DEFAULT_PREFILL_RUNS = 1
@@ -24,6 +35,7 @@ const containerNameFieldId = useId()
 const minimumOutsideSavingFieldId = useId()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const projectsStore = useProjectsStore()
+const blacklistStore = useBlacklistStore()
 const groupProjectStore = useGroupProjectStore()
 const referencesStore = useGroupProjectReferencesStore()
 const { formatIskFull, formatNumber, formatDate } = useFormatters()
@@ -106,6 +118,13 @@ function addSelectedItem() {
 
 // Bulk paste
 const bulkText = ref('')
+const isParsingBulk = ref(false)
+
+type BulkLineResult =
+  | { line: string; status: 'recognized'; item: ProjectItem }
+  | { line: string; status: 'unknown'; request: BulkLineRequest; suggestion: SearchResult | null }
+  | { line: string; status: 'invalid'; rejection: BulkLineRejection }
+const bulkResults = ref<BulkLineResult[]>([])
 
 // Items list
 type ProjectItem = {
@@ -146,10 +165,32 @@ const blacklistCategories = ref<BlacklistCategory[]>([
   { id: 'fuel_blocks', label: 'Fuel Blocks', checked: false },
   { id: 'tools', label: 'Tools (R.A.M.)', checked: false },
   { id: 'simple_reactions', label: 'Simple Reactions', checked: false },
-  { id: 'complex_reactions', label: 'Complex Reactions', checked: false },
+  { id: 'complex_reactions', label: 'Composite Reactions', checked: false },
   { id: 'hybrid_reactions', label: 'Hybrid Reactions', checked: false },
   { id: 'biochem_reactions', label: 'Biochemical Reactions', checked: false },
 ])
+const blacklistEdited = ref(false)
+const blacklistDefaultsUnavailable = ref(false)
+
+async function applyBlacklistDefaults() {
+  blacklistDefaultsUnavailable.value = false
+  try {
+    await blacklistStore.fetchBlacklist()
+  } catch {
+    blacklistDefaultsUnavailable.value = true
+    return
+  }
+  const settingsCategories = blacklistStore.blacklist?.categories
+  if (settingsCategories === undefined) {
+    blacklistDefaultsUnavailable.value = true
+    return
+  }
+  if (blacklistEdited.value) return
+  const blacklistedKeys = new Set(settingsCategories.filter(category => category.blacklisted).map(category => category.key))
+  blacklistCategories.value.forEach(cat => {
+    cat.checked = blacklistedKeys.has(cat.id)
+  })
+}
 
 // Line rental override
 const showLineRentalOverride = ref(false)
@@ -194,7 +235,12 @@ watch(() => props.show, (newVal) => {
     resetForm()
     applyPrefill()
     void referencesStore.fetchReferences()
+    void applyBlacklistDefaults()
   }
+})
+
+onMounted(() => {
+  if (props.show) void applyBlacklistDefaults()
 })
 
 function referencesOf(productTypeId: number): ProjectReferenceRow[] {
@@ -239,6 +285,10 @@ function resetForm() {
   itemTe.value = 4
   itemRuns.value = 100
   bulkText.value = ''
+  bulkResults.value = []
+  isParsingBulk.value = false
+  blacklistEdited.value = false
+  blacklistDefaultsUnavailable.value = false
   items.value = []
   blacklistTypeIds.value = []
   blacklistGroupIds.value = []
@@ -283,27 +333,86 @@ function removeItem(index: number) {
   items.value.splice(index, 1)
 }
 
-function parseBulkText() {
-  const lines = bulkText.value.trim().split('\n').filter(line => line.trim())
-  const parsed: ProjectItem[] = []
+function lookupKey(typeName: string): string {
+  return typeName.toLowerCase()
+}
 
+function bulkItemOf(request: BulkLineRequest, product: SearchResult): ProjectItem {
+  return {
+    typeId: product.typeId,
+    typeName: product.typeName,
+    meLevel: request.meLevel,
+    teLevel: request.teLevel,
+    runs: request.runs,
+  }
+}
+
+function resolveBulkLine(line: string, catalogs: Map<string, SearchResult[]>): BulkLineResult {
+  const parsed = parseBulkLine(line)
+  if ('rejection' in parsed) return { line, status: 'invalid', rejection: parsed.rejection }
+
+  const candidates = catalogs.get(lookupKey(parsed.request.typeName)) ?? []
+  const exactMatch = candidates.find(candidate => lookupKey(candidate.typeName) === lookupKey(parsed.request.typeName))
+  if (exactMatch !== undefined) {
+    return { line, status: 'recognized', item: bulkItemOf(parsed.request, exactMatch) }
+  }
+  return { line, status: 'unknown', request: parsed.request, suggestion: candidates[0] ?? null }
+}
+
+async function parseBulkText() {
+  const lines = splitBulkLines(bulkText.value)
+  if (lines.length === 0) return
+  isParsingBulk.value = true
+  errorMsg.value = null
+
+  const typeNames = new Set<string>()
   for (const line of lines) {
-    // Format: ItemName ME TE xRuns  or  ItemName ME TE Runs
-    const match = line.match(/^(.+?)\s+(\d+)\s+(\d+)\s+x?(\d+)$/i)
-    if (match) {
-      parsed.push({
-        typeId: 0, // Will be resolved by the store/API
-        typeName: match[1].trim(),
-        meLevel: parseInt(match[2], 10),
-        teLevel: parseInt(match[3], 10),
-        runs: parseInt(match[4], 10),
-      })
-    }
+    const parsed = parseBulkLine(line)
+    if ('request' in parsed) typeNames.add(parsed.request.typeName)
   }
 
-  if (parsed.length > 0) {
-    items.value.push(...parsed)
-    bulkText.value = ''
+  const catalogs = new Map<string, SearchResult[]>()
+  try {
+    await Promise.all([...typeNames].map(async typeName => {
+      catalogs.set(lookupKey(typeName), await projectsStore.findManufacturableProducts(typeName))
+    }))
+  } catch {
+    errorMsg.value = t('groupIndustry.modals.newProject.bulkLookupFailed')
+    isParsingBulk.value = false
+    return
+  }
+
+  const results = lines.map(line => resolveBulkLine(line, catalogs))
+  for (const result of results) {
+    if (result.status === 'recognized') items.value.push(result.item)
+  }
+  bulkResults.value = results
+  bulkText.value = results.filter(result => result.status !== 'recognized').map(result => result.line).join('\n')
+  isParsingBulk.value = false
+}
+
+function acceptSuggestion(index: number) {
+  const result = bulkResults.value[index]
+  if (result.status !== 'unknown' || result.suggestion === null) return
+  const item = bulkItemOf(result.request, result.suggestion)
+  items.value.push(item)
+  bulkResults.value[index] = { line: result.line, status: 'recognized', item }
+  const remainingLines = splitBulkLines(bulkText.value)
+  const lineIndex = remainingLines.indexOf(result.line)
+  if (lineIndex >= 0) remainingLines.splice(lineIndex, 1)
+  bulkText.value = remainingLines.join('\n')
+}
+
+function bulkRejectionMessage(rejection: BulkLineRejection): string {
+  switch (rejection) {
+    case 'format':
+      return t('groupIndustry.modals.newProject.bulkInvalidFormat')
+    case 'materialEfficiency':
+      return t('groupIndustry.modals.newProject.bulkInvalidMaterialEfficiency', { max: MAXIMUM_MATERIAL_EFFICIENCY })
+    case 'timeEfficiency':
+      return t('groupIndustry.modals.newProject.bulkInvalidTimeEfficiency', { max: MAXIMUM_TIME_EFFICIENCY })
+    case 'runs':
+      return t('groupIndustry.modals.newProject.bulkInvalidRuns', { min: MINIMUM_RUNS, max: MAXIMUM_RUNS })
   }
 }
 
@@ -516,7 +625,7 @@ function handleClose() {
           </p>
           <button
             class="btn-action mt-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2"
-            :disabled="!bulkText.trim()"
+            :disabled="!bulkText.trim() || isParsingBulk"
             @click="parseBulkText"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -524,6 +633,64 @@ function handleClose() {
             </svg>
             {{ t('groupIndustry.modals.newProject.parseAndAdd') }}
           </button>
+          <ul
+            v-if="bulkResults.length > 0"
+            aria-live="polite"
+            class="mt-3 space-y-1.5"
+            data-testid="bulk-line-results"
+          >
+            <li
+              v-for="(result, index) in bulkResults"
+              :key="`${index}-${result.line}`"
+              data-testid="bulk-line-result"
+              :data-status="result.status"
+              class="flex items-start gap-3 rounded-lg border px-3 py-2 text-sm"
+              :class="{
+                'border-emerald-500/30 bg-emerald-500/5': result.status === 'recognized',
+                'border-amber-500/30 bg-amber-500/5': result.status === 'unknown',
+                'border-red-500/30 bg-red-500/5': result.status === 'invalid',
+              }"
+            >
+              <span
+                class="shrink-0 w-28 text-xs font-semibold uppercase tracking-wider"
+                :class="{
+                  'text-emerald-400': result.status === 'recognized',
+                  'text-amber-400': result.status === 'unknown',
+                  'text-red-400': result.status === 'invalid',
+                }"
+              >
+                {{ t(`groupIndustry.modals.newProject.bulkStatus.${result.status}`) }}
+              </span>
+              <div class="min-w-0 flex-1 text-slate-300">
+                <template v-if="result.status === 'recognized'">
+                  {{ t('groupIndustry.modals.newProject.bulkRecognized', {
+                    name: result.item.typeName,
+                    me: result.item.meLevel,
+                    te: result.item.teLevel,
+                    runs: result.item.runs,
+                  }) }}
+                </template>
+                <template v-else-if="result.status === 'unknown'">
+                  <p class="font-mono text-xs break-words">{{ t('groupIndustry.modals.newProject.bulkUnknown', { name: result.request.typeName }) }}</p>
+                  <p v-if="result.suggestion" class="mt-0.5 text-slate-400">
+                    {{ t('groupIndustry.modals.newProject.bulkSuggestion', { name: result.suggestion.typeName }) }}
+                  </p>
+                </template>
+                <template v-else>
+                  <p class="font-mono text-xs break-words">{{ result.line }}</p>
+                  <p class="mt-0.5 text-slate-400">{{ bulkRejectionMessage(result.rejection) }}</p>
+                </template>
+              </div>
+              <button
+                v-if="result.status === 'unknown' && result.suggestion"
+                type="button"
+                class="shrink-0 rounded-md border border-cyan-500/40 px-2.5 py-1 text-xs font-medium text-cyan-300 hover:bg-cyan-500/10"
+                @click="acceptSuggestion(index)"
+              >
+                {{ t('groupIndustry.modals.newProject.bulkCorrect') }}
+              </button>
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -716,6 +883,7 @@ function handleClose() {
             <input
               v-model="cat.checked"
               type="checkbox"
+              @change="blacklistEdited = true"
               class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
             />
             <span
@@ -727,6 +895,9 @@ function handleClose() {
           </label>
         </div>
 
+        <p v-if="blacklistDefaultsUnavailable" role="alert" class="mb-1 text-xs text-amber-400">
+          {{ t('groupIndustry.modals.newProject.blacklistDefaultsUnavailable') }}
+        </p>
         <p class="text-xs text-slate-500">{{ t('groupIndustry.modals.newProject.blacklistHint') }}</p>
       </div>
 

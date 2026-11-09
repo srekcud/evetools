@@ -13,6 +13,10 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const PRIVATE_CHECKBOX = '[data-testid="project-private"]'
 const OUTSIDE_FAVORITE_CHECKBOX = '[data-testid="project-outside-favorite"]'
 const DEFAULT_MINIMUM_OUTSIDE_SAVING = 500_000
+const BULK_CATALOG = [
+  { typeId: 16227, typeName: 'Ferox', isT2: false },
+  { typeId: 22456, typeName: 'Sabre', isT2: false },
+]
 const BULK_ITEMS = 'Ferox 2 4 x100\nSabre 4 8 x20'
 
 function mountNewProjectModal() {
@@ -40,6 +44,7 @@ async function addItemsByBulkPaste(wrapper: VueWrapper) {
   await clickButton(wrapper, 'Bulk Paste')
   await wrapper.get('textarea').setValue(BULK_ITEMS)
   await clickButton(wrapper, 'Parse & Add')
+  await flushPromises()
 }
 
 function sentCreationBody(): Record<string, unknown> {
@@ -57,7 +62,13 @@ async function createProjectAfterUnchecking(wrapper: VueWrapper) {
 describe('NewProjectModal production blacklist', () => {
   beforeEach(() => {
     vi.mocked(apiRequest).mockReset()
-    vi.mocked(apiRequest).mockResolvedValue({ id: 'group-project-created' })
+    vi.mocked(apiRequest).mockImplementation(async endpoint => {
+      if (endpoint.startsWith('/industry/search')) {
+        const query = decodeURIComponent(endpoint.split('q=')[1]).toLowerCase()
+        return { results: BULK_CATALOG.filter(product => product.typeName.toLowerCase() === query) }
+      }
+      return { id: 'group-project-created' }
+    })
   })
 
   it('offers no field to blacklist a specific item', () => {
@@ -80,7 +91,7 @@ describe('NewProjectModal production blacklist', () => {
       ['Fuel Blocks', false],
       ['Tools (R.A.M.)', false],
       ['Simple Reactions', false],
-      ['Complex Reactions', false],
+      ['Composite Reactions', false],
       ['Hybrid Reactions', false],
       ['Biochemical Reactions', false],
     ])
@@ -90,7 +101,7 @@ describe('NewProjectModal production blacklist', () => {
     const wrapper = mountNewProjectModal()
     await addItemsByBulkPaste(wrapper)
     await checkBlacklistCategory(wrapper, 'Fuel Blocks')
-    await checkBlacklistCategory(wrapper, 'Complex Reactions')
+    await checkBlacklistCategory(wrapper, 'Composite Reactions')
 
     await clickButton(wrapper, 'Create Project')
     await flushPromises()
@@ -98,8 +109,8 @@ describe('NewProjectModal production blacklist', () => {
     const body = sentCreationBody()
     expect(body).toEqual({
       items: [
-        { typeId: 0, typeName: 'Ferox', meLevel: 2, teLevel: 4, runs: 100 },
-        { typeId: 0, typeName: 'Sabre', meLevel: 4, teLevel: 8, runs: 20 },
+        { typeId: 16227, typeName: 'Ferox', meLevel: 2, teLevel: 4, runs: 100 },
+        { typeId: 22456, typeName: 'Sabre', meLevel: 4, teLevel: 8, runs: 20 },
       ],
       blacklistCategoryKeys: ['fuel_blocks', 'complex_reactions'],
       private: true,
@@ -125,7 +136,13 @@ describe('NewProjectModal production blacklist', () => {
 describe('NewProjectModal privacy', () => {
   beforeEach(() => {
     vi.mocked(apiRequest).mockReset()
-    vi.mocked(apiRequest).mockResolvedValue({ id: 'group-project-created' })
+    vi.mocked(apiRequest).mockImplementation(async endpoint => {
+      if (endpoint.startsWith('/industry/search')) {
+        const query = decodeURIComponent(endpoint.split('q=')[1]).toLowerCase()
+        return { results: BULK_CATALOG.filter(product => product.typeName.toLowerCase() === query) }
+      }
+      return { id: 'group-project-created' }
+    })
   })
 
   it('sends the project as private when the private checkbox is left untouched', async () => {
