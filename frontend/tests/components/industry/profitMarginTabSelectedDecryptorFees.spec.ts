@@ -123,7 +123,7 @@ async function mountProfitMargin(): Promise<VueWrapper> {
   vi.mocked(apiRequest).mockImplementation(respondLikeTheServer)
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
   const wrapper = mount(ProfitMarginTab, {
-    global: { plugins: [i18n], stubs: { ProductSearch: true } },
+    global: { plugins: [i18n], stubs: { ProductSearch: true, SellMarketsCard: true } },
     props: { initialTypeId: SABRE_TYPE_ID },
   })
   await flushPromises()

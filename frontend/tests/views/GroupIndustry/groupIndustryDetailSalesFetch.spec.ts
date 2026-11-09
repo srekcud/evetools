@@ -25,6 +25,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 
 const PROJECT_ID = 'project-sabre-batch'
 const SALES_PATH = `/industry/projects/${PROJECT_ID}/sales`
+const CONTRACT_SUGGESTIONS_PATH = `/industry/projects/${PROJECT_ID}/contract-suggestions`
 
 const SABRE_BATCH: GroupProject = {
   id: PROJECT_ID,
@@ -101,7 +102,11 @@ beforeEach(() => {
   setActivePinia(createPinia())
   route.query = {}
   vi.mocked(apiRequest).mockReset()
-  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => (endpoint === SALES_PATH ? [] : {}))
+  vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+    if (endpoint === SALES_PATH) return []
+    if (endpoint === CONTRACT_SUGGESTIONS_PATH) return { projectId: PROJECT_ID, candidates: [], unreadableCharacters: [] }
+    return {}
+  })
 })
 
 describe('sales of a group project fetched by the detail view', () => {

@@ -60,6 +60,7 @@ async function mountSellingNyxOn(tab: string): Promise<VueWrapper> {
         ProjectCourier: true,
         ContributeModal: true,
         ContributionTable: true,
+        ContractSaleSuggestions: true,
         SalesTable: true,
         SaleSuggestionsPanel: true,
         FinancialCascade: true,

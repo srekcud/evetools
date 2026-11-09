@@ -107,7 +107,7 @@ function mountWithAnalysis(locale: TestLocale): VueWrapper {
   vi.mocked(apiRequest).mockResolvedValue(SABRE_WITH_UNKNOWN_SELLER_FEES)
   useProjectsStore().marginResult = SABRE_WITH_UNKNOWN_SELLER_FEES
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
-  return mount(ProfitMarginTab, { global: { plugins: [i18n], stubs: { ProductSearch: true } } })
+  return mount(ProfitMarginTab, { global: { plugins: [i18n], stubs: { ProductSearch: true, SellMarketsCard: true } } })
 }
 
 function venueRowTagged(wrapper: VueWrapper, tag: string): DOMWrapper<Element> {
