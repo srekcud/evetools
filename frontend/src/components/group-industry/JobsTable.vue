@@ -183,7 +183,7 @@ type ActivityBadgeConfig = { bg: string; text: string; border: string }
 function activityBadge(activityType: string | null): ActivityBadgeConfig {
   const configs: Record<string, ActivityBadgeConfig> = {
     manufacturing: { bg: 'bg-amber-500/12', text: 'text-amber-400', border: 'border-amber-500/25' },
-    reaction: { bg: 'bg-amber-500/12', text: 'text-amber-400', border: 'border-amber-500/25' },
+    reaction: { bg: 'bg-lime-500/12', text: 'text-lime-400', border: 'border-lime-500/25' },
     copy: { bg: 'bg-violet-500/12', text: 'text-violet-400', border: 'border-violet-500/25' },
     invention: { bg: 'bg-pink-500/12', text: 'text-pink-400', border: 'border-pink-500/25' },
   }
