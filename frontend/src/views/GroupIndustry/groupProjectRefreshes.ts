@@ -1,4 +1,4 @@
-export type GroupProjectRefresh = 'bom' | 'contributions' | 'members' | 'projectDetail' | 'sales' | 'saleSuggestions' | 'distribution' | 'cockpit'
+export type GroupProjectRefresh = 'bom' | 'contributions' | 'members' | 'projectDetail' | 'sales' | 'saleSuggestions' | 'distribution' | 'cockpit' | 'settlement'
 
 const REFRESHES_BY_ACTION: Record<string, GroupProjectRefresh[]> = {
   contribution_submitted: ['bom', 'contributions', 'projectDetail', 'cockpit'],
@@ -11,6 +11,7 @@ const REFRESHES_BY_ACTION: Record<string, GroupProjectRefresh[]> = {
   sale_recorded: ['sales', 'saleSuggestions', 'distribution', 'cockpit'],
   sale_updated: ['sales', 'saleSuggestions', 'distribution', 'cockpit'],
   sale_deleted: ['sales', 'saleSuggestions', 'distribution', 'cockpit'],
+  transfer_received: ['settlement'],
 }
 
 const DEFAULT_REFRESHES: GroupProjectRefresh[] = ['projectDetail', 'bom', 'cockpit']

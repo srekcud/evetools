@@ -17,6 +17,7 @@ import type {
   ProjectPhaseState,
 } from '@/stores/group-industry/types'
 import type { TestLocale } from '../../localeTexts'
+import { projectSettlement } from '../../components/group-industry/projectSettlementFixtures'
 
 export const PROJECT_ID = 'project-nyx-batch'
 export const PROJECT_PATH = `/industry/projects/${PROJECT_ID}`
@@ -149,6 +150,7 @@ export function answerApi({ project, bom = [], cockpit, cockpitFailure }: Cockpi
     if (options?.method === 'PATCH') return { ...project, ...JSON.parse(String(options.body)) }
     if (endpoint === PROJECT_PATH) return project
     if (endpoint === `${PROJECT_PATH}/bom`) return bom
+    if (endpoint === `${PROJECT_PATH}/settlement`) return projectSettlement()
     if (endpoint === COCKPIT_PATH) {
       if (cockpitFailure !== undefined) throw new Error(cockpitFailure)
       return cockpit

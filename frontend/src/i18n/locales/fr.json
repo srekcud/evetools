@@ -2821,6 +2821,9 @@
       "payout": "Payout",
       "total": "Total",
       "unknown": "inconnu",
+      "referenceShort": "réf.",
+      "transfers": "Virements",
+      "reference": "motif",
       "footer": "EVE Tools"
     },
     "financialCascade": {
@@ -3231,7 +3234,36 @@
       "completeConfirm": {
         "title": "Terminer le projet",
         "message": "Terminer le projet fige ses comptes : plus de contribution, de revue, de vente ni de changement de frais, et il ne pourra plus être supprimé. Cette action est irréversible.",
+        "checksTitle": "Avant de terminer",
         "confirm": "Terminer"
+      }
+    },
+    "closingChecks": {
+      "pendingContributions": "{count} contribution en attente de revue | {count} contributions en attente de revue",
+      "nothingUnsold": "Tout est vendu",
+      "unsoldProducts": "Produits invendus :",
+      "finalMargin": "Marge finale : {margin} %",
+      "marginUnknown": "Marge finale inconnue : un coût ou un frais manque",
+      "transfers": "Virements cochés comme reçus : {received} / {total}",
+      "transfersUnavailable": "Les virements ne sont pas encore calculables"
+    },
+    "transfers": {
+      "title": "Virements entre membres",
+      "reference": "Référence de paiement",
+      "copy": "Copier",
+      "copied": "Copié",
+      "copyFailed": "Le presse-papiers a refusé la copie : sélectionne la référence et copie-la à la main.",
+      "hint": "Chaque vendeur garde le revenu net de ses ventes. Mets la référence en motif de chaque virement en jeu ; le destinataire le coche une fois reçu.",
+      "received": "Reçu",
+      "onlyRecipient": "Seul le destinataire peut cocher ce virement",
+      "none": "Rien à virer : chacun détient déjà son payout.",
+      "roundingGap": "Écart d'arrondi absorbé par le plus gros payout : {amount}",
+      "unavailable": {
+        "awaiting_sales": "En attente des ventes : les virements se calculent une fois tous les produits vendus.",
+        "unsold_products": "Des produits sont encore invendus : les virements se calculent une fois tous les produits vendus.",
+        "unknown_fees": "Le courtage ou la taxe de vente du projet est inconnu : les virements ne peuvent pas être calculés.",
+        "unknown_cost": "Un coût est inconnu ou le coût total est nul : les payouts, donc les virements, ne peuvent pas être calculés.",
+        "unknown_seller": "Une vente a été enregistrée par quelqu'un qui n'est plus participant accepté : les virements ne peuvent pas être calculés."
       }
     }
   },

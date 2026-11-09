@@ -295,6 +295,37 @@ export type Distribution = {
   members: MemberDistribution[]
 }
 
+// --- Settlement ---
+
+export type TransfersUnavailableReason = 'awaiting_sales' | 'unsold_products' | 'unknown_fees' | 'unknown_cost' | 'unknown_seller'
+
+export type ProjectTransfer = {
+  fromParticipantId: string
+  fromName: string | null
+  toParticipantId: string
+  toName: string | null
+  amount: number
+  received: boolean
+  receivedAt: string | null
+  canConfirm: boolean
+}
+
+export type ClosingChecksData = {
+  pendingContributionCount: number
+  unsoldProducts: { typeId: number; typeName: string; quantity: number }[]
+  marginPercent: number | null
+  transfersTotal: number | null
+  transfersReceived: number | null
+}
+
+export type ProjectSettlement = {
+  reference: string
+  transfers: ProjectTransfer[] | null
+  transfersUnavailableReason: TransfersUnavailableReason | null
+  roundingGap: number
+  checks: ClosingChecksData
+}
+
 // --- Container Verification ---
 
 export type ContainerVerification = {
