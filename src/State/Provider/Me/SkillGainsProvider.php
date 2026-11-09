@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Repository\CharacterRepository;
 use App\Service\Industry\Skills\SkillGainEstimator;
 use App\Service\Industry\Skills\SkillGainLine;
+use App\Service\TypeNameResolver;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -27,6 +28,7 @@ class SkillGainsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly CharacterRepository $characterRepository,
         private readonly SkillGainEstimator $skillGainEstimator,
+        private readonly TypeNameResolver $typeNameResolver,
     ) {
     }
 
@@ -47,12 +49,15 @@ class SkillGainsProvider implements ProviderInterface
         $from = $to->modify('-' . self::PERIOD_DAYS . ' days');
         $report = $this->skillGainEstimator->estimate($user, $character, $from, $to);
 
+        $skillNames = $this->typeNameResolver->findNames(array_map(static fn (SkillGainLine $line): int => $line->skillId, $report->lines));
+
         $resource = new SkillGainsResource();
         $resource->characterId = $characterId;
         $resource->period = ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'), 'days' => self::PERIOD_DAYS];
         $resource->iskPerHour = $report->iskPerHour;
         $resource->lines = array_map(static fn (SkillGainLine $line): array => [
             'skillId' => $line->skillId,
+            'skillName' => $skillNames[$line->skillId] ?? null,
             'currentLevel' => $line->currentLevel,
             'targetLevel' => $line->targetLevel,
             'effect' => $line->effect->value,

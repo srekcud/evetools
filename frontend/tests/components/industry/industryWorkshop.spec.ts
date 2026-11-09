@@ -240,6 +240,16 @@ describe('IndustryWorkshop action queue', () => {
   })
 })
 
+describe('IndustryWorkshop skills link', () => {
+  it('opens the skills page from the header of the action queue', async () => {
+    const wrapper = await mountWorkshop()
+
+    await wrapper.get('[data-testid="workshop-skills-link"]').trigger('click')
+
+    expect(routerPush).toHaveBeenCalledExactlyOnceWith({ name: 'industry-skills' })
+  })
+})
+
 describe('IndustryWorkshop upcoming jobs', () => {
   it('lists the eight jobs ending first, soonest first', async () => {
     const wrapper = await mountWorkshop({
