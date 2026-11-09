@@ -2681,6 +2681,11 @@
       "loss": "Perte"
     },
     "sales": {
+      "item": "Item",
+      "chooseItem": "Choisir un item",
+      "itemWithRemaining": "{name} · {remaining} restant à vendre",
+      "soldVsProduced": "Vendus sur produits",
+      "soldLabel": "vendus",
       "correctTitle": "Corriger une vente",
       "actionsColumn": "Actions",
       "channelColumn": "Canal",
