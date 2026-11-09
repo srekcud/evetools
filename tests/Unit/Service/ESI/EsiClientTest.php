@@ -1106,105 +1106,8 @@ final class EsiClientTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // Issue #43 -- getScalar() and getScalarBatch()
+    // Issue #43 -- getScalarBatch()
     // ---------------------------------------------------------------
-
-    public function testGetScalarReturnsDecodedScalarWithBearerAuthorizationAndDefaultTimeout(): void
-    {
-        $esiClient = $this->createEsiClient([$this->rawJsonResponse('1234567.89')]);
-
-        $walletBalance = $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
-
-        $this->assertSame(1234567.89, $walletBalance);
-        $this->assertSame('GET', $this->recordedRequests[0]['method']);
-        $this->assertSame(self::BASE_URL . '/characters/2112000001/wallet/', $this->recordedRequests[0]['url']);
-        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[0]['headers']['authorization'] ?? null);
-        $this->assertSame(30.0, $this->recordedRequests[0]['timeout']);
-    }
-
-    public function testGetScalarSendsTheGivenTimeout(): void
-    {
-        $esiClient = $this->createEsiClient([$this->rawJsonResponse('1234567.89')]);
-
-        $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken(), 5);
-
-        $this->assertSame(5.0, $this->recordedRequests[0]['timeout']);
-    }
-
-    public function testGetScalarRetriesOnceAfterRateLimited429KeepingTokenAndTimeout(): void
-    {
-        // Issue #85: getScalar() replays a 429 once, like get()/post().
-        $esiClient = $this->createEsiClient([
-            $this->rateLimitedResponse(retryAfterSeconds: 0),
-            $this->rawJsonResponse('1234567.89'),
-        ]);
-
-        $walletBalance = $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken(), 5);
-
-        $this->assertSame(1234567.89, $walletBalance);
-        $this->assertSame(['GET', 'GET'], array_column($this->recordedRequests, 'method'));
-        $this->assertSame([
-            self::BASE_URL . '/characters/2112000001/wallet/',
-            self::BASE_URL . '/characters/2112000001/wallet/',
-        ], array_column($this->recordedRequests, 'url'));
-        $this->assertSame(['Authorization: Bearer ' . self::ACCESS_TOKEN], $this->recordedRequests[1]['headers']['authorization'] ?? null);
-        $this->assertSame([5.0, 5.0], array_column($this->recordedRequests, 'timeout'));
-    }
-
-    public function testGetScalarThrows429WithExplicitMessageAfterSecondConsecutiveRateLimit(): void
-    {
-        // Issue #85: a second consecutive 429 is not replayed again and is reported as such.
-        $esiClient = $this->createEsiClient([
-            $this->rateLimitedResponse(retryAfterSeconds: 0),
-            $this->rateLimitedResponse(retryAfterSeconds: 0),
-        ]);
-
-        try {
-            $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
-            $this->fail('Expected EsiApiException');
-        } catch (EsiApiException $exception) {
-            $this->assertSame(429, $exception->statusCode);
-            $this->assertSame('Rate limit exceeded', $exception->getMessage());
-            $this->assertSame('/characters/2112000001/wallet/', $exception->endpoint);
-        }
-        // Exactly one retry, no loop
-        $this->assertCount(2, $this->recordedRequests);
-    }
-
-    public function testGetScalarThrowsEsiApiExceptionOnA300Response(): void
-    {
-        $esiClient = $this->createEsiClient([$this->errorResponse(300)]);
-
-        try {
-            $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
-            $this->fail('Expected EsiApiException');
-        } catch (EsiApiException $exception) {
-            $this->assertSame(300, $exception->statusCode);
-            $this->assertSame('ESI request failed', $exception->getMessage());
-        }
-    }
-
-    public function testGetScalarReturnsJsonObjectAsStdClass(): void
-    {
-        $esiClient = $this->createEsiClient([$this->rawJsonResponse('{"total_sp":5000000}')]);
-
-        $skills = $esiClient->getScalar('/characters/2112000001/skills/', $this->createEveToken());
-
-        $this->assertEquals((object) ['total_sp' => 5000000], $skills);
-    }
-
-    public function testGetScalarThrowsNetworkErrorWithStatusZero(): void
-    {
-        $esiClient = $this->createEsiClient([$this->networkErrorResponse()]);
-
-        try {
-            $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
-            $this->fail('Expected EsiApiException');
-        } catch (EsiApiException $exception) {
-            $this->assertSame(0, $exception->statusCode);
-            $this->assertSame('Network error: Connection reset by peer', $exception->getMessage());
-        }
-    }
 
     public function testGetScalarBatchReturnsScalarsUnderTheirKeysAndNullForFailedRequests(): void
     {
@@ -1327,20 +1230,18 @@ final class EsiClientTest extends TestCase
         ]], $logRecords);
     }
 
-    public function testGetScalarBatchGetScalarAndPostEmptyRecordErrorLimitHeadersSoTheNextRequestIsThrottled(): void
+    public function testGetScalarBatchAndPostEmptyRecordErrorLimitHeadersSoTheNextRequestIsThrottled(): void
     {
         $logRecords = [];
         $esiClient = $this->createEsiClient([
             $this->rawJsonResponse('1500000.5', ['X-Esi-Error-Limit-Remain' => '19']),
-            $this->rawJsonResponse('1500000.5', ['X-Esi-Error-Limit-Remain' => '18']),
-            new MockResponse('', ['http_code' => 204, 'response_headers' => ['X-Esi-Error-Limit-Remain' => '17']]),
+            new MockResponse('', ['http_code' => 204, 'response_headers' => ['X-Esi-Error-Limit-Remain' => '18']]),
             $this->jsonResponse(['name' => 'Jita']),
         ], logger: $this->createRecordingLogger($logRecords));
 
         $esiClient->getScalarBatch([
             'pilot_one' => ['endpoint' => '/characters/2112000001/wallet/', 'token' => $this->createEveToken()],
         ]);
-        $esiClient->getScalar('/characters/2112000001/wallet/', $this->createEveToken());
         $esiClient->postEmpty('/ui/openwindow/marketdetails/?type_id=34', $this->createEveToken());
         $esiClient->get('/universe/systems/30000142/');
 
@@ -1348,10 +1249,9 @@ final class EsiClientTest extends TestCase
         $this->assertSame([
             ['remain' => 19, 'delay' => 100],
             ['remain' => 18, 'delay' => 200],
-            ['remain' => 17, 'delay' => 300],
         ], array_column($logRecords, 'context'));
-        // 100 + 200 + 300 ms.
-        $this->assertSame(600_000, $this->waitedMicroseconds());
+        // 100 + 200 ms.
+        $this->assertSame(300_000, $this->waitedMicroseconds());
     }
 
     // ---------------------------------------------------------------

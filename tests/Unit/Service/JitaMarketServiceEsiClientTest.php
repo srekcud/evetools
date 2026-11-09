@@ -40,7 +40,6 @@ final class JitaMarketServiceEsiClientTest extends TestCase
     private const CONFIGURED_ESI_BASE_URL = 'https://esi.test/latest';
 
     private const THE_FORGE = 10000002;
-    private const DOMAIN = 10000043;
     private const JITA_STATION = 60003760;
     private const PERIMETER_STATION = 60011866;
 
@@ -236,20 +235,6 @@ final class JitaMarketServiceEsiClientTest extends TestCase
         $this->assertSame([self::TRITANIUM => 155.03, self::PYERITE => 0.0], $dailyVolumes);
         $this->assertSame(155.03, $this->marketCache->getItem('jita_volume_' . self::TRITANIUM)->get());
         $this->assertSame([self::TRITANIUM => 155.03, self::PYERITE => 0.0], $service->getCachedDailyVolumes([self::TRITANIUM, self::PYERITE]));
-    }
-
-    public function testGetAverageDailyVolumesForRegionReadsThatRegionAndCachesPerRegion(): void
-    {
-        $service = $this->createService([
-            $this->historyRoute(self::DOMAIN, self::TRITANIUM) => [$this->thirtyTwoDaysOfTritaniumHistory()],
-        ], self::PRODUCTION_ESI_BASE_URL);
-
-        $dailyVolumes = $service->getAverageDailyVolumesForRegion(self::DOMAIN, [self::TRITANIUM]);
-
-        $this->assertSame([self::TRITANIUM => 155.03], $dailyVolumes);
-        $this->assertSame(155.03, $this->marketCache->getItem('volume_10000043_34')->get());
-        $this->assertFalse($this->marketCache->getItem('jita_volume_' . self::TRITANIUM)->isHit());
-        $this->assertSame([self::PRODUCTION_ESI_BASE_URL . '/markets/10000043/history/?type_id=34'], $this->requestedUrls);
     }
 
     public function testTypeWhoseHistoryFailsIsLeftOutOfTheDailyVolumesAndNotCached(): void

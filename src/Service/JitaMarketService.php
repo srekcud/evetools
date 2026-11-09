@@ -537,20 +537,6 @@ class JitaMarketService
     }
 
     /**
-     * Fetch average daily volume for multiple types from ESI market history for a specific region.
-     * Caches per-type per-region with 24h TTL.
-     *
-     * @param int[] $typeIds
-     * @return array<int, float> typeId => avgDailyVolume
-     */
-    public function getAverageDailyVolumesForRegion(int $regionId, array $typeIds): array
-    {
-        $cachePrefix = sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT_PREFIX, $regionId);
-
-        return $this->fetchDailyVolumesForRegion($regionId, $typeIds, $cachePrefix);
-    }
-
-    /**
      * Fetch average daily volumes from ESI market history for a given region.
      * Shared implementation used by both Jita and regional volume methods.
      *

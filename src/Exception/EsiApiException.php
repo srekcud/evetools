@@ -34,9 +34,4 @@ class EsiApiException extends \Exception
     {
         return new self($message, 404, $endpoint);
     }
-
-    public static function rateLimited(string $message = 'Rate limit exceeded', ?string $endpoint = null): self
-    {
-        return new self($message, 429, $endpoint);
-    }
 }

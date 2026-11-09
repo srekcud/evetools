@@ -67,13 +67,6 @@ $data = $this->esiClient->get("/universe/stations/{$stationId}/");
 $data = $this->esiClient->get("/characters/{$characterId}/planets/", $token);
 ```
 
-#### `getScalar(string $endpoint, ?EveToken $token = null, int $timeout = 30): mixed`
-GET request that returns a scalar value (number, string) rather than an array. Uses `json_decode` without associative flag.
-
-```php
-$walletBalance = $this->esiClient->getScalar("/characters/{$characterId}/wallet/", $token);
-```
-
 #### `getScalarBatch(array $requests, int $timeout = 10): array`
 Concurrent GET requests for scalar values. Non-blocking; all requests start in parallel then results are collected. Returns `null` for failed requests.
 
@@ -129,7 +122,7 @@ The client automatically handles ESI error budget via `x-esi-error-limit-remain`
 | < 20 | **Soft throttle**: `usleep((20 - remain) * 100ms)` |
 | >= 20 | No throttle |
 
-**420 / 429**: replayed once, identically, by `requestWithRetry()` (`get()`, `getUnversioned()`, `getScalar()`, `getWithCache()`, `getPaginated()` per page, `post()`), after sleeping `Retry-After` (429, capped at 60 s) or `max(x-esi-error-limit-reset, 1)` seconds. `getBatch()`/`getScalarBatch()` replay the failed keys once, together, after a single wait (`null` if they fail again). `postEmpty()` does not retry.
+**420 / 429**: replayed once, identically, by `requestWithRetry()` (`get()`, `getUnversioned()`, `getWithCache()`, `getPaginated()` per page, `post()`), after sleeping `Retry-After` (429, capped at 60 s) or `max(x-esi-error-limit-reset, 1)` seconds. `getBatch()`/`getScalarBatch()` replay the failed keys once, together, after a single wait (`null` if they fail again). `postEmpty()` does not retry.
 
 
 ### Error Handling
@@ -145,7 +138,6 @@ EsiApiException::fromResponse(int $statusCode, string $message, ?string $endpoin
 EsiApiException::unauthorized(string $message = ..., ?string $endpoint = null)  // 401
 EsiApiException::forbidden(string $message = ..., ?string $endpoint = null)     // 403
 EsiApiException::notFound(string $message = ..., ?string $endpoint = null)      // 404
-EsiApiException::rateLimited(string $message = ..., ?string $endpoint = null)   // 429
 ```
 
 Any call made with a token can also throw `EveAuthRequiredException` (raised by `TokenManager` when the refresh token is revoked, see section 3).
