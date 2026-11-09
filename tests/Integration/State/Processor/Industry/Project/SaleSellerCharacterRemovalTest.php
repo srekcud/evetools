@@ -17,6 +17,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\CharacterRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Repository\CachedWalletJournalEntryRepository;
 use App\Repository\IndustryProjectSaleRepository;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\State\Processor\Me\DeleteCharacterProcessor;
@@ -129,6 +130,7 @@ final class SaleSellerCharacterRemovalTest extends IntegrationTestCase
             self::getContainer()->get(IndustryProjectRepository::class),
             self::getContainer()->get(ProjectAccessChecker::class),
             self::getContainer()->get(IndustryProjectSaleRepository::class),
+            self::getContainer()->get(CachedWalletJournalEntryRepository::class),
         );
 
         return $provider->provide(new GetCollection(), ['projectId' => $this->projectId]);

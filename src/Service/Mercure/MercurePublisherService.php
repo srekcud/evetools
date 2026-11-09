@@ -315,6 +315,7 @@ final readonly class MercurePublisherService
             sprintf('/user/%s/sync/mining', $userId),
             sprintf('/user/%s/sync/corporation-mining-extractions', $userId),
             sprintf('/user/%s/sync/wallet-transactions', $userId),
+            sprintf('/user/%s/sync/wallet-journal', $userId),
             sprintf('/user/%s/sync/market-structure', $userId),
             sprintf('/user/%s/sync/planetary', $userId),
             sprintf('/user/%s/sync/admin-sync', $userId),

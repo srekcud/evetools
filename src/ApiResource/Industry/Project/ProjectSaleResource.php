@@ -12,6 +12,7 @@ use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
+use App\ApiResource\Input\Industry\Project\RecordSaleFromContractInput;
 use App\ApiResource\Input\Industry\Project\RecordSaleFromWalletTransactionInput;
 use App\ApiResource\Input\Industry\Project\RecordSaleInput;
 use App\ApiResource\Input\Industry\Project\UpdateSaleInput;
@@ -19,6 +20,7 @@ use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Service\Industry\Project\PilotName;
 use App\State\Processor\Industry\Project\DeleteSaleProcessor;
+use App\State\Processor\Industry\Project\RecordSaleFromContractProcessor;
 use App\State\Processor\Industry\Project\RecordSaleFromWalletTransactionProcessor;
 use App\State\Processor\Industry\Project\RecordSaleProcessor;
 use App\State\Processor\Industry\Project\UpdateSaleProcessor;
@@ -64,6 +66,19 @@ use App\State\Provider\Industry\Project\ProjectSaleItemProvider;
             openapi: new Model\Operation(
                 summary: 'Record a sale from a wallet transaction',
                 description: 'Records a sale of the project from a sale of one of your wallet transactions (admin/owner only)',
+                tags: ['Group Industry - Sales'],
+            ),
+        ),
+        new Post(
+            uriTemplate: '/industry/projects/{projectId}/sales/from-contract',
+            uriVariables: [
+                'projectId' => new Link(fromClass: IndustryProjectResource::class),
+            ],
+            processor: RecordSaleFromContractProcessor::class,
+            input: RecordSaleFromContractInput::class,
+            openapi: new Model\Operation(
+                summary: 'Record a sale from a finished contract',
+                description: 'Records a sale of the project from a finished item exchange contract of one of your characters (admin/owner only)',
                 tags: ['Group Industry - Sales'],
             ),
         ),
@@ -119,6 +134,10 @@ class ProjectSaleResource
 
     public string $channel = 'market';
 
+    public ?int $contractId = null;
+
+    public ?float $contractFees = null;
+
     public string $soldAt;
 
     public ?string $recordedByCharacterName = null;
@@ -131,7 +150,7 @@ class ProjectSaleResource
 
     public string $createdAt;
 
-    public static function fromSale(IndustryProjectSale $sale, User $viewer): self
+    public static function fromSale(IndustryProjectSale $sale, User $viewer, ?float $contractFees = null): self
     {
         $resource = new self();
         $resource->id = $sale->getId()->toRfc4122();
@@ -142,6 +161,8 @@ class ProjectSaleResource
         $resource->totalPrice = $sale->getTotalPrice();
         $resource->venue = $sale->getVenue();
         $resource->channel = $sale->getChannel()->value;
+        $resource->contractId = $sale->getContractId();
+        $resource->contractFees = $contractFees;
         $resource->soldAt = $sale->getSoldAt()->format(\DateTimeInterface::ATOM);
         $resource->recordedByCharacterName = PilotName::of($sale->getRecordedBy());
         $seller = $sale->getSeller();

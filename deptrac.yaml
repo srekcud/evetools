@@ -152,6 +152,8 @@ deptrac:
     App\State\Processor\Industry\Project\ConfirmTransferReceivedProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
       - App\State\Provider\Industry\Project\ProjectSettlementResourceMapper
+    App\State\Processor\Industry\Project\RecordSaleFromContractProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\DeleteSaleProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\JoinProjectProcessor:

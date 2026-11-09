@@ -2810,6 +2810,9 @@
       "loadError": "Could not load the sell forecast."
     },
     "financialSummary": {
+      "marketRevenue": "Market",
+      "contractRevenue": "Contracts",
+      "contractFees": "Contract fees",
       "title": "Financial Summary",
       "feesUnknown": "Fees unknown: the project owner has no synced skills and standings, so the net revenue, the profit and the margin cannot be computed.",
       "brokerFeeWithRate": "Broker Fee ({percent}%)",
@@ -2846,6 +2849,7 @@
       "total": "Total",
       "unknown": "unknown",
       "referenceShort": "ref.",
+      "contractFees": "contract fees",
       "transfers": "Transfers",
       "reference": "reference",
       "footer": "EVE Tools"
@@ -3261,6 +3265,15 @@
         "checksTitle": "Before completing",
         "confirm": "Complete"
       }
+    },
+    "contractSales": {
+      "title": "Link a contract",
+      "hint": "Finished item exchange contracts of your characters that sold an item of the project. Quantity, price and date are frozen from the contract.",
+      "fees": "Fees",
+      "link": "Link",
+      "linkFailed": "The contract could not be linked.",
+      "empty": "No finished contract to link.",
+      "unreadable": "{count} character could not be read (no token or ESI error). | {count} characters could not be read (no token or ESI error)."
     },
     "closingChecks": {
       "pendingContributions": "{count} contribution awaiting review | {count} contributions awaiting review",

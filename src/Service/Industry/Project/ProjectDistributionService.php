@@ -20,6 +20,7 @@ class ProjectDistributionService
         private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly IndustryProjectSaleRepository $saleRepository,
         private readonly UnsoldProductsOfProject $unsoldProducts = new UnsoldProductsOfProject(),
+        private readonly ?ContractSaleFees $contractSaleFees = null,
     ) {}
 
     public function calculateDistribution(IndustryProject $project): DistributionResult
@@ -34,7 +35,8 @@ class ProjectDistributionService
         $feesAreKnown = $marketRevenue <= 0.0 || ($brokerFeePercent !== null && $salesTaxPercent !== null);
         $brokerFee = $feesAreKnown ? $this->feeOn($marketRevenue, $brokerFeePercent) : null;
         $salesTax = $feesAreKnown ? $this->feeOn($marketRevenue, $salesTaxPercent) : null;
-        $netRevenue = $brokerFee === null || $salesTax === null ? null : $totalRevenue - $brokerFee - $salesTax;
+        $contractFees = $this->contractFeesOf($sales);
+        $netRevenue = $brokerFee === null || $salesTax === null || $contractFees === null ? null : $totalRevenue - $brokerFee - $salesTax - $contractFees;
 
         $approvedContributions = $this->contributionRepository->findApprovedByProject($project);
         $totalProjectCost = $this->sumOfValues(...$approvedContributions);
@@ -66,7 +68,21 @@ class ProjectDistributionService
             ),
             marketRevenue: $marketRevenue,
             contractRevenue: $contractRevenue,
+            contractFees: $contractFees,
         );
+    }
+
+    /**
+     * @param list<IndustryProjectSale> $sales
+     */
+    private function contractFeesOf(array $sales): ?float
+    {
+        $attachedSales = array_filter($sales, static fn (IndustryProjectSale $sale): bool => $sale->getContractId() !== null);
+        if ($attachedSales === []) {
+            return 0.0;
+        }
+
+        return $this->contractSaleFees?->totalOf($attachedSales);
     }
 
     private function feeOn(float $marketRevenue, ?float $feePercent): ?float

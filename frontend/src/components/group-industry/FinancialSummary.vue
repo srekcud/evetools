@@ -21,7 +21,9 @@ const isProvisional = computed(() => !isAwaitingSales.value && (dist.value?.unso
 
 const profitLabel = computed(() => t(isProvisional.value ? 'groupIndustry.financialSummary.provisionalProfit' : 'groupIndustry.financialSummary.profit'))
 
-const feesUnknown = computed(() => dist.value?.brokerFee === null || dist.value?.salesTax === null)
+const hasContractSales = computed(() => dist.value?.contractRevenue !== undefined && dist.value.contractRevenue > 0)
+const contractFeesUnknown = computed(() => hasContractSales.value && (dist.value?.contractFees === null || dist.value?.contractFees === undefined))
+const feesUnknown = computed(() => dist.value?.brokerFee === null || dist.value?.salesTax === null || contractFeesUnknown.value)
 
 const profit = computed((): number | null => {
   if (!dist.value || isAwaitingSales.value || dist.value.netRevenue === null || dist.value.totalProjectCost === null) return null
@@ -71,6 +73,10 @@ const salesTaxLabel = computed(() => {
               <template v-else>{{ formatIsk(dist.totalRevenue) }}</template>
             </span>
           </div>
+          <div v-if="hasContractSales" data-testid="revenue-split" class="flex items-center justify-between text-xs text-slate-500">
+            <span>{{ t('groupIndustry.financialSummary.marketRevenue') }} {{ formatIsk(dist.marketRevenue ?? null) }}</span>
+            <span>{{ t('groupIndustry.financialSummary.contractRevenue') }} {{ formatIsk(dist.contractRevenue ?? null) }}</span>
+          </div>
           <div class="flex items-center justify-between">
             <span class="text-sm text-slate-500">{{ brokerFeeLabel }}</span>
             <span class="font-mono text-sm text-red-400" style="font-variant-numeric: tabular-nums;">
@@ -81,6 +87,12 @@ const salesTaxLabel = computed(() => {
             <span class="text-sm text-slate-500">{{ salesTaxLabel }}</span>
             <span class="font-mono text-sm text-red-400" style="font-variant-numeric: tabular-nums;">
               <UnknownValue v-if="dist.salesTax === null" /><template v-else>-{{ formatIsk(dist.salesTax) }}</template>
+            </span>
+          </div>
+          <div v-if="hasContractSales" data-testid="contract-fees-row" class="flex items-center justify-between">
+            <span class="text-sm text-slate-500">{{ t('groupIndustry.financialSummary.contractFees') }}</span>
+            <span class="font-mono text-sm text-red-400" style="font-variant-numeric: tabular-nums;">
+              <span v-if="contractFeesUnknown" data-testid="contract-fees-unknown"><UnknownValue /></span><template v-else>-{{ formatIsk(dist.contractFees ?? null) }}</template>
             </span>
           </div>
           <div class="border-t border-slate-700 pt-2 flex items-center justify-between">
