@@ -1345,6 +1345,52 @@
     "errors": {
       "analyzeProfitMargin": "Échec de l'analyse de la marge"
     },
+    "opportunities": {
+      "title": "Quoi produire",
+      "market": {
+        "all": "Les deux",
+        "jita": "Jita",
+        "capital": "Capitale"
+      },
+      "sort": {
+        "week": "Profit / semaine",
+        "hour": "ISK / heure de slot"
+      },
+      "capital": {
+        "label": "Capital engagé au plus",
+        "unit": "ISK",
+        "placeholder": "Sans plafond"
+      },
+      "freeSlots": "Slots de fabrication libres {count} × 168 h",
+      "columns": {
+        "product": "Produit",
+        "market": "Marché",
+        "priceVolume": "Prix · volume",
+        "margin": "Marge / unité",
+        "quantity": "Qté / semaine",
+        "profit": "Profit / sem.*",
+        "advice": "Conseil"
+      },
+      "perDay": "{count} / jour",
+      "perHour": "{amount} / heure de slot",
+      "limitedBy": {
+        "market": "limité par le marché",
+        "capital": "limité par le capital",
+        "slots": "limité par les slots"
+      },
+      "group": "à faire en groupe",
+      "groupWithSkill": "avec un membre qui a la compétence",
+      "groupRaiseCap": "ou relever votre plafond",
+      "required": "requis : {skills}",
+      "loss": "à perte",
+      "unknown": {
+        "slots": "Slots inconnus"
+      },
+      "unknownCount": "{count} produits écartés : données manquantes",
+      "feesUnknown": "Frais du vendeur inconnus : synchronisez les compétences et standings de votre personnage principal",
+      "empty": "Aucun produit à afficher",
+      "footnote": "* Profit par semaine si tout est vendu au prix actuel, net des frais du vendeur. Quantité = la plus petite des limites : marché (10 % du volume quotidien × 7), capital (plafond ÷ coût unitaire), slots (slots libres × 168 h ÷ temps par unité)."
+    },
     "sellMarkets": {
       "title": "Où vendre",
       "quantity": "Quantité",

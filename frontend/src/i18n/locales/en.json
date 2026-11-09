@@ -1345,6 +1345,52 @@
     "errors": {
       "analyzeProfitMargin": "Failed to analyze the profit margin"
     },
+    "opportunities": {
+      "title": "What to produce",
+      "market": {
+        "all": "Both",
+        "jita": "Jita",
+        "capital": "Capital"
+      },
+      "sort": {
+        "week": "Profit / week",
+        "hour": "ISK / slot hour"
+      },
+      "capital": {
+        "label": "Capital engaged at most",
+        "unit": "ISK",
+        "placeholder": "No cap"
+      },
+      "freeSlots": "Free manufacturing slots {count} × 168 h",
+      "columns": {
+        "product": "Product",
+        "market": "Market",
+        "priceVolume": "Price · volume",
+        "margin": "Margin / unit",
+        "quantity": "Qty / week",
+        "profit": "Profit / week*",
+        "advice": "Advice"
+      },
+      "perDay": "{count} / day",
+      "perHour": "{amount} / slot hour",
+      "limitedBy": {
+        "market": "limited by market",
+        "capital": "limited by capital",
+        "slots": "limited by slots"
+      },
+      "group": "to do as a group",
+      "groupWithSkill": "with a member who has the skill",
+      "groupRaiseCap": "or raise your cap",
+      "required": "required: {skills}",
+      "loss": "at a loss",
+      "unknown": {
+        "slots": "Slots unknown"
+      },
+      "unknownCount": "{count} products left out: data missing",
+      "feesUnknown": "Seller fees unknown: sync the skills and standings of your main character",
+      "empty": "No product to show",
+      "footnote": "* Weekly profit if everything sells at the current price, net of the seller fees. Quantity = the smallest of the market (10 % of the daily volume × 7), the capital (cap ÷ unit cost) and the slots (free slots × 168 h ÷ time per unit)."
+    },
     "sellMarkets": {
       "title": "Where to sell",
       "quantity": "Quantity",
