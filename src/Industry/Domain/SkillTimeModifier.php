@@ -12,10 +12,10 @@ final readonly class SkillTimeModifier
     private const int MINIMUM_LEVEL = 0;
     private const int MAXIMUM_LEVEL = 5;
 
-    private const float INDUSTRY_REDUCTION_PER_LEVEL = 0.04;
-    private const float ADVANCED_INDUSTRY_REDUCTION_PER_LEVEL = 0.03;
+    public const float INDUSTRY_REDUCTION_PER_LEVEL = 0.04;
+    public const float ADVANCED_INDUSTRY_REDUCTION_PER_LEVEL = 0.03;
     private const float SCIENCE_SKILL_REDUCTION_PER_LEVEL = 0.01;
-    private const float REACTIONS_REDUCTION_PER_LEVEL = 0.04;
+    public const float REACTIONS_REDUCTION_PER_LEVEL = 0.04;
 
     /**
      * @param list<int> $requiredScienceSkillLevels levels of the science skills required by the blueprint
