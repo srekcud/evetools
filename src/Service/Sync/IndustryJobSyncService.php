@@ -16,6 +16,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
 use App\Service\Industry\Project\DerivedContributionService;
+use App\Service\Industry\Project\OpenProjectsJobMatcher;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\UnknownTypeName;
@@ -45,6 +46,7 @@ class IndustryJobSyncService
         private readonly CacheItemPoolInterface $esiCache,
         private readonly CharacterService $characterService,
         private readonly DerivedContributionService $derivedContributionService,
+        private readonly OpenProjectsJobMatcher $openProjectsJobMatcher,
     ) {
     }
 
@@ -77,6 +79,8 @@ class IndustryJobSyncService
                     sprintf('%d/%d characters processed', $processedCount, $characterCount),
                 );
             }
+
+            $this->openProjectsJobMatcher->matchOpenProjectsOf($user);
 
             $message = self::jobCountsMessage(self::jobCounts($statusesByJobId));
             if ($failures !== []) {

@@ -21,7 +21,10 @@ Ligne Ishtar de 5 runs. Le propriétaire a un lien de 2 runs à 100 000 ISK, San
 - Personnage sans scope industrie ou jeton expiré : ses jobs ne sont pas en cache à jour ; le coût d'un lien dont l'ESI n'a pas renvoyé de `cost` reste inconnu.
 - Lien manuel (`LinkJobProcessor`, propriétaire) : inchangé, jobs du propriétaire seulement.
 
+## Déclencheur (décision de Sylvain, 2026-11-09)
+
+`IndustryJobSyncService::syncUserJobs` appelle `OpenProjectsJobMatcher::matchOpenProjectsOf` après la sync de tous les personnages de l'utilisateur : rapprochement et `refreshLine` des lignes de job de chaque projet non terminé où il est participant accepté. `syncCharacterJobs` (bouton du propriétaire) ne rapproche pas : le bouton le fait déjà pour son projet.
+
 ## Décisions ouvertes (hors lot)
 
-- Déclencher le rapprochement à la sync des jobs d'un participant (aujourd'hui : bouton du propriétaire, qui lit le cache des autres).
 - Voies du planning (`ProjectPlanningInputLoader::charactersOf`) : jobs des autres participants non montrés (une voie par personnage du propriétaire), suite de #339.

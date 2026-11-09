@@ -18,6 +18,7 @@ use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\PaginatedEsiResponse;
 use App\Service\Industry\Project\DerivedContributionService;
+use App\Service\Industry\Project\OpenProjectsJobMatcher;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Sync\IndustryJobSyncService;
@@ -131,6 +132,7 @@ final class SyncCharacterIndustryJobsHandlerTest extends TestCase
             new ArrayAdapter(),
             $this->characterServiceReadingCorporation(self::CORPORATION_ID),
             $this->createStub(DerivedContributionService::class),
+            $this->createStub(OpenProjectsJobMatcher::class),
         );
 
         [$character, $alt] = $this->charactersOfCorporation(self::CHARACTER_ID, self::OTHER_CHARACTER_ID);

@@ -17,6 +17,7 @@ use App\Exception\EsiApiException;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\IndustryProjectJobMatchRepository;
 use App\Service\Industry\Project\DerivedContributionService;
+use App\Service\Industry\Project\OpenProjectsJobMatcher;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
@@ -101,6 +102,7 @@ class IndustryJobSyncServiceTest extends TestCase
     private NotificationDispatcher&MockObject $notificationDispatcher;
     private IndustryJobSyncService $service;
     private array $publishedMercurePayloads = [];
+    private array $openProjectMatchesInOrder = [];
     private array $publishedMercureUpdates = [];
     private BufferingLogger $logger;
     private array $persistedJobs = [];
@@ -134,6 +136,10 @@ class IndustryJobSyncServiceTest extends TestCase
         ]);
         $this->em = $this->createMock(EntityManagerInterface::class);
         $this->jobMatchRepository = $this->createStub(IndustryProjectJobMatchRepository::class);
+        $openProjectsJobMatcher = $this->createStub(OpenProjectsJobMatcher::class);
+        $openProjectsJobMatcher->method('matchOpenProjectsOf')->willReturnCallback(function (User $user): void {
+            $this->openProjectMatchesInOrder[] = ['match', $user];
+        });
         $derivedContributionService = $this->createStub(DerivedContributionService::class);
         $derivedContributionService->method('refreshLine')->willReturnCallback(function (IndustryProjectBomLine $line): void {
             $this->refreshedBomLines[] = [
@@ -203,6 +209,7 @@ class IndustryJobSyncServiceTest extends TestCase
             $this->esiCache,
             $this->characterServiceReadingRecordedAffiliations(),
             $derivedContributionService,
+            $openProjectsJobMatcher,
         );
     }
 
@@ -214,6 +221,38 @@ class IndustryJobSyncServiceTest extends TestCase
     // ===========================================
     // syncCharacterJobs — new job creation
     // ===========================================
+
+    #[Group('issue-318')]
+    public function testSyncingASingleCharacterLeavesTheProjectMatchingToItsCaller(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->esiClient->method('get')->willReturn([$this->makeJobData(1001, 12345, 'active')]);
+        $this->jobRepository->method('findByJobId')->willReturn(null);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([], $this->openProjectMatchesInOrder);
+    }
+
+    #[Group('issue-318')]
+    public function testSyncingAUserMatchesItsOpenProjectsOnceAfterAllItsCharacters(): void
+    {
+        $user = $this->createUserWithCharacters([
+            21504 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+            21505 => [self::CHARACTER_JOBS_SCOPE, self::CORPORATION_JOBS_SCOPE],
+        ]);
+        $this->givenPersonalJobsReadOutcomes([
+            21504 => [$this->makeJobData(700, 21504, 'active')],
+            21505 => [$this->makeJobData(701, 21505, 'active')],
+        ]);
+        $this->givenCorporationJobs([]);
+        $this->givenNoCachedJobNorJobMatch();
+
+        $this->service->syncUserJobs($user);
+
+        $this->assertSame([['match', $user]], $this->openProjectMatchesInOrder);
+    }
 
     public function testNewJobPersistedWhenNotInDatabase(): void
     {
