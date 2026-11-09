@@ -16,6 +16,7 @@ use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
+use App\Service\Industry\Project\ProjectContainerScope;
 use App\Service\Industry\Project\ProjectContainerService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -25,6 +26,7 @@ use Symfony\Component\Uid\Uuid;
 #[CoversClass(ProjectContainerService::class)]
 #[Group('issue-158')]
 #[Group('issue-358')]
+#[Group('issue-319')]
 final class ProjectContainerServiceTest extends TestCase
 {
     private const int CORPORATION_ID = 98_000_001;
@@ -594,6 +596,86 @@ final class ProjectContainerServiceTest extends TestCase
             ],
             $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME, $this->playerOfTheCorporation(self::BOB_ID))),
         );
+    }
+
+    public function testScopeHoldsTheContainerOfTheProjectAndEveryContainerBelowIt(): void
+    {
+        $build = $this->containerInHangar(self::CONTAINER_NAME);
+        $minerals = $this->containerInside($build, 'Minerals');
+        $deep = $this->containerInside($minerals, 'Deep');
+        $this->containerInHangar('Spare');
+        $this->allowDivisions(2);
+
+        $scope = $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertNull($scope->unknownReason);
+        self::assertEqualsCanonicalizing([$build, $minerals, $deep], $scope->containerItemIds);
+    }
+
+    public function testScopeHoldsEveryContainerOfTheSameNameInTheVisibleDivisions(): void
+    {
+        $first = $this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG2');
+        $second = $this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG3');
+        $this->containerInHangar(self::CONTAINER_NAME, 'CorpSAG5');
+        $this->allowDivisions(2, 3);
+
+        self::assertEqualsCanonicalizing([$first, $second], $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME))->containerItemIds);
+    }
+
+    public function testScopeExposesTheVisibleCorporationAssetsByItemIdAndNotTheHiddenOnes(): void
+    {
+        $visible = $this->containerInHangar('Visible box', 'CorpSAG2');
+        $hidden = $this->containerInHangar('Hidden box', 'CorpSAG5');
+        $this->containerInHangar(self::CONTAINER_NAME);
+        $this->allowDivisions(2);
+
+        $scope = $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertArrayHasKey($visible, $scope->visibleAssetsByItemId);
+        self::assertArrayNotHasKey($hidden, $scope->visibleAssetsByItemId);
+        self::assertSame('Visible box', $scope->visibleAssetsByItemId[$visible]->getItemName());
+    }
+
+    public function testScopeIsUnknownWithTheReasonOfTheContainerCheckWhenItCannotRun(): void
+    {
+        $this->allowDivisions(2);
+        self::assertSame('corporation_assets_not_synced', $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME))->unknownReason);
+
+        $this->containerInHangar('Spare');
+        $this->visibility = null;
+        self::assertSame('no_visible_division', $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME))->unknownReason);
+
+        $this->allowDivisions(2);
+        $this->directorCharacter = null;
+        self::assertSame('no_director', $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME))->unknownReason);
+
+        self::assertSame('owner_without_corporation', $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME, $this->ownerOfCorporation(null)))->unknownReason);
+    }
+
+    public function testScopeIsUnknownWhenTheProjectHasNoContainerName(): void
+    {
+        $this->containerInHangar('Spare');
+        $this->allowDivisions(2);
+
+        $scope = $this->scopeOf($this->projectUsingContainer(null));
+
+        self::assertSame(['no_container_name', []], [$scope->unknownReason, $scope->containerItemIds]);
+    }
+
+    public function testScopeIsUnknownWhenNoVisibleContainerHasTheNameOfTheProject(): void
+    {
+        $spare = $this->containerInHangar('Spare');
+        $this->allowDivisions(2);
+
+        $scope = $this->scopeOf($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertSame(['container_not_found', []], [$scope->unknownReason, $scope->containerItemIds]);
+        self::assertArrayHasKey($spare, $scope->visibleAssetsByItemId);
+    }
+
+    private function scopeOf(IndustryProject $project): ProjectContainerScope
+    {
+        return $this->service->containerScopeOf($project);
     }
 
     private function serviceReading(CachedAssetRepository $cachedAssetRepository): ProjectContainerService

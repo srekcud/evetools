@@ -18,6 +18,7 @@ import JobsTable from '@/components/group-industry/JobsTable.vue'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
+import JobContainersTable from '@/components/group-industry/JobContainersTable.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
 import FinancialCascade from '@/components/group-industry/FinancialCascade.vue'
@@ -546,6 +547,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             </button>
           </template>
         </ContributionTable>
+        <JobContainersTable v-if="isOwnerOrAdmin" />
       </div>
 
       <!-- Tab Content: Distribution -->

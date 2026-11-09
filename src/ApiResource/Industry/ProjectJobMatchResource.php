@@ -72,6 +72,9 @@ class ProjectJobMatchResource
 
     public bool $manual;
 
+    /** @var array{blueprint: array<string, mixed>, output: array<string, mixed>}|null */
+    public ?array $locations = null;
+
     public static function fromEntity(IndustryProjectJobMatch $match): self
     {
         $resource = new self();

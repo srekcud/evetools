@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry\Project;
 
 use App\ApiResource\Industry\Project\ProjectContainerVerificationResource;
+use App\Entity\CachedAsset;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\User;
@@ -26,6 +27,7 @@ class ProjectContainerService
     private const string REASON_CORPORATION_ASSETS_NOT_SYNCED = 'corporation_assets_not_synced';
     private const string REASON_NO_VISIBLE_DIVISION = 'no_visible_division';
     private const string REASON_NO_DIRECTOR = 'no_director';
+    private const string REASON_NO_CONTAINER_NAME = 'no_container_name';
 
     public function __construct(
         private readonly VisibleCorporationAssetsFinder $visibleAssetsFinder,
@@ -53,24 +55,16 @@ class ProjectContainerService
             return [];
         }
 
-        $corporationId = $project->getOwner()->getCorporationId();
+        $owner = $project->getOwner();
+        $corporationId = $owner->getCorporationId();
 
         if ($corporationId === null) {
             return $this->buildAllUnknown($materialItems, self::REASON_OWNER_WITHOUT_CORPORATION);
         }
 
-        if ($this->characterRepository->findWithCorpAssetsAccess($corporationId) === null) {
-            return $this->buildAllUnknown($materialItems, self::REASON_NO_DIRECTOR);
-        }
-
-        if (!$this->cachedAssetRepository->hasCorporationAssets($corporationId)) {
-            return $this->buildAllUnknown($materialItems, self::REASON_CORPORATION_ASSETS_NOT_SYNCED);
-        }
-
-        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
-        $owner = $project->getOwner();
-        if ($visibility === null || $visibility->divisionsVisibleTo($owner) === []) {
-            return $this->buildAllUnknown($materialItems, self::REASON_NO_VISIBLE_DIVISION);
+        $unavailabilityReason = $this->unavailabilityReason($corporationId, $owner);
+        if ($unavailabilityReason !== null) {
+            return $this->buildAllUnknown($materialItems, $unavailabilityReason);
         }
 
         $containerQuantities = $this->getContainerQuantities($corporationId, $containerName, $owner);
@@ -82,6 +76,62 @@ class ProjectContainerService
         return $this->buildVerificationResults($materialItems, $containerQuantities);
     }
 
+    public function containerScopeOf(IndustryProject $project): ProjectContainerScope
+    {
+        $owner = $project->getOwner();
+        $corporationId = $owner->getCorporationId();
+
+        if ($corporationId === null) {
+            return new ProjectContainerScope(self::REASON_OWNER_WITHOUT_CORPORATION);
+        }
+
+        $unavailabilityReason = $this->unavailabilityReason($corporationId, $owner);
+        if ($unavailabilityReason !== null) {
+            return new ProjectContainerScope($unavailabilityReason);
+        }
+
+        $visibleAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner);
+        $visibleAssetsByItemId = [];
+        foreach ($visibleAssets as $asset) {
+            $visibleAssetsByItemId[$asset->getItemId()] = $asset;
+        }
+
+        $containerName = $project->getContainerName();
+        if ($containerName === null) {
+            return new ProjectContainerScope(self::REASON_NO_CONTAINER_NAME, [], $visibleAssetsByItemId);
+        }
+
+        $named = $this->walkNamedContainers($visibleAssets, $containerName);
+        if ($named === null) {
+            return new ProjectContainerScope(self::STATUS_CONTAINER_NOT_FOUND, [], $visibleAssetsByItemId);
+        }
+
+        $containerItemIds = $named['rootItemIds'];
+        foreach ($named['contents'] as $content) {
+            $containerItemIds[] = $content->getItemId();
+        }
+
+        return new ProjectContainerScope(null, array_values(array_unique($containerItemIds)), $visibleAssetsByItemId);
+    }
+
+    private function unavailabilityReason(int $corporationId, User $owner): ?string
+    {
+        if ($this->characterRepository->findWithCorpAssetsAccess($corporationId) === null) {
+            return self::REASON_NO_DIRECTOR;
+        }
+
+        if (!$this->cachedAssetRepository->hasCorporationAssets($corporationId)) {
+            return self::REASON_CORPORATION_ASSETS_NOT_SYNCED;
+        }
+
+        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
+        if ($visibility === null || $visibility->divisionsVisibleTo($owner) === []) {
+            return self::REASON_NO_VISIBLE_DIVISION;
+        }
+
+        return null;
+    }
+
     /**
      * Find named containers in the visible corp assets and aggregate the quantities of
      * everything stored inside them, sub-containers included. Each asset counts once.
@@ -90,22 +140,42 @@ class ProjectContainerService
      */
     private function getContainerQuantities(int $corporationId, string $containerName, User $owner): ?array
     {
-        $visibleAssets = $this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner);
-
-        $assetsByLocationId = [];
-        $pendingContainerItemIds = [];
-        foreach ($visibleAssets as $asset) {
-            $assetsByLocationId[$asset->getLocationId()][] = $asset;
-            if ($asset->getItemName() === $containerName) {
-                $pendingContainerItemIds[] = $asset->getItemId();
-            }
-        }
-
-        if ($pendingContainerItemIds === []) {
+        $named = $this->walkNamedContainers($this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner), $containerName);
+        if ($named === null) {
             return null;
         }
 
         $quantities = [];
+        foreach ($named['contents'] as $content) {
+            $typeId = $content->getTypeId();
+            $quantities[$typeId] = isset($quantities[$typeId]) ? $quantities[$typeId] + $content->getQuantity() : $content->getQuantity();
+        }
+
+        return $quantities;
+    }
+
+    /**
+     * @param CachedAsset[] $visibleAssets
+     *
+     * @return array{rootItemIds: list<int>, contents: list<CachedAsset>}|null null when no asset has that name
+     */
+    private function walkNamedContainers(array $visibleAssets, string $containerName): ?array
+    {
+        $assetsByLocationId = [];
+        $rootItemIds = [];
+        foreach ($visibleAssets as $asset) {
+            $assetsByLocationId[$asset->getLocationId()][] = $asset;
+            if ($asset->getItemName() === $containerName) {
+                $rootItemIds[] = $asset->getItemId();
+            }
+        }
+
+        if ($rootItemIds === []) {
+            return null;
+        }
+
+        $pendingContainerItemIds = $rootItemIds;
+        $contents = [];
         $countedItemIds = [];
 
         while ($pendingContainerItemIds !== []) {
@@ -117,13 +187,12 @@ class ProjectContainerService
                 }
 
                 $countedItemIds[$content->getItemId()] = true;
-                $typeId = $content->getTypeId();
-                $quantities[$typeId] = isset($quantities[$typeId]) ? $quantities[$typeId] + $content->getQuantity() : $content->getQuantity();
+                $contents[] = $content;
                 $pendingContainerItemIds[] = $content->getItemId();
             }
         }
 
-        return $quantities;
+        return ['rootItemIds' => $rootItemIds, 'contents' => $contents];
     }
 
     /**
