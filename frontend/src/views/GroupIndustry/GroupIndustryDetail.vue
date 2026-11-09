@@ -42,6 +42,7 @@ import type { BomItem, GroupProject, GroupProjectStatus, ProjectCockpit } from '
 import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, detailTabOfNextAction, type ProjectDetailTab } from './projectDetailTabs'
+import { PROJECTS_HOME } from './projectsHome'
 import { groupProjectRefreshes, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
 
@@ -171,7 +172,7 @@ watch(activeTab, (tab) => {
 })
 
 function goBack(): void {
-  router.push('/group-industry')
+  router.push(PROJECTS_HOME)
 }
 
 async function copyShareLink(): Promise<void> {
@@ -282,14 +283,14 @@ async function handleDeleteProject(): Promise<void> {
   isDeleting.value = true
   await projectStore.deleteProject(projectId.value)
   if (!projectStore.error) {
-    router.push({ name: 'group-industry' })
+    router.push(PROJECTS_HOME)
   }
   isDeleting.value = false
 }
 
 function handleLeaveProject(): void {
   showToast(t('groupIndustry.members.leaveSuccess'), 'success')
-  router.push({ name: 'group-industry' })
+  router.push(PROJECTS_HOME)
 }
 
 function onBlacklistSaved(): void {
@@ -342,7 +343,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <button @click="goBack" class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">
-            {{ t('groupIndustry.title') }}
+            {{ t('industry.tabs.workshop') }}
           </button>
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
           <span class="text-slate-300">{{ projectDisplayName }}</span>
