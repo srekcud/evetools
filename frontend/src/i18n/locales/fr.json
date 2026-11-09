@@ -877,7 +877,46 @@
         "unitsDay": "unites/jour"
       }
     },
+    "skillGains": {
+      "kicker": "Production · {name}",
+      "title": "Compétences",
+      "subtitle": "Ce que chaque compétence rapporterait sur vos projets.",
+      "character": "Personnage",
+      "back": "← Atelier",
+      "cardTitle": "Les plus rentables à apprendre",
+      "valuedAt": "valorisé à {isk} ISK/h sur 30 jours",
+      "columns": {
+        "skill": "Compétence",
+        "effect": "Effet",
+        "training": "Durée d'entraînement",
+        "monthlyGain": "Gain par mois",
+        "gainPerDay": "Gain / jour d'entraînement"
+      },
+      "effects": {
+        "manufacturing_time": "Temps de fabrication",
+        "reaction_time": "Temps de réaction",
+        "invention_chance": "Chance d'invention",
+        "manufacturing_slot": "Slot de fabrication",
+        "reaction_slot": "Slot de réaction",
+        "science_slot": "Slot de science"
+      },
+      "causes": {
+        "skills_not_synchronized": "Compétences non synchronisées",
+        "project_jobs_not_cached": "Jobs de projet non synchronisés",
+        "isk_per_hour_unknown": "ISK/h inconnu",
+        "attributes_not_synchronized": "Attributs non synchronisés",
+        "skill_not_in_sde": "Compétence absente du SDE",
+        "skill_points_unknown": "Points de compétence inconnus",
+        "active_level_below_trained_level": "Niveau actif sous le niveau entraîné",
+        "max_level_reached": "Niveau maximal atteint"
+      },
+      "unnamed": "Compétence #{id}",
+      "empty": "Aucune compétence à entraîner pour ce personnage",
+      "noCharacter": "Aucun personnage",
+      "hint": "Hors implants et hors coût des datacores. Temps : heures de slot libérées valorisées à l'ISK/h de vos projets des 30 derniers jours. Un slot de plus compte comme un slot moyen de sa catégorie."
+    },
     "workshop": {
+      "skillsLink": "Compétences",
       "unnamedProject": "Sans nom",
       "noPendingAction": "Aucune action en attente",
       "queue": {

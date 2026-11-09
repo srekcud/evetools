@@ -877,7 +877,46 @@
         "unitsDay": "units/day"
       }
     },
+    "skillGains": {
+      "kicker": "Production · {name}",
+      "title": "Skills",
+      "subtitle": "What each skill would earn on your projects.",
+      "character": "Character",
+      "back": "← Workshop",
+      "cardTitle": "Most profitable to learn",
+      "valuedAt": "valued at {isk} ISK/h over 30 days",
+      "columns": {
+        "skill": "Skill",
+        "effect": "Effect",
+        "training": "Training time",
+        "monthlyGain": "Gain per month",
+        "gainPerDay": "Gain / training day"
+      },
+      "effects": {
+        "manufacturing_time": "Manufacturing time",
+        "reaction_time": "Reaction time",
+        "invention_chance": "Invention chance",
+        "manufacturing_slot": "Manufacturing slot",
+        "reaction_slot": "Reaction slot",
+        "science_slot": "Science slot"
+      },
+      "causes": {
+        "skills_not_synchronized": "Skills not synchronized",
+        "project_jobs_not_cached": "Project jobs not synchronized",
+        "isk_per_hour_unknown": "ISK/h unknown",
+        "attributes_not_synchronized": "Attributes not synchronized",
+        "skill_not_in_sde": "Skill missing from the SDE",
+        "skill_points_unknown": "Skill points unknown",
+        "active_level_below_trained_level": "Active level below trained level",
+        "max_level_reached": "Maximum level reached"
+      },
+      "unnamed": "Skill #{id}",
+      "empty": "No skill to train for this character",
+      "noCharacter": "No character",
+      "hint": "Excludes implants and datacore costs. Time: slot hours freed, valued at the ISK/h of your projects over the last 30 days. An extra slot counts as an average slot of its category."
+    },
     "workshop": {
+      "skillsLink": "Skills",
       "unnamedProject": "Unnamed",
       "noPendingAction": "No pending action",
       "queue": {

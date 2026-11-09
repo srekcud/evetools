@@ -62,6 +62,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/industry/skills',
+      name: 'industry-skills',
+      component: () => import('@/views/IndustrySkills.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/escalations',
       redirect: '/ledger?tab=escalations',
     },

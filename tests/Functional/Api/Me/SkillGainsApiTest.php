@@ -73,10 +73,11 @@ final class SkillGainsApiTest extends WebTestCase
         $industry = array_values(array_filter($lines, static fn (array $line): bool => $line['skillId'] === self::INDUSTRY))[0];
 
         self::assertSame(
-            ['skillId', 'currentLevel', 'targetLevel', 'effect', 'hoursSavedPerMonth', 'monthlyGain', 'gainUnknownReason', 'trainingSeconds', 'trainingUnknownReason', 'gainPerTrainingDay'],
+            ['skillId', 'skillName', 'currentLevel', 'targetLevel', 'effect', 'hoursSavedPerMonth', 'monthlyGain', 'gainUnknownReason', 'trainingSeconds', 'trainingUnknownReason', 'gainPerTrainingDay'],
             array_keys($industry),
         );
         self::assertSame([2, 3, 'manufacturing_time'], [$industry['currentLevel'], $industry['targetLevel'], $industry['effect']]);
+        self::assertNull($industry['skillName']);
         self::assertSame('isk_per_hour_unknown', $industry['gainUnknownReason']);
         self::assertSame('skill_not_in_sde', $industry['trainingUnknownReason']);
     }
