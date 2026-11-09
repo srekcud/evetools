@@ -7,10 +7,12 @@ namespace App\State\Provider\MiningSite;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningSite\MiningSiteResource;
+use App\Entity\MiningSite;
 use App\Repository\MiningOperationRepository;
 use App\Repository\MiningSiteRepository;
 use App\Service\MiningOperation\MiningOperationAccess;
 use App\Service\MiningOperation\MiningOperationRequest;
+use App\Service\MiningSite\MiningSiteCompressionReport;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\InputBag;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -28,6 +30,7 @@ final readonly class MiningSiteCollectionProvider implements ProviderInterface
         private RequestStack $requestStack,
         private MiningSiteRepository $siteRepository,
         private MiningSiteResourceMapper $mapper,
+        private MiningSiteCompressionReport $compressionReport,
     ) {
     }
 
@@ -51,7 +54,12 @@ final readonly class MiningSiteCollectionProvider implements ProviderInterface
             )
             : $this->siteRepository->findOwnedBy($user, $solarSystemId);
 
-        return array_map($this->mapper->siteToResource(...), $sites);
+        return array_map(function (MiningSite $site): MiningSiteResource {
+            $resource = $this->mapper->siteToResource($site);
+            $resource->compression = $this->compressionReport->of($site);
+
+            return $resource;
+        }, $sites);
     }
 
     /**

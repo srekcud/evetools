@@ -123,6 +123,8 @@ class BatchProfitScannerService
     ];
 
     private const string VENUE_CONTRACTS = 'contracts';
+    private const int ASSUMED_T1_TIME_EFFICIENCY = 20;
+    private const int REACTION_TIME_EFFICIENCY = 0;
 
     public function __construct(
         private readonly IndustryActivityProductRepository $productRepository,
@@ -151,7 +153,7 @@ class BatchProfitScannerService
      * profitPerUnit and iskPerDay are null, unknownReason and missingPriceTypeIds explain why.
      * Products with a known cost are ranked first, by iskPerDay descending.
      *
-     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, iskPerDay: float|null, materialCost: float|null, importCost: float|null, exportCost: float|null, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
+     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, iskPerDay: float|null, materialCost: float|null, importCost: float|null, exportCost: float|null, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>, blueprintTypeId: int, outputPerRun: int, unitCost: float|null, teUsed: int}>
      */
     public function scan(
         ?string $category,
@@ -459,6 +461,14 @@ class BatchProfitScannerService
                     default => null,
                 },
                 'missingPriceTypeIds' => array_keys($missingPriceTypeIds),
+                'blueprintTypeId' => $blueprintTypeId,
+                'outputPerRun' => $outputPerRun,
+                'unitCost' => $isCostUnknown ? null : round($totalCost / $outputPerRun, 2),
+                'teUsed' => match (true) {
+                    $isReaction => self::REACTION_TIME_EFFICIENCY,
+                    $isT2 => InventionService::BASE_INVENTION_TE,
+                    default => self::ASSUMED_T1_TIME_EFFICIENCY,
+                },
             ];
         }
 
