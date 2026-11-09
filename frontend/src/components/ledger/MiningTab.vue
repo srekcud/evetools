@@ -123,23 +123,6 @@ async function syncStructureMarket() {
 
 const selectedStructureId = computed(() => selectedStructure.value.id)
 
-// Reprocessing yield
-const reprocessYield = ref(parseFloat(localStorage.getItem('miningReprocessYield') || '78'))
-
-function onYieldInput(event: Event) {
-  const input = event.target as HTMLInputElement
-  const value = parseFloat(input.value)
-  if (!isNaN(value)) {
-    reprocessYield.value = Math.max(0, Math.min(100, value))
-    localStorage.setItem('miningReprocessYield', reprocessYield.value.toString())
-  }
-}
-
-function onYieldBlur(event: Event) {
-  const input = event.target as HTMLInputElement
-  input.value = reprocessYield.value.toFixed(2)
-}
-
 // Export tax
 const exportTax = ref(parseFloat(localStorage.getItem('miningExportTax') || '1200'))
 
@@ -164,7 +147,7 @@ const settings = computed(() => ledgerStore.settings)
 const isSyncing = computed(() => ledgerStore.isSyncing)
 
 // Pricing composable
-const { miningByUsage } = useMiningPricing(miningEntries, reprocessYield)
+const { miningByUsage } = useMiningPricing(miningEntries)
 
 // Derived stats
 const activeDays = computed(() => {
@@ -214,7 +197,7 @@ const tableRef = ref<InstanceType<typeof MiningEntriesTable> | null>(null)
 // Fetch mining data
 async function fetchMiningData() {
   await Promise.all([
-    ledgerStore.fetchMiningEntries(props.selectedDays, undefined, undefined, selectedStructureId.value, reprocessYield.value, exportTax.value),
+    ledgerStore.fetchMiningEntries(props.selectedDays, undefined, undefined, selectedStructureId.value, exportTax.value),
     ledgerStore.fetchMiningStats(props.selectedDays),
   ])
 }
@@ -242,13 +225,6 @@ async function handleUpdateUsage(entryId: string, usage: MiningEntry['usage']) {
 watch(selectedStructure, async () => {
   await fetchMiningData()
 }, { deep: true })
-
-// Watch for yield changes (debounced)
-let yieldTimeout: ReturnType<typeof setTimeout> | null = null
-watch(reprocessYield, () => {
-  if (yieldTimeout) clearTimeout(yieldTimeout)
-  yieldTimeout = setTimeout(() => fetchMiningData(), 500)
-})
 
 // Watch for export tax changes (debounced)
 let exportTaxTimeout: ReturnType<typeof setTimeout> | null = null
@@ -302,23 +278,6 @@ defineExpose({
             :title="t('ledger.mining.exportTaxTooltip')"
           />
           <span class="text-xs text-slate-500">ISK/m3</span>
-        </div>
-
-        <!-- Reprocess yield input -->
-        <div class="flex items-center gap-1">
-          <span class="text-xs text-slate-500">{{ t('ledger.mining.yield') }} :</span>
-          <input
-            type="number"
-            :aria-label="t('ledger.mining.yield')"
-            :value="reprocessYield.toFixed(2)"
-            @change="onYieldInput"
-            @blur="onYieldBlur"
-            min="0"
-            max="100"
-            step="0.01"
-            class="w-20 bg-slate-800/50 border border-slate-600 rounded-lg px-2 py-2 text-sm text-slate-200 text-right focus:outline-hidden focus:border-cyan-500/50"
-          />
-          <span class="text-xs text-slate-500">%</span>
         </div>
 
         <!-- Structure selector -->
@@ -429,7 +388,6 @@ defineExpose({
         ref="tableRef"
         :entries="miningEntries"
         :selected-structure-id="selectedStructureId"
-        :reprocess-yield="reprocessYield"
         @update-usage="handleUpdateUsage"
       />
     </template>

@@ -27,19 +27,20 @@ function addKnownValues(left: number | null, right: number | null): number | nul
 /**
  * Composable for mining pricing logic: best price selection and usage-based aggregation.
  */
-export function useMiningPricing(
-  miningEntries: Ref<MiningEntry[]>,
-  reprocessYield: Ref<number>,
-) {
+function yieldPercentLabel(reprocessYield: number | null): string {
+  return reprocessYield === null ? '' : ` ${(reprocessYield * 100).toFixed(0)}%`
+}
+
+export function useMiningPricing(miningEntries: Ref<MiningEntry[]>) {
   /**
    * Get best price with color and source label for display in the table.
    */
   function getBestPrice(entry: MiningEntry): PriceSource {
     const sources: PriceSource[] = [
       { value: entry.compressedEquivalentPrice, color: 'text-cyan-400', source: 'Jita compresse' },
-      { value: entry.reprocessValue, color: 'text-purple-400', source: `Jita reprocess ${reprocessYield.value.toFixed(0)}%` },
+      { value: entry.reprocessValue, color: 'text-purple-400', source: `Jita reprocess${yieldPercentLabel(entry.reprocessYield)}` },
       { value: entry.structureCompressedEquivalentPrice, color: 'text-teal-400', source: 'Structure compresse' },
-      { value: entry.structureReprocessValue, color: 'text-lime-400', source: `Structure reprocess ${reprocessYield.value.toFixed(0)}%` },
+      { value: entry.structureReprocessValue, color: 'text-lime-400', source: `Structure reprocess${yieldPercentLabel(entry.reprocessYield)}` },
     ]
     const pricedSources = sources.filter((source): source is PricedSource => source.value !== null)
     const positiveSources = pricedSources.filter(source => source.value > 0)

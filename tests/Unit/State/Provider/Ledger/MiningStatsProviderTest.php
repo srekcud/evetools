@@ -117,6 +117,7 @@ final class MiningStatsProviderTest extends TestCase
             new MiningBestValueCalculator(
                 $miningEntryRepository,
                 $this->createOreValueService($this->jitaSellPricesWithoutCompressedOre()),
+                $this->profileRepositoryWithYield(0.78),
             ),
             $requestStack,
         );

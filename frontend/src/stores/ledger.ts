@@ -123,6 +123,7 @@ export interface MiningEntry {
   structureCompressedUnitPrice: number | null
   structureCompressedEquivalentPrice: number | null
   rawUnitPrice: number | null
+  reprocessYield: number | null
   // Reprocess value
   reprocessValue: number | null
   // Structure reprocess value
@@ -262,7 +263,7 @@ export const useLedgerStore = defineStore('ledger', () => {
     }
   }
 
-  async function fetchMiningEntries(days?: number, typeId?: number, usage?: string, structureId?: number | null, reprocessYield?: number, exportTax?: number) {
+  async function fetchMiningEntries(days?: number, typeId?: number, usage?: string, structureId?: number | null, exportTax?: number) {
     isLoading.value = true
     error.value = null
 
@@ -272,7 +273,6 @@ export const useLedgerStore = defineStore('ledger', () => {
       if (typeId) url += `&typeId=${typeId}`
       if (usage) url += `&usage=${usage}`
       if (structureId) url += `&structureId=${structureId}`
-      if (reprocessYield) url += `&reprocessYield=${reprocessYield}`
       if (exportTax !== undefined) url += `&exportTax=${exportTax}`
 
       miningEntries.value = await apiRequest<MiningEntry[]>(url)

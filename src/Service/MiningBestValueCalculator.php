@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Entity\User;
 use App\Repository\MiningEntryRepository;
+use App\Repository\ReprocessingProfileRepository;
 
 class MiningBestValueCalculator
 {
@@ -19,6 +20,7 @@ class MiningBestValueCalculator
     public function __construct(
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly OreValueService $oreValueService,
+        private readonly ReprocessingProfileRepository $profileRepository,
     ) {
     }
 
@@ -38,7 +40,7 @@ class MiningBestValueCalculator
             return ['totalValue' => 0.0, 'missingPriceTypeIds' => []];
         }
 
-        $bestPrices = $this->getBestUnitPrices(array_keys($quantitiesByType));
+        $bestPrices = $this->getBestUnitPrices($user, array_keys($quantitiesByType));
 
         return $this->valueQuantities(
             array_map(static fn (array $data): int => $data['quantity'], $quantitiesByType),
@@ -62,7 +64,7 @@ class MiningBestValueCalculator
             return ['byDate' => [], 'missingPriceTypeIds' => []];
         }
 
-        $bestPrices = $this->getBestUnitPricesOfEverySet($byDateAndType);
+        $bestPrices = $this->getBestUnitPricesOfEverySet($user, $byDateAndType);
 
         $byDate = [];
         $missingPriceTypeIds = [];
@@ -92,7 +94,7 @@ class MiningBestValueCalculator
             return [];
         }
 
-        $bestPrices = $this->getBestUnitPricesOfEverySet($byUsageAndType);
+        $bestPrices = $this->getBestUnitPricesOfEverySet($user, $byUsageAndType);
 
         $totals = [];
         foreach ($byUsageAndType as $usage => $typeQuantities) {
@@ -111,13 +113,14 @@ class MiningBestValueCalculator
      * @param int[] $typeIds
      * @return array<int, float|null> typeId => bestUnitPrice, null when the type has no price
      */
-    public function getBestUnitPrices(array $typeIds): array
+    public function getBestUnitPrices(User $user, array $typeIds): array
     {
         if (empty($typeIds)) {
             return [];
         }
 
-        $orePrices = $this->oreValueService->getBatchOrePrices($typeIds);
+        $reprocessYield = $this->profileRepository->findOneBy(['user' => $user])?->getReprocessYield();
+        $orePrices = $this->oreValueService->getBatchOrePrices($typeIds, null, $reprocessYield);
 
         $bestPrices = [];
         foreach ($typeIds as $typeId) {
@@ -131,7 +134,7 @@ class MiningBestValueCalculator
      * @param array<string, array<int, int>> $quantitiesBySet
      * @return array<int, float|null>
      */
-    private function getBestUnitPricesOfEverySet(array $quantitiesBySet): array
+    private function getBestUnitPricesOfEverySet(User $user, array $quantitiesBySet): array
     {
         $typeIds = [];
         foreach ($quantitiesBySet as $typeQuantities) {
@@ -140,7 +143,7 @@ class MiningBestValueCalculator
             }
         }
 
-        return $this->getBestUnitPrices(array_keys($typeIds));
+        return $this->getBestUnitPrices($user, array_keys($typeIds));
     }
 
     /**
