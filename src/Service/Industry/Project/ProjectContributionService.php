@@ -22,6 +22,7 @@ class ProjectContributionService
         private readonly IndustryProjectContributionRepository $contributionRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly JitaMarketService $jitaMarket,
+        private readonly LineReservationService $lineReservations,
     ) {
     }
 
@@ -39,6 +40,10 @@ class ProjectContributionService
         ?string $note = null,
     ): IndustryProjectContribution {
         $this->validateAntiDuplicate($member, $bomItem, $type);
+
+        if ($quantity > $bomItem->getRemainingQuantity()) {
+            throw new \DomainException('The contribution exceeds the remaining quantity of the line');
+        }
 
         $estimatedValue = match ($type) {
             ContributionType::Material => $this->resolveMaterialValue($bomItem, $quantity, $estimatedValue),
@@ -93,6 +98,7 @@ class ProjectContributionService
         $bomItem = $contribution->getBomItem();
         if ($bomItem !== null) {
             $this->incrementFulfillment($bomItem, $contribution->getQuantity());
+            $this->lineReservations->settleApproval($bomItem, $contribution->getMember(), $contribution->getQuantity());
         }
 
         $this->entityManager->flush();

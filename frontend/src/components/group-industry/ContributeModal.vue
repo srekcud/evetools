@@ -65,7 +65,7 @@ watch(() => props.show, (visible) => {
     if (props.prefilledBomItem) {
       selectedType.value = props.prefilledBomItem.isJob ? 'job_install' : 'material'
       selectedBomItemId.value = props.prefilledBomItem.id
-      quantity.value = props.prefilledBomItem.remainingQuantity
+      quantity.value = props.prefilledBomItem.reservations.find(reservation => reservation.isMine)?.quantity ?? props.prefilledBomItem.remainingQuantity
       estimatedValue.value = 0
     } else {
       selectedType.value = 'material'

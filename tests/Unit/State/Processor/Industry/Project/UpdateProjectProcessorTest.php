@@ -6,6 +6,7 @@ namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Validator\Exception\ValidationException;
+use App\Service\Industry\Project\LineReservationService;
 use App\ApiResource\Industry\Project\IndustryProjectResource;
 use App\ApiResource\Input\Industry\Project\UpdateProjectInput;
 use App\Entity\IndustryProject;
@@ -780,6 +781,7 @@ class UpdateProjectProcessorTest extends TestCase
             new MercurePublisherService($this->hub, new NullLogger()),
             $this->projectService,
             new ProjectSellStructures(),
+            $this->createStub(LineReservationService::class),
         );
     }
 

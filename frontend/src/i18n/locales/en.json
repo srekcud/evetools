@@ -2624,6 +2624,16 @@
       "overallFulfillment": "Overall Fulfillment",
       "purchasedQuantity": "{quantity} purchased"
     },
+    "reservation": {
+      "reservedBy": "Reserved by",
+      "reserve": "I'll handle it",
+      "release": "Release",
+      "contribute": "Contribute",
+      "quantity": "Quantity to handle",
+      "free": "{quantity} free",
+      "mine": "you",
+      "failed": "The reservation could not be saved"
+    },
     "jobs": {
       "title": "Jobs to Launch",
       "product": "Product",

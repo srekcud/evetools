@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Post;
+use App\Service\Industry\Project\LineReservationService;
 use App\Entity\Character;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
@@ -81,6 +82,7 @@ class LeaveProjectProcessorTest extends TestCase
             $memberRepository,
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
+            $this->createStub(LineReservationService::class),
         );
     }
 

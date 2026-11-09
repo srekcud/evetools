@@ -124,6 +124,13 @@ export type MatchJobsResult = {
   failedCharacters: CharacterMatchFailure[]
 }
 
+export type LineReservation = {
+  participantId: string
+  characterName: string | null
+  quantity: number
+  isMine: boolean
+}
+
 export type BomItem = {
   id: string
   typeId: number
@@ -146,6 +153,9 @@ export type BomItem = {
   matchedRuns: number
   purchases: ProjectPurchase[]
   purchasedQuantity: number
+  reservations: LineReservation[]
+  reservedQuantity: number
+  freeQuantity: number
 }
 
 // --- Contributions ---

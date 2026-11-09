@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Post;
+use App\Service\Industry\Project\LineReservationService;
 use App\ApiResource\Industry\Project\ProjectContributionResource;
 use App\ApiResource\Input\Industry\Project\SubmitContributionInput;
 use App\Entity\Character;
@@ -148,7 +149,7 @@ class SubmitContributionProcessorTest extends TestCase
             $projectRepository,
             $memberRepository,
             $bomItemRepository,
-            new ProjectContributionService($contributionRepository, $this->entityManager, $jitaMarket),
+            new ProjectContributionService($contributionRepository, $this->entityManager, $jitaMarket, $this->createStub(LineReservationService::class)),
             new ProjectResourceMapper(),
             new MercurePublisherService($this->hub, new NullLogger()),
         );

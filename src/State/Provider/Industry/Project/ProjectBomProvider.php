@@ -15,8 +15,11 @@ use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectPurchase;
 use App\Entity\User;
 use App\Repository\IndustryProjectBomLineRepository;
+use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Entity\IndustryProjectLineReservation;
 use App\Service\Industry\Project\JobInstallerName;
+use App\Service\Industry\Project\PilotName;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -32,6 +35,7 @@ class ProjectBomProvider implements ProviderInterface
         private readonly IndustryProjectRepository $projectRepository,
         private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly ProjectAccessChecker $accessChecker,
+        private readonly IndustryProjectLineReservationRepository $reservationRepository,
     ) {
     }
 
@@ -60,13 +64,21 @@ class ProjectBomProvider implements ProviderInterface
 
         $bomItems = $this->bomItemRepository->findBy(['project' => $project]);
 
+        $reservationsByLine = [];
+        foreach ($this->reservationRepository->findByProject($project) as $reservation) {
+            $reservationsByLine[$reservation->getBomLine()->getId()->toRfc4122()][] = $reservation;
+        }
+
         return array_map(
-            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? []),
             $bomItems,
         );
     }
 
-    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer): ProjectBomLineResource
+    /**
+     * @param list<IndustryProjectLineReservation> $reservations
+     */
+    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations): ProjectBomLineResource
     {
         $resource = new ProjectBomLineResource();
         $resource->id = $item->getId()->toString();
@@ -101,6 +113,19 @@ class ProjectBomProvider implements ProviderInterface
             static fn (IndustryProjectPurchase $purchase): array => get_object_vars(ProjectPurchaseResource::fromEntity($purchase)),
         )->toArray());
         $resource->purchasedQuantity = $item->getPurchasedQuantity();
+
+        $visibleReservations = $item->isFulfilled() ? [] : $reservations;
+        $resource->reservations = array_map(
+            static fn (IndustryProjectLineReservation $reservation): array => [
+                'participantId' => $reservation->getParticipant()->getId()->toRfc4122(),
+                'characterName' => PilotName::of($reservation->getParticipant()->getUser()),
+                'quantity' => $reservation->getQuantity(),
+                'isMine' => $reservation->getParticipant()->getUser()?->getId()?->toRfc4122() === $viewer->getId()?->toRfc4122(),
+            ],
+            $visibleReservations,
+        );
+        $resource->reservedQuantity = array_sum(array_map(static fn (IndustryProjectLineReservation $reservation): int => $reservation->getQuantity(), $visibleReservations));
+        $resource->freeQuantity = max(0, $item->getRemainingQuantity() - $resource->reservedQuantity);
 
         return $resource;
     }

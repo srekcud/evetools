@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Patch;
+use App\Service\Industry\Project\LineReservationService;
 use App\ApiResource\Industry\Project\ProjectContributionResource;
 use App\ApiResource\Input\Industry\Project\ReviewContributionInput;
 use App\Entity\Character;
@@ -101,6 +102,7 @@ class ReviewContributionProcessorTest extends TestCase
                 $this->contributionRepository,
                 $this->entityManager,
                 $this->createStub(JitaMarketService::class),
+                $this->createStub(LineReservationService::class),
             ),
             new ProjectAccessChecker($this->memberRepository),
             new ProjectResourceMapper(),

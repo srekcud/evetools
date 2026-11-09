@@ -49,6 +49,9 @@ const ISHTAR_JOB: BomItem = {
   matchedRuns: 5,
   purchases: [],
   purchasedQuantity: 0,
+  reservations: [],
+  reservedQuantity: 0,
+  freeQuantity: 0,
   jobMatches: [
     {
       id: 'match-aria',

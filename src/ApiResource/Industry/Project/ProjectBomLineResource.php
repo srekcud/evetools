@@ -77,4 +77,11 @@ class ProjectBomLineResource
     public array $purchases = [];
 
     public int $purchasedQuantity = 0;
+
+    /** @var list<array{participantId: string, characterName: string|null, quantity: int, isMine: bool}> */
+    public array $reservations = [];
+
+    public int $reservedQuantity = 0;
+
+    public int $freeQuantity = 0;
 }
