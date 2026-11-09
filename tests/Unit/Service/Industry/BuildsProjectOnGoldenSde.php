@@ -93,21 +93,6 @@ trait BuildsProjectOnGoldenSde
         $materialRepository->method('findBy')->willReturnCallback(
             static fn (array $criteria): array => self::activityMaterials((int) $criteria['typeId'], (int) $criteria['activityId']),
         );
-        $materialRepository->method('findMaterialEntitiesForBlueprints')->willReturnCallback(
-            static function (array $blueprintTypeIds, array $activityIds): array {
-                $materialsByBlueprint = [];
-                foreach (array_unique($blueprintTypeIds) as $blueprintTypeId) {
-                    foreach (array_unique($activityIds) as $activityId) {
-                        $materials = self::activityMaterials($blueprintTypeId, $activityId);
-                        if ($materials !== []) {
-                            $materialsByBlueprint[$blueprintTypeId.'-'.$activityId] = $materials;
-                        }
-                    }
-                }
-
-                return $materialsByBlueprint;
-            },
-        );
 
         return $materialRepository;
     }

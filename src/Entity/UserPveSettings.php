@@ -13,9 +13,6 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'user_pve_settings')]
 class UserPveSettings
 {
-    // Fuel type IDs - now user-configured via ammoTypeIds
-    public const FUEL_TYPE_IDS = [];
-
     // Known beacon type IDs
     public const BEACON_TYPE_IDS = [
         60244, // CONCORD Rogue Analysis Beacon

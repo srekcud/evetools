@@ -277,14 +277,4 @@ class MarketService
             return null;
         }
     }
-
-    public function getDefaultStructureId(): int
-    {
-        return $this->defaultMarketStructureId;
-    }
-
-    public function getDefaultStructureName(): string
-    {
-        return $this->defaultMarketStructureName;
-    }
 }

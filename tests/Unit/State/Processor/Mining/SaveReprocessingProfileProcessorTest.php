@@ -147,7 +147,7 @@ final class SaveReprocessingProfileProcessorTest extends TestCase
     public static function esiFailures(): iterable
     {
         yield 'ESI unavailable' => [EsiApiException::fromResponse(503, 'Service Unavailable', self::PILOT_ONE_SKILLS_ENDPOINT), null];
-        yield 'ESI rate limited' => [EsiApiException::rateLimited(endpoint: self::PILOT_ONE_SKILLS_ENDPOINT), null];
+        yield 'ESI rate limited' => [EsiApiException::fromResponse(429, 'Rate limit exceeded', self::PILOT_ONE_SKILLS_ENDPOINT), null];
         yield 'response without skills list' => [null, ['total_sp' => 48_000_000]];
     }
 

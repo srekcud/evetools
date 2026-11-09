@@ -65,7 +65,7 @@ Services déjà branchés sur le noyau (`grep -rln 'App\\Industry\\' src`) :
 | `StockpileService`, `StockpileStartingStockReducer` (via le trait `PlansStockpileImports`) | `ProductionPlanning::planOf` (`ProductionPlanRequest` avec stock de départ), `UserProductionStructures::configuredBy`, `FavoriteSystems::none()` ; manipulent `Plan` (`intermediates`, `leaves`, `jobsFor`), `Intermediate` (`demand`, `consumedStock`), `PlanTarget`, `Runs`, `BlueprintEfficiency` ; lisent encore le producteur SDE (`IndustryActivityProductRepository`) |
 | `BatchProfitScannerService`, `PivotAdvisorService` | seulement `ActivityKind` ; matériaux par `MaterialQuantityFormula`, install par `JobInstallCostEstimator` / `FacilityTaxResolver` |
 
-**Pas encore migrés** : `IndustryCalculationService`, `InventionService`, `EsiCostIndexService`, tous les Processors. `Domain\JobDuration` et `Domain\SkillTimeModifier` n'ont aucun appelant dans `src/` (tests seuls).
+**Pas encore migrés** : `IndustryCalculationService`, `InventionService`, `EsiCostIndexService`, tous les Processors. `Domain\JobDuration` et `Domain\SkillTimeModifier` sont appelés par `ProjectPlanningBuilder` (et `ProductionOpportunityRanker`, `SkillGainEstimator` pour le second).
 
 ## 2. Classes importantes
 

@@ -75,36 +75,6 @@ class IndustryActivityMaterialRepository extends ServiceEntityRepository
     }
 
     /**
-     * Bulk-fetch material entities for multiple blueprints, grouped by "typeId-activityId".
-     *
-     * @param int[] $blueprintTypeIds
-     * @param int[] $activityIds
-     * @return array<string, list<IndustryActivityMaterial>> keyed by "typeId-activityId"
-     */
-    public function findMaterialEntitiesForBlueprints(array $blueprintTypeIds, array $activityIds): array
-    {
-        if (empty($blueprintTypeIds) || empty($activityIds)) {
-            return [];
-        }
-
-        $materials = $this->createQueryBuilder('m')
-            ->where('m.typeId IN (:typeIds)')
-            ->andWhere('m.activityId IN (:activityIds)')
-            ->setParameter('typeIds', array_values(array_unique($blueprintTypeIds)))
-            ->setParameter('activityIds', array_values(array_unique($activityIds)))
-            ->getQuery()
-            ->getResult();
-
-        $grouped = [];
-        foreach ($materials as $material) {
-            $key = $material->getTypeId() . '-' . $material->getActivityId();
-            $grouped[$key][] = $material;
-        }
-
-        return $grouped;
-    }
-
-    /**
      * Reverse lookup: find all products whose blueprint requires any of the given materials.
      * Returns the same shape as findAllManufacturableProducts().
      *

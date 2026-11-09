@@ -47,8 +47,7 @@
       "second": "second | second | seconds",
       "remaining": "remaining",
       "perDay": "/ day",
-      "perHour": "/ hour",
-      "perCycle": "/cycle"
+      "perHour": "/ hour"
     },
     "dataFreshness": {
       "sources": {
@@ -70,13 +69,7 @@
       "loadFailed": "Failed to load",
       "saveFailed": "Failed to save",
       "deleteFailed": "Failed to delete",
-      "syncFailed": "Sync failed",
-      "networkError": "Network error",
-      "unauthorized": "Unauthorized"
-    },
-    "confirm": {
-      "areYouSure": "Are you sure?",
-      "cannotUndo": "This action cannot be undone."
+      "syncFailed": "Sync failed"
     },
     "deletedPilot": "Deleted pilot"
   },
@@ -179,10 +172,8 @@
     "dateFormatNote": "Date display format throughout the application",
     "marketStructure": "Market Structure",
     "marketStructureDesc": "Choose a structure to compare prices against Jita.",
-    "defaultStructure": "Default",
     "marketStructureLoading": "Loading structures...",
-    "marketStructureSaved": "Structure saved",
-    "marketStructureError": "Failed to save structure"
+    "marketStructureSaved": "Structure saved"
   },
   "auth": {
     "login": "Login",
@@ -206,7 +197,6 @@
   "header": {
     "welcomeBack": "Welcome back, capsuleer",
     "esiOk": "ESI OK",
-    "esiDown": "ESI DOWN",
     "esiRateLimited": "ESI RATE LIMITED",
     "esiUnavailable": "ESI unavailable",
     "esiRateLimitedTitle": "ESI rate limited",
@@ -273,9 +263,7 @@
     "skillsInQueue": "{count} in queue",
     "noSkillTraining": "No skill training",
     "confirmDelete": "Confirm removal",
-    "confirmDeleteMessage": "Are you sure you want to remove this character? All associated data will be deleted.",
     "confirmSetMain": "Set as main?",
-    "confirmSetMainMessage": "This character will become your main character. Corporation data will be based on this character.",
     "done": "Done",
     "deleteAccount": {
       "dangerZone": "Danger zone",
@@ -677,11 +665,9 @@
       "targetsMet": "{met}/{total} targets met",
       "alertsTitle": "Alerts",
       "noAlerts": "No alerts — everything is running smoothly",
-      "quickActions": "Quick Actions",
       "newProject": "New Project",
       "restockCritical": "Restock Critical",
       "scanProfits": "Run Scan",
-      "viewSlots": "View Slots",
       "viewStockpile": "View Stockpile",
       "recentProjects": "Recent Projects",
       "viewAllProjects": "View all projects",
@@ -695,11 +681,7 @@
       }
     },
     "scanner": {
-      "batchScan": "Batch Scan",
       "pivot": "Pivot",
-      "batchScanPlaceholder": "Coming soon — Scan multiple items for profit opportunities",
-      "buyVsBuildPlaceholder": "Coming soon — Compare buying vs manufacturing components",
-      "pivotPlaceholder": "Coming soon — Find alternative items when margins shift",
       "createProject": "Create Project",
       "batch": {
         "title": "Profit Scanner",
@@ -722,7 +704,6 @@
         "buildableSoon": "soon",
         "results": "Scan Results",
         "sortedBy": "Sorted by",
-        "meDefault": "ME default",
         "system": "System",
         "rank": "#",
         "itemName": "Item Name",
@@ -760,11 +741,9 @@
         "favorites": "Favorites",
         "addFavorite": "Add to favorites",
         "removeFavorite": "Remove from favorites",
-        "missingSkills": "Missing {count} skill(s)",
-        "canManufacture": "Can manufacture"
+        "missingSkills": "Missing {count} skill(s)"
       },
       "buyVsBuild": {
-        "tabLabel": "Buy vs Build",
         "title": "Buy vs Build Advisor",
         "subtitle": "Each production stage should be profitable on its own",
         "product": "Product",
@@ -793,18 +772,11 @@
         "jitaSell": "Jita sell",
         "structureSell": "C-J6MT sell",
         "bestPrice": "Best price",
-        "volAvailable": "Vol. available (Jita)",
         "jobInstall": "Job install",
-        "buildTime": "Build time",
-        "verdictBuild": "BUILD",
-        "verdictBuy": "BUY",
         "verdictLoss": "Building at a loss",
         "verdictUnknown": "Unknown price",
         "save": "Save",
         "details": "Details",
-        "buildMeTe": "Build ME/TE",
-        "runsNeeded": "Runs Needed",
-        "perUnitSavings": "Per-Unit Savings",
         "needed": "needed",
         "summaryTitle": "Optimal Strategy Summary",
         "buildEverything": "Build Everything",
@@ -822,7 +794,6 @@
         "more": "more",
         "totalSavings": "Total savings",
         "loss": "loss",
-        "createOptimal": "Create Project with Optimal Mix",
         "refreshPrices": "Refresh Prices",
         "export": "Export",
         "pricesUpdated": "Prices updated",
@@ -847,7 +818,6 @@
         "analyze": "Analyze",
         "analyzing": "Analyzing pivot options",
         "refresh": "Refresh",
-        "currentProduct": "Current Product",
         "profitabilityAlert": "Profitability Alert",
         "marginWarning": "Margin dropped below 0% — consider pivoting production to an alternative product",
         "keyComponents": "Key Components in Stock",
@@ -1048,7 +1018,6 @@
       "noProjects": "No projects",
       "noProjectsDescription": "Create your first industry project to get started"
     },
-    "projectHistory": "Project history",
     "config": {
       "maxJobDuration": "Max job duration",
       "maxJobDurationHint": "Jobs exceeding this duration will be split automatically",
@@ -1270,7 +1239,7 @@
       "sellComparison": "Sell Price Comparison",
       "sellComparisonNote": "Revenue = unit price x runs. Fees include broker fee + sales tax. Profit = revenue - total cost - fees. Margin = profit / revenue.",
       "brokerFeeLabel": "Broker fee",
-      "inventionTitle": "Invention \u2014 Decryptor Impact on Profit",
+      "inventionTitle": "Invention — Decryptor Impact on Profit",
       "probability": "Prob.",
       "inventorLabel": "Inventor",
       "withoutSkills": "Without skills",
@@ -1295,7 +1264,6 @@
     "stockpile": {
       "title": "Stockpile Dashboard",
       "targets": "targets",
-      "newTarget": "New Target",
       "importTitle": "Import Targets from Blueprint",
       "kpi": {
         "pipelineHealth": "Pipeline Health",
@@ -1363,8 +1331,7 @@
       "confirmDelete": "Delete this target?",
       "empty": {
         "title": "No stockpile targets set",
-        "description": "Import targets from a blueprint to start tracking your production pipeline.",
-        "cta": "Set up Stockpile Targets"
+        "description": "Import targets from a blueprint to start tracking your production pipeline."
       }
     },
     "calculator": {
@@ -1463,9 +1430,6 @@
       "escalations": "Escalations"
     },
     "period": {
-      "7days": "7 days",
-      "30days": "30 days",
-      "90days": "90 days",
       "nDays": "{n} days",
       "all": "All"
     },
@@ -1521,7 +1485,6 @@
       "clearStructure": "Remove structure",
       "syncStructure": "Sync structure prices",
       "jitaPrice": "Jita price",
-      "structurePriceLabel": "Structure price",
       "usage": {
         "sold": "Sold",
         "corpProject": "Corp project",
@@ -1841,7 +1804,6 @@
       "profit": "Profit",
       "bounties": "Bounties",
       "missionRewards": "Mission rewards",
-      "marketSales": "Market sales",
       "corpProject": "Corp projects"
     },
     "industry": {
@@ -1870,8 +1832,7 @@
       "totalIncome": "Total income",
       "totalExpenses": "Total expenses",
       "netProfit": "Net profit",
-      "dailyAverage": "Daily average",
-      "miningValue": "Mining value"
+      "dailyAverage": "Daily average"
     },
     "settings": {
       "corpProjectTitle": "Corporation project accounting",
@@ -1904,7 +1865,6 @@
     "syncAssets": "Sync assets",
     "syncing": "Syncing...",
     "noAssets": "No assets",
-    "noAssetsHint": "Sync your assets from ESI",
     "containerContents": "Container contents",
     "selectCharacter": "Select a character",
     "lastSync": "Last sync",
@@ -1933,10 +1893,7 @@
       "saved": "Visibility updated",
       "configuredBy": "Configured by {name}",
       "lastUpdate": "Last update",
-      "showPanel": "Manage visibility",
-      "hidePanel": "Hide",
       "sharedDivisions": "Shared divisions",
-      "sharedDivisionsNone": "No divisions are currently shared with you",
       "modeAll": "All members",
       "modeList": "List",
       "modeHidden": "Hidden",
@@ -1961,7 +1918,6 @@
     "price": "Price",
     "type": "Type",
     "status": "Status",
-    "issued": "Issued on",
     "expires": "Expires",
     "completed": "Completed on",
     "items": "Items",
@@ -2005,9 +1961,7 @@
     "subtitle": "Compare prices between Jita and your structure",
     "importTab": "Import",
     "appraisalTab": "Appraisal",
-    "inputPlaceholder": "Paste your item list here...",
     "pasteLabel": "Paste your item list (from the game or in name + quantity format)",
-    "supportedFormats": "Formats: Tritanium 10000 / 200x Nocxium / copy-paste from EVE",
     "transportCost": "Transport cost / m3",
     "structureLabel": "Comparison structure",
     "structure": "Comparison structure",
@@ -2016,20 +1970,16 @@
     "noStructureFound": "No structure found",
     "syncPrices": "Sync prices",
     "calculate": "Calculate",
-    "calculating": "Calculating...",
     "shareList": "Share list",
     "sharing": "Sharing...",
     "linkCopied": "Link copied!",
-    "sharedList": "Shared list",
     "sharedAppraisal": "Shared Appraisal",
     "createdAt": "Created on",
     "expiresAt": "Expires on",
-    "createNewList": "Create a new list",
     "createNewAppraisal": "Create a new appraisal",
     "createMyOwn": "Create my own list",
     "createMyOwnAppraisal": "Create my own appraisal",
     "sharedExpired": "This shared appraisal does not exist or has expired.",
-    "listExpired": "This shopping list does not exist or has expired.",
     "loadError": "Error loading the appraisal",
     "notFound": "{count} item(s) not found",
     "structurePricesUnavailable": "Structure prices unavailable",
@@ -2056,7 +2006,6 @@
     "analyze": "Analyze",
     "appraising": "Analyzing...",
     "infoBanner": "Sell value = cost to buy (lowest sell orders). Buy value = what you receive selling to buy orders (highest buy orders). All prices from Jita 4-4.",
-    "weightedInfoBanner": "Prices shown are volume-weighted (stacking orders to cover the requested quantity). The best single-order price is shown below for comparison.",
     "sellValue": "Sell Value",
     "sellValueDesc": "Cost to buy these items",
     "buyValue": "Buy Value",
@@ -2078,11 +2027,9 @@
     "copied": "Copied!",
     "copyTable": "Copy table",
     "share": "Share",
-    "weightedPrice": "Weighted price",
     "weighted": "weighted",
     "bestPrice": "Best price",
     "bestPriceMixed": "Best Price (mixed)",
-    "depthWarning": "Insufficient market depth",
     "coverageTooltip": "Only {available} of {total} available (top 20 orders)",
     "avgDailyVolume": "~{volume}/day",
     "avgDailyVolumeTooltip": "Average daily volume on Jita (30 days)",
@@ -2109,8 +2056,6 @@
   "admin": {
     "title": "Administration",
     "subtitle": "Platform statistics and metrics",
-    "accessDenied": "Access denied",
-    "checking": "Checking...",
     "stats": "Statistics",
     "users": "Users",
     "queues": "Message queues",
@@ -2229,9 +2174,7 @@
     "title": "Notifications",
     "markAllRead": "Mark all as read",
     "clearRead": "Clear Read",
-    "clearReadSuccess": "Cleared {count} notifications",
     "deleteOne": "Delete",
-    "deleteOneSuccess": "Notification deleted",
     "settings": "Preferences",
     "empty": "No notifications",
     "loadMore": "Load more",
@@ -2265,9 +2208,14 @@
     "title": "Group Industry",
     "subtitle": "Collaborative manufacturing projects",
     "myProjects": "My Projects",
-    "available": "Available Projects",
-    "noProjects": "No group projects yet. Create one to get started!",
-    "noAvailable": "No available projects from your corporation.",
+    "available": {
+      "runs": "Runs",
+      "members": "members",
+      "joinProject": "Join Project",
+      "infoBanner": "Projects published by members of your corporation. Join instantly -- no approval needed.",
+      "empty": "No available projects",
+      "emptyHint": "No open projects from your corporation at the moment."
+    },
     "reactionSteps": {
       "title": "Reactions",
       "loading": "Reading the reactions...",
@@ -2606,7 +2554,6 @@
     "bom": {
       "title": "Bill of Materials",
       "materialsToSource": "Materials to Source",
-      "jobsToLaunch": "Jobs to Launch",
       "blueprints": "Blueprints",
       "components": "Components",
       "finalProducts": "Final Products",
@@ -2754,11 +2701,7 @@
         "approved": "Approved",
         "rejected": "Rejected"
       },
-      "autoDetected": "Auto-detected",
       "verified": "Verified",
-      "unverified": "Unverified",
-      "reviewedBy": "Reviewed by {name}",
-      "noContributions": "No contributions yet.",
       "unknownValueCause": "A contribution has no known price: the totals that include it are unknown, never partial.",
       "methods": {
         "paidPrice": "paid price (wallet)",
@@ -2785,7 +2728,6 @@
       "totalCost": "Total Project Cost",
       "margin": "Margin",
       "payout": "Payout",
-      "costsEngaged": "Costs Engaged",
       "share": "Share",
       "profitPart": "Profit Part",
       "materialCosts": "Material Costs",
@@ -2873,7 +2815,6 @@
       "totalPrice": "Total Price",
       "venue": "Venue",
       "soldAt": "Sold At",
-      "recordedBy": "Recorded by",
       "correctTitle": "Correct a Sale",
       "actionsColumn": "Actions",
       "channelColumn": "Channel",
@@ -2939,7 +2880,6 @@
         "shortLinkApproved": "short link, approved"
       },
       "viaShortLink": "Short Link",
-      "totalContributed": "Total Contributed",
       "contributionCount": "Contributions",
       "joinedAt": "Joined",
       "leaveProject": "Leave",
@@ -2982,8 +2922,6 @@
       "joinProject": "Join Project",
       "submitContribution": "Add Contribution",
       "recordSale": "Record Sale",
-      "verifyContainer": "Verify Container",
-      "lineRentalSettings": "Line Rental Settings",
       "copyLink": "Copy Link",
       "advanceStatus": "Advance Status",
       "deleteProject": "Delete Project"
@@ -3001,9 +2939,7 @@
         "nameLabel": "Name",
         "namePlaceholder": "Custom project name (e.g. Fleet Doctrine Build)",
         "optional": "optional",
-        "itemsToProduce": "Items to Produce",
         "itemsLabel": "Items to Produce",
-        "itemsPlaceholder": "Paste items: ItemName ME TE xRuns (one per line)",
         "addItem": "Add Item",
         "bulkPaste": "Bulk Paste",
         "searchPlaceholder": "Search item (e.g. Ferox, Ishtar...)",
@@ -3011,7 +2947,11 @@
         "parseAndAdd": "Parse & Add",
         "bulkPlaceholder": "Paste items, one per line:\nFerox 2 4 x100\nIshtar 4 8 x50\nSabre 4 8 x200",
         "bulkFormat": "Format:",
-        "bulkStatus": { "recognized": "Recognized", "unknown": "Unknown item", "invalid": "Invalid line" },
+        "bulkStatus": {
+          "recognized": "Recognized",
+          "unknown": "Unknown item",
+          "invalid": "Invalid line"
+        },
         "bulkRecognized": "{name} · ME {me} · TE {te} · {runs} runs",
         "bulkUnknown": "\"{name}\" is not a manufacturable item",
         "bulkSuggestion": "Did you mean {name}?",
@@ -3048,7 +2988,6 @@
         "lineRentalOverrideHint": "These rates override your default settings for this project only.",
         "bomNote": "BOM will be aggregated from all items",
         "createButton": "Create Project",
-        "feesLabel": "Fees",
         "brokerFee": "Broker Fee %",
         "salesTax": "Sales Tax %",
         "privateLabel": "Private project",
@@ -3060,11 +2999,7 @@
       "contribute": {
         "title": "Add Contribution",
         "typeLabel": "Contribution Type",
-        "bomItemLabel": "BOM Item",
-        "quantityLabel": "Quantity",
-        "estimatedValueLabel": "Estimated Value (ISK)",
-        "noteLabel": "Note",
-        "notePlaceholder": "Optional note..."
+        "quantityLabel": "Quantity"
       },
       "lineRental": {
         "title": "Default Line Rental Rates",
@@ -3089,10 +3024,8 @@
     "join": {
       "title": "Join Project",
       "description": "You have been invited to join this group industry project.",
-      "joinButton": "Join Project",
       "alreadyMember": "You are already a member of this project.",
       "pendingApproval": "Your membership request is pending approval.",
-      "projectNotFound": "Project not found or link expired.",
       "invalidLink": "Invalid join link",
       "joinFailed": "Failed to join the project",
       "moduleLabel": "Industry project invitation",
@@ -3212,14 +3145,6 @@
         }
       }
     },
-    "available": {
-      "runs": "Runs",
-      "members": "members",
-      "joinProject": "Join Project",
-      "infoBanner": "Projects published by members of your corporation. Join instantly -- no approval needed.",
-      "empty": "No available projects",
-      "emptyHint": "No open projects from your corporation at the moment."
-    },
     "empty": {
       "title": "No group projects yet",
       "description": "Create a new project to start collaborating with your corporation."
@@ -3228,7 +3153,6 @@
       "owner": "Owner: {name}",
       "members": "{count} member | {count} member | {count} members",
       "items": "{count} item | {count} item | {count} items",
-      "bomValue": "BOM Value",
       "backToList": "Back to Projects",
       "shareLink": "Share Link",
       "edit": "Edit",
@@ -3929,8 +3853,7 @@
         "footerEachForThemselves": "evetools · each for themselves"
       }
     }
-  }
-,
+  },
   "miningSite": {
     "feed": {
       "title": "Scan feed",

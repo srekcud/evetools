@@ -47,8 +47,7 @@
       "second": "seconde | seconde | secondes",
       "remaining": "restant",
       "perDay": "/ jour",
-      "perHour": "/ heure",
-      "perCycle": "/cycle"
+      "perHour": "/ heure"
     },
     "dataFreshness": {
       "sources": {
@@ -70,13 +69,7 @@
       "loadFailed": "Erreur lors du chargement",
       "saveFailed": "Erreur lors de la sauvegarde",
       "deleteFailed": "Erreur lors de la suppression",
-      "syncFailed": "Erreur de synchronisation",
-      "networkError": "Erreur reseau",
-      "unauthorized": "Non autorise"
-    },
-    "confirm": {
-      "areYouSure": "Etes-vous sur ?",
-      "cannotUndo": "Cette action est irreversible."
+      "syncFailed": "Erreur de synchronisation"
     },
     "deletedPilot": "Pilote supprimé"
   },
@@ -179,10 +172,8 @@
     "dateFormatNote": "Format d'affichage des dates dans toute l'application",
     "marketStructure": "Structure de marche",
     "marketStructureDesc": "Choisissez une structure pour comparer les prix avec Jita.",
-    "defaultStructure": "Par defaut",
     "marketStructureLoading": "Chargement des structures...",
-    "marketStructureSaved": "Structure enregistree",
-    "marketStructureError": "Erreur lors de la sauvegarde"
+    "marketStructureSaved": "Structure enregistree"
   },
   "auth": {
     "login": "Connexion",
@@ -206,7 +197,6 @@
   "header": {
     "welcomeBack": "Bon retour, capsulier",
     "esiOk": "ESI OK",
-    "esiDown": "ESI DOWN",
     "esiRateLimited": "ESI RATE LIMITED",
     "esiUnavailable": "ESI indisponible",
     "esiRateLimitedTitle": "ESI rate limite",
@@ -273,9 +263,7 @@
     "skillsInQueue": "{count} dans la file",
     "noSkillTraining": "Pas de formation en cours",
     "confirmDelete": "Confirmer la suppression",
-    "confirmDeleteMessage": "Voulez-vous vraiment retirer ce personnage ? Toutes ses donnees seront supprimees.",
     "confirmSetMain": "Definir comme principal ?",
-    "confirmSetMainMessage": "Ce personnage deviendra votre personnage principal. Les donnees de corporation seront basees sur celui-ci.",
     "done": "Termine",
     "deleteAccount": {
       "dangerZone": "Zone de danger",
@@ -677,11 +665,9 @@
       "targetsMet": "{met}/{total} objectifs atteints",
       "alertsTitle": "Alertes",
       "noAlerts": "Aucune alerte — tout fonctionne normalement",
-      "quickActions": "Actions rapides",
       "newProject": "Nouveau projet",
       "restockCritical": "Reapprovisionner",
       "scanProfits": "Lancer un scan",
-      "viewSlots": "Voir les slots",
       "viewStockpile": "Voir le stockpile",
       "recentProjects": "Projets recents",
       "viewAllProjects": "Voir tous les projets",
@@ -695,11 +681,7 @@
       }
     },
     "scanner": {
-      "batchScan": "Scan en lot",
       "pivot": "Pivot",
-      "batchScanPlaceholder": "Bientot — Scanner plusieurs items pour des opportunites de profit",
-      "buyVsBuildPlaceholder": "Bientot — Comparer l'achat vs la fabrication des composants",
-      "pivotPlaceholder": "Bientot — Trouver des items alternatifs quand les marges changent",
       "createProject": "Creer un projet",
       "batch": {
         "title": "Scanner de Profits",
@@ -722,7 +704,6 @@
         "buildableSoon": "bientot",
         "results": "Resultats du Scan",
         "sortedBy": "Trie par",
-        "meDefault": "ME par defaut",
         "system": "Systeme",
         "rank": "#",
         "itemName": "Nom de l'item",
@@ -760,11 +741,9 @@
         "favorites": "Favoris",
         "addFavorite": "Ajouter aux favoris",
         "removeFavorite": "Retirer des favoris",
-        "missingSkills": "{count} competence(s) manquante(s)",
-        "canManufacture": "Fabricable"
+        "missingSkills": "{count} competence(s) manquante(s)"
       },
       "buyVsBuild": {
-        "tabLabel": "Acheter vs Fabriquer",
         "title": "Conseiller Achat vs Production",
         "subtitle": "Chaque etape de production devrait etre rentable individuellement",
         "product": "Produit",
@@ -793,18 +772,11 @@
         "jitaSell": "Vente Jita",
         "structureSell": "Vente C-J6MT",
         "bestPrice": "Meilleur prix",
-        "volAvailable": "Vol. disponible (Jita)",
         "jobInstall": "Installation job",
-        "buildTime": "Temps de production",
-        "verdictBuild": "PRODUIRE",
-        "verdictBuy": "ACHETER",
         "verdictLoss": "Production a perte",
         "verdictUnknown": "Prix inconnu",
         "save": "Economie",
         "details": "Details",
-        "buildMeTe": "ME/TE Production",
-        "runsNeeded": "Runs Necessaires",
-        "perUnitSavings": "Economie par Unite",
         "needed": "necessaires",
         "summaryTitle": "Resume Strategie Optimale",
         "buildEverything": "Tout Produire",
@@ -822,7 +794,6 @@
         "more": "de plus",
         "totalSavings": "Economies totales",
         "loss": "perte",
-        "createOptimal": "Creer Projet avec Mix Optimal",
         "refreshPrices": "Rafraichir les Prix",
         "export": "Exporter",
         "pricesUpdated": "Prix mis a jour",
@@ -847,7 +818,6 @@
         "analyze": "Analyser",
         "analyzing": "Analyse des options de pivot",
         "refresh": "Actualiser",
-        "currentProduct": "Produit Actuel",
         "profitabilityAlert": "Alerte Rentabilite",
         "marginWarning": "La marge est passee sous 0% — envisagez de pivoter la production vers un produit alternatif",
         "keyComponents": "Composants Cles en Stock",
@@ -1048,7 +1018,6 @@
       "noProjects": "Aucun projet",
       "noProjectsDescription": "Creez votre premier projet industriel pour commencer"
     },
-    "projectHistory": "Historique des projets",
     "config": {
       "maxJobDuration": "Durée max des jobs",
       "maxJobDurationHint": "Les jobs dépassant cette durée seront découpés automatiquement",
@@ -1270,7 +1239,7 @@
       "sellComparison": "Comparaison prix de vente",
       "sellComparisonNote": "Revenu = prix unitaire x runs. Les frais incluent courtage + taxe de vente. Profit = revenu - cout total - frais. Marge = profit / revenu.",
       "brokerFeeLabel": "Courtage",
-      "inventionTitle": "Invention \u2014 Impact du decrypteur sur le profit",
+      "inventionTitle": "Invention — Impact du decrypteur sur le profit",
       "probability": "Prob.",
       "inventorLabel": "Inventeur",
       "withoutSkills": "Sans competences",
@@ -1295,7 +1264,6 @@
     "stockpile": {
       "title": "Tableau de bord Stockpile",
       "targets": "objectifs",
-      "newTarget": "Nouvel objectif",
       "importTitle": "Importer les objectifs depuis un blueprint",
       "kpi": {
         "pipelineHealth": "Sante Pipeline",
@@ -1363,8 +1331,7 @@
       "confirmDelete": "Supprimer cette target ?",
       "empty": {
         "title": "Aucun objectif de stockpile defini",
-        "description": "Importez des objectifs depuis un blueprint pour suivre votre pipeline de production.",
-        "cta": "Configurer les objectifs"
+        "description": "Importez des objectifs depuis un blueprint pour suivre votre pipeline de production."
       }
     },
     "calculator": {
@@ -1463,9 +1430,6 @@
       "escalations": "Escalations"
     },
     "period": {
-      "7days": "7 jours",
-      "30days": "30 jours",
-      "90days": "90 jours",
       "nDays": "{n} jours",
       "all": "Tout"
     },
@@ -1521,7 +1485,6 @@
       "clearStructure": "Retirer la structure",
       "syncStructure": "Sync prix structure",
       "jitaPrice": "Prix Jita",
-      "structurePriceLabel": "Prix structure",
       "usage": {
         "sold": "Vendu",
         "corpProject": "Projet corp",
@@ -1841,7 +1804,6 @@
       "profit": "Benefice",
       "bounties": "Primes",
       "missionRewards": "Recompenses de mission",
-      "marketSales": "Ventes marche",
       "corpProject": "Projets corp"
     },
     "industry": {
@@ -1870,8 +1832,7 @@
       "totalIncome": "Revenus totaux",
       "totalExpenses": "Depenses totales",
       "netProfit": "Benefice net",
-      "dailyAverage": "Moyenne / jour",
-      "miningValue": "Valeur minage"
+      "dailyAverage": "Moyenne / jour"
     },
     "settings": {
       "corpProjectTitle": "Comptabilite projets corporation",
@@ -1904,7 +1865,6 @@
     "syncAssets": "Synchroniser les assets",
     "syncing": "Synchronisation...",
     "noAssets": "Aucun asset",
-    "noAssetsHint": "Synchronisez vos assets depuis l'ESI",
     "containerContents": "Contenu du conteneur",
     "selectCharacter": "Selectionner un personnage",
     "lastSync": "Derniere sync",
@@ -1933,10 +1893,7 @@
       "saved": "Visibilité mise à jour",
       "configuredBy": "Configuré par {name}",
       "lastUpdate": "Dernière mise à jour",
-      "showPanel": "Gérer la visibilité",
-      "hidePanel": "Masquer",
       "sharedDivisions": "Divisions partagées",
-      "sharedDivisionsNone": "Aucune division n'est actuellement partagée avec vous",
       "modeAll": "Tous les membres",
       "modeList": "Liste",
       "modeHidden": "Masquée",
@@ -1961,7 +1918,6 @@
     "price": "Prix",
     "type": "Type",
     "status": "Statut",
-    "issued": "Emis le",
     "expires": "Expire",
     "completed": "Complete le",
     "items": "Items",
@@ -2005,9 +1961,7 @@
     "subtitle": "Comparez les prix entre Jita et votre structure",
     "importTab": "Import",
     "appraisalTab": "Appraisal",
-    "inputPlaceholder": "Collez votre liste d'items ici...",
     "pasteLabel": "Collez votre liste d'items (depuis le jeu ou au format nom + quantite)",
-    "supportedFormats": "Formats : Tritanium 10000 / 200x Nocxium / copier-coller depuis EVE",
     "transportCost": "Cout transport / m3",
     "structureLabel": "Structure de comparaison",
     "structure": "Structure de comparaison",
@@ -2016,20 +1970,16 @@
     "noStructureFound": "Aucune structure trouvee",
     "syncPrices": "Sync prix",
     "calculate": "Calculer",
-    "calculating": "Calcul...",
     "shareList": "Partager la liste",
     "sharing": "Partage...",
     "linkCopied": "Lien copie !",
-    "sharedList": "Liste partagee",
     "sharedAppraisal": "Appraisal partage",
     "createdAt": "Cree le",
     "expiresAt": "Expire le",
-    "createNewList": "Creer une nouvelle liste",
     "createNewAppraisal": "Creer un nouvel appraisal",
     "createMyOwn": "Creer ma propre liste",
     "createMyOwnAppraisal": "Creer mon propre appraisal",
     "sharedExpired": "Cet appraisal partage n'existe pas ou a expire.",
-    "listExpired": "Cette liste de courses n'existe pas ou a expire.",
     "loadError": "Erreur lors du chargement de l'appraisal",
     "notFound": "{count} item(s) non trouve(s)",
     "structurePricesUnavailable": "Prix de la structure non disponibles",
@@ -2056,7 +2006,6 @@
     "analyze": "Analyser",
     "appraising": "Analyse...",
     "infoBanner": "Sell value = cout d'achat (ordres sell les plus bas). Buy value = ce que vous recevez en vendant (ordres buy les plus hauts). Tous les prix viennent de Jita 4-4.",
-    "weightedInfoBanner": "Les prix affiches sont ponderes par volume (empile les ordres pour couvrir la quantite). Le prix unitaire le plus bas est affiche en dessous a titre de comparaison.",
     "sellValue": "Valeur Sell",
     "sellValueDesc": "Cout pour acheter ces items",
     "buyValue": "Valeur Buy",
@@ -2078,11 +2027,9 @@
     "copied": "Copie !",
     "copyTable": "Copier tableau",
     "share": "Partager",
-    "weightedPrice": "Prix pondere",
     "weighted": "pondere",
     "bestPrice": "Meilleur prix",
     "bestPriceMixed": "Meilleur prix (mixte)",
-    "depthWarning": "Profondeur de marche insuffisante",
     "coverageTooltip": "Seulement {available} sur {total} disponibles (top 20 ordres)",
     "avgDailyVolume": "~{volume}/jour",
     "avgDailyVolumeTooltip": "Volume journalier moyen sur Jita (30 jours)",
@@ -2109,8 +2056,6 @@
   "admin": {
     "title": "Administration",
     "subtitle": "Statistiques et metriques de la plateforme",
-    "accessDenied": "Acces refuse",
-    "checking": "Verification...",
     "stats": "Statistiques",
     "users": "Utilisateurs",
     "queues": "Files de messages",
@@ -2229,9 +2174,7 @@
     "title": "Notifications",
     "markAllRead": "Tout marquer comme lu",
     "clearRead": "Supprimer lues",
-    "clearReadSuccess": "{count} notifications supprimees",
     "deleteOne": "Supprimer",
-    "deleteOneSuccess": "Notification supprimee",
     "settings": "Preferences",
     "empty": "Aucune notification",
     "loadMore": "Charger plus",
@@ -2265,9 +2208,14 @@
     "title": "Industrie de groupe",
     "subtitle": "Projets de fabrication collaboratifs",
     "myProjects": "Mes projets",
-    "available": "Projets disponibles",
-    "noProjects": "Aucun projet de groupe. Creez-en un pour commencer !",
-    "noAvailable": "Aucun projet disponible dans votre corporation.",
+    "available": {
+      "runs": "Runs",
+      "members": "membres",
+      "joinProject": "Rejoindre le projet",
+      "infoBanner": "Projets publies par les membres de votre corporation. Rejoignez instantanement, sans approbation.",
+      "empty": "Aucun projet disponible",
+      "emptyHint": "Pas de projets ouverts dans votre corporation pour le moment."
+    },
     "reactionSteps": {
       "title": "Réactions",
       "loading": "Lecture des réactions...",
@@ -2606,7 +2554,6 @@
     "bom": {
       "title": "Nomenclature",
       "materialsToSource": "Materiaux a sourcer",
-      "jobsToLaunch": "Jobs a lancer",
       "blueprints": "Blueprints",
       "components": "Composants",
       "finalProducts": "Produits finaux",
@@ -2754,11 +2701,7 @@
         "approved": "Approuvee",
         "rejected": "Rejetee"
       },
-      "autoDetected": "Auto-detectee",
       "verified": "Verifiee",
-      "unverified": "Non verifiee",
-      "reviewedBy": "Validee par {name}",
-      "noContributions": "Aucune contribution pour le moment.",
       "unknownValueCause": "Un apport n'a pas de prix connu : les totaux qui l'incluent sont inconnus, jamais partiels.",
       "methods": {
         "paidPrice": "prix payé (wallet)",
@@ -2785,7 +2728,6 @@
       "totalCost": "Cout total du projet",
       "margin": "Marge",
       "payout": "Versement",
-      "costsEngaged": "Frais engages",
       "share": "Part",
       "profitPart": "Part de profit",
       "materialCosts": "Couts materiaux",
@@ -2873,7 +2815,6 @@
       "totalPrice": "Prix total",
       "venue": "Lieu",
       "soldAt": "Vendu le",
-      "recordedBy": "Enregistre par",
       "correctTitle": "Corriger une vente",
       "actionsColumn": "Actions",
       "channelColumn": "Canal",
@@ -2939,7 +2880,6 @@
         "shortLinkApproved": "lien court, approuvé"
       },
       "viaShortLink": "Lien court",
-      "totalContributed": "Total contribue",
       "contributionCount": "Contributions",
       "joinedAt": "Rejoint le",
       "leaveProject": "Quitter",
@@ -2982,8 +2922,6 @@
       "joinProject": "Rejoindre le projet",
       "submitContribution": "Ajouter une contribution",
       "recordSale": "Enregistrer une vente",
-      "verifyContainer": "Verifier le container",
-      "lineRentalSettings": "Parametres location ligne",
       "copyLink": "Copier le lien",
       "advanceStatus": "Avancer le statut",
       "deleteProject": "Supprimer le projet"
@@ -3001,9 +2939,7 @@
         "nameLabel": "Nom",
         "namePlaceholder": "Nom personnalise (ex: Build Doctrine Fleet)",
         "optional": "optionnel",
-        "itemsToProduce": "Items a produire",
         "itemsLabel": "Items a produire",
-        "itemsPlaceholder": "Collez les items : ItemName ME TE xRuns (un par ligne)",
         "addItem": "Ajouter un item",
         "bulkPaste": "Coller en lot",
         "searchPlaceholder": "Rechercher un item (ex: Ferox, Ishtar...)",
@@ -3011,7 +2947,11 @@
         "parseAndAdd": "Parser et ajouter",
         "bulkPlaceholder": "Collez les items, un par ligne :\nFerox 2 4 x100\nIshtar 4 8 x50\nSabre 4 8 x200",
         "bulkFormat": "Format :",
-        "bulkStatus": { "recognized": "Reconnue", "unknown": "Item inconnu", "invalid": "Ligne invalide" },
+        "bulkStatus": {
+          "recognized": "Reconnue",
+          "unknown": "Item inconnu",
+          "invalid": "Ligne invalide"
+        },
         "bulkRecognized": "{name} · ME {me} · TE {te} · {runs} runs",
         "bulkUnknown": "« {name} » n'est pas un item fabricable",
         "bulkSuggestion": "Vouliez-vous dire {name} ?",
@@ -3048,7 +2988,6 @@
         "lineRentalOverrideHint": "Ces tarifs remplacent vos parametres par defaut pour ce projet uniquement.",
         "bomNote": "La BOM sera agreg depuis tous les items",
         "createButton": "Creer le projet",
-        "feesLabel": "Frais",
         "brokerFee": "Frais courtier %",
         "salesTax": "Taxe de vente %",
         "privateLabel": "Projet privé",
@@ -3060,11 +2999,7 @@
       "contribute": {
         "title": "Ajouter une contribution",
         "typeLabel": "Type de contribution",
-        "bomItemLabel": "Item BOM",
-        "quantityLabel": "Quantite",
-        "estimatedValueLabel": "Valeur estimee (ISK)",
-        "noteLabel": "Note",
-        "notePlaceholder": "Note optionnelle..."
+        "quantityLabel": "Quantite"
       },
       "lineRental": {
         "title": "Tarifs location de ligne par defaut",
@@ -3089,10 +3024,8 @@
     "join": {
       "title": "Rejoindre le projet",
       "description": "Vous avez ete invite a rejoindre ce projet industriel de groupe.",
-      "joinButton": "Rejoindre le projet",
       "alreadyMember": "Vous etes deja membre de ce projet.",
       "pendingApproval": "Votre demande d'adhesion est en attente d'approbation.",
-      "projectNotFound": "Projet non trouve ou lien expire.",
       "invalidLink": "Lien d'invitation invalide",
       "joinFailed": "Échec de l'adhésion au projet",
       "moduleLabel": "Invitation à un projet d'industrie",
@@ -3212,14 +3145,6 @@
         }
       }
     },
-    "available": {
-      "runs": "Runs",
-      "members": "membres",
-      "joinProject": "Rejoindre le projet",
-      "infoBanner": "Projets publies par les membres de votre corporation. Rejoignez instantanement, sans approbation.",
-      "empty": "Aucun projet disponible",
-      "emptyHint": "Pas de projets ouverts dans votre corporation pour le moment."
-    },
     "empty": {
       "title": "Aucun projet de groupe",
       "description": "Creez un nouveau projet pour commencer a collaborer avec votre corporation."
@@ -3228,7 +3153,6 @@
       "owner": "Proprietaire : {name}",
       "members": "{count} membre | {count} membre | {count} membres",
       "items": "{count} item | {count} item | {count} items",
-      "bomValue": "Valeur BOM",
       "backToList": "Retour aux projets",
       "shareLink": "Lien de partage",
       "edit": "Modifier",
@@ -3929,8 +3853,7 @@
         "footerEachForThemselves": "evetools · chacun pour soi"
       }
     }
-  }
-,
+  },
   "miningSite": {
     "feed": {
       "title": "Fil des scans",

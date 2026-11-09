@@ -478,7 +478,7 @@ class BatchProfitScannerServiceTest extends TestCase
         $solarSystem->method('getRegionId')->willReturn(10000060);
         $this->solarSystemRepository->method('find')->willReturn($solarSystem);
 
-        $this->jitaMarketService->method('getAverageDailyVolumesForRegion')->willReturn([587 => 20.0]);
+        $this->jitaMarketService->method('getCachedDailyVolumesForRegion')->willReturn([587 => 20.0]);
         $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'structure', $structureId, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
@@ -494,7 +494,6 @@ class BatchProfitScannerServiceTest extends TestCase
     public function testStructureVenueReadsTheRegionalVolumesFromTheCacheOnlyAndKeepsTheKnownOnes(): void
     {
         $this->givenOneFrigateScannedForAStructureInRegion(10000060);
-        $this->jitaMarketService->expects($this->never())->method('getAverageDailyVolumesForRegion');
         $this->jitaMarketService->expects($this->once())->method('getCachedDailyVolumesForRegion')
             ->with(10000060, [587])
             ->willReturn([587 => 20.0]);
@@ -509,7 +508,6 @@ class BatchProfitScannerServiceTest extends TestCase
     public function testStructureVenueWithAnEmptyVolumeCacheLeavesTheVolumeUnknownAndMakesNoEsiCall(): void
     {
         $this->givenOneFrigateScannedForAStructureInRegion(10000060);
-        $this->jitaMarketService->expects($this->never())->method('getAverageDailyVolumesForRegion');
         $this->jitaMarketService->method('getCachedDailyVolumesForRegion')->willReturn([]);
 
         $result = $this->service->scan('all', null, null, 'structure', 1035466617946, self::SOLAR_SYSTEM_ID, new SalesFees(0.0, 0.0), 0.0, null, self::SOLAR_SYSTEM_ID);
@@ -535,7 +533,6 @@ class BatchProfitScannerServiceTest extends TestCase
     public function testStructureVenueWithAnUnknownRegionLeavesTheVolumeUnknownInsteadOfUsingJitaVolumes(): void
     {
         $this->givenOneFrigateScannedForAStructureInRegion(null);
-        $this->jitaMarketService->expects($this->never())->method('getAverageDailyVolumesForRegion');
         $this->jitaMarketService->expects($this->never())->method('getCachedDailyVolumes');
         $this->jitaMarketService->expects($this->never())->method('getCachedDailyVolumesForRegion');
 

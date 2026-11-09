@@ -25,13 +25,6 @@ class CachedCharacterSkill
     public const SKILL_ACCOUNTING = 16622;
     public const SKILL_BROKER_RELATIONS = 3446;
 
-    /** Time bonus per level for each skill (fractional, e.g. 0.04 = 4% per level) */
-    public const INDUSTRY_TIME_BONUS_PER_LEVEL = 0.04;
-    public const ADVANCED_INDUSTRY_TIME_BONUS_PER_LEVEL = 0.03;
-    public const REACTION_TIME_BONUS_PER_LEVEL = 0.04;
-    public const SCIENCE_SKILL_TIME_BONUS_PER_LEVEL = 0.01;
-    public const SCIENCE_COPY_TIME_BONUS_PER_LEVEL = 0.05;
-
     public const INDUSTRY_SKILL_IDS = [
         self::SKILL_INDUSTRY,
         self::SKILL_ADVANCED_INDUSTRY,

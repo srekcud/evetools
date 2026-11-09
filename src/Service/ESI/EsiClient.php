@@ -112,26 +112,6 @@ class EsiClient
     }
 
     /**
-     * Get a scalar value (number, string) from ESI endpoint.
-     */
-    public function getScalar(string $endpoint, ?EveToken $token = null, int $timeout = self::REQUEST_TIMEOUT): mixed
-    {
-        try {
-            $response = $this->requestWithRetry('GET', $endpoint, $token, timeout: $timeout);
-            $statusCode = $response->getStatusCode();
-            $this->processRateLimitHeaders($response);
-
-            if ($statusCode >= 200 && $statusCode < 300) {
-                return json_decode($response->getContent(), false);
-            }
-
-            throw $this->failedResponseException($response, $statusCode, $endpoint);
-        } catch (TransportExceptionInterface $e) {
-            throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
-        }
-    }
-
-    /**
      * Get multiple scalar values concurrently, with the replay mechanism of getBatch().
      * Returns an array keyed by the request key, with null for failed requests.
      *
