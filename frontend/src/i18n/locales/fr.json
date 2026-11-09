@@ -2882,6 +2882,9 @@
         "no_director": "Aucun directeur connecté",
         "owner_without_corporation": "L'owner n'a pas de corporation"
       },
+      "verifyFailed": "Vérification échouée",
+      "approvedGapTitle": "Contributions approuvées absentes du container, relancez la vérification avant les jobs",
+      "approvedGapLine": "{name} : {container} / {approved} dans le container, {approved} approuvés",
       "containerName": "Nom du container",
       "containerQuantity": "Qte container"
     },

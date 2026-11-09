@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 
 const { t } = useI18n()
+const { formatNumber } = useFormatters()
 const projectStore = useGroupProjectStore()
 
 const props = defineProps<{
   containerName: string
   projectId: string
+  canVerify?: boolean
 }>()
 
 const isVerifying = ref(false)
@@ -16,6 +19,26 @@ const isVerifying = ref(false)
 const containerCheckProblem = computed(() =>
   projectStore.containerVerification.find(line => line.status === 'container_not_found' || line.status === 'unknown'),
 )
+
+const approvedGapLines = computed(() => {
+  const approvedByBomItemId = new Map(
+    projectStore.bomItems.map(item => [item.id, Math.min(item.fulfilledQuantity, item.requiredQuantity)]),
+  )
+
+  return projectStore.containerVerification.flatMap(line => {
+    const approvedQuantity = approvedByBomItemId.get(line.bomItemId)
+    if (approvedQuantity === undefined || line.containerQuantity === null || line.containerQuantity >= approvedQuantity) {
+      return []
+    }
+
+    return [{
+      bomItemId: line.bomItemId,
+      typeName: line.typeName,
+      containerQuantity: line.containerQuantity,
+      approvedQuantity,
+    }]
+  })
+})
 
 async function verifyAll(): Promise<void> {
   isVerifying.value = true
@@ -46,9 +69,25 @@ async function verifyAll(): Promise<void> {
             {{ t('groupIndustry.container.statuses.container_not_found') }}
           </template>
         </p>
+        <p v-if="projectStore.containerVerificationFailed" class="text-xs text-red-400 mt-1">
+          {{ t('groupIndustry.container.verifyFailed') }}
+        </p>
+        <div v-if="approvedGapLines.length > 0" class="mt-1">
+          <p class="text-xs text-amber-400">{{ t('groupIndustry.container.approvedGapTitle') }}</p>
+          <ul class="text-xs text-amber-400/80">
+            <li v-for="line in approvedGapLines" :key="line.bomItemId">
+              {{ t('groupIndustry.container.approvedGapLine', {
+                name: line.typeName,
+                container: formatNumber(line.containerQuantity, 0),
+                approved: formatNumber(line.approvedQuantity, 0),
+              }) }}
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
     <button
+      v-if="canVerify"
       @click="verifyAll"
       :disabled="isVerifying"
       class="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 rounded-lg text-violet-400 text-xs font-medium flex items-center gap-1.5 border border-violet-500/25 transition-colors disabled:opacity-50"
