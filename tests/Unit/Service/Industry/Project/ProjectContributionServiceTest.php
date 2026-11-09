@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry\Project;
 
+use App\Service\Industry\Project\LineReservationService;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
@@ -67,6 +68,7 @@ class ProjectContributionServiceTest extends TestCase
             $this->contributionRepository,
             $this->entityManager,
             $this->jitaMarket,
+            $this->createStub(LineReservationService::class),
         );
 
         $this->project = new IndustryProject();

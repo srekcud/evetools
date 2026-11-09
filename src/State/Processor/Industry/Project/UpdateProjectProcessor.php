@@ -14,6 +14,7 @@ use App\Entity\User;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectSellStructures;
@@ -49,6 +50,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         private readonly MercurePublisherService $mercurePublisher,
         private readonly IndustryProjectService $projectService,
         private readonly ProjectSellStructures $sellStructures,
+        private readonly LineReservationService $lineReservations,
     ) {
     }
 
@@ -129,6 +131,7 @@ class UpdateProjectProcessor implements ProcessorInterface
 
             if ($newStatus === ProjectStatus::Completed) {
                 $project->setCompletedAt(new \DateTimeImmutable());
+                $this->lineReservations->releaseAllOfProject($project);
             }
         }
 

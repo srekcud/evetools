@@ -11,6 +11,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\LineReservationService;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\UuidOrNotFound;
@@ -31,6 +32,7 @@ class LeaveProjectProcessor implements ProcessorInterface
         private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly LineReservationService $lineReservations,
     ) {
     }
 
@@ -67,6 +69,7 @@ class LeaveProjectProcessor implements ProcessorInterface
         }
 
         $member->setStatus(ParticipantStatus::Removed);
+        $this->lineReservations->releaseAllOf($member);
         $this->entityManager->flush();
 
         $this->mercurePublisher->publishGroupProjectEvent(

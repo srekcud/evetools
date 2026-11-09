@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Processor\Industry\Project;
 
 use ApiPlatform\Metadata\Delete;
+use App\Service\Industry\Project\LineReservationService;
 use App\Entity\Character;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProject;
@@ -65,6 +66,7 @@ class KickParticipantProcessorTest extends TestCase
             $this->entityManager,
             new ProjectAccessChecker($this->memberRepository),
             new MercurePublisherService($this->hub, new NullLogger()),
+            $this->createStub(LineReservationService::class),
         );
 
         $this->owner = $this->createStub(User::class);
