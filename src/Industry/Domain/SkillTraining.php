@@ -25,14 +25,22 @@ final class SkillTraining
         return (int) ceil(self::BASE_POINTS_PER_RANK * $rank * self::LEVEL_POINTS_MULTIPLIER ** (($level - 1) / 2));
     }
 
-    public static function secondsToNextLevel(int $rank, int $currentLevel, int $primaryAttribute, int $secondaryAttribute): int
+    public static function secondsToNextLevel(int $rank, int $currentLevel, int $primaryAttribute, int $secondaryAttribute, int $trainedPoints): int
     {
         if ($primaryAttribute < 1 || $secondaryAttribute < 1) {
             throw new \InvalidArgumentException('A training speed needs a primary and a secondary attribute of at least 1');
         }
+        if ($trainedPoints < 0) {
+            throw new \InvalidArgumentException("Trained skill points cannot be negative, {$trainedPoints} given");
+        }
 
-        $pointsToTrain = self::pointsForLevel($rank, $currentLevel + 1)
-            - ($currentLevel === 0 ? 0 : self::pointsForLevel($rank, $currentLevel));
+        $nextLevelPoints = self::pointsForLevel($rank, $currentLevel + 1);
+        if ($trainedPoints >= $nextLevelPoints) {
+            throw new \InvalidArgumentException("{$trainedPoints} trained points already reach the next level at {$nextLevelPoints}");
+        }
+
+        $pointsAlreadyCounted = $currentLevel === 0 ? $trainedPoints : max($trainedPoints, self::pointsForLevel($rank, $currentLevel));
+        $pointsToTrain = $nextLevelPoints - $pointsAlreadyCounted;
         $numerator = $pointsToTrain * self::SECONDS_PER_MINUTE * self::SECONDARY_ATTRIBUTE_DIVISOR;
         $denominator = self::SECONDARY_ATTRIBUTE_DIVISOR * $primaryAttribute + $secondaryAttribute;
 

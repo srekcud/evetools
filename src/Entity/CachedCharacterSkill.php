@@ -73,6 +73,9 @@ class CachedCharacterSkill
     #[ORM\Column(type: 'integer')]
     private int $level = 0;
 
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $skillPoints = null;
+
     #[ORM\Column(type: 'boolean')]
     private bool $isManual = false;
 
@@ -119,6 +122,18 @@ class CachedCharacterSkill
     public function setLevel(int $level): static
     {
         $this->level = max(0, min(5, $level));
+        return $this;
+    }
+
+    public function getSkillPoints(): ?int
+    {
+        return $this->skillPoints;
+    }
+
+    public function setSkillPoints(?int $skillPoints): static
+    {
+        $this->skillPoints = $skillPoints;
+
         return $this;
     }
 

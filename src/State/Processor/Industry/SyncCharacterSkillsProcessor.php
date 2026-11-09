@@ -40,6 +40,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
     ];
 
     private const int INVENTION_ACTIVITY_ID = 8;
+    private const int UNTRAINED_SKILL_POINTS = 0;
 
     /** @var int[]|null */
     private ?array $relevantSkillIds = null;
@@ -163,14 +164,18 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         // Upsert only relevant skills (skip manual overrides)
         foreach ($relevantSkillIds as $skillId) {
             $level = 0;
+            $skillPoints = self::UNTRAINED_SKILL_POINTS;
             if (isset($esiBySkillId[$skillId])) {
                 $level = $esiBySkillId[$skillId]['active_skill_level'];
+                $esiSkillPoints = $esiBySkillId[$skillId]['skillpoints_in_skill'] ?? null;
+                $skillPoints = is_int($esiSkillPoints) ? $esiSkillPoints : null;
             }
 
             if (isset($existingBySkillId[$skillId])) {
                 $existing = $existingBySkillId[$skillId];
                 if (!$existing->isManual()) {
                     $existing->setLevel($level);
+                    $existing->setSkillPoints($skillPoints);
                     $existing->setCachedAt($now);
                 }
             } elseif ($level > 0 || in_array($skillId, self::SKILLS_WRITTEN_AT_ZERO, true) || in_array($skillId, $inventionSkillIds, true)) {
@@ -178,6 +183,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
                 $skill->setCharacter($character);
                 $skill->setSkillId($skillId);
                 $skill->setLevel($level);
+                $skill->setSkillPoints($skillPoints);
                 $skill->setIsManual(false);
                 $skill->setCachedAt($now);
                 $this->entityManager->persist($skill);

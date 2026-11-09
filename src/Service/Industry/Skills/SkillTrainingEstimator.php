@@ -36,7 +36,7 @@ class SkillTrainingEstimator
     ) {
     }
 
-    public function nextLevel(Character $character, int $skillId, int $currentLevel): SkillTrainingEstimate
+    public function nextLevel(Character $character, int $skillId, int $currentLevel, ?int $skillPoints): SkillTrainingEstimate
     {
         if ($currentLevel >= self::MAX_LEVEL) {
             return $this->unknown(SkillTrainingUnknownReason::MaxLevelReached);
@@ -57,6 +57,13 @@ class SkillTrainingEstimator
             return $this->unknown(SkillTrainingUnknownReason::SkillNotInSde);
         }
 
+        if ($skillPoints === null) {
+            return $this->unknown(SkillTrainingUnknownReason::SkillPointsUnknown);
+        }
+        if ($skillPoints >= SkillTraining::pointsForLevel((int) $rank, $currentLevel + 1)) {
+            return $this->unknown(SkillTrainingUnknownReason::ActiveLevelBelowTrainedLevel);
+        }
+
         $attributes = $this->attributesRepository->findOneBy(['character' => $character]);
         if ($attributes === null) {
             return $this->unknown(SkillTrainingUnknownReason::AttributesNotSynchronized);
@@ -70,6 +77,7 @@ class SkillTrainingEstimator
                 $currentLevel,
                 $pointsByAttributeId[(int) $primaryAttributeId],
                 $pointsByAttributeId[(int) $secondaryAttributeId],
+                $skillPoints,
             ),
             null,
         );

@@ -28,6 +28,7 @@ final class SkillTrainingEstimatorTest extends TestCase
     private const int INTELLIGENCE = 165;
     private const int MEMORY = 166;
     private const int PERCEPTION = 167;
+    private const int INDUSTRY_LEVEL_THREE_POINTS = 8_000;
 
     private Character $character;
     private ?CachedCharacterAttributes $storedAttributes;
@@ -47,14 +48,14 @@ final class SkillTrainingEstimatorTest extends TestCase
 
     public function testComputesTheDurationFromTheSdeProfileAndTheCharacterAttributes(): void
     {
-        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3);
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, self::INDUSTRY_LEVEL_THREE_POINTS);
 
         $this->assertSame([63_866, null], [$estimate->seconds, $estimate->unknownReason]);
     }
 
     public function testUsesTheRankOfTheSkill(): void
     {
-        $estimate = $this->estimator()->nextLevel($this->character, self::ADVANCED_INDUSTRY, 0);
+        $estimate = $this->estimator()->nextLevel($this->character, self::ADVANCED_INDUSTRY, 0, 0);
 
         $this->assertSame([1_286, null], [$estimate->seconds, $estimate->unknownReason]);
     }
@@ -67,7 +68,7 @@ final class SkillTrainingEstimatorTest extends TestCase
             $this->sdeRow(self::SECONDARY_ATTRIBUTE, self::INTELLIGENCE),
         ];
 
-        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3);
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, self::INDUSTRY_LEVEL_THREE_POINTS);
 
         $this->assertSame(63_866, $estimate->seconds);
     }
@@ -76,7 +77,7 @@ final class SkillTrainingEstimatorTest extends TestCase
     {
         $this->sdeRowsBySkillId[self::INDUSTRY] = $this->sdeRows(1.0, self::PERCEPTION, self::INTELLIGENCE);
 
-        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3);
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, self::INDUSTRY_LEVEL_THREE_POINTS);
 
         $this->assertSame(82_789, $estimate->seconds);
     }
@@ -85,14 +86,14 @@ final class SkillTrainingEstimatorTest extends TestCase
     {
         $this->storedAttributes = null;
 
-        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3);
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, self::INDUSTRY_LEVEL_THREE_POINTS);
 
         $this->assertSame([null, SkillTrainingUnknownReason::AttributesNotSynchronized], [$estimate->seconds, $estimate->unknownReason]);
     }
 
     public function testTheDurationIsUnknownForASkillAbsentFromTheSde(): void
     {
-        $estimate = $this->estimator()->nextLevel($this->character, 999_999, 3);
+        $estimate = $this->estimator()->nextLevel($this->character, 999_999, 3, self::INDUSTRY_LEVEL_THREE_POINTS);
 
         $this->assertSame([null, SkillTrainingUnknownReason::SkillNotInSde], [$estimate->seconds, $estimate->unknownReason]);
     }
@@ -115,7 +116,7 @@ final class SkillTrainingEstimatorTest extends TestCase
             static fn (DgmTypeAttribute $row): bool => in_array($row->getAttributeId(), $keptAttributeIds, true),
         ));
 
-        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3);
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, self::INDUSTRY_LEVEL_THREE_POINTS);
 
         $this->assertSame([null, SkillTrainingUnknownReason::SkillNotInSde], [$estimate->seconds, $estimate->unknownReason]);
     }
@@ -124,14 +125,14 @@ final class SkillTrainingEstimatorTest extends TestCase
     {
         $this->sdeRowsBySkillId[self::INDUSTRY] = $this->sdeRows(1.0, 999, self::INTELLIGENCE);
 
-        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3);
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, self::INDUSTRY_LEVEL_THREE_POINTS);
 
         $this->assertSame([null, SkillTrainingUnknownReason::SkillNotInSde], [$estimate->seconds, $estimate->unknownReason]);
     }
 
     public function testThereIsNoNextLevelAtLevelFiveWhateverTheOtherData(): void
     {
-        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 5);
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 5, 256_000);
 
         $this->assertSame([null, SkillTrainingUnknownReason::MaxLevelReached], [$estimate->seconds, $estimate->unknownReason]);
     }
@@ -140,7 +141,7 @@ final class SkillTrainingEstimatorTest extends TestCase
     {
         $this->storedAttributes = null;
 
-        $estimate = $this->estimator()->nextLevel($this->character, 999_999, 5);
+        $estimate = $this->estimator()->nextLevel($this->character, 999_999, 5, null);
 
         $this->assertSame(SkillTrainingUnknownReason::MaxLevelReached, $estimate->unknownReason);
     }
@@ -149,7 +150,53 @@ final class SkillTrainingEstimatorTest extends TestCase
     {
         $this->storedAttributes = null;
 
-        $estimate = $this->estimator()->nextLevel($this->character, 999_999, 3);
+        $estimate = $this->estimator()->nextLevel($this->character, 999_999, 3, self::INDUSTRY_LEVEL_THREE_POINTS);
+
+        $this->assertSame(SkillTrainingUnknownReason::SkillNotInSde, $estimate->unknownReason);
+    }
+
+    public function testOnlyThePointsLeftToTheNextLevelAreCounted(): void
+    {
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, 30_000);
+
+        $this->assertSame([26_152, null], [$estimate->seconds, $estimate->unknownReason]);
+    }
+
+    public function testTheDurationIsUnknownWhenTheSkillPointsAreUnknown(): void
+    {
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, null);
+
+        $this->assertSame([null, SkillTrainingUnknownReason::SkillPointsUnknown], [$estimate->seconds, $estimate->unknownReason]);
+    }
+
+    public function testTheDurationIsUnknownWhenTheTrainedPointsReachTheNextLevel(): void
+    {
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, 45_255);
+
+        $this->assertSame([null, SkillTrainingUnknownReason::ActiveLevelBelowTrainedLevel], [$estimate->seconds, $estimate->unknownReason]);
+    }
+
+    public function testUnknownSkillPointsWinOverMissingAttributes(): void
+    {
+        $this->storedAttributes = null;
+
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, null);
+
+        $this->assertSame(SkillTrainingUnknownReason::SkillPointsUnknown, $estimate->unknownReason);
+    }
+
+    public function testAnActiveLevelBelowTheTrainedLevelWinsOverMissingAttributes(): void
+    {
+        $this->storedAttributes = null;
+
+        $estimate = $this->estimator()->nextLevel($this->character, self::INDUSTRY, 3, 50_000);
+
+        $this->assertSame(SkillTrainingUnknownReason::ActiveLevelBelowTrainedLevel, $estimate->unknownReason);
+    }
+
+    public function testASkillAbsentFromTheSdeWinsOverUnknownSkillPoints(): void
+    {
+        $estimate = $this->estimator()->nextLevel($this->character, 999_999, 3, null);
 
         $this->assertSame(SkillTrainingUnknownReason::SkillNotInSde, $estimate->unknownReason);
     }
