@@ -2812,6 +2812,11 @@
       "loss": "Perte"
     },
     "sales": {
+      "item": "Item",
+      "chooseItem": "Choisir un item",
+      "itemWithRemaining": "{name} · {remaining} restant à vendre",
+      "soldVsProduced": "Vendus sur produits",
+      "soldLabel": "vendus",
       "title": "Ventes",
       "recordSale": "Enregistrer une vente",
       "noSales": "Aucune vente enregistree.",

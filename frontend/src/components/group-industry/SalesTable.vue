@@ -4,9 +4,12 @@ import { ref, computed, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
+import { buildProductSales } from '@/components/group-industry/productSales'
 import { useFormatters } from '@/composables/useFormatters'
 import type { GroupSale, RecordSaleInput, SaleChannel, UpdateSaleInput } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 
 const { t } = useI18n()
@@ -24,6 +27,7 @@ const props = defineProps<{
 }>()
 
 const store = useGroupDistributionStore()
+const projectStore = useGroupProjectStore()
 const authStore = useAuthStore()
 const { formatNumber, formatDate } = useFormatters()
 
@@ -45,6 +49,18 @@ const saleToDelete = ref<GroupSale | null>(null)
 const deletingSale = ref(false)
 const chosenSellerCharacterId = ref<number | null>(null)
 const onlyMySales = ref(false)
+
+const projectItems = computed(() => projectStore.currentProject?.items ?? [])
+const productSales = computed(() => buildProductSales(projectItems.value, projectStore.bomItems, store.sales))
+const pickedItemTypeId = ref<number | null>(null)
+const itemChosenByList = computed(() => projectItems.value.length > 0 && correctedSale.value === null)
+
+function pickItem(typeId: number | null): void {
+  pickedItemTypeId.value = typeId
+  const item = projectItems.value.find(candidate => candidate.typeId === typeId)
+  saleForm.value.typeId = item?.typeId ?? 0
+  saleForm.value.typeName = item?.typeName ?? ''
+}
 
 const correctedSaleIsLinked = computed(() => correctedSale.value?.linkedToWalletTransaction === true)
 const myCharacters = computed(() => authStore.user?.characters ?? [])
@@ -72,6 +88,7 @@ function toggleSaleForm(): void {
   showSaleForm.value = !showSaleForm.value
   if (showSaleForm.value) {
     saleForm.value = { typeId: 0, typeName: '', quantity: 1, unitPrice: 0, venue: '', channel: 'market' }
+    pickedItemTypeId.value = null
     chosenSellerCharacterId.value = null
   }
 }
@@ -263,6 +280,23 @@ onMounted(() => {
         </DataTable>
       </div>
 
+      <ul v-if="productSales.length > 0" class="mt-3 space-y-1" :aria-label="t('groupIndustry.sales.soldVsProduced')">
+        <li
+          v-for="row in productSales"
+          :key="row.typeId"
+          :data-testid="`sold-vs-produced-${row.typeId}`"
+          :data-produced-unknown="row.produced === null"
+          class="flex items-center justify-between text-xs text-slate-400"
+        >
+          <span>{{ row.typeName }}</span>
+          <span class="font-mono text-slate-200">
+            {{ formatNumber(row.sold, 0) }} /
+            <UnknownValue v-if="row.produced === null" /><template v-else>{{ formatNumber(row.produced, 0) }}</template>
+            {{ t('groupIndustry.sales.soldLabel') }}
+          </span>
+        </li>
+      </ul>
+
       <!-- Inline Sale Form (admin only) -->
       <div
         v-if="showSaleForm && isAdmin"
@@ -270,7 +304,22 @@ onMounted(() => {
       >
         <h3 class="text-sm font-semibold text-slate-200 mb-4">{{ correctedSale ? t('groupIndustry.sales.correctTitle') : 'Record a Sale' }}</h3>
         <div class="grid grid-cols-2 lg:grid-cols-7 gap-3">
-          <div>
+          <div v-if="itemChosenByList">
+            <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">{{ t('groupIndustry.sales.item') }}</label>
+            <select
+              :id="saleTypeNameFieldId"
+              data-testid="sale-item-select"
+              :value="pickedItemTypeId ?? ''"
+              class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+              @change="pickItem(($event.target as HTMLSelectElement).value === '' ? null : Number(($event.target as HTMLSelectElement).value))"
+            >
+              <option value="">{{ t('groupIndustry.sales.chooseItem') }}</option>
+              <option v-for="row in productSales" :key="row.typeId" :value="row.typeId">
+                {{ row.remaining === null ? row.typeName : t('groupIndustry.sales.itemWithRemaining', { name: row.typeName, remaining: formatNumber(row.remaining, 0) }) }}
+              </option>
+            </select>
+          </div>
+          <div v-else>
             <label :for="saleTypeNameFieldId" class="text-xs text-slate-500 mb-1 block">Item Name</label>
             <input
               :id="saleTypeNameFieldId"

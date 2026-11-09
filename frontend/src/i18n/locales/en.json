@@ -2812,6 +2812,11 @@
       "loss": "Loss"
     },
     "sales": {
+      "item": "Item",
+      "chooseItem": "Choose an item",
+      "itemWithRemaining": "{name} · {remaining} left to sell",
+      "soldVsProduced": "Sold out of produced",
+      "soldLabel": "sold",
       "title": "Sales",
       "recordSale": "Record Sale",
       "noSales": "No sales recorded yet.",
