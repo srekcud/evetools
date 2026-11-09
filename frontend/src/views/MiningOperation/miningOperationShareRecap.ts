@@ -112,7 +112,3 @@ export function shareRecapLines(recap: ShareRecap, basis: string, t: Translate):
   }
   return lines
 }
-
-export function formatShareRecapText(recap: ShareRecap, basis: string, t: Translate): string {
-  return shareRecapLines(recap, basis, t).join('\n')
-}

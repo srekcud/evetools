@@ -1,4 +1,4 @@
-import { buildShareRecap, formatShareRecapText } from '@/views/MiningOperation/miningOperationShareRecap'
+import { buildShareRecap, shareRecapLines } from '@/views/MiningOperation/miningOperationShareRecap'
 import { OPERATION_O, OPERATION_P2, ledger } from './miningOperationLedgerFixtures'
 import { CYRA_BOOSTING_ON_JITA_SELL } from './miningOperationValuationFixtures'
 import {
@@ -26,7 +26,7 @@ const t = translator()
 const SIXTY_CHARACTER_LABEL = 'Anomalie Spodumain de la ceinture haute — relève de nuit 20h'
 
 function textOf(recap: ReturnType<typeof buildShareRecap>): string {
-  return formatShareRecapText(recap, RECAP_BASIS, t)
+  return shareRecapLines(recap, RECAP_BASIS, t).join('\n')
 }
 
 describe('buildShareRecap', () => {
@@ -87,7 +87,7 @@ describe('buildShareRecap', () => {
   })
 })
 
-describe('formatShareRecapText', () => {
+describe('shareRecapLines', () => {
   it('writes one line per segment for a value prorata operation with a 10 % booster share', () => {
     const recap = buildShareRecap(recapOperation(), recapValuation(), minedLedger(), UNKNOWN_PILOT_LABEL)
 
