@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EVE Tools — Minage groupé (maquette)</title>
+<style>
+  :root {
+    --dark: #0a0c0f; --panel: #11151c; --panel2: #161b24; --line: #232a36; --line2: #2e3746;
+    --text: #8892a2; --bright: #c5cdd8; --white: #e8edf3;
+    --accent: #00d4ff; --accent-dim: #0099bb;
+    --profit: #34d399; --loss: #f87171; --warning: #f59e0b; --info: #22d3ee; --violet: #a78bfa; --muted: #64748b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: linear-gradient(135deg, #0a0c0f 0%, #141820 50%, #0a0c0f 100%); color: var(--text);
+         font: 14px/1.45 Rajdhani, "Segoe UI", system-ui, sans-serif; min-height: 100vh; }
+  .mono { font-family: "Share Tech Mono", ui-monospace, monospace; }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  aside { background: rgba(10,12,15,.85); border-right: 1px solid var(--line); padding: 18px 0; }
+  .logo { color: var(--accent); font-weight: 700; font-size: 20px; letter-spacing: .12em; padding: 0 20px 18px; }
+  .nav a { display: block; padding: 7px 20px; color: var(--text); text-decoration: none; border-left: 2px solid transparent; }
+  .nav a.on { color: var(--accent); border-left-color: var(--accent); background: rgba(0,212,255,.06); }
+  .nav .sub { padding-left: 34px; font-size: 13px; }
+  .nav .sect { padding: 14px 20px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); }
+  main { padding: 22px 30px 60px; max-width: 1280px; }
+  .mockbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; padding: 10px; border: 1px dashed var(--line2); border-radius: 8px; background: rgba(0,0,0,.25); }
+  .mockbar span { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); align-self: center; margin-right: 6px; }
+  .mockbar button { background: var(--panel2); color: var(--bright); border: 1px solid var(--line2); border-radius: 6px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+  .mockbar button.on { border-color: var(--accent); color: var(--accent); }
+  .mockbar button small { color: var(--muted); margin-left: 4px; }
+  h1 { color: var(--white); font-size: 26px; margin: 0; font-weight: 600; letter-spacing: .02em; }
+  h2 { color: var(--bright); font-size: 17px; margin: 0 0 10px; font-weight: 600; }
+  h3 { color: var(--bright); font-size: 14px; margin: 0 0 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 16px; }
+  .head p { margin: 4px 0 0; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  .tabs div { padding: 8px 16px; color: var(--text); border-bottom: 2px solid transparent; }
+  .tabs div.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .card { background: linear-gradient(180deg, rgba(20,24,32,.8) 0%, rgba(10,12,15,.9) 100%); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: repeat(3, 1fr); } .g4 { grid-template-columns: repeat(4, 1fr); }
+  .g-side { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .grid > * { min-width: 0; }
+  .kpi .l { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+  .kpi .v { font-size: 24px; color: var(--white); font-weight: 600; margin-top: 2px; }
+  .kpi .s { font-size: 12px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-dim); color: #fff; border: 0; border-radius: 6px; padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line2); color: var(--bright); font-weight: 500; }
+  .btn.sm { padding: 3px 9px; font-size: 12px; }
+  .btn.danger { background: transparent; border: 1px solid rgba(248,113,113,.5); color: var(--loss); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--line2); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--bright); }
+  td.n, th.n { white-space: nowrap; text-align: right; font-family: "Share Tech Mono", ui-monospace, monospace; }
+  tr.sub td { color: var(--text); font-size: 12px; background: rgba(255,255,255,.015); }
+  tr.sub td:first-child { padding-left: 30px; }
+  tr.tot td { border-top: 1px solid var(--line2); font-weight: 700; color: var(--white); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .04em; border: 1px solid; white-space: nowrap; }
+  .p-ok { color: var(--profit); border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.08); }
+  .p-warn { color: var(--warning); border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.08); }
+  .p-bad { color: var(--loss); border-color: rgba(248,113,113,.4); background: rgba(248,113,113,.08); }
+  .p-info { color: var(--info); border-color: rgba(34,211,238,.4); background: rgba(34,211,238,.08); }
+  .p-mute { color: var(--muted); border-color: var(--line2); }
+  .p-vio { color: var(--violet); border-color: rgba(167,139,250,.4); background: rgba(167,139,250,.08); }
+  .banner { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 11px 14px; margin-bottom: 14px; border: 1px solid; }
+  .banner b { color: var(--white); }
+  .b-info { border-color: rgba(34,211,238,.35); background: rgba(34,211,238,.06); }
+  .b-warn { border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.06); }
+  .b-bad { border-color: rgba(248,113,113,.35); background: rgba(248,113,113,.06); }
+  .unknown { color: var(--warning); font-style: italic; }
+  .muted { color: var(--muted); }
+  .bright { color: var(--bright); }
+  .accent { color: var(--accent); }
+  .profit { color: var(--profit); }
+  .loss { color: var(--loss); }
+  label.f { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0 0 4px; }
+  .in { width: 100%; background: #0d1117; border: 1px solid var(--line2); border-radius: 6px; padding: 7px 10px; color: var(--bright); font: inherit; }
+  .seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 6px; overflow: hidden; }
+  .seg div { padding: 6px 12px; font-size: 13px; }
+  .seg div.on { background: rgba(0,212,255,.12); color: var(--accent); }
+  .seg div + div { border-left: 1px solid var(--line2); }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .between { justify-content: space-between; }
+  .wrap { flex-wrap: wrap; }
+  .gap-s { gap: 6px; }
+  .mt { margin-top: 14px; } .mt-s { margin-top: 8px; } .mb { margin-bottom: 14px; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #1f3b4d, #0e7490); display: inline-flex; align-items: center; justify-content: center; color: #cfefff; font-size: 11px; font-weight: 700; flex: none; }
+  .avatar.sm { width: 20px; height: 20px; font-size: 9px; }
+  .chk { width: 15px; height: 15px; border: 1px solid var(--line2); border-radius: 3px; display: inline-block; vertical-align: middle; position: relative; flex: none; }
+  .chk.on { background: var(--accent-dim); border-color: var(--accent); }
+  .chk.on::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .chk.dis { opacity: .35; }
+  .note { font-size: 12px; color: var(--muted); border-left: 2px solid var(--line2); padding-left: 10px; margin-top: 10px; }
+  .annot { font-size: 11.5px; color: var(--violet); border: 1px dashed rgba(167,139,250,.45); border-radius: 6px; padding: 6px 9px; margin-top: 10px; background: rgba(167,139,250,.04); }
+  .annot::before { content: "Maquette · "; font-weight: 700; }
+  .opcard { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.015); }
+  .opcard + .opcard { margin-top: 10px; }
+  .opcard .t { color: var(--white); font-weight: 600; font-size: 15px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .linkbox { display: flex; gap: 8px; align-items: center; background: #0d1117; border: 1px solid var(--line2); border-radius: 6px; padding: 6px 6px 6px 10px; }
+  .linkbox code { flex: 1; color: var(--accent); font-family: "Share Tech Mono", monospace; font-size: 13px; }
+  textarea.in { min-height: 120px; font-family: "Share Tech Mono", monospace; font-size: 12px; resize: vertical; }
+  .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .cal .d { min-height: 118px; border: 1px solid var(--line); border-radius: 8px; padding: 7px; background: rgba(255,255,255,.012); }
+  .cal .d.today { border-color: rgba(0,212,255,.5); }
+  .cal .dh { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); display: flex; justify-content: space-between; }
+  .chunk { margin-top: 6px; border-radius: 6px; padding: 5px 7px; font-size: 12px; border-left: 3px solid; background: rgba(255,255,255,.03); }
+  .chunk b { display: block; color: var(--white); font-weight: 600; }
+  .c-ready { border-color: var(--profit); } .c-soon { border-color: var(--warning); } .c-ext { border-color: var(--info); }
+  .legend { display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 5px; }
+  .screen { display: none; }
+  .screen.on { display: block; }
+  .count { font-size: 30px; color: var(--white); font-weight: 600; font-family: "Share Tech Mono", monospace; }
+  .step { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+  .step .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line2); }
+  .step.done .dot { background: var(--profit); } .step.cur .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .step.cur { color: var(--accent); } .step.done { color: var(--profit); }
+  .stepper { display: flex; gap: 22px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 14px; background: rgba(0,0,0,.2); }
+  svg text { font-family: "Share Tech Mono", ui-monospace, monospace; }
+  footer { margin-top: 30px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="logo">EVE TOOLS</div>
+    <nav class="nav">
+      <div class="sect">Modules</div>
+      <a href="#">Dashboard</a>
+      <a href="#">Industry</a>
+      <a href="#">Group Industry</a>
+      <a href="#">Planetary</a>
+      <a href="#">Market</a>
+      <a href="#">Ledger</a>
+      <div class="sect">Minage</div>
+      <a href="#" class="sub" data-nav="ops">Opérations</a>
+      <a href="#" class="sub" data-nav="site">Sites (épuisement)</a>
+      <a href="#" class="sub" data-nav="chunks">Chunks lunaires</a>
+      <a href="#" class="sub" data-nav="tax">Taxe lunaire</a>
+      <a href="#" class="sub" data-nav="ore">Valeur des minerais</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="mockbar" id="mockbar">
+      <span>Écrans</span>
+      <button data-s="ops">1 · Opérations <small>#262</small></button>
+      <button data-s="create">2 · Nouvelle opération <small>#262 #264</small></button>
+      <button data-s="join">3 · Rejoindre <small>#262</small></button>
+      <button data-s="live">4 · Opération en cours <small>#263</small></button>
+      <button data-s="closing">5 · Clôture <small>#263</small></button>
+      <button data-s="results">6 · Parts et paiements <small>#264 #265 #266</small></button>
+      <button data-s="site">7 · Site et épuisement <small>#267</small></button>
+      <button data-s="sites">8 · Historique des sites <small>#267</small></button>
+      <button data-s="chunks">9 · Chunks lunaires <small>#274</small></button>
+      <button data-s="tax">10 · Taxe lunaire <small>#273</small></button>
+      <button data-s="taxme">11 · Ma taxe <small>#273</small></button>
+      <button data-s="ore">12 · Valeur des minerais <small>#268 #269</small></button>
+    </div>
+
+    <!-- 1 · OPÉRATIONS -->
+    <section class="screen" id="s-ops">
+      <div class="head">
+        <div><h1>Opérations de minage</h1><p>Minez à plusieurs, evetools compte ce que chacun a miné à partir du ledger ESI et calcule les parts.</p></div>
+        <button class="btn" data-go="create">+ Nouvelle opération</button>
+      </div>
+      <div class="tabs"><div class="on">En cours et à venir</div><div>Disponibles dans ma corporation <span class="pill p-info">2</span></div><div>Archive</div></div>
+      <div class="grid g-side">
+        <div>
+          <div class="opcard">
+            <div>
+              <div class="row gap-s"><span class="t">Anomalie Spodumain — soirée</span><span class="pill p-ok">EN COURS</span><span class="pill p-mute">Corporation</span></div>
+              <div class="mt-s">Système <span class="bright">Système A</span> · démarrée 20:00 EVE · <span class="bright">6 participants</span>, 11 personnages · Owner : vous</div>
+            </div>
+            <div class="row"><button class="btn sm" data-go="live">Ouvrir</button></div>
+          </div>
+          <div class="opcard">
+            <div>
+              <div class="row gap-s"><span class="t">Lune VII-3 — chunk jeudi</span><span class="pill p-info">PLANIFIÉE</span><span class="pill p-vio">depuis un chunk</span></div>
+              <div class="mt-s">Système <span class="bright">Système B</span> · jeu. 20:00 EVE (dans 2 j 3 h) · 4 inscrits</div>
+            </div>
+            <div class="row"><button class="btn sm ghost">Ouvrir</button></div>
+          </div>
+          <div class="opcard">
+            <div>
+              <div class="row gap-s"><span class="t">Ice belt — dimanche</span><span class="pill p-warn">CLÔTURE · ATTENTE LEDGER</span><span class="pill p-mute">Privée</span></div>
+              <div class="mt-s">Terminée 21:30 · ledger de fin prêt à <span class="accent mono">21:42</span></div>
+            </div>
+            <div class="row"><button class="btn sm ghost" data-go="closing">Ouvrir</button></div>
+          </div>
+          <div class="opcard">
+            <div>
+              <div class="row gap-s"><span class="t">Gravimétrique — samedi</span><span class="pill p-bad">1 PAIEMENT EN ATTENTE</span></div>
+              <div class="mt-s">Réglée sam. 23:10 · 482,6 M ISK répartis · vous devez <span class="loss mono">17,9 M</span></div>
+            </div>
+            <div class="row"><button class="btn sm ghost" data-go="results">Ouvrir</button></div>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card kpi"><div class="l">Mes gains en opération · 30 j</div><div class="v mono">1,94 Md</div><div class="s muted">7 opérations · 3 personnages</div></div>
+          <div class="card kpi"><div class="l">À payer / à recevoir</div><div class="v mono"><span class="loss">17,9 M</span> / <span class="profit">0</span></div><div class="s muted">1 ligne non réglée</div></div>
+          <div class="card">
+            <h3>Prochains chunks</h3>
+            <div class="row between"><span>Lune VII-3 · Système B</span><span class="mono accent">jeu. 20:00</span></div>
+            <div class="row between mt-s"><span>Lune IV-1 · Système C</span><span class="mono">sam. 18:30</span></div>
+            <div class="mt-s"><a class="accent" href="#" data-go="chunks">Calendrier →</a></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 · NOUVELLE OPÉRATION -->
+    <section class="screen" id="s-create">
+      <div class="head"><div><h1>Nouvelle opération</h1><p>Le lien de partage est créé avec l'opération. Base de valorisation et parts sont figées au démarrage.</p></div></div>
+      <div class="grid g-side">
+        <div class="card">
+          <div class="grid g2">
+            <div><label class="f">Libellé</label><input class="in" value="Anomalie Spodumain — soirée"></div>
+            <div><label class="f">Système (facultatif, filtre le ledger)</label><input class="in" value="Système A"></div>
+            <div><label class="f">Début prévu (EVE)</label><input class="in mono" value="2026-11-03 20:00"></div>
+            <div><label class="f">Visibilité</label><div class="seg"><div>Privée (lien)</div><div class="on">Ma corporation</div></div></div>
+          </div>
+          <h3 class="mt">Valorisation</h3>
+          <div class="grid g2">
+            <div><label class="f">Base de valorisation</label>
+              <select class="in"><option>Compressé · Jita buy (recommandé)</option><option>Compressé · Jita sell</option><option>Retraité au rendement de l'opération</option><option>Structure suivie</option></select></div>
+            <div><label class="f">Rendement de retraitement</label><input class="in mono" value="— (base compressée)" disabled></div>
+          </div>
+          <h3 class="mt">Répartition</h3>
+          <div class="grid g3">
+            <div><label class="f">Mode</label><div class="seg"><div class="on">Prorata de la valeur</div><div class="muted">Temps pondéré</div></div></div>
+            <div><label class="f">Part du booster</label><input class="in mono" value="10 %"></div>
+            <div><label class="f">Part corporation</label><input class="in mono" value="0 %"></div>
+          </div>
+          <div class="grid g2 mt">
+            <div><label class="f">Booster</label><select class="in"><option>Mineur Charlie (Orca)</option></select></div>
+            <div><label class="f">Destinataire du fleet storage</label><select class="in"><option>Aucun</option><option>Mineur Charlie</option><option>Container corpo « OPS-HAUL »</option></select></div>
+          </div>
+          <div class="row mt" style="justify-content:flex-end"><button class="btn ghost">Annuler</button><button class="btn" data-go="live">Créer et démarrer</button></div>
+          <div class="annot">« Temps pondéré » apparaît grisé tant que #270 n'est pas faite. Depuis un chunk (#274), libellé, système, heure et visibilité sont pré-remplis.</div>
+        </div>
+        <div class="card">
+          <h3>Aperçu de la règle</h3>
+          <p>Valeur totale <span class="mono bright">G</span> = Σ quantités minées × prix Jita buy compressé, figé à la clôture.</p>
+          <p>Booster : <span class="mono bright">G × 10 %</span>.<br>Chaque participant : <span class="mono bright">G × 90 % × sa part de la valeur</span>.</p>
+          <div class="note">Exemple : G = 1,2 Md, le pilote A a miné 40 % de la valeur → 432 M. Le booster reçoit 120 M.</div>
+          <div class="note">Un minerai sans prix rend la valeur et toutes les parts <span class="unknown">inconnues</span>, avec la liste des types concernés.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 · REJOINDRE -->
+    <section class="screen" id="s-join">
+      <div class="head"><div><h1>Rejoindre « Anomalie Spodumain — soirée »</h1><p>Invitation de <span class="bright">Mineur Alpha</span> · Système A · démarrée 20:00 EVE</p></div></div>
+      <div class="grid g-side">
+        <div class="card">
+          <h3>Quels personnages minent ?</h3>
+          <table>
+            <tr><th></th><th>Personnage</th><th>Vaisseau habituel</th><th>État</th></tr>
+            <tr><td><span class="chk on"></span></td><td><div class="row"><span class="avatar">MD</span>Mineur Delta <span class="pill p-mute">main</span></div></td><td>Hulk</td><td><span class="pill p-ok">PRÊT</span></td></tr>
+            <tr><td><span class="chk on"></span></td><td><div class="row"><span class="avatar">D2</span>Mineur Delta II</div></td><td>Hulk</td><td><span class="pill p-ok">PRÊT</span></td></tr>
+            <tr><td><span class="chk"></span></td><td><div class="row"><span class="avatar">D3</span>Mineur Delta III</div></td><td>Porpoise</td><td><span class="pill p-bad">À RECONNECTER</span></td></tr>
+            <tr><td><span class="chk dis"></span></td><td><div class="row"><span class="avatar">D4</span>Mineur Delta IV</div></td><td>Procurer</td><td><span class="pill p-warn">DÉJÀ DANS « ICE BELT »</span></td></tr>
+          </table>
+          <div class="note">Un personnage ne peut être que dans une seule opération ouverte. Un personnage sans token valide aurait une quantité <span class="unknown">inconnue</span> : reconnectez-le avant de le cocher.</div>
+          <div class="row mt" style="justify-content:flex-end"><button class="btn" data-go="live">Rejoindre avec 2 personnages</button></div>
+        </div>
+        <div class="card">
+          <h3>Règles de l'opération</h3>
+          <table>
+            <tr><td class="muted">Base</td><td>Compressé · Jita buy</td></tr>
+            <tr><td class="muted">Répartition</td><td>Prorata de la valeur</td></tr>
+            <tr><td class="muted">Booster</td><td>10 % · Mineur Charlie</td></tr>
+            <tr><td class="muted">Corporation</td><td>0 %</td></tr>
+            <tr><td class="muted">Fleet storage</td><td>aucun</td></tr>
+          </table>
+          <div class="note">Opération visible par la corporation : votre demande est acceptée automatiquement. Par lien privé, l'Owner la valide.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 · OPÉRATION EN COURS -->
+    <section class="screen" id="s-live">
+      <div class="head">
+        <div><div class="row gap-s"><h1>Anomalie Spodumain — soirée</h1><span class="pill p-ok">EN COURS</span></div><p>Système A · démarrée 20:00 EVE · Owner : vous · base Jita buy compressé · booster 10 %</p></div>
+        <div class="row"><button class="btn ghost">Lier un site (#267)</button><button class="btn danger" data-go="closing">Terminer l'opération</button></div>
+      </div>
+      <div class="stepper"><div class="step done"><i class="dot"></i>Créée</div><div class="step done"><i class="dot"></i>Instantané de début</div><div class="step cur"><i class="dot"></i>En cours</div><div class="step"><i class="dot"></i>Instantané de fin</div><div class="step"><i class="dot"></i>Parts</div><div class="step"><i class="dot"></i>Réglée</div></div>
+      <div class="grid g4 mb">
+        <div class="card kpi"><div class="l">Durée</div><div class="v mono">1 h 12</div></div>
+        <div class="card kpi"><div class="l">Participants</div><div class="v mono">6 <span class="muted" style="font-size:14px">/ 11 persos</span></div></div>
+        <div class="card kpi"><div class="l">Estimation intermédiaire</div><div class="v mono">≈ 640 M</div><div class="s muted">ledger ESI de 20:58, cache 10 min</div></div>
+        <div class="card kpi"><div class="l">Site lié · ETA tendance</div><div class="v mono accent">21:28</div><div class="s muted">récent 21:08 · <a class="accent" href="#" data-go="site">détail</a></div></div>
+      </div>
+      <div class="card">
+        <div class="row between mb"><h3 style="margin:0">Participants</h3><div class="linkbox" style="width:420px"><code>evetools.app/mining-operations/join/ab12cd34ef</code><button class="btn sm ghost">Copier</button><button class="btn sm ghost">Renouveler</button></div></div>
+        <table>
+          <tr><th>Participant</th><th>Rôle</th><th>Instantané de début</th><th class="n">Miné (estimation)</th><th>Dernier ledger ESI</th><th></th></tr>
+          <tr><td><div class="row"><span class="avatar">MA</span>Mineur Alpha</div></td><td><span class="pill p-info">OWNER</span></td><td><span class="profit">✓ 3/3 personnages</span></td><td class="n">212 400 u</td><td class="mono">20:58</td><td></td></tr>
+          <tr><td><div class="row"><span class="avatar">MB</span>Mineur Bravo</div></td><td><span class="pill p-mute">MEMBER</span></td><td><span class="profit">✓ 2/2</span></td><td class="n">148 900 u</td><td class="mono">20:58</td><td></td></tr>
+          <tr><td><div class="row"><span class="avatar">MC</span>Mineur Charlie</div></td><td><span class="pill p-vio">BOOSTER</span></td><td><span class="profit">✓ 1/1</span></td><td class="n">0 u</td><td class="mono">20:58</td><td></td></tr>
+          <tr><td><div class="row"><span class="avatar">MD</span>Mineur Delta</div></td><td><span class="pill p-mute">MEMBER</span></td><td><span class="profit">✓ 2/2</span></td><td class="n">131 050 u</td><td class="mono">20:48</td><td></td></tr>
+          <tr><td><div class="row"><span class="avatar">ME</span>Mineur Echo</div></td><td><span class="pill p-mute">MEMBER</span></td><td><span class="loss">✗ 1/2 · Echo II à reconnecter</span></td><td class="n"><span class="unknown">inconnu</span></td><td class="mono">—</td><td><button class="btn sm ghost">Relancer</button></td></tr>
+          <tr><td><div class="row"><span class="avatar">MF</span>Mineur Foxtrot</div></td><td><span class="pill p-warn">EN ATTENTE</span></td><td class="muted">après acceptation</td><td class="n muted">—</td><td class="mono">—</td><td><button class="btn sm">Accepter</button> <button class="btn sm ghost">Refuser</button></td></tr>
+        </table>
+        <div class="note">Le ledger ESI est mis en cache 10 min et agrégé par jour : la colonne « Miné » est indicative. Les chiffres définitifs viennent de l'instantané de fin.</div>
+        <div class="annot">Mise à jour en direct par Mercure : une ligne par personnage pendant les syncs d'instantané.</div>
+      </div>
+    </section>
+
+    <!-- 5 · CLÔTURE -->
+    <section class="screen" id="s-closing">
+      <div class="head"><div><div class="row gap-s"><h1>Anomalie Spodumain — soirée</h1><span class="pill p-warn">CLÔTURE</span></div><p>Terminée à 21:30 EVE</p></div></div>
+      <div class="stepper"><div class="step done"><i class="dot"></i>Créée</div><div class="step done"><i class="dot"></i>Instantané de début</div><div class="step done"><i class="dot"></i>En cours</div><div class="step cur"><i class="dot"></i>Instantané de fin</div><div class="step"><i class="dot"></i>Parts</div><div class="step"><i class="dot"></i>Réglée</div></div>
+      <div class="grid g-side">
+        <div class="card">
+          <div class="banner b-info"><div><b>En attente du ledger ESI.</b> L'ESI met le ledger en cache 10 min : l'instantané de fin sera lu à <span class="accent mono">21:42</span>. Vous recevrez une notification quand les parts seront prêtes.</div></div>
+          <div class="row" style="gap:30px"><div><div class="l muted" style="font-size:11px;letter-spacing:.12em;text-transform:uppercase">Prêt dans</div><div class="count">08:17</div></div><div style="flex:1"><div class="bar"><i style="width:31%"></i></div><div class="mt-s muted">Lecture des instantanés : 3 / 10 personnages</div></div></div>
+          <table class="mt">
+            <tr><th>Personnage</th><th>Participant</th><th>Instantané de fin</th></tr>
+            <tr><td>Mineur Alpha</td><td>Mineur Alpha</td><td><span class="profit">✓ lu 21:42:04</span></td></tr>
+            <tr><td>Mineur Alpha II</td><td>Mineur Alpha</td><td><span class="profit">✓ lu 21:42:05</span></td></tr>
+            <tr><td>Mineur Bravo</td><td>Mineur Bravo</td><td><span class="profit">✓ lu 21:42:05</span></td></tr>
+            <tr><td>Mineur Bravo II</td><td>Mineur Bravo</td><td><span class="accent">⟳ en cours</span></td></tr>
+            <tr><td>Mineur Echo II</td><td>Mineur Echo</td><td><span class="loss">✗ token invalide : quantité inconnue</span></td></tr>
+            <tr><td colspan="3" class="muted">… 5 autres en file</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>Départ anticipé</h3>
+          <p>Un participant peut partir avant la fin : son instantané de fin est pris à son départ.</p>
+          <table><tr><td>Mineur Delta</td><td class="mono">parti 21:05</td><td><span class="pill p-ok">LU</span></td></tr></table>
+          <h3 class="mt">Correction</h3>
+          <p>L'Owner ou un Admin peut corriger une quantité (minage hors opération, alt oublié). La correction est tracée : qui, quand, valeur d'origine.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 · PARTS ET PAIEMENTS -->
+    <section class="screen" id="s-results">
+      <div class="head">
+        <div><div class="row gap-s"><h1>Gravimétrique — samedi</h1><span class="pill p-info">PARTS CALCULÉES</span></div><p>Base Jita buy compressé · prix figés le sam. 23:10 · booster 10 % · corporation 0 %</p></div>
+        <div class="row"><button class="btn ghost">Exporter CSV</button><button class="btn">Marquer réglée</button></div>
+      </div>
+      <div class="grid g4 mb">
+        <div class="card kpi"><div class="l">Valeur totale G</div><div class="v mono">482,6 M</div></div>
+        <div class="card kpi"><div class="l">Part du booster</div><div class="v mono">48,3 M</div></div>
+        <div class="card kpi"><div class="l">À répartir</div><div class="v mono">434,3 M</div></div>
+        <div class="card kpi"><div class="l">Paiements</div><div class="v mono">2 <span class="muted" style="font-size:14px">/ 3 réglés</span></div></div>
+      </div>
+      <div class="grid g-side">
+        <div class="card">
+          <h3>Répartition</h3>
+          <table>
+            <tr><th>Participant</th><th class="n">Quantité</th><th class="n">Valeur minée</th><th class="n">% valeur</th><th class="n">Part</th><th class="n">Gardé (fleet storage)</th></tr>
+            <tr><td>▾ Mineur Alpha</td><td class="n">96 200</td><td class="n">178,6 M</td><td class="n">37,0 %</td><td class="n profit">160,7 M</td><td class="n">0</td></tr>
+            <tr class="sub"><td>Mineur Alpha · Hulk — Bistot compressé</td><td class="n">41 300</td><td class="n">101,2 M</td><td class="n"></td><td class="n"></td><td class="n"></td></tr>
+            <tr class="sub"><td>Mineur Alpha II · Hulk — Arkonor compressé</td><td class="n">54 900</td><td class="n">77,4 M</td><td class="n"></td><td class="n"></td><td class="n"></td></tr>
+            <tr><td>▸ Mineur Bravo</td><td class="n">71 050</td><td class="n">131,9 M</td><td class="n">27,3 %</td><td class="n profit">118,7 M</td><td class="n">131,9 M</td></tr>
+            <tr><td>▸ Mineur Delta</td><td class="n">92 400</td><td class="n">172,1 M</td><td class="n">35,7 %</td><td class="n profit">154,9 M</td><td class="n">0</td></tr>
+            <tr><td>▸ Mineur Charlie <span class="pill p-vio">BOOSTER</span></td><td class="n">0</td><td class="n">0</td><td class="n">—</td><td class="n profit">48,3 M</td><td class="n">0</td></tr>
+            <tr class="tot"><td>Total</td><td class="n">259 650</td><td class="n">482,6 M</td><td class="n">100 %</td><td class="n">482,6 M</td><td class="n"></td></tr>
+          </table>
+          <div class="banner b-warn mt"><div><b>Variante « prix manquant ».</b> Si un minerai n'a pas de prix Jita, la valeur et toutes les parts s'affichent <span class="unknown">inconnues</span> avec : « Sans prix : Mercoxit compressé ». Rien n'est compté pour 0.</div></div>
+        </div>
+        <div class="card">
+          <h3>Paiements</h3>
+          <div class="note" style="margin:0 0 10px">Mineur Bravo a versé tout son minerai à Mineur Charlie (fleet storage) : Charlie lui doit sa part et garde la part du booster qui revient à Bravo (13,2 M). Les autres paient leur part du booster à Charlie.</div>
+          <table>
+            <tr><td><span class="chk on"></span></td><td>Mineur Charlie → Mineur Bravo</td><td class="n">118,7 M</td></tr>
+            <tr><td><span class="chk on"></span></td><td>Mineur Delta → Mineur Charlie</td><td class="n">17,2 M</td></tr>
+            <tr><td><span class="chk"></span></td><td><b class="bright">Vous</b> (Mineur Alpha) → Mineur Charlie</td><td class="n loss">17,9 M</td></tr>
+          </table>
+          <div class="note">Chaque ligne se coche par le payeur ou l'Owner. Une fois tout coché, l'opération passe à « réglée » et ses chiffres sont figés.</div>
+          <h3 class="mt">Fleet storage vérifié <span class="pill p-mute">#266</span></h3>
+          <p>Container corpo « OPS-HAUL » : <span class="profit">✓ 71 050 u trouvés</span> · assets corpo du sam. 23:20.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 · SITE ET ÉPUISEMENT -->
+    <section class="screen" id="s-site">
+      <div class="head">
+        <div><div class="row gap-s"><h1>Site · Anomalie Spodumain</h1><span class="pill p-ok">ACTIF</span><span class="pill p-mute">lié à « Anomalie Spodumain — soirée »</span></div><p>Système A · 4 scans · premier 20:00, dernier 20:30</p></div>
+        <div class="row"><button class="btn ghost">Clôturer le site</button></div>
+      </div>
+      <div class="grid g-side">
+        <div class="grid">
+          <div class="grid g4">
+            <div class="card kpi"><div class="l">ETA du site · tendance</div><div class="v mono accent" id="k-trend">—</div><div class="s muted">régression sur tous les scans</div></div>
+            <div class="card kpi"><div class="l">ETA du site · récent</div><div class="v mono" id="k-recent">—</div><div class="s muted">deux derniers scans</div></div>
+            <div class="card kpi"><div class="l">Restant</div><div class="v mono" id="k-vol">—</div><div class="s muted">volume du dernier scan</div></div>
+            <div class="card kpi"><div class="l">Valeur restante</div><div class="v mono" id="k-val">—</div><div class="s muted">Jita buy compressé</div></div>
+          </div>
+          <div class="card">
+            <div class="row between"><h3 style="margin:0">Quantité restante</h3><div class="row gap-s"><div class="seg"><div class="on">Unités</div><div>m³</div></div></div></div>
+            <div class="legend mt-s" id="legend"></div>
+            <svg id="chart" viewBox="0 0 820 300" width="100%" style="display:block;margin-top:6px"></svg>
+            <div class="annot">Points = scans. Trait plein = droite de tendance prolongée jusqu'à 0 ; segment pointillé = débit récent. Une ETA par type, deux variantes.</div>
+          </div>
+          <div class="card">
+            <h3>Par type de minerai</h3>
+            <table id="types"></table>
+            <div class="note">Scannez toujours depuis la même position, avec la même portée : un astéroïde hors de portée passerait pour épuisé.</div>
+          </div>
+        </div>
+        <div class="grid" style="align-content:start">
+          <div class="card">
+            <h3>Ajouter un scan</h3>
+            <textarea class="in" placeholder="Collez ici le résultat du Mining Survey Chipset (Ctrl+A, Ctrl+C dans la fenêtre de scan)"></textarea>
+            <div class="row between mt-s"><span class="muted" style="font-size:12px">Horodaté à la réception · le texte n'est pas enregistré</span><button class="btn sm">Ajouter</button></div>
+            <div class="annot">Format du collage à fixer avec un exemple réel (#267). Une ligne illisible est signalée avec son numéro.</div>
+          </div>
+          <div class="card">
+            <h3>Évolution de l'ETA annoncée</h3>
+            <svg id="etaChart" viewBox="0 0 360 170" width="100%" style="display:block"></svg>
+            <div class="note">L'ETA enregistrée à chaque scan n'est jamais recalculée : on voit si l'estimation se stabilise.</div>
+          </div>
+          <div class="card">
+            <h3>Scans</h3>
+            <table id="scans"></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 · HISTORIQUE DES SITES -->
+    <section class="screen" id="s-sites">
+      <div class="head"><div><h1>Sites de minage</h1><p>Chaque site garde ses scans et les métriques calculées à chaque scan.</p></div><button class="btn">+ Nouveau site</button></div>
+      <div class="row mb"><input class="in" style="max-width:260px" placeholder="Filtrer par système"><div class="seg"><div class="on">Tous</div><div>Actifs</div><div>Clôturés</div></div></div>
+      <div class="card">
+        <table>
+          <tr><th>Site</th><th>Système</th><th>Premier scan</th><th>Dernier scan</th><th class="n">Durée observée</th><th class="n">Volume initial</th><th class="n">Valeur initiale</th><th class="n">Débit tendance</th><th>Statut</th></tr>
+          <tr><td><a class="accent" href="#" data-go="site">Anomalie Spodumain</a></td><td>Système A</td><td class="mono">03/11 20:00</td><td class="mono">03/11 20:30</td><td class="n">30 min</td><td class="n">307 200 m³</td><td class="n">91,7 M</td><td class="n">3 288 m³/min</td><td><span class="pill p-ok">ACTIF</span></td></tr>
+          <tr><td>Belt VI-2</td><td>Système A</td><td class="mono">01/11 19:10</td><td class="mono">01/11 22:45</td><td class="n">3 h 35</td><td class="n">412 000 m³</td><td class="n">1,62 Md</td><td class="n">1 915 m³/min</td><td><span class="pill p-mute">ÉPUISÉ</span></td></tr>
+          <tr><td>Gravimétrique Bistot</td><td>Système C</td><td class="mono">31/10 21:00</td><td class="mono">31/10 23:10</td><td class="n">2 h 10</td><td class="n">171 600 m³</td><td class="n">482,6 M</td><td class="n">1 320 m³/min</td><td><span class="pill p-mute">CLÔTURÉ</span></td></tr>
+          <tr><td>Ice belt</td><td>Système D</td><td class="mono">27/10 18:00</td><td class="mono">27/10 18:00</td><td class="n">—</td><td class="n">1 920 000 m³</td><td class="n"><span class="unknown">inconnue</span></td><td class="n"><span class="unknown">un seul scan</span></td><td><span class="pill p-mute">CLÔTURÉ</span></td></tr>
+        </table>
+        <div class="annot">Statistiques entre sites (durée de vie moyenne par type d'anomalie) : hors périmètre, l'historique les rend possibles plus tard.</div>
+      </div>
+    </section>
+
+    <!-- 9 · CHUNKS LUNAIRES -->
+    <section class="screen" id="s-chunks">
+      <div class="head">
+        <div><h1>Chunks lunaires</h1><p>Extractions des raffineries de la corporation · sync il y a 12 min avec le token de Mineur Alpha (Station_Manager)</p></div>
+        <div class="row"><div class="seg"><div>Liste</div><div class="on">Semaine</div><div>Mois</div></div><button class="btn ghost">⟳ Rafraîchir</button></div>
+      </div>
+      <div class="grid g-side">
+        <div class="card">
+          <div class="row between mb"><h3 style="margin:0">Semaine du 2 au 8 novembre · EVE time</h3><div class="legend"><span><i style="background:var(--profit)"></i>prêt</span><span><i style="background:var(--warning)"></i>prêt dans moins de 24 h</span><span><i style="background:var(--info)"></i>en extraction</span></div></div>
+          <div class="cal">
+            <div class="d"><div class="dh"><span>Lun</span><span>2</span></div><div class="chunk c-ready"><b>Lune II-1</b>Système C · explosé 21:00</div></div>
+            <div class="d today"><div class="dh"><span class="accent">Mar</span><span class="accent">3</span></div><div class="chunk c-ready"><b>Lune V-2 · PRÊT</b>Système B · arrivé 14:00<br>décroissance 17:00</div></div>
+            <div class="d"><div class="dh"><span>Mer</span><span>4</span></div><div class="chunk c-soon"><b>Lune IV-1</b>Système C · 18:30</div></div>
+            <div class="d"><div class="dh"><span>Jeu</span><span>5</span></div><div class="chunk c-ext"><b>Lune VII-3</b>Système B · 20:00<br><span class="pill p-vio" style="margin-top:3px">opération planifiée</span></div></div>
+            <div class="d"><div class="dh"><span>Ven</span><span>6</span></div></div>
+            <div class="d"><div class="dh"><span>Sam</span><span>7</span></div><div class="chunk c-ext"><b>Lune III-5</b>Système D · 18:30</div></div>
+            <div class="d"><div class="dh"><span>Dim</span><span>8</span></div><div class="chunk c-ext"><b>Lune I-2</b>Système B · 02:15</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Lune VII-3</h3>
+          <table>
+            <tr><td class="muted">Raffinerie</td><td>Athanor « Refinery B-1 »</td></tr>
+            <tr><td class="muted">Système</td><td>Système B</td></tr>
+            <tr><td class="muted">Extraction lancée</td><td class="mono">lun. 02/11 18:00</td></tr>
+            <tr><td class="muted">Arrivée du chunk</td><td class="mono accent">jeu. 05/11 20:00</td></tr>
+            <tr><td class="muted">Décroissance naturelle</td><td class="mono">jeu. 05/11 23:00</td></tr>
+            <tr><td class="muted">Dans</td><td class="mono bright">2 j 3 h 12 min</td></tr>
+          </table>
+          <div class="row mt wrap"><button class="btn" data-go="create">Créer une opération</button><button class="btn ghost">🔔 Suivre cette raffinerie</button></div>
+          <div class="note">Notifications : chunk prêt dans 1 h, puis chunk arrivé.</div>
+          <div class="annot">La composition de la lune et la valeur du chunk ne sont pas fournies par l'ESI : hors périmètre (#274).</div>
+        </div>
+      </div>
+      <div class="banner b-bad mt"><div><b>Variante « accès refusé ».</b> Aucun personnage de la corporation n'a le rôle Station_Manager avec un token valide. Dernière sync réussie : 28/10 19:40. Le calendrier ci-dessus date de cette sync. Jamais un calendrier vide présenté comme « aucune extraction ».</div></div>
+    </section>
+
+    <!-- 10 · TAXE LUNAIRE (gestionnaire) -->
+    <section class="screen" id="s-tax">
+      <div class="head">
+        <div><h1>Taxe lunaire · gestion</h1><p>Lunes ouvertes à l'alliance · période du 26/10 au 01/11 · prix figés le 02/11 00:00</p></div>
+        <div class="row"><select class="in" style="width:220px"><option>Semaine 44 (26/10 – 01/11)</option></select><button class="btn ghost">Exporter CSV</button></div>
+      </div>
+      <div class="banner b-warn"><div><b>Suivi automatique des paiements désactivé.</b> Il demande la lecture du wallet de la corporation (<span class="mono">esi-wallet.read_corporation_wallets.v1</span>, rôle Accountant). <a class="accent" href="#">Connecter un compte gestionnaire</a>. En attendant, les paiements se marquent à la main.</div></div>
+      <div class="grid g4 mb">
+        <div class="card kpi"><div class="l">Taxe due</div><div class="v mono unknown">inconnue</div><div class="s muted">sans prix : 1 minerai (Mineur Juliett) · 41 mineurs</div></div>
+        <div class="card kpi"><div class="l">Payé</div><div class="v mono profit">227,0 M</div></div>
+        <div class="card kpi"><div class="l">Reste</div><div class="v mono unknown">inconnu</div><div class="s">dont <span class="loss">23,1 M en retard</span> (connu)</div></div>
+        <div class="card kpi"><div class="l">Hors alliance</div><div class="v mono">2</div><div class="s muted">mineurs signalés</div></div>
+      </div>
+      <div class="grid g-side">
+        <div class="card">
+          <div class="row between mb"><h3 style="margin:0">Par mineur</h3><div class="seg"><div class="on">Tous</div><div>Dû</div><div>En retard</div><div>Payé</div></div></div>
+          <table>
+            <tr><th>Personnage</th><th>Corporation</th><th class="n">Valeur minée</th><th class="n">Taxe due</th><th class="n">Payé</th><th>Statut</th><th></th></tr>
+            <tr><td>Mineur Golf</td><td>Corp A</td><td class="n">612,0 M</td><td class="n">61,2 M</td><td class="n">61,2 M</td><td><span class="pill p-ok">PAYÉ</span></td><td></td></tr>
+            <tr><td>Mineur Hotel</td><td>Corp B</td><td class="n">380,5 M</td><td class="n">38,1 M</td><td class="n">20,0 M</td><td><span class="pill p-warn">PARTIEL</span></td><td><button class="btn sm ghost">Rapprocher</button></td></tr>
+            <tr><td>Mineur India</td><td>Corp B</td><td class="n">231,0 M</td><td class="n">23,1 M</td><td class="n">0</td><td><span class="pill p-bad">EN RETARD</span></td><td><button class="btn sm ghost">Marquer payé</button></td></tr>
+            <tr><td>Mineur Juliett</td><td>Corp C</td><td class="n"><span class="unknown">inconnue</span></td><td class="n"><span class="unknown">inconnue</span></td><td class="n">0</td><td><span class="pill p-warn">SANS PRIX</span></td><td></td></tr>
+            <tr><td>Mineur Kilo <span class="pill p-bad">HORS ALLIANCE</span></td><td>Corp X</td><td class="n">44,8 M</td><td class="n">4,5 M</td><td class="n">0</td><td><span class="pill p-mute">DÛ</span></td><td></td></tr>
+          </table>
+          <div class="note">Source : ledger des raffineries (ESI, cache 1 h). Le mineur n'a pas besoin de compte evetools. « Sans prix » : un minerai lunaire sans prix Jita rend la taxe inconnue, jamais 0.</div>
+        </div>
+        <div class="card">
+          <h3>Réglages</h3>
+          <label class="f">Raffineries ouvertes à l'alliance</label>
+          <div class="row gap-s"><span class="chk on"></span>Refinery B-1 · Système B</div>
+          <div class="row gap-s mt-s"><span class="chk on"></span>Refinery C-1 · Système C</div>
+          <div class="row gap-s mt-s"><span class="chk"></span>Refinery D-1 · Système D <span class="muted">(corpo seule)</span></div>
+          <label class="f mt">Base de taxe</label>
+          <div class="seg"><div class="on">Compressé · Jita buy</div><div>Retraité</div></div>
+          <label class="f mt">Taux par catégorie</label>
+          <table>
+            <tr><td>R4</td><td class="n">5 %</td><td>R8</td><td class="n">5 %</td></tr>
+            <tr><td>R16</td><td class="n">8 %</td><td>R32</td><td class="n">10 %</td></tr>
+            <tr><td>R64</td><td class="n">10 %</td><td>Ore classique</td><td class="n">5 %</td></tr>
+          </table>
+          <label class="f mt">Période</label>
+          <div class="seg"><div class="on">Semaine</div><div>Mois</div></div>
+          <div class="annot">Base, taux, rapprochement et période restent à trancher (#273).</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 · MA TAXE (mineur) -->
+    <section class="screen" id="s-taxme">
+      <div class="head"><div><h1>Ma taxe lunaire</h1><p>Ce que vos personnages doivent aux corporations de l'alliance dont vous minez les lunes</p></div></div>
+      <div class="grid g-side">
+        <div class="card">
+          <table>
+            <tr><th>Période</th><th>Propriétaire</th><th>Personnage</th><th class="n">Valeur minée</th><th class="n">Taxe</th><th>Référence du don</th><th>Statut</th></tr>
+            <tr><td>Sem. 44</td><td>Corp A</td><td>Mineur Delta</td><td class="n">212,0 M</td><td class="n">21,2 M</td><td class="mono accent">TAX-2026-W44-7F3K</td><td><span class="pill p-bad">À PAYER</span></td></tr>
+            <tr><td>Sem. 44</td><td>Corp A</td><td>Mineur Delta II</td><td class="n">98,4 M</td><td class="n">9,8 M</td><td class="mono accent">TAX-2026-W44-7F3K</td><td><span class="pill p-bad">À PAYER</span></td></tr>
+            <tr><td>Sem. 43</td><td>Corp A</td><td>Mineur Delta</td><td class="n">176,3 M</td><td class="n">17,6 M</td><td class="mono">TAX-2026-W43-2M9Q</td><td><span class="pill p-ok">PAYÉ 27/10</span></td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>Comment payer</h3>
+          <p>Faites un don en jeu de <span class="mono bright">31,0 M</span> à <span class="bright">Corp A</span>, avec le motif :</p>
+          <div class="linkbox"><code>TAX-2026-W44-7F3K</code><button class="btn sm ghost">Copier</button></div>
+          <div class="note">Le paiement est reconnu à la sync suivante du journal de la corporation (cache 1 h). Payé depuis un alt : le gestionnaire le rapproche à la main.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 · VALEUR DES MINERAIS -->
+    <section class="screen" id="s-ore">
+      <div class="head"><div><h1>Valeur des minerais</h1><p>Que miner : ISK par m³, la quantité que le laser extrait réellement</p></div>
+        <div class="row"><div class="seg"><div class="on">Jita buy</div><div>Jita sell</div><div>Structure</div></div></div></div>
+      <div class="grid g-side">
+        <div class="card">
+          <table>
+            <tr><th>Minerai</th><th class="n">ISK/m³ brut</th><th class="n">ISK/m³ compressé</th><th class="n">ISK/m³ retraité</th><th>Meilleure option</th></tr>
+            <tr><td>Bistot (+10 %)</td><td class="n">1 412</td><td class="n profit">1 655</td><td class="n">1 601</td><td><span class="pill p-ok">COMPRESSÉ</span></td></tr>
+            <tr><td>Arkonor</td><td class="n">1 288</td><td class="n">1 402</td><td class="n profit">1 447</td><td><span class="pill p-info">RETRAITÉ</span></td></tr>
+            <tr><td>Spodumain (+5 %)</td><td class="n">1 104</td><td class="n profit">1 210</td><td class="n">1 186</td><td><span class="pill p-ok">COMPRESSÉ</span></td></tr>
+            <tr><td>Mercoxit</td><td class="n">2 310</td><td class="n"><span class="unknown">inconnu</span></td><td class="n">2 251</td><td><span class="pill p-mute">INCOMPLET</span></td></tr>
+            <tr><td>Veldspar</td><td class="n">138</td><td class="n profit">150</td><td class="n">146</td><td><span class="pill p-ok">COMPRESSÉ</span></td></tr>
+          </table>
+          <div class="annot">Valeurs fictives. Le compressé est aujourd'hui sous-évalué d'un facteur 100 (#259) : cet écran suppose le correctif.</div>
+        </div>
+        <div class="card">
+          <h3>Rendement de retraitement <span class="pill p-mute">#269</span></h3>
+          <label class="f">Personnage</label><select class="in"><option>Mineur Alpha</option></select>
+          <label class="f mt">Lieu</label><div class="seg"><div>Station NPC</div><div>Athanor</div><div class="on">Tatara</div></div>
+          <div class="grid g2 mt"><div><label class="f">Rig</label><select class="in"><option>T2</option></select></div><div><label class="f">Sécurité</label><select class="in"><option>Nullsec / WH</option></select></div></div>
+          <div class="row between mt"><span>Rendement calculé</span><span class="mono accent" style="font-size:22px">90,63 %</span></div>
+          <div class="note">Compétences lues dans l'ESI. Compétence non synchronisée : rendement <span class="unknown">inconnu</span>, pas un défaut plausible.</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>Maquette evetools · minage groupé · données et noms fictifs · issues #259 à #274</footer>
+  </main>
+</div>
+
+<script>
+  const screens = [...document.querySelectorAll('.screen')]
+  const mockButtons = [...document.querySelectorAll('#mockbar button')]
+  const navMap = { ops: 'ops', create: 'ops', join: 'ops', live: 'ops', closing: 'ops', results: 'ops', site: 'site', sites: 'site', chunks: 'chunks', tax: 'tax', taxme: 'tax', ore: 'ore' }
+  function show(id) {
+    screens.forEach(s => s.classList.toggle('on', s.id === 's-' + id))
+    mockButtons.forEach(b => b.classList.toggle('on', b.dataset.s === id))
+    document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === navMap[id]))
+    history.replaceState(null, '', '#' + id)
+    window.scrollTo(0, 0)
+  }
+  mockButtons.forEach(b => b.addEventListener('click', () => show(b.dataset.s)))
+  document.addEventListener('click', e => {
+    const go = e.target.closest('[data-go]')
+    if (go) { e.preventDefault(); show(go.dataset.go) }
+    const nav = e.target.closest('[data-nav]')
+    if (nav) { e.preventDefault(); show(nav.dataset.nav === 'site' ? 'site' : nav.dataset.nav) }
+  })
+
+  const scanMinutes = [0, 10, 20, 30]
+  const ores = [
+    { name: 'Spodumain', color: '#22d3ee', volume: 16, price: 4800, q: [9000, 7700, 6300, 5000] },
+    { name: 'Bistot', color: '#f59e0b', volume: 16, price: 5300, q: [6200, 5600, 5350, 3900] },
+    { name: 'Crokite', color: '#a78bfa', volume: 16, price: 3900, q: [4000, 4000, 4000, 4000] },
+  ]
+  const startMinutes = 20 * 60
+  const clock = m => { const t = Math.round(m * 60); const h = Math.floor(t / 3600) % 24, mi = Math.floor((t % 3600) / 60); return String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0') }
+  const fmt = n => n.toLocaleString('fr-FR', { maximumFractionDigits: 0 })
+  const isk = n => n >= 1e9 ? (n / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' Md' : (n / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' M'
+
+  function regression(ts, qs) {
+    const n = ts.length, tb = ts.reduce((a, b) => a + b) / n, qb = qs.reduce((a, b) => a + b) / n
+    const slope = ts.reduce((s, t, i) => s + (t - tb) * (qs[i] - qb), 0) / ts.reduce((s, t) => s + (t - tb) ** 2, 0)
+    const rate = -slope
+    const maxDev = Math.max(...ts.map((t, i) => Math.abs(qs[i] - (qb + slope * (t - tb)))))
+    return { rate, eta: rate > 0 ? tb + qb / rate : null, at: t => qb + slope * (t - tb), maxDev, devPct: 100 * maxDev / qs[0] }
+  }
+  function estimate(qs, upto) {
+    const ts = scanMinutes.slice(0, upto), q = qs.slice(0, upto)
+    if (ts.length < 2) return null
+    const trend = regression(ts, q)
+    const k = ts.length - 1
+    const recentRate = (q[k - 1] - q[k]) / (ts[k] - ts[k - 1])
+    return { trend, recentRate, recentEta: recentRate > 0 ? ts[k] + q[k] / recentRate : null }
+  }
+
+  const results = ores.map(o => ({ ...o, est: estimate(o.q, scanMinutes.length) }))
+  const mined = results.filter(r => r.est.trend.rate > 0)
+  const siteTrend = Math.max(...mined.map(r => r.est.trend.eta))
+  const siteRecent = Math.max(...mined.filter(r => r.est.recentEta !== null).map(r => r.est.recentEta))
+  document.getElementById('k-trend').textContent = clock(startMinutes + siteTrend)
+  document.getElementById('k-recent').textContent = clock(startMinutes + siteRecent)
+  const lastIdx = scanMinutes.length - 1
+  document.getElementById('k-vol').textContent = fmt(results.reduce((s, r) => s + r.q[lastIdx] * r.volume, 0)) + ' m³'
+  document.getElementById('k-val').textContent = isk(results.reduce((s, r) => s + r.q[lastIdx] * r.price, 0))
+
+  let rows = '<tr><th>Type</th><th class="n">Restant</th><th class="n">Débit récent</th><th class="n">ETA récent</th><th class="n">Débit tendance</th><th class="n">ETA tendance</th><th class="n">Écart</th><th class="n">Valeur</th></tr>'
+  results.forEach(r => {
+    const e = r.est, notMined = e.trend.rate <= 0
+    const irregular = e.trend.devPct > 10
+    rows += `<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${r.color};margin-right:7px"></span>${r.name}${notMined ? ' <span class="pill p-mute">NON MINÉ</span>' : ''}</td>
+      <td class="n">${fmt(r.q[lastIdx])} u</td>
+      <td class="n">${e.recentRate > 0 ? fmt(e.recentRate) + ' u/min' : '—'}</td>
+      <td class="n">${e.recentEta !== null ? clock(startMinutes + e.recentEta) : '<span class="unknown">inconnue</span>'}</td>
+      <td class="n">${e.trend.rate > 0 ? fmt(e.trend.rate) + ' u/min' : '—'}</td>
+      <td class="n accent">${e.trend.eta !== null ? clock(startMinutes + e.trend.eta) : '<span class="unknown">inconnue</span>'}</td>
+      <td class="n">${notMined ? '—' : e.trend.devPct.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %'}${irregular ? ' <span class="pill p-warn">IRRÉGULIER</span>' : ''}</td>
+      <td class="n">${isk(r.q[lastIdx] * r.price)}</td></tr>`
+  })
+  document.getElementById('types').innerHTML = rows
+
+  let scanRows = '<tr><th>#</th><th>Heure</th><th class="n">Volume</th><th class="n">ETA tendance annoncée</th></tr>'
+  const etaHistory = []
+  scanMinutes.forEach((m, i) => {
+    const ests = ores.map(o => estimate(o.q, i + 1)).filter(Boolean).filter(e => e.trend.rate > 0)
+    const eta = ests.length ? Math.max(...ests.map(e => e.trend.eta)) : null
+    const recent = ests.filter(e => e.recentEta !== null)
+    const etaRecent = recent.length ? Math.max(...recent.map(e => e.recentEta)) : null
+    etaHistory.push({ m, eta, etaRecent })
+    scanRows += `<tr><td>${i + 1}</td><td class="mono">${clock(startMinutes + m)}</td><td class="n">${fmt(ores.reduce((s, o) => s + o.q[i] * o.volume, 0))} m³</td><td class="n">${eta !== null ? clock(startMinutes + eta) : '<span class="unknown">inconnue · 1 scan</span>'}</td></tr>`
+  })
+  document.getElementById('scans').innerHTML = scanRows
+
+  const svgNS = 'http://www.w3.org/2000/svg'
+  function el(parent, tag, attrs, text) { const n = document.createElementNS(svgNS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); if (text !== undefined) n.textContent = text; parent.appendChild(n); return n }
+
+  const chart = document.getElementById('chart')
+  const W = 820, H = 300, L = 56, R = 16, T = 12, B = 32
+  const tMax = Math.ceil((Math.max(siteTrend, siteRecent) + 10) / 15) * 15
+  const qMax = Math.ceil(Math.max(...ores.flatMap(o => o.q)) / 2000) * 2000
+  const x = t => L + (W - L - R) * t / tMax, y = q => T + (H - T - B) * (1 - q / qMax)
+  for (let q = 0; q <= qMax; q += 2000) { el(chart, 'line', { x1: L, x2: W - R, y1: y(q), y2: y(q), stroke: '#232a36' }); el(chart, 'text', { x: L - 8, y: y(q) + 4, 'text-anchor': 'end', fill: '#64748b', 'font-size': 11 }, fmt(q)) }
+  for (let t = 0; t <= tMax; t += 15) el(chart, 'text', { x: x(t), y: H - 10, 'text-anchor': 'middle', fill: '#64748b', 'font-size': 11 }, clock(startMinutes + t))
+  el(chart, 'line', { x1: x(scanMinutes[lastIdx]), x2: x(scanMinutes[lastIdx]), y1: T, y2: H - B, stroke: '#2e3746', 'stroke-dasharray': '3 4' })
+  el(chart, 'text', { x: x(scanMinutes[lastIdx]) + 5, y: T + 11, fill: '#64748b', 'font-size': 10 }, 'dernier scan')
+  const legend = document.getElementById('legend')
+  results.forEach(r => {
+    const e = r.est
+    if (e.trend.rate > 0) {
+      el(chart, 'line', { x1: x(0), y1: y(e.trend.at(0)), x2: x(e.trend.eta), y2: y(0), stroke: r.color, 'stroke-width': 2, opacity: .75 })
+      el(chart, 'circle', { cx: x(e.trend.eta), cy: y(0), r: 4, fill: 'none', stroke: r.color, 'stroke-width': 2 })
+    } else {
+      el(chart, 'line', { x1: x(0), y1: y(r.q[0]), x2: x(tMax), y2: y(r.q[0]), stroke: r.color, 'stroke-width': 1.5, opacity: .45 })
+    }
+    if (e.recentEta !== null) el(chart, 'line', { x1: x(scanMinutes[lastIdx]), y1: y(r.q[lastIdx]), x2: x(e.recentEta), y2: y(0), stroke: r.color, 'stroke-width': 1.5, 'stroke-dasharray': '5 4' })
+    r.q.forEach((q, i) => el(chart, 'circle', { cx: x(scanMinutes[i]), cy: y(q), r: 4, fill: r.color }))
+    legend.insertAdjacentHTML('beforeend', `<span><i style="background:${r.color}"></i>${r.name}</span>`)
+  })
+  legend.insertAdjacentHTML('beforeend', '<span class="muted">— tendance · - - récent · ○ ETA</span>')
+
+  const eta = document.getElementById('etaChart')
+  const eW = 360, eH = 170, eL = 44, eR = 10, eT = 10, eB = 26
+  const known = etaHistory.filter(p => p.eta !== null)
+  const vals = known.flatMap(p => [p.eta, p.etaRecent].filter(v => v !== null))
+  const eStep = Math.max(15, Math.ceil((Math.max(...vals) - Math.min(...vals)) / 4 / 15) * 15)
+  const yMin = Math.floor(Math.min(...vals) / eStep) * eStep, yMax = Math.ceil(Math.max(...vals) / eStep) * eStep
+  const ex = m => eL + (eW - eL - eR) * m / scanMinutes[lastIdx], ey = v => eT + (eH - eT - eB) * (1 - (v - yMin) / (yMax - yMin))
+  for (let v = yMin; v <= yMax; v += eStep) { el(eta, 'line', { x1: eL, x2: eW - eR, y1: ey(v), y2: ey(v), stroke: '#232a36' }); el(eta, 'text', { x: eL - 6, y: ey(v) + 4, 'text-anchor': 'end', fill: '#64748b', 'font-size': 10 }, clock(startMinutes + v)) }
+  scanMinutes.forEach((m, i) => el(eta, 'text', { x: ex(m), y: eH - 8, 'text-anchor': i === 0 ? 'start' : i === lastIdx ? 'end' : 'middle', fill: '#64748b', 'font-size': 10 }, 'scan ' + (i + 1)))
+  const pathOf = key => known.filter(p => p[key] !== null).map((p, i) => (i ? 'L' : 'M') + ex(p.m) + ' ' + ey(p[key])).join(' ')
+  el(eta, 'path', { d: pathOf('eta'), stroke: '#00d4ff', 'stroke-width': 2, fill: 'none' })
+  el(eta, 'path', { d: pathOf('etaRecent'), stroke: '#c5cdd8', 'stroke-width': 1.5, fill: 'none', 'stroke-dasharray': '5 4' })
+  known.forEach(p => { el(eta, 'circle', { cx: ex(p.m), cy: ey(p.eta), r: 3.5, fill: '#00d4ff' }); if (p.etaRecent !== null) el(eta, 'circle', { cx: ex(p.m), cy: ey(p.etaRecent), r: 3, fill: '#c5cdd8' }) })
+  el(eta, 'text', { x: eW - eR, y: eH - eB - 6, 'text-anchor': 'end', fill: '#64748b', 'font-size': 10 }, 'scan 1 : ETA inconnue (un seul scan)')
+
+  show(location.hash.slice(1) || 'ops')
+</script>
+</body>
+</html>

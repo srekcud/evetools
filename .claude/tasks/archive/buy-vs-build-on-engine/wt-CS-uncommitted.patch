@@ -1,0 +1,797 @@
+diff --git a/tests/Unit/Service/Industry/BuildsBuyVsBuildOnGoldenSde.php b/tests/Unit/Service/Industry/BuildsBuyVsBuildOnGoldenSde.php
+index afb6363..7789c44 100644
+--- a/tests/Unit/Service/Industry/BuildsBuyVsBuildOnGoldenSde.php
++++ b/tests/Unit/Service/Industry/BuildsBuyVsBuildOnGoldenSde.php
+@@ -133,6 +133,18 @@ trait BuildsBuyVsBuildOnGoldenSde
+                 return $prices;
+             },
+         );
++        $jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturnCallback(
++            static function (array $typeQuantities) use ($jitaPrices): array {
++                $weightedPrices = [];
++                foreach (array_keys($typeQuantities) as $typeId) {
++                    $weightedPrices[$typeId] = isset($jitaPrices[$typeId])
++                        ? ['weightedPrice' => $jitaPrices[$typeId], 'coverage' => 1.0, 'ordersUsed' => 1]
++                        : null;
++                }
++
++                return $weightedPrices;
++            },
++        );
+ 
+         $structureMarketService = $this->createStub(StructureMarketService::class);
+         $structureMarketService->method('getLowestSellPrice')->willReturnCallback(
+diff --git a/tests/Unit/Service/Industry/BuyVsBuildServiceCharacterizationTest.php b/tests/Unit/Service/Industry/BuyVsBuildServiceCharacterizationTest.php
+index 8f307fc..8e96759 100644
+--- a/tests/Unit/Service/Industry/BuyVsBuildServiceCharacterizationTest.php
++++ b/tests/Unit/Service/Industry/BuyVsBuildServiceCharacterizationTest.php
+@@ -9,12 +9,15 @@ use PHPUnit\Framework\Attributes\CoversClass;
+ use PHPUnit\Framework\TestCase;
+ 
+ /**
+- * Characterization of the buy-vs-build output before `buildProductionTree()` (BuyVsBuildService.php:65)
+- * is replaced by the Industry Application (docs/specs/industry-engine.md §7, rank 2).
++ * Buy-vs-build output while `buildProductionTree()` (BuyVsBuildService.php:65) is replaced by the Industry Application
++ * (docs/specs/industry-engine.md §7, rank 2).
+  *
+- * The real production tree is built from the SDE extract of the goldens. Market prices, adjusted prices
+- * and cost indices are deterministic stubs. Tests whose name ends in `CurrentlyWrong...` or that carry a
+- * `CARACTÉRISATION` comment pin a behavior the spec corrects: they are expected to change at the migration.
++ * The real production tree is built from the SDE extract of the goldens. Market prices, adjusted prices and cost indices
++ * are deterministic stubs; no structure is configured, so every job runs in an NPC station (R6: 0.25 % install tax).
++ * Quantities follow the plan mode (R3, R12): whole runs per job, demand aggregated over the plan.
++ * An unknown amount (R10) is null and the missing data are listed as `missingData`, one entry per MissingData of the
++ * engine: `['reason' => 'market_price'|'adjusted_price'|'cost_index', 'typeId' => ?int]`.
++ * Tests whose name contains `CurrentlyWrong` pin a behavior left outside the engine migration.
+  */
+ #[CoversClass(BuyVsBuildService::class)]
+ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+@@ -35,19 +38,11 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+     private const int MEXALLON = 36;
+     private const int ISOGEN = 37;
+     private const int NOCXIUM = 38;
+-    private const int ZYDRINE = 39;
+-    private const int MEGACYTE = 40;
+-    private const int MARSHAL = 44996;
+-    private const int CAPITAL_JUMP_DRIVE = 21025;
+     private const int HYDROGEN_FUEL_BLOCK = 4246;
+     private const int NITROGEN_FUEL_BLOCK = 4051;
+     private const int FERNITE_ALLOY = 16656;
+     private const int CERAMIC_POWDER = 16660;
+     private const int CARBON_POLYMERS = 16659;
+-    private const int SCANDIUM = 16639;
+-    private const int VANADIUM = 16642;
+-    private const int EVAPORITE_DEPOSITS = 16635;
+-    private const int SILICATES = 16636;
+     private const int ENRICHED_URANIUM = 44;
+     private const int OXYGEN = 3683;
+     private const int MECHANICAL_PARTS = 3689;
+@@ -61,245 +56,194 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+ 
+     private const array FACTORY_COST_INDICES = [self::FACTORY_SYSTEM_ID => ['manufacturing' => 0.05, 'reaction' => 0.1]];
+ 
++    /** Price of every golden type that a test does not set: all costs known whatever the depth of a build. */
++    private const float DEFAULT_JITA_PRICE = 100.0;
++    private const float DEFAULT_ADJUSTED_PRICE = 10.0;
++
+     // ===========================================
+-    // Hail L: 5000 units per run, T2 component, two reaction intermediates
++    // Runs of the analyzed product (#2, R3)
+     // ===========================================
+ 
+-    public function testHailLTenRunsCurrentlyWrongBuildsTheTreeForOneRunButSellsTenRuns(): void
++    public function testHailLTenRunsConsumesTheComponentsOfTenRootRuns(): void
+     {
+-        $result = $this->analyzeHailL($this->hailLJitaPrices(), runs: 10);
++        $result = $this->analyzeHailLWithEveryTypePriced(runs: 10);
+ 
+-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #2.
+-        // buildProductionTree() reads the 10 runs as 10 units: ceil(10 / 5000) = 1 run. Materials are those of one run
+-        // (Fernite Carbide 2940 = ceil(3000 × 0.98) instead of 29400 for 10 runs), while the revenue counts
+-        // 10 runs × 5000 units and the final job install cost counts 10 runs.
+-        // totalProductionCost = optimal mix 346800 + root leaves 0 (see the root leaf test) + final job 307000 × 10 × 0.05.
+-        $this->assertSame([
+-            'typeId' => self::HAIL_L,
+-            'typeName' => 'Hail L',
+-            'isT2' => true,
+-            'runs' => 10,
+-            'totalProductionCost' => 500300.0,
+-            'sellPrice' => 500.0,
+-            'marginPercent' => 4522.23,
+-            'components' => [
+-                [
+-                    'typeId' => self::FERNITE_CARBIDE,
+-                    'typeName' => 'Fernite Carbide',
+-                    'quantity' => 2940,
+-                    'stage' => 'Reaction',
+-                    'buildCost' => 166800.0,
+-                    'buildMaterials' => [
+-                        ['typeId' => self::HYDROGEN_FUEL_BLOCK, 'typeName' => 'Hydrogen Fuel Block', 'quantity' => 5, 'unitPrice' => 20000.0, 'totalPrice' => 100000.0],
+-                        ['typeId' => self::FERNITE_ALLOY, 'typeName' => 'Fernite Alloy', 'quantity' => 100, 'unitPrice' => 300.0, 'totalPrice' => 30000.0],
+-                        ['typeId' => self::CERAMIC_POWDER, 'typeName' => 'Ceramic Powder', 'quantity' => 100, 'unitPrice' => 250.0, 'totalPrice' => 25000.0],
+-                    ],
+-                    'buildJobInstallCost' => 11800.0,
+-                    'buyCostJita' => 176400.0,
+-                    'buyCostStructure' => null,
+-                    'verdict' => 'build',
+-                    'savings' => 9600.0,
+-                    'savingsPercent' => 5.44,
+-                    'meUsed' => 0,
+-                    'runs' => 1,
+-                ],
+-                [
+-                    'typeId' => self::RAM_AMMUNITION_TECH,
+-                    'typeName' => 'R.A.M.- Ammunition Tech',
+-                    'quantity' => 1,
+-                    'stage' => 'T2 Component',
+-                    'buildCost' => 52666.8,
+-                    'buildMaterials' => [
+-                        ['typeId' => self::TRITANIUM, 'typeName' => 'Tritanium', 'quantity' => 501, 'unitPrice' => 5.0, 'totalPrice' => 2505.0],
+-                        ['typeId' => self::PYERITE, 'typeName' => 'Pyerite', 'quantity' => 400, 'unitPrice' => 10.0, 'totalPrice' => 4000.0],
+-                        ['typeId' => self::MEXALLON, 'typeName' => 'Mexallon', 'quantity' => 200, 'unitPrice' => 50.0, 'totalPrice' => 10000.0],
+-                        ['typeId' => self::ISOGEN, 'typeName' => 'Isogen', 'quantity' => 74, 'unitPrice' => 100.0, 'totalPrice' => 7400.0],
+-                        ['typeId' => self::NOCXIUM, 'typeName' => 'Nocxium', 'quantity' => 33, 'unitPrice' => 800.0, 'totalPrice' => 26400.0],
+-                    ],
+-                    'buildJobInstallCost' => 2361.8,
+-                    'buyCostJita' => 20000.0,
+-                    'buyCostStructure' => 25000.0,
+-                    'verdict' => 'buy',
+-                    'savings' => -27666.8,
+-                    'savingsPercent' => 52.53,
+-                    'meUsed' => 10,
+-                    'runs' => 1,
+-                ],
+-                [
+-                    'typeId' => self::FULLERIDES,
+-                    'typeName' => 'Fullerides',
+-                    'quantity' => 1176,
+-                    'stage' => 'Reaction',
+-                    'buildCost' => 155000.0,
+-                    'buildMaterials' => [
+-                        ['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'quantity' => 5, 'unitPrice' => 21000.0, 'totalPrice' => 105000.0],
+-                        ['typeId' => self::CARBON_POLYMERS, 'typeName' => 'Carbon Polymers', 'quantity' => 100, 'unitPrice' => 500.0, 'totalPrice' => 50000.0],
+-                        ['typeId' => 16662, 'typeName' => 'Platinum Technite', 'quantity' => 100, 'unitPrice' => 0.0, 'totalPrice' => 0.0],
+-                    ],
+-                    'buildJobInstallCost' => 0.0,
+-                    'buyCostJita' => null,
+-                    'buyCostStructure' => null,
+-                    'verdict' => 'build',
+-                    'savings' => -155000.0,
+-                    'savingsPercent' => 100.0,
+-                    'meUsed' => 0,
+-                    'runs' => 1,
+-                ],
++        // Root job, 10 runs at ME 2, no structure: max(runs, ceil(10 × base × 0.98)).
++        // Fernite Carbide 3000 → 29400 (3 reaction runs of 10000), Fullerides 1200 → 11760 (4 runs of 3000),
++        // R.A.M. 1 → 9.8, raised to 10 (1 run of 100).
++        $this->assertSame(10, $result['runs']);
++        $this->assertSame(
++            [
++                [self::FERNITE_CARBIDE, 29400, 3, 0, 1_764_000.0, null],
++                [self::FULLERIDES, 11760, 4, 0, 1_176_000.0, null],
++                [self::RAM_AMMUNITION_TECH, 10, 1, 10, 200_000.0, 250_000.0],
+             ],
+-            'buildAllCost' => 374466.8,
+-            'buyAllCost' => 201400.0,
+-            'optimalMixCost' => 346800.0,
+-            'buildTypeIds' => [self::FERNITE_CARBIDE, self::FULLERIDES],
+-            'buyTypeIds' => [self::RAM_AMMUNITION_TECH],
+-        ], $result);
++            array_map(fn (int $typeId): array => $this->quantitiesAndBuyCostsOf($result, $typeId), [self::FERNITE_CARBIDE, self::FULLERIDES, self::RAM_AMMUNITION_TECH]),
++        );
+     }
+ 
+-    public function testComponentWithoutAnyMarketPriceCurrentlyWrongCostsNothingToBuyAndIsBuilt(): void
++    public function testFerniteCarbideTenRunsAggregatesTheHydrogenFuelBlockDemandOfEveryDepth(): void
+     {
+-        $result = $this->analyzeHailL($this->hailLJitaPrices());
++        $service = $this->buyVsBuildServiceOnGoldenSde(
++            jitaPrices: $this->everyGoldenTypeAt(self::DEFAULT_JITA_PRICE),
++            structurePrices: [],
++            adjustedPrices: $this->everyGoldenTypeAt(self::DEFAULT_ADJUSTED_PRICE),
++            costIndices: self::FACTORY_COST_INDICES,
++        );
+ 
+-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8 (R10).
+-        // Fullerides has no Jita nor structure price: its buy cost counts 0 in buyAllCost and the verdict
+-        // falls back to "build". Platinum Technite has no price either and is a free build material.
+-        $fullerides = $this->componentOf($result, self::FULLERIDES);
+-        $this->assertSame('build', $fullerides['verdict']);
+-        $this->assertNull($fullerides['buyCostJita']);
+-        $this->assertSame(0.0, $fullerides['buildMaterials'][2]['totalPrice']);
+-        $this->assertSame(201400.0, $result['buyAllCost']);
++        $result = $service->analyze(self::FERNITE_CARBIDE, 10, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
++
++        // Reactions, ME 0, no structure. Root: 10 runs → Hydrogen Fuel Block 50, Fernite Alloy 1000, Ceramic Powder 1000.
++        // Fernite Alloy and Ceramic Powder: ceil(1000 / 200) = 5 runs each, 5 × 5 = 25 Hydrogen Fuel Block each.
++        // Hydrogen Fuel Block demand 50 + 25 + 25 = 100 → ceil(100 / 40) = 3 runs; per branch it would be 2 + 1 + 1 = 4 (#16, #69).
++        $this->assertSame(10, $result['runs']);
++        $this->assertSame(
++            [
++                [self::HYDROGEN_FUEL_BLOCK, 100, 3],
++                [self::FERNITE_ALLOY, 1000, 5],
++                [self::CERAMIC_POWDER, 1000, 5],
++            ],
++            array_map(fn (int $typeId): array => \array_slice($this->quantitiesAndBuyCostsOf($result, $typeId), 0, 3), [self::HYDROGEN_FUEL_BLOCK, self::FERNITE_ALLOY, self::CERAMIC_POWDER]),
++        );
+     }
+ 
+-    public function testMissingAdjustedPriceCurrentlyWrongLowersTheJobInstallCostSilently(): void
++    // ===========================================
++    // Materials consumed by the final product job
++    // ===========================================
++
++    public function testNitrogenFuelBlockTwentyFiveRunsPricesTheMaterialsOfTheFinalJob(): void
+     {
+-        $result = $this->analyzeHailL($this->hailLJitaPrices());
++        $result = $this->analyzeNitrogenFuelBlock(self::FACTORY_SYSTEM_ID);
+ 
+-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #7 (R5, R6, R10).
+-        // Ceramic Powder has no adjusted price: Fernite Carbide EIV = 5 × 18000 + 100 × 280 = 118000, job = EIV × 0.1.
+-        // Fullerides inputs have none: EIV 0, job install cost 0. No SCC surcharge nor facility tax is added.
+-        $this->assertSame(11800.0, $this->componentOf($result, self::FERNITE_CARBIDE)['buildJobInstallCost']);
+-        $this->assertSame(0.0, $this->componentOf($result, self::FULLERIDES)['buildJobInstallCost']);
++        // Golden §4.1 (fait foi), 25 runs, ME 10, no structure. Materials at Jita:
++        // 10125 × 45 + 7875 × 20 + 3825 × 10 + 495 × 200 + 450 × 30 + 203 × 400 + 90 × 100 + 90 × 300 + 25 × 500 = 893575.
++        // Final job (R5, R6): EIV 25 × 33460 = 836500; system 836500 × 0.05 + NPC tax 0.25 % + SCC 4 % = 77376.25.
++        // Margin: 25 × 40 = 1000 units × 15000 × (1 − 0.03) = 14550000, (14550000 − 970951.25) / 970951.25 = 1398.53 %.
++        $this->assertSame([
++            'typeId' => self::NITROGEN_FUEL_BLOCK,
++            'typeName' => 'Nitrogen Fuel Block',
++            'isT2' => false,
++            'runs' => 25,
++            'totalProductionCost' => 970_951.25,
++            'sellPrice' => 15000.0,
++            'marginPercent' => 1398.53,
++            'components' => [],
++            'buildAllCost' => 0.0,
++            'buyAllCost' => 0.0,
++            'optimalMixCost' => 0.0,
++            'buildTypeIds' => [],
++            'buyTypeIds' => [],
++            'missingData' => [],
++        ], $result);
+     }
+ 
+-    public function testStructurePriceIsPreferredToACheaperJitaPriceForTheBuyCost(): void
++    public function testMorphiteConsumedOnlyByTheHailLJobIsPricedAtJita(): void
+     {
+-        $result = $this->analyzeHailL($this->hailLJitaPrices());
+-
+-        $ram = $this->componentOf($result, self::RAM_AMMUNITION_TECH);
+-        $this->assertSame(20000.0, $ram['buyCostJita']);
+-        $this->assertSame(25000.0, $ram['buyCostStructure']);
+-        $this->assertSame(-27666.8, $ram['savings']);
++        $atTenThousand = $this->analyzeHailLWithEveryTypePriced(runs: 10, jitaPriceOverrides: [self::MORPHITE => 10_000.0]);
++        $atTwentyThousand = $this->analyzeHailLWithEveryTypePriced(runs: 10, jitaPriceOverrides: [self::MORPHITE => 20_000.0]);
++
++        // Morphite is a leaf of the root job only: 10 runs × 15 × 0.98 = 147 units, so 10000 ISK more per unit adds 1470000.
++        $this->assertEqualsWithDelta(
++            1_470_000.0,
++            $atTwentyThousand['totalProductionCost'] - $atTenThousand['totalProductionCost'],
++            1.0,
++        );
+     }
+ 
+-    public function testComponentIsBuiltWhenItsBuildCostEqualsItsBuyCost(): void
++    // ===========================================
++    // Install cost of a component job (#7, R5, R6)
++    // ===========================================
++
++    public function testComponentJobInstallCostAddsTheNpcTaxAndTheSccSurchargeToTheSystemCost(): void
+     {
+-        $result = $this->analyzeHailL($this->hailLJitaPrices(), ramStructurePrice: 52666.8);
++        $result = $this->analyzeHailLWithEveryTypePriced();
+ 
++        // R.A.M., 1 run: EIV 556 × 4 + 444 × 8 + 222 × 40 + 82 × 90 + 36 × 700 = 47236 (ME 0 quantities).
++        // 47236 × 0.05 (system) + 47236 × 0.0025 (NPC tax) + 47236 × 0.04 (SCC) = 4369.33.
++        // Build: materials 501 × 5 + 400 × 10 + 200 × 50 + 74 × 100 + 33 × 800 = 50305, + 4369.33 = 54674.33.
+         $ram = $this->componentOf($result, self::RAM_AMMUNITION_TECH);
+-        $this->assertSame('build', $ram['verdict']);
+-        $this->assertSame(0.0, $ram['savings']);
+-        $this->assertSame(0.0, $ram['savingsPercent']);
+-        $this->assertSame([self::RAM_AMMUNITION_TECH, self::FERNITE_CARBIDE, self::FULLERIDES], $result['buildTypeIds']);
+-        $this->assertSame([], $result['buyTypeIds']);
+-        $this->assertSame(374466.8, $result['optimalMixCost']);
++        $this->assertSame(4369.33, $ram['buildJobInstallCost']);
++        $this->assertSame(54_674.33, $ram['buildCost']);
++        $this->assertSame('buy', $ram['verdict']);
++        $this->assertSame(-29_674.33, $ram['savings']);
++        $this->assertSame(54.27, $ram['savingsPercent']);
++        $this->assertSame([], $ram['missingData']);
+     }
+ 
+-    public function testWithoutAnyPriceCurrentlyWrongEveryComponentIsBoughtForFreeAndTheMarginIsUnknown(): void
+-    {
+-        $service = $this->buyVsBuildServiceOnGoldenSde(
+-            jitaPrices: [],
+-            structurePrices: [self::SELL_STRUCTURE_ID => [self::HAIL_L => 480.0]],
+-            adjustedPrices: [],
+-            costIndices: self::FACTORY_COST_INDICES,
+-            isT2: true,
+-        );
++    // ===========================================
++    // Missing data: unknown amounts, never 0 (#8, R10)
++    // ===========================================
+ 
+-        $result = $service->analyze(self::HAIL_L, 1, 2, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.03, 0.045, null);
++    public function testComponentWithoutAnyMarketPriceHasAnUnknownBuyCostAndNoVerdict(): void
++    {
++        $result = $this->analyzeHailLWithEveryTypePriced(withoutJitaPrice: [self::FULLERIDES]);
+ 
+-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #8 et #7 (R10).
+-        // Every cost is 0: the verdict falls back to "buy", the total production cost is 0 and the margin is null.
+-        $this->assertSame(0.0, $result['totalProductionCost']);
+-        $this->assertSame(480.0, $result['sellPrice']);
++        $fullerides = $this->componentOf($result, self::FULLERIDES);
++        $this->assertSame(1176, $fullerides['quantity']);
++        $this->assertNull($fullerides['buyCostJita']);
++        $this->assertNull($fullerides['buyCostStructure']);
++        $this->assertIsFloat($fullerides['buildCost']);
++        $this->assertSame('unknown', $fullerides['verdict']);
++        $this->assertNull($fullerides['savings']);
++        $this->assertNull($fullerides['savingsPercent']);
++        $this->assertSame([self::missingMarketPrice(self::FULLERIDES)], $fullerides['missingData']);
++
++        $this->assertNull($result['buyAllCost']);
++        $this->assertNull($result['optimalMixCost']);
++        $this->assertNull($result['totalProductionCost']);
+         $this->assertNull($result['marginPercent']);
+-        $this->assertSame([], $result['buildTypeIds']);
+-        $this->assertSame([self::RAM_AMMUNITION_TECH, self::FERNITE_CARBIDE, self::FULLERIDES], $result['buyTypeIds']);
+-        foreach ($result['components'] as $component) {
+-            $this->assertSame('buy', $component['verdict']);
+-            $this->assertSame(0.0, $component['buildCost']);
+-            $this->assertSame(0.0, $component['savings']);
+-            $this->assertSame(0.0, $component['savingsPercent']);
+-        }
++        $this->assertNotContains(self::FULLERIDES, $result['buildTypeIds']);
++        $this->assertNotContains(self::FULLERIDES, $result['buyTypeIds']);
++        $this->assertSame([self::missingMarketPrice(self::FULLERIDES)], $result['missingData']);
+     }
+ 
+-    public function testZeroStructureSellPriceCurrentlyWrongHidesTheJitaPriceAndLeavesTheMarginUnknown(): void
++    public function testBuildMaterialWithoutMarketPriceMakesTheBuildCostUnknown(): void
+     {
+-        $result = $this->analyzeHailL($this->hailLJitaPrices(), productStructurePrice: 0.0);
++        $result = $this->analyzeHailLWithEveryTypePriced(withoutJitaPrice: [self::NOCXIUM]);
+ 
+-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8.
+-        // A structure sell price of 0 is taken as a real price: the Jita price (500) is ignored and the margin is unknown.
+-        $this->assertSame(0.0, $result['sellPrice']);
+-        $this->assertNull($result['marginPercent']);
+-        $this->assertSame(362150.0, $result['totalProductionCost']);
++        $ram = $this->componentOf($result, self::RAM_AMMUNITION_TECH);
++        $this->assertSame(
++            ['typeId' => self::NOCXIUM, 'typeName' => 'Nocxium', 'quantity' => 33, 'unitPrice' => null, 'totalPrice' => null],
++            $ram['buildMaterials'][4],
++        );
++        $this->assertNull($ram['buildCost']);
++        $this->assertSame(20000.0, $ram['buyCostJita']);
++        $this->assertSame(25000.0, $ram['buyCostStructure']);
++        $this->assertSame('unknown', $ram['verdict']);
++        $this->assertNull($ram['savings']);
++        $this->assertNull($ram['savingsPercent']);
++        $this->assertSame([self::missingMarketPrice(self::NOCXIUM)], $ram['missingData']);
++        $this->assertNull($result['buildAllCost']);
++        $this->assertSame([self::missingMarketPrice(self::NOCXIUM)], $result['missingData']);
+     }
+ 
+-    public function testPricesAndCostsAreRoundedToTwoDecimals(): void
++    public function testMissingAdjustedPriceMakesTheComponentJobInstallCostUnknown(): void
+     {
+-        $jitaPrices = [
+-            self::RAM_AMMUNITION_TECH => 30000.016,
+-            self::TRITANIUM => 5.678,
+-            self::HAIL_L => 500.123,
+-        ] + $this->hailLJitaPrices();
+-
+-        $result = $this->analyzeHailL(
+-            $jitaPrices,
+-            ramStructurePrice: null,
+-            ferniteCarbideStructurePrice: 59.9993,
+-            tritaniumAdjustedPrice: 4.001,
+-        );
++        $result = $this->analyzeHailLWithEveryTypePriced(withoutAdjustedPrice: [self::CERAMIC_POWDER]);
+ 
+-        // R.A.M.: Tritanium 501 × 5.678 = 2844.678, materials 50644.678, EIV 47236.556, job 2361.8278,
+-        // build 53006.5058, buy 30000.016. Fernite Carbide: structure buy 2940 × 59.9993 = 176397.9418.
+-        $ram = $this->componentOf($result, self::RAM_AMMUNITION_TECH);
+-        $this->assertSame(['typeId' => self::TRITANIUM, 'typeName' => 'Tritanium', 'quantity' => 501, 'unitPrice' => 5.68, 'totalPrice' => 2844.68], $ram['buildMaterials'][0]);
+-        $this->assertSame(2361.83, $ram['buildJobInstallCost']);
+-        $this->assertSame(53006.51, $ram['buildCost']);
+-        $this->assertSame(30000.02, $ram['buyCostJita']);
+-        $this->assertSame(-23006.49, $ram['savings']);
+-        $this->assertSame(43.4, $ram['savingsPercent']);
++        // Ceramic Powder is only an input of the Fernite Carbide job: that EIV is unknown, never computed without it.
+         $ferniteCarbide = $this->componentOf($result, self::FERNITE_CARBIDE);
+-        $this->assertSame(176397.94, $ferniteCarbide['buyCostStructure']);
+-        $this->assertSame(9597.94, $ferniteCarbide['savings']);
+-        $this->assertSame(500.12, $result['sellPrice']);
+-        $this->assertSame(367150.02, $result['totalProductionCost']);
+-        $this->assertSame(374806.51, $result['buildAllCost']);
+-        $this->assertSame(206397.96, $result['buyAllCost']);
+-        $this->assertSame(351800.02, $result['optimalMixCost']);
+-        $this->assertSame(530.01, $result['marginPercent']);
++        $this->assertSame(2940, $ferniteCarbide['quantity']);
++        $this->assertNull($ferniteCarbide['buildJobInstallCost']);
++        $this->assertNull($ferniteCarbide['buildCost']);
++        $this->assertSame(176_400.0, $ferniteCarbide['buyCostJita']);
++        $this->assertSame('unknown', $ferniteCarbide['verdict']);
++        $this->assertSame([self::missingAdjustedPrice(self::CERAMIC_POWDER)], $ferniteCarbide['missingData']);
++        $this->assertNull($result['totalProductionCost']);
++        $this->assertSame([self::missingAdjustedPrice(self::CERAMIC_POWDER)], $result['missingData']);
+     }
+ 
+-    // ===========================================
+-    // Nitrogen Fuel Block: 40 units per run, no intermediate
+-    // ===========================================
+-
+-    public function testRootLeavesCurrentlyWrongAreNeverPricedSoNitrogenFuelBlockCostsNothing(): void
++    public function testMissingCostIndexMakesTheTotalProductionCostUnknown(): void
+     {
+-        $service = $this->buyVsBuildServiceOnGoldenSde(
+-            jitaPrices: [self::NITROGEN_FUEL_BLOCK => 14000.0] + $this->fuelBlockInputJitaPrices(),
+-            structurePrices: [self::SELL_STRUCTURE_ID => [self::NITROGEN_FUEL_BLOCK => 15000.0]],
+-            adjustedPrices: [self::NITROGEN_ISOTOPES => 35.0],
+-            costIndices: self::FACTORY_COST_INDICES,
+-        );
+-
+-        $result = $service->analyze(self::NITROGEN_FUEL_BLOCK, 1, 10, self::UNINDEXED_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.01, 0.02, null);
++        $result = $this->analyzeNitrogenFuelBlock(self::UNINDEXED_SYSTEM_ID);
+ 
+-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #8 et #7 (R10), sans issue dédiée.
+-        // The Jita batch only asks for the product, the components and their build materials: the leaves of the
+-        // root job (here every input of the fuel block) get no price and cost 0, although Jita prices them.
+-        // The system has no cost index: final job install cost 0. Total 0, so the margin is unknown.
++        // Same materials as the 25-run case, but the system has no cost index: the final job install cost is unknown.
+         $this->assertSame([
+             'typeId' => self::NITROGEN_FUEL_BLOCK,
+             'typeName' => 'Nitrogen Fuel Block',
+             'isT2' => false,
+-            'runs' => 1,
+-            'totalProductionCost' => 0.0,
++            'runs' => 25,
++            'totalProductionCost' => null,
+             'sellPrice' => 15000.0,
+             'marginPercent' => null,
+             'components' => [],
+@@ -308,114 +252,96 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+             'optimalMixCost' => 0.0,
+             'buildTypeIds' => [],
+             'buyTypeIds' => [],
++            'missingData' => [['reason' => 'cost_index', 'typeId' => null]],
+         ], $result);
+     }
+ 
+-    public function testRootLeafCurrentlyWrongIsFreeWhenNoComponentConsumesIt(): void
++    public function testWithoutAnyPriceEveryAmountIsUnknownButQuantitiesAreKept(): void
+     {
+-        $result = $this->analyzeHailL($this->hailLJitaPrices());
++        $service = $this->buyVsBuildServiceOnGoldenSde(
++            jitaPrices: [],
++            structurePrices: [self::SELL_STRUCTURE_ID => [self::HAIL_L => 480.0]],
++            adjustedPrices: [],
++            costIndices: self::FACTORY_COST_INDICES,
++            isT2: true,
++        );
+ 
+-        // CARACTÉRISATION : comportement actuel, suspecté faux, sans issue dédiée (proche de #8).
+-        // Morphite (15 units, 10000 ISK at Jita) is a leaf of the root job: it adds 0 instead of 150000.
+-        // totalProductionCost = optimal mix 346800 + final job 307000 × 1 run × 0.05.
+-        $this->assertSame(346800.0, $result['optimalMixCost']);
+-        $this->assertSame(362150.0, $result['totalProductionCost']);
++        $result = $service->analyze(self::HAIL_L, 1, 2, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.03, 0.045, null);
++
++        $this->assertSame(480.0, $result['sellPrice']);
++        $this->assertSame(2940, $this->componentOf($result, self::FERNITE_CARBIDE)['quantity']);
++        foreach (['totalProductionCost', 'marginPercent', 'buildAllCost', 'buyAllCost', 'optimalMixCost'] as $unknownAmount) {
++            $this->assertNull($result[$unknownAmount], $unknownAmount);
++        }
++        $this->assertSame([], $result['buildTypeIds']);
++        $this->assertSame([], $result['buyTypeIds']);
++        foreach ($result['components'] as $component) {
++            $this->assertSame('unknown', $component['verdict']);
++            $this->assertNull($component['buildCost']);
++            $this->assertNull($component['buildJobInstallCost']);
++            $this->assertNull($component['buyCostJita']);
++            $this->assertNull($component['savings']);
++            $this->assertNull($component['savingsPercent']);
++            $this->assertContains(self::missingMarketPrice($component['typeId']), $component['missingData']);
++        }
++        // The full list depends on how deep a component build goes; the root job data are missing in any case.
++        $this->assertContains(self::missingMarketPrice(self::MORPHITE), $result['missingData']);
++        $this->assertContains(self::missingAdjustedPrice(self::MORPHITE), $result['missingData']);
+     }
+ 
+     // ===========================================
+-    // Marshal: 1 unit per run, minerals consumed by the root job and by the Capital Jump Drive
++    // Verdict and prices
+     // ===========================================
+ 
+-    public function testRootLeafAlsoUsedByAComponentIsPricedAtJita(): void
++    public function testStructurePriceIsPreferredToACheaperJitaPriceForTheBuyCost(): void
+     {
+-        $service = $this->buyVsBuildServiceOnGoldenSde(
+-            jitaPrices: [
+-                self::MARSHAL => 300_000_000.0,
+-                self::CAPITAL_JUMP_DRIVE => 12_000_000.0,
+-                self::TRITANIUM => 5.0,
+-                self::PYERITE => 10.0,
+-                self::MEXALLON => 50.0,
+-                self::ISOGEN => 100.0,
+-                self::NOCXIUM => 800.0,
+-                self::ZYDRINE => 1500.0,
+-                self::MEGACYTE => 3000.0,
+-            ],
+-            structurePrices: [],
+-            adjustedPrices: [self::MORPHITE => 9000.0],
+-            costIndices: self::FACTORY_COST_INDICES,
+-        );
++        $result = $this->analyzeHailLWithEveryTypePriced();
+ 
+-        $result = $service->analyze(self::MARSHAL, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
+-
+-        // The minerals 34-40 are root leaves and Capital Jump Drive build materials, so the Jita batch prices them.
+-        // Root leaves at ME 10: 9900000 × 5 + 2250000 × 10 + 612000 × 50 + 162000 × 100 + 36000 × 800
+-        // + 17100 × 1500 + 6570 × 3000 = 192960000.
+-        // Optimal mix: Capital Jump Drive built, 3 runs at ME 10: 162000 × 5 + 583200 × 10 + 162000 × 50 + 45563 × 100
+-        // + 4558 × 800 + 2430 × 1500 + 1134 × 3000 = 29991700; the other components have no price and cost 0.
+-        // Final job: EIV 1500 Morphite × 9000 × 1 run × 0.05 = 675000. Morphite and Construction Blocks have no Jita price.
+-        $this->assertSame(29_991_700.0, $result['optimalMixCost']);
+-        $this->assertSame(223_626_700.0, $result['totalProductionCost']);
+-        $this->assertSame(34.15, $result['marginPercent']);
++        $ram = $this->componentOf($result, self::RAM_AMMUNITION_TECH);
++        $this->assertSame(20000.0, $ram['buyCostJita']);
++        $this->assertSame(25000.0, $ram['buyCostStructure']);
++        $this->assertSame(round(25000.0 - $ram['buildCost'], 2), $ram['savings']);
+     }
+ 
+-    // ===========================================
+-    // Fernite Carbide: reaction root, 10000 units per run
+-    // ===========================================
+-
+-    public function testFerniteCarbideTenRunsCurrentlyWrongBuildsOneReactionRunAndCountsEachDepthApart(): void
++    public function testComponentIsBuiltWhenItsBuildCostEqualsItsBuyCost(): void
+     {
+-        $service = $this->buyVsBuildServiceOnGoldenSde(
+-            jitaPrices: [
+-                self::FERNITE_CARBIDE => 60.0,
+-                self::HYDROGEN_FUEL_BLOCK => 20000.0,
+-                self::FERNITE_ALLOY => 300.0,
+-                self::CERAMIC_POWDER => 250.0,
+-                self::SCANDIUM => 50.0,
+-                self::VANADIUM => 70.0,
+-                self::EVAPORITE_DEPOSITS => 20.0,
+-                self::SILICATES => 30.0,
+-            ] + $this->fuelBlockInputJitaPrices(),
+-            structurePrices: [self::SELL_STRUCTURE_ID => [self::CERAMIC_POWDER => 240.0]],
+-            adjustedPrices: [self::HYDROGEN_ISOTOPES => 35.0, self::HYDROGEN_FUEL_BLOCK => 18000.0, self::FERNITE_ALLOY => 280.0],
+-            costIndices: self::FACTORY_COST_INDICES,
+-        );
++        $ramBuildCost = $this->componentOf($this->analyzeHailLWithEveryTypePriced(), self::RAM_AMMUNITION_TECH)['buildCost'];
+ 
+-        $result = $service->analyze(self::FERNITE_CARBIDE, 10, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
++        $result = $this->analyzeHailLWithEveryTypePriced(ramStructurePrice: $ramBuildCost);
+ 
+-        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issues #2, #16 et #69.
+-        // ceil(10 / 10000) = 1 reaction run (golden §4.3: 10 runs). Hydrogen Fuel Block is consumed at depth 1 (root)
+-        // and depth 2 (Fernite Alloy, Ceramic Powder): only the depth-1 demand is analyzed, the deeper ones are
+-        // bought at Jita inside the reaction build cost. The final reaction job counts 10 runs: 118000 × 10 × 0.1.
+-        $this->assertSame(207057.5, $result['totalProductionCost']);
+-        $this->assertSame(60.0, $result['sellPrice']);
+-        $this->assertSame(2797.75, $result['marginPercent']);
+-        $this->assertSame(270057.5, $result['buildAllCost']);
+-        $this->assertSame(154000.0, $result['buyAllCost']);
+-        $this->assertSame(89057.5, $result['optimalMixCost']);
+-        $this->assertSame([self::HYDROGEN_FUEL_BLOCK], $result['buildTypeIds']);
+-        $this->assertSame([self::FERNITE_ALLOY, self::CERAMIC_POWDER], $result['buyTypeIds']);
++        $ram = $this->componentOf($result, self::RAM_AMMUNITION_TECH);
++        $this->assertSame('build', $ram['verdict']);
++        $this->assertSame(0.0, $ram['savings']);
++        $this->assertSame(0.0, $ram['savingsPercent']);
++        $this->assertContains(self::RAM_AMMUNITION_TECH, $result['buildTypeIds']);
++        $this->assertNotContains(self::RAM_AMMUNITION_TECH, $result['buyTypeIds']);
++    }
+ 
+-        $this->assertSame(
+-            [
+-                [self::HYDROGEN_FUEL_BLOCK, 'Hydrogen Fuel Block', 5, 'T2 Component', 10, 1, 35057.5, 787.5, 100000.0, null, 'build', 64942.5, 64.94],
+-                [self::CERAMIC_POWDER, 'Ceramic Powder', 100, 'Reaction', 0, 1, 114000.0, 9000.0, 25000.0, 24000.0, 'buy', -90000.0, 78.95],
+-                [self::FERNITE_ALLOY, 'Fernite Alloy', 100, 'Reaction', 0, 1, 121000.0, 9000.0, 30000.0, null, 'buy', -91000.0, 75.21],
+-            ],
+-            array_map(static fn (array $component): array => [
+-                $component['typeId'], $component['typeName'], $component['quantity'], $component['stage'], $component['meUsed'], $component['runs'],
+-                $component['buildCost'], $component['buildJobInstallCost'], $component['buyCostJita'], $component['buyCostStructure'],
+-                $component['verdict'], $component['savings'], $component['savingsPercent'],
+-            ], $result['components']),
+-        );
+-        // Ceramic Powder: 100 units = 1 run of 200, its inputs bought at Jita (its own structure price 240 only sets its buy cost).
+-        $this->assertSame(
+-            [
+-                ['typeId' => self::HYDROGEN_FUEL_BLOCK, 'typeName' => 'Hydrogen Fuel Block', 'quantity' => 5, 'unitPrice' => 20000.0, 'totalPrice' => 100000.0],
+-                ['typeId' => self::EVAPORITE_DEPOSITS, 'typeName' => 'Evaporite Deposits', 'quantity' => 100, 'unitPrice' => 20.0, 'totalPrice' => 2000.0],
+-                ['typeId' => self::SILICATES, 'typeName' => 'Silicates', 'quantity' => 100, 'unitPrice' => 30.0, 'totalPrice' => 3000.0],
+-            ],
+-            $this->componentOf($result, self::CERAMIC_POWDER)['buildMaterials'],
++    public function testZeroStructureSellPriceCurrentlyWrongHidesTheJitaPriceAndLeavesTheMarginUnknown(): void
++    {
++        $result = $this->analyzeHailLWithEveryTypePriced(productStructurePrice: 0.0);
++
++        // CARACTÉRISATION : comportement actuel, suspecté faux, cf. issue #8.
++        // A structure sell price of 0 is taken as a real price: the Jita price (500) is ignored and the margin is unknown.
++        // The sell price is read by the service, outside the engine: the migration does not change it.
++        $this->assertSame(0.0, $result['sellPrice']);
++        $this->assertNull($result['marginPercent']);
++    }
++
++    public function testPricesAreRoundedToTwoDecimals(): void
++    {
++        $result = $this->analyzeHailLWithEveryTypePriced(
++            jitaPriceOverrides: [self::RAM_AMMUNITION_TECH => 30000.016, self::TRITANIUM => 5.678, self::HAIL_L => 500.123],
++            ramStructurePrice: null,
++            ferniteCarbideStructurePrice: 59.9993,
+         );
++
++        // Tritanium 501 × 5.678 = 2844.678. Fernite Carbide: structure buy 2940 × 59.9993 = 176397.9418.
++        $ram = $this->componentOf($result, self::RAM_AMMUNITION_TECH);
++        $this->assertSame(['typeId' => self::TRITANIUM, 'typeName' => 'Tritanium', 'quantity' => 501, 'unitPrice' => 5.68, 'totalPrice' => 2844.68], $ram['buildMaterials'][0]);
++        $this->assertSame(30000.02, $ram['buyCostJita']);
++        $this->assertSame(176_397.94, $this->componentOf($result, self::FERNITE_CARBIDE)['buyCostStructure']);
++        $this->assertSame(500.12, $result['sellPrice']);
+     }
+ 
+     public function testFuelBlockConsumedByAReactionCurrentlyWrongIsLabelledT2Component(): void
+@@ -430,7 +356,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+         $result = $service->analyze(self::FERNITE_CARBIDE, 1, 10, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.0, 0.0, null);
+ 
+         // CARACTÉRISATION : comportement actuel, suspecté faux (libellé), sans issue : tout composant fabriqué
+-        // de profondeur 1 est « T2 Component », « T1 Component » n'est jamais produit.
++        // de profondeur 1 est « T2 Component », « T1 Component » n'est jamais produit. Libellé hors noyau.
+         $this->assertSame('T2 Component', $this->componentOf($result, self::HYDROGEN_FUEL_BLOCK)['stage']);
+     }
+ 
+@@ -439,17 +365,22 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+     // ===========================================
+ 
+     /**
+-     * @param array<int, float> $jitaPrices
++     * Hail L at ME 2 in the factory system, every golden type priced at Jita and adjusted, unless removed.
++     *
++     * @param array<int, float> $jitaPriceOverrides
++     * @param list<int>         $withoutJitaPrice
++     * @param list<int>         $withoutAdjustedPrice
+      *
+      * @return array<string, mixed>
+      */
+-    private function analyzeHailL(
+-        array $jitaPrices,
++    private function analyzeHailLWithEveryTypePriced(
++        int $runs = 1,
++        array $jitaPriceOverrides = [],
++        array $withoutJitaPrice = [],
++        array $withoutAdjustedPrice = [],
+         ?float $ramStructurePrice = 25000.0,
+-        ?float $productStructurePrice = null,
+         ?float $ferniteCarbideStructurePrice = null,
+-        float $tritaniumAdjustedPrice = 4.0,
+-        int $runs = 1,
++        ?float $productStructurePrice = null,
+     ): array {
+         $sellStructurePrices = [];
+         if ($ferniteCarbideStructurePrice !== null) {
+@@ -462,21 +393,22 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+             $sellStructurePrices[self::HAIL_L] = $productStructurePrice;
+         }
+ 
++        $jitaPrices = $jitaPriceOverrides + $this->hailLJitaPrices() + $this->everyGoldenTypeAt(self::DEFAULT_JITA_PRICE);
++        $adjustedPrices = [
++            self::TRITANIUM => 4.0,
++            self::PYERITE => 8.0,
++            self::MEXALLON => 40.0,
++            self::ISOGEN => 90.0,
++            self::NOCXIUM => 700.0,
++            self::HYDROGEN_FUEL_BLOCK => 18000.0,
++            self::FERNITE_ALLOY => 280.0,
++            self::MORPHITE => 9000.0,
++        ] + $this->everyGoldenTypeAt(self::DEFAULT_ADJUSTED_PRICE);
++
+         $service = $this->buyVsBuildServiceOnGoldenSde(
+-            jitaPrices: $jitaPrices,
++            jitaPrices: array_diff_key($jitaPrices, array_flip($withoutJitaPrice)),
+             structurePrices: [self::SELL_STRUCTURE_ID => $sellStructurePrices],
+-            adjustedPrices: [
+-                self::TRITANIUM => $tritaniumAdjustedPrice,
+-                self::PYERITE => 8.0,
+-                self::MEXALLON => 40.0,
+-                self::ISOGEN => 90.0,
+-                self::NOCXIUM => 700.0,
+-                self::HYDROGEN_FUEL_BLOCK => 18000.0,
+-                self::FERNITE_ALLOY => 280.0,
+-                self::MORPHITE => 9000.0,
+-                self::RAM_AMMUNITION_TECH => 22000.0,
+-                self::FERNITE_CARBIDE => 50.0,
+-            ],
++            adjustedPrices: array_diff_key($adjustedPrices, array_flip($withoutAdjustedPrice)),
+             costIndices: self::FACTORY_COST_INDICES,
+             isT2: true,
+         );
+@@ -484,6 +416,33 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+         return $service->analyze(self::HAIL_L, $runs, 2, self::FACTORY_SYSTEM_ID, self::SELL_STRUCTURE_ID, 0.03, 0.045, null);
+     }
+ 
++    /**
++     * Golden §4.1: Nitrogen Fuel Block, 25 runs, ME 10, no structure, sold 15000 in the structure.
++     *
++     * @return array<string, mixed>
++     */
++    private function analyzeNitrogenFuelBlock(int $solarSystemId): array
++    {
++        $service = $this->buyVsBuildServiceOnGoldenSde(
++            jitaPrices: [self::NITROGEN_FUEL_BLOCK => 14000.0] + $this->fuelBlockInputJitaPrices(),
++            structurePrices: [self::SELL_STRUCTURE_ID => [self::NITROGEN_FUEL_BLOCK => 15000.0]],
++            adjustedPrices: [
++                self::ENRICHED_URANIUM => 90.0,
++                self::OXYGEN => 180.0,
++                self::MECHANICAL_PARTS => 280.0,
++                self::COOLANT => 380.0,
++                self::ROBOTICS => 480.0,
++                self::HEAVY_WATER => 9.0,
++                self::LIQUID_OZONE => 18.0,
++                self::STRONTIUM_CLATHRATES => 27.0,
++                self::NITROGEN_ISOTOPES => 35.0,
++            ],
++            costIndices: self::FACTORY_COST_INDICES,
++        );
++
++        return $service->analyze(self::NITROGEN_FUEL_BLOCK, 25, 10, $solarSystemId, self::SELL_STRUCTURE_ID, 0.01, 0.02, null);
++    }
++
+     /** @return array<int, float> Fullerides and Platinum Technite have no Jita price */
+     private function hailLJitaPrices(): array
+     {
+@@ -522,6 +481,44 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
+         ];
+     }
+ 
++    /** @return array<int, float> every product and material of the golden recipes, at the same price */
++    private function everyGoldenTypeAt(float $price): array
++    {
++        $prices = [];
++        foreach (self::goldenRecipes() as $productTypeId => $recipe) {
++            $prices[$productTypeId] = $price;
++            foreach (array_keys($recipe['materials']) as $materialTypeId) {
++                $prices[(int) $materialTypeId] = $price;
++            }
++        }
++
++        return $prices;
++    }
++
++    /** @return array{reason: string, typeId: int} */
++    private static function missingMarketPrice(int $typeId): array
++    {
++        return ['reason' => 'market_price', 'typeId' => $typeId];
++    }
++
++    /** @return array{reason: string, typeId: int} */
++    private static function missingAdjustedPrice(int $typeId): array
++    {
++        return ['reason' => 'adjusted_price', 'typeId' => $typeId];
++    }
++
++    /**
++     * @param array<string, mixed> $result
++     *
++     * @return array{int, int, int, int, ?float, ?float} typeId, quantity, runs, meUsed, buyCostJita, buyCostStructure
++     */
++    private function quantitiesAndBuyCostsOf(array $result, int $typeId): array
++    {
++        $component = $this->componentOf($result, $typeId);
++
++        return [$typeId, $component['quantity'], $component['runs'], $component['meUsed'], $component['buyCostJita'], $component['buyCostStructure']];
++    }
++
+     /**
+      * @param array<string, mixed> $result
+      *

@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau de bord · EVE Tools (maquette)</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .layout { grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); align-items: start; }
+  .char-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto auto; gap: 14px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--border); }
+  .char-row:first-child { border-top: 0; }
+  .char-row .portrait { width: 40px; height: 40px; font-size: 13px; }
+  .char-row .name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .char-row .name strong { font: 700 16px var(--font-hud); letter-spacing: .04em; }
+  .char-row small { color: var(--text-subtle); font-size: 12px; }
+  .char-row .stat { text-align: right; font-size: 13px; }
+  .char-row .stat small { display: block; font: 600 10px var(--font-hud); letter-spacing: .16em; text-transform: uppercase; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--font-hud); letter-spacing: .14em; text-transform: uppercase; color: var(--success); }
+  .live::before { content: ""; width: 7px; height: 7px; background: var(--success); box-shadow: 0 0 6px var(--success); transform: rotate(45deg); }
+  @media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 640px) { .char-row { grid-template-columns: 40px minmax(0, 1fr) auto; } .char-row .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#content">Aller au contenu</a>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+
+    <main class="content" id="content">
+      <div class="page-head">
+        <div>
+          <p class="kicker">Capsulier · 3 personnages</p>
+          <h1>Tableau de bord</h1>
+          <p class="freshness"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Synchronisé il y a 4 min · prochaine sync des jobs dans 26 min <span class="annot" title="Fraîcheur des données">1</span></p>
+        </div>
+        <div class="actions">
+          <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Ajouter un personnage</button>
+        </div>
+      </div>
+
+      <section class="card" aria-labelledby="todo-title" style="margin-bottom:16px">
+        <div class="card-head">
+          <h2 id="todo-title">À traiter</h2><span class="chip chip-warning">4</span>
+          <span class="annot" title="Liste actionnable">2</span>
+          <div class="actions"><span class="subtle hide-mobile" style="font-size:12px">Trié par urgence</span></div>
+        </div>
+        <ul class="attention">
+          <li class="lvl-danger">
+            <span class="sev sev-danger" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+            <div class="what">
+              <strong><span class="sr-only">Critique : </span>3 extracteurs PI arrêtés</strong>
+              <span data-long="Alexandrine Vasquez-Okonkwo Delacroix (2), Dren Kossak-Vanderhoeven Ashgrove (1) · arrêtés depuis 6 h">Aria Valtorr (2), Dren Kossak (1) · arrêtés depuis 6 h</span>
+            </div>
+            <a class="btn btn-sm" href="#">Voir les colonies</a>
+          </li>
+          <li class="lvl-danger">
+            <span class="sev sev-danger" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0zM12 9v4M12 17h.01"/></svg></span>
+            <div class="what">
+              <strong><span class="sr-only">Critique : </span>1 personnage à reconnecter</strong>
+              <span><span data-long="Dren Kossak-Vanderhoeven Ashgrove">Dren Kossak</span> · jeton ESI expiré, ses jobs et son wallet ne sont plus synchronisés</span>
+            </div>
+            <button class="btn btn-sm btn-primary">Reconnecter via EVE SSO</button>
+          </li>
+          <li class="lvl-warning">
+            <span class="sev sev-warning" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <div class="what">
+              <strong><span class="sr-only">Attention : </span>2 extracteurs PI expirent dans moins de 24 h</strong>
+              <span data-long="Alexandrine Vasquez-Okonkwo Delacroix · Tash-Murkon Prime III (dans 7 h), Amarr VIII (Oris) (dans 19 h)">Aria Valtorr · Tash-Murkon Prime III (dans 7 h), Amarr VIII (dans 19 h)</span>
+            </div>
+            <a class="btn btn-sm" href="#">Voir les colonies</a>
+          </li>
+          <li class="lvl-unknown">
+            <span class="sev sev-unknown" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3M12 17h.01"/></svg></span>
+            <div class="what">
+              <strong><span class="sr-only">Inconnu : </span>Alertes de prix : état inconnu</strong>
+              <span>Le chargement a échoué (HTTP 502). Rien n'est affiché plutôt qu'un faux « 0 ».</span>
+            </div>
+            <button class="btn btn-sm btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-15.5 6.2L3 16M3 12a9 9 0 0115.5-6.2L21 8M21 3v5h-5M3 21v-5h5"/></svg>Réessayer</button>
+          </li>
+        </ul>
+      </section>
+
+      <div class="grid kpis" style="margin-bottom:16px">
+        <a class="card kpi" href="#">
+          <div class="label">Portefeuille <span class="annot" title="KPI cliquables">3</span></div>
+          <div class="value num">8,42 <small>Md ISK</small></div>
+          <div class="meta"><span class="delta-up">▲ +312 M</span> sur 7 jours</div>
+          <div class="meta" style="color:var(--unknown)">Partiel : 1 personnage inconnu</div>
+        </a>
+        <a class="card kpi" href="industry.html">
+          <div class="label">Slots de fabrication</div>
+          <div class="value num">14 <small>/ 22</small></div>
+          <div class="segments" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div>
+          <div class="meta">8 libres sur 3 personnages</div>
+        </a>
+        <a class="card kpi" href="industry.html">
+          <div class="label">Projets actifs</div>
+          <div class="value num">5</div>
+          <div class="meta">Profit estimé <span class="delta-up">+806 M ISK</span></div>
+          <div class="meta">4 chiffrés sur 5</div>
+        </a>
+        <a class="card kpi" href="#">
+          <div class="label">Extracteurs PI</div>
+          <div class="value num">9 <small>/ 14</small></div>
+          <div class="segments" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="warn"></i><i class="warn"></i><i class="off"></i><i class="off"></i><i class="off"></i></div>
+          <div class="meta"><span style="color:var(--danger)">3 arrêtés</span> · <span style="color:var(--warning)">2 &lt; 24 h</span></div>
+        </a>
+      </div>
+
+      <div class="grid layout">
+        <div class="grid">
+          <section class="card" aria-labelledby="jobs-title">
+            <div class="card-head">
+              <h2 id="jobs-title">Jobs qui se terminent</h2>
+              <span class="annot" title="Tableau dense">4</span>
+              <div class="actions"><a class="link-hud" href="industry.html">Tous (14)</a></div>
+            </div>
+            <div class="table-wrap">
+            <table class="data">
+              <thead><tr>
+                <th scope="col">Produit</th>
+                <th scope="col" class="hide-mobile">Personnage</th>
+                <th scope="col" aria-sort="ascending"><button>Fin <svg class="sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10l5 5 5-5"/></svg></button></th>
+                <th scope="col" class="hide-mobile" style="width:140px">Progression</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td class="name-col"><div class="type-cell"><span class="type-icon"><img src="https://images.evetech.net/types/12005/icon?size=64" alt="" loading="lazy"><i class="tech" title="Tech II"></i></span><div><strong class="truncate">Ishtar</strong><small class="truncate" data-long="Fabrication · 1 run · TM-0P2 - Forge des Sept Soleils (Sotiyo de production capitale)">Fabrication · 1 run · Sotiyo</small></div></div></td>
+                  <td class="hide-mobile" style="max-width:170px"><span class="truncate" data-long="Alexandrine Vasquez-Okonkwo Delacroix">Aria Valtorr</span></td>
+                  <td><span class="chip chip-success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Prêt à livrer</span></td>
+                  <td class="hide-mobile"><div class="progress"><div class="meter"><span style="width:100%;background:var(--success);box-shadow:none"></span></div><span class="num subtle">100 %</span></div></td>
+                </tr>
+                <tr>
+                  <td class="name-col"><div class="type-cell"><span class="type-icon"><img src="https://images.evetech.net/types/2185/icon?size=64" alt="" loading="lazy"><i class="tech" title="Tech II"></i></span><div><strong class="truncate">Hammerhead II</strong><small class="truncate">Fabrication · 40 runs</small></div></div></td>
+                  <td class="hide-mobile" style="max-width:170px"><span class="truncate" data-long="Alexandrine Vasquez-Okonkwo Delacroix">Aria Valtorr</span></td>
+                  <td><span class="num">dans 42 min</span></td>
+                  <td class="hide-mobile"><div class="progress"><div class="meter"><span style="width:93%"></span></div><span class="num subtle">93 %</span></div></td>
+                </tr>
+                <tr>
+                  <td class="name-col"><div class="type-cell"><span class="type-icon"><img src="https://images.evetech.net/types/21037/icon?size=64" alt="" loading="lazy"></span><div><strong class="truncate">Capital Construction Parts</strong><small class="truncate">Fabrication · 30 runs</small></div></div></td>
+                  <td class="hide-mobile" style="max-width:170px"><span class="truncate" data-long="Maximilienne Oyelaran-Thibodeaux">Lysa Ormand</span></td>
+                  <td><span class="num">dans 3 h 10</span></td>
+                  <td class="hide-mobile"><div class="progress"><div class="meter"><span style="width:61%"></span></div><span class="num subtle">61 %</span></div></td>
+                </tr>
+                <tr>
+                  <td class="name-col"><div class="type-cell"><span class="type-icon"><img src="https://images.evetech.net/types/28668/icon?size=64" alt="" loading="lazy"></span><div><strong class="truncate">Nanite Repair Paste</strong><small class="truncate">Fabrication · 50 runs</small></div></div></td>
+                  <td class="hide-mobile" style="max-width:170px"><span class="truncate" data-long="Dren Kossak-Vanderhoeven Ashgrove">Dren Kossak</span></td>
+                  <td><span class="chip chip-unknown" title="Jeton expiré : impossible de lire l'état du job">Inconnu</span></td>
+                  <td class="hide-mobile"><span class="subtle">—</span></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="chars-title">
+            <div class="card-head">
+              <h2 id="chars-title">Personnages</h2>
+              <span class="annot" title="Personnages compacts">5</span>
+              <div class="actions"><a class="link-hud" href="#">Gérer</a></div>
+            </div>
+            <div>
+              <div class="char-row">
+                <span class="portrait hex">AV</span>
+                <div style="min-width:0">
+                  <div class="name"><strong class="truncate" data-long="Alexandrine Vasquez-Okonkwo Delacroix">Aria Valtorr</strong><span class="chip chip-info">Principal</span></div>
+                  <small class="truncate" data-long="Interstellar Kaalakiota Heavy Industries Logistics · Coalition des Bordures Extérieures Indépendantes">Kaalakiota Logistics · Outer Ring Syndicate</small>
+                </div>
+                <span class="stat hide-sm num">6,10 Md<small class="subtle">ISK</small></span>
+                <span class="stat hide-sm num">9/11<small class="subtle">slots</small></span>
+                <span class="chip chip-success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Connecté</span>
+              </div>
+              <div class="char-row">
+                <span class="portrait hex">LO</span>
+                <div style="min-width:0">
+                  <div class="name"><strong class="truncate" data-long="Maximilienne Oyelaran-Thibodeaux">Lysa Ormand</strong></div>
+                  <small class="truncate" data-long="Interstellar Kaalakiota Heavy Industries Logistics">Kaalakiota Logistics</small>
+                </div>
+                <span class="stat hide-sm num">2,32 Md<small class="subtle">ISK</small></span>
+                <span class="stat hide-sm num">5/6<small class="subtle">slots</small></span>
+                <span class="chip chip-success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>Connecté</span>
+              </div>
+              <div class="char-row">
+                <span class="portrait hex">DK</span>
+                <div style="min-width:0">
+                  <div class="name"><strong class="truncate" data-long="Dren Kossak-Vanderhoeven Ashgrove">Dren Kossak</strong></div>
+                  <small class="truncate" data-long="Interstellar Kaalakiota Heavy Industries Logistics">Kaalakiota Logistics</small>
+                </div>
+                <span class="stat hide-sm"><span class="chip chip-unknown">Inconnu</span></span>
+                <span class="stat hide-sm subtle">—</span>
+                <button class="btn btn-sm btn-danger">Reconnecter</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="card" aria-labelledby="feed-title">
+          <div class="card-head">
+            <h2 id="feed-title">Activité</h2>
+            <span class="annot" title="Flux en direct">6</span>
+            <div class="actions"><span class="live">En direct</span></div>
+          </div>
+          <ul class="feed" aria-live="polite">
+            <li><span class="ic" style="color:var(--success)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></span><p><strong>Ishtar</strong> terminé<br><span class="subtle" data-long="Alexandrine Vasquez-Okonkwo Delacroix · TM-0P2 - Forge des Sept Soleils (Sotiyo de production capitale)">Aria Valtorr · Sotiyo</span></p><time datetime="2026-11-03T14:02">-3 min</time></li>
+            <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-15.5 6.2L3 16M3 12a9 9 0 0115.5-6.2L21 8M21 3v5h-5M3 21v-5h5"/></svg></span><p>Sync des transactions terminée<br><span class="subtle">128 nouvelles lignes</span></p><time datetime="2026-11-03T13:58">-7 min</time></li>
+            <li><span class="ic" style="color:var(--warning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><p>Alerte prix : <strong>Tritanium</strong> sous 4,10 ISK<br><span class="subtle">Jita IV - Moon 4 · 3,98 ISK</span></p><time datetime="2026-11-03T13:30">-35 min</time></li>
+            <li><span class="ic" style="color:var(--danger)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></span><p>Sync wallet échouée : <strong data-long="Dren Kossak-Vanderhoeven Ashgrove">Dren Kossak</strong><br><span class="subtle">Jeton expiré · <a href="#">Reconnecter</a></span></p><time datetime="2026-11-03T13:02">-1 h</time></li>
+            <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V10l6 3V10l6 3V6l6-3v18z"/></svg></span><p>4 jobs démarrés<br><span class="subtle" data-long="Maximilienne Oyelaran-Thibodeaux">Lysa Ormand</span></p><time datetime="2026-11-03T12:10">-2 h</time></li>
+          </ul>
+          <div style="padding:10px 16px;border-top:1px solid var(--border)"><a class="link-hud" href="#">Toutes les notifications</a></div>
+        </section>
+      </div>
+
+      <section class="notes card card-body" aria-label="Annotations UX">
+        <h2>Annotations UX</h2>
+        <ol>
+          <li><strong>Fraîcheur visible.</strong> « Bon retour, capsulier » devient le surtitre de la page, et le sous-titre donne l'âge des données et la prochaine sync.</li>
+          <li><strong>« À traiter » actionnable.</strong> Barre de sévérité à gauche, icône + texte (pas seulement une couleur), contexte, bouton qui résout. L'état inconnu a sa propre couleur et un « Réessayer », jamais un 0.</li>
+          <li><strong>KPI façon jauges de vaisseau.</strong> Slots et extracteurs en jauges segmentées : un segment = un slot ou un extracteur, on compte d'un coup d'œil.</li>
+          <li><strong>Vraies icônes EVE</strong> (serveur d'images officiel), coin doré pour le Tech II, noms tronqués avec infobulle au lieu de casser la ligne.</li>
+          <li><strong>Personnages compacts.</strong> Portrait hexagonal, état du jeton et action de réparation sur la ligne. Le nom et la corpo se coupent proprement, même à 37 caractères.</li>
+          <li><strong>Flux en direct sans bruit.</strong> Un seul témoin « En direct » statique, <code>aria-live="polite"</code>.</li>
+        </ol>
+      </section>
+    </main>
+  </div>
+</div>
+<script src="shell.js"></script>
+<script>renderShell({ page: 'dashboard', crumbs: [{ label: 'Tableau de bord' }] })</script>
+</body>
+</html>

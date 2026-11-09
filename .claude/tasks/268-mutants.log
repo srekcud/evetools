@@ -1,0 +1,298 @@
+Note: Pass `--log-verbosity=all` to log information about killed and errored mutants.
+Note: Pass `--debug` to log test-framework output.
+
+Escaped mutants:
+================
+
+1) /app/src/Service/OreValueService.php:69    [M] UnwrapArrayUnique [ID] 60c124cfa3119ac0030507a885afda58
+
+@@ @@
+                 $mineralTypeIds[] = $material->getMaterialTypeId();
+             }
+         }
+-        $mineralTypeIds = array_unique($mineralTypeIds);
++        $mineralTypeIds = $mineralTypeIds;
+
+         // Add mineral type IDs to the price fetch
+         $allTypeIds = array_unique(array_merge($allTypeIds, $mineralTypeIds));
+
+
+2) /app/src/Service/OreValueService.php:72    [M] UnwrapArrayUnique [ID] 63359488a741d0e292cf5c4997ae23a4
+
+@@ @@
+         $mineralTypeIds = array_unique($mineralTypeIds);
+
+         // Add mineral type IDs to the price fetch
+-        $allTypeIds = array_unique(array_merge($allTypeIds, $mineralTypeIds));
++        $allTypeIds = array_merge($allTypeIds, $mineralTypeIds);
+
+         // Batch fetch Jita prices
+         $jitaPrices = $side === MarketSide::Buy
+
+
+3) /app/src/Service/OreValueService.php:127    [M] NullSafeMethodCall [ID] 8f01283481d919fe19576187a93fe0f0
+
+@@ @@
+
+                 // Get compressed ore volume for export tax calculation
+                 $compressedType = $this->invTypeRepository->find($compressed['typeId']);
+-                $compressedVolume = $compressedType?->getVolume() ?? 0.0;
++                $compressedVolume = $compressedType->getVolume() ?? 0.0;
+                 $compressedExportCost = $exportTax * $compressedVolume;
+
+                 $rawPortionSize = $rawType?->getPortionSize();
+
+
+4) /app/src/Service/OreValueService.php:130    [M] NullSafeMethodCall [ID] c90f9e4a4e399f4343448aaefb3e2768
+
+@@ @@
+                 $compressedVolume = $compressedType?->getVolume() ?? 0.0;
+                 $compressedExportCost = $exportTax * $compressedVolume;
+
+-                $rawPortionSize = $rawType?->getPortionSize();
++                $rawPortionSize = $rawType->getPortionSize();
+                 $compressedPortionSize = $compressedType?->getPortionSize();
+
+                 if ($compressedJitaPrice !== null) {
+
+
+5) /app/src/Service/OreValueService.php:131    [M] NullSafeMethodCall [ID] ac1d82cfaa7a1077735dc9d74492e4fa
+
+@@ @@
+                 $compressedExportCost = $exportTax * $compressedVolume;
+
+                 $rawPortionSize = $rawType?->getPortionSize();
+-                $compressedPortionSize = $compressedType?->getPortionSize();
++                $compressedPortionSize = $compressedType->getPortionSize();
+
+                 if ($compressedJitaPrice !== null) {
+                     $compressedJitaPriceNet = max(0.0, $compressedJitaPrice - $compressedExportCost);
+
+
+6) /app/src/Service/OreValueService.php:158    [M] Break_ [ID] c3cc246feb88652d66e8c1e5ee3b970b
+
+@@ @@
+                     $mineralPrice = $jitaPrices[$material->getMaterialTypeId()] ?? null;
+                     if ($mineralPrice === null) {
+                         $hasAllJitaPrices = false;
+-                        break;
++                        continue;
+                     }
+                     $jitaReprocessValue += ($material->getQuantity() * $reprocessYield) * $mineralPrice;
+                 }
+
+
+7) /app/src/Service/OreValueService.php:176    [M] Break_ [ID] a8f3901c94e1db03d660f6861bedca1b
+
+@@ @@
+                         $mineralPrice = $structurePrices[$material->getMaterialTypeId()] ?? null;
+                         if ($mineralPrice === null) {
+                             $hasAllStructurePrices = false;
+-                            break;
++                            continue;
+                         }
+                         $structureReprocessValue += ($material->getQuantity() * $reprocessYield) * $mineralPrice;
+                     }
+
+
+8) /app/src/Service/OreValueService.php:195    [M] LessThanOrEqualTo [ID] 520d06206815b2e41f24a574e0694f9d
+
+@@ @@
+
+     private function compressedEquivalentPrice(float $compressedUnitPrice, ?int $rawPortionSize, ?int $compressedPortionSize): ?float
+     {
+-        if ($rawPortionSize === null || $rawPortionSize <= 0 || $compressedPortionSize === null || $compressedPortionSize <= 0) {
++        if ($rawPortionSize === null || $rawPortionSize < 0 || $compressedPortionSize === null || $compressedPortionSize <= 0) {
+             return null;
+         }
+
+
+9) /app/src/Service/OreValueService.php:210    [M] ReturnRemoval [ID] 891bae4490ce37858254ab29f9ea34bd
+
+@@ @@
+     private function findCompressedVariant(int $rawTypeId): ?array
+     {
+         if (isset($this->compressedTypeCache[$rawTypeId])) {
+-            return $this->compressedTypeCache[$rawTypeId];
++
+         }
+
+         // Get the raw ore type
+
+
+10) /app/src/Service/OreValueService.php:225    [M] ReturnRemoval [ID] 5bdc42300cff0d9596fb60d21e1dfbfe
+
+@@ @@
+         // If already compressed, return null
+         if (str_contains($rawName, 'Compressed')) {
+             $this->compressedTypeCache[$rawTypeId] = null;
+-            return null;
++
+         }
+
+         // Search for "Compressed {OreNam}" variant
+
+
+11) /app/src/Service/OreValueTableService.php:47    [M] UnwrapArrayValues [ID] 33c3c6837af9f8061f90a8fb8f41d2b0
+
+@@ @@
+     public function build(string $market, MarketSide $side, ?int $structureId, ?float $reprocessYield): array
+     {
+         $onStructure = $market === self::MARKET_STRUCTURE;
+-        $oreTypes = array_values(array_filter(
++        $oreTypes = array_filter(
+             $this->invTypeRepository->findMineableCandidates(),
+             fn (InvType $type): bool => !$this->isCompressedVariant($type->getTypeName()),
+-        ));
++        );
+         $typeIds = array_map(static fn (InvType $type): int => $type->getTypeId(), $oreTypes);
+
+         $prices = $this->oreValueService->getBatchOrePrices(
+
+
+12) /app/src/Service/OreValueTableService.php:67    [M] UnwrapArrayValues [ID] 06f28144ab59ef52251e6b09d0a5e638
+
+@@ @@
+             fn (InvType $type): array => $this->rowOf(
+                 $type,
+                 $prices[$type->getTypeId()],
+-                array_values($materials[$type->getTypeId()] ?? []),
++                $materials[$type->getTypeId()] ?? [],
+                 $priceKeys,
+                 $reprocessYield !== null,
+             ),
+
+
+13) /app/src/Service/OreValueTableService.php:161    [M] LessThanOrEqualTo [ID] 398fe993431605441912b8f8711aa800
+
+@@ @@
+             fn (InvTypeMaterial $material): array => [
+                 'typeId' => $material->getMaterialTypeId(),
+                 'typeName' => $this->invTypeRepository->find($material->getMaterialTypeId())?->getTypeName(),
+-                'quantityPerUnit' => $portionSize === null || $portionSize <= 0 ? null : $material->getQuantity() / $portionSize,
++                'quantityPerUnit' => $portionSize === null || $portionSize < 0 ? null : $material->getQuantity() / $portionSize,
+             ],
+             $materials,
+         );
+
+
+14) /app/src/Service/OreValueTableService.php:161    [M] LogicalOr [ID] 7f886d388c348d2c9fa5c6ed2bb32832
+
+@@ @@
+             fn (InvTypeMaterial $material): array => [
+                 'typeId' => $material->getMaterialTypeId(),
+                 'typeName' => $this->invTypeRepository->find($material->getMaterialTypeId())?->getTypeName(),
+-                'quantityPerUnit' => $portionSize === null || $portionSize <= 0 ? null : $material->getQuantity() / $portionSize,
++                'quantityPerUnit' => $portionSize === null && $portionSize <= 0 ? null : $material->getQuantity() / $portionSize,
+             ],
+             $materials,
+         );
+
+
+15) /app/src/Service/OreValueTableService.php:173    [M] UnwrapArrayFilter [ID] 3a22454cfbf275f5f6fa95b17b0fb92a
+
+@@ @@
+      */
+     private function sortedWithGaps(array $rows): array
+     {
+-        $knownBests = array_filter(array_column($rows, 'bestIskPerM3'), static fn (?float $best): bool => $best !== null);
++        $knownBests = array_column($rows, 'bestIskPerM3');
+         $tableBest = $knownBests === [] ? null : max($knownBests);
+
+         $rows = array_map(
+
+
+16) /app/src/Service/OreValueTableService.php:178    [M] LogicalOr [ID] d5c2cfec5a4fc941dd54a67e95b71101
+
+@@ @@
+
+         $rows = array_map(
+             static function (array $row) use ($tableBest): array {
+-                $row['gapToBestPercent'] = $row['bestIskPerM3'] === null || $tableBest === null || $tableBest <= 0.0
++                $row['gapToBestPercent'] = $row['bestIskPerM3'] === null && $tableBest === null || $tableBest <= 0.0
+                     ? null
+                     : ($tableBest - $row['bestIskPerM3']) / $tableBest * 100;
+
+
+17) /app/src/Service/OreValueTableService.php:188    [M] LogicalOr [ID] 80226c4dceb5eb5f4f37b9658a32bf6d
+
+@@ @@
+         );
+
+         usort($rows, static function (array $a, array $b): int {
+-            if ($a['bestIskPerM3'] === null || $b['bestIskPerM3'] === null) {
++            if ($a['bestIskPerM3'] === null && $b['bestIskPerM3'] === null) {
+                 return ($a['bestIskPerM3'] === null) <=> ($b['bestIskPerM3'] === null) ?: $a['typeName'] <=> $b['typeName'];
+             }
+
+
+18) /app/src/Service/OreValueTableService.php:189    [M] ReturnRemoval [ID] 0d20c4e61ee72e0ed3e6ec2b33eac811
+
+@@ @@
+
+         usort($rows, static function (array $a, array $b): int {
+             if ($a['bestIskPerM3'] === null || $b['bestIskPerM3'] === null) {
+-                return ($a['bestIskPerM3'] === null) <=> ($b['bestIskPerM3'] === null) ?: $a['typeName'] <=> $b['typeName'];
++
+             }
+
+             return $b['bestIskPerM3'] <=> $a['bestIskPerM3'] ?: $a['typeName'] <=> $b['typeName'];
+
+
+19) /app/src/State/Provider/Mining/OreValueTableProvider.php:96    [M] LogicalOr [ID] b01bf6056e08151cc9e68e2ce2da364f
+
+@@ @@
+         }
+
+         $structureId = filter_var($query->get('structureId'), FILTER_VALIDATE_INT);
+-        if ($structureId === false || $structureId <= 0) {
++        if ($structureId === false && $structureId <= 0) {
+             throw new BadRequestHttpException('structureId is required for the structure market.');
+         }
+
+
+20) /app/src/State/Provider/Mining/OreValueTableProvider.php:96    [M] LessThanOrEqualTo [ID] 5e6cc637b99b3d729c4a68d168f1e471
+
+@@ @@
+         }
+
+         $structureId = filter_var($query->get('structureId'), FILTER_VALIDATE_INT);
+-        if ($structureId === false || $structureId <= 0) {
++        if ($structureId === false || $structureId < 0) {
+             throw new BadRequestHttpException('structureId is required for the structure market.');
+         }
+
+
+Timed Out mutants:
+==================
+
+Skipped mutants:
+================
+
+Not Covered mutants:
+====================
+
+1) /app/src/State/Provider/Mining/OreValueTableProvider.php:36    [M] Throw_ [ID] 81c1751b7fd0486d0b8d17cd665d7238
+
+@@ @@
+     public function provide(Operation $operation, array $uriVariables = [], array $context = []): OreValueTableResource
+     {
+         if (!$this->security->getUser() instanceof User) {
+-            throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
++            new UnauthorizedHttpException('Bearer', 'Unauthorized');
+         }
+
+         $request = $this->requestStack->getCurrentRequest();
+
+
+2) /app/src/State/Provider/Mining/OreValueTableProvider.php:41    [M] Throw_ [ID] 000d785e163e469c90b321a4c8d29d20
+
+@@ @@
+
+         $request = $this->requestStack->getCurrentRequest();
+         if ($request === null) {
+-            throw new BadRequestHttpException('No current request.');
++            new BadRequestHttpException('No current request.');
+         }
+
+         $query = $request->query;

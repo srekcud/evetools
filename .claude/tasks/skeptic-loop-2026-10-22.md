@@ -1,0 +1,6 @@
+# Relecture test-skeptic des lots de la boucle 2026-10-22
+
+- #120 Stockpile : suffisant (mutants :185/:187 équivalents).
+- #18 frais : insuffisant — `ProfitMarginTab.vue` (bestVenue, buildRow passent `key` à venueMargin) sans test. Proposé : `testSelectedDecryptorRecomputesStructureBuyWithSalesTaxOnly` (décrypteur choisi, courtage 5 %, taxe 2 % → fees structureBuy = revenu × 0,02).
+- #8 invention : insuffisant — mutant `InventionService:268` (&& → ||) survivant : `testUnknownDecryptorTypeIdIsIgnoredAndNotPriced` (id 99999 → decryptorName null, breakdown.decryptor 0.0, missingPriceTypeIds [], getPricesWithFallback sans cet id). `BpcKitTab.vue` (formatCost, `=== 0` décrypteur) sans test : `bpcKitTabShowsUnknownCostForNullCostPerAttempt`.
+- #8 pivot : insuffisant — tri de deux inconnus (`:263`, `:265`) : `testTwoUnknownScoreCandidatesAreOrderedByAscendingTypeIdWhateverTheirInputOrder` (30 puis 20 → [20, 30]) ; arrondi `cost`/`additionalCost` (`:224,:250,:254,:476`) : prix 1,005 × 3 → 3,02 ; survivants `:220` (stock = besoin), `:181`/`:454` (totalCost 0, sellPrice 0), `:457` (marge source exacte) ; tri client `compareKnownFirstDescending` de `PivotAdvisorTab.vue` sans test (`pivotAdvisorSort.spec.ts`).

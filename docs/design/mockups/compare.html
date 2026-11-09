@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avant / après · EVE Tools</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .wrap { max-width: 1500px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-family: var(--font-hud); text-transform: uppercase; letter-spacing: .08em; font-size: 28px; margin: 0 0 6px; }
+  h2 { font-family: var(--font-hud); text-transform: uppercase; letter-spacing: .08em; font-size: 18px; margin: 40px 0 12px; }
+  .lead { color: var(--text-muted); max-width: 820px; margin: 0; }
+  .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .pair figure { margin: 0; }
+  .pair figcaption { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
+  .pair img { width: 100%; display: block; border: 1px solid var(--border-strong); }
+  .pair.mobile { grid-template-columns: repeat(2, 390px); justify-content: start; }
+  .gains { margin: 10px 0 0; padding-left: 18px; color: var(--text-muted); font-size: 13px; }
+  .gains li { margin-bottom: 4px; }
+  table.scores { border-collapse: collapse; font-size: 14px; }
+  table.scores th, table.scores td { padding: 8px 14px; border-bottom: 1px solid var(--border); text-align: left; }
+  table.scores td.num { font-family: var(--font-mono); text-align: right; }
+  @media (max-width: 900px) { .pair, .pair.mobile { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="subtle" style="margin:0 0 8px"><a href="index.html">← Proposition</a></p>
+  <h1>Avant / après</h1>
+  <p class="lead">À gauche, l'app actuelle (base locale, personnages réels, 1440 × 900). À droite, la maquette à la même taille. Les maquettes affichent des données fictives : on compare la structure et la lisibilité, pas les chiffres.</p>
+
+  <h2>Accessibilité mesurée (Lighthouse 12)</h2>
+  <table class="scores">
+    <thead><tr><th>Page</th><th>App avant</th><th>App après étape 1</th><th>Maquette</th><th>Échecs avant</th></tr></thead>
+    <tbody>
+      <tr><td>Tableau de bord</td><td class="num">91</td><td class="num">100</td><td class="num">100</td><td>10 contrastes insuffisants, 1 bouton sans nom</td></tr>
+      <tr><td>Industrie</td><td class="num">90</td><td class="num">99</td><td class="num">100</td><td>13 contrastes insuffisants, 1 bouton sans nom, 2 textes alternatifs redondants</td></tr>
+      <tr><td>Composants et états</td><td class="num">—</td><td class="num">—</td><td class="num">100</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p class="lead" style="margin-top:10px;font-size:13px">Lighthouse ne contrôle que ce qui est automatisable (contraste, noms, structure). Il ne mesure ni le mouvement, ni la clarté des libellés, ni la hiérarchie : c'est le rôle du test des 5 secondes.</p>
+
+  <h2>Tableau de bord</h2>
+  <div class="pair">
+    <figure><figcaption>Actuel</figcaption><img src="screenshots/before/dashboard.png" alt="Tableau de bord actuel"></figure>
+    <figure><figcaption>Proposé</figcaption><img src="screenshots/after/dashboard.png" alt="Tableau de bord proposé"></figure>
+  </div>
+  <ul class="gains">
+    <li>Le bloc « To do » existe déjà ; la proposition ajoute la gravité, le « depuis quand » et le bouton qui règle chaque ligne.</li>
+    <li>L'en-tête actuel consacre deux gros badges à l'alliance et la corporation ; la proposition y met le fil d'Ariane et la recherche visible.</li>
+    <li>Au-dessus de la ligne de flottaison : 2 indicateurs (nombre de personnages, portefeuille) et 4 cartes personnage actuellement, contre slots, projets chiffrés, PI et jobs qui se terminent dans la proposition.</li>
+  </ul>
+
+  <h2>Industrie · Projets</h2>
+  <div class="pair">
+    <figure><figcaption>Actuel</figcaption><img src="screenshots/before/industry-projects.png" alt="Onglet projets actuel"></figure>
+    <figure><figcaption>Proposé</figcaption><img src="screenshots/after/industry.png" alt="Onglet projets proposé"></figure>
+  </div>
+  <ul class="gains">
+    <li>Valeurs estimées en petit italique gris (« EST. ») et « N/A » actuellement ; la proposition nomme la source du prix (« Jita, ordre de vente ») et affiche « Prix inconnu » quand il manque.</li>
+    <li>Le détail d'un projet s'ouvre à côté du tableau au lieu de changer de page.</li>
+  </ul>
+
+  <h2>Industrie · Vue d'ensemble actuelle</h2>
+  <div class="pair">
+    <figure><figcaption>Actuel</figcaption><img src="screenshots/before/industry.png" alt="Vue d'ensemble actuelle de l'industrie"></figure>
+    <figure><figcaption>Proposé (même écran que Projets)</figcaption><img src="screenshots/after/industry.png" alt="Onglet projets proposé"></figure>
+  </div>
+  <ul class="gains">
+    <li>« Pipeline health » affiche un tiret sans explication ; la proposition distingue « inconnu » (violet, pointillés) d'une valeur vide.</li>
+    <li>L'alerte « 136 free slots available » est en bleu info ; dans la proposition, les slots libres sont une jauge segmentée et n'occupent pas une ligne d'alerte.</li>
+  </ul>
+
+  <h2>Mobile (390 px)</h2>
+  <div class="pair mobile">
+    <figure><figcaption>Actuel</figcaption><img src="screenshots/before/dashboard-mobile.png" alt="Tableau de bord actuel sur mobile"></figure>
+    <figure><figcaption>Proposé</figcaption><img src="screenshots/after/dashboard-mobile.png" alt="Tableau de bord proposé sur mobile"></figure>
+  </div>
+</main>
+</body>
+</html>

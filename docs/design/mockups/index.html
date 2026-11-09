@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposition de refonte UX/UI · EVE Tools</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-family: var(--font-display); font-size: 34px; margin: 0 0 6px; }
+  h2 { font-size: 18px; margin: 36px 0 12px; }
+  .lead { color: var(--text-muted); font-size: 15px; max-width: 760px; margin: 0; }
+  .screens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .screen { display: block; padding: 18px; color: inherit; }
+  .screen:hover { border-color: var(--accent); text-decoration: none; }
+  .screen h3 { margin: 0 0 6px; font-size: 15px; }
+  .screen p { margin: 0; color: var(--text-muted); font-size: 13px; }
+  table.diag { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.diag th, table.diag td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.diag th { color: var(--text-muted); font-weight: 500; font-size: 12px; background: var(--surface-2); }
+  table.diag td:first-child { font-weight: 500; white-space: nowrap; }
+  table.diag code { font-size: 12px; color: var(--text-muted); }
+  .principles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .principles .card { padding: 16px; }
+  .principles h3 { margin: 0 0 4px; font-size: 14px; }
+  .principles p { margin: 0; font-size: 13px; color: var(--text-muted); }
+  .phone { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .phone iframe { width: 390px; height: 760px; border: 1px solid var(--border-strong); border-radius: 24px; background: var(--bg); }
+  .phone ul { flex: 1; min-width: 260px; color: var(--text-muted); padding-left: 18px; }
+  .phone li { margin-bottom: 8px; }
+  @media (max-width: 900px) { .screens, .principles { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="subtle" style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em">Maquettes HTML · novembre 2026</p>
+  <h1>Proposition de refonte UX/UI</h1>
+  <p class="lead">Garder l'identité « interface de vaisseau » d'EVE Tools, mais au service de la donnée : plus dense, plus lisible, des états honnêtes et une seule couleur d'interaction. Les maquettes sont statiques (données fictives) avec quelques interactions pour juger le comportement.</p>
+  <p class="lead" style="margin-top:10px">Deux boutons en bas à droite de chaque écran : <strong>Noms longs</strong> remplace personnages, corporations et structures par des noms à rallonge (aussi avec <code>?long</code> dans l'URL), <strong>Annotations</strong> affiche les notes UX numérotées.</p>
+
+  <h2>Écrans</h2>
+  <div class="grid screens">
+    <a class="card screen" href="dashboard.html"><h3>Tableau de bord →</h3><p>« À traiter » actionnable, KPI utiles, jobs qui se terminent, personnages compacts, activité en direct.</p></a>
+    <a class="card screen" href="industry.html"><h3>Industrie · Projets →</h3><p>Onglets regroupés, filtres, tableau dense avec sélection multiple, panneau de détail maître-détail.</p></a>
+    <a class="card screen" href="compare.html"><h3>Avant / après →</h3><p>Vrais écrans de l'app à côté des maquettes, scores Lighthouse Accessibilité mesurés.</p></a>
+    <a class="card screen" href="states.html"><h3>Composants et états →</h3><p>Couleurs à rôle unique et contrastes mesurés, boutons, valeurs inconnues, chargement, vide, erreurs.</p></a>
+  </div>
+
+  <h2>Diagnostic de l'interface actuelle</h2>
+  <div class="card" style="overflow-x:auto">
+    <table class="diag">
+      <thead><tr><th>Problème</th><th>Constat dans le code</th><th>Proposition</th></tr></thead>
+      <tbody>
+        <tr><td>Contraste insuffisant</td><td><code>text-slate-500</code> (810 usages, 3,75:1), <code>slate-600</code> (203, 2,36:1), <code>slate-700</code> (17, 1,72:1) sur <code>slate-900</code>.</td><td>Trois niveaux de texte tous ≥ 5,4:1 (pire cas), exposés en tokens (<code>--text</code>, <code>--text-muted</code>, <code>--text-subtle</code>).</td></tr>
+        <tr><td>Mouvement permanent</td><td>Fond animé à deux halos pulsants + grille (<code>MainLayout.vue</code>), balayage lumineux et translation au survol de chaque lien, <code>animate-pulse</code> 28 fois dans 16 composants.</td><td>Nébuleuse et grille gardées mais fixes, survol = changement de fond seulement, animation réservée aux changements d'état (job terminé, sync en cours).</td></tr>
+        <tr><td>Chiffres non alignés</td><td>Le corps est en police système (<code>font-sans</code> dans <code>MainLayout.vue</code>), mais sans chiffres tabulaires : les montants ISK d'une colonne ne s'alignent pas.</td><td>Chiffres tabulaires partout (<code>font-variant-numeric: tabular-nums</code>), Rajdhani réservée aux titres (identité).</td></tr>
+        <tr><td>Couleurs surchargées</td><td>Cyan pour marque, liens, actif, boutons, info ; ambre pour wallet, alliance et avertissements.</td><td>Cyan = interaction uniquement. Vert / ambre / rouge / violet = succès, attention, critique, inconnu.</td></tr>
+        <tr><td>En-tête peu utile</td><td>Titre + « Bon retour, capsulier », badges corporation et alliance, statut « ESI OK / DOWN » en anglais.</td><td>Fil d'Ariane, recherche Ctrl+K visible (déjà implémentée mais cachée derrière une icône), statut serveur en français, menu compte.</td></tr>
+        <tr><td>Paramètres introuvables</td><td>Ouverts en cliquant sur la carte avatar (<code>div role="button"</code>) ; la modale mélange modules visibles, langue, format de date et structures de marché.</td><td>Entrée « Paramètres » dans la navigation + menu compte ; une page avec sections.</td></tr>
+        <tr><td>Libellés incohérents</td><td>« Marche » sans accent, « Appraisal » à côté d'« Évaluateur », onglets « Stockpile », « Slots », « Pivot », « Scan ».</td><td>Libellés français homogènes, alignés sur <code>docs/glossary.md</code> (à valider terme par terme).</td></tr>
+        <tr><td>Navigation de l'industrie</td><td>8 onglets en pastilles au même niveau + configuration derrière une icône.</td><td>2 groupes « Suivi » / « Analyse », configuration en bouton secondaire nommé.</td></tr>
+        <tr><td>Tableau de bord peu dense</td><td>KPI « nombre de personnages » en 36 px, grandes cartes portrait par personnage. Le bloc « To do » et le total partiel du portefeuille existent déjà, mais les lignes n'ont ni action ni gravité.</td><td>KPI qui appellent une action, personnages en liste compacte avec état du jeton, chaque ligne « À traiter » avec sa gravité et son bouton.</td></tr>
+        <tr><td>Noms accessibles manquants</td><td>Lighthouse : la cloche de notifications (<code>#notification-bell-btn</code>) n'a pas de nom ; bouton « New Project » blanc sur <code>cyan-600</code> à 3,61:1.</td><td>Chaque bouton icône porte un <code>aria-label</code> ; bouton principal à texte foncé sur cyan (7,8:1 au pire point du dégradé).</td></tr>
+        <tr><td>Rate limit bloquant visuellement</td><td>Bandeau fixe en haut qui décale toute la page (<code>pt-10</code>).</td><td>Bannière en place, qui précise ce qui reste utilisable.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Identité de jeu</h2>
+  <div class="grid principles" style="margin-bottom:8px">
+    <div class="card"><h3>Langage HUD</h3><p>Titres Rajdhani en capitales espacées, panneaux à coins marqués, bouton principal biseauté, portraits hexagonaux, témoins en losange.</p></div>
+    <div class="card"><h3>Objets du jeu</h3><p>Vraies icônes de types (serveur d'images EVE), coin doré Tech II, coin vert faction, « ? » si l'icône manque.</p></div>
+    <div class="card"><h3>Jauges de vaisseau</h3><p>Slots et extracteurs en jauges segmentées : un segment par slot, lisible d'un coup d'œil, sans animation.</p></div>
+  </div>
+
+  <h2>Principes retenus</h2>
+  <div class="grid principles">
+    <div class="card"><h3>1. La donnée d'abord</h3><p>Densité de tableur pour les tableaux, montants alignés à droite, valeur exacte au survol, fraîcheur toujours visible.</p></div>
+    <div class="card"><h3>2. États honnêtes</h3><p>Chargement, vide, erreur, partiel et inconnu ont chacun un rendu. Jamais de 0 plausible à la place d'une donnée ESI manquante.</p></div>
+    <div class="card"><h3>3. Chaque alerte a une action</h3><p>Une ligne « à traiter » dit quoi, qui, depuis quand, et propose le bouton qui règle le problème.</p></div>
+    <div class="card"><h3>4. Pas d'info par la couleur seule</h3><p>Icône + texte + couleur pour les statuts, signe +/− pour les profits, <code>aria-sort</code> sur les colonnes triées.</p></div>
+    <div class="card"><h3>5. Calme par défaut</h3><p>Aucune animation décorative ; <code>prefers-reduced-motion</code> respecté ; une seule action primaire par zone.</p></div>
+    <div class="card"><h3>6. Clavier de bout en bout</h3><p>Lien d'évitement, anneau de focus visible, Ctrl+K affiché, lignes de tableau atteignables et activables avec Entrée.</p></div>
+  </div>
+
+  <h2>Mobile (390 px)</h2>
+  <div class="phone">
+    <iframe src="dashboard.html" title="Tableau de bord en largeur mobile"></iframe>
+    <ul>
+      <li>La barre latérale devient un tiroir (bouton menu), le fil d'Ariane et le statut serveur disparaissent.</li>
+      <li>La recherche prend toute la largeur : c'est le chemin le plus court vers une page sur mobile.</li>
+      <li>KPI sur deux colonnes, colonnes secondaires des tableaux masquées plutôt qu'un défilement horizontal.</li>
+      <li>Les cibles tactiles font au moins 34 px de haut, 36 px dans la navigation.</li>
+    </ul>
+  </div>
+
+  <h2>Ordre de mise en œuvre suggéré</h2>
+  <ol class="muted" style="padding-left:20px">
+    <li><strong style="color:var(--text)">Tokens</strong> dans <code>style.css</code> (couleurs, textes, police du corps) : gain de contraste global sans toucher aux composants.</li>
+    <li><strong style="color:var(--text)">Coque</strong> : <code>MainLayout.vue</code> (fond, navigation, en-tête, menu compte, paramètres en page).</li>
+    <li><strong style="color:var(--text)">Composants communs</strong> : <code>DataTable</code>, <code>UnknownValue</code>, <code>IskAmount</code>, <code>ErrorBanner</code>, <code>DataFreshness</code> alignés sur la page « Composants et états ».</li>
+    <li><strong style="color:var(--text)">Écrans</strong> : tableau de bord, puis Industrie, puis le reste par module.</li>
+  </ol>
+</main>
+</body>
+</html>

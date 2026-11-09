@@ -1,0 +1,112 @@
+#122 [CLOSED] Jobs corpo : un échec de lecture est avalé et des jobs actifs sont marqués « livrés »
+#121 [OPEN] Liste d'achats, coût de production et arbre : le découpage des étapes est ignoré
+#120 [OPEN] Stockpile shopping list: below-target counter and copy are always empty
+#119 [CLOSED] Coût de production : un produit en erreur sort du coût en silence
+#118 [CLOSED] Stockpile : le stock partiel d'un intermédiaire ne réduit pas les cibles de son sous-arbre
+#117 [CLOSED] Liste d'achats collée : un volume manquant compte 0 m³ et annule le coût d'import
+#116 [CLOSED] Étapes : les intermédiaires sont calculés à TE 20, quel que soit le TE du projet
+#115 [OPEN] Noms de type : un type absent du SDE devient « Type #id » hors de l'arbre de production
+#114 [CLOSED] Loot Sales module Revenue PVE
+#113 [CLOSED] Taxe d'installation des structures non saisissable
+#112 [CLOSED] Étapes : un job découpé compte les unités produites au lieu du besoin
+#111 [CLOSED] Étapes : un job d'un seul run trop long forme un groupe découpé d'un job
+#110 [CLOSED] Étapes : l'ordre des groupes découpés change à chaque génération
+#109 [CLOSED] Arbre de production : un nom SDE manquant devient « Type #id »
+#108 [CLOSED] Profit Margins : marge et volume à 0 quand la donnée manque
+#107 [CLOSED] Group Industry : requiredQuantity d'une ligne de job contient des runs
+#106 [CLOSED] Group Industry : un item du projet aussi intermédiaire perd son job final
+#105 [CLOSED] Group Industry : un T2 reçoit une copie de son blueprint T2 et aucune invention
+#104 [CLOSED] Liste d'achats : un volume manquant compte 0 m³ et annule le coût d'import
+#103 [CLOSED] Liste d'achats : économie face à Jita négative quand un matériau n'est vendu qu'en structure
+#102 [CLOSED] Liste d'achats : un intermédiaire acheté avec un stock partiel est fabriqué
+#101 [CLOSED] Buy vs Build : tout composant fabriqué est libellé « T2 Component »
+#100 [CLOSED] Buy vs Build : l'identifiant de station de Jita est passé comme structure
+#99 [CLOSED] Buy vs Build : les réactions utilisent le système favori de fabrication
+#98 [CLOSED] Buy vs Build : les matériaux consommés par le produit final ne sont jamais pricés
+#97 [CLOSED] Stockpile : la production estimée exige que le produit final soit déjà en stock
+#96 [CLOSED] Stockpile : statut et pourcentage affiché incohérents près des seuils
+#95 [CLOSED] Bonus de temps des rigs de réaction et des rigs M de temps : mauvaise échelle dans l'entité
+#94 [CLOSED] Bonus de temps des rigs standards L/XL exprimé à l'échelle des matériaux
+#93 [CLOSED] Aperçu des bonus de structure : le frontend recalcule les bonus avec ses propres tables
+#92 [CLOSED] Choix de structure : le système favori ignore le type de structure
+#89 [CLOSED] Constante PERIMETER_SOLAR_SYSTEM_ID porte l'identifiant de Jita
+#88 [CLOSED] Configuration des structures : libellés et bandeaux trompeurs
+#87 [CLOSED] Group Industry : membre retiré invisible dans la découverte et départ bloqué
+#86 [CLOSED] Statut d'autorisation porté par l'utilisateur et non par le personnage
+#85 [CLOSED] EsiClient::getScalar et getScalarBatch ne rejouent pas les 420/429
+#84 [CLOSED] EsiClient::getPaginated : double pause entre deux pages et pause après la dernière
+#83 [CLOSED] EsiClient : horloge injectable pour les attentes
+#82 [CLOSED] Scanner de rentabilité : un matériau sans prix compte pour 0
+#81 [CLOSED] Admin : le bouton de sync des alertes de prix tourne sans fin
+#80 [CLOSED] Topic Mercure des contrats publics déclaré mais jamais publié
+#79 [CLOSED] Sync PVE : la réponse est toujours « success », même quand tous les personnages échouent
+#78 [CLOSED] Comparaison aux contrats publics : une erreur ESI est avalée en silence
+#77 [CLOSED] Système favori sans effet sur le choix de la structure d'une étape
+#76 [CLOSED] Importer deux fois la même structure crée un doublon
+#75 [CLOSED] Les migrations ne se rejouent pas sur une base vide
+#74 [CLOSED] Invention : une probabilité de succès absente devient 0
+#73 [CLOSED] Découpage d'une étape : les matériaux ne sont pas recalculés job par job
+#72 [CLOSED] Structures : bonus matériaux des rigs de réaction calculé avec le multiplicateur de fabrication
+#71 [CLOSED] Bonus de structure : Athanor en réaction et rigs Thukker mal modélisés
+#70 [CLOSED] Invention : la table des decryptors associe à chaque typeId les effets d'un autre decryptor
+#69 [OPEN] Arbre de production : la demande d'un même intermédiaire n'est pas agrégée entre branches
+#61 [CLOSED] Profit Margins : la revente instantanée sur la structure est affichée « Jita »
+#60 [CLOSED] Les étapes d'invention ne sont jamais matchées (filtre d'activité erroné)
+#59 [CLOSED] Une étape achetée perd ses jobs matchés, une étape en stock les garde
+#58 [CLOSED] Le mode de matching « manuel » n'est pas respecté : les liens manuels sont détruits à chaque relance
+#57 [CLOSED] Documenter le processus de contribution (CONTRIBUTING.md)
+#56 [CLOSED] Logs du worker : verbosité maximale en prod et aucune rotation Docker
+#55 [CLOSED] Stock industrie : le contenu des containers personnels est compté mais mal localisé
+#54 [CLOSED] Assets corpo : le contenu des containers est absent des divisions partagées
+#53 [OPEN] Suppression de compte (RGPD) non implémentée
+#52 [CLOSED] Les étapes marquées « Acheté » apparaissent dans Approvisionnement
+#51 [OPEN] Source de prix des matériaux : « meilleur prix » ou « station de vente principale »
+#50 [OPEN] Valeur de vente estimée depuis les ordres de vente de la station choisie
+#49 [OPEN] Saisie de BPC T2 en lot (N BPC × R runs)
+#48 [CLOSED] Configuration des structures industrielles difficile à trouver
+#47 [CLOSED] Création de structures indisponible puis disponible sans déploiement
+#46 [OPEN] Ménage : frontend, commandes, fichiers racine et mise à jour du CLAUDE.md
+#45 [OPEN] Code mort backend : voter, message, méthodes, champs jamais lus
+#44 [OPEN] Endpoints API non consommés par le frontend
+#43 [CLOSED] Aucun test sur EsiClient ni sur le refresh de token
+#42 [OPEN] Neuf scopes ESI demandés jamais utilisés
+#41 [CLOSED] ETag inutile dans getWithCache
+#40 [CLOSED] Pas de verrou sur le schedule (double exécution possible)
+#39 [CLOSED] N+1 sur Group Industry
+#38 [CLOSED] Totaux minage incohérents entre la liste et le dashboard
+#37 [CLOSED] Total wallet faux sans avertissement si un personnage échoue
+#36 [CLOSED] Supprimer une structure industrielle n'a aucun effet
+#35 [CLOSED] 4 tests MercurePublisherServiceTest rouges sur main
+#34 [CLOSED] Purges jamais déclenchées : listes partagées expirées, portes Ansiblex détruites
+#33 [CLOSED] Recherche de type par nom sans index (appraisal lent)
+#32 [CLOSED] N+1 sur la liste des projets Industry
+#31 [CLOSED] Intervalles du scheduler : trois sources de vérité divergentes
+#30 [CLOSED] Les syncs planifiées tournent dans le processus scheduler et bloquent les refresh manuels
+#29 [CLOSED] Jobs corpo rafraîchis une fois par heure au lieu de toutes les 30 min
+#28 [CLOSED] Sync marché structure : personnage arbitraire, résultat ignoré
+#27 [CLOSED] Refresh de token : course entre l'app et le worker, logique dupliquée
+#26 [CLOSED] Sept clients HTTP appellent l'ESI en contournant EsiClient
+#25 [CLOSED] Client ESI : 429 ignoré, POST rejoué en GET, en-têtes perdus au retry
+#24 [CLOSED] Le split de jobs n'est pas testé (le test porte sur une copie divergente de l'algorithme)
+#23 [CLOSED] Group Industry : job final forcé en ME 0 / TE 0
+#22 [CLOSED] Le scanner de rentabilité exclut en silence les produits hors du sync Jita
+#21 [OPEN] Processors Industry : erreurs avalées, frais en dur, saisie utilisateur ignorée
+#20 [CLOSED] Liste d'achats : stock partiel d'un intermédiaire ignoré, produit en erreur retiré en silence
+#19 [CLOSED] Profit Margins : deux définitions de marge sur le même écran
+#18 [OPEN] Profit Margins : décrypteur, invention et frais mal pris en compte
+#17 [CLOSED] Formule de quantité de matériau dupliquée 4 fois
+#16 [CLOSED] Recalcul des étapes : un matériau partagé entre profondeurs n'est pas additionné
+#15 [CLOSED] Quantité des réactions calculée avec ME 10 codé en dur
+#14 [CLOSED] Une erreur ESI pendant la sync des assets vide l'inventaire
+#13 [CLOSED] Un token ESI révoqué n'est jamais détecté
+#12 [CLOSED] Une sync en échec est annoncée « terminée »
+#11 [CLOSED] Pagination ESI tronquée à la page 1 (journal wallet, contrats, minage)
+#10 [CLOSED] Exclure un membre d'un projet collaboratif supprime ses contributions approuvées
+#9 [CLOSED] Marge Group Industry affichée 100 fois trop petite
+#8 [OPEN] Un prix manquant rend le matériau gratuit et gonfle la marge
+#7 [OPEN] Coût d'installation des jobs faux, et à 0 ISK quand une donnée manque
+#6 [OPEN] Trois règles différentes pour le bonus de structure (arbre, étapes, liste d'achats divergent)
+#5 [CLOSED] La sync d'un personnage marque « livrés » les jobs en cours de ses alts
+#4 [CLOSED] Les jobs industriels annulés sont matchés comme de la production
+#3 [CLOSED] Le matcher réduit une étape aux runs déjà lancés (un avancement partiel devient un changement de plan)
+#2 [OPEN] Les runs du projet sont interprétés comme une quantité pour les produits à plusieurs unités par run

@@ -1,0 +1,1976 @@
+diff --git a/docs/glossary.md b/docs/glossary.md
+index b7589b3..92a4904 100644
+--- a/docs/glossary.md
++++ b/docs/glossary.md
+@@ -104,7 +104,7 @@ surplus           = quantité produite − (demande − stock)
+ | **Autorisation révoquée** | Revoked authorization | Le refresh token d'un personnage est refusé par EVE SSO (`invalid_grant`) : le joueur a révoqué l'application ou le token a expiré. Ce personnage passe en auth invalide et sort seul des syncs, sans plus appeler EVE SSO ; les autres personnages de l'utilisateur continuent. Il redevient valide quand le joueur le reconnecte par EVE SSO (spec #86). | `AuthStatus::Invalid`, `Character::markAuthInvalid()`, `markAuthValid()`, `isAuthValid()`, `User::getAuthStatus()` (dérivé), `TokenManager`, `EveAuthRequiredException` |
+ | **Division** | Division | Hangar numéroté d'une corporation, dont le nom vient de l'ESI (`/corporations/{id}/divisions/`, partie `hangar` ; « Division N » si l'ESI ne donne pas de nom). Un asset rangé directement dans une division porte le flag `CorpSAG{N}`. À la sync, le nom de division d'un asset vient du premier flag `CorpSAG{N}` trouvé en remontant ses containers : le contenu d'un container, même imbriqué, porte le nom de division de son container racine, mais garde son propre flag. Les divisions visibles des membres sont une liste blanche fixée par un directeur. | `CorporationService::getDivisions()`, `CachedAsset::$divisionName`, `AssetsSyncService::resolveDivisionNumber()`, `CorpAssetVisibility::getVisibleDivisions()` |
+ | **Container** | Container | Asset qui en contient d'autres. L'ESI pointe le `location_id` d'un item contenu sur l'`item_id` de son container et ne répète pas le flag du hangar : on ne retrouve le contenu qu'en suivant cette chaîne de parents. Un container peut être imbriqué dans un autre ; le container racine est celui rangé directement dans une division. | `CachedAssetRepository::findContentsOfContainers()`, `CorporationAssetsProvider::findVisibleAssets()` |
+-| **Nom de type inconnu** | Unknown type name | Nom d'un type absent de `invTypes` (SDE réimporté sans ce type, ou type renvoyé par l'ESI que le SDE ne connaît pas encore). Il vaut `null` dans l'API, à côté du typeId toujours renseigné, et le front affiche « Nom inconnu (#typeId) ». Aucun nom n'est inventé (#115). Dans l'arbre de production, un type absent est une erreur (#109). | `TypeNameResolver::findName()`, `IndustryCalculationService::resolveTypeName()` |
++| **Nom de type inconnu** | Unknown type name | Nom d'un type absent de `invTypes` (SDE réimporté sans ce type, ou type renvoyé par l'ESI que le SDE ne connaît pas encore). Il vaut `null` dans l'API, à côté du typeId toujours renseigné, et le front affiche « Nom inconnu (#typeId) ». Aucun nom n'est inventé (#115). Dans l'arbre de production, un type absent est une erreur (#109). | `TypeNameResolver::findName()`, `TypeNameResolver::findNames()`, `IndustryCalculationService::resolveTypeName()` |
+ 
+ ## Ambiguïtés connues
+ 
+diff --git a/docs/specs/115-type-name-missing-from-sde-services.md b/docs/specs/115-type-name-missing-from-sde-services.md
+new file mode 100644
+index 0000000..da1d1a0
+--- /dev/null
++++ b/docs/specs/115-type-name-missing-from-sde-services.md
+@@ -0,0 +1,65 @@
++# Spec #115 (lot 2, services industrie) — Un type absent du SDE a un nom inconnu dans les analyses industrie
++
++## Contexte
++
++Le lot 1 (`115-type-name-missing-from-sde.md`, 863c3e3) a introduit le **nom de type inconnu** sur le chemin des projets : `TypeNameResolver::findName()` renvoie `null`, l'API expose `null` à côté du typeId, le front affiche « Nom inconnu (#id) » (`useTypeNames().typeNameLabel()`).
++
++Quatre services d'analyse industrie inventent encore `"Type #<typeId>"`, soit par `TypeNameResolver::resolve()` / `resolveMany()`, soit en direct :
++
++- `PivotAdvisorService` : `:145`, `:227`, `:245`, `:332`, `:466`, `:473`, `:487`, `:539` ;
++- `BatchProfitScannerService` : `:268`, `:382` ;
++- `InventionService` : `:186` (matériaux d'invention), `:406` (`productName` du kit BPC), `:468-469` (`blueprintName`, `productTypeName` des copies) ;
++- `SlotTrackerService` : `:82`, `:139` (`productTypeName` d'un job), `:361` (suggestion de slot libre).
++
++## Règles métier
++
++- **R1 — Nom inconnu.** Même règle que le lot 1 : un type absent de `invTypes` a un nom `null` dans la sortie de ces services et dans l'API, avec son typeId toujours renseigné. Aucun `"Type #<id>"`.
++- **R2 — Résolution groupée.** `TypeNameResolver::findNames(array $typeIds): array<int, string>` renvoie les noms connus, indexés par typeId ; un type absent n'a pas d'entrée. Les quatre services l'utilisent (ou `findName()` pour un type seul) à la place de `resolve()` / `resolveMany()`. `resolve()` et `resolveMany()` ne changent pas (lots 3 et 4).
++- **R3 — Calculs inchangés.** Un nom inconnu ne change ni les marges, coûts, volumes, probabilités, ni le nombre ou l'ordre des éléments renvoyés.
++- **R4 — Suggestion de slot libre.** `SlotTrackerService` garde sa priorité actuelle : nom du SDE, sinon le nom enregistré sur la cible de stockpile (`IndustryStockpileTarget::$typeName`, non nullable) : la suggestion a donc toujours un nom.
++- **R5 — Front.** Les écrans Pivot Advisor, Batch Scan, Kit BPC, coûts de copie, Slot Tracker et marges (datacores d'invention) affichent un nom `null` avec `typeNameLabel()` (« Nom inconnu (#id) »). Le tri par nom du Batch Scan utilise ce texte affiché.
++
++## Décision prise en autonomie
++
++- **Export multibuy du Batch Scan** (`BatchScanTab.vue:180`, `typeName\t1`) : un produit au nom inconnu est **exclu** de l'export, car le jeu ne reconnaît pas « Nom inconnu (#id) ». C'est l'option conservatrice : l'export ne contient que des lignes que le jeu sait lire. Les autres lignes restent exportées.
++- **Datacores de l'écran Marges** : la sortie de `ProfitMarginService` ne porte pas de typeId pour les datacores (golden figé, branche CP en cours) : un nom inconnu s'y affiche « Nom inconnu », sans `#id` (clé `common.unknownName`). Ajouter le typeId reviendra à la migration de ProfitMargin sur le moteur.
++- **Timeline du Slot Tracker** : `productTypeId` ajouté à chaque job de la timeline, seul moyen d'afficher « Nom inconnu (#id) ».
++- **Harnais** : les stubs de `resolveMany()` / `resolve()` des tests Pivot Advisor, Slot Tracker et règles du scanner passent à `findNames()` / `findName()`, assertions inchangées (oubli de la phase rouge, repris avant la phase verte).
++- **Pas de test front** pour R5 (pas de harnais composant) : vérifié par le typecheck et à la lecture du diff.
++
++## Exemples chiffrés
++
++Types : Nitrogen Fuel Block 4051 (connu), Robotics 9848 (absent de `invTypes`).
++
++| # | Situation | Entrée | Attendu |
++|---|---|---|---|
++| E1 | `findNames()` | `[4051, 9848]` | `[4051 => 'Nitrogen Fuel Block']`, pas d'entrée 9848 ; `[]` → `[]` |
++| E2 | Garde-fou : tous les noms connus | une analyse de chaque service sur des types connus | noms du SDE, sortie inchangée |
++| E3 | Pivot Advisor, matériau inconnu | matériau 9848 dans la matrice d'un produit candidat | `typeName = null` pour 9848, quantités et coûts inchangés |
++| E4 | Pivot Advisor, produit source inconnu sans candidat | `emptyResult(9848)` | `sourceProduct.typeName = null`, `typeId = 9848` |
++| E5 | Pivot Advisor, produit candidat inconnu | candidat 9848 | `typeName = null`, marge et classement inchangés |
++| E6 | Batch Scan, produit inconnu | produit 9848 dans le scan | `typeName = null`, marge, profit et ISK/jour inchangés, la ligne reste listée |
++| E7 | Invention, matériau inconnu | datacore 9848 d'un T1 | `getInventionData()` : `materials[].typeName = null`, `quantity` inchangée ; même `typeName = null` dans les datacores de `calculateInventionCost()` |
++| E8 | Kit BPC, produit inconnu | projet T2 dont le produit est 9848 | `inventions[].productName = null`, probabilité et coûts inchangés |
++| E9 | Coûts de copie, types inconnus | étape de copie du blueprint 9848 produisant 9848 | `copies[].blueprintName = null`, `productTypeName = null`, `cost` inchangé |
++| E10 | Slot Tracker, job inconnu | job ESI produisant 9848 | `productTypeName = null`, temps restant et tri inchangés |
++| E11 | Slot Tracker, suggestion avec nom enregistré | cible de stockpile 9848 nommée « Robotics » en base | `suggestion.typeName = "Robotics"` |
++
++## Cas limites
++
++- Un type connu du SDE garde exactement son nom actuel (E2).
++- Les shapes PHPDoc (`typeName: string`) passent en `string|null` là où la valeur peut être inconnue, y compris dans `ProfitMarginService` qui relaie les datacores d'`InventionService` (signature uniquement, pas de changement de logique).
++
++## Hors périmètre
++
++- `ProfitMarginService` et `BuyVsBuildService` (sauf ajustement de type PHPDoc relayé) : branches CP / CS.
++- Lots 3 (syncs qui enregistrent un nom) et 4 (lecture hors industrie, suppression de `resolve()` / `resolveMany()`).
++- `GroupIndustryProjectService` (thread #23), statut d'autorisation (thread #86).
++
++## Glossaire
++
++Aucun terme ajouté (**Nom de type inconnu** existe depuis le lot 1). Symbole `TypeNameResolver::findNames()` ajouté à sa ligne.
++
++## Tests impactés
++
++À identifier par la phase rouge : tests qui figent `"Type #"` dans `PivotAdvisorServiceTest`, `BatchProfitScannerServiceTest`, `InventionServiceTest`, `SlotTrackerServiceTest` (aucun relevé au grep sur `Type #` ; les mocks de `resolveMany()` devront passer à `findNames()`).
+diff --git a/frontend/src/components/industry/BatchScanTab.vue b/frontend/src/components/industry/BatchScanTab.vue
+index ec4356c..9cb44f9 100644
+--- a/frontend/src/components/industry/BatchScanTab.vue
++++ b/frontend/src/components/industry/BatchScanTab.vue
+@@ -5,6 +5,7 @@ import { useScannerStore } from '@/stores/industry/scanner'
+ import { useIndustryStore } from '@/stores/industry'
+ import { useFormatters } from '@/composables/useFormatters'
+ import { useEveImages } from '@/composables/useEveImages'
++import { useTypeNames } from '@/composables/useTypeNames'
+ import { apiRequest } from '@/services/api'
+ import type { BatchScanItem } from '@/stores/industry/types'
+ import ProductionCalculator from './ProductionCalculator.vue'
+@@ -20,6 +21,7 @@ const scannerStore = useScannerStore()
+ const industryStore = useIndustryStore()
+ const { formatIsk, formatNumber, formatDateTime } = useFormatters()
+ const { getTypeIconUrl, onImageError } = useEveImages()
++const { typeNameLabel } = useTypeNames()
+ 
+ // Filters
+ const categoryFilter = ref('all')
+@@ -65,6 +67,10 @@ const SELL_VENUE_OPTIONS = [
+   { value: 'contracts', label: 'Public Contracts' },
+ ]
+ 
++function sortValue(item: BatchScanItem): BatchScanItem[SortKey] {
++  return sortKey.value === 'typeName' ? typeNameLabel(item.typeName, item.typeId) : item[sortKey.value]
++}
++
+ // Client-side filtered + sorted results
+ const filteredResults = computed((): BatchScanItem[] => {
+   let items = [...(scannerStore.scanResults ?? [])]
+@@ -83,8 +89,8 @@ const filteredResults = computed((): BatchScanItem[] => {
+   }
+ 
+   items.sort((a, b) => {
+-    const aVal = a[sortKey.value]
+-    const bVal = b[sortKey.value]
++    const aVal = sortValue(a)
++    const bVal = sortValue(b)
+     // Unknown amounts stay last whatever the sort direction
+     if (aVal == null || bVal == null) {
+       return Number(aVal == null) - Number(bVal == null)
+@@ -176,7 +182,7 @@ function onScan(): void {
+ 
+ async function copyToMultibuy(): Promise<void> {
+   const lines = filteredResults.value
+-    .filter(item => item.marginPercent != null && item.marginPercent > 0)
++    .filter(item => item.marginPercent != null && item.marginPercent > 0 && item.typeName !== null)
+     .map(item => `${item.typeName}\t1`)
+     .join('\n')
+ 
+@@ -487,11 +493,11 @@ onBeforeUnmount(() => {
+           <div v-if="bestMarginItem" class="flex items-center gap-1.5 mt-1">
+             <img
+               :src="getTypeIconUrl(bestMarginItem.item.typeId, 32)"
+-              :alt="bestMarginItem.item.typeName"
++              :alt="typeNameLabel(bestMarginItem.item.typeName, bestMarginItem.item.typeId)"
+               class="w-4 h-4 rounded-sm"
+               @error="onImageError"
+             />
+-            <p class="text-xs text-slate-400">{{ bestMarginItem.item.typeName }}</p>
++            <p class="text-xs text-slate-400">{{ typeNameLabel(bestMarginItem.item.typeName, bestMarginItem.item.typeId) }}</p>
+           </div>
+         </div>
+ 
+@@ -509,11 +515,11 @@ onBeforeUnmount(() => {
+           <div v-if="bestIskDayItem" class="flex items-center gap-1.5 mt-1">
+             <img
+               :src="getTypeIconUrl(bestIskDayItem.item.typeId, 32)"
+-              :alt="bestIskDayItem.item.typeName"
++              :alt="typeNameLabel(bestIskDayItem.item.typeName, bestIskDayItem.item.typeId)"
+               class="w-4 h-4 rounded-sm"
+               @error="onImageError"
+             />
+-            <p class="text-xs text-slate-400">{{ bestIskDayItem.item.typeName }}</p>
++            <p class="text-xs text-slate-400">{{ typeNameLabel(bestIskDayItem.item.typeName, bestIskDayItem.item.typeId) }}</p>
+           </div>
+         </div>
+       </div>
+@@ -621,7 +627,7 @@ onBeforeUnmount(() => {
+                 <td class="py-3 px-3">
+                   <img
+                     :src="getTypeIconUrl(item.typeId, 32)"
+-                    :alt="item.typeName"
++                    :alt="typeNameLabel(item.typeName, item.typeId)"
+                     class="w-7 h-7 rounded-sm"
+                     @error="onImageError"
+                   />
+@@ -642,7 +648,7 @@ onBeforeUnmount(() => {
+                     <span :class="[
+                       'font-semibold',
+                       idx === 0 && currentPage === 1 ? 'text-slate-100' : item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-300' : 'text-slate-200',
+-                    ]">{{ item.typeName }}</span>
++                    ]">{{ typeNameLabel(item.typeName, item.typeId) }}</span>
+                     <span class="text-[10px] text-slate-500">{{ item.groupName }}</span>
+                     <!-- Skills warning -->
+                     <span
+diff --git a/frontend/src/components/industry/BpcKitTab.vue b/frontend/src/components/industry/BpcKitTab.vue
+index b473ee6..28a468e 100644
+--- a/frontend/src/components/industry/BpcKitTab.vue
++++ b/frontend/src/components/industry/BpcKitTab.vue
+@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
+ import { useIndustryStore } from '@/stores/industry'
+ import { useFormatters } from '@/composables/useFormatters'
+ import { parseIskValue } from '@/composables/useIskParser'
++import { useTypeNames } from '@/composables/useTypeNames'
+ import type { BpcKitDecryptorOption } from '@/stores/industry/types'
+ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+ 
+@@ -15,6 +16,7 @@ const props = defineProps<{
+ 
+ const store = useIndustryStore()
+ const { formatIsk, formatIskFull } = useFormatters()
++const { typeNameLabel } = useTypeNames()
+ 
+ const loading = ref(false)
+ const desiredBpcCount = ref(1)
+@@ -64,7 +66,7 @@ const inventionMaterials = computed(() => {
+   if (!selectedInvention.value || !selectedDecryptorOption.value) return []
+   const attempts = selectedDecryptorOption.value.expectedAttempts
+   if (attempts == null) return []
+-  const materials: { typeId: number; name: string; quantity: number }[] = []
++  const materials: { typeId: number; name: string | null; quantity: number }[] = []
+ 
+   for (const dc of selectedInvention.value.datacores) {
+     materials.push({
+@@ -245,7 +247,7 @@ onMounted(() => {
+                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+               </svg>
+               <h4 class="text-sm font-semibold text-slate-200">
+-                {{ selectedInvention.productName }} &mdash; {{ t('industry.bpcKitTab.invention') }}
++                {{ typeNameLabel(selectedInvention.productName, selectedInvention.productTypeId) }} &mdash; {{ t('industry.bpcKitTab.invention') }}
+               </h4>
+             </div>
+             <div class="flex items-center gap-4 text-xs text-slate-500">
+@@ -257,7 +259,7 @@ onMounted(() => {
+               <span>
+                 {{ t('industry.bpcKitTab.datacoresLabel') }}:
+                 <span class="text-slate-400">
+-                  {{ selectedInvention.datacores.map(d => d.typeName).join(' + ') }}
++                  {{ selectedInvention.datacores.map(d => typeNameLabel(d.typeName, d.typeId)).join(' + ') }}
+                 </span>
+               </span>
+             </div>
+diff --git a/frontend/src/components/industry/CostEstimationTab.vue b/frontend/src/components/industry/CostEstimationTab.vue
+index a212c1c..bb1a254 100644
+--- a/frontend/src/components/industry/CostEstimationTab.vue
++++ b/frontend/src/components/industry/CostEstimationTab.vue
+@@ -416,7 +416,7 @@ defineExpose({ activate, loadCostEstimation })
+                       @error="onImageError"
+                     />
+                   </div>
+-                  <span class="text-slate-200">{{ copy.blueprintName }}</span>
++                  <span class="text-slate-200">{{ typeNameLabel(copy.blueprintName, copy.blueprintTypeId) }}</span>
+                 </div>
+               </td>
+               <td class="py-2.5 px-3 text-center font-mono text-slate-500">{{ copy.depth }}</td>
+diff --git a/frontend/src/components/industry/IndustrySlotsSection.vue b/frontend/src/components/industry/IndustrySlotsSection.vue
+index 1618b2f..252563b 100644
+--- a/frontend/src/components/industry/IndustrySlotsSection.vue
++++ b/frontend/src/components/industry/IndustrySlotsSection.vue
+@@ -2,6 +2,7 @@
+ import { computed, onMounted } from 'vue'
+ import { useI18n } from 'vue-i18n'
+ import { useEveImages } from '@/composables/useEveImages'
++import { useTypeNames } from '@/composables/useTypeNames'
+ import { useSlotsStore } from '@/stores/industry/slots'
+ import type { SlotActivity, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
+ 
+@@ -11,6 +12,7 @@ const emit = defineEmits<{
+ 
+ const { t } = useI18n()
+ const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
++const { typeNameLabel } = useTypeNames()
+ const slotsStore = useSlotsStore()
+ 
+ function navigateToSettings() {
+@@ -400,7 +402,7 @@ onMounted(() => {
+                 <div class="w-8 h-8 rounded-sm bg-slate-800 border border-slate-700 overflow-hidden">
+                   <img
+                     :src="getTypeIconUrl(job.productTypeId, 64)"
+-                    :alt="job.productTypeName"
++                    :alt="typeNameLabel(job.productTypeName, job.productTypeId)"
+                     class="w-full h-full object-cover"
+                     @error="onImageError"
+                   />
+@@ -408,7 +410,7 @@ onMounted(() => {
+               </td>
+               <!-- Product name -->
+               <td class="py-2.5 px-3">
+-                <span class="text-slate-100 font-semibold">{{ job.productTypeName }}</span>
++                <span class="text-slate-100 font-semibold">{{ typeNameLabel(job.productTypeName, job.productTypeId) }}</span>
+               </td>
+               <!-- Activity badge -->
+               <td class="py-2.5 px-3">
+@@ -567,7 +569,7 @@ onMounted(() => {
+                 class="flex items-center h-6 -ml-[180px]"
+               >
+                 <span class="w-[180px] shrink-0 text-xs text-slate-400 pr-3 text-right truncate">
+-                  {{ job.productTypeName }}
++                  {{ typeNameLabel(job.productTypeName, job.productTypeId) }}
+                 </span>
+                 <div class="flex-1 relative">
+                   <div
+@@ -584,10 +586,10 @@ onMounted(() => {
+                       v-if="ganttBarWidth(job.timeLeftSeconds) > 8"
+                       class="text-[10px] truncate"
+                       :class="ganttClasses(job.activityType).labelText"
+-                    >{{ job.productTypeName }} x{{ job.runs }}</span>
++                    >{{ typeNameLabel(job.productTypeName, job.productTypeId) }} x{{ job.runs }}</span>
+                     <!-- Tooltip -->
+                     <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
+-                      <div class="text-slate-100 font-semibold">{{ job.productTypeName }} x{{ job.runs }}</div>
++                      <div class="text-slate-100 font-semibold">{{ typeNameLabel(job.productTypeName, job.productTypeId) }} x{{ job.runs }}</div>
+                       <div class="text-slate-400 mt-0.5">{{ t('industry.slots.timeline.completesIn') }} {{ formatDuration(job.timeLeftSeconds) }}</div>
+                     </div>
+                   </div>
+@@ -607,7 +609,7 @@ onMounted(() => {
+             <template v-if="nextSlotJob != null">
+               {{ t('industry.slots.timeline.nextSlotOpens') }}
+               <span class="text-cyan-400 font-mono font-semibold">{{ formatDuration(nextSlotJob.timeLeftSeconds) }}</span>
+-              ({{ nextSlotJob.productTypeName }}).
++              ({{ typeNameLabel(nextSlotJob.productTypeName, nextSlotJob.productTypeId) }}).
+             </template>
+           </span>
+         </div>
+diff --git a/frontend/src/components/industry/PivotAdvisorTab.vue b/frontend/src/components/industry/PivotAdvisorTab.vue
+index c4a6820..07d36f5 100644
+--- a/frontend/src/components/industry/PivotAdvisorTab.vue
++++ b/frontend/src/components/industry/PivotAdvisorTab.vue
+@@ -5,6 +5,7 @@ import { useScannerStore } from '@/stores/industry/scanner'
+ import { useIndustryStore, type SearchResult } from '@/stores/industry'
+ import { useFormatters } from '@/composables/useFormatters'
+ import { useEveImages } from '@/composables/useEveImages'
++import { useTypeNames } from '@/composables/useTypeNames'
+ import ProductSearch from '@/components/industry/ProductSearch.vue'
+ import type { PivotCandidate } from '@/stores/industry/types'
+ 
+@@ -17,6 +18,7 @@ const scannerStore = useScannerStore()
+ const industryStore = useIndustryStore()
+ const { formatIsk, formatNumber } = useFormatters()
+ const { getTypeIconUrl, onImageError } = useEveImages()
++const { typeNameLabel } = useTypeNames()
+ 
+ // Product selector
+ const selectedProduct = ref<SearchResult | null>(null)
+@@ -79,7 +81,7 @@ function onPivot(candidate: PivotCandidate): void {
+     target: 'projects',
+     prefill: {
+       typeId: candidate.typeId,
+-      typeName: candidate.typeName,
++      typeName: typeNameLabel(candidate.typeName, candidate.typeId),
+     },
+   }
+ }
+@@ -204,7 +206,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
+           <div class="flex-shrink-0">
+             <img
+               :src="getTypeIconUrl(result.sourceProduct.typeId, 64)"
+-              :alt="result.sourceProduct.typeName"
++              :alt="typeNameLabel(result.sourceProduct.typeName, result.sourceProduct.typeId)"
+               class="w-16 h-16 rounded-lg border"
+               :class="result.sourceProduct.marginPercent != null && result.sourceProduct.marginPercent < 0 ? 'border-amber-500/30' : 'border-slate-700'"
+               @error="onImageError"
+@@ -214,7 +216,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
+           <!-- Product info -->
+           <div class="flex-1 min-w-0">
+             <div class="flex items-center gap-3 mb-2 flex-wrap">
+-              <h2 class="text-lg font-bold text-slate-100">{{ result.sourceProduct.typeName }}</h2>
++              <h2 class="text-lg font-bold text-slate-100">{{ typeNameLabel(result.sourceProduct.typeName, result.sourceProduct.typeId) }}</h2>
+               <span class="text-xs px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                 {{ result.sourceProduct.groupName }}
+               </span>
+@@ -264,7 +266,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
+                 :key="comp.typeId"
+                 class="flex items-center justify-between text-sm"
+               >
+-                <span class="text-slate-300 truncate mr-2">{{ comp.typeName }}</span>
++                <span class="text-slate-300 truncate mr-2">{{ typeNameLabel(comp.typeName, comp.typeId) }}</span>
+                 <span class="font-mono text-cyan-400 shrink-0">{{ formatNumber(comp.inStock, 0) }}</span>
+               </div>
+             </div>
+@@ -323,8 +325,8 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
+                     />
+                     <span class="text-xs" :class="productId === result.sourceProduct.typeId ? 'text-slate-500' : 'text-slate-400'">
+                       {{ productId === result.sourceProduct.typeId
+-                        ? result.sourceProduct.typeName
+-                        : (result.candidates.find(c => c.typeId === productId)?.typeName ?? String(productId))
++                        ? typeNameLabel(result.sourceProduct.typeName, result.sourceProduct.typeId)
++                        : typeNameLabel(result.candidates.find(c => c.typeId === productId)?.typeName ?? null, productId)
+                       }}
+                     </span>
+                     <span
+@@ -352,7 +354,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
+                 class="border-b border-slate-800/50"
+                 :class="rowIdx % 2 === 1 ? 'bg-slate-800/30' : ''"
+               >
+-                <td class="px-4 py-2.5 text-slate-300 font-medium">{{ row.typeName }}</td>
++                <td class="px-4 py-2.5 text-slate-300 font-medium">{{ typeNameLabel(row.typeName, row.typeId) }}</td>
+                 <td class="px-3 py-2.5 text-center font-mono text-cyan-400">{{ formatNumber(row.inStock, 0) }}</td>
+                 <td
+                   v-for="productId in result.matrixProductIds"
+@@ -440,13 +442,13 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
+             <div class="flex items-center gap-3 mb-3">
+               <img
+                 :src="getTypeIconUrl(candidate.typeId, 64)"
+-                :alt="candidate.typeName"
++                :alt="typeNameLabel(candidate.typeName, candidate.typeId)"
+                 class="w-12 h-12 rounded-lg border border-slate-700"
+                 @error="onImageError"
+               />
+               <div class="flex-1 min-w-0">
+                 <div class="flex items-center gap-2">
+-                  <span class="text-base font-bold text-slate-100">{{ candidate.typeName }}</span>
++                  <span class="text-base font-bold text-slate-100">{{ typeNameLabel(candidate.typeName, candidate.typeId) }}</span>
+                   <span class="text-xs px-1.5 py-0.5 rounded bg-cyan-400/10 text-cyan-400 border border-cyan-400/20">
+                     {{ candidate.groupName }}
+                   </span>
+@@ -498,7 +500,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
+                 >
+                   <!-- Amber for partial (some stock), red for none (zero stock) -->
+                   <span :class="mc.quantity > 0 && mc.cost > 0 ? 'text-amber-400' : 'text-red-400'">
+-                    {{ mc.typeName }}
++                    {{ typeNameLabel(mc.typeName, mc.typeId) }}
+                   </span>
+                   <span
+                     class="font-mono"
+diff --git a/frontend/src/components/industry/profit/InventionOptionsPanel.vue b/frontend/src/components/industry/profit/InventionOptionsPanel.vue
+index d43dead..28be125 100644
+--- a/frontend/src/components/industry/profit/InventionOptionsPanel.vue
++++ b/frontend/src/components/industry/profit/InventionOptionsPanel.vue
+@@ -6,7 +6,7 @@ import type { InventionUnknownReason, ProfitMarginInventionOption } from '@/stor
+ const props = defineProps<{
+   baseProbability: number | null
+   unknownReason: InventionUnknownReason | null
+-  datacores: string[]
++  datacores: (string | null)[]
+   options: ProfitMarginInventionOption[]
+   bestDecryptorIndex: number
+   selectedOption: ProfitMarginInventionOption | null
+@@ -92,7 +92,7 @@ function selectedDecryptorName(): string {
+         <div class="flex items-center gap-4 text-xs text-slate-500">
+           <span>{{ t('industry.bpcKitTab.baseProbability') }}: <span class="text-cyan-400 font-mono">{{ formatProbability(props.baseProbability) }}</span></span>
+           <span class="text-slate-700">|</span>
+-          <span>{{ t('industry.bpcKitTab.datacoresLabel') }}: <span class="text-slate-400">{{ props.datacores.join(' + ') }}</span></span>
++          <span>{{ t('industry.bpcKitTab.datacoresLabel') }}: <span class="text-slate-400">{{ props.datacores.map(name => name ?? t('common.unknownName')).join(' + ') }}</span></span>
+         </div>
+       </div>
+       <p v-if="props.unknownReason != null" class="mt-2 text-xs text-amber-400">
+diff --git a/frontend/src/i18n/locales/en.json b/frontend/src/i18n/locales/en.json
+index 7c99208..ff85ccb 100644
+--- a/frontend/src/i18n/locales/en.json
++++ b/frontend/src/i18n/locales/en.json
+@@ -1,6 +1,7 @@
+ {
+   "common": {
+     "unknownTypeName": "Unknown name (#{typeId})",
++    "unknownName": "Unknown name",
+     "actions": {
+       "save": "Save",
+       "cancel": "Cancel",
+diff --git a/frontend/src/i18n/locales/fr.json b/frontend/src/i18n/locales/fr.json
+index 6e6fc5b..3b11313 100644
+--- a/frontend/src/i18n/locales/fr.json
++++ b/frontend/src/i18n/locales/fr.json
+@@ -1,6 +1,7 @@
+ {
+   "common": {
+     "unknownTypeName": "Nom inconnu (#{typeId})",
++    "unknownName": "Nom inconnu",
+     "actions": {
+       "save": "Enregistrer",
+       "cancel": "Annuler",
+diff --git a/frontend/src/stores/industry/types.ts b/frontend/src/stores/industry/types.ts
+index 0a7d0c0..4e9d2b9 100644
+--- a/frontend/src/stores/industry/types.ts
++++ b/frontend/src/stores/industry/types.ts
+@@ -385,7 +385,7 @@ export interface ProfitMarginResult {
+   invention: {
+     baseProbability: number | null
+     unknownReason: InventionUnknownReason | null
+-    datacores: string[]
++    datacores: (string | null)[]
+     selectedDecryptorTypeId: number | null
+     selectedDecryptorName: string
+     options: ProfitMarginInventionOption[]
+@@ -461,8 +461,8 @@ export interface PurchaseSuggestion {
+ 
+ export interface CopyCostEntry {
+   blueprintTypeId: number
+-  blueprintName: string
+-  productTypeName: string
++  blueprintName: string | null
++  productTypeName: string | null
+   runs: number
+   cost: number
+   depth: number
+@@ -478,7 +478,7 @@ export interface CopyCosts {
+ 
+ export interface BpcKitDatacore {
+   typeId: number
+-  typeName: string
++  typeName: string | null
+   quantity: number
+   unitPrice: number
+   totalPrice: number
+@@ -504,7 +504,7 @@ export interface BpcKitDecryptorOption {
+ 
+ export interface BpcKitInvention {
+   productTypeId: number
+-  productName: string
++  productName: string | null
+   baseProbability: number | null
+   unknownReason: InventionUnknownReason | null
+   desiredSuccesses: number
+@@ -528,7 +528,7 @@ export interface BpcKit {
+ // Batch Scan types
+ export type BatchScanItem = {
+   typeId: number
+-  typeName: string
++  typeName: string | null
+   groupName: string
+   categoryLabel: string
+   marginPercent: number | null
+@@ -606,21 +606,21 @@ export type BuyVsBuildResult = {
+ // Pivot Advisor types
+ export type PivotMissingComponent = {
+   typeId: number
+-  typeName: string
++  typeName: string | null
+   quantity: number
+   cost: number
+ }
+ 
+ export type PivotComponentCoverage = {
+   typeId: number
+-  typeName: string
++  typeName: string | null
+   inStock: number
+   candidates: Record<number, { needed: number; status: 'covered' | 'partial' | 'none' }>
+ }
+ 
+ export type PivotCandidate = {
+   typeId: number
+-  typeName: string
++  typeName: string | null
+   groupName: string
+   marginPercent: number | null
+   profitPerUnit: number
+@@ -634,12 +634,12 @@ export type PivotCandidate = {
+ 
+ export type PivotSourceProduct = {
+   typeId: number
+-  typeName: string
++  typeName: string | null
+   groupName: string
+   marginPercent: number | null
+   sellPrice: number
+   dailyVolume: number
+-  keyComponents: { typeId: number; typeName: string; inStock: number }[]
++  keyComponents: { typeId: number; typeName: string | null; inStock: number }[]
+ }
+ 
+ export type PivotAnalysisResult = {
+@@ -749,7 +749,7 @@ export type SlotActivity = 'manufacturing' | 'reaction' | 'science'
+ export type SlotUsage = { used: number; max: number; percent?: number }
+ 
+ export type SlotTrackerJob = {
+-  jobId: number; productTypeId: number; productTypeName: string
++  jobId: number; productTypeId: number; productTypeName: string | null
+   activityType: string; runs: number; progress: number
+   timeLeftSeconds: number; facilityName: string | null
+   startDate: string; endDate: string
+@@ -767,7 +767,7 @@ export type SlotTrackerCharacter = {
+ }
+ 
+ export type TimelineJob = {
+-  jobId: number; characterName: string; productTypeName: string
++  jobId: number; characterName: string; productTypeId: number; productTypeName: string | null
+   activityType: string; runs: number; timeLeftSeconds: number; endDate: string
+ }
+ 
+diff --git a/src/ApiResource/Industry/BatchScanResultResource.php b/src/ApiResource/Industry/BatchScanResultResource.php
+index 94691fb..ceb2044 100644
+--- a/src/ApiResource/Industry/BatchScanResultResource.php
++++ b/src/ApiResource/Industry/BatchScanResultResource.php
+@@ -38,7 +38,7 @@ class BatchScanResultResource
+ {
+     public int $typeId;
+ 
+-    public string $typeName = '';
++    public ?string $typeName = null;
+ 
+     public string $groupName = '';
+ 
+diff --git a/src/ApiResource/Industry/BpcKitResource.php b/src/ApiResource/Industry/BpcKitResource.php
+index a2602b3..2b0052b 100644
+--- a/src/ApiResource/Industry/BpcKitResource.php
++++ b/src/ApiResource/Industry/BpcKitResource.php
+@@ -29,7 +29,7 @@ class BpcKitResource
+ 
+     public bool $isT2 = false;
+ 
+-    /** @var list<array{productTypeId: int, productName: string, baseProbability: ?float, unknownReason: ?string, desiredSuccesses: int, datacores: array, decryptorOptions: array}> */
++    /** @var list<array{productTypeId: int, productName: string|null, baseProbability: ?float, unknownReason: ?string, desiredSuccesses: int, datacores: array, decryptorOptions: array}> */
+     public array $inventions = [];
+ 
+     /** @var array{totalInventionCost: ?float, bestDecryptorTypeId: ?int, totalBpcKitCost: ?float} */
+diff --git a/src/ApiResource/Industry/CopyCostsResource.php b/src/ApiResource/Industry/CopyCostsResource.php
+index 993ed0b..b203ccf 100644
+--- a/src/ApiResource/Industry/CopyCostsResource.php
++++ b/src/ApiResource/Industry/CopyCostsResource.php
+@@ -27,7 +27,7 @@ class CopyCostsResource
+     #[ApiProperty(identifier: true)]
+     public string $id;
+ 
+-    /** @var list<array{blueprintTypeId: int, blueprintName: string, productTypeName: string, runs: int, cost: float, depth: int}> */
++    /** @var list<array{blueprintTypeId: int, blueprintName: string|null, productTypeName: string|null, runs: int, cost: float, depth: int}> */
+     public array $copies = [];
+ 
+     public float $totalCopyCost = 0.0;
+diff --git a/src/Service/Industry/BatchProfitScannerService.php b/src/Service/Industry/BatchProfitScannerService.php
+index dc32161..db402f5 100644
+--- a/src/Service/Industry/BatchProfitScannerService.php
++++ b/src/Service/Industry/BatchProfitScannerService.php
+@@ -139,7 +139,7 @@ class BatchProfitScannerService
+      * profitPerUnit and iskPerDay are null, unknownReason and missingPriceTypeIds explain why.
+      * Products with a known cost are ranked first, by iskPerDay descending.
+      *
+-     * @return list<array{typeId: int, typeName: string, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float, exportCost: float, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
++     * @return list<array{typeId: int, typeName: string|null, groupName: string, categoryLabel: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float, iskPerDay: float|null, materialCost: float|null, importCost: float, exportCost: float, sellPrice: float|null, meUsed: int, activityType: string, isFactionBlueprint: bool, bpcCostPerRun: float|null, hasAllSkills: bool, missingSkillCount: int, unknownReason: string|null, missingPriceTypeIds: list<int>}>
+      */
+     public function scan(
+         ?string $category,
+@@ -265,7 +265,7 @@ class BatchProfitScannerService
+         }
+ 
+         // 9. Resolve type names
+-        $typeNames = $this->typeNameResolver->resolveMany($uniqueTypeIds);
++        $typeNames = $this->typeNameResolver->findNames($uniqueTypeIds);
+ 
+         // 10. Pre-load adjusted prices for all materials (avoids ~20K-35K individual Redis calls)
+         $allMaterialTypeIds = [];
+@@ -379,7 +379,7 @@ class BatchProfitScannerService
+ 
+             $results[] = [
+                 'typeId' => $typeId,
+-                'typeName' => $typeNames[$typeId] ?? "Type #{$typeId}",
++                'typeName' => $typeNames[$typeId] ?? null,
+                 'groupName' => $meta['groupName'] ?? '',
+                 'categoryLabel' => $categoryLabel,
+                 'marginPercent' => $marginPercent !== null ? round($marginPercent, 2) : null,
+diff --git a/src/Service/Industry/InventionService.php b/src/Service/Industry/InventionService.php
+index aa7e47d..6f56ea6 100644
+--- a/src/Service/Industry/InventionService.php
++++ b/src/Service/Industry/InventionService.php
+@@ -136,7 +136,7 @@ class InventionService
+      * The probability is null when the SDE does not carry it: the invention chain still exists,
+      * but its success rate (and therefore its cost) is unknown.
+      *
+-     * @return array{t1BlueprintTypeId: int, t2BlueprintTypeId: int, probability: ?float, baseRuns: int, materials: list<array{typeId: int, typeName: string, quantity: int}>, inventionTime: int}|null
++     * @return array{t1BlueprintTypeId: int, t2BlueprintTypeId: int, probability: ?float, baseRuns: int, materials: list<array{typeId: int, typeName: string|null, quantity: int}>, inventionTime: int}|null
+      */
+     public function getInventionData(int $t2TypeId): ?array
+     {
+@@ -183,7 +183,7 @@ class InventionService
+             $matTypeId = $material->getMaterialTypeId();
+             $materials[] = [
+                 'typeId' => $matTypeId,
+-                'typeName' => $typeNames[$matTypeId]?->getTypeName() ?? "Type #{$matTypeId}",
++                'typeName' => ($typeNames[$matTypeId] ?? null)?->getTypeName(),
+                 'quantity' => $material->getQuantity(),
+             ];
+         }
+@@ -231,7 +231,7 @@ class InventionService
+      *     costPerAttempt: float,
+      *     totalCost: ?float,
+      *     costBreakdown: array{datacores: float, decryptor: float, copyCost: float, inventionInstall: float},
+-     *     datacores: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>,
++     *     datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>,
+      *     decryptorName: ?string,
+      *     unknownReason: ?string
+      * }|null
+@@ -349,11 +349,11 @@ class InventionService
+      *     isT2: bool,
+      *     inventions: list<array{
+      *         productTypeId: int,
+-     *         productName: string,
++     *         productName: string|null,
+      *         baseProbability: ?float,
+      *         unknownReason: ?string,
+      *         desiredSuccesses: int,
+-     *         datacores: list<array{typeId: int, typeName: string, quantity: int, unitPrice: float, totalPrice: float}>,
++     *         datacores: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float, totalPrice: float}>,
+      *         decryptorOptions: list<array{
+      *             decryptorTypeId: ?int,
+      *             decryptorName: string,
+@@ -403,7 +403,7 @@ class InventionService
+                 $facilityTaxRate,
+             );
+ 
+-            $productName = $this->resolveTypeName($productTypeId);
++            $productName = $this->typeNameResolver->findName($productTypeId);
+ 
+             $inventions[] = [
+                 'productTypeId' => $productTypeId,
+@@ -439,7 +439,7 @@ class InventionService
+      * Calculate all T1 BPC copy costs for a project.
+      * Returns copy costs for ALL steps with activityType === 'copy'.
+      *
+-     * @return array{copies: list<array{blueprintTypeId: int, blueprintName: string, productTypeName: string, runs: int, cost: float, depth: int}>, totalCopyCost: float}
++     * @return array{copies: list<array{blueprintTypeId: int, blueprintName: string|null, productTypeName: string|null, runs: int, cost: float, depth: int}>, totalCopyCost: float}
+      */
+     public function getProjectCopyCosts(IndustryProject $project): array
+     {
+@@ -465,8 +465,8 @@ class InventionService
+             );
+             $totalCopyCost += $copyCost;
+ 
+-            $blueprintName = $this->resolveTypeName($blueprintTypeId);
+-            $productTypeName = $this->resolveTypeName($step->getProductTypeId());
++            $blueprintName = $this->typeNameResolver->findName($blueprintTypeId);
++            $productTypeName = $this->typeNameResolver->findName($step->getProductTypeId());
+             $copies[] = [
+                 'blueprintTypeId' => $blueprintTypeId,
+                 'blueprintName' => $blueprintName,
+@@ -602,9 +602,4 @@ class InventionService
+ 
+         return $eiv;
+     }
+-
+-    private function resolveTypeName(int $typeId): string
+-    {
+-        return $this->typeNameResolver->resolve($typeId);
+-    }
+ }
+diff --git a/src/Service/Industry/PivotAdvisorService.php b/src/Service/Industry/PivotAdvisorService.php
+index 1b368a9..007917d 100644
+--- a/src/Service/Industry/PivotAdvisorService.php
++++ b/src/Service/Industry/PivotAdvisorService.php
+@@ -142,7 +142,7 @@ class PivotAdvisorService
+         $sourceIsReaction = $sourceActivityId === IndustryActivityType::Reaction->value;
+ 
+         // 9. Resolve type names and group names
+-        $typeNames = $this->typeNameResolver->resolveMany($allTypeIds);
++        $typeNames = $this->typeNameResolver->findNames($allTypeIds);
+         $groupNames = $this->loadGroupNames(array_merge([$sourceTypeId], array_map(fn (array $p) => $p['productTypeId'], $candidateProducts)));
+ 
+         // Build buildable material type ID set for quick lookup
+@@ -224,7 +224,7 @@ class PivotAdvisorService
+                     $additionalCost += $missingCost;
+                     $missingComponents[] = [
+                         'typeId' => $matTypeId,
+-                        'typeName' => $typeNames[$matTypeId] ?? "Type #{$matTypeId}",
++                        'typeName' => $typeNames[$matTypeId] ?? null,
+                         'quantity' => $missingQty,
+                         'cost' => round($missingCost, 2),
+                     ];
+@@ -242,7 +242,7 @@ class PivotAdvisorService
+ 
+             $scoredCandidates[] = [
+                 'typeId' => $cpTypeId,
+-                'typeName' => $typeNames[$cpTypeId] ?? "Type #{$cpTypeId}",
++                'typeName' => $typeNames[$cpTypeId] ?? null,
+                 'groupName' => $groupNames[$cpTypeId] ?? '',
+                 'marginPercent' => round($marginPercent, 2),
+                 'profitPerUnit' => round($profitPerUnit, 2),
+@@ -329,7 +329,7 @@ class PivotAdvisorService
+ 
+             $matrix[] = [
+                 'typeId' => $matTypeId,
+-                'typeName' => $typeNames[$matTypeId] ?? "Type #{$matTypeId}",
++                'typeName' => $typeNames[$matTypeId] ?? null,
+                 'inStock' => $inStock,
+                 'candidates' => $candidates,
+             ];
+@@ -463,14 +463,14 @@ class PivotAdvisorService
+             $matTypeId = $mat['materialTypeId'];
+             $keyComponents[] = [
+                 'typeId' => $matTypeId,
+-                'typeName' => $typeNames[$matTypeId] ?? "Type #{$matTypeId}",
++                'typeName' => $typeNames[$matTypeId] ?? null,
+                 'inStock' => $userStock[$matTypeId] ?? 0,
+             ];
+         }
+ 
+         return [
+             'typeId' => $sourceTypeId,
+-            'typeName' => $typeNames[$sourceTypeId] ?? "Type #{$sourceTypeId}",
++            'typeName' => $typeNames[$sourceTypeId] ?? null,
+             'groupName' => $groupNames[$sourceTypeId] ?? '',
+             'marginPercent' => $marginPercent,
+             'sellPrice' => $sellPrice !== null ? round($sellPrice, 2) : null,
+@@ -484,7 +484,7 @@ class PivotAdvisorService
+      */
+     private function emptyResult(int $sourceTypeId): array
+     {
+-        $typeName = $this->typeNameResolver->resolve($sourceTypeId);
++        $typeName = $this->typeNameResolver->findName($sourceTypeId);
+ 
+         return [
+             'typeId' => $sourceTypeId,
+@@ -536,7 +536,7 @@ class PivotAdvisorService
+ 
+         $jitaPrices = $this->jitaMarketService->getPrices($allTypeIds);
+         $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes([$sourceTypeId]);
+-        $typeNames = $this->typeNameResolver->resolveMany($allTypeIds);
++        $typeNames = $this->typeNameResolver->findNames($allTypeIds);
+         $groupNames = $this->loadGroupNames([$sourceTypeId]);
+         $userStock = $this->assetRepository->getAggregatedQuantitiesByUser($user);
+ 
+diff --git a/src/Service/Industry/SlotTrackerService.php b/src/Service/Industry/SlotTrackerService.php
+index d997875..0897523 100644
+--- a/src/Service/Industry/SlotTrackerService.php
++++ b/src/Service/Industry/SlotTrackerService.php
+@@ -79,7 +79,7 @@ class SlotTrackerService
+             $characterData[] = ['character' => $character, 'jobs' => $jobs];
+         }
+ 
+-        $typeNames = $this->typeNameResolver->resolveMany(array_unique($allProductTypeIds));
++        $typeNames = $this->typeNameResolver->findNames(array_unique($allProductTypeIds));
+ 
+         // Stockpile targets for suggestions
+         $stockpileTargets = $this->stockpileTargetRepository->findByUser($user);
+@@ -136,7 +136,7 @@ class SlotTrackerService
+                 $jobEntry = [
+                     'jobId' => $job->getJobId(),
+                     'productTypeId' => $job->getProductTypeId(),
+-                    'productTypeName' => $typeNames[$job->getProductTypeId()] ?? "Type #{$job->getProductTypeId()}",
++                    'productTypeName' => $typeNames[$job->getProductTypeId()] ?? null,
+                     'activityType' => $activityType ?? 'unknown',
+                     'runs' => $job->getRuns(),
+                     'progress' => $progress,
+@@ -150,6 +150,7 @@ class SlotTrackerService
+                 $allTimelineJobs[] = [
+                     'jobId' => $job->getJobId(),
+                     'characterName' => $character->getName(),
++                    'productTypeId' => $job->getProductTypeId(),
+                     'productTypeName' => $jobEntry['productTypeName'],
+                     'activityType' => $jobEntry['activityType'],
+                     'runs' => $job->getRuns(),
+diff --git a/src/Service/TypeNameResolver.php b/src/Service/TypeNameResolver.php
+index 7480676..65ee144 100644
+--- a/src/Service/TypeNameResolver.php
++++ b/src/Service/TypeNameResolver.php
+@@ -4,6 +4,7 @@ declare(strict_types=1);
+ 
+ namespace App\Service;
+ 
++use App\Entity\Sde\InvType;
+ use App\Repository\Sde\InvTypeRepository;
+ 
+ class TypeNameResolver
+@@ -25,6 +26,18 @@ class TypeNameResolver
+         return $this->invTypeRepository->find($typeId)?->getTypeName();
+     }
+ 
++    /**
++     * @param int[] $typeIds
++     * @return array<int, string>
++     */
++    public function findNames(array $typeIds): array
++    {
++        return array_map(
++            static fn (InvType $type): string => $type->getTypeName(),
++            $this->invTypeRepository->findByTypeIds($typeIds),
++        );
++    }
++
+     /**
+      * @param int[] $typeIds
+      * @return array<int, string>
+diff --git a/tests/Unit/Service/Industry/BatchProfitScanRulesTest.php b/tests/Unit/Service/Industry/BatchProfitScanRulesTest.php
+index f9e5e98..643d8d2 100644
+--- a/tests/Unit/Service/Industry/BatchProfitScanRulesTest.php
++++ b/tests/Unit/Service/Industry/BatchProfitScanRulesTest.php
+@@ -551,7 +551,7 @@ class BatchProfitScanRulesTest extends TestCase
+         );
+ 
+         $typeNameResolver = $this->createStub(TypeNameResolver::class);
+-        $typeNameResolver->method('resolveMany')->willReturnCallback(
++        $typeNameResolver->method('findNames')->willReturnCallback(
+             static fn (array $typeIds): array => array_combine($typeIds, array_map(static fn (int $typeId): string => 'Type ' . $typeId, $typeIds)),
+         );
+ 
+diff --git a/tests/Unit/Service/Industry/BatchProfitScannerServiceTest.php b/tests/Unit/Service/Industry/BatchProfitScannerServiceTest.php
+index 76ead73..c7a1f1e 100644
+--- a/tests/Unit/Service/Industry/BatchProfitScannerServiceTest.php
++++ b/tests/Unit/Service/Industry/BatchProfitScannerServiceTest.php
+@@ -21,6 +21,7 @@ use Doctrine\DBAL\Connection;
+ use Doctrine\ORM\EntityManagerInterface;
+ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+ use PHPUnit\Framework\Attributes\CoversClass;
++use PHPUnit\Framework\Attributes\Group;
+ use PHPUnit\Framework\MockObject\MockObject;
+ use PHPUnit\Framework\TestCase;
+ 
+@@ -28,12 +29,27 @@ use PHPUnit\Framework\TestCase;
+ #[AllowMockObjectsWithoutExpectations]
+ class BatchProfitScannerServiceTest extends TestCase
+ {
++    use ResolvesTypeNamesFromSde;
++
++    private const array SCAN_SDE_TYPE_NAMES = [
++        34 => 'Tritanium',
++        35 => 'Pyerite',
++        101 => 'Reaction Product',
++        200 => 'Raw Material',
++        585 => 'Slasher',
++        587 => 'Rifter',
++        598 => 'Breacher',
++        2001 => 'Scourge Heavy Missile',
++        11393 => 'Jaguar',
++        11399 => 'Morphite',
++    ];
++
+     private IndustryActivityProductRepository&MockObject $productRepository;
+     private IndustryActivityMaterialRepository&MockObject $materialRepository;
+     private JitaMarketService&MockObject $jitaMarketService;
+     private StructureMarketService&MockObject $structureMarketService;
+     private EsiCostIndexService&MockObject $esiCostIndexService;
+-    private TypeNameResolver&MockObject $typeNameResolver;
++    private TypeNameResolver $typeNameResolver;
+     private EntityManagerInterface&MockObject $entityManager;
+     private Connection&MockObject $connection;
+     private CachedStructureRepository&MockObject $cachedStructureRepository;
+@@ -53,7 +69,7 @@ class BatchProfitScannerServiceTest extends TestCase
+         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
+         $this->structureMarketService = $this->createMock(StructureMarketService::class);
+         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
+-        $this->typeNameResolver = $this->createMock(TypeNameResolver::class);
++        $this->typeNameResolver = new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::SCAN_SDE_TYPE_NAMES));
+         $this->entityManager = $this->createMock(EntityManagerInterface::class);
+         $this->connection = $this->createMock(Connection::class);
+         $this->cachedStructureRepository = $this->createMock(CachedStructureRepository::class);
+@@ -135,11 +151,6 @@ class BatchProfitScannerServiceTest extends TestCase
+         ]);
+ 
+         // Type names
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
+-            34 => 'Tritanium',
+-            35 => 'Pyerite',
+-            587 => 'Rifter',
+-        ]);
+ 
+         // Job install cost: EIV from pre-loaded adjusted prices, cost index pre-loaded per system
+         // EIV = 1850000, costIndex = 0.01 => jobInstallCost = 1850000 * 0.01 = 18500
+@@ -196,7 +207,6 @@ class BatchProfitScannerServiceTest extends TestCase
+             587 => 5000000.0,
+         ]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 5.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -229,7 +239,6 @@ class BatchProfitScannerServiceTest extends TestCase
+ 
+         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 100000.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 2.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -260,7 +269,6 @@ class BatchProfitScannerServiceTest extends TestCase
+ 
+         $this->jitaMarketService->method('getPrices')->willReturn([200 => 10.0, 101 => 50000.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([101 => 100.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([200 => 'Raw Material', 101 => 'Reaction Product']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -307,7 +315,6 @@ class BatchProfitScannerServiceTest extends TestCase
+         // Cheap materials, expensive product to ensure positive margin even with export cost
+         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -353,7 +360,6 @@ class BatchProfitScannerServiceTest extends TestCase
+ 
+         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -396,11 +402,6 @@ class BatchProfitScannerServiceTest extends TestCase
+             587 => 50000000.0, // High sell price to ensure positive margin
+         ]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
+-            34 => 'Tritanium',
+-            35 => 'Pyerite',
+-            587 => 'Rifter',
+-        ]);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -450,7 +451,6 @@ class BatchProfitScannerServiceTest extends TestCase
+         $this->solarSystemRepository->method('find')->willReturn($solarSystem);
+ 
+         $this->jitaMarketService->method('getAverageDailyVolumesForRegion')->willReturn([587 => 20.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -485,7 +485,6 @@ class BatchProfitScannerServiceTest extends TestCase
+         // 100 units per run, unit sell price = 500 ISK, revenue per run = 50000 ISK
+         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 2001 => 500.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([2001 => 5000.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 2001 => 'Scourge Heavy Missile']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -528,7 +527,6 @@ class BatchProfitScannerServiceTest extends TestCase
+ 
+         $this->jitaMarketService->method('getPrices')->willReturn([587 => 2500000.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -589,11 +587,6 @@ class BatchProfitScannerServiceTest extends TestCase
+             11393 => 80000000.0,
+         ]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0, 11393 => 5.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
+-            34 => 'Tritanium',
+-            587 => 'Rifter',
+-            11393 => 'Jaguar',
+-        ]);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -647,7 +640,6 @@ class BatchProfitScannerServiceTest extends TestCase
+ 
+         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -706,7 +698,6 @@ class BatchProfitScannerServiceTest extends TestCase
+ 
+         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -744,7 +735,6 @@ class BatchProfitScannerServiceTest extends TestCase
+ 
+         $this->jitaMarketService->method('getPrices')->willReturn([34 => 5.0, 587 => 5000000.0]);
+         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 10.0]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([34 => 'Tritanium', 587 => 'Rifter']);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+@@ -1007,6 +997,48 @@ class BatchProfitScannerServiceTest extends TestCase
+         $this->assertSame([self::RIFTER_TYPE_ID], array_column($withMinMargin, 'typeId'));
+     }
+ 
++    private const int ROBOTICS_BLUEPRINT_TYPE_ID = 9849;
++
++    #[Group('issue-115')]
++    public function testScannedProductsKnownToTheSdeKeepTheirSdeNames(): void
++    {
++        $this->givenRifterFullyPricedAndSlasherWithUnpricedMorphite();
++
++        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
++
++        $this->assertSame(['Rifter', 'Slasher'], array_column($result, 'typeName'));
++    }
++
++    #[Group('issue-115')]
++    public function testScannedProductMissingFromTheSdeHasAnUnknownNameAndStaysListedWithUnchangedProfit(): void
++    {
++        $this->givenFrigates([
++            self::RIFTER_BLUEPRINT_ID => [self::RIFTER_TYPE_ID, [self::TRITANIUM_TYPE_ID => 100, self::PYERITE_TYPE_ID => 10]],
++            self::ROBOTICS_BLUEPRINT_TYPE_ID => [self::ROBOTICS_TYPE_ID, [self::TRITANIUM_TYPE_ID => 300, self::PYERITE_TYPE_ID => 40]],
++        ]);
++        $this->jitaMarketService->method('getPrices')->willReturn([
++            self::TRITANIUM_TYPE_ID => 5.0,
++            self::PYERITE_TYPE_ID => 10.0,
++            self::RIFTER_TYPE_ID => 1000.0,
++            self::ROBOTICS_TYPE_ID => 3000.0,
++        ]);
++        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
++            self::RIFTER_TYPE_ID => 10.0,
++            self::ROBOTICS_TYPE_ID => 7.0,
++        ]);
++
++        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, 0.0, 0.0, 0.0, null);
++
++        $this->assertSame([self::ROBOTICS_TYPE_ID, self::RIFTER_TYPE_ID], array_column($result, 'typeId'));
++        $this->assertSame([null, 'Rifter'], array_column($result, 'typeName'));
++        $robotics = $this->rowOf(self::ROBOTICS_TYPE_ID, $result);
++        $this->assertSame(1710.0, $robotics['materialCost']);
++        $this->assertSame(1290.0, $robotics['profitPerUnit']);
++        $this->assertSame(75.44, $robotics['marginPercent']);
++        $this->assertSame(9030.0, $robotics['iskPerDay']);
++        $this->assertSame(3000.0, $robotics['sellPrice']);
++    }
++
+     private function givenRifterFullyPricedAndSlasherWithUnpricedMorphite(): void
+     {
+         $this->givenFrigates([
+@@ -1052,14 +1084,6 @@ class BatchProfitScannerServiceTest extends TestCase
+         $this->connection->method('fetchAllAssociative')->willReturnCallback(
+             fn (string $sql): array => str_contains($sql, 'group_id') ? $productMetadata : array_values($materialVolumes)
+         );
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
+-            self::TRITANIUM_TYPE_ID => 'Tritanium',
+-            self::PYERITE_TYPE_ID => 'Pyerite',
+-            self::MORPHITE_TYPE_ID => 'Morphite',
+-            self::RIFTER_TYPE_ID => 'Rifter',
+-            self::SLASHER_TYPE_ID => 'Slasher',
+-            self::BREACHER_TYPE_ID => 'Breacher',
+-        ]);
+         $this->esiCostIndexService->method('getAdjustedPrices')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+         $this->esiCostIndexService->method('calculateEivFromPrices')->willReturn(0.0);
+diff --git a/tests/Unit/Service/Industry/InventionServiceTest.php b/tests/Unit/Service/Industry/InventionServiceTest.php
+index 39d58a1..32ced31 100644
+--- a/tests/Unit/Service/Industry/InventionServiceTest.php
++++ b/tests/Unit/Service/Industry/InventionServiceTest.php
+@@ -5,6 +5,7 @@ declare(strict_types=1);
+ namespace App\Tests\Unit\Service\Industry;
+ 
+ use App\Entity\IndustryProject;
++use App\Entity\IndustryProjectStep;
+ use App\Entity\Sde\IndustryActivity;
+ use App\Entity\Sde\IndustryActivityMaterial;
+ use App\Entity\Sde\IndustryActivityProduct;
+@@ -20,19 +21,22 @@ use App\Service\JitaMarketService;
+ use App\Service\TypeNameResolver;
+ use PHPUnit\Framework\Attributes\CoversClass;
+ use PHPUnit\Framework\Attributes\DataProvider;
++use PHPUnit\Framework\Attributes\Group;
+ use PHPUnit\Framework\MockObject\MockObject;
+ use PHPUnit\Framework\TestCase;
+ 
+ #[CoversClass(InventionService::class)]
+ class InventionServiceTest extends TestCase
+ {
++    use ResolvesTypeNamesFromSde;
++
+     private IndustryActivityProductRepository&MockObject $activityProductRepository;
+     private IndustryActivityMaterialRepository&MockObject $activityMaterialRepository;
+     private IndustryActivityRepository&MockObject $activityRepository;
+     private InvTypeRepository&MockObject $invTypeRepository;
+     private JitaMarketService&MockObject $jitaMarketService;
+     private EsiCostIndexService&MockObject $esiCostIndexService;
+-    private TypeNameResolver&MockObject $typeNameResolver;
++    private TypeNameResolver $typeNameResolver;
+     private InventionService $service;
+ 
+     // EVE type IDs for realistic test data
+@@ -53,7 +57,7 @@ class InventionServiceTest extends TestCase
+         $this->invTypeRepository = $this->createMock(InvTypeRepository::class);
+         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
+         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
+-        $this->typeNameResolver = $this->createMock(TypeNameResolver::class);
++        $this->typeNameResolver = new TypeNameResolver($this->invTypeRepository);
+ 
+         $this->service = new InventionService(
+             $this->activityProductRepository,
+@@ -110,11 +114,20 @@ class InventionServiceTest extends TestCase
+      */
+     private function setupSabreInventionChain(?float $baseProbability = 0.30, int $baseRuns = 10): void
+     {
+-        // Step 1: T2 Blueprint manufactures the Sabre
++        $this->setupInventionChain(
++            self::SABRE_TYPE_ID,
++            $baseProbability,
++            $baseRuns,
++            [self::DATACORE_1_TYPE_ID => 2, self::DATACORE_2_TYPE_ID => 2],
++        );
++    }
++
++    private function setupInventionChain(int $t2ProductTypeId, ?float $baseProbability, int $baseRuns, array $datacoreQuantitiesByTypeId): void
++    {
+         $t2Manufacturing = $this->createProduct(
+             self::SABRE_BLUEPRINT_ID,
+             IndustryActivityType::Manufacturing->value,
+-            self::SABRE_TYPE_ID,
++            $t2ProductTypeId,
+             1,
+         );
+ 
+@@ -129,8 +142,8 @@ class InventionServiceTest extends TestCase
+ 
+         $this->activityProductRepository
+             ->method('findBlueprintForProduct')
+-            ->willReturnCallback(function (int $productTypeId, int $activityId) use ($t2Manufacturing, $inventionProduct): ?IndustryActivityProduct {
+-                if ($productTypeId === self::SABRE_TYPE_ID && $activityId === IndustryActivityType::Manufacturing->value) {
++            ->willReturnCallback(function (int $productTypeId, int $activityId) use ($t2ProductTypeId, $t2Manufacturing, $inventionProduct): ?IndustryActivityProduct {
++                if ($productTypeId === $t2ProductTypeId && $activityId === IndustryActivityType::Manufacturing->value) {
+                     return $t2Manufacturing;
+                 }
+                 if ($productTypeId === self::SABRE_BLUEPRINT_ID && $activityId === IndustryActivityType::Invention->value) {
+@@ -140,23 +153,19 @@ class InventionServiceTest extends TestCase
+                 return null;
+             });
+ 
+-        // Invention materials: 2 datacores
+-        $datacore1 = $this->createMaterial(
+-            self::THRASHER_BLUEPRINT_ID,
+-            IndustryActivityType::Invention->value,
+-            self::DATACORE_1_TYPE_ID,
+-            2,
+-        );
+-        $datacore2 = $this->createMaterial(
+-            self::THRASHER_BLUEPRINT_ID,
+-            IndustryActivityType::Invention->value,
+-            self::DATACORE_2_TYPE_ID,
+-            2,
+-        );
++        $datacores = [];
++        foreach ($datacoreQuantitiesByTypeId as $datacoreTypeId => $quantity) {
++            $datacores[] = $this->createMaterial(
++                self::THRASHER_BLUEPRINT_ID,
++                IndustryActivityType::Invention->value,
++                $datacoreTypeId,
++                $quantity,
++            );
++        }
+ 
+         $this->activityMaterialRepository
+             ->method('findByBlueprintAndActivity')
+-            ->willReturn([$datacore1, $datacore2]);
++            ->willReturn($datacores);
+ 
+         // Invention activity time
+         $inventionActivity = $this->createActivity(
+@@ -703,7 +712,6 @@ class InventionServiceTest extends TestCase
+         $this->jitaMarketService->method('getPrice')->willReturn(500000.0);
+         $this->activityProductRepository->method('findBy')->willReturn([]);
+         $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+-        $this->typeNameResolver->method('resolve')->willReturn('Sabre');
+     }
+ 
+     public function testGetInventionDataKeepsMissingProbabilityUnknownInsteadOfZero(): void
+@@ -813,4 +821,170 @@ class InventionServiceTest extends TestCase
+         $this->assertNull($breakdown['summary']['bestDecryptorTypeId']);
+         $this->assertNull($breakdown['summary']['totalBpcKitCost']);
+     }
++
++    private const int THRASHER_TYPE_ID = 16242;
++    private const float COPYING_COST_INDEX = 0.05;
++    private const array INVENTION_SDE_TYPE_NAMES = [
++        self::SABRE_TYPE_ID => 'Sabre',
++        self::SABRE_BLUEPRINT_ID => 'Sabre Blueprint',
++        self::THRASHER_TYPE_ID => 'Thrasher',
++        self::THRASHER_BLUEPRINT_ID => 'Thrasher Blueprint',
++        self::DATACORE_1_TYPE_ID => 'Datacore - Mechanical Engineering',
++        self::DATACORE_2_TYPE_ID => 'Datacore - Minmatar Starship Engineering',
++    ];
++
++    #[Group('issue-115')]
++    public function testBpcKitOfAProductKnownToTheSdeKeepsTheSdeNamesOfTheProductAndItsDatacores(): void
++    {
++        $this->setupSabreInventionChain(0.30, 10);
++        $this->stubKnownCostsPerAttempt();
++        $project = new IndustryProject();
++        $project->setProductTypeId(self::SABRE_TYPE_ID);
++
++        $breakdown = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getBpcKitBreakdown($project);
++
++        $this->assertSame('Sabre', $breakdown['inventions'][0]['productName']);
++        $this->assertSame(
++            ['Datacore - Mechanical Engineering', 'Datacore - Minmatar Starship Engineering'],
++            array_column($breakdown['inventions'][0]['datacores'], 'typeName'),
++        );
++    }
++
++    #[Group('issue-115')]
++    public function testCopyCostsOfTypesKnownToTheSdeKeepTheirSdeNames(): void
++    {
++        $project = $this->projectWithOneCopyStep(self::THRASHER_BLUEPRINT_ID, self::THRASHER_TYPE_ID, 4);
++        $this->stubCopyEivOf(self::THRASHER_BLUEPRINT_ID, self::THRASHER_TYPE_ID, 1500000.0);
++
++        $copyCosts = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getProjectCopyCosts($project);
++
++        $this->assertSame([
++            [
++                'blueprintTypeId' => self::THRASHER_BLUEPRINT_ID,
++                'blueprintName' => 'Thrasher Blueprint',
++                'productTypeName' => 'Thrasher',
++                'runs' => 4,
++                'cost' => 6000.0,
++                'depth' => 1,
++            ],
++        ], $copyCosts['copies']);
++    }
++
++    #[Group('issue-115')]
++    public function testDatacoreMissingFromTheSdeHasAnUnknownNameInTheInventionDataWithUnchangedQuantity(): void
++    {
++        $this->setupInventionChain(self::SABRE_TYPE_ID, 0.30, 10, [self::DATACORE_1_TYPE_ID => 2, self::ROBOTICS_TYPE_ID => 3]);
++
++        $inventionData = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getInventionData(self::SABRE_TYPE_ID);
++
++        $this->assertNotNull($inventionData);
++        $this->assertSame([
++            ['typeId' => self::DATACORE_1_TYPE_ID, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2],
++            ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'quantity' => 3],
++        ], $inventionData['materials']);
++    }
++
++    #[Group('issue-115')]
++    public function testDatacoreMissingFromTheSdeHasAnUnknownNameInTheInventionCostWithUnchangedPrices(): void
++    {
++        $this->setupInventionChain(self::SABRE_TYPE_ID, 0.30, 10, [self::DATACORE_1_TYPE_ID => 2, self::ROBOTICS_TYPE_ID => 3]);
++        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
++            self::DATACORE_1_TYPE_ID => 50000.0,
++            self::ROBOTICS_TYPE_ID => 70000.0,
++        ]);
++        $this->activityProductRepository->method('findBy')->willReturn([]);
++        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
++
++        $result = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
++
++        $this->assertNotNull($result);
++        $this->assertSame([
++            ['typeId' => self::DATACORE_1_TYPE_ID, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2, 'unitPrice' => 50000.0, 'totalPrice' => 100000.0],
++            ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'quantity' => 3, 'unitPrice' => 70000.0, 'totalPrice' => 210000.0],
++        ], $result['datacores']);
++        $this->assertSame(310000.0, $result['costPerAttempt']);
++        $this->assertSame(1240000.0, $result['totalCost']);
++    }
++
++    #[Group('issue-115')]
++    public function testBpcKitOfAProductMissingFromTheSdeHasAnUnknownProductNameWithUnchangedProbabilityAndCosts(): void
++    {
++        $this->setupInventionChain(self::ROBOTICS_TYPE_ID, 0.30, 10, [self::DATACORE_1_TYPE_ID => 2, self::DATACORE_2_TYPE_ID => 2]);
++        $this->stubKnownCostsPerAttempt();
++        $project = new IndustryProject();
++        $project->setProductTypeId(self::ROBOTICS_TYPE_ID);
++
++        $breakdown = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getBpcKitBreakdown($project);
++
++        $invention = $breakdown['inventions'][0];
++        $this->assertSame(self::ROBOTICS_TYPE_ID, $invention['productTypeId']);
++        $this->assertNull($invention['productName']);
++        $this->assertSame(0.30, $invention['baseProbability']);
++        $this->assertSame(260000.0, $invention['decryptorOptions'][0]['costPerAttempt']);
++        $this->assertSame(
++            ['totalInventionCost' => 1040000.0, 'bestDecryptorTypeId' => null, 'totalBpcKitCost' => 1040000.0],
++            $breakdown['summary'],
++        );
++    }
++
++    #[Group('issue-115')]
++    public function testCopyCostsOfABlueprintAndProductMissingFromTheSdeHaveUnknownNamesWithUnchangedCost(): void
++    {
++        $project = $this->projectWithOneCopyStep(self::ROBOTICS_TYPE_ID, self::ROBOTICS_TYPE_ID, 10);
++        $this->stubCopyEivOf(self::ROBOTICS_TYPE_ID, self::ROBOTICS_TYPE_ID, 2000000.0);
++
++        $copyCosts = $this->inventionServiceOnSdeKnowing(self::INVENTION_SDE_TYPE_NAMES)->getProjectCopyCosts($project);
++
++        $this->assertSame([
++            [
++                'blueprintTypeId' => self::ROBOTICS_TYPE_ID,
++                'blueprintName' => null,
++                'productTypeName' => null,
++                'runs' => 10,
++                'cost' => 20000.0,
++                'depth' => 1,
++            ],
++        ], $copyCosts['copies']);
++        $this->assertSame(20000.0, $copyCosts['totalCopyCost']);
++    }
++
++    private function projectWithOneCopyStep(int $blueprintTypeId, int $productTypeId, int $runs): IndustryProject
++    {
++        $project = new IndustryProject();
++        $project->setProductTypeId(self::SABRE_TYPE_ID);
++        $project->addStep(
++            (new IndustryProjectStep())
++                ->setBlueprintTypeId($blueprintTypeId)
++                ->setProductTypeId($productTypeId)
++                ->setRuns($runs)
++                ->setDepth(1)
++                ->setActivityType('copy'),
++        );
++
++        return $project;
++    }
++
++    private function stubCopyEivOf(int $blueprintTypeId, int $productTypeId, float $adjustedPrice): void
++    {
++        $this->activityProductRepository->method('findBy')->willReturn([
++            $this->createProduct($blueprintTypeId, IndustryActivityType::Manufacturing->value, $productTypeId, 1),
++        ]);
++        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn($adjustedPrice);
++        $this->esiCostIndexService->method('getCostIndex')->willReturn(self::COPYING_COST_INDEX);
++    }
++
++    private function inventionServiceOnSdeKnowing(array $typeNamesByTypeId): InventionService
++    {
++        $invTypeRepository = $this->sdeTypeRepositoryKnowing($typeNamesByTypeId);
++
++        return new InventionService(
++            $this->activityProductRepository,
++            $this->activityMaterialRepository,
++            $this->activityRepository,
++            $invTypeRepository,
++            $this->jitaMarketService,
++            $this->esiCostIndexService,
++            new TypeNameResolver($invTypeRepository),
++        );
++    }
+ }
+diff --git a/tests/Unit/Service/Industry/PivotAdvisorServiceTest.php b/tests/Unit/Service/Industry/PivotAdvisorServiceTest.php
+index 4d30f4f..9675c61 100644
+--- a/tests/Unit/Service/Industry/PivotAdvisorServiceTest.php
++++ b/tests/Unit/Service/Industry/PivotAdvisorServiceTest.php
+@@ -17,12 +17,15 @@ use App\Service\TypeNameResolver;
+ use Doctrine\DBAL\Connection;
+ use Doctrine\ORM\EntityManagerInterface;
+ use PHPUnit\Framework\Attributes\CoversClass;
++use PHPUnit\Framework\Attributes\Group;
+ use PHPUnit\Framework\MockObject\MockObject;
+ use PHPUnit\Framework\TestCase;
+ 
+ #[CoversClass(PivotAdvisorService::class)]
+ class PivotAdvisorServiceTest extends TestCase
+ {
++    use ResolvesTypeNamesFromSde;
++
+     private IndustryActivityMaterialRepository&MockObject $materialRepository;
+     private IndustryActivityProductRepository&MockObject $productRepository;
+     private CachedAssetRepository&MockObject $assetRepository;
+@@ -172,7 +175,7 @@ class PivotAdvisorServiceTest extends TestCase
+         $this->connection->method('fetchOne')->willReturn(0);
+ 
+         // Type names
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
++        $this->typeNameResolver->method('findNames')->willReturn([
+             self::SOURCE_PRODUCT => 'Source Ship',
+             self::BUILDABLE_MAT_A => 'Component A',
+             self::BUILDABLE_MAT_B => 'Component B',
+@@ -283,7 +286,7 @@ class PivotAdvisorServiceTest extends TestCase
+ 
+         $this->connection->method('fetchFirstColumn')->willReturn([]);
+         $this->connection->method('fetchOne')->willReturn(0);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
++        $this->typeNameResolver->method('findNames')->willReturn([
+             self::SOURCE_PRODUCT => 'Source',
+             self::BUILDABLE_MAT_A => 'Mat A',
+             self::BUILDABLE_MAT_B => 'Mat B',
+@@ -365,7 +368,7 @@ class PivotAdvisorServiceTest extends TestCase
+ 
+         $this->connection->method('fetchFirstColumn')->willReturn([]);
+         $this->connection->method('fetchOne')->willReturn(0);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
++        $this->typeNameResolver->method('findNames')->willReturn([
+             self::SOURCE_PRODUCT => 'Source',
+             self::BUILDABLE_MAT_A => 'Mat A',
+             self::BUILDABLE_MAT_B => 'Mat B',
+@@ -447,11 +450,11 @@ class PivotAdvisorServiceTest extends TestCase
+         ]);
+ 
+         $this->connection->method('fetchOne')->willReturn(0);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
++        $this->typeNameResolver->method('findNames')->willReturn([
+             self::SOURCE_PRODUCT => 'Source',
+             self::RAW_MAT => 'Tritanium',
+         ]);
+-        $this->typeNameResolver->method('resolve')->willReturn('Source');
++        $this->typeNameResolver->method('findName')->willReturn('Source');
+         $this->connection->method('fetchAllAssociative')->willReturn([
+             ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Group'],
+         ]);
+@@ -517,7 +520,7 @@ class PivotAdvisorServiceTest extends TestCase
+ 
+         $this->connection->method('fetchFirstColumn')->willReturn([]);
+         $this->connection->method('fetchOne')->willReturn(0);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
++        $this->typeNameResolver->method('findNames')->willReturn([
+             self::SOURCE_PRODUCT => 'Source',
+             self::BUILDABLE_MAT_A => 'Mat A',
+             self::CANDIDATE_1 => 'Candidate',
+@@ -595,7 +598,7 @@ class PivotAdvisorServiceTest extends TestCase
+ 
+         $this->connection->method('fetchFirstColumn')->willReturn([]);
+         $this->connection->method('fetchOne')->willReturn(0);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
++        $this->typeNameResolver->method('findNames')->willReturn([
+             self::SOURCE_PRODUCT => 'Source',
+             self::BUILDABLE_MAT_A => 'Mat A',
+             self::BUILDABLE_MAT_B => 'Mat B',
+@@ -648,6 +651,237 @@ class PivotAdvisorServiceTest extends TestCase
+         $this->assertSame(0, $matBRow['candidates'][self::CANDIDATE_1]['needed']);
+     }
+ 
++    private const array PIVOT_SDE_TYPE_NAMES = [
++        self::SOURCE_PRODUCT => 'Source Ship',
++        self::BUILDABLE_MAT_A => 'Component A',
++        self::BUILDABLE_MAT_B => 'Component B',
++        self::RAW_MAT => 'Tritanium',
++        self::CANDIDATE_1 => 'Candidate Alpha',
++        self::CANDIDATE_2 => 'Candidate Beta',
++    ];
++    private const float JOB_INSTALL_COST_PER_RUN = 1500.0;
++
++    #[Group('issue-115')]
++    public function testPivotAnalysisOfTypesKnownToTheSdeKeepsTheirSdeNames(): void
++    {
++        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::BUILDABLE_MAT_B, self::CANDIDATE_1);
++
++        $result = $this->analyzeOnSdeKnowingPivotTypes();
++
++        $this->assertSame('Source Ship', $result['sourceProduct']['typeName']);
++        $this->assertSame(['Component A', 'Component B'], array_column($result['sourceProduct']['keyComponents'], 'typeName'));
++        $this->assertSame(['Component A', 'Component B'], array_column($result['matrix'], 'typeName'));
++        $this->assertSame(['Candidate Alpha', 'Candidate Beta'], array_column($result['candidates'], 'typeName'));
++        $this->assertSame(['Component B'], array_column($result['candidates'][0]['missingComponents'], 'typeName'));
++        $this->assertSame(['Component A'], array_column($result['candidates'][1]['missingComponents'], 'typeName'));
++    }
++
++    #[Group('issue-115')]
++    public function testMaterialMissingFromTheSdeHasAnUnknownNameInThePivotMatrixWithUnchangedQuantitiesAndCosts(): void
++    {
++        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::ROBOTICS_TYPE_ID, self::CANDIDATE_1);
++
++        $result = $this->analyzeOnSdeKnowingPivotTypes();
++
++        $this->assertSame([
++            [
++                'typeId' => self::BUILDABLE_MAT_A,
++                'typeName' => 'Component A',
++                'inStock' => 50,
++                'candidates' => [
++                    self::SOURCE_PRODUCT => ['needed' => 10, 'status' => 'covered'],
++                    self::CANDIDATE_1 => ['needed' => 30, 'status' => 'covered'],
++                    self::CANDIDATE_2 => ['needed' => 60, 'status' => 'partial'],
++                ],
++            ],
++            [
++                'typeId' => self::ROBOTICS_TYPE_ID,
++                'typeName' => null,
++                'inStock' => 6,
++                'candidates' => [
++                    self::SOURCE_PRODUCT => ['needed' => 20, 'status' => 'partial'],
++                    self::CANDIDATE_1 => ['needed' => 40, 'status' => 'partial'],
++                    self::CANDIDATE_2 => ['needed' => 0, 'status' => 'none'],
++                ],
++            ],
++        ], $result['matrix']);
++        $this->assertSame(
++            [['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'quantity' => 30, 'cost' => 75000.0]],
++            $result['candidates'][0]['missingComponents'],
++        );
++        $this->assertSame(75000.0, $result['candidates'][0]['additionalCost']);
++        $this->assertSame(
++            [
++                ['typeId' => self::BUILDABLE_MAT_A, 'typeName' => 'Component A', 'inStock' => 50],
++                ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => null, 'inStock' => 6],
++            ],
++            $result['sourceProduct']['keyComponents'],
++        );
++        $this->assertSame(1292.0, $result['sourceProduct']['marginPercent']);
++    }
++
++    #[Group('issue-115')]
++    public function testSourceProductMissingFromTheSdeWithoutBlueprintHasAnUnknownName(): void
++    {
++        $this->productRepository->method('findBlueprintForProduct')->willReturn(null);
++
++        $result = $this->pivotAdvisorOnSdeKnowing(self::PIVOT_SDE_TYPE_NAMES)->analyze(
++            self::ROBOTICS_TYPE_ID,
++            1,
++            self::SOLAR_SYSTEM_ID,
++            self::BROKER_FEE,
++            self::SALES_TAX,
++            $this->user,
++        );
++
++        $this->assertSame([
++            'typeId' => self::ROBOTICS_TYPE_ID,
++            'sourceProduct' => [
++                'typeId' => self::ROBOTICS_TYPE_ID,
++                'typeName' => null,
++                'groupName' => '',
++                'marginPercent' => null,
++                'sellPrice' => null,
++                'dailyVolume' => 0.0,
++                'keyComponents' => [],
++            ],
++            'matrix' => [],
++            'candidates' => [],
++            'matrixProductIds' => [self::ROBOTICS_TYPE_ID],
++        ], $result);
++    }
++
++    #[Group('issue-115')]
++    public function testCandidateProductMissingFromTheSdeHasAnUnknownNameWithUnchangedMarginAndRank(): void
++    {
++        $this->givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(self::BUILDABLE_MAT_B, self::ROBOTICS_TYPE_ID);
++
++        $result = $this->analyzeOnSdeKnowingPivotTypes();
++
++        $this->assertSame([
++            [
++                'typeId' => self::ROBOTICS_TYPE_ID,
++                'typeName' => null,
++                'groupName' => 'Cruiser',
++                'marginPercent' => 207.41,
++                'profitPerUnit' => 250450.0,
++                'dailyVolume' => 9.0,
++                'coveragePercent' => 35.9,
++                'missingComponents' => [['typeId' => self::BUILDABLE_MAT_B, 'typeName' => 'Component B', 'quantity' => 30, 'cost' => 75000.0]],
++                'additionalCost' => 75000.0,
++                'estimatedProfit' => 250450.0,
++                'score' => 7445.56,
++            ],
++            [
++                'typeId' => self::CANDIDATE_2,
++                'typeName' => 'Candidate Beta',
++                'groupName' => 'Battleship',
++                'marginPercent' => 115.81,
++                'profitPerUnit' => 74700.0,
++                'dailyVolume' => 3.0,
++                'coveragePercent' => 92.59,
++                'missingComponents' => [['typeId' => self::BUILDABLE_MAT_A, 'typeName' => 'Component A', 'quantity' => 4, 'cost' => 4000.0]],
++                'additionalCost' => 4000.0,
++                'estimatedProfit' => 74700.0,
++                'score' => 6456.2,
++            ],
++        ], $result['candidates']);
++        $this->assertSame([self::SOURCE_PRODUCT, self::ROBOTICS_TYPE_ID, self::CANDIDATE_2], $result['matrixProductIds']);
++    }
++
++    private function givenSourceSharingTwoBuildableMaterialsWithTwoCandidates(int $sharedMaterialTypeId, int $firstCandidateTypeId): void
++    {
++        $sourceBlueprint = $this->createBlueprintProduct(self::SOURCE_BLUEPRINT, self::SOURCE_PRODUCT, 1, 1);
++        $componentBlueprint = $this->createBlueprintProduct(99001, self::BUILDABLE_MAT_A, 1, 1);
++        $sharedMaterialBlueprint = $this->createBlueprintProduct(99002, $sharedMaterialTypeId, 1, 1);
++        $this->productRepository->method('findBlueprintForProduct')->willReturnCallback(
++            static fn (int $typeId, int $activityId): ?IndustryActivityProduct => match (true) {
++                $activityId !== 1 => null,
++                $typeId === self::SOURCE_PRODUCT => $sourceBlueprint,
++                $typeId === self::BUILDABLE_MAT_A => $componentBlueprint,
++                $typeId === $sharedMaterialTypeId => $sharedMaterialBlueprint,
++                default => null,
++            },
++        );
++
++        $this->materialRepository->method('findMaterialsForBlueprints')->willReturnCallback(
++            static fn (array $blueprintTypeIds): array => $blueprintTypeIds === [self::SOURCE_BLUEPRINT]
++                ? [self::SOURCE_BLUEPRINT => [
++                    ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 10],
++                    ['materialTypeId' => $sharedMaterialTypeId, 'quantity' => 20],
++                    ['materialTypeId' => self::RAW_MAT, 'quantity' => 1000],
++                ]]
++                : [
++                    self::CANDIDATE_1_BP => [
++                        ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 30],
++                        ['materialTypeId' => $sharedMaterialTypeId, 'quantity' => 40],
++                        ['materialTypeId' => self::RAW_MAT, 'quantity' => 500],
++                    ],
++                    self::CANDIDATE_2_BP => [
++                        ['materialTypeId' => self::BUILDABLE_MAT_A, 'quantity' => 60],
++                        ['materialTypeId' => self::RAW_MAT, 'quantity' => 2000],
++                    ],
++                ],
++        );
++        $this->materialRepository->method('findProductsUsingMaterials')->willReturn([
++            ['blueprintTypeId' => self::CANDIDATE_1_BP, 'productTypeId' => $firstCandidateTypeId, 'outputPerRun' => 1, 'activityId' => 1],
++            ['blueprintTypeId' => self::CANDIDATE_2_BP, 'productTypeId' => self::CANDIDATE_2, 'outputPerRun' => 1, 'activityId' => 1],
++        ]);
++
++        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([
++            self::BUILDABLE_MAT_A => 50,
++            $sharedMaterialTypeId => 6,
++        ]);
++        $this->jitaMarketService->method('getPrices')->willReturn([
++            self::SOURCE_PRODUCT => 900000.0,
++            self::BUILDABLE_MAT_A => 1000.0,
++            $sharedMaterialTypeId => 2500.0,
++            self::RAW_MAT => 5.0,
++            $firstCandidateTypeId => 400000.0,
++            self::CANDIDATE_2 => 150000.0,
++        ]);
++        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([
++            self::SOURCE_PRODUCT => 12.0,
++            $firstCandidateTypeId => 9.0,
++            self::CANDIDATE_2 => 3.0,
++        ]);
++
++        $this->connection->method('fetchOne')->willReturn(0);
++        $this->connection->method('fetchAllAssociative')->willReturn([
++            ['type_id' => self::SOURCE_PRODUCT, 'group_name' => 'Destroyer'],
++            ['type_id' => $firstCandidateTypeId, 'group_name' => 'Cruiser'],
++            ['type_id' => self::CANDIDATE_2, 'group_name' => 'Battleship'],
++        ]);
++        $this->esiCostIndexService->method('calculateEiv')->willReturn(0.0);
++        $this->esiCostIndexService->method('calculateJobInstallCost')->willReturn(self::JOB_INSTALL_COST_PER_RUN);
++    }
++
++    private function analyzeOnSdeKnowingPivotTypes(): array
++    {
++        return $this->pivotAdvisorOnSdeKnowing(self::PIVOT_SDE_TYPE_NAMES)->analyze(
++            self::SOURCE_PRODUCT,
++            1,
++            self::SOLAR_SYSTEM_ID,
++            self::BROKER_FEE,
++            self::SALES_TAX,
++            $this->user,
++        );
++    }
++
++    private function pivotAdvisorOnSdeKnowing(array $typeNamesByTypeId): PivotAdvisorService
++    {
++        return new PivotAdvisorService(
++            $this->materialRepository,
++            $this->productRepository,
++            $this->assetRepository,
++            $this->jitaMarketService,
++            $this->esiCostIndexService,
++            new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
++            $this->entityManager,
++            $this->inventionService,
++        );
++    }
++
+     // --- Helper methods ---
+ 
+     private function createBlueprintProduct(int $bpTypeId, int $productTypeId, int $quantity, int $activityId): IndustryActivityProduct
+diff --git a/tests/Unit/Service/Industry/ResolvesTypeNamesFromSde.php b/tests/Unit/Service/Industry/ResolvesTypeNamesFromSde.php
+index 37e669b..316b23d 100644
+--- a/tests/Unit/Service/Industry/ResolvesTypeNamesFromSde.php
++++ b/tests/Unit/Service/Industry/ResolvesTypeNamesFromSde.php
+@@ -52,6 +52,9 @@ trait ResolvesTypeNamesFromSde
+         $invTypeRepository->method('find')->willReturnCallback(
+             static fn (mixed $typeId): ?InvType => is_int($typeId) ? ($knownTypes[$typeId] ?? null) : null,
+         );
++        $invTypeRepository->method('findByTypeIds')->willReturnCallback(
++            static fn (array $typeIds): array => array_intersect_key($knownTypes, array_flip($typeIds)),
++        );
+ 
+         return $invTypeRepository;
+     }
+diff --git a/tests/Unit/Service/Industry/SlotTrackerServiceTest.php b/tests/Unit/Service/Industry/SlotTrackerServiceTest.php
+index 5e454c2..c165349 100644
+--- a/tests/Unit/Service/Industry/SlotTrackerServiceTest.php
++++ b/tests/Unit/Service/Industry/SlotTrackerServiceTest.php
+@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry;
+ use App\Entity\CachedCharacterSkill;
+ use App\Entity\CachedIndustryJob;
+ use App\Entity\Character;
++use App\Entity\IndustryStockpileTarget;
+ use App\Entity\User;
+ use App\Repository\CachedAssetRepository;
+ use App\Repository\CachedCharacterSkillRepository;
+@@ -19,6 +20,7 @@ use App\Service\TypeNameResolver;
+ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+ use PHPUnit\Framework\Attributes\CoversClass;
+ use PHPUnit\Framework\Attributes\DataProvider;
++use PHPUnit\Framework\Attributes\Group;
+ use PHPUnit\Framework\MockObject\MockObject;
+ use PHPUnit\Framework\TestCase;
+ 
+@@ -26,6 +28,8 @@ use PHPUnit\Framework\TestCase;
+ #[AllowMockObjectsWithoutExpectations]
+ class SlotTrackerServiceTest extends TestCase
+ {
++    use ResolvesTypeNamesFromSde;
++
+     private CharacterRepository&MockObject $characterRepository;
+     private CachedIndustryJobRepository&MockObject $jobRepository;
+     private CachedCharacterSkillRepository&MockObject $skillRepository;
+@@ -269,7 +273,7 @@ class SlotTrackerServiceTest extends TestCase
+                 default => [],
+             });
+ 
+-        $this->typeNameResolver->method('resolveMany')->willReturn([
++        $this->typeNameResolver->method('findNames')->willReturn([
+             100 => 'Widget A', 101 => 'Widget B', 102 => 'Widget C', 103 => 'Widget D',
+         ]);
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+@@ -298,7 +302,7 @@ class SlotTrackerServiceTest extends TestCase
+         $this->characterRepository->method('findByUser')->willReturn([$charAlt1, $charMain, $charAlt2]);
+         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
+         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([]);
++        $this->typeNameResolver->method('findNames')->willReturn([]);
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+ 
+         $result = $this->service->getSlotStatus($this->user);
+@@ -321,7 +325,7 @@ class SlotTrackerServiceTest extends TestCase
+ 
+         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([$jobLate, $jobEarly, $jobMid]);
+         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([100 => 'A', 101 => 'B', 102 => 'C']);
++        $this->typeNameResolver->method('findNames')->willReturn([100 => 'A', 101 => 'B', 102 => 'C']);
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+         $this->calculationService->method('resolveFacilityName')->willReturn(null);
+ 
+@@ -336,7 +340,7 @@ class SlotTrackerServiceTest extends TestCase
+     public function testEmptyCharacterList(): void
+     {
+         $this->characterRepository->method('findByUser')->willReturn([]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn([]);
++        $this->typeNameResolver->method('findNames')->willReturn([]);
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+ 
+         $result = $this->service->getSlotStatus($this->user);
+@@ -388,7 +392,7 @@ class SlotTrackerServiceTest extends TestCase
+         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+             $this->buildSkillMap([CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 5])
+         );
+-        $this->typeNameResolver->method('resolveMany')->willReturn([100 => 'Blueprint A', 101 => 'Blueprint B']);
++        $this->typeNameResolver->method('findNames')->willReturn([100 => 'Blueprint A', 101 => 'Blueprint B']);
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+         $this->calculationService->method('resolveFacilityName')->willReturn(null);
+ 
+@@ -420,7 +424,7 @@ class SlotTrackerServiceTest extends TestCase
+         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+             $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 5])
+         );
+-        $this->typeNameResolver->method('resolveMany')->willReturn([100 => 'A', 101 => 'B']);
++        $this->typeNameResolver->method('findNames')->willReturn([100 => 'A', 101 => 'B']);
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+         $this->calculationService->method('resolveFacilityName')->willReturn(null);
+ 
+@@ -452,7 +456,7 @@ class SlotTrackerServiceTest extends TestCase
+                 CachedCharacterSkill::SKILL_LABORATORY_OPERATION => 5,
+             ])
+         );
+-        $this->typeNameResolver->method('resolveMany')->willReturn([100 => 'Ferox', 101 => 'BP TE', 102 => 'BP ME']);
++        $this->typeNameResolver->method('findNames')->willReturn([100 => 'Ferox', 101 => 'BP TE', 102 => 'BP ME']);
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+         $this->calculationService->method('resolveFacilityName')->willReturn(null);
+ 
+@@ -487,7 +491,7 @@ class SlotTrackerServiceTest extends TestCase
+         $this->jobRepository->method('findActiveJobsByCharacter')->willReturn($jobs);
+         // No skills synced: empty array -> max = 1 (base) per category
+         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+-        $this->typeNameResolver->method('resolveMany')->willReturn(
++        $this->typeNameResolver->method('findNames')->willReturn(
+             array_combine(range(101, 105), array_map(fn ($i) => "Reaction $i", range(1, 5)))
+         );
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+@@ -520,7 +524,7 @@ class SlotTrackerServiceTest extends TestCase
+         $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
+             $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 5])
+         );
+-        $this->typeNameResolver->method('resolveMany')->willReturn(
++        $this->typeNameResolver->method('findNames')->willReturn(
+             array_combine(range(101, 103), ['Ship A', 'Ship B', 'Ship C'])
+         );
+         $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+@@ -535,6 +539,109 @@ class SlotTrackerServiceTest extends TestCase
+         $this->assertSame(50.0, $result['globalKpis']['manufacturing']['percent']);
+     }
+ 
++    private const int MANUFACTURING_ACTIVITY_ID = 1;
++
++    #[Group('issue-115')]
++    public function testJobOfAProductKnownToTheSdeKeepsItsSdeName(): void
++    {
++        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
++        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
++            $this->createJobMock(1, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 40, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
++        ]);
++        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
++        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
++
++        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
++
++        $this->assertSame([self::NITROGEN_FUEL_BLOCK_NAME], array_column($result['characters'][0]['jobs'], 'productTypeName'));
++        $this->assertSame([self::NITROGEN_FUEL_BLOCK_NAME], array_column($result['timeline'], 'productTypeName'));
++    }
++
++    #[Group('issue-115')]
++    public function testJobOfAProductMissingFromTheSdeHasAnUnknownNameWithUnchangedOrder(): void
++    {
++        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
++        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
++            $this->createJobMock(1, self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 40, '2026-02-23 00:00:00', '2099-03-01 00:00:00'),
++            $this->createJobMock(2, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 12, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
++        ]);
++        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
++            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 1]),
++        );
++        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
++
++        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
++
++        $jobs = $result['characters'][0]['jobs'];
++        $this->assertSame([2, 1], array_column($jobs, 'jobId'));
++        $this->assertSame([self::ROBOTICS_TYPE_ID, self::NITROGEN_FUEL_BLOCK_TYPE_ID], array_column($jobs, 'productTypeId'));
++        $this->assertSame([null, self::NITROGEN_FUEL_BLOCK_NAME], array_column($jobs, 'productTypeName'));
++        $this->assertSame([12, 40], array_column($jobs, 'runs'));
++        $this->assertSame([2, 1], array_column($result['timeline'], 'jobId'));
++        $this->assertSame([null, self::NITROGEN_FUEL_BLOCK_NAME], array_column($result['timeline'], 'productTypeName'));
++    }
++
++    #[Group('issue-115')]
++    public function testFreeSlotSuggestionOfATypeMissingFromTheSdeKeepsTheNameStoredOnTheStockpileTarget(): void
++    {
++        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
++        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
++        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
++        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->roboticsComponentTarget(100)]);
++        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::ROBOTICS_TYPE_ID => 25]);
++
++        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
++
++        $this->assertSame([
++            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 25%']],
++            ['activityType' => 'reaction', 'count' => 1, 'suggestion' => null],
++            ['activityType' => 'science', 'count' => 1, 'suggestion' => null],
++        ], $result['characters'][0]['freeSlots']);
++    }
++
++    #[Group('issue-115')]
++    public function testFreeSlotSuggestionOfATypeMissingFromTheSdeKeepsTheStoredNameWhileAJobProducesThatType(): void
++    {
++        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
++        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
++            $this->createJobMock(1, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 12, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
++        ]);
++        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn(
++            $this->buildSkillMap([CachedCharacterSkill::SKILL_MASS_PRODUCTION => 1]),
++        );
++        $this->stockpileTargetRepository->method('findByUser')->willReturn([$this->roboticsComponentTarget(80)]);
++        $this->assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::ROBOTICS_TYPE_ID => 60]);
++
++        $result = $this->slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock()->getSlotStatus($this->user);
++
++        $this->assertSame(
++            ['activityType' => 'manufacturing', 'count' => 1, 'suggestion' => ['typeId' => self::ROBOTICS_TYPE_ID, 'typeName' => 'Robotics', 'reason' => 'stockpile at 75%']],
++            $result['characters'][0]['freeSlots'][0],
++        );
++    }
++
++    private function roboticsComponentTarget(int $targetQuantity): IndustryStockpileTarget
++    {
++        return (new IndustryStockpileTarget())
++            ->setTypeId(self::ROBOTICS_TYPE_ID)
++            ->setTypeName('Robotics')
++            ->setTargetQuantity($targetQuantity)
++            ->setStage('component');
++    }
++
++    private function slotTrackerOnSdeKnowingOnlyNitrogenFuelBlock(): SlotTrackerService
++    {
++        return new SlotTrackerService(
++            $this->characterRepository,
++            $this->jobRepository,
++            $this->skillRepository,
++            $this->calculationService,
++            new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock()),
++            $this->stockpileTargetRepository,
++            $this->assetRepository,
++        );
++    }
++
+     /**
+      * Build a mock skill map indexed by skill ID.
+      *
+diff --git a/tests/Unit/Service/TypeNameResolverTest.php b/tests/Unit/Service/TypeNameResolverTest.php
+index 3a745af..197dd1a 100644
+--- a/tests/Unit/Service/TypeNameResolverTest.php
++++ b/tests/Unit/Service/TypeNameResolverTest.php
+@@ -29,4 +29,21 @@ final class TypeNameResolverTest extends TestCase
+ 
+         self::assertNull($resolver->findName(self::ROBOTICS_TYPE_ID));
+     }
++
++    public function testFindNamesReturnsOnlyTheSdeNamesOfTypesInInvTypesIndexedByTypeId(): void
++    {
++        $resolver = new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock());
++
++        self::assertSame(
++            [self::NITROGEN_FUEL_BLOCK_TYPE_ID => self::NITROGEN_FUEL_BLOCK_NAME],
++            $resolver->findNames([self::NITROGEN_FUEL_BLOCK_TYPE_ID, self::ROBOTICS_TYPE_ID]),
++        );
++    }
++
++    public function testFindNamesOfNoTypeIsEmpty(): void
++    {
++        $resolver = new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock());
++
++        self::assertSame([], $resolver->findNames([]));
++    }
+ }

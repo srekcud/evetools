@@ -1,0 +1,30 @@
+# Tri des issues, partie 4 (code lu sur `main`, 2026-10-23)
+
+| # | Verdict | Preuve (fichier::méthode ou commit) | Reste à faire |
+|---|---|---|---|
+| 197 | présent | `MatchJobsProcessor::process` (avertissement limité à 502/503/504, `matchEsiJobs` lancé quand même) ; `SyncCharacterSkillsProcessor::syncCharacterSkills` (retour silencieux sans token ni scope, `$syncedCount++` ensuite) ; message FR en dur | Tout l'issue |
+| 211 | présent | `AuthenticationService.php:261,278` restent les seuls `setCorporationId` ; `IndustryJobSyncService::syncCharacterJobs` lit `$character->getCorporationId()` | Tout l'issue |
+| 213 | corrigé | c0a497e (cache partagé `IndustryJobSyncService::corporationJobs`, clé par corporation, expiry ESI ; réinitialisation du suivi retirée du handler) | Rien sur l'appel unique ; le budget d'erreurs reste par processus (`EsiClient::$errorLimitRemain`), non traité |
+| 215 | présent | `IndustryJobSyncService::syncCharacterJobs` publie started/completed par personnage ; `SyncIndustryJobsHandler` un message par personnage ; `industryJobsProgress` (stores/sync.ts) seulement lu par `useNotificationFeed` ; `StepsTab.vue` sans gestion d'erreur, `IndustrySlotsSection.vue` charge au montage seulement | Tout l'issue (c673107 ne touche que les compteurs) |
+| 155 | présent | `infection.json5:3` toujours sans minMsi ; `Makefile:57` `-docker compose ... deptrac` ; pas de `.github/workflows` ni `.gitlab-ci.yml` ; goldens en double dans `.claude/tasks/industry-core/golden` et `tests/Fixtures/Golden` (README déjà divergent) | Les 4 points |
+| 161 | présent | `ProductionCostCalculator::solarSystemOf` et `recipeOf` inchangés ; `ProductionCostCalculatorTest` n'a que le cas « système inconnu » et aucun test du `throw` ; `ProductionPlanner` `continue` lignes 44/91 | Tests structure A / favori B, produit sans recette, deux intermédiaires dont le premier couvert (ProductionPlannerTest à relire pour ce dernier cas) |
+| 163 | présent | `InventionServiceTest` toujours 12 `assertNotNull`, aucune valeur de coût attendue ; formule `InventionService.php:~298-308` en place | Tests de valeurs fixées à la main |
+| 165 | présent | `calculateTimePerRun` et `calculateSkillTimeMultiplier` (`IndustryCalculationService.php:245,275`) cités par aucun test | Tests TE 0/20 et compétences |
+| 167 | présent | 10 fichiers de tests contiennent encore `CARACTÉRISATION` ; `tests/Unit/Industry/Domain/InstallCostTest.php:124` `markTestIncomplete` toujours là | Étiquetage, scission des tests multi-bugs, renommages |
+| 169 | incertain | Lignes citées décalées (plus de `findOneBy(['user'` à `ProductionCostService.php:56`) et nombreux commits industry depuis le 22/10 (b24c841, f2f3f5a, 5a65221...) ; seuls deux commits `kill ... mutants` (b090f15, e1584d1) touchent le notifier et la sync de jobs, hors liste | Relancer Infection sur `src/Service/Industry` pour trancher ; non lancé ici |
+| 171 | présent | `JobSplitCalculationTest::calculateSplit` (copie privée) et `IndustryCalculationTest::calculateRuns` (`:50`) toujours là, aucun commit depuis l'issue | Réécrire sur `IndustryProjectFactory::createProject()` |
+| 220 | présent | `MainLayout.vue:429` `<aside class="w-64 ...">` sans classe `sm:/md:/lg:` (0 occurrence) | Tout l'issue |
+| 221 | présent | `Industry.vue`, `Assets.vue`, `Ledger.vue` sans `router.replace` ; aucun composable `useTabQuery` | Tout l'issue |
+| 223 | présent | Aucun `role="dialog"` ni `aria-modal` dans `frontend/src` ; seul `ConfirmModal.vue` dans `components/common` | Tout l'issue |
+| 224 | présent | 0 `aria-label` dans les `.vue` ; 0 `prefers-reduced-motion` / `motion-reduce` | Tout l'issue |
+| 225 | présent | 1090 occurrences de `text-xs`/`text-[10px]`/`text-[11px]` (1084 à l'ouverture) | Tout l'issue |
+| 226 | présent | Aucun `overflow-x-auto` dans ProfitMarginTab, CostEstimationTab, BpcKitTab, OrderBookPanel, PiColonyCard, SalesTable (échantillon) ; pas de composant DataTable | Tout l'issue |
+| 227 | présent | 113 hex dans les `.vue` (identique au constat) | Tout l'issue |
+| 228 | présent | Aucun `ctrlKey`/`metaKey`/CommandPalette dans `frontend/src` | Tout l'issue |
+| 229 | présent | Pas de composant `DataFreshness` ; aucune date de sync dans BatchScanTab, BuyVsBuildTab, MarketBrowser | Tout l'issue |
+| 230 | présent | `Dashboard.vue` sans section « À faire » | Tout l'issue |
+| 232 | présent | `MainLayout.vue` ~470-500 entrées toujours en `<button>` + `navigateTo` | Tout l'issue |
+| 42 | présent | `AuthenticationService::REQUIRED_SCOPES` garde blueprints, location, ship, online, fleets, notifications, killmails ; aucun appel ESI correspondant dans `src/Service` | Décider garder (features planifiées) ou retirer ; ajouter le test d'architecture |
+| 44 | partiel | Retirés : `/me/corporation`, `available-structures`, `assets/status`, `market/groups/{id}`, `contracts/{id}/items`, apply/adapt-stock (c8c1194) ; `by-type` est maintenant appelé (`stores/ledger.ts:246`). Restent sans appel frontend : `AnsiblexResource` (`/me/ansiblex`, `/refresh`, `/discover`) et `AnsiblexGraphResource` (`/me/ansiblex/graph`) | Décider pour Ansiblex (Intel Map planifiée) : brancher ou supprimer |
+| 45 | partiel | Supprimés par 3f441e0 / c8c1194 / 99d16bc / aee7876 / 3718edd : `CharacterVoter`, message `CheckMarketAlerts`, `Pve\MessageResource`, méthodes citées (`refreshCharacterInfo`, `getOrePrices`, `getDefaultIntermediateTE`...) ; `shouldCountCorpProject*` absent. Restent : getters sans appelant `getCompletedDate`, `getCreatedBy`, `getClientId` (1 occurrence chacun), champs `plannedStructureName`/`plannedMaterialBonus` (4 occurrences) | Passer sur les champs/colonnes restants (migration) et les méthodes de repository sans appelant ; réévaluer la liste |
+| 46 | partiel | `PriceChart.vue`, `VolumeChart.vue`, `useShoppingList.ts` supprimés (412a24f) ; entrée « Profit Tracker » absente de `CLAUDE.md` | Restent : `design-*.html`, `design-proposals/`, `docs/industry-pipeline-plan.md` versionnés ; commandes `Test*Command`, `FixTokenScopesCommand`, `RegenerateProjectStepsCommand` ; table Scheduler et TODO Ansiblex de `CLAUDE.md` à revérifier contre `SyncScheduler` |

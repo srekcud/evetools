@@ -1,0 +1,12 @@
+# #243 lot 4 — phase rouge (48 rouges unitaires + 2 fonctionnels, reste vert)
+
+- D1 (30 rouges) `tests/Unit/ApiResource/Input/Pve/ImportLootSalesInputValidationTest.php` : contraintes sur `ImportLootSalesInput::$sales` / `$declined` (`Count(max: 500)`, `All` + `Collection` à champs optionnels, extra fields permis : le front envoie `typeId`, `quantity`), chemins `sales[i][champ]`, `declined[i][champ]`, `sales`, `declined`. Prix entier JSON (12500) accepté. Fonctionnel `tests/Functional/Api/Pve/ImportLootSalesApiTest.php` : 422 et aucune ligne ni réglage écrit (2 rouges, 1 garde verte).
+- D2 (3 rouges) `ImportLootSalesProcessorCorpProjectTest` : `characterId` hors `User::getCharacters()` → `rejectedContributions` +1. Pas de nouvelle dépendance au constructeur.
+- D3 (8+1 rouges) `ScanLootSalesProcessorCorpProjectRateLimitTest` (420 et 429 : liste, détail, contribution, repli R10) et `PveSyncServiceCorpProjectsTest::testRateLimitSurvivingTheReplay…` : une 420/429 rejouée arrête toute la lecture (une erreur `esi_error` + statut), ventes marché gardées, synchro jusqu'aux dépenses. Garde verte : 429 unique rejouée, lecture complète.
+- D4 (6 rouges) `ScanLootSalesProcessorDaysTest` : `days` hors 1..3650 ou non entier → exception HTTP 400 avant tout appel ESI (pas même `getValidAccessToken`) ; 1 et 3650 verts.
+- D5 `tests/Unit/Service/Pve/CorpProjectContributionReaderTest.php` (13 verts, appel direct de `read()`) + `#[CoversClass(CorpProjectContributionReader)]` ajouté à 4 classes de scan. MSI 48 % → 87 % (168/192, rouges exclus).
+- D6 verts : `PveIncomeRepositoryCorpProjectImportsTest`, `LedgerOldestEntryDateRepositoriesTest`.
+- Harnais `CorpProjectsEsiSimulation::createProcessor` : `days` accepte une chaîne, nouveau `ClockInterface $esiClock`. Import : l'utilisateur stubé devient un vrai `User` possédant Pilot One et Two.
+- Mutants laissés : logs (l. 100, 259, 320) ; équivalents : TrueValue 90/306 (lu par `isset`), Catch_ 235 (le détail ne lève pas d'`UnexpectedValueException`), CastFloat 244 (int élargi par `?float`), Coalesce/CastInt 407 (ids ESI entiers, une seule clé).
+- À trancher : LessThanOrEqualTo 265, `contributed` 0 alors qu'une quantité est déjà importée : ignoré (R10) ou `contribution_below_imported` (R16) ? Pas figé.
+- Aucun test existant n'importe un `price` 0 ou null ; les specs front à prix null/0 portent sur le scan (`needsPriceInput`), non touchées.
