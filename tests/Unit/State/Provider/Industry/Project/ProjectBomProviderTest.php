@@ -19,6 +19,7 @@ use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
 use App\State\Provider\Industry\Project\ProjectBomProvider;
+use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -55,6 +56,7 @@ class ProjectBomProviderTest extends TestCase
             $this->bomItemRepository,
             new ProjectAccessChecker($this->memberRepository),
             $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(ProjectJobLocationResolver::class),
         );
     }
 
@@ -184,7 +186,7 @@ class ProjectBomProviderTest extends TestCase
         foreach ([$member, $owner] as $viewer) {
             $security = $this->createStub(Security::class);
             $security->method('getUser')->willReturn($viewer);
-            $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class));
+            $provider = new ProjectBomProvider($security, $this->projectRepository, $this->bomItemRepository, new ProjectAccessChecker($this->memberRepository), $this->createStub(IndustryProjectLineReservationRepository::class), $this->createStub(ProjectJobLocationResolver::class));
             $installersByViewer[] = $provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0]->jobMatches[0]['characterName'];
         }
 
@@ -300,6 +302,7 @@ class ProjectBomProviderTest extends TestCase
             $bomItemRepository,
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(ProjectJobLocationResolver::class),
         );
 
         $result = $provider->provide(new GetCollection(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
@@ -319,6 +322,7 @@ class ProjectBomProviderTest extends TestCase
             $bomItemRepository,
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             $this->createStub(IndustryProjectLineReservationRepository::class),
+            $this->createStub(ProjectJobLocationResolver::class),
         );
 
         return $this->outcomeOf(fn () => $provider->provide(new GetCollection(), ['projectId' => $projectId->toRfc4122()]));

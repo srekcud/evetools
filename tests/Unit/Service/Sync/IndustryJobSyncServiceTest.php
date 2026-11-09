@@ -3187,6 +3187,62 @@ class IndustryJobSyncServiceTest extends TestCase
     /**
      * @return array<string, mixed>
      */
+    #[Group('issue-319')]
+    public function testNewJobKeepsTheBlueprintAndOutputLocationsReadFromEsi(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->givenNoCachedJobAndRecordedPersists();
+        $this->esiClient->method('get')->willReturn([$this->esiManufacturingJobWithLocations('active', 1_049_000_000_111, 1_049_000_000_222)]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(
+            [[1_049_000_000_111, 1_049_000_000_222]],
+            array_map($this->locationsOf(...), $this->persistedJobs),
+        );
+    }
+
+    #[Group('issue-319')]
+    public function testCachedJobTakesTheLocationsReadFromEsiAtEachSync(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::MANUFACTURING_JOB_ID, $character, 1, self::RIFTER_TYPE_ID, 10, 1_250_000.75);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $this->esiClient->method('get')->willReturn([$this->esiManufacturingJobWithLocations('active', 1_049_000_000_333, 1_049_000_000_444)]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([1_049_000_000_333, 1_049_000_000_444], $this->locationsOf($cachedJob));
+    }
+
+    #[Group('issue-319')]
+    public function testJobWithoutLocationsInEsiKeepsThemUnknown(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->givenNoCachedJobAndRecordedPersists();
+        $this->esiClient->method('get')->willReturn([$this->esiManufacturingJob500('active')]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([[null, null]], array_map($this->locationsOf(...), $this->persistedJobs));
+    }
+
+    private function esiManufacturingJobWithLocations(string $status, int $blueprintLocationId, int $outputLocationId): array
+    {
+        $jobData = $this->esiManufacturingJob500($status);
+        $jobData['blueprint_location_id'] = $blueprintLocationId;
+        $jobData['output_location_id'] = $outputLocationId;
+
+        return $jobData;
+    }
+
+    private function locationsOf(CachedIndustryJob $job): array
+    {
+        return [$job->getBlueprintLocationId(), $job->getOutputLocationId()];
+    }
+
     private function makeJobData(int $jobId, int $installerId, string $status, int $productTypeId = self::TYPE_ID_MISSING_FROM_SDE): array
     {
         return [

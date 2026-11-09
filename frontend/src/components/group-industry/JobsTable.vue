@@ -8,6 +8,7 @@ import IskAmount from '@/components/common/IskAmount.vue'
 import JobLinkModal from './JobLinkModal.vue'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
+import JobLocationBadge from './JobLocationBadge.vue'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
 import type { AvailableJob, BomItem, CharacterMatchFailure } from '@/stores/group-industry/types'
 
@@ -351,6 +352,11 @@ function isJobDimmed(job: BomItem): boolean {
                           <span v-if="jobMatch.characterName !== null" class="text-slate-400">{{ jobMatch.characterName }}</span>
                           &middot; {{ formatNumber(jobMatch.runs, 0) }} {{ t('groupIndustry.jobs.runs') }}
                           &middot; {{ jobMatch.status }}
+                          <span v-if="jobMatch.locations" data-testid="job-match-locations" class="block text-slate-500">
+                            {{ jobMatch.locations.blueprint.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
+                            &rarr; {{ jobMatch.locations.output.name ?? t('groupIndustry.jobLocations.unknownLocation') }}
+                            <JobLocationBadge :locations="jobMatch.locations" data-testid="job-match-check" class="ml-1" />
+                          </span>
                           <button
                             v-if="isProjectOwner"
                             data-testid="job-match-unlink"

@@ -57,6 +57,44 @@ class CachedAssetRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<int> $itemIds
+     *
+     * @return array<int, CachedAsset> personal assets indexed by item id
+     */
+    public function findPersonalByItemIds(array $itemIds): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+
+        $assets = $this->createQueryBuilder('a')
+            ->where('a.itemId IN (:itemIds)')
+            ->andWhere('a.isCorporationAsset = false')
+            ->setParameter('itemIds', $itemIds)
+            ->getQuery()
+            ->getResult();
+
+        $indexed = [];
+        foreach ($assets as $asset) {
+            $indexed[$asset->getItemId()] = $asset;
+        }
+
+        return $indexed;
+    }
+
+    public function hasCharacterAssets(Character $character): bool
+    {
+        return $this->createQueryBuilder('a')
+            ->select('a.id')
+            ->where('a.character = :character')
+            ->andWhere('a.isCorporationAsset = false')
+            ->setParameter('character', $character)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult() !== null;
+    }
+
+    /**
      * @return CachedAsset[]
      */
     public function findByCharacterAndLocation(Character $character, int $locationId): array

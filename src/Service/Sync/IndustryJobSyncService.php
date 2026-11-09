@@ -218,6 +218,8 @@ class IndustryJobSyncService
                 $existing->setCharacter($installerCharacter);
                 $existing->setStatus($jobData['status']);
                 $existing->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
+                $existing->setBlueprintLocationId($jobData['blueprint_location_id'] ?? null);
+                $existing->setOutputLocationId($jobData['output_location_id'] ?? null);
                 $existing->setEndDate(new \DateTimeImmutable($jobData['end_date']));
                 $existing->setProductTypeId($jobData['product_type_id'] ?? null);
                 $existing->setRuns($jobData['runs']);
@@ -240,6 +242,8 @@ class IndustryJobSyncService
             $job->setCost(self::esiCost($jobData));
             $job->setStatus($jobData['status']);
             $job->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
+            $job->setBlueprintLocationId($jobData['blueprint_location_id'] ?? null);
+            $job->setOutputLocationId($jobData['output_location_id'] ?? null);
             $job->setStartDate(new \DateTimeImmutable($jobData['start_date']));
             $job->setEndDate(new \DateTimeImmutable($jobData['end_date']));
             if (isset($jobData['completed_date'])) {

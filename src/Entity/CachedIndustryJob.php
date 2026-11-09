@@ -70,6 +70,12 @@ class CachedIndustryJob
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $stationId = null;
 
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $blueprintLocationId = null;
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $outputLocationId = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $cachedAt;
 
@@ -247,6 +253,28 @@ class CachedIndustryJob
     public function setCompletionNotifiedAt(?\DateTimeImmutable $completionNotifiedAt): static
     {
         $this->completionNotifiedAt = $completionNotifiedAt;
+        return $this;
+    }
+
+    public function getBlueprintLocationId(): ?int
+    {
+        return $this->blueprintLocationId;
+    }
+
+    public function setBlueprintLocationId(?int $blueprintLocationId): static
+    {
+        $this->blueprintLocationId = $blueprintLocationId;
+        return $this;
+    }
+
+    public function getOutputLocationId(): ?int
+    {
+        return $this->outputLocationId;
+    }
+
+    public function setOutputLocationId(?int $outputLocationId): static
+    {
+        $this->outputLocationId = $outputLocationId;
         return $this;
     }
 }

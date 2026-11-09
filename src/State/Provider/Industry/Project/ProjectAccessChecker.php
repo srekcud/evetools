@@ -59,21 +59,23 @@ class ProjectAccessChecker
      */
     public function assertAdminOrOwner(User $user, IndustryProject $project): void
     {
+        if (!$this->isAdminOrOwner($user, $project)) {
+            throw new AccessDeniedHttpException('Only project owner or admin can perform this action');
+        }
+    }
+
+    public function isAdminOrOwner(User $user, IndustryProject $project): bool
+    {
         if ($project->getOwner() === $user) {
-            return;
+            return true;
         }
 
-        $member = $this->memberRepository->findOneBy([
+        return $this->memberRepository->findOneBy([
             'project' => $project,
             'user' => $user,
             'status' => ParticipantStatus::Accepted,
             'role' => ParticipantRole::Admin,
-        ]);
-        if ($member !== null) {
-            return;
-        }
-
-        throw new AccessDeniedHttpException('Only project owner or admin can perform this action');
+        ]) !== null;
     }
 
     private function isOwnerOrAcceptedMember(User $user, IndustryProject $project): bool

@@ -2663,6 +2663,30 @@
       "linkError": "Échec du lien du job",
       "unlinkError": "Échec de la suppression du lien"
     },
+    "jobLocations": {
+      "title": "Jobs ESI · containers d'entrée et de sortie",
+      "blueprint": "Entrée",
+      "output": "Sortie",
+      "control": "Contrôle",
+      "unknownLocation": "Lieu inconnu",
+      "check": {
+        "ok": "✓ Dans le container du projet",
+        "blueprintOutside": "Entrée hors du container du projet",
+        "outputOutside": "À déplacer dans le container du projet",
+        "unknown": "Contrôle impossible"
+      },
+      "reasons": {
+        "location_missing": "Job synchronisé avant que ses lieux soient gardés",
+        "assets_not_synced": "Assets du pilote non synchronisés (jeton expiré ?)",
+        "location_unresolved": "Lieu introuvable dans les assets synchronisés",
+        "no_container_name": "Le projet n'a pas de nom de container",
+        "owner_without_corporation": "Le propriétaire du projet n'a pas de corporation",
+        "no_director": "Aucun directeur connecté pour lire les assets de la corporation",
+        "corporation_assets_not_synced": "Assets de la corporation non synchronisés",
+        "no_visible_division": "Aucune division de la corporation visible du propriétaire",
+        "container_not_found": "Aucun container visible ne porte le nom du projet"
+      }
+    },
     "purchases": {
       "open": "Achats",
       "modalTitle": "Achats de {name}",

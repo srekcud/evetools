@@ -19,6 +19,7 @@ use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Entity\IndustryProjectLineReservation;
 use App\Service\Industry\Project\JobInstallerName;
+use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\Service\Industry\Project\PilotName;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -36,6 +37,7 @@ class ProjectBomProvider implements ProviderInterface
         private readonly IndustryProjectBomLineRepository $bomItemRepository,
         private readonly ProjectAccessChecker $accessChecker,
         private readonly IndustryProjectLineReservationRepository $reservationRepository,
+        private readonly ProjectJobLocationResolver $jobLocationResolver,
     ) {
     }
 
@@ -69,16 +71,38 @@ class ProjectBomProvider implements ProviderInterface
             $reservationsByLine[$reservation->getBomLine()->getId()->toRfc4122()][] = $reservation;
         }
 
+        $locationsByJobId = $this->accessChecker->isAdminOrOwner($user, $project)
+            ? $this->jobLocationResolver->locationsOf($project, $this->jobMatchesOf($bomItems))
+            : [];
+
         return array_map(
-            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? []),
+            fn (IndustryProjectBomLine $item) => $this->mapToResource($item, $project, $user, $reservationsByLine[$item->getId()->toRfc4122()] ?? [], $locationsByJobId),
             $bomItems,
         );
     }
 
     /**
-     * @param list<IndustryProjectLineReservation> $reservations
+     * @param IndustryProjectBomLine[] $bomItems
+     *
+     * @return list<IndustryProjectJobMatch>
      */
-    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations): ProjectBomLineResource
+    private function jobMatchesOf(array $bomItems): array
+    {
+        $matches = [];
+        foreach ($bomItems as $item) {
+            foreach ($item->getJobMatches() as $match) {
+                $matches[] = $match;
+            }
+        }
+
+        return $matches;
+    }
+
+    /**
+     * @param list<IndustryProjectLineReservation> $reservations
+     * @param array<int, array{blueprint: array<string, mixed>, output: array<string, mixed>}> $locationsByJobId
+     */
+    private function mapToResource(IndustryProjectBomLine $item, IndustryProject $project, User $viewer, array $reservations, array $locationsByJobId): ProjectBomLineResource
     {
         $resource = new ProjectBomLineResource();
         $resource->id = $item->getId()->toString();
@@ -101,9 +125,10 @@ class ProjectBomProvider implements ProviderInterface
         $resource->runs = $item->getRuns();
         $resource->isFulfilled = $item->isFulfilled();
         $resource->jobMatches = array_values($item->getJobMatches()->map(
-            static function (IndustryProjectJobMatch $match) use ($project, $viewer): array {
+            static function (IndustryProjectJobMatch $match) use ($project, $viewer, $locationsByJobId): array {
                 $jobMatch = get_object_vars(ProjectJobMatchResource::fromEntity($match));
                 $jobMatch['characterName'] = JobInstallerName::seenBy($match->getCharacterName(), $project, $viewer);
+                $jobMatch['locations'] = $locationsByJobId[$match->getEsiJobId()] ?? null;
 
                 return $jobMatch;
             },

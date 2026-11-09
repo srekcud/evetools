@@ -84,6 +84,22 @@ export type GroupProject = {
 
 // --- BOM ---
 
+export type JobLocationStatus = 'inside' | 'outside' | 'unknown'
+
+export type JobLocation = {
+  locationId: number | null
+  kind: 'container' | 'hangar' | null
+  name: string | null
+  divisionName: string | null
+  status: JobLocationStatus
+  unknownReason: string | null
+}
+
+export type JobLocations = {
+  blueprint: JobLocation
+  output: JobLocation
+}
+
 export type JobMatch = {
   id: string
   bomLineId: string
@@ -97,6 +113,7 @@ export type JobMatch = {
   facilityId: number | null
   facilityName: string | null
   manual: boolean
+  locations?: JobLocations | null
 }
 
 export type ProjectPurchase = {

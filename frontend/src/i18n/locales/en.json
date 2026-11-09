@@ -2663,6 +2663,30 @@
       "linkError": "Failed to link the job",
       "unlinkError": "Failed to unlink the job"
     },
+    "jobLocations": {
+      "title": "ESI jobs · input and output containers",
+      "blueprint": "Input",
+      "output": "Output",
+      "control": "Check",
+      "unknownLocation": "Unknown location",
+      "check": {
+        "ok": "✓ In the project container",
+        "blueprintOutside": "Input outside the project container",
+        "outputOutside": "To move into the project container",
+        "unknown": "Check impossible"
+      },
+      "reasons": {
+        "location_missing": "The job was synced before its locations were kept",
+        "assets_not_synced": "Assets of the pilot not synced (expired token?)",
+        "location_unresolved": "Location not found in the synced assets",
+        "no_container_name": "The project has no container name",
+        "owner_without_corporation": "The project owner has no corporation",
+        "no_director": "No director connected to read the corporation assets",
+        "corporation_assets_not_synced": "Corporation assets not synced",
+        "no_visible_division": "No corporation division visible to the owner",
+        "container_not_found": "No visible container has the name of the project"
+      }
+    },
     "purchases": {
       "open": "Purchases",
       "modalTitle": "Purchases of {name}",
