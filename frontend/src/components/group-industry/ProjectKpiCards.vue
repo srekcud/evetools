@@ -23,6 +23,10 @@ const unknownContributionValueCount = computed(() =>
   props.projects.filter(p => p.approvedContributionValue === null).length
 )
 
+const pendingApprovals = computed(() =>
+  props.projects.reduce((sum, p) => (p.pendingContributionCount == null ? sum : sum + p.pendingContributionCount), 0)
+)
+
 const pipelineValue = computed(() =>
   props.projects.reduce((sum, p) => (p.totalBomValue === null ? sum : sum + p.totalBomValue), 0)
 )
@@ -72,7 +76,7 @@ const unknownBomValueCount = computed(() =>
         </svg>
       </div>
       <p class="text-3xl font-bold text-amber-400 font-mono value-reveal" style="animation-delay: 420ms; font-variant-numeric: tabular-nums;">
-        0
+        {{ pendingApprovals }}
       </p>
       <p class="text-xs text-slate-500 mt-1">{{ t('groupIndustry.kpis.approvalsDesc') }}</p>
     </div>

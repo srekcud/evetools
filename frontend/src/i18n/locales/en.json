@@ -2849,6 +2849,14 @@
         "actions": "Actions"
       },
       "corporationNumber": "Corp #{id}",
+      "status": {
+        "active": "Active"
+      },
+      "entry": {
+        "creator": "creator",
+        "sameCorporation": "same corporation",
+        "shortLinkApproved": "short link, approved"
+      },
       "viaShortLink": "Short Link",
       "totalContributed": "Total Contributed",
       "contributionCount": "Contributions",

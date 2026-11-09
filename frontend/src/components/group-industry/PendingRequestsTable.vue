@@ -23,6 +23,14 @@ const pendingMembers = computed(() =>
   store.members.filter(m => m.status === 'pending'),
 )
 
+function corporationLabel(member: GroupMember): string {
+  if (member.corporationName) {
+    return member.corporationName
+  }
+
+  return member.corporationId ? t('groupIndustry.members.corporationNumber', { id: member.corporationId }) : '--'
+}
+
 async function handleAccept(member: GroupMember): Promise<void> {
   await store.updateMember(props.projectId, member.id, { status: 'accepted' })
 }
@@ -84,7 +92,7 @@ async function handleReject(member: GroupMember): Promise<void> {
               </td>
               <!-- Corporation -->
               <td class="py-3 px-3">
-                <span class="text-sm text-slate-400">{{ member.corporationId ? t('groupIndustry.members.corporationNumber', { id: member.corporationId }) : '--' }}</span>
+                <span class="text-sm text-slate-400">{{ corporationLabel(member) }}</span>
               </td>
               <!-- Requested date -->
               <td class="py-3 px-3 text-sm text-slate-400">{{ formatDate(member.joinedAt) }}</td>

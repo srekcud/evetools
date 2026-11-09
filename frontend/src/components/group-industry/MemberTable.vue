@@ -14,6 +14,7 @@ const props = defineProps<{
   projectId: string
   isAdmin: boolean
   isOwner: boolean
+  ownerCorporationId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -55,6 +56,19 @@ const ROLE_LABELS: Record<GroupMemberRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
   member: 'Member',
+}
+
+function statusLabel(member: GroupMember): string {
+  const active = t('groupIndustry.members.status.active')
+  if (member.role === 'owner') {
+    return `${active} · ${t('groupIndustry.members.entry.creator')}`
+  }
+  if (props.ownerCorporationId == null || member.corporationId == null) {
+    return active
+  }
+  const entry = member.corporationId === props.ownerCorporationId ? 'sameCorporation' : 'shortLinkApproved'
+
+  return `${active} · ${t(`groupIndustry.members.entry.${entry}`)}`
 }
 
 function isCurrentUser(member: GroupMember): boolean {
@@ -189,7 +203,7 @@ onMounted(() => {
             <td class="py-3 px-3 text-center">
               <div class="flex items-center justify-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span class="text-xs text-emerald-400">Active</span>
+                <span class="text-xs text-emerald-400">{{ statusLabel(member) }}</span>
               </div>
             </td>
             <!-- Joined -->

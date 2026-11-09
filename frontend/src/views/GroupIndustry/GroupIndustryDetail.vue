@@ -586,7 +586,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           </button>
         </div>
 
-        <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" :is-owner="isOwner" @left="handleLeaveProject" />
+        <MemberTable :project-id="projectId" :is-admin="isOwnerOrAdmin" :is-owner="isOwner" :owner-corporation-id="project.ownerCorporationId" @left="handleLeaveProject" />
         <PendingRequestsTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
         <ShareLinkCard v-if="project.shortLinkCode" :short-link-code="project.shortLinkCode" />
       </div>

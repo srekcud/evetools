@@ -71,6 +71,7 @@ export type GroupProject = {
   totalBomValue: number | null
   fulfillmentPercent: number
   approvedContributionValue: number | null
+  pendingContributionCount?: number | null
   brokerFeePercent: number | null
   salesTaxPercent: number | null
   lineRentalRatesOverride: Record<string, number> | null
