@@ -21,6 +21,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
   const currentProject = ref<GroupProject | null>(null)
   const bomItems = ref<BomItem[]>([])
   const containerVerification = ref<ContainerVerification[]>([])
+  const containerVerificationFailed = ref(false)
   const loading = ref(false)
   const bomLoading = ref(false)
   const error = ref<string | null>(null)
@@ -92,11 +93,13 @@ export const useGroupProjectStore = defineStore('group-project', () => {
   }
 
   async function fetchContainerVerification(projectId: string): Promise<void> {
+    containerVerificationFailed.value = false
     try {
       containerVerification.value = await apiRequest<ContainerVerification[]>(
         `/industry/projects/${projectId}/container-verification`,
       )
     } catch (e) {
+      containerVerificationFailed.value = true
       error.value = e instanceof Error ? e.message : 'Failed to verify container'
     }
   }
@@ -220,6 +223,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     currentProject,
     bomItems,
     containerVerification,
+    containerVerificationFailed,
     loading,
     bomLoading,
     error,

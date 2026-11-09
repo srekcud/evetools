@@ -2921,6 +2921,9 @@
         "no_director": "No Director is connected",
         "owner_without_corporation": "The owner has no corporation"
       },
+      "verifyFailed": "Verification failed",
+      "approvedGapTitle": "Approved contributions missing from the container, check again before the jobs",
+      "approvedGapLine": "{name}: {container} / {approved} in the container, {approved} approved",
       "containerName": "Container Name",
       "containerQuantity": "Container Qty"
     },

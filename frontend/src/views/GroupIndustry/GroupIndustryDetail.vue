@@ -507,6 +507,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           v-if="project.containerName"
           :container-name="project.containerName"
           :project-id="projectId"
+          :can-verify="isOwnerOrAdmin"
         />
 
         <ProjectCourier :project-id="projectId" />
