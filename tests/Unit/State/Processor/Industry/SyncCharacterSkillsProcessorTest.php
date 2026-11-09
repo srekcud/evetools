@@ -14,6 +14,7 @@ use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Repository\CachedCharacterSkillRepository;
+use App\Service\ESI\CharacterAttributesSynchronizer;
 use App\Service\ESI\CharacterStandingsSynchronizer;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -78,6 +79,10 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
     private array $sdeSkillRows = [];
 
     private array $standingsSyncedCharacterNames = [];
+
+    private array $attributesSyncedCharacterNames = [];
+
+    private array $attributesSyncFailures = [];
 
     private int $sdeSkillQueryCount = 0;
 
@@ -721,6 +726,40 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         $this->assertSame([self::PILOT_ONE], $this->standingsSyncedCharacterNames);
     }
 
+    #[Group('issue-359')]
+    public function testSynchronizesTheAttributesOfEachCharacterWhoseTokenHasTheSkillsScope(): void
+    {
+        $this->pilotTwoToken->setScopes([self::JOBS_SCOPE, self::STANDINGS_SCOPE]);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame([self::PILOT_ONE], $this->attributesSyncedCharacterNames);
+        $this->assertSame(1, $result->syncedCount);
+    }
+
+    #[Group('issue-359')]
+    public function testDoesNotSynchronizeTheAttributesOfACharacterWithoutToken(): void
+    {
+        $this->pilotTwo->setEveToken(null);
+
+        $this->syncSkills();
+
+        $this->assertSame([self::PILOT_ONE], $this->attributesSyncedCharacterNames);
+    }
+
+    #[Group('issue-359')]
+    public function testNamesTheCharacterWhoseAttributesCannotBeSynchronizedAndDoesNotCountIt(): void
+    {
+        $this->attributesSyncFailures[self::PILOT_ONE] = new \UnexpectedValueException('ESI attributes response has no integer intelligence');
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(1, $result->syncedCount);
+        $this->assertSame([self::PILOT_TWO], $this->attributesSyncedCharacterNames);
+        $this->assertSame(self::PILOT_ONE, $result->failedCharacters[0]['characterName'] ?? null);
+        $this->assertCount(1, $result->failedCharacters);
+    }
+
     private function persistedScience(): CachedCharacterSkill
     {
         foreach ($this->persistedSkills as $skill) {
@@ -833,6 +872,14 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             $this->standingsSyncedCharacterNames[] = $character->getName();
         });
 
+        $attributesSynchronizer = $this->createStub(CharacterAttributesSynchronizer::class);
+        $attributesSynchronizer->method('sync')->willReturnCallback(function (Character $character): void {
+            if (isset($this->attributesSyncFailures[$character->getName()])) {
+                throw $this->attributesSyncFailures[$character->getName()];
+            }
+            $this->attributesSyncedCharacterNames[] = $character->getName();
+        });
+
         $processor = new SyncCharacterSkillsProcessor(
             $security,
             $esiClient,
@@ -842,6 +889,7 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
             $entityManager,
             $this->logger,
             $standingsSynchronizer,
+            $attributesSynchronizer,
         );
 
         return $processor->process(null, new Post());

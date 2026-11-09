@@ -12,6 +12,7 @@ use App\Entity\Character;
 use App\Entity\User;
 use App\Entity\EveToken;
 use App\Repository\CachedCharacterSkillRepository;
+use App\Service\ESI\CharacterAttributesSynchronizer;
 use App\Service\ESI\CharacterStandingsSynchronizer;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -53,6 +54,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly CharacterStandingsSynchronizer $standingsSynchronizer,
+        private readonly CharacterAttributesSynchronizer $attributesSynchronizer,
     ) {
     }
 
@@ -80,6 +82,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
             } else {
                 try {
                     $this->syncCharacterSkills($character, $token);
+                    $this->attributesSynchronizer->sync($character, $token);
                     $syncedCount++;
                 } catch (\Throwable $e) {
                     $failure = CharacterSyncFailure::fromThrowable($character, $e);
