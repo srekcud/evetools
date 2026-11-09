@@ -84,6 +84,9 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
   const currentSite = ref<MiningSite | null>(null)
   const scans = ref<MiningSiteScan[]>([])
   const operationSites = ref<MiningSite[]>([])
+  const companionSite = ref<MiningSite | null>(null)
+  const companionScans = ref<MiningSiteScan[]>([])
+  const companionError = ref<string | null>(null)
   const error = ref<string | null>(null)
 
   async function fetchSites(): Promise<void> {
@@ -139,6 +142,28 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     }
   }
 
+  async function fetchCompanion(siteId: string): Promise<void> {
+    companionError.value = null
+    try {
+      const [loadedSite, loadedScans] = await Promise.all([
+        apiRequest<MiningSite>(`${SITES_PATH}/${siteId}`),
+        apiRequest<MiningSiteScan[]>(`${SITES_PATH}/${siteId}/scans`),
+      ])
+      companionSite.value = loadedSite
+      companionScans.value = loadedScans
+    } catch (cause) {
+      companionSite.value = null
+      companionScans.value = []
+      companionError.value = messageOf(cause, 'Failed to load the site of the companion')
+    }
+  }
+
+  function clearCompanion(): void {
+    companionSite.value = null
+    companionScans.value = []
+    companionError.value = null
+  }
+
   async function create(input: CreateMiningSiteInput): Promise<MiningSite> {
     error.value = null
     try {
@@ -155,7 +180,7 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     error.value = null
     try {
       const recorded = await apiRequest<MiningSiteScan>(`${SITES_PATH}/${siteId}/scans`, { method: 'POST', body: JSON.stringify({ lines }) })
-      scans.value = [...scans.value, recorded]
+      if (currentSite.value === null || currentSite.value.id === siteId) scans.value = [...scans.value, recorded]
       return recorded
     } catch (cause) {
       error.value = messageOf(cause, 'Failed to record the scan')
@@ -176,5 +201,24 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     }
   }
 
-  return { sites, currentSite, scans, operationSites, error, fetchSites, fetchOperationSites, fetchSite, fetchScans, reloadSiteAndScans, create, recordScan, close }
+  return {
+    sites,
+    currentSite,
+    scans,
+    operationSites,
+    companionSite,
+    companionScans,
+    companionError,
+    error,
+    fetchSites,
+    fetchOperationSites,
+    fetchSite,
+    fetchScans,
+    reloadSiteAndScans,
+    fetchCompanion,
+    clearCompanion,
+    create,
+    recordScan,
+    close,
+  }
 })

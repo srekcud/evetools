@@ -3732,6 +3732,48 @@
       }
     }
   },
+  "miningCompanion": {
+    "title": "Companion",
+    "windowTitle": "EVE Tools · mining companion",
+    "detach": "Detach",
+    "detachTitle": "Detach the companion into a small window (key D)",
+    "sizes": {
+      "bar": "Bar",
+      "compact": "Compact",
+      "detail": "Detail"
+    },
+    "paste": "Paste a scan",
+    "pasteTitle": "Record the scan from the clipboard (key V or Ctrl+V)",
+    "desk": "Desk",
+    "deskTitle": "Back to the main window on this page",
+    "empty": "No active site on this operation.",
+    "noScan": "No scan yet: paste the first scan (Ctrl+V).",
+    "loading": "Loading the site…",
+    "leave": "I am leaving",
+    "leaveConfirm": "Confirm: leave the operation",
+    "settings": {
+      "open": "Display settings",
+      "opacity": "Background opacity",
+      "textSize": "Text size",
+      "textSizes": {
+        "S": "S",
+        "M": "M",
+        "L": "L"
+      },
+      "rescan": "Re-scan reminder after",
+      "minutes": "min"
+    },
+    "notices": {
+      "popupBlocked": "The browser blocked the popup: allow popups for this site, then detach again.",
+      "popupFallback": "Picture-in-Picture is not available: the companion opened as a popup.",
+      "resizeRefused": "The browser refused to resize the window: adjust it by hand.",
+      "clipboardDenied": "The browser denied access to the clipboard: use Ctrl+V."
+    },
+    "errors": {
+      "noActiveSite": "No active site to record the scan on.",
+      "oreTypesUnavailable": "The ore list could not be loaded: the paste cannot be read."
+    }
+  },
   "miningSite": {
     "feed": {
       "title": "Scan feed",
