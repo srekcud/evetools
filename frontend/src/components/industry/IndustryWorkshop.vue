@@ -106,6 +106,25 @@ function openCockpit(projectId: string, action: IndustryAction | null = null): v
   router.push(location)
 }
 
+const MIDDLE_MOUSE_BUTTON = 1
+
+function openProjectInNewTab(projectId: string): void {
+  window.open(router.resolve({ name: 'industry-project', params: { id: projectId } }).href, '_blank')
+}
+
+function openProjectRow(projectId: string, event: MouseEvent | KeyboardEvent): void {
+  if (event.ctrlKey || event.metaKey) {
+    openProjectInNewTab(projectId)
+    return
+  }
+  openCockpit(projectId)
+}
+
+function openProjectRowOnMiddleClick(projectId: string, event: MouseEvent): void {
+  if (event.button !== MIDDLE_MOUSE_BUTTON) return
+  openProjectInNewTab(projectId)
+}
+
 const upcomingJobs = computed(() =>
   [...(slotsStore.data?.timeline ?? [])]
     .sort((left, right) => Date.parse(left.endDate) - Date.parse(right.endDate))
@@ -372,8 +391,11 @@ function statusLabel(status: GroupProjectStatus): string {
             :aria-selected="selectedProject !== null && selectedProject.id === project.id"
             class="grid cursor-pointer gap-2 px-4 py-3 transition-colors hover:bg-slate-800/50 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1fr)] sm:items-center sm:gap-4"
             :class="selectedProject !== null && selectedProject.id === project.id ? 'bg-cyan-500/5 border-l-2 border-cyan-400' : 'border-l-2 border-transparent'"
-            @click="pickedProjectId = project.id"
-            @keydown.enter.prevent="pickedProjectId = project.id"
+            @mouseenter="pickedProjectId = project.id"
+            @focus="pickedProjectId = project.id"
+            @click="openProjectRow(project.id, $event)"
+            @auxclick="openProjectRowOnMiddleClick(project.id, $event)"
+            @keydown.enter.prevent="openProjectRow(project.id, $event)"
             @keydown.space.prevent="pickedProjectId = project.id"
           >
             <div class="flex min-w-0 items-center gap-3">
