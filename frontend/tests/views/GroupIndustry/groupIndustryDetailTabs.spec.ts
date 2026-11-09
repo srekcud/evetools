@@ -5,6 +5,7 @@ import DistributionTable from '@/components/group-industry/DistributionTable.vue
 import FinancialSummary from '@/components/group-industry/FinancialSummary.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
+import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { apiRequest } from '@/services/api'
@@ -13,6 +14,7 @@ import {
   mountCockpitDetail,
   nextAction,
   nyxProject,
+  PROJECT_ID,
   route,
 } from './projectCockpitFixtures'
 
@@ -80,6 +82,24 @@ describe('project cockpit tabs', () => {
       chainQueryKeepsTheMaterialsClosed: true,
       planningQueryOpensThePlanning: true,
       planningQueryKeepsTheMaterialsClosed: true,
+    })
+  })
+
+  it('mounts the research card of the project in the chain tab and not in the materials tab', async () => {
+    const chain = await mountSellingNyxOn('chain')
+    const research = chain.findComponent(ProjectResearch)
+    const chainShowsTheResearch = research.exists()
+    const researchProjectId = research.exists() ? research.props('projectId') : 'absent'
+    const materials = await mountSellingNyxOn('bom')
+
+    expect({
+      chainShowsTheResearch,
+      researchProjectId,
+      materialsShowTheResearch: materials.findComponent(ProjectResearch).exists(),
+    }).toEqual({
+      chainShowsTheResearch: true,
+      researchProjectId: PROJECT_ID,
+      materialsShowTheResearch: false,
     })
   })
 

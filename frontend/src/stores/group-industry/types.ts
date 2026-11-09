@@ -668,6 +668,26 @@ export interface ProjectBuyOrBuild {
   rows: BuyOrBuildRow[]
 }
 
+export type ResearchVerdict = 'worth' | 'not_worth' | 'unknown'
+
+export interface ResearchRow {
+  typeId: number
+  typeName: string | null
+  currentLevel: number
+  targetLevel: number
+  runs: number
+  materialSaving: number | null
+  researchCost: number | null
+  net: number | null
+  verdict: ResearchVerdict
+  missingData: BuyOrBuildMissingData[]
+}
+
+export interface ProjectResearch {
+  id: string
+  rows: ResearchRow[]
+}
+
 export type MaterialSourcingSide = 'jita' | 'structure' | 'unknown'
 
 export interface MaterialSourcingRow {

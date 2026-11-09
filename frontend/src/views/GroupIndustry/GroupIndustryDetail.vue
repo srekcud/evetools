@@ -38,6 +38,7 @@ import ProjectNextActionCard from '@/components/group-industry/ProjectNextAction
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
+import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
 import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklistEditor.vue'
@@ -582,6 +583,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
         <ProductionChain :project-id="projectId" />
         <ProjectBuyOrBuild :project-id="projectId" />
+        <ProjectResearch :project-id="projectId" />
         <ProjectStructures :project-id="projectId" />
         <ProjectStructureHealth :project-id="projectId" />
       </div>

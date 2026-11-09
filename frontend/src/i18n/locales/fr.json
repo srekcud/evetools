@@ -2280,6 +2280,31 @@
       "withoutImport": "sans l'import : acheter",
       "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet."
     },
+    "research": {
+      "title": "Recherche à lancer ?",
+      "loading": "Évaluation des recherches de rendement matériaux...",
+      "loadError": "Les suggestions de recherche n'ont pas pu être lues",
+      "inGameNotice": "À confirmer en jeu",
+      "levels": "ME {current} → {target} · {runs} runs",
+      "columns": {
+        "saving": "Gain",
+        "cost": "Coût",
+        "net": "Net"
+      },
+      "unknown": "Non proposée, inconnu : {reasons}",
+      "notWorth": "{count} recherche ne paie pas sur les runs du projet | {count} recherches ne paient pas sur les runs du projet",
+      "reason": {
+        "adjusted_price": "prix ajusté ESI",
+        "market_price": "prix Jita",
+        "structure_price": "prix de la structure",
+        "cost_index": "indice de coût du système",
+        "item_volume": "volume de l'objet",
+        "jump_route": "route de sauts",
+        "research_skill": "compétence de recherche",
+        "inventor_skills": "compétences d'inventeur",
+        "invention_probability": "probabilité d'invention"
+      }
+    },
     "materialSourcing": {
       "title": "Où acheter les matériaux",
       "loading": "Comparaison de Jita et de la structure...",
