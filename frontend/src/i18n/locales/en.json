@@ -2849,6 +2849,11 @@
       "recordedBy": "Recorded by",
       "correctTitle": "Correct a Sale",
       "actionsColumn": "Actions",
+      "channelColumn": "Channel",
+      "channels": {
+        "market": "Market order",
+        "contract": "Contract"
+      },
       "sellerColumn": "Seller",
       "unknownSeller": "Unknown seller",
       "mySales": "My sales",

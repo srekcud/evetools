@@ -113,6 +113,9 @@ final readonly class UpdateSaleProcessor implements ProcessorInterface
         if ($correction->venue !== null) {
             $sale->setVenue($correction->venue);
         }
+        if ($correction->channel !== null) {
+            $sale->setChannel($correction->channel);
+        }
         if ($correction->soldAt !== null) {
             $sale->setSoldAt(new \DateTimeImmutable($correction->soldAt));
         }

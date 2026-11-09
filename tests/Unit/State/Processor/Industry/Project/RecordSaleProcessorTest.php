@@ -9,6 +9,7 @@ use App\ApiResource\Industry\Project\ProjectSaleResource;
 use App\ApiResource\Input\Industry\Project\RecordSaleInput;
 use App\Entity\IndustryProjectSale;
 use App\Enum\ProjectStatus;
+use App\Enum\SaleChannel;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\RecordSaleProcessor;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -103,6 +104,26 @@ class RecordSaleProcessorTest extends TestCase
         self::assertSame(6000000.0, $resource->totalPrice);
         self::assertSame('Jita IV - Moon 4', $resource->venue);
         self::assertSame(1, $this->persistedSales);
+    }
+
+    #[Group('issue-325')]
+    public function testSaleRecordedByContractKeepsItsChannel(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $resource = $this->recordIshtarSale(['channel' => SaleChannel::Contract]);
+
+        self::assertSame(['contract', SaleChannel::Contract], [$resource->channel, $this->persistedSale->getChannel()]);
+    }
+
+    #[Group('issue-325')]
+    public function testSaleRecordedWithoutChannelIsAMarketSale(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $resource = $this->recordIshtarSale([]);
+
+        self::assertSame(['market', SaleChannel::Market], [$resource->channel, $this->persistedSale->getChannel()]);
     }
 
     #[Group('issue-164')]

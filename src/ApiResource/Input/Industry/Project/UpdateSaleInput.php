@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\Industry\Project;
 
+use App\Enum\SaleChannel;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class UpdateSaleInput
@@ -23,6 +24,8 @@ class UpdateSaleInput
 
     #[Assert\Length(max: RecordSaleInput::MAXIMUM_TEXT_LENGTH)]
     public ?string $venue = null;
+
+    public ?SaleChannel $channel = null;
 
     #[Assert\DateTime(format: \DateTimeInterface::ATOM)]
     public ?string $soldAt = null;

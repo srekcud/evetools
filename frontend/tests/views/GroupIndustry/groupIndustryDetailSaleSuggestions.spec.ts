@@ -54,6 +54,7 @@ const SALE_V: GroupSale = {
   unitPrice: 60_000_000,
   totalPrice: 120_000_000,
   venue: 'Jita 4-4',
+  channel: 'market',
   soldAt: '2026-10-23T19:10:00+00:00',
   recordedByCharacterName: 'O-Main',
   sellerCharacterId: null,

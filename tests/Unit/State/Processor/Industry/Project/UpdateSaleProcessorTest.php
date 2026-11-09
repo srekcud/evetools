@@ -11,6 +11,7 @@ use App\Entity\CachedWalletTransaction;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Enum\ProjectStatus;
+use App\Enum\SaleChannel;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Industry\Project\UpdateSaleProcessor;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -222,6 +223,27 @@ final class UpdateSaleProcessorTest extends TestCase
         $status = $this->httpStatusOf(fn () => $this->correctSabreSale(['unitPrice' => 950000.0], $this->sabreSaleUri(projectId: $this->hecateBatch->getId())));
 
         self::assertSame([404, [900000.0, 2, 1800000.0], 0], [$status, $this->persistedSabreSaleAmounts(), $this->flushes]);
+    }
+
+    #[Group('issue-325')]
+    public function testCorrectionOfTheChannelMovesTheSaleToContractAndKeepsTheAmounts(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+
+        $sale = $this->correctSabreSale(['channel' => SaleChannel::Contract]);
+
+        self::assertSame(['contract', SaleChannel::Contract, 1800000.0], [$sale->channel, $this->sabreSale->getChannel(), $sale->totalPrice]);
+    }
+
+    #[Group('issue-325')]
+    public function testCorrectionWithoutChannelKeepsTheChannelOfTheSale(): void
+    {
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_ADMIN));
+        $this->sabreSale->setChannel(SaleChannel::Contract);
+
+        $sale = $this->correctSabreSale(['unitPrice' => 950000.0]);
+
+        self::assertSame(['contract', SaleChannel::Contract], [$sale->channel, $this->sabreSale->getChannel()]);
     }
 
     public function testCorrectionOfTheVenueMovesTheSale(): void

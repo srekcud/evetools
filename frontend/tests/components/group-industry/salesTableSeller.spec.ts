@@ -34,6 +34,7 @@ function sale(id: string, quantity: number, unitPrice: number, soldAt: string, s
     unitPrice,
     totalPrice: quantity * unitPrice,
     venue: 'Jita 4-4',
+    channel: 'market',
     soldAt,
     recordedByCharacterName: recorder,
     sellerCharacterId: seller === null ? null : seller[0],
@@ -322,7 +323,7 @@ describe('SalesTable seller field', () => {
 
     await save(wrapper)
 
-    expect(sentBodies('POST')).toEqual([{ typeId: 0, typeName: 'Sabre', quantity: 3, unitPrice: 61_250_000, venue: '' }])
+    expect(sentBodies('POST')).toEqual([{ typeId: 0, typeName: 'Sabre', quantity: 3, unitPrice: 61_250_000, venue: '', channel: 'market' }])
   })
 
   it('records a sale with the EVE character id of the chosen alt', async () => {
@@ -336,7 +337,7 @@ describe('SalesTable seller field', () => {
     await save(wrapper)
 
     expect(sentBodies('POST')).toEqual([
-      { typeId: 0, typeName: 'Sabre', quantity: 3, unitPrice: 61_250_000, venue: '', sellerCharacterId: O_ALT_EVE_CHARACTER_ID },
+      { typeId: 0, typeName: 'Sabre', quantity: 3, unitPrice: 61_250_000, venue: '', channel: 'market', sellerCharacterId: O_ALT_EVE_CHARACTER_ID },
     ])
   })
 
