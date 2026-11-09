@@ -112,7 +112,6 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             ->andWhere('c.member = :member')
             ->andWhere('c.bomItem = :bomItem')
             ->andWhere('c.type = :type')
-            ->andWhere('c.isAutoDetected = false')
             ->andWhere('c.status IN (:statuses)')
             ->setParameter('member', $member)
             ->setParameter('bomItem', $bomItem)

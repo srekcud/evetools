@@ -116,6 +116,7 @@ async function mountSalesTabOf(project: GroupProject): Promise<VueWrapper> {
         ProjectCourier: true,
         ContributeModal: true,
         ContributionTable: true,
+        ContractSaleSuggestions: true,
         FinancialSummary: true,
         DistributionTable: true,
         MemberTable: true,

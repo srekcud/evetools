@@ -116,7 +116,7 @@ function mountWithAnalysis(analysis: ProfitMarginResult, locale: 'en' | 'fr') {
   useProjectsStore().marginResult = analysis
   const i18n = createI18n({ legacy: false, locale, messages: { en, fr } })
   const wrapper = mount(ProfitMarginTab, {
-    global: { plugins: [i18n], stubs: { ProductSearch: true } },
+    global: { plugins: [i18n], stubs: { ProductSearch: true, SellMarketsCard: true } },
   })
   return { wrapper, t: i18n.global.t }
 }

@@ -322,6 +322,7 @@ async function mountGroupIndustryDetail(locale: Locale): Promise<MountedComponen
         ContributeModal: true,
         ContributionTable: true,
         SalesTable: true,
+        MaterialSourcing: true,
         FinancialSummary: true,
         DistributionTable: true,
         MemberTable: true,
