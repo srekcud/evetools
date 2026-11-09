@@ -12,6 +12,7 @@ use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Enum\ContributionStatus;
+use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\PilotName;
 
@@ -77,8 +78,23 @@ class ProjectResourceMapper
         $resource->approvedContributionValue = $approvedContributionValue !== null || $approvedContributionValueIsPrecomputed
             ? $approvedContributionValue
             : $this->approvedValueOf($project);
+        $resource->pendingContributionCount = $this->canReview($myMembership) ? $this->pendingCountOf($project) : null;
 
         return $resource;
+    }
+
+    private function canReview(?IndustryProjectParticipant $membership): bool
+    {
+        return $membership !== null
+            && $membership->getStatus() === ParticipantStatus::Accepted
+            && in_array($membership->getRole(), [ParticipantRole::Owner, ParticipantRole::Admin], true);
+    }
+
+    private function pendingCountOf(IndustryProject $project): int
+    {
+        return $project->getContributions()
+            ->filter(static fn (IndustryProjectContribution $contribution) => $contribution->getStatus() === ContributionStatus::Pending)
+            ->count();
     }
 
     private function approvedValueOf(IndustryProject $project): ?float

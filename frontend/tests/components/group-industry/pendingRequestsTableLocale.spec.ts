@@ -56,7 +56,8 @@ describe('PendingRequestsTable locale', () => {
       'groupIndustry.members.acceptRequest',
       'groupIndustry.members.rejectRequest',
     ])
-    expect(text).toContain(messageOf(locale, 'groupIndustry.members.corporationNumber').replace('{id}', String(CORPORATION_ID)))
+    expect(text).toContain(PENDING_PILOT.corporationName)
+    expect(text).not.toContain(messageOf(locale, 'groupIndustry.members.corporationNumber').replace('{id}', String(CORPORATION_ID)))
     if (locale === 'fr') expectNoneOf(text, FORMER_HARDCODED_TEXTS)
   })
 

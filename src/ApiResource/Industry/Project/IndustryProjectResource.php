@@ -147,6 +147,8 @@ class IndustryProjectResource
 
     public ?float $approvedContributionValue = 0.0;
 
+    public ?int $pendingContributionCount = null;
+
     public ?float $brokerFeePercent = null;
 
     public ?float $salesTaxPercent = null;
