@@ -27,6 +27,7 @@ function contribution(overrides: Partial<GroupContribution>): GroupContribution 
     status: 'approved',
     isAutoDetected: false,
     isVerified: false,
+    duplicatesDerived: false,
     reviewedByCharacterName: null,
     reviewedAt: null,
     note: null,

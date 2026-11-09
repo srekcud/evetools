@@ -2615,6 +2615,7 @@
     },
     "contributions": {
       "unknownValueCause": "Un apport n'a pas de prix connu : les totaux qui l'incluent sont inconnus, jamais partiels.",
+      "duplicatesDerived": "Doublon avec un apport ESI",
       "methods": {
         "paidPrice": "prix payé (wallet)",
         "esiCost": "coût réel (ESI)",

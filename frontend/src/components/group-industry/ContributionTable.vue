@@ -254,6 +254,10 @@ onMounted(() => {
                   v-else-if="!contrib.isVerified && isPending(contrib.status)"
                   class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
                 >Unverified</span>
+                <span
+                  v-if="contrib.duplicatesDerived"
+                  class="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400/70 border border-amber-500/15 ml-1.5"
+                >{{ t('groupIndustry.contributions.duplicatesDerived') }}</span>
               </td>
               <!-- Actions -->
               <td class="py-3 px-6 text-center">
@@ -265,6 +269,15 @@ onMounted(() => {
                     class="px-2.5 py-1 rounded bg-emerald-600/20 text-emerald-400 text-xs font-medium hover:bg-emerald-600/30 transition-colors border border-emerald-600/30"
                     @click="handleApprove(contrib.id)"
                   >Approve</button>
+                  <button
+                    class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
+                    @click="handleReject(contrib.id)"
+                  >Reject</button>
+                </div>
+                <div
+                  v-else-if="isAdmin && contrib.duplicatesDerived"
+                  class="flex items-center justify-center gap-1.5"
+                >
                   <button
                     class="px-2.5 py-1 rounded bg-red-600/20 text-red-400 text-xs font-medium hover:bg-red-600/30 transition-colors border border-red-600/30"
                     @click="handleReject(contrib.id)"

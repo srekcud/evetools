@@ -392,6 +392,98 @@ class ProjectContributionServiceTest extends TestCase
         $this->service->reject($contribution, $this->reviewer);
     }
 
+    #[Group('issue-510')]
+    public function testRejectingAnApprovedDeclaredMaterialThatDuplicatesADerivedOneTakesItsQuantityBackOutOfTheLine(): void
+    {
+        $declared = $this->contributionOnTheBomItem(ContributionType::Material, 400, ContributionStatus::Approved, false);
+        $this->contributionOnTheBomItem(ContributionType::Material, 600, ContributionStatus::Approved, true);
+        $this->bomItem->setFulfilledQuantity(1000);
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $this->service->reject($declared, $this->reviewer);
+
+        $this->assertSame(ContributionStatus::Rejected, $declared->getStatus());
+        $this->assertSame($this->reviewer, $declared->getReviewedBy());
+        $this->assertNotNull($declared->getReviewedAt());
+        $this->assertSame(600, $this->bomItem->getFulfilledQuantity());
+    }
+
+    #[Group('issue-510')]
+    public function testRejectingADuplicateNeverTakesTheFulfilledQuantityBelowZero(): void
+    {
+        $declared = $this->contributionOnTheBomItem(ContributionType::Material, 400, ContributionStatus::Approved, false);
+        $this->contributionOnTheBomItem(ContributionType::Material, 600, ContributionStatus::Approved, true);
+        $this->bomItem->setFulfilledQuantity(150);
+
+        $this->service->reject($declared, $this->reviewer);
+
+        $this->assertSame(ContributionStatus::Rejected, $declared->getStatus());
+        $this->assertSame(0, $this->bomItem->getFulfilledQuantity());
+    }
+
+    #[Group('issue-510')]
+    public function testRejectingAnApprovedDeclaredJobInstallThatDuplicatesADerivedOneLeavesTheFulfilledQuantityAlone(): void
+    {
+        $declared = $this->contributionOnTheBomItem(ContributionType::JobInstall, 3, ContributionStatus::Approved, false);
+        $this->contributionOnTheBomItem(ContributionType::JobInstall, 2, ContributionStatus::Approved, true);
+        $this->bomItem->setFulfilledQuantity(250);
+
+        $this->service->reject($declared, $this->reviewer);
+
+        $this->assertSame(ContributionStatus::Rejected, $declared->getStatus());
+        $this->assertSame(250, $this->bomItem->getFulfilledQuantity());
+    }
+
+    #[Group('issue-510')]
+    public function testRejectingTheDerivedContributionItselfIsRefusedAndChangesNothing(): void
+    {
+        $this->contributionOnTheBomItem(ContributionType::Material, 400, ContributionStatus::Approved, false);
+        $derived = $this->contributionOnTheBomItem(ContributionType::Material, 600, ContributionStatus::Approved, true);
+        $this->bomItem->setFulfilledQuantity(1000);
+        $this->entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->service->reject($derived, $this->reviewer);
+            $this->fail('The derived contribution was rejected');
+        } catch (\DomainException $refusal) {
+            $this->assertSame('Cannot reject a contribution with status "approved"', $refusal->getMessage());
+        }
+
+        $this->assertSame([ContributionStatus::Approved, null], [$derived->getStatus(), $derived->getReviewedBy()]);
+        $this->assertSame(1000, $this->bomItem->getFulfilledQuantity());
+    }
+
+    #[Group('issue-510')]
+    public function testRejectingAnApprovedDeclaredContributionWithoutADerivedTwinIsRefusedAndChangesNothing(): void
+    {
+        $declared = $this->contributionOnTheBomItem(ContributionType::Material, 400, ContributionStatus::Approved, false);
+        $this->bomItem->setFulfilledQuantity(400);
+        $this->entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->service->reject($declared, $this->reviewer);
+            $this->fail('The declared contribution was rejected');
+        } catch (\DomainException $refusal) {
+            $this->assertSame('Cannot reject a contribution with status "approved"', $refusal->getMessage());
+        }
+
+        $this->assertSame(ContributionStatus::Approved, $declared->getStatus());
+        $this->assertSame(400, $this->bomItem->getFulfilledQuantity());
+    }
+
+    #[Group('issue-510')]
+    public function testApprovingAnApprovedDuplicateOfADerivedContributionIsStillRefused(): void
+    {
+        $declared = $this->contributionOnTheBomItem(ContributionType::Material, 400, ContributionStatus::Approved, false);
+        $this->contributionOnTheBomItem(ContributionType::Material, 600, ContributionStatus::Approved, true);
+        $this->bomItem->setFulfilledQuantity(1000);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot approve a contribution with status "approved"');
+
+        $this->service->approve($declared, $this->reviewer);
+    }
+
     public function testSubmitIsRefusedWhenTheMemberAlreadyHasAPendingContributionOfThatTypeOnTheBomItem(): void
     {
         $this->givenExistingContributionWithStatus(ContributionStatus::Pending);
@@ -558,6 +650,21 @@ class ProjectContributionServiceTest extends TestCase
         $this->contributionRepository
             ->method('findByMemberBomItemAndType')
             ->willReturnCallback(static fn (IndustryProjectParticipant $member, IndustryProjectBomLine $bomItem, ContributionType $type, array $statuses): ?IndustryProjectContribution => in_array($status, $statuses, true) ? $existing : null);
+    }
+
+    private function contributionOnTheBomItem(ContributionType $type, int $quantity, ContributionStatus $status, bool $isAutoDetected): IndustryProjectContribution
+    {
+        $contribution = (new IndustryProjectContribution())
+            ->setProject($this->project)
+            ->setMember($this->member)
+            ->setBomItem($this->bomItem)
+            ->setType($type)
+            ->setQuantity($quantity)
+            ->setStatus($status)
+            ->setIsAutoDetected($isAutoDetected);
+        $this->project->addContribution($contribution);
+
+        return $contribution;
     }
 
     private function memberOfTheProject(): IndustryProjectParticipant

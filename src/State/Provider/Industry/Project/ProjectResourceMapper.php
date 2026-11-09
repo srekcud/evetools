@@ -144,6 +144,7 @@ class ProjectResourceMapper
         $resource->estimatedValue = $contribution->getEstimatedValue();
         $resource->status = $contribution->getStatus()->value;
         $resource->isAutoDetected = $contribution->isAutoDetected();
+        $resource->duplicatesDerived = $contribution->duplicatesDerived();
         $resource->isVerified = $contribution->isVerified();
         $resource->reviewedByCharacterName = $contribution->getReviewedBy()?->getMainCharacter()?->getName();
         $resource->reviewedAt = $contribution->getReviewedAt()?->format(\DateTimeInterface::ATOM);

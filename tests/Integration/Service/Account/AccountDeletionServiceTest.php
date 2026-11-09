@@ -67,6 +67,7 @@ use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use App\Service\Sync\AssetsSyncService;
 use App\State\Provider\Assets\CorpAssetVisibilityProvider;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
@@ -823,6 +824,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             derivedContributionService: new DerivedContributionService(
                 $this->em,
                 new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+                $this->createStub(NotificationDispatcher::class),
             ),
         );
     }

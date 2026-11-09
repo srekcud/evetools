@@ -157,6 +157,24 @@ class IndustryProjectContribution
         return $this;
     }
 
+    public function duplicatesDerived(): bool
+    {
+        if ($this->isAutoDetected || ContributionStatus::Approved !== $this->status) {
+            return false;
+        }
+
+        foreach ($this->getProject()->getContributions() as $contribution) {
+            if ($contribution->isAutoDetected()
+                && $contribution->getMember() === $this->member
+                && $contribution->getBomItem() === $this->bomItem
+                && $contribution->getType() === $this->type) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isAutoDetected(): bool
     {
         return $this->isAutoDetected;

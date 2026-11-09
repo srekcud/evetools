@@ -18,6 +18,7 @@ use App\Service\Industry\Project\Courier\CourierContractState;
 use App\Service\Industry\Project\Courier\CourierLinkedContract;
 use App\Service\Industry\Project\DerivedContributionService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -92,6 +93,7 @@ final class DerivedContributionServiceCourierTest extends TestCase
         $this->service = new DerivedContributionService(
             $this->entityManager,
             new MercurePublisherService($this->hub, new NullLogger()),
+            $this->createMock(NotificationDispatcher::class),
         );
     }
 
