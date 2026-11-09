@@ -107,22 +107,45 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         self::assertSame($expected, $approvedValues);
     }
 
-    #[Group('issue-363')]
-    public function testDuplicateLookupOfAMemberOnALineIgnoresTheDerivedContributionButSeesTheDeclaredOne(): void
+    #[Group('issue-510')]
+    public function testDuplicateLookupOfAMemberOnALineSeesTheDerivedContribution(): void
     {
         $ishtar = $this->createProject('Ishtar fleet');
         $owner = $this->addMember($ishtar, ParticipantRole::Owner);
+        $tritanium = $this->addBomLine($ishtar, 34, 'Tritanium', 1_000);
+        $derived = $this->addContributionOn($owner, $tritanium, ContributionStatus::Approved);
+        $derived->setIsAutoDetected(true)->setIsVerified(true);
+        $this->em->flush();
+        $statuses = [ContributionStatus::Pending, ContributionStatus::Approved];
+
+        self::assertSame($derived, $this->repository->findByMemberBomItemAndType($owner, $tritanium, ContributionType::Material, $statuses));
+    }
+
+    #[Group('issue-510')]
+    public function testDuplicateLookupOfAMemberOnALineStillSeesTheDeclaredContribution(): void
+    {
+        $ishtar = $this->createProject('Ishtar fleet');
+        $owner = $this->addMember($ishtar, ParticipantRole::Owner);
+        $tritanium = $this->addBomLine($ishtar, 34, 'Tritanium', 1_000);
+        $declared = $this->addContributionOn($owner, $tritanium, ContributionStatus::Pending);
+        $this->em->flush();
+        $statuses = [ContributionStatus::Pending, ContributionStatus::Approved];
+
+        self::assertSame($declared, $this->repository->findByMemberBomItemAndType($owner, $tritanium, ContributionType::Material, $statuses));
+    }
+
+    #[Group('issue-510')]
+    public function testDuplicateLookupIgnoresTheDerivedContributionOfAnotherMemberOnTheSameLine(): void
+    {
+        $ishtar = $this->createProject('Ishtar fleet');
+        $owner = $this->addMember($ishtar, ParticipantRole::Owner);
+        $admin = $this->addMember($ishtar, ParticipantRole::Admin);
         $tritanium = $this->addBomLine($ishtar, 34, 'Tritanium', 1_000);
         $this->addContributionOn($owner, $tritanium, ContributionStatus::Approved)->setIsAutoDetected(true)->setIsVerified(true);
         $this->em->flush();
         $statuses = [ContributionStatus::Pending, ContributionStatus::Approved];
 
-        self::assertNull($this->repository->findByMemberBomItemAndType($owner, $tritanium, ContributionType::Material, $statuses));
-
-        $declared = $this->addContributionOn($owner, $tritanium, ContributionStatus::Pending);
-        $this->em->flush();
-
-        self::assertSame($declared, $this->repository->findByMemberBomItemAndType($owner, $tritanium, ContributionType::Material, $statuses));
+        self::assertNull($this->repository->findByMemberBomItemAndType($admin, $tritanium, ContributionType::Material, $statuses));
     }
 
     #[Group('issue-363')]
