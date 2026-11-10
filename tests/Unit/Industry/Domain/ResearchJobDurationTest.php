@@ -208,4 +208,17 @@ final class ResearchJobDurationTest extends TestCase
 
         ResearchJobDuration::of(ActivityKind::Manufacturing, self::SDE_BASE_TIME, 1, 0, 0, Multiplier::one());
     }
+
+    public function testSkillOfEachResearchActivityIsMetallurgyForMeAndResearchForTe(): void
+    {
+        $this->assertSame(CachedCharacterSkill::SKILL_METALLURGY, ResearchJobDuration::researchSkillTypeIdOf(ActivityKind::ResearchMaterial));
+        $this->assertSame(CachedCharacterSkill::SKILL_RESEARCH, ResearchJobDuration::researchSkillTypeIdOf(ActivityKind::ResearchTime));
+    }
+
+    public function testRankOneSecondsOfALevelIsReadFromTheResearchTable(): void
+    {
+        $this->assertSame(105, ResearchLevels::rankOneSeconds(1));
+        $this->assertSame(1_414, ResearchLevels::rankOneSeconds(4));
+        $this->assertSame(256_000, ResearchLevels::rankOneSeconds(10));
+    }
 }

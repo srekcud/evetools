@@ -56,6 +56,8 @@ final class ResearchProfitabilityDurationTest extends TestCase
     private const int SEASONED_RESEARCHER = 9_001;
     private const int NOVICE_RESEARCHER = 9_002;
     private const int RESEARCHER_WITHOUT_ADVANCED_INDUSTRY = 9_003;
+    private const int RESEARCHER_WITH_UNEQUAL_SKILLS = 9_004;
+    private const int RESEARCHER_WITHOUT_RESEARCH_SKILL = 9_005;
 
     public function testMeAndTeDurationsUseTheSdeBaseTimesAndTheSkillsOfTheResearcherAtTheNextLevelOfEach(): void
     {
@@ -190,6 +192,63 @@ final class ResearchProfitabilityDurationTest extends TestCase
         );
     }
 
+    public function testEachDurationAppliesTheSkillOfItsOwnActivityAndNotTheOtherOne(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 0, te: 6, researcher: self::RESEARCHER_WITH_UNEQUAL_SKILLS)],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearch);
+        self::assertSame([1, true, 1_571], $this->estimateOf($suggestions[0]->meResearch));
+        self::assertSame([4, true, 29_864], $this->estimateOf($suggestions[0]->teResearch));
+    }
+
+    public function testOriginalAtTe18TargetsTheMaximumTeResearchLevel(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0, te: 18)],
+            [self::HOBGOBLIN_II => $this->owned(me: 0, te: 18, researcher: self::SEASONED_RESEARCHER)],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearch);
+        self::assertSame([10, true, 4_805_973], $this->estimateOf($suggestions[0]->teResearch));
+    }
+
+    public function testMissingBaseTimeAndMissingResearcherAreBothReportedInThatOrder(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 0, te: 6, researcher: null)],
+            baseTimes: [],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearch);
+        self::assertEquals([MissingData::researchBaseTime(self::HOBGOBLIN_II), MissingData::researcher()], $suggestions[0]->meResearch->duration->missingData);
+        self::assertEquals([MissingData::researchBaseTime(self::HOBGOBLIN_II), MissingData::researcher()], $suggestions[0]->teResearch->duration->missingData);
+    }
+
+    public function testMissingResearchSkillMakesTheTeDurationUnknownWhileTheMeDurationIsComputed(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 0, te: 6, researcher: self::RESEARCHER_WITHOUT_RESEARCH_SKILL)],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearch);
+        self::assertSame([1, true, 1_386], $this->estimateOf($suggestions[0]->meResearch));
+        self::assertFalse($suggestions[0]->teResearch->duration->isKnown());
+        self::assertEquals([MissingData::researchSkill(CachedCharacterSkill::SKILL_RESEARCH)], $suggestions[0]->teResearch->duration->missingData);
+    }
+
     private function suggestionsOf(
         BuildCostsByMaterialEfficiency $buildCosts,
         array $jobs,
@@ -229,6 +288,15 @@ final class ResearchProfitabilityDurationTest extends TestCase
                 self::RESEARCHER_WITHOUT_ADVANCED_INDUSTRY => [
                     CachedCharacterSkill::SKILL_METALLURGY => 5,
                     CachedCharacterSkill::SKILL_RESEARCH => 4,
+                ],
+                self::RESEARCHER_WITH_UNEQUAL_SKILLS => [
+                    CachedCharacterSkill::SKILL_METALLURGY => 3,
+                    CachedCharacterSkill::SKILL_RESEARCH => 2,
+                    CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
+                ],
+                self::RESEARCHER_WITHOUT_RESEARCH_SKILL => [
+                    CachedCharacterSkill::SKILL_METALLURGY => 5,
+                    CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
                 ],
             ]),
         );

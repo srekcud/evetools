@@ -8,12 +8,12 @@ use App\Industry\Application\CharacterSkillLevels;
 
 final readonly class InMemoryCharacterSkillLevels implements CharacterSkillLevels
 {
-    public function __construct(private array $levelsByCharacterIdAndSkillTypeId)
+    public function __construct(private array $levelsByEveCharacterIdAndSkillTypeId)
     {
     }
 
-    public function levelOf(int $characterId, int $skillTypeId): ?int
+    public function levelOf(int $eveCharacterId, int $skillTypeId): ?int
     {
-        return $this->levelsByCharacterIdAndSkillTypeId[$characterId][$skillTypeId] ?? null;
+        return $this->levelsByEveCharacterIdAndSkillTypeId[$eveCharacterId][$skillTypeId] ?? null;
     }
 }

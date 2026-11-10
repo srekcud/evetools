@@ -152,6 +152,18 @@ final class ResearchRowPresenterTest extends TestCase
         self::assertSame(['targetLevel' => 5, 'seconds' => 44_352, 'missingData' => []], $row['meResearchDuration']);
     }
 
+    #[Group('issue-475')]
+    public function testUnknownResearchCostIsAnExplicitNullKey(): void
+    {
+        $row = ResearchRowPresenter::of(
+            new ResearchSuggestion(self::HOBGOBLIN_II, 4, 5, 10, new Isk(10_000.0), null, null, ResearchVerdict::Unknown, [MissingData::costIndex()], $this->knownMeResearch(), $this->knownTeResearch()),
+            'Hobgoblin II',
+        );
+
+        self::assertArrayHasKey('researchCost', $row);
+        self::assertNull($row['researchCost']);
+    }
+
     private function suggestionWith(ResearchJobEstimate $meResearch, ?ResearchJobEstimate $teResearch): ResearchSuggestion
     {
         return new ResearchSuggestion(self::HOBGOBLIN_II, 4, 5, 10, new Isk(10_000.0), new Isk(14_500.0), -4_500.0, ResearchVerdict::NotWorth, [], $meResearch, $teResearch);
