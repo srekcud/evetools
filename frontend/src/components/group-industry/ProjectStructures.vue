@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupStructuresStore } from '@/stores/group-industry/structures'
 import type { StructureComparisonGroup, StructureComparisonRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
@@ -19,8 +20,15 @@ const BANNER_CLASSES: Record<BannerKind, string> = {
   byTotalCost: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   projectId: string
+  canSwitch?: boolean
+}>(), {
+  canSwitch: false,
+})
+
+const emit = defineEmits<{
+  switched: []
 }>()
 
 const { t } = useI18n()
@@ -28,6 +36,10 @@ const { formatIsk, formatNumber } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const syncStore = useSyncStore()
 const structuresStore = useGroupStructuresStore()
+const projectStore = useGroupProjectStore()
+
+const isSwitching = ref(false)
+const switchError = ref<string | null>(null)
 
 function productLabel(group: StructureComparisonGroup): string {
   return group.typeName ?? `#${group.typeId}`
@@ -72,6 +84,20 @@ function bannerTextOf(group: StructureComparisonGroup, kind: BannerKind): string
     amount: formatIsk(group.savingIfCheapest),
     threshold: formatIsk(structuresStore.minimumOutsideSaving),
   })
+}
+
+async function switchPolicy(acceptsOutsideFavoriteSystem: boolean): Promise<void> {
+  isSwitching.value = true
+  switchError.value = null
+  try {
+    await projectStore.updateProject(props.projectId, { acceptsOutsideFavoriteSystem })
+    await structuresStore.fetchStructures(props.projectId)
+    emit('switched')
+  } catch (e) {
+    switchError.value = e instanceof Error ? e.message : t('groupIndustry.structures.switch.error')
+  } finally {
+    isSwitching.value = false
+  }
 }
 
 watch(() => props.projectId, projectId => structuresStore.fetchStructures(projectId), { immediate: true })
@@ -130,6 +156,15 @@ watch(
 
     <template v-else>
       <div
+        v-if="switchError !== null"
+        data-testid="structures-switch-error"
+        role="alert"
+        class="m-4 p-3 rounded border border-red-500/30 bg-red-500/10 text-sm text-red-300"
+      >
+        <p class="font-semibold">{{ t('groupIndustry.structures.switch.error') }}</p>
+        <p class="mt-1 break-words">{{ switchError }}</p>
+      </div>
+      <div
         v-for="group in structuresStore.groups"
         :key="group.typeId"
         :data-testid="`structures-group-${group.typeId}`"
@@ -157,9 +192,19 @@ watch(
             v-if="kind !== null"
             :data-testid="`structures-banner-${group.typeId}`"
             role="status"
-            class="mx-4 mb-3 p-3 rounded border text-sm"
+            class="mx-4 mb-3 p-3 rounded border text-sm flex flex-wrap items-center justify-between gap-3"
             :class="BANNER_CLASSES[kind]"
-          >{{ bannerTextOf(group, kind) }}</div>
+          >
+            <span class="min-w-0 break-words">{{ bannerTextOf(group, kind) }}</span>
+            <button
+              v-if="canSwitch"
+              type="button"
+              :data-testid="`structures-banner-${group.typeId}-switch`"
+              :disabled="isSwitching"
+              class="px-2 py-1 rounded border border-current text-xs hover:bg-slate-100/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="switchPolicy(kind === 'onlyFavoriteSystem')"
+            >{{ t(kind === 'onlyFavoriteSystem' ? 'groupIndustry.structures.switch.allow' : 'groupIndustry.structures.switch.revert') }}</button>
+          </div>
         </template>
 
         <p

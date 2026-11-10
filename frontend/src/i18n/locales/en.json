@@ -2605,6 +2605,11 @@
       "retained": "Structure retained by the plan",
       "taxDetail": "tax {percent}",
       "transportDetail": "{volume} m³ × {jumps}",
+      "switch": {
+        "allow": "Allow for this project",
+        "revert": "Back to the favorite system",
+        "error": "The project could not be updated"
+      },
       "banner": {
         "onlyFavoriteSystem": "{structure} would cost {amount} less, transport included. Not retained: the project only accepts the favorite system.",
         "belowThreshold": "{structure} would cost {amount} less, transport included. Saving under the project threshold ({threshold}): the plan stays on the retained structure.",
