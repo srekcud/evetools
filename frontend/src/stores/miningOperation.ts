@@ -477,6 +477,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const fleetStorage = ref<MiningFleetStorage | null>(null)
   const fleetStorageVerification = ref<MiningFleetStorageVerification | null>(null)
   const haulerPlan = ref<MiningHaulerPlan | null>(null)
+  const haulerPlanError = ref<string | null>(null)
   const boostShips = ref<MiningBoostShipOption[]>([])
   const error = ref<string | null>(null)
 
@@ -805,12 +806,24 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   }
 
   async function fetchHaulerPlan(id: string): Promise<void> {
-    void id
+    haulerPlanError.value = null
+    try {
+      haulerPlan.value = await apiRequest<MiningHaulerPlan>(`/mining-operations/${id}/hauler-plan`)
+    } catch (cause) {
+      haulerPlan.value = null
+      haulerPlanError.value = messageOf(cause, 'Failed to fetch the hauler plan')
+    }
   }
 
   async function declareHangarEmptied(id: string): Promise<MiningHaulerPlan | null> {
-    void id
-    return null
+    error.value = null
+    try {
+      haulerPlan.value = await apiRequest<MiningHaulerPlan>(`/mining-operations/${id}/hauler-plan/emptied`, { method: 'POST' })
+      return haulerPlan.value
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to declare the hangar emptied')
+      throw cause
+    }
   }
 
   async function fetchFleetStorage(id: string): Promise<void> {
@@ -897,6 +910,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     fleetStorage,
     fleetStorageVerification,
     haulerPlan,
+    haulerPlanError,
     boostShips,
     error,
     fetchMine,

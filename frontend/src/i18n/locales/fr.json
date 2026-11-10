@@ -3948,6 +3948,40 @@
         "noEffect": "Le constat n'empêche pas de figer les parts : la dette reste celle déclarée."
       }
     },
+    "haulerPlan": {
+      "title": "Hauler",
+      "barLabel": "Fleet hangar · {hauler} ({ship})",
+      "barLabelShort": "Hangar {ship}",
+      "fill": "{percent} % · plein dans {time}",
+      "full": "plein : à vider",
+      "unknown": "Fleet hangar de {hauler} : inconnu",
+      "unknownShip": "vaisseau inconnu",
+      "reason": {
+        "operation_not_running": "L’opération n’est pas en cours.",
+        "no_boost_ship": "Aucun vaisseau de boost n’est défini sur l’opération.",
+        "no_fleet_storage_recipient": "Aucun destinataire du fleet storage n’est défini.",
+        "no_active_site": "Aucun site de minage actif.",
+        "site_rate_unknown": "Le débit du site est inconnu : il faut au moins deux scans avec un minerai qui baisse.",
+        "ledger_unknown": "Les quantités minées sont inconnues pour au moins un personnage.",
+        "nothing_delivered": "Personne ne verse de minerai au fleet storage.",
+        "capacity_missing_from_sde": "La capacité du hangar du vaisseau manque dans le SDE.",
+        "volume_missing": "Le volume d’un minerai manque dans le SDE.",
+        "compression_unknown": "La compression d’un minerai est inconnue."
+      },
+      "trips": "≈ {count} aller-retour avant {time} · {volume} m³ {raw} | ≈ {count} allers-retours avant {time} · {volume} m³ {raw}",
+      "rawOre": "dont brut : {types}",
+      "compressedOre": "compressés",
+      "tripsUnknown": "allers-retours : inconnus (heure de fin du site inconnue)",
+      "calculation": "{inflow} m³/min reçus = débit du site × part du fleet storage {share} % ; {transport} m³/min à transporter après compression",
+      "calculationUnknown": "calcul : inconnu",
+      "capacities": "Soute de minerai {hold} m³ · fleet hangar {hangar} m³ · capacités de base du SDE, sans bonus de compétences",
+      "originStart": "Hangar supposé vide au démarrage de l’opération",
+      "originEmptied": "Vidé à {time} EVE",
+      "contributors": "Versent dans le {ship} : {names}",
+      "flow": "{inflow} m³/min reçus",
+      "estimate": "Estimation : evetools ne lit pas le hangar en direct.",
+      "emptied": "Hangar vidé"
+    },
     "rules": {
       "fleetStorage": "Fleet storage"
     },

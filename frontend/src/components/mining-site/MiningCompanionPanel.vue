@@ -213,6 +213,8 @@ function requestLeave(): void {
       <p class="rounded-sm border border-slate-700 px-2 py-3 text-sm text-slate-300" data-testid="companion-empty">{{ t('miningCompanion.empty') }}</p>
     </slot>
 
+    <slot v-if="size !== 'bar'" name="hauler" />
+
     <slot v-if="size !== 'bar'" name="next-site" />
 
     <footer v-if="showsFooter" class="mt-auto flex flex-wrap items-center gap-2 pt-1">
