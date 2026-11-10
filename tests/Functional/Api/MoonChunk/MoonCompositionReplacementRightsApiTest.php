@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\MoonChunk;
 
 use App\Entity\Character;
+use App\Entity\EveToken;
 use App\Entity\MoonComposition;
 use App\Entity\User;
 use App\Exception\EsiApiException;
@@ -13,6 +14,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 #[Group('issue-368')]
+#[Group('issue-581')]
 final class MoonCompositionReplacementRightsApiTest extends WebTestCase
 {
     use DrivesMoonChunkApi;
@@ -29,6 +31,13 @@ final class MoonCompositionReplacementRightsApiTest extends WebTestCase
     {
         $this->seedMoonChunkWorld();
         $this->cole = $this->persistPilotOf('Cole Reyes', self::ILYRA_CORPORATION_ID);
+        $this->cole->getCharacters()->first()->setEveToken(
+            (new EveToken())
+                ->setAccessToken('access-token-cole')
+                ->setRefreshTokenEncrypted('refresh-token-cole')
+                ->setAccessTokenExpiresAt(new \DateTimeImmutable('2026-11-05 19:20:00', new \DateTimeZone('UTC')))
+                ->setScopes(['esi-characters.read_corporation_roles.v1']),
+        );
         $this->em->flush();
     }
 
@@ -99,14 +108,16 @@ final class MoonCompositionReplacementRightsApiTest extends WebTestCase
     private function withRolesOfCole(array|\Throwable $roles): void
     {
         $stub = $this->createStub(CharacterService::class);
-        $stub->method('getCharacterRoles')->willReturnCallback(function (Character $character) use ($roles): array {
+        $readRoles = function (Character $character) use ($roles): array {
             $this->rolesReadFor[] = $character->getEveCharacterId();
             if ($roles instanceof \Throwable) {
                 throw $roles;
             }
 
             return $roles;
-        });
+        };
+        $stub->method('getCharacterRoles')->willReturnCallback($readRoles);
+        $stub->method('readCorporationRoles')->willReturnCallback($readRoles);
         $this->characterServiceStub = $stub;
     }
 

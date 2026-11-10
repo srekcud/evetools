@@ -135,7 +135,7 @@ final class MoonTaxDonationListApiTest extends MoonTaxApiTestCase
     public function testUserWithoutAccountantRoleIsRefusedAndSeesNoDonation(): void
     {
         $this->seedDonations();
-        $this->persistCharacterOfCorporation('Brann Kolt', self::BRANN_ID, self::CORPORATION, ['Director']);
+        $this->persistCharacterOfCorporation('Brann Kolt', self::BRANN_ID, self::CORPORATION, ['Auditor']);
         $this->em->flush();
 
         $this->request($this->usersByEveCharacterId[self::BRANN_ID], 'GET', $this->donationsPath());

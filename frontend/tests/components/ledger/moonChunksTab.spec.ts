@@ -187,6 +187,16 @@ describe('MoonChunksTab access states', () => {
     expect(rowIds(wrapper, CORPORATION_A)).toEqual([ROCK_HOLLOW_CHUNK.id])
   })
 
+  it('asks to reconnect a character with the scopes the extractions need, keeping the last successful sync', async () => {
+    const wrapper = await mountTab(response(corporation({ access: 'reconnect', lastSuccessAt: '2026-11-05T16:00:00+00:00', extractions: [ROCK_HOLLOW_CHUNK] })))
+
+    const state = present(wrapper, inSection(CORPORATION_A, '[data-access-state]'))
+    expect(state.attributes('data-access-state')).toBe('reconnect')
+    expect(state.text()).toContain('Reconnect a character with the scopes the extractions need')
+    expect(present(wrapper, inSection(CORPORATION_A, '[data-access-state] [data-last-success-at]')).text()).toBe('2026-11-05 16:00')
+    expect(wrapper.find(inSection(CORPORATION_A, '[data-empty-extractions]')).exists()).toBe(false)
+  })
+
   it('says there is no extraction only for a corporation read successfully with an empty list', async () => {
     const wrapper = await mountTab(response(corporation({ extractions: [] })))
 

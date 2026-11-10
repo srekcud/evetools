@@ -7,18 +7,18 @@ namespace App\Service\MoonChunk;
 use App\Entity\Character;
 use App\Entity\MoonComposition;
 use App\Entity\User;
-use App\Exception\EsiApiException;
-use App\Exception\EveAuthRequiredException;
+use App\Enum\CorporationRoleStatus;
 use App\Repository\MoonCompositionRepository;
-use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
 
 final readonly class MoonCompositionReplacementPolicy
 {
     private const array MANAGEMENT_ROLES = ['Director', 'Station_Manager'];
+    private const string ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
 
     public function __construct(
         private MoonCompositionRepository $compositionRepository,
-        private CharacterService $characterService,
+        private CorporationRoleReader $corporationRoleReader,
     ) {
     }
 
@@ -43,29 +43,16 @@ final readonly class MoonCompositionReplacementPolicy
 
     private function holdsManagementRole(User $user, int $corporationId): bool
     {
-        $hasUnreadableRoles = false;
+        $members = $user->getCharacters()->filter(
+            static fn (Character $character): bool => $character->getCorporationId() === $corporationId,
+        )->getValues();
 
-        foreach ($user->getCharacters() as $character) {
-            if ($character->getCorporationId() !== $corporationId) {
-                continue;
-            }
+        $lookup = $this->corporationRoleReader->findHolder($corporationId, $members, self::MANAGEMENT_ROLES, [self::ROLES_SCOPE]);
 
-            try {
-                $roles = $this->characterService->getCharacterRoles($character);
-            } catch (EsiApiException|EveAuthRequiredException) {
-                $hasUnreadableRoles = true;
-                continue;
-            }
-
-            if (array_intersect(self::MANAGEMENT_ROLES, $roles) !== []) {
-                return true;
-            }
-        }
-
-        if ($hasUnreadableRoles) {
-            throw new CorporationRolesUnreadable('The corporation roles of your characters could not be read, try again later');
-        }
-
-        return false;
+        return match ($lookup->status) {
+            CorporationRoleStatus::Held => true,
+            CorporationRoleStatus::RoleAbsent => false,
+            CorporationRoleStatus::EsiError, CorporationRoleStatus::ReconnectRequired => throw new CorporationRolesUnreadable('The corporation roles of your characters could not be read, try again later'),
+        };
     }
 }

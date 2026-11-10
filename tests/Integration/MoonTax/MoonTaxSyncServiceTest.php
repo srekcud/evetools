@@ -46,14 +46,14 @@ final class MoonTaxSyncServiceTest extends MoonTaxIntegrationTestCase
     public static function charactersWhoCannotRead(): iterable
     {
         yield 'no character in the corporation' => [[], ['no_accountant_token', 'no_accountant_token']];
-        yield 'no Accountant' => [[[self::ILYRA_ID, ['Director'], self::ALL_SCOPES, false]], ['no_accountant_token', 'no_accountant_token']];
+        yield 'no Accountant' => [[[self::ILYRA_ID, ['Auditor'], self::ALL_SCOPES, false]], ['no_accountant_token', 'no_accountant_token']];
         yield 'Junior_Accountant reads the wallet only' => [[[self::ILYRA_ID, ['Junior_Accountant'], self::ALL_SCOPES, false]], ['no_accountant_token', null]];
         yield 'invalid authentication' => [[[self::ILYRA_ID, ['Accountant'], self::ALL_SCOPES, true]], ['reconnect_required', 'reconnect_required']];
         yield 'mining scope missing' => [[[self::ILYRA_ID, ['Accountant'], [self::WALLET_SCOPE, self::ROLES_SCOPE], false]], ['reconnect_required', null]];
         yield 'wallet scope missing' => [[[self::ILYRA_ID, ['Accountant'], [self::MINING_SCOPE, self::ROLES_SCOPE], false]], [null, 'reconnect_required']];
         yield 'roles scope missing' => [[[self::ILYRA_ID, ['Accountant'], [self::MINING_SCOPE, self::WALLET_SCOPE], false]], ['reconnect_required', 'reconnect_required']];
         yield 'invalid authentication next to a character without Accountant' => [
-            [[self::ILYRA_ID, ['Accountant'], self::ALL_SCOPES, true], [self::AUREL_ID, ['Director'], self::ALL_SCOPES, false]],
+            [[self::ILYRA_ID, ['Accountant'], self::ALL_SCOPES, true], [self::AUREL_ID, ['Auditor'], self::ALL_SCOPES, false]],
             ['reconnect_required', 'reconnect_required'],
         ];
     }
@@ -145,7 +145,7 @@ final class MoonTaxSyncServiceTest extends MoonTaxIntegrationTestCase
 
     public function testFailedSyncIsPublishedAsStartedThenErrorToEveryEvetoolsUserOfTheCorporation(): void
     {
-        $this->ilyra(['Director']);
+        $this->ilyra(['Auditor']);
 
         $this->runSync();
 

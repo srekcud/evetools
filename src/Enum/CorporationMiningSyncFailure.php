@@ -8,4 +8,5 @@ enum CorporationMiningSyncFailure: string
 {
     case NoStationManagerToken = 'no_station_manager_token';
     case EsiError = 'esi_error';
+    case ReconnectRequired = 'reconnect_required';
 }

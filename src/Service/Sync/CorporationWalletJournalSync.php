@@ -7,8 +7,10 @@ namespace App\Service\Sync;
 use App\Entity\Character;
 use App\Entity\CorporationWalletDonation;
 use App\Entity\MoonTaxRefinerySetting;
+use App\Enum\CorporationRoleStatus;
 use App\Enum\MoonTaxSyncFailure;
 use App\Repository\CorporationWalletDonationRepository;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
 use App\Service\MoonTax\MoonTaxManagerAccess;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,7 +23,7 @@ final readonly class CorporationWalletJournalSync
     private const string DONATION_REF_TYPE = 'player_donation';
 
     public function __construct(
-        private MoonTaxReaderCandidates $readerCandidates,
+        private CorporationRoleReader $corporationRoleReader,
         private EsiClient $esiClient,
         private CorporationWalletDonationRepository $donationRepository,
         private EntityManagerInterface $entityManager,
@@ -37,17 +39,18 @@ final readonly class CorporationWalletJournalSync
     {
         $divisions = array_values(array_unique(array_map(static fn (MoonTaxRefinerySetting $setting): int => $setting->getWalletDivision(), $openSettings)));
 
-        $outcome = $this->readerCandidates->readWithFirstAbleCharacter(
+        $lookup = $this->corporationRoleReader->readAsHolder(
+            $corporationId,
             $characters,
-            self::READER_SCOPES,
             self::READER_ROLES,
+            self::READER_SCOPES,
             fn (Character $reader): array => $this->readRaw($corporationId, $reader, $divisions),
         );
-        if ($outcome->failure !== null) {
-            return $outcome->failure;
+        if ($lookup->status !== CorporationRoleStatus::Held) {
+            return MoonTaxSyncFailure::fromRoleStatus($lookup->status);
         }
 
-        $donations = $this->readableDonations($corporationId, $outcome->value);
+        $donations = $this->readableDonations($corporationId, $lookup->value);
         if ($donations === null) {
             $this->logger->error('Corporation wallet journal response is unreadable', ['corporation_id' => $corporationId]);
 

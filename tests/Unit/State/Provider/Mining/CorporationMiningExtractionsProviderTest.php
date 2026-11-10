@@ -181,6 +181,7 @@ final class CorporationMiningExtractionsProviderTest extends TestCase
         yield 'last failure null' => [null, true, 'ok'];
         yield 'no station manager token' => [CorporationMiningSyncFailure::NoStationManagerToken, true, 'denied'];
         yield 'esi error' => [CorporationMiningSyncFailure::EsiError, true, 'error'];
+        yield 'reconnect required' => [CorporationMiningSyncFailure::ReconnectRequired, true, 'reconnect'];
     }
 
     #[DataProvider('syncStates')]

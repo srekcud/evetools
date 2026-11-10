@@ -6,7 +6,7 @@ import { useSyncStore, type SyncProgress } from '@/stores/sync'
 
 export type MoonChunkStatus = 'extracting' | 'ready' | 'exploded'
 
-export type CorporationMiningAccess = 'never_synced' | 'ok' | 'denied' | 'error'
+export type CorporationMiningAccess = 'never_synced' | 'ok' | 'denied' | 'error' | 'reconnect'
 
 export type ChunkTimeMode = 'eve' | 'local'
 

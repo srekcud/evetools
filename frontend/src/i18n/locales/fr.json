@@ -1646,7 +1646,8 @@
         "access": {
           "never_synced": "Pas encore synchronisé",
           "denied": "Accès refusé : rôle Station_Manager requis",
-          "error": "Lecture ESI en échec"
+          "error": "Lecture ESI en échec",
+          "reconnect": "Reconnectez un personnage avec les scopes dont les extractions ont besoin"
         },
         "columns": {
           "moon": "Lune",

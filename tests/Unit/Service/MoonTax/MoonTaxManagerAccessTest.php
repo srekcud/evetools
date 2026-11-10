@@ -9,18 +9,22 @@ use App\Entity\EveToken;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
 use App\Service\MoonTax\MoonTaxManagerAccess;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 #[CoversClass(MoonTaxManagerAccess::class)]
 #[Group('issue-273')]
 #[Group('issue-369')]
+#[Group('issue-581')]
 final class MoonTaxManagerAccessTest extends TestCase
 {
     private const int CORPORATION = 98_000_001;
@@ -61,7 +65,8 @@ final class MoonTaxManagerAccessTest extends TestCase
 
             return $this->esiResponses[$endpoint];
         });
-        $this->access = new MoonTaxManagerAccess(new CharacterService($esiClient));
+        $characterService = new CharacterService($esiClient);
+        $this->access = new MoonTaxManagerAccess($characterService, new CorporationRoleReader($characterService, new ArrayAdapter(), new NullLogger()));
     }
 
     public function testACharacterOfTheCorporationWithTheAccountantRoleManagesIt(): void
@@ -73,19 +78,62 @@ final class MoonTaxManagerAccessTest extends TestCase
         self::assertSame([$this->rolesEndpoint(self::ILYRA_ID)], $this->rolesReadBy);
     }
 
-    public function testRolesAreReadAgainAtEveryCall(): void
+    public function testRolesAreReadOnceForTwoSuccessiveChecksOfTheSameCorporation(): void
     {
         $this->character('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Accountant']);
 
         $this->access->assertManages($this->user, self::CORPORATION);
         $this->access->assertManages($this->user, self::CORPORATION);
 
-        self::assertSame([$this->rolesEndpoint(self::ILYRA_ID), $this->rolesEndpoint(self::ILYRA_ID)], $this->rolesReadBy);
+        self::assertSame([$this->rolesEndpoint(self::ILYRA_ID)], $this->rolesReadBy);
+    }
+
+    public function testADirectorWithoutTheAccountantRoleManagesTheCorporation(): void
+    {
+        $this->character('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Director', 'Factory_Manager']);
+
+        $refusal = null;
+        try {
+            $this->access->assertManages($this->user, self::CORPORATION);
+        } catch (AccessDeniedHttpException|ServiceUnavailableHttpException $refusal) {
+        }
+
+        self::assertSame([null, [$this->rolesEndpoint(self::ILYRA_ID)]], [$refusal?->getStatusCode(), $this->rolesReadBy]);
+    }
+
+    public function testACharacterWithoutAnyRoleIsListedAsHavingNoRoleInTheRefusal(): void
+    {
+        $this->character('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, []);
+
+        try {
+            $this->access->assertManages($this->user, self::CORPORATION);
+            self::fail('The access should be refused');
+        } catch (AccessDeniedHttpException $refusal) {
+            self::assertStringContainsString('Ilyra Voss (no role)', $refusal->getMessage());
+            self::assertStringNotContainsString('Ilyra Voss ()', $refusal->getMessage());
+        }
+    }
+
+    public function testWithoutAnyCharacterAbleToReadRolesTheRefusalAsksToReconnectOneInsteadOfListingRoles(): void
+    {
+        $this->character('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Accountant'])->markAuthInvalid();
+        $this->character('Aurel Kade', self::AUREL_ID, self::CORPORATION, ['Accountant'], []);
+
+        try {
+            $this->access->assertManages($this->user, self::CORPORATION);
+            self::fail('The access should be refused');
+        } catch (AccessDeniedHttpException $refusal) {
+            self::assertSame(403, $refusal->getStatusCode());
+            self::assertStringContainsString('reconnect one', $refusal->getMessage());
+            self::assertStringContainsString(self::ROLES_SCOPE, $refusal->getMessage());
+            self::assertStringNotContainsString('Roles read', $refusal->getMessage());
+            self::assertSame([], $this->rolesReadBy);
+        }
     }
 
     public function testWithoutTheAccountantRoleTheAccessIsRefusedWithTheRolesReadForEachCharacterOfTheCorporation(): void
     {
-        $this->character('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Director', 'Junior_Accountant']);
+        $this->character('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Auditor', 'Junior_Accountant']);
         $this->character('Aurel Kade', self::AUREL_ID, self::CORPORATION, ['Factory_Manager']);
         $this->character('Brann Holt', self::BRANN_ID, self::OTHER_CORPORATION, ['Accountant']);
 
@@ -98,7 +146,7 @@ final class MoonTaxManagerAccessTest extends TestCase
                 [true, true, true, true, true, false],
                 [
                     str_contains($refusal->getMessage(), 'Ilyra Voss'),
-                    str_contains($refusal->getMessage(), 'Director'),
+                    str_contains($refusal->getMessage(), 'Auditor'),
                     str_contains($refusal->getMessage(), 'Junior_Accountant'),
                     str_contains($refusal->getMessage(), 'Aurel Kade'),
                     str_contains($refusal->getMessage(), 'Factory_Manager'),

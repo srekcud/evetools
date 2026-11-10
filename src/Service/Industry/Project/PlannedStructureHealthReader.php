@@ -7,12 +7,11 @@ namespace App\Service\Industry\Project;
 use App\Entity\Character;
 use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
-use App\Exception\EsiApiException;
-use App\Exception\EveAuthRequiredException;
+use App\Enum\CorporationRoleStatus;
 use App\Industry\Application\StructureHealth;
 use App\Industry\Application\StructureHealthAssessor;
 use App\Repository\CharacterRepository;
-use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
@@ -28,7 +27,7 @@ final readonly class PlannedStructureHealthReader
 
     public function __construct(
         private EsiClient $esiClient,
-        private CharacterService $characterService,
+        private CorporationRoleReader $corporationRoleReader,
         private CharacterRepository $characterRepository,
         private StructureHealthAssessor $assessor,
         private ClockInterface $clock,
@@ -43,7 +42,7 @@ final readonly class PlannedStructureHealthReader
      */
     public function read(User $reader, array $structures): array
     {
-        $candidates = $this->candidatesOf($reader);
+        $characters = array_values($this->characterRepository->findByUser($reader));
         $esiStructuresByCorporation = [];
         $health = [];
 
@@ -55,7 +54,7 @@ final readonly class PlannedStructureHealthReader
                 continue;
             }
             if (!\array_key_exists($corporationId, $esiStructuresByCorporation)) {
-                $esiStructuresByCorporation[$corporationId] = $this->readCorporation($corporationId, $candidates);
+                $esiStructuresByCorporation[$corporationId] = $this->readCorporation($corporationId, $characters);
             }
             $esiStructure = $esiStructuresByCorporation[$corporationId][$locationId] ?? null;
             if (null !== $esiStructure) {
@@ -67,77 +66,36 @@ final readonly class PlannedStructureHealthReader
     }
 
     /**
-     * @return list<Character>
-     */
-    private function candidatesOf(User $reader): array
-    {
-        $candidates = array_values(array_filter(
-            $this->characterRepository->findByUser($reader),
-            static fn (Character $character): bool => $character->isAuthValid()
-                && true === $character->getEveToken()?->hasAllScopes(self::REQUIRED_SCOPES),
-        ));
-        usort($candidates, static fn (Character $left, Character $right): int => $left->getEveCharacterId() <=> $right->getEveCharacterId());
-
-        return $candidates;
-    }
-
-    /**
-     * @param list<Character> $candidates
+     * @param list<Character> $characters
      *
      * @return array<int, array<string, mixed>>|null by structure id
      */
-    private function readCorporation(int $corporationId, array $candidates): ?array
+    private function readCorporation(int $corporationId, array $characters): ?array
     {
-        $reader = $this->stationManagerOf($corporationId, $candidates);
-        if (null === $reader) {
-            return null;
-        }
+        $members = array_values(array_filter(
+            $characters,
+            static fn (Character $character): bool => $character->getCorporationId() === $corporationId,
+        ));
 
-        try {
-            $rawStructures = $this->esiClient->getPaginated("/corporations/{$corporationId}/structures/", $reader->getEveToken());
-        } catch (EsiApiException|EveAuthRequiredException $e) {
-            $this->logger->warning('Corporation structures unreadable, planned structure health stays unknown', [
-                'corporation_id' => $corporationId,
-                'character_id' => $reader->getEveCharacterId(),
-                'error' => $e->getMessage(),
-            ]);
-
+        $lookup = $this->corporationRoleReader->readAsHolder(
+            $corporationId,
+            $members,
+            [self::STATION_MANAGER_ROLE],
+            self::REQUIRED_SCOPES,
+            fn (Character $holder): array => $this->esiClient->getPaginated("/corporations/{$corporationId}/structures/", $holder->getEveToken()),
+        );
+        if ($lookup->status !== CorporationRoleStatus::Held || !\is_array($lookup->value)) {
             return null;
         }
 
         $structures = [];
-        foreach ($rawStructures as $raw) {
+        foreach ($lookup->value as $raw) {
             if (\is_array($raw) && \is_int($raw['structure_id'] ?? null)) {
                 $structures[$raw['structure_id']] = $raw;
             }
         }
 
         return $structures;
-    }
-
-    /**
-     * @param list<Character> $candidates
-     */
-    private function stationManagerOf(int $corporationId, array $candidates): ?Character
-    {
-        foreach ($candidates as $candidate) {
-            if ($candidate->getCorporationId() !== $corporationId) {
-                continue;
-            }
-            try {
-                if ($this->characterService->hasRole($candidate, self::STATION_MANAGER_ROLE)) {
-                    return $candidate;
-                }
-            } catch (EsiApiException|EveAuthRequiredException $e) {
-                $this->logger->warning('Character roles unreadable, the character is not a corporation structures reader', [
-                    'corporation_id' => $corporationId,
-                    'character_id' => $candidate->getEveCharacterId(),
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return null;
     }
 
     /**

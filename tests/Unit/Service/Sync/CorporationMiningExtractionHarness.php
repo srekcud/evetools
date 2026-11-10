@@ -24,6 +24,7 @@ use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
@@ -440,6 +441,8 @@ trait CorporationMiningExtractionHarness
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturnCallback(fn (): ?User => $this->currentUser);
 
+        $characterService = new CharacterService($esiClient);
+
         $moonChunkValueReader = new MoonChunkValueReader(
             $this->createStub(MoonCompositionRepository::class),
             $this->createStub(InvTypeRepository::class),
@@ -456,7 +459,8 @@ trait CorporationMiningExtractionHarness
 
         return [
             $esiClient,
-            new CharacterService($esiClient),
+            $characterService,
+            new CorporationRoleReader($characterService, new ArrayAdapter(), new NullLogger()),
             $moonChunkValueReader,
             $characterRepository,
             $extractionRepository,
