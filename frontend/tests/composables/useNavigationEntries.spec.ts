@@ -182,7 +182,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route === '/contracts' || route.startsWith('/market'))).toEqual([])
     expect(routes).toContain('/assets')
-    expect(routes).toHaveLength(28)
+    expect(routes).toHaveLength(30)
   })
 
   it('removes the screen, the tabs and the projects of each hidden module', () => {
