@@ -355,7 +355,7 @@ async function estimateSingleSite(input: { label: string; solarSystemId: number 
 
 function createOperationFromChunk(chunkId: string): void {
   window.focus()
-  router.push({ name: 'mining-operations', query: { chunk: chunkId } })
+  router.push({ name: 'mining-moons', query: { chunk: chunkId } })
 }
 
 function followNextSite(requested: CompanionTarget, data: Record<string, unknown> | null): void {

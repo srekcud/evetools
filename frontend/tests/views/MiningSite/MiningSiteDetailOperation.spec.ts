@@ -48,7 +48,9 @@ async function linkTargets(site: MiningSite): Promise<Array<{ name: string; para
     },
   })
   await flushPromises()
-  const targets = wrapper.findAllComponents(RouterLinkStub).map(link => link.props('to') as { name: string; params?: Record<string, string> })
+  const targets = wrapper.findAllComponents(RouterLinkStub)
+    .filter(link => link.element.closest('nav') === null)
+    .map(link => link.props('to') as { name: string; params?: Record<string, string> })
   wrapper.unmount()
   return targets
 }

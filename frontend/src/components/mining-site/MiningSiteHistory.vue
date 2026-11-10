@@ -9,7 +9,7 @@ import { useMiningSiteStore, type MiningSite } from '@/stores/miningSite'
 import { formatDuration } from '@/views/MiningOperation/miningOperationTime'
 import MiningSiteCreateModal from './MiningSiteCreateModal.vue'
 
-const COLUMNS = ['label', 'system', 'firstScan', 'lastScan', 'observed', 'volume', 'value', 'rate', 'status', 'actions'] as const
+const COLUMNS = ['label', 'system', 'firstScan', 'lastScan', 'observed', 'volume', 'value', 'rate', 'status', 'operation', 'actions'] as const
 
 const { t } = useI18n()
 const router = useRouter()
@@ -152,6 +152,14 @@ onMounted(async () => {
                 class="whitespace-nowrap rounded-sm border px-2 py-0.5 font-mono text-xs"
                 :class="site.status === 'active' ? 'border-cyan-500/40 text-cyan-200' : 'border-slate-600 text-slate-400'"
               >{{ t(`miningSite.status.${site.status}`) }}</span>
+            </td>
+            <td class="whitespace-nowrap px-3 py-2.5">
+              <router-link
+                v-if="site.operationId"
+                :to="{ name: 'mining-operation-detail', params: { id: site.operationId } }"
+                class="text-cyan-300 hover:text-cyan-200"
+                @click.stop
+              >{{ t('miningSite.history.operationLink') }}</router-link>
             </td>
             <td class="px-3 py-2.5">
               <button

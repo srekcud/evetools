@@ -64,7 +64,7 @@ function splitTabRoute(tabRoute: string): { path: string; tab: string } {
   return { path: url.pathname, tab: url.searchParams.get('tab') ?? '' }
 }
 
-const TAB_ROUTES = listAllNavigationEntries().filter(entry => entry.isTab).map(entry => entry.route)
+const TAB_ROUTES = listAllNavigationEntries().filter(entry => entry.isTab && entry.route.includes('?tab=')).map(entry => entry.route)
 
 async function activeTabOfViewOpenedAt(path: string, tab: string): Promise<string> {
   route.path = path

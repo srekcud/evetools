@@ -14,12 +14,15 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CommandPalette from '@/components/common/CommandPalette.vue'
 import AccountMenu from '@/components/layout/AccountMenu.vue'
+import { useModuleLastPage } from '@/composables/useModuleLastPage'
 import {
   adminNavItem,
   allNavEntries,
+  isModuleHidden,
   isNavGroup,
   isNavItemActive,
   isProjectsHidden,
+  moduleIdsToUnhide,
   readHiddenModules,
   saveHiddenModules,
   settableModules,
@@ -34,6 +37,7 @@ const authStore = useAuthStore()
 const rateLimitStore = useRateLimitStore()
 const adminStore = useAdminStore()
 const { dateFormat, setDateFormat } = useFormatters()
+const { lastPageOf } = useModuleLastPage()
 const industryStructuresStore = useStructuresStore()
 const industryActionsStore = useIndustryActionsStore()
 const INDUSTRY_NAV_ITEM_ID = 'industry'
@@ -235,17 +239,21 @@ function saveSettings(): void {
 }
 
 function toggleModule(moduleId: string): void {
-  const index = hiddenModules.value.indexOf(moduleId)
-  if (index === -1) {
-    hiddenModules.value.push(moduleId)
+  if (isModuleHidden(hiddenModules.value, moduleId)) {
+    const idsToUnhide = moduleIdsToUnhide(moduleId)
+    hiddenModules.value = hiddenModules.value.filter(hiddenId => !idsToUnhide.includes(hiddenId))
   } else {
-    hiddenModules.value.splice(index, 1)
+    hiddenModules.value.push(moduleId)
   }
   saveSettings()
 }
 
 function isModuleVisible(moduleId: string): boolean {
-  return !hiddenModules.value.includes(moduleId)
+  return !isModuleHidden(hiddenModules.value, moduleId)
+}
+
+function navTargetOf(item: NavItem): string {
+  return lastPageOf(item.id, item.route)
 }
 
 // Filtered nav entries (visible only)
@@ -485,7 +493,7 @@ watch(showSettings, (opened) => {
                 <RouterLink
                   v-for="child in (entry as NavGroup).children"
                   :key="child.id"
-                  :to="child.route"
+                  :to="navTargetOf(child)"
                   :aria-current="isActiveRoute(child) ? 'page' : undefined"
                   @click="closeDrawerOnNavigationClick"
                   :class="navLinkClass(isActiveRoute(child))"
@@ -505,7 +513,7 @@ watch(showSettings, (opened) => {
 
             <RouterLink
               v-else
-              :to="(entry as NavItem).route"
+              :to="navTargetOf(entry as NavItem)"
               :aria-current="isActiveRoute(entry as NavItem) ? 'page' : undefined"
               @click="closeDrawerOnNavigationClick"
               :class="navLinkClass(isActiveRoute(entry as NavItem))"

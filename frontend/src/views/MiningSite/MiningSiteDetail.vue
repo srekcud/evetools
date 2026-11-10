@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
+import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import MiningCompressionBanners from '@/components/mining-operation/MiningCompressionBanners.vue'
@@ -168,7 +169,8 @@ onBeforeUnmount(() => {
 <template>
   <MainLayout>
     <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <router-link :to="{ name: 'mining-operations', query: { tab: 'sites' } }" class="mb-4 inline-block text-sm text-cyan-300 hover:text-cyan-200">← {{ t('miningSite.detail.back') }}</router-link>
+      <MiningModuleTabs active="sites" />
+      <router-link :to="{ name: 'mining-sites' }" class="mb-4 inline-block text-sm text-cyan-300 hover:text-cyan-200">← {{ t('miningSite.detail.back') }}</router-link>
 
       <p v-if="loadFailure !== null" class="eve-card mb-4 p-4 text-sm text-red-400" role="alert">{{ loadFailure }}</p>
 
@@ -185,6 +187,12 @@ onBeforeUnmount(() => {
                 <span class="max-w-full truncate" data-testid="site-system" :title="site.solarSystemName ?? ''">{{ site.solarSystemName ?? t('miningSite.create.systemNone') }}</span>
                 <span class="font-mono text-xs" data-testid="site-scan-count">{{ t('miningSite.detail.scans', { count: orderedScans.length }) }}</span>
                 <span class="font-mono text-xs"><span class="text-slate-500">{{ t('miningSite.detail.firstScan') }}</span> <span class="text-cyan-200" data-testid="site-first-scan">{{ firstScanText }}</span></span>
+                <router-link
+                  v-if="site.operationId"
+                  :to="{ name: 'mining-operation-detail', params: { id: site.operationId } }"
+                  data-testid="site-operation"
+                  class="text-cyan-300 hover:text-cyan-200"
+                >{{ t('miningSite.detail.operation') }}</router-link>
               </p>
             </div>
             <div class="flex items-center gap-3">

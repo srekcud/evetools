@@ -111,6 +111,10 @@ function canCreateOperation(extraction: CorporationMiningExtraction): boolean {
   return statusOf(extraction) !== 'exploded'
 }
 
+function showsOperation(extraction: CorporationMiningExtraction): boolean {
+  return extraction.linkedOperation !== null || canCreateOperation(extraction)
+}
+
 function openCreatedOperation(operationId: string): void {
   operationChunk.value = null
   void router.push({ name: 'mining-operation-detail', params: { id: operationId } })
@@ -323,7 +327,13 @@ onUnmounted(() => {
                   />
                 </td>
                 <td data-cell="operation" class="px-3 py-2 max-w-[12rem]">
-                  <MoonChunkOperationButton v-if="canCreateOperation(extraction)" :moon="moonLabel(extraction)" @create="operationChunk = extraction" />
+                  <MoonChunkOperationButton
+                    v-if="showsOperation(extraction)"
+                    :moon="moonLabel(extraction)"
+                    :linked-operation="extraction.linkedOperation"
+                    :linked-operation-count="extraction.linkedOperationCount"
+                    @create="operationChunk = extraction"
+                  />
                 </td>
               </tr>
               <MoonChunkValueDetail
@@ -382,9 +392,11 @@ onUnmounted(() => {
                 @toggle="toggleMiners(entry.corporationId, extraction.id)"
               />
               <MoonChunkOperationButton
-                v-if="canCreateOperation(extraction)"
+                v-if="showsOperation(extraction)"
                 class="mt-1 block max-w-full"
                 :moon="moonLabel(extraction)"
+                :linked-operation="extraction.linkedOperation"
+                :linked-operation-count="extraction.linkedOperationCount"
                 @create="operationChunk = extraction"
               />
             </div>

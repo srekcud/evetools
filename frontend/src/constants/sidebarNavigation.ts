@@ -33,15 +33,7 @@ export const allNavEntries: NavEntry[] = [
       { id: 'planetary', labelKey: 'nav.pi', route: '/planetary', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
     ]
   },
-  {
-    id: 'mining',
-    labelKey: 'nav.mining',
-    icon: 'M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9',
-    collapsible: true,
-    children: [
-      { id: 'mining-operations', labelKey: 'nav.miningOperations', route: '/mining-operations', icon: 'M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9' },
-    ]
-  },
+  { id: 'mining', labelKey: 'nav.mining', route: '/mining/operations', activePathPrefixes: ['/mining/'], icon: 'M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9' },
   {
     id: 'economy',
     labelKey: 'nav.economy',
@@ -62,6 +54,21 @@ export const adminNavItem: NavItem = {
 export const settableModules: NavItem[] = allNavEntries.flatMap(entry => isNavGroup(entry) ? entry.children : [entry])
 
 export const LEGACY_GROUP_INDUSTRY_MODULE_ID = 'group-industry'
+
+export const LEGACY_MINING_OPERATIONS_MODULE_ID = 'mining-operations'
+
+const LEGACY_MODULE_IDS: Record<string, string> = {
+  mining: LEGACY_MINING_OPERATIONS_MODULE_ID,
+}
+
+export function moduleIdsToUnhide(moduleId: string): string[] {
+  const legacyId = LEGACY_MODULE_IDS[moduleId]
+  return legacyId === undefined ? [moduleId] : [moduleId, legacyId]
+}
+
+export function isModuleHidden(hiddenModules: string[], moduleId: string): boolean {
+  return moduleIdsToUnhide(moduleId).some(id => hiddenModules.includes(id))
+}
 
 export function isProjectsHidden(hiddenModules: string[]): boolean {
   return hiddenModules.includes('industry') || hiddenModules.includes(LEGACY_GROUP_INDUSTRY_MODULE_ID)
