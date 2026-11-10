@@ -36,6 +36,7 @@ final readonly class MyMiningOperationsProvider implements ProviderInterface
         return array_map(
             fn (MiningOperation $mine): MiningOperationResource => $this->mapper->operationToResource(
                 $mine,
+                $user,
                 $mine->activeMembershipOf($user),
                 $this->access->canParticipate($user, $mine),
             ),

@@ -10,6 +10,8 @@ import MiningCompleteOperation from '@/components/mining-operation/MiningComplet
 import MiningCorrectionModal from '@/components/mining-operation/MiningCorrectionModal.vue'
 import MiningFleetStorage from '@/components/mining-operation/MiningFleetStorage.vue'
 import MiningFreezeShares from '@/components/mining-operation/MiningFreezeShares.vue'
+import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
+import MiningOperationLinkedChunk from '@/components/mining-operation/MiningOperationLinkedChunk.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
 import MiningMinedQuantities from '@/components/mining-operation/MiningMinedQuantities.vue'
 import MiningOperationMembers from '@/components/mining-operation/MiningOperationMembers.vue'
@@ -458,6 +460,8 @@ onBeforeUnmount(() => {
 <template>
   <MainLayout>
     <div class="mx-auto max-w-5xl px-6 py-8">
+      <MiningModuleTabs active="operations" />
+
       <div v-if="loading" class="flex justify-center py-16">
         <LoadingSpinner size="xl" class="text-cyan-400" />
       </div>
@@ -486,6 +490,8 @@ onBeforeUnmount(() => {
         </header>
 
         <MiningOperationStepper :status="operation.status" :split-mode="operation.splitMode" />
+
+        <MiningOperationLinkedChunk v-if="operation.chunk !== null" :chunk="operation.chunk" />
 
         <p v-if="actionFailure !== null" class="text-sm text-red-400" role="alert">{{ actionFailure }}</p>
 

@@ -35,7 +35,7 @@ final readonly class ArchivedMiningOperationsProvider implements ProviderInterfa
 
         return array_map(
             function (MiningOperation $archived) use ($user): MiningOperationResource {
-                $resource = $this->mapper->operationToResource($archived, $archived->activeMembershipOf($user));
+                $resource = $this->mapper->operationToResource($archived, $user, $archived->activeMembershipOf($user));
                 $resource->archiveSummary = $this->archive->summaryOf($archived, $user);
 
                 return $resource;

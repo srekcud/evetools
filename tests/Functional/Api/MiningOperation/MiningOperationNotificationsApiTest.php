@@ -32,7 +32,7 @@ final class MiningOperationNotificationsApiTest extends WebTestCase
     {
         $this->g1();
 
-        $route = '/mining-operations/' . $this->spodumain->getId();
+        $route = '/mining/operations/' . $this->spodumain->getId();
         self::assertSame(
             [
                 'Aria Solberg' => [['mining_operation', 'warning', self::SHARES_COMPUTED, $route]],
@@ -57,7 +57,7 @@ final class MiningOperationNotificationsApiTest extends WebTestCase
             [
                 'Aria Solberg' => [],
                 'Brann Holt' => [],
-                'Cyra Lune' => [['mining_operation', 'success', self::PAYMENT_RECEIVED, '/mining-operations/' . $this->spodumain->getId()]],
+                'Cyra Lune' => [['mining_operation', 'success', self::PAYMENT_RECEIVED, '/mining/operations/' . $this->spodumain->getId()]],
                 'Dorn Achar' => [],
                 'Elia Varr' => [],
             ],
@@ -87,7 +87,7 @@ final class MiningOperationNotificationsApiTest extends WebTestCase
         self::assertSame(['pending'], [$this->responseJson()['myStatus'] ?? null]);
         self::assertSame(
             [
-                'Aria Solberg' => [['mining_operation', 'info', self::JOIN_REQUEST, '/mining-operations/' . $this->spodumain->getId()]],
+                'Aria Solberg' => [['mining_operation', 'info', self::JOIN_REQUEST, '/mining/operations/' . $this->spodumain->getId()]],
                 'Brann Holt' => [],
                 'Cyra Lune' => [],
                 'Dorn Achar' => [],

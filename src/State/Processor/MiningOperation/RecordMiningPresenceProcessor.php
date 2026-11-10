@@ -49,6 +49,6 @@ final readonly class RecordMiningPresenceProcessor implements ProcessorInterface
             );
         }
 
-        return $this->mapper->operationToResource($miningOperation, $membership);
+        return $this->mapper->operationToResource($miningOperation, $user, $membership);
     }
 }

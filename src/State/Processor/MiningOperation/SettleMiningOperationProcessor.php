@@ -48,6 +48,6 @@ final readonly class SettleMiningOperationProcessor implements ProcessorInterfac
             'operation_settled',
         );
 
-        return $this->mapper->operationToResource($miningOperation, $miningOperation->activeMembershipOf($user), true);
+        return $this->mapper->operationToResource($miningOperation, $user, $miningOperation->activeMembershipOf($user), true);
     }
 }

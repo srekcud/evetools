@@ -62,6 +62,8 @@ function extractionsOf(structureIds: number[]) {
         naturalDecayTime: '2026-11-08T20:00:00+00:00',
         status: 'extracting',
         chunkValue: null,
+        linkedOperation: null,
+        linkedOperationCount: 0,
       })),
     }],
   }

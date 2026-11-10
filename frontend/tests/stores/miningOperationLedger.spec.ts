@@ -53,6 +53,7 @@ const STARTED_SPODUMAIN: MiningOperation = {
   fleetStorageRecipientName: null,
   recurrenceId: null,
   chunkId: null,
+  chunk: null,
 }
 
 const CLOSING_LEDGER: MiningOperationLedger = {

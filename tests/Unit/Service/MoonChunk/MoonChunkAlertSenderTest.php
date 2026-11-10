@@ -39,7 +39,7 @@ final class MoonChunkAlertSenderTest extends TestCase
     private const string ARRIVAL = '2026-11-05T20:00:00+00:00';
     private const string DECAY = '2026-11-05T23:00:00+00:00';
     private const string FOLLOWED_THE_DAY_BEFORE = '2026-11-04T12:00:00+00:00';
-    private const string ALERTS_ROUTE = '/ledger?tab=mining&view=moonChunks';
+    private const string ALERTS_ROUTE = '/mining/moons';
 
     private MockClock $clock;
     private array $storedChunks = [];

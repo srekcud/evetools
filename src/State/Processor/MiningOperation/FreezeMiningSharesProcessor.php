@@ -51,6 +51,6 @@ final readonly class FreezeMiningSharesProcessor implements ProcessorInterface
         );
         $this->notifier->sharesFrozen($miningOperation);
 
-        return $this->mapper->operationToResource($miningOperation, $miningOperation->activeMembershipOf($user), true);
+        return $this->mapper->operationToResource($miningOperation, $user, $miningOperation->activeMembershipOf($user), true);
     }
 }

@@ -238,6 +238,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ),
         ),
     ],
+    normalizationContext: ['skip_null_values' => false],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: false,
 )]
@@ -299,4 +300,7 @@ class MiningOperationResource
     public ?string $recurrenceId = null;
 
     public ?string $chunkId = null;
+
+    /** @var array{id: string, moonId: int, moonName: ?string, structureId: int, structureName: ?string, chunkArrivalTime: string}|null */
+    public ?array $chunk = null;
 }

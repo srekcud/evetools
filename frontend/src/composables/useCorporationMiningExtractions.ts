@@ -1,5 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
+import type { MiningOperationStatus } from '@/stores/miningOperation'
 import { useSyncStore, type SyncProgress } from '@/stores/sync'
 
 export type MoonChunkStatus = 'extracting' | 'ready' | 'exploded'
@@ -37,6 +38,12 @@ export interface MoonChunkValue {
   scanRecordedAt: string | null
 }
 
+export interface MoonChunkLinkedOperation {
+  id: string
+  label: string
+  status: MiningOperationStatus
+}
+
 export interface CorporationMiningExtraction {
   id: string
   structureId: number
@@ -50,6 +57,8 @@ export interface CorporationMiningExtraction {
   naturalDecayTime: string
   status: MoonChunkStatus
   chunkValue: MoonChunkValue | null
+  linkedOperation: MoonChunkLinkedOperation | null
+  linkedOperationCount: number
 }
 
 export interface CorporationMiningExtractions {

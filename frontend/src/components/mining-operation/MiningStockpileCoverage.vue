@@ -8,7 +8,7 @@ type CoverageRowState = 'partial' | 'whole' | 'no-deficit' | 'unknown'
 
 const PERCENT_DECIMALS = 2
 const QUANTITY_DECIMALS = 0
-const YIELD_PANEL_LOCATION = { name: 'ledger', query: { tab: 'mining' } }
+const YIELD_PANEL_LOCATION = { name: 'mining-ore-value' }
 
 defineProps<{ coverage: StockpileCoverage }>()
 

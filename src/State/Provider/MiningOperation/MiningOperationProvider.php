@@ -35,6 +35,7 @@ final readonly class MiningOperationProvider implements ProviderInterface
 
         return $this->mapper->operationToResource(
             $miningOperation,
+            $user,
             $miningOperation->activeMembershipOf($user),
             $this->access->canParticipate($user, $miningOperation),
         );

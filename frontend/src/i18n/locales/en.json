@@ -114,6 +114,10 @@
     "economy": "Economy",
     "mining": "Mining",
     "miningOperations": "Mining operations",
+    "miningMoons": "Moons",
+    "miningMoonTax": "Tax",
+    "miningOreValue": "Ore value",
+    "miningMyMining": "My mining",
     "admin": "Administration",
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
@@ -1448,7 +1452,11 @@
         "syncing": "Syncing...",
         "syncProgress": "Sync {percent} %",
         "loadError": "The moon chunks could not be loaded.",
-        "createOperation": "Create a mining operation",
+        "createOperation": "Plan the operation",
+        "linkedOperation": "Linked operation →",
+        "linkedOperationFor": "Open the operation {label}",
+        "linkedOperationMore": "+{count}",
+        "linkedOperationMoreTitle": "{count} other operation(s) on this chunk",
         "createOperationFor": "Create a mining operation for {moon}",
         "refineries": "Refineries",
         "follow": "Follow",
@@ -3325,6 +3333,37 @@
       "365d": "1 year"
     }
   },
+  "miningModule": {
+    "tabs": {
+      "operations": "Operations",
+      "moons": "Moons",
+      "sites": "Sites",
+      "oreValue": "Ore value",
+      "myMining": "My mining"
+    },
+    "pages": {
+      "moons": "Moons",
+      "sites": "Mining sites",
+      "oreValue": "Ore value",
+      "myMining": "My mining"
+    },
+    "moons": {
+      "tabs": {
+        "calendar": "Chunks",
+        "tax": "Moon tax"
+      }
+    },
+    "myMining": {
+      "period": "Period",
+      "tabs": {
+        "ledger": "Ledger",
+        "season": "Season"
+      }
+    },
+    "oreValue": {
+      "valuationHint": "The structure and the export tax also value the lines of My mining."
+    }
+  },
   "miningOperation": {
     "title": "Mining operations",
     "tabs": {
@@ -3334,6 +3373,13 @@
       "season": "Season",
       "sites": "Sites"
     },
+    "linkedChunk": {
+      "title": "Linked chunk",
+      "moon": "Moon",
+      "refinery": "Refinery",
+      "arrival": "Arrival",
+      "open": "Open the moons →"
+    },
     "list": {
       "new": "New operation",
       "emptyMine": "No operation yet. Create one or join one from its link.",
@@ -3342,7 +3388,8 @@
       "participants": "{count} participants",
       "open": "Open",
       "join": "Join",
-      "chunkUnavailable": "This moon chunk is no longer available: it has exploded or is no longer visible to you."
+      "chunkUnavailable": "This moon chunk is no longer available: it has exploded or is no longer visible to you.",
+      "linkedChunk": "Linked moon →"
     },
     "status": {
       "settled": "Settled",
@@ -4041,6 +4088,7 @@
       "allSystems": "All systems",
       "empty": "No site yet. Estimate one with a first scan.",
       "estimate": "Estimate a site",
+      "operationLink": "Operation →",
       "columns": {
         "label": "Site",
         "system": "System",
@@ -4051,6 +4099,7 @@
         "value": "Start value",
         "rate": "Avg. trend rate",
         "status": "Status",
+        "operation": "Operation",
         "actions": "Actions"
       }
     },
@@ -4060,6 +4109,7 @@
     },
     "detail": {
       "back": "Mining sites",
+      "operation": "Operation →",
       "firstScan": "First scan",
       "scans": "Scans: {count}",
       "noScan": "No scan yet: add the first scan below.",

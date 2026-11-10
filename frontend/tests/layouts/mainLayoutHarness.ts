@@ -3,6 +3,7 @@ import type { Window as HappyDomWindow } from 'happy-dom'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { MODULE_LAST_PAGE_STORAGE_KEY } from '@/composables/useModuleLastPage'
 import en from '@/i18n/locales/en.json'
 import MainLayout from '@/layouts/MainLayout.vue'
 
@@ -18,6 +19,8 @@ const navigationRoutes = [
   '/industry/projects/p1',
   '/appraisal',
   '/planetary',
+  '/mining/operations',
+  '/mining/moons',
   '/market',
   '/assets',
   '/characters',
@@ -32,6 +35,7 @@ interface MainLayoutMountOptions {
   viewportWidth?: number
   storedCollapsedGroups?: string
   storedHiddenModules?: string[]
+  storedModuleLastPage?: string
   industryActionsAnswer?: ApiAnswer
 }
 
@@ -53,7 +57,7 @@ export function setViewportWidth(width: number): void {
 
 export async function mountMainLayoutAt(
   path: string,
-  { viewportWidth = WIDE_VIEWPORT_WIDTH, storedCollapsedGroups, storedHiddenModules, industryActionsAnswer }: MainLayoutMountOptions = {},
+  { viewportWidth = WIDE_VIEWPORT_WIDTH, storedCollapsedGroups, storedHiddenModules, storedModuleLastPage, industryActionsAnswer }: MainLayoutMountOptions = {},
 ) {
   localStorage.clear()
   if (storedHiddenModules !== undefined) {
@@ -61,6 +65,9 @@ export async function mountMainLayoutAt(
   }
   if (storedCollapsedGroups !== undefined) {
     localStorage.setItem('evetools_nav_collapsed', storedCollapsedGroups)
+  }
+  if (storedModuleLastPage !== undefined) {
+    localStorage.setItem(MODULE_LAST_PAGE_STORAGE_KEY, storedModuleLastPage)
   }
   setViewportWidth(viewportWidth)
   const pinia = createPinia()

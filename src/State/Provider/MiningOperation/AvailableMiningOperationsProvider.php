@@ -37,7 +37,7 @@ final readonly class AvailableMiningOperationsProvider implements ProviderInterf
         }
 
         return array_map(
-            fn (MiningOperation $available): MiningOperationResource => $this->mapper->operationToResource($available, null, true),
+            fn (MiningOperation $available): MiningOperationResource => $this->mapper->operationToResource($available, $user, null, true),
             $this->operationRepository->findAvailableForCorporation($corporationId, $user),
         );
     }

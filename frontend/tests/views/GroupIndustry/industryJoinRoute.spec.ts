@@ -74,7 +74,7 @@ describe('industry invitation link', () => {
   })
 
   it('keeps the mining operation invitation on its own link', () => {
-    const resolved = router.resolve('/mining-operations/join/AB12CD')
+    const resolved = router.resolve('/mining/operations/join/AB12CD')
 
     expect({ name: resolved.name, code: resolved.params.code }).toEqual({ name: 'mining-operation-join', code: 'AB12CD' })
   })

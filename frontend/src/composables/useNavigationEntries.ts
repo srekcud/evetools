@@ -1,5 +1,5 @@
 import { useI18n } from 'vue-i18n'
-import { adminNavItem, allNavEntries, isNavGroup, isProjectsHidden, readHiddenModules, type NavItem } from '@/constants/sidebarNavigation'
+import { adminNavItem, allNavEntries, isModuleHidden, isNavGroup, isProjectsHidden, readHiddenModules, type NavItem } from '@/constants/sidebarNavigation'
 
 export interface NavigationEntry {
   route: string
@@ -18,6 +18,7 @@ interface ScreenTab {
 }
 
 const INDUSTRY_MODULE = 'industry'
+const MINING_MODULE = 'mining'
 const ALIAS_LOCALE = 'en'
 const LABEL_SEPARATOR = ' › '
 
@@ -37,10 +38,22 @@ const PROJECTS_TABS: ScreenTab[] = [
   { query: 'available', labelKey: 'groupIndustry.tabs.available' },
 ]
 
+interface MiningPage {
+  route: string
+  labelKey: string
+  tabs: ScreenTab[]
+}
+
+const MINING_PAGES: MiningPage[] = [
+  { route: '/mining/moons', labelKey: 'nav.miningMoons', tabs: [{ query: 'tax', labelKey: 'nav.miningMoonTax' }] },
+  { route: '/mining/sites', labelKey: 'miningOperation.tabs.sites', tabs: [] },
+  { route: '/mining/ore-value', labelKey: 'nav.miningOreValue', tabs: [] },
+  { route: '/mining/my-mining', labelKey: 'nav.miningMyMining', tabs: [{ query: 'season', labelKey: 'miningOperation.tabs.season' }] },
+]
+
 const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
   ledger: [
     { query: 'pve', labelKey: 'ledger.tabs.pve' },
-    { query: 'mining', labelKey: 'ledger.tabs.mining' },
     { query: 'escalations', labelKey: 'ledger.tabs.escalations' },
     { query: 'settings', labelKey: 'ledger.tabs.settings' },
   ],
@@ -53,8 +66,9 @@ const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
     { query: 'stockpile', labelKey: 'industry.tabs.stockpile' },
     { query: 'blueprints', labelKey: 'industry.tabs.blueprints' },
   ],
-  'mining-operations': [
+  mining: [
     { query: 'available', labelKey: 'miningOperation.tabs.available' },
+    { query: 'archive', labelKey: 'miningOperation.tabs.archive' },
   ],
   market: [
     { query: 'alerts', labelKey: 'market.tabs.alerts' },
@@ -110,13 +124,29 @@ export function useNavigationEntries(): {
     ]
   }
 
+  function miningPageEntries(mining: Screen): NavigationEntry[] {
+    return MINING_PAGES.flatMap((page) => {
+      const labelKeys = [mining.labelKey, page.labelKey]
+      return [
+        {
+          route: page.route,
+          label: labelKeys.map(labelInInterfaceLanguage).join(LABEL_SEPARATOR),
+          aliasLabel: labelKeys.map(labelInAliasLanguage).join(LABEL_SEPARATOR),
+          isTab: true,
+        },
+        ...page.tabs.map(tab => tabEntry(page, tab, mining)),
+      ]
+    })
+  }
+
   function listNavigationEntries({ isAdmin }: NavigationEntriesOptions): NavigationEntry[] {
     const hiddenModules = readHiddenModules()
     const entries = SIDEBAR_SCREENS
-      .filter(screen => !hiddenModules.includes(screen.id))
+      .filter(screen => !isModuleHidden(hiddenModules, screen.id))
       .flatMap(screen => [
         screenEntry(screen),
         ...(TABS_BY_MODULE[screen.id] ?? []).map(tab => tabEntry(screen, tab)),
+        ...(screen.id === MINING_MODULE ? miningPageEntries(screen) : []),
         ...(screen.id === INDUSTRY_MODULE && !isProjectsHidden(hiddenModules) ? projectEntries(screen) : []),
       ])
     entries.push(screenEntry(CHARACTERS_SCREEN))
