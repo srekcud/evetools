@@ -109,6 +109,7 @@ const GROUP_PROJECTS = [WIDOW_DRAFT, HECATE_IN_PROGRESS, ISHTAR_COMPLETED, SABRE
 const SABRE_WORKSHOP = workshopProject({
   projectId: SABRE_PROJECT_ID,
   members: [workshopMember('Ilyra Castell', ILYRA_CHARACTER_ID, 'owner'), workshopMember('Brann Holt', null, 'member')],
+  corporationName: 'Hedion University',
   phases: [
     phase('prepare', 'done', 2, 2),
     phase('supply', 'done', 5, 5),
@@ -461,6 +462,21 @@ describe('IndustryWorkshop product sub-line', () => {
     expect(sublineOf(WIDOW_ROW)).not.toMatch(/\b1\b/)
     expect(sublineOf(ISHTAR_ROW)).toMatch(/ME\s*8/)
     expect(sublineOf(ISHTAR_ROW)).toMatch(/TE\s*16/)
+  })
+
+  it('ends with the corporation name of the project when the workshop row carries one', async () => {
+    const wrapper = await mountWorkshop()
+    const sublineOf = (index: number) => projectRows(wrapper)[index].get('[data-testid="workshop-product-subline"]').text()
+
+    expect(sublineOf(SABRE_ROW)).toMatch(/ME\s*10\s*·\s*TE\s*20\s*·\s*\S.*·\s*Hedion University$/)
+  })
+
+  it('shows no corporation segment when the workshop row has no corporation name', async () => {
+    const wrapper = await mountWorkshop()
+    const sublineOf = (index: number) => projectRows(wrapper)[index].get('[data-testid="workshop-product-subline"]').text()
+
+    expect(sublineOf(WIDOW_ROW)).toMatch(/TE\s*20\s*·\s*\S+$/)
+    expect(sublineOf(WIDOW_ROW).split('·')).toHaveLength(3)
   })
 })
 

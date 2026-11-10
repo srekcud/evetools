@@ -36,6 +36,8 @@ class IndustryWorkshopProjectResource
     /** @var list<array{characterId: int|null, characterName: string, role: string}> */
     public array $members = [];
 
+    public ?string $corporationName = null;
+
     /**
      * @var list<array{
      *     key: string,

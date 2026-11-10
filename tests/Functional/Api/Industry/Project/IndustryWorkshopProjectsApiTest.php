@@ -126,6 +126,27 @@ final class IndustryWorkshopProjectsApiTest extends WebTestCase
         );
     }
 
+    public function testRowCarriesTheCorporationNameOfTheProjectOwner(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('Corporation 98206101', $this->rowOf($this->ishtarBatch)['corporationName']);
+    }
+
+    public function testRowCorporationNameIsNullWhenTheOwnerHasNoCorporation(): void
+    {
+        $this->outsider->setMainCharacter(null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->outsider, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertNull($this->rowOf($this->outsiderBatch)['corporationName']);
+    }
+
     public function testSoloProjectMembersAreThePilotAlone(): void
     {
         $this->client->loginUser($this->owner, 'api');

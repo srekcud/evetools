@@ -1020,7 +1020,8 @@
         "awaitingSales": "aucune vente",
         "unknown": "un coût ou des frais sont inconnus"
       },
-      "productSubline": "ME {me} · TE {te} · {team}"
+      "productSubline": "ME {me} · TE {te} · {team}",
+      "productSublineWithCorporation": "ME {me} · TE {te} · {team} · {corporation}"
     },
     "bridges": {
       "createProject": "Créer le projet",
