@@ -3200,10 +3200,12 @@
       "outputUnknown": "Output: unknown",
       "bomFulfillment": "BOM fulfilled: {percent}%",
       "finalJobsRunning": "Final jobs running: {count}",
+      "moveProductsUnknown": "Output location unknown for {count} jobs: check it in the BOM",
       "alerts": {
         "jobReady": "{name} ×{runs} · {character} · to deliver",
         "jobReadyGeneric": "A job is ready to deliver",
         "bomComplete": "BOM complete",
+        "moveProducts": "Move {quantity} products into the project container ({count} jobs)",
         "joinRequest": "{count} join requests"
       },
       "notices": {
