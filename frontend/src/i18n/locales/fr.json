@@ -1471,12 +1471,35 @@
           "countdown": "Compte à rebours",
           "status": "Statut",
           "value": "Valeur",
+          "miners": "Mineurs",
           "operation": "Opération"
         },
         "status": {
           "extracting": "Extraction",
           "ready": "Prêt",
           "exploded": "Explosé"
+        },
+        "miners": {
+          "toggle": "Mineurs",
+          "toggleFor": "Afficher les mineurs du chunk de {moon}",
+          "title": "Mineurs de ce chunk, taxe estimée au prix actuel",
+          "periodNote": "La taxe, le payé et le reste d'un relevé valent pour sa période entière, pas seulement pour ce chunk.",
+          "chunkTax": "Taxe du chunk",
+          "week": "Relevé de la semaine du {date}",
+          "month": "Relevé du mois de {month}",
+          "notEstablished": "Relevé pas encore établi",
+          "notConfigured": "Taxe lunaire non configurée pour cette raffinerie",
+          "empty": "Aucun minage enregistré sur ce chunk",
+          "denied": "Réservé aux comptables de la corporation",
+          "loadError": "Les mineurs de ce chunk n'ont pas pu être chargés.",
+          "columns": {
+            "period": "Période",
+            "reference": "Référence",
+            "tax": "Taxe",
+            "paid": "Payé",
+            "remaining": "Reste",
+            "status": "Statut"
+          }
         },
         "value": {
           "rowKnown": "≈ {total} ISK · {share} ISK / pers. à {count}",
@@ -3307,7 +3330,8 @@
       "noCorporation": "Corporation inconnue : seules les opérations reçues par lien sont accessibles.",
       "participants": "{count} inscrits",
       "open": "Ouvrir",
-      "join": "Rejoindre"
+      "join": "Rejoindre",
+      "chunkUnavailable": "Ce chunk lunaire n'est plus disponible : il a explosé ou n'est plus visible pour vous."
     },
     "status": {
       "settled": "Réglée",
@@ -3850,6 +3874,8 @@
     "windowTitle": "EVE Tools · compagnon de minage",
     "detach": "Détacher",
     "detachTitle": "Détacher le compagnon dans une petite fenêtre (touche D)",
+    "detachFree": "Hors opération",
+    "detachFreeTitle": "Détacher le compagnon sans site ni opération : prochain chunk lunaire, création d'opération, estimation d'un site seul",
     "sizes": {
       "bar": "Barre",
       "compact": "Compact",
@@ -3859,6 +3885,12 @@
     "pasteTitle": "Enregistrer le scan du presse-papiers (touche V ou Ctrl+V)",
     "desk": "Poste",
     "deskTitle": "Revenir à la fenêtre principale sur cette page",
+    "free": {
+      "next": "Prochain chunk",
+      "none": "Aucun chunk lunaire à venir.",
+      "createOperation": "Créer l'opération",
+      "estimate": "Estimer un site seul"
+    },
     "empty": "Aucun site actif sur cette opération.",
     "noScan": "Aucun scan : collez le premier scan (Ctrl+V).",
     "loading": "Chargement du site…",

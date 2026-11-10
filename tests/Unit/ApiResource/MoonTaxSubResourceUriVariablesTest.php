@@ -7,6 +7,7 @@ namespace App\Tests\Unit\ApiResource;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\HttpOperation;
 use ApiPlatform\Metadata\Link;
+use App\ApiResource\MoonTax\MoonTaxChunkMinersResource;
 use App\ApiResource\MoonTax\MoonTaxCorporationResource;
 use App\ApiResource\MoonTax\MoonTaxDonationEntryResource;
 use App\ApiResource\MoonTax\MoonTaxDonationResource;
@@ -46,6 +47,7 @@ final class MoonTaxSubResourceUriVariablesTest extends TestCase
         yield 'POST sync' => [MoonTaxSyncResource::class, 'POST', '/mining/moon-tax/'.$corporationId.'/sync', ['corporationId']];
         yield 'GET donations' => [MoonTaxDonationEntryResource::class, 'GET', '/mining/moon-tax/'.$corporationId.'/donations', ['corporationId']];
         yield 'POST attribute donation' => [MoonTaxDonationResource::class, 'POST', '/mining/moon-tax/'.$corporationId.'/donations/{journalId}/attribute', ['corporationId', 'journalId']];
+        yield 'GET chunk miners' => [MoonTaxChunkMinersResource::class, 'GET', '/mining/moon-tax/'.$corporationId.'/chunks/{id}/miners', ['corporationId', 'id']];
     }
 
     private function operationOf(string $resourceClass, string $method, string $uriTemplate): ?HttpOperation

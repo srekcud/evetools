@@ -76,7 +76,7 @@
    "facilityTax": 0.0,
    "alpha": false,
    "expected": { "systemCost": 20000, "facilityTax": 0, "sccSurcharge": 40000, "alphaTax": 0, "total": 60000 },
-   "openQuestion": "SCC de 4 % sur la copie : applique par EVE Ref ; la baisse a 2 % de juillet 2025 ne vise que la recherche ME/TE. A confirmer en jeu avant de figer.",
+   "confirmation": "SCC de 4 % sur la copie confirmee en jeu le 2026-11-05 (issue #219) ; la baisse a 2 % de juillet 2025 ne vise que la recherche ME/TE.",
    "currentEvetools": { "total": 20000, "ref": "src/Service/Industry/InventionService.php:61-80" }
   },
   {
