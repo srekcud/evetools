@@ -38,7 +38,9 @@ async function emptyApiAnswer(endpoint: string): Promise<unknown> {
 
 const appRoutes = [
   '/dashboard',
-  '/ledger',
+  '/balance',
+  '/pve/revenue',
+  '/pve/escalations',
   '/industry',
   '/industry/projects',
   '/industry/analysis',
@@ -219,10 +221,10 @@ describe('CommandPalette', () => {
         'Appraisal',
         'PI',
         'Mining',
+        'PVE',
         'Market',
-        'Revenue',
+        'Balance',
         'Inventory',
-        'Characters',
       ])
     })
 
@@ -366,7 +368,8 @@ describe('CommandPalette', () => {
         'Appraisal',
         'PI',
         'Mining',
-        'Revenue',
+        'PVE',
+        'Balance',
         'Inventory',
         'Characters',
       ])
@@ -428,7 +431,7 @@ describe('CommandPalette', () => {
 
     it('navigates to a screen without a tab query', async () => {
       const { router } = await mountOpenPalette()
-      await pressArrowDown(6)
+      await pressArrowDown(7)
 
       await pressKey('Enter')
 

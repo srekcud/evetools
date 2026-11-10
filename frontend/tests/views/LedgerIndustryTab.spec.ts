@@ -7,9 +7,9 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import LedgerIndustryTab from '@/components/ledger/LedgerIndustryTab.vue'
 import { apiRequest } from '@/services/api'
-import Ledger from '@/views/Ledger.vue'
+import Balance from '@/views/Balance.vue'
 
-const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/ledger', params: {}, query: {} })
+const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/balance', params: {}, query: {} })
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -29,7 +29,7 @@ const MainLayoutStub = defineComponent({
 })
 
 async function mountLedger(locale: 'en' | 'fr'): Promise<VueWrapper> {
-  const wrapper = mount(Ledger, {
+  const wrapper = mount(Balance, {
     global: {
       plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
       stubs: {
@@ -64,15 +64,13 @@ beforeEach(() => {
   route.query = {}
 })
 
-describe('Ledger industry tab', () => {
-  it('lists the Industrie tab between PVE and Escalations, in French and in English', async () => {
+describe('Balance industry tab', () => {
+  it('lists only the overview, industry and settings tabs, in French and in English', async () => {
     const french = tabLabels(await mountLedger('fr'))
     const english = tabLabels(await mountLedger('en'))
 
-    expect(french.indexOf('Industrie')).toBe(french.indexOf(fr.ledger.tabs.pve) + 1)
-    expect(french.indexOf('Industrie')).toBe(french.indexOf(fr.ledger.tabs.escalations) - 1)
-    expect(english.indexOf('Industry')).toBe(english.indexOf(en.ledger.tabs.pve) + 1)
-    expect(english.indexOf('Industry')).toBe(english.indexOf(en.ledger.tabs.escalations) - 1)
+    expect(french).toEqual([fr.ledger.tabs.dashboard, 'Industrie', fr.ledger.tabs.settings])
+    expect(english).toEqual([en.ledger.tabs.dashboard, 'Industry', en.ledger.tabs.settings])
   })
 
   it('shows the industry tab with the selected period when it is the active tab', async () => {

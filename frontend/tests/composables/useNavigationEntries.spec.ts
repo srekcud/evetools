@@ -71,13 +71,14 @@ describe('useNavigationEntries', () => {
       ['/mining/ore-value', 'Mining › Ore value', true],
       ['/mining/my-mining', 'Mining › My mining', true],
       ['/mining/my-mining?tab=season', 'Mining › My mining › Season', true],
+      ['/pve/revenue', 'PVE', false],
+      ['/pve/escalations', 'PVE › Escalations', true],
       ['/market', 'Market', false],
       ['/market?tab=alerts', 'Market › Alerts', true],
       ['/contracts', 'Commerce › Contracts', true],
-      ['/ledger', 'Revenue', false],
-      ['/ledger?tab=pve', 'Revenue › PVE', true],
-      ['/ledger?tab=escalations', 'Revenue › Escalations', true],
-      ['/ledger?tab=settings', 'Revenue › Settings', true],
+      ['/balance', 'Balance', false],
+      ['/balance?tab=industry', 'Balance › Industry', true],
+      ['/balance?tab=settings', 'Balance › Settings', true],
       ['/assets', 'Inventory', false],
       ['/characters', 'Characters', false],
     ])
@@ -127,13 +128,14 @@ describe('useNavigationEntries', () => {
       ['Minage › Valeur du minerai', 'Mining › Ore value'],
       ['Minage › Mon minage', 'Mining › My mining'],
       ['Minage › Mon minage › Saison', 'Mining › My mining › Season'],
+      ['PVE', 'PVE'],
+      ['PVE › Escalations', 'PVE › Escalations'],
       ['Marche', 'Market'],
       ['Marche › Alertes', 'Market › Alerts'],
       ['Commerce › Contrats', 'Commerce › Contracts'],
-      ['Revenus', 'Revenue'],
-      ['Revenus › PVE', 'Revenue › PVE'],
-      ['Revenus › Escalations', 'Revenue › Escalations'],
-      ['Revenus › Parametres', 'Revenue › Settings'],
+      ['Bilan', 'Balance'],
+      ['Bilan › Industrie', 'Balance › Industry'],
+      ['Bilan › Parametres', 'Balance › Settings'],
       ['Inventaire', 'Inventory'],
       ['Personnages', 'Characters'],
     ])
@@ -153,8 +155,8 @@ describe('useNavigationEntries', () => {
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(34)
-    expect(entries[33]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(35)
+    expect(entries[34]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -182,7 +184,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route === '/contracts' || route.startsWith('/market'))).toEqual([])
     expect(routes).toContain('/assets')
-    expect(routes).toHaveLength(30)
+    expect(routes).toHaveLength(31)
   })
 
   it('removes the screen, the tabs and the projects of each hidden module', () => {
@@ -202,10 +204,11 @@ describe('useNavigationEntries', () => {
       '/mining/ore-value',
       '/mining/my-mining',
       '/mining/my-mining?tab=season',
-      '/ledger',
-      '/ledger?tab=pve',
-      '/ledger?tab=escalations',
-      '/ledger?tab=settings',
+      '/pve/revenue',
+      '/pve/escalations',
+      '/balance',
+      '/balance?tab=industry',
+      '/balance?tab=settings',
       '/assets',
       '/characters',
     ])
@@ -220,7 +223,7 @@ describe('useNavigationEntries', () => {
     expect(routes).toContain('/industry')
     expect(routes).toContain('/industry/production?tab=stockpile')
     expect(routes.filter(route => route.startsWith('/industry/projects'))).toEqual([])
-    expect(routes).toHaveLength(31)
+    expect(routes).toHaveLength(32)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["group-industry"]')
   })
 
@@ -232,7 +235,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route.startsWith('/mining/'))).toEqual([])
     expect(routes).toContain('/planetary')
-    expect(routes).toHaveLength(24)
+    expect(routes).toHaveLength(25)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["mining-operations"]')
   })
 
@@ -253,6 +256,6 @@ describe('useNavigationEntries', () => {
     hideModules(['planetary'])
 
     expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/planetary')
-    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(32)
+    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(33)
   })
 })

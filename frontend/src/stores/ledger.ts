@@ -29,6 +29,7 @@ export interface LedgerDashboard {
     missions: number
     lootSales: number
     corpProjects: number
+    escalations: number
   }
   miningBreakdown: {
     sold: number | null

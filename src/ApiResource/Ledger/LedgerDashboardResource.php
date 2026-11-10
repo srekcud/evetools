@@ -65,9 +65,9 @@ class LedgerDashboardResource
 
     /**
      * PVE breakdown.
-     * @var array{bounties: float, ess: float, missions: float, lootSales: float, corpProjects: float}
+     * @var array{bounties: float, ess: float, missions: float, lootSales: float, corpProjects: float, escalations: float}
      */
-    public array $pveBreakdown = ['bounties' => 0.0, 'ess' => 0.0, 'missions' => 0.0, 'lootSales' => 0.0, 'corpProjects' => 0.0];
+    public array $pveBreakdown = ['bounties' => 0.0, 'ess' => 0.0, 'missions' => 0.0, 'lootSales' => 0.0, 'corpProjects' => 0.0, 'escalations' => 0.0];
 
     /**
      * Mining breakdown by usage.

@@ -12,5 +12,6 @@ enum PveIncomeType: string
     case Mission = 'mission';
     case LootContract = 'loot_contract';
     case CorpProject = 'corp_project';
+    case Escalation = 'escalation';
     case Other = 'other';
 }

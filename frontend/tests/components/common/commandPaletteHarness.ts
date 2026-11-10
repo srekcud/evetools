@@ -18,7 +18,9 @@ const TYPE_SEARCH_ENDPOINT_PREFIX = '/industry/search?q='
 
 const appRoutes = [
   '/dashboard',
-  '/ledger',
+  '/balance',
+  '/pve/revenue',
+  '/pve/escalations',
   '/industry',
   '/industry/projects',
   '/industry/projects/:id',

@@ -5,8 +5,8 @@ import { mountMainLayoutAt, PAGE_CONTENT_SELECTOR, setViewportWidth } from './ma
 const PHONE_WIDTH = 375
 const MENU_BUTTON_SELECTOR = 'header button[aria-controls]'
 const BACKDROP_SELECTOR = '[data-testid="navigation-drawer-backdrop"]'
-const ALL_NAVIGATION_LABELS = ['Dashboard', 'Industry', 'Appraisal', 'PI', 'Mining', 'Market', 'Revenue', 'Inventory', 'Characters']
-const NAVIGATION_LABELS_WITH_PRODUCTION_COLLAPSED = ['Dashboard', 'Mining', 'Market', 'Revenue', 'Inventory', 'Characters']
+const ALL_NAVIGATION_LABELS = ['Dashboard', 'Industry', 'Appraisal', 'PI', 'Mining', 'PVE', 'Market', 'Balance', 'Inventory', 'Characters']
+const NAVIGATION_LABELS_WITH_PRODUCTION_COLLAPSED = ['Dashboard', 'Mining', 'PVE', 'Market', 'Balance', 'Inventory', 'Characters']
 
 function isDisplayed(element: Element): boolean {
   return new DOMWrapper(element).isVisible()

@@ -57,6 +57,7 @@ class StatsDailyProvider implements ProviderInterface
                 'income' => 0.0,
                 'bounties' => 0.0,
                 'lootSales' => 0.0,
+                'escalations' => 0.0,
                 'expenses' => 0.0,
                 'profit' => 0.0,
             ];
@@ -68,6 +69,7 @@ class StatsDailyProvider implements ProviderInterface
             if (isset($dailyData[$dateKey])) {
                 $dailyData[$dateKey]['bounties'] = $data['bounties'];
                 $dailyData[$dateKey]['lootSales'] = $data['lootSales'];
+                $dailyData[$dateKey]['escalations'] = $data['escalations'];
             }
         }
 
@@ -79,7 +81,7 @@ class StatsDailyProvider implements ProviderInterface
         }
 
         foreach ($dailyData as &$day) {
-            $day['income'] = $day['bounties'] + $day['lootSales'];
+            $day['income'] = $day['bounties'] + $day['lootSales'] + $day['escalations'];
             $day['profit'] = $day['income'] - $day['expenses'];
         }
         unset($day);
@@ -96,6 +98,7 @@ class StatsDailyProvider implements ProviderInterface
             $dayResource->income = $data['income'];
             $dayResource->bounties = $data['bounties'];
             $dayResource->lootSales = $data['lootSales'];
+            $dayResource->escalations = $data['escalations'];
             $dayResource->expenses = $data['expenses'];
             $dayResource->profit = $data['profit'];
 

@@ -369,8 +369,8 @@ defineExpose({
         <PveDashboard :days="selectedDays" />
       </div>
 
-      <!-- Three columns: Bounties, Loot Sales, and Expenses -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Bounties, Loot Sales, Escalations and Expenses -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
         <!-- Bounties list -->
         <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
           <div class="px-5 py-4 border-b border-slate-800">
@@ -494,6 +494,30 @@ defineExpose({
           </div>
           <div v-else class="px-5 py-8 text-center text-slate-500">
             {{ t('pve.noSales') }}
+          </div>
+        </div>
+
+        <!-- Escalations list -->
+        <div v-if="pveData.escalations" class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-800">
+            <h3 class="font-semibold">{{ t('pve.soldEscalations') }}</h3>
+            <p class="text-sm text-slate-500">{{ t('pve.soldEscalationsDescription') }}</p>
+          </div>
+          <div v-if="pveData.escalations.entries.length > 0" class="divide-y divide-slate-800 max-h-96 overflow-y-auto">
+            <div
+              v-for="entry in pveData.escalations.entries"
+              :key="entry.id"
+              class="px-5 py-3 flex items-center justify-between gap-3"
+            >
+              <div class="min-w-0">
+                <p class="truncate text-sm text-slate-200" :title="entry.description">{{ entry.description }}</p>
+                <p class="text-xs text-slate-500">{{ formatDate(entry.date) }}</p>
+              </div>
+              <span class="shrink-0 text-emerald-400 font-mono text-sm">+{{ formatIskFull(entry.amount) }}</span>
+            </div>
+          </div>
+          <div v-else class="px-5 py-8 text-center text-slate-500">
+            {{ t('pve.noSoldEscalations') }}
           </div>
         </div>
 

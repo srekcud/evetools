@@ -7,11 +7,13 @@ namespace App\State\Processor\Pve;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use App\Repository\UserPveSettingsRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -44,6 +46,10 @@ class DeleteLootSaleProcessor implements ProcessorInterface
 
         if ($lootSale->getUser() !== $user) {
             throw new AccessDeniedHttpException('Forbidden');
+        }
+
+        if ($lootSale->getType() === PveIncomeType::Escalation) {
+            throw new ConflictHttpException('An escalation income follows its escalation and cannot be deleted as a loot sale');
         }
 
         // Add to declined list so it doesn't reappear on next scan

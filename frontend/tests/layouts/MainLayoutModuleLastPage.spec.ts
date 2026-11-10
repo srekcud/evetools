@@ -4,6 +4,8 @@ import { mountMainLayoutAt } from './mainLayoutHarness'
 
 const DEFAULT_MINING_PAGE = '/mining/operations'
 const LAST_VISITED_MOONS_PAGE = '/mining/moons'
+const DEFAULT_PVE_PAGE = '/pve/revenue'
+const LAST_VISITED_ESCALATIONS_PAGE = '/pve/escalations'
 
 const DEFAULT_INDUSTRY_PAGE = '/industry'
 const LAST_VISITED_ANALYSIS_PAGE = '/industry/analysis'
@@ -14,6 +16,10 @@ function industryLink(wrapper: VueWrapper): DOMWrapper<Element> | undefined {
 
 function miningLink(wrapper: VueWrapper): DOMWrapper<Element> | undefined {
   return wrapper.get('aside nav').findAll('a[href]').find(link => link.text().trim() === 'Mining')
+}
+
+function pveLink(wrapper: VueWrapper): DOMWrapper<Element> | undefined {
+  return wrapper.get('aside nav').findAll('a[href]').find(link => link.text().trim() === 'PVE')
 }
 
 enableAutoUnmount(afterEach)
@@ -40,6 +46,25 @@ describe('MainLayout mining entry', () => {
     expect(miningLink(wrapper)?.attributes('href')).toBe(DEFAULT_MINING_PAGE)
     await miningLink(wrapper)?.trigger('click')
     await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe(DEFAULT_MINING_PAGE))
+  })
+
+  it('opens the last visited pve page from the sidebar, and the revenue page when none is stored', async () => {
+    const remembered = await mountMainLayoutAt('/dashboard', {
+      storedModuleLastPage: JSON.stringify({ pve: LAST_VISITED_ESCALATIONS_PAGE }),
+    })
+    const hrefWithMemory = pveLink(remembered.wrapper)?.attributes('href')
+    await pveLink(remembered.wrapper)?.trigger('click')
+    await vi.waitFor(() => expect(remembered.router.currentRoute.value.fullPath).toBe(LAST_VISITED_ESCALATIONS_PAGE))
+    const pageAfterClick = remembered.router.currentRoute.value.fullPath
+    remembered.wrapper.unmount()
+
+    const fresh = await mountMainLayoutAt('/dashboard')
+
+    expect([hrefWithMemory, pageAfterClick, pveLink(fresh.wrapper)?.attributes('href')]).toEqual([
+      LAST_VISITED_ESCALATIONS_PAGE,
+      LAST_VISITED_ESCALATIONS_PAGE,
+      DEFAULT_PVE_PAGE,
+    ])
   })
 })
 
