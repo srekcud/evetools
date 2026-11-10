@@ -62,6 +62,10 @@ class ProjectDistributionResource
 
     public ?float $projectedMarginPercent = null;
 
+    public ?float $breakEvenPerUnit = null;
+
+    public ?string $breakEvenUnknownReason = null;
+
     /**
      * @var list<array{
      *     memberId: string,

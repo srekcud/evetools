@@ -2935,7 +2935,21 @@
       "lineRental": "Location de lignes",
       "courier": "Courrier",
       "profit": "Profit",
-      "loss": "Perte"
+      "loss": "Perte",
+      "breakEven": {
+        "title": "Seuil de rentabilité",
+        "perUnit": "Seuil de rentabilité par unité",
+        "averagePrice": "Prix moyen obtenu",
+        "gaugeLabel": "Prix moyen obtenu face au seuil de rentabilité",
+        "unknown": {
+          "no_final_product": "Le projet n'a aucun produit final.",
+          "several_final_products": "Le seuil par unité demande un seul produit final.",
+          "jobs_not_delivered": "Les jobs finaux ne sont pas tous livrés.",
+          "cost_unknown": "La valeur d'un apport est inconnue.",
+          "no_cost": "Aucun apport n'est encore approuvé.",
+          "fees_unknown": "Les frais de vente sont inconnus."
+        }
+      }
     },
     "sales": {
       "item": "Item",

@@ -21,6 +21,7 @@ class ProjectDistributionService
         private readonly IndustryProjectSaleRepository $saleRepository,
         private readonly UnsoldProductsOfProject $unsoldProducts = new UnsoldProductsOfProject(),
         private readonly ?ContractSaleFees $contractSaleFees = null,
+        private readonly ProjectBreakEven $projectBreakEven = new ProjectBreakEven(),
     ) {}
 
     public function calculateDistribution(IndustryProject $project): DistributionResult
@@ -47,6 +48,8 @@ class ProjectDistributionService
             : null;
         $unsoldProducts = $awaitingSales ? [] : $this->unsoldProducts->of($project, $sales);
 
+        $breakEven = $this->projectBreakEven->of($project, $totalProjectCost);
+
         $members = $this->buildMemberDistributions($approvedContributions, $totalProjectCost, $marginRatio);
 
         return new DistributionResult(
@@ -69,6 +72,8 @@ class ProjectDistributionService
             marketRevenue: $marketRevenue,
             contractRevenue: $contractRevenue,
             contractFees: $contractFees,
+            breakEvenPerUnit: $breakEven->perUnit,
+            breakEvenUnknownReason: $breakEven->unknownReason,
         );
     }
 

@@ -28,6 +28,33 @@ const { formatIsk } = useFormatters()
 
 const dist = computed(() => distStore.distribution)
 
+const GAUGE_HEADROOM_RATIO = 1.25
+
+const breakEvenPerUnit = computed((): number | null => dist.value?.breakEvenPerUnit ?? null)
+const breakEvenUnknownReason = computed((): string | null => dist.value?.breakEvenUnknownReason ?? null)
+
+const averagePriceObtained = computed((): number | null => {
+  const sales = distStore.sales
+  const units = sales.reduce((sum, sale) => sum + sale.quantity, 0)
+  if (units === 0) return null
+  return sales.reduce((sum, sale) => sum + sale.totalPrice, 0) / units
+})
+
+const averagePriceSide = computed((): 'above' | 'below' | 'none' => {
+  if (breakEvenPerUnit.value === null || averagePriceObtained.value === null) return 'none'
+  return averagePriceObtained.value >= breakEvenPerUnit.value ? 'above' : 'below'
+})
+
+const gaugeMarkers = computed(() => {
+  if (breakEvenPerUnit.value === null) return null
+  const scale = Math.max(breakEvenPerUnit.value, averagePriceObtained.value ?? 0) * GAUGE_HEADROOM_RATIO
+  const percentOf = (value: number): number => value / scale * 100
+  return {
+    breakEven: percentOf(breakEvenPerUnit.value),
+    averagePrice: averagePriceObtained.value === null ? null : percentOf(averagePriceObtained.value),
+  }
+})
+
 function sumOrUnknown(values: (number | null)[]): number | null {
   let sum = 0
   for (const value of values) {
@@ -207,6 +234,48 @@ const waterfall = computed((): Waterfall | null => {
         </g>
       </svg>
       <p v-else class="text-xs text-amber-400">{{ t('groupIndustry.financialCascade.unavailable') }}</p>
+
+      <div data-testid="break-even" class="border-t border-slate-800 pt-4 space-y-3">
+        <h3 class="text-sm font-semibold text-slate-200">{{ t('groupIndustry.financialCascade.breakEven.title') }}</h3>
+        <p v-if="breakEvenPerUnit === null" data-testid="break-even-unknown" class="text-xs text-amber-400">
+          <UnknownValue />
+          <template v-if="breakEvenUnknownReason"> {{ t(`groupIndustry.financialCascade.breakEven.unknown.${breakEvenUnknownReason}`) }}</template>
+        </p>
+        <template v-else>
+          <div class="flex flex-wrap gap-x-8 gap-y-1 text-sm">
+            <div class="flex items-center gap-3">
+              <span class="text-slate-400">{{ t('groupIndustry.financialCascade.breakEven.perUnit') }}</span>
+              <span data-testid="break-even-value" class="font-mono text-slate-100" style="font-variant-numeric: tabular-nums;">{{ formatIsk(breakEvenPerUnit) }}</span>
+            </div>
+            <div v-if="averagePriceObtained !== null" class="flex items-center gap-3">
+              <span class="text-slate-400">{{ t('groupIndustry.financialCascade.breakEven.averagePrice') }}</span>
+              <span
+                data-testid="break-even-average-price"
+                class="font-mono"
+                :class="averagePriceSide === 'above' ? 'text-emerald-400' : 'text-red-400'"
+                style="font-variant-numeric: tabular-nums;"
+              >{{ formatIsk(averagePriceObtained) }}</span>
+            </div>
+          </div>
+          <div
+            v-if="gaugeMarkers"
+            data-testid="break-even-gauge"
+            :data-average-price-side="averagePriceSide"
+            role="img"
+            :aria-label="t('groupIndustry.financialCascade.breakEven.gaugeLabel')"
+            class="relative h-2 rounded bg-slate-800"
+          >
+            <div class="absolute inset-y-0 left-0 rounded-l bg-red-400/40" :style="{ width: `${gaugeMarkers.breakEven}%` }" />
+            <div class="absolute -top-1 -bottom-1 w-0.5 bg-slate-200" :style="{ left: `${gaugeMarkers.breakEven}%` }" />
+            <div
+              v-if="gaugeMarkers.averagePrice !== null"
+              class="absolute -top-1 -bottom-1 w-1 rounded"
+              :class="averagePriceSide === 'above' ? 'bg-emerald-400' : 'bg-red-400'"
+              :style="{ left: `${gaugeMarkers.averagePrice}%` }"
+            />
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 </template>

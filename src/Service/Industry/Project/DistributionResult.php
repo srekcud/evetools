@@ -24,5 +24,7 @@ class DistributionResult
         public readonly float $marketRevenue = 0.0,
         public readonly float $contractRevenue = 0.0,
         public readonly ?float $contractFees = 0.0,
+        public readonly ?float $breakEvenPerUnit = null,
+        public readonly ?string $breakEvenUnknownReason = null,
     ) {}
 }
