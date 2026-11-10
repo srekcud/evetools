@@ -6,7 +6,7 @@ import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import { apiRequest } from '@/services/api'
-import type { ProjectNextAction } from '@/stores/group-industry/types'
+import type { ProjectNextAction, ProjectPriceAlert } from '@/stores/group-industry/types'
 import { TEST_LOCALES } from '../../localeTexts'
 import {
   attributeOf,
@@ -116,6 +116,29 @@ describe('project cockpit next action card', () => {
       startPatches: [{ status: 'in_progress' }],
       beforeConfirmation: { patches: [], confirmation: true },
       afterConfirmation: [{ status: 'completed' }],
+    })
+  })
+
+  it('shows the price alert banner under the next action only when the cockpit carries one, and opens the sales from its button', async () => {
+    const priceAlert: ProjectPriceAlert = { typeId: 23_914, typeName: 'Nyx', quantity: 3, jitaUnitPrice: 690_000, breakEvenPerUnit: 760_000, gapPerUnit: 70_000 }
+    const alerted = await mountCockpitDetail({
+      project: nyxProject('selling'),
+      cockpit: cockpitOf('selling', LAUNCH_NYX_COPY, undefined, priceAlert),
+    })
+    const calm = await mountCockpitDetail({
+      project: nyxProject('selling'),
+      cockpit: cockpitOf('selling', LAUNCH_NYX_COPY),
+    })
+    const banner = { alerted: alerted.find('[data-testid="price-alert-banner"]').exists(), calm: calm.find('[data-testid="price-alert-banner"]').exists() }
+    const salesBefore = alerted.findComponent(SalesTable).exists()
+
+    await alerted.get('[data-testid="price-alert-view-sales"]').trigger('click')
+    await flushPromises()
+
+    expect({ banner, salesBefore, salesAfter: alerted.findComponent(SalesTable).exists() }).toEqual({
+      banner: { alerted: true, calm: false },
+      salesBefore: false,
+      salesAfter: true,
     })
   })
 

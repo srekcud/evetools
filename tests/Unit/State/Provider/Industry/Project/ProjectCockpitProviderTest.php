@@ -17,6 +17,8 @@ use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
+use App\Service\Industry\Project\ProjectPriceAlert;
+use App\Service\Industry\Project\ProjectPriceAlertReader;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
 use App\State\Provider\Industry\Project\ProjectCockpitProvider;
@@ -41,10 +43,12 @@ final class ProjectCockpitProviderTest extends TestCase
 
     private Security&Stub $security;
     private IndustryProjectBomLine $sabreJobLine;
+    private ProjectPriceAlertReader&Stub $priceAlertReader;
 
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
+        $this->priceAlertReader = $this->createStub(ProjectPriceAlertReader::class);
     }
 
     public function testCockpitWithoutConnectedUserIsUnauthorized(): void
@@ -108,7 +112,23 @@ final class ProjectCockpitProviderTest extends TestCase
                 'typeName' => 'Sabre',
                 'quantity' => 3,
             ],
+            'priceAlert' => null,
         ], get_object_vars($cockpit));
+    }
+
+    public function testCockpitCarriesThePriceAlertOfTheProjectWhenJitaIsBelowTheBreakEven(): void
+    {
+        $this->createSabreBatch();
+        $this->stockSabreBatch();
+        $this->security->method('getUser')->willReturn($this->userWithProfile(self::ACCEPTED_MEMBER));
+        $this->priceAlertReader->method('of')->with($this->sabreBatch)->willReturn(new ProjectPriceAlert(self::SABRE_TYPE_ID, 'Sabre', 4, 690_000.0, 760_000.0));
+
+        $cockpit = $this->provider()->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertSame(
+            ['typeId' => self::SABRE_TYPE_ID, 'typeName' => 'Sabre', 'quantity' => 4, 'jitaUnitPrice' => 690_000.0, 'breakEvenPerUnit' => 760_000.0, 'gapPerUnit' => 70_000.0],
+            $cockpit->priceAlert,
+        );
     }
 
     public function testOwnerAndAcceptedAdminReviewThePendingContributionsWhileAnAcceptedMemberLaunchesTheJob(): void
@@ -197,6 +217,7 @@ final class ProjectCockpitProviderTest extends TestCase
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
             new ProjectCockpitCalculator(),
             new ProjectCockpitInputFactory(),
+            $this->priceAlertReader,
         );
     }
 }

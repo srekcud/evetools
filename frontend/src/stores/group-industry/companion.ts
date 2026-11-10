@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { BomItem, GroupMember, GroupProject } from './types'
+import type { BomItem, GroupMember, GroupProject, ProjectCockpit, ProjectPriceAlert } from './types'
 
 const MEMBER_EVENT_PREFIX = 'member_'
 
@@ -10,6 +10,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   const bomItems = ref<BomItem[]>([])
   const project = ref<GroupProject | null>(null)
   const members = ref<GroupMember[]>([])
+  const priceAlert = ref<ProjectPriceAlert | null>(null)
   const error = ref<string | null>(null)
 
   const isAdmin = computed(() => project.value?.myRole === 'owner' || project.value?.myRole === 'admin')
@@ -42,6 +43,15 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     }
   }
 
+  async function loadPriceAlert(id: string): Promise<void> {
+    try {
+      const cockpit = await apiRequest<ProjectCockpit>(`/industry/projects/${id}/cockpit`)
+      if (isStillOpen(id)) priceAlert.value = cockpit.priceAlert
+    } catch (failure) {
+      if (isStillOpen(id)) reportFailure(failure, 'Failed to fetch cockpit')
+    }
+  }
+
   async function loadMembers(id: string): Promise<void> {
     try {
       const loaded = await apiRequest<GroupMember[]>(`/industry/projects/${id}/members`)
@@ -56,8 +66,9 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     bomItems.value = []
     project.value = null
     members.value = []
+    priceAlert.value = null
     error.value = null
-    await Promise.all([loadProject(id), loadBom(id)])
+    await Promise.all([loadProject(id), loadBom(id), loadPriceAlert(id)])
     if (isStillOpen(id) && isAdmin.value) await loadMembers(id)
   }
 
@@ -66,6 +77,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     bomItems.value = []
     project.value = null
     members.value = []
+    priceAlert.value = null
     error.value = null
   }
 
@@ -101,10 +113,10 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   async function handleEvent(action: string): Promise<void> {
     const id = projectId.value
     if (id === null) return
-    const loads = [loadProject(id), loadBom(id)]
+    const loads = [loadProject(id), loadBom(id), loadPriceAlert(id)]
     if (action.startsWith(MEMBER_EVENT_PREFIX) && isAdmin.value) loads.push(loadMembers(id))
     await Promise.all(loads)
   }
 
-  return { projectId, bomItems, project, members, error, open, close, claim, release, handleEvent }
+  return { projectId, bomItems, project, members, priceAlert, error, open, close, claim, release, handleEvent }
 })

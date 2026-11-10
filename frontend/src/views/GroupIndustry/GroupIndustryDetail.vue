@@ -36,6 +36,7 @@ import PendingRequestsTable from '@/components/group-industry/PendingRequestsTab
 import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import ProjectPhaseRail from '@/components/group-industry/ProjectPhaseRail.vue'
 import ProjectNextActionCard from '@/components/group-industry/ProjectNextActionCard.vue'
+import ProjectPriceAlertBanner from '@/components/group-industry/ProjectPriceAlertBanner.vue'
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
@@ -553,6 +554,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <template v-if="cockpit">
         <ProjectPhaseRail :phases="cockpit.phases" />
         <ProjectNextActionCard :next-action="cockpit.nextAction" :disabled="isAdvancingStatus" @act="actOnNextAction" />
+        <ProjectPriceAlertBanner v-if="cockpit.priceAlert !== null" :price-alert="cockpit.priceAlert" @view-sales="activeTab = 'sales'" />
       </template>
       <p v-else-if="projectStore.cockpitError" class="mb-6 text-xs text-slate-500">
         {{ t('groupIndustry.cockpit.unavailable') }}

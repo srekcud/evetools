@@ -12,6 +12,8 @@ export function industryAction(overrides: Partial<IndustryAction> & Pick<Industr
     quantity: null,
     severity: 'info',
     impactIsk: null,
+    jitaUnitPrice: null,
+    breakEvenPerUnit: null,
     ...overrides,
   }
 }

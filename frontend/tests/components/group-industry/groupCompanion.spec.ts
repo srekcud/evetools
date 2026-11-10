@@ -109,6 +109,32 @@ describe('GroupCompanion', () => {
     })
   })
 
+  it('shows the price alert in the column and as the bar pill, below a job ready alert, without sound', () => {
+    const priceAlert = { typeId: 11_993, typeName: 'Hammerhead II', quantity: 6, jitaUnitPrice: 690_000, breakEvenPerUnit: 760_000, gapPerUnit: 70_000 }
+    const priceOnly = companionTasksOf({ alerts: [{ key: 'price_below_break_even', kind: 'price_below_break_even' }], priceAlert })
+    const withJobReady = companionTasksOf({
+      alerts: [{ key: 'price_below_break_even', kind: 'price_below_break_even' }, { key: 'job_ready:match-ferox', kind: 'job_ready' }],
+      priceAlert,
+    })
+
+    const column = mountCompanion(priceOnly)
+    const bar = mountCompanion(priceOnly, { size: 'bar' })
+    const barWithJobReady = mountCompanion(withJobReady, { size: 'bar' })
+    const normalize = (text: string): string => text.replace(/[\u00a0\u202f]/g, ' ')
+
+    expect({
+      column: column.findAll(ALERT).map(alert => normalize(alert.text())),
+      bar: bar.findAll(ALERT).map(alert => alert.attributes('data-kind')),
+      barWithJobReady: barWithJobReady.findAll(ALERT).map(alert => alert.attributes('data-kind')),
+      audio: column.findAll('audio').length,
+    }).toEqual({
+      column: ['Jita 690.00 K < break-even 760.00 K · do not sell on the market for now'],
+      bar: ['price_below_break_even'],
+      barWithJobReady: ['job_ready'],
+      audio: 0,
+    })
+  })
+
   it('shows a discreet unknown output location line in the column only when jobs are unknown, never in the bar', () => {
     const unknown = companionTasksOf({ moveProducts: { quantity: 0, jobCount: 0, unknownJobCount: 2 } })
     const none = companionTasksOf()

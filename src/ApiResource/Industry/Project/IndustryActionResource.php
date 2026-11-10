@@ -54,4 +54,8 @@ class IndustryActionResource
     public string $severity;
 
     public ?float $impactIsk = null;
+
+    public ?float $jitaUnitPrice = null;
+
+    public ?float $breakEvenPerUnit = null;
 }

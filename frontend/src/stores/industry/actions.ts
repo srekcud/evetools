@@ -6,10 +6,14 @@ import type { GroupProjectStatus, ProjectNextActionCode, ProjectNextActionTab } 
 
 export type IndustryActionSeverity = 'warning' | 'info' | 'unknown'
 
+export const PRICE_ALERT_ACTION_CODE = 'price_below_break_even'
+
+export type IndustryActionCode = ProjectNextActionCode | typeof PRICE_ALERT_ACTION_CODE
+
 export type IndustryAction = {
   projectId: string
   projectName: string | null
-  code: ProjectNextActionCode
+  code: IndustryActionCode
   blocked: boolean
   tab: ProjectNextActionTab | null
   targetStatus: GroupProjectStatus | null
@@ -19,6 +23,8 @@ export type IndustryAction = {
   quantity: number | null
   severity: IndustryActionSeverity
   impactIsk: number | null
+  jitaUnitPrice: number | null
+  breakEvenPerUnit: number | null
 }
 
 export const useIndustryActionsStore = defineStore('industry-actions', () => {

@@ -22,6 +22,7 @@ const NYX_COCKPIT: ProjectCockpit = {
     { key: 'close', state: 'upcoming', counter: { done: 0, total: 1 }, blockedReason: null },
   ],
   nextAction: { code: 'source_material', blocked: true, tab: 'materials', targetStatus: null, bomLineId: 'line-pau', typeId: 17_459, typeName: 'Particle Accelerator Unit', quantity: 50 },
+  priceAlert: null,
 }
 
 beforeEach(() => {
