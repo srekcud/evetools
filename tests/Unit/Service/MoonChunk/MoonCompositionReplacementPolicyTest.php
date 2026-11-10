@@ -6,24 +6,32 @@ namespace App\Tests\Unit\Service\MoonChunk;
 
 use App\Entity\Character;
 use App\Entity\MoonComposition;
+use App\Entity\EveToken;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\MoonCompositionRepository;
 use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
+use App\Service\ESI\EsiClient;
 use App\Service\MoonChunk\CorporationRolesUnreadable;
 use App\Service\MoonChunk\MoonCompositionReplacementPolicy;
 use App\Service\MoonChunk\MoonCompositionReplacementRefused;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Uid\Uuid;
 
 #[Group('issue-368')]
+#[Group('issue-581')]
 final class MoonCompositionReplacementPolicyTest extends TestCase
 {
     private const int ILYRA = 98_262_101;
     private const int CYRA = 98_262_102;
     private const int MOON = 40_301_001;
+
+    private const string ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
 
     private int $nextEveCharacterId = 91_000_000;
 
@@ -114,6 +122,15 @@ final class MoonCompositionReplacementPolicyTest extends TestCase
         self::assertSame('allowed', $this->outcomeOf($member));
     }
 
+    public function testACharacterWithoutAValidTokenCannotProveARoleAndTheRolesAreReportedUnreadable(): void
+    {
+        $this->stored = $this->compositionBy($this->userWithCharacterIn(self::ILYRA));
+        $member = $this->userWithCharacterIn(self::ILYRA, ['Director']);
+        $member->getCharacters()->first()->markAuthInvalid();
+
+        self::assertSame([CorporationRolesUnreadable::class, []], [$this->outcomeOf($member), $this->rolesReadFor]);
+    }
+
     public function testACompositionWithoutAuthorCanOnlyBeReplacedWithARole(): void
     {
         $this->stored = $this->compositionBy(null);
@@ -141,19 +158,20 @@ final class MoonCompositionReplacementPolicyTest extends TestCase
             fn (array $criteria): ?MoonComposition => $criteria === ['corporationId' => self::ILYRA, 'moonId' => self::MOON] ? $this->stored : null,
         );
 
-        $characters = $this->createStub(CharacterService::class);
-        $characters->method('getCharacterRoles')->willReturnCallback(function (Character $character): array {
-            $eveCharacterId = $character->getEveCharacterId();
+        $esiClient = $this->createStub(EsiClient::class);
+        $esiClient->method('get')->willReturnCallback(function (string $endpoint): array {
+            $eveCharacterId = (int) preg_replace('#\D#', '', $endpoint);
             $this->rolesReadFor[] = $eveCharacterId;
             $roles = $this->rolesByEveCharacterId[$eveCharacterId] ?? [];
             if ($roles instanceof \Throwable) {
                 throw $roles;
             }
 
-            return $roles;
+            return ['roles' => $roles];
         });
+        $characters = new CharacterService($esiClient);
 
-        return new MoonCompositionReplacementPolicy($compositions, $characters);
+        return new MoonCompositionReplacementPolicy($compositions, new CorporationRoleReader($characters, new ArrayAdapter(), new NullLogger()));
     }
 
     /**
@@ -174,7 +192,9 @@ final class MoonCompositionReplacementPolicyTest extends TestCase
     private function addCharacter(User $user, int $corporationId, array|\Throwable $roles): void
     {
         $eveCharacterId = $this->nextEveCharacterId++;
-        $user->addCharacter((new Character())->setEveCharacterId($eveCharacterId)->setName('Pilot '.$eveCharacterId)->setCorporationId($corporationId));
+        $character = (new Character())->setEveCharacterId($eveCharacterId)->setName('Pilot '.$eveCharacterId)->setCorporationId($corporationId);
+        $character->setEveToken((new EveToken())->setAccessToken('token-'.$eveCharacterId)->setScopes([self::ROLES_SCOPE]));
+        $user->addCharacter($character);
         $this->rolesByEveCharacterId[$eveCharacterId] = $roles;
     }
 

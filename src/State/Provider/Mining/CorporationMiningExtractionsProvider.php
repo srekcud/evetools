@@ -138,6 +138,7 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
         return match ($state->getLastFailure()) {
             null => 'ok',
             CorporationMiningSyncFailure::NoStationManagerToken => 'denied',
+            CorporationMiningSyncFailure::ReconnectRequired => 'reconnect',
             CorporationMiningSyncFailure::EsiError => 'error',
         };
     }

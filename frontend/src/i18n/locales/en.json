@@ -1646,7 +1646,8 @@
         "access": {
           "never_synced": "Not synced yet",
           "denied": "Access denied: Station_Manager role required",
-          "error": "ESI read failed"
+          "error": "ESI read failed",
+          "reconnect": "Reconnect a character with the scopes the extractions need"
         },
         "columns": {
           "moon": "Moon",

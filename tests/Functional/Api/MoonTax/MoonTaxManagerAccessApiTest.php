@@ -20,14 +20,14 @@ final class MoonTaxManagerAccessApiTest extends MoonTaxApiTestCase
 
     public function testUserWithoutAccountantIsRefusedWithTheRolesReadForEachCharacterOfTheCorporation(): void
     {
-        $this->persistCharacterOfCorporation('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Director', 'Junior_Accountant']);
+        $this->persistCharacterOfCorporation('Ilyra Voss', self::ILYRA_ID, self::CORPORATION, ['Auditor', 'Junior_Accountant']);
         $this->em->flush();
 
         $this->request($this->usersByEveCharacterId[self::ILYRA_ID], 'GET', self::BASE_PATH . '/' . self::CORPORATION . '/statements');
 
         self::assertSame(
             [403, true, true, true],
-            [$this->statusCode(), str_contains($this->content(), 'Ilyra Voss'), str_contains($this->content(), 'Director'), str_contains($this->content(), 'Junior_Accountant')],
+            [$this->statusCode(), str_contains($this->content(), 'Ilyra Voss'), str_contains($this->content(), 'Auditor'), str_contains($this->content(), 'Junior_Accountant')],
         );
     }
 

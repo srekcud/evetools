@@ -7,8 +7,10 @@ namespace App\Service\Sync;
 use App\Entity\Character;
 use App\Entity\MoonObserverRecord;
 use App\Entity\MoonTaxRefinerySetting;
+use App\Enum\CorporationRoleStatus;
 use App\Enum\MoonTaxSyncFailure;
 use App\Repository\MoonObserverRecordRepository;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
 use App\Service\MoonTax\MoonTaxManagerAccess;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,7 +22,7 @@ final readonly class MoonObserverLedgerSync
     private const array READER_ROLES = [MoonTaxManagerAccess::ACCOUNTANT_ROLE];
 
     public function __construct(
-        private MoonTaxReaderCandidates $readerCandidates,
+        private CorporationRoleReader $corporationRoleReader,
         private EsiClient $esiClient,
         private MoonObserverRecordRepository $recordRepository,
         private EntityManagerInterface $entityManager,
@@ -36,17 +38,18 @@ final readonly class MoonObserverLedgerSync
     {
         $openStructureIds = array_map(static fn (MoonTaxRefinerySetting $setting): int => $setting->getStructureId(), $openSettings);
 
-        $outcome = $this->readerCandidates->readWithFirstAbleCharacter(
+        $lookup = $this->corporationRoleReader->readAsHolder(
+            $corporationId,
             $characters,
-            self::READER_SCOPES,
             self::READER_ROLES,
+            self::READER_SCOPES,
             fn (Character $reader): array => $this->readRaw($corporationId, $reader, $openStructureIds),
         );
-        if ($outcome->failure !== null) {
-            return $outcome->failure;
+        if ($lookup->status !== CorporationRoleStatus::Held) {
+            return MoonTaxSyncFailure::fromRoleStatus($lookup->status);
         }
 
-        $entriesByObserverId = $this->readableAnswer($outcome->value);
+        $entriesByObserverId = $this->readableAnswer($lookup->value);
         if ($entriesByObserverId === null) {
             $this->logger->error('Moon observer ledger response is unreadable', ['corporation_id' => $corporationId]);
 

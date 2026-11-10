@@ -182,7 +182,7 @@ final class CorporationMiningExtractionSyncServiceTest extends TestCase
         self::assertSame([self::keptRockHollowRow()], $this->storedExtractionRows());
     }
 
-    public function testWhenEveryStationManagerIsDeniedTheSyncFailsWithAnEsiError(): void
+    public function testWhenEveryStationManagerIsDeniedTheSyncFailsWithoutStationManagerToken(): void
     {
         $this->failEsi(self::extractionsEndpoint(self::CORPORATION_A), 403);
 
@@ -190,7 +190,32 @@ final class CorporationMiningExtractionSyncServiceTest extends TestCase
 
         self::assertSame([self::ILYRA_ID, self::AUREL_ID], $this->charactersReading(self::extractionsEndpoint(self::CORPORATION_A)));
         self::assertSame(
-            ['lastSuccessAt' => null, 'lastAttemptAt' => self::NOW_ATOM, 'lastFailure' => 'esi_error'],
+            ['lastSuccessAt' => null, 'lastAttemptAt' => self::NOW_ATOM, 'lastFailure' => 'no_station_manager_token'],
+            $this->syncStateSummaryOf(self::CORPORATION_A),
+        );
+    }
+
+    public function testADirectorWithoutTheStationManagerRoleReadsTheExtractions(): void
+    {
+        $this->esiResponses[sprintf('/characters/%d/roles/', self::ILYRA_ID)] = ['roles' => ['Accountant', 'Director']];
+
+        $this->sync(self::CORPORATION_A);
+
+        self::assertSame([self::ILYRA_ID], $this->charactersReading(self::extractionsEndpoint(self::CORPORATION_A)));
+        self::assertSame([self::deepCoreRow(self::CORPORATION_A), self::rockHollowRow(self::CORPORATION_A)], $this->storedExtractionRows());
+    }
+
+    public function testWithoutAnyValidTokenTheFailureIsRecordedAsAReconnectRequiredNotAMissingStationManager(): void
+    {
+        $this->ilyra->markAuthInvalid();
+        $this->aurel->markAuthInvalid();
+        $this->storeSyncState(self::CORPORATION_A, self::EARLIER_SUCCESS, self::EARLIER_ATTEMPT, null);
+
+        $this->sync(self::CORPORATION_A);
+
+        self::assertSame([], $this->esiCalls);
+        self::assertSame(
+            ['lastSuccessAt' => self::EARLIER_SUCCESS, 'lastAttemptAt' => self::NOW_ATOM, 'lastFailure' => 'reconnect_required'],
             $this->syncStateSummaryOf(self::CORPORATION_A),
         );
     }

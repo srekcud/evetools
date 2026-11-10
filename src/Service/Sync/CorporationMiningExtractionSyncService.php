@@ -8,13 +8,14 @@ use App\Entity\Character;
 use App\Entity\CorporationMiningExtraction;
 use App\Entity\CorporationMiningSyncState;
 use App\Enum\CorporationMiningSyncFailure;
+use App\Enum\CorporationRoleStatus;
 use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Repository\CharacterRepository;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\CorporationMiningSyncStateRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
-use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,7 +35,7 @@ class CorporationMiningExtractionSyncService
 
     public function __construct(
         private readonly EsiClient $esiClient,
-        private readonly CharacterService $characterService,
+        private readonly CorporationRoleReader $corporationRoleReader,
         private readonly CharacterRepository $characterRepository,
         private readonly CorporationMiningExtractionRepository $extractionRepository,
         private readonly CorporationMiningSyncStateRepository $syncStateRepository,
@@ -81,59 +82,32 @@ class CorporationMiningExtractionSyncService
      */
     private function synchronize(int $corporationId, array $characters): ?CorporationMiningSyncFailure
     {
-        $reader = null;
-        $rawExtractions = [];
-        $failure = CorporationMiningSyncFailure::NoStationManagerToken;
+        $lookup = $this->corporationRoleReader->readAsHolder(
+            $corporationId,
+            array_values($characters),
+            [self::STATION_MANAGER_ROLE],
+            self::REQUIRED_SCOPES,
+            fn (Character $candidate): array => $this->esiClient->getPaginated($this->extractionsEndpoint($corporationId), $candidate->getEveToken()),
+        );
 
-        foreach ($this->stationManagerCandidates($characters) as $candidate) {
-            try {
-                if (!$this->characterService->hasRole($candidate, self::STATION_MANAGER_ROLE)) {
-                    continue;
-                }
-                $rawExtractions = $this->esiClient->getPaginated($this->extractionsEndpoint($corporationId), $candidate->getEveToken());
-                $reader = $candidate;
-                break;
-            } catch (EsiApiException|EveAuthRequiredException $e) {
-                $failure = CorporationMiningSyncFailure::EsiError;
-                $this->logger->warning('Corporation mining extractions read failed for a candidate', [
-                    'corporation_id' => $corporationId,
-                    'character_id' => $candidate->getEveCharacterId(),
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        if ($lookup->status !== CorporationRoleStatus::Held || $lookup->holder === null || !is_array($lookup->value)) {
+            return match ($lookup->status) {
+                CorporationRoleStatus::ReconnectRequired => CorporationMiningSyncFailure::ReconnectRequired,
+                CorporationRoleStatus::RoleAbsent => CorporationMiningSyncFailure::NoStationManagerToken,
+                default => CorporationMiningSyncFailure::EsiError,
+            };
         }
 
-        if ($reader === null) {
-            return $failure;
-        }
-
-        $extractions = $this->readableExtractions($rawExtractions);
+        $extractions = $this->readableExtractions($lookup->value);
         if ($extractions === null) {
             $this->logger->error('Corporation mining extractions response is unreadable', ['corporation_id' => $corporationId]);
 
             return CorporationMiningSyncFailure::EsiError;
         }
 
-        $this->store($corporationId, $extractions, $this->readStructures($corporationId, $reader));
+        $this->store($corporationId, $extractions, $this->readStructures($corporationId, $lookup->holder));
 
         return null;
-    }
-
-    /**
-     * @param array<Character> $characters
-     *
-     * @return list<Character>
-     */
-    private function stationManagerCandidates(array $characters): array
-    {
-        $candidates = array_values(array_filter(
-            $characters,
-            static fn (Character $character): bool => $character->isAuthValid()
-                && $character->getEveToken()?->hasAllScopes(self::REQUIRED_SCOPES) === true,
-        ));
-        usort($candidates, static fn (Character $left, Character $right): int => $left->getEveCharacterId() <=> $right->getEveCharacterId());
-
-        return $candidates;
     }
 
     /**
@@ -313,6 +287,7 @@ class CorporationMiningExtractionSyncService
     {
         return match ($failure) {
             CorporationMiningSyncFailure::NoStationManagerToken => 'No character with the Station_Manager role can read the extractions',
+            CorporationMiningSyncFailure::ReconnectRequired => 'No character has a valid token with the scopes the extractions need: reconnect one',
             CorporationMiningSyncFailure::EsiError => 'ESI read failed',
         };
     }

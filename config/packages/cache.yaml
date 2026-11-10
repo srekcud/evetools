@@ -28,6 +28,9 @@ framework:
             public_contracts.cache:
                 adapter: cache.adapter.redis
                 default_lifetime: 3600  # 1 hour
+            corporation_role_holder.cache:
+                adapter: cache.adapter.redis
+                default_lifetime: 3600  # 1 hour
 
 when@test:
     framework:
@@ -48,4 +51,6 @@ when@test:
                 esi_cost_index.cache:
                     adapter: cache.adapter.array
                 public_contracts.cache:
+                    adapter: cache.adapter.array
+                corporation_role_holder.cache:
                     adapter: cache.adapter.array

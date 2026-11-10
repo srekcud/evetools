@@ -203,7 +203,7 @@ final class MoonTaxChunkMinersApiTest extends MoonTaxApiTestCase
     {
         $chunk = $this->persistChunk(self::CHUNK_ARRIVAL, self::CHUNK_DECAY);
         $this->persistObserverRecord(self::ROCK_HOLLOW_ID, self::DAX_ID, self::CINNABAR, '2026-11-06', 100);
-        $this->persistCharacterOfCorporation('Brann Kesh', self::BRANN_ID, self::CORPORATION, ['Director']);
+        $this->persistCharacterOfCorporation('Brann Kesh', self::BRANN_ID, self::CORPORATION, ['Auditor']);
         $this->em->flush();
 
         $this->request($this->usersByEveCharacterId[self::BRANN_ID], 'GET', $this->minersPath($chunk));

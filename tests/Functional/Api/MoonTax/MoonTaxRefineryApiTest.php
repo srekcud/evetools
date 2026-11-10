@@ -135,7 +135,7 @@ final class MoonTaxRefineryApiTest extends MoonTaxApiTestCase
 
     public function testUserWithoutAccountantCanNeitherChangeTheSettingsNorTriggerTheSync(): void
     {
-        $this->persistCharacterOfCorporation('Aurel Kade', self::AUREL_ID, self::CORPORATION, ['Director']);
+        $this->persistCharacterOfCorporation('Aurel Kade', self::AUREL_ID, self::CORPORATION, ['Auditor']);
         $this->em->flush();
         $director = $this->usersByEveCharacterId[self::AUREL_ID];
 
