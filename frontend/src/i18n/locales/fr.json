@@ -1471,12 +1471,35 @@
           "countdown": "Compte à rebours",
           "status": "Statut",
           "value": "Valeur",
+          "miners": "Mineurs",
           "operation": "Opération"
         },
         "status": {
           "extracting": "Extraction",
           "ready": "Prêt",
           "exploded": "Explosé"
+        },
+        "miners": {
+          "toggle": "Mineurs",
+          "toggleFor": "Afficher les mineurs du chunk de {moon}",
+          "title": "Mineurs de ce chunk, taxe estimée au prix actuel",
+          "periodNote": "La taxe, le payé et le reste d'un relevé valent pour sa période entière, pas seulement pour ce chunk.",
+          "chunkTax": "Taxe du chunk",
+          "week": "Relevé de la semaine du {date}",
+          "month": "Relevé du mois de {month}",
+          "notEstablished": "Relevé pas encore établi",
+          "notConfigured": "Taxe lunaire non configurée pour cette raffinerie",
+          "empty": "Aucun minage enregistré sur ce chunk",
+          "denied": "Réservé aux comptables de la corporation",
+          "loadError": "Les mineurs de ce chunk n'ont pas pu être chargés.",
+          "columns": {
+            "period": "Période",
+            "reference": "Référence",
+            "tax": "Taxe",
+            "paid": "Payé",
+            "remaining": "Reste",
+            "status": "Statut"
+          }
         },
         "value": {
           "rowKnown": "≈ {total} ISK · {share} ISK / pers. à {count}",
