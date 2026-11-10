@@ -288,6 +288,9 @@ Termes du minage groupé et du minage lunaire (#261) : un symbole métier du min
 | **Heures minées** | Mined hours | Minutes de présence d'un joueur, du premier instantané de début lu à sa fin (spec #317). | `MiningSeasonParticipant::$minutes` |
 | **Vaisseau d'un personnage** | Character ship | Type de vaisseau lu à l'ESI à l'instantané de début d'un personnage inscrit ; inconnu si illisible, jamais un défaut (spec #364). | `MiningCharacterShipReader`, `MiningOperationCharacter::$shipTypeId` |
 | **ISK/h par vaisseau** | ISK per hour by ship | Valeur figée des personnages d'un type de vaisseau sur la saison, divisée par leurs heures de présence ; vaisseau de booster sans valeur (spec #364). | `MiningSeasonSummary::$ships` |
+| **Barre d'onglets de module** | Module tab bar | Barre de liens en tête de chaque page d'un module (Minage : Opérations, Lunes, Sites, Valeur du minerai, Mon minage), une URL par onglet ; composant partagé par les modules. Distincte des sous-vues `?tab=` d'une page (spec #531). | `ModuleTabBar` (`frontend/src/components/layout/`) |
+| **Dernière page visitée** | Last visited page | Chemin de la dernière page d'un module ouvert par l'utilisateur, mémorisé dans le navigateur (`evetools_module_last_page`) et rouvert par un clic sur l'entrée du module ; illisible ou inconnu = première page du module (spec #531). | `useModuleLastPage` |
+| **Chunk lié** | Linked chunk | Chunk lunaire auquel une opération de minage est rattachée (`chunkId`) : le chunk montre l'opération la plus récente de l'utilisateur (`linkedOperation`, propriétaire ou participant seulement), l'opération montre sa lune, sa raffinerie et l'arrivée du chunk (spec #531). | `MiningOperation::$chunk`, `linkedOperation`, `MiningOperationResource::$chunk` |
 
 ## Ambiguïtés connues
 
