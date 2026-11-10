@@ -5,11 +5,14 @@ export const useAppraisalHandoffStore = defineStore('appraisalHandoff', () => {
   const pendingText = ref<string | null>(null)
 
   function send(text: string): void {
-    void text
+    if (text.trim() === '') return
+    pendingText.value = text
   }
 
   function take(): string | null {
-    return null
+    const text = pendingText.value
+    pendingText.value = null
+    return text
   }
 
   return { pendingText, send, take }

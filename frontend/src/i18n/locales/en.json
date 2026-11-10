@@ -941,11 +941,20 @@
         "group": "Group · {count}"
       }
     },
+    "bridges": {
+      "createProject": "Create project",
+      "buyVsBuild": "Buy vs Build",
+      "viewMarket": "View on market",
+      "copyMultibuy": "Copy multibuy",
+      "copied": "Copied",
+      "evaluate": "Evaluate in Appraisal"
+    },
     "slots": {
       "title": "Slot Tracker",
       "refresh": "Refresh",
       "lastSync": "Last sync",
       "noJobs": "No active jobs",
+      "projectLinkFallback": "Project",
       "kpi": {
         "manufacturing": "Manufacturing Slots",
         "reaction": "Reaction Slots",

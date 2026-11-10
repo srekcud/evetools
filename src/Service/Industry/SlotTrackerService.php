@@ -73,17 +73,20 @@ class SlotTrackerService
 
         // Collect all product type IDs across all characters for batch name resolution
         $allProductTypeIds = [];
+        $allEsiJobIds = [];
         $characterData = [];
 
         foreach ($characters as $character) {
             $jobs = $this->jobRepository->findActiveJobsByCharacter($character);
             foreach ($jobs as $job) {
                 $allProductTypeIds[] = $job->getDisplayedTypeId();
+                $allEsiJobIds[] = $job->getJobId();
             }
             $characterData[] = ['character' => $character, 'jobs' => $jobs];
         }
 
         $typeNames = $this->typeNameResolver->findNames(array_unique($allProductTypeIds));
+        $projectsByEsiJobId = $this->projectJobMatchRepository->findVisibleProjectsByEsiJobIds($user, array_values(array_unique($allEsiJobIds)));
 
         // Stockpile targets for suggestions
         $stockpileTargets = $this->stockpileTargetRepository->findByUser($user);
@@ -140,6 +143,12 @@ class SlotTrackerService
                 $progress = self::calculateProgress($job->getStartDate(), $job->getEndDate(), $now);
                 $timeLeftSeconds = self::calculateTimeLeft($job->getEndDate(), $now);
 
+                $matchedProject = $projectsByEsiJobId[$job->getJobId()] ?? null;
+                $projectLink = $matchedProject === null ? null : [
+                    'id' => $matchedProject->getId()->toRfc4122(),
+                    'name' => $matchedProject->getName(),
+                ];
+
                 $jobEntry = [
                     'jobId' => $job->getJobId(),
                     'productTypeId' => $job->getDisplayedTypeId(),
@@ -151,7 +160,7 @@ class SlotTrackerService
                     'facilityName' => $job->getStationId() !== null ? $this->calculationService->resolveFacilityName($job->getStationId()) : null,
                     'startDate' => $job->getStartDate()->format(\DateTimeInterface::ATOM),
                     'endDate' => $job->getEndDate()->format(\DateTimeInterface::ATOM),
-                    'project' => null,
+                    'project' => $projectLink,
                 ];
                 $jobEntries[] = $jobEntry;
 
@@ -164,7 +173,7 @@ class SlotTrackerService
                     'runs' => $job->getRuns(),
                     'timeLeftSeconds' => $timeLeftSeconds,
                     'endDate' => $jobEntry['endDate'],
-                    'project' => null,
+                    'project' => $projectLink,
                 ];
             }
 

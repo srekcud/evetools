@@ -941,11 +941,20 @@
         "group": "Groupe · {count}"
       }
     },
+    "bridges": {
+      "createProject": "Créer le projet",
+      "buyVsBuild": "Achat vs Prod",
+      "viewMarket": "Voir au marché",
+      "copyMultibuy": "Copier le multibuy",
+      "copied": "Copié",
+      "evaluate": "Évaluer dans l'Évaluateur"
+    },
     "slots": {
       "title": "Suivi des Slots",
       "refresh": "Rafraichir",
       "lastSync": "Derniere sync",
       "noJobs": "Aucun job actif",
+      "projectLinkFallback": "Projet",
       "kpi": {
         "manufacturing": "Slots Fabrication",
         "reaction": "Slots Reaction",

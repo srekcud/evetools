@@ -7,6 +7,7 @@ import CommerceModuleTabs from '@/components/commerce/CommerceModuleTabs.vue'
 import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import { JITA_PRICES_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
+import { useAppraisalHandoffStore } from '@/stores/appraisalHandoff'
 import { useFormatters } from '@/composables/useFormatters'
 import AppraisalInputPanel from '@/components/appraisal/AppraisalInputPanel.vue'
 import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
@@ -92,9 +93,15 @@ const { t } = useI18n()
 const transportCostFieldId = useId()
 const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
 const dataFreshnessStore = useDataFreshnessStore()
+const appraisalHandoff = useAppraisalHandoffStore()
 
 onMounted(() => {
   dataFreshnessStore.fetchDataFreshness()
+  const handedOverText = appraisalHandoff.take()
+  if (handedOverText !== null) {
+    inputText.value = handedOverText
+    analyze()
+  }
 })
 
 // -- State --

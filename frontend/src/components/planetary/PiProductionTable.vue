@@ -119,7 +119,11 @@ function toggleTier(tier: string): void {
                     >
                       <div class="flex items-center gap-2 flex-1">
                         <span class="w-1.5 h-1.5 rounded-full" :class="TIER_CONFIG[tier.tier]?.badgeText?.replace('text-', 'bg-') || 'bg-cyan-400'"></span>
-                        <span class="text-slate-300">{{ typeNameLabel(item.typeName, item.typeId) }}</span>
+                        <RouterLink
+                          data-testid="pi-product-market-link"
+                          :to="`/market?tab=detail&typeId=${item.typeId}`"
+                          class="text-slate-300 hover:text-cyan-300 hover:underline"
+                        >{{ typeNameLabel(item.typeName, item.typeId) }}</RouterLink>
                         <OpenInGameButton type="market" :targetId="item.typeId" />
                         <span v-if="item.inputs?.length" class="text-slate-500 text-xs">
                           &larr; {{ item.inputs.map(i => typeNameLabel(i.typeName, i.typeId)).join(' + ') }}

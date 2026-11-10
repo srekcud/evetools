@@ -5,8 +5,10 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
+import MultibuyBridgeActions from '@/components/appraisal/MultibuyBridgeActions.vue'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import type { PriceSource, StockpileShoppingItem, StockpileStage } from '@/stores/industry/types'
+import { multibuyText } from '@/utils/multibuy'
 
 const props = defineProps<{
   shoppingList: StockpileShoppingItem[]
@@ -31,6 +33,12 @@ const totalDeficitCost = computed((): number | null =>
     (sum, item) => (sum === null || item.deficitCost === null ? null : sum + item.deficitCost),
     0,
   ),
+)
+
+const deficitLines = computed(() =>
+  filteredItems.value
+    .filter(item => item.deficit > 0)
+    .map(item => ({ typeName: item.typeName, quantity: item.deficit })),
 )
 
 const deficitCount = computed(() =>
@@ -63,13 +71,8 @@ function deficitTextClass(percent: number): string {
 }
 
 async function copyToClipboard(): Promise<void> {
-  const lines = filteredItems.value
-    .filter(item => item.deficit > 0)
-    .map(item => `${item.typeName}\t${item.deficit}`)
-    .join('\n')
-
   try {
-    await navigator.clipboard.writeText(lines)
+    await navigator.clipboard.writeText(multibuyText(deficitLines.value))
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
   } catch {
@@ -101,6 +104,7 @@ async function copyToClipboard(): Promise<void> {
           <span v-if="copied">{{ t('industry.stockpile.shoppingList.copied') }}</span>
           <span v-else>{{ t('industry.stockpile.shoppingList.copyToClipboard') }}</span>
         </button>
+        <MultibuyBridgeActions :lines="deficitLines" :show-copy="false" />
         <button
           class="px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors border"
           :class="criticalOnly

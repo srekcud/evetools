@@ -15,6 +15,7 @@ import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
 import PartialPriceNotice from '@/components/industry/PartialPriceNotice.vue'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import MarginBridgeActions from '@/components/industry/MarginBridgeActions.vue'
 import CostSummaryCards from '@/components/industry/profit/CostSummaryCards.vue'
 import VenueComparisonTable from '@/components/industry/profit/VenueComparisonTable.vue'
 import SellMarketsCard from '@/components/industry/SellMarketsCard.vue'
@@ -548,6 +549,8 @@ store.fetchUserSettings()
         </svg>
         {{ t('common.status.loading') }}
       </div>
+
+      <MarginBridgeActions :result="result" :me-level="meLevel" />
 
       <!-- SECTION B: Summary Cards -->
       <CostSummaryCards

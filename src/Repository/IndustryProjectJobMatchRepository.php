@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\User;
+use App\Enum\ParticipantStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -61,6 +62,30 @@ class IndustryProjectJobMatchRepository extends ServiceEntityRepository
      */
     public function findVisibleProjectsByEsiJobIds(User $user, array $esiJobIds): array
     {
-        return [];
+        if ($esiJobIds === []) {
+            return [];
+        }
+
+        $matches = $this->createQueryBuilder('m')
+            ->addSelect('l', 'p')
+            ->join('m.bomLine', 'l')
+            ->join('l.project', 'p')
+            ->leftJoin('p.members', 'pm', 'WITH', 'pm.user = :user AND pm.status = :accepted')
+            ->where('m.esiJobId IN (:ids)')
+            ->andWhere('p.owner = :user OR pm.id IS NOT NULL')
+            ->setParameter('ids', $esiJobIds)
+            ->setParameter('user', $user)
+            ->setParameter('accepted', ParticipantStatus::Accepted)
+            ->orderBy('m.matchedAt', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $projectsByEsiJobId = [];
+        foreach ($matches as $match) {
+            $projectsByEsiJobId[$match->getEsiJobId()] ??= $match->getBomLine()->getProject();
+        }
+
+        return $projectsByEsiJobId;
     }
 }
