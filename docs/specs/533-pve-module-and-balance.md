@@ -52,6 +52,8 @@ Un `tab` inconnu sur `/ledger` donne `/balance`.
 
 **R9 — Bilan : synthèse par activité.** `LedgerDashboardTab` garde ses blocs et ajoute, sur chaque carte d'activité, un lien vers son module : PVE → `/pve/revenue`, Minage → `/mining/my-mining`, Industrie → `/industry`. Le bloc PVE montre la ligne « Escalations » du détail (R6).
 
+**R10 — Garde-fous du revenu `escalation` (décisions de la note de câblage).** (a) `/pve/loot-sales` ne liste pas le type `escalation` et `DELETE /pve/loot-sales/{id}` sur un revenu `escalation` répond 409 ; (b) la création et l'import de ventes de loot refusent le type `escalation` (422) ; (c) `/pve/income` expose un bloc `escalations {total, count, entries}` compté dans le profit et affiché par `PveTab` ; (d) `PveRevenue` charge le dashboard du Bilan pour le bouton « Tout » (`oldestEntryDate`).
+
 ## Exemples chiffrés (tests rouges)
 
 | Cas | Entrée | Sortie attendue |
