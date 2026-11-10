@@ -941,6 +941,53 @@ class SlotTrackerServiceTest extends TestCase
         $this->assertFalse($this->service->getSlotStatus($this->user)['characters'][0]['jobsStale']);
     }
 
+    #[Group('issue-572')]
+    public function testJobsSyncedAtIsTheOldestOfTheMostRecentJobCachingOfEachCharacter(): void
+    {
+        $this->givenCharacters([
+            $this->createCharacterMock(self::DORADO_CHARACTER_ID, 'Dorado', true),
+            $this->createCharacterMock(self::ERIDANUS_CHARACTER_ID, 'Eridanus', false),
+        ]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturnCallback(
+            fn (Character $character): array => $character->getEveCharacterId() === self::DORADO_CHARACTER_ID
+                ? [
+                    $this->runningJob(761, 11_061, self::MANUFACTURING_ACTIVITY_ID, '2026-11-10T07:00:00+00:00'),
+                    $this->runningJob(762, 11_062, self::REACTION_ACTIVITY_ID, '2026-11-10T09:30:00+00:00'),
+                ]
+                : [$this->runningJob(763, 11_063, self::MANUFACTURING_ACTIVITY_ID, '2026-11-10T08:15:00+00:00')],
+        );
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $this->assertSame('2026-11-10T08:15:00+00:00', $this->service->getSlotStatus($this->user)['jobsSyncedAt']);
+    }
+
+    #[Group('issue-572')]
+    public function testJobsSyncedAtIgnoresACharacterWithoutAnyCachedJob(): void
+    {
+        $this->givenCharacters([
+            $this->createCharacterMock(self::DORADO_CHARACTER_ID, 'Dorado', true),
+            $this->createCharacterMock(self::FORNAX_CHARACTER_ID, 'Fornax', false),
+        ]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturnCallback(
+            fn (Character $character): array => $character->getEveCharacterId() === self::DORADO_CHARACTER_ID
+                ? [$this->runningJob(771, 11_071, self::MANUFACTURING_ACTIVITY_ID, '2026-11-10T09:45:00+00:00')]
+                : [],
+        );
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $this->assertSame('2026-11-10T09:45:00+00:00', $this->service->getSlotStatus($this->user)['jobsSyncedAt']);
+    }
+
+    #[Group('issue-572')]
+    public function testJobsSyncedAtIsUnknownWhenNoCharacterHasACachedJob(): void
+    {
+        $this->givenCharacters([$this->createCharacterMock(self::FORNAX_CHARACTER_ID, 'Fornax', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+
+        $this->assertNull($this->service->getSlotStatus($this->user)['jobsSyncedAt']);
+    }
+
     public function testAJobPastItsEndDateAtTheHeadOfTheListStopsNeitherTheSlotCountNorTheJobList(): void
     {
         $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(2_118_004, 'Vel Tarsen', true)]);

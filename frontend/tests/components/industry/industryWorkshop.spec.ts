@@ -117,15 +117,16 @@ interface Answers {
   actions?: IndustryAction[] | Error
   timeline?: ReturnType<typeof timelineJob>[]
   projects?: GroupProject[]
+  jobsSyncedAt?: string | null
 }
 
-function answerWith({ actions = QUEUE, timeline = [], projects = GROUP_PROJECTS }: Answers): void {
+function answerWith({ actions = QUEUE, timeline = [], projects = GROUP_PROJECTS, jobsSyncedAt = null }: Answers): void {
   vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
     if (endpoint === ACTIONS_ENDPOINT) {
       if (actions instanceof Error) throw actions
       return actions
     }
-    if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline }
+    if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline, jobsSyncedAt }
     if (endpoint === PROJECTS_ENDPOINT) return projects
     if (endpoint === WORKSHOP_PROJECTS_ENDPOINT) return []
     return new Promise(() => {})
@@ -234,6 +235,22 @@ describe('IndustryWorkshop action queue', () => {
       jobs: testIds(wrapper, 'workshop-upcoming-job').length,
       error: wrapper.find('[data-testid="workshop-error"]').exists(),
     }).toEqual({ emptyQueue: true, rows: 0, emptyJobs: true, jobs: 0, error: false })
+  })
+
+  it('shows how long ago the ESI jobs were synced in the header of the upcoming jobs', async () => {
+    const fourMinutesAgo = new Date(Date.now() - 4 * 60_000).toISOString()
+    const wrapper = await mountWorkshop({ timeline: [timelineJob(0, 'Moa')], jobsSyncedAt: fourMinutesAgo })
+
+    expect(wrapper.get('[data-testid="workshop-jobs-freshness"]').text()).toContain('4min ago')
+  })
+
+  it('says the sync date is unknown instead of a fake age when no job sync date is known', async () => {
+    const wrapper = await mountWorkshop({ timeline: [timelineJob(0, 'Moa')], jobsSyncedAt: null })
+
+    const chip = wrapper.get('[data-testid="workshop-jobs-freshness"]').text()
+    expect(chip).toContain('unknown')
+    expect(chip).not.toContain('just now')
+    expect(chip).not.toContain('ago')
   })
 
   it('shows the failure instead of an empty queue when the actions cannot be loaded', async () => {

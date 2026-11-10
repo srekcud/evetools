@@ -997,6 +997,8 @@
         "title": "Next job completions",
         "empty": "No job running",
         "endsIn": "in {duration}",
+        "syncedAgo": "ESI sync {since}",
+        "syncedUnknown": "ESI sync unknown",
         "unknownProduct": "Unknown product"
       },
       "projects": {

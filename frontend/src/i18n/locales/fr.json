@@ -997,6 +997,8 @@
         "title": "Prochaines fins de jobs",
         "empty": "Aucun job en cours",
         "endsIn": "dans {duration}",
+        "syncedAgo": "sync ESI {since}",
+        "syncedUnknown": "sync ESI inconnue",
         "unknownProduct": "Produit inconnu"
       },
       "projects": {

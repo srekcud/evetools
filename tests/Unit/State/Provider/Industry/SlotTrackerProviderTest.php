@@ -73,6 +73,7 @@ final class SlotTrackerProviderTest extends TestCase
         $this->assertTrue($resource->skillsMayBeStale);
         $this->assertSame(['Aurora', 'Borealis'], array_column($resource->characters, 'characterName'));
         $this->assertSame([true, false], array_column($resource->characters, 'skillsUnknown'));
+        $this->assertNull($resource->jobsSyncedAt);
         $this->assertSame([false, true], array_column($resource->characters, 'jobsStale'));
         $this->assertSame(
             [['used' => 0, 'max' => null], ['used' => 0, 'max' => 4]],
