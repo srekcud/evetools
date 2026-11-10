@@ -2,6 +2,8 @@
 
 Maquette : `industry-project-v3.html` (écrans « Jobs terminés hors container » et vérification du container). Décision de Sylvain du 2026-11-09 sur l'issue : garder tel quel (module unifié #362). Dépend de #318 (jobs ESI liés aux lignes de BOM, livré).
 
+Révision du 2026-11-10 (issue rouverte) : un blueprint peut être n'importe où dans la station et n'est le plus souvent pas avec les matériaux. Le lieu d'entrée reste affiché, il ne déclenche plus aucun avertissement. Seule la sortie (`output_location_id` d'un job corpo désigne bien le container) est contrôlée.
+
 ## Règles
 
 1. **Sync.** `CachedIndustryJob` garde `blueprintLocationId` et `outputLocationId` (bigint nullable, colonnes `blueprint_location_id`, `output_location_id`, migration). `IndustryJobSyncService` les écrit à la création et à chaque mise à jour d'un job (personnel et corpo). Champ absent de l'ESI : `null`, jamais de valeur par défaut.
@@ -14,18 +16,21 @@ Maquette : `industry-project-v3.html` (écrans « Jobs terminés hors container 
    - sinon inconnu : raison `assets_not_synced` si le personnage du job n'a aucun asset en cache ni sa corporation, sinon `location_unresolved`.
 5. **Container du projet.** `ProjectContainerService::containerScopeOf(project)` renvoie les `itemId` des containers du nom du projet (même recherche que `verifyContainer`, sous-containers et contenu compris) ou une raison d'inconnu : `no_container_name`, `owner_without_corporation`, `no_director`, `corporation_assets_not_synced`, `no_visible_division`, `container_not_found`. `verifyContainer` garde son comportement.
 6. **Statut d'un côté.** Lieu inconnu : `unknown` (raison de la règle 4). Hangar : `outside`, même si le container du projet est inconnu (une station n'est pas un container). Container : `inside` si son `itemId` est dans le périmètre, `outside` s'il n'y est pas, `unknown` (raison du périmètre) si le périmètre est inconnu.
-7. **Front.** Onglet Contributions : tableau « Jobs ESI · containers d'entrée et de sortie » (un job par ligne : produit, pilote, entrée, sortie, contrôle), visible des seuls admins et propriétaire. Ligne « entrée → sortie » sous chaque job lié de la BOM (`JobsTable`). Contrôle : les deux côtés `inside` = ✓ ; entrée `outside` = avertissement « entrée hors du container du projet » ; sortie `outside` = « à déplacer » ; un côté `unknown` sans autre côté `outside` = « contrôle impossible » plus la raison traduite. Textes en fr et en.
+7. **Front.** Onglet Contributions : tableau « Jobs ESI · containers d'entrée et de sortie » (un job par ligne : produit, pilote, entrée, sortie, contrôle), visible des seuls admins et propriétaire. Ligne « entrée → sortie » sous chaque job lié de la BOM (`JobsTable`). Textes en fr et en.
+8. **Contrôle** (`jobLocationCheck`, front), dans cet ordre : sortie `outside` = « à déplacer » (`output-outside`, ambre) ; un côté `unknown` = « contrôle impossible » plus la raison traduite (`unknown`, gris) ; sinon ✓ (`ok`). Le statut `inside` / `outside` de l'entrée ne compte pas : un blueprint `outside` ne rend pas le contrôle ambre ni « à vérifier ». L'entrée est affichée en neutre (nom, division), grise seulement si inconnue. Un lieu `unknown` ne devient jamais `ok`.
+9. **API.** `locations.blueprint.status` reste calculé et renvoyé tel quel (la règle 6 ne change pas) ; seul le front l'ignore pour le contrôle.
 
 ## Exemples chiffrés
 
 | blueprint | output | périmètre | contrôle |
 |---|---|---|---|
 | container du projet | sous-container du projet | connu | ✓ |
-| container personnel « Perso » | container du projet | connu | entrée hors du container (avertissement) |
+| container personnel « Perso » (`outside`) | container du projet | connu | ✓ (l'entrée ne compte pas) |
 | container du projet | hangar de station | connu | à déplacer |
 | container du projet | `null` | connu | contrôle impossible (`location_missing`) |
 | container personnel | hangar de station | `no_director` | à déplacer (la sortie hors container prime sur l'entrée inconnue) |
 | container personnel | container du projet | `no_director` | contrôle impossible (`no_director`) |
+| container personnel (`outside`) | `null` | connu | contrôle impossible (la sortie inconnue prime sur l'entrée hors container) |
 
 ## Cas limites
 
@@ -35,6 +40,6 @@ Maquette : `industry-project-v3.html` (écrans « Jobs terminés hors container 
 
 ## Hors périmètre
 
-- Alerte « déplacer N produits » du compagnon : aucun écran compagnon dans `frontend/src` à ce jour, lot partiel, l'issue reste ouverte.
-- Questions de l'issue à vérifier en jeu (matériaux pris au lieu du blueprint ; `output_location_id` d'un job corpo) : on affiche ce que l'ESI renvoie.
+- Alerte « déplacer N produits » du compagnon : livrée par #506 (`docs/specs/506-companion-move-products-alert.md`), elle lit la sortie seule.
+- Questions de l'issue tranchées par Sylvain le 2026-11-10 : le blueprint n'est pas avec les matériaux (entrée sans avertissement), `output_location_id` d'un job corpo désigne bien le container.
 - Aucun nouveau topic Mercure : pas d'action asynchrone ajoutée, la sync des jobs publie déjà `industry-jobs`.

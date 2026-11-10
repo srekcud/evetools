@@ -1,10 +1,9 @@
 import type { JobLocation, JobLocations } from '@/stores/group-industry/types'
 
-export type JobLocationCheck = 'ok' | 'blueprint-outside' | 'output-outside' | 'unknown'
+export type JobLocationCheck = 'ok' | 'output-outside' | 'unknown'
 
 export function jobLocationCheck(locations: JobLocations): JobLocationCheck {
   if (locations.output.status === 'outside') return 'output-outside'
-  if (locations.blueprint.status === 'outside') return 'blueprint-outside'
   if (locations.blueprint.status === 'unknown' || locations.output.status === 'unknown') return 'unknown'
   return 'ok'
 }

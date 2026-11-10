@@ -2622,7 +2622,6 @@
       "unknownLocation": "Lieu inconnu",
       "check": {
         "ok": "✓ Dans le container du projet",
-        "blueprintOutside": "Entrée hors du container du projet",
         "outputOutside": "À déplacer dans le container du projet",
         "unknown": "Contrôle impossible"
       },
