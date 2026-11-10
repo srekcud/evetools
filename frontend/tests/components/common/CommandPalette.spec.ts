@@ -321,7 +321,7 @@ describe('CommandPalette', () => {
 
       await typeQuery('marché')
 
-      expect(optionLabels()).toEqual(['Compte › Parametres › Marché'])
+      expect(optionLabels()).toEqual(['Commerce › Marché', 'Compte › Parametres › Marché'])
     })
   })
 
@@ -410,7 +410,7 @@ describe('CommandPalette', () => {
     it('navigates to the row reached with the arrows on Enter', async () => {
       const { router } = await mountOpenPalette()
       await typeQuery('commerce')
-      await pressArrowDown(1)
+      await pressArrowDown(2)
 
       await pressKey('Enter')
 

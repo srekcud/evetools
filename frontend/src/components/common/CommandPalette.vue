@@ -216,7 +216,7 @@ function onKeydown(event: KeyboardEvent): void {
             <div
               v-for="(entry, index) in navigationRows"
               :id="optionId(index)"
-              :key="entry.route"
+              :key="entry.label"
               role="option"
               :aria-selected="index === activeIndex"
               tabindex="-1"
