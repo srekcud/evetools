@@ -290,6 +290,16 @@ describe('IndustryWorkshop skills link', () => {
   })
 })
 
+describe('IndustryWorkshop corporation hangars link', () => {
+  it('opens the corporation hangars page from the header of the workshop', async () => {
+    const wrapper = await mountWorkshop()
+
+    await wrapper.get('[data-testid="workshop-link-hangars"]').trigger('click')
+
+    expect(routerPush).toHaveBeenCalledExactlyOnceWith({ name: 'industry-hangars' })
+  })
+})
+
 describe('IndustryWorkshop upcoming jobs', () => {
   it('lists the eight jobs ending first, soonest first', async () => {
     const wrapper = await mountWorkshop({

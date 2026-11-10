@@ -109,6 +109,7 @@ describe('useModuleLastPage', () => {
 
   it.each([
     ['the skills page', '/industry/skills'],
+    ['the corporation hangars page', '/industry/hangars'],
     ['an invitation', '/industry/join/AB12CD'],
     ['the former group industry path', '/group-industry'],
   ])('remembers no industry page for %s', (_case, visited) => {
