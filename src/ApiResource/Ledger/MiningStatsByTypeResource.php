@@ -16,4 +16,7 @@ class MiningStatsByTypeResource
 
     /** @var MiningTypeStatsResource[] */
     public array $byType = [];
+
+    /** @var array{market: string, side: string, form: string, structureName: string|null}|null */
+    public ?array $valuationSource = null;
 }

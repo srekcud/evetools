@@ -16,19 +16,24 @@ use App\Repository\CharacterRepository;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\CorporationMiningSyncStateRepository;
 use App\Repository\MiningOperationRepository;
+use App\Repository\MiningValuationProfileRepository;
 use App\Repository\MoonCompositionRepository;
 use App\Repository\MoonRefineryFollowRepository;
+use App\Repository\ReprocessingProfileRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\EsiClient;
+use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
-use App\Service\MiningSite\MiningSiteUnitPrices;
 use App\Service\MoonChunk\MoonChunkValueReader;
 use App\Service\MoonChunk\MoonChunkValuer;
 use App\Service\MoonChunk\MoonChunkVolumeEstimator;
+use App\Service\MiningValuation\MiningProfileUnitPrices;
+use App\Service\MiningValuation\MiningValuationProfileReader;
 use App\Service\OreValueService;
+use App\Service\StructureMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -436,7 +441,13 @@ trait CorporationMiningExtractionHarness
         $moonChunkValueReader = new MoonChunkValueReader(
             $this->createStub(MoonCompositionRepository::class),
             $this->createStub(InvTypeRepository::class),
-            new MiningSiteUnitPrices($this->createStub(OreValueService::class)),
+            new MiningProfileUnitPrices(
+                new MiningValuationProfileReader($this->createStub(MiningValuationProfileRepository::class)),
+                $this->createStub(ReprocessingProfileRepository::class),
+                $this->createStub(OreValueService::class),
+                $this->createStub(JitaMarketService::class),
+                $this->createStub(StructureMarketService::class),
+            ),
             new MoonChunkVolumeEstimator(),
             new MoonChunkValuer(),
         );

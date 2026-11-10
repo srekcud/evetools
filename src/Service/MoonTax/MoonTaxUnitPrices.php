@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Service\MiningSite;
+namespace App\Service\MoonTax;
 
 use App\Enum\MarketSide;
 use App\Service\OreValueService;
 
-final readonly class MiningSiteUnitPrices
+final readonly class MoonTaxUnitPrices
 {
     private const float UNUSED_REPROCESS_YIELD = 1.0;
     private const float NO_EXPORT_TAX = 0.0;

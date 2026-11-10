@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 final class OreValueTableServiceTest extends TestCase
 {
     use BuildsOreValueServiceOnSdeOres;
+    use BuildsMiningProfileUnitPrices;
 
     private const int BATCH_COMPRESSED_VELDSPAR = 28432;
     private const int CONCENTRATED_VELDSPAR = 17470;
@@ -433,6 +434,85 @@ final class OreValueTableServiceTest extends TestCase
             ['typeId' => self::TRITANIUM, 'typeName' => 'Tritanium', 'quantityPerUnit' => 4.0],
             ['typeId' => self::TYPE_UNKNOWN_TO_SDE, 'typeName' => null, 'quantityPerUnit' => 0.07],
         ], $veldspar['minerals']);
+    }
+
+    #[Group('issue-532')]
+    public function testOreAOnTheDefaultProfileIsWorthItsCompressedJitaBuyPriceAtFiveThousandIskPerCubicMetre(): void
+    {
+        $oreA = $this->onlyRow($this->tableOfOreA('jita', MarketSide::Buy, null, null, 0.0));
+
+        $this->assertEqualsWithDelta(5000.0, $oreA['compressedIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(4500.0, $oreA['rawIskPerM3'], self::VALUE_DELTA);
+        $this->assertNull($oreA['reprocessedIskPerM3']);
+    }
+
+    #[Group('issue-532')]
+    public function testTheExportTaxIsSubtractedPerCubicMetreSoOreAIsWorthFourThousandIskPerCubicMetre(): void
+    {
+        $oreA = $this->onlyRow($this->tableOfOreA('jita', MarketSide::Buy, null, null, 1000.0));
+
+        $this->assertEqualsWithDelta(4000.0, $oreA['compressedIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(3500.0, $oreA['rawIskPerM3'], self::VALUE_DELTA);
+        $this->assertSame('compressed', $oreA['bestOption']);
+        $this->assertEqualsWithDelta(4000.0, $oreA['bestIskPerM3'], self::VALUE_DELTA);
+    }
+
+    #[Group('issue-532')]
+    public function testAnExportTaxAboveTheNetPriceLeavesAKnownZeroIskPerCubicMetre(): void
+    {
+        $oreA = $this->onlyRow($this->tableOfOreA('jita', MarketSide::Buy, null, null, 6000.0));
+
+        $this->assertSame(0.0, $oreA['compressedIskPerM3']);
+        $this->assertSame(0.0, $oreA['rawIskPerM3']);
+    }
+
+    #[Group('issue-532')]
+    public function testOreAOnJitaSellIsWorthFiveThousandSixHundredIskPerCubicMetreCompressed(): void
+    {
+        $oreA = $this->onlyRow($this->tableOfOreA('jita', MarketSide::Sell, null, null, 0.0));
+
+        $this->assertEqualsWithDelta(5600.0, $oreA['compressedIskPerM3'], self::VALUE_DELTA);
+    }
+
+    #[Group('issue-532')]
+    public function testOreAReprocessedAtAYieldOfZeroPointEightIsWorthFiveThousandTwoHundredIskPerCubicMetreAndTheTaxDoesNotApplyToIt(): void
+    {
+        $oreA = $this->onlyRow($this->tableOfOreA('jita', MarketSide::Buy, null, 0.8, 1000.0));
+
+        $this->assertEqualsWithDelta(5200.0, $oreA['reprocessedIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(4000.0, $oreA['compressedIskPerM3'], self::VALUE_DELTA);
+        $this->assertSame('reprocessed', $oreA['bestOption']);
+    }
+
+    #[Group('issue-532')]
+    public function testOreAReprocessedWithoutAYieldHasNoReprocessedValue(): void
+    {
+        $oreA = $this->onlyRow($this->tableOfOreA('jita', MarketSide::Buy, null, null, 0.0));
+
+        $this->assertNull($oreA['reprocessedIskPerM3']);
+        $this->assertSame('compressed', $oreA['bestOption']);
+    }
+
+    #[Group('issue-532')]
+    public function testOreAOnAStructureWithoutPriceForItIsUnknownAndNeverFallsBackOnJita(): void
+    {
+        $oreA = $this->onlyRow($this->tableOfOreA('structure', MarketSide::Buy, 60003760, null, 0.0));
+
+        $this->assertNull($oreA['compressedIskPerM3']);
+        $this->assertNull($oreA['rawIskPerM3']);
+        $this->assertNull($oreA['bestOption']);
+        $this->assertNull($oreA['bestIskPerM3']);
+    }
+
+    private function tableOfOreA(string $market, MarketSide $side, ?int $structureId, ?float $reprocessYield, float $exportTax): array
+    {
+        return $this->createOreValueTableService(
+            $this->jitaSellPricesOfOreAOfTheSpec(),
+            [self::VELDSPAR],
+            $this->jitaBuyPricesOfOreAOfTheSpec(),
+            $this->structureMarketTrading(60003760, [], []),
+            $this->sdeTypesWithOreAOfTheSpec(),
+        )->build($market, $side, $structureId, $reprocessYield, $exportTax);
     }
 
     private function jitaSellPricesOfTheSpecExamples(): array

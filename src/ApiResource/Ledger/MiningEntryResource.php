@@ -28,7 +28,6 @@ use App\State\Processor\Ledger\UpdateMiningEntryUsageProcessor;
                     new Model\Parameter(name: 'days', in: 'query', schema: ['type' => 'integer']),
                     new Model\Parameter(name: 'typeId', in: 'query', schema: ['type' => 'integer']),
                     new Model\Parameter(name: 'usage', in: 'query', schema: ['type' => 'string']),
-                    new Model\Parameter(name: 'structureId', in: 'query', schema: ['type' => 'integer']),
                 ],
             ),
         ),
@@ -87,6 +86,11 @@ class MiningEntryResource
     public ?float $unitPrice = null;
 
     public ?float $totalValue = null;
+
+    public ?float $unitValue = null;
+
+    /** @var array{market: string, side: string, form: string, structureName: string|null}|null */
+    public ?array $valuationSource = null;
 
     // Compressed ore data
     public ?int $compressedTypeId = null;

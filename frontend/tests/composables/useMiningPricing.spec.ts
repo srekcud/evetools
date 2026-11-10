@@ -13,96 +13,51 @@ function pricing(entries: MiningEntry[] = []) {
   return useMiningPricing(ref(entries))
 }
 
-const STRUCTURE_COMPRESSED_VELDSPAR = miningEntry({ id: 'structure-compressed-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 3_000, structureCompressedUnitPrice: 1_100, structureCompressedEquivalentPrice: 1_100, reprocessValue: 13.32, usage: 'sold' })
-const RAW_PRICED_TRITANIUM = miningEntry({ id: 'raw-tritanium', typeId: TRITANIUM_TYPE_ID, typeName: 'Tritanium', quantity: 2_500, rawUnitPrice: 4.27, usage: 'sold' })
+const STRUCTURE_COMPRESSED_VELDSPAR = miningEntry({ id: 'structure-compressed-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 3_000, structureCompressedUnitPrice: 1_100, structureCompressedEquivalentPrice: 1_100, reprocessValue: 13.32, unitValue: 900, usage: 'sold' })
+const RAW_PRICED_TRITANIUM = miningEntry({ id: 'raw-tritanium', typeId: TRITANIUM_TYPE_ID, typeName: 'Tritanium', quantity: 2_500, rawUnitPrice: 4.27, unitValue: 4.27, usage: 'sold' })
 const UNPRICED_MYSTERY_ORE = miningEntry({ id: 'mystery-ore', typeId: MYSTERY_ORE_TYPE_ID, typeName: 'Mystery Ore', quantity: 3_150, usage: 'industry' })
 
-describe('useMiningPricing best unit price of an entry', () => {
-  it('takes the compressed equivalent price of the structure as it comes from the API', () => {
-    const { getBestPriceValue, getBestPrice } = pricing()
-
-    expect(getBestPriceValue(STRUCTURE_COMPRESSED_VELDSPAR)).toBe(1_100)
-    expect(getBestPrice(STRUCTURE_COMPRESSED_VELDSPAR)).toEqual({ value: 1_100, color: 'text-teal-400', source: 'Structure compresse' })
-  })
-
-  it('ignores the compressed unit price of the structure when its compressed equivalent price is unknown', () => {
-    const scorditeWithoutStructureEquivalent = miningEntry({ id: 'scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 6_400, structureCompressedUnitPrice: 2_350, structureCompressedEquivalentPrice: null, reprocessValue: 9.5, reprocessYield: 0.78 })
-    const { getBestPriceValue, getBestPrice } = pricing()
-
-    expect(getBestPriceValue(scorditeWithoutStructureEquivalent)).toBe(9.5)
-    expect(getBestPrice(scorditeWithoutStructureEquivalent)).toEqual({ value: 9.5, color: 'text-purple-400', source: 'Jita reprocess 78%' })
-  })
-
-  it('labels the reprocess sources with the yield carried by the entry', () => {
-    const jitaReprocessedScordite = miningEntry({ id: 'jita-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_000, reprocessValue: 9.5, reprocessYield: 0.7236 })
-    const structureReprocessedScordite = miningEntry({ id: 'structure-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_000, structureReprocessValue: 11.2, reprocessYield: 0.9063 })
-    const { getBestPrice } = pricing()
-
-    expect(getBestPrice(jitaReprocessedScordite)).toEqual({ value: 9.5, color: 'text-purple-400', source: 'Jita reprocess 72%' })
-    expect(getBestPrice(structureReprocessedScordite)).toEqual({ value: 11.2, color: 'text-lime-400', source: 'Structure reprocess 91%' })
-  })
-
-  it('values an entry without a known yield from its other sources only', () => {
-    const scorditeWithUnknownYield = miningEntry({ id: 'scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 6_400, compressedEquivalentPrice: 8.1, reprocessValue: null, reprocessYield: null })
-    const { getBestPrice, getEntryValue } = pricing()
-
-    expect(getBestPrice(scorditeWithUnknownYield)).toEqual({ value: 8.1, color: 'text-cyan-400', source: 'Jita compresse' })
-    expect(getEntryValue(scorditeWithUnknownYield)).toBeCloseTo(51_840, 6)
-  })
-
-  it('falls back to the raw unit price when no other source exists', () => {
-    const { getBestPriceValue, getBestPrice } = pricing()
-
-    expect(getBestPriceValue(RAW_PRICED_TRITANIUM)).toBe(4.27)
-    expect(getBestPrice(RAW_PRICED_TRITANIUM)).toEqual({ value: 4.27, color: 'text-slate-400', source: '' })
-  })
-
-  it('prefers a positive raw unit price over a compressed equivalent price brought to zero by the export tax', () => {
-    const taxedVeldspar = miningEntry({ id: 'taxed-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 5_200, compressedEquivalentPrice: 0, rawUnitPrice: 17.85 })
+describe('useMiningPricing unit value of an entry', () => {
+  it('takes the unit value of the profile as it comes from the API, not the best of the prices of the entry', () => {
     const { getBestPriceValue } = pricing()
 
-    expect(getBestPriceValue(taxedVeldspar)).toBe(17.85)
+    expect(getBestPriceValue(STRUCTURE_COMPRESSED_VELDSPAR)).toBe(900)
   })
 
-  it('keeps the stored value per unit before the raw unit price', () => {
-    const storedVeldspar = miningEntry({ id: 'stored-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 12_000, unitPrice: 200, totalValue: 2_400_000, rawUnitPrice: 18.37 })
-    const { getBestPriceValue } = pricing()
+  it('takes the unit value of the profile even below the compressed equivalent price and the reprocess value of the entry', () => {
+    const scordite = miningEntry({ id: 'scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 6_400, compressedEquivalentPrice: 8.1, reprocessValue: 9.5, reprocessYield: 0.78, unitValue: 7.2 })
+    const { getBestPriceValue, getEntryValue } = pricing()
 
-    expect(getBestPriceValue(storedVeldspar)).toBe(200)
+    expect(getBestPriceValue(scordite)).toBe(7.2)
+    expect(getEntryValue(scordite)).toBeCloseTo(46_080, 6)
   })
 
-  it('labels the stored value per unit as a fallback without source', () => {
-    const storedVeldspar = miningEntry({ id: 'stored-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 12_000, unitPrice: 200, totalValue: 2_400_000, rawUnitPrice: 18.37 })
-    const { getBestPrice } = pricing()
+  it('leaves unknown the unit value of an entry whose profile has no price, even when the entry carries other prices', () => {
+    const unknownVeldspar = miningEntry({ id: 'unknown-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 12_000, unitPrice: 200, totalValue: 2_400_000, rawUnitPrice: 18.37, compressedEquivalentPrice: 21.4, reprocessValue: 15.5, unitValue: null })
+    const { getBestPriceValue, getEntryValue } = pricing()
 
-    expect(getBestPrice(storedVeldspar)).toEqual({ value: 200, color: 'text-slate-400', source: '' })
+    expect(getBestPriceValue(unknownVeldspar)).toBeNull()
+    expect(getEntryValue(unknownVeldspar)).toBeNull()
   })
 
-  it('reads a stored total value of zero as zero per unit, not as a missing value', () => {
-    const worthlessScordite = miningEntry({ id: 'worthless-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 6_400, totalValue: 0, rawUnitPrice: 31.9 })
-    const { getBestPriceValue } = pricing()
+  it('reads a unit value of zero as known', () => {
+    const worthlessScordite = miningEntry({ id: 'worthless-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 6_400, rawUnitPrice: 31.9, unitValue: 0 })
+    const { getBestPriceValue, getEntryValue } = pricing()
 
     expect(getBestPriceValue(worthlessScordite)).toBe(0)
+    expect(getEntryValue(worthlessScordite)).toBe(0)
   })
 
-  it('values at zero, known, an ore whose only price is a compressed equivalent brought to zero', () => {
-    const zeroPricedVeldspar = miningEntry({ id: 'zero-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 4_100, compressedEquivalentPrice: 0 })
-    const { getBestPriceValue } = pricing()
+  it('values an entry mined in a quantity of zero at zero even without a unit value', () => {
+    const emptyMysteryOre = miningEntry({ id: 'empty-mystery-ore', typeId: MYSTERY_ORE_TYPE_ID, typeName: 'Mystery Ore', quantity: 0 })
+    const { getEntryValue } = pricing()
 
-    expect(getBestPriceValue(zeroPricedVeldspar)).toBe(0)
-  })
-
-  it('has an unknown best unit price for an ore without any price', () => {
-    const { getBestPriceValue, getBestPrice } = pricing()
-
-    expect(getBestPriceValue(UNPRICED_MYSTERY_ORE)).toBeNull()
-    expect(getBestPrice(UNPRICED_MYSTERY_ORE).value).toBeNull()
-    expect(getBestPrice(UNPRICED_MYSTERY_ORE).source).toBe('')
+    expect(getEntryValue(emptyMysteryOre)).toBe(0)
   })
 })
 
 describe('useMiningPricing mining value by usage', () => {
-  it('values an ore priced only by its raw unit price at best unit price times quantity', () => {
+  it('values an ore priced only by its raw unit price at its unit value times its quantity', () => {
     const { miningByUsage } = pricing([RAW_PRICED_TRITANIUM])
 
     expect(miningByUsage.value.sold).toBeCloseTo(10_675, 6)
@@ -110,9 +65,9 @@ describe('useMiningPricing mining value by usage', () => {
   })
 
   it('makes unknown the usage holding an ore without any price, and the total, while the other usages stay known', () => {
-    const soldVeldspar = miningEntry({ id: 'sold-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 7_000, reprocessValue: 15.5, reprocessYield: 0.78, usage: 'sold' })
-    const industryTritanium = miningEntry({ id: 'industry-tritanium', typeId: TRITANIUM_TYPE_ID, typeName: 'Tritanium', quantity: 2_500, rawUnitPrice: 4.27, usage: 'industry' })
-    const corpScordite = miningEntry({ id: 'corp-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_800, compressedEquivalentPrice: 24.25, usage: 'corp_project' })
+    const soldVeldspar = miningEntry({ id: 'sold-veldspar', typeId: VELDSPAR_TYPE_ID, typeName: 'Veldspar', quantity: 7_000, reprocessValue: 15.5, reprocessYield: 0.78, unitValue: 15.5, usage: 'sold' })
+    const industryTritanium = miningEntry({ id: 'industry-tritanium', typeId: TRITANIUM_TYPE_ID, typeName: 'Tritanium', quantity: 2_500, rawUnitPrice: 4.27, unitValue: 4.27, usage: 'industry' })
+    const corpScordite = miningEntry({ id: 'corp-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_800, compressedEquivalentPrice: 24.25, unitValue: 24.25, usage: 'corp_project' })
 
     const { miningByUsage } = pricing([soldVeldspar, industryTritanium, UNPRICED_MYSTERY_ORE, corpScordite])
 
@@ -120,7 +75,7 @@ describe('useMiningPricing mining value by usage', () => {
   })
 
   it('keeps known an ore without any price mined in a quantity of zero', () => {
-    const corpScordite = miningEntry({ id: 'corp-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_800, compressedEquivalentPrice: 24.25, usage: 'corp_project' })
+    const corpScordite = miningEntry({ id: 'corp-scordite', typeId: SCORDITE_TYPE_ID, typeName: 'Scordite', quantity: 1_800, compressedEquivalentPrice: 24.25, unitValue: 24.25, usage: 'corp_project' })
     const emptyMysteryOre = miningEntry({ id: 'empty-mystery-ore', typeId: MYSTERY_ORE_TYPE_ID, typeName: 'Mystery Ore', quantity: 0, usage: 'corp_project' })
 
     const { miningByUsage } = pricing([corpScordite, emptyMysteryOre])

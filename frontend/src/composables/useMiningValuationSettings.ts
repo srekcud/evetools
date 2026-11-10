@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import type { MiningValuationForm, MiningValuationMarket, MiningValuationSide } from '@/stores/miningOperation'
 
 export const SELECTED_STRUCTURE_STORAGE_KEY = 'miningSelectedStructure'
 export const EXPORT_TAX_STORAGE_KEY = 'miningExportTax'
@@ -25,6 +26,9 @@ export function useMiningValuationSettings() {
   const selectedStructure = ref<SelectedStructure>(readSelectedStructure())
   const exportTax = ref(readExportTax())
   const selectedStructureId = computed(() => selectedStructure.value.id)
+  const market = ref<MiningValuationMarket>('jita')
+  const side = ref<MiningValuationSide>('buy')
+  const form = ref<MiningValuationForm>('compressed')
 
   function selectStructure(structure: SelectedStructure): void {
     selectedStructure.value = { id: structure.id, name: structure.name }
@@ -41,5 +45,5 @@ export function useMiningValuationSettings() {
     localStorage.setItem(EXPORT_TAX_STORAGE_KEY, exportTax.value.toString())
   }
 
-  return { selectedStructure, selectedStructureId, exportTax, selectStructure, clearStructure, setExportTax }
+  return { market, side, form, selectedStructure, selectedStructureId, exportTax, selectStructure, clearStructure, setExportTax }
 }

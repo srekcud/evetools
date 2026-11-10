@@ -93,4 +93,7 @@ class MiningSiteScanResource
 
     /** @var list<array<string, mixed>> */
     public array $types = [];
+
+    /** @var array{market: string, side: string, form: string, structureName: string|null}|null */
+    public ?array $valuationSource = null;
 }

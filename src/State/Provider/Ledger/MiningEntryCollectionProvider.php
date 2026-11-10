@@ -10,8 +10,7 @@ use App\ApiResource\Ledger\MiningEntryResource;
 use App\Entity\MiningEntry;
 use App\Entity\User;
 use App\Repository\MiningEntryRepository;
-use App\Repository\ReprocessingProfileRepository;
-use App\Service\OreValueService;
+use App\Service\MiningValuation\MiningProfileUnitPrices;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -25,8 +24,7 @@ class MiningEntryCollectionProvider implements ProviderInterface
         private readonly Security $security,
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly RequestStack $requestStack,
-        private readonly OreValueService $oreValueService,
-        private readonly ReprocessingProfileRepository $profileRepository,
+        private readonly MiningProfileUnitPrices $unitPrices,
     ) {
     }
 
@@ -45,10 +43,6 @@ class MiningEntryCollectionProvider implements ProviderInterface
         $days = (int) ($request?->query->get('days', 30) ?? 30);
         $typeId = $request?->query->get('typeId');
         $usage = $request?->query->get('usage');
-        $structureId = $request?->query->get('structureId');
-        $structureIdInt = $structureId !== null ? (int) $structureId : null;
-        $exportTax = $request?->query->get('exportTax');
-        $exportTaxFloat = $exportTax !== null ? (float) $exportTax : null;
 
         $to = new \DateTimeImmutable();
         $from = $to->modify("-{$days} days");
@@ -68,13 +62,7 @@ class MiningEntryCollectionProvider implements ProviderInterface
         }
 
         // Batch fetch ore prices for all unique type IDs
-        $uniqueTypeIds = array_unique(array_map(fn(MiningEntry $e) => $e->getTypeId(), $entries));
-        $orePrices = $this->oreValueService->getBatchOrePrices(
-            $uniqueTypeIds,
-            $structureIdInt,
-            $this->profileRepository->findOneBy(['user' => $user])?->getReprocessYield(),
-            $exportTaxFloat ?? 0.0
-        );
+        $orePrices = [];
 
         return array_map(fn(MiningEntry $e) => $this->toResource($e, $orePrices), array_values($entries));
     }

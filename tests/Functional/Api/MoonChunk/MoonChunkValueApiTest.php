@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\MoonChunk;
 
+use App\Entity\MiningValuationProfile;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -37,6 +38,20 @@ final class MoonChunkValueApiTest extends WebTestCase
             ],
             $this->figuresOf($this->chunkValueOf(self::ILYRA_CORPORATION_ID, self::KNOWN_VALUE_MOON_ID)),
         );
+    }
+
+    #[Group('issue-532')]
+    public function testAChunkIsValuedWithTheProfileOfTheCurrentUserAndCarriesItsValuationSource(): void
+    {
+        $this->em->persist((new MiningValuationProfile())->setUser($this->aria)->setExportTax(10.0));
+        $this->em->flush();
+        $this->as($this->aria);
+
+        $this->request('GET', self::ENDPOINT);
+
+        $chunkValue = $this->chunkValueOf(self::ILYRA_CORPORATION_ID, self::KNOWN_VALUE_MOON_ID);
+        self::assertSame(14_275_000.0, round($chunkValue['totalValue'], 2));
+        self::assertSame(['market' => 'jita', 'side' => 'buy', 'form' => 'compressed', 'structureName' => null], $chunkValue['valuationSource']);
     }
 
     public function testAnOreKnownAtAPriceOfZeroKeepsTheReadyChunkKnown(): void
@@ -149,7 +164,7 @@ final class MoonChunkValueApiTest extends WebTestCase
 
     private function figuresOf(array $chunkValue): array
     {
-        self::assertEqualsCanonicalizing(['status', 'reason', 'volumeM3', 'totalValue', 'perParticipant', 'lines', 'scanRecordedAt'], array_keys($chunkValue));
+        self::assertEqualsCanonicalizing(['status', 'reason', 'volumeM3', 'totalValue', 'perParticipant', 'lines', 'scanRecordedAt', 'valuationSource'], array_keys($chunkValue));
 
         return [
             $chunkValue['status'],

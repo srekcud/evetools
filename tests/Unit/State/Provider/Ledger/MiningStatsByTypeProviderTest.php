@@ -9,7 +9,11 @@ use App\ApiResource\Ledger\MiningTypeStatsResource;
 use App\Entity\User;
 use App\Repository\MiningEntryRepository;
 use App\Repository\UserLedgerSettingsRepository;
+use App\Enum\MarketSide;
+use App\Enum\MiningValuationForm;
+use App\Enum\MiningValuationMarket;
 use App\Service\MiningBestValueCalculator;
+use App\Service\MiningValuation\ValuationSource;
 use App\State\Provider\Ledger\MiningStatsByTypeProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -45,6 +49,9 @@ final class MiningStatsByTypeProviderTest extends TestCase
             self::PYROXERES => 512.0,
             self::ORE_MISSING_FROM_SDE => 41.5,
         ]);
+        $miningBestValueCalculator->method('valuationSourceOf')->willReturn(
+            new ValuationSource(MiningValuationMarket::Structure, MarketSide::Sell, MiningValuationForm::Raw, 'Refinery B-1'),
+        );
         $requestStack = new RequestStack();
         $requestStack->push(new Request());
         $provider = new MiningStatsByTypeProvider($security, $miningEntryRepository, $settingsRepository, $miningBestValueCalculator, $requestStack);
@@ -60,6 +67,10 @@ final class MiningStatsByTypeProviderTest extends TestCase
             $typeStats->totalQuantity,
             $typeStats->totalValue,
         ], $stats->byType));
+        $this->assertSame(
+            ['market' => 'structure', 'side' => 'sell', 'form' => 'raw', 'structureName' => 'Refinery B-1'],
+            $stats->valuationSource,
+        );
     }
 
     #[Group('issue-260')]
@@ -83,6 +94,9 @@ final class MiningStatsByTypeProviderTest extends TestCase
             self::TRITANIUM => 4.27,
             self::BITUMENS => 831.2148,
         ]);
+        $miningBestValueCalculator->method('valuationSourceOf')->willReturn(
+            new ValuationSource(MiningValuationMarket::Jita, MarketSide::Buy, MiningValuationForm::Compressed, null),
+        );
         $requestStack = new RequestStack();
         $requestStack->push(new Request());
         $provider = new MiningStatsByTypeProvider($security, $miningEntryRepository, $settingsRepository, $miningBestValueCalculator, $requestStack);

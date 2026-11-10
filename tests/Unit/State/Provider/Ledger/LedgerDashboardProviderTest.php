@@ -20,6 +20,7 @@ use App\Service\Industry\Revenue\IndustryRevenueReport;
 use App\Service\Industry\Revenue\IndustryRevenueTotals;
 use App\Service\MiningBestValueCalculator;
 use App\State\Provider\Ledger\LedgerDashboardProvider;
+use App\Tests\Unit\Service\Mining\BuildsMiningProfileUnitPrices;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -33,6 +34,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 final class LedgerDashboardProviderTest extends TestCase
 {
     use BuildsOreValueServiceOnSdeOres;
+    use BuildsMiningProfileUnitPrices;
 
     private const float VALUE_DELTA = 1e-6;
     private const int TYPE_WITHOUT_ANY_PRICE = 81143;
@@ -48,7 +50,7 @@ final class LedgerDashboardProviderTest extends TestCase
         ]);
         $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([
             MiningEntry::USAGE_SOLD => [self::BITUMENS => 1000],
-            MiningEntry::USAGE_INDUSTRY => [self::TRITANIUM => 2500, self::TYPE_WITHOUT_ANY_PRICE => 3150],
+            MiningEntry::USAGE_INDUSTRY => [self::VELDSPAR => 2500, self::TYPE_WITHOUT_ANY_PRICE => 3150],
         ]);
 
         $dashboard = $this->createProvider($miningEntryRepository)->provide(new Get());
@@ -62,7 +64,7 @@ final class LedgerDashboardProviderTest extends TestCase
         $this->assertNull($dashboard->pvePercent);
         $this->assertNull($dashboard->miningPercent);
         $this->assertSame(['sold', 'corpProject', 'industry', 'unknown'], array_keys($dashboard->miningBreakdown));
-        $this->assertEqualsWithDelta(831214.8, $dashboard->miningBreakdown['sold'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(201300.0, $dashboard->miningBreakdown['sold'], self::VALUE_DELTA);
         $this->assertNull($dashboard->miningBreakdown['industry']);
         $this->assertSame(0.0, $dashboard->miningBreakdown['unknown']);
         $this->assertSame(0.0, $dashboard->miningBreakdown['corpProject']);
@@ -75,25 +77,25 @@ final class LedgerDashboardProviderTest extends TestCase
         $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
         $miningEntryRepository->method('getQuantitiesByType')->willReturn([
             self::BITUMENS => ['typeId' => self::BITUMENS, 'quantity' => 1000],
-            self::TRITANIUM => ['typeId' => self::TRITANIUM, 'quantity' => 2500],
+            self::VELDSPAR => ['typeId' => self::VELDSPAR, 'quantity' => 2500],
         ]);
         $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([
             MiningEntry::USAGE_SOLD => [self::BITUMENS => 1000],
-            MiningEntry::USAGE_INDUSTRY => [self::TRITANIUM => 2500],
+            MiningEntry::USAGE_INDUSTRY => [self::VELDSPAR => 2500],
         ]);
 
         $dashboard = $this->createProvider($miningEntryRepository)->provide(new Get());
 
         $this->assertSame(self::BOUNTIES, $dashboard->totals['pve']);
         $this->assertSame(self::EXPENSES, $dashboard->totals['expenses']);
-        $this->assertEqualsWithDelta(841889.8, $dashboard->totals['mining'], self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(5841889.8, $dashboard->totals['total'], self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(5441889.8, $dashboard->totals['profit'], self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(181396.326666667, $dashboard->iskPerDay, self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(85.588742190926, $dashboard->pvePercent, self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(14.411257809074, $dashboard->miningPercent, self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(831214.8, $dashboard->miningBreakdown['sold'], self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(10675.0, $dashboard->miningBreakdown['industry'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(245050.0, $dashboard->totals['mining'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(5245050.0, $dashboard->totals['total'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(4845050.0, $dashboard->totals['profit'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(161501.666666667, $dashboard->iskPerDay, self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(95.3279759010877, $dashboard->pvePercent, self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(4.672024098912308, $dashboard->miningPercent, self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(201300.0, $dashboard->miningBreakdown['sold'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(43750.0, $dashboard->miningBreakdown['industry'], self::VALUE_DELTA);
         $this->assertSame(0.0, $dashboard->miningBreakdown['unknown']);
         $this->assertSame(0.0, $dashboard->miningBreakdown['corpProject']);
         $this->assertObjectHasProperty('missingPriceTypeIds', $dashboard);
@@ -146,7 +148,7 @@ final class LedgerDashboardProviderTest extends TestCase
         $dashboard = $this->createProvider($miningEntryRepository, $this->everyPveIncomeType(), self::EXPENSES, UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE)
             ->provide(new Get());
 
-        $this->assertEqualsWithDelta(831214.8, $dashboard->totals['mining'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(201300.0, $dashboard->totals['mining'], self::VALUE_DELTA);
         $this->assertSame(0.0, $dashboard->miningBreakdown['corpProject']);
         $this->assertSame(610_000.0, $dashboard->pveBreakdown['corpProjects']);
     }
@@ -171,8 +173,8 @@ final class LedgerDashboardProviderTest extends TestCase
 
         $this->assertSame(1_817_000.0, $dashboard->totals['pve']);
         $this->assertSame(0.0, $dashboard->pveBreakdown['corpProjects']);
-        $this->assertEqualsWithDelta(1653514.8, $dashboard->totals['mining'], self::VALUE_DELTA);
-        $this->assertSame(822_300.0, $dashboard->miningBreakdown['corpProject']);
+        $this->assertEqualsWithDelta(996300.0, $dashboard->totals['mining'], self::VALUE_DELTA);
+        $this->assertSame(795_000.0, $dashboard->miningBreakdown['corpProject']);
     }
 
     public function testMiningModeLeavesTheCorpProjectMiningBreakdownUnknownWhenItHoldsATypeWithoutPrice(): void
@@ -194,7 +196,7 @@ final class LedgerDashboardProviderTest extends TestCase
         $dashboard = $this->createProvider($miningEntryRepository, $this->everyPveIncomeType(), self::EXPENSES, UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING)
             ->provide(new Get());
 
-        $this->assertEqualsWithDelta(831214.8, $dashboard->miningBreakdown['sold'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(201300.0, $dashboard->miningBreakdown['sold'], self::VALUE_DELTA);
         $this->assertNull($dashboard->miningBreakdown['corpProject']);
         $this->assertSame([self::TYPE_WITHOUT_ANY_PRICE], $dashboard->missingPriceTypeIds);
     }
@@ -305,8 +307,7 @@ final class LedgerDashboardProviderTest extends TestCase
             $pveSettingsRepository,
             new MiningBestValueCalculator(
                 $miningEntryRepository,
-                $this->createOreValueService($this->jitaSellPricesWithoutCompressedOre()),
-                $this->profileRepositoryWithYield(0.78),
+                $this->createMiningProfileUnitPrices(),
             ),
             $requestStack,
             $miningEntryRepository,

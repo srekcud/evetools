@@ -9,6 +9,8 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Mining\OreValueTableResource;
 use App\Entity\User;
 use App\Enum\MarketSide;
+use App\Repository\ReprocessingProfileRepository;
+use App\Service\MiningValuation\MiningValuationProfileReader;
 use App\Service\OreValueTableService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\InputBag;
@@ -27,6 +29,8 @@ final readonly class OreValueTableProvider implements ProviderInterface
         private Security $security,
         private RequestStack $requestStack,
         private OreValueTableService $oreValueTableService,
+        private MiningValuationProfileReader $profileReader,
+        private ReprocessingProfileRepository $reprocessingProfileRepository,
     ) {
     }
 

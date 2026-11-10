@@ -57,6 +57,10 @@ class MiningSiteScan
     #[ORM\Column(type: 'json')]
     private array $types = [];
 
+    /** @var array{market: string, side: string, form: string, structureName: string|null}|null */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $valuationSource = null;
+
     public function getId(): ?Uuid
     {
         return $this->id;
@@ -207,6 +211,24 @@ class MiningSiteScan
     public function setTypes(array $types): static
     {
         $this->types = $types;
+
+        return $this;
+    }
+
+    /**
+     * @return array{market: string, side: string, form: string, structureName: string|null}|null
+     */
+    public function getValuationSource(): ?array
+    {
+        return $this->valuationSource;
+    }
+
+    /**
+     * @param array{market: string, side: string, form: string, structureName: string|null}|null $valuationSource
+     */
+    public function setValuationSource(?array $valuationSource): static
+    {
+        $this->valuationSource = $valuationSource;
 
         return $this;
     }

@@ -105,7 +105,7 @@ final class MiningSiteSharedScansApiTest extends WebTestCase
                 [1, 1, 1],
                 ['20:45:43', '20:50:33'],
                 [[1, 'Aria Solberg', '20:00:00', null], [2, 'Brann Holt', '20:10:00', '21:00:00'], [3, 'Cyra Lune', '20:20:00', '20:50:33']],
-                ['authorName', 'id', 'missingPriceTypeIds', 'number', 'recentEta', 'remainingValue', 'scannedAt', 'totalUnits', 'totalVolumeM3', 'trendEta', 'typeCount', 'types'],
+                ['authorName', 'id', 'missingPriceTypeIds', 'number', 'recentEta', 'remainingValue', 'scannedAt', 'totalUnits', 'totalVolumeM3', 'trendEta', 'typeCount', 'types', 'valuationSource'],
             ],
             [
                 array_column($responses, 'status'),

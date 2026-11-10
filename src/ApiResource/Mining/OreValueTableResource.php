@@ -32,6 +32,9 @@ class OreValueTableResource
 
     public bool $reprocessYieldKnown = false;
 
+    /** @var array{market: string, side: string, form: string, structureName: string|null}|null */
+    public ?array $valuationSource = null;
+
     /** @var list<array<string, mixed>> */
     public array $rows = [];
 }

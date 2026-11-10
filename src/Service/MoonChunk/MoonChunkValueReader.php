@@ -6,18 +6,19 @@ namespace App\Service\MoonChunk;
 
 use App\Entity\CorporationMiningExtraction;
 use App\Entity\MoonComposition;
+use App\Entity\User;
 use App\Entity\Sde\InvType;
 use App\Enum\MoonChunkStatus;
 use App\Repository\MoonCompositionRepository;
 use App\Repository\Sde\InvTypeRepository;
-use App\Service\MiningSite\MiningSiteUnitPrices;
+use App\Service\MiningValuation\MiningProfileUnitPrices;
 
 final readonly class MoonChunkValueReader
 {
     public function __construct(
         private MoonCompositionRepository $compositionRepository,
         private InvTypeRepository $invTypeRepository,
-        private MiningSiteUnitPrices $unitPrices,
+        private MiningProfileUnitPrices $unitPrices,
         private MoonChunkVolumeEstimator $volumeEstimator,
         private MoonChunkValuer $valuer,
     ) {
@@ -28,7 +29,7 @@ final readonly class MoonChunkValueReader
      *
      * @return \SplObjectStorage<CorporationMiningExtraction, array<string, mixed>> one entry per chunk that is not exploded
      */
-    public function read(array $extractions, \DateTimeImmutable $now): \SplObjectStorage
+    public function read(User $user, array $extractions, \DateTimeImmutable $now): \SplObjectStorage
     {
         $valuedExtractions = array_values(array_filter(
             $extractions,
@@ -37,7 +38,7 @@ final readonly class MoonChunkValueReader
         $compositions = $this->compositionsOf($valuedExtractions);
         $typeIds = $this->typeIdsOf($compositions);
         $types = $typeIds === [] ? [] : $this->invTypeRepository->findByTypeIds($typeIds);
-        $unitPrices = $typeIds === [] ? [] : $this->unitPrices->read($typeIds);
+        $unitPrices = $typeIds === [] ? [] : $this->unitPrices->read($user, $typeIds)->unitPricesByTypeId;
         $unitVolumes = array_map(static fn (?InvType $type): ?float => $type?->getVolume(), array_replace(array_fill_keys($typeIds, null), $types));
 
         /** @var \SplObjectStorage<CorporationMiningExtraction, array<string, mixed>> $views */

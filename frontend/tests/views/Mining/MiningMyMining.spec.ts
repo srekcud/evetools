@@ -77,7 +77,7 @@ beforeEach(() => {
 enableAutoUnmount(afterEach)
 
 describe('MiningMyMining', () => {
-  it('starts on the period already chosen in the ledger, values the lines with the stored structure and export tax, and stores the period it is given without rewriting them', async () => {
+  it('starts on the period already chosen in the ledger, requests the lines without structure or export tax, and stores the period it is given without rewriting the settings of the browser', async () => {
     localStorage.setItem('ledgerSelectedDays', String(STORED_PERIOD_DAYS))
     localStorage.setItem('miningSelectedStructure', JSON.stringify(STORED_STRUCTURE))
     localStorage.setItem('miningExportTax', STORED_EXPORT_TAX)
@@ -99,11 +99,11 @@ describe('MiningMyMining', () => {
       storedExportTax: localStorage.getItem('miningExportTax'),
     }).toEqual({
       requestsAtStart: [
-        `/ledger/mining/entries?days=${STORED_PERIOD_DAYS}&structureId=${STORED_STRUCTURE.id}&exportTax=${STORED_EXPORT_TAX}`,
+        `/ledger/mining/entries?days=${STORED_PERIOD_DAYS}`,
         `/ledger/mining/stats?days=${STORED_PERIOD_DAYS}`,
       ],
       requestsAfterChoice: [
-        `/ledger/mining/entries?days=${CHOSEN_PERIOD_DAYS}&structureId=${STORED_STRUCTURE.id}&exportTax=${STORED_EXPORT_TAX}`,
+        `/ledger/mining/entries?days=${CHOSEN_PERIOD_DAYS}`,
         `/ledger/mining/stats?days=${CHOSEN_PERIOD_DAYS}`,
       ],
       storedPeriod: String(CHOSEN_PERIOD_DAYS),

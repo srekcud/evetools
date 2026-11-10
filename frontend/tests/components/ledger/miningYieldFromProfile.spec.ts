@@ -68,7 +68,7 @@ describe('MiningTab reprocessing yield', () => {
     expect(wrapper.find(`input[aria-label="${en.ledger.mining.yield}"]`).exists()).toBe(false)
   })
 
-  it('requests the entries without any yield, even when an old yield was saved in the browser', async () => {
+  it('requests the entries without any yield, structure or export tax, even when an old yield was saved in the browser', async () => {
     localStorage.setItem(LEGACY_YIELD_STORAGE_KEY, '50')
 
     await mountTab()
@@ -76,6 +76,6 @@ describe('MiningTab reprocessing yield', () => {
     const entriesRequests = vi.mocked(apiRequest).mock.calls.map(([endpoint]) => endpoint).filter(endpoint => endpoint.startsWith('/ledger/mining/entries'))
     expect(entriesRequests.length).toBeGreaterThan(0)
     expect(entriesRequests.every(endpoint => !endpoint.includes('reprocessYield'))).toBe(true)
-    expect(entriesRequests.every(endpoint => endpoint.includes('exportTax='))).toBe(true)
+    expect(entriesRequests.every(endpoint => !endpoint.includes('exportTax=') && !endpoint.includes('structureId='))).toBe(true)
   })
 })

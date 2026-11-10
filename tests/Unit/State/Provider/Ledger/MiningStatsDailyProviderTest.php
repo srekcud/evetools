@@ -11,6 +11,7 @@ use App\Repository\MiningEntryRepository;
 use App\Repository\UserLedgerSettingsRepository;
 use App\Service\MiningBestValueCalculator;
 use App\State\Provider\Ledger\MiningStatsDailyProvider;
+use App\Tests\Unit\Service\Mining\BuildsMiningProfileUnitPrices;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -24,6 +25,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 final class MiningStatsDailyProviderTest extends TestCase
 {
     use BuildsOreValueServiceOnSdeOres;
+    use BuildsMiningProfileUnitPrices;
 
     private const float VALUE_DELTA = 1e-6;
     private const int TYPE_WITHOUT_ANY_PRICE = 81143;
@@ -35,7 +37,7 @@ final class MiningStatsDailyProviderTest extends TestCase
         $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
         $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([
             $knownDay => [self::BITUMENS => 1000],
-            $unknownDay => [self::TRITANIUM => 2500, self::TYPE_WITHOUT_ANY_PRICE => 3150],
+            $unknownDay => [self::VELDSPAR => 2500, self::TYPE_WITHOUT_ANY_PRICE => 3150],
         ]);
         $miningEntryRepository->method('getDailyTotals')->willReturn([
             $knownDay => ['date' => $knownDay, 'totalValue' => 0.0, 'totalQuantity' => 1000],
@@ -49,7 +51,7 @@ final class MiningStatsDailyProviderTest extends TestCase
             $dailyStats->daily,
         );
         $this->assertCount(31, $daysByDate);
-        $this->assertEqualsWithDelta(831214.8, $daysByDate[$knownDay]->totalValue, self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(201300.0, $daysByDate[$knownDay]->totalValue, self::VALUE_DELTA);
         $this->assertSame(1000, $daysByDate[$knownDay]->totalQuantity);
         $this->assertNull($daysByDate[$unknownDay]->totalValue);
         $this->assertSame(5650, $daysByDate[$unknownDay]->totalQuantity);
@@ -80,8 +82,7 @@ final class MiningStatsDailyProviderTest extends TestCase
             $settingsRepository,
             new MiningBestValueCalculator(
                 $miningEntryRepository,
-                $this->createOreValueService($this->jitaSellPricesWithoutCompressedOre()),
-                $this->profileRepositoryWithYield(0.78),
+                $this->createMiningProfileUnitPrices(),
             ),
             $requestStack,
         );

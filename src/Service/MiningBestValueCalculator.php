@@ -5,22 +5,18 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\User;
+use App\Enum\MarketSide;
+use App\Enum\MiningValuationForm;
+use App\Enum\MiningValuationMarket;
 use App\Repository\MiningEntryRepository;
-use App\Repository\ReprocessingProfileRepository;
+use App\Service\MiningValuation\MiningProfileUnitPrices;
+use App\Service\MiningValuation\ValuationSource;
 
 class MiningBestValueCalculator
 {
-    private const array COMPARED_PRICE_SOURCES = [
-        'compressedEquivalentPrice',
-        'reprocessValue',
-        'structureCompressedEquivalentPrice',
-        'structureReprocessValue',
-    ];
-
     public function __construct(
         private readonly MiningEntryRepository $miningEntryRepository,
-        private readonly OreValueService $oreValueService,
-        private readonly ReprocessingProfileRepository $profileRepository,
+        private readonly MiningProfileUnitPrices $unitPrices,
     ) {
     }
 
@@ -119,15 +115,12 @@ class MiningBestValueCalculator
             return [];
         }
 
-        $reprocessYield = $this->profileRepository->findOneBy(['user' => $user])?->getReprocessYield();
-        $orePrices = $this->oreValueService->getBatchOrePrices($typeIds, null, $reprocessYield);
+        return array_fill_keys($typeIds, 0.0);
+    }
 
-        $bestPrices = [];
-        foreach ($typeIds as $typeId) {
-            $bestPrices[$typeId] = $this->computeBestUnitPrice($orePrices[$typeId] ?? []);
-        }
-
-        return $bestPrices;
+    public function valuationSourceOf(User $user): ValuationSource
+    {
+        return new ValuationSource(MiningValuationMarket::Jita, MarketSide::Sell, MiningValuationForm::Raw, null);
     }
 
     /**
@@ -172,31 +165,5 @@ class MiningBestValueCalculator
             'totalValue' => $missingPriceTypeIds === [] ? $totalValue : null,
             'missingPriceTypeIds' => $missingPriceTypeIds,
         ];
-    }
-
-    /**
-     * @param array<string, mixed> $priceData
-     */
-    private function computeBestUnitPrice(array $priceData): ?float
-    {
-        $sourcePrices = [];
-        foreach (self::COMPARED_PRICE_SOURCES as $source) {
-            $sourcePrice = $priceData[$source] ?? null;
-            if ($sourcePrice !== null) {
-                $sourcePrices[] = (float) $sourcePrice;
-            }
-        }
-
-        $positiveSourcePrices = array_filter($sourcePrices, static fn (float $price): bool => $price > 0.0);
-        if ($positiveSourcePrices !== []) {
-            return max($positiveSourcePrices);
-        }
-
-        $rawUnitPrice = $priceData['rawUnitPrice'] ?? null;
-        if ($rawUnitPrice !== null) {
-            return (float) $rawUnitPrice;
-        }
-
-        return $sourcePrices === [] ? null : 0.0;
     }
 }

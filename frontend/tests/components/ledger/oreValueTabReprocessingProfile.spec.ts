@@ -1,13 +1,11 @@
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import OreValueTab from '@/components/ledger/OreValueTab.vue'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import ReprocessingProfilePanel from '@/components/ledger/ReprocessingProfilePanel.vue'
 import type { OreValueTableResponse } from '@/composables/useOreValueTable'
 import type { ReprocessingProfile, ReprocessingProfileInput } from '@/composables/useReprocessingProfile'
 import { apiRequest } from '@/services/api'
-import { useAuthStore } from '@/stores/auth'
-import { i18nPlugin } from './miningLedgerHarness'
+import { mountOreValueTab } from './oreValueTabHarness'
 import { VELDSPAR_TYPE_ID, oreValueRow } from './oreValueTableHarness'
+import { valuationProfileServer } from './miningValuationProfileHarness'
 import {
   COHERENT_ORE_PROCESSING,
   ESI_ERROR_PROFILE,
@@ -54,7 +52,13 @@ function oreValueTable(reprocessYieldKnown: boolean): OreValueTableResponse {
 
 let loadedProfile: () => Promise<ReprocessingProfile>
 
+const valuationProfile = valuationProfileServer()
+
 function respond(endpoint: string, options?: RequestInit): Promise<unknown> {
+  return valuationProfile.respondingWith(respondToOreValueTab)(endpoint, options)
+}
+
+function respondToOreValueTab(endpoint: string, options?: RequestInit): Promise<unknown> {
   const method = options?.method?.toUpperCase() ?? 'GET'
   if (endpoint.startsWith('/mining/ore-values')) {
     return Promise.resolve(oreValueTable(new URLSearchParams(endpoint.split('?')[1]).has('reprocessYield')))
@@ -79,23 +83,8 @@ function lastOreValueQuery(): URLSearchParams {
   return last
 }
 
-async function mountTab() {
-  const pinia = createPinia()
-  setActivePinia(pinia)
-  useAuthStore().user = {
-    id: 'user-a',
-    authStatus: 'valid',
-    mainCharacter: PILOT_ONE,
-    characters: [PILOT_ONE, PILOT_TWO],
-    corporationId: 98000001,
-    corporationName: 'Deep Core Mining Inc.',
-  }
-  const wrapper = mount(OreValueTab, {
-    props: { structureId: null },
-    global: { plugins: [i18nPlugin(), pinia] },
-  })
-  await flushPromises()
-  return wrapper
+function mountTab() {
+  return mountOreValueTab([PILOT_ONE, PILOT_TWO])
 }
 
 enableAutoUnmount(afterEach)

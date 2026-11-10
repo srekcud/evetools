@@ -5,6 +5,7 @@ import type { OreSaleResponse } from '@/composables/useOreSale'
 import { ApiError, apiRequest } from '@/services/api'
 import { messageOf } from '../../localeTexts'
 import { i18nPlugin } from './miningLedgerHarness'
+import { valuationProfileServer } from './miningValuationProfileHarness'
 import { PRICED_SALE } from './oreSaleHarness'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
@@ -18,7 +19,7 @@ const MYSTERY_ORE_TYPE_ID = 99314001
 async function mountOperationPanel(answer: () => Promise<OreSaleResponse>) {
   const pinia = createPinia()
   setActivePinia(pinia)
-  vi.mocked(apiRequest).mockImplementation(() => answer())
+  vi.mocked(apiRequest).mockImplementation(valuationProfileServer().respondingWith(() => answer()))
   const wrapper = mount(OreSalePanel, { props: { operationId: OPERATION_ID }, global: { plugins: [i18nPlugin(), pinia] } })
   await flushPromises()
   return wrapper
@@ -39,7 +40,7 @@ describe('OreSalePanel of an operation', () => {
   it('asks for the ore sale of its operation and shows the rows of the answer', async () => {
     const wrapper = await mountOperationPanel(() => Promise.resolve(PRICED_SALE))
 
-    expect(vi.mocked(apiRequest).mock.calls.map(([endpoint]) => endpoint)).toEqual([`/mining-operations/${OPERATION_ID}/ore-sale`])
+    expect(vi.mocked(apiRequest).mock.calls.map(([endpoint]) => endpoint).filter(endpoint => endpoint !== '/mining/valuation-profile')).toEqual([`/mining-operations/${OPERATION_ID}/ore-sale`])
     expect(wrapper.findAll('tbody tr[data-type-id]')).toHaveLength(PRICED_SALE.rows.length)
     expect(wrapper.find('[data-ore-sale]').exists()).toBe(true)
   })

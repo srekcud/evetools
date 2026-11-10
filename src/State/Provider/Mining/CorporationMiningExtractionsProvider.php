@@ -54,7 +54,7 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
         foreach ($user->getCharacterCorporationIds() as $corporationId) {
             $visibleExtractions[$corporationId] = $this->visibleExtractions($corporationId, $now);
         }
-        $chunkValues = $this->chunkValueReader->read(array_merge(...array_values($visibleExtractions)), $now);
+        $chunkValues = $this->chunkValueReader->read($user, array_merge(...array_values($visibleExtractions)), $now);
 
         $linkedOperations = $this->linkedOperationsByChunkId($user);
 

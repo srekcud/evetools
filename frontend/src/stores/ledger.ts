@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiRequest } from '@/services/api'
+import type { ValuationSource } from '@/stores/miningValuationProfile'
 
 // Types
 export interface LedgerDashboard {
@@ -131,6 +132,8 @@ export interface MiningEntry {
   usage: 'unknown' | 'sold' | 'corp_project' | 'industry'
   linkedProjectId: string | null
   linkedCorpProjectId: number | null
+  unitValue: number | null
+  valuationSource: ValuationSource | null
   syncedAt: string
 }
 

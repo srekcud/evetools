@@ -5,6 +5,7 @@ import type { OreSaleResponse } from '@/composables/useOreSale'
 import { apiRequest } from '@/services/api'
 import { messageOf } from '../../localeTexts'
 import { i18nPlugin } from './miningLedgerHarness'
+import { DEFAULT_PROFILE, PERIMETER_STRUCTURE_NAME, miningValuationProfile, valuationProfileServer } from './miningValuationProfileHarness'
 import {
   COMPRESSED_BITUMENS_TYPE_ID,
   COMPRESSED_CLEAR_ICICLE_TYPE_ID,
@@ -37,10 +38,10 @@ type SaleColumn =
   | 'bestSource'
   | 'totalValue'
 
-async function mountPanel(sale: () => Promise<OreSaleResponse>) {
+async function mountPanel(sale: () => Promise<OreSaleResponse>, profile = DEFAULT_PROFILE) {
   const pinia = createPinia()
   setActivePinia(pinia)
-  vi.mocked(apiRequest).mockImplementation(endpoint => endpoint.startsWith('/mining/ore-sale') ? sale() : new Promise(() => {}))
+  vi.mocked(apiRequest).mockImplementation(valuationProfileServer(profile).respondingWith(endpoint => endpoint.startsWith('/mining/ore-sale') ? sale() : new Promise(() => {})))
   const wrapper = mount(OreSalePanel, { global: { plugins: [i18nPlugin(), pinia] } })
   await flushPromises()
   return wrapper
@@ -128,10 +129,9 @@ describe('OreSalePanel rows', () => {
 
 describe('OreSalePanel structure prices', () => {
   it('shows the structure price columns when the sale is valued with a structure', async () => {
-    localStorage.setItem('miningSelectedStructure', JSON.stringify({ id: SALE_STRUCTURE_ID, name: 'Perimeter - Tranquility Trading Tower' }))
-    const wrapper = await mountPanel(() => Promise.resolve(STRUCTURE_SALE))
+    const wrapper = await mountPanel(() => Promise.resolve(STRUCTURE_SALE), miningValuationProfile({ structureId: SALE_STRUCTURE_ID, structureName: PERIMETER_STRUCTURE_NAME }))
 
-    expect(vi.mocked(apiRequest).mock.calls.map(([endpoint]) => endpoint)).toEqual([`/mining/ore-sale?structureId=${SALE_STRUCTURE_ID}`])
+    expect(vi.mocked(apiRequest).mock.calls.map(([endpoint]) => endpoint).filter(endpoint => endpoint.startsWith('/mining/ore-sale'))).toEqual([`/mining/ore-sale?structureId=${SALE_STRUCTURE_ID}`])
     expect(wrapper.find('th[data-column="structureBuyPrice"]').exists()).toBe(true)
     expect(wrapper.find('th[data-column="structureSellPrice"]').exists()).toBe(true)
     expect(cell(wrapper, COMPRESSED_VELDSPAR_TYPE_ID, 'structureBuyPrice').text()).not.toBe('—')

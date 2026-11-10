@@ -33,7 +33,7 @@ final readonly class OreValueTableService
     /**
      * @return list<array<string, mixed>>
      */
-    public function build(string $market, MarketSide $side, ?int $structureId, ?float $reprocessYield): array
+    public function build(string $market, MarketSide $side, ?int $structureId, ?float $reprocessYield, float $exportTax = 0.0): array
     {
         $onStructure = $market === self::MARKET_STRUCTURE;
         $oreTypes = array_values(array_filter(

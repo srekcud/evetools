@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Enum\MiningSiteStatus;
 use App\Repository\MiningSiteScanRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\MiningValuation\MiningProfileUnitPrices;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
@@ -32,7 +33,7 @@ final readonly class MiningSiteScanRecorder
         private EntityManagerInterface $entityManager,
         private MiningSiteScanRepository $scanRepository,
         private InvTypeRepository $invTypeRepository,
-        private MiningSiteUnitPrices $unitPrices,
+        private MiningProfileUnitPrices $unitPrices,
         private SiteDepletionEstimator $estimator,
         private ClockInterface $clock,
     ) {
@@ -71,7 +72,7 @@ final readonly class MiningSiteScanRecorder
         $volumes = $this->volumesOf($typeIds);
         $estimate = $this->estimator->estimate(
             [...array_map($this->sampleOf(...), $previousScans), new SiteScanSample($scannedAt, $unitsByTypeId)],
-            $this->unitPrices->read($typeIds),
+            $this->unitPrices->read($author, $typeIds)->unitPricesByTypeId,
             $volumes,
         );
 
