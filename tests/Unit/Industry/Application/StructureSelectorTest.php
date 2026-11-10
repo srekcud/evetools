@@ -555,7 +555,7 @@ final class StructureSelectorTest extends TestCase
     {
         $selector = new StructureSelector([
             ProductionStructures::raitaruWithFacilityTax('raitaru-tax-1-without-rig', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, 0.01),
-            ProductionStructures::raitaruWithFacilityTax('raitaru-tax-2-laboratory-rig', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, 0.02, ProductionStructures::laboratoryRig(12.0)),
+            ProductionStructures::raitaruWithFacilityTaxAndScienceRigs('raitaru-tax-2-laboratory-rig', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, 0.02, ...ProductionStructures::laboratoryRigs(null, 12.0)),
         ], FavoriteSystems::none(), self::installCostIndices([self::OTHER_SYSTEM_ID => 0.05]));
 
         $choice = $selector->select($activity, null);

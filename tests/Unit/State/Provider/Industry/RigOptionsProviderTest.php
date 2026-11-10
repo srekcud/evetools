@@ -87,6 +87,7 @@ final class RigOptionsProviderTest extends TestCase
     public function testTargetCategoriesAreTheFrozenOnesTheEngineAppliesTheRigTo(array $rig): void
     {
         assert(is_string($rig['name']));
+        $this->assertArrayHasKey($rig['name'], $this->frozenBonuses());
         $frozenCategories = array_keys($this->frozenBonuses()[$rig['name']]);
         sort($frozenCategories);
 
@@ -100,7 +101,7 @@ final class RigOptionsProviderTest extends TestCase
     {
         $laboratoryRigs = array_filter($this->rigsByName(), static fn (array $rig): bool => $rig['category'] === 'Laboratory');
 
-        $this->assertCount(6, $laboratoryRigs);
+        $this->assertCount(8, $laboratoryRigs);
         foreach ($laboratoryRigs as $rig) {
             $this->assertSame(0, $rig['bonus']);
         }
@@ -118,7 +119,7 @@ final class RigOptionsProviderTest extends TestCase
         }
 
         $this->assertSame(
-            ['manufacturing M' => 52, 'manufacturing L' => 30, 'manufacturing XL' => 9, 'reaction M' => 6, 'reaction L' => 2],
+            ['manufacturing M' => 54, 'manufacturing L' => 30, 'manufacturing XL' => 9, 'reaction M' => 6, 'reaction L' => 2],
             $countBySize,
         );
     }

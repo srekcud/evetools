@@ -236,7 +236,7 @@ final class ResearchProfitabilityTest extends TestCase
             $this->hobgoblinCosts(me0: 1_000_000.0, me1: 980_000.0),
             $this->planOf($this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0)),
             [self::HOBGOBLIN_II => $this->owned(me: 0)],
-            structures: [$this->structure(costRoleBonus: 0.9, facilityTaxRate: 0.01, rigs: [ProductionStructures::laboratoryRig(12.0)])],
+            structures: [$this->structure(costRoleBonus: 0.9, facilityTaxRate: 0.01, scienceRigs: ProductionStructures::laboratoryRigs(null, 12.0))],
             costIndices: new InMemorySystemCostIndices([
                 self::STRUCTURE_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::STRUCTURE_SYSTEM_RESEARCH_COST_INDEX],
                 self::MANUFACTURING_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::OTHER_FAVORITE_SYSTEM_RESEARCH_COST_INDEX],
@@ -432,7 +432,7 @@ final class ResearchProfitabilityTest extends TestCase
     /**
      * @param list<StructureRig> $rigs
      */
-    private function structure(float $costRoleBonus, float $facilityTaxRate, array $rigs = []): ProductionStructure
+    private function structure(float $costRoleBonus, float $facilityTaxRate, array $rigs = [], array $scienceRigs = []): ProductionStructure
     {
         return new ProductionStructure(
             'workshop',
@@ -444,6 +444,7 @@ final class ResearchProfitabilityTest extends TestCase
             $rigs,
             new Multiplier($costRoleBonus),
             $facilityTaxRate,
+            scienceRigs: $scienceRigs,
         );
     }
 

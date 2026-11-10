@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Industry\Infrastructure\Doctrine;
 
 use App\Entity\IndustryStructureConfig;
 use App\Entity\Sde\DgmTypeAttribute;
+use App\Entity\Sde\DgmTypeEffect;
 use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
@@ -19,6 +20,7 @@ use App\Industry\Infrastructure\Sde\SdeRigBonusReader;
 use App\Industry\Infrastructure\Sde\SdeStructureBonusReader;
 use App\Repository\IndustryStructureConfigRepository;
 use App\Repository\Sde\DgmTypeAttributeRepository;
+use App\Repository\Sde\DgmTypeEffectRepository;
 use App\Repository\Sde\InvTypeRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -58,6 +60,8 @@ final class ConfiguredProductionStructuresTest extends TestCase
     private const string M_SET_THUKKER_BASIC_CAPITAL_COMPONENT = 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency';
     private const string XL_SET_THUKKER_STRUCTURE_AND_COMPONENT = 'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency';
     private const string XL_SET_LABORATORY_OPTIMIZATION_II = 'Standup XL-Set Laboratory Optimization II';
+    private const string M_SET_BLUEPRINT_COPY_ACCELERATOR_II = 'Standup M-Set Blueprint Copy Accelerator II';
+    private const string REMOVED_M_SET_LABORATORY_OPTIMIZATION_II = 'Standup M-Set Laboratory Optimization II';
 
     /** typeId by rig name (sde_inv_types). */
     private const array RIG_TYPE_IDS = [
@@ -68,6 +72,7 @@ final class ConfiguredProductionStructuresTest extends TestCase
         self::M_SET_THUKKER_BASIC_CAPITAL_COMPONENT => 45544,
         self::XL_SET_THUKKER_STRUCTURE_AND_COMPONENT => 45548,
         self::XL_SET_LABORATORY_OPTIMIZATION_II => 37182,
+        self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II => 43892,
     ];
 
     /**
@@ -76,9 +81,9 @@ final class ConfiguredProductionStructuresTest extends TestCase
      * time / material bonus. The refineries (Athanor 35835, Tatara 35836) carry no role bonus.
      */
     private const array DOGMA_ATTRIBUTES = [
-        35825 => [2600 => 0.99, 2601 => 0.97],
-        35826 => [2600 => 0.99, 2601 => 0.96],
-        35827 => [2600 => 0.99, 2601 => 0.95],
+        35825 => [2600 => 0.99, 2601 => 0.97, 2602 => 0.85],
+        35826 => [2600 => 0.99, 2601 => 0.96, 2602 => 0.8],
+        35827 => [2600 => 0.99, 2601 => 0.95, 2602 => 0.7],
         35835 => [],
         35836 => [],
         37159 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => 0, 2594 => -2.4, 2595 => 0],
@@ -88,6 +93,18 @@ final class ConfiguredProductionStructuresTest extends TestCase
         45544 => [2355 => 0.1, 2356 => 1.9, 2357 => 0.1, 2593 => 0, 2653 => -3.7],
         45548 => [2355 => 0.1, 2356 => 1.9, 2357 => 0.1, 2593 => -20, 2594 => -2, 2653 => -3.7],
         37182 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => -24, 2594 => 0, 2595 => -12],
+        43892 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => -24, 2594 => 0, 2595 => 0],
+    ];
+
+    private const array DOGMA_EFFECTS = [
+        37159 => [2663, 6808, 6842],
+        37160 => [2663, 6806, 6842],
+        46487 => [2663, 6973, 6976],
+        46484 => [2663, 6971, 6976],
+        45544 => [2663, 6842, 6887],
+        45548 => [2663, 6824, 6825, 6827, 6828, 6829, 6842, 6887, 6889, 6890],
+        37182 => [2663, 6830, 6831, 6832, 6833, 6834, 6835, 6836, 6837, 6842],
+        43892 => [2663, 6837, 6842],
     ];
 
     private const float FLOAT_TOLERANCE = 1e-12;
@@ -217,13 +234,15 @@ final class ConfiguredProductionStructuresTest extends TestCase
     }
 
     #[Group('issue-526')]
+    #[Group('issue-523')]
     public function testLaboratoryRigReducesTheCostIndexTermOfLaboratoryJobsAndNeverTheMaterials(): void
     {
         $this->configure('sotiyo', 'nullsec', rigs: [self::XL_SET_LABORATORY_OPTIMIZATION_II]);
 
         $structure = $this->onlyStructureOf(self::USER_ID);
 
-        $this->assertCount(1, $structure->rigs);
+        $this->assertSame([], $structure->rigs);
+        $this->assertCount(4, $structure->scienceRigs);
         $this->assertEqualsWithDelta(0.95 * 0.748, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
         $this->assertEqualsWithDelta(0.95, $structure->installCostMultiplierFor(ActivityKind::Manufacturing)->value, self::FLOAT_TOLERANCE);
         $this->assertEqualsWithDelta(0.99, $structure->materialMultiplierFor(ActivityKind::Manufacturing, 'equipment')->value, self::FLOAT_TOLERANCE);
@@ -237,7 +256,69 @@ final class ConfiguredProductionStructuresTest extends TestCase
         $structure = $this->onlyStructureOf(self::USER_ID);
 
         $this->assertCount(1, $structure->rigs);
+        $this->assertSame([], $structure->scienceRigs);
         $this->assertEqualsWithDelta(0.97, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-523')]
+    public function testEngineeringComplexGetsTheCopyTimeRoleBonusOfItsType(): void
+    {
+        $this->configure('raitaru', 'nullsec');
+        $this->configure('azbel', 'nullsec');
+        $this->configure('sotiyo', 'nullsec');
+
+        $timeRoleBonuses = array_map(
+            static fn (ProductionStructure $structure): float => $structure->timeRoleBonus->value,
+            $this->structures()->configuredBy(self::USER_ID),
+        );
+
+        $this->assertSame([0.85, 0.8, 0.7], $timeRoleBonuses);
+    }
+
+    #[Group('issue-523')]
+    public function testRefineryWithoutTimeRoleBonusInTheSdeCopiesAtTheBaseTime(): void
+    {
+        $this->configure('tatara', 'nullsec');
+
+        $this->assertSame(1.0, $this->onlyStructureOf(self::USER_ID)->timeRoleBonus->value);
+    }
+
+    #[Group('issue-523')]
+    public function testXlLaboratoryRigShortensTheCopyOfASotiyo(): void
+    {
+        $this->configure('sotiyo', 'nullsec', rigs: [self::XL_SET_LABORATORY_OPTIMIZATION_II]);
+
+        $structure = $this->onlyStructureOf(self::USER_ID);
+
+        $this->assertEqualsWithDelta(0.7 * 0.496, $structure->timeMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-523')]
+    public function testMSetBlueprintCopyAcceleratorShortensTheCopyAndLeavesItsInstallCostAtTheRoleBonus(): void
+    {
+        $this->configure('raitaru', 'nullsec', rigs: [self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II]);
+
+        $structure = $this->onlyStructureOf(self::USER_ID);
+
+        $this->assertCount(1, $structure->scienceRigs);
+        $this->assertEqualsWithDelta(0.85 * 0.496, $structure->timeMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(0.97, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-523')]
+    public function testRigNameMissingFromTheSdeIsIgnoredSoTheStructureStillLoads(): void
+    {
+        $this->configure('sotiyo', 'nullsec', rigs: [self::XL_SET_LABORATORY_OPTIMIZATION_II, self::REMOVED_M_SET_LABORATORY_OPTIMIZATION_II]);
+
+        try {
+            $structure = $this->onlyStructureOf(self::USER_ID);
+        } catch (\UnexpectedValueException $refusal) {
+            self::fail('A structure fitted with a rig name missing from the SDE must still load: '.$refusal->getMessage());
+        }
+
+        $this->assertSame([], $structure->rigs);
+        $this->assertCount(4, $structure->scienceRigs);
+        $this->assertEqualsWithDelta(0.95 * 0.748, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
     }
 
     public function testRefineryRigReducesTheMaterialsOfItsReactions(): void
@@ -370,7 +451,7 @@ final class ConfiguredProductionStructuresTest extends TestCase
             $this->configurationRepository(),
             $this->invTypeRepository(),
             new SdeStructureBonusReader($dogmaAttributeValues),
-            new SdeRigBonusReader($dogmaAttributeValues),
+            new SdeRigBonusReader($dogmaAttributeValues, $this->effectRepository()),
         );
     }
 
@@ -426,6 +507,17 @@ final class ConfiguredProductionStructuresTest extends TestCase
 
             return $resolved;
         });
+
+        return $repository;
+    }
+
+    private function effectRepository(): DgmTypeEffectRepository
+    {
+        $repository = $this->createStub(DgmTypeEffectRepository::class);
+        $repository->method('findByTypeId')->willReturnCallback(static fn (int $typeId): array => array_map(
+            static fn (int $effectId): DgmTypeEffect => (new DgmTypeEffect())->setTypeId($typeId)->setEffectId($effectId)->setIsDefault(false),
+            self::DOGMA_EFFECTS[$typeId] ?? [],
+        ));
 
         return $repository;
     }

@@ -12,6 +12,7 @@ use App\Industry\Domain\Cost;
 use App\Industry\Domain\InstallCost;
 use App\Industry\Domain\Isk;
 use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\ScienceRig;
 use App\Industry\Domain\SecurityClass;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -21,6 +22,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ProductionStructure::class)]
 #[CoversClass(StructureRig::class)]
+#[CoversClass(ScienceRig::class)]
 #[Group('issue-526')]
 final class ProductionStructureInstallCostMultiplierTest extends TestCase
 {
@@ -35,7 +37,7 @@ final class ProductionStructureInstallCostMultiplierTest extends TestCase
     #[DataProvider('laboratoryActivityProvider')]
     public function testLaboratoryRigLowersTheCostIndexTermOfEveryLaboratoryActivity(ActivityKind $activity): void
     {
-        $structure = self::sotiyo(SecurityClass::NullSec, ProductionStructures::laboratoryRig(self::LABORATORY_RIG_II_REDUCTION_PERCENT));
+        $structure = self::sotiyo(SecurityClass::NullSec, scienceRigs: ProductionStructures::laboratoryRigs(null, self::LABORATORY_RIG_II_REDUCTION_PERCENT));
 
         $this->assertEqualsWithDelta(0.95 * 0.748, $structure->installCostMultiplierFor($activity)->value, self::FLOAT_TOLERANCE);
     }
@@ -54,7 +56,7 @@ final class ProductionStructureInstallCostMultiplierTest extends TestCase
     #[DataProvider('productionActivityProvider')]
     public function testLaboratoryRigLeavesProductionJobsAtTheRoleBonus(ActivityKind $activity): void
     {
-        $structure = self::sotiyo(SecurityClass::NullSec, ProductionStructures::laboratoryRig(self::LABORATORY_RIG_II_REDUCTION_PERCENT));
+        $structure = self::sotiyo(SecurityClass::NullSec, scienceRigs: ProductionStructures::laboratoryRigs(null, self::LABORATORY_RIG_II_REDUCTION_PERCENT));
 
         $this->assertEqualsWithDelta(self::SOTIYO_COST_ROLE_BONUS, $structure->installCostMultiplierFor($activity)->value, self::FLOAT_TOLERANCE);
     }
@@ -71,7 +73,7 @@ final class ProductionStructureInstallCostMultiplierTest extends TestCase
     #[DataProvider('securityProvider')]
     public function testSecurityModifierOfTheRigScalesItsCostReduction(SecurityClass $security, float $expectedRigMultiplier): void
     {
-        $structure = self::sotiyo($security, ProductionStructures::laboratoryRig(self::LABORATORY_RIG_II_REDUCTION_PERCENT));
+        $structure = self::sotiyo($security, scienceRigs: ProductionStructures::laboratoryRigs(null, self::LABORATORY_RIG_II_REDUCTION_PERCENT));
 
         $this->assertEqualsWithDelta(self::SOTIYO_COST_ROLE_BONUS * $expectedRigMultiplier, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
     }
@@ -88,14 +90,14 @@ final class ProductionStructureInstallCostMultiplierTest extends TestCase
 
     public function testMaterialRigDoesNotChangeTheInstallCostMultiplierOfCopying(): void
     {
-        $structure = self::sotiyo(SecurityClass::NullSec, ProductionStructures::manufacturingRig(2.4, 'ammunition'));
+        $structure = self::sotiyo(SecurityClass::NullSec, rigs: [ProductionStructures::manufacturingRig(2.4, 'ammunition')]);
 
         $this->assertEqualsWithDelta(self::SOTIYO_COST_ROLE_BONUS, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
     }
 
     public function testObservedCopyJobCostsTheInGameInstallCostAndTheRigTouchesNeitherTheTaxNorTheSurcharge(): void
     {
-        $withRig = $this->copyInstallCostIn(self::sotiyo(SecurityClass::NullSec, ProductionStructures::laboratoryRig(self::LABORATORY_RIG_II_REDUCTION_PERCENT)));
+        $withRig = $this->copyInstallCostIn(self::sotiyo(SecurityClass::NullSec, scienceRigs: ProductionStructures::laboratoryRigs(null, self::LABORATORY_RIG_II_REDUCTION_PERCENT)));
         $withoutRig = $this->copyInstallCostIn(self::sotiyo(SecurityClass::NullSec));
 
         $this->assertEqualsWithDelta(2846.0, $withRig->systemCost->amount()->amount, 1.5);
@@ -118,7 +120,7 @@ final class ProductionStructureInstallCostMultiplierTest extends TestCase
         );
     }
 
-    private static function sotiyo(SecurityClass $security, StructureRig ...$rigs): ProductionStructure
+    private static function sotiyo(SecurityClass $security, array $rigs = [], array $scienceRigs = []): ProductionStructure
     {
         return new ProductionStructure(
             'sotiyo',
@@ -127,9 +129,10 @@ final class ProductionStructureInstallCostMultiplierTest extends TestCase
             30_002_187,
             new \DateTimeImmutable('2026-01-01 00:00:00'),
             new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
-            array_values($rigs),
+            $rigs,
             new Multiplier(self::SOTIYO_COST_ROLE_BONUS),
             self::OBSERVED_FACILITY_TAX_RATE,
+            scienceRigs: $scienceRigs,
         );
     }
 }

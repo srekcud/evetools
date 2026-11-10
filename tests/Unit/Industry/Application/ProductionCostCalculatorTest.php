@@ -939,13 +939,17 @@ final class ProductionCostCalculatorTest extends TestCase
     #[Group('issue-526')]
     public function testLaboratoryRigDoesNotChangeTheInstallCostOfManufacturing(): void
     {
-        $withLaboratoryRig = ProductionStructures::raitaruWithFacilityTax(
+        $withLaboratoryRig = new ProductionStructure(
             'raitaru-nullsec',
+            StructureType::EngineeringComplex,
             SecurityClass::NullSec,
             self::RAITARU_SYSTEM_ID,
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            [ProductionStructures::manufacturingRig(2.4, 'ammunition')],
+            new Multiplier(ProductionStructures::RAITARU_COST_ROLE_BONUS),
             self::RAITARU_FACILITY_TAX_RATE,
-            ProductionStructures::manufacturingRig(2.4, 'ammunition'),
-            ProductionStructures::laboratoryRig(12.0),
+            scienceRigs: ProductionStructures::laboratoryRigs(null, 12.0),
         );
 
         $reference = self::hailLCalculator()->costOf(self::hailLRequest(CostMode::MarginalCost, [self::nullsecRaitaru()]));
@@ -963,9 +967,10 @@ final class ProductionCostCalculatorTest extends TestCase
             self::COPYING_AND_INVENTION_SYSTEM_ID,
             new \DateTimeImmutable('2026-01-01 00:00:00'),
             new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
-            [ProductionStructures::laboratoryRig(12.0)],
+            [],
             new Multiplier(ProductionStructures::SOTIYO_COST_ROLE_BONUS),
             ProductionStructures::NO_FACILITY_TAX,
+            scienceRigs: ProductionStructures::laboratoryRigs(null, 12.0),
         );
     }
 
