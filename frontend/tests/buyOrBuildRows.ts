@@ -5,6 +5,7 @@ export function buyOrBuildRow(overrides: Partial<BuyOrBuildRow>): BuyOrBuildRow 
     typeId: 0,
     typeName: null,
     activity: 'manufacturing',
+    blacklisted: false,
     quantity: 0,
     runs: 1,
     producedQuantity: 0,

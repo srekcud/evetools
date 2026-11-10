@@ -108,7 +108,7 @@ class IndustryProjectService
         return PriceSource::jitaSellPercentile(JitaMarketService::CHEAPEST_PERCENTILE * PriceSource::PERCENT_PER_FRACTION);
     }
 
-    public function buildBom(IndustryProject $project, User $owner): void
+    public function buildBom(IndustryProject $project, User $owner, bool $refuseToDropWorkedLines = false): void
     {
         if ($project->isCompleted()) {
             throw new \RuntimeException('The BOM of a completed project cannot be rebuilt.');
@@ -172,13 +172,13 @@ class IndustryProjectService
             $plannedLines[] = $bomItem;
         }
 
-        $this->reconcileBomLines($project, $plannedLines);
+        $this->reconcileBomLines($project, $plannedLines, $refuseToDropWorkedLines);
     }
 
     /**
      * @param list<IndustryProjectBomLine> $plannedLines
      */
-    private function reconcileBomLines(IndustryProject $project, array $plannedLines): void
+    private function reconcileBomLines(IndustryProject $project, array $plannedLines, bool $refuseToDropWorkedLines): void
     {
         $contributedLineIds = $this->contributedLineIdsOf($project);
         $carriesContribution = static fn (IndustryProjectBomLine $line): bool => isset($contributedLineIds[$line->getId()->toRfc4122()]);
@@ -191,7 +191,13 @@ class IndustryProjectService
         }
         unset($existingLines);
 
-        foreach ($this->groupByLineKey($plannedLines) as $key => $plannedGroup) {
+        $plannedByKey = $this->groupByLineKey($plannedLines);
+
+        if ($refuseToDropWorkedLines) {
+            $this->assertNoWorkedLineIsDropped($existingByKey, $plannedByKey, $carriesContribution);
+        }
+
+        foreach ($plannedByKey as $key => $plannedGroup) {
             usort($plannedGroup, static fn (IndustryProjectBomLine $a, IndustryProjectBomLine $b): int => $b->getRuns() <=> $a->getRuns());
 
             foreach ($plannedGroup as $rank => $plannedLine) {
@@ -209,6 +215,22 @@ class IndustryProjectService
             foreach ($unmatchedLines as $unmatchedLine) {
                 if (!$carriesContribution($unmatchedLine)) {
                     $project->removeBomItem($unmatchedLine);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array<string, list<IndustryProjectBomLine>> $existingByKey
+     * @param array<string, list<IndustryProjectBomLine>> $plannedByKey
+     * @param callable(IndustryProjectBomLine): bool $carriesContribution
+     */
+    private function assertNoWorkedLineIsDropped(array $existingByKey, array $plannedByKey, callable $carriesContribution): void
+    {
+        foreach ($existingByKey as $key => $existingLines) {
+            foreach (array_slice($existingLines, \count($plannedByKey[$key] ?? [])) as $droppedLine) {
+                if (!$droppedLine->getJobMatches()->isEmpty() || !$droppedLine->getPurchases()->isEmpty() || $carriesContribution($droppedLine)) {
+                    throw new \RuntimeException(\sprintf('The line "%s" carries a linked job, a purchase or a contribution and cannot be removed from the plan.', $droppedLine->getTypeName()));
                 }
             }
         }
@@ -274,11 +296,14 @@ class IndustryProjectService
         $line->setEstimatedPrice($plannedLine->getEstimatedPrice());
     }
 
-    public function planOf(IndustryProject $project, User $owner): PlannedProduction
+    public function planOf(IndustryProject $project, User $owner, ?int $unblacklistedTypeId = null): PlannedProduction
     {
         $blacklistedTypeIds = $this->resolveBlacklistedTypeIds(
             $project->getBlacklistGroupIds(),
-            $project->getBlacklistTypeIds(),
+            array_values(array_filter(
+                $project->getBlacklistTypeIds(),
+                static fn (int $typeId): bool => $typeId !== $unblacklistedTypeId,
+            )),
         );
 
         try {

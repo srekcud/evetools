@@ -786,6 +786,92 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertSame('The production plan has 301 BOM lines, above the limit of 300 BOM lines per project.', $refusal?->getMessage());
     }
 
+    #[DataProvider('statusesWhereTheTypesCanBeSwitched')]
+    #[Group('issue-343')]
+    public function testTheBlacklistTypesOfAProjectThatIsNotADraftNorCompletedAreSavedAndTheBomIsRebuiltRefusingToDropWorkedLines(ProjectStatus $status): void
+    {
+        $this->project->setStatus($status);
+        $this->project->setBlacklistGroupIds([334]);
+        $this->project->setBlacklistTypeIds([34]);
+        $input = new UpdateProjectInput();
+        $input->blacklistTypeIds = [34, 1001];
+
+        $this->projectService->expects($this->once())->method('buildBom')->with($this->project, $this->owner, true);
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->update($input);
+
+        self::assertSame([[334], [34, 1001]], [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()]);
+        self::assertSame([34, 1001], $resource->blacklistTypeIds);
+    }
+
+    public static function statusesWhereTheTypesCanBeSwitched(): iterable
+    {
+        yield 'published' => [ProjectStatus::Published];
+        yield 'in progress' => [ProjectStatus::InProgress];
+        yield 'selling' => [ProjectStatus::Selling];
+    }
+
+    #[Group('issue-343')]
+    public function testTheBlacklistTypesOfADraftProjectRebuildTheBomWithoutRefusingWorkedLines(): void
+    {
+        $this->project->setStatus(ProjectStatus::Draft);
+        $input = new UpdateProjectInput();
+        $input->blacklistTypeIds = [1001];
+
+        $this->projectService->expects($this->once())->method('buildBom')->with($this->project, $this->owner, false);
+
+        $this->update($input);
+
+        self::assertSame([1001], $this->project->getBlacklistTypeIds());
+    }
+
+    #[Group('issue-343')]
+    public function testTheBlacklistTypesOfACompletedProjectAreRefusedAndNothingIsChanged(): void
+    {
+        $this->project->setStatus(ProjectStatus::Completed);
+        $this->project->setBlacklistGroupIds([334]);
+        $this->project->setBlacklistTypeIds([34]);
+        $input = new UpdateProjectInput();
+        $input->blacklistTypeIds = [34, 1001];
+
+        $this->projectService->expects($this->never())->method('buildBom');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertSame('The blacklist of a completed project cannot be changed', $refusal?->getMessage());
+        self::assertSame([[334], [34]], [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()]);
+    }
+
+    #[Group('issue-343')]
+    public function testARebuildRefusedForAWorkedLineOfAProjectInProgressIsABadRequestWithTheMessageOfTheServiceAndRestoresTheBlacklist(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $this->project->setBlacklistGroupIds([334]);
+        $this->project->setBlacklistTypeIds([34]);
+        $input = new UpdateProjectInput();
+        $input->blacklistTypeIds = [34, 1001];
+
+        $this->projectService->method('buildBom')->willThrowException(new \RuntimeException('The line "Hull Plating" carries a linked job, a purchase or a contribution and cannot be removed from the plan.'));
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertSame('The line "Hull Plating" carries a linked job, a purchase or a contribution and cannot be removed from the plan.', $refusal?->getMessage());
+        self::assertSame([[334], [34]], [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()]);
+    }
+
     private function assertUpdateIsRefused(UpdateProjectInput $input): void
     {
         $this->entityManager->expects($this->never())->method('flush');

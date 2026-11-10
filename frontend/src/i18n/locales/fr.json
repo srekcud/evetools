@@ -2385,7 +2385,13 @@
       "saving": "économie {amount}",
       "savingIfSurplusReused": "avec réemploi du surplus, fabriquer économise {amount}",
       "withoutImport": "sans l'import : acheter",
-      "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet."
+      "hint": "Fabriquer = matériaux et job, par unité. Acheter = prix Jita plus import jusqu'à l'atelier (m³ × sauts × le tarif). Le surplus d'un run n'est pas crédité au projet.",
+      "switch": {
+        "toBuy": "Passer en achat",
+        "toBuild": "Passer en fabrication",
+        "blacklisted": "acheté (blacklist)",
+        "error": "Le composant n'a pas pu être basculé"
+      }
     },
     "research": {
       "title": "Recherche à lancer ?",

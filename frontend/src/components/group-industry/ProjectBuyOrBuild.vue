@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupBuyOrBuildStore } from '@/stores/group-industry/buyOrBuild'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BuyOrBuildChoice, BuyOrBuildRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
 import UnknownContributionValue from './UnknownContributionValue.vue'
@@ -15,8 +16,17 @@ const CHOICE_CHIP_CLASSES: Record<BuyOrBuildChoice, string> = {
   unknown: 'border-dashed border-violet-400 text-violet-300',
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   projectId: string
+  canSwitch?: boolean
+  blacklistTypeIds?: number[]
+}>(), {
+  canSwitch: false,
+  blacklistTypeIds: () => [],
+})
+
+const emit = defineEmits<{
+  switched: []
 }>()
 
 const { t } = useI18n()
@@ -24,6 +34,10 @@ const { formatIsk, formatNumber } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const syncStore = useSyncStore()
 const buyOrBuildStore = useGroupBuyOrBuildStore()
+const projectStore = useGroupProjectStore()
+
+const isSwitching = ref(false)
+const switchError = ref<string | null>(null)
 
 const COLUMNS = ['intermediate', 'quantity', 'build', 'jita', 'import', 'buy', 'choice'] as const
 
@@ -33,6 +47,23 @@ function typeLabel(row: BuyOrBuildRow): string {
 
 function jitaCoveragePercent(row: BuyOrBuildRow): number | null {
   return row.warnings.find(warning => warning.typeId === row.typeId)?.coveragePercent ?? null
+}
+
+async function switchRow(row: BuyOrBuildRow): Promise<void> {
+  const blacklistTypeIds = row.blacklisted
+    ? props.blacklistTypeIds.filter(typeId => typeId !== row.typeId)
+    : [...props.blacklistTypeIds, row.typeId]
+  isSwitching.value = true
+  switchError.value = null
+  try {
+    await projectStore.updateProject(props.projectId, { blacklistTypeIds })
+    await buyOrBuildStore.fetchBuyOrBuild(props.projectId)
+    emit('switched')
+  } catch (e) {
+    switchError.value = e instanceof Error ? e.message : t('groupIndustry.buyOrBuild.switch.error')
+  } finally {
+    isSwitching.value = false
+  }
 }
 
 function columnAlignment(column: (typeof COLUMNS)[number]): string {
@@ -94,6 +125,15 @@ watch(
     >{{ t('groupIndustry.buyOrBuild.empty') }}</p>
 
     <template v-else>
+      <div
+        v-if="switchError !== null"
+        data-testid="buy-or-build-switch-error"
+        role="alert"
+        class="m-4 p-3 rounded border border-red-500/30 bg-red-500/10 text-sm text-red-300"
+      >
+        <p class="font-semibold">{{ t('groupIndustry.buyOrBuild.switch.error') }}</p>
+        <p class="mt-1 break-words">{{ switchError }}</p>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[56rem] text-sm">
           <thead>
@@ -184,6 +224,19 @@ watch(
                   :data-testid="`buy-or-build-row-${row.typeId}-without-import`"
                   class="mt-1 text-xs text-amber-400"
                 >{{ t('groupIndustry.buyOrBuild.withoutImport') }}</div>
+                <span
+                  v-if="row.blacklisted"
+                  :data-testid="`buy-or-build-row-${row.typeId}-blacklisted`"
+                  class="mt-1 inline-block px-2 py-0.5 rounded border border-amber-500/40 bg-amber-500/10 text-xs text-amber-300"
+                >{{ t('groupIndustry.buyOrBuild.switch.blacklisted') }}</span>
+                <button
+                  v-if="canSwitch"
+                  type="button"
+                  :data-testid="`buy-or-build-row-${row.typeId}-switch`"
+                  :disabled="isSwitching"
+                  class="mt-2 block px-2 py-1 rounded border border-cyan-500/40 text-xs text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="switchRow(row)"
+                >{{ t(row.blacklisted ? 'groupIndustry.buyOrBuild.switch.toBuild' : 'groupIndustry.buyOrBuild.switch.toBuy') }}</button>
               </td>
             </tr>
           </tbody>
