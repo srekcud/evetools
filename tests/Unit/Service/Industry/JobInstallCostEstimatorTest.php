@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry;
 
+use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\StructureType;
+use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\SecurityClass;
 use App\Service\Industry\JobInstallCostEstimator;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(JobInstallCostEstimator::class)]
@@ -66,6 +72,32 @@ class JobInstallCostEstimatorTest extends TestCase
         $this->assertEqualsWithDelta(3235.92496, $estimate['cost'], 1e-6);
         $this->assertNull($estimate['unknownReason']);
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    #[Group('issue-526')]
+    public function testStructureCostRoleBonusLowersTheCostIndexTermOfAManufacturingJobOnly(): void
+    {
+        $estimate = $this->estimator->estimate(
+            $this->nitrogenFuelBlockMaterials(),
+            $this->nitrogenFuelBlockAdjustedPrices(),
+            self::MANUFACTURING_COST_INDEX,
+            1,
+            'manufacturing',
+            self::FACILITY_TAX_PERCENT,
+            $this->sotiyoWithLaboratoryRig(),
+        );
+
+        $this->assertEqualsWithDelta(3193.347, $estimate['cost'], 1e-6);
+    }
+
+    #[Group('issue-526')]
+    public function testLaboratoryRigLowersTheCostIndexTermOfCopyingAndInvention(): void
+    {
+        $copying = $this->estimator->estimate($this->nitrogenFuelBlockMaterials(), $this->nitrogenFuelBlockAdjustedPrices(), self::COPYING_COST_INDEX, 1, 'copying', self::FACILITY_TAX_PERCENT, $this->sotiyoWithLaboratoryRig());
+        $invention = $this->estimator->estimate($this->nitrogenFuelBlockMaterials(), $this->nitrogenFuelBlockAdjustedPrices(), self::INVENTION_COST_INDEX, 1, 'invention', self::FACILITY_TAX_PERCENT, $this->sotiyoWithLaboratoryRig());
+
+        $this->assertEqualsWithDelta(52.52825894, $copying['cost'], 1e-6);
+        $this->assertEqualsWithDelta(67.05109016, $invention['cost'], 1e-6);
     }
 
     public function testNullFacilityTaxStillAddsTheSccSurcharge(): void
@@ -241,6 +273,21 @@ class JobInstallCostEstimatorTest extends TestCase
         $this->assertSame(0.0, $estimate['cost']);
         $this->assertNull($estimate['unknownReason']);
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    private function sotiyoWithLaboratoryRig(): ProductionStructure
+    {
+        return new ProductionStructure(
+            'sotiyo',
+            StructureType::EngineeringComplex,
+            SecurityClass::NullSec,
+            30_002_187,
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            [ProductionStructures::laboratoryRig(12.0)],
+            new Multiplier(ProductionStructures::SOTIYO_COST_ROLE_BONUS),
+            self::FACILITY_TAX_PERCENT / 100.0,
+        );
     }
 
     private function nitrogenFuelBlockMaterials(): array

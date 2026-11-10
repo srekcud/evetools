@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Industry;
 
+use App\Industry\Application\ProductionStructure;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\EivMaterial;
 use App\Industry\Domain\EstimatedItemValue;
@@ -30,6 +31,7 @@ final readonly class JobInstallCostEstimator
         int $runs,
         string $activity,
         ?float $facilityTaxPercent,
+        ?ProductionStructure $structure = null,
     ): array {
         $activityKind = match ($activity) {
             'manufacturing' => ActivityKind::Manufacturing,
@@ -65,7 +67,7 @@ final readonly class JobInstallCostEstimator
             $activityKind,
             $estimatedItemValue,
             $costIndex,
-            Multiplier::one(),
+            null === $structure ? Multiplier::one() : $structure->installCostMultiplierFor($activityKind),
             ($facilityTaxPercent ?? 0.0) / self::PERCENT,
             false,
         );

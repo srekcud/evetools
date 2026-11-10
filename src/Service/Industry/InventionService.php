@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Enum\IndustryActivityType;
+use App\Industry\Application\ProductionStructure;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -61,6 +62,7 @@ class InventionService
         int $runs,
         int $solarSystemId,
         ?float $facilityTaxPercent = null,
+        ?ProductionStructure $structure = null,
     ): array {
         return $this->esiCostIndexService->estimateJobInstallCost(
             $this->activityMaterialRepository->findMaterialsForBlueprints([$blueprintTypeId], [IndustryActivityType::Manufacturing->value])[$blueprintTypeId] ?? [],
@@ -68,6 +70,7 @@ class InventionService
             $solarSystemId,
             'copying',
             $facilityTaxPercent,
+            $structure,
         );
     }
 
@@ -199,6 +202,7 @@ class InventionService
         ?int $decryptorTypeId = null,
         int $desiredSuccesses = 1,
         ?float $facilityTaxPercent = null,
+        ?ProductionStructure $structure = null,
     ): ?array {
         $inventionData = $this->getInventionData($t2TypeId);
 
@@ -266,7 +270,7 @@ class InventionService
             ];
         }
 
-        $copyEstimate = $this->estimateCopyJobCost($t1BlueprintTypeId, 1, $solarSystemId, $facilityTaxPercent);
+        $copyEstimate = $this->estimateCopyJobCost($t1BlueprintTypeId, 1, $solarSystemId, $facilityTaxPercent, $structure);
         $copyCost = $copyEstimate['cost'];
 
         $inventionInstallEstimate = $this->esiCostIndexService->estimateJobInstallCost(
@@ -275,6 +279,7 @@ class InventionService
             $solarSystemId,
             'invention',
             $facilityTaxPercent,
+            $structure,
         );
         $inventionInstallCost = $inventionInstallEstimate['cost'];
 
@@ -328,9 +333,9 @@ class InventionService
     /**
      * @return array{cost: ?float, unknownReason: ?string}
      */
-    public function expectedCostPerRun(int $t2TypeId, int $solarSystemId, ?float $facilityTaxPercent = null): array
+    public function expectedCostPerRun(int $t2TypeId, int $solarSystemId, ?float $facilityTaxPercent = null, ?ProductionStructure $structure = null): array
     {
-        $invention = $this->calculateInventionCost($t2TypeId, $solarSystemId, null, 1, $facilityTaxPercent);
+        $invention = $this->calculateInventionCost($t2TypeId, $solarSystemId, null, 1, $facilityTaxPercent, $structure);
         if ($invention === null) {
             return ['cost' => null, 'unknownReason' => self::UNKNOWN_REASON_MISSING_PROBABILITY];
         }
