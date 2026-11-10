@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectJobMatch;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -51,5 +52,15 @@ class IndustryProjectJobMatchRepository extends ServiceEntityRepository
             ->getScalarResult();
 
         return array_map('intval', array_column($rows, 'esiJobId'));
+    }
+
+    /**
+     * @param int[] $esiJobIds
+     *
+     * @return array<int, IndustryProject>
+     */
+    public function findVisibleProjectsByEsiJobIds(User $user, array $esiJobIds): array
+    {
+        return [];
     }
 }

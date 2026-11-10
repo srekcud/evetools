@@ -529,11 +529,14 @@ export type SlotUsage = { used: number; max: number; percent?: number }
 
 export type CharacterSlotUsage = { used: number; max: number | null }
 
+export type SlotProjectLink = { id: string; name: string | null }
+
 export type SlotTrackerJob = {
   jobId: number; productTypeId: number; productTypeName: string | null
   activityType: string; runs: number; progress: number
   timeLeftSeconds: number; facilityName: string | null
   startDate: string; endDate: string
+  project: SlotProjectLink | null
 }
 
 export type FreeSlotEntry = {
@@ -551,6 +554,7 @@ export type SlotTrackerCharacter = {
 export type TimelineJob = {
   jobId: number; characterName: string; productTypeId: number; productTypeName: string | null
   activityType: string; runs: number; timeLeftSeconds: number; endDate: string
+  project: SlotProjectLink | null
 }
 
 export type SlotTrackerData = {

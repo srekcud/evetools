@@ -12,6 +12,7 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
+use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\TypeNameResolver;
 
@@ -58,6 +59,7 @@ class SlotTrackerService
         private readonly TypeNameResolver $typeNameResolver,
         private readonly IndustryStockpileTargetRepository $stockpileTargetRepository,
         private readonly CachedAssetRepository $assetRepository,
+        private readonly IndustryProjectJobMatchRepository $projectJobMatchRepository,
     ) {
     }
 
@@ -149,6 +151,7 @@ class SlotTrackerService
                     'facilityName' => $job->getStationId() !== null ? $this->calculationService->resolveFacilityName($job->getStationId()) : null,
                     'startDate' => $job->getStartDate()->format(\DateTimeInterface::ATOM),
                     'endDate' => $job->getEndDate()->format(\DateTimeInterface::ATOM),
+                    'project' => null,
                 ];
                 $jobEntries[] = $jobEntry;
 
@@ -161,6 +164,7 @@ class SlotTrackerService
                     'runs' => $job->getRuns(),
                     'timeLeftSeconds' => $timeLeftSeconds,
                     'endDate' => $jobEntry['endDate'],
+                    'project' => null,
                 ];
             }
 

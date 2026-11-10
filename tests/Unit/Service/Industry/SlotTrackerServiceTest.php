@@ -7,12 +7,14 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
+use App\Entity\IndustryProject;
 use App\Entity\IndustryStockpileTarget;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
+use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\SlotTrackerService;
@@ -37,6 +39,7 @@ class SlotTrackerServiceTest extends TestCase
     private TypeNameResolver&MockObject $typeNameResolver;
     private IndustryStockpileTargetRepository&MockObject $stockpileTargetRepository;
     private CachedAssetRepository&MockObject $assetRepository;
+    private IndustryProjectJobMatchRepository&MockObject $projectJobMatchRepository;
     private SlotTrackerService $service;
     private User&MockObject $user;
     private array $characterIdsWithoutCachedSkills = [];
@@ -50,6 +53,7 @@ class SlotTrackerServiceTest extends TestCase
         $this->typeNameResolver = $this->createMock(TypeNameResolver::class);
         $this->stockpileTargetRepository = $this->createMock(IndustryStockpileTargetRepository::class);
         $this->assetRepository = $this->createMock(CachedAssetRepository::class);
+        $this->projectJobMatchRepository = $this->createMock(IndustryProjectJobMatchRepository::class);
         $this->skillRepository->method('hasCachedSkills')->willReturnCallback(
             fn (Character $character): bool => !in_array($character->getEveCharacterId(), $this->characterIdsWithoutCachedSkills, true),
         );
@@ -62,6 +66,7 @@ class SlotTrackerServiceTest extends TestCase
             $this->typeNameResolver,
             $this->stockpileTargetRepository,
             $this->assetRepository,
+            $this->projectJobMatchRepository,
         );
 
         $this->user = $this->createMock(User::class);
@@ -732,6 +737,81 @@ class SlotTrackerServiceTest extends TestCase
         $this->assertNull($meResearchJob->getProductTypeId());
     }
 
+    #[Group('issue-539')]
+    public function testJobMatchedToAVisibleProjectExposesTheProjectIdAndNameOnTheCharacterJobAndTheTimelineEntry(): void
+    {
+        $project = (new IndustryProject())->setName('Rifter batch');
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(11, self::RIFTER_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 3, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
+            $this->createJobMock(12, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 5, '2026-02-23 00:00:00', '2099-02-01 00:00:00'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+        $this->projectJobMatchRepository
+            ->expects($this->once())
+            ->method('findVisibleProjectsByEsiJobIds')
+            ->with($this->user, $this->callback(static function (array $esiJobIds): bool {
+                sort($esiJobIds);
+
+                return $esiJobIds === [11, 12];
+            }))
+            ->willReturn([11 => $project]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $expectedProject = ['id' => $project->getId()->toRfc4122(), 'name' => 'Rifter batch'];
+        $jobs = $result['characters'][0]['jobs'];
+        $this->assertSame([11, 12], array_column($jobs, 'jobId'));
+        $this->assertSame($expectedProject, $jobs[0]['project']);
+        $this->assertSame([11, 12], array_column($result['timeline'], 'jobId'));
+        $this->assertSame($expectedProject, $result['timeline'][0]['project']);
+    }
+
+    #[Group('issue-539')]
+    public function testJobWithoutAVisibleProjectMatchHasANullProjectOnTheCharacterJobAndTheTimelineEntry(): void
+    {
+        $project = (new IndustryProject())->setName('Rifter batch');
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(11, self::RIFTER_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 3, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
+            $this->createJobMock(12, self::ROBOTICS_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 5, '2026-02-23 00:00:00', '2099-02-01 00:00:00'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+        $this->projectJobMatchRepository->method('findVisibleProjectsByEsiJobIds')->willReturn([11 => $project]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $unmatchedJob = $result['characters'][0]['jobs'][1];
+        $this->assertSame(12, $unmatchedJob['jobId']);
+        $this->assertArrayHasKey('project', $unmatchedJob);
+        $this->assertNull($unmatchedJob['project']);
+        $unmatchedTimelineJob = $result['timeline'][1];
+        $this->assertSame(12, $unmatchedTimelineJob['jobId']);
+        $this->assertArrayHasKey('project', $unmatchedTimelineJob);
+        $this->assertNull($unmatchedTimelineJob['project']);
+    }
+
+    #[Group('issue-539')]
+    public function testJobMatchedToAnUnnamedProjectExposesItsIdWithANullName(): void
+    {
+        $unnamedProject = new IndustryProject();
+        $this->characterRepository->method('findByUser')->willReturn([$this->createCharacterMock(1001, 'Pilot', true)]);
+        $this->jobRepository->method('findActiveJobsByCharacter')->willReturn([
+            $this->createJobMock(11, self::RIFTER_TYPE_ID, self::MANUFACTURING_ACTIVITY_ID, 3, '2026-02-23 00:00:00', '2099-01-01 00:00:00'),
+        ]);
+        $this->skillRepository->method('findSlotSkillsForCharacter')->willReturn([]);
+        $this->stockpileTargetRepository->method('findByUser')->willReturn([]);
+        $this->projectJobMatchRepository->method('findVisibleProjectsByEsiJobIds')->willReturn([11 => $unnamedProject]);
+
+        $result = $this->service->getSlotStatus($this->user);
+
+        $expectedProject = ['id' => $unnamedProject->getId()->toRfc4122(), 'name' => null];
+        $this->assertSame($expectedProject, $result['characters'][0]['jobs'][0]['project']);
+        $this->assertSame($expectedProject, $result['timeline'][0]['project']);
+    }
+
     private const int AURORA_CHARACTER_ID = 3001;
     private const int BOREALIS_CHARACTER_ID = 3002;
     private const int CARINA_CHARACTER_ID = 3003;
@@ -1074,6 +1154,7 @@ class SlotTrackerServiceTest extends TestCase
             new TypeNameResolver($this->sdeTypeRepositoryKnowing($typeNamesByTypeId)),
             $this->stockpileTargetRepository,
             $this->assetRepository,
+            $this->projectJobMatchRepository,
         );
     }
 
@@ -1087,6 +1168,7 @@ class SlotTrackerServiceTest extends TestCase
             new TypeNameResolver($this->sdeTypeRepositoryKnowingOnlyNitrogenFuelBlock()),
             $this->stockpileTargetRepository,
             $this->assetRepository,
+            $this->projectJobMatchRepository,
         );
     }
 
