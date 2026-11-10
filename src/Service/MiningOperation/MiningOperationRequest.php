@@ -10,6 +10,7 @@ use App\Entity\MiningOperationMember;
 use App\Entity\MiningOperationRecurrence;
 use App\Entity\MiningPayment;
 use App\Entity\User;
+use App\Enum\MiningSplitMode;
 use App\Repository\MiningOperationCharacterRepository;
 use App\Repository\MiningOperationMemberRepository;
 use App\Repository\MiningOperationRecurrenceRepository;
@@ -28,6 +29,7 @@ final class MiningOperationRequest
     private const string RECURRENCE_NOT_FOUND_MESSAGE = 'Mining operation recurrence not found';
     private const string ARCHIVED_MESSAGE = 'This operation is archived';
     private const string PAYMENT_NOT_FOUND_MESSAGE = 'Payment not found';
+    private const string NO_HAULER_PLAN_MESSAGE = 'An each-for-themselves operation has no hauler plan';
 
     public static function userOf(Security $security): User
     {
@@ -43,6 +45,13 @@ final class MiningOperationRequest
     {
         return $repository->find(UuidOrNotFound::of($identifier, self::OPERATION_NOT_FOUND_MESSAGE))
             ?? throw new NotFoundHttpException(self::OPERATION_NOT_FOUND_MESSAGE);
+    }
+
+    public static function assertHasHaulerPlan(MiningOperation $operation): void
+    {
+        if (MiningSplitMode::EachForThemselves === $operation->getSplitMode()) {
+            throw new NotFoundHttpException(self::NO_HAULER_PLAN_MESSAGE);
+        }
     }
 
     public static function participatedOperationOf(MiningOperationRepository $repository, MiningOperationAccess $access, User $user, string $identifier): MiningOperation

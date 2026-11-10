@@ -3948,6 +3948,40 @@
         "noEffect": "This check does not block freezing the shares: the debt follows the declaration."
       }
     },
+    "haulerPlan": {
+      "title": "Hauler",
+      "barLabel": "Fleet hangar · {hauler} ({ship})",
+      "barLabelShort": "Hangar {ship}",
+      "fill": "{percent} % · full in {time}",
+      "full": "full: to be emptied",
+      "unknown": "Fleet hangar of {hauler}: unknown",
+      "unknownShip": "unknown ship",
+      "reason": {
+        "operation_not_running": "The operation is not running.",
+        "no_boost_ship": "No boost ship is set on the operation.",
+        "no_fleet_storage_recipient": "No fleet storage recipient is set.",
+        "no_active_site": "No active mining site.",
+        "site_rate_unknown": "The site flow is unknown: at least two scans with a falling ore are needed.",
+        "ledger_unknown": "The mined quantities are unknown for at least one character.",
+        "nothing_delivered": "Nobody delivers ore to the fleet storage.",
+        "capacity_missing_from_sde": "The hangar capacity of the ship is missing from the SDE.",
+        "volume_missing": "The volume of an ore is missing from the SDE.",
+        "compression_unknown": "The compression of an ore is unknown."
+      },
+      "trips": "≈ {count} trip before {time} · {volume} m³ {raw} | ≈ {count} trips before {time} · {volume} m³ {raw}",
+      "rawOre": "of which raw: {types}",
+      "compressedOre": "compressed",
+      "tripsUnknown": "trips: unknown (end time of the site unknown)",
+      "calculation": "{inflow} m³/min received = site flow × fleet storage share {share} % ; {transport} m³/min to carry after compression",
+      "calculationUnknown": "calculation: unknown",
+      "capacities": "Ore hold {hold} m³ · fleet hangar {hangar} m³ · base SDE capacities, without skill bonuses",
+      "originStart": "Hangar assumed empty at the start of the operation",
+      "originEmptied": "Emptied at {time} EVE",
+      "contributors": "Delivering into the {ship}: {names}",
+      "flow": "{inflow} m³/min received",
+      "estimate": "Estimate: evetools does not read the hangar live.",
+      "emptied": "Hangar emptied"
+    },
     "rules": {
       "fleetStorage": "Fleet storage"
     },
