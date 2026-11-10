@@ -2851,7 +2851,21 @@
       "lineRental": "Line rental",
       "courier": "Courier",
       "profit": "Profit",
-      "loss": "Loss"
+      "loss": "Loss",
+      "breakEven": {
+        "title": "Break-even",
+        "perUnit": "Break-even price per unit",
+        "averagePrice": "Average price obtained",
+        "gaugeLabel": "Average price obtained against the break-even price",
+        "unknown": {
+          "no_final_product": "The project has no final product.",
+          "several_final_products": "The break-even per unit needs a single final product.",
+          "jobs_not_delivered": "Final jobs are not all delivered yet.",
+          "cost_unknown": "A contribution has an unknown value.",
+          "no_cost": "No contribution is approved yet.",
+          "fees_unknown": "The sales fees are unknown."
+        }
+      }
     },
     "sales": {
       "item": "Item",

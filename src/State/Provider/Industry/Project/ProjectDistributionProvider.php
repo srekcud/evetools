@@ -80,6 +80,8 @@ class ProjectDistributionProvider implements ProviderInterface
             $result->unsoldProducts,
         );
         $resource->projectedMarginPercent = $result->projectedMarginPercent;
+        $resource->breakEvenPerUnit = $result->breakEvenPerUnit;
+        $resource->breakEvenUnknownReason = $result->breakEvenUnknownReason;
         $resource->members = array_values(array_map(
             fn (ParticipantDistribution $member) => [
                 'memberId' => $member->memberId,

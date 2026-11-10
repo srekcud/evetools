@@ -316,6 +316,8 @@ export type Distribution = {
   awaitingSales: boolean
   unsoldProducts: UnsoldProduct[]
   projectedMarginPercent: number | null
+  breakEvenPerUnit?: number | null
+  breakEvenUnknownReason?: string | null
   marketRevenue?: number
   contractRevenue?: number
   contractFees?: number | null
