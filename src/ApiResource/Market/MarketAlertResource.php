@@ -44,6 +44,7 @@ use App\State\Provider\Market\MarketAlertDeleteProvider;
         new Patch(
             uriTemplate: '/market/alerts/{id}',
             uriVariables: ['id' => new Link(fromClass: self::class)],
+            inputFormats: ['json' => ['application/merge-patch+json']],
             input: UpdateAlertInput::class,
             provider: MarketAlertDeleteProvider::class,
             processor: UpdateAlertProcessor::class,
