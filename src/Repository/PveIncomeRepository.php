@@ -271,7 +271,7 @@ class PveIncomeRepository extends ServiceEntityRepository
     /**
      * Get daily totals grouped by type
      * @param bool $excludeCorpProject If true, corp_project income is excluded from lootSales
-     * @return array<string, array{bounties: float, lootSales: float, corpProject: float}>
+     * @return array<string, array{bounties: float, lootSales: float, corpProject: float, escalations: float}>
      */
     public function getDailyTotalsByType(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, bool $excludeCorpProject = false): array
     {
@@ -292,7 +292,7 @@ class PveIncomeRepository extends ServiceEntityRepository
         foreach ($results as $row) {
             $date = $row['day'] instanceof \DateTimeImmutable ? $row['day']->format('Y-m-d') : $row['day'];
             if (!isset($dailyTotals[$date])) {
-                $dailyTotals[$date] = ['bounties' => 0.0, 'lootSales' => 0.0, 'corpProject' => 0.0];
+                $dailyTotals[$date] = ['bounties' => 0.0, 'lootSales' => 0.0, 'corpProject' => 0.0, 'escalations' => 0.0];
             }
 
             $type = $row['type'] instanceof PveIncomeType ? $row['type'] : PveIncomeType::tryFrom((string) $row['type']);
@@ -307,6 +307,8 @@ class PveIncomeRepository extends ServiceEntityRepository
                 $dailyTotals[$date]['corpProject'] += $amount;
             } elseif (in_array($type, [PveIncomeType::LootSale, PveIncomeType::LootContract], true)) {
                 $dailyTotals[$date]['lootSales'] += $amount;
+            } elseif ($type === PveIncomeType::Escalation) {
+                $dailyTotals[$date]['escalations'] += $amount;
             }
         }
 
@@ -330,11 +332,36 @@ class PveIncomeRepository extends ServiceEntityRepository
      */
     public function findEscalationsByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, int $limit = 100): array
     {
-        return [];
+        return $this->createQueryBuilder('i')
+            ->where('i.user = :user')
+            ->andWhere('i.date >= :from')
+            ->andWhere('i.date <= :to')
+            ->andWhere('i.type = :type')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->setParameter('type', PveIncomeType::Escalation)
+            ->orderBy('i.date', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
     }
 
     public function getTotalEscalationsByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): float
     {
-        return 0.0;
+        $result = $this->createQueryBuilder('i')
+            ->select('SUM(i.amount)')
+            ->where('i.user = :user')
+            ->andWhere('i.date >= :from')
+            ->andWhere('i.date <= :to')
+            ->andWhere('i.type = :type')
+            ->setParameter('user', $user)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->setParameter('type', PveIncomeType::Escalation)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (float) ($result ?? 0);
     }
 }

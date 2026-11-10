@@ -61,6 +61,8 @@ class PveIncome
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $corpProjectQuantity = null;
 
+    #[ORM\ManyToOne(targetEntity: Escalation::class)]
+    #[ORM\JoinColumn(nullable: true, unique: true, onDelete: 'SET NULL')]
     private ?Escalation $escalation = null;
 
     public function __construct()

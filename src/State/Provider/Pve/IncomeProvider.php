@@ -56,6 +56,7 @@ class IncomeProvider implements ProviderInterface
                 PveIncomeType::Bounty => 'Bounty',
                 PveIncomeType::Ess => 'ESS',
                 PveIncomeType::Mission => 'Mission',
+                PveIncomeType::Escalation => 'Escalation',
                 default => $i->getType()->value,
             },
             'amount' => $i->getAmount(),
@@ -68,6 +69,9 @@ class IncomeProvider implements ProviderInterface
 
         $lootSalesList = $this->incomeRepository->findLootSalesByUserAndDateRange($user, $from, $to);
         $totalLootSales = $this->incomeRepository->getTotalLootSalesByUserAndDateRange($user, $from, $to);
+
+        $escalationEntries = $this->incomeRepository->findEscalationsByUserAndDateRange($user, $from, $to);
+        $totalEscalations = $this->incomeRepository->getTotalEscalationsByUserAndDateRange($user, $from, $to);
 
         $settings = $this->settingsRepository->findByUser($user);
         $lastSyncAt = $settings?->getLastSyncAt();
@@ -95,11 +99,23 @@ class IncomeProvider implements ProviderInterface
                 'date' => $i->getDate()->format('Y-m-d'),
             ], $lootSalesList),
         ];
+        $resource->escalations = [
+            'total' => $totalEscalations,
+            'count' => count($escalationEntries),
+            'entries' => array_map(fn(PveIncome $i) => [
+                'id' => $i->getId()?->toRfc4122(),
+                'date' => $i->getDate()->format('c'),
+                'refType' => $i->getType()->value,
+                'refTypeLabel' => 'Escalation',
+                'amount' => $i->getAmount(),
+                'description' => $i->getDescription(),
+            ], $escalationEntries),
+        ];
         $resource->expenses = [
             'total' => $totalExpenses,
             'byType' => $expensesByType,
         ];
-        $resource->profit = $totalBounties + $totalLootSales - $totalExpenses;
+        $resource->profit = $totalBounties + $totalLootSales + $totalEscalations - $totalExpenses;
 
         return $resource;
     }

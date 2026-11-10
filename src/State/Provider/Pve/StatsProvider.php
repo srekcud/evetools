@@ -62,10 +62,12 @@ class StatsProvider implements ProviderInterface
             $lootSalesTotal += $incomeByType[PveIncomeType::CorpProject->value] ?? 0.0;
         }
 
+        $escalationsTotal = $incomeByType[PveIncomeType::Escalation->value] ?? 0.0;
+
         $expensesTotal = $this->expenseRepository->getTotalByUserAndDateRange($user, $from, $to);
         $expensesByType = $this->expenseRepository->getTotalsByTypeAndDateRange($user, $from, $to);
 
-        $totalIncome = $bountyTotal + $essTotal + $missionTotal + $lootSalesTotal;
+        $totalIncome = $bountyTotal + $essTotal + $missionTotal + $lootSalesTotal + $escalationsTotal;
         $profit = $totalIncome - $expensesTotal;
         $iskPerDay = $days > 0 ? $profit / $days : 0;
 
@@ -81,6 +83,7 @@ class StatsProvider implements ProviderInterface
             'ess' => $essTotal,
             'missions' => $missionTotal,
             'lootSales' => $lootSalesTotal,
+            'escalations' => $escalationsTotal,
             'expenses' => $expensesTotal,
             'profit' => $profit,
         ];

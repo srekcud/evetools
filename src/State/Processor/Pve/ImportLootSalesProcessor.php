@@ -19,6 +19,7 @@ use App\Service\Pve\CorpProjectContributionAccounting;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * @implements ProcessorInterface<ImportLootSalesInput, ImportResultResource>
@@ -43,6 +44,12 @@ class ImportLootSalesProcessor implements ProcessorInterface
         }
 
         assert($data instanceof ImportLootSalesInput);
+
+        foreach ([...$data->sales, ...$data->declined] as $item) {
+            if (($item['type'] ?? null) === PveIncomeType::Escalation->value) {
+                throw new UnprocessableEntityHttpException('An escalation income is created by selling the escalation, not as a loot sale');
+            }
+        }
 
         $imported = 0;
         $rejectedContributions = 0;

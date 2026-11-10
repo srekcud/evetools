@@ -111,11 +111,18 @@ final class EscalationIncomeMigrationTest extends IntegrationTestCase
     {
         $this->migrateUp();
 
-        $this->expectException(UniqueConstraintViolationException::class);
-        $this->connection->executeStatement(
-            "INSERT INTO pve_income (id, user_id, type, description, amount, date, created_at, escalation_id) VALUES (:id, :userId, 'escalation', 'Duplicate', 1, '2026-11-02 10:00:00', '2026-11-02 10:00:00', :escalationId)",
-            ['id' => Uuid::v7()->toRfc4122(), 'userId' => $this->pilotId, 'escalationId' => $this->soldEscalationId],
-        );
+        $this->connection->executeStatement('SAVEPOINT duplicate_income');
+        try {
+            $this->connection->executeStatement(
+                "INSERT INTO pve_income (id, user_id, type, description, amount, date, created_at, escalation_id) VALUES (:id, :userId, 'escalation', 'Duplicate', 1, '2026-11-02 10:00:00', '2026-11-02 10:00:00', :escalationId)",
+                ['id' => Uuid::v7()->toRfc4122(), 'userId' => $this->pilotId, 'escalationId' => $this->soldEscalationId],
+            );
+            self::fail('A second income for the same escalation must violate the unique constraint');
+        } catch (UniqueConstraintViolationException) {
+            $this->connection->executeStatement('ROLLBACK TO SAVEPOINT duplicate_income');
+        }
+
+        self::assertSame(2, (int) $this->connection->fetchOne("SELECT COUNT(*) FROM pve_income WHERE type = 'escalation'"));
     }
 
     public function testDownDeletesTheEscalationIncomesThenDropsBothColumnsAndKeepsTheOtherIncomes(): void
