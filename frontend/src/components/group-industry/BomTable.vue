@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
+import MultibuyBridgeActions from '@/components/appraisal/MultibuyBridgeActions.vue'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
@@ -33,6 +34,10 @@ const verificationMap = computed(() => {
   }
   return map
 })
+
+const multibuyLines = computed(() =>
+  materials.value.map(item => ({ typeName: item.typeName, quantity: item.requiredQuantity })),
+)
 
 const totalItems = computed(() => materials.value.length)
 const totalBomValue = computed(() => projectStore.currentProject?.totalBomValue ?? null)
@@ -84,9 +89,12 @@ function ringStrokeColor(percent: number): string {
 <template>
   <!-- Materials to Source -->
   <div class="mb-6">
-    <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3">
-      {{ t('groupIndustry.bom.materialsToSource') }}
-    </h2>
+    <div class="flex items-center justify-between gap-3 mb-3">
+      <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">
+        {{ t('groupIndustry.bom.materialsToSource') }}
+      </h2>
+      <MultibuyBridgeActions :lines="multibuyLines" />
+    </div>
     <div class="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden">
       <!-- Loading skeleton -->
       <div v-if="projectStore.bomLoading && materials.length === 0" class="p-8 text-center text-slate-500">
