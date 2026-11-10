@@ -307,6 +307,9 @@ Termes du minage groupé et du minage lunaire (#261) : un symbole métier du min
 | **Chunk lié** | Linked chunk | Chunk lunaire auquel une opération de minage est rattachée (`chunkId`) : le chunk montre l'opération la plus récente de l'utilisateur (`linkedOperation`, propriétaire ou participant seulement), l'opération montre sa lune, sa raffinerie et l'arrivée du chunk (spec #531). | `MiningOperation::$chunk`, `linkedOperation`, `MiningOperationResource::$chunk` |
 | **Commerce** | Commerce | Module regroupant le Marché, l'Évaluateur et les Contrats, une URL par page, sous la barre d'onglets de module (spec #535). | `CommerceModuleTabs` (`frontend/src/components/commerce/`) |
 | **Évaluateur** | Appraiser | Page `/appraisal` : valeur d'une liste collée au prix Jita (vente, achat, pondéré) et comparaison avec une structure ; ancien nom Appraisal. Remplace la liste d'achats `/shopping-list`, supprimée ; la page partagée `/appraisal/shared/:token` affiche le même résultat (spec #535). | `Appraisal.vue`, `components/appraisal/` |
+| **Pont** | Bridge | Accueil de l'application (`/dashboard`) : À traiter (gravité et action), En cours (opérations de minage, jobs qui finissent, prochains chunks, extracteurs PI) et Bilan des 30 derniers jours ; chaque bloc renvoie à son module, une source en échec donne un bloc « inconnu », jamais 0 (spec #536). | `Dashboard.vue` |
+| **Patrimoine** | Wealth | Module regroupant le Bilan et l'Inventaire sous la barre d'onglets de module (spec #536). | `PatrimoineModuleTabs` (`frontend/src/components/patrimoine/`) |
+| **Section de réglages** | Settings section | Une des sept parties de la page Paramètres (`/settings/<section>` : Compte, Affichage, Marché, Industrie, Minage, PVE, Notifications) ; chaque module a un lien « Réglages » vers la sienne (spec #536). | `Settings.vue` |
 
 ## Ambiguïtés connues
 

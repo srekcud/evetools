@@ -9,6 +9,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 
 export const WIDE_VIEWPORT_WIDTH = 1440
 export const PAGE_CONTENT_SELECTOR = '[data-testid="page-content"]'
+export const MINING_SITE_PATH = '/mining/sites/6c1d90a4-3b7e-4f21-9d58-0a2e7c4b1f63'
 
 const navigationRoutes = [
   '/dashboard',
@@ -22,11 +23,17 @@ const navigationRoutes = [
   '/planetary',
   '/mining/operations',
   '/mining/moons',
+  '/mining/sites',
+  MINING_SITE_PATH,
   '/pve/revenue',
   '/pve/escalations',
   '/market',
+  '/contracts',
   '/assets',
   '/characters',
+  '/settings',
+  '/settings/industry',
+  '/admin',
 ]
 
 interface ApiAnswer {
@@ -40,18 +47,19 @@ interface MainLayoutMountOptions {
   storedHiddenModules?: string[]
   storedModuleLastPage?: string
   industryActionsAnswer?: ApiAnswer
+  isAdministrator?: boolean
 }
 
 export const INDUSTRY_ACTIONS_URL = '/api/industry/actions'
 
-function stubbedApiAnswer(url: string): unknown {
+function stubbedApiAnswer(url: string, isAdministrator: boolean): unknown {
   if (url === '/api/industry/projects' || url === INDUSTRY_ACTIONS_URL) {
     return []
   }
   if (url.startsWith('/api/industry/search?q=')) {
     return { results: [] }
   }
-  return { hasAccess: false, characterName: null }
+  return { hasAccess: isAdministrator, characterName: null }
 }
 
 export function setViewportWidth(width: number): void {
@@ -60,7 +68,7 @@ export function setViewportWidth(width: number): void {
 
 export async function mountMainLayoutAt(
   path: string,
-  { viewportWidth = WIDE_VIEWPORT_WIDTH, storedCollapsedGroups, storedHiddenModules, storedModuleLastPage, industryActionsAnswer }: MainLayoutMountOptions = {},
+  { viewportWidth = WIDE_VIEWPORT_WIDTH, storedCollapsedGroups, storedHiddenModules, storedModuleLastPage, industryActionsAnswer, isAdministrator = false }: MainLayoutMountOptions = {},
 ) {
   localStorage.clear()
   if (storedHiddenModules !== undefined) {
@@ -80,7 +88,7 @@ export async function mountMainLayoutAt(
     if (url === INDUSTRY_ACTIONS_URL && industryActionsAnswer !== undefined) {
       return new Response(JSON.stringify(industryActionsAnswer.body), { status: industryActionsAnswer.status })
     }
-    return new Response(JSON.stringify(stubbedApiAnswer(url)), { status: 200 })
+    return new Response(JSON.stringify(stubbedApiAnswer(url, isAdministrator)), { status: 200 })
   }))
   const router = createRouter({
     history: createMemoryHistory(),

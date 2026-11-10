@@ -63,10 +63,10 @@ describe('Inventory page without the contracts tab', () => {
     expect(wrapper.findAll('button').filter(button => button.text() === CONTRACTS_LABEL)).toHaveLength(0)
   })
 
-  it('has no tab bar', async () => {
+  it('has no tab bar of its own beyond the wealth module bar', async () => {
     const wrapper = await mountAssetsAt({})
 
-    expect(wrapper.findAll('nav')).toHaveLength(0)
+    expect(wrapper.findAll('nav')).toHaveLength(1)
   })
 
   it('does not mount the contracts list when the address still carries tab=contracts', async () => {

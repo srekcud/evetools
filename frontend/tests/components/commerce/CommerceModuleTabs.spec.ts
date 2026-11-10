@@ -35,7 +35,7 @@ describe('CommerceModuleTabs', () => {
   it('links the three pages of the module in order, labelled Market, Appraisal and Contracts', async () => {
     const wrapper = await mountTabs('market')
 
-    expect(wrapper.findAll('a').map(link => [link.attributes('href'), link.text()])).toEqual(
+    expect(wrapper.findAll('a[title]').map(link => [link.attributes('href'), link.text()])).toEqual(
       PAGES.map(([, path, label]) => [path, label]),
     )
   })

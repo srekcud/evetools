@@ -56,7 +56,7 @@ describe('MainLayout shell', () => {
       const wrapper = await mountWithMainCharacter()
       const header = wrapper.get('header')
 
-      expect(header.get('h2').text()).toBe('Dashboard')
+      expect(header.get('h2').text()).toBe('Home')
       expect(header.text()).not.toContain(en.header.welcomeBack)
       expect(header.text()).not.toContain(MAIN_CHARACTER.allianceName)
       expect(header.find('img[src*="/alliances/"]').exists()).toBe(false)
@@ -107,27 +107,29 @@ describe('MainLayout shell', () => {
       expect(document.activeElement).toBe(accountButton(wrapper).element)
     })
 
-    it('opens the settings modal from the menu', async () => {
+    it('links the settings item to the settings page instead of opening a modal', async () => {
       const wrapper = await mountWithMainCharacter()
       await accountButton(wrapper).trigger('click')
 
       const settingsItem = Array.from(accountMenu()?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
         .find(item => item.textContent?.trim() === en.settings.title)
+
+      expect(settingsItem?.tagName).toBe('A')
+      expect(settingsItem?.getAttribute('href')).toBe('/settings')
       settingsItem?.click()
       await flushPromises()
-
       expect(accountMenu()).toBeNull()
-      expect(document.querySelector('[role="dialog"]')?.textContent).toContain(en.settings.visibleModules)
+      expect(document.querySelector('[role="dialog"]')).toBeNull()
     })
   })
 
   describe('sidebar', () => {
-    it('gives settings their own entry next to characters', async () => {
+    it('reaches characters and settings through the Account module link and holds no settings button', async () => {
       const wrapper = await mountWithMainCharacter()
       const sidebar = wrapper.get('aside')
 
-      expect(sidebar.findAll('a[href]').map(link => link.text().trim())).toContain(en.nav.characters)
-      expect(sidebar.findAll('button').map(button => button.text().trim())).toContain(en.settings.title)
+      expect(sidebar.findAll('a[href]').map(link => link.text().trim())).toContain('Account')
+      expect(sidebar.findAll('button').map(button => button.text().trim())).not.toContain(en.settings.title)
     })
   })
 

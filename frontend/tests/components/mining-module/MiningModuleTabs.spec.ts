@@ -39,7 +39,7 @@ describe('MiningModuleTabs', () => {
   it('links the five pages of the module in order', async () => {
     const wrapper = await mountTabs('operations')
 
-    expect(wrapper.findAll('a').map(link => link.attributes('href'))).toEqual(PAGES.map(([, path]) => path))
+    expect(wrapper.findAll('a[title]').map(link => link.attributes('href'))).toEqual(PAGES.map(([, path]) => path))
   })
 
   it.each(PAGES)('marks only the %s tab as the current page', async (active, path) => {

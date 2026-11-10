@@ -5,6 +5,7 @@ import { useLedgerStore } from '@/stores/ledger'
 import { useLedgerPeriod, daysSinceOldestEntry } from '@/composables/useLedgerPeriod'
 import { useTabQuery } from '@/composables/useTabQuery'
 import MainLayout from '@/layouts/MainLayout.vue'
+import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
 import LedgerPeriodSelector from '@/components/ledger/LedgerPeriodSelector.vue'
@@ -63,6 +64,7 @@ onMounted(async () => {
 
 <template>
   <MainLayout>
+    <PatrimoineModuleTabs active="balance" />
     <div class="space-y-6">
       <LedgerPeriodSelector v-model="selectedDays" :options="periodOptions" :ytd-days="yearToDateDays" :all-days="allDays" />
 

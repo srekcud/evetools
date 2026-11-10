@@ -1,24 +1,12 @@
+import { allNavEntries } from '@/constants/sidebarNavigation'
+
 export const MODULE_LAST_PAGE_STORAGE_KEY = 'evetools_module_last_page'
 
-const MODULE_PAGES: Record<string, readonly string[]> = {
-  industry: [
-    '/industry',
-    '/industry/projects',
-    '/industry/analysis',
-    '/industry/production',
-  ],
-  mining: [
-    '/mining/operations',
-    '/mining/moons',
-    '/mining/sites',
-    '/mining/ore-value',
-    '/mining/my-mining',
-  ],
-  pve: [
-    '/pve/revenue',
-    '/pve/escalations',
-  ],
-}
+const MODULE_PAGES: Record<string, readonly string[]> = Object.fromEntries(
+  allNavEntries
+    .filter(module => module.pages.length > 0)
+    .map(module => [module.id, module.pages.map(page => page.route)]),
+)
 
 function readStoredPages(): Record<string, unknown> {
   try {

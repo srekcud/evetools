@@ -1,17 +1,30 @@
-import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
+import { enableAutoUnmount } from '@vue/test-utils'
 import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
-import { mountMainLayoutAt } from './mainLayoutHarness'
+import { MINING_SITE_PATH, mountMainLayoutAt } from './mainLayoutHarness'
+
+const MODULE_LINKS = [
+  ['Home', '/dashboard'],
+  ['Industry', '/industry'],
+  ['Mining', '/mining/operations'],
+  ['PVE', '/pve/revenue'],
+  ['Planetary', '/planetary'],
+  ['Commerce', '/market'],
+  ['Wealth', '/balance'],
+  ['Account', '/characters'],
+]
+
+const NAV_COLLAPSED_STORAGE_KEY = 'evetools_nav_collapsed'
 
 function navigationLink(wrapper: VueWrapper, label: string): DOMWrapper<Element> | undefined {
-  return wrapper.findAll('a[href]').find(link => link.text().trim() === label)
+  return wrapper.get('aside nav').findAll('a[href]').find(link => link.text().trim() === label)
 }
 
-function sectionHeader(wrapper: VueWrapper, label: string): DOMWrapper<Element> | undefined {
-  return wrapper.findAll('nav button').find(button => button.text().trim() === label)
+function sidebarLinks(wrapper: VueWrapper): string[][] {
+  return wrapper.get('aside nav').findAll('a[href]').map(link => [link.text().trim(), link.attributes('href') ?? ''])
 }
 
-function sidebarLinkLabels(wrapper: VueWrapper): string[] {
-  return wrapper.get('aside nav').findAll('a[href]').map(link => link.text().trim())
+function currentModuleLabels(wrapper: VueWrapper): string[] {
+  return wrapper.get('aside nav').findAll('a[aria-current="page"]').map(link => link.text().trim())
 }
 
 enableAutoUnmount(afterEach)
@@ -21,112 +34,69 @@ describe('MainLayout sidebar navigation', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders the dashboard entry as a link to its route', async () => {
+  it('lists the eight modules in order as plain links, with no collapsible group, no account block and no settings button', async () => {
     const { wrapper } = await mountMainLayoutAt('/dashboard')
 
-    expect(navigationLink(wrapper, 'Dashboard')?.attributes('href')).toBe('/dashboard')
+    expect(sidebarLinks(wrapper)).toEqual(MODULE_LINKS)
+    expect(wrapper.get('aside nav').findAll('button, p')).toHaveLength(0)
+    expect(wrapper.find('[title="Open settings"]').exists()).toBe(false)
   })
 
-  it('renders each group child and the flat mining entry as a link to its route', async () => {
-    const { wrapper } = await mountMainLayoutAt('/dashboard')
+  it('adds the administration entry as the ninth link for an administrator only', async () => {
+    const administrator = await mountMainLayoutAt('/dashboard', { isAdministrator: true })
+    const administratorLinks = sidebarLinks(administrator.wrapper)
+    administrator.wrapper.unmount()
 
+    const member = await mountMainLayoutAt('/dashboard')
+
+    expect(administratorLinks).toHaveLength(9)
+    expect(administratorLinks[8]).toEqual(['Administration', '/admin'])
+    expect(sidebarLinks(member.wrapper)).toHaveLength(8)
+  })
+
+  it('points each module at its last visited page and falls back to the module route', async () => {
+    const { wrapper } = await mountMainLayoutAt('/dashboard', {
+      storedModuleLastPage: JSON.stringify({ commerce: '/contracts', patrimoine: '/assets', account: '/settings' }),
+    })
+
+    expect(navigationLink(wrapper, 'Commerce')?.attributes('href')).toBe('/contracts')
+    expect(navigationLink(wrapper, 'Wealth')?.attributes('href')).toBe('/assets')
+    expect(navigationLink(wrapper, 'Account')?.attributes('href')).toBe('/settings')
     expect(navigationLink(wrapper, 'Industry')?.attributes('href')).toBe('/industry')
-    expect(navigationLink(wrapper, 'Appraisal')?.attributes('href')).toBe('/appraisal')
-    expect(navigationLink(wrapper, 'PI')?.attributes('href')).toBe('/planetary')
-    expect(navigationLink(wrapper, 'Mining')?.attributes('href')).toBe('/mining/operations')
-    expect(navigationLink(wrapper, 'PVE')?.attributes('href')).toBe('/pve/revenue')
-    expect(navigationLink(wrapper, 'Market')?.attributes('href')).toBe('/market')
-    expect(navigationLink(wrapper, 'Balance')?.attributes('href')).toBe('/balance')
-    expect(navigationLink(wrapper, 'Inventory')?.attributes('href')).toBe('/assets')
   })
 
-  it('lists the sections of the V3 mockup in order, with no group industry entry', async () => {
-    const { wrapper } = await mountMainLayoutAt('/dashboard')
-
-    expect(sidebarLinkLabels(wrapper)).toEqual([
-      'Dashboard',
-      'Industry',
-      'Appraisal',
-      'PI',
-      'Mining',
-      'PVE',
-      'Market',
-      'Balance',
-      'Inventory',
-      'Characters',
-    ])
-    expect(wrapper.get('aside nav').findAll('button, p').map(heading => heading.text().trim())).toEqual([
-      'Production',
-      'Economy',
-      'Account',
-      'Settings',
-    ])
-  })
-
-  it('renders the characters entry as a link to the characters route', async () => {
-    const { wrapper } = await mountMainLayoutAt('/dashboard')
-
-    expect(navigationLink(wrapper, 'Characters')?.attributes('href')).toBe('/characters')
-  })
-
-  it('marks only the entry of the current route with aria-current page', async () => {
-    const { wrapper } = await mountMainLayoutAt('/industry')
-
-    const currentPageLinks = wrapper.findAll('a[aria-current="page"]')
-
-    expect(currentPageLinks).toHaveLength(1)
-    expect(currentPageLinks[0].attributes('href')).toBe('/industry')
-    expect(navigationLink(wrapper, 'Dashboard')?.attributes('aria-current')).toBeUndefined()
-  })
-
-  it.each(['/industry/projects', '/industry/projects/p1', '/industry/analysis', '/industry/production'])('keeps the industry entry current and titles the page Industry on %s', async (path) => {
+  it.each([
+    ['a mining site detail', MINING_SITE_PATH, 'Mining'],
+    ['a project detail', '/industry/projects/p1', 'Industry'],
+    ['the escalations page', '/pve/escalations', 'PVE'],
+    ['a settings section', '/settings/industry', 'Account'],
+  ])('marks only the module of %s as the current page', async (_case, path, moduleLabel) => {
     const { wrapper } = await mountMainLayoutAt(path)
 
-    const currentPageLinks = wrapper.findAll('a[aria-current="page"]')
-
-    expect(currentPageLinks.map(link => link.attributes('href'))).toEqual(['/industry'])
-    expect(wrapper.get('header h2').text()).toBe('Industry')
+    expect(currentModuleLabels(wrapper)).toEqual([moduleLabel])
   })
 
-  it('keeps the production section open on a project page even when it was stored as collapsed', async () => {
-    const { wrapper } = await mountMainLayoutAt('/industry/projects/p1', { storedCollapsedGroups: '{"production":true}' })
+  it.each([
+    ['the home page', '/dashboard', 'Home'],
+    ['the planetary page', '/planetary', 'Planetary'],
+    ['a project detail', '/industry/projects/p1', 'Industry › Projects'],
+    ['the inventory', '/assets', 'Wealth › Inventory'],
+  ])('titles the header with the module then the page on %s', async (_case, path, expectedTitle) => {
+    const { wrapper } = await mountMainLayoutAt(path)
 
-    expect(sectionHeader(wrapper, 'Production')?.attributes('aria-expanded')).toBe('true')
-    expect(navigationLink(wrapper, 'Industry')).toBeDefined()
+    expect(wrapper.get('header h2').text()).toBe(expectedTitle)
   })
 
-  it('keeps each collapsible section header as a button reflecting its expanded state', async () => {
-    const { wrapper } = await mountMainLayoutAt('/dashboard')
+  it('neither reads nor writes the former collapsed groups key', async () => {
+    const { wrapper } = await mountMainLayoutAt('/dashboard', { storedCollapsedGroups: '{"production":true,"economy":true}' })
 
-    for (const [section, child] of [['Production', 'Industry'], ['Economy', 'Market']]) {
-      expect(sectionHeader(wrapper, section)?.element.tagName).toBe('BUTTON')
-      expect(sectionHeader(wrapper, section)?.attributes('aria-expanded')).toBe('true')
-
-      await sectionHeader(wrapper, section)?.trigger('click')
-
-      expect(sectionHeader(wrapper, section)?.attributes('aria-expanded')).toBe('false')
-      expect(navigationLink(wrapper, child)).toBeUndefined()
-    }
+    expect(sidebarLinks(wrapper)).toEqual(MODULE_LINKS)
+    expect(localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY)).toBe('{"production":true,"economy":true}')
   })
 
-  it('offers the remaining modules and no group industry module in the settings', async () => {
-    const { wrapper } = await mountMainLayoutAt('/dashboard')
+  it('hides a module from the sidebar when the legacy ids of its pages are stored as hidden', async () => {
+    const { wrapper } = await mountMainLayoutAt('/dashboard', { storedHiddenModules: ['market', 'appraisal', 'ledger', 'assets'] })
 
-    await wrapper.findAll('aside nav button').find(button => button.text().trim() === 'Settings')?.trigger('click')
-    await flushPromises()
-
-    const moduleLabels = Array.from(document.querySelectorAll('[role="dialog"] label')).map(label => label.textContent?.trim())
-    expect(moduleLabels).toEqual(['Dashboard', 'Industry', 'Appraisal', 'PI', 'Mining', 'PVE', 'Market', 'Balance', 'Inventory'])
-  })
-
-  it('hides the mining entry and shows it unchecked in the settings for a user who had hidden the former mining operations module', async () => {
-    const { wrapper } = await mountMainLayoutAt('/dashboard', { storedHiddenModules: ['mining-operations'] })
-
-    expect(sidebarLinkLabels(wrapper)).not.toContain('Mining')
-    await wrapper.findAll('aside nav button').find(button => button.text().trim() === 'Settings')?.trigger('click')
-    await flushPromises()
-
-    const miningModule = Array.from(document.querySelectorAll('[role="dialog"] label')).find(label => label.textContent?.trim() === 'Mining')
-    expect(miningModule?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(false)
+    expect(sidebarLinks(wrapper).map(([label]) => label)).toEqual(['Home', 'Industry', 'Mining', 'PVE', 'Planetary', 'Account'])
   })
 })

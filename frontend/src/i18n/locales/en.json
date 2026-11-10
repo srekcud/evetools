@@ -101,7 +101,7 @@
     }
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "dashboard": "Home",
     "characters": "Characters",
     "revenue": "Revenue",
     "pve": "PVE",
@@ -125,7 +125,9 @@
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
     "menu": "Navigation menu",
-    "account": "Account"
+    "account": "Account",
+    "planetary": "Planetary",
+    "patrimoine": "Wealth"
   },
   "commandPalette": {
     "open": "Open command palette (Ctrl+K)",
@@ -165,7 +167,26 @@
     "marketStructure": "Market Structure",
     "marketStructureDesc": "Choose a structure to compare prices against Jita.",
     "marketStructureLoading": "Loading structures...",
-    "marketStructureSaved": "Structure saved"
+    "marketStructureLoadError": "Market structures could not be loaded.",
+    "marketStructureSaved": "Structure saved",
+    "shortcut": "Settings",
+    "sections": {
+      "account": "Account",
+      "display": "Display",
+      "market": "Market",
+      "industry": "Industry",
+      "mining": "Mining",
+      "pve": "PVE",
+      "notifications": "Notifications"
+    },
+    "account": {
+      "loading": "Loading the corporation settings...",
+      "unavailable": "The corporation inventory visibility can only be set by a corporation director.",
+      "loadError": "The corporation inventory visibility could not be loaded."
+    },
+    "pve": {
+      "typesTitle": "Ammo types"
+    }
   },
   "auth": {
     "logout": "Logout",
@@ -225,7 +246,54 @@
       "unknownCharacters": "Characters to reconnect: unknown",
       "unknownExtractors": "PI extractors: unknown (loading failed)",
       "unknownPriceAlerts": "Price alerts: unknown (loading failed)",
-      "allCaughtUp": "All caught up"
+      "allCaughtUp": "All caught up",
+      "level": {
+        "critical": "Critical",
+        "warning": "Warning",
+        "info": "Info"
+      }
+    },
+    "bridge": {
+      "unknown": "Unknown: could not be loaded",
+      "progress": {
+        "title": "In progress",
+        "miningOperations": {
+          "title": "Mining operations",
+          "count": "{count} in progress",
+          "empty": "No operation in progress",
+          "link": "Operations"
+        },
+        "jobs": {
+          "title": "Jobs finishing soon",
+          "empty": "No job running",
+          "link": "Production",
+          "unknownProduct": "unknown product",
+          "done": "done"
+        },
+        "chunks": {
+          "title": "Next chunks",
+          "empty": "No chunk to come",
+          "link": "Moons",
+          "unknownMoon": "Unknown moon"
+        },
+        "extractors": {
+          "title": "PI extractors",
+          "empty": "No extractor",
+          "link": "Planetary",
+          "active": "{active} / {total} active",
+          "expired": "{count} stopped",
+          "expiring": "{count} expiring within {threshold}",
+          "expiringWithoutThreshold": "{count} expiring soon"
+        }
+      },
+      "balance": {
+        "title": "Balance of the last 30 days",
+        "pve": "PVE",
+        "mining": "Mining",
+        "industry": "Industry",
+        "total": "Total",
+        "link": "Balance"
+      }
     }
   },
   "characters": {

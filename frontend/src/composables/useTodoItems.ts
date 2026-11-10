@@ -26,12 +26,13 @@ export interface TodoItem {
 }
 
 export interface TodoItems {
+  planetaryStats: Ref<SourceState<PlanetaryStats>>
   items: ComputedRef<TodoItem[]>
   isLoading: ComputedRef<boolean>
   isAllCaughtUp: ComputedRef<boolean>
 }
 
-type SourceState<T> =
+export type SourceState<T> =
   | { status: 'loading' }
   | { status: 'loaded'; value: T }
   | { status: 'failed' }
@@ -121,5 +122,5 @@ export function useTodoItems(): TodoItems {
   const isLoading = computed(() => planetaryStats.state.value.status === 'loading' || priceAlerts.state.value.status === 'loading')
   const isAllCaughtUp = computed(() => !isLoading.value && items.value.length === 0)
 
-  return { items, isLoading, isAllCaughtUp }
+  return { planetaryStats: planetaryStats.state, items, isLoading, isAllCaughtUp }
 }

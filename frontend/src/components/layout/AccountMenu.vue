@@ -11,7 +11,6 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  openSettings: []
   openReleaseNotes: []
   logout: []
 }>()
@@ -58,10 +57,9 @@ function moveFocus(step: number): void {
   items[(currentIndex + step + items.length) % items.length]?.focus()
 }
 
-function choose(action: 'openSettings' | 'openReleaseNotes' | 'logout'): void {
+function choose(action: 'openReleaseNotes' | 'logout'): void {
   close()
-  if (action === 'openSettings') emit('openSettings')
-  else if (action === 'openReleaseNotes') emit('openReleaseNotes')
+  if (action === 'openReleaseNotes') emit('openReleaseNotes')
   else emit('logout')
 }
 
@@ -109,7 +107,7 @@ onClickOutside(root, close)
       @keydown.up.prevent="moveFocus(-1)"
       @keydown.tab="close"
     >
-      <button type="button" role="menuitem" :class="MENU_ITEM_CLASS" @click="choose('openSettings')">{{ t('settings.title') }}</button>
+      <RouterLink to="/settings" role="menuitem" :class="MENU_ITEM_CLASS" @click="close">{{ t('settings.title') }}</RouterLink>
       <RouterLink to="/characters" role="menuitem" :class="MENU_ITEM_CLASS" @click="close">{{ t('nav.characters') }}</RouterLink>
       <button type="button" role="menuitem" :class="MENU_ITEM_CLASS" @click="choose('openReleaseNotes')">{{ t('header.releaseNotes') }}</button>
       <div class="my-1.5 border-t border-slate-800" role="none"></div>

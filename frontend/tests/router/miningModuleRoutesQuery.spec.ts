@@ -54,7 +54,7 @@ describe('mining module routes, query and memory', () => {
   })
 
   it('does not remember a page outside the module', async () => {
-    await router.push('/ledger')
+    await router.push('/legal')
 
     expect(localStorage.getItem(MODULE_LAST_PAGE_STORAGE_KEY)).toBeNull()
   })
