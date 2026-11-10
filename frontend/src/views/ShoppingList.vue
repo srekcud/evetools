@@ -6,9 +6,9 @@ import { authFetch, safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import ShoppingListResults from '@/components/shopping/ShoppingListResults.vue'
-import AppraisalResults from '@/components/shopping/AppraisalResults.vue'
+import AppraisalResults from '@/components/appraisal/AppraisalResults.vue'
 import type { ShoppingItem, ShoppingTotals } from '@/components/shopping/ShoppingListResults.vue'
-import type { AppraisalItem, AppraisalTotals } from '@/components/shopping/AppraisalResults.vue'
+import type { AppraisalItem, AppraisalTotals } from '@/components/appraisal/AppraisalResults.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 interface ShoppingListResponse {

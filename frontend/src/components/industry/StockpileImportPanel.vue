@@ -6,8 +6,8 @@ import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { SearchResult } from '@/stores/industry/types'
 import IskAmount from '@/components/common/IskAmount.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
-import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
-import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
+import MissingVolumeWarning from '@/components/appraisal/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/appraisal/missingVolume'
 
 const { t } = useI18n()
 const uid = useId()

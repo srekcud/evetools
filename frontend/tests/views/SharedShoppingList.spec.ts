@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import SharedShoppingList from '@/views/SharedShoppingList.vue'
-import type { AppraisalItem, AppraisalTotals } from '@/components/shopping/AppraisalResults.vue'
+import type { AppraisalItem, AppraisalTotals } from '@/components/appraisal/AppraisalResults.vue'
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -72,7 +72,21 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+async function mountExpiredSharedList() {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 404 })))
+  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+  const wrapper = mount(SharedShoppingList, { global: { plugins: [i18n], stubs: { OpenInGameButton: true } } })
+  await flushPromises()
+  return wrapper
+}
+
 describe('SharedShoppingList', () => {
+  it('tells that the shared appraisal does not exist or has expired when the token is unknown', async () => {
+    const wrapper = await mountExpiredSharedList()
+
+    expect(wrapper.find('p.text-red-400').text()).toBe('This shared appraisal does not exist or has expired.')
+  })
+
   it('names the shared item whose total volume is unknown in a warning', async () => {
     const wrapper = await mountSharedList(
       [appraisalItem({ typeId: 34, typeName: UNKNOWN_TYPE_NAME, volume: null, totalVolume: null }), appraisalItem({})],

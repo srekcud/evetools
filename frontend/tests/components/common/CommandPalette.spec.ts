@@ -45,6 +45,7 @@ const appRoutes = [
   '/planetary',
   '/mining/operations',
   '/market',
+  '/contracts',
   '/assets',
   '/characters',
   '/admin',
@@ -304,7 +305,7 @@ describe('CommandPalette', () => {
       expect(optionLabels()).toEqual(['Industrie › Achat vs Prod'])
 
       await typeQuery('contracts')
-      expect(optionLabels()).toEqual(['Inventaire › Contrats'])
+      expect(optionLabels()).toEqual(['Commerce › Contrats'])
     })
 
     it('finds unaccented French labels from an accented query', async () => {
@@ -325,6 +326,14 @@ describe('CommandPalette', () => {
       expect(optionLabels()).toEqual([])
       expect(document.querySelectorAll('[role="listbox"] [role="group"]')).toHaveLength(0)
       expect(paletteText()).toContain('No results for "buy"')
+    })
+
+    it('removes the contracts page with the market module', async () => {
+      await mountOpenPalette({ hiddenModules: ['market'] })
+
+      await typeQuery('contracts')
+
+      expect(optionLabels()).toEqual([])
     })
 
     it('hides no module when the stored hidden modules are not readable', async () => {
@@ -393,12 +402,21 @@ describe('CommandPalette', () => {
 
     it('navigates to the row reached with the arrows on Enter', async () => {
       const { router } = await mountOpenPalette()
-      await typeQuery('inv')
+      await typeQuery('market')
       await pressArrowDown(1)
 
       await pressKey('Enter')
 
-      expect(router.currentRoute.value.fullPath).toBe('/assets?tab=contracts')
+      expect(router.currentRoute.value.fullPath).toBe('/market?tab=alerts')
+    })
+
+    it('navigates to the contracts page of the Commerce module', async () => {
+      const { router } = await mountOpenPalette()
+      await typeQuery('contracts')
+
+      await pressKey('Enter')
+
+      expect(router.currentRoute.value.fullPath).toBe('/contracts')
     })
 
     it('navigates to a screen without a tab query', async () => {

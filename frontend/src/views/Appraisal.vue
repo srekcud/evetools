@@ -11,8 +11,8 @@ import AppraisalInputPanel from '@/components/appraisal/AppraisalInputPanel.vue'
 import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
 import type { MergedItem } from '@/components/appraisal/AppraisalResultsTable.vue'
 import AppraisalActions from '@/components/appraisal/AppraisalActions.vue'
-import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
-import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
+import MissingVolumeWarning from '@/components/appraisal/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/appraisal/missingVolume'
 
 // -- Types --
 
