@@ -137,7 +137,7 @@
     },
     "projects": {
       "loading": "Chargement...",
-      "groupIndustryUnavailable": "Projets Industrie de groupe indisponibles",
+      "groupIndustryUnavailable": "Projets indisponibles",
       "completed": "Terminé"
     },
     "types": {
@@ -2176,7 +2176,7 @@
     }
   },
   "groupIndustry": {
-    "title": "Industrie de groupe",
+    "title": "Projets",
     "available": {
       "runs": "Runs",
       "members": "membres",
@@ -3016,7 +3016,7 @@
       "requestSent": "Demande envoyée",
       "requestSentDescription": "Votre demande d'adhésion a été envoyée et attend l'approbation d'un admin du projet. Vous serez notifié dès qu'elle sera acceptée.",
       "unableToJoin": "Adhésion impossible",
-      "backToGroupIndustry": "Retour à Industrie de groupe"
+      "backToGroupIndustry": "Retour aux projets"
     },
     "tabs": {
       "myProjects": "Mes projets",
@@ -3133,6 +3133,7 @@
     "detail": {
       "backToList": "Retour aux projets",
       "shareLink": "Lien de partage",
+      "invite": "Inviter",
       "edit": "Modifier",
       "delete": "Supprimer",
       "saveAsTemplate": "Enregistrer comme modèle",
@@ -3339,6 +3340,14 @@
       "30d": "30j",
       "90d": "90j",
       "365d": "1 an"
+    }
+  },
+  "industryModule": {
+    "tabs": {
+      "workshop": "Atelier",
+      "projects": "Projets",
+      "analysis": "Analyse",
+      "production": "Production"
     }
   },
   "miningModule": {

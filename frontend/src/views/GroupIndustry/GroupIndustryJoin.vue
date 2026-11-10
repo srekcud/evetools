@@ -41,7 +41,11 @@ onMounted(async () => {
 
     // If already a member, try to find the project and redirect
     if (msg.toLowerCase().includes('already')) {
-      router.replace({ name: 'group-industry' })
+      await store.fetchMyProjects()
+      const memberProject = store.myProjects.find(candidate => candidate.shortLinkCode === code)
+      router.replace(memberProject === undefined
+        ? { name: 'industry-projects' }
+        : { name: 'industry-project', params: { id: memberProject.id } })
       return
     }
 
@@ -77,7 +81,7 @@ onMounted(async () => {
             {{ t('groupIndustry.join.requestSentDescription') }}
           </p>
           <router-link
-            :to="{ name: 'group-industry' }"
+            :to="{ name: 'industry-projects' }"
             class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium transition-colors"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,7 +103,7 @@ onMounted(async () => {
           <h2 class="text-xl font-bold text-slate-100 mb-2">{{ t('groupIndustry.join.unableToJoin') }}</h2>
           <p class="text-sm text-slate-400 mb-6">{{ errorMessage }}</p>
           <router-link
-            :to="{ name: 'group-industry' }"
+            :to="{ name: 'industry-projects' }"
             class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm font-medium transition-colors"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

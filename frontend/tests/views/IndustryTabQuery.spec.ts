@@ -113,10 +113,13 @@ describe('Industry pages and their sub-tabs', () => {
 
   it('opens the sub-tab named in the query, on the analysis page and on the production page', async () => {
     const analysis = await mountPage('analysis', { tab: 'batch' })
-    const production = await mountPage('production', { tab: 'blueprints' })
 
     expect(analysis.findComponent(BatchScanTab).exists()).toBe(true)
     expect(selectedSubTabLabels(analysis)).toEqual(['Batch Scan'])
+    analysis.unmount()
+
+    const production = await mountPage('production', { tab: 'blueprints' })
+
     expect(production.findComponent(BlueprintLibraryTab).exists()).toBe(true)
     expect(production.findComponent(StockpileDashboard).exists()).toBe(false)
     expect(selectedSubTabLabels(production)).toEqual(['Blueprints'])

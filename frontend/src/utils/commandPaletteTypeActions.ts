@@ -14,13 +14,13 @@ const MARKET_MODULE = 'market'
 const ANALYZE_MARGIN: TypeAction = {
   id: 'analyzeMargin',
   key: 'Enter',
-  route: typeId => `/industry?tab=margins&typeId=${typeId}`,
+  route: typeId => `/industry/analysis?tab=margins&typeId=${typeId}`,
 }
 
 const BUY_VS_BUILD: TypeAction = {
   id: 'buyVsBuild',
   key: 'Shift+Enter',
-  route: typeId => `/industry?tab=buy-vs-build&typeId=${typeId}`,
+  route: typeId => `/industry/analysis?tab=buy-vs-build&typeId=${typeId}`,
 }
 
 const OPEN_IN_MARKET: TypeAction = {

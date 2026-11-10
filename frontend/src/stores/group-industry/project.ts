@@ -104,7 +104,7 @@ export const useGroupProjectStore = defineStore('group-project', () => {
     }
   }
 
-  async function createProject(input: CreateGroupProjectInput): Promise<GroupProject | null> {
+  async function createProject(input: CreateGroupProjectInput): Promise<GroupProject> {
     error.value = null
     try {
       const project = await apiRequest<GroupProject>('/industry/projects', {
