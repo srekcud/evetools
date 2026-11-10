@@ -220,6 +220,42 @@ export interface MiningHaulerPlan {
   contributorNames: string[]
 }
 
+export type MiningMinersEstimateStatus = 'estimated' | 'insufficient_history'
+
+export interface MiningMinersEstimateSite {
+  label: string
+  firstScanAt: string
+  lifespanMinutes: number
+  miners: number
+  workMinerMinutes: number | null
+  unknownReason: 'no_miner' | null
+}
+
+export interface MiningMinersEstimateDuration {
+  miners: number
+  minutes: number
+  beforeDeadline: boolean
+}
+
+export interface MiningMinersEstimateType {
+  typeId: number
+  typeName: string | null
+  status: MiningMinersEstimateStatus
+  knownSiteCount: number
+  workMinerMinutes: number | null
+  minersNeeded: number | null
+  deadline: string | null
+  availableMinutes: number | null
+  durations: MiningMinersEstimateDuration[]
+  sites: MiningMinersEstimateSite[]
+}
+
+export interface MiningMinersEstimate {
+  operationId: string
+  startAt: string
+  types: MiningMinersEstimateType[]
+}
+
 export interface MiningPayment {
   id: string
   position: number
@@ -501,6 +537,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const fleetStorageVerification = ref<MiningFleetStorageVerification | null>(null)
   const haulerPlan = ref<MiningHaulerPlan | null>(null)
   const haulerPlanError = ref<string | null>(null)
+  const minersEstimate = ref<MiningMinersEstimate | null>(null)
+  const minersEstimateError = ref<string | null>(null)
   const boostShips = ref<MiningBoostShipOption[]>([])
   const error = ref<string | null>(null)
 
@@ -828,6 +866,16 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
+  async function fetchMinersEstimate(id: string): Promise<void> {
+    minersEstimateError.value = null
+    try {
+      minersEstimate.value = await apiRequest<MiningMinersEstimate>(`/mining-operations/${id}/miners-estimate`)
+    } catch (cause) {
+      minersEstimate.value = null
+      minersEstimateError.value = messageOf(cause, 'Failed to fetch the miners estimate')
+    }
+  }
+
   async function fetchHaulerPlan(id: string): Promise<void> {
     haulerPlanError.value = null
     try {
@@ -934,6 +982,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     fleetStorageVerification,
     haulerPlan,
     haulerPlanError,
+    minersEstimate,
+    minersEstimateError,
     boostShips,
     error,
     fetchMine,
@@ -971,6 +1021,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     fetchSeason,
     fetchFleetStorage,
     fetchHaulerPlan,
+    fetchMinersEstimate,
     declareHangarEmptied,
     updateFleetStorage,
     declareFleetStorage,

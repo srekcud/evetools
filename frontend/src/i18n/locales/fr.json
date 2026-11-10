@@ -4143,6 +4143,29 @@
         "noEffect": "Le constat n'empêche pas de figer les parts : la dette reste celle déclarée."
       }
     },
+    "minersEstimate": {
+      "title": "Combien de mineurs ?",
+      "subtitle": "D'après vos propres sites scannés jusqu'à épuisement : durée de vie selon le nombre de mineurs",
+      "tabs": "Types de site",
+      "empty": "Aucun de vos sites liés à une opération n'a encore été scanné jusqu'à épuisement.",
+      "needed": "{type} : {miners} mineur pour finir avant le downtime ({deadline} EVE), en commençant à {start} EVE ({available} disponibles). | {type} : {miners} mineurs pour finir avant le downtime ({deadline} EVE), en commençant à {start} EVE ({available} disponibles).",
+      "insufficient": "Pas assez d'historique : {count} site de ce type scanné jusqu'à épuisement avec un équipage connu, il en faut 3. Aucune durée n'est proposée. | Pas assez d'historique : {count} sites de ce type scannés jusqu'à épuisement avec un équipage connu, il en faut 3. Aucune durée n'est proposée.",
+      "crew": "{count} mineur | {count} mineurs",
+      "beforeDowntime": "avant le downtime",
+      "afterDowntime": "après le downtime",
+      "calculation": "durée ≈ {work} mineur·min (moyenne de l'échantillon) ÷ nombre de mineurs",
+      "sample": "Échantillon : {count} site, 90 jours | Échantillon : {count} sites, 90 jours",
+      "assumption": "Même boost supposé, débit proportionnel au nombre de mineurs",
+      "noMiner": "aucun mineur compté",
+      "error": "Impossible de charger l'estimation du nombre de mineurs.",
+      "columns": {
+        "date": "Date",
+        "site": "Site",
+        "miners": "Mineurs",
+        "lifespan": "Durée de vie",
+        "work": "Mineur·min"
+      }
+    },
     "haulerPlan": {
       "title": "Hauler",
       "barLabel": "Fleet hangar · {hauler} ({ship})",
