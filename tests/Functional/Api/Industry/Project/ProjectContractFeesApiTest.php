@@ -21,6 +21,9 @@ final class ProjectContractFeesApiTest extends WebTestCase
     private const float SALES_TAX = 108_000.0;
     private const float NET_REVENUE = 2_862_000.0;
     private const float OWNER_TO_MEMBER = 286_200.0;
+    private const float CREATION_FEE = 10_000.0;
+    private const float NET_REVENUE_WITH_CREATION_FEE_ONLY = 2_990_000.0;
+    private const float OWNER_TO_MEMBER_WITH_CREATION_FEE_ONLY = 299_000.0;
 
     protected function setUp(): void
     {
@@ -61,6 +64,29 @@ final class ProjectContractFeesApiTest extends WebTestCase
         $this->storeJournalFee('contract_sales_tax', -self::SALES_TAX);
 
         self::assertEqualsWithDelta(self::SALES_TAX, $this->distribution()['contractFees'], 0.0001);
+    }
+
+    public function testCreationFeeAloneIsTheFeesOfTheContractAndTheNetRevenueStaysKnown(): void
+    {
+        $this->storeJournalFee('contract_brokers_fee', -self::CREATION_FEE);
+
+        $distribution = $this->distribution();
+
+        self::assertEqualsWithDelta(self::CREATION_FEE, $distribution['contractFees'], 0.0001);
+        self::assertEqualsWithDelta(self::NET_REVENUE_WITH_CREATION_FEE_ONLY, $distribution['netRevenue'], 0.0001);
+        self::assertNotNull($distribution['marginPercent']);
+    }
+
+    public function testTransfersStayAvailableWhenTheCreationFeeIsTheOnlyLineOfTheContract(): void
+    {
+        $this->storeJournalFee('contract_brokers_fee', -self::CREATION_FEE);
+
+        $this->actAs($this->member);
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/settlement');
+
+        $settlement = $this->responseJson();
+        self::assertNull($settlement['transfersUnavailableReason']);
+        self::assertSame([self::OWNER_TO_MEMBER_WITH_CREATION_FEE_ONLY], array_column($settlement['transfers'], 'amount'));
     }
 
     public function testCashHeldByTheSellerOfTheContractIsThePriceMinusItsFees(): void
