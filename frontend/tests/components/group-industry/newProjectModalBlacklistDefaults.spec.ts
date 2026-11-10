@@ -21,11 +21,17 @@ const SETTINGS_CATEGORIES = [
   { key: 'tools', label: 'Tools (R.A.M.)', groupIds: [332], blacklisted: false, partiallyBlacklisted: false },
 ]
 
-function mountModal(categories = SETTINGS_CATEGORIES) {
+const SETTINGS_ITEMS = [
+  { typeId: 34, typeName: 'Tritanium' },
+  { typeId: 35, typeName: 'Pyerite' },
+  { typeId: 36, typeName: 'Mexallon' },
+]
+
+function mountModal(categories = SETTINGS_CATEGORIES, items: unknown[] = []) {
   setActivePinia(createPinia())
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async endpoint => {
-    if (endpoint === BLACKLIST_ENDPOINT) return { categories, items: [] }
+    if (endpoint === BLACKLIST_ENDPOINT) return { categories, items }
     if (endpoint.startsWith('/industry/search')) return { results: [FEROX] }
     return { id: 'group-project-created' }
   })
@@ -90,14 +96,48 @@ describe('NewProjectModal blacklist defaults from the industry settings', () => 
     expect(body.blacklistCategoryKeys).toEqual(['fuel_blocks', 'complex_reactions'])
   })
 
-  it('creates the project without a category the user unchecked', async () => {
+  it('locks the categories blacklisted in the industry settings and keeps them in the creation request', async () => {
     const wrapper = mountModal()
     await flushPromises()
-    await categoryLabel(wrapper, 'Fuel Blocks').get('input[type="checkbox"]').setValue(false)
+    const fuelBlocks = categoryLabel(wrapper, 'Fuel Blocks').get('input[type="checkbox"]')
 
+    await fuelBlocks.setValue(false)
     const body = await createWithFerox(wrapper)
 
-    expect(body.blacklistCategoryKeys).toEqual(['complex_reactions'])
+    expect(fuelBlocks.attributes('disabled')).toBeDefined()
+    expect(body.blacklistCategoryKeys).toEqual(['fuel_blocks', 'complex_reactions'])
+  })
+
+  it('checks and disables only the categories of the industry settings', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    const lockedStates = ['Fuel Blocks', 'Composite Reactions', 'Advanced Components', 'Tools (R.A.M.)']
+      .map(label => (categoryLabel(wrapper, label).get('input[type="checkbox"]').element as HTMLInputElement).disabled)
+
+    expect(lockedStates).toEqual([true, true, false, false])
+  })
+
+  it('mentions that the locked categories come from the settings', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+
+    const blacklistSection = wrapper.text().split('Corp Container')[0]!.split('Blacklist')[1]!
+
+    expect(blacklistSection).toContain('from your settings')
+  })
+
+  it('shows the count of single items excluded by the settings', async () => {
+    const wrapper = mountModal(SETTINGS_CATEGORIES, SETTINGS_ITEMS)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('3 items excluded by your settings')
+  })
+
+  it('shows no count of excluded items when the settings hold no single item', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toMatch(/items? excluded by your settings/)
   })
 
   it('keeps the choice of the user when the settings arrive after it', async () => {

@@ -3132,6 +3132,8 @@
         "blacklistLabel": "Liste noire",
         "blacklistDesc": "Les items ci-dessous seront achetes, pas fabriques.",
         "blacklistHint": "Defauts issus de vos parametres industrie. Surcharge par projet.",
+        "blacklistFromSettings": "depuis vos réglages",
+        "blacklistSettingsItems": "{count} item exclu par vos réglages | {count} items exclus par vos réglages",
         "lineRentalInfo": "Tarifs location de ligne :",
         "lineRentalDefault": "Utilise les defauts de vos parametres",
         "lineRentalCustom": "Tarifs personnalises pour ce projet",

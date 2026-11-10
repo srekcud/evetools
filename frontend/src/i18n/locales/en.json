@@ -3132,6 +3132,8 @@
         "blacklistLabel": "Blacklist",
         "blacklistDesc": "Items below will be purchased, not manufactured.",
         "blacklistHint": "Defaults from your industry settings. Override per project.",
+        "blacklistFromSettings": "from your settings",
+        "blacklistSettingsItems": "{count} item excluded by your settings | {count} items excluded by your settings",
         "lineRentalInfo": "Line Rental Rates:",
         "lineRentalDefault": "Using defaults from your settings",
         "lineRentalCustom": "Custom rates for this project",
