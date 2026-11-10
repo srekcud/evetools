@@ -1,8 +1,10 @@
 import type { BomItem, GroupMember, GroupProject, JobMatch } from '@/stores/group-industry/types'
 
-export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request'
+export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'move_products'
 
 export type CompanionAlert = { key: string; kind: CompanionAlertKind }
+
+export type MoveProducts = { quantity: number; jobCount: number; unknownJobCount: number }
 
 export type CompanionTasks = {
   free: BomItem[]
@@ -13,6 +15,7 @@ export type CompanionTasks = {
   bomPercent: number
   finalJobsRunning: number
   alerts: CompanionAlert[]
+  moveProducts: MoveProducts
 }
 
 export type CompanionTasksInput = {
@@ -87,5 +90,6 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     bomPercent: project.fulfillmentPercent,
     finalJobsRunning,
     alerts,
+    moveProducts: { quantity: 0, jobCount: 0, unknownJobCount: 0 },
   }
 }

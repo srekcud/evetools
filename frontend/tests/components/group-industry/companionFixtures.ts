@@ -1,5 +1,5 @@
 import type { CompanionTasks } from '@/components/group-industry/companionTasks'
-import type { BomItem, GroupMember, GroupProject, JobMatch } from '@/stores/group-industry/types'
+import type { BomItem, GroupMember, GroupProject, JobLocation, JobLocationStatus, JobLocations, JobMatch } from '@/stores/group-industry/types'
 
 export const COMPANION_PROJECT_ID = 'project-ishtar-322'
 
@@ -102,6 +102,28 @@ export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): Compa
     bomPercent: 0,
     finalJobsRunning: 0,
     alerts: [],
+    moveProducts: { quantity: 0, jobCount: 0, unknownJobCount: 0 },
     ...overrides,
+  }
+}
+
+export function jobLocation(status: JobLocationStatus, unknownReason: string | null = null): JobLocation {
+  return {
+    locationId: status === 'unknown' ? null : 1_045_000_000_001,
+    kind: status === 'unknown' ? null : 'container',
+    name: status === 'unknown' ? null : 'Project container',
+    divisionName: null,
+    status,
+    unknownReason,
+  }
+}
+
+export function jobLocations(
+  output: JobLocationStatus,
+  options: { blueprint?: JobLocationStatus; unknownReason?: string } = {},
+): JobLocations {
+  return {
+    blueprint: jobLocation(options.blueprint ?? 'inside'),
+    output: jobLocation(output, options.unknownReason ?? null),
   }
 }

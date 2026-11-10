@@ -1,6 +1,6 @@
 import { buildCompanionTasks, type CompanionTasks } from '@/components/group-industry/companionTasks'
 import type { BomItem, GroupMember, GroupProject } from '@/stores/group-industry/types'
-import { bomLine, companionProject, jobMatch, member } from './companionFixtures'
+import { bomLine, companionProject, jobLocations, jobMatch, member } from './companionFixtures'
 
 const NOW = Date.parse('2026-11-09T12:00:00+00:00')
 const ONE_MINUTE = 60_000
@@ -181,5 +181,185 @@ describe('buildCompanionTasks', () => {
     const tasks = tasksOf([finalOne, finalTwo, component], { project: companionProject({ fulfillmentPercent: 37 }) })
 
     expect({ bomPercent: tasks.bomPercent, finalJobsRunning: tasks.finalJobsRunning }).toEqual({ bomPercent: 37, finalJobsRunning: 3 })
+  })
+
+  describe('move products', () => {
+    const NO_MOVE = { quantity: 0, jobCount: 0, unknownJobCount: 0 }
+    const MOVE_PRODUCTS_ALERT = { key: 'move_products', kind: 'move_products' }
+
+    function hammerheadLine(jobMatches: BomItem['jobMatches'], overrides: Partial<BomItem> = {}): BomItem {
+      return manufacturingJobLine('bom-hammerhead-ii', 2_185, { runs: 4, requiredQuantity: 20, jobMatches, ...overrides })
+    }
+
+    const CONTROL_ONLY = { quantity: 5, jobCount: 1, unknownJobCount: 0 }
+    const CONTROL_EXPECTED = { moveProducts: CONTROL_ONLY, alerts: [MOVE_PRODUCTS_ALERT] }
+
+    function controlLine(): BomItem {
+      return manufacturingJobLine('bom-control-ferox', 16_227, {
+        runs: 8,
+        requiredQuantity: 8,
+        jobMatches: [
+          jobMatch({ id: 'match-control', esiJobId: 950_900, status: 'active', characterName: 'Alpha', runs: 5, locations: jobLocations('outside') }),
+        ],
+      })
+    }
+
+    function moveProductsAlerts(tasks: CompanionTasks): CompanionTasks['alerts'] {
+      return tasks.alerts.filter(alert => alert.kind === 'move_products')
+    }
+
+    it('adds the product quantity of a job of mine whose output is outside the container and raises the move products alert', () => {
+      const line = hammerheadLine([
+        jobMatch({ id: 'match-out', esiJobId: 950_001, status: 'ready', characterName: 'Alpha', runs: 2, locations: jobLocations('outside') }),
+      ])
+
+      const tasks = tasksOf([line])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual({
+        moveProducts: { quantity: 10, jobCount: 1, unknownJobCount: 0 },
+        alerts: [MOVE_PRODUCTS_ALERT],
+      })
+    })
+
+    it('adds up the quantities of several jobs outside the container and raises a single move products alert', () => {
+      const line = hammerheadLine([
+        jobMatch({ id: 'match-out-a', esiJobId: 950_011, status: 'active', characterName: 'Alpha', runs: 2, locations: jobLocations('outside') }),
+        jobMatch({ id: 'match-out-b', esiJobId: 950_012, status: 'paused', characterName: 'Alpha', runs: 2, locations: jobLocations('outside') }),
+      ], { activityType: 'reaction' })
+
+      const tasks = tasksOf([line])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual({
+        moveProducts: { quantity: 20, jobCount: 2, unknownJobCount: 0 },
+        alerts: [MOVE_PRODUCTS_ALERT],
+      })
+    })
+
+    it('ignores a job whose output is already inside the container', () => {
+      const line = hammerheadLine([
+        jobMatch({ id: 'match-in', esiJobId: 950_021, status: 'ready', characterName: 'Alpha', runs: 2, locations: jobLocations('inside') }),
+      ])
+
+      const tasks = tasksOf([line, controlLine()])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual(CONTROL_EXPECTED)
+    })
+
+    it('counts a job with an unknown output location as unknown, never as a quantity, and raises no move products alert', () => {
+      const line = hammerheadLine([
+        jobMatch({ id: 'match-unknown', esiJobId: 950_031, status: 'active', characterName: 'Alpha', runs: 3, locations: jobLocations('unknown', { unknownReason: 'location_unresolved' }) }),
+      ])
+
+      const tasks = tasksOf([line])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual({
+        moveProducts: { quantity: 0, jobCount: 0, unknownJobCount: 1 },
+        alerts: [],
+      })
+    })
+
+    it('keeps the unknown job out of the quantity while the job outside the container raises the alert', () => {
+      const line = hammerheadLine([
+        jobMatch({ id: 'match-out', esiJobId: 950_041, status: 'active', characterName: 'Alpha', runs: 2, locations: jobLocations('outside') }),
+        jobMatch({ id: 'match-unknown', esiJobId: 950_042, status: 'active', characterName: 'Alpha', runs: 1, locations: jobLocations('unknown', { unknownReason: 'location_unresolved' }) }),
+      ])
+
+      const tasks = tasksOf([line])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual({
+        moveProducts: { quantity: 10, jobCount: 1, unknownJobCount: 1 },
+        alerts: [MOVE_PRODUCTS_ALERT],
+      })
+    })
+
+    it('ignores the jobs of another player outside the container', () => {
+      const line = hammerheadLine([
+        jobMatch({ id: 'match-zeta', esiJobId: 950_051, status: 'ready', characterName: 'Zeta', runs: 2, locations: jobLocations('outside') }),
+      ])
+
+      const tasks = tasksOf([line, controlLine()])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual(CONTROL_EXPECTED)
+    })
+
+    it('ignores a delivered or cancelled job of mine outside the container', () => {
+      const line = hammerheadLine([
+        jobMatch({ id: 'match-delivered', esiJobId: 950_061, status: 'delivered', characterName: 'Alpha', runs: 2, locations: jobLocations('outside') }),
+        jobMatch({ id: 'match-cancelled', esiJobId: 950_062, status: 'cancelled', characterName: 'Alpha', runs: 1, locations: jobLocations('outside') }),
+      ])
+
+      const tasks = tasksOf([line, controlLine()])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual(CONTROL_EXPECTED)
+    })
+
+    it('evaluates a job of mine without locations neither as outside nor as unknown', () => {
+      const withoutLocations = hammerheadLine([
+        jobMatch({ id: 'match-absent', esiJobId: 950_071, status: 'ready', characterName: 'Alpha', runs: 2 }),
+      ])
+      const nullLocations = hammerheadLine([
+        jobMatch({ id: 'match-null', esiJobId: 950_072, status: 'ready', characterName: 'Alpha', runs: 2, locations: null }),
+      ])
+
+      const absent = tasksOf([withoutLocations, controlLine()])
+      const nulled = tasksOf([nullLocations, controlLine()])
+
+      expect({
+        absent: { moveProducts: absent.moveProducts, alerts: moveProductsAlerts(absent) },
+        nulled: { moveProducts: nulled.moveProducts, alerts: moveProductsAlerts(nulled) },
+      }).toEqual({
+        absent: CONTROL_EXPECTED,
+        nulled: CONTROL_EXPECTED,
+      })
+    })
+
+    it('ignores the jobs of a line whose activity is not manufacturing or reaction', () => {
+      const copyLine = bomLine({
+        id: 'bom-copy-hammerhead',
+        typeId: 2_186,
+        typeName: 'Hammerhead II Blueprint',
+        isJob: true,
+        activityType: 'copy',
+        runs: 4,
+        requiredQuantity: 20,
+        jobMatches: [
+          jobMatch({ id: 'match-copy', esiJobId: 950_081, status: 'active', characterName: 'Alpha', runs: 2, locations: jobLocations('outside') }),
+        ],
+      })
+
+      const tasks = tasksOf([copyLine, controlLine()])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual(CONTROL_EXPECTED)
+    })
+
+    it('counts a job as unknown when the planned runs of its line are missing, never as a zero quantity', () => {
+      const line = hammerheadLine([
+        jobMatch({ id: 'match-no-runs', esiJobId: 950_091, status: 'active', characterName: 'Alpha', runs: 2, locations: jobLocations('outside') }),
+      ], { runs: null })
+
+      const tasks = tasksOf([line])
+
+      expect({ moveProducts: tasks.moveProducts, alerts: moveProductsAlerts(tasks) }).toEqual({
+        moveProducts: { quantity: 0, jobCount: 0, unknownJobCount: 1 },
+        alerts: [],
+      })
+    })
+
+    it('reads only the output location: a blueprint outside with the output inside is ignored, an output outside with the blueprint inside is counted', () => {
+      const outputOutside = hammerheadLine([
+        jobMatch({ id: 'match-output-out', esiJobId: 950_101, status: 'active', characterName: 'Alpha', runs: 2, locations: jobLocations('outside', { blueprint: 'inside' }) }),
+      ])
+      const blueprintOutside = hammerheadLine([
+        jobMatch({ id: 'match-blueprint-out', esiJobId: 950_102, status: 'active', characterName: 'Alpha', runs: 3, locations: jobLocations('inside', { blueprint: 'outside' }) }),
+      ])
+
+      const counted = tasksOf([outputOutside])
+      const ignored = tasksOf([blueprintOutside])
+
+      expect({ counted: counted.moveProducts, ignored: ignored.moveProducts }).toEqual({
+        counted: { quantity: 10, jobCount: 1, unknownJobCount: 0 },
+        ignored: NO_MOVE,
+      })
+    })
   })
 })
