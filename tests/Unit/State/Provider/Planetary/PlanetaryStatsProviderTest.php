@@ -66,9 +66,37 @@ final class PlanetaryStatsProviderTest extends TestCase
         $this->assertSame($within->getExpiryTime()?->format('c'), $stats->nearestExpiry);
     }
 
-    private function statsOf(?int $thresholdMinutes, array $pins): PlanetaryStatsResource
+    public function testExposesTheUserThresholdOfTheExpiryWindow(): void
     {
-        $user = new User();
+        $stats = $this->statsOf(360, []);
+
+        $this->assertSame(360, $stats->expiryThresholdMinutes);
+    }
+
+    public function testExposesOneDayAsTheThresholdWithoutPlanetaryPreference(): void
+    {
+        $stats = $this->statsOf(null, []);
+
+        $this->assertSame(1440, $stats->expiryThresholdMinutes);
+    }
+
+    public function testOnlyTheThresholdOfTheAuthenticatedUserIsUsed(): void
+    {
+        $viewer = new User();
+        $otherUser = new User();
+        $thresholdsByUser = new \SplObjectStorage();
+        $thresholdsByUser[$viewer] = 360;
+        $thresholdsByUser[$otherUser] = 1440;
+
+        $stats = $this->statsOf(null, [$this->extractor(self::BASE_METALS, '+420 minutes')], $viewer, $thresholdsByUser);
+
+        $this->assertSame(360, $stats->expiryThresholdMinutes);
+        $this->assertSame([1, 0, 0], [$stats->activeExtractors, $stats->expiringExtractors, $stats->expiredExtractors]);
+    }
+
+    private function statsOf(?int $thresholdMinutes, array $pins, ?User $authenticatedUser = null, ?\SplObjectStorage $thresholdsByUser = null): PlanetaryStatsResource
+    {
+        $user = $authenticatedUser ?? new User();
         $colony = (new PlanetaryColony())
             ->setCharacter((new Character())->setEveCharacterId(2112537001)->setName('Planetary Pilot'))
             ->setPlanetId(40009077)
@@ -86,10 +114,14 @@ final class PlanetaryStatsProviderTest extends TestCase
         $colonyRepository = $this->createStub(PlanetaryColonyRepository::class);
         $colonyRepository->method('findByUser')->willReturn([$colony]);
         $preferenceRepository = $this->createStub(UserNotificationPreferenceRepository::class);
-        $preferenceRepository->method('findByUserAndCategory')->willReturn(
-            $thresholdMinutes === null
-                ? null
-                : (new UserNotificationPreference())->setCategory(Notification::CATEGORY_PLANETARY)->setThresholdMinutes($thresholdMinutes),
+        $preferenceRepository->method('findByUserAndCategory')->willReturnCallback(
+            static function (User $owner) use ($thresholdMinutes, $thresholdsByUser): ?UserNotificationPreference {
+                $minutes = $thresholdsByUser !== null && $thresholdsByUser->offsetExists($owner) ? $thresholdsByUser[$owner] : $thresholdMinutes;
+
+                return $minutes === null
+                    ? null
+                    : (new UserNotificationPreference())->setCategory(Notification::CATEGORY_PLANETARY)->setThresholdMinutes($minutes);
+            },
         );
         $productionCalculator = $this->createStub(PlanetaryProductionCalculator::class);
         $productionCalculator->method('calculateTotalDailyIsk')->willReturn(0.0);

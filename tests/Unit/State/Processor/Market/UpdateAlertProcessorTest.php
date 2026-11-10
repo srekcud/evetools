@@ -145,6 +145,24 @@ final class UpdateAlertProcessorTest extends TestCase
         $this->assertSame(9.125, $alert->getThreshold());
     }
 
+    public function testRejectsANegativeThresholdWithTheCreationMessageAndLeavesAnActiveAlertUntouched(): void
+    {
+        $user = $this->createUser(self::USER_ID);
+        $alert = $this->activeAlert($user, self::MEXALLON, 'Mexallon', AlertDirection::Above, 61.5, AlertPriceSource::JitaSell);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->never())->method('flush');
+
+        try {
+            $this->processorFor($user, $alert, $entityManager)->process($this->input(threshold: -1.0), new Patch(), ['id' => self::ALERT_ID]);
+            $this->fail('A negative threshold must be rejected');
+        } catch (BadRequestHttpException $exception) {
+            $this->assertSame(400, $exception->getStatusCode());
+            $this->assertSame('Threshold must be positive', $exception->getMessage());
+        }
+
+        $this->assertSame([AlertStatus::Active, 61.5], [$alert->getStatus(), $alert->getThreshold()]);
+    }
+
     public function testRejectsAnUnknownDirectionWithTheCreationMessageAndLeavesATriggeredAlertUntouched(): void
     {
         $user = $this->createUser(self::USER_ID);

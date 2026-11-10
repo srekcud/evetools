@@ -44,4 +44,17 @@ describe('AlertsPanel edit button', () => {
 
     expect(wrapper.emitted('edit')).toEqual([[MEXALLON_ALERT]])
   })
+
+  it('offers no edit button on an expired alert and one on active and triggered alerts', () => {
+    const expiredAlert: MarketAlert = { ...MEXALLON_ALERT, id: 'alert-expired', typeName: 'Isogen', status: 'expired' }
+    const wrapper = mount(AlertsPanel, {
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
+      props: { alerts: [PYERITE_ALERT, expiredAlert, MEXALLON_ALERT] },
+    })
+
+    const rows = wrapper.findAll('tbody tr')
+
+    expect(rows).toHaveLength(3)
+    expect(rows.map(row => row.find('[data-testid="alert-edit"]').exists())).toEqual([true, false, true])
+  })
 })

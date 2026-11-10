@@ -272,6 +272,108 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
         $this->assertStringContainsString('above', $this->persistedNotifications[0]->getMessage());
     }
 
+    public function testPriceNotificationOfABelowAlertOnJitaBuyHasTheExactTextAndTheFullData(): void
+    {
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        (new \ReflectionProperty(MarketPriceAlert::class, 'id'))->setValue($alert, Uuid::fromString(self::ALERT_ID));
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $notification = $this->persistedNotifications[0];
+        $this->assertSame('Price alert: Pyerite', $notification->getTitle());
+        $this->assertSame('Pyerite on Jita buy is now 8.6875 ISK, below your threshold of 9.125 ISK.', $notification->getMessage());
+        $this->assertSame([
+            'alertId' => self::ALERT_ID,
+            'typeId' => self::PYERITE,
+            'direction' => 'below',
+            'threshold' => 9.125,
+            'currentPrice' => 8.6875,
+            'priceSource' => 'jita_buy',
+        ], $notification->getData());
+    }
+
+    public function testPriceNotificationOfAnAboveAlertOnJitaSellShowsAWholeThresholdWithoutDecimals(): void
+    {
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::ISOGEN, 'Isogen', AlertDirection::Above, 47.0, AlertPriceSource::JitaSell);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::ISOGEN => 52.5], [self::ISOGEN => 46.875]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $notification = $this->persistedNotifications[0];
+        $this->assertSame('Price alert: Isogen', $notification->getTitle());
+        $this->assertSame('Isogen on Jita sell is now 52.5 ISK, above your threshold of 47 ISK.', $notification->getMessage());
+        $this->assertSame([
+            'alertId' => null,
+            'typeId' => self::ISOGEN,
+            'direction' => 'above',
+            'threshold' => 47.0,
+            'currentPrice' => 52.5,
+            'priceSource' => 'jita_sell',
+        ], $notification->getData());
+    }
+
+    public function testPriceNotificationOfAStructureSellAlertNamesTheStructureSourceAndGroupsThousands(): void
+    {
+        $this->givenStructurePrices(self::STRUCTURE_AT_CREATION, [self::MEXALLON => ['sell' => 1187500.25, 'buy' => 1000000.0]]);
+        $user = $this->createUser(self::USER_ID, self::STRUCTURE_AT_CREATION);
+        $alert = $this->createAlert($user, self::MEXALLON, 'Mexallon', AlertDirection::Below, 1250000.0, AlertPriceSource::StructureSell);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::MEXALLON => 61.5], [self::MEXALLON => 55.25]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $notification = $this->persistedNotifications[0];
+        $this->assertSame('Mexallon on structure sell is now 1,187,500.25 ISK, below your threshold of 1,250,000 ISK.', $notification->getMessage());
+        $this->assertSame('structure_sell', $notification->getData()['priceSource']);
+        $this->assertSame(1187500.25, $notification->getData()['currentPrice']);
+    }
+
+    public function testPriceNotificationOfAStructureBuyAlertNamesTheStructureBuySource(): void
+    {
+        $this->givenStructurePrices(self::STRUCTURE_AT_CREATION, [self::TRITANIUM => ['sell' => 5.5, 'buy' => 4.75]]);
+        $user = $this->createUser(self::USER_ID, self::STRUCTURE_AT_CREATION);
+        $alert = $this->createAlert($user, self::TRITANIUM, 'Tritanium', AlertDirection::Above, 4.5, AlertPriceSource::StructureBuy);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::TRITANIUM => 4.5], [self::TRITANIUM => 3.9375]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $this->assertSame('Tritanium on structure buy is now 4.75 ISK, above your threshold of 4.5 ISK.', $this->persistedNotifications[0]->getMessage());
+        $this->assertSame('structure_buy', $this->persistedNotifications[0]->getData()['priceSource']);
+    }
+
+    public function testDispatcherFailureIsLoggedAsAnErrorWithTheAlertAndTheTypeOfTheAlert(): void
+    {
+        $dispatcher = $this->createMock(NotificationDispatcher::class);
+        $dispatcher->expects($this->once())->method('dispatch')->willThrowException(new \RuntimeException('database unavailable'));
+        $service = new MarketAlertService(
+            $this->alertRepository,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $this->createStub(EntityManagerInterface::class),
+            $this->logger,
+            $this->mercurePublisher,
+            $dispatcher,
+        );
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        (new \ReflectionProperty(MarketPriceAlert::class, 'id'))->setValue($alert, Uuid::fromString(self::ALERT_ID));
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+
+        $service->checkAlerts();
+
+        $errors = array_values(array_filter($this->logger->cleanLogs(), static fn (array $log): bool => $log[0] === LogLevel::ERROR));
+        $this->assertSame(
+            [[LogLevel::ERROR, 'Failed to send market alert notification', ['alertId' => self::ALERT_ID, 'typeId' => self::PYERITE, 'error' => 'database unavailable']]],
+            $errors,
+        );
+    }
+
     public function testTriggeredAlertWithPricePreferenceDisabledStaysTriggeredAndPublishesMercureWithoutNotification(): void
     {
         $this->preferenceRepository->method('findByUserAndCategory')->willReturn($this->preference(enabled: false, pushEnabled: true));

@@ -2,7 +2,7 @@ import { defineComponent, ref, type Ref } from 'vue'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
-import { usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
+import { formatExpiryThreshold, usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
 
 enableAutoUnmount(afterEach)
 
@@ -65,5 +65,20 @@ describe('usePlanetaryTimers expiry threshold', () => {
     thresholdMinutes.value = 60
 
     expect([statusBefore, getTimerInfo(expiry).status]).toEqual(['expiring', 'active'])
+  })
+})
+
+describe('formatExpiryThreshold', () => {
+  it('writes minutes below one hour and hours with zero padded minutes from one hour', () => {
+    expect([15, 59, 60, 61, 90, 360, 1440, 10080].map(formatExpiryThreshold)).toEqual([
+      '15 min',
+      '59 min',
+      '1h',
+      '1h01',
+      '1h30',
+      '6h',
+      '24h',
+      '168h',
+    ])
   })
 })

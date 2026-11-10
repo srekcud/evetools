@@ -56,10 +56,20 @@ async function handlePushToggle(pref: NotificationPreference): Promise<void> {
   }
 }
 
+const THRESHOLD_MIN_MINUTES = 15
+const THRESHOLD_MAX_MINUTES = 10080
+
+function withoutEmptyThreshold(preferences: NotificationPreference[]): NotificationPreference[] {
+  return preferences.map(preference => ({
+    ...preference,
+    thresholdMinutes: typeof preference.thresholdMinutes === 'number' ? preference.thresholdMinutes : null,
+  }))
+}
+
 async function save(): Promise<void> {
   isSaving.value = true
   try {
-    await store.savePreferences(localPreferences.value)
+    await store.savePreferences(withoutEmptyThreshold(localPreferences.value))
 
     // If any push is enabled, register subscription; otherwise unregister
     const anyPushEnabled = localPreferences.value.some(p => p.pushEnabled)
@@ -197,8 +207,8 @@ onMounted(async () => {
               v-if="hasThreshold(pref.category)"
               v-model.number="pref.thresholdMinutes"
               type="number"
-              min="0"
-              max="1440"
+              :min="THRESHOLD_MIN_MINUTES"
+              :max="THRESHOLD_MAX_MINUTES"
               :disabled="!pref.enabled"
               class="w-16 px-2 py-1 text-xs text-center bg-slate-800 border border-slate-700 rounded-md text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed focus:border-cyan-500/50 focus:outline-none"
               :aria-label="t('a11y.zoneC.notifications.thresholdInput', { category: t(`notificationHub.categories.${pref.category}`) })"

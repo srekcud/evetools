@@ -60,6 +60,8 @@ final class PlanetarySyncServiceTest extends TestCase
 
     private ?PlanetaryColony $syncedColony = null;
 
+    private array $callLog = [];
+
     protected function setUp(): void
     {
         $this->clock = new MockClock();
@@ -313,6 +315,67 @@ final class PlanetarySyncServiceTest extends TestCase
         self::assertSame([], $this->dispatchedNotifications);
     }
 
+    #[Group('issue-537')]
+    public function testNotifiedLevelIsRememberedAndFlushedBeforeTheNotificationIsDispatched(): void
+    {
+        $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
+        $this->planetaryThresholdMinutes = 360;
+
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_020, self::AQUEOUS_LIQUIDS_TYPE_ID, $this->in('+300 minutes'))]);
+
+        $dispatchPosition = array_search('dispatch:warning', $this->callLog, true);
+        self::assertIsInt($dispatchPosition);
+        self::assertSame('flush:warning', $this->callLog[$dispatchPosition - 1]);
+    }
+
+    #[Group('issue-537')]
+    public function testExtractorThirtyOneMinutesBeforeExpiryIsNotifiedAtWarningLevel(): void
+    {
+        $this->assertLevelForMinutesBeforeExpiry(31, Notification::LEVEL_WARNING);
+    }
+
+    #[Group('issue-537')]
+    public function testExtractorThirtyMinutesBeforeExpiryIsNotifiedAtWarningLevel(): void
+    {
+        $this->assertLevelForMinutesBeforeExpiry(30, Notification::LEVEL_WARNING);
+    }
+
+    #[Group('issue-537')]
+    public function testExtractorTwentyNineMinutesBeforeExpiryIsNotifiedAtCriticalLevel(): void
+    {
+        $this->assertLevelForMinutesBeforeExpiry(29, Notification::LEVEL_CRITICAL);
+    }
+
+    #[Group('issue-537')]
+    public function testFirstSeenExtractorAlreadyCriticalIsNotifiedOnceAtCriticalWithoutPriorWarning(): void
+    {
+        $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
+        $this->planetaryThresholdMinutes = 360;
+        $expiry = $this->in('+10 minutes');
+
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_024, self::AQUEOUS_LIQUIDS_TYPE_ID, $expiry)]);
+        $this->clock->sleep(60);
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_024, self::AQUEOUS_LIQUIDS_TYPE_ID, $expiry)]);
+
+        self::assertSame(
+            [[Notification::LEVEL_CRITICAL, 'Aqueous Liquids extractor on Planet I expires in 10 min (Test Pilot)']],
+            array_map(static fn (array $notification): array => [$notification['level'], $notification['message']], $this->dispatchedNotifications),
+        );
+    }
+
+    private function assertLevelForMinutesBeforeExpiry(int $minutes, string $expectedLevel): void
+    {
+        $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
+        $this->planetaryThresholdMinutes = 360;
+
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_021, self::AQUEOUS_LIQUIDS_TYPE_ID, $this->in(sprintf('+%d minutes', $minutes)))]);
+
+        self::assertSame(
+            [[$expectedLevel, sprintf('Aqueous Liquids extractor on Planet I expires in %d min (Test Pilot)', $minutes)]],
+            array_map(static fn (array $notification): array => [$notification['level'], $notification['message']], $this->dispatchedNotifications),
+        );
+    }
+
     private function syncColonyWithPins(array $pins): void
     {
         $user = $this->createStub(User::class);
@@ -333,11 +396,18 @@ final class PlanetarySyncServiceTest extends TestCase
         $planetaryService->method('fetchColonyDetail')->willReturn(['pins' => $pins, 'routes' => []]);
         $planetaryService->method('fetchPlanetInfo')->willReturn(['name' => self::PLANET_NAME]);
 
-        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('persist')->willReturnCallback(function (object $entity): void {
             if ($entity instanceof PlanetaryColony) {
                 $this->syncedColony = $entity;
             }
+        });
+        $entityManager->method('flush')->willReturnCallback(function (): void {
+            $rememberedLevels = [];
+            foreach ($this->syncedColony?->getPins() ?? [] as $pin) {
+                $rememberedLevels[] = $pin->getExpiryNotifiedLevel()?->value ?? 'none';
+            }
+            $this->callLog[] = 'flush:' . implode(',', $rememberedLevels);
         });
 
         $colonyRepository = $this->createStub(PlanetaryColonyRepository::class);
@@ -357,6 +427,7 @@ final class PlanetarySyncServiceTest extends TestCase
         $notificationDispatcher->method('dispatch')->willReturnCallback(
             function (User $recipient, string $category, string $level, string $title, string $message, ?array $data = null): void {
                 $this->dispatchAttempts++;
+                $this->callLog[] = 'dispatch:' . $level;
                 if ($this->dispatcherFails) {
                     throw new \RuntimeException('notification storage unavailable');
                 }
