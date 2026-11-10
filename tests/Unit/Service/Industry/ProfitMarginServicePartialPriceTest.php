@@ -30,6 +30,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ProfitMarginService::class)]
@@ -56,6 +57,8 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
     private const array FULL_JITA_SELL_DATA = ['weightedPrice' => self::AMMUNITION_JITA_SELL_PRICE, 'coverage' => 1.0, 'ordersUsed' => 2];
 
     private const float FLOAT_TOLERANCE = 1e-6;
+
+    private array $requestedJitaSellQuantities = [];
 
     private const array AMMUNITION_MATERIALS = [self::TRITANIUM => 1000, self::PYERITE => 150, self::MEXALLON => 500];
     private const int ISOGEN_PER_RUN = 20;
@@ -218,6 +221,52 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
         $this->assertEqualsWithDelta(1074.15, $analysis['margins']['jitaSell']['profit'], self::FLOAT_TOLERANCE);
     }
 
+    #[Group('issue-538')]
+    public function testJitaSellIsPricedOnTheWholeOutputQuantityThroughTheOnDemandFallback(): void
+    {
+        $this->analyze([]);
+
+        $this->assertSame([[self::AMMUNITION => self::RUNS * self::OUTPUT_PER_RUN]], $this->requestedJitaSellQuantities);
+    }
+
+    #[Group('issue-538')]
+    public function testEveryAmountCarriesItsPriceSource(): void
+    {
+        $analysis = $this->analyze([]);
+
+        $this->assertArrayHasKey('priceSources', $analysis);
+        $this->assertSame([
+            'materials' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+            'sale' => [
+                'jitaSell' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+                'structureSell' => ['market' => 'structure', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+                'structureBuy' => ['market' => 'structure', 'side' => 'buy', 'method' => 'lowest', 'coveragePercent' => null],
+                'contractSell' => ['market' => 'contracts', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+            ],
+        ], $analysis['priceSources']);
+    }
+
+    #[Group('issue-538')]
+    public function testMaterialsSourceReportsTheLowestCoverageOfTheWarnings(): void
+    {
+        $analysis = $this->analyze([self::TRITANIUM => self::TRITANIUM_COVERAGE, self::MEXALLON => self::MEXALLON_COVERAGE]);
+
+        $this->assertArrayHasKey('priceSources', $analysis);
+        $this->assertSame(30.0, $analysis['priceSources']['materials']['coveragePercent']);
+        $this->assertCount(2, $analysis['warnings']);
+    }
+
+    #[Group('issue-538')]
+    public function testJitaSellSourceReportsThePartialCoverageOfTheSalePrice(): void
+    {
+        $analysis = $this->analyze([], [], $this->jitaSellDataCovering(0.45));
+
+        $this->assertArrayHasKey('priceSources', $analysis);
+        $this->assertSame(45.0, $analysis['priceSources']['sale']['jitaSell']['coveragePercent']);
+        $this->assertSame(45.0, $analysis['sellPrices']['jitaSellCoveragePercent']);
+        $this->assertNull($analysis['priceSources']['materials']['coveragePercent']);
+    }
+
     private function jitaSellDataCovering(float $coverage): array
     {
         return ['weightedPrice' => self::AMMUNITION_JITA_SELL_PRICE, 'coverage' => $coverage, 'ordersUsed' => 2];
@@ -245,7 +294,13 @@ final class ProfitMarginServicePartialPriceTest extends TestCase
         $decryptors->method('all')->willReturn([]);
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getWeightedSellPrice')->willReturn($jitaSellData);
+        $jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturnCallback(
+            function (array $typeQuantities) use ($jitaSellData): array {
+                $this->requestedJitaSellQuantities[] = $typeQuantities;
+
+                return array_map(static fn (int $quantity): ?array => $jitaSellData, $typeQuantities);
+            },
+        );
         $jitaMarketService->method('getAverageDailyVolumes')->willReturn([self::AMMUNITION => 420.0]);
 
         $typeNameResolver = $this->createStub(TypeNameResolver::class);

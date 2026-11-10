@@ -16,6 +16,7 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Service\JitaMarketService;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\ContractSales\ContractSalesConfidence;
 use App\Service\Industry\ContractSales\ContractSalesIndicators;
@@ -25,7 +26,7 @@ use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\JobInstallCostEstimator;
 use App\Service\Industry\SalesFees\SalesFees;
-use App\Service\JitaMarketService;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
 use App\Industry\Domain\SecurityClass;
@@ -114,6 +115,10 @@ class BatchProfitScanRulesTest extends TestCase
 
         $result = $this->scan(salesFees: new SalesFees(0.0215, 0.036), exportCostPerM3: 812.3456);
 
+        $this->assertArrayHasKey('priceSources', $result[0]);
+        $priceSources = $result[0]['priceSources'];
+        unset($result[0]['priceSources']);
+
         $this->assertSame([[
             'typeId' => self::SHIELD_EXTENDER_TYPE_ID,
             'typeName' => 'Type 3831',
@@ -140,6 +145,10 @@ class BatchProfitScanRulesTest extends TestCase
             'unitCost' => 4331.31,
             'teUsed' => 20,
         ]], $result);
+        $this->assertSame(['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null], $priceSources['materials']);
+        $this->assertSame(['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null], $priceSources['sale']);
+        $this->assertSame(1, $priceSources['assumptions']['runs']);
+        $this->assertSame(10, $priceSources['assumptions']['materialEfficiency']);
     }
 
     public function testMarginProfitAndIskPerDayAreUnknownWhileThePricesAndCostsStayComputedWhenTheSellerSalesFeesAreUnknown(): void
@@ -869,6 +878,19 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertSame([self::DOMAIN_REGION_ID], $this->contractRegionsRead);
     }
 
+    #[Group('issue-538')]
+    public function testContractVenueKeepsTheMedianSalePriceAndLabelsItWhileMaterialsStayWeightedOnJita(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID)[0];
+
+        $this->assertSame(1500.0, $row['sellPrice']);
+        $this->assertArrayHasKey('priceSources', $row);
+        $this->assertSame(['market' => 'contracts', 'side' => 'sell', 'method' => 'median', 'coveragePercent' => null], $row['priceSources']['sale']);
+        $this->assertSame(['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null], $row['priceSources']['materials']);
+    }
+
     public function testContractVenueChargesNeitherBrokerFeeNorSalesTaxAndCapsIskPerDayAtTheContractSalesRate(): void
     {
         $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
@@ -1188,8 +1210,8 @@ class BatchProfitScanRulesTest extends TestCase
         );
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
-            fn (array $typeIds): array => $this->onlyRequested($this->jitaPrices, $typeIds),
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(
+            fn (array $requests): array => SellQuoteCallbacks::completeQuotesAt($this->jitaPrices)($requests),
         );
         $jitaMarketService->method('getCachedDailyVolumes')->willReturnCallback(
             fn (array $typeIds): array => $this->onlyRequested($this->jitaDailyVolumes, $typeIds),
