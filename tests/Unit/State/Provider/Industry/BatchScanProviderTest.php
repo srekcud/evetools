@@ -60,6 +60,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_material_price',
             'missingPriceTypeIds' => [self::MORPHITE_TYPE_ID],
+            'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
         ];
 
@@ -103,6 +104,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_daily_volume',
             'missingPriceTypeIds' => [],
+            'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
         ];
 
@@ -139,6 +141,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_volume',
             'missingPriceTypeIds' => [],
+            'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
         ];
         $roboticsWithUnknownExportCost = [
@@ -162,6 +165,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_volume',
             'missingPriceTypeIds' => [],
+            'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
         ];
 
@@ -200,6 +204,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
+            'contractSales' => null,
             'priceSources' => self::FULL_PRICE_SOURCES,
         ];
 
@@ -244,12 +249,47 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
+            'contractSales' => null,
             'priceSources' => $priceSources,
         ];
 
         $resources = $this->provideScanReturning([$roboticsWithPartialMaterials]);
 
         $this->assertSame($priceSources, $resources[0]->priceSources);
+    }
+
+    #[Group('issue-334')]
+    public function testContractSalesIndicatorsOfARowReachTheResource(): void
+    {
+        $indicators = ['estimatedSales' => 12, 'sellThroughRate' => 0.75, 'medianDaysToSell' => 3.5, 'confidence' => 'low'];
+        $row = [
+            'typeId' => self::ROBOTICS_TYPE_ID,
+            'typeName' => 'Robotics',
+            'groupName' => 'Construction Components',
+            'categoryLabel' => 'Components',
+            'marginPercent' => 18.4,
+            'profitPerUnit' => 7350.0,
+            'dailyVolume' => 0.4,
+            'iskPerDay' => 2940.0,
+            'materialCost' => 32600.0,
+            'importCost' => 41.5,
+            'exportCost' => 87.25,
+            'sellPrice' => 40000.0,
+            'meUsed' => 8,
+            'activityType' => 'manufacturing',
+            'isFactionBlueprint' => false,
+            'bpcCostPerRun' => null,
+            'hasAllSkills' => true,
+            'missingSkillCount' => 0,
+            'unknownReason' => null,
+            'missingPriceTypeIds' => [],
+            'contractSales' => $indicators,
+            'priceSources' => [],
+        ];
+
+        $resources = $this->provideScanReturning([$row]);
+
+        $this->assertSame($indicators, $resources[0]->contractSales);
     }
 
     #[Group('issue-128')]

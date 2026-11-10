@@ -227,6 +227,13 @@ export interface ProfitMarginResult {
   priceSources?: ProfitMarginPriceSources
 }
 
+export type BatchScanContractSales = {
+  estimatedSales: number
+  sellThroughRate: number | null
+  medianDaysToSell: number | null
+  confidence: 'low' | 'medium'
+}
+
 // Batch Scan types
 export type BatchScanItem = {
   typeId: number
@@ -249,6 +256,7 @@ export type BatchScanItem = {
   missingSkillCount: number
   unknownReason: string | null
   missingPriceTypeIds: number[]
+  contractSales?: BatchScanContractSales | null
   priceSources?: MaterialsAndSalePriceSources
 }
 

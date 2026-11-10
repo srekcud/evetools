@@ -24,9 +24,10 @@ class ContractSalesAnalyzer
 
     /**
      * @param list<PublicContractListing> $regionListings
+     * @param array<int, HullAttribution> $hullAttributions
      * @return array<int, ContractSalesIndicators>
      */
-    public function indicators(array $regionListings, \DateTimeImmutable $now): array
+    public function indicators(array $regionListings, \DateTimeImmutable $now, array $hullAttributions = []): array
     {
         if ([] === $regionListings) {
             return [];
@@ -42,6 +43,13 @@ class ContractSalesAnalyzer
         foreach ($regionListings as $listing) {
             $typeId = $listing->getTypeId();
             $quantity = $listing->getQuantity();
+            $price = $listing->getPrice();
+            $hull = $hullAttributions[$listing->getContractId()] ?? null;
+            if (null === $typeId && null !== $hull) {
+                $typeId = $hull->typeId;
+                $quantity = 1;
+                $price = $hull->price;
+            }
             $disappearedAt = $listing->getDisappearedAt();
             if (null === $typeId || null === $quantity || null === $disappearedAt || !$listing->isDisappearanceConfirmed() || $disappearedAt < $windowStart) {
                 continue;
@@ -50,7 +58,7 @@ class ContractSalesAnalyzer
             match ($this->outcomeAmong($listing, $groups)) {
                 ContractSaleOutcome::ProbablySold => $sales[$typeId][] = [
                     'quantity' => $quantity,
-                    'unitPrice' => $listing->getPrice() / $quantity,
+                    'unitPrice' => $price / $quantity,
                     'daysToSell' => ($disappearedAt->getTimestamp() - $listing->getFirstSeenAt()->getTimestamp()) / self::SECONDS_PER_DAY,
                 ],
                 ContractSaleOutcome::Expired => $expiredCounts[$typeId] = ($expiredCounts[$typeId] ?? 0) + 1,

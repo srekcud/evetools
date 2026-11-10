@@ -40,6 +40,16 @@ const CAPITAL_BY_CONTRACT: BatchScanItem = {
   missingPriceTypeIds: [],
 }
 
+const CAPITAL_WITH_INDICATORS: BatchScanItem = {
+  ...CAPITAL_BY_CONTRACT,
+  contractSales: { estimatedSales: 12, sellThroughRate: 0.75, medianDaysToSell: 3.5, confidence: 'low' },
+}
+
+const CAPITAL_WITH_PARTIAL_INDICATORS: BatchScanItem = {
+  ...CAPITAL_BY_CONTRACT,
+  contractSales: { estimatedSales: 2, sellThroughRate: null, medianDaysToSell: null, confidence: 'medium' },
+}
+
 const CAPITAL_WITHOUT_CONTRACT_SALES: BatchScanItem = {
   ...CAPITAL_BY_CONTRACT,
   typeId: 19724,
@@ -91,7 +101,7 @@ describe('BatchScanTab on the contracts sell venue', () => {
   it('names the contract sales in English and in French', () => {
     const frenchLabels = fr.industry.scanner.batch as Record<string, string>
     const englishLabels = batchLabels as Record<string, string>
-    for (const key of ['contractMonthlySales', 'contractSalesNotice']) {
+    for (const key of ['contractMonthlySales', 'contractSalesNotice', 'contractSellThrough', 'contractMedianDays', 'contractConfidenceLow', 'contractConfidenceMedium']) {
       expect(englishLabels[key], key).toEqual(expect.any(String))
       expect(frenchLabels[key], key).toEqual(expect.any(String))
       expect(englishLabels[key]).not.toBe(frenchLabels[key])
@@ -123,6 +133,41 @@ describe('BatchScanTab on the contracts sell venue', () => {
 
     const volumeCell = cellOf(wrapper, 'Moros', batchLabels.dailyVol)
     expect(volumeCell.text()).toBe(en.industry.inventionUnknown.label)
+  })
+
+  it('details the sell-through rate, the median days to sell and the confidence under the monthly sales', async () => {
+    const wrapper = await mountBatchScanOn(CONTRACTS_VENUE, [CAPITAL_WITH_INDICATORS])
+
+    const volumeText = cellOf(wrapper, 'Revelation', batchLabels.dailyVol).text()
+    expect(volumeText).toContain('75')
+    expect(volumeText).toMatch(/3[.,]5/)
+    expect(volumeText).toContain(batchLabels.contractConfidenceLow)
+  })
+
+  it('shows the medium confidence of a type with a longer history', async () => {
+    const wrapper = await mountBatchScanOn(CONTRACTS_VENUE, [CAPITAL_WITH_PARTIAL_INDICATORS])
+
+    expect(cellOf(wrapper, 'Revelation', batchLabels.dailyVol).text()).toContain(batchLabels.contractConfidenceMedium)
+  })
+
+  it('keeps an unknown sell-through rate and median delay as unknown, never as zero', async () => {
+    const wrapper = await mountBatchScanOn(CONTRACTS_VENUE, [CAPITAL_WITH_PARTIAL_INDICATORS])
+
+    const volumeText = cellOf(wrapper, 'Revelation', batchLabels.dailyVol).text()
+    expect(volumeText.split(en.industry.inventionUnknown.label)).toHaveLength(3)
+    expect(volumeText).not.toContain('0 %')
+  })
+
+  it('shows no indicator detail for a type without indicators', async () => {
+    const wrapper = await mountBatchScanOn(CONTRACTS_VENUE, [CAPITAL_BY_CONTRACT])
+
+    expect(cellOf(wrapper, 'Revelation', batchLabels.dailyVol).text()).toBe('6 / mo')
+  })
+
+  it('shows no indicator detail outside the contracts venue', async () => {
+    const wrapper = await mountBatchScanOn(JITA_VENUE, [{ ...CAPITAL_WITH_INDICATORS, dailyVolume: 75 }])
+
+    expect(cellOf(wrapper, 'Revelation', batchLabels.dailyVol).text()).toBe('75')
   })
 
   it('keeps the daily volume and shows no contract notice on the Jita venue', async () => {

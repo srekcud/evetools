@@ -7,7 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
-import type { BatchScanItem } from '@/stores/industry/types'
+import type { BatchScanContractSales, BatchScanItem } from '@/stores/industry/types'
 import PriceSourceBadge from './PriceSourceBadge.vue'
 import ProductionCalculator from './ProductionCalculator.vue'
 
@@ -68,6 +68,21 @@ const CATEGORY_LABEL_MAP: Record<string, string> = Object.fromEntries(
 
 const CONTRACTS_VENUE = 'contracts'
 const DAYS_PER_MONTH = 30
+const PERCENT = 100
+
+function contractSellThroughLabel(sales: BatchScanContractSales): string {
+  const rate = sales.sellThroughRate === null ? t('industry.inventionUnknown.label') : `${formatNumber(sales.sellThroughRate * PERCENT, 0)} %`
+  return t('industry.scanner.batch.contractSellThrough', { rate })
+}
+
+function contractConfidenceLabel(sales: BatchScanContractSales): string {
+  return sales.confidence === 'low' ? t('industry.scanner.batch.contractConfidenceLow') : t('industry.scanner.batch.contractConfidenceMedium')
+}
+
+function contractMedianDaysLabel(sales: BatchScanContractSales): string {
+  const days = sales.medianDaysToSell === null ? t('industry.inventionUnknown.label') : formatNumber(sales.medianDaysToSell, 1)
+  return t('industry.scanner.batch.contractMedianDays', { days })
+}
 
 const SELL_VENUE_OPTIONS = [
   { value: 'jita', label: 'Jita' },
@@ -757,6 +772,11 @@ onBeforeUnmount(() => {
                 </td>
                 <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
                   {{ sellVenueFilter === CONTRACTS_VENUE ? t('industry.scanner.batch.contractMonthlySales', { count: formatNumber(Math.round(item.dailyVolume * DAYS_PER_MONTH), 0) }) : formatNumber(item.dailyVolume, 0) }}
+                  <div v-if="sellVenueFilter === CONTRACTS_VENUE && item.contractSales" class="text-[11px] text-slate-500 whitespace-nowrap">
+                    <span>{{ contractSellThroughLabel(item.contractSales) }}</span>
+                    <span> · {{ contractMedianDaysLabel(item.contractSales) }}</span>
+                    <span :class="item.contractSales.confidence === 'low' ? 'text-amber-400' : 'text-slate-400'"> · {{ contractConfidenceLabel(item.contractSales) }}</span>
+                  </div>
                 </td>
                 <td v-if="item.iskPerDay == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
