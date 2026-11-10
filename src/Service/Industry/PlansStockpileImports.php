@@ -52,6 +52,7 @@ trait PlansStockpileImports
                 [$target],
                 $this->userStructures->configuredBy($userId->toRfc4122()),
                 FavoriteSystems::none(),
+                blacklist: $this->blacklist->resolveBlacklistedTypeIds($user),
                 startingStock: $startingStock,
             ));
         } catch (\DomainException $e) {
