@@ -84,6 +84,13 @@ function thresholdLabel(minutes: number): string {
                 :title="job.productTypeName ?? t('dashboard.bridge.progress.jobs.unknownProduct')"
               >{{ job.productTypeName ?? t('dashboard.bridge.progress.jobs.unknownProduct') }}</span>
               <span class="block truncate text-xs text-slate-500" :title="job.characterName">{{ job.characterName }}</span>
+              <RouterLink
+                v-if="job.project"
+                data-testid="dashboard-progress-job-project-link"
+                :to="`/industry/projects/${job.project.id}`"
+                :title="job.project.name ?? t('industry.slots.projectLinkFallback')"
+                class="block truncate text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+              >{{ job.project.name ?? t('industry.slots.projectLinkFallback') }}</RouterLink>
             </span>
             <span class="shrink-0 font-mono text-xs text-cyan-400">{{ jobTimeLeft(job.endDate) }}</span>
           </li>

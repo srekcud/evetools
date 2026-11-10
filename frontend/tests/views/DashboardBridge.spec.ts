@@ -49,8 +49,8 @@ const OPERATIONS = [
   miningOperation('0b8f5d2e-4c1a-4e7b-9a36-5d2f8c1e7a45', 'Pyroxeres Night Shift', 'in_progress'),
 ]
 
-function timelineJob(jobId: number, productTypeName: string | null, characterName: string, endDate: string, timeLeftSeconds: number) {
-  return { jobId, characterName, productTypeId: 20_000 + jobId, productTypeName, activityType: 'manufacturing', runs: 4, timeLeftSeconds, endDate }
+function timelineJob(jobId: number, productTypeName: string | null, characterName: string, endDate: string, timeLeftSeconds: number, project: { id: string; name: string | null } | null = null) {
+  return { jobId, characterName, productTypeId: 20_000 + jobId, productTypeName, activityType: 'manufacturing', runs: 4, timeLeftSeconds, endDate, project }
 }
 
 const SLOTS = {
@@ -58,10 +58,10 @@ const SLOTS = {
   characters: [],
   timeline: [
     timelineJob(11, 'Raven Navy Issue', 'Ilyra Castell', '2026-11-11T10:00:00+00:00', 79_200),
-    timelineJob(12, null, 'Doran Vex', '2026-11-10T13:30:00+00:00', 5_400),
+    timelineJob(12, null, 'Doran Vex', '2026-11-10T13:30:00+00:00', 5_400, { id: '7c1d2e3f-0a1b-4c2d-8e3f-9a0b1c2d3e4f', name: null }),
     timelineJob(13, 'Hobgoblin II', 'Ilyra Castell', '2026-11-10T18:00:00+00:00', 21_600),
     timelineJob(14, 'Damage Control II', 'Doran Vex', '2026-11-12T08:00:00+00:00', 164_800),
-    timelineJob(15, 'Warp Disruptor II', 'Ilyra Castell', '2026-11-10T12:45:00+00:00', 2_700),
+    timelineJob(15, 'Warp Disruptor II', 'Ilyra Castell', '2026-11-10T12:45:00+00:00', 2_700, { id: '3a9b8c7d-6e5f-4a4b-9c3d-2e1f0a9b8c7d', name: 'Hammerhead Wing Refit' }),
   ],
   skillsMayBeStale: false,
   unknownSkillsCharacterCount: 0,
@@ -248,6 +248,20 @@ describe('Dashboard Bridge in-progress cards', () => {
     expect(items.map((item, index) => item.text().includes(['Ilyra Castell', 'Doran Vex', 'Ilyra Castell', 'Ilyra Castell'][index]))).toEqual([true, true, true, true])
     expect(cardText(wrapper, 'jobs')).not.toContain('Damage Control II')
     expect(cardLink(wrapper, 'jobs')).toBe('/industry/production?tab=slots')
+  })
+
+  it('links a job to its project by the project name, or by the project fallback label when it has no name, and shows no link for a job without a project', async () => {
+    const wrapper = await mountBridge(healthyBackend())
+
+    const items = cardItems(wrapper, 'jobs')
+    const projectLinks = items.map(item => item.findAll('a').map(link => ({ text: link.text(), href: link.attributes('href') })))
+
+    expect(projectLinks).toEqual([
+      [{ text: 'Hammerhead Wing Refit', href: '/industry/projects/3a9b8c7d-6e5f-4a4b-9c3d-2e1f0a9b8c7d' }],
+      [{ text: 'Projet', href: '/industry/projects/7c1d2e3f-0a1b-4c2d-8e3f-9a0b1c2d3e4f' }],
+      [],
+      [],
+    ])
   })
 
   it('lists the three next moon chunks still to come by arrival, with their value or an unknown value', async () => {
