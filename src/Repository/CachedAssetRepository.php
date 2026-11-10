@@ -94,6 +94,21 @@ class CachedAssetRepository extends ServiceEntityRepository
             ->getOneOrNullResult() !== null;
     }
 
+    public function userHasPersonalAssetAtLocation(User $user, int $locationId): bool
+    {
+        return $this->createQueryBuilder('a')
+            ->select('a.id')
+            ->join('a.character', 'c')
+            ->where('c.user = :user')
+            ->andWhere('a.locationId = :locationId')
+            ->andWhere('a.isCorporationAsset = false')
+            ->setParameter('user', $user)
+            ->setParameter('locationId', $locationId)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult() !== null;
+    }
+
     /**
      * @return CachedAsset[]
      */
