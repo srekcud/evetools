@@ -6,7 +6,7 @@ import type { BomItem, JobLocation } from '@/stores/group-industry/types'
 import type { CompanionAlert, CompanionTasks } from './companionTasks'
 
 const FREE_LINES_SHOWN = 6
-const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'join_request', 'bom_complete']
+const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'join_request', 'bom_complete']
 const VALUE_DECIMALS = 1
 const BOM_PERCENT_DECIMALS = 0
 
@@ -49,6 +49,12 @@ function jobAlertText(alert: CompanionAlert): string {
 
 function alertText(alert: CompanionAlert): string {
   if (alert.kind === 'job_ready') return jobAlertText(alert)
+  if (alert.kind === 'move_products') {
+    return t('groupIndustry.companion.alerts.moveProducts', {
+      quantity: formatNumber(props.tasks.moveProducts.quantity, 0),
+      count: props.tasks.moveProducts.jobCount,
+    })
+  }
   if (alert.kind === 'join_request') return t('groupIndustry.companion.alerts.joinRequest', { count: props.tasks.joinRequests })
   return t('groupIndustry.companion.alerts.bomComplete')
 }
@@ -170,6 +176,13 @@ function unknownReasonText(output: JobLocation): string | null {
           :title="alert.text"
         >{{ alert.text }}</div>
       </section>
+
+      <p
+        v-if="tasks.moveProducts.unknownJobCount > 0"
+        data-testid="companion-move-unknown"
+        data-unknown="true"
+        class="text-xs text-slate-500"
+      >{{ t('groupIndustry.companion.moveProductsUnknown', { count: tasks.moveProducts.unknownJobCount }) }}</p>
 
       <section data-testid="companion-free" class="flex flex-col gap-1.5">
         <h2 class="text-xs uppercase tracking-wider text-cyan-400">{{ t('groupIndustry.companion.sections.free') }}</h2>
