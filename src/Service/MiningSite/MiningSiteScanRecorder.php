@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Enum\MiningSiteStatus;
 use App\Repository\MiningSiteScanRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\MiningValuation\MiningProfileUnitPrices;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
@@ -32,7 +33,7 @@ final readonly class MiningSiteScanRecorder
         private EntityManagerInterface $entityManager,
         private MiningSiteScanRepository $scanRepository,
         private InvTypeRepository $invTypeRepository,
-        private MiningSiteUnitPrices $unitPrices,
+        private MiningProfileUnitPrices $unitPrices,
         private SiteDepletionEstimator $estimator,
         private ClockInterface $clock,
     ) {
@@ -69,9 +70,10 @@ final readonly class MiningSiteScanRecorder
 
         $typeIds = array_keys($unitsByTypeId);
         $volumes = $this->volumesOf($typeIds);
+        $reading = $this->unitPrices->read($author, $typeIds);
         $estimate = $this->estimator->estimate(
             [...array_map($this->sampleOf(...), $previousScans), new SiteScanSample($scannedAt, $unitsByTypeId)],
-            $this->unitPrices->read($typeIds),
+            $reading->unitPricesByTypeId,
             $volumes,
         );
 
@@ -85,7 +87,8 @@ final readonly class MiningSiteScanRecorder
             ->setMissingPriceTypeIds($estimate->missingPriceTypeIds)
             ->setRecentEta($estimate->recentEta)
             ->setTrendEta($estimate->trendEta)
-            ->setTypes(array_values(array_map($this->entryOf(...), $estimate->types)));
+            ->setTypes(array_values(array_map($this->entryOf(...), $estimate->types)))
+            ->setValuationSource($reading->valuationSource->toArray());
         $this->entityManager->persist($scan);
 
         if ($estimate->allDepleted) {

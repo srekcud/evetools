@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
 import type { MiningOperationStatus } from '@/stores/miningOperation'
+import type { ValuationSource } from '@/stores/miningValuationProfile'
 import { useSyncStore, type SyncProgress } from '@/stores/sync'
 
 export type MoonChunkStatus = 'extracting' | 'ready' | 'exploded'
@@ -36,6 +37,7 @@ export interface MoonChunkValue {
   perParticipant: MoonChunkParticipantShare[] | null
   lines: MoonChunkValueLine[] | null
   scanRecordedAt: string | null
+  valuationSource?: ValuationSource | null
 }
 
 export interface MoonChunkLinkedOperation {

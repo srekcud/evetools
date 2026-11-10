@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { ApiError, apiRequest } from '@/services/api'
+import { useMiningValuationProfileStore } from '@/stores/miningValuationProfile'
 
-const SELECTED_STRUCTURE_STORAGE_KEY = 'miningSelectedStructure'
 const SUMMARY_DECIMALS = 2
 const UNKNOWN_SUMMARY_VALUE = 'unknown'
 const CONFLICT_STATUS = 409
@@ -65,14 +65,8 @@ export function buildSaleSummary(response: OreSaleResponse): string {
   return lines.join('\n')
 }
 
-function selectedStructureId(): number | null {
-  const stored = localStorage.getItem(SELECTED_STRUCTURE_STORAGE_KEY)
-  if (stored === null) return null
-  const structure = JSON.parse(stored) as { id: number | null }
-  return structure.id
-}
-
 export function useOreSale(operationId?: string) {
+  const profileStore = useMiningValuationProfileStore()
   const sale = ref<OreSaleResponse | null>(null)
   const isLoading = ref(false)
   const hasError = ref(false)
@@ -85,7 +79,8 @@ export function useOreSale(operationId?: string) {
     hasError.value = false
     notKnownYet.value = false
     try {
-      const structureId = selectedStructureId()
+      if (profileStore.profile === null) await profileStore.load()
+      const structureId = profileStore.profile?.structureId ?? null
       const query = structureId === null ? '' : `?structureId=${structureId}`
       const endpoint = operationId === undefined ? '/mining/ore-sale' : `/mining-operations/${operationId}/ore-sale`
       const response = await apiRequest<OreSaleResponse | undefined>(`${endpoint}${query}`)

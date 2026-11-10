@@ -8,6 +8,7 @@ import { useContextMenu } from '@/composables/useContextMenu'
 import { useTypeNames } from '@/composables/useTypeNames'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import ValuationSourceLabel from '@/components/mining-module/ValuationSourceLabel.vue'
 import type { MiningEntry } from '@/stores/ledger'
 import MiningEntryMenu from './MiningEntryMenu.vue'
 
@@ -26,7 +27,7 @@ const { getTypeIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 
 const entriesRef = computed(() => props.entries)
-const { getBestPrice, getEntryValue } = useMiningPricing(entriesRef)
+const { getEntryValue } = useMiningPricing(entriesRef)
 
 const UNKNOWN_YIELD_LABEL = '?'
 const UNKNOWN_YIELD_TITLE = 'Rendement inconnu : profil de retraitement absent ou illisible'
@@ -188,26 +189,6 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
         </div>
         <p class="text-xs text-slate-500">{{ t('ledger.mining.clickToChangeStatus') }}</p>
       </div>
-      <!-- Legend -->
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        <span class="text-slate-500">{{ t('ledger.mining.bestPrice') }} :</span>
-        <div class="flex items-center gap-1">
-          <span class="text-cyan-400">&#x25CF;</span>
-          <span class="text-slate-500">Jita comp.</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <span class="text-purple-400">&#x25CF;</span>
-          <span class="text-slate-500">Jita reproc.</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <span class="text-teal-400">&#x25CF;</span>
-          <span class="text-slate-500">Struct. comp.</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <span class="text-lime-400">&#x25CF;</span>
-          <span class="text-slate-500">Struct. reproc.</span>
-        </div>
-      </div>
     </div>
     <!-- Table -->
     <div class="overflow-x-auto">
@@ -230,6 +211,7 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
             <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider" title="Prix equivalent compresse Jita (divise par 100)">Compress</th>
             <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider" :title="reprocessColumnTitle">Reproc. {{ yieldPercentLabel(sharedReprocessYield) }}</th>
             <th v-if="selectedStructureId" class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider" title="Prix structure selectionnee">Structure</th>
+            <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">{{ t('ledger.mining.unitValue') }}</th>
             <th class="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">{{ t('common.status.total') }}</th>
             <th class="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">{{ t('ledger.mining.status') }}</th>
           </tr>
@@ -289,13 +271,18 @@ defineExpose({ resetPage: () => { currentPage.value = 1 } })
               </span>
               <span v-else class="text-slate-500">-</span>
             </td>
+            <td data-column="unit-value" class="px-3 py-3 text-sm text-right">
+              <div class="flex flex-col items-end gap-0.5">
+                <span v-if="entry.unitValue === null" class="text-slate-500"><UnknownValue /></span>
+                <span v-else class="text-slate-200">{{ formatNumber(entry.unitValue, 2) }}</span>
+                <ValuationSourceLabel :source="entry.valuationSource" />
+              </div>
+            </td>
             <td class="px-3 py-3 text-sm text-right">
               <span v-if="getEntryValue(entry) === null" class="text-slate-500"><UnknownValue /></span>
               <span
                 v-else-if="getEntryValue(entry) !== 0"
-                :class="getBestPrice(entry).color"
-                class="font-medium"
-                :title="getBestPrice(entry).source"
+                class="font-medium text-cyan-400"
               >
                 {{ formatIskShort(getEntryValue(entry)) }}
               </span>

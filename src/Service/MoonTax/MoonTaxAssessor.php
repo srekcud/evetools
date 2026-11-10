@@ -8,13 +8,12 @@ use App\Entity\MoonObserverRecord;
 use App\Entity\MoonTaxRefinerySetting;
 use App\Enum\MoonOreRarity;
 use App\Repository\Sde\InvTypeRepository;
-use App\Service\MiningSite\MiningSiteUnitPrices;
 
 final readonly class MoonTaxAssessor
 {
     public function __construct(
         private InvTypeRepository $typeRepository,
-        private MiningSiteUnitPrices $unitPrices,
+        private MoonTaxUnitPrices $unitPrices,
         private MoonTaxCalculator $calculator,
     ) {
     }

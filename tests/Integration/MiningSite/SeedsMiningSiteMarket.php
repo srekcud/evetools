@@ -11,6 +11,7 @@ use App\Entity\Sde\MapConstellation;
 use App\Entity\Sde\MapRegion;
 use App\Entity\Sde\MapSolarSystem;
 use App\Service\JitaMarketService;
+use App\Service\StructureMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 
@@ -27,18 +28,42 @@ trait SeedsMiningSiteMarket
     private const float VELDSPAR_UNIT_PRICE = 15.0;
     private const string JITA_SYNCED_AT = '2026-11-05T19:55:00+00:00';
 
+    private const int SCAN_STRUCTURE_ID = 60_003_760;
+    private const string SCAN_STRUCTURE_NAME = 'Refinery B-1';
+    private const string STRUCTURE_SYNCED_AT = '2026-11-05T19:50:00+00:00';
+
     private array $jitaBuyPrices = [
         self::COMPRESSED_VELDSPAR => self::VELDSPAR_UNIT_PRICE,
         self::COMPRESSED_SCORDITE => 25.0,
+    ];
+
+    private array $jitaSellPrices = [
+        self::COMPRESSED_VELDSPAR => 18.0,
+        self::COMPRESSED_SCORDITE => 28.0,
+    ];
+
+    private array $structureBuyPrices = [
+        self::COMPRESSED_VELDSPAR => 21.0,
     ];
 
     private function replaceJitaBuyMarket(): void
     {
         $jitaMarket = $this->createStub(JitaMarketService::class);
         $jitaMarket->method('getBuyPrices')->willReturnCallback(fn (array $typeIds): array => array_combine($typeIds, array_map(fn (int $typeId): ?float => $this->jitaBuyPrices[$typeId] ?? null, $typeIds)));
+        $jitaMarket->method('getPrices')->willReturnCallback(fn (array $typeIds): array => array_combine($typeIds, array_map(fn (int $typeId): ?float => $this->jitaSellPrices[$typeId] ?? null, $typeIds)));
         $jitaMarket->method('getLastSyncTime')->willReturn(new \DateTimeImmutable(self::JITA_SYNCED_AT));
         self::getContainer()->set(JitaMarketService::class, $jitaMarket);
         self::getContainer()->set('logger', new NullLogger());
+    }
+
+    private function replaceStructureBuyMarket(): void
+    {
+        $structureMarket = $this->createStub(StructureMarketService::class);
+        $structureMarket->method('getHighestBuyPrices')->willReturnCallback(
+            fn (int $structureId, array $typeIds): array => array_combine($typeIds, array_map(fn (int $typeId): ?float => $structureId === self::SCAN_STRUCTURE_ID ? ($this->structureBuyPrices[$typeId] ?? null) : null, $typeIds)),
+        );
+        $structureMarket->method('getLastSyncTime')->willReturn(new \DateTimeImmutable(self::STRUCTURE_SYNCED_AT));
+        self::getContainer()->set(StructureMarketService::class, $structureMarket);
     }
 
     private function seedMiningSiteSde(EntityManagerInterface $em): void

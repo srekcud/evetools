@@ -13,6 +13,7 @@ use App\Repository\PveIncomeRepository;
 use App\Repository\UserLedgerSettingsRepository;
 use App\Service\MiningBestValueCalculator;
 use App\State\Provider\Ledger\LedgerDailyStatsProvider;
+use App\Tests\Unit\Service\Mining\BuildsMiningProfileUnitPrices;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -26,6 +27,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 final class LedgerDailyStatsProviderTest extends TestCase
 {
     use BuildsOreValueServiceOnSdeOres;
+    use BuildsMiningProfileUnitPrices;
 
     private const float VALUE_DELTA = 1e-6;
     private const int TYPE_WITHOUT_ANY_PRICE = 81143;
@@ -45,7 +47,7 @@ final class LedgerDailyStatsProviderTest extends TestCase
         $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
         $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([
             $knownDay => [self::BITUMENS => 1000],
-            $unknownDay => [self::TRITANIUM => 2500, self::TYPE_WITHOUT_ANY_PRICE => 3150],
+            $unknownDay => [self::VELDSPAR => 2500, self::TYPE_WITHOUT_ANY_PRICE => 3150],
         ]);
 
         $dailyStats = $this->createProvider($pveIncomeRepository, $pveExpenseRepository, $miningEntryRepository)->provide(new Get());
@@ -61,9 +63,9 @@ final class LedgerDailyStatsProviderTest extends TestCase
         $this->assertNull($daysByDate[$unknownDay]->total);
         $this->assertNull($daysByDate[$unknownDay]->profit);
         $this->assertSame(0.0, $daysByDate[$knownDay]->pve);
-        $this->assertEqualsWithDelta(831214.8, $daysByDate[$knownDay]->mining, self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(831214.8, $daysByDate[$knownDay]->total, self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(831214.8, $daysByDate[$knownDay]->profit, self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(201300.0, $daysByDate[$knownDay]->mining, self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(201300.0, $daysByDate[$knownDay]->total, self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(201300.0, $daysByDate[$knownDay]->profit, self::VALUE_DELTA);
         unset($daysByDate[$knownDay], $daysByDate[$unknownDay]);
         $this->assertSame(
             array_fill(0, 29, [0.0, 0.0, 0.0]),
@@ -89,12 +91,12 @@ final class LedgerDailyStatsProviderTest extends TestCase
         ]);
         $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
         $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([
-            $miningDay => [self::TRITANIUM => 10],
+            $miningDay => [self::VELDSPAR => 10],
         ]);
-        $jitaSellPrices = $this->jitaSellPricesWithoutCompressedOre();
-        $jitaSellPrices[self::TRITANIUM] = 5.0;
+        $jitaBuyPrices = $this->jitaBuyPrices();
+        $jitaBuyPrices[self::COMPRESSED_VELDSPAR] = 5.0;
 
-        $dailyStats = $this->createProvider($pveIncomeRepository, $pveExpenseRepository, $miningEntryRepository, $jitaSellPrices)->provide(new Get());
+        $dailyStats = $this->createProvider($pveIncomeRepository, $pveExpenseRepository, $miningEntryRepository, $jitaBuyPrices)->provide(new Get());
 
         $days = array_values(array_filter(
             $dailyStats->daily,
@@ -140,7 +142,7 @@ final class LedgerDailyStatsProviderTest extends TestCase
         PveIncomeRepository $pveIncomeRepository,
         PveExpenseRepository $pveExpenseRepository,
         MiningEntryRepository $miningEntryRepository,
-        ?array $jitaSellPrices = null,
+        ?array $jitaBuyPrices = null,
     ): LedgerDailyStatsProvider {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
@@ -156,8 +158,7 @@ final class LedgerDailyStatsProviderTest extends TestCase
             $ledgerSettingsRepository,
             new MiningBestValueCalculator(
                 $miningEntryRepository,
-                $this->createOreValueService($jitaSellPrices ?? $this->jitaSellPricesWithoutCompressedOre()),
-                $this->profileRepositoryWithYield(0.78),
+                $this->createMiningProfileUnitPrices($jitaBuyPrices),
             ),
             $requestStack,
         );

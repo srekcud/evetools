@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiRequest } from '@/services/api'
+import type { ValuationSource } from '@/stores/miningValuationProfile'
 
 // Types
 export interface LedgerDashboard {
@@ -132,6 +133,8 @@ export interface MiningEntry {
   usage: 'unknown' | 'sold' | 'corp_project' | 'industry'
   linkedProjectId: string | null
   linkedCorpProjectId: number | null
+  unitValue: number | null
+  valuationSource: ValuationSource | null
   syncedAt: string
 }
 
@@ -148,6 +151,7 @@ export interface MiningStats {
   byUsage: Record<string, { totalValue: number | null; totalQuantity: number; missingPriceTypeIds: number[] }>
   iskPerDay: number | null
   missingPriceTypeIds: number[]
+  valuationSource?: ValuationSource | null
 }
 
 export interface MiningDailyStats {
@@ -176,6 +180,7 @@ export interface MiningStatsByType {
     totalValue: number | null
     totalQuantity: number
   }[]
+  valuationSource?: ValuationSource | null
 }
 
 export interface LedgerSettings {
@@ -264,7 +269,7 @@ export const useLedgerStore = defineStore('ledger', () => {
     }
   }
 
-  async function fetchMiningEntries(days?: number, typeId?: number, usage?: string, structureId?: number | null, exportTax?: number) {
+  async function fetchMiningEntries(days?: number, typeId?: number, usage?: string) {
     isLoading.value = true
     error.value = null
 
@@ -273,8 +278,6 @@ export const useLedgerStore = defineStore('ledger', () => {
       let url = `/ledger/mining/entries?days=${d}`
       if (typeId) url += `&typeId=${typeId}`
       if (usage) url += `&usage=${usage}`
-      if (structureId) url += `&structureId=${structureId}`
-      if (exportTax !== undefined) url += `&exportTax=${exportTax}`
 
       miningEntries.value = await apiRequest<MiningEntry[]>(url)
     } catch (e) {

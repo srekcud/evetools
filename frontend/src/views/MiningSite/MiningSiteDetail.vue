@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
+import ValuationSourceLabel from '@/components/mining-module/ValuationSourceLabel.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import MiningCompressionBanners from '@/components/mining-operation/MiningCompressionBanners.vue'
@@ -291,6 +292,7 @@ onBeforeUnmount(() => {
           <div class="eve-card p-5">
             <p class="font-mono text-xs uppercase tracking-wider text-slate-400">{{ t('miningSite.value.remaining') }}</p>
             <p class="mt-1 font-mono text-2xl" :class="lastScan.remainingValue === null || lastScan.remainingValue === undefined ? 'text-amber-300' : 'text-slate-100'" data-testid="site-remaining-value">{{ valueText(lastScan.remainingValue) }}</p>
+            <p class="mt-1" data-testid="site-valuation-source"><ValuationSourceLabel :source="lastScan.valuationSource ?? null" /></p>
             <p v-if="lastScan.missingPriceTypeIds.length > 0" class="mt-1 text-xs text-amber-300" data-testid="site-missing-prices">{{ t('miningSite.value.missingPrices', { types: missingPriceNames }) }}</p>
           </div>
           <div v-if="bestOre !== null" class="eve-card border-cyan-500/30 p-5" data-testid="best-ore">

@@ -6,6 +6,7 @@ import type { MiningStats } from '@/stores/ledger'
 import type { MiningValueByUsage } from '@/composables/useMiningPricing'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import ValuationSourceLabel from '@/components/mining-module/ValuationSourceLabel.vue'
 
 const props = defineProps<{
   miningByUsage: MiningValueByUsage
@@ -39,6 +40,7 @@ const shares = computed(() => ({
     <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
       <span class="text-slate-400 text-xs uppercase tracking-wider">{{ t('ledger.mining.totalValue') }}</span>
       <div class="mt-1 text-xl font-bold text-amber-400"><IskAmount :value="miningStats?.totals.totalValue ?? null" :loading="loading" short /></div>
+      <div v-if="miningStats !== null" class="mt-1"><ValuationSourceLabel :source="miningStats.valuationSource ?? null" /></div>
       <div v-if="missingPriceTypeLabels.length > 0" class="text-xs text-amber-400">{{ t('ledger.mining.missingPriceTypes', { types: missingPriceTypeLabels.join(', ') }) }}</div>
     </div>
     <div class="bg-slate-900 rounded-xl p-4 border border-emerald-500/20">

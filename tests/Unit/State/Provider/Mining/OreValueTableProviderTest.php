@@ -6,8 +6,15 @@ namespace App\Tests\Unit\State\Provider\Mining;
 
 use ApiPlatform\Metadata\Get;
 use App\ApiResource\Mining\OreValueTableResource;
+use App\Entity\MiningValuationProfile;
 use App\Entity\User;
+use App\Enum\MarketSide;
+use App\Enum\MiningValuationForm;
+use App\Enum\MiningValuationMarket;
+use App\Repository\ReprocessingProfileRepository;
 use App\State\Provider\Mining\OreValueTableProvider;
+use App\Service\MiningValuation\MiningValuationProfileReader;
+use App\Tests\Unit\Service\Mining\BuildsMiningProfileUnitPrices;
 use App\Tests\Unit\Service\Mining\BuildsOreValueServiceOnSdeOres;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -24,6 +31,7 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 final class OreValueTableProviderTest extends TestCase
 {
     use BuildsOreValueServiceOnSdeOres;
+    use BuildsMiningProfileUnitPrices;
 
     private const int MARKET_STRUCTURE_ID = 1_000_000_000_001;
     private const float VALUE_DELTA = 1e-9;
@@ -43,18 +51,93 @@ final class OreValueTableProviderTest extends TestCase
         $this->assertEqualsWithDelta(26.9, $table->rows[1]['rawIskPerM3'], self::VALUE_DELTA);
     }
 
-    public function testSellIsTheDefaultSideAndAMissingReprocessYieldLeavesTheReprocessedValuesUnknown(): void
+    #[Group('issue-532')]
+    public function testWithoutAnyParameterTheTableUsesTheDefaultProfileAndTheYieldOfTheReprocessingProfile(): void
     {
-        $table = $this->provideFor(['market' => 'jita']);
+        $table = $this->provideFor([]);
 
         $this->assertSame(
-            ['jita', 'sell', null, false],
+            ['jita', 'buy', null, true, ['market' => 'jita', 'side' => 'buy', 'form' => 'compressed', 'structureName' => null]],
+            [$table->market, $table->side, $table->structureId, $table->reprocessYieldKnown, $table->valuationSource],
+        );
+        $this->assertSame([self::VELDSPAR, self::FULLERITE_C50], array_column($table->rows, 'typeId'));
+        $this->assertEqualsWithDelta(175.0, $table->rows[0]['rawIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(180.0, $table->rows[0]['compressedIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(124.8, $table->rows[0]['reprocessedIskPerM3'], self::VALUE_DELTA);
+    }
+
+    #[Group('issue-532')]
+    public function testWithoutReprocessingProfileTheReprocessedValuesStayUnknown(): void
+    {
+        $table = $this->provideFor(['market' => 'jita'], null, $this->profileRepositoryWithNoProfile());
+
+        $this->assertSame(
+            ['jita', 'buy', null, false],
             [$table->market, $table->side, $table->structureId, $table->reprocessYieldKnown],
         );
+        $this->assertSame([self::VELDSPAR, self::FULLERITE_C50], array_column($table->rows, 'typeId'));
+        $this->assertEqualsWithDelta(180.0, $table->rows[0]['compressedIskPerM3'], self::VALUE_DELTA);
+        $this->assertNull($table->rows[0]['reprocessedIskPerM3']);
+    }
+
+    #[Group('issue-532')]
+    public function testTheStructureSellRawProfileFillsMarketSideStructureAndSourceWhenTheQueryGivesNone(): void
+    {
+        $profile = $this->miningValuationProfileOf(
+            MiningValuationMarket::Structure,
+            MarketSide::Sell,
+            MiningValuationForm::Raw,
+            self::MARKET_STRUCTURE_ID,
+            'Refinery B-1',
+        );
+
+        $table = $this->provideFor([], $profile);
+
+        $this->assertSame(
+            ['structure', 'sell', self::MARKET_STRUCTURE_ID, ['market' => 'structure', 'side' => 'sell', 'form' => 'raw', 'structureName' => 'Refinery B-1']],
+            [$table->market, $table->side, $table->structureId, $table->valuationSource],
+        );
         $this->assertSame([self::FULLERITE_C50, self::VELDSPAR], array_column($table->rows, 'typeId'));
-        $this->assertEqualsWithDelta(2741.0, $table->rows[0]['rawIskPerM3'], self::VALUE_DELTA);
-        $this->assertEqualsWithDelta(196.1, $table->rows[1]['compressedIskPerM3'], self::VALUE_DELTA);
-        $this->assertNull($table->rows[1]['reprocessedIskPerM3']);
+        $this->assertEqualsWithDelta(2690.0, $table->rows[0]['rawIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(192.0, $table->rows[1]['rawIskPerM3'], self::VALUE_DELTA);
+    }
+
+    #[Group('issue-532')]
+    public function testTheExportTaxOfTheProfileLowersTheJitaIskPerCubicMetre(): void
+    {
+        $table = $this->provideFor(['market' => 'jita'], $this->miningValuationProfileOf(exportTax: 100.0));
+
+        $this->assertEqualsWithDelta(75.0, $table->rows[0]['rawIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(179.0, $table->rows[0]['compressedIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(124.8, $table->rows[0]['reprocessedIskPerM3'], self::VALUE_DELTA);
+    }
+
+    #[Group('issue-532')]
+    public function testExplicitParametersTakePriorityOverTheProfile(): void
+    {
+        $profile = $this->miningValuationProfileOf(
+            MiningValuationMarket::Structure,
+            MarketSide::Sell,
+            MiningValuationForm::Raw,
+            self::MARKET_STRUCTURE_ID,
+            'Refinery B-1',
+            100.0,
+        );
+
+        $table = $this->provideFor(['market' => 'jita', 'side' => 'buy', 'reprocessYield' => '0.5', 'exportTax' => '0'], $profile);
+
+        $this->assertSame(['jita', 'buy', null, true], [$table->market, $table->side, $table->structureId, $table->reprocessYieldKnown]);
+        $this->assertSame([self::VELDSPAR, self::FULLERITE_C50], array_column($table->rows, 'typeId'));
+        $this->assertEqualsWithDelta(180.0, $table->rows[0]['compressedIskPerM3'], self::VALUE_DELTA);
+        $this->assertEqualsWithDelta(80.0, $table->rows[0]['reprocessedIskPerM3'], self::VALUE_DELTA);
+    }
+
+    #[Group('issue-532')]
+    public function testAnExplicitExportTaxOverridesTheTaxOfTheProfile(): void
+    {
+        $table = $this->provideFor(['market' => 'jita', 'exportTax' => '100'], $this->miningValuationProfileOf(exportTax: 0.0));
+
+        $this->assertEqualsWithDelta(179.0, $table->rows[0]['compressedIskPerM3'], self::VALUE_DELTA);
     }
 
     public function testStructureTableReadsTheStructureIdAndTheStructureBuyOrders(): void
@@ -96,6 +179,8 @@ final class OreValueTableProviderTest extends TestCase
         yield 'reprocess yield of zero' => [['market' => 'jita', 'reprocessYield' => '0']];
         yield 'negative reprocess yield' => [['market' => 'jita', 'reprocessYield' => '-0.1']];
         yield 'reprocess yield that is not a number' => [['market' => 'jita', 'reprocessYield' => 'abc']];
+        yield 'negative export tax' => [['market' => 'jita', 'exportTax' => '-1']];
+        yield 'export tax that is not a number' => [['market' => 'jita', 'exportTax' => 'abc']];
     }
 
     public function testAnAnonymousVisitorIsUnauthorized(): void
@@ -107,7 +192,7 @@ final class OreValueTableProviderTest extends TestCase
 
         $this->expectException(UnauthorizedHttpException::class);
 
-        (new OreValueTableProvider($security, $requestStack, $this->createOreValueTableService([], [])))->provide(new Get());
+        (new OreValueTableProvider($security, $requestStack, $this->createOreValueTableService([], []), $this->profileReader(null), $this->profileRepositoryWithNoProfile()))->provide(new Get());
     }
 
     public function testAProvideCallOutsideAnHttpRequestIsABadRequest(): void
@@ -117,10 +202,15 @@ final class OreValueTableProviderTest extends TestCase
 
         $this->expectException(BadRequestHttpException::class);
 
-        (new OreValueTableProvider($security, new RequestStack(), $this->createOreValueTableService([], [])))->provide(new Get());
+        (new OreValueTableProvider($security, new RequestStack(), $this->createOreValueTableService([], []), $this->profileReader(null), $this->profileRepositoryWithNoProfile()))->provide(new Get());
     }
 
-    private function provideFor(array $query): OreValueTableResource
+    private function profileReader(?MiningValuationProfile $profile): MiningValuationProfileReader
+    {
+        return new MiningValuationProfileReader($this->miningValuationProfileRepositoryReturning($profile));
+    }
+
+    private function provideFor(array $query, ?MiningValuationProfile $profile = null, ?ReprocessingProfileRepository $reprocessingProfileRepository = null): OreValueTableResource
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(new User());
@@ -147,6 +237,6 @@ final class OreValueTableProviderTest extends TestCase
             ),
         );
 
-        return (new OreValueTableProvider($security, $requestStack, $oreValueTableService))->provide(new Get());
+        return (new OreValueTableProvider($security, $requestStack, $oreValueTableService, $this->profileReader($profile), $reprocessingProfileRepository ?? $this->profileRepositoryWithYield(0.78)))->provide(new Get());
     }
 }

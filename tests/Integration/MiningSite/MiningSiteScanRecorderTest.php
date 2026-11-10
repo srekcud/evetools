@@ -6,8 +6,12 @@ namespace App\Tests\Integration\MiningSite;
 
 use ApiPlatform\Validator\Exception\ValidationException;
 use App\Entity\MiningSite;
+use App\Entity\MiningValuationProfile;
 use App\Entity\User;
+use App\Enum\MarketSide;
 use App\Enum\MiningSiteStatus;
+use App\Enum\MiningValuationMarket;
+use App\Service\MiningValuation\MiningProfileUnitPrices;
 use App\Service\MiningSite\MiningSiteScanRecorder;
 use App\Service\MiningSite\ScanLine;
 use App\Tests\Integration\IntegrationTestCase;
@@ -34,6 +38,7 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
         self::mockTime(new \DateTimeImmutable(self::FIRST_SCAN_AT));
         parent::setUp();
         $this->replaceJitaBuyMarket();
+        $this->replaceStructureBuyMarket();
         $this->seedMiningSiteSde($this->em);
         $this->owner = $this->createUser();
         $this->site = (new MiningSite())->setOwner($this->owner)->setLabel('Belt Aldranette')->setSolarSystemId(self::ALDRANETTE);
@@ -114,6 +119,95 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
         $this->record([self::VELDSPAR => 30_000]);
 
         self::assertSame(['20:00:00'], array_map(fn (array $scan): string => $this->figuresOf($scan)['at'], $this->storedScans()));
+    }
+
+    #[Group('issue-532')]
+    public function testScanIsValuedWithTheProfileOfItsAuthorAndTheStoredPriceIsTheValueOfTheSharedReader(): void
+    {
+        $author = $this->createUser();
+        $this->em->persist((new MiningValuationProfile())->setUser($author)->setSide(MarketSide::Sell));
+        $this->em->flush();
+        self::mockTime(new \DateTimeImmutable(self::FIRST_SCAN_AT));
+
+        $this->recordBy($author, [self::VELDSPAR => 30_000]);
+
+        $readerValue = self::getContainer()->get(MiningProfileUnitPrices::class)->read($author, [self::VELDSPAR])->unitPricesByTypeId[self::VELDSPAR];
+        self::assertSame(18.0, $readerValue);
+        self::assertSame(
+            [[18.0, 540_000.0, 540_000.0]],
+            array_map(
+                fn (array $scan): array => [$this->figuresOf($scan)['types'][self::VELDSPAR][3], $this->figuresOf($scan)['types'][self::VELDSPAR][4], $this->figuresOf($scan)['remainingValue']],
+                $this->storedScans(),
+            ),
+        );
+    }
+
+    #[Group('issue-532')]
+    public function testEachNewScanStoresTheValuationSourceOfTheProfileUsedAndNeverRecalculatesTheEarlierOnes(): void
+    {
+        $this->recordAt('20:00:00', [self::VELDSPAR => 30_000]);
+        $this->em->persist((new MiningValuationProfile())->setUser($this->owner)->setSide(MarketSide::Sell));
+        $this->em->flush();
+        $this->recordAt('20:10:00', [self::VELDSPAR => 25_000]);
+
+        self::assertSame(
+            [
+                [15.0, ['market' => 'jita', 'side' => 'buy', 'form' => 'compressed', 'structureName' => null]],
+                [18.0, ['market' => 'jita', 'side' => 'sell', 'form' => 'compressed', 'structureName' => null]],
+            ],
+            array_map(
+                fn (array $scan): array => [$this->figuresOf($scan)['types'][self::VELDSPAR][3], $scan['valuation_source']],
+                $this->storedScans(),
+            ),
+        );
+    }
+
+    #[Group('issue-532')]
+    public function testAScanOnTheStructureMarketOfTheProfileIsPricedThereAndStoresTheStructureName(): void
+    {
+        $this->em->persist((new MiningValuationProfile())
+            ->setUser($this->owner)
+            ->setMarket(MiningValuationMarket::Structure)
+            ->setStructureId(self::SCAN_STRUCTURE_ID)
+            ->setStructureName(self::SCAN_STRUCTURE_NAME));
+        $this->em->flush();
+
+        $this->recordAt('20:00:00', [self::VELDSPAR => 30_000]);
+
+        self::assertSame(
+            [[21.0, 630_000.0, ['market' => 'structure', 'side' => 'buy', 'form' => 'compressed', 'structureName' => self::SCAN_STRUCTURE_NAME]]],
+            array_map(
+                fn (array $scan): array => [$this->figuresOf($scan)['types'][self::VELDSPAR][3], $this->figuresOf($scan)['remainingValue'], $scan['valuation_source']],
+                $this->storedScans(),
+            ),
+        );
+    }
+
+    #[Group('issue-532')]
+    public function testAScanOnAStructureWithoutPriceForTheOreHasAnUnknownValueAndKeepsItsSource(): void
+    {
+        $this->em->persist((new MiningValuationProfile())
+            ->setUser($this->owner)
+            ->setMarket(MiningValuationMarket::Structure)
+            ->setStructureId(self::SCAN_STRUCTURE_ID)
+            ->setStructureName(self::SCAN_STRUCTURE_NAME));
+        $this->em->flush();
+
+        $this->recordAt('20:00:00', [self::VELDSPAR => 30_000, self::SCORDITE => 8_000]);
+
+        self::assertSame(
+            [[null, [self::SCORDITE], [21.0, 630_000.0], [null, null], self::SCAN_STRUCTURE_NAME]],
+            array_map(
+                fn (array $scan): array => [
+                    $this->figuresOf($scan)['remainingValue'],
+                    $this->figuresOf($scan)['missingPriceTypeIds'],
+                    [$this->figuresOf($scan)['types'][self::VELDSPAR][3], $this->figuresOf($scan)['types'][self::VELDSPAR][4]],
+                    [$this->figuresOf($scan)['types'][self::SCORDITE][3], $this->figuresOf($scan)['types'][self::SCORDITE][4]],
+                    $scan['valuation_source']['structureName'] ?? null,
+                ],
+                $this->storedScans(),
+            ),
+        );
     }
 
     public function testSecondScanInTheSameSecondIsRefusedWithAValidationErrorAndNothingIsWritten(): void
@@ -235,6 +329,15 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
         );
     }
 
+    private function recordBy(User $author, array $unitsByTypeId): void
+    {
+        $this->recorder->record(
+            $this->site,
+            array_map(static fn (int $typeId, int $units): ScanLine => new ScanLine($typeId, $units), array_keys($unitsByTypeId), $unitsByTypeId),
+            $author,
+        );
+    }
+
     private function refusalOf(array $unitsByTypeId): ?string
     {
         try {
@@ -261,7 +364,7 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
     private function storedScans(): array
     {
         $rows = $this->em->getConnection()->fetchAllAssociative(
-            'SELECT scanned_at, total_units, total_volume_m3, remaining_value, missing_price_type_ids, recent_eta, trend_eta, types FROM mining_site_scans WHERE site_id = ? ORDER BY scanned_at',
+            'SELECT scanned_at, total_units, total_volume_m3, remaining_value, missing_price_type_ids, recent_eta, trend_eta, types, valuation_source FROM mining_site_scans WHERE site_id = ? ORDER BY scanned_at',
             [(string) $this->site->getId()],
         );
 
@@ -274,6 +377,7 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
             'recent_eta' => $row['recent_eta'],
             'trend_eta' => $row['trend_eta'],
             'types' => array_column(json_decode((string) $row['types'], true, flags: JSON_THROW_ON_ERROR), null, 'typeId'),
+            'valuation_source' => $row['valuation_source'] === null ? null : json_decode((string) $row['valuation_source'], true, flags: JSON_THROW_ON_ERROR),
         ], $rows);
     }
 

@@ -42,6 +42,8 @@ export function miningEntry(overrides: Partial<MiningEntry>): MiningEntry {
     usage: 'unknown',
     linkedProjectId: null,
     linkedCorpProjectId: null,
+    unitValue: null,
+    valuationSource: null,
     syncedAt: '2026-10-21T08:00:00+00:00',
     ...overrides,
   }

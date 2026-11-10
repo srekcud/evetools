@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiRequest } from '@/services/api'
 import type { MiningCompression } from '@/stores/miningOperation'
+import type { ValuationSource } from '@/stores/miningValuationProfile'
 
 export type MiningSiteStatus = 'active' | 'closed'
 export type MiningSiteScanTypeStatus = 'present' | 'depleted'
@@ -62,6 +63,7 @@ export interface MiningSiteScan {
   missingPriceTypeIds: number[]
   recentEta?: string | null
   trendEta?: string | null
+  valuationSource?: ValuationSource | null
   types: MiningSiteScanType[]
 }
 

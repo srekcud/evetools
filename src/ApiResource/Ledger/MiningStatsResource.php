@@ -72,4 +72,7 @@ class MiningStatsResource
 
     /** @var list<int> */
     public array $missingPriceTypeIds = [];
+
+    /** @var array{market: string, side: string, form: string, structureName: string|null}|null */
+    public ?array $valuationSource = null;
 }

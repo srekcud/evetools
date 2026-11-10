@@ -72,6 +72,7 @@ class MiningStatsProvider implements ProviderInterface
         $resource->byUsage = $byUsage;
         $resource->iskPerDay = $iskPerDay;
         $resource->missingPriceTypeIds = $totalBestValue['missingPriceTypeIds'];
+        $resource->valuationSource = $this->miningBestValueCalculator->valuationSourceOf($user)->toArray();
 
         return $resource;
     }

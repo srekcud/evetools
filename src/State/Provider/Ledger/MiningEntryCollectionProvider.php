@@ -10,8 +10,8 @@ use App\ApiResource\Ledger\MiningEntryResource;
 use App\Entity\MiningEntry;
 use App\Entity\User;
 use App\Repository\MiningEntryRepository;
-use App\Repository\ReprocessingProfileRepository;
-use App\Service\OreValueService;
+use App\Service\MiningValuation\MiningProfileUnitPriceReading;
+use App\Service\MiningValuation\MiningProfileUnitPrices;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -25,8 +25,7 @@ class MiningEntryCollectionProvider implements ProviderInterface
         private readonly Security $security,
         private readonly MiningEntryRepository $miningEntryRepository,
         private readonly RequestStack $requestStack,
-        private readonly OreValueService $oreValueService,
-        private readonly ReprocessingProfileRepository $profileRepository,
+        private readonly MiningProfileUnitPrices $unitPrices,
     ) {
     }
 
@@ -45,10 +44,6 @@ class MiningEntryCollectionProvider implements ProviderInterface
         $days = (int) ($request?->query->get('days', 30) ?? 30);
         $typeId = $request?->query->get('typeId');
         $usage = $request?->query->get('usage');
-        $structureId = $request?->query->get('structureId');
-        $structureIdInt = $structureId !== null ? (int) $structureId : null;
-        $exportTax = $request?->query->get('exportTax');
-        $exportTaxFloat = $exportTax !== null ? (float) $exportTax : null;
 
         $to = new \DateTimeImmutable();
         $from = $to->modify("-{$days} days");
@@ -67,22 +62,16 @@ class MiningEntryCollectionProvider implements ProviderInterface
             $entries = array_filter($entries, fn(MiningEntry $e) => $e->getUsage() === $usage);
         }
 
-        // Batch fetch ore prices for all unique type IDs
-        $uniqueTypeIds = array_unique(array_map(fn(MiningEntry $e) => $e->getTypeId(), $entries));
-        $orePrices = $this->oreValueService->getBatchOrePrices(
-            $uniqueTypeIds,
-            $structureIdInt,
-            $this->profileRepository->findOneBy(['user' => $user])?->getReprocessYield(),
-            $exportTaxFloat ?? 0.0
-        );
+        $uniqueTypeIds = array_values(array_unique(array_map(fn(MiningEntry $e) => $e->getTypeId(), $entries)));
+        $reading = $this->unitPrices->read($user, $uniqueTypeIds);
 
-        return array_map(fn(MiningEntry $e) => $this->toResource($e, $orePrices), array_values($entries));
+        return array_map(
+            fn(MiningEntry $e) => $this->toResource($e, $reading),
+            array_values($entries),
+        );
     }
 
-    /**
-     * @param array<int, array<string, mixed>> $orePrices
-     */
-    private function toResource(MiningEntry $entry, array $orePrices = []): MiningEntryResource
+    private function toResource(MiningEntry $entry, MiningProfileUnitPriceReading $reading): MiningEntryResource
     {
         $resource = new MiningEntryResource();
         $resource->id = $entry->getId()?->toRfc4122() ?? '';
@@ -100,10 +89,11 @@ class MiningEntryCollectionProvider implements ProviderInterface
         $resource->linkedProjectId = $entry->getLinkedProjectId();
         $resource->linkedCorpProjectId = $entry->getLinkedCorpProjectId();
         $resource->syncedAt = $entry->getSyncedAt()->format('c');
+        $resource->unitValue = $reading->unitPricesByTypeId[$entry->getTypeId()];
+        $resource->valuationSource = $reading->valuationSource->toArray();
 
-        // Add ore price data if available
-        if (isset($orePrices[$entry->getTypeId()])) {
-            $prices = $orePrices[$entry->getTypeId()];
+        if (isset($reading->pricesByTypeId[$entry->getTypeId()])) {
+            $prices = $reading->pricesByTypeId[$entry->getTypeId()];
             $resource->compressedTypeId = $prices['compressedTypeId'];
             $resource->compressedTypeName = $prices['compressedTypeName'];
             $resource->compressedUnitPrice = $prices['compressedUnitPrice'];

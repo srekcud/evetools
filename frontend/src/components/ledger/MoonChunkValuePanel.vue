@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatChunkTime, type CorporationMiningExtraction, type MoonChunkValue } from '@/composables/useCorporationMiningExtractions'
 import { formatPercent, formatWhole } from '@/views/MiningOperation/miningOperationQuantity'
+import ValuationSourceLabel from '@/components/mining-module/ValuationSourceLabel.vue'
 import MoonChunkName from './MoonChunkName.vue'
 import MoonCompositionPasteZone from './MoonCompositionPasteZone.vue'
 
@@ -56,7 +57,7 @@ function onRecorded(): void {
         <div class="rounded-sm border border-cyan-500/40 bg-cyan-500/5 p-3 sm:col-span-1">
           <div class="text-xs uppercase tracking-wider text-slate-400">{{ t('ledger.mining.moonChunks.value.estimatedValue') }}</div>
           <div data-detail-total class="text-lg font-semibold text-cyan-300">≈ {{ formatWhole(value.totalValue, locale) }} ISK</div>
-          <div class="text-xs text-slate-500">{{ t('ledger.mining.moonChunks.value.basis') }}</div>
+          <div class="text-xs"><ValuationSourceLabel :source="value.valuationSource ?? null" /></div>
         </div>
         <div
           v-for="part in value.perParticipant"
