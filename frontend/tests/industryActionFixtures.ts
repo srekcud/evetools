@@ -10,6 +10,8 @@ export function industryAction(overrides: Partial<IndustryAction> & Pick<Industr
     typeId: null,
     typeName: null,
     quantity: null,
+    severity: 'info',
+    impactIsk: null,
     ...overrides,
   }
 }

@@ -12,7 +12,7 @@ import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { GroupProject, GroupProjectStatus, ProjectNextActionCode, ProjectPhase } from '@/stores/group-industry/types'
 import { useIndustryStore } from '@/stores/industry'
-import { useIndustryActionsStore, type IndustryAction } from '@/stores/industry/actions'
+import { useIndustryActionsStore, type IndustryAction, type IndustryActionSeverity } from '@/stores/industry/actions'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useIndustryWorkshopProjectsStore, type WorkshopProject, type WorkshopProjectMember, type WorkshopProjectProfitStatus } from '@/stores/industry/workshopProjects'
 import { useStockpileStore } from '@/stores/industry/stockpile'
@@ -77,6 +77,16 @@ watch(() => syncStore.getSyncProgress('industry-project'), () => {
 
 function projectLabel(name: string | null): string {
   return name === null || name === '' ? t('industry.workshop.unnamedProject') : name
+}
+
+const SEVERITY_DOT_CLASSES: Record<IndustryActionSeverity, string> = {
+  warning: 'bg-amber-400',
+  info: 'bg-cyan-400',
+  unknown: 'border border-dashed border-violet-400',
+}
+
+function hasUnknownImpact(action: IndustryAction): boolean {
+  return action.code === 'source_material' && action.impactIsk === null
 }
 
 function actionPhrase(action: IndustryAction): string {
@@ -370,6 +380,15 @@ function productSubline(project: GroupProject): string | null {
           <div class="min-w-0">
             <div class="flex items-center gap-2 min-w-0">
               <span
+                data-testid="workshop-action-severity"
+                :data-severity="action.severity"
+                :title="t(`industry.workshop.queue.severity.${action.severity}`)"
+                class="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                :class="SEVERITY_DOT_CLASSES[action.severity]"
+              >
+                <span class="sr-only">{{ t(`industry.workshop.queue.severity.${action.severity}`) }}</span>
+              </span>
+              <span
                 v-if="action.blocked"
                 data-testid="workshop-action-blocked"
                 class="shrink-0 text-xs px-2 py-0.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-400"
@@ -381,6 +400,20 @@ function productSubline(project: GroupProject): string | null {
               </p>
             </div>
             <p class="break-words text-sm text-slate-400">{{ actionPhrase(action) }}</p>
+            <p
+              v-if="action.impactIsk !== null"
+              data-testid="workshop-action-impact"
+              class="text-sm text-slate-300"
+            >
+              {{ t('industry.workshop.queue.impact', { amount: formatIsk(action.impactIsk) }) }}
+            </p>
+            <p
+              v-else-if="hasUnknownImpact(action)"
+              data-testid="workshop-action-impact-unknown"
+              class="text-sm text-violet-300"
+            >
+              {{ t('industry.workshop.queue.impactUnknown') }}
+            </p>
           </div>
           <button
             type="button"
