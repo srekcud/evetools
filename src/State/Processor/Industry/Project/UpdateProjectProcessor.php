@@ -200,9 +200,18 @@ class UpdateProjectProcessor implements ProcessorInterface
             return;
         }
 
-        if ($project->getStatus() !== ProjectStatus::Draft) {
+        $isDraft = $project->getStatus() === ProjectStatus::Draft;
+
+        if ($project->isCompleted() && !$groupsAreSent) {
+            throw new BadRequestHttpException('The blacklist of a completed project cannot be changed');
+        }
+
+        if (!$isDraft && $groupsAreSent) {
             throw new BadRequestHttpException('The blacklist of a project can only be changed while it is a draft');
         }
+
+        $previousGroupIds = $project->getBlacklistGroupIds();
+        $previousTypeIds = $project->getBlacklistTypeIds();
 
         if ($groupsAreSent) {
             $project->setBlacklistGroupIds(IndustryBlacklistService::resolveGroupIds($data->blacklistGroupIds ?? [], $data->blacklistCategoryKeys ?? []));
@@ -213,8 +222,11 @@ class UpdateProjectProcessor implements ProcessorInterface
         }
 
         try {
-            $this->projectService->buildBom($project, $project->getOwner());
+            $this->projectService->buildBom($project, $project->getOwner(), refuseToDropWorkedLines: !$isDraft);
         } catch (\RuntimeException $e) {
+            $project->setBlacklistGroupIds($previousGroupIds);
+            $project->setBlacklistTypeIds($previousTypeIds);
+
             throw new BadRequestHttpException($e->getMessage());
         }
     }

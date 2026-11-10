@@ -7,7 +7,10 @@ namespace App\State\Provider\Industry\Project;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Industry\Project\ProjectBuyOrBuildResource;
+use App\Entity\IndustryProject;
 use App\Entity\User;
+use App\Industry\Application\FavoriteSystems;
+use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\IntermediateBuyOrBuildComparator;
 use App\Industry\Application\IntermediateComparison;
 use App\Repository\IndustryProjectRepository;
@@ -61,24 +64,63 @@ final readonly class ProjectBuyOrBuildProvider implements ProviderInterface
             throw new UnprocessableEntityHttpException($e->getMessage(), $e);
         }
 
-        $comparisons = $this->comparator->compare(
-            $planned->plan,
-            $this->projectService->structuresOf($owner),
-            $this->projectService->favoriteSystemsOf($owner),
-        );
+        $structures = $this->projectService->structuresOf($owner);
+        $favoriteSystems = $this->projectService->favoriteSystemsOf($owner);
+        $comparisons = $this->comparator->compare($planned->plan, $structures, $favoriteSystems);
+        $blacklistedComparisons = $this->blacklistedComparisonsOf($project, $owner, $structures, $favoriteSystems);
         $typeNames = $this->typeNameResolver->findNames(array_map(
             static fn (IntermediateComparison $comparison): int => $comparison->typeId,
-            $comparisons,
+            [...$comparisons, ...$blacklistedComparisons],
         ));
 
         $resource = new ProjectBuyOrBuildResource();
         $resource->id = $projectId;
         $resource->importIskPerCubicMeterJump = IntermediateBuyOrBuildComparator::IMPORT_ISK_PER_CUBIC_METER_JUMP;
-        $resource->rows = array_map(
-            static fn (IntermediateComparison $comparison): array => BuyOrBuildRowPresenter::of($comparison, $typeNames[$comparison->typeId] ?? null),
-            $comparisons,
-        );
+        $resource->rows = [
+            ...array_map(
+                static fn (IntermediateComparison $comparison): array => [...BuyOrBuildRowPresenter::of($comparison, $typeNames[$comparison->typeId] ?? null), 'blacklisted' => false],
+                $comparisons,
+            ),
+            ...array_map(
+                static fn (IntermediateComparison $comparison): array => [...BuyOrBuildRowPresenter::of($comparison, $typeNames[$comparison->typeId] ?? null), 'blacklisted' => true],
+                $blacklistedComparisons,
+            ),
+        ];
 
         return $resource;
+    }
+
+    /**
+     * @param list<ProductionStructure> $structures
+     *
+     * @return list<IntermediateComparison>
+     */
+    private function blacklistedComparisonsOf(IndustryProject $project, User $owner, array $structures, FavoriteSystems $favoriteSystems): array
+    {
+        $blacklistedTypeIds = $project->getBlacklistTypeIds();
+        if ([] === $blacklistedTypeIds) {
+            return [];
+        }
+
+        $comparisons = [];
+        foreach (array_unique($blacklistedTypeIds) as $typeId) {
+            try {
+                $plan = $this->projectService->planOf($project, $owner, $typeId)->plan;
+            } catch (\RuntimeException $e) {
+                throw new UnprocessableEntityHttpException($e->getMessage(), $e);
+            }
+
+            if ([] === ($plan->intermediates[$typeId]->jobs ?? [])) {
+                continue;
+            }
+
+            foreach ($this->comparator->compare($plan, $structures, $favoriteSystems) as $comparison) {
+                if ($comparison->typeId === $typeId) {
+                    $comparisons[] = $comparison;
+                }
+            }
+        }
+
+        return $comparisons;
     }
 }

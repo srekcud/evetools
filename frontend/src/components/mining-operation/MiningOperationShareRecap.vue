@@ -19,6 +19,7 @@ const props = defineProps<{
   valuation: MiningOperationValuation
   ledger: MiningOperationLedger
   marketLabel: string
+  sitesCount?: number | null
 }>()
 
 const { t } = useI18n()
@@ -29,7 +30,7 @@ const basis = computed(() => t('miningOperation.valuation.basis', {
   market: props.marketLabel,
   side: t(`miningOperation.valuation.side.${settings.value.valuationSide}`),
 }))
-const recap = computed(() => buildShareRecap(props.operation, props.valuation, props.ledger, t('miningOperation.unknownPilot')))
+const recap = computed(() => buildShareRecap(props.operation, props.valuation, props.ledger, t('miningOperation.unknownPilot'), props.sitesCount ?? null))
 const lines = computed(() => shareRecapLines(recap.value, basis.value, t))
 const text = computed(() => lines.value.join('\n'))
 

@@ -10,6 +10,7 @@ import MiningCompleteOperation from '@/components/mining-operation/MiningComplet
 import MiningCorrectionModal from '@/components/mining-operation/MiningCorrectionModal.vue'
 import MiningFleetStorage from '@/components/mining-operation/MiningFleetStorage.vue'
 import MiningFreezeShares from '@/components/mining-operation/MiningFreezeShares.vue'
+import MiningHaulerPlan from '@/components/mining-operation/MiningHaulerPlan.vue'
 import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
 import MiningOperationLinkedChunk from '@/components/mining-operation/MiningOperationLinkedChunk.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
@@ -67,6 +68,7 @@ const PAYMENT_ACTION = 'payment_updated'
 const FLEET_STORAGE_ACTION = 'fleet_storage_updated'
 const SITE_SCAN_ACTION = 'site_scan_recorded'
 const SITE_NEXT_STARTED_ACTION = 'site_next_started'
+const HANGAR_EMPTIED_ACTION = 'fleet_hangar_emptied'
 const SITE_RELOADING_ACTIONS = [SITE_SCAN_ACTION, SITE_NEXT_STARTED_ACTION]
 const CORPORATION_ASSETS_SYNC_COMPLETED = 'completed'
 const PAYMENT_STATUSES = ['shares', 'settled']
@@ -75,6 +77,7 @@ const SNAPSHOT_SYNC_TYPE = 'mining-operation-snapshot'
 const CLOCK_TICK_MILLISECONDS = 1000
 const PRESENCE_HEARTBEAT_SECONDS = 30
 const PRESENCE_MEMBERS_RELOAD_SECONDS = 60
+const HAULER_PLAN_RELOAD_SECONDS = 60
 const MILLISECONDS_PER_SECOND = 1000
 const PRESENCE_CHANGED_ACTION = 'presence_changed'
 
@@ -105,6 +108,7 @@ const now = ref(Date.now())
 let clockTicker: ReturnType<typeof setInterval> | null = null
 let presenceHeartbeatTicker: ReturnType<typeof setInterval> | null = null
 let presenceMembersTicker: ReturnType<typeof setInterval> | null = null
+let haulerPlanTicker: ReturnType<typeof setInterval> | null = null
 
 const participates = computed(() => operation.value?.myStatus === 'accepted')
 const isOwner = computed(() => operation.value?.myRole === 'owner')
@@ -136,6 +140,12 @@ const showsFleetStorage = computed(() => participates.value && fleetStorage.valu
 const checksFleetStorageContainer = computed(() => operation.value?.status === 'closing' || operation.value?.status === 'shares')
 const rulesFleetStorageRecipientName = computed(() => (fleetStorage.value === null ? (operation.value?.fleetStorageRecipientName ?? null) : fleetStorage.value.recipientName))
 const eachForThemselves = computed(() => operation.value?.splitMode === 'each_for_themselves')
+const showsHaulerPlan = computed(() => participates.value && operation.value?.status === 'in_progress' && !eachForThemselves.value)
+const haulerPlan = computed(() => (showsHaulerPlan.value && store.haulerPlan?.operationId === operationId.value ? store.haulerPlan : null))
+const canDeclareEmptied = computed(() => canAdminister.value || (ownMemberId.value !== null && fleetStorage.value?.recipientMemberId === ownMemberId.value))
+const haulerTypeNames = computed<Record<number, string>>(() =>
+  Object.fromEntries((valuation.value?.unitPrices ?? []).flatMap(price => (price.typeName === null ? [] : [[price.typeId, price.typeName]]))),
+)
 const showsPayments = computed(() => participates.value && PAYMENT_STATUSES.includes(operation.value?.status ?? ''))
 const paidPaymentsCount = computed(() => store.payments.filter(payment => payment.paid).length)
 const paymentsKpiClass = computed(() => (paidPaymentsCount.value === store.payments.length ? 'text-emerald-300' : 'text-amber-300'))
@@ -232,6 +242,9 @@ async function load(): Promise<void> {
     }
     if (showsPayments.value) {
       await store.fetchPayments(operationId.value)
+    }
+    if (showsHaulerPlan.value) {
+      await store.fetchHaulerPlan(operationId.value)
     }
   }
 }
@@ -359,6 +372,8 @@ async function refreshCorporationAssets(): Promise<void> {
   if (actionFailure.value !== null) awaitingAssetsSync.value = false
 }
 
+const declareHangarEmptied = () => runAction(() => store.declareHangarEmptied(operationId.value))
+
 const rereadPrices = () => runAction(() => store.fetchValuation(operationId.value))
 
 const markPayment = (paymentId: string, paid: boolean) => runAction(() => store.markPayment(operationId.value, paymentId, paid))
@@ -398,6 +413,9 @@ watch(
       store.fetchPayments(operationId.value)
     } else if (SITE_RELOADING_ACTIONS.includes(event.action)) {
       loadSites()
+      if (event.action === SITE_SCAN_ACTION && showsHaulerPlan.value) store.fetchHaulerPlan(operationId.value)
+    } else if (event.action === HANGAR_EMPTIED_ACTION) {
+      if (showsHaulerPlan.value) store.fetchHaulerPlan(operationId.value)
     } else if (event.action === FLEET_STORAGE_ACTION) {
       store.fetchFleetStorage(operationId.value)
       store.fetchValuation(operationId.value)
@@ -424,6 +442,12 @@ watch(tracksPresence, (tracks) => {
   presenceMembersTicker = setInterval(() => store.fetchMembers(operationId.value), PRESENCE_MEMBERS_RELOAD_SECONDS * MILLISECONDS_PER_SECOND)
 })
 
+watch(showsHaulerPlan, (shows) => {
+  haulerPlanTicker = stopTicker(haulerPlanTicker)
+  if (!shows) return
+  haulerPlanTicker = setInterval(() => store.fetchHaulerPlan(operationId.value), HAULER_PLAN_RELOAD_SECONDS * MILLISECONDS_PER_SECOND)
+})
+
 watch(
   () => syncStore.corporationAssetsProgress?.status,
   (status) => {
@@ -442,6 +466,8 @@ onMounted(async () => {
   store.payments = []
   store.fleetStorage = null
   store.fleetStorageVerification = null
+  store.haulerPlan = null
+  store.haulerPlanError = null
   siteStore.operationSites = []
   clockTicker = setInterval(() => {
     now.value = Date.now()
@@ -454,6 +480,7 @@ onBeforeUnmount(() => {
   if (clockTicker !== null) clearInterval(clockTicker)
   presenceHeartbeatTicker = stopTicker(presenceHeartbeatTicker)
   presenceMembersTicker = stopTicker(presenceMembersTicker)
+  haulerPlanTicker = stopTicker(haulerPlanTicker)
 })
 </script>
 
@@ -529,6 +556,15 @@ onBeforeUnmount(() => {
           :failure="sitesFailure"
           :can-create="canCreateSite"
           :now="now"
+        />
+
+        <p v-if="showsHaulerPlan && store.haulerPlanError !== null" class="text-sm text-red-400" role="alert">{{ store.haulerPlanError }}</p>
+        <MiningHaulerPlan
+          v-if="haulerPlan !== null"
+          :plan="haulerPlan"
+          :can-declare-emptied="canDeclareEmptied"
+          :type-names="haulerTypeNames"
+          @declare-emptied="declareHangarEmptied"
         />
 
         <MiningValuationSettings
@@ -701,7 +737,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <MiningOperationShareRecap v-if="showsShareRecap && valuation !== null && operationLedger !== null" :operation="operation" :valuation="valuation" :ledger="operationLedger" :market-label="marketLabel" />
+        <MiningOperationShareRecap v-if="showsShareRecap && valuation !== null && operationLedger !== null" :operation="operation" :valuation="valuation" :ledger="operationLedger" :market-label="marketLabel" :sites-count="siteStore.operationSites.length" />
 
         <OreSalePanel v-if="showsOreSale" :key="oreSaleKey" :operation-id="operationId" />
 

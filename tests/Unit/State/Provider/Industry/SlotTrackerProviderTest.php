@@ -12,6 +12,7 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
+use App\Repository\IndustryProjectJobMatchRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\IndustryCalculationService;
 use App\Service\Industry\SlotTrackerService;
@@ -63,6 +64,7 @@ final class SlotTrackerProviderTest extends TestCase
             $typeNameResolver,
             $stockpileTargetRepository,
             $this->createMock(CachedAssetRepository::class),
+            $this->createMock(IndustryProjectJobMatchRepository::class),
         ));
 
         $resource = $provider->provide(new Get());

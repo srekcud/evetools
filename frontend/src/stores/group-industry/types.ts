@@ -666,6 +666,7 @@ export interface BuyOrBuildRow {
   savingIfSurplusReused: number | null
   missingData: BuyOrBuildMissingData[]
   warnings: BuyOrBuildWarning[]
+  blacklisted: boolean
 }
 
 export interface ProjectBuyOrBuild {

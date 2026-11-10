@@ -9,7 +9,7 @@ import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { CHART_COLORS } from '@/utils/chartColors'
-import type { SlotActivity, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
+import type { SlotActivity, SlotProjectLink, SlotTrackerCharacter, FreeSlotEntry, TimelineJob } from '@/stores/industry/types'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const emit = defineEmits<{
@@ -70,6 +70,10 @@ function kpiColor(percent: number): { stroke: string; text: string; dot: string;
 
 function dashOffset(percent: number): number {
   return CIRCUMFERENCE * (1 - percent / 100)
+}
+
+function projectLabel(project: SlotProjectLink): string {
+  return project.name ?? t('industry.slots.projectLinkFallback')
 }
 
 function formatDuration(seconds: number): string {
@@ -451,6 +455,13 @@ onMounted(() => {
               <!-- Product name -->
               <td class="py-2.5 px-3">
                 <span class="text-slate-100 font-semibold">{{ typeNameLabel(job.productTypeName, job.productTypeId) }}</span>
+                <RouterLink
+                  v-if="job.project"
+                  data-testid="slot-job-project-link"
+                  :to="{ name: 'industry-project', params: { id: job.project.id } }"
+                  :title="projectLabel(job.project)"
+                  class="block max-w-[16rem] truncate text-xs text-cyan-400 hover:text-cyan-300 hover:underline"
+                >{{ projectLabel(job.project) }}</RouterLink>
               </td>
               <!-- Activity badge -->
               <td class="py-2.5 px-3">
@@ -632,6 +643,12 @@ onMounted(() => {
                     <div class="gantt-tooltip bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-3 py-2 text-xs">
                       <div class="text-slate-100 font-semibold">{{ typeNameLabel(job.productTypeName, job.productTypeId) }} x{{ job.runs }}</div>
                       <div class="text-slate-400 mt-0.5">{{ t('industry.slots.timeline.completesIn') }} {{ formatDuration(job.timeLeftSeconds) }}</div>
+                      <RouterLink
+                        v-if="job.project"
+                        data-testid="timeline-job-project-link"
+                        :to="{ name: 'industry-project', params: { id: job.project.id } }"
+                        class="mt-0.5 block max-w-[16rem] truncate text-cyan-400 hover:text-cyan-300 hover:underline"
+                      >{{ projectLabel(job.project) }}</RouterLink>
                     </div>
                   </div>
                 </div>
@@ -764,6 +781,14 @@ onMounted(() => {
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
+}
+.gantt-bar .gantt-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 8px;
 }
 .gantt-bar:hover .gantt-tooltip {
   display: block;

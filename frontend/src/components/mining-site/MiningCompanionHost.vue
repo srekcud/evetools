@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import MiningCompanionFree from '@/components/mining-site/MiningCompanionFree.vue'
+import MiningCompanionHauler from '@/components/mining-site/MiningCompanionHauler.vue'
 import MiningCompanionNextSite from '@/components/mining-site/MiningCompanionNextSite.vue'
 import MiningCompanionPanel from '@/components/mining-site/MiningCompanionPanel.vue'
 import MiningCompanionSettings from '@/components/mining-site/MiningCompanionSettings.vue'
@@ -11,6 +12,7 @@ import { useCorporationMiningExtractions } from '@/composables/useCorporationMin
 import { useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
 import { useMiningSiteOreTypes } from '@/composables/useMiningSiteOreTypes'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 import { useMiningCompanionStore, type CompanionTarget } from '@/stores/miningCompanion'
 import { useMiningOperationStore, type MiningOperation } from '@/stores/miningOperation'
 import { useMiningSiteStore, type MiningSite, type MiningSiteScan, type MiningSiteScanLine } from '@/stores/miningSite'
@@ -50,8 +52,12 @@ interface DepletionObservation {
 }
 
 const CLOCK_TICK_MS = 1000
+const HAULER_PLAN_RELOAD_MS = 60_000
 const SITE_SCAN_RECORDED_ACTION = 'site_scan_recorded'
 const SITE_NEXT_STARTED_ACTION = 'site_next_started'
+const HANGAR_EMPTIED_ACTION = 'fleet_hangar_emptied'
+const OPERATION_IN_PROGRESS = 'in_progress'
+const EACH_FOR_THEMSELVES = 'each_for_themselves'
 const NOTIFICATION_GRANTED = 'granted'
 const NOTIFICATION_DENIED = 'denied'
 const PERCENT_DIVISOR = 100
@@ -62,6 +68,7 @@ const router = useRouter()
 const companion = useMiningCompanionStore()
 const siteStore = useMiningSiteStore()
 const operationStore = useMiningOperationStore()
+const authStore = useAuthStore()
 const syncStore = useSyncStore()
 const oreTypes = useMiningSiteOreTypes()
 const { etaText } = useMiningSiteFormat()
@@ -76,6 +83,7 @@ const message = ref<string | null>(null)
 const failure = ref<string | null>(null)
 const resolvedSiteId = ref<string | null>(null)
 const operation = ref<CompanionOperation | null>(null)
+const haulerAccess = ref<{ canDeclareEmptied: boolean } | null>(null)
 const nextSiteOpen = ref(false)
 const nextSiteSubmitting = ref(false)
 const nextSiteFailure = ref<string | null>(null)
@@ -86,6 +94,7 @@ const mountPoint = shallowRef<HTMLElement | null>(null)
 const observedDepletion = new Map<string, boolean>()
 const notifiedDepletions = new Set<string>()
 let clockTimer: ReturnType<typeof setInterval> | null = null
+let haulerPlanTimer: ReturnType<typeof setInterval> | null = null
 let loadCounter = 0
 let lastRecordedFingerprint: number | null = null
 let clipboardDeniedShown = false
@@ -104,6 +113,7 @@ const shownNotice = computed(() => message.value ?? failure.value ?? noticeText.
 const isFreeTarget = computed(() => companion.target !== null && companion.target.siteId === null && companion.target.operationId === null)
 const nextChunk = computed(() => nextChunkOf(extractions.corporations.value, now.value))
 const extractionsFailure = computed(() => (extractions.hasError.value ? t('ledger.mining.moonChunks.loadError') : null))
+const haulerPlan = computed(() => (haulerAccess.value !== null && operationStore.haulerPlan?.operationId === operation.value?.id ? operationStore.haulerPlan : null))
 const typeNames = computed<Record<number, string>>(() => {
   const typeIds = siteStore.companionScans.flatMap(scan => [...scan.types.map(type => type.typeId), ...scan.missingPriceTypeIds])
   return Object.fromEntries(typeIds.map(typeId => [typeId, oreTypes.nameOf(typeId)]))
@@ -125,13 +135,37 @@ function operationOf(source: MiningOperation | null, operationId: string): Compa
   return source !== null && source.id === operationId ? { id: source.id, status: source.status, myDepartedAt: source.myDepartedAt } : null
 }
 
+function haulerAccessOf(source: MiningOperation | null): { canDeclareEmptied: boolean } | null {
+  if (source === null || source.status !== OPERATION_IN_PROGRESS || source.splitMode === EACH_FOR_THEMSELVES || source.myStatus !== 'accepted') return null
+  const isRecipient = source.fleetStorageRecipientName !== null && (authStore.user?.characters ?? []).some(character => character.name === source.fleetStorageRecipientName)
+  return { canDeclareEmptied: isRecipient || source.myRole === 'owner' || source.myRole === 'admin' }
+}
+
+async function reloadHaulerPlan(): Promise<void> {
+  if (haulerAccess.value === null || operation.value === null) return
+  await operationStore.fetchHaulerPlan(operation.value.id)
+}
+
+async function declareHangarEmptied(): Promise<void> {
+  if (operation.value === null) return
+  try {
+    await operationStore.declareHangarEmptied(operation.value.id)
+  } catch (cause) {
+    message.value = failureText(cause)
+  }
+}
+
 async function loadOperation(operationId: string): Promise<void> {
   try {
-    operation.value = operationOf(await operationStore.readOperation(operationId), operationId)
+    const source = await operationStore.readOperation(operationId)
+    operation.value = operationOf(source, operationId)
+    haulerAccess.value = operation.value === null ? null : haulerAccessOf(source)
   } catch (cause) {
     operation.value = null
+    haulerAccess.value = null
     failure.value = failureText(cause)
   }
+  await reloadHaulerPlan()
 }
 
 async function resolveActiveSiteId(operationId: string): Promise<string | null> {
@@ -171,6 +205,7 @@ function resetData(): void {
   loaded.value = false
   resolvedSiteId.value = null
   operation.value = null
+  haulerAccess.value = null
   message.value = null
   failure.value = null
   settingsOpen.value = false
@@ -435,6 +470,16 @@ function startClock(): void {
   }, CLOCK_TICK_MS)
 }
 
+function stopHaulerPlanTimer(): void {
+  if (haulerPlanTimer !== null) clearInterval(haulerPlanTimer)
+  haulerPlanTimer = null
+}
+
+function startHaulerPlanTimer(): void {
+  stopHaulerPlanTimer()
+  haulerPlanTimer = setInterval(reloadHaulerPlan, HAULER_PLAN_RELOAD_MS)
+}
+
 function openWindowContent(opened: Window): void {
   const windowDocument = opened.document
   copyStyleSheets(windowDocument)
@@ -447,6 +492,7 @@ function openWindowContent(opened: Window): void {
   now.value = new Date()
   rescanMinutes.value = readRescanMinutes(localStorage)
   startClock()
+  startHaulerPlanTimer()
   oreTypes.load()
 }
 
@@ -454,6 +500,7 @@ function closeWindowContent(): void {
   mountPoint.value?.remove()
   mountPoint.value = null
   stopClock()
+  stopHaulerPlanTimer()
 }
 
 watch(
@@ -496,9 +543,17 @@ watch(operationEvent, (event) => {
     followNextSite(requested, event.data)
     return
   }
+  if (event.action === HANGAR_EMPTIED_ACTION) {
+    reloadHaulerPlan()
+    return
+  }
   if (event.action !== SITE_SCAN_RECORDED_ACTION) return
-  if (requested.siteId === null) loadTarget(requested)
-  else if (event.data?.siteId === requested.siteId) reloadSite(requested.siteId)
+  if (requested.siteId === null) {
+    loadTarget(requested)
+    return
+  }
+  reloadHaulerPlan()
+  if (event.data?.siteId === requested.siteId) reloadSite(requested.siteId)
 })
 
 watch(depletionObservation, observeDepletion)
@@ -559,6 +614,9 @@ onBeforeUnmount(closeWindowContent)
           @create-operation="createOperationFromChunk"
           @estimate="estimateSingleSite"
         />
+      </template>
+      <template v-if="haulerPlan !== null && haulerAccess !== null" #hauler>
+        <MiningCompanionHauler :plan="haulerPlan" :size="companion.size" :can-declare-emptied="haulerAccess.canDeclareEmptied" @declare-emptied="declareHangarEmptied" />
       </template>
       <template #next-site>
         <MiningCompanionNextSite

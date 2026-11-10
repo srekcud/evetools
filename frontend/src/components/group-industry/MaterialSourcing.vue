@@ -7,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useGroupMaterialSourcingStore } from '@/stores/group-industry/materialSourcing'
 import type { MaterialSourcingRow, MaterialSourcingSide } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { multibuyText } from '@/utils/multibuy'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 const SIDE_CHIP_CLASSES: Record<MaterialSourcingSide, string> = {
@@ -38,7 +39,7 @@ const structureRows = computed(() => rows.value.filter(row => row.side === 'stru
 const shortStructureName = computed(() => sourcing.value?.structureName?.split(STRUCTURE_NAME_SEPARATOR)[0] ?? '')
 
 function multibuyOf(listed: MaterialSourcingRow[]): string {
-  return listed.map(row => `${row.typeName}\t${row.quantity}`).join('\n')
+  return multibuyText(listed)
 }
 
 function copyList(list: 'jita' | 'structure'): void {
