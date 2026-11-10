@@ -4250,6 +4250,16 @@
     "single": {
       "hint": "ETA inconnue : ajoutez un 2e scan du même site"
     },
+    "ledgerEta": {
+      "badge": "approximative",
+      "note": "Estimée depuis le ledger de la flotte depuis le début de l'opération ; les coups critiques et le residue la faussent.",
+      "reason": {
+        "operation_not_running": "Pas d'estimation du ledger : l'opération n'est pas en cours.",
+        "later_site": "Pas d'estimation du ledger : ce n'est pas le premier site de l'opération.",
+        "ledger_unknown": "Pas d'estimation du ledger : le ledger de départ d'un pilote n'a pas pu être lu.",
+        "nothing_mined": "Pas encore d'estimation du ledger : le ledger de la flotte ne montre rien de miné (synchronisé toutes les heures)."
+      }
+    },
     "value": {
       "unknown": "inconnue",
       "remaining": "Valeur restante",

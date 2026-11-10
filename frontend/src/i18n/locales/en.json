@@ -4250,6 +4250,16 @@
     "single": {
       "hint": "ETA unknown: add a 2nd scan of the same site"
     },
+    "ledgerEta": {
+      "badge": "approximate",
+      "note": "Estimated from the ledger of the fleet since the start of the operation; critical hits and residue skew it.",
+      "reason": {
+        "operation_not_running": "No ledger estimate: the operation is not running.",
+        "later_site": "No ledger estimate: this is not the first site of the operation.",
+        "ledger_unknown": "No ledger estimate: the start ledger of a pilot could not be read.",
+        "nothing_mined": "No ledger estimate yet: the fleet ledger shows nothing mined (it is synced every hour)."
+      }
+    },
     "value": {
       "unknown": "unknown",
       "remaining": "Remaining value",

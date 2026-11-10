@@ -117,4 +117,8 @@ class MiningSiteResource
 
     /** @var array<string, mixed>|null */
     public ?array $compression = null;
+
+    public ?\DateTimeImmutable $ledgerEta = null;
+
+    public ?string $ledgerEtaUnknownReason = null;
 }
