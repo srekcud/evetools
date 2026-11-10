@@ -7,6 +7,7 @@ import type { ValuationSource } from '@/stores/miningValuationProfile'
 export type MiningSiteStatus = 'active' | 'closed'
 export type MiningSiteScanTypeStatus = 'present' | 'depleted'
 export type EtaUnknownReason = 'not_depleting' | 'single_scan'
+export type LedgerEtaUnknownReason = 'operation_not_running' | 'later_site' | 'ledger_unknown' | 'nothing_mined'
 
 export interface MiningSite {
   id: string
@@ -32,6 +33,8 @@ export interface MiningSite {
   lastScanNumber?: number | null
   lastScanAuthorName?: string | null
   compression?: MiningCompression | null
+  ledgerEta?: string | null
+  ledgerEtaUnknownReason?: LedgerEtaUnknownReason | null
 }
 
 export interface MiningSiteScanType {
