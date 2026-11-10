@@ -1471,12 +1471,35 @@
           "countdown": "Countdown",
           "status": "Status",
           "value": "Value",
+          "miners": "Miners",
           "operation": "Operation"
         },
         "status": {
           "extracting": "Extracting",
           "ready": "Ready",
           "exploded": "Exploded"
+        },
+        "miners": {
+          "toggle": "Miners",
+          "toggleFor": "Show the miners of the chunk of {moon}",
+          "title": "Miners of this chunk, tax estimated at the current price",
+          "periodNote": "Tax, paid and remaining of a statement cover its whole period, not only this chunk.",
+          "chunkTax": "Chunk tax",
+          "week": "Statement of the week of {date}",
+          "month": "Statement of the month of {month}",
+          "notEstablished": "Statement not established yet",
+          "notConfigured": "Moon tax not configured for this refinery",
+          "empty": "No mining recorded on this chunk",
+          "denied": "Reserved for the accountants of the corporation",
+          "loadError": "The miners of this chunk could not be loaded.",
+          "columns": {
+            "period": "Period",
+            "reference": "Reference",
+            "tax": "Tax",
+            "paid": "Paid",
+            "remaining": "Remaining",
+            "status": "Status"
+          }
         },
         "value": {
           "rowKnown": "≈ {total} ISK · {share} ISK / person at {count}",

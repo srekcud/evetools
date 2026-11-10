@@ -18,9 +18,12 @@ import {
   type CorporationMiningExtractions,
   type MoonChunkStatus,
 } from '@/composables/useCorporationMiningExtractions'
+import { useMoonChunkMiners } from '@/composables/useMoonChunkMiners'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
+import MoonChunkMinersButton from './MoonChunkMinersButton.vue'
+import MoonChunkMinersPanel from './MoonChunkMinersPanel.vue'
 import MoonChunkName from './MoonChunkName.vue'
 import MoonChunkOperationButton from './MoonChunkOperationButton.vue'
 import MoonChunkRefineryFollow from './MoonChunkRefineryFollow.vue'
@@ -30,7 +33,7 @@ import MoonChunkValuePanel from './MoonChunkValuePanel.vue'
 
 const CLOCK_TICK_MS = 30_000
 
-const LIST_COLUMNS = ['moon', 'structure', 'system', 'arrival', 'decay', 'countdown', 'status', 'value', 'operation']
+const LIST_COLUMNS = ['moon', 'structure', 'system', 'arrival', 'decay', 'countdown', 'status', 'value', 'miners', 'operation']
 
 const views: ChunkView[] = ['list', 'week', 'month']
 const timeModes: ChunkTimeMode[] = ['eve', 'local']
@@ -46,8 +49,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { corporations, isLoading, hasError, isRefreshing, syncProgress, timeMode, pendingFollowStructureId, hasFollowError, load, refresh, setRefineryFollowed } = useCorporationMiningExtractions()
 
+const { states: minersStates, load: loadMiners } = useMoonChunkMiners()
+
 const view = ref<ChunkView>('list')
 const openDetailIds = ref<Set<string>>(new Set())
+const openMinersIds = ref<Set<string>>(new Set())
 const operationChunk = ref<CorporationMiningExtraction | null>(null)
 const now = ref(new Date())
 let clockTimer: ReturnType<typeof setInterval> | null = null
@@ -72,6 +78,13 @@ function openCalendarDetails(entry: CorporationMiningExtractions): CorporationMi
   return chunksByArrival(entry.extractions).filter(extraction =>
     extraction.chunkValue !== null
     && openDetailIds.value.has(extraction.id)
+    && days.value.includes(chunkDay(extraction.chunkArrivalTime, timeZone.value)),
+  )
+}
+
+function openCalendarMiners(entry: CorporationMiningExtractions): CorporationMiningExtraction[] {
+  return chunksByArrival(entry.extractions).filter(extraction =>
+    openMinersIds.value.has(extraction.id)
     && days.value.includes(chunkDay(extraction.chunkArrivalTime, timeZone.value)),
   )
 }
@@ -120,6 +133,19 @@ function toggleDetail(extractionId: string): void {
   const next = new Set(openDetailIds.value)
   if (!next.delete(extractionId)) next.add(extractionId)
   openDetailIds.value = next
+}
+
+function canShowMiners(extraction: CorporationMiningExtraction): boolean {
+  return statusOf(extraction) !== 'extracting'
+}
+
+function toggleMiners(corporationId: number, extractionId: string): void {
+  const next = new Set(openMinersIds.value)
+  if (!next.delete(extractionId)) {
+    next.add(extractionId)
+    void loadMiners(corporationId, extractionId)
+  }
+  openMinersIds.value = next
 }
 
 function toggleClasses(active: boolean): string[] {
@@ -288,6 +314,14 @@ onUnmounted(() => {
                   </span>
                 </td>
                 <MoonChunkValueCell :value="extraction.chunkValue" :expanded="openDetailIds.has(extraction.id)" @toggle="toggleDetail(extraction.id)" />
+                <td data-cell="miners" class="px-3 py-2 max-w-[12rem]">
+                  <MoonChunkMinersButton
+                    v-if="canShowMiners(extraction)"
+                    :moon="moonLabel(extraction)"
+                    :expanded="openMinersIds.has(extraction.id)"
+                    @toggle="toggleMiners(entry.corporationId, extraction.id)"
+                  />
+                </td>
                 <td data-cell="operation" class="px-3 py-2 max-w-[12rem]">
                   <MoonChunkOperationButton v-if="canCreateOperation(extraction)" :moon="moonLabel(extraction)" @create="operationChunk = extraction" />
                 </td>
@@ -301,6 +335,11 @@ onUnmounted(() => {
                 :column-count="LIST_COLUMNS.length"
                 @recorded="load"
               />
+              <tr v-if="openMinersIds.has(extraction.id)" :data-miners-detail="extraction.id" class="bg-slate-950/60">
+                <td :colspan="LIST_COLUMNS.length" class="px-4 py-4">
+                  <MoonChunkMinersPanel :state="minersStates[extraction.id]" />
+                </td>
+              </tr>
             </template>
           </tbody>
         </table>
@@ -335,6 +374,13 @@ onUnmounted(() => {
                 :expanded="openDetailIds.has(extraction.id)"
                 @toggle="toggleDetail(extraction.id)"
               />
+              <MoonChunkMinersButton
+                v-if="canShowMiners(extraction)"
+                class="mt-1 block max-w-full"
+                :moon="moonLabel(extraction)"
+                :expanded="openMinersIds.has(extraction.id)"
+                @toggle="toggleMiners(entry.corporationId, extraction.id)"
+              />
               <MoonChunkOperationButton
                 v-if="canCreateOperation(extraction)"
                 class="mt-1 block max-w-full"
@@ -354,6 +400,10 @@ onUnmounted(() => {
               :time-zone="timeZone"
               @recorded="load"
             />
+          </div>
+          <div v-for="extraction in openCalendarMiners(entry)" :key="extraction.id" :data-miners-detail="extraction.id" class="space-y-2">
+            <MoonChunkName :name="extraction.moonName" :id="extraction.moonId" class="block text-sm font-semibold text-white" />
+            <MoonChunkMinersPanel :state="minersStates[extraction.id]" />
           </div>
         </div>
       </div>

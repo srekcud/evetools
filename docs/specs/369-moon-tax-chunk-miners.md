@@ -1,6 +1,6 @@
 # Spec #369, lot 3 : mineurs et taxe d'un chunk lunaire passé (calendrier)
 
-**Statut : option A choisie par Sylvain le 2026-11-10 (point 3 de #369, bloqué au lot 2).** Circuit `circuit:m`, `group:mining-ops`, technicité 3 (code Mining, accès gestionnaire). Back = specs `273-moon-mining-tax.md` et `274-corporation-moon-chunk-calendar.md`. Lots 1 et 2 mergés (PR 463, 519). Dernier lot de #369 : la PR portera `Closes #369`, sauf constat contraire à la relecture de l'issue.
+**Statut : option A choisie par Sylvain le 2026-11-10 (point 3 de #369, bloqué au lot 2).** Circuit `circuit:m`, `group:mining-ops`, technicité 3 (code Mining, accès gestionnaire). Back = specs `273-moon-mining-tax.md` et `274-corporation-moon-chunk-calendar.md`. Lots 1 et 2 mergés (PR 463, 519). Dernier point de #369 : la PR ne porte pas `Closes` car deux questions restent ouvertes pour Sylvain (colonnes corporation et alliance du CSV, validation serveur de l'attribution d'un don) ; il ferme l'issue.
 
 **Principe.** Un relevé de taxe est par (personnage, raffinerie, période) et un don paie un relevé, pas un chunk. Aucun payé ni reste n'est donc calculé par chunk. Le chunk montre, par mineur : la taxe calculée sur ses enregistrements du chunk, et l'état du relevé de la période, libellé comme tel.
 
