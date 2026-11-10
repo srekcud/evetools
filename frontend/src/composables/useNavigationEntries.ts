@@ -21,6 +21,7 @@ interface ScreenTab {
 const ALIAS_LOCALE = 'en'
 const LABEL_SEPARATOR = ' › '
 const PROJECTS_PAGE_ROUTE = '/industry/projects'
+const MODULE_PAGE_ROUTES_WITH_OWN_ENTRY = ['/market']
 
 const TABS_BY_PAGE_ROUTE: Record<string, ScreenTab[]> = {
   '/industry/projects': [
@@ -72,7 +73,11 @@ export function useNavigationEntries(): {
 
   function pageEntries(module: NavModule, page: NavPage): NavigationEntry[] {
     if (page.route === module.route) {
-      return [entryOf(module.route, [module.labelKey], false), ...tabEntries(page, [module.labelKey])]
+      return [
+        entryOf(module.route, [module.labelKey], false),
+        ...(MODULE_PAGE_ROUTES_WITH_OWN_ENTRY.includes(page.route) ? [entryOf(page.route, [module.labelKey, page.labelKey], true)] : []),
+        ...tabEntries(page, [module.labelKey]),
+      ]
     }
     return [entryOf(page.route, [module.labelKey, page.labelKey], page.route !== PROJECTS_PAGE_ROUTE), ...tabEntries(page, [module.labelKey, page.labelKey])]
   }

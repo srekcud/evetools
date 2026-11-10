@@ -4,6 +4,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import { useNavigationEntries, type NavigationEntry } from '@/composables/useNavigationEntries'
 import { allNavEntries } from '@/constants/sidebarNavigation'
+import { searchNavigationEntries } from '@/utils/commandPaletteSearch'
 
 type Locale = 'en' | 'fr'
 
@@ -92,6 +93,7 @@ describe('useNavigationEntries', () => {
       ['/pve/escalations', 'PVE › Escalations'],
       ['/planetary', 'Planetary'],
       ['/market', 'Commerce'],
+      ['/market', 'Commerce › Market'],
       ['/market?tab=alerts', 'Commerce › Alerts'],
       ['/appraisal', 'Commerce › Appraisal'],
       ['/contracts', 'Commerce › Contracts'],
@@ -107,7 +109,7 @@ describe('useNavigationEntries', () => {
     const entries = listNavigationEntries({ isAdmin: false })
     const moduleRoutes = allNavEntries.map(module => module.route)
 
-    expect(entries.filter(entry => moduleRoutes.includes(entry.route)).map(entry => [entry.route, entry.isTab])).toEqual(moduleRoutes.map(route => [route, false]))
+    expect(entries.filter(entry => moduleRoutes.includes(entry.route) && !entry.label.includes(' › ')).map(entry => [entry.route, entry.isTab])).toEqual(moduleRoutes.map(route => [route, false]))
     expect(entries.filter(entry => entry.route.includes('?tab=')).map(entry => entry.isTab)).toEqual(Array(13).fill(true))
   })
 
@@ -157,6 +159,7 @@ describe('useNavigationEntries', () => {
       ['PVE › Escalations', 'PVE › Escalations'],
       ['Planétaire', 'Planetary'],
       ['Commerce', 'Commerce'],
+      ['Commerce › Marché', 'Commerce › Market'],
       ['Commerce › Alertes', 'Commerce › Alerts'],
       ['Commerce › Évaluateur', 'Commerce › Appraisal'],
       ['Commerce › Contrats', 'Commerce › Contracts'],
@@ -175,14 +178,15 @@ describe('useNavigationEntries', () => {
     expect(labelsWithGroupName).toEqual([])
   })
 
-  it('lists every page of the registry exactly once and no route twice', () => {
+  it('lists every page of the registry once, the market page twice because the Commerce module opens it, and no label twice', () => {
     const { listNavigationEntries } = mountNavigationEntries('en')
     const routes = routesOf(listNavigationEntries({ isAdmin: true }))
     const registryPageRoutes = allNavEntries.flatMap(module => ((module as { pages?: { route: string }[] }).pages ?? []).map(page => page.route))
 
     expect(registryPageRoutes).toHaveLength(18)
-    expect(registryPageRoutes.map(route => routes.filter(listed => listed === route).length)).toEqual(registryPageRoutes.map(() => 1))
-    expect(new Set(routes).size).toBe(routes.length)
+    expect(registryPageRoutes.map(route => routes.filter(listed => listed === route).length)).toEqual(registryPageRoutes.map(route => (route === '/market' ? 2 : 1)))
+    const labels = listNavigationEntries({ isAdmin: true }).map(entry => entry.label)
+    expect(new Set(labels).size).toBe(labels.length)
   })
 
   it('lists one entry per settings section under Account › Settings, labelled in English', () => {
@@ -205,8 +209,8 @@ describe('useNavigationEntries', () => {
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(41)
-    expect(entries[40]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(42)
+    expect(entries[41]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -226,6 +230,46 @@ describe('useNavigationEntries', () => {
     expect(routesOf(entries).indexOf('/contracts')).toBe(routesOf(entries).indexOf('/appraisal') + 1)
   })
 
+  it('lists a Market entry under Commerce right after the Commerce module entry, as a screen that is not a tab', () => {
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const entries = listNavigationEntries({ isAdmin: false })
+
+    expect(entries.filter(entry => entry.route === '/market').map(entry => [entry.label, entry.isTab])).toEqual([
+      ['Commerce', false],
+      ['Commerce › Market', true],
+    ])
+    expect(routesOf(entries).indexOf('/market') + 1).toBe(routesOf(entries).lastIndexOf('/market'))
+  })
+
+  it('finds the Market entry by typing market in English and marché in French, ahead of the settings section', () => {
+    const english = mountNavigationEntries('en').listNavigationEntries({ isAdmin: false })
+    const french = mountNavigationEntries('fr').listNavigationEntries({ isAdmin: false })
+
+    expect(searchNavigationEntries(english, 'market')[0]).toMatchObject({ route: '/market', label: 'Commerce › Market' })
+    expect(searchNavigationEntries(french, 'marché')[0]).toMatchObject({ route: '/market', label: 'Commerce › Marché', aliasLabel: 'Commerce › Market' })
+    expect(searchNavigationEntries(french, 'market')[0]).toMatchObject({ route: '/market', label: 'Commerce › Marché' })
+  })
+
+  it('keeps the Commerce and Appraisal entries unchanged next to the Market entry', () => {
+    const { listNavigationEntries } = mountNavigationEntries('fr')
+
+    const entries = listNavigationEntries({ isAdmin: false })
+
+    expect(entries.find(entry => entry.route === '/market')).toEqual({ route: '/market', label: 'Commerce', aliasLabel: 'Commerce', isTab: false })
+    expect(entries.find(entry => entry.route === '/appraisal')).toEqual({ route: '/appraisal', label: 'Commerce › Évaluateur', aliasLabel: 'Commerce › Appraisal', isTab: true })
+  })
+
+  it('removes the Market entry with the rest of the Commerce module when it is hidden', () => {
+    hideModules(['commerce'])
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const entries = listNavigationEntries({ isAdmin: false })
+
+    expect(searchNavigationEntries(entries, 'market').filter(entry => entry.route === '/market')).toEqual([])
+    expect(entries.filter(entry => entry.label.startsWith('Commerce'))).toEqual([])
+  })
+
   it('keeps the whole Commerce module when only the market id is hidden', () => {
     hideModules(['market'])
     const { listNavigationEntries } = mountNavigationEntries('en')
@@ -233,7 +277,7 @@ describe('useNavigationEntries', () => {
     const routes = routesOf(listNavigationEntries({ isAdmin: false }))
 
     expect(routes).toEqual(expect.arrayContaining(['/market', '/market?tab=alerts', '/appraisal', '/contracts']))
-    expect(routes).toHaveLength(40)
+    expect(routes).toHaveLength(41)
   })
 
   it.each([
@@ -258,7 +302,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route === '/balance' || route === '/assets')).toEqual([])
     expect(routes).toContain('/market')
-    expect(routes).toHaveLength(38)
+    expect(routes).toHaveLength(39)
   })
 
   it('removes the screen, the tabs and the projects of each hidden module', () => {
@@ -295,7 +339,7 @@ describe('useNavigationEntries', () => {
     expect(routes).toContain('/industry')
     expect(routes).toContain('/industry/production?tab=stockpile')
     expect(routes.filter(route => route.startsWith('/industry/projects'))).toEqual([])
-    expect(routes).toHaveLength(38)
+    expect(routes).toHaveLength(39)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["group-industry"]')
   })
 
@@ -307,7 +351,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route.startsWith('/mining/'))).toEqual([])
     expect(routes).toContain('/planetary')
-    expect(routes).toHaveLength(31)
+    expect(routes).toHaveLength(32)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["mining-operations"]')
   })
 
