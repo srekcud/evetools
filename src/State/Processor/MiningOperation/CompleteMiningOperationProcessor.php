@@ -48,6 +48,6 @@ final readonly class CompleteMiningOperationProcessor implements ProcessorInterf
             'operation_completed',
         );
 
-        return $this->mapper->operationToResource($miningOperation, $miningOperation->activeMembershipOf($user), true);
+        return $this->mapper->operationToResource($miningOperation, $user, $miningOperation->activeMembershipOf($user), true);
     }
 }

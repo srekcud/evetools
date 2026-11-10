@@ -11,6 +11,7 @@ use App\ApiResource\MiningOperation\MiningOperationMemberResource;
 use App\ApiResource\MiningOperation\MiningOperationResource;
 use App\ApiResource\MiningOperation\MiningOperationValuationResource;
 use App\ApiResource\MiningOperation\MiningPaymentResource;
+use App\Entity\CorporationMiningExtraction;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
@@ -35,7 +36,7 @@ final readonly class MiningOperationResourceMapper
     ) {
     }
 
-    public function operationToResource(MiningOperation $operation, ?MiningOperationMember $viewerMembership, bool $revealJoinCode = false): MiningOperationResource
+    public function operationToResource(MiningOperation $operation, User $viewer, ?MiningOperationMember $viewerMembership, bool $revealJoinCode = false): MiningOperationResource
     {
         $resource = new MiningOperationResource();
         $resource->id = $operation->getId()?->toRfc4122();
@@ -70,6 +71,7 @@ final readonly class MiningOperationResourceMapper
         $resource->recurrenceId = $recurrence === null ? null : PersistedUuid::of($recurrence->getId());
         $chunk = $operation->getChunk();
         $resource->chunkId = $chunk === null ? null : PersistedUuid::of($chunk->getId());
+        $resource->chunk = $chunk !== null && $chunk->getCorporationId() === $viewer->getCorporationId() ? $this->chunkToArray($chunk) : null;
 
         return $resource;
     }
@@ -359,6 +361,21 @@ final readonly class MiningOperationResourceMapper
             'deliveredValue' => $participant->deliveredValue,
             'keptValue' => $participant->keptValue,
             'fleetStorageDebt' => $participant->fleetStorageDebt,
+        ];
+    }
+
+    /**
+     * @return array{id: string, moonId: int, moonName: ?string, structureId: int, structureName: ?string, chunkArrivalTime: string}
+     */
+    private function chunkToArray(CorporationMiningExtraction $chunk): array
+    {
+        return [
+            'id' => PersistedUuid::of($chunk->getId()),
+            'moonId' => $chunk->getMoonId(),
+            'moonName' => $chunk->getMoonName(),
+            'structureId' => $chunk->getStructureId(),
+            'structureName' => $chunk->getStructureName(),
+            'chunkArrivalTime' => $this->inEveTime($chunk->getChunkArrivalTime())->format(\DateTimeInterface::ATOM),
         ];
     }
 

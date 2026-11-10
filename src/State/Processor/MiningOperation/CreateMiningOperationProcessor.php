@@ -41,6 +41,6 @@ final readonly class CreateMiningOperationProcessor implements ProcessorInterfac
 
         $miningOperation = $this->enrolment->create($user, $data, $chunk);
 
-        return $this->mapper->operationToResource($miningOperation, $miningOperation->membershipOf($user), true);
+        return $this->mapper->operationToResource($miningOperation, $user, $miningOperation->membershipOf($user), true);
     }
 }

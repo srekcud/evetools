@@ -9,13 +9,16 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Mining\CorporationMiningExtractionsResource;
 use App\Entity\CorporationMiningExtraction;
 use App\Entity\CorporationMiningSyncState;
+use App\Entity\MiningOperation;
 use App\Entity\MoonRefineryFollow;
 use App\Entity\User;
 use App\Enum\CorporationMiningSyncFailure;
 use App\Enum\MoonChunkStatus;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\CorporationMiningSyncStateRepository;
+use App\Repository\MiningOperationRepository;
 use App\Repository\MoonRefineryFollowRepository;
+use App\Service\MiningOperation\PersistedUuid;
 use App\Service\MoonChunk\MoonChunkValueReader;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Clock\ClockInterface;
@@ -33,6 +36,7 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
         private CorporationMiningExtractionRepository $extractionRepository,
         private CorporationMiningSyncStateRepository $syncStateRepository,
         private MoonRefineryFollowRepository $followRepository,
+        private MiningOperationRepository $operationRepository,
         private ClockInterface $clock,
         private MoonChunkValueReader $chunkValueReader,
     ) {
@@ -52,9 +56,11 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
         }
         $chunkValues = $this->chunkValueReader->read(array_merge(...array_values($visibleExtractions)), $now);
 
+        $linkedOperations = $this->linkedOperationsByChunkId($user);
+
         $resource = new CorporationMiningExtractionsResource();
         $resource->corporations = array_map(
-            fn (int $corporationId, array $extractions): array => $this->corporationEntry($user, $corporationId, $now, $extractions, $chunkValues),
+            fn (int $corporationId, array $extractions): array => $this->corporationEntry($user, $corporationId, $now, $extractions, $chunkValues, $linkedOperations),
             array_keys($visibleExtractions),
             $visibleExtractions,
         );
@@ -76,12 +82,27 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
     }
 
     /**
+     * @return array<string, non-empty-list<MiningOperation>>
+     */
+    private function linkedOperationsByChunkId(User $user): array
+    {
+        $linkedOperations = [];
+        foreach ($this->operationRepository->findLinkedToChunksOf($user) as $linkedOperation) {
+            $chunk = $linkedOperation->getChunk() ?? throw new \LogicException('An operation read as linked to a chunk has a chunk');
+            $linkedOperations[PersistedUuid::of($chunk->getId())][] = $linkedOperation;
+        }
+
+        return $linkedOperations;
+    }
+
+    /**
      * @param list<CorporationMiningExtraction> $extractions
      * @param \SplObjectStorage<CorporationMiningExtraction, array<string, mixed>> $chunkValues
+     * @param array<string, non-empty-list<MiningOperation>> $linkedOperations
      *
      * @return array{corporationId: int, access: string, lastSuccessAt: ?string, followedStructureIds: list<int>, extractions: list<array<string, mixed>>}
      */
-    private function corporationEntry(User $user, int $corporationId, \DateTimeImmutable $now, array $extractions, \SplObjectStorage $chunkValues): array
+    private function corporationEntry(User $user, int $corporationId, \DateTimeImmutable $now, array $extractions, \SplObjectStorage $chunkValues, array $linkedOperations): array
     {
         $state = $this->syncStateRepository->findOneBy(['corporationId' => $corporationId]);
 
@@ -91,7 +112,7 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
             'lastSuccessAt' => $this->formatTime($state?->getLastSuccessAt()),
             'followedStructureIds' => $this->followedStructureIds($user, $corporationId),
             'extractions' => array_map(
-                fn (CorporationMiningExtraction $extraction): array => $this->extractionView($extraction, $now, $chunkValues),
+                fn (CorporationMiningExtraction $extraction): array => $this->extractionView($extraction, $now, $chunkValues, $linkedOperations),
                 $extractions,
             ),
         ];
@@ -123,11 +144,15 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
 
     /**
      * @param \SplObjectStorage<CorporationMiningExtraction, array<string, mixed>> $chunkValues
+     * @param array<string, non-empty-list<MiningOperation>> $linkedOperations
      *
      * @return array<string, mixed>
      */
-    private function extractionView(CorporationMiningExtraction $extraction, \DateTimeImmutable $now, \SplObjectStorage $chunkValues): array
+    private function extractionView(CorporationMiningExtraction $extraction, \DateTimeImmutable $now, \SplObjectStorage $chunkValues, array $linkedOperations): array
     {
+        $linkedToChunk = $linkedOperations[PersistedUuid::of($extraction->getId())] ?? [];
+        $mostRecentLinked = $linkedToChunk[0] ?? null;
+
         return [
             'id' => $extraction->getId()?->toRfc4122(),
             'structureId' => $extraction->getStructureId(),
@@ -141,8 +166,12 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
             'naturalDecayTime' => $this->formatTime($extraction->getNaturalDecayTime()),
             'status' => MoonChunkStatus::fromTimes($now, $extraction->getChunkArrivalTime(), $extraction->getNaturalDecayTime())->value,
             'chunkValue' => $chunkValues[$extraction] ?? null,
-            'linkedOperation' => null,
-            'linkedOperationCount' => 0,
+            'linkedOperation' => $mostRecentLinked === null ? null : [
+                'id' => PersistedUuid::of($mostRecentLinked->getId()),
+                'label' => $mostRecentLinked->getLabel(),
+                'status' => $mostRecentLinked->getStatus()->value,
+            ],
+            'linkedOperationCount' => count($linkedToChunk),
         ];
     }
 

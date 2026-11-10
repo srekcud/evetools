@@ -238,6 +238,7 @@ use App\State\Provider\MiningOperation\MyMiningOperationsProvider;
             ),
         ),
     ],
+    normalizationContext: ['skip_null_values' => false],
     security: "is_granted('ROLE_USER')",
     paginationEnabled: false,
 )]

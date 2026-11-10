@@ -21,7 +21,7 @@ final readonly class MiningOperationNotifier
     private const string SHARES_COMPUTED_TITLE = 'Mining shares computed';
     private const string PAYMENT_RECEIVED_TITLE = 'Payment received';
     private const string JOIN_REQUEST_TITLE = 'Mining operation join request';
-    private const string ROUTE_TEMPLATE = '/mining-operations/%s';
+    private const string ROUTE_TEMPLATE = '/mining/operations/%s';
 
     public function __construct(private NotificationDispatcher $dispatcher)
     {

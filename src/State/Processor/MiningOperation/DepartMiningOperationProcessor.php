@@ -47,6 +47,6 @@ final readonly class DepartMiningOperationProcessor implements ProcessorInterfac
             ['memberId' => PersistedUuid::of($membership->getId())],
         );
 
-        return $this->mapper->operationToResource($miningOperation, $membership, true);
+        return $this->mapper->operationToResource($miningOperation, $user, $membership, true);
     }
 }

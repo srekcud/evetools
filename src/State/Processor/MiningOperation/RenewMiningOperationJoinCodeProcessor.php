@@ -50,6 +50,6 @@ final readonly class RenewMiningOperationJoinCodeProcessor implements ProcessorI
 
         $this->mercurePublisher->publishMiningOperationEvent(MiningOperationAudience::userIdsOf($miningOperation), PersistedUuid::of($miningOperation->getId()), 'join_code_renewed');
 
-        return $this->mapper->operationToResource($miningOperation, $miningOperation->activeMembershipOf($user), true);
+        return $this->mapper->operationToResource($miningOperation, $user, $miningOperation->activeMembershipOf($user), true);
     }
 }

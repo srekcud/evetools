@@ -47,7 +47,7 @@ class MiningOperationRepository extends ServiceEntityRepository
             ->andWhere('membership.user = :user')
             ->getDQL();
 
-        return $this->withOwner($this->createQueryBuilder('operation'))
+        return $this->withChunk($this->withOwner($this->createQueryBuilder('operation')))
             ->where('operation.visibility = :visibility')
             ->andWhere('operation.corporationId = :corporationId')
             ->andWhere('operation.status IN (:statuses)')
@@ -75,7 +75,7 @@ class MiningOperationRepository extends ServiceEntityRepository
             ->andWhere('membership.status IN (:memberStatuses)')
             ->getDQL();
 
-        return $this->withOwner($this->createQueryBuilder('operation'))
+        return $this->withChunk($this->withOwner($this->createQueryBuilder('operation')))
             ->where(sprintf('operation.owner = :user OR EXISTS (%s)', $activeMembershipOfUser))
             ->andWhere('operation.status NOT IN (:archivedStatuses)')
             ->setParameter('user', $user)
@@ -99,7 +99,7 @@ class MiningOperationRepository extends ServiceEntityRepository
             ->andWhere('membership.status = :acceptedStatus')
             ->getDQL();
 
-        $queryBuilder = $this->withOwner($this->createQueryBuilder('operation'))
+        $queryBuilder = $this->withChunk($this->withOwner($this->createQueryBuilder('operation')))
             ->where('operation.status IN (:archivedStatuses)')
             ->setParameter('archivedStatuses', $this->archivedStatuses())
             ->setParameter('user', $user)
@@ -126,7 +126,23 @@ class MiningOperationRepository extends ServiceEntityRepository
      */
     public function findLinkedToChunksOf(User $user): array
     {
-        return [];
+        $activeMembershipOfUser = $this->getEntityManager()->createQueryBuilder()
+            ->select('1')
+            ->from(MiningOperationMember::class, 'membership')
+            ->where('membership.operation = operation')
+            ->andWhere('membership.user = :user')
+            ->andWhere('membership.status IN (:memberStatuses)')
+            ->getDQL();
+
+        return $this->createQueryBuilder('operation')
+            ->addSelect('chunk')
+            ->join('operation.chunk', 'chunk')
+            ->where(sprintf('operation.owner = :user OR EXISTS (%s)', $activeMembershipOfUser))
+            ->setParameter('user', $user)
+            ->setParameter('memberStatuses', [MiningOperationMemberStatus::Pending, MiningOperationMemberStatus::Accepted])
+            ->orderBy('operation.plannedStartAt', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -161,6 +177,13 @@ class MiningOperationRepository extends ServiceEntityRepository
     private function archivedStatuses(): array
     {
         return array_values(array_filter(MiningOperationStatus::cases(), static fn (MiningOperationStatus $status): bool => $status->isArchived()));
+    }
+
+    private function withChunk(QueryBuilder $queryBuilder): QueryBuilder
+    {
+        return $queryBuilder
+            ->addSelect('chunk')
+            ->leftJoin('operation.chunk', 'chunk');
     }
 
     private function withOwner(QueryBuilder $queryBuilder): QueryBuilder

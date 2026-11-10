@@ -20,7 +20,7 @@ use Symfony\Component\Clock\ClockInterface;
 final readonly class MoonChunkAlertSender
 {
     private const string SOON_LEAD = '1 hour';
-    private const string ALERTS_ROUTE = '/ledger?tab=mining&view=moonChunks';
+    private const string ALERTS_ROUTE = '/mining/moons';
     private const string EVE_CLOCK_FORMAT = 'H:i';
     private const string SOON_TITLE = 'Moon chunk ready in 1 hour';
     private const string ARRIVED_TITLE = 'Moon chunk arrived';
