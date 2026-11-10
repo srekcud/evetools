@@ -284,9 +284,10 @@ class JobInstallCostEstimatorTest extends TestCase
             30_002_187,
             new \DateTimeImmutable('2026-01-01 00:00:00'),
             new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
-            [ProductionStructures::laboratoryRig(12.0)],
+            [],
             new Multiplier(ProductionStructures::SOTIYO_COST_ROLE_BONUS),
             self::FACILITY_TAX_PERCENT / 100.0,
+            scienceRigs: ProductionStructures::laboratoryRigs(null, 12.0),
         );
     }
 

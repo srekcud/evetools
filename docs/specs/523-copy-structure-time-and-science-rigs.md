@@ -18,7 +18,7 @@ Le noyau ne modélise ni le bonus de temps de rôle d'une structure ni les rigs 
    | ResearchTime | 6834 | 6835 |
 
    Un `ScienceRig` par activité dont le rig porte au moins un des deux effets ; le bonus d'un effet absent est `null`, jamais 0. Effet présent mais attribut absent : `UnexpectedValueException` (donnée SDE incohérente, pas de défaut). Rig sans effet de science ou type inconnu : liste vide. Sécurité : mêmes modificateurs 2355/2356/2357 que `bonusOf`.
-4. **Matériaux** : `materialBonusOf` renvoie `null` quand l'attribut vaut 0 (2594 = 0 sur les rigs de science n'est pas un bonus de matériaux).
+4. **Matériaux** : `materialBonusOf` renvoie `null` pour un rig qui porte un effet de science (2594 = 0 sur un rig de science n'est pas un bonus de matériaux). Un rig de fabrication à 2594 = 0 (TE) garde son comportement actuel.
 5. **Modèle de structure** : `ProductionStructure` reçoit deux paramètres de constructeur en fin de liste, avec défaut : `Multiplier $timeRoleBonus = new Multiplier(1.0)` et `list<ScienceRig> $scienceRigs = []`.
    - `timeMultiplierFor(ActivityKind::Copying)` = `timeRoleBonus` × Π `timeBonus->multiplierIn(security)` des `ScienceRig` d'activité `Copying`. Toute autre activité lève `InvalidArgumentException` (non modélisée).
    - `installCostMultiplierFor(activity)` = `costRoleBonus` × Π `costBonus->multiplierIn(security)` des `ScienceRig` de **cette** activité ayant un coût. Fabrication et réaction : rôle seul (comportement de #526 conservé pour un rig XL, qui porte les 4 activités).
@@ -52,7 +52,7 @@ Sécurité : high ×1,0, low ×1,9, null ×2,1. Rig de science II : temps 24, co
 | `forCopyJob` | base 0 ; base -1 ; 144 000 × 0,6375 × 0,7 | 0 s ; erreur ; 64 260 s |
 | Lecture rig (intégration) | 37182 ; 43892 ; 43890 ; 43729 | 4 `ScienceRig` temps 24 coût 12 ; Copying (24, `null`) ; Copying (`null`, 12) ; Copying (20, 10) |
 | Lecture rig (intégration) | 43881 (M Invention Accelerator II, effet 6831) ; rig de fabrication ; id inconnu | Invention (24, `null`) ; `[]` ; `[]` |
-| 2594 = 0 | `materialBonusOf(37182, Manufacturing)` | `null` |
+| 2594 = 0 d'un rig de science | `materialBonusOf(37182, Manufacturing)` (effets de copie présents) | `null` |
 | Rôle lu (intégration) | Raitaru, Azbel, Sotiyo, Tatara en Copying | 0,85 ; 0,80 ; 0,70 ; `null` |
 | Chargement | structure avec rigs XL Lab II, « Standup M-Set Laboratory Optimization II » (inconnu) | se charge sans exception, 4 `ScienceRig`, rig inconnu ignoré |
 

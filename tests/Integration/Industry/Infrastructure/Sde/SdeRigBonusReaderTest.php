@@ -6,9 +6,11 @@ namespace App\Tests\Integration\Industry\Infrastructure\Sde;
 
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\RigBonus;
+use App\Industry\Domain\ScienceRig;
 use App\Industry\Infrastructure\Sde\SdeRigBonusReader;
 use App\Tests\Integration\IntegrationTestCase;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Spec R4 (D10): rig bonuses are read from the dogma attributes of the rig type (sde_dgm_type_attributes).
@@ -38,6 +40,27 @@ final class SdeRigBonusReaderTest extends IntegrationTestCase
     private const int COMPOSITE_REACTOR_TIME_EFFICIENCY_I = 46484;
     private const int THUKKER_BASIC_CAPITAL_COMPONENT_MATERIAL_EFFICIENCY = 45544;
     private const int THUKKER_ADVANCED_COMPONENT_MATERIAL_EFFICIENCY = 45640;
+
+    private const int XL_SET_LABORATORY_OPTIMIZATION_II = 37182;
+    private const int XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II = 37181;
+    private const int M_SET_BLUEPRINT_COPY_ACCELERATOR_II = 43892;
+    private const int M_SET_BLUEPRINT_COPY_COST_OPTIMIZATION_II = 43890;
+    private const int L_SET_BLUEPRINT_COPY_OPTIMIZATION_I = 43729;
+    private const int M_SET_INVENTION_ACCELERATOR_II = 43881;
+    private const int UNKNOWN_RIG = 99_999_999;
+
+    private const int EFFECT_RIG_SLOT = 2663;
+    private const int EFFECT_STRUCTURE_RIG_SECURITY = 6842;
+    private const int EFFECT_INVENTION_COST = 6830;
+    private const int EFFECT_INVENTION_TIME = 6831;
+    private const int EFFECT_RESEARCH_MATERIAL_COST = 6832;
+    private const int EFFECT_RESEARCH_MATERIAL_TIME = 6833;
+    private const int EFFECT_RESEARCH_TIME_COST = 6834;
+    private const int EFFECT_RESEARCH_TIME_TIME = 6835;
+    private const int EFFECT_COPY_COST = 6836;
+    private const int EFFECT_COPY_TIME = 6837;
+    private const int EFFECT_SHIP_MANUFACTURING_MATERIAL = 6840;
+    private const int EFFECT_SHIP_MANUFACTURING_TIME = 6841;
 
     private Connection $connection;
 
@@ -190,6 +213,167 @@ final class SdeRigBonusReaderTest extends IntegrationTestCase
         $this->insertManufacturingRig(self::EQUIPMENT_MANUFACTURING_MATERIAL_EFFICIENCY_II, materialBonus: -2.4, timeBonus: 0);
 
         $this->assertNull($this->reader()->thukkerMaterialBonusOf(self::EQUIPMENT_MANUFACTURING_MATERIAL_EFFICIENCY_II));
+    }
+
+    #[Group('issue-523')]
+    public function testXlLaboratoryOptimizationIiIsAScienceRigOfEachLaboratoryActivity(): void
+    {
+        $this->insertScienceRig(self::XL_SET_LABORATORY_OPTIMIZATION_II, timeBonus: -24, costBonus: -12, effects: [
+            self::EFFECT_INVENTION_COST, self::EFFECT_INVENTION_TIME,
+            self::EFFECT_RESEARCH_MATERIAL_COST, self::EFFECT_RESEARCH_MATERIAL_TIME,
+            self::EFFECT_RESEARCH_TIME_COST, self::EFFECT_RESEARCH_TIME_TIME,
+            self::EFFECT_COPY_COST, self::EFFECT_COPY_TIME,
+        ]);
+
+        $this->assertSame(
+            [
+                'Copying' => [24.0, 12.0],
+                'Invention' => [24.0, 12.0],
+                'ResearchMaterial' => [24.0, 12.0],
+                'ResearchTime' => [24.0, 12.0],
+            ],
+            self::bonusesByActivity($this->reader()->scienceRigsOf(self::XL_SET_LABORATORY_OPTIMIZATION_II)),
+        );
+    }
+
+    #[Group('issue-523')]
+    public function testMSetBlueprintCopyAcceleratorIiGivesACopyTimeBonusAndNoCostBonus(): void
+    {
+        $this->insertScienceRig(self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II, timeBonus: -24, costBonus: 0, effects: [self::EFFECT_COPY_TIME]);
+
+        $this->assertSame(
+            ['Copying' => [24.0, null]],
+            self::bonusesByActivity($this->reader()->scienceRigsOf(self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II)),
+        );
+    }
+
+    #[Group('issue-523')]
+    public function testMSetBlueprintCopyCostOptimizationIiGivesACopyCostBonusAndNoTimeBonus(): void
+    {
+        $this->insertScienceRig(self::M_SET_BLUEPRINT_COPY_COST_OPTIMIZATION_II, timeBonus: 0, costBonus: -12, effects: [self::EFFECT_COPY_COST]);
+
+        $this->assertSame(
+            ['Copying' => [null, 12.0]],
+            self::bonusesByActivity($this->reader()->scienceRigsOf(self::M_SET_BLUEPRINT_COPY_COST_OPTIMIZATION_II)),
+        );
+    }
+
+    #[Group('issue-523')]
+    public function testLSetBlueprintCopyOptimizationIGivesBothCopyBonusesWithTheSecurityModifiersOfTheRig(): void
+    {
+        $this->insertScienceRig(self::L_SET_BLUEPRINT_COPY_OPTIMIZATION_I, timeBonus: -20, costBonus: -10, effects: [self::EFFECT_COPY_COST, self::EFFECT_COPY_TIME]);
+
+        $scienceRigs = $this->reader()->scienceRigsOf(self::L_SET_BLUEPRINT_COPY_OPTIMIZATION_I);
+
+        $this->assertSame(['Copying' => [20.0, 10.0]], self::bonusesByActivity($scienceRigs));
+        $this->assertSame([1.0, 1.9, 2.1], [
+            $scienceRigs[0]->timeBonus?->securityModifiers->highSec,
+            $scienceRigs[0]->timeBonus?->securityModifiers->lowSec,
+            $scienceRigs[0]->timeBonus?->securityModifiers->nullSec,
+        ]);
+        $this->assertSame([1.0, 1.9, 2.1], [
+            $scienceRigs[0]->costBonus?->securityModifiers->highSec,
+            $scienceRigs[0]->costBonus?->securityModifiers->lowSec,
+            $scienceRigs[0]->costBonus?->securityModifiers->nullSec,
+        ]);
+    }
+
+    #[Group('issue-523')]
+    public function testMSetInventionAcceleratorIiIsAnInventionRigOnly(): void
+    {
+        $this->insertScienceRig(self::M_SET_INVENTION_ACCELERATOR_II, timeBonus: -24, costBonus: 0, effects: [self::EFFECT_INVENTION_TIME]);
+
+        $this->assertSame(
+            ['Invention' => [24.0, null]],
+            self::bonusesByActivity($this->reader()->scienceRigsOf(self::M_SET_INVENTION_ACCELERATOR_II)),
+        );
+    }
+
+    #[Group('issue-523')]
+    public function testCopyCostEffectWithAZeroCostAttributeGivesAZeroCostBonus(): void
+    {
+        $this->insertScienceRig(self::M_SET_BLUEPRINT_COPY_COST_OPTIMIZATION_II, timeBonus: 0, costBonus: 0, effects: [self::EFFECT_COPY_COST]);
+
+        $this->assertSame(
+            ['Copying' => [null, 0.0]],
+            self::bonusesByActivity($this->reader()->scienceRigsOf(self::M_SET_BLUEPRINT_COPY_COST_OPTIMIZATION_II)),
+        );
+    }
+
+    #[Group('issue-523')]
+    public function testShipManufacturingRigIsNoScienceRig(): void
+    {
+        $this->insertAttribute(self::XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II, self::ATTRIBUTE_HI_SEC_MODIFIER, 1);
+        $this->insertAttribute(self::XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II, self::ATTRIBUTE_LOW_SEC_MODIFIER, 1.9);
+        $this->insertAttribute(self::XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II, self::ATTRIBUTE_NULL_SEC_MODIFIER, 2.1);
+        $this->insertAttribute(self::XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II, self::ATTRIBUTE_ENG_RIG_TIME_BONUS, -24);
+        $this->insertAttribute(self::XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II, self::ATTRIBUTE_ENG_RIG_MAT_BONUS, -2.4);
+        $this->insertAttribute(self::XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II, self::ATTRIBUTE_ENG_RIG_COST_BONUS, 0);
+        $this->insertEffects(self::XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II, [self::EFFECT_SHIP_MANUFACTURING_MATERIAL, self::EFFECT_SHIP_MANUFACTURING_TIME]);
+
+        $this->assertSame([], $this->reader()->scienceRigsOf(self::XL_SET_SHIP_MANUFACTURING_EFFICIENCY_II));
+    }
+
+    #[Group('issue-523')]
+    public function testUnknownRigIsNoScienceRig(): void
+    {
+        $this->assertSame([], $this->reader()->scienceRigsOf(self::UNKNOWN_RIG));
+    }
+
+    #[Group('issue-523')]
+    public function testCopyTimeEffectWithoutItsTimeAttributeIsRefusedAsIncoherentSdeData(): void
+    {
+        $this->insertAttribute(self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II, self::ATTRIBUTE_HI_SEC_MODIFIER, 1);
+        $this->insertAttribute(self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II, self::ATTRIBUTE_LOW_SEC_MODIFIER, 1.9);
+        $this->insertAttribute(self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II, self::ATTRIBUTE_NULL_SEC_MODIFIER, 2.1);
+        $this->insertEffects(self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II, [self::EFFECT_COPY_TIME]);
+
+        $this->expectException(\UnexpectedValueException::class);
+
+        $this->reader()->scienceRigsOf(self::M_SET_BLUEPRINT_COPY_ACCELERATOR_II);
+    }
+
+    #[Group('issue-523')]
+    public function testZeroMaterialAttributeOfALaboratoryRigIsNoManufacturingMaterialBonus(): void
+    {
+        $this->insertScienceRig(self::XL_SET_LABORATORY_OPTIMIZATION_II, timeBonus: -24, costBonus: -12, effects: [self::EFFECT_COPY_COST, self::EFFECT_COPY_TIME]);
+
+        $this->assertNull($this->reader()->materialBonusOf(self::XL_SET_LABORATORY_OPTIMIZATION_II, ActivityKind::Manufacturing));
+    }
+
+    private static function bonusesByActivity(array $scienceRigs): array
+    {
+        $bonuses = [];
+        foreach ($scienceRigs as $scienceRig) {
+            self::assertInstanceOf(ScienceRig::class, $scienceRig);
+            self::assertArrayNotHasKey($scienceRig->activity->name, $bonuses);
+            $bonuses[$scienceRig->activity->name] = [$scienceRig->timeBonus?->reductionPercent, $scienceRig->costBonus?->reductionPercent];
+        }
+        ksort($bonuses);
+
+        return $bonuses;
+    }
+
+    private function insertScienceRig(int $rigTypeId, int $timeBonus, int $costBonus, array $effects): void
+    {
+        $this->insertAttribute($rigTypeId, self::ATTRIBUTE_HI_SEC_MODIFIER, 1);
+        $this->insertAttribute($rigTypeId, self::ATTRIBUTE_LOW_SEC_MODIFIER, 1.9);
+        $this->insertAttribute($rigTypeId, self::ATTRIBUTE_NULL_SEC_MODIFIER, 2.1);
+        $this->insertAttribute($rigTypeId, self::ATTRIBUTE_ENG_RIG_TIME_BONUS, $timeBonus);
+        $this->insertAttribute($rigTypeId, self::ATTRIBUTE_ENG_RIG_MAT_BONUS, 0);
+        $this->insertAttribute($rigTypeId, self::ATTRIBUTE_ENG_RIG_COST_BONUS, $costBonus);
+        $this->insertEffects($rigTypeId, $effects);
+    }
+
+    private function insertEffects(int $typeId, array $effectIds): void
+    {
+        foreach ([self::EFFECT_RIG_SLOT, self::EFFECT_STRUCTURE_RIG_SECURITY, ...$effectIds] as $effectId) {
+            $this->connection->insert('sde_dgm_type_effects', [
+                'type_id' => $typeId,
+                'effect_id' => $effectId,
+                'is_default' => 'false',
+            ]);
+        }
     }
 
     private function reader(): SdeRigBonusReader

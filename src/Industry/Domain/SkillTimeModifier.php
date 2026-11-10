@@ -31,6 +31,11 @@ final readonly class SkillTimeModifier
         return new Multiplier($modifier);
     }
 
+    public static function forCopy(int $scienceLevel, int $advancedIndustryLevel): Multiplier
+    {
+        return Multiplier::one();
+    }
+
     public static function forReaction(int $reactionsLevel): Multiplier
     {
         return new Multiplier(self::reduction($reactionsLevel, self::REACTIONS_REDUCTION_PER_LEVEL));

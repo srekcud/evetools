@@ -107,6 +107,8 @@
             "time": 24.0
         }
     },
+    "Standup L-Set Blueprint Copy Optimization I": [],
+    "Standup L-Set Blueprint Copy Optimization II": [],
     "Standup L-Set Capital Ship Manufacturing Efficiency I": {
         "capital_ship": {
             "material": 2.0,
@@ -151,8 +153,6 @@
             "time": 24.0
         }
     },
-    "Standup L-Set Laboratory Optimization I": [],
-    "Standup L-Set Laboratory Optimization II": [],
     "Standup L-Set Reactor Efficiency I": {
         "biochemical_reaction": {
             "material": 2.0,
@@ -441,6 +441,10 @@
             "time": 0.0
         }
     },
+    "Standup M-Set Blueprint Copy Accelerator I": [],
+    "Standup M-Set Blueprint Copy Accelerator II": [],
+    "Standup M-Set Blueprint Copy Cost Optimization I": [],
+    "Standup M-Set Blueprint Copy Cost Optimization II": [],
     "Standup M-Set Composite Reactor Material Efficiency I": {
         "composite_reaction": {
             "material": 2.0,
@@ -529,8 +533,6 @@
             "time": 0.0
         }
     },
-    "Standup M-Set Laboratory Optimization I": [],
-    "Standup M-Set Laboratory Optimization II": [],
     "Standup M-Set Structure Manufacturing Material Efficiency I": {
         "structure": {
             "material": 2.0,

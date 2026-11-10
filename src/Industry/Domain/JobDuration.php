@@ -40,6 +40,11 @@ final readonly class JobDuration
         ));
     }
 
+    public static function forCopyJob(int $baseTimePerRunSeconds, Runs $runs, Multiplier $timeModifier): self
+    {
+        return new self(0);
+    }
+
     public static function forReactionJob(int $baseTimePerRunSeconds, Runs $runs, Multiplier $timeModifier): self
     {
         return self::forManufacturingJob($baseTimePerRunSeconds, $runs, new TimeEfficiency(self::REACTION_TE_LEVEL), $timeModifier);

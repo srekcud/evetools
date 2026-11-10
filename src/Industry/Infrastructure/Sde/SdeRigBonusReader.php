@@ -7,6 +7,7 @@ namespace App\Industry\Infrastructure\Sde;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\RigBonus;
 use App\Industry\Domain\RigSecurityModifiers;
+use App\Repository\Sde\DgmTypeEffectRepository;
 
 /**
  * Rig bonuses read from the dogma attributes of the rig type (spec R4, D10). The SDE stores a reduction as a
@@ -24,8 +25,13 @@ final readonly class SdeRigBonusReader
     private const int ATTRIBUTE_REF_RIG_TIME_BONUS = 2713;
     private const int ATTRIBUTE_REF_RIG_MAT_BONUS = 2714;
 
-    public function __construct(private DogmaAttributeValues $dogmaAttributeValues)
+    public function __construct(private DogmaAttributeValues $dogmaAttributeValues, private DgmTypeEffectRepository $typeEffectRepository)
     {
+    }
+
+    public function scienceRigsOf(int $rigTypeId): array
+    {
+        return [];
     }
 
     public function materialBonusOf(int $rigTypeId, ActivityKind $activity): ?RigBonus

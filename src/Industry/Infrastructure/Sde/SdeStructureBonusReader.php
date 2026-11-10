@@ -37,6 +37,7 @@ final readonly class SdeStructureBonusReader
         return match ($activity) {
             ActivityKind::Manufacturing => $this->multiplierOf($structureTypeId, self::ATTRIBUTE_STR_ENG_TIME_BONUS),
             ActivityKind::Reaction => $this->multiplierOf($structureTypeId, self::ATTRIBUTE_STR_REACTION_TIME_MULTIPLIER),
+            ActivityKind::Copying => null,
             default => throw new \InvalidArgumentException(\sprintf('Structures give no time role bonus to %s.', $activity->name)),
         };
     }

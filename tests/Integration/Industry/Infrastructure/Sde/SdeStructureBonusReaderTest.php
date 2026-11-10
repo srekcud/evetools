@@ -8,6 +8,8 @@ use App\Industry\Domain\ActivityKind;
 use App\Industry\Infrastructure\Sde\SdeStructureBonusReader;
 use App\Tests\Integration\IntegrationTestCase;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Spec R4 (D10): structure role bonuses are read from the dogma attributes of the structure type, already stored
@@ -86,6 +88,37 @@ final class SdeStructureBonusReaderTest extends IntegrationTestCase
     public function testReactionTimeRoleBonusIsNotTakenAsAManufacturingTimeRoleBonus(): void
     {
         $this->assertNull($this->reader()->timeMultiplierOf(self::TATARA, ActivityKind::Manufacturing));
+    }
+
+    #[Group('issue-523')]
+    public function testCopyingTimeRoleBonusOfEachEngineeringComplexIsReadFromStrEngTimeBonus(): void
+    {
+        $this->assertSame(0.85, $this->reader()->timeMultiplierOf(self::RAITARU, ActivityKind::Copying)?->value);
+        $this->assertSame(0.8, $this->reader()->timeMultiplierOf(self::AZBEL, ActivityKind::Copying)?->value);
+        $this->assertSame(0.7, $this->reader()->timeMultiplierOf(self::SOTIYO, ActivityKind::Copying)?->value);
+    }
+
+    #[Group('issue-523')]
+    public function testRefineriesHaveNoCopyingTimeRoleBonus(): void
+    {
+        $this->assertNull($this->reader()->timeMultiplierOf(self::TATARA, ActivityKind::Copying));
+        $this->assertNull($this->reader()->timeMultiplierOf(self::ATHANOR, ActivityKind::Copying));
+    }
+
+    #[Group('issue-523')]
+    #[DataProvider('inventionAndResearchProvider')]
+    public function testInventionAndResearchTimeRoleBonusesAreRefused(ActivityKind $activity): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->reader()->timeMultiplierOf(self::SOTIYO, $activity);
+    }
+
+    public static function inventionAndResearchProvider(): iterable
+    {
+        yield 'invention' => [ActivityKind::Invention];
+        yield 'ME research' => [ActivityKind::ResearchMaterial];
+        yield 'TE research' => [ActivityKind::ResearchTime];
     }
 
     private function reader(): SdeStructureBonusReader

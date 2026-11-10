@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Industry\Domain;
 use App\Industry\Domain\SkillTimeModifier;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -90,5 +91,45 @@ final class SkillTimeModifierTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         SkillTimeModifier::forReaction(6);
+    }
+
+    #[Group('issue-523')]
+    public function testCopySkillModifierWithoutSkillIsOne(): void
+    {
+        $this->assertSame(1.0, SkillTimeModifier::forCopy(0, 0)->value);
+    }
+
+    #[Group('issue-523')]
+    public function testCopySkillModifierWithScienceVOnlyIsSeventyFivePercent(): void
+    {
+        $this->assertEqualsWithDelta(0.75, SkillTimeModifier::forCopy(5, 0)->value, 1e-12);
+    }
+
+    #[Group('issue-523')]
+    public function testCopySkillModifierWithAdvancedIndustryVOnlyIsEightyFivePercent(): void
+    {
+        $this->assertEqualsWithDelta(0.85, SkillTimeModifier::forCopy(0, 5)->value, 1e-12);
+    }
+
+    #[Group('issue-523')]
+    public function testCopySkillModifierWithScienceVAndAdvancedIndustryVMultipliesBothReductions(): void
+    {
+        $this->assertEqualsWithDelta(0.6375, SkillTimeModifier::forCopy(5, 5)->value, 1e-12);
+    }
+
+    #[Group('issue-523')]
+    public function testCopySkillModifierRefusesAScienceLevelAboveFive(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        SkillTimeModifier::forCopy(6, 0);
+    }
+
+    #[Group('issue-523')]
+    public function testCopySkillModifierRefusesANegativeAdvancedIndustryLevel(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        SkillTimeModifier::forCopy(0, -1);
     }
 }

@@ -28,7 +28,14 @@ final readonly class ProductionStructure
         public array $rigs,
         public Multiplier $costRoleBonus,
         public float $facilityTaxRate,
+        public Multiplier $timeRoleBonus = new Multiplier(1.0),
+        public array $scienceRigs = [],
     ) {
+    }
+
+    public function timeMultiplierFor(ActivityKind $activity): Multiplier
+    {
+        return Multiplier::one();
     }
 
     public function installCostMultiplierFor(ActivityKind $activity): Multiplier

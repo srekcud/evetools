@@ -7,9 +7,11 @@ namespace App\Tests\Unit\Industry\Application\Double;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureRig;
 use App\Industry\Application\StructureType;
+use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\RigBonus;
 use App\Industry\Domain\RigSecurityModifiers;
+use App\Industry\Domain\ScienceRig;
 use App\Industry\Domain\SecurityClass;
 
 /**
@@ -72,6 +74,27 @@ final class ProductionStructures
             array_values($rigs),
             new Multiplier(self::RAITARU_COST_ROLE_BONUS),
             $facilityTaxRate,
+        );
+    }
+
+    public static function raitaruWithFacilityTaxAndScienceRigs(
+        string $id,
+        SecurityClass $security,
+        ?int $solarSystemId,
+        float $facilityTaxRate,
+        ScienceRig ...$scienceRigs,
+    ): ProductionStructure {
+        return new ProductionStructure(
+            $id,
+            StructureType::EngineeringComplex,
+            $security,
+            $solarSystemId,
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            new Multiplier(self::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            [],
+            new Multiplier(self::RAITARU_COST_ROLE_BONUS),
+            $facilityTaxRate,
+            scienceRigs: array_values($scienceRigs),
         );
     }
 
@@ -154,10 +177,23 @@ final class ProductionStructures
         );
     }
 
-    /** Laboratory rig (copying, invention, ME and TE research): cost reduction only, ×1.0 highsec / ×1.9 lowsec / ×2.1 nullsec (SDE attribute 2595, #526). */
-    public static function laboratoryRig(float $costReductionPercent): StructureRig
+    public static function scienceRig(ActivityKind $activity, ?float $timeReductionPercent, ?float $costReductionPercent): ScienceRig
     {
-        return StructureRig::costOnly(new RigBonus($costReductionPercent, new RigSecurityModifiers(1.0, 1.9, 2.1)));
+        return new ScienceRig(
+            $activity,
+            null === $timeReductionPercent ? null : new RigBonus($timeReductionPercent, new RigSecurityModifiers(1.0, 1.9, 2.1)),
+            null === $costReductionPercent ? null : new RigBonus($costReductionPercent, new RigSecurityModifiers(1.0, 1.9, 2.1)),
+        );
+    }
+
+    public static function laboratoryRigs(?float $timeReductionPercent, float $costReductionPercent): array
+    {
+        return [
+            self::scienceRig(ActivityKind::Copying, $timeReductionPercent, $costReductionPercent),
+            self::scienceRig(ActivityKind::Invention, $timeReductionPercent, $costReductionPercent),
+            self::scienceRig(ActivityKind::ResearchMaterial, $timeReductionPercent, $costReductionPercent),
+            self::scienceRig(ActivityKind::ResearchTime, $timeReductionPercent, $costReductionPercent),
+        ];
     }
 
     /** Reaction material rig: forbidden in highsec, ×1.0 lowsec / ×1.1 nullsec (#72). */

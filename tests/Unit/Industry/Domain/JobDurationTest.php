@@ -10,6 +10,7 @@ use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -110,5 +111,27 @@ final class JobDurationTest extends TestCase
         $duration = JobDuration::forManufacturingJob(0, new Runs(10), new TimeEfficiency(0), Multiplier::one());
 
         $this->assertSame(0, $duration->seconds);
+    }
+
+    #[Group('issue-523')]
+    public function testCopyJobOfZeroBaseTimeLastsZeroSeconds(): void
+    {
+        $this->assertSame(0, JobDuration::forCopyJob(0, new Runs(600), new Multiplier(0.6375))->seconds);
+    }
+
+    #[Group('issue-523')]
+    public function testCopyJobRefusesANegativeBaseTime(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        JobDuration::forCopyJob(-1, new Runs(1), Multiplier::one());
+    }
+
+    #[Group('issue-523')]
+    public function testCopyJobIsRoundedOnceOnRunsTimesBaseTimeTimesTheTimeModifier(): void
+    {
+        $duration = JobDuration::forCopyJob(240, new Runs(600), (new Multiplier(0.6375))->times(new Multiplier(0.7)));
+
+        $this->assertSame(64_260, $duration->seconds);
     }
 }
