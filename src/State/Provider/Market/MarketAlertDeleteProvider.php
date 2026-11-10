@@ -9,11 +9,11 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Market\MarketAlertResource;
 use App\Entity\User;
 use App\Repository\MarketPriceAlertRepository;
+use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements ProviderInterface<MarketAlertResource>
@@ -39,7 +39,7 @@ class MarketAlertDeleteProvider implements ProviderInterface
             throw new NotFoundHttpException('Alert not found');
         }
 
-        $alert = $this->alertRepository->find(Uuid::fromString((string) $id));
+        $alert = $this->alertRepository->find(UuidOrNotFound::of((string) $id, 'Alert not found'));
         if ($alert === null) {
             throw new NotFoundHttpException('Alert not found');
         }

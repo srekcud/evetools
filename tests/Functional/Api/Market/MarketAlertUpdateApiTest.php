@@ -113,6 +113,21 @@ final class MarketAlertUpdateApiTest extends WebTestCase
         self::assertSame([AlertStatus::Triggered, 61.5, AlertDirection::Below], [$reloaded->getStatus(), $reloaded->getThreshold(), $reloaded->getDirection()]);
     }
 
+    public function testPatchingAnAlertWithAMalformedIdentifierIsNotFound(): void
+    {
+        $user = $this->persistPilot();
+        $this->client->loginUser($user, 'api');
+
+        $this->client->request(
+            'PATCH',
+            '/api/market/alerts/not-a-uuid',
+            server: ['CONTENT_TYPE' => 'application/merge-patch+json', 'HTTP_ACCEPT' => 'application/json'],
+            content: '{"threshold":8}',
+        );
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testPatchingAnExpiredAlertIsAConflict(): void
     {
         $user = $this->persistPilot();
