@@ -15,6 +15,7 @@ export type WorkshopProjectMember = {
 export type WorkshopProject = {
   projectId: string
   members: WorkshopProjectMember[]
+  corporationName: string | null
   phases: ProjectPhase[]
   profit: { amount: number | null; status: WorkshopProjectProfitStatus }
 }

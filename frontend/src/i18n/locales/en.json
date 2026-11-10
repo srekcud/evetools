@@ -1030,7 +1030,8 @@
         "forecast": "Jita forecast (project)",
         "unknown": "a cost or a fee is unknown"
       },
-      "productSubline": "ME {me} · TE {te} · {team}"
+      "productSubline": "ME {me} · TE {te} · {team}",
+      "productSublineWithCorporation": "ME {me} · TE {te} · {team} · {corporation}"
     },
     "bridges": {
       "createProject": "Create project",

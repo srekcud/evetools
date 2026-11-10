@@ -299,11 +299,14 @@ function signedIsk(amount: number): string {
 function productSubline(project: GroupProject): string | null {
   const [firstItem] = project.items
   if (firstItem === undefined) return null
-  return t('industry.workshop.productSubline', {
+  const corporationName = workshopRowOf(project)?.corporationName ?? null
+  const parameters = {
     me: firstItem.meLevel,
     te: firstItem.teLevel,
     team: isSolo(project) ? t('industry.workshop.team.solo') : t('industry.workshop.team.participants', { count: project.membersCount }),
-  })
+  }
+  if (corporationName === null) return t('industry.workshop.productSubline', parameters)
+  return t('industry.workshop.productSublineWithCorporation', { ...parameters, corporation: corporationName })
 }
 </script>
 

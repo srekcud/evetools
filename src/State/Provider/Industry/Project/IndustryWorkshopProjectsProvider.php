@@ -86,6 +86,7 @@ class IndustryWorkshopProjectsProvider implements ProviderInterface
         $resource = new IndustryWorkshopProjectResource();
         $resource->projectId = $project->getId()->toRfc4122();
         $resource->members = $this->membersOf($participants);
+        $resource->corporationName = $project->getOwner()->getCorporationName();
         $resource->phases = CockpitPhasePresenter::of($cockpit->phases);
         $resource->profit = $this->profitOf($project, $membership);
 

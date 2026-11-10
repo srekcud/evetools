@@ -4,6 +4,7 @@ import type { WorkshopProject, WorkshopProjectMember } from '@/stores/industry/w
 export function workshopProject(overrides: Partial<WorkshopProject> & Pick<WorkshopProject, 'projectId'>): WorkshopProject {
   return {
     members: [],
+    corporationName: null,
     phases: [],
     profit: { amount: null, status: 'unknown' },
     ...overrides,
