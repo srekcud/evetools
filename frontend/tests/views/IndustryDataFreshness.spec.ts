@@ -10,6 +10,7 @@ import { ApiError, apiRequest } from '@/services/api'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 import { apiOutcomesByPath, rejectWith, respondWith } from '../deferred'
+import { industryPageOfTab } from './industryPages'
 import {
   ADJUSTED_PRICES_UNKNOWN,
   COST_INDICES_UNKNOWN,
@@ -37,6 +38,7 @@ vi.mock(import('vue-router'), async importOriginal => ({
 
 const stubbedChildren = {
   MainLayout: { template: '<div><slot /></div>' },
+  IndustryModuleTabs: true,
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
@@ -59,7 +61,7 @@ const outcomes = apiOutcomesByPath()
 async function mountIndustryWithQuery(query: LocationQuery) {
   route.query = query
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const wrapper = mount(Industry, { global: { plugins: [i18n], stubs: stubbedChildren } })
+  const wrapper = mount(Industry, { props: { page: industryPageOfTab(query.tab) }, global: { plugins: [i18n], stubs: stubbedChildren } })
   await flushPromises()
   return wrapper
 }

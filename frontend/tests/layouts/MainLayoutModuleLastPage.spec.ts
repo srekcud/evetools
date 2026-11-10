@@ -7,6 +7,13 @@ const LAST_VISITED_MOONS_PAGE = '/mining/moons'
 const DEFAULT_PVE_PAGE = '/pve/revenue'
 const LAST_VISITED_ESCALATIONS_PAGE = '/pve/escalations'
 
+const DEFAULT_INDUSTRY_PAGE = '/industry'
+const LAST_VISITED_ANALYSIS_PAGE = '/industry/analysis'
+
+function industryLink(wrapper: VueWrapper): DOMWrapper<Element> | undefined {
+  return wrapper.get('aside nav').findAll('a[href]').find(link => link.text().trim() === 'Industry')
+}
+
 function miningLink(wrapper: VueWrapper): DOMWrapper<Element> | undefined {
   return wrapper.get('aside nav').findAll('a[href]').find(link => link.text().trim() === 'Mining')
 }
@@ -58,5 +65,24 @@ describe('MainLayout mining entry', () => {
       LAST_VISITED_ESCALATIONS_PAGE,
       DEFAULT_PVE_PAGE,
     ])
+  })
+})
+
+describe('MainLayout industry entry', () => {
+  it('opens the last visited industry page from the sidebar', async () => {
+    const { wrapper, router } = await mountMainLayoutAt('/dashboard', {
+      storedModuleLastPage: JSON.stringify({ industry: LAST_VISITED_ANALYSIS_PAGE }),
+    })
+
+    expect(industryLink(wrapper)?.attributes('href')).toBe(LAST_VISITED_ANALYSIS_PAGE)
+    await industryLink(wrapper)?.trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe(LAST_VISITED_ANALYSIS_PAGE))
+    expect(industryLink(wrapper)?.attributes('aria-current')).toBe('page')
+  })
+
+  it('opens the workshop when no industry page was visited yet', async () => {
+    const { wrapper } = await mountMainLayoutAt('/dashboard', { storedModuleLastPage: JSON.stringify({ mining: '/mining/moons' }) })
+
+    expect(industryLink(wrapper)?.attributes('href')).toBe(DEFAULT_INDUSTRY_PAGE)
   })
 })

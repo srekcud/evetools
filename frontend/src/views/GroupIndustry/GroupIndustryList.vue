@@ -8,6 +8,7 @@ import { useTabQuery } from '@/composables/useTabQuery'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useIndustryStore } from '@/stores/industry'
 import MainLayout from '@/layouts/MainLayout.vue'
+import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import ProjectKpiCards from '@/components/group-industry/ProjectKpiCards.vue'
 import ProjectCard from '@/components/group-industry/ProjectCard.vue'
 import AvailableProjectCard from '@/components/group-industry/AvailableProjectCard.vue'
@@ -106,9 +107,9 @@ async function handleJoinProject(shortLinkCode: string) {
   }
 }
 
-async function handleProjectCreated() {
+async function handleProjectCreated(project: GroupProject) {
   closeNewProjectModal()
-  await fetchProjects()
+  await router.push({ name: 'industry-project', params: { id: project.id } })
 }
 
 // --- Data fetching ---
@@ -156,6 +157,7 @@ onMounted(() => {
 <template>
   <MainLayout>
     <div class="max-w-7xl mx-auto px-6 py-8">
+      <IndustryModuleTabs active="projects" />
 
       <!-- Page header -->
       <div class="mb-6 card-enter" style="animation-delay: 0ms;">

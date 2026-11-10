@@ -7,6 +7,13 @@ const MINING_MOONS_PATH = '/mining/moons'
 const MINING_SITES_PATH = '/mining/sites'
 const MINING_ORE_VALUE_PATH = '/mining/ore-value'
 const MINING_MY_MINING_PATH = '/mining/my-mining'
+const INDUSTRY_PATH = '/industry'
+const INDUSTRY_PROJECTS_PATH = '/industry/projects'
+const INDUSTRY_ANALYSIS_PATH = '/industry/analysis'
+const INDUSTRY_PRODUCTION_PATH = '/industry/production'
+const INDUSTRY_ANALYSIS_TABS: readonly string[] = ['margins', 'batch', 'buy-vs-build', 'pivot']
+const INDUSTRY_PRODUCTION_TABS: readonly string[] = ['slots', 'stockpile', 'blueprints']
+const INDUSTRY_WORKSHOP_TABS: readonly string[] = ['workshop', 'dashboard']
 const PVE_REVENUE_PATH = '/pve/revenue'
 const PVE_ESCALATIONS_PATH = '/pve/escalations'
 const BALANCE_PATH = '/balance'
@@ -19,6 +26,23 @@ const UUID_PATTERN = '[0-9a-fA-F-]{36}'
 function queryWithout(query: LocationQuery, key: string): LocationQuery {
   const { [key]: _removed, ...rest } = query
   return rest
+}
+
+function formerIndustryTabLocation(to: QueriedLocation): RouteLocationRaw | true {
+  const tab = to.query.tab
+  if (typeof tab !== 'string') {
+    return true
+  }
+  if (INDUSTRY_ANALYSIS_TABS.includes(tab)) {
+    return { path: INDUSTRY_ANALYSIS_PATH, query: to.query }
+  }
+  if (INDUSTRY_PRODUCTION_TABS.includes(tab)) {
+    return { path: INDUSTRY_PRODUCTION_PATH, query: to.query }
+  }
+  if (INDUSTRY_WORKSHOP_TABS.includes(tab)) {
+    return { path: INDUSTRY_PATH, query: queryWithout(to.query, 'tab') }
+  }
+  return true
 }
 
 function formerMiningOperationsLocation(to: QueriedLocation): RouteLocationRaw {
@@ -145,6 +169,28 @@ const router = createRouter({
       path: '/industry',
       name: 'industry',
       component: () => import('@/views/Industry.vue'),
+      props: { page: 'workshop' },
+      beforeEnter: formerIndustryTabLocation,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/industry/projects',
+      name: 'industry-projects',
+      component: () => import('@/views/GroupIndustry/GroupIndustryList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/industry/analysis',
+      name: 'industry-analysis',
+      component: () => import('@/views/Industry.vue'),
+      props: { page: 'analysis' },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/industry/production',
+      name: 'industry-production',
+      component: () => import('@/views/Industry.vue'),
+      props: { page: 'production' },
       meta: { requiresAuth: true },
     },
     {
@@ -203,8 +249,7 @@ const router = createRouter({
     },
     {
       path: '/group-industry',
-      name: 'group-industry',
-      component: () => import('@/views/GroupIndustry/GroupIndustryList.vue'),
+      redirect: to => ({ path: INDUSTRY_PROJECTS_PATH, query: to.query }),
       meta: { requiresAuth: true },
     },
     {

@@ -9,31 +9,46 @@ use Doctrine\Migrations\AbstractMigration;
 
 final class Version20261110040000 extends AbstractMigration
 {
+    private const array RENAMED_RIGS = [
+        'Standup M-Set Laboratory Optimization I' => 'Standup M-Set Blueprint Copy Accelerator I',
+        'Standup M-Set Laboratory Optimization II' => 'Standup M-Set Blueprint Copy Accelerator II',
+        'Standup L-Set Laboratory Optimization I' => 'Standup L-Set Blueprint Copy Optimization I',
+        'Standup L-Set Laboratory Optimization II' => 'Standup L-Set Blueprint Copy Optimization II',
+    ];
+
     public function getDescription(): string
     {
-        return 'Record the sale date of an escalation and give each sold escalation a PVE income';
+        return 'Rename the laboratory rigs missing from the SDE in the fitted rigs of production structures to the copy rig of the same size and time bonus';
     }
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE escalations ADD sold_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL');
-        $this->addSql('ALTER TABLE pve_income ADD escalation_id UUID DEFAULT NULL');
-        $this->addSql('ALTER TABLE pve_income ADD CONSTRAINT FK_5586A343703EE70D FOREIGN KEY (escalation_id) REFERENCES escalations (id) ON DELETE SET NULL NOT DEFERRABLE');
-        $this->addSql('CREATE UNIQUE INDEX UNIQ_5586A343703EE70D ON pve_income (escalation_id)');
-        $this->addSql("UPDATE escalations SET sold_at = updated_at WHERE sale_status = 'vendu' AND sold_at IS NULL");
-        $this->addSql("INSERT INTO pve_income (id, user_id, type, description, amount, date, created_at, escalation_id)
-            SELECT gen_random_uuid(), e.user_id, 'escalation', e.type || ' - ' || e.solar_system_name, e.price, e.sold_at, NOW(), e.id
-            FROM escalations e
-            WHERE e.sale_status = 'vendu'
-              AND NOT EXISTS (SELECT 1 FROM pve_income i WHERE i.escalation_id = e.id)");
+        $renameCases = '';
+        foreach (self::RENAMED_RIGS as $oldName => $newName) {
+            $renameCases .= \sprintf(" WHEN '%s' THEN '%s'", $oldName, $newName);
+        }
+        $oldNames = "'".implode("', '", array_keys(self::RENAMED_RIGS))."'";
+
+        $this->addSql(<<<SQL
+            UPDATE industry_structure_configs SET rigs = (
+                SELECT COALESCE(json_agg(renamed.rig ORDER BY renamed.first_position), '[]'::json)
+                FROM (
+                    SELECT mapped.rig, MIN(mapped.position) AS first_position
+                    FROM (
+                        SELECT CASE fitted.rig{$renameCases} ELSE fitted.rig END AS rig, fitted.position
+                        FROM json_array_elements_text(industry_structure_configs.rigs) WITH ORDINALITY AS fitted(rig, position)
+                    ) mapped
+                    GROUP BY mapped.rig
+                ) renamed
+            )
+            WHERE EXISTS (
+                SELECT 1 FROM json_array_elements_text(industry_structure_configs.rigs) AS stale(rig) WHERE stale.rig IN ({$oldNames})
+            )
+            SQL);
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql("DELETE FROM pve_income WHERE type = 'escalation'");
-        $this->addSql('ALTER TABLE pve_income DROP CONSTRAINT FK_5586A343703EE70D');
-        $this->addSql('DROP INDEX UNIQ_5586A343703EE70D');
-        $this->addSql('ALTER TABLE pve_income DROP escalation_id');
-        $this->addSql('ALTER TABLE escalations DROP sold_at');
+        $this->throwIrreversibleMigrationException('The old rig names do not exist in the SDE: they are not restored.');
     }
 }

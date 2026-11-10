@@ -130,7 +130,7 @@ describe('project cockpit next action card', () => {
     selling.unmount()
 
     const reviewing = await mountCockpitDetail({
-      project: nyxProject('published'),
+      project: nyxProject('published', 'owner', { pendingContributionCount: 2 }),
       cockpit: cockpitOf('published', REVIEW_CONTRIBUTIONS),
     })
     await clickNextActionButton(reviewing)

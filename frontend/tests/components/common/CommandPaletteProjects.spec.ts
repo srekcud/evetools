@@ -57,7 +57,7 @@ describe('CommandPalette projects', () => {
       expect(groupOptionTexts('Projects')).toEqual(['Fleet Raven', 'Fleet Titan'])
       groupOptions('Projects')[1].click()
       await flushPromises()
-      expect(router.currentRoute.value.fullPath).toBe('/group-industry/f2')
+      expect(router.currentRoute.value.fullPath).toBe('/industry/projects/f2')
     })
   })
 
@@ -155,7 +155,7 @@ describe('CommandPalette projects', () => {
       expect(activeOptionText()).toBe('Batch of Ravens')
       await pressKey('Enter')
 
-      expect(router.currentRoute.value.fullPath).toBe('/group-industry/b1')
+      expect(router.currentRoute.value.fullPath).toBe('/industry/projects/b1')
     })
 
     it('proposes no project for an empty query', async () => {
@@ -211,7 +211,7 @@ describe('CommandPalette projects', () => {
       await typeQueryAndWaitForTypes('raven')
 
       expect(groupNames()).toEqual(['Projects'])
-      expect(groupText('Projects')).toContain('Group Industry projects unavailable')
+      expect(groupText('Projects')).toContain('Projects unavailable')
       expect(groupOptions('Projects')).toEqual([])
       expect(paletteText()).not.toContain('No results for')
     })
@@ -265,7 +265,7 @@ describe('CommandPalette projects', () => {
 
       await pressKey('Enter')
 
-      expect(router.currentRoute.value.fullPath).toBe('/group-industry/p1')
+      expect(router.currentRoute.value.fullPath).toBe('/industry/projects/p1')
       expect(wrapper.emitted('close')).toEqual([[]])
       expect(searchInput()).toBeNull()
     })
@@ -277,7 +277,7 @@ describe('CommandPalette projects', () => {
       groupOptions('Projects')[0].click()
       await flushPromises()
 
-      expect(router.currentRoute.value.fullPath).toBe('/group-industry/g1')
+      expect(router.currentRoute.value.fullPath).toBe('/industry/projects/g1')
       expect(wrapper.emitted('close')).toEqual([[]])
     })
   })

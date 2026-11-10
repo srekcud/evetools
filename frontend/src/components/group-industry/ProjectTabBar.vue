@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { computed } from 'vue'
 import type { ProjectDetailTab } from '@/views/GroupIndustry/projectDetailTabs'
 import { COMING_SOON_TABS, DETAIL_TABS } from '@/views/GroupIndustry/projectDetailTabs'
 
 const activeTab = defineModel<ProjectDetailTab>({ required: true })
 
-defineProps<{
+const props = defineProps<{
   materialsCount: string
   contributionCount: number
   memberCount: number
+  hiddenTabs?: readonly ProjectDetailTab[]
 }>()
+
+const visibleTabs = computed(() => DETAIL_TABS.filter(tab => !props.hiddenTabs?.includes(tab)))
 
 const { t } = useI18n()
 
@@ -37,7 +41,7 @@ function badgeClasses(tab: ProjectDetailTab): string {
   <div class="border-b border-slate-800 mb-6 overflow-x-auto">
     <div class="flex gap-6 min-w-max" role="tablist">
       <button
-        v-for="tab in DETAIL_TABS"
+        v-for="tab in visibleTabs"
         :key="tab"
         :data-testid="`project-tab-${tab}`"
         type="button"

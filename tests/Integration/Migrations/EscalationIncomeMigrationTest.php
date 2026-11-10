@@ -19,7 +19,7 @@ use Symfony\Component\Uid\Uuid;
 #[Group('issue-533')]
 final class EscalationIncomeMigrationTest extends IntegrationTestCase
 {
-    private const string MIGRATION_VERSION = 'Version20261110040000';
+    private const string MIGRATION_VERSION = 'Version20261110050000';
     private const string LAST_MIGRATION_BEFORE_THE_ESCALATION_INCOME = 'DoctrineMigrations\\Version20261110030000';
     private const string SCHEMA_BEFORE_THE_ESCALATION_INCOME = 'escalation_income_before_migration';
     private const string SOLD_UPDATED_AT = '2026-10-20 16:05:00';

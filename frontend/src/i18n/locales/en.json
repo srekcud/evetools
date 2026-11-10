@@ -139,7 +139,7 @@
     },
     "projects": {
       "loading": "Loading...",
-      "groupIndustryUnavailable": "Group Industry projects unavailable",
+      "groupIndustryUnavailable": "Projects unavailable",
       "completed": "Completed"
     },
     "types": {
@@ -2185,7 +2185,7 @@
     }
   },
   "groupIndustry": {
-    "title": "Group Industry",
+    "title": "Projects",
     "available": {
       "runs": "Runs",
       "members": "members",
@@ -2936,7 +2936,7 @@
     "modals": {
       "newProject": {
         "title": "New Group Project",
-        "subtitle": "Create a new multi-item group industry project",
+        "subtitle": "Create a new multi-item project",
         "nameLabel": "Name",
         "namePlaceholder": "Custom project name (e.g. Fleet Doctrine Build)",
         "optional": "optional",
@@ -3025,7 +3025,7 @@
       "requestSent": "Request Sent",
       "requestSentDescription": "Your join request has been sent and is waiting for approval from a project admin. You will be notified once your request is accepted.",
       "unableToJoin": "Unable to Join",
-      "backToGroupIndustry": "Back to Group Industry"
+      "backToGroupIndustry": "Back to Projects"
     },
     "tabs": {
       "myProjects": "My Projects",
@@ -3142,6 +3142,7 @@
     "detail": {
       "backToList": "Back to Projects",
       "shareLink": "Share Link",
+      "invite": "Invite",
       "edit": "Edit",
       "delete": "Delete",
       "saveAsTemplate": "Save as template",
@@ -3348,6 +3349,14 @@
       "30d": "30d",
       "90d": "90d",
       "365d": "1 year"
+    }
+  },
+  "industryModule": {
+    "tabs": {
+      "workshop": "Workshop",
+      "projects": "Projects",
+      "analysis": "Analysis",
+      "production": "Production"
     }
   },
   "pveModule": {

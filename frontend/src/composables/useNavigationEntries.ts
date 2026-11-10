@@ -31,7 +31,7 @@ const CHARACTERS_SCREEN: Screen = {
 
 const PROJECTS_SCREEN: Screen = {
   labelKey: 'nav.projects',
-  route: '/group-industry',
+  route: '/industry/projects',
 }
 
 const PROJECTS_TABS: ScreenTab[] = [
@@ -43,6 +43,28 @@ interface ModulePage {
   labelKey: string
   tabs: ScreenTab[]
 }
+
+const INDUSTRY_PAGES: ModulePage[] = [
+  {
+    route: '/industry/analysis',
+    labelKey: 'industryModule.tabs.analysis',
+    tabs: [
+      { query: 'margins', labelKey: 'industry.tabs.margins' },
+      { query: 'batch', labelKey: 'industry.tabs.batch' },
+      { query: 'buy-vs-build', labelKey: 'industry.tabs.buyVsBuild' },
+      { query: 'pivot', labelKey: 'industry.tabs.pivot' },
+    ],
+  },
+  {
+    route: '/industry/production',
+    labelKey: 'industryModule.tabs.production',
+    tabs: [
+      { query: 'slots', labelKey: 'industry.tabs.slots' },
+      { query: 'stockpile', labelKey: 'industry.tabs.stockpile' },
+      { query: 'blueprints', labelKey: 'industry.tabs.blueprints' },
+    ],
+  },
+]
 
 const PAGES_BY_MODULE: Record<string, ModulePage[]> = {
   mining: [
@@ -67,15 +89,6 @@ const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
   ledger: [
     { query: 'industry', labelKey: 'ledger.tabs.industry' },
     { query: 'settings', labelKey: 'ledger.tabs.settings' },
-  ],
-  industry: [
-    { query: 'margins', labelKey: 'industry.tabs.margins' },
-    { query: 'batch', labelKey: 'industry.tabs.batch' },
-    { query: 'buy-vs-build', labelKey: 'industry.tabs.buyVsBuild' },
-    { query: 'pivot', labelKey: 'industry.tabs.pivot' },
-    { query: 'slots', labelKey: 'industry.tabs.slots' },
-    { query: 'stockpile', labelKey: 'industry.tabs.stockpile' },
-    { query: 'blueprints', labelKey: 'industry.tabs.blueprints' },
   ],
   mining: [
     { query: 'available', labelKey: 'miningOperation.tabs.available' },
@@ -167,6 +180,7 @@ export function useNavigationEntries(): {
         ...modulePageEntries(screen, PAGES_BY_MODULE[screen.id] ?? []),
         ...(screen.id === MARKET_MODULE ? [contractsEntry()] : []),
         ...(screen.id === INDUSTRY_MODULE && !isProjectsHidden(hiddenModules) ? projectEntries(screen) : []),
+        ...(screen.id === INDUSTRY_MODULE ? modulePageEntries(screen, INDUSTRY_PAGES) : []),
       ])
     entries.push(screenEntry(CHARACTERS_SCREEN))
     if (isAdmin) {

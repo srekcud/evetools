@@ -33,14 +33,20 @@ vi.mock(import('@/composables/useTabQuery'), async importOriginal => {
   return { useTabQuery: vi.fn(original.useTabQuery) as typeof original.useTabQuery }
 })
 
-const VIEWS_BY_ROUTE: Record<string, Component> = {
-  '/balance': Balance,
-  '/industry': Industry,
-  '/group-industry': GroupIndustryList,
-  '/mining/operations': MiningOperationList,
-  '/mining/moons': MiningMoons,
-  '/mining/my-mining': MiningMyMining,
-  '/market': MarketBrowser,
+interface ViewOfRoute {
+  component: Component
+  props?: Record<string, string>
+}
+
+const VIEWS_BY_ROUTE: Record<string, ViewOfRoute> = {
+  '/balance': { component: Balance },
+  '/industry/analysis': { component: Industry, props: { page: 'analysis' } },
+  '/industry/production': { component: Industry, props: { page: 'production' } },
+  '/industry/projects': { component: GroupIndustryList },
+  '/mining/operations': { component: MiningOperationList },
+  '/mining/moons': { component: MiningMoons },
+  '/mining/my-mining': { component: MiningMyMining },
+  '/market': { component: MarketBrowser },
 }
 
 function listAllNavigationEntries(): NavigationEntry[] {
@@ -65,17 +71,18 @@ function splitTabRoute(tabRoute: string): { path: string; tab: string } {
 const TAB_ROUTES = listAllNavigationEntries().filter(entry => entry.isTab && entry.route.includes('?tab=')).map(entry => entry.route)
 
 async function activeTabOfViewOpenedAt(path: string, tab: string): Promise<string> {
+  const view = VIEWS_BY_ROUTE[path]
+  if (view === undefined) return `no view mounted at ${path}`
   route.path = path
   route.query = { tab }
-  if (!(path in VIEWS_BY_ROUTE)) {
-    return `no view for ${path}`
-  }
-  shallowMount(VIEWS_BY_ROUTE[path], {
+  shallowMount(view.component, {
+    props: view.props,
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
   await flushPromises()
-  const tabQueryResult = vi.mocked(useTabQuery).mock.results[0]
-  return tabQueryResult === undefined ? 'no tab read from the URL' : (tabQueryResult.value as Ref<string>).value
+  const activeTabs = vi.mocked(useTabQuery).mock.results.map(result => (result.value as Ref<string>).value)
+  if (activeTabs.length === 0) return 'no tab read from the URL'
+  return activeTabs.includes(tab) ? tab : activeTabs[0]
 }
 
 enableAutoUnmount(afterEach)
@@ -97,14 +104,14 @@ afterEach(() => {
 describe('navigation entry tabs contract', () => {
   it('lists tab entries only for the screens whose view reads the tab from the URL', () => {
     expect(TAB_ROUTES).toEqual([
-      '/industry?tab=margins',
-      '/industry?tab=batch',
-      '/industry?tab=buy-vs-build',
-      '/industry?tab=pivot',
-      '/industry?tab=slots',
-      '/industry?tab=stockpile',
-      '/industry?tab=blueprints',
-      '/group-industry?tab=available',
+      '/industry/projects?tab=available',
+      '/industry/analysis?tab=margins',
+      '/industry/analysis?tab=batch',
+      '/industry/analysis?tab=buy-vs-build',
+      '/industry/analysis?tab=pivot',
+      '/industry/production?tab=slots',
+      '/industry/production?tab=stockpile',
+      '/industry/production?tab=blueprints',
       '/mining/operations?tab=available',
       '/mining/operations?tab=archive',
       '/mining/moons?tab=tax',

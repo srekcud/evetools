@@ -37,6 +37,7 @@ import ShareLinkCard from '@/components/group-industry/ShareLinkCard.vue'
 import ProjectPhaseRail from '@/components/group-industry/ProjectPhaseRail.vue'
 import ProjectNextActionCard from '@/components/group-industry/ProjectNextActionCard.vue'
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
+import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
@@ -76,7 +77,16 @@ const { showToast } = useToast()
 
 const projectId = computed(() => route.params.id as string)
 
-const activeTab = useTabQuery<ProjectDetailTab>(DETAIL_TABS, 'bom')
+const MINIMUM_TEAM_SIZE = 2
+const TEAM_ONLY_TABS: readonly ProjectDetailTab[] = ['contributions', 'members']
+
+const requestedTab = useTabQuery<ProjectDetailTab>(DETAIL_TABS, 'bom')
+const membersLoaded = ref(false)
+
+async function loadMembers(id: string): Promise<void> {
+  await distributionStore.fetchMembers(id)
+  membersLoaded.value = distributionStore.membersError === null && Array.isArray(distributionStore.members)
+}
 
 // Contribute modal state
 const showContributeModal = ref(false)
@@ -111,6 +121,18 @@ const isOwnerOrAdmin = computed(() =>
 const isOwner = computed(() => project.value?.myRole === 'owner')
 const isAcceptedMember = computed(() => project.value?.myStatus === 'accepted')
 const isCompleted = computed(() => project.value?.status === 'completed')
+const isWorkedOnAlone = computed(() => {
+  const current = project.value
+  if (!membersLoaded.value || !current) return false
+  const hasPendingMember = distributionStore.members.some(member => member.status === 'pending')
+  const pendingContributions = current.pendingContributionCount
+  const hasContributionToReview = typeof pendingContributions === 'number' && pendingContributions > 0
+  return current.membersCount < MINIMUM_TEAM_SIZE && !hasPendingMember && !hasContributionToReview
+})
+const activeTab = computed<ProjectDetailTab>({
+  get: () => isWorkedOnAlone.value && TEAM_ONLY_TABS.includes(requestedTab.value) ? 'bom' : requestedTab.value,
+  set: (tab) => { requestedTab.value = tab },
+})
 const nextStatuses = computed(() => (project.value ? nextProjectStatuses(project.value.status) : []))
 const pendingStatus = ref<GroupProjectStatus | null>(null)
 
@@ -138,6 +160,7 @@ onMounted(async () => {
     projectStore.fetchProjectDetail(projectId.value),
     projectStore.fetchBom(projectId.value),
     loadCockpit(projectId.value),
+    loadMembers(projectId.value),
   ])
   if (projectStore.currentProject?.containerName) {
     await projectStore.fetchContainerVerification(projectId.value)
@@ -151,7 +174,7 @@ onMounted(async () => {
 const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<void>> = {
   bom: projectStore.fetchBom,
   contributions: contributionStore.fetchContributions,
-  members: distributionStore.fetchMembers,
+  members: loadMembers,
   projectDetail: projectStore.fetchProjectDetail,
   sales: distributionStore.fetchSales,
   saleSuggestions: id => (isOwnerOrAdmin.value ? distributionStore.fetchSaleSuggestions(id) : Promise.resolve()),
@@ -195,7 +218,7 @@ watch(activeTab, (tab) => {
     distributionStore.fetchDistribution(projectId.value)
     settlementStore.fetchForProject(projectId.value)
   } else if (tab === 'members') {
-    distributionStore.fetchMembers(projectId.value)
+    loadMembers(projectId.value)
   } else if (tab === 'journal') {
     activityStore.fetchActivity(projectId.value)
   }
@@ -379,6 +402,7 @@ const materialsCount = computed(() =>
   `${bomItemCount.value} ${bomItemCount.value === 1 ? 'item' : 'items'} · ${jobCount.value} ${jobCount.value === 1 ? 'job' : 'jobs'}`
 )
 const contributionCount = computed(() => contributionStore.contributions.length)
+const shareLinkLabel = computed(() => t(isWorkedOnAlone.value ? 'groupIndustry.detail.invite' : 'groupIndustry.detail.shareLink'))
 const memberCount = computed(() => project.value?.membersCount ?? 0)
 </script>
 
@@ -392,6 +416,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
     </div>
 
     <div v-else-if="project">
+      <IndustryModuleTabs active="projects" />
+
       <!-- Breadcrumb -->
       <div class="mb-4">
         <div class="flex items-center gap-2 text-sm">
@@ -399,7 +425,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <button @click="goBack" class="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">
-            {{ t('industry.tabs.workshop') }}
+            {{ t('groupIndustry.title') }}
           </button>
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
           <span class="text-slate-300">{{ projectDisplayName }}</span>
@@ -460,10 +486,10 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
             <button
               @click="copyShareLink"
               class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm flex items-center gap-2 transition-all hover:-translate-y-px"
-              :title="t('groupIndustry.detail.shareLink')"
+              :title="shareLinkLabel"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-              {{ t('groupIndustry.detail.shareLink') }}
+              {{ shareLinkLabel }}
             </button>
             <button
               v-if="isAcceptedMember && !isCompleted"
@@ -530,6 +556,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         :materials-count="materialsCount"
         :contribution-count="contributionCount"
         :member-count="memberCount"
+        :hidden-tabs="isWorkedOnAlone ? TEAM_ONLY_TABS : []"
       />
 
       <!-- Tab Content: Materials & Jobs -->

@@ -50,6 +50,7 @@ async function openEditModalOf(project: GroupProject, settings: Settings): Promi
       plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
       stubs: {
         MainLayout: { template: '<div><slot /></div>' },
+        IndustryModuleTabs: true,
         teleport: true,
         BomTable: true,
         JobsTable: true,

@@ -39,6 +39,7 @@ function mountList(): VueWrapper {
       plugins: [i18n],
       stubs: {
         MainLayout: { template: '<div><slot /></div>' },
+        IndustryModuleTabs: true,
         LoadingSpinner: true,
         ProjectKpiCards: true,
         NewProjectModal: true,

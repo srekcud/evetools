@@ -2,6 +2,7 @@ import { MODULE_LAST_PAGE_STORAGE_KEY, lastPageOf, rememberModulePage } from '@/
 
 const OPERATION_ID = '0b8f5d2e-4c1a-4e7b-9a36-5d2f8c1e7a40'
 const FALLBACK = '/mining/operations'
+const INDUSTRY_FALLBACK = '/industry'
 const PVE_FALLBACK = '/pve/revenue'
 
 function storedPages(): unknown {
@@ -53,7 +54,7 @@ describe('useModuleLastPage', () => {
   })
 
   it('ignores a path outside the module and a path that only shares its prefix', () => {
-    rememberModulePage('/industry')
+    rememberModulePage('/dashboard')
     rememberModulePage('/mining-operations')
     rememberModulePage('/mining/unknown')
 
@@ -91,5 +92,45 @@ describe('useModuleLastPage', () => {
 
     expect(() => rememberModulePage('/mining/moons')).not.toThrow()
     expect(lastPageOf('mining', FALLBACK)).toBe(FALLBACK)
+  })
+
+  it.each([
+    ['the workshop', '/industry', '/industry'],
+    ['the projects page', '/industry/projects', '/industry/projects'],
+    ['a project detail', '/industry/projects/6c1d90a4', '/industry/projects'],
+    ['the analysis page', '/industry/analysis', '/industry/analysis'],
+    ['the production page', '/industry/production', '/industry/production'],
+  ])('remembers the industry page of %s', (_case, visited, expectedPage) => {
+    rememberModulePage(visited)
+
+    expect(storedPages()).toEqual({ industry: expectedPage })
+    expect(lastPageOf('industry', INDUSTRY_FALLBACK)).toBe(expectedPage)
+  })
+
+  it.each([
+    ['the skills page', '/industry/skills'],
+    ['an invitation', '/industry/join/AB12CD'],
+    ['the former group industry path', '/group-industry'],
+  ])('remembers no industry page for %s', (_case, visited) => {
+    rememberModulePage(visited)
+
+    expect(localStorage.getItem(MODULE_LAST_PAGE_STORAGE_KEY)).toBeNull()
+    expect(lastPageOf('industry', INDUSTRY_FALLBACK)).toBe(INDUSTRY_FALLBACK)
+  })
+
+  it('keeps the industry and mining pages side by side', () => {
+    rememberModulePage('/industry/analysis')
+    rememberModulePage('/mining/sites')
+
+    expect(storedPages()).toEqual({ industry: '/industry/analysis', mining: '/mining/sites' })
+  })
+
+  it.each([
+    ['an unknown path', { industry: '/industry/elsewhere' }],
+    ['a path that is not a string', { industry: 42 }],
+  ])('falls back to the workshop for %s', (_case, stored) => {
+    localStorage.setItem(MODULE_LAST_PAGE_STORAGE_KEY, JSON.stringify(stored))
+
+    expect(lastPageOf('industry', INDUSTRY_FALLBACK)).toBe(INDUSTRY_FALLBACK)
   })
 })

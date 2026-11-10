@@ -21,6 +21,7 @@ type MaxJobDurationStore = { defaultMaxJobDurationDays: number }
 
 const stubbedChildren = {
   MainLayout: { template: '<div><slot /></div>' },
+  IndustryModuleTabs: true,
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
@@ -40,7 +41,7 @@ const stubbedChildren = {
 
 async function mountWithConfigPanelOpen(): Promise<VueWrapper> {
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const wrapper = mount(Industry, { global: { plugins: [i18n], stubs: stubbedChildren } })
+  const wrapper = mount(Industry, { props: { page: 'workshop' }, global: { plugins: [i18n], stubs: stubbedChildren } })
   await flushPromises()
   await wrapper.get(`button[aria-label="${en.industry.tabs.config}"]`).trigger('click')
   return wrapper

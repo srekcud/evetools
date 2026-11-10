@@ -109,6 +109,7 @@ async function mountSalesTabOf(project: GroupProject): Promise<VueWrapper> {
       plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })],
       stubs: {
         MainLayout: { template: '<div><slot /></div>' },
+        IndustryModuleTabs: true,
         teleport: true,
         BomTable: true,
         JobsTable: true,
