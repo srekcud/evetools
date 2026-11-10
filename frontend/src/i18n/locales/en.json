@@ -1006,8 +1006,21 @@
       },
       "team": {
         "solo": "Solo",
-        "group": "Group · {count}"
-      }
+        "group": "Group · {count}",
+        "participants": "{count} participants"
+      },
+      "header": {
+        "blueprints": "Blueprints",
+        "revenue": "Industry revenue",
+        "newProject": "New project"
+      },
+      "profit": {
+        "final": "final",
+        "provisional": "my provisional share",
+        "awaitingSales": "no sale yet",
+        "unknown": "a cost or a fee is unknown"
+      },
+      "productSubline": "ME {me} · TE {te} · {team}"
     },
     "bridges": {
       "createProject": "Create project",
