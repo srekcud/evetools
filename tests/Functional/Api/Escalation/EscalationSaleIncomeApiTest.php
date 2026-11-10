@@ -89,15 +89,67 @@ final class EscalationSaleIncomeApiTest extends EscalationIncomeApiTestCase
         self::assertSame(EscalationSaleStatus::EnVente, $stored?->getSaleStatus());
     }
 
-    #[Group('issue-533')]
-    public function testPriceBeyondInteger4CurrentlyAnswers500AndCreatesNoIncomeIssue533(): void
+    #[Group('issue-555')]
+    public function testSellingAnEscalationAbovePriceInteger4StoresThePriceAndCreatesTheIncome(): void
+    {
+        $escalation = $this->escalationOf($this->pilot, EscalationSaleStatus::EnVente, 100_000_000, EscalationVisibility::Corp);
+        $escalationId = $escalation->getId()?->toRfc4122();
+
+        $this->patchEscalation($this->pilot, $escalationId, ['saleStatus' => 'vendu', 'price' => 2_147_483_648]);
+
+        self::assertResponseStatusCodeSame(200);
+        $incomes = $this->escalationIncomesOf($this->pilot);
+        self::assertCount(1, $incomes);
+        self::assertSame(2_147_483_648.0, $incomes[0]->getAmount());
+        $this->em->clear();
+        $stored = $this->em->find(Escalation::class, $escalationId);
+        self::assertSame(2_147_483_648, $stored?->getPrice());
+        self::assertSame(EscalationSaleStatus::Vendu, $stored->getSaleStatus());
+    }
+
+    #[Group('issue-555')]
+    public function testSellingAnEscalationAtTheMaximumPriceCreatesTheIncomeOfThatPrice(): void
     {
         $escalation = $this->escalationOf($this->pilot, EscalationSaleStatus::EnVente, 100_000_000, EscalationVisibility::Corp);
 
-        $this->patchEscalation($this->pilot, $escalation->getId()?->toRfc4122(), ['saleStatus' => 'vendu', 'price' => 2_147_483_648]);
+        $this->patchEscalation($this->pilot, $escalation->getId()?->toRfc4122(), ['saleStatus' => 'vendu', 'price' => 1_000_000_000_000_000]);
 
-        self::assertResponseStatusCodeSame(500);
+        self::assertResponseStatusCodeSame(200);
+        $incomes = $this->escalationIncomesOf($this->pilot);
+        self::assertCount(1, $incomes);
+        self::assertSame(1_000_000_000_000_000.0, $incomes[0]->getAmount());
+    }
+
+    #[Group('issue-555')]
+    public function testSellingAnEscalationAboveTheMaximumPriceIsRejectedAndChangesNothing(): void
+    {
+        $escalation = $this->escalationOf($this->pilot, EscalationSaleStatus::EnVente, 100_000_000, EscalationVisibility::Corp);
+        $escalationId = $escalation->getId()?->toRfc4122();
+
+        $this->patchEscalation($this->pilot, $escalationId, ['saleStatus' => 'vendu', 'price' => 1_000_000_000_000_001, 'notes' => 'Paid by contract']);
+
+        self::assertResponseStatusCodeSame(422);
         self::assertSame([], $this->escalationIncomesOf($this->pilot));
+        $this->em->clear();
+        $stored = $this->em->find(Escalation::class, $escalationId);
+        self::assertSame(100_000_000, $stored?->getPrice());
+        self::assertSame(EscalationSaleStatus::EnVente, $stored->getSaleStatus());
+        self::assertNull($stored->getNotes());
+    }
+
+    #[Group('issue-555')]
+    public function testNegativePriceIsRejectedAndKeepsThePrice(): void
+    {
+        $escalation = $this->escalationOf($this->pilot, EscalationSaleStatus::EnVente, 100_000_000, EscalationVisibility::Corp);
+        $escalationId = $escalation->getId()?->toRfc4122();
+
+        $this->patchEscalation($this->pilot, $escalationId, ['price' => -1]);
+
+        self::assertResponseStatusCodeSame(422);
+        $this->em->clear();
+        $stored = $this->em->find(Escalation::class, $escalationId);
+        self::assertSame(100_000_000, $stored?->getPrice());
+        self::assertSame(EscalationSaleStatus::EnVente, $stored->getSaleStatus());
     }
 
     public function testStatsCountASoldEscalationInTheIncomeOfThePeriod(): void

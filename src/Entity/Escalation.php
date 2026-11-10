@@ -8,6 +8,7 @@ use App\Enum\EscalationBmStatus;
 use App\Enum\EscalationSaleStatus;
 use App\Enum\EscalationVisibility;
 use App\Repository\EscalationRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -20,6 +21,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['alliance_id', 'visibility'])]
 class Escalation
 {
+    public const int MAXIMUM_PRICE = 1_000_000_000_000_000;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -48,7 +51,7 @@ class Escalation
     #[ORM\Column(type: 'float')]
     private float $securityStatus;
 
-    #[ORM\Column(type: 'integer')]
+    #[ORM\Column(type: Types::BIGINT)]
     private int $price;
 
     #[ORM\Column(type: 'string', length: 10, enumType: EscalationVisibility::class)]

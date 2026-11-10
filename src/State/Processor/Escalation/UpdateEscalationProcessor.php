@@ -22,6 +22,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -60,6 +61,11 @@ class UpdateEscalationProcessor implements ProcessorInterface
 
         $request = $this->requestStack->getCurrentRequest();
         $payload = json_decode($request?->getContent() ?? '{}', true);
+
+        if (isset($payload['price']) && is_int($payload['price'])
+            && ($payload['price'] < 0 || $payload['price'] > Escalation::MAXIMUM_PRICE)) {
+            throw new UnprocessableEntityHttpException(sprintf('Price must be between 0 and %d', Escalation::MAXIMUM_PRICE));
+        }
 
         if (isset($payload['visibility'])) {
             $parsedVisibility = EscalationVisibility::tryFrom($payload['visibility']);
