@@ -7,7 +7,7 @@ import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
 import { useMiningValuationSettings } from '@/composables/useMiningValuationSettings'
 
 const { t } = useI18n()
-const { selectedStructure, selectedStructureId, exportTax, selectStructure, clearStructure, setExportTax } = useMiningValuationSettings()
+const { selectedStructure, exportTax, selectStructure, clearStructure, setExportTax } = useMiningValuationSettings()
 </script>
 
 <template>
@@ -28,7 +28,7 @@ const { selectedStructure, selectedStructureId, exportTax, selectStructure, clea
         <p class="text-xs text-slate-400">{{ t('miningModule.oreValue.valuationHint') }}</p>
       </div>
 
-      <OreValueTab :structure-id="selectedStructureId" />
+      <OreValueTab />
     </div>
   </MainLayout>
 </template>

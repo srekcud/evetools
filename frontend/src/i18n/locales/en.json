@@ -1445,6 +1445,7 @@
       "changeStatus": "Change status",
       "exportTax": "Export tax",
       "exportTaxTooltip": "Export tax Jita (ISK/m3)",
+      "unitValue": "Unit value",
       "yield": "Yield",
       "structureLabel": "Structure",
       "syncStructure": "Sync structure prices",
@@ -3406,6 +3407,9 @@
     },
     "oreValue": {
       "valuationHint": "The structure and the export tax also value the lines of My mining."
+    },
+    "valuationSource": {
+      "unknown": "unknown source"
     }
   },
   "miningOperation": {

@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useLedgerStore, type MiningEntry } from '@/stores/ledger'
 import { useFormatters } from '@/composables/useFormatters'
 import { useMiningPricing } from '@/composables/useMiningPricing'
-import { readExportTax, readSelectedStructure } from '@/composables/useMiningValuationSettings'
+import { useMiningValuationSettings } from '@/composables/useMiningValuationSettings'
 import MiningStatsCards from './MiningStatsCards.vue'
 import MiningEntriesTable from './MiningEntriesTable.vue'
 
@@ -20,8 +20,7 @@ const { t } = useI18n()
 const ledgerStore = useLedgerStore()
 const { formatDateTime } = useFormatters()
 
-const selectedStructureId = readSelectedStructure().id
-const exportTax = readExportTax()
+const { selectedStructureId } = useMiningValuationSettings()
 
 // Store data
 const miningEntries = computed(() => ledgerStore.miningEntries)
@@ -80,7 +79,7 @@ const tableRef = ref<InstanceType<typeof MiningEntriesTable> | null>(null)
 // Fetch mining data
 async function fetchMiningData() {
   await Promise.all([
-    ledgerStore.fetchMiningEntries(props.selectedDays, undefined, undefined, selectedStructureId, exportTax),
+    ledgerStore.fetchMiningEntries(props.selectedDays),
     ledgerStore.fetchMiningStats(props.selectedDays),
   ])
 }

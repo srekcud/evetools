@@ -5,6 +5,9 @@ import { apiRequest } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useFormatters } from '@/composables/useFormatters'
 import { useReprocessingProfile } from '@/composables/useReprocessingProfile'
+import { useMiningValuationSettings } from '@/composables/useMiningValuationSettings'
+import { useMiningValuationProfileStore } from '@/stores/miningValuationProfile'
+import type { MiningValuationForm } from '@/stores/miningOperation'
 import {
   type OreValueMarket,
   type OreValueRow,
@@ -19,9 +22,7 @@ import ReprocessingProfilePanel from './ReprocessingProfilePanel.vue'
 
 const PERCENT = 100
 
-const props = defineProps<{
-  structureId: number | null
-}>()
+const VALUATION_FORMS: MiningValuationForm[] = ['raw', 'compressed', 'reprocessed']
 
 type MarketChoiceId = 'jitaBuy' | 'jitaSell' | 'structureBuy' | 'structureSell'
 
@@ -42,9 +43,10 @@ const marketChoices = Object.values(marketChoicesById)
 const { t } = useI18n()
 const { formatNumber } = useFormatters()
 const authStore = useAuthStore()
+const profileStore = useMiningValuationProfileStore()
+const { market, side, form, exportTax, selectedStructureId, setMarketAndSide, setForm } = useMiningValuationSettings()
 const { profile, reprocessYield, hasError: hasProfileError, load: loadProfile, save: saveProfile, refresh: refreshProfile } = useReprocessingProfile()
 
-const selectedChoiceId = ref<MarketChoiceId>('jitaSell')
 const rows = ref<OreValueRow[]>([])
 const usedReprocessYield = ref<number | null>(null)
 const isLoading = ref(false)
@@ -52,29 +54,29 @@ const isProfileSettled = ref(false)
 const errorMessage = ref<string | null>(null)
 let latestRequest = 0
 
-const selectedChoice = computed(() => marketChoicesById[selectedChoiceId.value])
+const selectedChoice = computed(() => marketChoices.find(choice => choice.market === market.value && choice.side === side.value) ?? marketChoicesById.jitaBuy)
+const selectedChoiceId = computed(() => selectedChoice.value.id)
 const characters = computed(() => authStore.user?.characters ?? [])
 
-function isAvailable(market: OreValueMarket): boolean {
-  return market === 'jita' || props.structureId !== null
+function isAvailable(choiceMarket: OreValueMarket): boolean {
+  return choiceMarket === 'jita' || selectedStructureId.value !== null
+}
+
+function onFormChange(event: Event): void {
+  setForm((event.target as HTMLSelectElement).value as MiningValuationForm)
 }
 
 async function load() {
-  const choice = selectedChoice.value
-  if (!isAvailable(choice.market)) {
-    selectedChoiceId.value = 'jitaSell'
-    return
-  }
   const requestedYield = reprocessYield.value
-  const query = new URLSearchParams({ market: choice.market, side: choice.side })
-  if (choice.market === 'structure' && props.structureId !== null) query.set('structureId', String(props.structureId))
+  const query = new URLSearchParams()
   if (requestedYield !== null) query.set('reprocessYield', String(requestedYield))
+  const queryString = query.toString()
 
   const request = ++latestRequest
   isLoading.value = true
   errorMessage.value = null
   try {
-    const response = await apiRequest<OreValueTableResponse>(`/mining/ore-values?${query.toString()}`)
+    const response = await apiRequest<OreValueTableResponse>(queryString === '' ? '/mining/ore-values' : `/mining/ore-values?${queryString}`)
     if (request !== latestRequest) return
     rows.value = response.rows
     usedReprocessYield.value = response.reprocessYieldKnown ? requestedYield : null
@@ -88,11 +90,11 @@ async function load() {
   }
 }
 
-watch([selectedChoiceId, () => props.structureId, reprocessYield, isProfileSettled], () => {
+watch([market, side, selectedStructureId, exportTax, reprocessYield, isProfileSettled], () => {
   if (isProfileSettled.value) load()
 })
 onMounted(async () => {
-  await loadProfile()
+  await Promise.all([loadProfile(), profileStore.load()])
   isProfileSettled.value = true
 })
 </script>
@@ -118,11 +120,24 @@ onMounted(async () => {
             'px-3 py-1 rounded-sm border text-xs font-medium uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
             selectedChoiceId === choice.id ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200',
           ]"
-          @click="selectedChoiceId = choice.id"
+          @click="setMarketAndSide(choice.market, choice.side)"
         >
           {{ t(`ledger.mining.oreValue.${choice.id}`) }}
         </button>
       </div>
+      <label class="flex items-center gap-2">
+        <span class="text-xs uppercase tracking-wider text-slate-500">{{ t('miningOperation.valuation.form.label') }}</span>
+        <select
+          data-valuation-form
+          :value="form"
+          class="rounded-sm border border-slate-700 bg-slate-800/50 px-2 py-1 text-xs font-medium uppercase tracking-wider text-slate-200 focus:outline-hidden focus:border-cyan-500/50"
+          @change="onFormChange"
+        >
+          <option v-for="valuationForm in VALUATION_FORMS" :key="valuationForm" :value="valuationForm">
+            {{ t(`miningOperation.valuation.form.${valuationForm}`) }}
+          </option>
+        </select>
+      </label>
       <p v-if="usedReprocessYield !== null" class="text-xs text-slate-400">
         {{ t('ledger.mining.oreValue.yieldKnown', { percent: formatNumber(usedReprocessYield * PERCENT) }) }}
       </p>

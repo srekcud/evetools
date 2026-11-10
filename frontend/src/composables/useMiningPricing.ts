@@ -9,59 +9,16 @@ export interface MiningValueByUsage {
   total: number | null
 }
 
-interface PriceSource {
-  value: number | null
-  color: string
-  source: string
-}
-
-type PricedSource = PriceSource & { value: number }
-
-const FALLBACK_PRICE_COLOR = 'text-slate-400'
-const NO_PRICE_COLOR = 'text-slate-500'
-
 function addKnownValues(left: number | null, right: number | null): number | null {
   return left === null || right === null ? null : left + right
 }
 
-/**
- * Composable for mining pricing logic: best price selection and usage-based aggregation.
- */
-function yieldPercentLabel(reprocessYield: number | null): string {
-  return reprocessYield === null ? '' : ` ${(reprocessYield * 100).toFixed(0)}%`
-}
-
 export function useMiningPricing(miningEntries: Ref<MiningEntry[]>) {
-  /**
-   * Get best price with color and source label for display in the table.
-   */
-  function getBestPrice(entry: MiningEntry): PriceSource {
-    const sources: PriceSource[] = [
-      { value: entry.compressedEquivalentPrice, color: 'text-cyan-400', source: 'Jita compresse' },
-      { value: entry.reprocessValue, color: 'text-purple-400', source: `Jita reprocess${yieldPercentLabel(entry.reprocessYield)}` },
-      { value: entry.structureCompressedEquivalentPrice, color: 'text-teal-400', source: 'Structure compresse' },
-      { value: entry.structureReprocessValue, color: 'text-lime-400', source: `Structure reprocess${yieldPercentLabel(entry.reprocessYield)}` },
-    ]
-    const pricedSources = sources.filter((source): source is PricedSource => source.value !== null)
-    const positiveSources = pricedSources.filter(source => source.value > 0)
-
-    if (positiveSources.length > 0) {
-      return positiveSources.reduce((best, current) => current.value > best.value ? current : best)
-    }
-    if (entry.totalValue !== null && entry.quantity > 0) {
-      return { value: entry.totalValue / entry.quantity, color: FALLBACK_PRICE_COLOR, source: '' }
-    }
-    if (entry.rawUnitPrice !== null) {
-      return { value: entry.rawUnitPrice, color: FALLBACK_PRICE_COLOR, source: '' }
-    }
-    return { value: pricedSources.length > 0 ? 0 : null, color: NO_PRICE_COLOR, source: '' }
-  }
-
   /**
    * Get just the best price numeric value for a given entry (for stats calculations).
    */
   function getBestPriceValue(entry: MiningEntry): number | null {
-    return getBestPrice(entry).value
+    return entry.unitValue
   }
 
   function getEntryValue(entry: MiningEntry): number | null {
@@ -90,7 +47,6 @@ export function useMiningPricing(miningEntries: Ref<MiningEntry[]>) {
   })
 
   return {
-    getBestPrice,
     getBestPriceValue,
     getEntryValue,
     miningByUsage,
