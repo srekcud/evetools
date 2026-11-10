@@ -31,6 +31,25 @@ final class SellQuoteCallbacks
         };
     }
 
+    public static function answering(?array $quote): \Closure
+    {
+        return static fn (array $requests): array => array_map(static fn (array $request): ?array => $quote, $requests);
+    }
+
+    public static function unavailableFor(\Closure $quotes, int $typeId, int $quantity): \Closure
+    {
+        return static function (array $requests) use ($quotes, $typeId, $quantity): array {
+            $answers = $quotes($requests);
+            foreach ($requests as $position => $request) {
+                if ($request['typeId'] === $typeId && $request['quantity'] === $quantity) {
+                    $answers[$position] = null;
+                }
+            }
+
+            return $answers;
+        };
+    }
+
     private static function weigh(array $orders, int $quantity): ?array
     {
         $cost = 0.0;

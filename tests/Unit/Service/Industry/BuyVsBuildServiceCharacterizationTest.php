@@ -181,7 +181,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             'buyTypeIds' => [],
             'missingData' => [],
             'warnings' => [],
-        ], $result);
+        ], $this->withoutPriceSources($result));
     }
 
     public function testComponentsAreSortedByDescendingSavings(): void
@@ -525,7 +525,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             'buyTypeIds' => [],
             'missingData' => [],
             'warnings' => [],
-        ], $result);
+        ], $this->withoutPriceSources($result));
     }
 
     #[Group('issue-98')]

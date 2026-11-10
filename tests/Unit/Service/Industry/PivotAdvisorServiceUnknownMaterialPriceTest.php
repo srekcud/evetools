@@ -18,6 +18,7 @@ use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -109,7 +110,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             'score' => 4747.08,
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
-        ], $this->candidateOf(self::CANDIDATE_X, $result));
+        ], $this->withoutPriceSources($this->candidateOf(self::CANDIDATE_X, $result)));
     }
 
     public function testCandidateWithAnUnpricedMaterialHasUnknownMarginProfitAndScoreWithTheMissingMaterialPriceReason(): void
@@ -130,7 +131,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             'score' => null,
             'unknownReason' => BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
             'missingPriceTypeIds' => [self::UNPRICED_ISOTOPES],
-        ], $this->candidateOf(self::CANDIDATE_Y, $result));
+        ], $this->withoutPriceSources($this->candidateOf(self::CANDIDATE_Y, $result)));
     }
 
     public function testCandidatesWithAnUnknownScoreComeAfterEveryPricedCandidateInAscendingTypeIdOrder(): void
@@ -184,7 +185,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
                 'unknownReason' => BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
                 'missingPriceTypeIds' => [self::COMPONENT_FOUR],
             ],
-        ], $result['candidates']);
+        ], array_map($this->withoutPriceSources(...), $result['candidates']));
     }
 
     public function testSourceProductWithAnUnpricedMaterialHasAnUnknownMarginWithTheMissingMaterialPriceReason(): void
@@ -204,7 +205,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             ],
             'unknownReason' => BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
             'missingPriceTypeIds' => [self::COMPONENT_FOUR],
-        ], $result['sourceProduct']);
+        ], $this->withoutPriceSources($result['sourceProduct']));
     }
 
     public function testUnpricedMaterialListedTwiceAppearsOnceInSortedMissingPriceTypeIds(): void
@@ -633,7 +634,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         $assetRepository->method('getAggregatedQuantitiesByUser')->willReturn($stockByTypeId);
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPricesWithFallback')->willReturn($jitaPrices);
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt($jitaPrices));
         $jitaMarketService->method('getCachedDailyVolumes')->willReturn($dailyVolumes);
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);
@@ -692,6 +693,11 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
     private function onlyKeys(array $values, string ...$keys): array
     {
         return array_intersect_key($values, array_flip($keys));
+    }
+
+    private function withoutPriceSources(array $row): array
+    {
+        return array_diff_key($row, ['priceSources' => true]);
     }
 
     private function candidateOf(int $typeId, array $result): array

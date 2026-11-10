@@ -44,7 +44,7 @@ class PivotAdvisorService
      *     typeId: int,
      *     sourceProduct: array<string, mixed>,
      *     matrix: list<array<string, mixed>>,
-     *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>}>,
+     *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>, priceSources: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float}|null, assumptions: array{runs: int, materialEfficiency: int}}}>,
      *     matrixProductIds: list<int>,
      * }
      */
@@ -140,7 +140,6 @@ class PivotAdvisorService
         }
         $allTypeIds = array_values(array_unique($allTypeIds));
 
-        $jitaPrices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
         $productTypeIds = array_merge([$sourceTypeId], array_map(fn (array $p) => $p['productTypeId'], $candidateProducts));
         $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes($productTypeIds);
 
@@ -151,12 +150,24 @@ class PivotAdvisorService
         $sourceIsT2 = $this->inventionService->isT2($sourceTypeId);
         $sourceIsReaction = $sourceActivityId === IndustryActivityType::Reaction->value;
 
+        // Build buildable material type ID set for quick lookup
+        $buildableSet = array_flip($buildableMaterialTypeIds);
+        $sourceMaterialEfficiency = $this->materialEfficiencyOf($sourceIsT2, $sourceIsReaction);
+        $quoteRequests = $this->productQuoteRequests($sourceTypeId, $sourceOutputPerRun, $sourceMaterials, $sourceMaterialEfficiency);
+        foreach ($candidateProducts as $cp) {
+            $cpMaterialEfficiency = $this->materialEfficiencyOf(isset($t2ProductIds[$cp['productTypeId']]), $cp['activityId'] === IndustryActivityType::Reaction->value);
+            $cpMaterials = $candidateMaterialsByBp[$cp['blueprintTypeId']] ?? [];
+            $quoteRequests = array_merge(
+                $quoteRequests,
+                $this->productQuoteRequests($cp['productTypeId'], $cp['outputPerRun'], $cpMaterials, $cpMaterialEfficiency),
+                $this->stockNeedQuoteRequests($this->stockNeedsOf($cpMaterials, $cpMaterialEfficiency, $runs, $buildableSet, $userStock)),
+            );
+        }
+        $quotes = WeightedSellQuotes::read($this->jitaMarketService, $quoteRequests);
+
         // 9. Resolve type names and group names
         $typeNames = $this->typeNameResolver->findNames($allTypeIds);
         $groupNames = $this->loadGroupNames(array_merge([$sourceTypeId], array_map(fn (array $p) => $p['productTypeId'], $candidateProducts)));
-
-        // Build buildable material type ID set for quick lookup
-        $buildableSet = array_flip($buildableMaterialTypeIds);
 
         // 10. Score each candidate (1 run)
         $scoredCandidates = [];
@@ -173,7 +184,8 @@ class PivotAdvisorService
 
             $cpMaterials = $candidateMaterialsByBp[$cpBpId] ?? [];
 
-            $materialCost = $this->materialCostPerRun($cpMaterials, $me, $jitaPrices);
+            $materials = $this->pricedMaterialsPerRun($cpMaterials, $me, $quotes);
+            $materialCost = $materials['cost'];
 
             $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($cpMaterials, 1, $solarSystemIdByActivity[$activityType], $activityType, $facilityTaxByActivity[$activityType], $structureByActivity[$activityType]);
             $totalCostWithInvention = $this->totalCostWithInvention(
@@ -187,7 +199,7 @@ class PivotAdvisorService
             $totalCost = $totalCostWithInvention['totalCost'];
 
             // Sell price
-            $sellPrice = $jitaPrices[$cpTypeId] ?? null;
+            $sellPrice = $quotes->unitPriceOf($cpTypeId, $cpOutputPerRun);
             if ($sellPrice === null || $sellPrice <= 0.0 || ($totalCost !== null && $totalCost <= 0.0)) {
                 continue;
             }
@@ -209,35 +221,34 @@ class PivotAdvisorService
             $missingComponents = [];
             $additionalCost = 0.0;
             $isCoverageUnknown = false;
+            $isAdditionalCostUnknown = false;
+            $stockNeedPartialPercents = [];
 
-            foreach ($cpMaterials as $mat) {
-                $matTypeId = $mat['materialTypeId'];
-                if (!isset($buildableSet[$matTypeId])) {
-                    continue;
-                }
+            foreach ($this->stockNeedsOf($cpMaterials, $me, $runs, $buildableSet, $userStock) as $need) {
+                $needUnitPrice = $quotes->unitPriceOf($need['typeId'], $need['neededQuantity']);
 
-                $neededQty = MaterialQuantityFormula::forJob($mat['quantity'], $runs, $me, 0.0, 0.0);
-                $matPrice = $jitaPrices[$matTypeId] ?? null;
-                $inStock = $userStock[$matTypeId] ?? 0;
-
-                if ($matPrice === null) {
+                if ($needUnitPrice === null) {
                     $isCoverageUnknown = true;
                 } else {
-                    $coverageDenominator += $neededQty * $matPrice;
-                    $coverageNumerator += min($inStock, $neededQty) * $matPrice;
+                    $coverageDenominator += $need['neededQuantity'] * $needUnitPrice;
+                    $coverageNumerator += min($need['inStock'], $need['neededQuantity']) * $needUnitPrice;
+                    $stockNeedPartialPercents[] = PriceSource::partialPercentOf($quotes->coverageOf($need['typeId'], $need['neededQuantity']));
                 }
 
-                if ($inStock < $neededQty) {
-                    $missingQty = $neededQty - $inStock;
+                if ($need['missingQuantity'] > 0) {
+                    $missingUnitPrice = $quotes->unitPriceOf($need['typeId'], $need['missingQuantity']);
                     $missingCost = null;
-                    if ($matPrice !== null) {
-                        $missingCost = round($missingQty * $matPrice, 2);
-                        $additionalCost += $missingQty * $matPrice;
+                    if ($missingUnitPrice === null) {
+                        $isAdditionalCostUnknown = true;
+                    } else {
+                        $missingCost = round($need['missingQuantity'] * $missingUnitPrice, 2);
+                        $additionalCost += $need['missingQuantity'] * $missingUnitPrice;
+                        $stockNeedPartialPercents[] = PriceSource::partialPercentOf($quotes->coverageOf($need['typeId'], $need['missingQuantity']));
                     }
                     $missingComponents[] = [
-                        'typeId' => $matTypeId,
-                        'typeName' => $typeNames[$matTypeId] ?? null,
-                        'quantity' => $missingQty,
+                        'typeId' => $need['typeId'],
+                        'typeName' => $typeNames[$need['typeId']] ?? null,
+                        'quantity' => $need['missingQuantity'],
                         'cost' => $missingCost,
                     ];
                 }
@@ -261,12 +272,19 @@ class PivotAdvisorService
                 'dailyVolume' => $dailyVolume,
                 'coveragePercent' => $isCoverageUnknown ? null : round($coveragePercent, 2),
                 'missingComponents' => $missingComponents,
-                'additionalCost' => $isCoverageUnknown ? null : round($additionalCost, 2),
+                'additionalCost' => $isCoverageUnknown || $isAdditionalCostUnknown ? null : round($additionalCost, 2),
                 'estimatedProfit' => $profitPerUnit !== null ? round($profitPerUnit * $cpOutputPerRun * $runs, 2) : null,
                 'score' => $score !== null ? round($score, 2) : null,
                 'blueprintTypeId' => $cpBpId,
                 'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'] ?? $this->unknownDailyVolumeReason($dailyVolume),
-                'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($cpMaterials, $jitaPrices),
+                'missingPriceTypeIds' => $materials['missingPriceTypeIds'],
+                'priceSources' => $this->priceSourcesOf(
+                    array_merge($materials['partialCoveragePercents'], $stockNeedPartialPercents),
+                    $quotes,
+                    $cpTypeId,
+                    $cpOutputPerRun,
+                    $me,
+                ),
             ];
         }
 
@@ -287,7 +305,7 @@ class PivotAdvisorService
             $sourceIsReaction,
             $solarSystemIdByActivity,
             $salesFees,
-            $jitaPrices,
+            $quotes,
             $dailyVolumes,
             $typeNames,
             $groupNames,
@@ -321,7 +339,7 @@ class PivotAdvisorService
             $sourceMaterialSet[$mat['materialTypeId']] = $mat['quantity'];
         }
 
-        $materialEfficiencyByProduct = [$sourceTypeId => $this->materialEfficiencyOf($sourceIsT2, $sourceIsReaction)];
+        $materialEfficiencyByProduct = [$sourceTypeId => $sourceMaterialEfficiency];
         foreach ($candidateProducts as $cp) {
             $materialEfficiencyByProduct[$cp['productTypeId']] = $this->materialEfficiencyOf(
                 isset($t2ProductIds[$cp['productTypeId']]),
@@ -413,7 +431,6 @@ class PivotAdvisorService
     /**
      * @param list<array{materialTypeId: int, quantity: int}> $sourceMaterials
      * @param list<array{materialTypeId: int, quantity: int}> $buildableMaterials
-     * @param array<int, float|null> $jitaPrices
      * @param array<int, float> $dailyVolumes
      * @param array<int, string> $typeNames
      * @param array<int, string> $groupNames
@@ -432,7 +449,7 @@ class PivotAdvisorService
         bool $isReaction,
         array $solarSystemIdByActivity,
         ?SalesFees $salesFees,
-        array $jitaPrices,
+        WeightedSellQuotes $quotes,
         array $dailyVolumes,
         array $typeNames,
         array $groupNames,
@@ -444,7 +461,8 @@ class PivotAdvisorService
         $me = $this->materialEfficiencyOf($isT2, $isReaction);
         $activityType = $isReaction ? 'reaction' : 'manufacturing';
 
-        $materialCost = $this->materialCostPerRun($sourceMaterials, $me, $jitaPrices);
+        $materials = $this->pricedMaterialsPerRun($sourceMaterials, $me, $quotes);
+        $materialCost = $materials['cost'];
 
         $jobInstallCost = $this->esiCostIndexService->estimateJobInstallCost($sourceMaterials, 1, $solarSystemIdByActivity[$activityType], $activityType, $facilityTaxByActivity[$activityType], $structureByActivity[$activityType]);
         $totalCostWithInvention = $this->totalCostWithInvention(
@@ -457,7 +475,7 @@ class PivotAdvisorService
         );
         $totalCost = $totalCostWithInvention['totalCost'];
 
-        $sellPrice = $jitaPrices[$sourceTypeId] ?? null;
+        $sellPrice = $quotes->unitPriceOf($sourceTypeId, $outputPerRun);
         $dailyVolume = $dailyVolumes[$sourceTypeId] ?? null;
         $marginPercent = null;
         if ($salesFees !== null && $totalCost !== null && $sellPrice !== null && $sellPrice > 0 && $totalCost > 0) {
@@ -486,7 +504,77 @@ class PivotAdvisorService
             'dailyVolume' => $dailyVolume,
             'keyComponents' => $keyComponents,
             'unknownReason' => $this->unknownCostReason($materialCost, $jobInstallCost) ?? $totalCostWithInvention['unknownReason'] ?? $this->unknownDailyVolumeReason($dailyVolume),
-            'missingPriceTypeIds' => $this->findUnpricedMaterialTypeIds($sourceMaterials, $jitaPrices),
+            'missingPriceTypeIds' => $materials['missingPriceTypeIds'],
+            'priceSources' => $this->priceSourcesOf($materials['partialCoveragePercents'], $quotes, $sourceTypeId, $outputPerRun, $me),
+        ];
+    }
+
+    /**
+     * @param list<array{materialTypeId: int, quantity: int}> $materials
+     * @return list<array{typeId: int, quantity: int}>
+     */
+    private function productQuoteRequests(int $productTypeId, int $outputPerRun, array $materials, int $materialEfficiency): array
+    {
+        $requests = [['typeId' => $productTypeId, 'quantity' => $outputPerRun]];
+        foreach ($materials as $mat) {
+            $requests[] = ['typeId' => $mat['materialTypeId'], 'quantity' => MaterialQuantityFormula::forJob($mat['quantity'], 1, $materialEfficiency, 0.0, 0.0)];
+        }
+
+        return $requests;
+    }
+
+    /**
+     * @param list<array{materialTypeId: int, quantity: int}> $materials
+     * @param array<int, int> $buildableSet
+     * @param array<int, int> $userStock
+     * @return list<array{typeId: int, neededQuantity: int, inStock: int, missingQuantity: int}>
+     */
+    private function stockNeedsOf(array $materials, int $materialEfficiency, int $runs, array $buildableSet, array $userStock): array
+    {
+        $needs = [];
+        foreach ($materials as $mat) {
+            $typeId = $mat['materialTypeId'];
+            if (!isset($buildableSet[$typeId])) {
+                continue;
+            }
+            $neededQuantity = MaterialQuantityFormula::forJob($mat['quantity'], $runs, $materialEfficiency, 0.0, 0.0);
+            $inStock = $userStock[$typeId] ?? 0;
+            $needs[] = ['typeId' => $typeId, 'neededQuantity' => $neededQuantity, 'inStock' => $inStock, 'missingQuantity' => max(0, $neededQuantity - $inStock)];
+        }
+
+        return $needs;
+    }
+
+    /**
+     * @param list<array{typeId: int, neededQuantity: int, inStock: int, missingQuantity: int}> $needs
+     * @return list<array{typeId: int, quantity: int}>
+     */
+    private function stockNeedQuoteRequests(array $needs): array
+    {
+        $requests = [];
+        foreach ($needs as $need) {
+            $requests[] = ['typeId' => $need['typeId'], 'quantity' => $need['neededQuantity']];
+            if ($need['missingQuantity'] > 0) {
+                $requests[] = ['typeId' => $need['typeId'], 'quantity' => $need['missingQuantity']];
+            }
+        }
+
+        return $requests;
+    }
+
+    /**
+     * @param list<?float> $materialPartialPercents
+     * @return array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float}|null, assumptions: array{runs: int, materialEfficiency: int}}
+     */
+    private function priceSourcesOf(array $materialPartialPercents, WeightedSellQuotes $quotes, int $productTypeId, int $outputPerRun, int $materialEfficiency): array
+    {
+        $partialPercents = array_filter($materialPartialPercents, static fn (?float $percent): bool => $percent !== null);
+        $isSaleKnown = $quotes->unitPriceOf($productTypeId, $outputPerRun) !== null;
+
+        return [
+            'materials' => PriceSource::jitaSellWeighted($partialPercents === [] ? null : min($partialPercents))->toArray(),
+            'sale' => $isSaleKnown ? PriceSource::jitaSellWeighted(PriceSource::partialPercentOf($quotes->coverageOf($productTypeId, $outputPerRun)))->toArray() : null,
+            'assumptions' => ['runs' => 1, 'materialEfficiency' => $materialEfficiency],
         ];
     }
 
@@ -547,38 +635,30 @@ class PivotAdvisorService
 
     /**
      * @param list<array{materialTypeId: int, quantity: int}> $materials
-     * @param array<int, float|null> $jitaPrices
-     * @return list<int>
+     * @return array{cost: ?float, missingPriceTypeIds: list<int>, partialCoveragePercents: list<?float>}
      */
-    private function findUnpricedMaterialTypeIds(array $materials, array $jitaPrices): array
+    private function pricedMaterialsPerRun(array $materials, int $materialEfficiency, WeightedSellQuotes $quotes): array
     {
-        $unpricedTypeIds = [];
+        $cost = 0.0;
+        $missingPriceTypeIds = [];
+        $partialCoveragePercents = [];
         foreach ($materials as $mat) {
-            if (($jitaPrices[$mat['materialTypeId']] ?? null) === null) {
-                $unpricedTypeIds[$mat['materialTypeId']] = $mat['materialTypeId'];
-            }
-        }
-        sort($unpricedTypeIds);
-
-        return $unpricedTypeIds;
-    }
-
-    /**
-     * @param list<array{materialTypeId: int, quantity: int}> $materials
-     * @param array<int, float|null> $jitaPrices
-     */
-    private function materialCostPerRun(array $materials, int $materialEfficiency, array $jitaPrices): ?float
-    {
-        $materialCost = 0.0;
-        foreach ($materials as $mat) {
-            $unitPrice = $jitaPrices[$mat['materialTypeId']] ?? null;
+            $quantity = MaterialQuantityFormula::forJob($mat['quantity'], 1, $materialEfficiency, 0.0, 0.0);
+            $unitPrice = $quotes->unitPriceOf($mat['materialTypeId'], $quantity);
             if ($unitPrice === null) {
-                return null;
+                $missingPriceTypeIds[$mat['materialTypeId']] = $mat['materialTypeId'];
+                continue;
             }
-            $materialCost += MaterialQuantityFormula::forJob($mat['quantity'], 1, $materialEfficiency, 0.0, 0.0) * $unitPrice;
+            $cost += $quantity * $unitPrice;
+            $partialCoveragePercents[] = PriceSource::partialPercentOf($quotes->coverageOf($mat['materialTypeId'], $quantity));
         }
+        sort($missingPriceTypeIds);
 
-        return $materialCost;
+        return [
+            'cost' => $missingPriceTypeIds === [] ? $cost : null,
+            'missingPriceTypeIds' => $missingPriceTypeIds,
+            'partialCoveragePercents' => $partialCoveragePercents,
+        ];
     }
 
     /**
@@ -634,7 +714,10 @@ class PivotAdvisorService
         }
         $allTypeIds = array_values(array_unique($allTypeIds));
 
-        $jitaPrices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
+        $quotes = WeightedSellQuotes::read(
+            $this->jitaMarketService,
+            $this->productQuoteRequests($sourceTypeId, $outputPerRun, $sourceMaterials, $this->materialEfficiencyOf($isT2, $isReaction)),
+        );
         $dailyVolumes = $this->jitaMarketService->getCachedDailyVolumes([$sourceTypeId]);
         $typeNames = $this->typeNameResolver->findNames($allTypeIds);
         $groupNames = $this->loadGroupNames([$sourceTypeId]);
@@ -649,7 +732,7 @@ class PivotAdvisorService
             $isReaction,
             $solarSystemIdByActivity,
             $salesFees,
-            $jitaPrices,
+            $quotes,
             $dailyVolumes,
             $typeNames,
             $groupNames,

@@ -532,7 +532,7 @@ final class BuyVsBuildProviderTest extends TestCase
     ): void {
         $analysis = $this->goldenBuyVsBuildService()->analyze($typeId, $runs, $meLevel, $solarSystemId, $sellStructureId, new SalesFees($brokerFeeRate, $salesTaxRate), null, $reactionSolarSystemId);
 
-        $this->assertSame($analysis, [
+        $this->assertSame(array_diff_key($analysis, ['priceSources' => true]), [
             'typeId' => $resource->typeId,
             'typeName' => $resource->typeName,
             'isT2' => $resource->isT2,

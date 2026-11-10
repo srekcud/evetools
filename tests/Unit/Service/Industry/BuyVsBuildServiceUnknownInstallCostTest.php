@@ -219,7 +219,7 @@ final class BuyVsBuildServiceUnknownInstallCostTest extends TestCase
             'buyTypeIds' => [self::FULLERIDES],
             'missingData' => [],
             'warnings' => [],
-        ], $result);
+        ], $this->withoutPriceSources($result));
     }
 
     public function testWithoutCostIndexInTheSystemEveryComponentIsBoughtAlthoughItsMaterialsCostLessThanItsPurchase(): void

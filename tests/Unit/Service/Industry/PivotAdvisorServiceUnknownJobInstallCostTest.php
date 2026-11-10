@@ -18,6 +18,7 @@ use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -166,7 +167,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             costIndexByActivity: ['manufacturing' => self::MANUFACTURING_COST_INDEX, 'reaction' => self::REACTION_COST_INDEX],
         );
 
-        $this->assertSame([self::CANDIDATE_X_FIGURED, self::CANDIDATE_W_FIGURED], $result['candidates']);
+        $this->assertSame([self::CANDIDATE_X_FIGURED, self::CANDIDATE_W_FIGURED], array_map($this->withoutPriceSources(...), $result['candidates']));
     }
 
     public function testMarginProfitAndScoreAreUnknownWhileTheCoverageIsFiguredWhenTheSellerSalesFeesAreUnknown(): void
@@ -239,7 +240,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
                 'score' => null,
                 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX,
             ],
-        ], $result['candidates']);
+        ], array_map($this->withoutPriceSources(...), $result['candidates']));
     }
 
     public function testSourceProductInASystemWithoutManufacturingCostIndexHasAnUnknownMarginWithTheMissingCostIndexReason(): void
@@ -262,7 +263,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             'keyComponents' => [['typeId' => self::COMPONENT_TWO, 'typeName' => 'Component Two', 'inStock' => 1]],
             'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX,
             'missingPriceTypeIds' => [],
-        ], $result['sourceProduct']);
+        ], $this->withoutPriceSources($result['sourceProduct']));
     }
 
     public function testCandidateWithAMaterialWithoutAdjustedPriceHasAnUnknownCostWithTheMissingAdjustedPriceReasonAndNoMissingMarketPrice(): void
@@ -283,7 +284,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             'score' => null,
             'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE,
             'missingPriceTypeIds' => [],
-        ], $this->candidateOf(self::CANDIDATE_V, $result));
+        ], $this->withoutPriceSources($this->candidateOf(self::CANDIDATE_V, $result)));
     }
 
     public function testCandidateWithAMaterialWithoutAdjustedPriceIsRankedAfterTheFiguredCandidatesItWouldLeadAtAZeroJobInstallCost(): void
@@ -353,7 +354,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
                 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX,
                 'missingPriceTypeIds' => [],
             ],
-        ], $result['candidates']);
+        ], array_map($this->withoutPriceSources(...), $result['candidates']));
     }
 
     public function testSourceProductOfManufacturingStaysFiguredWhenOnlyTheReactionCostIndexIsMissing(): void
@@ -474,7 +475,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         $assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::COMPONENT_TWO => 1]);
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPricesWithFallback')->willReturn($jitaPrices);
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt($jitaPrices));
         $jitaMarketService->method('getCachedDailyVolumes')->willReturn(self::DAILY_VOLUMES);
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);
@@ -572,5 +573,10 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
         }
 
         $this->fail("Candidate {$typeId} is missing from the pivot analysis");
+    }
+
+    private function withoutPriceSources(array $row): array
+    {
+        return array_diff_key($row, ['priceSources' => true]);
     }
 }
