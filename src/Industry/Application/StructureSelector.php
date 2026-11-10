@@ -180,7 +180,7 @@ final readonly class StructureSelector
         $solarSystemId = $this->favoriteSystems->systemOrFavorite($structure, $activity);
         $costIndex = null === $solarSystemId ? null : $this->costIndices->costIndexOf($solarSystemId, $activity);
 
-        return null === $costIndex ? null : $costIndex * $structure->costRoleBonus->value + $structure->facilityTaxRate;
+        return null === $costIndex ? null : $costIndex * $structure->installCostMultiplierFor($activity)->value + $structure->facilityTaxRate;
     }
 
     /**

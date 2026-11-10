@@ -154,6 +154,12 @@ final class ProductionStructures
         );
     }
 
+    /** Laboratory rig (copying, invention, ME and TE research): cost reduction only, ×1.0 highsec / ×1.9 lowsec / ×2.1 nullsec (SDE attribute 2595, #526). */
+    public static function laboratoryRig(float $costReductionPercent): StructureRig
+    {
+        return StructureRig::costOnly(new RigBonus($costReductionPercent, new RigSecurityModifiers(1.0, 1.9, 2.1)));
+    }
+
     /** Reaction material rig: forbidden in highsec, ×1.0 lowsec / ×1.1 nullsec (#72). */
     public static function reactionRig(float $reductionPercent, string ...$targetedCategories): StructureRig
     {

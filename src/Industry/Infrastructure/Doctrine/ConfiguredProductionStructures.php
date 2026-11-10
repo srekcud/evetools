@@ -103,6 +103,11 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
             $rigTypeId = ($rigTypes[$rigName] ?? throw new \UnexpectedValueException(\sprintf('Rig "%s" is missing from the SDE.', $rigName)))->getTypeId();
             $targetedCategories = StructureRigTargets::categoriesOf($rigName);
 
+            $costBonus = $this->rigBonusReader->costBonusOf($rigTypeId);
+            if (null !== $costBonus && $costBonus->reductionPercent > 0.0) {
+                $rigs[] = StructureRig::costOnly($costBonus);
+            }
+
             $thukkerBonus = ActivityKind::Manufacturing === $activity ? $this->rigBonusReader->thukkerMaterialBonusOf($rigTypeId) : null;
             if (null !== $thukkerBonus) {
                 $rigs[] = new StructureRig($thukkerBonus, [self::THUKKER_CATEGORY]);
