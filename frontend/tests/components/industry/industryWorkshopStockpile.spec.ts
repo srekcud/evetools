@@ -25,6 +25,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const ACTIONS_ENDPOINT = '/industry/actions'
 const SLOTS_ENDPOINT = '/industry/slots'
 const PROJECTS_ENDPOINT = '/industry/projects'
+const WORKSHOP_PROJECTS_ENDPOINT = '/industry/workshop-projects'
 const STOCKPILE_STATUS_ENDPOINT = '/industry/stockpile-status'
 
 const FUEL_BLOCK_TYPE_ID = 4312
@@ -115,6 +116,7 @@ function answerWith({ actions = QUEUE, stockpile = stockpileStatus({}) }: Answer
     if (endpoint === ACTIONS_ENDPOINT) return actions
     if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline: [] }
     if (endpoint === PROJECTS_ENDPOINT) return []
+    if (endpoint === WORKSHOP_PROJECTS_ENDPOINT) return []
     if (endpoint === STOCKPILE_STATUS_ENDPOINT) {
       if (stockpile instanceof Error) throw stockpile
       return stockpile

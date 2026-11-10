@@ -26,6 +26,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const ACTIONS_ENDPOINT = '/industry/actions'
 const SLOTS_ENDPOINT = '/industry/slots'
 const PROJECTS_ENDPOINT = '/industry/projects'
+const WORKSHOP_PROJECTS_ENDPOINT = '/industry/workshop-projects'
 
 const SABRE_PROJECT_ID = '0b6f3c2e-8d41-4a7b-9e15-5c2d7f80a3a1'
 const WIDOW_PROJECT_ID = '7e2a9d14-3c5b-4f86-a0d2-91b4c6e8f2b7'
@@ -126,6 +127,7 @@ function answerWith({ actions = QUEUE, timeline = [], projects = GROUP_PROJECTS 
     }
     if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline }
     if (endpoint === PROJECTS_ENDPOINT) return projects
+    if (endpoint === WORKSHOP_PROJECTS_ENDPOINT) return []
     return new Promise(() => {})
   }) as never)
 }
@@ -241,10 +243,10 @@ describe('IndustryWorkshop action queue', () => {
 })
 
 describe('IndustryWorkshop skills link', () => {
-  it('opens the skills page from the header of the action queue', async () => {
+  it('opens the skills page from the header of the workshop', async () => {
     const wrapper = await mountWorkshop()
 
-    await wrapper.get('[data-testid="workshop-skills-link"]').trigger('click')
+    await wrapper.get('[data-testid="workshop-link-skills"]').trigger('click')
 
     expect(routerPush).toHaveBeenCalledExactlyOnceWith({ name: 'industry-skills' })
   })
