@@ -262,7 +262,7 @@ class BatchProfitScanRulesTest extends TestCase
 
         $shieldExtender = $this->scan(user: $this->userWithCharacterSkills([]))[0];
 
-        $this->assertSame(880.72, $shieldExtender['profitPerUnit']);
+        $this->assertSame(880.83, $shieldExtender['profitPerUnit']);
     }
 
     public function testReactionInstallCostUsesTheFacilityTaxOfTheUserRefineryInTheSystem(): void
@@ -332,7 +332,7 @@ class BatchProfitScanRulesTest extends TestCase
 
         $shieldExtender = $this->scan(user: $this->userWithCharacterSkills([]), reactionSolarSystemId: self::REACTION_SOLAR_SYSTEM_ID)[0];
 
-        $this->assertSame(880.72, $shieldExtender['profitPerUnit']);
+        $this->assertSame(880.83, $shieldExtender['profitPerUnit']);
     }
 
     private function givenFerrogelReactionPricedAsInTheReactionCostIndexExample(): void

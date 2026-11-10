@@ -307,8 +307,10 @@ class BatchProfitScannerService
         // Pre-load cost indices once (one solar system per activity for all products)
         $manufacturingCostIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'manufacturing');
         $reactionCostIndex = $this->esiCostIndexService->getCostIndex($reactionSolarSystemId, 'reaction');
-        $manufacturingFacilityTax = $this->facilityTaxResolver->percentFor($user, $solarSystemId, ActivityKind::Manufacturing);
-        $reactionFacilityTax = $this->facilityTaxResolver->percentFor($user, $reactionSolarSystemId, ActivityKind::Reaction);
+        $manufacturingStructure = $this->facilityTaxResolver->structureFor($user, $solarSystemId, ActivityKind::Manufacturing);
+        $reactionStructure = $this->facilityTaxResolver->structureFor($user, $reactionSolarSystemId, ActivityKind::Reaction);
+        $manufacturingFacilityTax = FacilityTaxResolver::percentOf($manufacturingStructure);
+        $reactionFacilityTax = FacilityTaxResolver::percentOf($reactionStructure);
 
         // 11. Calculate profit for each product
         $results = [];
@@ -352,7 +354,7 @@ class BatchProfitScannerService
 
             $costIndex = $isReaction ? $reactionCostIndex : $manufacturingCostIndex;
             $facilityTax = $isReaction ? $reactionFacilityTax : $manufacturingFacilityTax;
-            $jobInstallEstimate = $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, 1, $activityType, $facilityTax);
+            $jobInstallEstimate = $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, 1, $activityType, $facilityTax, $isReaction ? $reactionStructure : $manufacturingStructure);
             $jobInstallCost = $jobInstallEstimate['cost'];
 
             // Export cost: only when selling remotely (Jita), not at local structure
@@ -397,7 +399,7 @@ class BatchProfitScannerService
             $isInventionCostUnknown = false;
             $inventionUnknownReason = null;
             if ($isT2 && !$isSalePriceUnknown && !$isCostUnknown) {
-                $inventionCost = $this->inventionService->expectedCostPerRun($typeId, $solarSystemId, $manufacturingFacilityTax);
+                $inventionCost = $this->inventionService->expectedCostPerRun($typeId, $solarSystemId, $manufacturingFacilityTax, $manufacturingStructure);
                 if ($inventionCost['cost'] === null) {
                     $isInventionCostUnknown = true;
                     $inventionUnknownReason = $inventionCost['unknownReason'];

@@ -7,6 +7,8 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Entity\Sde\IndustryActivityMaterial;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
+use App\Industry\Application\ProductionStructure;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Enum\IndustryActivityType;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -375,6 +377,39 @@ class InventionServiceTest extends TestCase
             ],
             $this->installEstimateCalls,
         );
+    }
+
+    #[Group('issue-526')]
+    public function testInventionCostAsksBothInstallEstimatesWithTheStructureOfTheJob(): void
+    {
+        $structure = ProductionStructures::raitaru('raitaru');
+        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, $this->knownInstallEstimate(1100.0));
+
+        $this->service->calculateInventionCost(self::SABRE_TYPE_ID, self::AMARR_SOLAR_SYSTEM_ID, null, 1, 10.0, $structure);
+
+        $this->assertSame([['copying', $structure], ['invention', $structure]], $this->installEstimateStructures);
+    }
+
+    #[Group('issue-526')]
+    public function testEstimateCopyJobCostAsksTheInstallEstimateWithTheStructureOfTheJob(): void
+    {
+        $structure = ProductionStructures::raitaru('raitaru');
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0), $this->knownInstallEstimate(110000.0));
+
+        $this->service->estimateCopyJobCost(self::THRASHER_BLUEPRINT_ID, 10, 30002510, 5.0, $structure);
+
+        $this->assertSame([['copying', $structure]], $this->installEstimateStructures);
+    }
+
+    #[Group('issue-526')]
+    public function testExpectedCostPerRunAsksTheInventionCostWithTheStructureOfTheJob(): void
+    {
+        $structure = ProductionStructures::raitaru('raitaru');
+        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, $this->knownInstallEstimate(1100.0));
+
+        $this->service->expectedCostPerRun(self::SABRE_TYPE_ID, self::AMARR_SOLAR_SYSTEM_ID, 10.0, $structure);
+
+        $this->assertSame([['copying', $structure], ['invention', $structure]], $this->installEstimateStructures);
     }
 
     public static function nonIntegerAttemptRatios(): iterable
@@ -751,6 +786,9 @@ class InventionServiceTest extends TestCase
     private array $requestedPriceTypeIdsPerCall = [];
     private array $installEstimateCalls = [];
 
+    /** @var list<array{string, ?ProductionStructure}> */
+    private array $installEstimateStructures = [];
+
     #[Group('issue-8')]
     public function testInventionCostWithEveryPriceKnownHasNoMissingPriceTypeIds(): void
     {
@@ -1076,8 +1114,9 @@ class InventionServiceTest extends TestCase
                 return array_intersect_key($manufacturingMaterialsByBlueprint, array_flip($blueprintTypeIds));
             });
         $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
-            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent) use ($estimate, $copyEstimate): array {
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent, ?ProductionStructure $structure = null) use ($estimate, $copyEstimate): array {
                 $this->installEstimateCalls[] = [$materials, $runs, $solarSystemId, $activity, $facilityTaxPercent];
+                $this->installEstimateStructures[] = [$activity, $structure];
 
                 return 'copying' === $activity ? $copyEstimate ?? $this->knownInstallEstimate(0.0) : $estimate;
             },

@@ -14,6 +14,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(FacilityTaxResolver::class)]
@@ -135,6 +136,23 @@ final class FacilityTaxResolverTest extends TestCase
         $percent = $resolver->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Copying);
 
         $this->assertSame(3.0, $percent);
+    }
+
+    #[Group('issue-526')]
+    public function testStructureForGivesTheStructureWhoseFacilityTaxIsApplied(): void
+    {
+        $resolver = $this->resolverOf([ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, 0.05)]);
+
+        $structure = $resolver->structureFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing);
+
+        $this->assertSame('raitaru', $structure?->id);
+    }
+
+    #[Group('issue-526')]
+    public function testStructureForIsNullInTheNpcStationAndWithoutUser(): void
+    {
+        $this->assertNull($this->resolverOf([])->structureFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing));
+        $this->assertNull($this->resolverOf([])->structureFor(null, self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing));
     }
 
     public function testStructuresAreReadForTheRfc4122IdOfTheUser(): void
