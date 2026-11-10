@@ -1251,9 +1251,15 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
     {
         $jitaMarketService = $this->createStub(JitaMarketService::class);
         $jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturnCallback(
-            function (array $typeQuantities): array {
+            function (array $typeQuantities) use ($productTypeId): array {
                 $prices = [];
                 foreach (array_keys($typeQuantities) as $typeId) {
+                    if ($typeId === $productTypeId) {
+                        $prices[$typeId] = null === $this->jitaSellPriceOfProduct
+                            ? null
+                            : ['weightedPrice' => $this->jitaSellPriceOfProduct, 'coverage' => 1.0, 'ordersUsed' => 1];
+                        continue;
+                    }
                     $prices[$typeId] = \in_array($typeId, $this->leavesWithoutJitaPrice, true)
                         ? null
                         : ['weightedPrice' => \in_array($typeId, $this->leavesWithZeroJitaPrice, true) ? 0.0 : self::jitaPriceOf($typeId), 'coverage' => 1.0, 'ordersUsed' => 1];
@@ -1261,11 +1267,6 @@ class ProfitMarginGoldenCharacterizationTest extends TestCase
 
                 return $prices;
             },
-        );
-        $jitaMarketService->method('getWeightedSellPrice')->willReturnCallback(
-            fn (int $typeId): ?array => $typeId === $productTypeId && null !== $this->jitaSellPriceOfProduct
-                ? ['weightedPrice' => $this->jitaSellPriceOfProduct, 'coverage' => 1.0, 'ordersUsed' => 1]
-                : null,
         );
         $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
             static fn (array $typeIds): array => array_combine($typeIds, array_map(self::jitaPriceOf(...), $typeIds)),
