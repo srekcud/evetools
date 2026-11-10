@@ -73,7 +73,7 @@ final class ProjectPlanningApiTest extends WebTestCase
                 self::PLANNING_KEYS,
                 $this->idOfProject($this->hecateBatch),
                 $this->hecateBatch->getCreatedAt()->getTimestamp(),
-                false,
+                true,
                 true,
                 [null, null, null, null],
                 [],
@@ -181,6 +181,46 @@ final class ProjectPlanningApiTest extends WebTestCase
                 $planning['unscheduled'],
             ],
         );
+    }
+
+    public function testPlannedStructureNoLongerConfiguredKeepsTheBaseDurationAndFlagsTheMissingStructureTimeBonus(): void
+    {
+        $this->insertHullBlueprint();
+        $this->cacheSkills($this->owner->getMainCharacter(), [
+            CachedCharacterSkill::SKILL_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+        ]);
+        $hullBatch = $this->persistProject('Hull batch');
+        $this->addMembership($hullBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addJobLine($hullBatch, self::HULL_TYPE_ID, 'Synthetic Hull', 'final', self::HULL_RUNS, self::HULL_RUNS, 10, self::HULL_TE_LEVEL, null)
+            ->setPlannedStructureId(Uuid::v7()->toRfc4122());
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->planningUri($hullBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        $planning = $this->responseJson();
+        self::assertSame(
+            [false, $hullBatch->getCreatedAt()->getTimestamp() + self::HULL_DURATION_SECONDS],
+            [$planning['structureTimeBonusIncluded'], (new \DateTimeImmutable($planning['plannedEnd']))->getTimestamp()],
+        );
+    }
+
+    public function testPlannedEndWithoutPlannedStructureFlagsTheStructureTimeBonusAsIncluded(): void
+    {
+        $this->insertHullBlueprint();
+        $this->cacheSkills($this->owner->getMainCharacter(), [CachedCharacterSkill::SKILL_INDUSTRY => 5]);
+        $hullBatch = $this->persistProject('Hull batch');
+        $this->addMembership($hullBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addJobLine($hullBatch, self::HULL_TYPE_ID, 'Synthetic Hull', 'final', self::HULL_RUNS, self::HULL_RUNS, 10, self::HULL_TE_LEVEL, null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->planningUri($hullBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->responseJson()['structureTimeBonusIncluded']);
     }
 
     public function testPilotOfAnotherCorporationIsRefusedThePlanning(): void

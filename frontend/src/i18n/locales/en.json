@@ -2396,7 +2396,7 @@
         "early": "{duration} ahead",
         "onTime": "On schedule"
       },
-      "structureNotice": "Durations carry no structure bonus: the real jobs may finish earlier.",
+      "structureNotice": "A structure planned for some jobs is no longer configured: their durations carry no structure bonus, the real jobs may finish earlier.",
       "unscheduledTitle": "Jobs that cannot be planned",
       "unscheduledReason": {
         "no_eligible_worker": "No character can launch this job",

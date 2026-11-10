@@ -19,6 +19,7 @@ final readonly class ProductionStructure
     /**
      * @param list<StructureRig> $rigs
      * @param list<ScienceRig> $scienceRigs
+     * @param list<TimeRig> $timeRigs
      */
     public function __construct(
         public string $id,
@@ -32,6 +33,8 @@ final readonly class ProductionStructure
         public float $facilityTaxRate,
         public Multiplier $timeRoleBonus = new Multiplier(1.0),
         public array $scienceRigs = [],
+        public Multiplier $reactionTimeRoleBonus = new Multiplier(1.0),
+        public array $timeRigs = [],
     ) {
     }
 
@@ -45,6 +48,26 @@ final readonly class ProductionStructure
         foreach ($this->scienceRigs as $scienceRig) {
             if ($scienceRig->activity === $activity && null !== $scienceRig->timeBonus) {
                 $multiplier = $multiplier->times($scienceRig->timeBonus->multiplierIn($this->security));
+            }
+        }
+
+        return $multiplier;
+    }
+
+    public function jobTimeMultiplierFor(ActivityKind $activity, ?string $productCategory): Multiplier
+    {
+        $multiplier = match ($activity) {
+            ActivityKind::Manufacturing => $this->timeRoleBonus,
+            ActivityKind::Reaction => $this->reactionTimeRoleBonus,
+            default => throw new \InvalidArgumentException(\sprintf('The job time multiplier is only modelled for manufacturing and reaction, got %s.', $activity->name)),
+        };
+        if (null === $productCategory) {
+            return $multiplier;
+        }
+
+        foreach ($this->timeRigs as $timeRig) {
+            if ($timeRig->targets($productCategory)) {
+                $multiplier = $multiplier->times($timeRig->timeBonus->multiplierIn($this->security));
             }
         }
 

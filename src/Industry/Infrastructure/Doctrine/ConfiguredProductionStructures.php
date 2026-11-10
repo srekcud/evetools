@@ -10,6 +10,7 @@ use App\Entity\Sde\InvType;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureRig;
 use App\Industry\Application\StructureType;
+use App\Industry\Application\TimeRig;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Multiplier;
@@ -69,6 +70,7 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
         $type = \in_array($structureType, self::REFINERIES, true) ? StructureType::Refinery : StructureType::EngineeringComplex;
         $rigNames = $configuration->getRigs();
         $rigTypes = $this->invTypeRepository->findByNames(array_values($rigNames));
+        $activity = StructureType::Refinery === $type ? ActivityKind::Reaction : ActivityKind::Manufacturing;
 
         return new ProductionStructure(
             $configuration->getId()->toRfc4122(),
@@ -77,11 +79,13 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
             $configuration->getSolarSystemId(),
             $configuration->getCreatedAt(),
             $this->structureBonusReader->materialMultiplierOf($structureTypeId) ?? Multiplier::one(),
-            $this->rigsOf($rigNames, $rigTypes, StructureType::Refinery === $type ? ActivityKind::Reaction : ActivityKind::Manufacturing),
+            $this->rigsOf($rigNames, $rigTypes, $activity),
             $this->structureBonusReader->costMultiplierOf($structureTypeId) ?? Multiplier::one(),
             ($configuration->getFacilityTaxPercent() ?? self::UNSET_FACILITY_TAX_PERCENT) / self::PERCENT,
             $this->structureBonusReader->timeMultiplierOf($structureTypeId, ActivityKind::Copying) ?? Multiplier::one(),
             $this->scienceRigsOf($rigNames, $rigTypes),
+            $this->structureBonusReader->timeMultiplierOf($structureTypeId, ActivityKind::Reaction) ?? Multiplier::one(),
+            $this->timeRigsOf($rigNames, $rigTypes, $activity),
         );
     }
 
@@ -111,6 +115,29 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
         }
 
         return $scienceRigs;
+    }
+
+    /**
+     * @param array<string> $rigNames
+     * @param array<string, InvType> $rigTypes
+     *
+     * @return list<TimeRig>
+     */
+    private function timeRigsOf(array $rigNames, array $rigTypes, ActivityKind $activity): array
+    {
+        $timeRigs = [];
+        foreach ($rigNames as $rigName) {
+            if (!\array_key_exists($rigName, $rigTypes)) {
+                continue;
+            }
+            $targetedCategories = StructureRigTargets::categoriesOf($rigName);
+            $timeBonus = [] === $targetedCategories ? null : $this->rigBonusReader->timeBonusOf($rigTypes[$rigName]->getTypeId(), $activity);
+            if (null !== $timeBonus && $timeBonus->reductionPercent > 0.0) {
+                $timeRigs[] = new TimeRig($timeBonus, $targetedCategories);
+            }
+        }
+
+        return $timeRigs;
     }
 
     /**

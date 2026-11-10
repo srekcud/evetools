@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry\Project;
 
+use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\Schedule;
 use App\Service\Industry\Project\PlanningCharacter;
 use App\Service\Industry\Project\PlanningCharacterLane;
@@ -19,6 +20,7 @@ use App\Service\Industry\Project\ProjectPlanning;
 use App\Service\Industry\Project\ProjectPlanningBuilder;
 use App\Service\Industry\Project\ProjectPlanningInput;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ProjectPlanningBuilder::class)]
@@ -69,6 +71,79 @@ final class ProjectPlanningBuilderTest extends TestCase
         );
 
         self::assertEquals($this->at('00:23:17'), $planning->plannedEnd);
+    }
+
+    #[Group('issue-338')]
+    public function testStructureTimeModifierOfAManufacturingLineShortensItsDurationOnTopOfTheSkills(): void
+    {
+        $planning = $this->build(
+            [$this->line('l-plates', 3001, 'Capital Armor Plates', runs: 10, teLevel: 20, baseTimeSeconds: 6000, structureTimeModifier: 0.5)],
+            [$this->character('Main', [self::INDUSTRY => 5, self::ADVANCED_INDUSTRY => 5])],
+        );
+
+        self::assertEquals($this->at('04:32:00'), $planning->plannedEnd);
+    }
+
+    #[Group('issue-338')]
+    public function testStructureTimeModifierOfAReactionLineShortensItsDuration(): void
+    {
+        $planning = $this->build(
+            [$this->line('l-carbide', 16673, 'Fernite Carbide', activity: 'reaction', runs: 5, teLevel: 0, baseTimeSeconds: 3600, structureTimeModifier: 0.75)],
+            [$this->character('Main', [self::REACTIONS => 4])],
+        );
+
+        self::assertEquals($this->at('03:09:00'), $planning->plannedEnd);
+    }
+
+    #[Group('issue-338')]
+    public function testStructureTimeModifierIsPerLine(): void
+    {
+        $planning = $this->build(
+            [
+                $this->line('l-fast', 3040, 'Fast Hull', baseTimeSeconds: 7200, structureTimeModifier: 0.5),
+                $this->line('l-slow', 3041, 'Slow Hull', baseTimeSeconds: 7200),
+            ],
+            [$this->character('Main', [], 2, 0)],
+        );
+
+        self::assertEquals(
+            ['l-fast' => $this->at('01:00:00'), 'l-slow' => $this->at('02:00:00')],
+            array_column(array_map(
+                static fn (PlanningJob $job): array => ['id' => $job->lineId, 'end' => $job->planned->end],
+                $planning->characters[0]->jobs,
+            ), 'end', 'id'),
+        );
+    }
+
+    #[Group('issue-338')]
+    public function testStructureTimeBonusIsIncludedWhenEveryLineKnowsItsStructureTime(): void
+    {
+        $planning = $this->build(
+            [
+                $this->line('l-a', 3050, 'Hull A', structureTimeModifier: 0.9),
+                $this->line('l-b', 3051, 'Hull B'),
+            ],
+            [$this->character('Main', [])],
+        );
+
+        self::assertTrue($planning->structureTimeBonusIncluded);
+    }
+
+    #[Group('issue-338')]
+    public function testStructureTimeBonusIsNotIncludedWhenAPlannedStructureIsNoLongerConfiguredAndTheLineKeepsItsBaseDuration(): void
+    {
+        $planning = $this->build(
+            [
+                $this->line('l-a', 3050, 'Hull A', structureTimeModifier: 0.9),
+                $this->line('l-b', 3051, 'Hull B', baseTimeSeconds: 3600, structureTimeKnown: false),
+            ],
+            [$this->character('Main', [], 2, 0)],
+        );
+
+        self::assertEquals(
+            [false, $this->at('01:00:00')],
+            [$planning->structureTimeBonusIncluded, $planning->plannedEnd],
+        );
     }
 
     public function testLineWithoutDurationIsDurationUnknownAndItsConsumerDependencyUnscheduled(): void
@@ -128,7 +203,7 @@ final class ProjectPlanningBuilderTest extends TestCase
 
         self::assertEquals(new ProjectPlanning(
             $this->at('00:00:00'),
-            false,
+            true,
             null,
             null,
             null,
@@ -348,8 +423,23 @@ final class ProjectPlanningBuilderTest extends TestCase
         ?int $baseTimeSeconds = 3600,
         array $scienceSkillIds = [],
         array $linkedJobs = [],
+        float $structureTimeModifier = 1.0,
+        bool $structureTimeKnown = true,
     ): PlanningLine {
-        return new PlanningLine($lineId, $typeId, $typeName, $activity, $runs, $teLevel, $parentTypeId, $baseTimeSeconds, $scienceSkillIds, $linkedJobs);
+        return new PlanningLine(
+            $lineId,
+            $typeId,
+            $typeName,
+            $activity,
+            $runs,
+            $teLevel,
+            $parentTypeId,
+            $baseTimeSeconds,
+            $scienceSkillIds,
+            $linkedJobs,
+            new Multiplier($structureTimeModifier),
+            $structureTimeKnown,
+        );
     }
 
     /**

@@ -76,7 +76,7 @@ final readonly class ProjectPlanningBuilder
 
         return new ProjectPlanning(
             $input->anchor,
-            false,
+            array_all($lines, static fn (PlanningLine $line): bool => $line->structureTimeKnown),
             $planned->end,
             $expectedEnd,
             null === $planned->end || null === $expectedEnd ? null : $expectedEnd->getTimestamp() - $planned->end->getTimestamp(),
@@ -142,7 +142,7 @@ final readonly class ProjectPlanningBuilder
                 ? JobDuration::forReactionJob(
                     $line->baseTimeSeconds,
                     $runs,
-                    SkillTimeModifier::forReaction(self::levelOf($character->skillLevels, CachedCharacterSkill::SKILL_REACTIONS)),
+                    SkillTimeModifier::forReaction(self::levelOf($character->skillLevels, CachedCharacterSkill::SKILL_REACTIONS))->times($line->structureTimeModifier),
                 )
                 : JobDuration::forManufacturingJob(
                     $line->baseTimeSeconds,
@@ -155,7 +155,7 @@ final readonly class ProjectPlanningBuilder
                             static fn (int $skillId): int => self::levelOf($character->skillLevels, $skillId),
                             $line->scienceSkillIds,
                         ),
-                    ),
+                    )->times($line->structureTimeModifier),
                 ))->seconds;
         }
 
