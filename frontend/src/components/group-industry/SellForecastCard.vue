@@ -19,6 +19,14 @@ const forecastStore = useGroupSellForecastStore()
 const distributionStore = useGroupDistributionStore()
 const projectStore = useGroupProjectStore()
 
+const POSITIVE_PROFIT_CLASS = 'text-emerald-400'
+const NEGATIVE_PROFIT_CLASS = 'text-red-400'
+
+function profitClassOf(profit: number | null): string {
+  if (profit === null) return 'text-slate-100'
+  return profit < 0 ? NEGATIVE_PROFIT_CLASS : POSITIVE_PROFIT_CLASS
+}
+
 const forecast = computed(() => forecastStore.forecast)
 const hasStructure = computed(() => forecast.value?.sellStructure != null)
 const isLoading = computed(() => forecastStore.loading && forecast.value === null)
@@ -113,10 +121,26 @@ watch(
               <p v-if="forecast.totals.jitaUnknownProductCount > 0" class="font-sans text-xs font-normal text-amber-400">{{ t('groupIndustry.sellForecast.unknownProducts', { count: forecast.totals.jitaUnknownProductCount }) }}</p>
             </td>
           </tr>
+          <tr class="border-t border-slate-800" data-testid="sell-forecast-remaining-cost">
+            <td colspan="2" class="px-4 py-2 text-xs uppercase tracking-wider text-slate-400">{{ t('groupIndustry.sellForecast.remainingCost') }}</td>
+            <td :colspan="hasStructure ? 4 : 2" class="px-4 py-2 text-right font-mono text-slate-100">
+              <UnknownValue v-if="forecast.totals.remainingCost === null" /><template v-else>{{ formatIsk(forecast.totals.remainingCost) }}</template>
+              <p v-if="forecast.totals.remainingCostUnknownLineCount > 0" class="font-sans text-xs font-normal text-amber-400">{{ t('groupIndustry.sellForecast.remainingCostUnknownLines', { count: forecast.totals.remainingCostUnknownLineCount }) }}</p>
+            </td>
+          </tr>
+          <tr class="border-t border-slate-700" data-testid="sell-forecast-profit">
+            <td colspan="2" class="px-4 py-2 text-xs uppercase tracking-wider text-slate-400">{{ t('groupIndustry.sellForecast.plannedProfit') }}</td>
+            <td v-if="hasStructure" colspan="2" :class="['px-4 py-2 text-right font-mono font-bold', profitClassOf(forecast.totals.structureProfit)]" data-testid="sell-forecast-profit-structure">
+              <UnknownValue v-if="forecast.totals.structureProfit === null" /><template v-else>{{ formatIsk(forecast.totals.structureProfit) }}</template>
+            </td>
+            <td colspan="2" :class="['px-4 py-2 text-right font-mono font-bold', profitClassOf(forecast.totals.jitaProfit)]" data-testid="sell-forecast-profit-jita">
+              <UnknownValue v-if="forecast.totals.jitaProfit === null" /><template v-else>{{ formatIsk(forecast.totals.jitaProfit) }}</template>
+            </td>
+          </tr>
         </tfoot>
       </table>
     </div>
 
-    <p v-if="forecast && hasProducts" class="px-4 py-2 text-xs text-slate-500 border-t border-slate-800">{{ t('groupIndustry.sellForecast.netRevenueOnly') }}</p>
+    <p v-if="forecast && hasProducts" class="px-4 py-2 text-xs text-slate-500 border-t border-slate-800">{{ t('groupIndustry.sellForecast.profitBasis') }}</p>
   </div>
 </template>

@@ -63,6 +63,10 @@ class ProjectSellForecastProvider implements ProviderInterface
             'jitaNetRevenue' => $forecast->jitaNetRevenue,
             'structureUnknownProductCount' => $forecast->structureUnknownProductCount,
             'jitaUnknownProductCount' => $forecast->jitaUnknownProductCount,
+            'remainingCost' => $forecast->remainingCost,
+            'remainingCostUnknownLineCount' => $forecast->remainingCostUnknownLineCount,
+            'structureProfit' => $forecast->structureProfit,
+            'jitaProfit' => $forecast->jitaProfit,
         ];
 
         return $resource;

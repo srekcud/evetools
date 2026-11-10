@@ -303,6 +303,10 @@ export type SellForecast = {
     jitaNetRevenue: number | null
     structureUnknownProductCount: number
     jitaUnknownProductCount: number
+    remainingCost: number | null
+    remainingCostUnknownLineCount: number
+    structureProfit: number | null
+    jitaProfit: number | null
   }
 }
 

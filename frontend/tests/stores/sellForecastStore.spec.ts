@@ -28,7 +28,7 @@ function forecastOf(projectId: string, typeName: string, quantity: number): Sell
     projectId,
     sellStructure: null,
     products: [{ typeId: 12_779, typeName, quantity, structure: null, jita: JITA_MARKET }],
-    totals: { structureNetRevenue: null, jitaNetRevenue: 4_343_172, structureUnknownProductCount: 0, jitaUnknownProductCount: 0 },
+    totals: { structureNetRevenue: null, jitaNetRevenue: 4_343_172, structureUnknownProductCount: 0, jitaUnknownProductCount: 0, remainingCost: 3_600, remainingCostUnknownLineCount: 0, structureProfit: null, jitaProfit: 4_339_572 },
   }
 }
 

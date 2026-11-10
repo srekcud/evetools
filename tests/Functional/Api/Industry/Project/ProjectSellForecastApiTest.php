@@ -112,10 +112,20 @@ final class ProjectSellForecastApiTest extends WebTestCase
                 'jitaNetRevenue' => 8_703_937.5,
                 'structureUnknownProductCount' => 1,
                 'jitaUnknownProductCount' => 0,
+                'remainingCost' => null,
+                'remainingCostUnknownLineCount' => 1,
+                'structureProfit' => null,
+                'jitaProfit' => null,
             ],
         ], $forecast, self::DELTA);
         self::assertArrayHasKey('structureNetRevenue', $forecast['totals']);
         self::assertNull($forecast['totals']['structureNetRevenue']);
+        self::assertArrayHasKey('remainingCost', $forecast['totals']);
+        self::assertNull($forecast['totals']['remainingCost']);
+        self::assertArrayHasKey('structureProfit', $forecast['totals']);
+        self::assertNull($forecast['totals']['structureProfit']);
+        self::assertArrayHasKey('jitaProfit', $forecast['totals']);
+        self::assertNull($forecast['totals']['jitaProfit']);
         self::assertArrayHasKey('netRevenue', $forecast['products'][1]['structure']);
         self::assertNull($forecast['products'][1]['structure']['netRevenue']);
     }
@@ -181,10 +191,65 @@ final class ProjectSellForecastApiTest extends WebTestCase
         self::assertSame([], $forecast['products']);
         self::assertArrayHasKey('structureNetRevenue', $forecast['totals']);
         self::assertArrayHasKey('jitaNetRevenue', $forecast['totals']);
+        self::assertArrayHasKey('remainingCost', $forecast['totals']);
+        self::assertArrayHasKey('structureProfit', $forecast['totals']);
+        self::assertArrayHasKey('jitaProfit', $forecast['totals']);
         self::assertSame(
-            ['structureNetRevenue' => null, 'jitaNetRevenue' => null, 'structureUnknownProductCount' => 0, 'jitaUnknownProductCount' => 0],
+            [
+                'structureNetRevenue' => null,
+                'jitaNetRevenue' => null,
+                'structureUnknownProductCount' => 0,
+                'jitaUnknownProductCount' => 0,
+                'remainingCost' => null,
+                'remainingCostUnknownLineCount' => 1,
+                'structureProfit' => null,
+                'jitaProfit' => null,
+            ],
             $forecast['totals'],
         );
+    }
+
+    #[Group('issue-483')]
+    public function testPlannedProfitIsTheNetRevenueMinusTheCostOfTheRemainingMaterials(): void
+    {
+        $this->ownerHasSyncedSalesFeeSkills();
+        $this->nocxiumLine->setFulfilledQuantity(600);
+        $this->addSale($this->ishtarBatch, self::SABRE_TYPE_ID, 'Sabre', self::SABRE_UNSOLD_QUANTITY, 1_240_000.0, 'Jita IV - Moon 4', '2026-11-02T11:00:00+00:00');
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->forecastUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $totals = $this->responseJson()['totals'];
+        self::assertEqualsWithDelta(4_566_000.0, $totals['structureNetRevenue'], self::DELTA);
+        self::assertEqualsWithDelta(5_136_750.0, $totals['jitaNetRevenue'], self::DELTA);
+        self::assertEqualsWithDelta(2_770_500.0, $totals['remainingCost'], self::DELTA);
+        self::assertSame(0, $totals['remainingCostUnknownLineCount']);
+        self::assertEqualsWithDelta(1_795_500.0, $totals['structureProfit'], self::DELTA);
+        self::assertEqualsWithDelta(2_366_250.0, $totals['jitaProfit'], self::DELTA);
+    }
+
+    #[Group('issue-483')]
+    public function testPlannedProfitIsUnknownWhileARemainingMaterialHasNoPrice(): void
+    {
+        $this->ownerHasSyncedSalesFeeSkills();
+        $this->addSale($this->ishtarBatch, self::SABRE_TYPE_ID, 'Sabre', self::SABRE_UNSOLD_QUANTITY, 1_240_000.0, 'Jita IV - Moon 4', '2026-11-02T11:00:00+00:00');
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->forecastUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $totals = $this->responseJson()['totals'];
+        self::assertEqualsWithDelta(4_566_000.0, $totals['structureNetRevenue'], self::DELTA);
+        self::assertArrayHasKey('remainingCost', $totals);
+        self::assertNull($totals['remainingCost']);
+        self::assertSame(1, $totals['remainingCostUnknownLineCount']);
+        self::assertArrayHasKey('structureProfit', $totals);
+        self::assertNull($totals['structureProfit']);
+        self::assertArrayHasKey('jitaProfit', $totals);
+        self::assertNull($totals['jitaProfit']);
     }
 
     public function testOutsiderIsRefusedTheForecast(): void

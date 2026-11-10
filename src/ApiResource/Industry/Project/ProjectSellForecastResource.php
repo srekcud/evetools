@@ -53,7 +53,7 @@ class ProjectSellForecastResource
     public array $products = [];
 
     /**
-     * @var array{structureNetRevenue: float|null, jitaNetRevenue: float|null, structureUnknownProductCount: int, jitaUnknownProductCount: int}
+     * @var array{structureNetRevenue: float|null, jitaNetRevenue: float|null, structureUnknownProductCount: int, jitaUnknownProductCount: int, remainingCost: float|null, remainingCostUnknownLineCount: int, structureProfit: float|null, jitaProfit: float|null}
      */
     public array $totals;
 }

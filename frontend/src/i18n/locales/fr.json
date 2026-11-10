@@ -2878,7 +2878,10 @@
       "jita": "Jita",
       "total": "Total",
       "unknownProducts": "{count} produit(s) sans prix ou aux frais inconnus",
-      "netRevenueOnly": "Revenu net prévu avant coûts : pas de profit prévu.",
+      "profitBasis": "Profit prévu = revenu net à vendre moins le coût des matières restantes ; sans installation des jobs ni coûts déjà engagés.",
+      "remainingCost": "Coût du reste à produire",
+      "remainingCostUnknownLines": "{count} ligne(s) de matières sans prix",
+      "plannedProfit": "Profit prévu",
       "nothingToSell": "Rien à vendre.",
       "loadError": "Impossible de charger la prévision de vente."
     },

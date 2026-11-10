@@ -2878,7 +2878,10 @@
       "jita": "Jita",
       "total": "Total",
       "unknownProducts": "{count} product(s) without a price or with unknown fees",
-      "netRevenueOnly": "Forecast net revenue before costs: no forecast profit.",
+      "profitBasis": "Planned profit = net revenue left to sell minus the cost of the remaining materials; excludes job installation and costs already incurred.",
+      "remainingCost": "Cost of what is left to produce",
+      "remainingCostUnknownLines": "{count} material line(s) without a price",
+      "plannedProfit": "Planned profit",
       "nothingToSell": "Nothing left to sell.",
       "loadError": "Could not load the sell forecast."
     },
