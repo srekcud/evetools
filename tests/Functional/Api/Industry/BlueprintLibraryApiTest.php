@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry;
 
+use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\EveToken;
@@ -84,6 +85,7 @@ final class BlueprintLibraryApiTest extends WebTestCase
                     'scope' => 'personal',
                     'te' => 20,
                     'typeId' => self::DRAKE_BLUEPRINT,
+                    'usedByRunningJob' => false,
                 ],
                 [
                     'count' => 1,
@@ -97,6 +99,7 @@ final class BlueprintLibraryApiTest extends WebTestCase
                     'scope' => 'corporation',
                     'te' => 4,
                     'typeId' => self::HAMMERHEAD_II_BLUEPRINT,
+                    'usedByRunningJob' => false,
                 ],
             ],
             array_map(static function (array $row): array {
@@ -104,6 +107,37 @@ final class BlueprintLibraryApiTest extends WebTestCase
 
                 return $row;
             }, $library['blueprints']),
+        );
+    }
+
+    #[Group('issue-411')]
+    public function testFlagsOnlyTheBlueprintsHeldByAJobInProgress(): void
+    {
+        $aria = $this->persistPilot('Aria Solberg', self::CORPORATION_ID, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE]);
+        $this->em->persist((new CorpAssetVisibility())->setCorporationId(self::CORPORATION_ID)->setVisibleDivisions([3])->setConfiguredBy($aria));
+        $this->persistPersonalBlueprint($aria, 1_001, self::DRAKE_BLUEPRINT, -1, -1, 10, 20);
+        $this->persistPersonalBlueprint($aria, 1_002, self::VEXOR_BLUEPRINT, -1, -1, 4, 8);
+        $this->persistCorporationBlueprint(self::CORPORATION_ID, 1_003, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3);
+        $this->persistJobOn($aria->getMainCharacter(), 9_001, 1_001, CachedIndustryJob::STATUS_ACTIVE);
+        $this->persistJobOn($aria->getMainCharacter(), 9_002, 1_002, CachedIndustryJob::STATUS_DELIVERED);
+        $this->persistJobOn($aria->getMainCharacter(), 9_003, 1_003, CachedIndustryJob::STATUS_READY);
+        $this->em->flush();
+
+        $this->client->loginUser($aria, 'api');
+        $this->request('GET', '/api/industry/blueprints');
+
+        self::assertResponseStatusCodeSame(200);
+        $flagsByType = [];
+        foreach ($this->responseJson()['blueprints'] as $row) {
+            $flagsByType[$row['typeId']] = $row['usedByRunningJob'];
+        }
+        self::assertSame(
+            [
+                self::DRAKE_BLUEPRINT => true,
+                self::HAMMERHEAD_II_BLUEPRINT => true,
+                self::VEXOR_BLUEPRINT => false,
+            ],
+            $flagsByType,
         );
     }
 
@@ -187,6 +221,22 @@ final class BlueprintLibraryApiTest extends WebTestCase
         $this->em->persist($token);
 
         return $user;
+    }
+
+    private function persistJobOn(Character $character, int $jobId, int $blueprintItemId, string $status): void
+    {
+        $this->em->persist(
+            (new CachedIndustryJob())
+                ->setCharacter($character)
+                ->setJobId($jobId)
+                ->setActivityId(1)
+                ->setBlueprintTypeId(self::DRAKE_BLUEPRINT)
+                ->setBlueprintId($blueprintItemId)
+                ->setRuns(1)
+                ->setStatus($status)
+                ->setStartDate(new \DateTimeImmutable('2026-11-09 10:00:00'))
+                ->setEndDate(new \DateTimeImmutable('2026-11-12 10:00:00')),
+        );
     }
 
     private function persistPersonalBlueprint(User $user, int $itemId, int $typeId, int $quantity, int $runs, int $materialEfficiency, int $timeEfficiency): void

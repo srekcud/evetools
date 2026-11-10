@@ -2710,6 +2710,49 @@ class IndustryJobSyncServiceTest extends TestCase
         });
     }
 
+    #[Group('issue-411')]
+    public function testNewJobKeepsTheItemIdOfItsBlueprintReadFromEsi(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->givenNoCachedJobAndRecordedPersists();
+        $jobData = $this->esiManufacturingJob500('active');
+        $jobData['blueprint_id'] = 1_049_000_000_411;
+        $this->esiClient->method('get')->willReturn([$jobData]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([1_049_000_000_411], array_map(static fn (CachedIndustryJob $job): ?int => $job->getBlueprintId(), $this->persistedJobs));
+    }
+
+    #[Group('issue-411')]
+    public function testCachedJobWithoutBlueprintItemIdTakesItFromEsi(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $cachedJob = $this->cachedRifterJob(self::MANUFACTURING_JOB_ID, $character, 1, self::RIFTER_TYPE_ID, 10, 1_250_000.75);
+        $this->stubCachedJobs([$cachedJob]);
+        $this->stubActiveJobsByCharacter([$cachedJob]);
+        $this->jobMatchRepository->method('findByEsiJobIds')->willReturn([]);
+        $jobData = $this->esiManufacturingJob500('active');
+        $jobData['blueprint_id'] = 1_049_000_000_412;
+        $this->esiClient->method('get')->willReturn([$jobData]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame(1_049_000_000_412, $cachedJob->getBlueprintId());
+    }
+
+    #[Group('issue-411')]
+    public function testJobReadWithoutBlueprintItemIdFromEsiKeepsItUnknown(): void
+    {
+        $character = $this->createCharacterWithUser(self::CHARACTER_A_ID);
+        $this->givenNoCachedJobAndRecordedPersists();
+        $this->esiClient->method('get')->willReturn([$this->esiManufacturingJob500('active')]);
+
+        $this->service->syncCharacterJobs($character);
+
+        $this->assertSame([null], array_map(static fn (CachedIndustryJob $job): ?int => $job->getBlueprintId(), $this->persistedJobs));
+    }
+
     private function esiManufacturingJob500(string $status): array
     {
         $jobData = $this->makeJobData(self::MANUFACTURING_JOB_ID, self::CHARACTER_A_ID, $status, self::RIFTER_TYPE_ID);

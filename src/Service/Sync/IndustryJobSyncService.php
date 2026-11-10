@@ -217,6 +217,7 @@ class IndustryJobSyncService
                 // Update existing job - fix character attribution
                 $existing->setCharacter($installerCharacter);
                 $existing->setStatus($jobData['status']);
+                $existing->setBlueprintId($jobData['blueprint_id'] ?? null);
                 $existing->setStationId($jobData['facility_id'] ?? $jobData['station_id'] ?? null);
                 $existing->setBlueprintLocationId($jobData['blueprint_location_id'] ?? null);
                 $existing->setOutputLocationId($jobData['output_location_id'] ?? null);
@@ -237,6 +238,7 @@ class IndustryJobSyncService
             $job->setJobId($jobData['job_id']);
             $job->setActivityId($jobData['activity_id']);
             $job->setBlueprintTypeId($jobData['blueprint_type_id']);
+            $job->setBlueprintId($jobData['blueprint_id'] ?? null);
             $job->setProductTypeId($jobData['product_type_id'] ?? null);
             $job->setRuns($jobData['runs']);
             $job->setCost(self::esiCost($jobData));

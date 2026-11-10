@@ -1114,6 +1114,7 @@
       "efficiency": "ME {me} · TE {te}",
       "runs": "{count} runs",
       "unlimitedRuns": "∞",
+      "inUse": "Utilisé par un job",
       "corporation": "corpo",
       "division": "Division {number}",
       "empty": "Aucun blueprint à afficher.",

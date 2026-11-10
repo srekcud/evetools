@@ -657,6 +657,7 @@ export interface BlueprintLibraryEntry {
   locationId: number
   divisionNumber: number | null
   count: number
+  usedByRunningJob: boolean
 }
 
 export interface BlueprintLibrary {

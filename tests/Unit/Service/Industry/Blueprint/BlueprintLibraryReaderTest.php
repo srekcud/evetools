@@ -213,6 +213,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             $this->visibilityOf($visibleDivisionsByCorporationId),
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
+            $this->jobsInProgressOn([]),
         );
     }
 
@@ -232,6 +233,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             $visibilityRepository,
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
+            $this->jobsInProgressOn([]),
         );
     }
 
