@@ -5,17 +5,13 @@ declare(strict_types=1);
 namespace App\Service\MiningOperation;
 
 use App\Entity\MiningOperation;
-use App\Entity\MiningOperationCharacter;
 use App\Entity\MiningOperationMember;
 use App\Entity\MiningSiteScan;
 use App\Entity\Sde\InvType;
 use App\Enum\MiningFleetStorageDelivery;
 use App\Enum\MiningHaulerPlanUnknownReason;
-use App\Enum\MiningLedgerSnapshotKind;
-use App\Enum\MiningLedgerSnapshotStatus;
 use App\Enum\MiningOperationStatus;
 use App\Exception\BoostShipCapacityMissingFromSdeException;
-use App\Repository\MiningEntryRepository;
 use App\Repository\MiningSiteRepository;
 use App\Repository\MiningSiteScanRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -30,7 +26,7 @@ final readonly class MiningHaulerPlanReader
         private ClockInterface $clock,
         private MiningSiteRepository $siteRepository,
         private MiningSiteScanRepository $scanRepository,
-        private MiningEntryRepository $entryRepository,
+        private MinedSinceStartReader $minedSinceStart,
         private InvTypeRepository $typeRepository,
         private MiningOperationCompressionReport $compressionReport,
         private MiningBoostShipCapacities $capacities,
@@ -220,54 +216,16 @@ final readonly class MiningHaulerPlanReader
     {
         $minedByTypeId = [];
         foreach ($member->getCharacters() as $enrolment) {
-            $mined = $this->minedByCharacterSinceStart($operation, $enrolment);
+            $mined = $this->minedSinceStart->ofEnrolment($operation, $enrolment);
             if (null === $mined) {
                 return null;
             }
-            foreach ($mined as $typeId => $quantity) {
+            foreach ($mined->quantitiesByTypeId as $typeId => $quantity) {
                 $minedByTypeId[$typeId] = ($minedByTypeId[$typeId] ?? 0) + $quantity;
             }
         }
 
         return $minedByTypeId;
-    }
-
-    /**
-     * @return array<int, int>|null
-     */
-    private function minedByCharacterSinceStart(MiningOperation $operation, MiningOperationCharacter $enrolment): ?array
-    {
-        $start = $enrolment->snapshotOf(MiningLedgerSnapshotKind::Start);
-        if (null === $start || MiningLedgerSnapshotStatus::Taken !== $start->getStatus()) {
-            return null;
-        }
-
-        $solarSystemId = $operation->getSolarSystemId();
-        $startedAt = $operation->getStartedAt() ?? throw new \LogicException('A running operation has a start date');
-        $startDay = $startedAt->setTimezone(new \DateTimeZone('UTC'))->setTime(0, 0);
-
-        $quantitiesAtStart = [];
-        foreach ($start->getLines() as $line) {
-            if (null === $solarSystemId || $line->getSolarSystemId() === $solarSystemId) {
-                $quantitiesAtStart[$this->keyOf($line->getDate(), $line->getTypeId(), $line->getSolarSystemId())] = $line->getQuantity();
-            }
-        }
-
-        $minedByTypeId = [];
-        foreach ($this->entryRepository->findOfCharacterFromDay($enrolment->getCharacter()->getEveCharacterId(), $startDay, $solarSystemId) as $entry) {
-            $mined = $entry->getQuantity() - ($quantitiesAtStart[$this->keyOf($entry->getDate(), $entry->getTypeId(), $entry->getSolarSystemId())] ?? 0);
-            if ($mined < 0) {
-                return null;
-            }
-            $minedByTypeId[$entry->getTypeId()] = ($minedByTypeId[$entry->getTypeId()] ?? 0) + $mined;
-        }
-
-        return $minedByTypeId;
-    }
-
-    private function keyOf(\DateTimeImmutable $day, int $typeId, int $solarSystemId): string
-    {
-        return \sprintf('%s|%d|%d', $day->format('Y-m-d'), $typeId, $solarSystemId);
     }
 
     /**

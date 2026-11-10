@@ -85,6 +85,8 @@ const lastTypeId = computed(() => {
   return lastType === undefined ? null : lastType.typeId
 })
 const hasSingleScan = computed(() => isActive.value && orderedScans.value.length === 1)
+const ledgerEta = computed(() => (hasSingleScan.value ? (site.value?.ledgerEta ?? null) : null))
+const ledgerEtaReason = computed(() => (hasSingleScan.value ? (site.value?.ledgerEtaUnknownReason ?? null) : null))
 const ring = computed(() => remainingVolumeRingOf(orderedScans.value))
 const ringDash = computed(() => `${(RING_CIRCUMFERENCE * (ring.value === null ? 0 : Math.min(ring.value, PERCENT_MAX))) / PERCENT_MAX} ${RING_CIRCUMFERENCE}`)
 const bestOre = computed(() => (lastScan.value === null ? null : mostProfitableTypeOf(lastScan.value)))
@@ -244,6 +246,12 @@ onBeforeUnmount(() => {
                 <span class="inline-block rounded-sm border px-2 py-0.5 font-mono text-xs" :class="ETA_TIER_CLASSES[tier]" data-testid="site-tier">{{ t(`miningSite.tier.${tier}`) }}</span>
               </p>
               <p v-if="hasSingleScan" class="mt-3 text-sm text-amber-300" data-testid="site-single-scan-hint">{{ t('miningSite.single.hint') }}</p>
+              <div v-if="ledgerEta !== null" class="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <p class="font-mono text-2xl text-amber-300" data-testid="site-ledger-eta">{{ etaText(ledgerEta) }}</p>
+                <span class="rounded-sm border border-amber-400/40 px-1.5 py-0.5 font-mono text-xs text-amber-300" data-testid="site-ledger-eta-badge">{{ t('miningSite.ledgerEta.badge') }}</span>
+                <p class="w-full text-sm text-slate-400" data-testid="site-ledger-eta-note">{{ t('miningSite.ledgerEta.note') }}</p>
+              </div>
+              <p v-else-if="ledgerEtaReason !== null" class="mt-1 text-sm text-slate-400" data-testid="site-ledger-eta-reason">{{ t(`miningSite.ledgerEta.reason.${ledgerEtaReason}`) }}</p>
               <p v-else-if="lastTypeId !== null" class="mt-3 text-sm text-slate-300" data-testid="site-last-type">
                 {{ t('miningSite.eta.lastType') }}
                 <b class="font-semibold text-slate-100">{{ oreTypes.nameOf(lastTypeId) }}</b>

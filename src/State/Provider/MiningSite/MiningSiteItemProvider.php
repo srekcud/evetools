@@ -37,7 +37,9 @@ final readonly class MiningSiteItemProvider implements ProviderInterface
         $site = MiningSiteRequest::siteOf($this->siteRepository, $this->access, $user, $uriVariables['id']);
         $resource = $this->mapper->siteToResource($site);
         $resource->compression = $this->compressionReport->of($site);
-        $this->ledgerEtaReader->read($site);
+        $ledgerEta = $this->ledgerEtaReader->read($site);
+        $resource->ledgerEta = $ledgerEta?->eta?->setTimezone(new \DateTimeZone('UTC'));
+        $resource->ledgerEtaUnknownReason = $ledgerEta?->unknownReason?->value;
 
         return $resource;
     }
