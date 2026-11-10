@@ -105,7 +105,7 @@ class IndustryProjectService
 
     public static function bomPriceSource(): PriceSource
     {
-        return PriceSource::jitaSellPercentile(0.0);
+        return PriceSource::jitaSellPercentile(JitaMarketService::CHEAPEST_PERCENTILE * PriceSource::PERCENT_PER_FRACTION);
     }
 
     public function buildBom(IndustryProject $project, User $owner): void

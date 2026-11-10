@@ -52,14 +52,13 @@ class StockpileService
     /**
      * Preview the import of a blueprint into stockpile targets.
      *
-     * @return array{stages: array<string, list<array{typeId: int, typeName: string, quantity: int, unitPrice: float|null}>>, totalItems: int, estimatedCost: float|null, missingPriceTypeIds: list<int>}
+     * @return array{stages: array<string, list<array{typeId: int, typeName: string, quantity: int, unitPrice: float|null, priceSource: array{market: string, side: string, method: string, coveragePercent: ?float}|null}>>, totalItems: int, estimatedCost: float|null, missingPriceTypeIds: list<int>, priceSources: array{estimatedCost: array{market: string, side: string, method: string, coveragePercent: ?float}|null}}
      */
     public function previewImport(User $user, int $typeId, int $runs, int $me): array
     {
         $stockpileTargets = $this->stockpileTargetsOf($user, $typeId, $runs, $me);
 
-        $allTypeIds = array_keys($stockpileTargets);
-        $prices = $this->jitaMarketService->getPricesWithFallback($allTypeIds);
+        $quotes = WeightedSellQuotes::read($this->jitaMarketService, $this->quoteRequestsOfTargets($stockpileTargets));
 
         $stages = [
             'raw_material' => [],
@@ -70,29 +69,37 @@ class StockpileService
 
         $totalItems = 0;
         $estimatedCost = 0.0;
+        $missingPriceTypeIds = [];
+        $sources = [];
 
         foreach ($stockpileTargets as $matTypeId => $item) {
-            $unitPrice = $prices[$matTypeId] ?? null;
+            $unitPrice = $quotes->unitPriceOf($matTypeId, $item['quantity']);
+            $priceSource = $this->priceSourceOf($quotes, $matTypeId, $item['quantity']);
             $entry = [
                 'typeId' => $matTypeId,
                 'typeName' => $item['typeName'],
                 'quantity' => $item['quantity'],
                 'unitPrice' => $unitPrice,
+                'priceSource' => $priceSource,
             ];
             $stages[$item['stage']][] = $entry;
             $totalItems++;
+            $sources[] = $priceSource;
             if ($unitPrice !== null) {
                 $estimatedCost += $item['quantity'] * $unitPrice;
+            } elseif ($item['quantity'] > 0) {
+                $missingPriceTypeIds[$matTypeId] = $matTypeId;
             }
         }
 
-        $missingPriceTypeIds = $this->typeIdsWithoutPrice($allTypeIds, $prices);
+        sort($missingPriceTypeIds);
 
         return [
             'stages' => $stages,
             'totalItems' => $totalItems,
             'estimatedCost' => $missingPriceTypeIds === [] ? round($estimatedCost, 2) : null,
             'missingPriceTypeIds' => $missingPriceTypeIds,
+            'priceSources' => ['estimatedCost' => $missingPriceTypeIds === [] ? $this->lowestCoverageSourceOf($sources) : null],
         ];
     }
 
@@ -139,7 +146,7 @@ class StockpileService
     /**
      * Compute the full stockpile status with KPIs for a user.
      *
-     * @return array{targetCount: int, stages: array<string, array{items: list<array<string, mixed>>, totalValue: float|null, healthPercent: float}>, kpis: array{pipelineHealth: float, totalInvested: float|null, bottleneck: array<string, mixed>|null, estOutput: array{ready: int, total: int, readyNames: list<string>}}, shoppingList: list<array<string, mixed>>, importsWithoutPlan: list<int>, failedProducts: list<array{typeId: int, reason: string}>, missingPriceTypeIds: list<int>}
+     * @return array{targetCount: int, stages: array<string, array{items: list<array<string, mixed>>, totalValue: float|null, healthPercent: float}>, kpis: array{pipelineHealth: float, totalInvested: float|null, bottleneck: array<string, mixed>|null, estOutput: array{ready: int, total: int, readyNames: list<string>}}, shoppingList: list<array<string, mixed>>, importsWithoutPlan: list<int>, failedProducts: list<array{typeId: int, reason: string}>, missingPriceTypeIds: list<int>, priceSources: array{stockValue: array{market: string, side: string, method: string, coveragePercent: ?float}|null, deficitCost: array{market: string, side: string, method: string, coveragePercent: ?float}|null}}
      */
     public function getStockpileStatus(User $user): array
     {
@@ -159,16 +166,18 @@ class StockpileService
                 'importsWithoutPlan' => [],
                 'failedProducts' => [],
                 'missingPriceTypeIds' => [],
+                'priceSources' => ['stockValue' => null, 'deficitCost' => null],
             ];
         }
 
         $stockData = $this->assetRepository->getQuantitiesByUserWithLocations($user);
         $assetQuantities = array_map(fn (array $data) => $data['total'], $stockData);
-        $typeIds = array_map(fn (IndustryStockpileTarget $t) => $t->getTypeId(), $targets);
-        $prices = $this->jitaMarketService->getPricesWithFallback($typeIds);
-
         $startingStockReduction = $this->reduceTargetsByStartingStock($user, $targets, $assetQuantities);
         $remainingTargetQuantities = $startingStockReduction['remainingTargetQuantities'];
+        $quotes = WeightedSellQuotes::read(
+            $this->jitaMarketService,
+            $this->statusQuoteRequests($targets, $assetQuantities, $remainingTargetQuantities),
+        );
 
         // Build computed items grouped by stage
         $stageGroups = [];
@@ -177,6 +186,9 @@ class StockpileService
         $totalInvested = 0.0;
         $worstItem = null;
         $shoppingList = [];
+        $missingPriceTypeIds = [];
+        $stockSources = [];
+        $deficitSources = [];
 
         foreach ($targets as $target) {
             $tid = $target->getTypeId();
@@ -195,10 +207,19 @@ class StockpileService
                 $status = 'critical';
             }
 
-            $unitPrice = $prices[$tid] ?? null;
-            $stockValue = $this->amountOf($stock, $unitPrice);
             $deficit = max(0, $remainingTargetQty - $stock);
-            $deficitCost = $this->amountOf($deficit, $unitPrice);
+            $stockUnitPrice = $quotes->unitPriceOf($tid, $stock);
+            $deficitUnitPrice = $quotes->unitPriceOf($tid, $deficit);
+            $unitPrice = $deficit > 0 ? $deficitUnitPrice : ($stock > 0 ? $stockUnitPrice : null);
+            $stockValue = $this->amountOf($stock, $stockUnitPrice);
+            $deficitCost = $this->amountOf($deficit, $deficitUnitPrice);
+            $stockSource = $this->priceSourceOf($quotes, $tid, $stock);
+            $deficitSource = $this->priceSourceOf($quotes, $tid, $deficit);
+            $stockSources[] = $stockSource;
+            $deficitSources[] = $deficitSource;
+            if ($stockValue === null || $deficitCost === null) {
+                $missingPriceTypeIds[$tid] = $tid;
+            }
             $totalInvested = $stockValue === null || $totalInvested === null ? null : $totalInvested + $stockValue;
 
             $item = [
@@ -218,6 +239,7 @@ class StockpileService
                 'sourceProductTypeId' => $target->getSourceProductTypeId(),
                 'locations' => $stockData[$tid]['locations'] ?? [],
                 'suggestedProjectRuns' => $percent < self::LOW_TARGET_PERCENT ? $this->runsCoveringDeficit($tid, $deficit) : null,
+                'priceSources' => ['stock' => $stockSource, 'deficit' => $deficitSource],
             ];
 
             $stage = $target->getStage();
@@ -275,6 +297,9 @@ class StockpileService
         // KPI: estimated output
         $estOutput = $this->computeEstOutput($targets, $assetQuantities, $remainingTargetQuantities);
 
+        $sortedMissingPriceTypeIds = array_values($missingPriceTypeIds);
+        sort($sortedMissingPriceTypeIds);
+
         return [
             'targetCount' => $totalTargets,
             'stages' => $stages,
@@ -287,7 +312,11 @@ class StockpileService
             'shoppingList' => $shoppingList,
             'importsWithoutPlan' => $startingStockReduction['importsWithoutPlan'],
             'failedProducts' => $startingStockReduction['failedProducts'],
-            'missingPriceTypeIds' => $this->typeIdsWithoutPrice($typeIds, $prices),
+            'missingPriceTypeIds' => $sortedMissingPriceTypeIds,
+            'priceSources' => [
+                'stockValue' => $this->lowestCoverageSourceOf($stockSources),
+                'deficitCost' => $this->lowestCoverageSourceOf($deficitSources),
+            ],
         ];
     }
 
@@ -309,19 +338,73 @@ class StockpileService
     }
 
     /**
-     * @param array<int> $typeIds
-     * @param array<int, float|null> $prices
-     * @return list<int>
+     * @param array<int, array{typeName: string, quantity: int, stage: string}> $stockpileTargets
+     * @return list<array{typeId: int, quantity: int}>
      */
-    private function typeIdsWithoutPrice(array $typeIds, array $prices): array
+    private function quoteRequestsOfTargets(array $stockpileTargets): array
     {
-        $missing = array_unique(array_filter(
-            $typeIds,
-            static fn (int $typeId): bool => ($prices[$typeId] ?? null) === null,
-        ));
-        sort($missing);
+        $requests = [];
+        foreach ($stockpileTargets as $typeId => $item) {
+            if ($item['quantity'] > 0) {
+                $requests[] = ['typeId' => $typeId, 'quantity' => $item['quantity']];
+            }
+        }
 
-        return $missing;
+        return $requests;
+    }
+
+    /**
+     * @param IndustryStockpileTarget[] $targets
+     * @param array<int, int> $assetQuantities
+     * @param array<int, int> $remainingTargetQuantities
+     * @return list<array{typeId: int, quantity: int}>
+     */
+    private function statusQuoteRequests(array $targets, array $assetQuantities, array $remainingTargetQuantities): array
+    {
+        $requests = [];
+        foreach ($targets as $target) {
+            $typeId = $target->getTypeId();
+            $stock = $assetQuantities[$typeId] ?? 0;
+            $deficit = max(0, $remainingTargetQuantities[$typeId] - $stock);
+            foreach ([$stock, $deficit] as $quantity) {
+                if ($quantity > 0) {
+                    $requests[] = ['typeId' => $typeId, 'quantity' => $quantity];
+                }
+            }
+        }
+
+        return $requests;
+    }
+
+    /**
+     * @return array{market: string, side: string, method: string, coveragePercent: ?float}|null
+     */
+    private function priceSourceOf(WeightedSellQuotes $quotes, int $typeId, int $quantity): ?array
+    {
+        if ($quotes->unitPriceOf($typeId, $quantity) === null) {
+            return null;
+        }
+
+        return PriceSource::jitaSellWeighted(PriceSource::partialPercentOf($quotes->coverageOf($typeId, $quantity)))->toArray();
+    }
+
+    /**
+     * @param list<array{market: string, side: string, method: string, coveragePercent: ?float}|null> $sources
+     * @return array{market: string, side: string, method: string, coveragePercent: ?float}|null
+     */
+    private function lowestCoverageSourceOf(array $sources): ?array
+    {
+        $valuedSources = array_filter($sources, static fn (?array $source): bool => $source !== null);
+        if ($valuedSources === []) {
+            return null;
+        }
+
+        $partialPercents = array_filter(
+            array_column($valuedSources, 'coveragePercent'),
+            static fn (?float $percent): bool => $percent !== null,
+        );
+
+        return PriceSource::jitaSellWeighted($partialPercents === [] ? null : min($partialPercents))->toArray();
     }
 
     /**
