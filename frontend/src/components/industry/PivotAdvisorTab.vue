@@ -7,6 +7,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFavoriteSystems } from '@/composables/useFavoriteSystems'
 import { useTypeNames } from '@/composables/useTypeNames'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import type { PivotCandidate, PivotMissingComponent } from '@/stores/industry/types'
 
@@ -244,6 +245,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                 <div class="font-mono text-lg font-bold" :class="marginColor(result.sourceProduct.marginPercent)">
                   {{ formatMargin(result.sourceProduct.marginPercent) }}
                 </div>
+                <PriceSourceBadge :source="result.sourceProduct.priceSources?.materials" />
               </div>
               <div>
                 <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.dailyVolume') }}</span>
@@ -253,6 +255,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
               <div>
                 <span class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.sellPriceLabel') }}</span>
                 <div class="font-mono text-sm text-slate-300">{{ formatIsk(result.sourceProduct.sellPrice) }}</div>
+                <PriceSourceBadge :source="result.sourceProduct.priceSources?.sale" />
               </div>
             </div>
 
@@ -480,6 +483,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                   {{ formatMargin(candidate.marginPercent) }}
                 </div>
                 <div v-if="candidate.profitPerUnit != null" class="font-mono text-table-cell text-slate-500">{{ formatIsk(candidate.profitPerUnit) }} ISK</div>
+                <PriceSourceBadge :source="candidate.priceSources?.sale" />
               </div>
               <div class="bg-slate-800 rounded-lg p-2">
                 <div class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.pivotAdvisor.dailyVol') }}</div>
@@ -541,6 +545,7 @@ function getMatrixCellData(row: { candidates: Record<number, { needed: number; s
                 <span class="text-slate-400">{{ t('industry.scanner.pivotAdvisor.additionalCost') }}</span>
                 <span class="font-mono text-amber-400">{{ formatKnownIsk(candidate.additionalCost) }}</span>
               </div>
+              <div class="flex justify-end"><PriceSourceBadge :source="candidate.priceSources?.materials" /></div>
               <div class="flex items-center justify-between text-table-cell">
                 <span class="text-slate-400">{{ t('industry.scanner.pivotAdvisor.estimatedProfit') }}</span>
                 <span class="font-mono text-emerald-400 font-bold">{{ formatKnownIsk(candidate.estimatedProfit) }}</span>

@@ -5,6 +5,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { SearchResult } from '@/stores/industry/types'
 import IskAmount from '@/components/common/IskAmount.vue'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import MissingVolumeWarning from '@/components/appraisal/MissingVolumeWarning.vue'
 import { missingVolumeTypeNames } from '@/components/appraisal/missingVolume'
@@ -216,6 +217,7 @@ async function doImport(mode: 'replace' | 'merge'): Promise<void> {
                   {{ t('industry.stockpile.import.estTotalCost') }}:
                   <span class="text-cyan-400"><IskAmount :value="stockpileStore.importPreview.estimatedCost" /> ISK</span>
                 </span>
+                <PriceSourceBadge :source="stockpileStore.importPreview.priceSources?.estimatedCost" class="ml-2" />
               </div>
             </div>
 

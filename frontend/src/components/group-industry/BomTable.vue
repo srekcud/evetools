@@ -6,6 +6,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import type { BomItem, ContainerVerification, ContainerVerificationStatus } from '@/stores/group-industry/types'
@@ -215,8 +216,9 @@ function ringStrokeColor(percent: number): string {
               </td>
 
               <!-- Est. Cost -->
-              <td class="py-2.5 px-6 text-right font-mono text-slate-400" style="font-variant-numeric: tabular-nums;">
+              <td class="py-2.5 px-6 text-right font-mono text-slate-400 max-w-[10rem]" style="font-variant-numeric: tabular-nums;">
                 {{ item.estimatedTotal != null ? formatIsk(item.estimatedTotal, 1) : '---' }}
+                <div v-if="item.estimatedTotal != null"><PriceSourceBadge :source="item.estimatedPriceSource" /></div>
               </td>
             </tr>
           </tbody>

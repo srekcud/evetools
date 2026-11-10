@@ -5,10 +5,12 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import IskAmount from '@/components/common/IskAmount.vue'
-import type { StockpileShoppingItem, StockpileStage } from '@/stores/industry/types'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
+import type { PriceSource, StockpileShoppingItem, StockpileStage } from '@/stores/industry/types'
 
 const props = defineProps<{
   shoppingList: StockpileShoppingItem[]
+  deficitCostSource?: PriceSource | null
 }>()
 
 const { t } = useI18n()
@@ -124,7 +126,12 @@ async function copyToClipboard(): Promise<void> {
               <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.have') }}</th>
               <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.need') }}</th>
               <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.deficit') }}</th>
-              <th class="text-right pb-3">{{ t('industry.stockpile.shoppingList.estCost') }}</th>
+              <th class="text-right pb-3">
+                <div class="flex flex-col items-end gap-0.5">
+                  <span>{{ t('industry.stockpile.shoppingList.estCost') }}</span>
+                  <PriceSourceBadge :source="deficitCostSource" />
+                </div>
+              </th>
               <th class="text-right pb-3 pr-2">{{ t('industry.stockpile.shoppingList.status') }}</th>
             </tr>
           </thead>

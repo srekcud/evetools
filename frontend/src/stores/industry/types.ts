@@ -224,6 +224,7 @@ export interface ProfitMarginResult {
   dailyVolume: number | null
   missingData: MissingData[]
   warnings: PartialPriceWarning[]
+  priceSources?: ProfitMarginPriceSources
 }
 
 // Batch Scan types
@@ -248,6 +249,7 @@ export type BatchScanItem = {
   missingSkillCount: number
   unknownReason: string | null
   missingPriceTypeIds: number[]
+  priceSources?: MaterialsAndSalePriceSources
 }
 
 export type BpcPrice = {
@@ -290,6 +292,7 @@ export type BuyVsBuildComponent = {
   runs: number
   missingData: MissingData[]
   warnings: PartialPriceWarning[]
+  priceSources?: BuyVsBuildComponentPriceSources
 }
 
 export type BuyVsBuildResult = {
@@ -309,6 +312,7 @@ export type BuyVsBuildResult = {
   missingData: MissingData[]
   warnings: PartialPriceWarning[]
   sellStructureId: number | null
+  priceSources?: MaterialsAndSalePriceSources
 }
 
 // Pivot Advisor types
@@ -342,6 +346,7 @@ export type PivotCandidate = {
   score: number | null
   unknownReason: PivotUnknownReason | null
   missingPriceTypeIds: number[]
+  priceSources?: MaterialsAndSalePriceSources
 }
 
 export type PivotSourceProduct = {
@@ -354,6 +359,7 @@ export type PivotSourceProduct = {
   keyComponents: { typeId: number; typeName: string | null; inStock: number }[]
   unknownReason?: PivotUnknownReason | null
   missingPriceTypeIds?: number[]
+  priceSources?: MaterialsAndSalePriceSources
 }
 
 export type PivotAnalysisResult = {
@@ -449,6 +455,31 @@ export type StockpilePriceSources = {
   deficitCost: PriceSource | null
 }
 
+export type StockpileImportPriceSources = {
+  estimatedCost: PriceSource | null
+}
+
+export type MaterialsAndSalePriceSources = {
+  materials: PriceSource | null
+  sale: PriceSource | null
+}
+
+export type ProfitMarginPriceSources = {
+  materials: PriceSource | null
+  sale: {
+    jitaSell: PriceSource | null
+    structureSell: PriceSource | null
+    structureBuy: PriceSource | null
+    contractSell: PriceSource | null
+  }
+}
+
+export type BuyVsBuildComponentPriceSources = {
+  build: PriceSource | null
+  buyJita: PriceSource | null
+  buyStructure: PriceSource | null
+}
+
 export type StockpileStatus = {
   targetCount: number
   stages: Record<StockpileStage, StockpileStageStatus>
@@ -488,6 +519,7 @@ export type StockpileImportPreview = {
   totalItems: number
   estimatedCost: number | null
   missingPriceTypeIds: number[]
+  priceSources?: StockpileImportPriceSources
 }
 
 // Slot Tracker types

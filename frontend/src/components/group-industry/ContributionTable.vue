@@ -8,6 +8,7 @@ import { usePilotName } from '@/composables/usePilotName'
 import type { GroupContribution, ContributionType, ContributionStatus } from '@/stores/group-industry/types'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UnknownContributionValue from '@/components/group-industry/UnknownContributionValue.vue'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 
 const { t } = useI18n()
 
@@ -221,12 +222,15 @@ onMounted(() => {
               </td>
               <!-- Valuation -->
               <td
-                class="py-3 px-3 text-right font-mono"
+                class="py-3 px-3 text-right font-mono max-w-[10rem]"
                 :class="isPending(contrib.status) ? 'text-amber-400' : 'text-emerald-400'"
                 style="font-variant-numeric: tabular-nums;"
               >
                 <UnknownContributionValue v-if="contrib.estimatedValue === null" />
-                <template v-else>{{ formatIsk(contrib.estimatedValue) }}</template>
+                <template v-else>
+                  {{ formatIsk(contrib.estimatedValue) }}
+                  <div><PriceSourceBadge :source="contrib.estimatedValueSource" /></div>
+                </template>
               </td>
               <!-- Method -->
               <td class="py-3 px-3">

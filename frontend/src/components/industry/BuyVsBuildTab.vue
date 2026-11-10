@@ -12,6 +12,7 @@ import { usePartialPriceCoverages } from '@/composables/usePartialPriceCoverages
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
 import PartialPriceNotice from '@/components/industry/PartialPriceNotice.vue'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import type { BuyVsBuildComponent, ProductionCostUnknownReason } from '@/stores/industry/types'
 
 const props = defineProps<{
@@ -412,11 +413,13 @@ const SUMMARY_LIST_LIMIT = 5
             <div class="text-right">
               <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.totalProductionCost') }}</p>
               <p class="text-lg font-mono text-slate-100 font-semibold">{{ formatKnownIsk(result.totalProductionCost) }}</p>
+              <div><PriceSourceBadge :source="result.priceSources?.materials" /></div>
             </div>
             <div class="w-px h-10 bg-slate-700"></div>
             <div class="text-right">
               <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.scanner.buyVsBuild.sellPriceLabel') }}</p>
               <p class="text-lg font-mono text-slate-100 font-semibold">{{ formatIsk(result.sellPrice) }}</p>
+              <div><PriceSourceBadge :source="result.priceSources?.sale" /></div>
               <p v-if="result.sellStructureId === null" class="text-xs text-slate-500 mt-0.5">{{ t('industry.scanner.buyVsBuild.noSellStructure') }}</p>
             </div>
             <div class="w-px h-10 bg-slate-700"></div>
@@ -550,6 +553,7 @@ const SUMMARY_LIST_LIMIT = 5
                     {{ t('industry.scanner.buyVsBuild.buildCost') }}
                   </p>
                   <p class="text-lg font-mono text-slate-100 font-semibold mb-2">{{ formatKnownIsk(comp.buildCost) }}</p>
+                  <div class="-mt-1 mb-2"><PriceSourceBadge :source="comp.priceSources?.build" /></div>
                   <div class="space-y-1 text-table-cell">
                     <div
                       v-for="mat in comp.buildMaterials.slice(0, 3)"
@@ -579,15 +583,21 @@ const SUMMARY_LIST_LIMIT = 5
                     {{ t('industry.scanner.buyVsBuild.bestPrice') }}: {{ comp.buyCostStructure != null ? t('industry.scanner.buyVsBuild.structureSell') : t('industry.scanner.buyVsBuild.jitaSell') }}
                   </p>
                   <div class="space-y-1 text-table-cell">
-                    <div v-if="comp.buyCostJita != null" class="flex justify-between text-slate-400">
-                      <span>{{ t('industry.scanner.buyVsBuild.jitaSell') }}</span>
+                    <div v-if="comp.buyCostJita != null" class="flex justify-between gap-2 text-slate-400">
+                      <span class="flex min-w-0 items-baseline gap-1.5">
+                        <span class="shrink-0">{{ t('industry.scanner.buyVsBuild.jitaSell') }}</span>
+                        <PriceSourceBadge :source="comp.priceSources?.buyJita" :show-coverage="false" />
+                      </span>
                       <span class="font-mono text-slate-300">
                         {{ formatIsk(comp.buyCostJita / comp.quantity, 2) }} /u
                         <PartialPriceMarker :percent="comp.buyCostJitaCoveragePercent" />
                       </span>
                     </div>
-                    <div v-if="comp.buyCostStructure != null" class="flex justify-between text-slate-400">
-                      <span>{{ t('industry.scanner.buyVsBuild.structureSell') }}</span>
+                    <div v-if="comp.buyCostStructure != null" class="flex justify-between gap-2 text-slate-400">
+                      <span class="flex min-w-0 items-baseline gap-1.5">
+                        <span class="shrink-0">{{ t('industry.scanner.buyVsBuild.structureSell') }}</span>
+                        <PriceSourceBadge :source="comp.priceSources?.buyStructure" />
+                      </span>
                       <span class="font-mono text-slate-300">{{ formatIsk(comp.buyCostStructure / comp.quantity, 2) }} /u</span>
                     </div>
                   </div>
