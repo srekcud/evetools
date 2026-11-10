@@ -45,6 +45,7 @@ class StockpileService
         private readonly EntityManagerInterface $entityManager,
         private readonly IndustryStockpileImportRepository $importRepository,
         private readonly StockpileStartingStockReducer $startingStockReducer,
+        private readonly IndustryBlacklistService $blacklist,
     ) {
     }
 

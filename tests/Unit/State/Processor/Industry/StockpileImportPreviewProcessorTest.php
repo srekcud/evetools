@@ -24,6 +24,7 @@ use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
@@ -121,7 +122,8 @@ final class StockpileImportPreviewProcessorTest extends TestCase
             $productRepository,
             $entityManager,
             $this->createStub(IndustryStockpileImportRepository::class),
-            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger()),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger(), $this->createStub(IndustryBlacklistService::class)),
+            $this->createStub(IndustryBlacklistService::class),
         ));
     }
 

@@ -20,6 +20,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
@@ -56,6 +57,9 @@ trait BuildsStockpileOnWidgetSde
 
     private array $recipes = [];
 
+    /** @var list<int> */
+    private array $blacklistedTypeIds = [];
+
     private ?InMemoryUserProductionStructures $userStructures = null;
 
     private function useWidgetRecipes(): void
@@ -74,6 +78,19 @@ trait BuildsStockpileOnWidgetSde
             'outputPerRun' => self::FRAMES_PER_RUN_OF_THE_TWO_FRAME_FORMULA,
             'materials' => [self::ORE => self::ORE_PER_RUN_OF_THE_TWO_FRAME_FORMULA],
         ];
+    }
+
+    private function givenTheBlacklistOfThePilot(int ...$typeIds): void
+    {
+        $this->blacklistedTypeIds = array_values($typeIds);
+    }
+
+    private function blacklistOfThePilot(): IndustryBlacklistService
+    {
+        $blacklist = $this->createStub(IndustryBlacklistService::class);
+        $blacklist->method('resolveBlacklistedTypeIds')->willReturnCallback(fn (): array => $this->blacklistedTypeIds);
+
+        return $blacklist;
     }
 
     private function removeTheRecipeOf(int $productTypeId): void
@@ -125,6 +142,7 @@ trait BuildsStockpileOnWidgetSde
             $this->userStructuresOfThePilot(),
             $this->productRepositoryOnWidgetSde(),
             $logger,
+            $this->blacklistOfThePilot(),
         );
     }
 

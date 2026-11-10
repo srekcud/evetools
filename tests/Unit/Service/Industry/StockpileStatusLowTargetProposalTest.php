@@ -57,6 +57,7 @@ final class StockpileStatusLowTargetProposalTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $importRepository,
             $this->startingStockReducerOnWidgetSde(),
+            $this->blacklistOfThePilot(),
         );
     }
 

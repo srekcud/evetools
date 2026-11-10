@@ -15,10 +15,10 @@ const BLACKLIST_ENDPOINT = '/industry/blacklist'
 const FEROX = { typeId: 16227, typeName: 'Ferox', isT2: false }
 
 const SETTINGS_CATEGORIES = [
-  { key: 'advanced_components', label: 'Advanced Components', groupIds: [334], blacklisted: false },
-  { key: 'fuel_blocks', label: 'Fuel Blocks', groupIds: [1136], blacklisted: true },
-  { key: 'complex_reactions', label: 'Composite Reactions', groupIds: [484], blacklisted: true },
-  { key: 'tools', label: 'Tools (R.A.M.)', groupIds: [332], blacklisted: false },
+  { key: 'advanced_components', label: 'Advanced Components', groupIds: [334], blacklisted: false, partiallyBlacklisted: false },
+  { key: 'fuel_blocks', label: 'Fuel Blocks', groupIds: [1136], blacklisted: true, partiallyBlacklisted: false },
+  { key: 'complex_reactions', label: 'Composite Reactions', groupIds: [484], blacklisted: true, partiallyBlacklisted: false },
+  { key: 'tools', label: 'Tools (R.A.M.)', groupIds: [332], blacklisted: false, partiallyBlacklisted: false },
 ]
 
 function mountModal(categories = SETTINGS_CATEGORIES) {
@@ -68,6 +68,17 @@ describe('NewProjectModal blacklist defaults from the industry settings', () => 
     expect(isChecked(wrapper, 'Composite Reactions')).toBe(true)
     expect(isChecked(wrapper, 'Advanced Components')).toBe(false)
     expect(isChecked(wrapper, 'Tools (R.A.M.)')).toBe(false)
+  })
+
+  it('leaves unchecked a category only partly blacklisted in the industry settings (issue 139)', async () => {
+    const partiallyBlacklistedBiochemical = { key: 'biochem_reactions', label: 'Biochemical Reactions', groupIds: [661, 662], blacklisted: false, partiallyBlacklisted: true }
+    const wrapper = mountModal([...SETTINGS_CATEGORIES, partiallyBlacklistedBiochemical])
+    await flushPromises()
+
+    const body = await createWithFerox(wrapper)
+
+    expect(isChecked(wrapper, 'Biochemical Reactions')).toBe(false)
+    expect(body.blacklistCategoryKeys).toEqual(['fuel_blocks', 'complex_reactions'])
   })
 
   it('creates the project with the pre-checked categories', async () => {

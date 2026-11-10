@@ -22,6 +22,7 @@ class StockpileStartingStockReducer
         private readonly UserProductionStructures $userStructures,
         private readonly IndustryActivityProductRepository $activityProductRepository,
         private readonly LoggerInterface $logger,
+        private readonly IndustryBlacklistService $blacklist,
     ) {
     }
 

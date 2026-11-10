@@ -13,6 +13,7 @@ export interface BlacklistCategory {
   label: string
   groupIds: number[]
   blacklisted: boolean
+  partiallyBlacklisted: boolean
 }
 
 export interface BlacklistItem {
@@ -22,6 +23,7 @@ export interface BlacklistItem {
 
 export interface BlacklistConfig {
   categories: BlacklistCategory[]
+  groupIds: number[]
   items: BlacklistItem[]
 }
 

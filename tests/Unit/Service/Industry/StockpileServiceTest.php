@@ -43,6 +43,7 @@ class StockpileServiceTest extends TestCase
     private const int ORE_PER_HULL_RUN = 30;
     private const int GADGETS_PER_RUN = 2;
     private const int ORE_PER_GADGET_RUN = 70;
+    private const int ONE_RUN = 1;
     private const int FIVE_RUNS = 5;
     private const int ME_ZERO = 0;
     private const int TYPE_WITHOUT_BLUEPRINT = 99999;
@@ -87,6 +88,7 @@ class StockpileServiceTest extends TestCase
             $this->entityManager,
             $this->importRepository,
             $this->startingStockReducerOnWidgetSde(),
+            $this->blacklistOfThePilot(),
         );
     }
 
@@ -110,6 +112,52 @@ class StockpileServiceTest extends TestCase
         $this->assertSame([self::GADGET => 20, self::HULL => 10], self::sortedQuantitiesByTypeId($preview['stages']['component']));
         $this->assertSame([], $preview['stages']['intermediate']);
         $this->assertSame([self::ORE => 933], array_column($preview['stages']['raw_material'], 'quantity', 'typeId'));
+    }
+
+    #[Group('issue-139')]
+    public function testBlacklistedComponentOfThePreviewIsBoughtAsAMaterialWithoutTheMaterialsBelowIt(): void
+    {
+        $this->givenTheBlacklistOfThePilot(self::HULL);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+
+        $preview = $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
+
+        $this->assertSame([self::ORE => 125, self::HULL => 10], self::sortedQuantitiesByTypeId($preview['stages']['raw_material']));
+        $this->assertSame([], $preview['stages']['component']);
+        $this->assertSame([], $preview['stages']['intermediate']);
+    }
+
+    #[Group('issue-139')]
+    public function testBlacklistedComponentIsImportedAsARawMaterialTargetWithoutItsSubtree(): void
+    {
+        $this->givenTheBlacklistOfThePilot(self::HULL);
+        $this->targetRepository->method('findByUserAndTypeId')->willReturn(null);
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
+            if ($entity instanceof IndustryStockpileTarget) {
+                $persisted[$entity->getTypeId()] = [$entity->getStage(), $entity->getTargetQuantity()];
+            }
+        });
+
+        $this->service->importFromBlueprint($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO, 'replace');
+
+        $this->assertSame([
+            self::WIDGET => ['final_product', 10],
+            self::ORE => ['raw_material', 125],
+            self::HULL => ['raw_material', 10],
+        ], $persisted);
+    }
+
+    #[Group('issue-139')]
+    public function testBlacklistedImportedProductIsStillExpandedBecauseATargetIsNeverBlacklisted(): void
+    {
+        $this->givenTheBlacklistOfThePilot(self::HULL);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+
+        $preview = $this->service->previewImport($this->user, self::HULL, self::ONE_RUN, self::ME_ZERO);
+
+        $this->assertSame([self::HULL => 3], self::sortedQuantitiesByTypeId($preview['stages']['final_product']));
+        $this->assertSame([self::GADGET => 4], self::sortedQuantitiesByTypeId($preview['stages']['component']));
     }
 
     #[Group('issue-69')]
@@ -193,7 +241,8 @@ class StockpileServiceTest extends TestCase
             $productRepository,
             $this->entityManager,
             $this->importRepository,
-            new StockpileStartingStockReducer($productionPlanning, $unreadableStructures, $productRepository, new NullLogger()),
+            new StockpileStartingStockReducer($productionPlanning, $unreadableStructures, $productRepository, new NullLogger(), $this->blacklistOfThePilot()),
+            $this->blacklistOfThePilot(),
         );
 
         $this->expectExceptionObject($structureFailure);

@@ -39,6 +39,9 @@ class BlacklistResource
     /** @var list<array<string, mixed>> */
     public array $categories = [];
 
+    /** @var list<int> */
+    public array $groupIds = [];
+
     /** @var list<array<string, mixed>> */
     public array $items = [];
 }

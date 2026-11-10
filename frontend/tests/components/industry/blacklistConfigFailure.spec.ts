@@ -25,15 +25,16 @@ const SAVE_ERROR_EN = 'The blacklist change was not saved.'
 
 const STORED_BLACKLIST: BlacklistConfiguration = {
   categories: [
-    { key: 'fuel_blocks', label: 'Fuel blocks', groupIds: [FUEL_BLOCKS_GROUP_ID], blacklisted: false },
-    { key: 'capital_components', label: 'Capital components', groupIds: [CAPITAL_COMPONENTS_GROUP_ID], blacklisted: true },
+    { key: 'fuel_blocks', label: 'Fuel blocks', groupIds: [FUEL_BLOCKS_GROUP_ID], blacklisted: false, partiallyBlacklisted: false },
+    { key: 'capital_components', label: 'Capital components', groupIds: [CAPITAL_COMPONENTS_GROUP_ID], blacklisted: true, partiallyBlacklisted: false },
   ],
+  groupIds: [CAPITAL_COMPONENTS_GROUP_ID],
   items: [{ typeId: NITROGEN_FUEL_BLOCK_TYPE_ID, typeName: 'Nitrogen Fuel Block' }],
 }
 
 const BLACKLIST_WITH_FUEL_BLOCKS: BlacklistConfiguration = {
   ...STORED_BLACKLIST,
-  categories: STORED_BLACKLIST.categories.map(category => ({ ...category, blacklisted: true })),
+  categories: STORED_BLACKLIST.categories.map(category => ({ ...category, blacklisted: true, partiallyBlacklisted: false })),
 }
 
 const reads = apiOutcomesByPath()

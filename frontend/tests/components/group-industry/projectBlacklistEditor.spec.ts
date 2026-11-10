@@ -24,10 +24,11 @@ const KEPT_TYPE = 34
 
 const BLACKLIST_CONFIG = {
   categories: [
-    { key: 'fuel_blocks', label: 'Fuel Blocks', groupIds: [FUEL_GROUP], blacklisted: false },
-    { key: 'advanced_components', label: 'Advanced Components', groupIds: [ADVANCED_GROUP], blacklisted: false },
-    { key: 'biochem_reactions', label: 'Biochemical Reactions', groupIds: BIOCHEM_GROUPS, blacklisted: false },
+    { key: 'fuel_blocks', label: 'Fuel Blocks', groupIds: [FUEL_GROUP], blacklisted: false, partiallyBlacklisted: false },
+    { key: 'advanced_components', label: 'Advanced Components', groupIds: [ADVANCED_GROUP], blacklisted: false, partiallyBlacklisted: false },
+    { key: 'biochem_reactions', label: 'Biochemical Reactions', groupIds: BIOCHEM_GROUPS, blacklisted: false, partiallyBlacklisted: false },
   ],
+  groupIds: [],
   items: [],
 }
 

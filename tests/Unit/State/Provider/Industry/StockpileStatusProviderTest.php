@@ -13,6 +13,7 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\IndustryStockpileImportRepository;
 use App\Repository\IndustryStockpileTargetRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
+use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
@@ -78,7 +79,8 @@ final class StockpileStatusProviderTest extends TestCase
             $productRepository,
             $this->createMock(EntityManagerInterface::class),
             $importRepository,
-            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger()),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger(), $this->createStub(IndustryBlacklistService::class)),
+            $this->createStub(IndustryBlacklistService::class),
         ));
     }
 
