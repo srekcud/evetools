@@ -8,6 +8,7 @@ import { useIndustryStore } from '@/stores/industry'
 import type { IndustryAction } from '@/stores/industry/actions'
 import type { StockpileItemStatus, StockpileStage, StockpileStatus } from '@/stores/industry/types'
 import { industryAction } from '../../industryActionFixtures'
+import { slotTrackerWithoutCharacters } from '../../industrySlotsFixtures'
 
 const routerPush = vi.fn()
 
@@ -114,7 +115,7 @@ interface Answers {
 function answerWith({ actions = QUEUE, stockpile = stockpileStatus({}) }: Answers): void {
   vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
     if (endpoint === ACTIONS_ENDPOINT) return actions
-    if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline: [] }
+    if (endpoint === SLOTS_ENDPOINT) return slotTrackerWithoutCharacters()
     if (endpoint === PROJECTS_ENDPOINT) return []
     if (endpoint === WORKSHOP_PROJECTS_ENDPOINT) return []
     if (endpoint === STOCKPILE_STATUS_ENDPOINT) {

@@ -12,14 +12,14 @@ use App\State\Provider\Industry\Project\IndustryWorkshopProjectsProvider;
 
 #[ApiResource(
     shortName: 'IndustryWorkshopProject',
-    description: 'Team, lifecycle phases and profit of each industry project of the connected pilot',
+    description: 'Team, lifecycle phases, profit and engaged capital of each industry project of the connected pilot',
     operations: [
         new GetCollection(
             uriTemplate: '/industry/workshop-projects',
             provider: IndustryWorkshopProjectsProvider::class,
             openapi: new Model\Operation(
                 summary: 'List the workshop project rows',
-                description: 'Returns the accepted participants, the cockpit phases and the profit share of the connected pilot for every project of the pilot',
+                description: 'Returns the accepted participants, the cockpit phases, the profit share and the capital engaged by the connected pilot for every project of the pilot',
                 tags: ['Group Industry - Actions'],
             ),
         ),
@@ -50,4 +50,6 @@ class IndustryWorkshopProjectResource
 
     /** @var array{amount: float|null, status: string} */
     public array $profit = ['amount' => null, 'status' => 'unknown'];
+
+    public ?float $engagedCapital = null;
 }

@@ -7,8 +7,6 @@ import { useSlotsStore } from '@/stores/industry/slots'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import { useFormatters } from '@/composables/useFormatters'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
-import { CHART_COLORS } from '@/utils/chartColors'
-import UnknownValue from '@/components/common/UnknownValue.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
@@ -20,10 +18,6 @@ const kpisUpdated = useUpdateFlash(() => slotsStore.data)
 const stockpileStore = useStockpileStore()
 const { formatIsk } = useFormatters()
 
-// SVG ring chart constants (48x48 viewport, radius 19)
-const RING_RADIUS = 19
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS // ~119.38
-
 useIndustryJobsSync(() => slotsStore.fetchSlots())
 
 onMounted(async () => {
@@ -34,12 +28,6 @@ onMounted(async () => {
   ])
 })
 
-// --- KPI 1: Active Projects ---
-const activeProjectCount = computed(() =>
-  groupProjectStore.myProjects.filter(p => p.status !== 'completed').length,
-)
-
-// --- KPI 3: Slots Used ---
 const slotsData = computed(() => slotsStore.data)
 
 const totalSlotsUsed = computed(() => {
@@ -54,84 +42,11 @@ const totalSlotsMax = computed(() => {
   return kpis.manufacturing.max + kpis.reaction.max + kpis.science.max
 })
 
-const slotsPercent = computed(() => {
-  if (totalSlotsMax.value === 0) return 0
-  return Math.round((totalSlotsUsed.value / totalSlotsMax.value) * 100)
-})
-
 const slotsAvailable = computed(() => totalSlotsMax.value - totalSlotsUsed.value)
-
-const slotsDashOffset = computed(() =>
-  RING_CIRCUMFERENCE * (1 - slotsPercent.value / 100),
-)
-
-const slotsRingColor = computed(() => {
-  if (slotsPercent.value > 80) return CHART_COLORS.loss
-  if (slotsPercent.value >= 50) return CHART_COLORS.warning
-  return CHART_COLORS.profit
-})
-
-const slotsTextColor = computed(() => {
-  if (slotsPercent.value > 80) return 'text-red-400'
-  if (slotsPercent.value >= 50) return 'text-amber-400'
-  return 'text-emerald-400'
-})
-
-const slotsGlowClass = computed(() => {
-  if (slotsPercent.value > 80) return 'ring-glow-red'
-  if (slotsPercent.value >= 50) return 'ring-glow-amber'
-  return 'ring-glow-emerald'
-})
-
-const slotsAvailableColor = computed(() => {
-  if (slotsPercent.value > 80) return 'text-red-400/70'
-  if (slotsPercent.value >= 50) return 'text-amber-400/70'
-  return 'text-emerald-400/70'
-})
-
-// --- KPI 4: Pipeline Health ---
-const pipelineHealth = computed((): number | null =>
-  stockpileStore.stockpileStatus?.kpis.pipelineHealth ?? null,
-)
 
 const allStockpileItems = computed(() => {
   if (!stockpileStore.stockpileStatus) return []
   return Object.values(stockpileStore.stockpileStatus.stages).flatMap(s => s.items)
-})
-
-const totalStockpileTargets = computed(() => allStockpileItems.value.length)
-
-const targetsMet = computed(() =>
-  allStockpileItems.value.filter(i => i.percent >= 100).length,
-)
-
-const hasStockpileTargets = computed(() =>
-  (stockpileStore.stockpileStatus?.targetCount ?? 0) > 0,
-)
-
-const pipelineDashOffset = computed(() =>
-  RING_CIRCUMFERENCE * (1 - (pipelineHealth.value === null ? 0 : pipelineHealth.value / 100)),
-)
-
-const pipelineRingColor = computed(() => {
-  if (pipelineHealth.value === null) return CHART_COLORS.neutral
-  if (pipelineHealth.value >= 80) return CHART_COLORS.profit
-  if (pipelineHealth.value >= 50) return CHART_COLORS.warning
-  return CHART_COLORS.loss
-})
-
-const pipelineTextColor = computed(() => {
-  if (pipelineHealth.value === null) return 'text-slate-500'
-  if (pipelineHealth.value >= 80) return 'text-emerald-400'
-  if (pipelineHealth.value >= 50) return 'text-amber-400'
-  return 'text-red-400'
-})
-
-const pipelineGlowClass = computed(() => {
-  if (pipelineHealth.value === null) return ''
-  if (pipelineHealth.value >= 80) return 'ring-glow-emerald'
-  if (pipelineHealth.value >= 50) return 'ring-glow-amber'
-  return 'ring-glow-red'
 })
 
 // --- Alerts ---
@@ -218,85 +133,6 @@ function navigateToStockpile(): void {
 
 <template>
   <ErrorBanner v-if="groupProjectStore.error" :message="groupProjectStore.error" class="mb-6" />
-
-  <!-- KPI Cards -->
-  <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-    <!-- KPI 1: Active Projects -->
-    <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
-      <div class="flex items-center justify-between mb-3">
-        <p class="text-xs text-slate-500 uppercase tracking-wider">{{ t('industry.dashboard.activeProjects') }}</p>
-        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-      </div>
-      <p class="text-3xl font-bold text-cyan-400 font-mono" style="font-variant-numeric: tabular-nums;">
-        {{ activeProjectCount }}
-      </p>
-    </div>
-
-    <!-- KPI 3: Slots Used -->
-    <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
-      <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.slotsUsed') }}</p>
-      <div v-if="slotsData" class="flex items-center gap-3">
-        <div class="relative w-12 h-12 flex-shrink-0" :class="slotsGlowClass">
-          <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
-            <circle cx="24" cy="24" :r="RING_RADIUS" fill="none" stroke="rgb(30 41 59)" stroke-width="4" />
-            <circle
-              cx="24" cy="24" :r="RING_RADIUS" fill="none"
-              :stroke="slotsRingColor"
-              stroke-width="4"
-              stroke-linecap="round"
-              :stroke-dasharray="RING_CIRCUMFERENCE"
-              :stroke-dashoffset="slotsDashOffset"
-            />
-          </svg>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-table-cell font-mono font-bold" :class="slotsTextColor">{{ slotsPercent }}%</span>
-          </div>
-        </div>
-        <div>
-          <p class="text-2xl font-bold text-white font-mono" style="font-variant-numeric: tabular-nums;">
-            {{ totalSlotsUsed }}<span class="text-slate-500 text-lg">/{{ totalSlotsMax }}</span>
-          </p>
-          <p class="text-xs" :class="slotsAvailableColor">
-            {{ t('industry.dashboard.slotsAvailable', { count: slotsAvailable }) }}
-          </p>
-        </div>
-      </div>
-      <p v-else class="text-2xl font-bold text-slate-500">&mdash;</p>
-    </div>
-
-    <!-- KPI 4: Pipeline Health -->
-    <div class="relative bg-slate-900 rounded-xl border border-slate-800 p-4" :class="{ 'hud-updated': kpisUpdated }">
-      <p class="text-xs text-slate-500 uppercase tracking-wider mb-3">{{ t('industry.dashboard.pipelineHealth') }}</p>
-      <p v-if="pipelineHealth === null" class="text-2xl font-bold text-slate-500"><UnknownValue /></p>
-      <div v-else-if="hasStockpileTargets" class="flex items-center gap-3">
-        <div class="relative w-12 h-12 flex-shrink-0" :class="pipelineGlowClass">
-          <svg viewBox="0 0 48 48" class="w-12 h-12" style="transform: rotate(-90deg)">
-            <circle cx="24" cy="24" :r="RING_RADIUS" fill="none" stroke="rgb(30 41 59)" stroke-width="4" />
-            <circle
-              cx="24" cy="24" :r="RING_RADIUS" fill="none"
-              :stroke="pipelineRingColor"
-              stroke-width="4"
-              stroke-linecap="round"
-              :stroke-dasharray="RING_CIRCUMFERENCE"
-              :stroke-dashoffset="pipelineDashOffset"
-            />
-          </svg>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-table-cell font-mono font-bold" :class="pipelineTextColor">{{ pipelineHealth }}%</span>
-          </div>
-        </div>
-        <div>
-          <p class="text-2xl font-bold font-mono" :class="pipelineTextColor" style="font-variant-numeric: tabular-nums;">
-            {{ pipelineHealth }}%
-          </p>
-          <p class="text-xs text-slate-500">
-            {{ t('industry.dashboard.targetsMet', { met: targetsMet, total: totalStockpileTargets }) }}
-          </p>
-        </div>
-      </div>
-      <p v-else class="text-2xl font-bold text-slate-500">&mdash;</p>
-    </div>
-  </div>
 
   <!-- Alerts Section -->
   <div class="relative bg-slate-900 rounded-xl border border-slate-800 mb-6" :class="{ 'hud-updated': kpisUpdated }">
@@ -460,17 +296,6 @@ function navigateToStockpile(): void {
 .alert-blue::before {
   background: var(--color-chart-6);
   box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
-}
-
-/* Ring chart ambient glow */
-.ring-glow-amber {
-  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.15));
-}
-.ring-glow-emerald {
-  filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.15));
-}
-.ring-glow-red {
-  filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.15));
 }
 
 /* Button micro-interaction */

@@ -7,6 +7,7 @@ export function workshopProject(overrides: Partial<WorkshopProject> & Pick<Works
     corporationName: null,
     phases: [],
     profit: { amount: null, status: 'unknown' },
+    engagedCapital: null,
     ...overrides,
   }
 }

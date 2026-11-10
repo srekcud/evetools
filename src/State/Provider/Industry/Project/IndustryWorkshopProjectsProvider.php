@@ -13,10 +13,12 @@ use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Service\Industry\Project\CockpitPhasePresenter;
+use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Industry\Project\ProjectSellForecast;
+use App\Service\Industry\Project\ViewerEngagedCapital;
 use App\Service\Industry\Project\ViewerProfitShare;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Clock\ClockInterface;
@@ -88,7 +90,10 @@ class IndustryWorkshopProjectsProvider implements ProviderInterface
         $resource->members = $this->membersOf($participants);
         $resource->corporationName = $project->getOwner()->getCorporationName();
         $resource->phases = CockpitPhasePresenter::of($cockpit->phases);
-        $resource->profit = $this->profitOf($project, $membership);
+        $distribution = $this->distributionService->calculateDistribution($project);
+        $memberId = $membership->getId()->toRfc4122();
+        $resource->profit = $this->profitOf($project, $distribution, $memberId);
+        $resource->engagedCapital = ViewerEngagedCapital::of($distribution, $memberId);
 
         return $resource;
     }
@@ -96,10 +101,9 @@ class IndustryWorkshopProjectsProvider implements ProviderInterface
     /**
      * @return array{amount: float|null, status: string}
      */
-    private function profitOf(IndustryProject $project, IndustryProjectParticipant $membership): array
+    private function profitOf(IndustryProject $project, DistributionResult $distribution, string $memberId): array
     {
-        $distribution = $this->distributionService->calculateDistribution($project);
-        $profit = ViewerProfitShare::of($distribution, $membership->getId()->toRfc4122());
+        $profit = ViewerProfitShare::of($distribution, $memberId);
 
         if ($profit['status'] !== ViewerProfitShare::AWAITING_SALES) {
             return $profit;

@@ -9,6 +9,7 @@ import { useIndustryStore } from '@/stores/industry'
 import type { WorkshopProject } from '@/stores/industry/workshopProjects'
 import { useSyncStore } from '@/stores/sync'
 import { phase, workshopMember, workshopProject } from '../../industryWorkshopProjectFixtures'
+import { slotTrackerWithoutCharacters } from '../../industrySlotsFixtures'
 
 const routerPush = vi.fn()
 const routerResolve = vi.fn((location: { params: { id: string } }) => ({ href: `/industry/projects/${location.params.id}` }))
@@ -187,7 +188,7 @@ interface Answers {
 function answerWith({ workshop = WORKSHOP_ROWS, timeline = [] }: Answers): void {
   vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
     if (endpoint === ACTIONS_ENDPOINT) return []
-    if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline }
+    if (endpoint === SLOTS_ENDPOINT) return slotTrackerWithoutCharacters(timeline)
     if (endpoint === PROJECTS_ENDPOINT) return GROUP_PROJECTS
     if (endpoint === WORKSHOP_PROJECTS_ENDPOINT) {
       if (workshop === 'pending') return new Promise(() => {})

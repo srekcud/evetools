@@ -19,6 +19,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 #[Group('issue-335')]
+#[Group('issue-569')]
 final class IndustryWorkshopProjectsApiTest extends WebTestCase
 {
     use BuildsIshtarGroupProject;
@@ -37,6 +38,8 @@ final class IndustryWorkshopProjectsApiTest extends WebTestCase
     private const float HECATE_JITA_NET_REVENUE = 856_125.0;
     private const float NOCXIUM_REMAINING_COST = 6_000.0;
     private const float NOCXIUM_ENGAGED_COST = 4_000.0;
+    private const float OWNER_ISHTAR_APPROVED_COST = 499_500.0;
+    private const float MEMBER_ISHTAR_APPROVED_COST = 55_500.0;
 
     private User $pilotWithoutMainCharacter;
     private User $latePilot;
@@ -362,6 +365,59 @@ final class IndustryWorkshopProjectsApiTest extends WebTestCase
         $profit = $this->rowOf($this->ishtarBatch)['profit'];
         self::assertArrayHasKey('amount', $profit);
         self::assertSame(['amount' => null, 'status' => 'unknown'], $profit);
+    }
+
+    public function testEngagedCapitalIsTheApprovedCostOfTheOwnerAloneNotOfTheMember(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(self::OWNER_ISHTAR_APPROVED_COST, $this->rowOf($this->ishtarBatch)['engagedCapital']);
+    }
+
+    public function testEngagedCapitalOfAMemberLeavesOutHisPendingContributions(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(self::MEMBER_ISHTAR_APPROVED_COST, $this->rowOf($this->ishtarBatch)['engagedCapital']);
+    }
+
+    public function testEngagedCapitalOfASoloProjectIsItsApprovedCost(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(self::SOLO_APPROVED_COST, $this->rowOf($this->soloSoldBatch)['engagedCapital']);
+    }
+
+    public function testEngagedCapitalIsZeroWhenThePilotHasNoApprovedContribution(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $row = $this->rowOf($this->soloAwaitingBatch);
+        self::assertArrayHasKey('engagedCapital', $row);
+        self::assertSame(0.0, $row['engagedCapital']);
+    }
+
+    public function testEngagedCapitalIsUnknownWhenAContributionHasNoEstimatedValue(): void
+    {
+        $this->addContribution($this->hecateOwnerMembership, $this->hecateTritaniumLine, ContributionType::Material, 40_000, 176_000.0, ContributionStatus::Approved)
+            ->setEstimatedValue(null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $row = $this->rowOf($this->hecateBatch);
+        self::assertArrayHasKey('engagedCapital', $row);
+        self::assertNull($row['engagedCapital']);
     }
 
     private function ownerHasSyncedSalesFeeSkills(): void

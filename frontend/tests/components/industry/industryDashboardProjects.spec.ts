@@ -71,17 +71,26 @@ beforeEach(() => {
 })
 
 describe('IndustryDashboard projects', () => {
-  it('counts the projects that are not completed from the unified project list without repeating them in a recent projects table', async () => {
+  it('no longer shows the active projects, slots used and pipeline health cards that the workshop KPI cards replace', async () => {
     const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
     const wrapper = mount(IndustryDashboard, { global: { plugins: [i18n, projectsRouter()] } })
     await flushPromises()
 
-    const activeProjectsLabel = wrapper.findAll('p').find(label => label.text() === en.industry.dashboard.activeProjects)
-    const activeProjectsCard = activeProjectsLabel?.element.parentElement?.parentElement
-    expect(activeProjectsCard?.textContent?.replace(en.industry.dashboard.activeProjects, '').trim()).toBe('2')
-    expect(wrapper.text()).not.toContain(en.industry.dashboard.recentProjects)
-    expect(wrapper.text()).not.toContain('Widow in progress')
-    expect(wrapper.text()).not.toContain('Widow completed')
+    const text = wrapper.text()
+    expect(['Active Projects', 'Slots Used', 'Pipeline Health'].filter(label => text.includes(label))).toStrictEqual([])
+    expect(text).not.toContain('Widow in progress')
+    expect(text).not.toContain('Widow completed')
+  })
+
+  it('keeps the alerts and the quick actions', async () => {
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+    const wrapper = mount(IndustryDashboard, { global: { plugins: [i18n, projectsRouter()] } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(en.industry.dashboard.alertsTitle)
+    expect(wrapper.text()).toContain(en.industry.dashboard.newProject)
+    expect(wrapper.text()).toContain(en.industry.dashboard.scanProfits)
+    expect(wrapper.text()).toContain(en.industry.dashboard.viewStockpile)
   })
 
   it('links to the projects page from the view all projects link', async () => {

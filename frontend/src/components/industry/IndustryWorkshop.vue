@@ -6,6 +6,7 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import ProductionOpportunitiesCard from '@/components/industry/ProductionOpportunitiesCard.vue'
+import WorkshopKpiCard from '@/components/industry/WorkshopKpiCard.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
@@ -18,6 +19,7 @@ import { useIndustryWorkshopProjectsStore, type WorkshopProject, type WorkshopPr
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { StockpileItemStatus } from '@/stores/industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { workshopKpis } from '@/utils/workshopKpis'
 import { detailTabOfNextAction } from '@/views/GroupIndustry/projectDetailTabs'
 
 type TeamFilter = 'all' | 'solo' | 'group'
@@ -98,6 +100,33 @@ function actionPhrase(action: IndustryAction): string {
     quantity: action.quantity === null ? '' : n(action.quantity),
   })
 }
+
+const runningJobsCount = computed<number | null>(() =>
+  slotsStore.data === null
+    ? null
+    : slotsStore.data.characters.flatMap(character => character.jobs).filter(job => job.timeLeftSeconds > 0).length,
+)
+
+const manufacturingSlots = computed(() => slotsStore.data?.globalKpis.manufacturing ?? null)
+
+const freeManufacturingSlotsByCharacter = computed(() =>
+  (slotsStore.data?.characters ?? []).map(character => ({
+    characterId: character.characterId,
+    characterName: character.characterName,
+    free: character.slots.manufacturing.max === null ? null : character.slots.manufacturing.max - character.slots.manufacturing.used,
+  })),
+)
+
+const activeProjectIds = computed(() =>
+  new Set(groupProjectStore.myProjects.filter(project => project.status !== 'completed').map(project => project.id)),
+)
+
+const kpis = computed(() => workshopKpis(workshopProjectsStore.rows, activeProjectIds.value))
+
+const expectedProfitClass = computed(() => {
+  const amount = kpis.value.profit.amount
+  return amount !== null && amount < 0 ? 'text-red-400' : 'text-emerald-400'
+})
 
 const stockpileProposals = computed<StockpileProposal[]>(() =>
   Object.values(stockpileStore.stockpileStatus?.stages ?? {})
@@ -346,6 +375,59 @@ function productSubline(project: GroupProject): string | null {
         {{ t('industry.workshop.header.newProject') }}
       </button>
     </nav>
+
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <WorkshopKpiCard test-id="workshop-kpi-jobs" :label="t('industry.workshop.kpis.jobs.label')">
+        <UnknownValue v-if="runningJobsCount === null" />
+        <span v-else class="text-cyan-400">{{ runningJobsCount }}</span>
+        <template #meta>
+          <span v-if="runningJobsCount !== null">{{ t(runningJobsCount > 0 ? 'industry.workshop.kpis.jobs.allCharacters' : 'industry.workshop.kpis.jobs.none') }}</span>
+        </template>
+      </WorkshopKpiCard>
+
+      <WorkshopKpiCard test-id="workshop-kpi-slots" :label="t('industry.workshop.kpis.slots.label')">
+        <UnknownValue v-if="manufacturingSlots === null" />
+        <template v-else>
+          <span class="text-white">{{ manufacturingSlots.max - manufacturingSlots.used }}</span>
+          <span class="text-lg text-slate-500"> / {{ manufacturingSlots.max }}</span>
+        </template>
+        <template #meta>
+          <div v-if="manufacturingSlots !== null" class="flex flex-wrap gap-x-2">
+            <span
+              v-for="character in freeManufacturingSlotsByCharacter"
+              :key="character.characterId"
+              class="max-w-full truncate"
+              :title="character.characterName"
+            >{{ character.characterName }} <UnknownValue v-if="character.free === null" /><template v-else>{{ character.free }}</template></span>
+          </div>
+          <p v-if="slotsStore.data !== null && slotsStore.data.unknownSkillsCharacterCount > 0" class="text-violet-400">
+            {{ t('industry.slots.partialKpis', { count: slotsStore.data.unknownSkillsCharacterCount }) }}
+          </p>
+        </template>
+      </WorkshopKpiCard>
+
+      <WorkshopKpiCard test-id="workshop-kpi-capital" :label="t('industry.workshop.kpis.capital.label')">
+        <UnknownValue v-if="!workshopProjectsStore.isLoaded || kpis.capital.amount === null" />
+        <span v-else class="text-white">{{ formatIsk(kpis.capital.amount) }}</span>
+        <template #meta>
+          <span>{{ t('industry.workshop.kpis.capital.meta') }}</span>
+          <p v-if="workshopProjectsStore.isLoaded && kpis.capital.unknownCount > 0" class="text-violet-400">
+            {{ t('industry.workshop.kpis.unknownProjects', { count: kpis.capital.unknownCount }) }}
+          </p>
+        </template>
+      </WorkshopKpiCard>
+
+      <WorkshopKpiCard test-id="workshop-kpi-profit" :label="t('industry.workshop.kpis.profit.label')">
+        <UnknownValue v-if="!workshopProjectsStore.isLoaded || kpis.profit.amount === null" />
+        <span v-else :class="expectedProfitClass">{{ signedIsk(kpis.profit.amount) }}</span>
+        <template #meta>
+          <span>{{ t('industry.workshop.kpis.profit.meta') }}</span>
+          <p v-if="workshopProjectsStore.isLoaded && kpis.profit.unknownCount > 0" class="text-violet-400">
+            {{ t('industry.workshop.kpis.unknownProjects', { count: kpis.profit.unknownCount }) }}
+          </p>
+        </template>
+      </WorkshopKpiCard>
+    </div>
 
     <section data-testid="workshop-action-queue" class="bg-slate-900 rounded-xl border border-slate-800">
       <header class="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-slate-800">
