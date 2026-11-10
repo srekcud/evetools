@@ -13,6 +13,7 @@ use App\Repository\IndustryStockpileTargetRepository;
 use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -61,9 +62,7 @@ final class StockpileStatusIntermediateStockTest extends TestCase
             fn (): array => array_map(static fn (int $stock): array => ['total' => $stock, 'locations' => []], $this->stockByTypeId),
         );
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
-            static fn (array $typeIds): array => array_intersect_key(self::JITA_PRICES, array_flip($typeIds)),
-        );
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt(self::JITA_PRICES));
         $this->service = new StockpileService(
             $targetRepository,
             $assetRepository,

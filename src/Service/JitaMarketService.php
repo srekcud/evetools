@@ -19,6 +19,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 class JitaMarketService
 {
+    public const float CHEAPEST_PERCENTILE = 0.05;
+
     private const JITA_STATION_ID = EveConstants::JITA_STATION_ID;
     private const THE_FORGE_REGION_ID = EveConstants::THE_FORGE_REGION_ID;
     private const CACHE_KEY = 'jita_market_prices';
@@ -775,7 +777,7 @@ class JitaMarketService
      * @param int[] $typeIds
      * @return array<int, float|null> typeId => percentile price (null if no orders)
      */
-    public function getCheapestPercentilePrices(array $typeIds, float $percentile = 0.05): array
+    public function getCheapestPercentilePrices(array $typeIds, float $percentile = self::CHEAPEST_PERCENTILE): array
     {
         $orderBook = $this->getOrderBook(self::CACHE_KEY);
 

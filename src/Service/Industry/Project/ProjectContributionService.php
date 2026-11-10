@@ -11,12 +11,18 @@ use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Service\Industry\PriceSource;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
 class ProjectContributionService
 {
     private const float DEPOSIT_DAY_PERCENTILE = 0.05;
+
+    public static function materialContributionPriceSource(): PriceSource
+    {
+        return PriceSource::jitaSellPercentile(self::DEPOSIT_DAY_PERCENTILE * PriceSource::PERCENT_PER_FRACTION);
+    }
 
     public function __construct(
         private readonly IndustryProjectContributionRepository $contributionRepository,

@@ -32,6 +32,7 @@ use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -115,10 +116,10 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
 
             return $this->pricesOf($typeIds, $this->jitaPrices);
         });
-        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(function (array $typeIds): array {
-            $this->jitaPriceRequests[] = ['fallback', $typeIds];
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(function (array $requests): array {
+            $this->jitaPriceRequests[] = ['fallback', array_column($requests, 'typeId')];
 
-            return $this->pricesOf($typeIds, $this->jitaPrices + $this->esiFallbackPrices);
+            return SellQuoteCallbacks::completeQuotesAt($this->jitaPrices + $this->esiFallbackPrices)($requests);
         });
 
         $productRepository = $this->productRepositoryOnGoldenSde();
@@ -151,8 +152,9 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
 
         self::assertSame(
             [['typeId' => self::NITROGEN_FUEL_BLOCK, 'typeName' => 'Nitrogen Fuel Block', 'quantity' => 1000, 'unitPrice' => null]],
-            $preview['stages']['final_product'],
+            self::withoutPriceSource($preview['stages']['final_product']),
         );
+        self::assertSame([null], array_column($preview['stages']['final_product'], 'priceSource'));
         self::assertSame(
             [44 => 90, 3683 => 495, 3689 => 90, 9832 => 203, 9848 => 25, 16272 => 3825, 16273 => 7875, 16275 => 450, 17888 => 10125],
             $this->sortedQuantitiesByTypeId($preview['stages']['raw_material']),
@@ -212,8 +214,10 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         self::assertSame(600.5, $preview['stages']['final_product'][0]['unitPrice']);
         self::assertSame(0.25, $this->entryOf($preview['stages']['raw_material'], self::NITROGEN_ISOTOPES)['unitPrice']);
         self::assertSame(150.0, $this->entryOf($preview['stages']['raw_material'], self::COOLANT)['unitPrice']);
-        self::assertSame(['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => null], $this->entryOf($preview['stages']['raw_material'], self::ROBOTICS));
-        self::assertSame(['typeId' => self::OXYGEN, 'typeName' => 'Oxygen', 'quantity' => 20, 'unitPrice' => null], $this->entryOf($preview['stages']['raw_material'], self::OXYGEN));
+        self::assertSame(['typeId' => self::ROBOTICS, 'typeName' => 'Robotics', 'quantity' => 1, 'unitPrice' => null], array_diff_key($this->entryOf($preview['stages']['raw_material'], self::ROBOTICS), ['priceSource' => true]));
+        self::assertSame(['typeId' => self::OXYGEN, 'typeName' => 'Oxygen', 'quantity' => 20, 'unitPrice' => null], array_diff_key($this->entryOf($preview['stages']['raw_material'], self::OXYGEN), ['priceSource' => true]));
+        self::assertSame([null], array_column([$this->entryOf($preview['stages']['raw_material'], self::ROBOTICS)], 'priceSource'));
+        self::assertSame([null], array_column([$this->entryOf($preview['stages']['raw_material'], self::OXYGEN)], 'priceSource'));
         self::assertNull($preview['estimatedCost']);
         self::assertSame(
             [self::ENRICHED_URANIUM, self::OXYGEN, self::MECHANICAL_PARTS, self::ROBOTICS, self::HEAVY_WATER, self::LIQUID_OZONE, self::STRONTIUM_CLATHRATES],
@@ -366,7 +370,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         self::assertSame([], $preview['stages']['intermediate']);
         self::assertSame(
             [['typeId' => self::FERNITE_CARBIDE, 'typeName' => 'Fernite Carbide', 'quantity' => 10000, 'unitPrice' => null]],
-            $preview['stages']['final_product'],
+            self::withoutPriceSource($preview['stages']['final_product']),
         );
         self::assertSame(17, $preview['totalItems']);
     }
@@ -395,7 +399,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
         );
         self::assertSame($nomadJobMaterials, $this->sortedQuantitiesByTypeId($preview['stages']['component']));
         self::assertSame($expectedIntermediateStageTypeIds, array_keys($this->sortedQuantitiesByTypeId($preview['stages']['intermediate'])));
-        self::assertSame([['typeId' => self::NOMAD, 'typeName' => 'Nomad', 'quantity' => 1, 'unitPrice' => null]], $preview['stages']['final_product']);
+        self::assertSame([['typeId' => self::NOMAD, 'typeName' => 'Nomad', 'quantity' => 1, 'unitPrice' => null]], self::withoutPriceSource($preview['stages']['final_product']));
         self::assertSame(129, $preview['totalItems']);
     }
 
@@ -647,6 +651,11 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             self::LIQUID_OZONE => self::TWO_ISK,
             self::STRONTIUM_CLATHRATES => self::TWO_ISK,
         ];
+    }
+
+    private static function withoutPriceSource(array $entries): array
+    {
+        return array_map(static fn (array $entry): array => array_diff_key($entry, ['priceSource' => true]), $entries);
     }
 
     private function pricesOf(array $typeIds, array $knownPrices): array

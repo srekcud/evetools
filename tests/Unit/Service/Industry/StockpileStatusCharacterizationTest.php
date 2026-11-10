@@ -19,6 +19,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -36,6 +37,7 @@ use Symfony\Component\Uid\Uuid;
 #[AllowMockObjectsWithoutExpectations]
 final class StockpileStatusCharacterizationTest extends TestCase
 {
+    private const array FULL_JITA_SELL_SOURCE = ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null];
     private const int WIDGET_SOURCE = 100;
     private const int MEXALLON = 36;
     private const int UNPRICED_INTERMEDIATE = 57400;
@@ -70,10 +72,10 @@ final class StockpileStatusCharacterizationTest extends TestCase
 
             return $this->pricesOf($typeIds, $this->jitaPrices);
         });
-        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(function (array $typeIds): array {
-            $this->jitaPriceRequests[] = ['fallback', $typeIds];
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(function (array $requests): array {
+            $this->jitaPriceRequests[] = ['fallback', $requests];
 
-            return $this->pricesOf($typeIds, $this->jitaPrices + $this->esiFallbackPrices);
+            return SellQuoteCallbacks::completeQuotesAt($this->jitaPrices + $this->esiFallbackPrices)($requests);
         });
 
         $productionPlanning = new ProductionPlanning(new InMemoryBlueprintCatalog(), InMemorySystemCostIndices::none(), new InMemoryRigCategories());
@@ -182,6 +184,10 @@ final class StockpileStatusCharacterizationTest extends TestCase
     {
         $emptyStage = ['items' => [], 'totalValue' => 0.0, 'healthPercent' => 100.0];
 
+        $status = $this->service->getStockpileStatus($this->pilot);
+
+        self::assertArrayHasKey('priceSources', $status);
+        self::assertSame(['stockValue' => null, 'deficitCost' => null], $status['priceSources']);
         self::assertSame(
             [
                 'targetCount' => 0,
@@ -197,7 +203,7 @@ final class StockpileStatusCharacterizationTest extends TestCase
                 'failedProducts' => [],
                 'missingPriceTypeIds' => [],
             ],
-            $this->service->getStockpileStatus($this->pilot),
+            array_diff_key($status, ['priceSources' => true]),
         );
         self::assertSame([], $this->jitaPriceRequests);
     }
@@ -227,7 +233,11 @@ final class StockpileStatusCharacterizationTest extends TestCase
                 'locations' => [['locationId' => 60003760, 'locationName' => self::JITA_LOCATION_NAME, 'systemName' => 'Jita', 'quantity' => 45]],
                 'suggestedProjectRuns' => null,
             ],
-            $status['stages']['intermediate']['items'][0],
+            array_diff_key($status['stages']['intermediate']['items'][0], ['priceSources' => true]),
+        );
+        self::assertSame(
+            ['stock' => self::FULL_JITA_SELL_SOURCE, 'deficit' => self::FULL_JITA_SELL_SOURCE],
+            $status['stages']['intermediate']['items'][0]['priceSources'],
         );
         self::assertSame($status['stages']['intermediate']['items'], $status['shoppingList']);
     }
@@ -378,7 +388,17 @@ final class StockpileStatusCharacterizationTest extends TestCase
         );
         self::assertSame(50200.0, $status['kpis']['totalInvested']);
         self::assertSame([], $status['missingPriceTypeIds']);
-        self::assertSame([['fallback', [self::UNPRICED_COMPONENT, self::MEXALLON]]], $this->jitaPriceRequests);
+        self::assertCount(1, $this->jitaPriceRequests);
+        self::assertSame('fallback', $this->jitaPriceRequests[0][0]);
+        self::assertEqualsCanonicalizing(
+            [
+                ['typeId' => self::UNPRICED_COMPONENT, 'quantity' => 40],
+                ['typeId' => self::UNPRICED_COMPONENT, 'quantity' => 60],
+                ['typeId' => self::MEXALLON, 'quantity' => 4],
+                ['typeId' => self::MEXALLON, 'quantity' => 6],
+            ],
+            $this->jitaPriceRequests[0][1],
+        );
     }
 
     public function testTargetWithoutAssetsHasNoStockNoLocationAndTheWholeTargetAsDeficit(): void

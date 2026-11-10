@@ -20,6 +20,7 @@ use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -47,6 +48,7 @@ class StockpileServiceTest extends TestCase
     private const int FIVE_RUNS = 5;
     private const int ME_ZERO = 0;
     private const int TYPE_WITHOUT_BLUEPRINT = 99999;
+    private const array FULL_JITA_SELL_SOURCE = ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null];
     private const string CYCLE_FAILURE = 'Product 3005 is needed to build itself: the production graph has a cycle.';
 
     private IndustryStockpileTargetRepository&MockObject $targetRepository;
@@ -105,7 +107,7 @@ class StockpileServiceTest extends TestCase
     public function testStageOfAMaterialIsComponentWhenAJobOfTheImportedProductConsumesItEvenIfADeeperJobAlsoConsumesIt(): void
     {
         $this->recipes[self::WIDGET]['materials'] = [self::HULL => self::HULLS_PER_WIDGET_RUN, self::GADGET => 1, self::ORE => self::ORE_PER_WIDGET_RUN];
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([]));
 
         $preview = $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
 
@@ -118,7 +120,7 @@ class StockpileServiceTest extends TestCase
     public function testBlacklistedComponentOfThePreviewIsBoughtAsAMaterialWithoutTheMaterialsBelowIt(): void
     {
         $this->givenTheBlacklistOfThePilot(self::HULL);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([]));
 
         $preview = $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
 
@@ -152,7 +154,7 @@ class StockpileServiceTest extends TestCase
     public function testBlacklistedImportedProductIsStillExpandedBecauseATargetIsNeverBlacklisted(): void
     {
         $this->givenTheBlacklistOfThePilot(self::HULL);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([]));
 
         $preview = $this->service->previewImport($this->user, self::HULL, self::ONE_RUN, self::ME_ZERO);
 
@@ -165,7 +167,7 @@ class StockpileServiceTest extends TestCase
     {
         $this->givenThePilotStructures(ProductionStructures::raitaru('pilot-raitaru', SecurityClass::NullSec));
         $service = $this->serviceOnWidgetSde();
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([]));
 
         $preview = $service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
 
@@ -265,7 +267,7 @@ class StockpileServiceTest extends TestCase
 
     public function testImportReplaceDeletesExisting(): void
     {
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([]));
         $this->targetRepository->expects($this->once())
             ->method('deleteAllForUser')
             ->with($this->user);
@@ -290,7 +292,7 @@ class StockpileServiceTest extends TestCase
 
     public function testImportMergeAddsQuantities(): void
     {
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([]));
         $existingTarget = $this->createMock(IndustryStockpileTarget::class);
         $existingTarget->method('getTargetQuantity')->willReturn(300);
         $existingTarget->expects($this->once())
@@ -354,12 +356,12 @@ class StockpileServiceTest extends TestCase
             3 => ['total' => 200, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 200]]],
             4 => ['total' => 2, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 2]]],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([
             1 => 10.0,
             2 => 20.0,
             3 => 100.0,
             4 => 50.0,
-        ]);
+        ]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -381,11 +383,11 @@ class StockpileServiceTest extends TestCase
             2 => ['total' => 60, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 60]]],
             3 => ['total' => 5, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 5]]],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([
             1 => 10.0,
             2 => 20.0,
             3 => 100.0,
-        ]);
+        ]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -413,13 +415,13 @@ class StockpileServiceTest extends TestCase
             200 => ['total' => 5, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 5]]],
             3 => ['total' => 30, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 30]]],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([
             100 => 1000.0,
             1 => 10.0,
             2 => 50.0,
             200 => 2000.0,
             3 => 20.0,
-        ]);
+        ]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -430,16 +432,18 @@ class StockpileServiceTest extends TestCase
 
     public function testPreviewImportReturnsCorrectStagesAndEstimatedCost(): void
     {
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([
             self::WIDGET => 2_500_000.0,
             self::HULL => 41_000.0,
             self::GADGET => 730.0,
             self::ORE => 6.5,
-        ]);
+        ]));
 
         $result = $this->service->previewImport($this->user, self::WIDGET, self::FIVE_RUNS, self::ME_ZERO);
 
-        $this->assertSame(['stages', 'totalItems', 'estimatedCost', 'missingPriceTypeIds'], array_keys($result));
+        $resultKeys = array_keys($result);
+        sort($resultKeys);
+        $this->assertSame(['estimatedCost', 'missingPriceTypeIds', 'priceSources', 'stages', 'totalItems'], $resultKeys);
         $this->assertSame([], $result['missingPriceTypeIds']);
         $this->assertSame(4, $result['totalItems']);
         $this->assertSame([
@@ -447,7 +451,20 @@ class StockpileServiceTest extends TestCase
             'intermediate' => [['typeId' => self::GADGET, 'typeName' => 'Gadget', 'quantity' => 15, 'unitPrice' => 730.0]],
             'component' => [['typeId' => self::HULL, 'typeName' => 'Hull', 'quantity' => 10, 'unitPrice' => 41_000.0]],
             'final_product' => [['typeId' => self::WIDGET, 'typeName' => 'Widget', 'quantity' => 10, 'unitPrice' => 2_500_000.0]],
-        ], $result['stages']);
+        ], array_map(
+            static fn (array $items): array => array_map(static fn (array $item): array => array_diff_key($item, ['priceSource' => true]), $items),
+            $result['stages'],
+        ));
+        $this->assertSame([
+            'raw_material' => [self::FULL_JITA_SELL_SOURCE],
+            'intermediate' => [self::FULL_JITA_SELL_SOURCE],
+            'component' => [self::FULL_JITA_SELL_SOURCE],
+            'final_product' => [self::FULL_JITA_SELL_SOURCE],
+        ], array_map(
+            static fn (array $items): array => array_column($items, 'priceSource'),
+            $result['stages'],
+        ));
+        $this->assertSame(['estimatedCost' => self::FULL_JITA_SELL_SOURCE], $result['priceSources']);
         $this->assertSame(25_426_104.5, $result['estimatedCost']);
     }
 
@@ -488,10 +505,10 @@ class StockpileServiceTest extends TestCase
             1 => ['total' => 50, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 50]]],
             100 => ['total' => 10, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 10]]],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([
             1 => 10.0,
             100 => 5000.0,
-        ]);
+        ]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -537,10 +554,10 @@ class StockpileServiceTest extends TestCase
             1 => ['total' => 0, 'locations' => []],
             2 => ['total' => 50, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 50]]],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([
             1 => 10.0,
             2 => 20.0,
-        ]);
+        ]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -565,12 +582,12 @@ class StockpileServiceTest extends TestCase
             2 => ['total' => 30, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 30]]],
             3 => ['total' => 200, 'locations' => [['locationId' => 1000, 'locationName' => 'Jita', 'systemName' => 'Jita', 'quantity' => 200]]],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([
             100 => 5000000.0,
             1 => 10.0,
             2 => 500.0,
             3 => 50.0,
-        ]);
+        ]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -646,7 +663,7 @@ class StockpileServiceTest extends TestCase
             36 => ['total' => 900, 'locations' => []],
             16 => ['total' => 40, 'locations' => []],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([587 => 512_000.0, 34 => 4.75, 638 => 141_000_000.0, 36 => 68.0, 16 => 815.0]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([587 => 512_000.0, 34 => 4.75, 638 => 141_000_000.0, 36 => 68.0, 16 => 815.0]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -664,7 +681,7 @@ class StockpileServiceTest extends TestCase
             34 => ['total' => 900, 'locations' => []],
             35 => ['total' => 120, 'locations' => []],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([34 => 4.75, 35 => 11.2, 36 => 68.0]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([34 => 4.75, 35 => 11.2, 36 => 68.0]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
@@ -684,7 +701,7 @@ class StockpileServiceTest extends TestCase
             34 => ['total' => 50, 'locations' => []],
             3828 => ['total' => 15, 'locations' => []],
         ]);
-        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([587 => 512_000.0, 34 => 4.75, 3828 => 1_430.0]);
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([587 => 512_000.0, 34 => 4.75, 3828 => 1_430.0]));
 
         $status = $this->service->getStockpileStatus($this->user);
 
