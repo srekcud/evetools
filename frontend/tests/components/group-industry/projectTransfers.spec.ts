@@ -59,6 +59,21 @@ describe('ProjectTransfers', () => {
     expect(wrapper.get(TICK('member-corin', 'member-brann')).attributes('disabled')).toBeDefined()
   })
 
+  it('shows a transfer found in the wallet journal as verified and locks its tick', () => {
+    const wrapper = mountWith(projectSettlement({
+      transfers: [
+        projectTransfer({ canConfirm: true, received: true, journalVerified: true, receivedAt: '2026-11-10T18:00:00+00:00' }),
+        projectTransfer({ fromParticipantId: 'member-corin', fromName: 'Corin Vale', canConfirm: true }),
+      ],
+    }))
+
+    expect(wrapper.find(`[data-testid="transfer-journal-verified-member-aria-member-brann"]`).exists()).toBe(true)
+    expect((wrapper.get(TICK('member-aria', 'member-brann')).element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.get(TICK('member-aria', 'member-brann')).attributes('disabled')).toBeDefined()
+    expect(wrapper.find(`[data-testid="transfer-journal-verified-member-corin-member-brann"]`).exists()).toBe(false)
+    expect(wrapper.get(TICK('member-corin', 'member-brann')).attributes('disabled')).toBeUndefined()
+  })
+
   it('sends the tick to the receipt route of the transfer and shows the settlement it returns', async () => {
     const ticked = projectSettlement({ transfers: [projectTransfer({ canConfirm: true, received: true, receivedAt: '2026-11-09T20:00:00+00:00' })] })
     vi.mocked(apiRequest).mockResolvedValueOnce(ticked)

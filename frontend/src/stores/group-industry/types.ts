@@ -361,6 +361,7 @@ export type ProjectTransfer = {
   toName: string | null
   amount: number
   received: boolean
+  journalVerified: boolean
   receivedAt: string | null
   canConfirm: boolean
 }

@@ -25,7 +25,7 @@ Contrat vendu 600 000 000 ISK, journal : `contract_brokers_fee` −3 000 000 et 
 ## Hors périmètre
 
 - Contrat de plusieurs types d'items ou contrat de vente d'un item hors projet (non proposé) ; contrats `auction` ; contrats corporation.
-- Journal de corporation (voir `CorporationWalletJournalSync`) ; vérification automatique des virements de #324 par ce journal (reste à faire sur ces lignes : un virement de joueur à joueur n'est pas un `ref_type` conservé ici).
+- Journal de corporation (voir `CorporationWalletJournalSync`) ; vérification automatique des virements de #324 par ce journal : faite ensuite sur les dons entrants portant une référence de projet (spec #324, « Vérification par le journal wallet »).
 
 ## Décisions ouvertes
 

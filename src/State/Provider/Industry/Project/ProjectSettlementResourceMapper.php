@@ -29,6 +29,7 @@ final readonly class ProjectSettlementResourceMapper
                 'toName' => $transfer->toName,
                 'amount' => $transfer->amountCents / self::CENTS_PER_ISK,
                 'received' => $transfer->isReceived(),
+                'journalVerified' => $transfer->journalVerified,
                 'receivedAt' => $transfer->receivedAt?->format(\DateTimeInterface::ATOM),
                 'canConfirm' => $viewerId !== null && $transfer->toUserId === $viewerId,
             ],

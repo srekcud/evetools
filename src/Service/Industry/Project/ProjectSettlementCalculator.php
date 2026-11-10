@@ -27,6 +27,7 @@ final readonly class ProjectSettlementCalculator
         private TransferPlanner $transferPlanner,
         private UnsoldProductsOfProject $unsoldProducts,
         private ContractSaleFees $contractSaleFees,
+        private TransferJournalVerifier $journalVerifier,
     ) {
     }
 
@@ -170,15 +171,19 @@ final readonly class ProjectSettlementCalculator
             $participantsById[$participant->getId()->toRfc4122()] = $participant;
         }
 
+        $donations = $this->journalVerifier->donationsOf($project);
+
         $receiptsByTransfer = [];
         foreach ($this->receiptRepository->findByProject($project) as $receipt) {
             $receiptsByTransfer[$receipt->getFromParticipant()->getId()->toRfc4122().'|'.$receipt->getToParticipant()->getId()->toRfc4122()] = $receipt;
         }
 
-        return array_map(function (PlannedTransfer $planned) use ($participantsById, $receiptsByTransfer): SettlementTransfer {
+        return array_map(function (PlannedTransfer $planned) use ($participantsById, $receiptsByTransfer, $donations): SettlementTransfer {
             $from = $participantsById[$planned->fromParticipantId];
             $to = $participantsById[$planned->toParticipantId];
             $receipt = $receiptsByTransfer[$planned->fromParticipantId.'|'.$planned->toParticipantId] ?? null;
+            $journalVerifiedAt = $this->journalVerifier->verifiedAt($donations, $from, $to, $planned->amountCents);
+            $manualReceivedAt = $receipt !== null && $receipt->getAmountCents() === $planned->amountCents ? $receipt->getReceivedAt() : null;
 
             return new SettlementTransfer(
                 $planned->fromParticipantId,
@@ -187,7 +192,8 @@ final readonly class ProjectSettlementCalculator
                 PilotName::of($to->getUser()),
                 $to->getUser()?->getId()?->toRfc4122(),
                 $planned->amountCents,
-                $receipt !== null && $receipt->getAmountCents() === $planned->amountCents ? $receipt->getReceivedAt() : null,
+                $journalVerifiedAt ?? $manualReceivedAt,
+                $journalVerifiedAt !== null,
             );
         }, $plan->transfers);
     }

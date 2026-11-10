@@ -72,4 +72,20 @@ class CachedWalletJournalEntryRepository extends ServiceEntityRepository
 
         return $fees;
     }
+
+    /**
+     * @return list<CachedWalletJournalEntry>
+     */
+    public function findIncomingDonationsMentioning(string $reference): array
+    {
+        return array_values($this->createQueryBuilder('entry')
+            ->addSelect('character')
+            ->join('entry.character', 'character')
+            ->andWhere('entry.refType = :refType')
+            ->andWhere('UPPER(entry.reason) LIKE :reference')
+            ->setParameter('refType', CachedWalletJournalEntry::PLAYER_DONATION)
+            ->setParameter('reference', '%'.strtoupper($reference).'%')
+            ->getQuery()
+            ->getResult());
+    }
 }

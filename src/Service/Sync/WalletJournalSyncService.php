@@ -8,6 +8,7 @@ use App\Entity\CachedWalletJournalEntry;
 use App\Entity\Character;
 use App\Repository\CachedWalletJournalEntryRepository;
 use App\Service\ESI\EsiClient;
+use App\Service\Industry\Project\ProjectPaymentReference;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -39,7 +40,7 @@ class WalletJournalSyncService
         }
 
         try {
-            $lines = $this->contractFeeLines($this->esiClient->getPaginated("/characters/{$character->getEveCharacterId()}/wallet/journal/", $token));
+            $lines = $this->keptLines($this->esiClient->getPaginated("/characters/{$character->getEveCharacterId()}/wallet/journal/", $token));
             $knownIds = array_flip($this->journalRepository->findExistingEntryIds($character, array_map(static fn (array $line): int => (int) $line['id'], $lines)));
 
             $stored = 0;
@@ -65,7 +66,7 @@ class WalletJournalSyncService
         }
 
         if ($userId !== null) {
-            $this->mercurePublisher->syncCompleted($userId, self::SYNC_TYPE, sprintf('%d contract fee lines stored', $stored));
+            $this->mercurePublisher->syncCompleted($userId, self::SYNC_TYPE, sprintf('%d journal lines stored', $stored));
         }
     }
 
@@ -74,12 +75,24 @@ class WalletJournalSyncService
      *
      * @return list<array<string, mixed>>
      */
-    private function contractFeeLines(array $journal): array
+    private function keptLines(array $journal): array
     {
         return array_values(array_filter(
             $journal,
-            static fn (array $line): bool => \in_array($line['ref_type'] ?? null, CachedWalletJournalEntry::CONTRACT_FEE_REF_TYPES, true),
+            fn (array $line): bool => \in_array($line['ref_type'] ?? null, CachedWalletJournalEntry::CONTRACT_FEE_REF_TYPES, true)
+                || $this->isIncomingPaymentWithProjectReference($line),
         ));
+    }
+
+    /**
+     * @param array<string, mixed> $line
+     */
+    private function isIncomingPaymentWithProjectReference(array $line): bool
+    {
+        return ($line['ref_type'] ?? null) === CachedWalletJournalEntry::PLAYER_DONATION
+            && (float) ($line['amount'] ?? 0.0) > 0.0
+            && \is_string($line['reason'] ?? null)
+            && ProjectPaymentReference::appearsIn($line['reason']);
     }
 
     /**
@@ -87,6 +100,8 @@ class WalletJournalSyncService
      */
     private function entryOf(Character $character, array $line): CachedWalletJournalEntry
     {
+        $isDonation = $line['ref_type'] === CachedWalletJournalEntry::PLAYER_DONATION;
+
         return (new CachedWalletJournalEntry())
             ->setCharacter($character)
             ->setJournalEntryId((int) $line['id'])
@@ -94,6 +109,8 @@ class WalletJournalSyncService
             ->setAmount((float) $line['amount'])
             ->setDate(new \DateTimeImmutable((string) $line['date']))
             ->setContextId(isset($line['context_id']) ? (int) $line['context_id'] : null)
-            ->setContextIdType(isset($line['context_id_type']) ? (string) $line['context_id_type'] : null);
+            ->setContextIdType(isset($line['context_id_type']) ? (string) $line['context_id_type'] : null)
+            ->setReason($isDonation ? (string) $line['reason'] : null)
+            ->setFirstPartyId($isDonation && isset($line['first_party_id']) ? (int) $line['first_party_id'] : null);
     }
 }

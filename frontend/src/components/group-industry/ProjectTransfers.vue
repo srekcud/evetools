@@ -79,12 +79,17 @@ onBeforeUnmount(() => clearTimeout(copiedTimer))
           <span class="font-medium">{{ pilotName(transfer.toName) }}</span>
         </span>
         <span class="font-mono text-slate-100">{{ formatIskExact(transfer.amount) }}</span>
+        <span
+          v-if="transfer.journalVerified"
+          :data-testid="`transfer-journal-verified-${transfer.fromParticipantId}-${transfer.toParticipantId}`"
+          class="rounded-sm border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-xs text-emerald-300"
+        >{{ t('groupIndustry.transfers.verifiedByJournal') }}</span>
         <label class="flex items-center gap-2 text-xs text-slate-300" :title="transfer.canConfirm ? undefined : t('groupIndustry.transfers.onlyRecipient')">
           <input
             type="checkbox"
             :data-testid="`transfer-received-${transfer.fromParticipantId}-${transfer.toParticipantId}`"
             :checked="transfer.received"
-            :disabled="!transfer.canConfirm"
+            :disabled="!transfer.canConfirm || transfer.journalVerified"
             @change="tick(transfer, $event)"
           >
           {{ t('groupIndustry.transfers.received') }}

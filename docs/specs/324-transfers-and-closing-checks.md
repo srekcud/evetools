@@ -31,11 +31,21 @@ Détenu 100,00, dus 33,33 / 33,33 / 33,33 : écart d'arrondi +0,01, absorbé par
 
 ## Hors périmètre
 
-- Virement depuis evetools (pas d'endpoint ESI d'écriture) ; vérification automatique par le journal wallet (non synchronisé, question laissée ouverte sur l'issue).
+- Virement depuis evetools (pas d'endpoint ESI d'écriture).
 - Frais réels d'un contrat par le journal wallet (même besoin que ci-dessous).
 - PNG ou export du récap ; blocage de la clôture.
 
 ## Décisions ouvertes
 
 - Écart d'arrondi par virement (issue) remplacé par un écart global du projet.
-- Vérification par le journal wallet : à décider.
+- Vérification par le journal wallet : décidée, voir « Vérification par le journal wallet » (reliquat, 2026-11-10).
+
+## Vérification par le journal wallet (reliquat, 2026-11-10)
+
+Décision : la sync du journal livrée par #500 sert aussi aux virements (commentaire de #500 : « une seule sync du journal »). Aucune nouvelle sync, aucun nouveau message.
+
+1. **Lignes gardées en plus des frais de contrat** : `ref_type` `player_donation`, montant positif (entrant) et `reason` contenant une référence de paiement de projet (`ProjectPaymentReference::appearsIn`, `IP-` + 6 hexadécimaux, casse libre). Les autres dons du personnage ne sont jamais stockés. Colonnes `reason` (500) et `first_party_id` (expéditeur) sur `cached_wallet_journal_entries`, nulles pour les frais de contrat (migration `Version20261110220000`).
+2. **Virement vérifié** (`TransferJournalVerifier`) : les lignes du journal d'un personnage du destinataire dont le motif contient la référence du projet (`ProjectPaymentReference::isMentionedIn`) et dont l'expéditeur est un personnage du payeur ; leur somme en centimes couvre le montant du virement du plan courant (un virement payé en plusieurs fois compte, un virement trop faible non). `receivedAt` = date de la dernière ligne.
+3. **Calcul** : `ProjectSettlementCalculator` marque le virement reçu si le journal le vérifie ou si le reçu manuel existe pour le même montant ; le journal prime. `SettlementTransfer::$journalVerified` et `journalVerified` dans `transfers[]` de `GET /settlement`.
+4. **Front** : badge « Vérifié dans le journal wallet » sur la ligne, case cochée et désactivée (un virement vu dans le journal ne se décoche pas) ; compteur de la modale de clôture inchangé (il compte les reçus).
+5. **Limites** : un journal non synchronisé (personnage sans jeton ou sans scope wallet, avant la prochaine sync horaire) laisse le virement non vérifié, la case manuelle reste possible ; un virement envoyé depuis un personnage inconnu d'evetools n'est pas reconnu.

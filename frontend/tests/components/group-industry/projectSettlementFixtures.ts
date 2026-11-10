@@ -10,6 +10,7 @@ export function projectTransfer(overrides: Partial<ProjectTransfer> = {}): Proje
     toName: 'Brann Holt',
     amount: 277_500,
     received: false,
+    journalVerified: false,
     receivedAt: null,
     canConfirm: false,
     ...overrides,
