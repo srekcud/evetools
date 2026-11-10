@@ -3976,6 +3976,25 @@
         "empty": "Aucun personnage avec un vaisseau connu dans les opérations à valeur figée.",
         "unknownCharacters": "{count} personnage sans vaisseau connu, hors de ce tableau | {count} personnages sans vaisseau connu, hors de ce tableau"
       },
+      "sites": {
+        "title": "Meilleurs sites par système",
+        "columns": {
+          "system": "Système",
+          "bestSite": "Meilleur site",
+          "iskPerHour": "ISK/h",
+          "duration": "Durée",
+          "sites": "Sites"
+        },
+        "unknown": "Inconnu",
+        "systemOutsideSde": "Système {id}",
+        "unknownSite": "inconnu : {label} ({reason})",
+        "reasons": {
+          "fewScans": "un seul scan",
+          "noPrice": "sans prix"
+        },
+        "empty": "Aucun site scanné sur la période",
+        "withoutSystem": "{count} site sans système, hors de ce tableau | {count} sites sans système, hors de ce tableau"
+      },
       "empty": "Aucune opération de votre corporation terminée sur cette période."
     },
     "payments": {
