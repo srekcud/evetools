@@ -52,10 +52,7 @@ class InventionService
     }
 
     /**
-     * Calculate the job install cost for copying a blueprint.
-     *
-     * EVE formula: 0.02 x EIV x runs x system_cost_index x (1 + facility_tax / 100)
-     * Where EIV = sum of (adjusted_price x quantity) of the blueprint's manufacturing outputs.
+     * Job install cost for copying a blueprint, on the manufacturing materials of the blueprint (spec R6).
      *
      * @return array{cost: ?float, unknownReason: ?string, missingAdjustedPriceTypeIds: list<int>}
      */
@@ -65,19 +62,13 @@ class InventionService
         int $solarSystemId,
         ?float $facilityTaxPercent = null,
     ): array {
-        $costIndex = $this->esiCostIndexService->getCostIndex($solarSystemId, 'copying');
-        if ($costIndex === null) {
-            return ['cost' => null, 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_COST_INDEX, 'missingAdjustedPriceTypeIds' => []];
-        }
-
-        $eiv = $this->calculateBlueprintEiv($blueprintTypeId);
-        if ($eiv['missingAdjustedPriceTypeIds'] !== []) {
-            return ['cost' => null, 'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => $eiv['missingAdjustedPriceTypeIds']];
-        }
-
-        $taxMultiplier = 1.0 + ($facilityTaxPercent ?? 0.0) / 100.0;
-
-        return ['cost' => 0.02 * $eiv['value'] * $runs * $costIndex * $taxMultiplier, 'unknownReason' => null, 'missingAdjustedPriceTypeIds' => []];
+        return $this->esiCostIndexService->estimateJobInstallCost(
+            $this->activityMaterialRepository->findMaterialsForBlueprints([$blueprintTypeId], [IndustryActivityType::Manufacturing->value])[$blueprintTypeId] ?? [],
+            $runs,
+            $solarSystemId,
+            'copying',
+            $facilityTaxPercent,
+        );
     }
 
     /**
@@ -349,33 +340,5 @@ class InventionService
         }
 
         return ['cost' => $invention['costPerAttempt'] / ($invention['effectiveProbability'] * $invention['runs']), 'unknownReason' => null];
-    }
-
-    /**
-     * Calculate the Estimated Item Value (EIV) for a blueprint.
-     * EIV = sum of (adjusted_price x quantity) for each manufacturing output.
-     *
-     * @return array{value: float, missingAdjustedPriceTypeIds: list<int>}
-     */
-    private function calculateBlueprintEiv(int $blueprintTypeId): array
-    {
-        $products = $this->activityProductRepository->findBy([
-            'typeId' => $blueprintTypeId,
-            'activityId' => IndustryActivityType::Manufacturing->value,
-        ]);
-
-        $value = 0.0;
-        $missingAdjustedPriceTypeIds = [];
-        foreach ($products as $product) {
-            $adjustedPrice = $this->esiCostIndexService->getAdjustedPrice($product->getProductTypeId());
-            if ($adjustedPrice === null) {
-                $missingAdjustedPriceTypeIds[] = $product->getProductTypeId();
-
-                continue;
-            }
-            $value += $adjustedPrice * $product->getQuantity();
-        }
-
-        return ['value' => $value, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
     }
 }

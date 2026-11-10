@@ -355,9 +355,9 @@ class InventionServiceTest extends TestCase
     }
 
     #[Group('issue-7')]
-    public function testInventionCostChargesAOneRunCopyOfTheT1BlueprintAtTheCopyingIndexOfTheRequestedSystemWithTheReceivedTaxCurrentlyOnTheProductAdjustedPriceIssue7(): void
+    public function testInventionCostChargesTheCopyEstimateOfTheIndustryCoreOnTheManufacturingMaterialsOfTheT1BlueprintForOneRunInTheRequestedSystemWithTheReceivedTax(): void
     {
-        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, self::THRASHER_ADJUSTED_PRICE);
+        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, $this->knownInstallEstimate(1100.0));
 
         $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, self::AMARR_SOLAR_SYSTEM_ID, null, 1, 10.0);
 
@@ -368,6 +368,13 @@ class InventionServiceTest extends TestCase
             'costBreakdown' => ['datacores' => 463400.0, 'decryptor' => 0.0, 'copyCost' => 1100.0, 'inventionInstall' => 4270.0],
             'unknownReason' => null,
         ], $result);
+        $this->assertSame(
+            [
+                [self::THRASHER_MANUFACTURING_MATERIALS, 1, self::AMARR_SOLAR_SYSTEM_ID, 'copying', 10.0],
+                [self::SABRE_MANUFACTURING_MATERIALS, 1, self::AMARR_SOLAR_SYSTEM_ID, 'invention', 10.0],
+            ],
+            $this->installEstimateCalls,
+        );
     }
 
     public static function nonIntegerAttemptRatios(): iterable
@@ -399,22 +406,11 @@ class InventionServiceTest extends TestCase
         float $baseProbability,
         int $baseRuns,
         array $marketPrices = self::PRICED_INVENTION_MARKET_PRICES,
-        ?float $t1ProductAdjustedPrice = 0.0,
+        ?array $copyEstimate = null,
     ): void {
         $this->setupInventionChainWithDatacoreLines(self::SABRE_TYPE_ID, $baseProbability, $baseRuns, self::PRICED_DATACORE_LINES);
-        $this->stubInventionInstallEstimate($this->knownInstallEstimate(self::PRICED_INVENTION_INSTALL_COST));
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(self::PRICED_INVENTION_INSTALL_COST), $copyEstimate ?? $this->knownInstallEstimate(0.0));
         $this->stubMarketPricesWithFallback($marketPrices);
-        $this->activityProductRepository->method('findBy')->willReturn([
-            $this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::THRASHER_TYPE_ID, 1),
-        ]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturnCallback(
-            static fn (int $typeId): ?float => $typeId === self::THRASHER_TYPE_ID ? $t1ProductAdjustedPrice : null,
-        );
-        $this->esiCostIndexService->method('getCostIndex')->willReturnCallback(
-            static fn (int $solarSystemId, string $activity): ?float => $activity === 'copying'
-                ? [self::AMARR_SOLAR_SYSTEM_ID => self::AMARR_COPYING_COST_INDEX, self::JITA_SOLAR_SYSTEM_ID => self::JITA_COPYING_COST_INDEX, self::SABRE_DEFAULT_SOLAR_SYSTEM_ID => self::AMARR_COPYING_COST_INDEX][$solarSystemId] ?? null
-                : null,
-        );
     }
 
     #[Group('issue-124')]
@@ -464,75 +460,30 @@ class InventionServiceTest extends TestCase
     // getCopyJobCost() tests
     // ===========================================
 
-    public function testEstimateCopyJobCostCalculatesCorrectly(): void
+    public function testEstimateCopyJobCostIsTheInstallEstimateOfTheIndustryCoreOnTheManufacturingMaterialsOfTheBlueprint(): void
     {
-        // EIV: adjusted_price * quantity for manufacturing outputs
-        $manufacturingOutput = $this->createProduct(
-            self::THRASHER_BLUEPRINT_ID,
-            IndustryActivityType::Manufacturing->value,
-            587, // Thrasher
-            1,
-        );
-        $this->activityProductRepository
-            ->method('findBy')
-            ->willReturn([$manufacturingOutput]);
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0), $this->knownInstallEstimate(110000.0));
 
-        $this->esiCostIndexService
-            ->method('getAdjustedPrice')
-            ->with(587)
-            ->willReturn(500000.0);
+        $estimate = $this->service->estimateCopyJobCost(self::THRASHER_BLUEPRINT_ID, 10, 30002510, 5.0);
 
-        $this->esiCostIndexService
-            ->method('getCostIndex')
-            ->with(30002510, 'copying')
-            ->willReturn(0.05);
-
-        // 0.02 * 500000 * 3 runs * 0.05 * 1.0 (no tax) = 1500.0
-        $estimate = $this->service->estimateCopyJobCost(self::THRASHER_BLUEPRINT_ID, 3, 30002510);
-
-        $this->assertEqualsWithDelta(1500.0, $estimate['cost'], 0.01);
-        $this->assertNull($estimate['unknownReason']);
-    }
-
-    public function testEstimateCopyJobCostWithFacilityTax(): void
-    {
-        $manufacturingOutput = $this->createProduct(
-            self::THRASHER_BLUEPRINT_ID,
-            IndustryActivityType::Manufacturing->value,
-            587,
-            1,
-        );
-        $this->activityProductRepository->method('findBy')->willReturn([$manufacturingOutput]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(500000.0);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.05);
-
-        // With 10% facility tax
-        // 0.02 * 500000 * 1 * 0.05 * 1.10 = 550.0
-        $estimate = $this->service->estimateCopyJobCost(self::THRASHER_BLUEPRINT_ID, 1, 30002510, 10.0);
-
-        $this->assertEqualsWithDelta(550.0, $estimate['cost'], 0.01);
+        $this->assertSame($this->knownInstallEstimate(110000.0), $estimate);
+        $this->assertSame([[self::THRASHER_MANUFACTURING_MATERIALS, 10, 30002510, 'copying', 5.0]], $this->installEstimateCalls);
     }
 
     #[Group('issue-331')]
-    public function testEstimateCopyJobCostIsUnknownWithTheMissingAdjustedPriceReasonWhenTheProductHasNoAdjustedPrice(): void
+    public function testEstimateCopyJobCostIsUnknownWithTheMissingAdjustedPriceReasonWhenAMaterialHasNoAdjustedPrice(): void
     {
-        $this->activityProductRepository->method('findBy')->willReturn([
-            $this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, 587, 1),
-        ]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(null);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(0.05);
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0), $this->unknownInstallEstimate(self::MISSING_ADJUSTED_PRICE, [self::TRITANIUM_TYPE_ID]));
 
         $estimate = $this->service->estimateCopyJobCost(self::THRASHER_BLUEPRINT_ID, 1, 30002510);
 
-        $this->assertSame(['cost' => null, 'unknownReason' => self::MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => [587]], $estimate);
+        $this->assertSame(['cost' => null, 'unknownReason' => self::MISSING_ADJUSTED_PRICE, 'missingAdjustedPriceTypeIds' => [self::TRITANIUM_TYPE_ID]], $estimate);
     }
 
     #[Group('issue-331')]
     public function testEstimateCopyJobCostIsUnknownWithTheMissingCostIndexReasonWhenNoCostIndex(): void
     {
-        $this->activityProductRepository->method('findBy')->willReturn([]);
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturn(null);
-        $this->esiCostIndexService->method('getCostIndex')->willReturn(null);
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0), $this->unknownInstallEstimate(self::MISSING_COST_INDEX));
 
         $estimate = $this->service->estimateCopyJobCost(self::THRASHER_BLUEPRINT_ID, 1, 30002510);
 
@@ -1000,7 +951,7 @@ class InventionServiceTest extends TestCase
             'missingAdjustedPriceTypeIds' => [],
             'unknownReason' => null,
         ], $result);
-        $this->assertCount(1, $this->installEstimateCalls);
+        $this->assertCount(1, $this->installEstimateCallsFor('invention'));
     }
 
     #[Group('issue-7')]
@@ -1013,7 +964,7 @@ class InventionServiceTest extends TestCase
 
         $this->assertSame(
             [[self::SABRE_MANUFACTURING_MATERIALS, 1, 30002510, 'invention', 10.0]],
-            $this->installEstimateCalls,
+            $this->installEstimateCallsFor('invention'),
         );
     }
 
@@ -1091,21 +1042,12 @@ class InventionServiceTest extends TestCase
     private function setupSabreInventionAt(?float $baseProbability, array $datacoreLines, ?array $installEstimate = null): void
     {
         $this->setupInventionChainWithDatacoreLines(self::SABRE_TYPE_ID, $baseProbability, 10, $datacoreLines);
-        $this->stubInventionInstallEstimate($installEstimate ?? $this->knownInstallEstimate(500.0));
+        $this->stubInventionInstallEstimate($installEstimate ?? $this->knownInstallEstimate(500.0), $this->knownInstallEstimate(1000.0));
+    }
 
-        $manufacturingOutputsByBlueprint = [
-            self::THRASHER_BLUEPRINT_ID => [$this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::THRASHER_TYPE_ID, 1)],
-            self::SABRE_BLUEPRINT_ID => [$this->createProduct(self::SABRE_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::SABRE_TYPE_ID, 1)],
-        ];
-        $this->activityProductRepository->method('findBy')->willReturnCallback(
-            static fn (array $criteria): array => $manufacturingOutputsByBlueprint[$criteria['typeId']] ?? [],
-        );
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturnCallback(
-            static fn (int $typeId): ?float => [self::THRASHER_TYPE_ID => 1000000.0, self::SABRE_TYPE_ID => 1250000.0][$typeId] ?? null,
-        );
-        $this->esiCostIndexService->method('getCostIndex')->willReturnCallback(
-            static fn (int $solarSystemId, string $activity): ?float => ['copying' => 0.05, 'invention' => 0.02][$activity] ?? null,
-        );
+    private function installEstimateCallsFor(string $activity): array
+    {
+        return array_values(array_filter($this->installEstimateCalls, static fn (array $call): bool => $call[3] === $activity));
     }
 
     private function knownInstallEstimate(float $cost): array
@@ -1118,17 +1060,26 @@ class InventionServiceTest extends TestCase
         return ['cost' => null, 'unknownReason' => $unknownReason, 'missingAdjustedPriceTypeIds' => $missingAdjustedPriceTypeIds];
     }
 
-    private function stubInventionInstallEstimate(array $estimate): void
+    private function stubInventionInstallEstimate(array $estimate, ?array $copyEstimate = null): void
     {
+        $manufacturingMaterialsByBlueprint = [
+            self::SABRE_BLUEPRINT_ID => self::SABRE_MANUFACTURING_MATERIALS,
+            self::THRASHER_BLUEPRINT_ID => self::THRASHER_MANUFACTURING_MATERIALS,
+        ];
         $this->activityMaterialRepository
             ->method('findMaterialsForBlueprints')
-            ->with([self::SABRE_BLUEPRINT_ID], [IndustryActivityType::Manufacturing->value])
-            ->willReturn([self::SABRE_BLUEPRINT_ID => self::SABRE_MANUFACTURING_MATERIALS]);
+            ->willReturnCallback(static function (array $blueprintTypeIds, array $activityIds) use ($manufacturingMaterialsByBlueprint): array {
+                if ([IndustryActivityType::Manufacturing->value] !== $activityIds) {
+                    return [];
+                }
+
+                return array_intersect_key($manufacturingMaterialsByBlueprint, array_flip($blueprintTypeIds));
+            });
         $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
-            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent) use ($estimate): array {
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent) use ($estimate, $copyEstimate): array {
                 $this->installEstimateCalls[] = [$materials, $runs, $solarSystemId, $activity, $facilityTaxPercent];
 
-                return $estimate;
+                return 'copying' === $activity ? $copyEstimate ?? $this->knownInstallEstimate(0.0) : $estimate;
             },
         );
     }
@@ -1159,43 +1110,16 @@ class InventionServiceTest extends TestCase
 
     private const int SABRE_DEFAULT_SOLAR_SYSTEM_ID = 30002510;
     private const int AMARR_SOLAR_SYSTEM_ID = 30002187;
-    private const int JITA_SOLAR_SYSTEM_ID = 30000142;
-    private const int PERIMETER_SOLAR_SYSTEM_ID = 30000144;
-    private const float AMARR_COPYING_COST_INDEX = 0.05;
-    private const float JITA_COPYING_COST_INDEX = 0.07;
-    private const float THRASHER_ADJUSTED_PRICE = 1000000.0;
-
-    private const int MULTI_UNIT_BLUEPRINT_TYPE_ID = 990001;
-    private const int MULTI_UNIT_PRODUCT_TYPE_ID = 990002;
-    private const int MULTI_UNIT_UNITS_PER_RUN = 100;
-    private const float MULTI_UNIT_PRODUCT_ADJUSTED_PRICE = 37.0;
-
-    #[Group('issue-7')]
-    public function testCopyJobCostOfAProductWithSeveralUnitsPerRunCurrentlyTakesItsEivFromTheProductAdjustedPriceTimesTheUnitsPerRunIssue7(): void
-    {
-        $this->stubCopyEivFromManufacturedProducts();
-
-        $estimate = $this->service->estimateCopyJobCost(self::MULTI_UNIT_BLUEPRINT_TYPE_ID, 9, self::AMARR_SOLAR_SYSTEM_ID, 5.0);
-
-        $this->assertSame(34.965, $estimate['cost']);
-    }
-
-    #[Group('issue-331')]
-    public function testCopyJobCostIsUnknownWhenTheCopyingCostIndexOfTheSystemIsMissing(): void
-    {
-        $this->stubCopyEivFromManufacturedProducts();
-
-        $estimate = $this->service->estimateCopyJobCost(self::THRASHER_BLUEPRINT_ID, 4, self::PERIMETER_SOLAR_SYSTEM_ID, 5.0);
-
-        $this->assertSame(['cost' => null, 'unknownReason' => self::MISSING_COST_INDEX, 'missingAdjustedPriceTypeIds' => []], $estimate);
-    }
+    private const array THRASHER_MANUFACTURING_MATERIALS = [
+        ['materialTypeId' => self::TRITANIUM_TYPE_ID, 'quantity' => 50000],
+    ];
 
     #[Group('issue-331')]
     public function testInventionCostIsUnknownWhenTheCopyingCostIndexOfTheSystemIsMissing(): void
     {
-        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, self::THRASHER_ADJUSTED_PRICE);
+        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, $this->unknownInstallEstimate(self::MISSING_COST_INDEX));
 
-        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, self::PERIMETER_SOLAR_SYSTEM_ID);
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, self::AMARR_SOLAR_SYSTEM_ID);
 
         $this->assertInventionCostOutcome([
             'costPerAttempt' => null,
@@ -1206,9 +1130,9 @@ class InventionServiceTest extends TestCase
     }
 
     #[Group('issue-331')]
-    public function testInventionCostReportsTheProductsWithoutAdjustedPriceOfTheCopiedBlueprint(): void
+    public function testInventionCostReportsTheMaterialsWithoutAdjustedPriceOfTheCopiedBlueprint(): void
     {
-        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, null);
+        $this->setupPricedSabreInvention(0.25, 1, self::PRICED_INVENTION_MARKET_PRICES, $this->unknownInstallEstimate(self::MISSING_ADJUSTED_PRICE, [self::TRITANIUM_TYPE_ID]));
 
         $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, self::AMARR_SOLAR_SYSTEM_ID);
 
@@ -1216,33 +1140,8 @@ class InventionServiceTest extends TestCase
             'costPerAttempt' => null,
             'totalCost' => null,
             'costBreakdown' => ['datacores' => 463400.0, 'decryptor' => 0.0, 'copyCost' => null, 'inventionInstall' => self::PRICED_INVENTION_INSTALL_COST],
-            'missingAdjustedPriceTypeIds' => [self::THRASHER_TYPE_ID],
+            'missingAdjustedPriceTypeIds' => [self::TRITANIUM_TYPE_ID],
             'unknownReason' => self::MISSING_ADJUSTED_PRICE,
         ], $result);
     }
-
-    private function stubCopyEivFromManufacturedProducts(): void
-    {
-        $manufacturedProductsByBlueprint = [
-            self::THRASHER_BLUEPRINT_ID => [$this->createProduct(self::THRASHER_BLUEPRINT_ID, IndustryActivityType::Manufacturing->value, self::THRASHER_TYPE_ID, 1)],
-            self::MULTI_UNIT_BLUEPRINT_TYPE_ID => [$this->createProduct(self::MULTI_UNIT_BLUEPRINT_TYPE_ID, IndustryActivityType::Manufacturing->value, self::MULTI_UNIT_PRODUCT_TYPE_ID, self::MULTI_UNIT_UNITS_PER_RUN)],
-        ];
-        $this->activityProductRepository->method('findBy')->willReturnCallback(
-            static fn (array $criteria): array => ($criteria['activityId'] ?? null) === IndustryActivityType::Manufacturing->value
-                ? $manufacturedProductsByBlueprint[$criteria['typeId']] ?? []
-                : [],
-        );
-        $this->esiCostIndexService->method('getAdjustedPrice')->willReturnCallback(
-            static fn (int $typeId): ?float => [
-                self::THRASHER_TYPE_ID => self::THRASHER_ADJUSTED_PRICE,
-                self::MULTI_UNIT_PRODUCT_TYPE_ID => self::MULTI_UNIT_PRODUCT_ADJUSTED_PRICE,
-            ][$typeId] ?? null,
-        );
-        $this->esiCostIndexService->method('getCostIndex')->willReturnCallback(
-            static fn (int $solarSystemId, string $activity): ?float => $activity === 'copying' && $solarSystemId === self::AMARR_SOLAR_SYSTEM_ID
-                ? self::AMARR_COPYING_COST_INDEX
-                : null,
-        );
-    }
-
 }

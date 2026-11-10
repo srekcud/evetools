@@ -1,6 +1,6 @@
 # Spec — Noyau de calcul Industrie (v1)
 
-- **Statut** : validée, décisions D1 à D12 du 2026-10-07 (D11a en attente de vérification en jeu)
+- **Statut** : validée, décisions D1 à D12 du 2026-10-07 (D11a confirmée en jeu le 2026-11-05, #219)
 - **Date** : 2026-10-07
 - **Décision d'architecture** : [ADR-0009](../adr/0009-noyau-calcul-industrie.md)
 - **État du code de référence** : commit `fb9cc98`
@@ -142,7 +142,7 @@ total        = coût_système + taxe + SCC + alpha
 
 - Le bonus de rôle de coût ne s'applique **qu'au** terme `coût_système`. La taxe, le SCC et la taxe alpha portent sur la base.
 - La taxe s'**ajoute** : elle ne multiplie pas le cost index.
-- Taux SCC : 4 % en fabrication, réaction et invention. Copie : 4 %, **en attente de vérification en jeu** (D11a) ; la baisse à 2 % de juillet 2025 ne vise que la recherche ME/TE, hors périmètre.
+- Taux SCC : 4 % en fabrication, réaction et invention. Copie : 4 %, **confirmé en jeu le 2026-11-05** (D11a, #219) ; la baisse à 2 % de juillet 2025 ne vise que la recherche ME/TE, hors périmètre.
 - Taxe d'installation en station NPC : 0,25 %.
 - Un cost index absent rend le coût **inconnu** (R10), jamais 0.
 - Le résultat expose le détail : `coût_système`, `taxe`, `SCC`, `alpha`, `total`.
@@ -215,7 +215,7 @@ Les goldens fixent la formule, pas la sélection de structure : les tests passen
 |---|---|
 | Nitrogen Fuel Block | **fait foi** |
 | Nomad (plan publié par un planificateur tiers, recalculé à l'unité) | **fait foi** |
-| Coût d'installation : vecteurs | fait foi, sauf la copie (D11a) |
+| Coût d'installation : vecteurs | fait foi |
 | Hail L | **provisoire** : à recouper avec un plan tiers avec structures ou l'API EVE Ref |
 | Fernite Carbide | **provisoire** : idem |
 
@@ -302,11 +302,11 @@ Taux en fraction. Tolérance 1 ISK.
 | Fabrication, Sotiyo, alpha | EIV 1 000 000 | 0,05 | 0,95 | 0 | oui | 47 500 | 0 | 40 000 | 2 500 | **90 000** | 50 000 |
 | Réaction, Tatara | EIV 2 000 000 | 0,03 | 1,00 | 0,05 | non | 60 000 | 100 000 | 80 000 | 0 | **240 000** | 63 000 |
 | Invention, 1 tentative | 2 % × 10 000 000 = 200 000 | 0,08 | 1,00 | 0,05 | non | 16 000 | 10 000 | 8 000 | 0 | **34 000** | 16 800 |
-| Copie, 10 runs (D11a en attente) | 2 % × 5 000 000 × 10 = 1 000 000 | 0,02 | 1,00 | 0 | non | 20 000 | 0 | 40 000 | 0 | **60 000** | 20 000 |
+| Copie, 10 runs | 2 % × 5 000 000 × 10 = 1 000 000 | 0,02 | 1,00 | 0 | non | 20 000 | 0 | 40 000 | 0 | **60 000** | 20 000 |
 | Cost index absent | EIV 1 000 000 | absent | — | 0,10 | non | | | | | **inconnu** | 0 |
 | Adjusted price absent | 1 000 × 4,0 + 500 × absent | — | — | — | — | | | | | EIV **inconnue** (typeId 35 listé) | EIV 4 000 |
 
-Le vecteur de copie reste en `markTestIncomplete` (ou équivalent) tant que D11a n'est pas confirmée.
+Le vecteur de copie est actif : la SCC de 4 % sur la copie est confirmée par le relevé en jeu du 2026-11-05 (#219).
 
 ### 4.6 Vecteurs synthétiques à ajouter
 
@@ -337,9 +337,9 @@ Non issus des goldens, calculés à la main pour R7, R3 (plafond BPC) et R13.
 
 ## 6. Critères d'acceptation
 
-1. Les cas 4.1, 4.4 et 4.5 (hors copie) passent dans `tests/` contre `src/Industry/Domain/`, à 1 ISK près pour les montants.
+1. Les cas 4.1, 4.4 et 4.5 passent dans `tests/` contre `src/Industry/Domain/`, à 1 ISK près pour les montants.
 2. Les cas 4.2 et 4.3 passent ; ils ne deviennent bloquants qu'après recoupement externe (D12).
-3. Le vecteur de copie passe après confirmation de D11a.
+3. Le vecteur de copie passe (D11a confirmée).
 4. Une seule implémentation de R1, de R4 et de R6 dans `src/` : les anciennes sont supprimées au fil de la migration (§7).
 5. `src/Industry/Domain/` ne dépend d'aucune autre partie de `src/`, ni de Doctrine, Symfony ou HTTP (règle deptrac).
 6. Aucun `?? 0.0` ni catch silencieux sur un prix, un indice ou une probabilité dans le noyau.
@@ -386,7 +386,7 @@ Ensuite, les calculs qui n'appellent pas l'arbre : `BatchProfitScannerService` (
 
 ## 9. Points ouverts
 
-- **D11a** : SCC de 4 % sur la copie, en attente d'un job de copie lancé en jeu.
+- **D11a** : levée le 2026-11-05 (#219) : SCC de 4 % sur la copie, relevé d'un job de copie en jeu.
 - **D12** : goldens Hail L et Fernite Carbide **confirmés par EVE Ref** (2026-10-07) ; nouveau golden Ravworks multi-produits (plan partagé, configuration reconstituée), voir `.claude/tasks/industry-core/golden/crosscheck-everef.md`.
 - Mode coût marginal (arrondi ou non) : **tranché (D4b, 2026-10-07)**, fractionnaire pur, quantité = base × multiplicateurs, sans arrondi.
 - Choix de structure à bonus égal, ou favori sans structure adaptée : **tranché (D3b, 2026-10-07)**, à bonus égal la structure du système favori, puis la plus récemment configurée ; si le favori n'a aucune structure adaptée, la meilleure de toutes avec un avertissement. **D3 aligné sur D3b le 2026-10-22** (#151) : le filtre strict est remplacé par ce filtre souple. Copie et invention : coût d'installation minimal, favori au départage (#151).

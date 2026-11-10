@@ -41,7 +41,7 @@ Les règles de calcul Industrie sont dupliquées et divergent. Constats au commi
 - Deux implémentations coexistent pendant la migration : un écran migré et un écran non migré peuvent afficher des chiffres différents.
 - Des chiffres visibles vont changer (coût d'installation plus élevé, BOM plus basse sur les produits à plusieurs niveaux, runs corrects sur les produits à plusieurs unités par run). Il faut le signaler aux utilisateurs.
 - Un mapping est nécessaire entre le plan du noyau et les entités `IndustryProject` / `IndustryProjectStep`, qui restent la persistance.
-- Les goldens Hail L et Fernite Carbide restent provisoires tant qu'ils ne sont pas recoupés (D12), et le SCC de la copie attend une vérification en jeu (D11a).
+- Les goldens Hail L et Fernite Carbide restent provisoires tant qu'ils ne sont pas recoupés (D12). Le SCC de 4 % de la copie (D11a) est confirmé en jeu depuis le 2026-11-05.
 
 **Suites**
 

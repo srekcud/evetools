@@ -66,8 +66,7 @@ final class InstallCostTest extends TestCase
     public static function installCostVectorProvider(): iterable
     {
         foreach (self::installCostVectors() as $vector) {
-            // Copying waits for D11a (see testCopyingInstallCostWithSccSurcharge); absent data has its own tests.
-            if ('copying' === $vector['activity'] || null === ($vector['systemCostIndex'] ?? null)) {
+            if (null === ($vector['systemCostIndex'] ?? null)) {
                 continue;
             }
 
@@ -100,9 +99,25 @@ final class InstallCostTest extends TestCase
         $this->assertKnownCost(40000, $installCost->sccSurcharge, 'SCC surcharge');
     }
 
+    public function testCopyingInstallCostMatchesTheInGameBreakdownOfIssue219(): void
+    {
+        $installCost = InstallCost::forJob(
+            ActivityKind::Copying,
+            Cost::known(new Isk(2694500.0)),
+            0.0743,
+            new Multiplier(0.748 * 0.95),
+            0.01,
+            false,
+        );
+
+        $this->assertKnownCost(2846, $installCost->systemCost, 'system cost');
+        $this->assertKnownCost(539, $installCost->facilityTax, 'facility tax');
+        $this->assertKnownCost(2156, $installCost->sccSurcharge, 'SCC surcharge');
+    }
+
     public function testCopyingInstallCostIsBasedOnTwoPercentOfTheCopiedBlueprintEiv(): void
     {
-        // §4.5 copying, 10 runs: base = 2 % × 5 000 000 × 10 = 1 000 000. Confirmed by EVE Ref, independent of D11a.
+        // §4.5 copying, 10 runs: base = 2 % × 5 000 000 × 10 = 1 000 000.
         $vector = self::installCostVector('copying-ten-runs');
 
         $installCost = InstallCost::forJob(
@@ -117,26 +132,6 @@ final class InstallCostTest extends TestCase
         $this->assertKnownCost($vector['expected']['systemCost'], $installCost->systemCost, 'system cost');
         $this->assertKnownCost($vector['expected']['facilityTax'], $installCost->facilityTax, 'facility tax');
         $this->assertKnownCost($vector['expected']['alphaTax'], $installCost->alphaCloneTax, 'alpha clone tax');
-    }
-
-    public function testCopyingInstallCostWithSccSurcharge(): void
-    {
-        $this->markTestIncomplete('D11a : SCC sur copie en attente de vérification en jeu');
-
-        // §4.5 copying, 10 runs: SCC 4 % of the job cost base = 40 000, total 60 000. Remove the line above once D11a is confirmed.
-        $vector = self::installCostVector('copying-ten-runs');
-
-        $installCost = InstallCost::forJob(
-            ActivityKind::Copying,
-            Cost::known(new Isk(self::estimatedItemValueOf($vector))),
-            (float) $vector['systemCostIndex'],
-            new Multiplier((float) $vector['structureCostModifier']),
-            (float) $vector['facilityTax'],
-            $vector['alpha'],
-        );
-
-        $this->assertKnownCost($vector['expected']['sccSurcharge'], $installCost->sccSurcharge, 'SCC surcharge');
-        $this->assertKnownCost($vector['expected']['total'], $installCost->total, 'total');
     }
 
     public function testMissingCostIndexMakesTheSystemCostAndTheTotalUnknown(): void
