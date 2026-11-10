@@ -34,4 +34,23 @@ Historique, déduction des ventes, indicateurs 30 jours, source « Contrats » d
 | 3 ventes à 100, 200, 300 ISK/u (quantités 1, 2, 1), 1 expiré, 1 republié | ventes 3, unités 4, taux 3/4, prix médian 200 |
 
 ## Hors lot
-Vaisseaux équipés par coque, endpoint d'affichage, enchères (`/contracts/public/bids/`), contrats multi-types dans les indicateurs par type.
+Enchères (`/contracts/public/bids/`, ignorées par décision de Sylvain), contrats multi-types autres que les coques équipées.
+
+## Lot 2 (reliquat) : coques équipées et indicateurs affichés
+Recommandations de l'issue appliquées : « regrouper par coque, déduire l'équipement au prix du marché pour isoler le prix de la coque » ; « indicateurs par type : ventes estimées, taux d'écoulement, prix médian, délai médian » avec l'indice de confiance affiché comme limite.
+
+13. Coque équipée : un contrat multi-types dont les objets contiennent exactement un type de la catégorie SDE Vaisseau (6), en quantité 1, est attribué à ce type. Valeur de l'équipement = somme (quantité × prix de vente Jita le plus bas, `JitaMarketService::getPrices`) de tous les autres objets. Prix de la coque = prix du contrat − valeur de l'équipement.
+14. Écarts : un type d'équipement sans prix Jita, un prix de coque ≤ 0, zéro ou plusieurs vaisseaux, ou une quantité de vaisseau ≠ 1 laissent le contrat hors des indicateurs par type (ni vendu ni expiré compté), jamais un prix de coque inventé. Les prix Jita sont ceux du jour de l'analyse, pas du jour de la vente (limite assumée, pas de colonne ajoutée, aucune migration).
+15. Les contrats attribués à une coque passent par les règles 5 à 8 comme un mono-type : même issue (vendu, expiré, republié), quantité 1, prix unitaire = prix de la coque, confiance identique. La règle de republication reste sur la signature complète des objets.
+16. Seuls les contrats multi-types à disparition confirmée dans la fenêtre de 30 jours sont évalués (pas de prix chargé pour les autres).
+17. Affichage : chaque ligne du scanner porte `contractSales` (`estimatedSales`, `sellThroughRate`, `medianDaysToSell`, `confidence` `low|medium`) quand le lieu de vente est `contracts` et que le type a des indicateurs, sinon `null` ; hors lieu `contracts`, toujours `null`. Pas de nouvel endpoint : le scanner est le seul consommateur. La forme des autres champs est inchangée.
+18. Front, lieu `contracts` : sous le « N / mois » de la ligne, une ligne de détail « écoulement X % · délai médian Y j · confiance faible|moyenne » (taux ou délai inconnu : « inconnu », jamais 0). L'avis sous le tableau reste.
+
+## Exemples chiffrés (règles 13 et 14)
+| Cas | Résultat |
+|---|---|
+| contrat 1 coque + 2 modules (qté 1 chacun à 100 et 200 ISK Jita), prix 1 000 | coque à 700, vendu probable |
+| même contrat, un module sans prix Jita | hors indicateurs |
+| coque + modules, prix 250 (équipement 300) | hors indicateurs |
+| 2 coques + 1 module | hors indicateurs |
+| coque équipée expirée sans vente | compte comme lot clos expiré du type de la coque |

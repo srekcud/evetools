@@ -84,6 +84,9 @@ class BatchScanResultResource
     /** @var list<int> Material typeIds without a Jita price */
     public array $missingPriceTypeIds = [];
 
+    /** @var array{estimatedSales: int, sellThroughRate: ?float, medianDaysToSell: ?float, confidence: string}|null Contract sales of the last 30 days, only on the contracts venue and for a type with a closed contract; "low" or "medium" confidence */
+    public ?array $contractSales = null;
+
     /** @var array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, assumptions: array{runs: int, materialEfficiency: int}}|array{} */
     public array $priceSources = [];
 }

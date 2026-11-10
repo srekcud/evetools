@@ -140,6 +140,7 @@ class BatchProfitScanRulesTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
+            'contractSales' => null,
             'blueprintTypeId' => self::SHIELD_EXTENDER_BLUEPRINT_ID,
             'outputPerRun' => 1,
             'unitCost' => 4331.31,
@@ -889,6 +890,45 @@ class BatchProfitScanRulesTest extends TestCase
         $this->assertArrayHasKey('priceSources', $row);
         $this->assertSame(['market' => 'contracts', 'side' => 'sell', 'method' => 'median', 'coveragePercent' => null], $row['priceSources']['sale']);
         $this->assertSame(['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null], $row['priceSources']['materials']);
+    }
+
+    #[Group('issue-334')]
+    public function testContractVenueExposesTheContractSalesIndicatorsOfTheProduct(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID)[0];
+
+        $this->assertSame(
+            ['estimatedSales' => 60, 'sellThroughRate' => 0.5, 'medianDaysToSell' => 3.0, 'confidence' => 'medium'],
+            $row['contractSales'],
+        );
+    }
+
+    #[Group('issue-334')]
+    public function testContractVenueExposesNoContractSalesForATypeAbsentFromTheHistory(): void
+    {
+        $this->givenContractMarketScenario(medianSoldUnitPrice: 1500.0, soldQuantity: 60);
+        $this->contractIndicatorsByRegion[self::DOMAIN_REGION_ID] = [];
+
+        $row = $this->scan(sellVenue: 'contracts', structureId: self::AMARR_STRUCTURE_ID)[0];
+
+        $this->assertArrayHasKey('contractSales', $row);
+        $this->assertNull($row['contractSales']);
+    }
+
+    #[Group('issue-334')]
+    public function testStructureVenueExposesNoContractSalesEvenWithAContractHistory(): void
+    {
+        $this->givenStructureMarketScenario();
+        $this->givenCachedStructureIn(self::AMARR_SYSTEM_ID);
+        $this->givenSolarSystemInRegion(self::AMARR_SYSTEM_ID, self::DOMAIN_REGION_ID);
+        $this->contractIndicatorsByRegion[self::DOMAIN_REGION_ID] = [801 => $this->contractIndicators(801, 1500.0, 60)];
+
+        $row = $this->scan(sellVenue: 'structure', structureId: self::AMARR_STRUCTURE_ID)[0];
+
+        $this->assertArrayHasKey('contractSales', $row);
+        $this->assertNull($row['contractSales']);
     }
 
     public function testContractVenueChargesNeitherBrokerFeeNorSalesTaxAndCapsIskPerDayAtTheContractSalesRate(): void

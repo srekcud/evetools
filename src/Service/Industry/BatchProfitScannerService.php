@@ -472,6 +472,7 @@ class BatchProfitScannerService
                     default => null,
                 },
                 'missingPriceTypeIds' => array_keys($missingPriceTypeIds),
+                'contractSales' => $this->contractSalesOf($sellVenue === self::VENUE_CONTRACTS ? ($contractIndicators[$typeId] ?? null) : null),
                 'blueprintTypeId' => $blueprintTypeId,
                 'outputPerRun' => $outputPerRun,
                 'unitCost' => $isCostUnknown ? null : round($totalCost / $outputPerRun, 2),
@@ -626,6 +627,23 @@ class BatchProfitScannerService
 
             return true;
         }));
+    }
+
+    /**
+     * @return array{estimatedSales: int, sellThroughRate: ?float, medianDaysToSell: ?float, confidence: string}|null
+     */
+    private function contractSalesOf(?ContractSalesIndicators $indicators): ?array
+    {
+        if ($indicators === null) {
+            return null;
+        }
+
+        return [
+            'estimatedSales' => $indicators->estimatedSales,
+            'sellThroughRate' => $indicators->sellThroughRate,
+            'medianDaysToSell' => $indicators->medianDaysToSell,
+            'confidence' => $indicators->confidence->value,
+        ];
     }
 
     /**

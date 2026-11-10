@@ -8,6 +8,7 @@ use App\Entity\PublicContractListing;
 use App\Service\Industry\ContractSales\ContractSaleOutcome;
 use App\Service\Industry\ContractSales\ContractSalesAnalyzer;
 use App\Service\Industry\ContractSales\ContractSalesConfidence;
+use App\Service\Industry\ContractSales\HullAttribution;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -179,6 +180,48 @@ final class ContractSalesAnalyzerTest extends TestCase
         $this->assertSame([], $this->analyzer->indicators([$multi], $this->at('2026-11-07 12:00')));
     }
 
+    public function testAFittedShipContractWithAHullPriceIsCountedAsASaleOfItsHullAtThatPrice(): void
+    {
+        $fitted = $this->fittedShipContract(900.0, '2026-11-06 10:00', '2026-12-31 10:00', '2026-11-06 12:00');
+
+        $indicators = $this->analyzer->indicators([$fitted], $this->at('2026-11-07 12:00'), [$fitted->getContractId() => new HullAttribution(self::HULL, 600.0)]);
+
+        $this->assertSame(1, $indicators[self::HULL]->estimatedSales);
+        $this->assertSame(1, $indicators[self::HULL]->soldQuantity);
+        $this->assertEqualsWithDelta(600.0, $indicators[self::HULL]->medianSoldUnitPrice, 0.0001);
+        $this->assertEqualsWithDelta(2 / 24, $indicators[self::HULL]->medianDaysToSell, 0.0001);
+    }
+
+    public function testAnExpiredFittedShipContractWithAHullPriceCountsAsAnUnsoldLotOfItsHull(): void
+    {
+        $sold = $this->soldContract(price: 500.0, quantity: 1, firstSeen: '2026-11-04 10:00', disappearedAt: '2026-11-05 10:00');
+        $expiredFitted = $this->fittedShipContract(900.0, '2026-10-30 10:00', '2026-11-06 10:00', '2026-11-06 12:00');
+
+        $indicators = $this->analyzer->indicators([$sold, $expiredFitted], $this->at('2026-11-07 12:00'), [$expiredFitted->getContractId() => new HullAttribution(self::HULL, 600.0)]);
+
+        $this->assertSame(1, $indicators[self::HULL]->estimatedSales);
+        $this->assertEqualsWithDelta(0.5, $indicators[self::HULL]->sellThroughRate, 0.0001);
+    }
+
+    public function testAFittedShipContractWithoutAHullPriceStaysOutOfTheIndicators(): void
+    {
+        $fitted = $this->fittedShipContract(900.0, '2026-11-06 10:00', '2026-12-31 10:00', '2026-11-06 12:00');
+
+        $this->assertSame([], $this->analyzer->indicators([$fitted], $this->at('2026-11-07 12:00'), []));
+    }
+
+    public function testAFittedShipRelistedByTheSameIssuerIsARepublicationNotASale(): void
+    {
+        $first = $this->fittedShipContract(900.0, '2026-11-06 10:00', '2026-12-31 10:00', '2026-11-06 12:00');
+        $relisted = $this->fittedShipContract(800.0, '2026-11-06 12:15', '2026-12-31 10:00', null);
+        $attributions = [
+            $first->getContractId() => new HullAttribution(self::HULL, 600.0),
+            $relisted->getContractId() => new HullAttribution(self::HULL, 500.0),
+        ];
+
+        $this->assertSame([], $this->analyzer->indicators([$first, $relisted], $this->at('2026-11-07 12:00'), $attributions));
+    }
+
     public function testFewSalesOrAShortHistoryGiveALowConfidence(): void
     {
         $fiveSalesButYoungHistory = [];
@@ -207,6 +250,25 @@ final class ContractSalesAnalyzerTest extends TestCase
             ContractSalesConfidence::Medium,
             $this->analyzer->indicators($listings, $this->at('2026-11-07 12:00'))[self::HULL]->confidence,
         );
+    }
+
+    private function fittedShipContract(float $price, string $firstSeen, string $expires, ?string $disappearedAt): PublicContractListing
+    {
+        $listing = PublicContractListing::firstSeen(
+            $this->nextContractId++,
+            self::REGION,
+            self::ISSUER,
+            $price,
+            [['typeId' => self::HULL, 'quantity' => 1], ['typeId' => self::OTHER_TYPE, 'quantity' => 2]],
+            $this->at($expires),
+            $this->at($firstSeen),
+        );
+        if (null !== $disappearedAt) {
+            $listing->missed($this->at($disappearedAt));
+            $listing->missed($this->at($disappearedAt)->modify('+30 minutes'));
+        }
+
+        return $listing;
     }
 
     private function listing(
