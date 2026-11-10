@@ -30,6 +30,11 @@ final readonly class PriceSource
         return new self(self::MARKET_JITA, self::SIDE_SELL, self::METHOD_WEIGHTED, $coveragePercent);
     }
 
+    public static function jitaSellPercentile(float $percent): self
+    {
+        return new self(self::MARKET_JITA, self::SIDE_SELL, 'percentile', null);
+    }
+
     public static function structureSellLowest(): self
     {
         return new self(self::MARKET_STRUCTURE, self::SIDE_SELL, self::METHOD_LOWEST, null);

@@ -426,6 +426,44 @@ final class IndustryProjectServiceTest extends TestCase
         $this->assertSame([self::TRITANIUM => 5.5, self::PYERITE => 10.0], $this->estimatedPrices($project));
     }
 
+    #[Group('issue-538')]
+    public function testBuildBomKeepsPricingAtThePercentileThatItsPriceSourceLabels(): void
+    {
+        $this->givenRifter();
+        $lookups = [];
+        $this->jitaMarketService->method('getCheapestPercentilePrices')->willReturnCallback(
+            static function (array $typeIds, float $percentile = 0.05) use (&$lookups): array {
+                $lookups[] = $percentile;
+
+                return [self::TRITANIUM => 5.5, self::PYERITE => 10.0];
+            },
+        );
+
+        $project = $this->service()->createProject($this->createUser(), new CreateProjectData(
+            name: 'Labelled',
+            items: [['typeId' => self::RIFTER, 'typeName' => 'Rifter', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 10]],
+        ));
+
+        $this->assertSame([self::TRITANIUM => 5.5, self::PYERITE => 10.0], $this->estimatedPrices($project));
+        $this->assertSame([0.05], $lookups);
+        $label = IndustryProjectService::bomPriceSource()->toArray();
+        $this->assertArrayHasKey('percentile', $label);
+        $this->assertSame(round($lookups[0] * 100, 6), $label['percentile']);
+    }
+
+    #[Group('issue-538')]
+    public function testBomPriceSourceIsTheJitaSellPercentileFivePercentLabel(): void
+    {
+        $label = IndustryProjectService::bomPriceSource()->toArray();
+
+        $this->assertSame('jita', $label['market']);
+        $this->assertSame('sell', $label['side']);
+        $this->assertSame('percentile', $label['method']);
+        $this->assertNull($label['coveragePercent']);
+        $this->assertArrayHasKey('percentile', $label);
+        $this->assertSame(5.0, $label['percentile']);
+    }
+
     public function testBuildBomPricingNullForMissingType(): void
     {
         $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 25_000]);

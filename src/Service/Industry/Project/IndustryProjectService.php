@@ -39,6 +39,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\Industry\Blueprint\OriginalBlueprintFinder;
 use App\Service\Industry\InventionService;
+use App\Service\Industry\PriceSource;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -100,6 +101,11 @@ class IndustryProjectService
         $this->entityManager->flush();
 
         return $project;
+    }
+
+    public static function bomPriceSource(): PriceSource
+    {
+        return PriceSource::jitaSellPercentile(0.0);
     }
 
     public function buildBom(IndustryProject $project, User $owner): void

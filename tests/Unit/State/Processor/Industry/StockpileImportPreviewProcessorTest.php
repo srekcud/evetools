@@ -33,6 +33,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -104,14 +105,9 @@ final class StockpileImportPreviewProcessorTest extends TestCase
         );
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(function (array $typeIds): array {
-            $prices = [];
-            foreach ($typeIds as $typeId) {
-                $prices[$typeId] = $this->jitaPrices[$typeId] ?? null;
-            }
-
-            return $prices;
-        });
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(
+            fn (array $requests): array => SellQuoteCallbacks::completeQuotesAt($this->jitaPrices)($requests),
+        );
 
         $this->processor = new StockpileImportPreviewProcessor($security, new StockpileService(
             $this->createStub(IndustryStockpileTargetRepository::class),

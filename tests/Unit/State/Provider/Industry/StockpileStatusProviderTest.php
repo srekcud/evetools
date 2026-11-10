@@ -22,6 +22,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemoryRigCategories;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -60,8 +61,8 @@ final class StockpileStatusProviderTest extends TestCase
             35 => ['total' => 150, 'locations' => []],
         ]);
         $jitaMarketService = $this->createMock(JitaMarketService::class);
-        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
-            fn (array $typeIds): array => array_intersect_key($this->jitaPrices, array_flip($typeIds)),
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(
+            fn (array $requests): array => SellQuoteCallbacks::completeQuotesAt($this->jitaPrices)($requests),
         );
         $productionPlanning = new ProductionPlanning(new InMemoryBlueprintCatalog(), InMemorySystemCostIndices::none(), new InMemoryRigCategories());
         $userStructures = new InMemoryUserProductionStructures();
@@ -116,7 +117,7 @@ final class StockpileStatusProviderTest extends TestCase
                 'component' => ['items' => [], 'totalValue' => 0.0, 'healthPercent' => 100.0],
                 'final_product' => ['items' => [], 'totalValue' => 0.0, 'healthPercent' => 100.0],
             ],
-            $resource->stages,
+            array_map(static fn (array $stage): array => ['items' => self::withoutPriceSources($stage['items'])] + $stage, $resource->stages),
         );
         self::assertSame(
             [
@@ -127,7 +128,9 @@ final class StockpileStatusProviderTest extends TestCase
             ],
             $resource->kpis,
         );
-        self::assertSame([$tritanium], $resource->shoppingList);
+        self::assertSame([$tritanium], self::withoutPriceSources($resource->shoppingList));
+        $fullSource = ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null];
+        self::assertSame(['stock' => $fullSource, 'deficit' => $fullSource], $resource->shoppingList[0]['priceSources']);
         self::assertSame([4051], $resource->importsWithoutPlan);
         self::assertSame([], $resource->failedProducts);
         self::assertSame([], $resource->missingPriceTypeIds);
@@ -195,5 +198,10 @@ final class StockpileStatusProviderTest extends TestCase
         $this->expectException(UnauthorizedHttpException::class);
 
         $this->provider->provide(new Get());
+    }
+
+    private static function withoutPriceSources(array $items): array
+    {
+        return array_map(static fn (array $item): array => array_diff_key($item, ['priceSources' => true]), $items);
     }
 }

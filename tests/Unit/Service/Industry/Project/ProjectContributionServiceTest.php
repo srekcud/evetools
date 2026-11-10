@@ -108,6 +108,35 @@ class ProjectContributionServiceTest extends TestCase
         $this->assertSame([[[self::TRITANIUM_TYPE_ID], 0.05]], $this->jitaLookups);
     }
 
+    #[Group('issue-538')]
+    public function testMaterialContributionStaysValuedAtThePercentileThatItsPriceSourceLabels(): void
+    {
+        $this->givenNoExistingContribution();
+        $this->jitaPrices = [self::MEXALLON_TYPE_ID => self::MEXALLON_JITA_PRICE];
+        $mexallon = $this->materialLine(self::MEXALLON_TYPE_ID, 'Mexallon', self::MEXALLON_BOM_PRICE);
+
+        $contribution = $this->service->submit($this->member, $mexallon, ContributionType::Material, 40);
+
+        $this->assertSame(1950.0, $contribution->getEstimatedValue());
+        $this->assertSame([[[self::MEXALLON_TYPE_ID], 0.05]], $this->jitaLookups);
+        $label = ProjectContributionService::materialContributionPriceSource()->toArray();
+        $this->assertArrayHasKey('percentile', $label);
+        $this->assertSame(round($this->jitaLookups[0][1] * 100, 6), $label['percentile']);
+    }
+
+    #[Group('issue-538')]
+    public function testMaterialContributionPriceSourceIsTheJitaSellPercentileFivePercentLabel(): void
+    {
+        $label = ProjectContributionService::materialContributionPriceSource()->toArray();
+
+        $this->assertSame('jita', $label['market']);
+        $this->assertSame('sell', $label['side']);
+        $this->assertSame('percentile', $label['method']);
+        $this->assertNull($label['coveragePercent']);
+        $this->assertArrayHasKey('percentile', $label);
+        $this->assertSame(5.0, $label['percentile']);
+    }
+
     #[Group('issue-363')]
     public function testTwoDepositsOfTheSameMaterialOnTwoDaysKeepTheirOwnJitaPrice(): void
     {
