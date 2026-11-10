@@ -133,4 +133,29 @@ describe('useModuleLastPage', () => {
 
     expect(lastPageOf('industry', INDUSTRY_FALLBACK)).toBe(INDUSTRY_FALLBACK)
   })
+
+  it.each([
+    ['commerce', '/contracts', '/market'],
+    ['patrimoine', '/assets', '/balance'],
+    ['account', '/characters', '/characters'],
+  ])('remembers the last page of the %s module and stores it next to the others', (moduleId, visited, fallback) => {
+    rememberModulePage('/mining/moons')
+
+    rememberModulePage(visited)
+
+    expect(storedPages()).toEqual({ mining: '/mining/moons', [moduleId]: visited })
+    expect(lastPageOf(moduleId, fallback)).toBe(visited)
+  })
+
+  it('remembers the settings page for any settings section and falls back to the module route for an unknown page', () => {
+    rememberModulePage('/settings/mining')
+
+    expect(storedPages()).toEqual({ account: '/settings' })
+    expect(lastPageOf('account', '/characters')).toBe('/settings')
+
+    localStorage.setItem(MODULE_LAST_PAGE_STORAGE_KEY, JSON.stringify({ account: '/settings', commerce: '/elsewhere', patrimoine: 7 }))
+
+    expect(lastPageOf('commerce', '/market')).toBe('/market')
+    expect(lastPageOf('patrimoine', '/balance')).toBe('/balance')
+  })
 })

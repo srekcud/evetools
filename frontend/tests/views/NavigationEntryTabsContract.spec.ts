@@ -117,8 +117,6 @@ describe('navigation entry tabs contract', () => {
       '/mining/moons?tab=tax',
       '/mining/my-mining?tab=season',
       '/market?tab=alerts',
-      '/balance?tab=industry',
-      '/balance?tab=settings',
     ])
     expect(TAB_ROUTES.map(tabRoute => splitTabRoute(tabRoute).path).every(path => path in VIEWS_BY_ROUTE)).toBe(true)
   })

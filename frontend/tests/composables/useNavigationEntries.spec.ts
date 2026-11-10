@@ -3,6 +3,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import { useNavigationEntries, type NavigationEntry } from '@/composables/useNavigationEntries'
+import { allNavEntries } from '@/constants/sidebarNavigation'
 
 type Locale = 'en' | 'fr'
 
@@ -33,6 +34,24 @@ function routesOf(entries: NavigationEntry[]): string[] {
   return entries.map(entry => entry.route)
 }
 
+const SETTINGS_SECTION_ROUTES = [
+  '/settings/account',
+  '/settings/display',
+  '/settings/market',
+  '/settings/industry',
+  '/settings/mining',
+  '/settings/pve',
+  '/settings/notifications',
+]
+
+function withoutSettingsEntries(entries: NavigationEntry[]): NavigationEntry[] {
+  return entries.filter(entry => !entry.route.startsWith('/settings'))
+}
+
+function withoutSettingsSections(routes: string[]): string[] {
+  return routes.filter(route => !route.startsWith('/settings/'))
+}
+
 beforeEach(() => {
   localStorage.clear()
 })
@@ -43,53 +62,61 @@ afterEach(() => {
 })
 
 describe('useNavigationEntries', () => {
-  it('lists every screen followed by its non default tabs, in sidebar order, with English labels', () => {
+  it('lists every module followed by its pages and their non default tabs, in registry order, with English labels', () => {
     const { listNavigationEntries } = mountNavigationEntries('en')
 
-    expect(listNavigationEntries({ isAdmin: false }).map(entry => [entry.route, entry.label, entry.isTab])).toEqual([
-      ['/dashboard', 'Dashboard', false],
-      ['/industry', 'Industry', false],
-      ['/industry/projects', 'Industry › Projects', false],
-      ['/industry/projects?tab=available', 'Industry › Projects › Available', true],
-      ['/industry/analysis', 'Industry › Analysis', true],
-      ['/industry/analysis?tab=margins', 'Industry › Analysis › Margins', true],
-      ['/industry/analysis?tab=batch', 'Industry › Analysis › Batch Scan', true],
-      ['/industry/analysis?tab=buy-vs-build', 'Industry › Analysis › Buy vs Build', true],
-      ['/industry/analysis?tab=pivot', 'Industry › Analysis › Pivot', true],
-      ['/industry/production', 'Industry › Production', true],
-      ['/industry/production?tab=slots', 'Industry › Production › Slots', true],
-      ['/industry/production?tab=stockpile', 'Industry › Production › Stockpile', true],
-      ['/industry/production?tab=blueprints', 'Industry › Production › Blueprints', true],
-      ['/appraisal', 'Appraisal', false],
-      ['/planetary', 'PI', false],
-      ['/mining/operations', 'Mining', false],
-      ['/mining/operations?tab=available', 'Mining › Available', true],
-      ['/mining/operations?tab=archive', 'Mining › Archive', true],
-      ['/mining/moons', 'Mining › Moons', true],
-      ['/mining/moons?tab=tax', 'Mining › Moons › Tax', true],
-      ['/mining/sites', 'Mining › Sites', true],
-      ['/mining/ore-value', 'Mining › Ore value', true],
-      ['/mining/my-mining', 'Mining › My mining', true],
-      ['/mining/my-mining?tab=season', 'Mining › My mining › Season', true],
-      ['/pve/revenue', 'PVE', false],
-      ['/pve/escalations', 'PVE › Escalations', true],
-      ['/market', 'Market', false],
-      ['/market?tab=alerts', 'Market › Alerts', true],
-      ['/contracts', 'Commerce › Contracts', true],
-      ['/balance', 'Balance', false],
-      ['/balance?tab=industry', 'Balance › Industry', true],
-      ['/balance?tab=settings', 'Balance › Settings', true],
-      ['/assets', 'Inventory', false],
-      ['/characters', 'Characters', false],
+    expect(withoutSettingsEntries(listNavigationEntries({ isAdmin: false })).map(entry => [entry.route, entry.label])).toEqual([
+      ['/dashboard', 'Home'],
+      ['/industry', 'Industry'],
+      ['/industry/projects', 'Industry › Projects'],
+      ['/industry/projects?tab=available', 'Industry › Projects › Available'],
+      ['/industry/analysis', 'Industry › Analysis'],
+      ['/industry/analysis?tab=margins', 'Industry › Analysis › Margins'],
+      ['/industry/analysis?tab=batch', 'Industry › Analysis › Batch Scan'],
+      ['/industry/analysis?tab=buy-vs-build', 'Industry › Analysis › Buy vs Build'],
+      ['/industry/analysis?tab=pivot', 'Industry › Analysis › Pivot'],
+      ['/industry/production', 'Industry › Production'],
+      ['/industry/production?tab=slots', 'Industry › Production › Slots'],
+      ['/industry/production?tab=stockpile', 'Industry › Production › Stockpile'],
+      ['/industry/production?tab=blueprints', 'Industry › Production › Blueprints'],
+      ['/mining/operations', 'Mining'],
+      ['/mining/operations?tab=available', 'Mining › Available'],
+      ['/mining/operations?tab=archive', 'Mining › Archive'],
+      ['/mining/moons', 'Mining › Moons'],
+      ['/mining/moons?tab=tax', 'Mining › Moons › Tax'],
+      ['/mining/sites', 'Mining › Sites'],
+      ['/mining/ore-value', 'Mining › Ore value'],
+      ['/mining/my-mining', 'Mining › My mining'],
+      ['/mining/my-mining?tab=season', 'Mining › My mining › Season'],
+      ['/pve/revenue', 'PVE'],
+      ['/pve/escalations', 'PVE › Escalations'],
+      ['/planetary', 'Planetary'],
+      ['/market', 'Commerce'],
+      ['/market?tab=alerts', 'Commerce › Alerts'],
+      ['/appraisal', 'Commerce › Appraisal'],
+      ['/contracts', 'Commerce › Contracts'],
+      ['/balance', 'Wealth'],
+      ['/assets', 'Wealth › Inventory'],
+      ['/characters', 'Account'],
     ])
   })
 
-  it('offers no entry on the former tabs of the industry screen nor on the former group industry path', () => {
+  it('marks the module entries as screens and the ?tab= entries as tabs', () => {
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const entries = listNavigationEntries({ isAdmin: false })
+    const moduleRoutes = allNavEntries.map(module => module.route)
+
+    expect(entries.filter(entry => moduleRoutes.includes(entry.route)).map(entry => [entry.route, entry.isTab])).toEqual(moduleRoutes.map(route => [route, false]))
+    expect(entries.filter(entry => entry.route.includes('?tab=')).map(entry => entry.isTab)).toEqual(Array(13).fill(true))
+  })
+
+  it('offers no entry on the former tabs of the industry screen, the former group industry path nor the balance tabs', () => {
     const { listNavigationEntries } = mountNavigationEntries('en')
 
     const routes = routesOf(listNavigationEntries({ isAdmin: false }))
 
-    expect(routes.filter(route => route.startsWith('/industry?') || route.startsWith('/group-industry'))).toEqual([])
+    expect(routes.filter(route => route.startsWith('/industry?') || route.startsWith('/group-industry') || route.startsWith('/balance?'))).toEqual([])
   })
 
   it('uses the English label as alias in English', () => {
@@ -103,8 +130,8 @@ describe('useNavigationEntries', () => {
   it('labels entries in French and keeps the English full label as alias', () => {
     const { listNavigationEntries } = mountNavigationEntries('fr')
 
-    expect(listNavigationEntries({ isAdmin: false }).map(entry => [entry.label, entry.aliasLabel])).toEqual([
-      ['Tableau de bord', 'Dashboard'],
+    expect(withoutSettingsEntries(listNavigationEntries({ isAdmin: false })).map(entry => [entry.label, entry.aliasLabel])).toEqual([
+      ['Accueil', 'Home'],
       ['Industrie', 'Industry'],
       ['Industrie › Projets', 'Industry › Projects'],
       ['Industrie › Projets › Disponibles', 'Industry › Projects › Available'],
@@ -117,8 +144,6 @@ describe('useNavigationEntries', () => {
       ['Industrie › Production › Slots', 'Industry › Production › Slots'],
       ['Industrie › Production › Stockpile', 'Industry › Production › Stockpile'],
       ['Industrie › Production › Blueprints', 'Industry › Production › Blueprints'],
-      ['Évaluateur', 'Appraisal'],
-      ['PI', 'PI'],
       ['Minage', 'Mining'],
       ['Minage › Disponibles', 'Mining › Available'],
       ['Minage › Archive', 'Mining › Archive'],
@@ -130,14 +155,14 @@ describe('useNavigationEntries', () => {
       ['Minage › Mon minage › Saison', 'Mining › My mining › Season'],
       ['PVE', 'PVE'],
       ['PVE › Escalations', 'PVE › Escalations'],
-      ['Marche', 'Market'],
-      ['Marche › Alertes', 'Market › Alerts'],
+      ['Planétaire', 'Planetary'],
+      ['Commerce', 'Commerce'],
+      ['Commerce › Alertes', 'Commerce › Alerts'],
+      ['Commerce › Évaluateur', 'Commerce › Appraisal'],
       ['Commerce › Contrats', 'Commerce › Contracts'],
-      ['Bilan', 'Balance'],
-      ['Bilan › Industrie', 'Balance › Industry'],
-      ['Bilan › Parametres', 'Balance › Settings'],
-      ['Inventaire', 'Inventory'],
-      ['Personnages', 'Characters'],
+      ['Patrimoine', 'Wealth'],
+      ['Patrimoine › Inventaire', 'Wealth › Inventory'],
+      ['Compte', 'Account'],
     ])
   })
 
@@ -150,13 +175,38 @@ describe('useNavigationEntries', () => {
     expect(labelsWithGroupName).toEqual([])
   })
 
+  it('lists every page of the registry exactly once and no route twice', () => {
+    const { listNavigationEntries } = mountNavigationEntries('en')
+    const routes = routesOf(listNavigationEntries({ isAdmin: true }))
+    const registryPageRoutes = allNavEntries.flatMap(module => ((module as { pages?: { route: string }[] }).pages ?? []).map(page => page.route))
+
+    expect(registryPageRoutes).toHaveLength(18)
+    expect(registryPageRoutes.map(route => routes.filter(listed => listed === route).length)).toEqual(registryPageRoutes.map(() => 1))
+    expect(new Set(routes).size).toBe(routes.length)
+  })
+
+  it('lists one entry per settings section under Account › Settings, labelled in English', () => {
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const entries = listNavigationEntries({ isAdmin: false })
+
+    expect(entries.filter(entry => entry.route.startsWith('/settings')).map(entry => entry.route)).toEqual(['/settings', ...SETTINGS_SECTION_ROUTES])
+    expect(entries.find(entry => entry.route === '/settings')?.label).toBe('Account › Settings')
+    expect(entries.find(entry => entry.route === '/settings/industry')).toEqual({
+      route: '/settings/industry',
+      label: 'Account › Settings › Industry',
+      aliasLabel: 'Account › Settings › Industry',
+      isTab: true,
+    })
+  })
+
   it('adds the admin screen last for an administrator', () => {
     const { listNavigationEntries } = mountNavigationEntries('en')
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(35)
-    expect(entries[34]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(41)
+    expect(entries[40]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -165,7 +215,7 @@ describe('useNavigationEntries', () => {
     expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/admin')
   })
 
-  it('lists the contracts page right after the market tabs, as a tab of the Commerce module', () => {
+  it('lists the contracts page right after the appraisal page, as a tab of the Commerce module', () => {
     const { listNavigationEntries } = mountNavigationEntries('en')
 
     const entries = listNavigationEntries({ isAdmin: false })
@@ -173,28 +223,50 @@ describe('useNavigationEntries', () => {
     expect(entries.filter(entry => entry.route === '/contracts')).toEqual([
       { route: '/contracts', label: 'Commerce › Contracts', aliasLabel: 'Commerce › Contracts', isTab: true },
     ])
-    expect(routesOf(entries).indexOf('/contracts')).toBe(routesOf(entries).indexOf('/market?tab=alerts') + 1)
+    expect(routesOf(entries).indexOf('/contracts')).toBe(routesOf(entries).indexOf('/appraisal') + 1)
   })
 
-  it('hides the contracts page with the market module and keeps the inventory', () => {
+  it('keeps the whole Commerce module when only the market id is hidden', () => {
     hideModules(['market'])
     const { listNavigationEntries } = mountNavigationEntries('en')
 
     const routes = routesOf(listNavigationEntries({ isAdmin: false }))
 
-    expect(routes.filter(route => route === '/contracts' || route.startsWith('/market'))).toEqual([])
+    expect(routes).toEqual(expect.arrayContaining(['/market', '/market?tab=alerts', '/appraisal', '/contracts']))
+    expect(routes).toHaveLength(40)
+  })
+
+  it.each([
+    ['the commerce id', ['commerce']],
+    ['the market and appraisal ids', ['market', 'appraisal']],
+  ])('hides the pages and tabs of Commerce for %s and keeps the inventory', (_case, hiddenIds) => {
+    hideModules(hiddenIds)
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const routes = routesOf(listNavigationEntries({ isAdmin: false }))
+
+    expect(routes.filter(route => route === '/contracts' || route === '/appraisal' || route.startsWith('/market'))).toEqual([])
     expect(routes).toContain('/assets')
-    expect(routes).toHaveLength(31)
+    expect(routes).toHaveLength(36)
+  })
+
+  it('hides the pages of Wealth when the former ledger and assets ids are both hidden', () => {
+    hideModules(['ledger', 'assets'])
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const routes = routesOf(listNavigationEntries({ isAdmin: false }))
+
+    expect(routes.filter(route => route === '/balance' || route === '/assets')).toEqual([])
+    expect(routes).toContain('/market')
+    expect(routes).toHaveLength(38)
   })
 
   it('removes the screen, the tabs and the projects of each hidden module', () => {
-    hideModules(['industry', 'market'])
+    hideModules(['industry', 'commerce'])
     const { listNavigationEntries } = mountNavigationEntries('en')
 
-    expect(routesOf(listNavigationEntries({ isAdmin: false }))).toEqual([
+    expect(withoutSettingsSections(routesOf(listNavigationEntries({ isAdmin: false })))).toEqual([
       '/dashboard',
-      '/appraisal',
-      '/planetary',
       '/mining/operations',
       '/mining/operations?tab=available',
       '/mining/operations?tab=archive',
@@ -206,11 +278,11 @@ describe('useNavigationEntries', () => {
       '/mining/my-mining?tab=season',
       '/pve/revenue',
       '/pve/escalations',
+      '/planetary',
       '/balance',
-      '/balance?tab=industry',
-      '/balance?tab=settings',
       '/assets',
       '/characters',
+      '/settings',
     ])
   })
 
@@ -223,7 +295,7 @@ describe('useNavigationEntries', () => {
     expect(routes).toContain('/industry')
     expect(routes).toContain('/industry/production?tab=stockpile')
     expect(routes.filter(route => route.startsWith('/industry/projects'))).toEqual([])
-    expect(routes).toHaveLength(32)
+    expect(routes).toHaveLength(38)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["group-industry"]')
   })
 
@@ -235,27 +307,16 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route.startsWith('/mining/'))).toEqual([])
     expect(routes).toContain('/planetary')
-    expect(routes).toHaveLength(25)
+    expect(routes).toHaveLength(31)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["mining-operations"]')
   })
 
-  it('keeps characters and admin even when listed as hidden modules', () => {
-    hideModules(['characters', 'admin'])
+  it('keeps the account module, its settings entries and admin even when listed as hidden modules', () => {
+    hideModules(['characters', 'account', 'admin'])
     const { listNavigationEntries } = mountNavigationEntries('en')
 
     const routes = routesOf(listNavigationEntries({ isAdmin: true }))
 
-    expect(routes).toContain('/characters')
-    expect(routes).toContain('/admin')
-  })
-
-  it('reads the hidden modules again on each call', () => {
-    const { listNavigationEntries } = mountNavigationEntries('en')
-    expect(routesOf(listNavigationEntries({ isAdmin: false }))).toContain('/planetary')
-
-    hideModules(['planetary'])
-
-    expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/planetary')
-    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(33)
+    expect(routes).toEqual(expect.arrayContaining(['/characters', '/settings', ...SETTINGS_SECTION_ROUTES, '/admin']))
   })
 })

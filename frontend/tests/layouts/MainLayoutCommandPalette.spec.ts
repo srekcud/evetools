@@ -3,8 +3,8 @@ import type { VueWrapper } from '@vue/test-utils'
 import { mountMainLayoutAt } from './mainLayoutHarness'
 
 const OPEN_PALETTE_BUTTON_LABEL = 'Open command palette (Ctrl+K)'
-const OPEN_SETTINGS_TITLE = 'Open settings'
-const SETTINGS_TITLE = 'Settings'
+const ACCOUNT_MENU_SELECTOR = 'header button[aria-haspopup="menu"]'
+const RELEASE_NOTES_TITLE = 'Release Notes'
 
 function searchInput(): HTMLInputElement | null {
   return document.querySelector<HTMLInputElement>('[role="combobox"]')
@@ -58,9 +58,9 @@ function openPaletteButton(wrapper: VueWrapper): HTMLButtonElement | undefined {
     .find(button => button.getAttribute('aria-label') === OPEN_PALETTE_BUTTON_LABEL)
 }
 
-function settingsDialog(): HTMLElement | undefined {
+function releaseNotesDialog(): HTMLElement | undefined {
   return Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))
-    .find(dialog => dialog.querySelector('[role="combobox"]') === null && (dialog.textContent ?? '').includes(SETTINGS_TITLE))
+    .find(dialog => dialog.querySelector('[role="combobox"]') === null && (dialog.textContent ?? '').includes(RELEASE_NOTES_TITLE))
 }
 
 enableAutoUnmount(afterEach)
@@ -145,7 +145,7 @@ describe('MainLayout command palette', () => {
       await pressCtrlK(document.body)
 
       expect(searchInput()?.value).toBe('')
-      expect(activeOptionLabel()).toBe('Dashboard')
+      expect(activeOptionLabel()).toBe('Home')
     })
   })
 
@@ -176,11 +176,13 @@ describe('MainLayout command palette', () => {
   })
 
   describe('above a screen modal', () => {
-    it('opens over the settings modal and closes on Escape without closing it', async () => {
+    it('opens over the release notes modal and closes on Escape without closing it', async () => {
       const { wrapper } = await mountMainLayoutAt('/dashboard')
-      await wrapper.find(`[title="${OPEN_SETTINGS_TITLE}"]`).trigger('click')
+      await wrapper.get(ACCOUNT_MENU_SELECTOR).trigger('click')
+      Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+        .find(item => item.textContent?.trim() === RELEASE_NOTES_TITLE)?.click()
       await flushPromises()
-      expect(settingsDialog()).toBeDefined()
+      expect(releaseNotesDialog()).toBeDefined()
 
       await pressCtrlK()
       expect(isPaletteOpen()).toBe(true)
@@ -188,7 +190,7 @@ describe('MainLayout command palette', () => {
       await pressKeyOn(openSearchInput(), 'Escape')
 
       expect(isPaletteOpen()).toBe(false)
-      expect(settingsDialog()).toBeDefined()
+      expect(releaseNotesDialog()).toBeDefined()
     })
   })
 

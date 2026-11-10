@@ -2,6 +2,7 @@ import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/t
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
+import IndustrySettings from '@/components/industry/IndustrySettings.vue'
 import Industry from '@/views/Industry.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useProjectsStore } from '@/stores/industry/projects'
@@ -79,5 +80,12 @@ describe('Industry config panel max job duration', () => {
 
     await enterMaxJobDuration(wrapper, '0.1')
     expect(store.defaultMaxJobDurationDays).toBe(MINIMUM_MAX_JOB_DURATION_DAYS)
+  })
+
+  it('renders its configuration through the IndustrySettings component shared with the settings page', async () => {
+    const wrapper = await mountWithConfigPanelOpen()
+
+    expect(wrapper.findComponent(IndustrySettings).exists()).toBe(true)
+    expect(wrapper.findAll('label').filter(label => label.text() === MAX_JOB_DURATION_LABEL)).toHaveLength(1)
   })
 })
