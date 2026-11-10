@@ -19,6 +19,7 @@ class CachedWalletJournalEntry
     public const string CONTRACT_SALES_TAX = 'contract_sales_tax';
     public const array CONTRACT_FEE_REF_TYPES = [self::CONTRACT_BROKERS_FEE, self::CONTRACT_SALES_TAX];
     public const string CONTRACT_CONTEXT_TYPE = 'contract_id';
+    public const string PLAYER_DONATION = 'player_donation';
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -47,6 +48,12 @@ class CachedWalletJournalEntry
 
     #[ORM\Column(type: 'string', length: 32, nullable: true)]
     private ?string $contextIdType = null;
+
+    #[ORM\Column(type: 'string', length: 500, nullable: true)]
+    private ?string $reason = null;
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $firstPartyId = null;
 
     public function getId(): ?Uuid
     {
@@ -133,6 +140,30 @@ class CachedWalletJournalEntry
     public function setContextIdType(?string $contextIdType): static
     {
         $this->contextIdType = $contextIdType;
+
+        return $this;
+    }
+
+    public function getReason(): ?string
+    {
+        return $this->reason;
+    }
+
+    public function setReason(?string $reason): static
+    {
+        $this->reason = $reason;
+
+        return $this;
+    }
+
+    public function getFirstPartyId(): ?int
+    {
+        return $this->firstPartyId;
+    }
+
+    public function setFirstPartyId(?int $firstPartyId): static
+    {
+        $this->firstPartyId = $firstPartyId;
 
         return $this;
     }

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry\Project;
 
+use App\Entity\CachedWalletJournalEntry;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectTransferReceipt;
+use App\Entity\User;
 use App\Enum\SaleChannel;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -244,9 +246,84 @@ final class ProjectSettlementApiTest extends WebTestCase
         self::assertSame([self::OWNER_TO_MEMBER_CONTRACT_ISK], array_column($settlement['transfers'], 'amount'));
     }
 
+    public function testDonationFromThePayerCarryingTheReferenceAndTheAmountTicksTheTransferWithoutAnyReceipt(): void
+    {
+        $this->persistDonation($this->member, $this->owner, self::OWNER_TO_MEMBER_ISK, strtolower($this->expectedReference()).' payout', 9_501);
+        $this->flushAndDetach();
+
+        $this->actAs($this->member);
+        $this->request('GET', $this->settlementUri());
+
+        $settlement = $this->responseJson();
+        self::assertSame([true, true], [$settlement['transfers'][0]['received'], $settlement['transfers'][0]['journalVerified']]);
+        self::assertSame('2026-11-10T18:00:00+00:00', $settlement['transfers'][0]['receivedAt']);
+        self::assertSame([1, 1], [$settlement['checks']['transfersTotal'], $settlement['checks']['transfersReceived']]);
+        self::assertSame(0, $this->em->getRepository(IndustryProjectTransferReceipt::class)->count([]));
+    }
+
+    public function testDonationsAddUpToTheAmountOfTheTransfer(): void
+    {
+        $this->persistDonation($this->member, $this->owner, 100_000.0, $this->expectedReference(), 9_502);
+        $this->persistDonation($this->member, $this->owner, 177_500.0, $this->expectedReference(), 9_503);
+        $this->flushAndDetach();
+
+        $this->actAs($this->member);
+        $this->request('GET', $this->settlementUri());
+
+        self::assertSame([true], array_column($this->responseJson()['transfers'], 'journalVerified'));
+    }
+
+    public function testDonationThatDoesNotMatchTheTransferLeavesItUnverified(): void
+    {
+        $this->persistDonation($this->member, $this->owner, 277_499.99, $this->expectedReference(), 9_504);
+        $this->persistDonation($this->member, $this->owner, self::OWNER_TO_MEMBER_ISK, 'IP-000000', 9_505);
+        $this->persistDonation($this->member, $this->outsider, self::OWNER_TO_MEMBER_ISK, $this->expectedReference(), 9_506);
+        $this->persistDonation($this->owner, $this->owner, self::OWNER_TO_MEMBER_ISK, $this->expectedReference(), 9_507);
+        $this->flushAndDetach();
+
+        $this->actAs($this->member);
+        $this->request('GET', $this->settlementUri());
+
+        $settlement = $this->responseJson();
+        self::assertSame([false, false], [$settlement['transfers'][0]['received'], $settlement['transfers'][0]['journalVerified']]);
+        self::assertSame(0, $settlement['checks']['transfersReceived']);
+    }
+
+    public function testRecipientCannotUntickATransferTheJournalVerified(): void
+    {
+        $this->persistDonation($this->member, $this->owner, self::OWNER_TO_MEMBER_ISK, $this->expectedReference(), 9_508);
+        $this->flushAndDetach();
+
+        $this->actAs($this->member);
+        $this->request('POST', $this->receiptUri($this->ownerMembership, $this->memberMembership), ['received' => false]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([true, true], [$this->responseJson()['transfers'][0]['received'], $this->responseJson()['transfers'][0]['journalVerified']]);
+    }
+
     private function settlementUri(): string
     {
         return $this->projectUri($this->ishtarBatch).'/settlement';
+    }
+
+    private function persistDonation(User $recipient, User $sender, float $amount, string $reason, int $journalEntryId): void
+    {
+        $this->em->persist(
+            (new CachedWalletJournalEntry())
+                ->setCharacter($recipient->getMainCharacter())
+                ->setJournalEntryId($journalEntryId)
+                ->setRefType(CachedWalletJournalEntry::PLAYER_DONATION)
+                ->setAmount($amount)
+                ->setDate(new \DateTimeImmutable('2026-11-10T18:00:00+00:00'))
+                ->setReason($reason)
+                ->setFirstPartyId($sender->getMainCharacter()->getEveCharacterId()),
+        );
+    }
+
+    private function flushAndDetach(): void
+    {
+        $this->em->flush();
+        $this->em->clear();
     }
 
     private function receiptUri(IndustryProjectParticipant $from, IndustryProjectParticipant $to): string
@@ -271,6 +348,7 @@ final class ProjectSettlementApiTest extends WebTestCase
             'toName' => 'Brann Holt',
             'amount' => self::OWNER_TO_MEMBER_ISK,
             'received' => false,
+            'journalVerified' => false,
             'canConfirm' => true,
         ];
     }

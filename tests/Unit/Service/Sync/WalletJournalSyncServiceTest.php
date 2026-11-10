@@ -26,6 +26,7 @@ use Symfony\Component\Uid\Uuid;
 final class WalletJournalSyncServiceTest extends TestCase
 {
     private const int EVE_CHARACTER_ID = 2_112_500_001;
+    private const int SENDER_CHARACTER_ID = 2_112_500_777;
     private const string WALLET_SCOPE = 'esi-wallet.read_character_wallet.v1';
 
     private EsiClient&MockObject $esiClient;
@@ -97,6 +98,53 @@ final class WalletJournalSyncServiceTest extends TestCase
             ], $persisted),
         );
         self::assertSame($character, $persisted[0]->getCharacter());
+    }
+
+    public function testOnlyTheIncomingDonationsCarryingAProjectPaymentReferenceAreKept(): void
+    {
+        $this->esiClient->method('getPaginated')->willReturn([
+            $this->donationLine(9_101, 277_500.0, 'IP-4C81D2 thanks', self::SENDER_CHARACTER_ID),
+            $this->donationLine(9_102, 50_000.0, 'for the beers', self::SENDER_CHARACTER_ID),
+            $this->donationLine(9_103, 80_000.0, null, self::SENDER_CHARACTER_ID),
+            $this->donationLine(9_104, -90_000.0, 'IP-4C81D2', self::EVE_CHARACTER_ID),
+            $this->donationLine(9_105, 12_000.0, 'ip-9f00a1 batch', self::SENDER_CHARACTER_ID),
+            $this->line(9_106, 'player_trading', 5_000_000.0, null),
+        ]);
+        $this->journalRepository->method('findExistingEntryIds')->willReturn([]);
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entry) use (&$persisted): void {
+            $persisted[] = $entry;
+        });
+
+        $this->service->syncCharacterJournal($this->characterWithScopes([self::WALLET_SCOPE]));
+
+        self::assertSame(
+            [
+                [9_101, 'player_donation', 277_500.0, 'IP-4C81D2 thanks', self::SENDER_CHARACTER_ID],
+                [9_105, 'player_donation', 12_000.0, 'ip-9f00a1 batch', self::SENDER_CHARACTER_ID],
+            ],
+            array_map(static fn (CachedWalletJournalEntry $entry): array => [
+                $entry->getJournalEntryId(),
+                $entry->getRefType(),
+                $entry->getAmount(),
+                $entry->getReason(),
+                $entry->getFirstPartyId(),
+            ], $persisted),
+        );
+    }
+
+    public function testContractFeeLinesKeepNoReasonNorSender(): void
+    {
+        $this->esiClient->method('getPaginated')->willReturn([$this->line(9_001, 'contract_brokers_fee', -30_000.0, 601_001)]);
+        $this->journalRepository->method('findExistingEntryIds')->willReturn([]);
+        $persisted = [];
+        $this->entityManager->method('persist')->willReturnCallback(static function (object $entry) use (&$persisted): void {
+            $persisted[] = $entry;
+        });
+
+        $this->service->syncCharacterJournal($this->characterWithScopes([self::WALLET_SCOPE]));
+
+        self::assertSame([null, null], [$persisted[0]->getReason(), $persisted[0]->getFirstPartyId()]);
     }
 
     public function testAnEntryAlreadyStoredIsNotStoredAgain(): void
@@ -178,6 +226,28 @@ final class WalletJournalSyncServiceTest extends TestCase
             'context_id_type' => $contextId === null ? null : 'contract_id',
             'balance' => 1_000.0,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function donationLine(int $id, float $amount, ?string $reason, int $firstPartyId): array
+    {
+        $line = [
+            'id' => $id,
+            'ref_type' => 'player_donation',
+            'amount' => $amount,
+            'date' => '2026-11-10T18:00:00Z',
+            'first_party_id' => $firstPartyId,
+            'second_party_id' => self::EVE_CHARACTER_ID,
+            'balance' => 1_000.0,
+        ];
+
+        if ($reason !== null) {
+            $line['reason'] = $reason;
+        }
+
+        return $line;
     }
 
     /**

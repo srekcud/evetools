@@ -14,6 +14,7 @@ final readonly class SettlementTransfer
         public ?string $toUserId,
         public int $amountCents,
         public ?\DateTimeImmutable $receivedAt,
+        public bool $journalVerified,
     ) {
     }
 

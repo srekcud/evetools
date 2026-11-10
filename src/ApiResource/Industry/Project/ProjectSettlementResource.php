@@ -58,7 +58,7 @@ class ProjectSettlementResource
     public string $reference;
 
     /**
-     * @var list<array{fromParticipantId: string, fromName: string|null, toParticipantId: string, toName: string|null, amount: float, received: bool, receivedAt: string|null, canConfirm: bool}>|null
+     * @var list<array{fromParticipantId: string, fromName: string|null, toParticipantId: string, toName: string|null, amount: float, received: bool, journalVerified: bool, receivedAt: string|null, canConfirm: bool}>|null
      */
     public ?array $transfers = null;
 
