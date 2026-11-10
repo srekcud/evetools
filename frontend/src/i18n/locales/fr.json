@@ -3099,6 +3099,63 @@
         "unknown_cost": "Un coût est inconnu ou le coût total est nul : les payouts, donc les virements, ne peuvent pas être calculés.",
         "unknown_seller": "Une vente a été enregistrée par quelqu'un qui n'est plus participant accepté : les virements ne peuvent pas être calculés."
       }
+    },
+    "companion": {
+      "windowTitle": "Compagnon de projet",
+      "loading": "Chargement du projet...",
+      "open": "Compagnon",
+      "openTitle": "Ouvrir le compagnon du projet dans une fenêtre détachée",
+      "live": "direct",
+      "liveTitle": "Mis à jour en temps réel",
+      "bomPercent": "BOM {percent} %",
+      "toBar": "Réduire en barre",
+      "toColumn": "Agrandir en colonne",
+      "collapse": "Barre",
+      "expand": "Colonne",
+      "counters": {
+        "free": "{count} à attribuer",
+        "mine": "{count} à livrer",
+        "review": "{count} à revoir"
+      },
+      "sections": {
+        "free": "À attribuer",
+        "mine": "Mes lignes à livrer",
+        "todo": "À faire",
+        "jobs": "Mes jobs (ESI)",
+        "project": "Projet"
+      },
+      "emptyFree": "Toutes les lignes ont un responsable.",
+      "emptyMine": "Rien à livrer.",
+      "emptyJobs": "Aucun de vos jobs sur ce projet.",
+      "moreFree": "+ {count} autres lignes libres · voir la BOM",
+      "claim": "Je m'en charge",
+      "release": "Libérer",
+      "deliver": "Livrer",
+      "runs": "{runs} runs",
+      "todo": {
+        "contributions": "{count} contributions à revoir",
+        "joinRequests": "{count} demandes d'adhésion"
+      },
+      "jobStatus": {
+        "active": "En cours",
+        "paused": "En pause",
+        "ready": "Terminé"
+      },
+      "output": "Sortie : {place}",
+      "outputUnknown": "Sortie : inconnue",
+      "bomFulfillment": "BOM complétée : {percent} %",
+      "finalJobsRunning": "Jobs finaux en cours : {count}",
+      "alerts": {
+        "jobReady": "{name} ×{runs} · {character} · à livrer",
+        "jobReadyGeneric": "Un job est prêt à livrer",
+        "bomComplete": "BOM complète",
+        "joinRequest": "{count} demandes d'adhésion"
+      },
+      "notices": {
+        "popupBlocked": "Le navigateur a bloqué la popup : autorisez les popups pour ce site, puis rouvrez le compagnon.",
+        "popupFallback": "Picture-in-Picture indisponible : le compagnon s'est ouvert en popup.",
+        "resizeRefused": "Le navigateur a refusé de redimensionner la fenêtre : ajustez-la à la main."
+      }
     }
   },
   "market": {

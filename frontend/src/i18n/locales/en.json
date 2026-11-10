@@ -3099,6 +3099,63 @@
         "unknown_cost": "A cost is unknown or the total cost is zero: payouts, and so transfers, cannot be computed.",
         "unknown_seller": "A sale was recorded by someone who is no longer an accepted participant: transfers cannot be computed."
       }
+    },
+    "companion": {
+      "windowTitle": "Project companion",
+      "loading": "Loading the project...",
+      "open": "Companion",
+      "openTitle": "Open the project companion in a detached window",
+      "live": "live",
+      "liveTitle": "Updated in real time",
+      "bomPercent": "BOM {percent}%",
+      "toBar": "Collapse to the bar",
+      "toColumn": "Expand to the column",
+      "collapse": "Bar",
+      "expand": "Column",
+      "counters": {
+        "free": "{count} to assign",
+        "mine": "{count} to deliver",
+        "review": "{count} to review"
+      },
+      "sections": {
+        "free": "To assign",
+        "mine": "My lines to deliver",
+        "todo": "To do",
+        "jobs": "My jobs (ESI)",
+        "project": "Project"
+      },
+      "emptyFree": "Every line has an owner.",
+      "emptyMine": "Nothing to deliver.",
+      "emptyJobs": "No job of yours on this project.",
+      "moreFree": "+ {count} more free lines · see the BOM",
+      "claim": "I'll handle it",
+      "release": "Release",
+      "deliver": "Deliver",
+      "runs": "{runs} runs",
+      "todo": {
+        "contributions": "{count} contributions to review",
+        "joinRequests": "{count} join requests"
+      },
+      "jobStatus": {
+        "active": "Running",
+        "paused": "Paused",
+        "ready": "Ready"
+      },
+      "output": "Output: {place}",
+      "outputUnknown": "Output: unknown",
+      "bomFulfillment": "BOM fulfilled: {percent}%",
+      "finalJobsRunning": "Final jobs running: {count}",
+      "alerts": {
+        "jobReady": "{name} ×{runs} · {character} · to deliver",
+        "jobReadyGeneric": "A job is ready to deliver",
+        "bomComplete": "BOM complete",
+        "joinRequest": "{count} join requests"
+      },
+      "notices": {
+        "popupBlocked": "The browser blocked the popup: allow popups for this site, then open the companion again.",
+        "popupFallback": "Picture-in-Picture is not available: the companion opened as a popup.",
+        "resizeRefused": "The browser refused to resize the window: adjust it by hand."
+      }
     }
   },
   "market": {
