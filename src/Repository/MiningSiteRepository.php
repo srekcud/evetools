@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\MiningOperation;
 use App\Entity\MiningSite;
 use App\Entity\User;
+use App\Enum\MiningOperationStatus;
 use App\Enum\MiningSiteStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -40,6 +41,21 @@ class MiningSiteRepository extends ServiceEntityRepository
     public function findActiveOfOperation(MiningOperation $operation): array
     {
         return $this->findBy(['operation' => $operation, 'status' => MiningSiteStatus::Active], ['createdAt' => 'ASC']);
+    }
+
+    /**
+     * @return list<MiningSite>
+     */
+    public function findActiveOfRunningOperations(): array
+    {
+        return $this->createQueryBuilder('site')
+            ->innerJoin('site.operation', 'operation')
+            ->andWhere('site.status = :siteStatus')
+            ->andWhere('operation.status = :operationStatus')
+            ->setParameter('siteStatus', MiningSiteStatus::Active)
+            ->setParameter('operationStatus', MiningOperationStatus::InProgress)
+            ->getQuery()
+            ->getResult();
     }
 
     /**
