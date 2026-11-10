@@ -26,6 +26,7 @@ use App\State\Provider\Mining\MiningValuationProfileProvider;
         ),
     ],
     normalizationContext: ['skip_null_values' => false],
+    security: "is_granted('ROLE_USER')",
 )]
 class MiningValuationProfileResource
 {
