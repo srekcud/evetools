@@ -43,6 +43,7 @@ const PROFIT_CAPTION_KEYS: Record<WorkshopProjectProfitStatus, string> = {
   final: 'industry.workshop.profit.final',
   provisional: 'industry.workshop.profit.provisional',
   awaiting_sales: 'industry.workshop.profit.awaitingSales',
+  forecast: 'industry.workshop.profit.forecast',
   unknown: 'industry.workshop.profit.unknown',
 }
 const STATUS_CLASSES: Record<GroupProjectStatus, string> = {
