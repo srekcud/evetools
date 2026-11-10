@@ -69,6 +69,7 @@ async function mountSellingNyxOn(tab: string): Promise<VueWrapper> {
         ProjectDiscordRecap: true,
         ProductionChain: true,
         ProjectBuyOrBuild: true,
+        ProjectResearch: true,
         ProjectStructures: true,
         ProjectStructureHealth: true,
         MaterialSourcing: true,

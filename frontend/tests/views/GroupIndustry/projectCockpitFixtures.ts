@@ -189,6 +189,7 @@ export async function mountCockpitDetail(answers: CockpitAnswers, locale: TestLo
         ProjectSurplus: true,
         ProjectPlanning: true,
         ProjectBuyOrBuild: true,
+        ProjectResearch: true,
         ProjectStructures: true,
         ProjectStructureHealth: true,
         SellForecastCard: true,
