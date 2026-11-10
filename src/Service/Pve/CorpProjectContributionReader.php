@@ -18,7 +18,6 @@ use Psr\Log\LoggerInterface;
 final readonly class CorpProjectContributionReader
 {
     private const PROJECTS_SCOPE = 'esi-corporations.read_projects.v1';
-    private const FIRST_PLAYER_CORPORATION_ID = 2000000;
     private const COMPATIBILITY_DATE = '2025-12-16';
     private const CACHE_TTL_PROJECTS = 900;
     private const CACHE_TTL_CONTRIBUTORS = 300;
@@ -47,7 +46,7 @@ final readonly class CorpProjectContributionReader
             $corporationId = $character->getCorporationId();
             if (
                 $character->getEveToken() === null
-                || $corporationId < self::FIRST_PLAYER_CORPORATION_ID
+                || $corporationId < Character::FIRST_PLAYER_CORPORATION_ID
                 || in_array($corporationId, $readCorporationIds, true)
             ) {
                 continue;

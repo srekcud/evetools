@@ -30,7 +30,10 @@ final readonly class TriggerCorporationMiningExtractionsSyncHandler
         try {
             $corporationIds = array_unique(array_map(
                 static fn (Character $character): int => $character->getCorporationId(),
-                $this->characterRepository->findAll(),
+                array_filter(
+                    $this->characterRepository->findAll(),
+                    static fn (Character $character): bool => $character->isInPlayerCorporation(),
+                ),
             ));
 
             foreach ($corporationIds as $corporationId) {

@@ -59,6 +59,8 @@ trait CorporationMiningExtractionHarness
     private const int CORPORATION_A = 98_000_001;
     private const int CORPORATION_B = 98_000_002;
     private const int CORPORATION_C = 98_000_003;
+    private const int NPC_CORPORATION = 1_000_125;
+    private const int FIRST_PLAYER_CORPORATION = 2_000_000;
 
     private const string USER_A_ID = '0195f3a0-2740-7000-8000-00000000000a';
     private const string USER_B_ID = '0195f3a0-2740-7000-8000-00000000000b';

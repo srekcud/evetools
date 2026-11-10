@@ -42,6 +42,19 @@ final class SyncCorporationMiningExtractionsProcessorTest extends TestCase
         self::assertSame([], $this->storedExtractions);
     }
 
+    public function testTheRefreshSkipsTheNpcCorporationsOfTheUser(): void
+    {
+        $this->addCharacter($this->userA, 'Mara Venn', 2_112_582_001, self::NPC_CORPORATION, [], []);
+        $this->addCharacter($this->userA, 'Iven Dask', 2_112_582_002, self::FIRST_PLAYER_CORPORATION, [], []);
+
+        $this->process();
+
+        self::assertSame(
+            [self::FIRST_PLAYER_CORPORATION, self::CORPORATION_A, self::CORPORATION_B],
+            array_column($this->dispatched(), 1),
+        );
+    }
+
     public function testTheRefreshOfAUserOfAnotherCorporationDispatchesOnlyHisCorporation(): void
     {
         $this->currentUser = $this->userC;
