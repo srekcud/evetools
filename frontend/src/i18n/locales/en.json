@@ -2385,7 +2385,13 @@
       "saving": "saving {amount}",
       "savingIfSurplusReused": "with the surplus reused, building saves {amount}",
       "withoutImport": "without the import: buy",
-      "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × jumps × the rate). The surplus of a run is not credited to the project."
+      "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × jumps × the rate). The surplus of a run is not credited to the project.",
+      "switch": {
+        "toBuy": "Switch to buy",
+        "toBuild": "Switch to build",
+        "blacklisted": "bought (blacklist)",
+        "error": "The component could not be switched"
+      }
     },
     "research": {
       "title": "Research worth launching",

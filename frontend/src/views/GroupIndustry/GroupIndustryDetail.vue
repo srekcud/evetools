@@ -38,6 +38,7 @@ import ProjectPhaseRail from '@/components/group-industry/ProjectPhaseRail.vue'
 import ProjectNextActionCard from '@/components/group-industry/ProjectNextActionCard.vue'
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
+import { useGroupChainStore } from '@/stores/group-industry/chain'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
 import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
@@ -66,6 +67,7 @@ const editSalesTaxFieldId = useId()
 const route = useRoute()
 const router = useRouter()
 const projectStore = useGroupProjectStore()
+const chainStore = useGroupChainStore()
 const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
 const settlementStore = useGroupSettlementStore()
@@ -377,6 +379,11 @@ function onBlacklistSaved(): void {
   loadCockpit(projectId.value)
 }
 
+function onBuyOrBuildSwitched(): void {
+  onBlacklistSaved()
+  chainStore.fetchChain(projectId.value)
+}
+
 function onContributionSubmitted(): void {
   showContributeModal.value = false
   projectStore.fetchBom(projectId.value)
@@ -640,7 +647,12 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
         <ProductionChain :project-id="projectId" />
-        <ProjectBuyOrBuild :project-id="projectId" />
+        <ProjectBuyOrBuild
+          :project-id="projectId"
+          :can-switch="isOwnerOrAdmin && !isCompleted"
+          :blacklist-type-ids="project.blacklistTypeIds"
+          @switched="onBuyOrBuildSwitched"
+        />
         <ProjectResearch :project-id="projectId" />
         <ProjectStructures :project-id="projectId" />
         <ProjectStructureHealth :project-id="projectId" />
