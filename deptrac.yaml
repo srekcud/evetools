@@ -191,6 +191,8 @@ deptrac:
       - App\State\Provider\Industry\IndustryResourceMapper
     App\State\Processor\Industry\UpdateStructureProcessor:
       - App\State\Provider\Industry\IndustryResourceMapper
+    App\Service\MiningOperation\MiningBoostShipCapacities:
+      - App\Industry\Infrastructure\Sde\DogmaAttributeValues
     App\Service\MiningOperation\MiningOperationEnrolment:
       - App\ApiResource\Input\MiningOperation\CreateMiningOperationInput
     App\State\Processor\MiningOperation\CompleteMiningOperationProcessor:
@@ -203,6 +205,8 @@ deptrac:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\DepartMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
+    App\State\Processor\MiningOperation\EmptyMiningFleetHangarProcessor:
+      - App\State\Provider\MiningOperation\MiningHaulerPlanResourceMapper
     App\State\Processor\MiningOperation\EndMiningOperationProcessor:
       - App\State\Provider\MiningOperation\MiningOperationResourceMapper
     App\State\Processor\MiningOperation\RecordMiningPresenceProcessor:

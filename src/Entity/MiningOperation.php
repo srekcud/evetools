@@ -155,6 +155,7 @@ class MiningOperation
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $mountedCompressorKinds = [];
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $fleetHangarEmptiedAt = null;
 
     public function __construct()

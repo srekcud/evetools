@@ -40,6 +40,24 @@ class MiningEntryRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return list<MiningEntry>
+     */
+    public function findOfCharacterFromDay(int $eveCharacterId, \DateTimeImmutable $fromDay, ?int $solarSystemId): array
+    {
+        $queryBuilder = $this->createQueryBuilder('m')
+            ->where('m.characterId = :characterId')
+            ->andWhere('m.date >= :fromDay')
+            ->setParameter('characterId', $eveCharacterId)
+            ->setParameter('fromDay', $fromDay, 'date_immutable');
+
+        if (null !== $solarSystemId) {
+            $queryBuilder->andWhere('m.solarSystemId = :solarSystemId')->setParameter('solarSystemId', $solarSystemId);
+        }
+
+        return array_values($queryBuilder->getQuery()->getResult());
+    }
+
+    /**
      * @param list<string>|null $excludeUsages
      * @return MiningEntry[]
      */
