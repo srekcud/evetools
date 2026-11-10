@@ -27,6 +27,22 @@ class CorporationWalletDonationRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return list<CorporationWalletDonation>
+     */
+    public function findOfCorporationSince(int $corporationId, \DateTimeImmutable $since): array
+    {
+        return $this->createQueryBuilder('donation')
+            ->where('donation.corporationId = :corporationId')
+            ->andWhere('donation.date >= :since')
+            ->setParameter('corporationId', $corporationId)
+            ->setParameter('since', $since)
+            ->orderBy('donation.date', 'DESC')
+            ->addOrderBy('donation.journalId', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * @param list<int> $characterIds
      *
      * @return list<CorporationWalletDonation>

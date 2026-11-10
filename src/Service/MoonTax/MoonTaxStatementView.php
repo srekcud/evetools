@@ -25,6 +25,7 @@ final readonly class MoonTaxStatementView
         public MoonTaxStatus $status,
         public array $unknownTypeIds,
         public ?bool $outsideAlliance,
+        public ?int $recordedCorporationId = null,
     ) {
     }
 }

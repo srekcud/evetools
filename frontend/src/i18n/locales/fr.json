@@ -1593,6 +1593,8 @@
         },
         "columns": {
           "character": "Personnage",
+          "corporation": "Corporation",
+          "alliance": "Alliance",
           "refinery": "Raffinerie",
           "period": "Période",
           "reference": "Référence",
@@ -1602,6 +1604,34 @@
           "status": "Statut",
           "outside": "Alliance",
           "actions": "Actions"
+        },
+        "affiliation": {
+          "noAlliance": "Sans alliance",
+          "unknown": "inconnue"
+        },
+        "donations": {
+          "title": "Dons reçus",
+          "filterLabel": "Filtre des dons",
+          "filters": {
+            "unmatched": "À attribuer",
+            "all": "Tous"
+          },
+          "columns": {
+            "date": "Date",
+            "donor": "Donateur",
+            "amount": "Montant",
+            "reason": "Motif",
+            "attribution": "Attribution",
+            "actions": "Attribuer à"
+          },
+          "noReason": "—",
+          "notAttributed": "Non attribué",
+          "attributedOn": "le {date}",
+          "chooseMiner": "Choisir un mineur",
+          "attribute": "Attribuer",
+          "loadError": "Les dons n'ont pas pu être chargés.",
+          "emptyUnmatched": "Aucun don à attribuer",
+          "emptyAll": "Aucun don sur 90 jours"
         },
         "status": {
           "provisional": "Provisoire",

@@ -99,6 +99,7 @@ final readonly class MoonTaxStatementReader
                 $line->status,
                 $statement->getUnknownTypeIds(),
                 $statement->isOutsideAlliance(),
+                $statement->getRecordedCorporationId(),
             );
         }
 
@@ -146,6 +147,7 @@ final readonly class MoonTaxStatementReader
                 MoonTaxStatus::Provisional,
                 $moonTax->unknownTypeIds,
                 $this->allianceResolver->isOutsideAlliance($setting->getCorporationId(), $recordedCorporationId),
+                $recordedCorporationId,
             );
         }
 

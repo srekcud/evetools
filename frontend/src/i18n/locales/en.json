@@ -1593,6 +1593,8 @@
         },
         "columns": {
           "character": "Character",
+          "corporation": "Corporation",
+          "alliance": "Alliance",
           "refinery": "Refinery",
           "period": "Period",
           "reference": "Reference",
@@ -1602,6 +1604,34 @@
           "status": "Status",
           "outside": "Alliance",
           "actions": "Actions"
+        },
+        "affiliation": {
+          "noAlliance": "No alliance",
+          "unknown": "unknown"
+        },
+        "donations": {
+          "title": "Donations received",
+          "filterLabel": "Donation filter",
+          "filters": {
+            "unmatched": "To attribute",
+            "all": "All"
+          },
+          "columns": {
+            "date": "Date",
+            "donor": "Donor",
+            "amount": "Amount",
+            "reason": "Reason",
+            "attribution": "Attribution",
+            "actions": "Attribute to"
+          },
+          "noReason": "—",
+          "notAttributed": "Not attributed",
+          "attributedOn": "on {date}",
+          "chooseMiner": "Choose a miner",
+          "attribute": "Attribute",
+          "loadError": "The donations could not be loaded.",
+          "emptyUnmatched": "No donation to attribute",
+          "emptyAll": "No donation in 90 days"
         },
         "status": {
           "provisional": "Provisional",

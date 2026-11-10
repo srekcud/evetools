@@ -50,7 +50,17 @@ final readonly class MoonTaxStatementCollectionProvider implements ProviderInter
 
         $names = $this->nameResolver->characterNames(array_values(array_unique(array_map(static fn (MoonTaxStatementView $view): int => $view->characterId, $views))));
 
-        return array_map(fn (MoonTaxStatementView $view): MoonTaxStatementResource => $this->mapper->statementToResource($view, $names[$view->characterId]), $views);
+        $recordedCorporationIds = array_values(array_unique(array_filter(array_map(static fn (MoonTaxStatementView $view): ?int => $view->recordedCorporationId, $views))));
+        $affiliations = $this->nameResolver->affiliations($recordedCorporationIds);
+
+        return array_map(
+            fn (MoonTaxStatementView $view): MoonTaxStatementResource => $this->mapper->statementToResource(
+                $view,
+                $names[$view->characterId],
+                $view->recordedCorporationId === null ? null : $affiliations[$view->recordedCorporationId],
+            ),
+            $views,
+        );
     }
 
     private function periodStartFilter(mixed $value): ?string

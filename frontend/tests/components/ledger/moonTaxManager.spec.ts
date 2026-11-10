@@ -20,6 +20,7 @@ import {
   corporationPath,
   countOf,
   defaultRoutes,
+  donationsPath,
   moonTaxCorporation,
   mountMoonTax,
   present,
@@ -147,6 +148,7 @@ describe('MoonTaxTab refinery settings', () => {
     expect([...requestLines()].sort()).toEqual([
       'GET /mining/corporation-extractions',
       `GET ${corporationPath(CORPORATION_A)}`,
+      `GET ${donationsPath(CORPORATION_A)}`,
       `GET ${statementsPath(CORPORATION_A)}`,
     ])
     expect([present(wrapper, '[data-moon-tax-view="manager"]').attributes('aria-pressed'), present(wrapper, '[data-moon-tax-view="miner"]').attributes('aria-pressed')]).toEqual(['true', 'false'])
