@@ -120,14 +120,16 @@ class IndustryBlacklistService
     {
         $userGroupIds = $user->getIndustryBlacklistGroupIds();
 
-        return array_values(array_map(function (array $cat) use ($userGroupIds) {
-            // A category is blacklisted if ALL its group IDs are in the user's blacklist
-            $enabled = !empty(array_intersect($cat['groupIds'], $userGroupIds));
+        return array_values(array_map(static function (array $cat) use ($userGroupIds): array {
+            $blacklistedGroupCount = \count(array_intersect($cat['groupIds'], $userGroupIds));
+            $isBlacklisted = $blacklistedGroupCount === \count($cat['groupIds']);
+
             return [
                 'key' => $cat['key'],
                 'label' => $cat['label'],
                 'groupIds' => $cat['groupIds'],
-                'blacklisted' => $enabled,
+                'blacklisted' => $isBlacklisted,
+                'partiallyBlacklisted' => !$isBlacklisted && $blacklistedGroupCount > 0,
             ];
         }, self::BLACKLIST_CATEGORIES));
     }

@@ -47,6 +47,7 @@ class UpdateBlacklistProcessor implements ProcessorInterface
 
         $resource = new BlacklistResource();
         $resource->categories = $this->blacklistService->getCategories($user);
+        $resource->groupIds = array_values($user->getIndustryBlacklistGroupIds());
         $resource->items = $this->blacklistService->getBlacklistedItems($user);
 
         return $resource;
