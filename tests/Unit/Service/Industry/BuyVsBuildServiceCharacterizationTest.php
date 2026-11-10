@@ -525,7 +525,7 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
             'buyTypeIds' => [],
             'missingData' => [],
             'warnings' => [],
-        ], $result);
+        ], $this->withoutPriceSources($result));
     }
 
     #[Group('issue-98')]
@@ -831,12 +831,5 @@ final class BuyVsBuildServiceCharacterizationTest extends TestCase
         }
 
         $this->fail("No component {$typeId} in the buy-vs-build output");
-    }
-
-    private function withoutPriceSources(array $analysis): array
-    {
-        $analysis['components'] = array_map(static fn (array $component): array => array_diff_key($component, ['priceSources' => true]), $analysis['components']);
-
-        return array_diff_key($analysis, ['priceSources' => true]);
     }
 }

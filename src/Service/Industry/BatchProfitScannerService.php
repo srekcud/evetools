@@ -334,13 +334,12 @@ class BatchProfitScannerService
             $partialMaterialCoveragePercents = [];
             foreach ($materials as $mat) {
                 $adjustedQty = self::materialQuantityOf($mat['quantity'], $isReaction, $me);
-                $quote = $quotes[self::quoteKey($mat['materialTypeId'], $adjustedQty)];
-                $coverage = PriceSource::coverageOfQuote($quote);
-                if ($quote === null || $coverage === null) {
+                $unitPrice = $quotes->unitPriceOf($mat['materialTypeId'], $adjustedQty);
+                if ($unitPrice === null) {
                     $missingPriceTypeIds[$mat['materialTypeId']] = true;
                 } else {
-                    $materialCost += $adjustedQty * $quote['weightedPrice'];
-                    $partialPercent = PriceSource::partialPercentOf($coverage);
+                    $materialCost += $adjustedQty * $unitPrice;
+                    $partialPercent = PriceSource::partialPercentOf($quotes->coverageOf($mat['materialTypeId'], $adjustedQty));
                     if ($partialPercent !== null) {
                         $partialMaterialCoveragePercents[] = $partialPercent;
                     }
@@ -382,12 +381,12 @@ class BatchProfitScannerService
             }
 
             // Sell price based on venue
-            $saleQuote = $isJitaSale ? $quotes[self::quoteKey($typeId, $outputPerRun)] : null;
-            $saleCoverage = PriceSource::coverageOfQuote($saleQuote);
+            $saleUnitPrice = $isJitaSale ? $quotes->unitPriceOf($typeId, $outputPerRun) : null;
+            $saleCoverage = $isJitaSale ? $quotes->coverageOf($typeId, $outputPerRun) : null;
             $sellPrice = match ($sellVenue) {
                 'structure' => $structureId !== null ? ($structurePrices[$typeId] ?? null) : null,
                 self::VENUE_CONTRACTS => ($contractIndicators[$typeId] ?? null)?->medianSoldUnitPrice,
-                default => $saleQuote === null || $saleCoverage === null ? null : $saleQuote['weightedPrice'],
+                default => $saleUnitPrice,
             };
 
             $isMaterialCostUnknown = $missingPriceTypeIds !== [];
@@ -503,10 +502,8 @@ class BatchProfitScannerService
      * @param list<array{blueprintTypeId: int, productTypeId: int, outputPerRun: int, activityId: int}> $products
      * @param array<int, list<array{materialTypeId: int, quantity: int}>> $materialsByBlueprint
      * @param array<int, mixed> $t2ProductIds
-     *
-     * @return array<string, array{weightedPrice: float, coverage?: float, ordersUsed: int}|null>
      */
-    private function weightedQuotesFor(array $products, array $materialsByBlueprint, array $t2ProductIds, bool $isJitaSale): array
+    private function weightedQuotesFor(array $products, array $materialsByBlueprint, array $t2ProductIds, bool $isJitaSale): WeightedSellQuotes
     {
         $requests = [];
         foreach ($products as $product) {
@@ -514,14 +511,14 @@ class BatchProfitScannerService
             $me = self::assumedMaterialEfficiency(isset($t2ProductIds[$product['productTypeId']]), $isReaction);
             foreach ($materialsByBlueprint[$product['blueprintTypeId']] ?? [] as $mat) {
                 $quantity = self::materialQuantityOf($mat['quantity'], $isReaction, $me);
-                $requests[self::quoteKey($mat['materialTypeId'], $quantity)] = ['typeId' => $mat['materialTypeId'], 'quantity' => $quantity];
+                $requests[] = ['typeId' => $mat['materialTypeId'], 'quantity' => $quantity];
             }
             if ($isJitaSale) {
-                $requests[self::quoteKey($product['productTypeId'], $product['outputPerRun'])] = ['typeId' => $product['productTypeId'], 'quantity' => $product['outputPerRun']];
+                $requests[] = ['typeId' => $product['productTypeId'], 'quantity' => $product['outputPerRun']];
             }
         }
 
-        return array_combine(array_keys($requests), $this->jitaMarketService->getWeightedSellQuotesWithFallback(array_values($requests)));
+        return WeightedSellQuotes::read($this->jitaMarketService, $requests);
     }
 
     private static function assumedMaterialEfficiency(bool $isT2, bool $isReaction): int
@@ -536,11 +533,6 @@ class BatchProfitScannerService
     private static function materialQuantityOf(int $baseQuantity, bool $isReaction, int $materialEfficiency): int
     {
         return MaterialQuantityFormula::forJob($baseQuantity, self::ASSUMED_RUNS, $isReaction ? 0 : $materialEfficiency, 0.0, 0.0);
-    }
-
-    private static function quoteKey(int $typeId, int $quantity): string
-    {
-        return $typeId . ':' . $quantity;
     }
 
     /**

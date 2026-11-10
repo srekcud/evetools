@@ -332,7 +332,7 @@ final class BuyVsBuildServiceUnknownPriceTest extends TestCase
             'buyTypeIds' => [self::RAM_AMMUNITION_TECH, self::FULLERIDES],
             'missingData' => [],
             'warnings' => [],
-        ], $result);
+        ], $this->withoutPriceSources($result));
     }
 
     public function testComponentWithOnlyAStructurePriceHasAKnownBuyCostAndNoMissingData(): void

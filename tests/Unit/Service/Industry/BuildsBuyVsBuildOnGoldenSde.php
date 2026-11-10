@@ -68,6 +68,13 @@ trait BuildsBuyVsBuildOnGoldenSde
         );
     }
 
+    private function withoutPriceSources(array $analysis): array
+    {
+        $analysis['components'] = array_map(static fn (array $component): array => array_diff_key($component, ['priceSources' => true]), $analysis['components']);
+
+        return array_diff_key($analysis, ['priceSources' => true]);
+    }
+
     private function goldenUser(): User
     {
         $user = new User();

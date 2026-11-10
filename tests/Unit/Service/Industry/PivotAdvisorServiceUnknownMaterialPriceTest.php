@@ -110,7 +110,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             'score' => 4747.08,
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
-        ], $this->candidateOf(self::CANDIDATE_X, $result));
+        ], $this->withoutPriceSources($this->candidateOf(self::CANDIDATE_X, $result)));
     }
 
     public function testCandidateWithAnUnpricedMaterialHasUnknownMarginProfitAndScoreWithTheMissingMaterialPriceReason(): void
@@ -131,7 +131,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             'score' => null,
             'unknownReason' => BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
             'missingPriceTypeIds' => [self::UNPRICED_ISOTOPES],
-        ], $this->candidateOf(self::CANDIDATE_Y, $result));
+        ], $this->withoutPriceSources($this->candidateOf(self::CANDIDATE_Y, $result)));
     }
 
     public function testCandidatesWithAnUnknownScoreComeAfterEveryPricedCandidateInAscendingTypeIdOrder(): void
@@ -695,6 +695,11 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         return array_intersect_key($values, array_flip($keys));
     }
 
+    private function withoutPriceSources(array $row): array
+    {
+        return array_diff_key($row, ['priceSources' => true]);
+    }
+
     private function candidateOf(int $typeId, array $result): array
     {
         foreach ($result['candidates'] as $candidate) {
@@ -704,10 +709,5 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         }
 
         $this->fail("Candidate {$typeId} is missing from the pivot analysis");
-    }
-
-    private function withoutPriceSources(array $row): array
-    {
-        return array_diff_key($row, ['priceSources' => true]);
     }
 }

@@ -284,7 +284,7 @@ final class PivotAdvisorServiceUnknownJobInstallCostTest extends TestCase
             'score' => null,
             'unknownReason' => EsiCostIndexService::UNKNOWN_REASON_MISSING_ADJUSTED_PRICE,
             'missingPriceTypeIds' => [],
-        ], $this->candidateOf(self::CANDIDATE_V, $result));
+        ], $this->withoutPriceSources($this->candidateOf(self::CANDIDATE_V, $result)));
     }
 
     public function testCandidateWithAMaterialWithoutAdjustedPriceIsRankedAfterTheFiguredCandidatesItWouldLeadAtAZeroJobInstallCost(): void

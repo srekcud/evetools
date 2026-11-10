@@ -69,7 +69,7 @@ class BuyVsBuildService
      *     totalProductionCost: float|null,
      *     sellPrice: float|null,
      *     marginPercent: float|null,
-     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float|null, buyCostJita: float|null, buyCostStructure: float|null, buyCostJitaCoveragePercent: float|null, verdict: string, savings: float|null, savingsPercent: float|null, meUsed: int, runs: int, missingData: list<array{reason: string, typeId: ?int}>, warnings: list<array{reason: string, typeId: int, coveragePercent: float}>}>,
+     *     components: list<array{typeId: int, typeName: string|null, quantity: int, stage: string, buildCost: float|null, buildMaterials: list<array{typeId: int, typeName: string|null, quantity: int, unitPrice: float|null, totalPrice: float|null}>, buildJobInstallCost: float|null, buyCostJita: float|null, buyCostStructure: float|null, buyCostJitaCoveragePercent: float|null, verdict: string, savings: float|null, savingsPercent: float|null, meUsed: int, runs: int, missingData: list<array{reason: string, typeId: ?int}>, warnings: list<array{reason: string, typeId: int, coveragePercent: float}>, priceSources: array{build: array{market: string, side: string, method: string, coveragePercent: ?float}, buyJita: array{market: string, side: string, method: string, coveragePercent: ?float}, buyStructure: array{market: string, side: string, method: string, coveragePercent: ?float}|null}}>,
      *     buildAllCost: float|null,
      *     buyAllCost: float|null,
      *     optimalMixCost: float|null,
@@ -77,6 +77,7 @@ class BuyVsBuildService
      *     buyTypeIds: list<int>,
      *     missingData: list<array{reason: string, typeId: ?int}>,
      *     warnings: list<array{reason: string, typeId: int, coveragePercent: float}>,
+     *     priceSources: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float}|null},
      * }
      */
     public function analyze(
@@ -151,6 +152,8 @@ class BuyVsBuildService
             }
             $componentMissingData = $buildCost->plus($buyCost);
             $componentsMissingData = $componentsMissingData->plus($componentMissingData);
+            $buildWarnings = PartialPricePresenter::of($componentCost->totalCost);
+            $buyJitaCoveragePercent = PartialPricePresenter::coveragePercentOf($rootLeaf->cost, $componentTypeId);
 
             $components[] = [
                 'typeId' => $componentTypeId,
@@ -162,7 +165,7 @@ class BuyVsBuildService
                 'buildJobInstallCost' => self::roundedAmountOf($componentCost->installCost),
                 'buyCostJita' => self::roundedAmountOf($rootLeaf->cost),
                 'buyCostStructure' => null === $buyCostStructure ? null : self::roundedAmountOf($buyCostStructure),
-                'buyCostJitaCoveragePercent' => PartialPricePresenter::coveragePercentOf($rootLeaf->cost, $componentTypeId),
+                'buyCostJitaCoveragePercent' => $buyJitaCoveragePercent,
                 'verdict' => $verdict,
                 'savings' => null === $savings ? null : round($savings, self::DISPLAYED_DECIMALS),
                 'savingsPercent' => null === $savings ? null : self::savingsPercentOf($savings, $buildCost, $buyCost),
@@ -170,6 +173,11 @@ class BuyVsBuildService
                 'runs' => $componentRuns,
                 'missingData' => MissingDataPresenter::of($componentMissingData),
                 'warnings' => PartialPricePresenter::of($componentMissingData),
+                'priceSources' => [
+                    'build' => PriceSource::jitaSellWeighted(self::lowestCoveragePercentOf($buildWarnings))->toArray(),
+                    'buyJita' => PriceSource::jitaSellWeighted($buyJitaCoveragePercent)->toArray(),
+                    'buyStructure' => null === $buyCostStructure ? null : PriceSource::structureSellLowest()->toArray(),
+                ],
             ];
         }
 
@@ -181,7 +189,9 @@ class BuyVsBuildService
 
         $rootCostOutsideComponents = self::rootCostOutsideComponents($rootCost, $componentRecipes);
         $totalProductionCost = $optimalMixCost->plus($rootCostOutsideComponents);
-        $sellPrice = $this->sellPriceOf($typeId, $sellStructureId);
+        $saleQuantity = $rootCost->producedQuantity->value;
+        [$sellPrice, $saleSource] = $this->saleOf($typeId, $saleQuantity, $sellStructureId);
+        $warnings = PartialPricePresenter::of($totalProductionCost);
 
         return [
             'typeId' => $typeId,
@@ -190,7 +200,7 @@ class BuyVsBuildService
             'runs' => $runs,
             'totalProductionCost' => self::roundedAmountOf($totalProductionCost),
             'sellPrice' => null === $sellPrice ? null : round($sellPrice, self::DISPLAYED_DECIMALS),
-            'marginPercent' => self::marginPercentOf($sellPrice, $rootCost->producedQuantity->value, $totalProductionCost, $salesFees),
+            'marginPercent' => self::marginPercentOf($sellPrice, $saleQuantity, $totalProductionCost, $salesFees),
             'components' => $components,
             'buildAllCost' => self::roundedAmountOf($buildAllCost),
             'buyAllCost' => self::roundedAmountOf($buyAllCost),
@@ -198,7 +208,11 @@ class BuyVsBuildService
             'buildTypeIds' => $buildTypeIds,
             'buyTypeIds' => $buyTypeIds,
             'missingData' => MissingDataPresenter::of($componentsMissingData->plus($rootCostOutsideComponents)),
-            'warnings' => PartialPricePresenter::of($totalProductionCost),
+            'warnings' => $warnings,
+            'priceSources' => [
+                'materials' => PriceSource::jitaSellWeighted(self::lowestCoveragePercentOf($warnings))->toArray(),
+                'sale' => $saleSource?->toArray(),
+            ],
         ];
     }
 
@@ -323,11 +337,30 @@ class BuyVsBuildService
         return null === $rootCost->invention ? $cost : $cost->plus($rootCost->invention->total);
     }
 
-    private function sellPriceOf(int $typeId, ?int $sellStructureId): ?float
+    /**
+     * @return array{0: ?float, 1: ?PriceSource}
+     */
+    private function saleOf(int $typeId, int $quantity, ?int $sellStructureId): array
     {
         $structureSellPrice = null === $sellStructureId ? null : $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId);
+        if (null !== $structureSellPrice) {
+            return [$structureSellPrice, PriceSource::structureSellLowest()];
+        }
 
-        return $structureSellPrice ?? $this->jitaMarketService->getPricesWithFallback([$typeId])[$typeId] ?? null;
+        $quotes = WeightedSellQuotes::read($this->jitaMarketService, [['typeId' => $typeId, 'quantity' => $quantity]]);
+        $jitaSellPrice = $quotes->unitPriceOf($typeId, $quantity);
+
+        return null === $jitaSellPrice
+            ? [null, null]
+            : [$jitaSellPrice, PriceSource::jitaSellWeighted(PriceSource::partialPercentOf($quotes->coverageOf($typeId, $quantity)))];
+    }
+
+    /**
+     * @param list<array{reason: string, typeId: int, coveragePercent: float}> $warnings
+     */
+    private static function lowestCoveragePercentOf(array $warnings): ?float
+    {
+        return [] === $warnings ? null : min(array_column($warnings, 'coveragePercent'));
     }
 
     private static function marginPercentOf(?float $sellPrice, int $outputQuantity, Cost $totalProductionCost, ?SalesFees $salesFees): ?float
