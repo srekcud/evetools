@@ -14,12 +14,15 @@ use App\Industry\Domain\InstallCost;
 use App\Industry\Domain\Isk;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\MissingData;
 use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\Plan;
 use App\Industry\Domain\Recipe;
+use App\Industry\Domain\ResearchJobDuration;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\ResearchLevels;
 use App\Industry\Domain\Runs;
+use App\Industry\Domain\TimeEfficiency;
 
 final readonly class ResearchProfitability
 {
@@ -28,6 +31,8 @@ final readonly class ResearchProfitability
         private BlueprintCatalog $blueprints,
         private AdjustedPrices $adjustedPrices,
         private SystemCostIndices $costIndices,
+        private ResearchBaseTimes $researchBaseTimes,
+        private CharacterSkillLevels $characterSkillLevels,
     ) {
     }
 
@@ -49,7 +54,7 @@ final readonly class ResearchProfitability
             }
 
             $runs = array_sum(array_map(static fn (Job $job): int => $job->runs->value, $plan->jobsFor($firstJob->productTypeId)));
-            $suggestions[] = $this->suggestionOf($firstJob, $runs, $recipe, $structures, $favoriteSystems, $selector, $alphaClone);
+            $suggestions[] = $this->suggestionOf($firstJob, $runs, $recipe, $ownedBlueprints[$firstJob->productTypeId], $structures, $favoriteSystems, $selector, $alphaClone);
         }
 
         return $suggestions;
@@ -82,7 +87,7 @@ final readonly class ResearchProfitability
     /**
      * @param list<ProductionStructure> $structures
      */
-    private function suggestionOf(Job $firstJob, int $runs, Recipe $recipe, array $structures, FavoriteSystems $favoriteSystems, StructureSelector $selector, bool $alphaClone): ResearchSuggestion
+    private function suggestionOf(Job $firstJob, int $runs, Recipe $recipe, OwnedBlueprintUse $owned, array $structures, FavoriteSystems $favoriteSystems, StructureSelector $selector, bool $alphaClone): ResearchSuggestion
     {
         $currentLevel = $firstJob->materialEfficiency->value;
         $targetLevel = $currentLevel + 1;
@@ -107,7 +112,34 @@ final readonly class ResearchProfitability
             $net,
             self::verdictOf($net),
             $currentCost->plus($nextCost)->plus($researchCost)->missingData,
+            $this->researchEstimateOf(ActivityKind::ResearchMaterial, $firstJob->productTypeId, $targetLevel, $owned->researcherEveCharacterId),
+            $firstJob->timeEfficiency->value >= TimeEfficiency::MAXIMUM_LEVEL
+                ? null
+                : $this->researchEstimateOf(ActivityKind::ResearchTime, $firstJob->productTypeId, intdiv($firstJob->timeEfficiency->value, TimeEfficiency::LEVEL_STEP) + 1, $owned->researcherEveCharacterId),
         );
+    }
+
+    private function researchEstimateOf(ActivityKind $activity, int $productTypeId, int $targetLevel, ?int $researcherEveCharacterId): ResearchJobEstimate
+    {
+        $baseTimeSeconds = $this->researchBaseTimes->of($productTypeId, $activity);
+
+        if (null === $baseTimeSeconds || null === $researcherEveCharacterId) {
+            return new ResearchJobEstimate($targetLevel, ResearchJobDuration::unknown(array_values(array_filter([
+                null === $baseTimeSeconds ? MissingData::researchBaseTime($productTypeId) : null,
+                null === $researcherEveCharacterId ? MissingData::researcher() : null,
+            ]))));
+        }
+
+        $researchSkillTypeId = ResearchJobDuration::researchSkillTypeIdOf($activity);
+
+        return new ResearchJobEstimate($targetLevel, ResearchJobDuration::of(
+            $activity,
+            $baseTimeSeconds,
+            $targetLevel,
+            $this->characterSkillLevels->levelOf($researcherEveCharacterId, $researchSkillTypeId),
+            $this->characterSkillLevels->levelOf($researcherEveCharacterId, ResearchJobDuration::ADVANCED_INDUSTRY_SKILL_TYPE_ID),
+            Multiplier::one(),
+        ));
     }
 
     /**
@@ -136,7 +168,7 @@ final readonly class ResearchProfitability
             EstimatedItemValue::of(new Runs(1), $this->eivMaterialsOf($recipe)),
             $targetLevel,
             $costIndex,
-            null === $structure ? Multiplier::one() : $structure->costRoleBonus,
+            null === $structure ? Multiplier::one() : $structure->installCostMultiplierFor(ActivityKind::ResearchMaterial),
             null === $structure ? ProductionCostCalculator::NPC_STATION_FACILITY_TAX_RATE : $structure->facilityTaxRate,
             $alphaClone,
         )->total;

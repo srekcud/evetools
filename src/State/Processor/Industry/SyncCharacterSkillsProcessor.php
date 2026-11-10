@@ -35,6 +35,7 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
         CachedCharacterSkill::SKILL_SCIENCE,
         CachedCharacterSkill::SKILL_METALLURGY,
         CachedCharacterSkill::SKILL_RESEARCH,
+        CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY,
         CachedCharacterSkill::SKILL_ACCOUNTING,
         CachedCharacterSkill::SKILL_BROKER_RELATIONS,
     ];

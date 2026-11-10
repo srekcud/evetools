@@ -10,6 +10,7 @@ use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\ResearchProfitability;
 use App\Industry\Application\ResearchSuggestion;
 use App\Industry\Application\ResearchVerdict;
+use App\Industry\Application\StructureRig;
 use App\Industry\Application\StructureType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
@@ -29,7 +30,10 @@ use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Tests\Unit\Industry\Application\Double\BuildCostsByMaterialEfficiency;
 use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryCharacterSkillLevels;
+use App\Tests\Unit\Industry\Application\Double\InMemoryResearchBaseTimes;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -225,6 +229,27 @@ final class ResearchProfitabilityTest extends TestCase
         );
     }
 
+    #[Group('issue-526')]
+    public function testLaboratoryRigLowersTheSystemShareOfTheResearchCostOnly(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(me0: 1_000_000.0, me1: 980_000.0),
+            $this->planOf($this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0)),
+            [self::HOBGOBLIN_II => $this->owned(me: 0)],
+            structures: [$this->structure(costRoleBonus: 0.9, facilityTaxRate: 0.01, rigs: [ProductionStructures::laboratoryRig(12.0)])],
+            costIndices: new InMemorySystemCostIndices([
+                self::STRUCTURE_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::STRUCTURE_SYSTEM_RESEARCH_COST_INDEX],
+                self::MANUFACTURING_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::OTHER_FAVORITE_SYSTEM_RESEARCH_COST_INDEX],
+            ]),
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertSame(
+            [self::HOBGOBLIN_II, 0, 1, 10, 20_000.0, 13_920.0, 6_080.0, ResearchVerdict::Worth],
+            $this->rowOf($suggestions[0]),
+        );
+    }
+
     public function testNextLevelCostGrowsWithTheLevelMultiplierOfTheResearchTable(): void
     {
         $suggestions = $this->suggestionsOf(
@@ -349,6 +374,8 @@ final class ResearchProfitabilityTest extends TestCase
             ),
             new InMemoryAdjustedPrices($adjustedPrices),
             $costIndices ?? new InMemorySystemCostIndices([self::MANUFACTURING_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::RESEARCH_COST_INDEX]]),
+            new InMemoryResearchBaseTimes([]),
+            new InMemoryCharacterSkillLevels([]),
         );
 
         return $profitability->suggestionsOf(
@@ -402,7 +429,10 @@ final class ResearchProfitabilityTest extends TestCase
         return new OwnedBlueprintUse(new BlueprintEfficiency(new MaterialEfficiency($me), new TimeEfficiency(self::JOB_TIME_EFFICIENCY)), $original);
     }
 
-    private function structure(float $costRoleBonus, float $facilityTaxRate): ProductionStructure
+    /**
+     * @param list<StructureRig> $rigs
+     */
+    private function structure(float $costRoleBonus, float $facilityTaxRate, array $rigs = []): ProductionStructure
     {
         return new ProductionStructure(
             'workshop',
@@ -411,7 +441,7 @@ final class ResearchProfitabilityTest extends TestCase
             self::STRUCTURE_SYSTEM_ID,
             new \DateTimeImmutable('2026-01-01 00:00:00'),
             new Multiplier(0.99),
-            [],
+            $rigs,
             new Multiplier($costRoleBonus),
             $facilityTaxRate,
         );

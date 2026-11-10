@@ -23,7 +23,7 @@ use App\State\Provider\Industry\Project\ProjectResearchProvider;
             provider: ProjectResearchProvider::class,
             openapi: new Model\Operation(
                 summary: 'Compare the ME research of each owned original with its gain on the project runs',
-                description: 'Returns one row per owned original blueprint used by the plan, with the material saving of its next ME level, the research install cost and the verdict',
+                description: 'Returns one row per owned original blueprint used by the plan, with the material saving of its next ME level, the research install cost and the verdict, plus the informative ME and TE research durations of the researcher',
                 tags: ['Group Industry - Research'],
             ),
         ),

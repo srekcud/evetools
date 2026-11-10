@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupResearchStore } from '@/stores/group-industry/research'
-import type { ResearchRow } from '@/stores/group-industry/types'
+import type { ResearchDuration, ResearchRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -13,7 +13,7 @@ const props = defineProps<{
 }>()
 
 const { t, te } = useI18n()
-const { formatIsk } = useFormatters()
+const { formatIsk, formatDuration } = useFormatters()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const syncStore = useSyncStore()
 const researchStore = useGroupResearchStore()
@@ -32,6 +32,10 @@ function reasonLabel(reason: string): string {
 
 function unknownReasons(row: ResearchRow): string[] {
   return [...new Set(row.missingData.map(missing => reasonLabel(missing.reason)))]
+}
+
+function durationReasons(duration: ResearchDuration): string {
+  return [...new Set(duration.missingData.map(missing => reasonLabel(missing.reason)))].join(', ')
 }
 
 watch(() => props.projectId, projectId => researchStore.fetchResearch(projectId), { immediate: true })
@@ -133,6 +137,29 @@ watch(
             </span>
           </div>
 
+          <div class="basis-full flex flex-wrap gap-x-6 gap-y-1 text-xs">
+            <span :data-testid="`research-row-${row.typeId}-me-duration`" class="text-slate-400">
+              <span class="uppercase tracking-wider text-slate-500">{{ t('groupIndustry.research.duration.me', { level: row.meResearchDuration.targetLevel }) }}</span>
+              <span v-if="row.meResearchDuration.seconds !== null" class="ml-2 font-mono tabular-nums text-cyan-300">{{ formatDuration(row.meResearchDuration.seconds) }}</span>
+              <template v-else>
+                <UnknownContributionValue class="ml-2" />
+                <span class="ml-1 text-violet-300">{{ durationReasons(row.meResearchDuration) }}</span>
+              </template>
+            </span>
+            <span
+              v-if="row.teResearchDuration !== null"
+              :data-testid="`research-row-${row.typeId}-te-duration`"
+              class="text-slate-400"
+            >
+              <span class="uppercase tracking-wider text-slate-500">{{ t('groupIndustry.research.duration.te', { level: row.teResearchDuration.targetLevel }) }}</span>
+              <span v-if="row.teResearchDuration.seconds !== null" class="ml-2 font-mono tabular-nums text-cyan-300">{{ formatDuration(row.teResearchDuration.seconds) }}</span>
+              <template v-else>
+                <UnknownContributionValue class="ml-2" />
+                <span class="ml-1 text-violet-300">{{ durationReasons(row.teResearchDuration) }}</span>
+              </template>
+            </span>
+          </div>
+
           <p
             v-if="row.verdict === 'unknown'"
             :data-testid="`research-row-${row.typeId}-unknown`"
@@ -140,6 +167,12 @@ watch(
           >{{ t('groupIndustry.research.unknown', { reasons: unknownReasons(row).join(', ') }) }}</p>
         </li>
       </ul>
+
+      <p
+        v-if="proposedRows.length > 0"
+        data-testid="research-duration-notice"
+        class="px-4 py-3 border-t border-slate-800 text-xs text-slate-500"
+      >{{ t('groupIndustry.research.durationNotice') }}</p>
 
       <p
         v-if="notWorthCount > 0"

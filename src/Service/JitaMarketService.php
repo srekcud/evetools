@@ -342,6 +342,44 @@ class JitaMarketService
     }
 
     /**
+     * @param list<array{typeId: int, quantity: int}> $requests
+     * @return list<array{weightedPrice: float, coverage?: float, ordersUsed: int}|null> aligned on $requests
+     */
+    public function getWeightedSellQuotesWithFallback(array $requests): array
+    {
+        if ($requests === []) {
+            return [];
+        }
+
+        $orderBook = $this->getOrderBook(self::CACHE_KEY);
+        $quotes = [];
+        $unquotedTypeIds = [];
+
+        foreach ($requests as $request) {
+            $quote = $this->calculateWeightedPrice($orderBook[$request['typeId']] ?? [], $request['quantity']);
+            $quotes[] = $quote;
+
+            if ($quote === null && $request['quantity'] > 0) {
+                $unquotedTypeIds[$request['typeId']] = $request['typeId'];
+            }
+        }
+
+        if ($unquotedTypeIds === []) {
+            return $quotes;
+        }
+
+        $onDemandBooks = $this->fetchOnDemandOrderBooks(array_values($unquotedTypeIds));
+
+        return array_map(
+            fn (array $request, ?array $quote): ?array => $quote === null && isset($unquotedTypeIds[$request['typeId']])
+                ? $this->calculateWeightedPrice($onDemandBooks['sell'][$request['typeId']] ?? [], $request['quantity'])
+                : $quote,
+            $requests,
+            $quotes,
+        );
+    }
+
+    /**
      * Get weighted buy prices with on-demand ESI fallback for types not in the cache.
      *
      * @param array<int, int> $typeQuantities typeId => quantity

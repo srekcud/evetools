@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry;
 
 use App\Exception\EsiApiException;
+use App\Industry\Application\ProductionStructure;
 use App\Service\ESI\EsiClient;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -200,10 +201,11 @@ class EsiCostIndexService
         int $solarSystemId,
         string $activity,
         ?float $facilityTaxPercent,
+        ?ProductionStructure $structure = null,
     ): array {
         $adjustedPrices = $this->getAdjustedPrices(array_column($materials, 'materialTypeId'));
         $costIndex = $this->getCostIndex($solarSystemId, $activity);
 
-        return $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, $runs, $activity, $facilityTaxPercent);
+        return $this->jobInstallCostEstimator->estimate($materials, $adjustedPrices, $costIndex, $runs, $activity, $facilityTaxPercent, $structure);
     }
 }

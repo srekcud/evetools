@@ -12,6 +12,8 @@ export function researchRow(overrides: Partial<ResearchRow>): ResearchRow {
     net: null,
     verdict: 'unknown',
     missingData: [],
+    meResearchDuration: { targetLevel: 1, seconds: 2_100, missingData: [] },
+    teResearchDuration: { targetLevel: 1, seconds: 2_800, missingData: [] },
     ...overrides,
   }
 }
@@ -33,6 +35,8 @@ export const HOBGOBLIN_II_WORTH = researchRow({
   researchCost: 14_500,
   net: 5_500,
   verdict: 'worth',
+  meResearchDuration: { targetLevel: 1, seconds: 1_678, missingData: [] },
+  teResearchDuration: { targetLevel: 4, seconds: 26_545, missingData: [] },
 })
 
 export const ISHTAR_WORTH = researchRow({
@@ -45,6 +49,8 @@ export const ISHTAR_WORTH = researchRow({
   researchCost: 310_400,
   net: 939_600,
   verdict: 'worth',
+  meResearchDuration: { targetLevel: 4, seconds: 28_280, missingData: [] },
+  teResearchDuration: { targetLevel: 10, seconds: 5_120_000, missingData: [] },
 })
 
 export const OGRE_II_UNKNOWN_COST = researchRow({
@@ -58,6 +64,8 @@ export const OGRE_II_UNKNOWN_COST = researchRow({
   net: null,
   verdict: 'unknown',
   missingData: [{ reason: 'research_cost_index', typeId: null }],
+  meResearchDuration: { targetLevel: 6, seconds: null, missingData: [{ reason: 'researcher', typeId: null }] },
+  teResearchDuration: { targetLevel: 3, seconds: null, missingData: [{ reason: 'research_base_time', typeId: OGRE_II_TYPE_ID }] },
 })
 
 export const WARRIOR_II_NOT_WORTH = researchRow({

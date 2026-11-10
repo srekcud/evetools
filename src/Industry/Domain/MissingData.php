@@ -16,7 +16,9 @@ final readonly class MissingData
     private const string JUMP_ROUTE = 'jump_route';
     private const string INVENTOR_SKILLS = 'inventor_skills';
     private const string MARKET_PRICE = 'market_price';
+    private const string RESEARCH_BASE_TIME = 'research_base_time';
     private const string RESEARCH_SKILL = 'research_skill';
+    private const string RESEARCHER = 'researcher';
     private const string STRUCTURE_PRICE = 'structure_price';
 
     private function __construct(public string $reason, public ?int $typeId)
@@ -64,6 +66,16 @@ final readonly class MissingData
     public static function researchSkill(int $skillTypeId): self
     {
         return new self(self::RESEARCH_SKILL, $skillTypeId);
+    }
+
+    public static function researchBaseTime(int $productTypeId): self
+    {
+        return new self(self::RESEARCH_BASE_TIME, $productTypeId);
+    }
+
+    public static function researcher(): self
+    {
+        return new self(self::RESEARCHER, null);
     }
 
     public static function inventorSkills(int $blueprintTypeId): self

@@ -2352,6 +2352,11 @@
         "cost": "Cost",
         "net": "Net"
       },
+      "duration": {
+        "me": "ME duration (to ME {level})",
+        "te": "TE duration (to level {level})"
+      },
+      "durationNotice": "Durations are informative, outside the verdict, and without structure bonus.",
       "unknown": "Not proposed, unknown: {reasons}",
       "notWorth": "{count} research does not pay on the runs of the project | {count} researches do not pay on the runs of the project",
       "reason": {
@@ -2362,6 +2367,8 @@
         "item_volume": "item volume",
         "jump_route": "jump route",
         "research_skill": "research skill",
+        "research_base_time": "research base time",
+        "researcher": "researcher",
         "inventor_skills": "inventor skills",
         "invention_probability": "invention probability"
       }

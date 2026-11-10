@@ -17,6 +17,7 @@ use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -546,6 +547,20 @@ final class StructureSelectorTest extends TestCase
 
         $this->assertSame('sotiyo-tax-5-january', $choice->structure?->id);
         $this->assertSame(StructureChoiceStatus::BestConfigured, $choice->status);
+    }
+
+    #[Group('issue-526')]
+    #[DataProvider('copyingAndInventionProvider')]
+    public function testLaboratoryRigLowersTheInstallRateEnoughToBeatACheaperTaxWithoutRig(ActivityKind $activity): void
+    {
+        $selector = new StructureSelector([
+            ProductionStructures::raitaruWithFacilityTax('raitaru-tax-1-without-rig', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, 0.01),
+            ProductionStructures::raitaruWithFacilityTax('raitaru-tax-2-laboratory-rig', SecurityClass::NullSec, self::OTHER_SYSTEM_ID, 0.02, ProductionStructures::laboratoryRig(12.0)),
+        ], FavoriteSystems::none(), self::installCostIndices([self::OTHER_SYSTEM_ID => 0.05]));
+
+        $choice = $selector->select($activity, null);
+
+        $this->assertSame('raitaru-tax-2-laboratory-rig', $choice->structure?->id);
     }
 
     /**

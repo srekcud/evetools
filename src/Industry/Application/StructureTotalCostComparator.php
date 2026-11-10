@@ -119,7 +119,7 @@ final readonly class StructureTotalCostComparator
             $recipe->activity,
             $estimatedItemValue,
             $this->costIndices->costIndexOf($structureSolarSystemId, $recipe->activity),
-            $structure->costRoleBonus,
+            $structure->installCostMultiplierFor($recipe->activity),
             $structure->facilityTaxRate,
             $alphaClone,
         )->total;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Constant\EveConstants;
+use App\Entity\CachedCharacterSkill;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryUserSettings;
 use App\Entity\OwnedBlueprint;
@@ -23,6 +24,8 @@ final class ProjectResearchApiTest extends WebTestCase
     use SeedsJitaOrderBooksAndCostIndices;
 
     private const int ACTIVITY_MANUFACTURING = 1;
+    private const int ACTIVITY_TIME_RESEARCH = 3;
+    private const int ACTIVITY_MATERIAL_RESEARCH = 4;
     private const int ISHTAR_BLUEPRINT_TYPE_ID = 999_410_001;
     private const int SYNTHETIC_CATEGORY_ID = 999_410_002;
     private const int SYNTHETIC_GROUP_ID = 999_410_003;
@@ -36,9 +39,12 @@ final class ProjectResearchApiTest extends WebTestCase
     private const float TRITANIUM_SELL_PRICE = 5.0;
     private const float TRITANIUM_ADJUSTED_PRICE = 4.0;
     private const float COST_INDEX = 0.05;
+    private const int ISHTAR_ME_RESEARCH_BASE_TIME = 2_100;
+    private const int ISHTAR_TE_RESEARCH_BASE_TIME = 2_800;
+    private const int NO_RESEARCH_BASE_TIME = 0;
 
     private const array ROW_KEYS = [
-        'currentLevel', 'materialSaving', 'missingData', 'net', 'researchCost', 'runs', 'targetLevel', 'typeId', 'typeName', 'verdict',
+        'currentLevel', 'materialSaving', 'meResearchDuration', 'missingData', 'net', 'researchCost', 'runs', 'targetLevel', 'teResearchDuration', 'typeId', 'typeName', 'verdict',
     ];
 
     protected function setUp(): void
@@ -78,6 +84,72 @@ final class ProjectResearchApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-475')]
+    public function testRowCarriesTheMeAndTeResearchDurationsOfTheCharacterWhoOwnsTheOriginal(): void
+    {
+        $this->ownTheIshtarBlueprint(self::ORIGINAL_QUANTITY, self::ORIGINAL_RUNS, materialEfficiency: 4, timeEfficiency: 6);
+        $this->seedResearchBaseTimes(self::ISHTAR_ME_RESEARCH_BASE_TIME, self::ISHTAR_TE_RESEARCH_BASE_TIME);
+        $this->cacheOwnerSkills([
+            CachedCharacterSkill::SKILL_METALLURGY => 5,
+            CachedCharacterSkill::SKILL_RESEARCH => 4,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
+        ]);
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->researchUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $rows = $this->responseJson()['rows'];
+        self::assertCount(1, $rows);
+        self::assertSame(['targetLevel' => 5, 'seconds' => 44_352, 'missingData' => []], $rows[0]['meResearchDuration']);
+        self::assertSame(['targetLevel' => 4, 'seconds' => 26_545, 'missingData' => []], $rows[0]['teResearchDuration']);
+    }
+
+    #[Group('issue-475')]
+    public function testMissingSkillOrBaseTimeMakesADurationUnknownWithItsReasonAndLeavesTheVerdictUntouched(): void
+    {
+        $this->ownTheIshtarBlueprint(self::ORIGINAL_QUANTITY, self::ORIGINAL_RUNS);
+        $this->seedResearchBaseTimes(self::ISHTAR_ME_RESEARCH_BASE_TIME, self::NO_RESEARCH_BASE_TIME);
+        $this->cacheOwnerSkills([
+            CachedCharacterSkill::SKILL_RESEARCH => 4,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 4,
+        ]);
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->researchUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $row = $this->responseJson()['rows'][0];
+        self::assertSame(
+            ['targetLevel' => 1, 'seconds' => null, 'missingData' => [['reason' => 'research_skill', 'typeId' => CachedCharacterSkill::SKILL_METALLURGY]]],
+            $row['meResearchDuration'],
+        );
+        self::assertSame(
+            ['targetLevel' => 1, 'seconds' => null, 'missingData' => [['reason' => 'research_base_time', 'typeId' => self::ISHTAR_TYPE_ID]]],
+            $row['teResearchDuration'],
+        );
+        self::assertSame(
+            [self::ISHTAR_TYPE_ID, 500.0, 29.0, 471.0, 'worth', []],
+            [$row['typeId'], $row['materialSaving'], $row['researchCost'], $row['net'], $row['verdict'], $row['missingData']],
+        );
+    }
+
+    #[Group('issue-475')]
+    public function testOriginalAtTe20HasAnExplicitNullTeResearchDuration(): void
+    {
+        $this->ownTheIshtarBlueprint(self::ORIGINAL_QUANTITY, self::ORIGINAL_RUNS, timeEfficiency: 20);
+        $this->seedResearchBaseTimes(self::ISHTAR_ME_RESEARCH_BASE_TIME, self::ISHTAR_TE_RESEARCH_BASE_TIME);
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->researchUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $row = $this->responseJson()['rows'][0];
+        self::assertArrayHasKey('teResearchDuration', $row);
+        self::assertNull($row['teResearchDuration']);
+        self::assertSame(1, $row['meResearchDuration']['targetLevel']);
+    }
+
     public function testPilotOfAnotherCorporationIsRefusedTheResearch(): void
     {
         $this->ownTheIshtarBlueprint(self::ORIGINAL_QUANTITY, self::ORIGINAL_RUNS);
@@ -107,7 +179,22 @@ final class ProjectResearchApiTest extends WebTestCase
         return '/api/industry/projects/'.$projectId.'/research';
     }
 
-    private function ownTheIshtarBlueprint(int $quantity, int $runs): void
+    private function seedResearchBaseTimes(int $materialResearchSeconds, int $timeResearchSeconds): void
+    {
+        $connection = self::getContainer()->get(Connection::class);
+        $connection->insert('sde_industry_activities', ['type_id' => self::ISHTAR_BLUEPRINT_TYPE_ID, 'activity_id' => self::ACTIVITY_MATERIAL_RESEARCH, 'time' => $materialResearchSeconds]);
+        $connection->insert('sde_industry_activities', ['type_id' => self::ISHTAR_BLUEPRINT_TYPE_ID, 'activity_id' => self::ACTIVITY_TIME_RESEARCH, 'time' => $timeResearchSeconds]);
+    }
+
+    private function cacheOwnerSkills(array $levelsBySkillId): void
+    {
+        foreach ($levelsBySkillId as $skillId => $level) {
+            $this->em->persist((new CachedCharacterSkill())->setCharacter($this->owner->getMainCharacter())->setSkillId($skillId)->setLevel($level));
+        }
+        $this->em->flush();
+    }
+
+    private function ownTheIshtarBlueprint(int $quantity, int $runs, int $materialEfficiency = 0, int $timeEfficiency = 0): void
     {
         $this->em->persist(
             (new OwnedBlueprint())
@@ -117,8 +204,8 @@ final class ProjectResearchApiTest extends WebTestCase
                 ->setLocationFlag('Hangar')
                 ->setQuantity($quantity)
                 ->setRuns($runs)
-                ->setMaterialEfficiency(0)
-                ->setTimeEfficiency(0)
+                ->setMaterialEfficiency($materialEfficiency)
+                ->setTimeEfficiency($timeEfficiency)
                 ->setCharacter($this->owner->getMainCharacter())
                 ->setSyncedAt(new \DateTimeImmutable('2026-11-07 02:00:00')),
         );

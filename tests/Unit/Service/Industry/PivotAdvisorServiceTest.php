@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Service\Industry;
 
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
+use App\Industry\Application\ProductionStructure;
 use App\Repository\CachedAssetRepository;
 use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
@@ -46,6 +47,11 @@ class PivotAdvisorServiceTest extends TestCase
     private PivotAdvisorService $service;
     private array $inventionCostPerRun = ['cost' => 0.0, 'unknownReason' => null];
     private array $inventionCostRequests = [];
+
+    /** @var list<?string> */
+    private array $inventionCostStructureIds = [];
+
+    private ?InMemoryUserProductionStructures $structuresOfTheUser = null;
 
     private const SOLAR_SYSTEM_ID = 30002510;
     private const int REACTION_SOLAR_SYSTEM_ID = 30000144;
@@ -1143,7 +1149,8 @@ class PivotAdvisorServiceTest extends TestCase
     private function givenProductTypeIdsDeclaredT2ByTheInventionService(array $productTypeIdsDeclaredT2): void
     {
         $this->inventionService->method('expectedCostPerRun')->willReturnCallback(
-            function (int $typeId, int $solarSystemId, ?float $facilityTaxPercent): array {
+            function (int $typeId, int $solarSystemId, ?float $facilityTaxPercent, ?ProductionStructure $structure = null): array {
+                $this->inventionCostStructureIds[] = $structure?->id;
                 $this->inventionCostRequests[] = [$typeId, $solarSystemId, $facilityTaxPercent];
 
                 return $this->inventionCostPerRun;
@@ -1175,6 +1182,35 @@ class PivotAdvisorServiceTest extends TestCase
         $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, new SalesFees(self::BROKER_FEE, self::SALES_TAX), $this->user, self::SOLAR_SYSTEM_ID);
 
         $this->assertSame([['manufacturing', 0.25], ['manufacturing', 0.25], ['reaction', 2.0]], $this->sorted($installCostRequests));
+    }
+
+    #[Group('issue-526')]
+    public function testInstallCostOfEachActivityIsAskedWithTheStructureThatRunsIt(): void
+    {
+        $this->givenManufacturingAndReactionCandidatesOfAManufacturingSource();
+        $installCostRequests = $this->givenJobInstallCostsRecorded();
+        $productionStructures = new InMemoryUserProductionStructures([self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.05),
+            ProductionStructures::tataraWithFacilityTax('tatara', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.02),
+        ]]);
+
+        $this->pivotAdvisorOnSdeKnowing([], $productionStructures)->analyze(self::SOURCE_PRODUCT, 1, self::SOLAR_SYSTEM_ID, new SalesFees(self::BROKER_FEE, self::SALES_TAX), $this->user, self::SOLAR_SYSTEM_ID);
+
+        $structureIdsByActivity = $installCostRequests->structureIdsByActivity;
+        sort($structureIdsByActivity);
+        $this->assertSame([['manufacturing', 'raitaru'], ['manufacturing', 'raitaru'], ['reaction', 'tatara']], $structureIdsByActivity);
+    }
+
+    #[Group('issue-526')]
+    public function testInventionCostIsAskedWithTheManufacturingStructure(): void
+    {
+        $this->structuresOfTheUser = new InMemoryUserProductionStructures([self::USER_ID => [
+            ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::SOLAR_SYSTEM_ID, 0.05),
+        ]]);
+
+        $this->analyzeT1T2AndReactionCandidates();
+
+        $this->assertSame(['raitaru'], $this->inventionCostStructureIds);
     }
 
     #[Group('issue-135')]
@@ -1314,7 +1350,7 @@ class PivotAdvisorServiceTest extends TestCase
         $this->inventionService->method('identifyT2Products')->willReturn([self::CANDIDATE_2 => true]);
         $this->givenProductTypeIdsDeclaredT2ByTheInventionService($productTypeIdsDeclaredT2);
 
-        return $this->pivotAdvisorOnSdeKnowing([])->analyze(
+        return $this->pivotAdvisorOnSdeKnowing([], $this->structuresOfTheUser ?? new InMemoryUserProductionStructures())->analyze(
             self::SOURCE_PRODUCT,
             1,
             self::SOLAR_SYSTEM_ID,
@@ -1372,9 +1408,11 @@ class PivotAdvisorServiceTest extends TestCase
         $recorder = new class {
             public array $requests = [];
             public array $requestsWithSolarSystem = [];
+            public array $structureIdsByActivity = [];
         };
         $this->esiCostIndexService->method('estimateJobInstallCost')->willReturnCallback(
-            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent) use ($recorder): array {
+            function (array $materials, int $runs, int $solarSystemId, string $activity, ?float $facilityTaxPercent, ?ProductionStructure $structure = null) use ($recorder): array {
+                $recorder->structureIdsByActivity[] = [$activity, $structure?->id];
                 $recorder->requests[] = [$activity, $facilityTaxPercent];
                 $recorder->requestsWithSolarSystem[] = [$solarSystemId, $activity, $facilityTaxPercent];
 

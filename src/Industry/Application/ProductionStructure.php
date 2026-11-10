@@ -31,6 +31,22 @@ final readonly class ProductionStructure
     ) {
     }
 
+    public function installCostMultiplierFor(ActivityKind $activity): Multiplier
+    {
+        $multiplier = $this->costRoleBonus;
+        if (!$activity->isLaboratory()) {
+            return $multiplier;
+        }
+
+        foreach ($this->rigs as $rig) {
+            if (null !== $rig->costBonus) {
+                $multiplier = $multiplier->times($rig->costBonus->multiplierIn($this->security));
+            }
+        }
+
+        return $multiplier;
+    }
+
     public function canRun(ActivityKind $activity): bool
     {
         return $this->type->canRun($activity);
