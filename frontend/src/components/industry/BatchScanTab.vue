@@ -772,7 +772,7 @@ onBeforeUnmount(() => {
                 </td>
                 <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-300'">
                   {{ sellVenueFilter === CONTRACTS_VENUE ? t('industry.scanner.batch.contractMonthlySales', { count: formatNumber(Math.round(item.dailyVolume * DAYS_PER_MONTH), 0) }) : formatNumber(item.dailyVolume, 0) }}
-                  <div v-if="sellVenueFilter === CONTRACTS_VENUE && item.contractSales" class="text-[11px] text-slate-500 whitespace-nowrap">
+                  <div v-if="sellVenueFilter === CONTRACTS_VENUE && item.contractSales" class="text-xs text-slate-500 whitespace-nowrap">
                     <span>{{ contractSellThroughLabel(item.contractSales) }}</span>
                     <span> · {{ contractMedianDaysLabel(item.contractSales) }}</span>
                     <span :class="item.contractSales.confidence === 'low' ? 'text-amber-400' : 'text-slate-400'"> · {{ contractConfidenceLabel(item.contractSales) }}</span>
