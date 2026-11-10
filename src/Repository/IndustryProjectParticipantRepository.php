@@ -119,6 +119,38 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param IndustryProject[] $projects
+     *
+     * @return array<string, list<IndustryProjectParticipant>>
+     */
+    public function findAcceptedGroupedByProject(array $projects): array
+    {
+        if ($projects === []) {
+            return [];
+        }
+
+        /** @var IndustryProjectParticipant[] $participants */
+        $participants = $this->createQueryBuilder('m')
+            ->addSelect('u', 'mainCharacter', 'mainCharacterToken')
+            ->join('m.user', 'u')
+            ->leftJoin('u.mainCharacter', 'mainCharacter')
+            ->leftJoin('mainCharacter.eveToken', 'mainCharacterToken')
+            ->andWhere('m.project IN (:projects)')
+            ->andWhere('m.status = :status')
+            ->setParameter('projects', $projects)
+            ->setParameter('status', ParticipantStatus::Accepted->value)
+            ->getQuery()
+            ->getResult();
+
+        $grouped = [];
+        foreach ($participants as $participant) {
+            $grouped[$participant->getProject()->getId()->toRfc4122()][] = $participant;
+        }
+
+        return $grouped;
+    }
+
+    /**
      * Initializes, in a single query, the user of each given membership and the user's main character.
      *
      * @param IndustryProjectParticipant[] $memberships
