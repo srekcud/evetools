@@ -36,6 +36,11 @@ const OTHER_PROJECT_ID = 'project-hecate-batch'
 const RESEARCH_PATH = `/industry/projects/${PROJECT_ID}/research`
 const BLANK = /[\u00a0\u202f]/g
 
+const REASON_LABELS: Record<string, Record<string, string | undefined>> = {
+  en: en.groupIndustry.research.reason,
+  fr: fr.groupIndustry.research.reason,
+}
+
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
 
 const projectEvents = ref<Record<string, GroupProjectEvent>>({})
@@ -179,6 +184,58 @@ describe('ProjectResearch', () => {
     expect(wrapper.find('[data-testid="research"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="research-not-worth"]').text()).toContain('2')
     expect(wrapper.findAll('[data-testid^="research-row-"]')).toHaveLength(0)
+  })
+
+  it('shows the ME and the TE research duration of each proposed row, each with its own value', async () => {
+    const { wrapper } = await mountResearch([HOBGOBLIN_II_WORTH, ISHTAR_WORTH])
+
+    expect({
+      hobgoblinMe: partText(wrapper, HOBGOBLIN_II_TYPE_ID, 'me-duration'),
+      hobgoblinTe: partText(wrapper, HOBGOBLIN_II_TYPE_ID, 'te-duration'),
+      ishtarMe: partText(wrapper, ISHTAR_TYPE_ID, 'me-duration'),
+      ishtarTe: partText(wrapper, ISHTAR_TYPE_ID, 'te-duration'),
+    }).toEqual({
+      hobgoblinMe: expect.stringContaining('27m'),
+      hobgoblinTe: expect.stringContaining('7h 22m'),
+      ishtarMe: expect.stringContaining('7h 51m'),
+      ishtarTe: expect.stringContaining('59d 6h'),
+    })
+  })
+
+  it('shows a dash and the reason of an unknown duration, never a zero duration', async () => {
+    const { wrapper } = await mountResearch([OGRE_II_UNKNOWN_COST])
+
+    expect(showsUnknownMarker(wrapper, OGRE_II_TYPE_ID, 'me-duration')).toBe(true)
+    expect(showsUnknownMarker(wrapper, OGRE_II_TYPE_ID, 'te-duration')).toBe(true)
+    expect(REASON_LABELS.en.researcher).toBeTruthy()
+    expect(REASON_LABELS.en.research_base_time).toBeTruthy()
+    expect(REASON_LABELS.fr.researcher).toBeTruthy()
+    expect(REASON_LABELS.fr.research_base_time).toBeTruthy()
+    expect(partText(wrapper, OGRE_II_TYPE_ID, 'me-duration')).toContain(REASON_LABELS.en.researcher)
+    expect(partText(wrapper, OGRE_II_TYPE_ID, 'te-duration')).toContain(REASON_LABELS.en.research_base_time)
+    expect(partText(wrapper, OGRE_II_TYPE_ID, 'me-duration')).not.toMatch(/\b0s\b/)
+  })
+
+  it('shows no TE duration at all when the original is already at TE 20 and keeps the ME duration', async () => {
+    const { wrapper } = await mountResearch([{ ...HOBGOBLIN_II_WORTH, teResearchDuration: null }])
+
+    expect(partText(wrapper, HOBGOBLIN_II_TYPE_ID, 'me-duration')).toContain('27m')
+    expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'te-duration').exists()).toBe(false)
+  })
+
+  it('tells that the durations are informative and leave the verdict alone', async () => {
+    const { wrapper } = await mountResearch([HOBGOBLIN_II_WORTH])
+
+    expect(wrapper.find('[data-testid="research-duration-notice"]').exists()).toBe(true)
+  })
+
+  it('shows no duration on a not worth research, which is only counted', async () => {
+    const { wrapper } = await mountResearch([HOBGOBLIN_II_WORTH, WARRIOR_II_NOT_WORTH])
+
+    expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'me-duration').exists()).toBe(true)
+    expect(part(wrapper, WARRIOR_II_TYPE_ID, 'me-duration').exists()).toBe(false)
+    expect(part(wrapper, WARRIOR_II_TYPE_ID, 'te-duration').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="research-not-worth"]').text()).toContain('1')
   })
 
   it('does not render the card when the plan has no research suggestion', async () => {

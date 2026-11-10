@@ -8,7 +8,7 @@ use App\Industry\Domain\BlueprintEfficiency;
 
 final readonly class OwnedBlueprintUse
 {
-    public function __construct(public BlueprintEfficiency $efficiency, public bool $original)
+    public function __construct(public BlueprintEfficiency $efficiency, public bool $original, public ?int $researcherEveCharacterId = null)
     {
     }
 

@@ -9,8 +9,6 @@ final readonly class ResearchLevels
     public const int MINIMUM_LEVEL = 1;
     public const int MAXIMUM_LEVEL = 10;
 
-    public const int RANK_ONE_BASE_TIME_SECONDS = 6_000;
-
     private const array RANK_ONE_SECONDS_BY_LEVEL = [
         1 => 105,
         2 => 250,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project;
 
+use App\Industry\Application\ResearchJobEstimate;
 use App\Industry\Application\ResearchSuggestion;
 use App\Industry\Domain\MissingData;
 
@@ -19,10 +20,7 @@ final class ResearchRowPresenter
         return [
             'currentLevel' => $suggestion->currentLevel,
             'materialSaving' => self::rounded($suggestion->materialSaving?->amount),
-            'missingData' => array_map(
-                static fn (MissingData $missingData): array => ['reason' => $missingData->reason, 'typeId' => $missingData->typeId],
-                $suggestion->missingData,
-            ),
+            'missingData' => self::missingDataOf($suggestion->missingData),
             'net' => self::rounded($suggestion->net),
             'researchCost' => self::rounded($suggestion->researchCost?->amount),
             'runs' => $suggestion->runs,
@@ -30,7 +28,34 @@ final class ResearchRowPresenter
             'typeId' => $suggestion->productTypeId,
             'typeName' => $typeName,
             'verdict' => $suggestion->verdict->value,
+            'meResearchDuration' => self::durationOf($suggestion->meResearch),
+            'teResearchDuration' => null === $suggestion->teResearch ? null : self::durationOf($suggestion->teResearch),
         ];
+    }
+
+    /**
+     * @return array{targetLevel: int, seconds: ?int, missingData: list<array{reason: string, typeId: ?int}>}
+     */
+    private static function durationOf(ResearchJobEstimate $estimate): array
+    {
+        return [
+            'targetLevel' => $estimate->targetLevel,
+            'seconds' => $estimate->duration->isKnown() ? $estimate->duration->jobDuration()->seconds : null,
+            'missingData' => self::missingDataOf($estimate->duration->missingData),
+        ];
+    }
+
+    /**
+     * @param list<MissingData> $missingData
+     *
+     * @return list<array{reason: string, typeId: ?int}>
+     */
+    private static function missingDataOf(array $missingData): array
+    {
+        return array_map(
+            static fn (MissingData $item): array => ['reason' => $item->reason, 'typeId' => $item->typeId],
+            $missingData,
+        );
     }
 
     private static function rounded(?float $amount): ?float

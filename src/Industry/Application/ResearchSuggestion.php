@@ -22,6 +22,8 @@ final readonly class ResearchSuggestion
         public ?float $net,
         public ResearchVerdict $verdict,
         public array $missingData,
+        public ResearchJobEstimate $meResearch,
+        public ?ResearchJobEstimate $teResearch,
     ) {
     }
 }

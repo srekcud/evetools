@@ -7,10 +7,10 @@ namespace App\Industry\Domain;
 final readonly class TimeEfficiency
 {
     private const int MINIMUM_LEVEL = 0;
-    private const int MAXIMUM_LEVEL = 20;
+    public const int MAXIMUM_LEVEL = 20;
 
     /** TE is researched by steps of 2 levels. */
-    private const int LEVEL_STEP = 2;
+    public const int LEVEL_STEP = 2;
 
     public function __construct(public int $value)
     {
