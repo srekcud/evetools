@@ -54,10 +54,6 @@ final readonly class ProductionStructure
     public function installCostMultiplierFor(ActivityKind $activity): Multiplier
     {
         $multiplier = $this->costRoleBonus;
-        if (!$activity->isLaboratory()) {
-            return $multiplier;
-        }
-
         foreach ($this->scienceRigs as $scienceRig) {
             if ($scienceRig->activity === $activity && null !== $scienceRig->costBonus) {
                 $multiplier = $multiplier->times($scienceRig->costBonus->multiplierIn($this->security));

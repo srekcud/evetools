@@ -134,4 +134,11 @@ final class JobDurationTest extends TestCase
 
         $this->assertSame(64_260, $duration->seconds);
     }
+
+    #[Group('issue-523')]
+    public function testCopyJobRoundsToTheNearestSecond(): void
+    {
+        $this->assertSame(1, JobDuration::forCopyJob(10, new Runs(1), new Multiplier(0.14))->seconds);
+        $this->assertSame(2, JobDuration::forCopyJob(10, new Runs(1), new Multiplier(0.16))->seconds);
+    }
 }
