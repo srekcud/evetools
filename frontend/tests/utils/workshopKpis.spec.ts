@@ -20,6 +20,12 @@ describe('workshopKpis', () => {
     })
   })
 
+  it('adds the Jita forecast of a project that has no sale yet to the expected profit', () => {
+    const forecast = workshopProject({ projectId: DRAFT_PROJECT_ID, engagedCapital: 0, profit: { amount: 500_000, status: 'forecast' } })
+
+    expect(workshopKpis([RUNNING, forecast], ACTIVE_PROJECT_IDS).profit).toStrictEqual({ amount: 1_400_000, unknownCount: 0 })
+  })
+
   it('counts a project without a profit amount as unknown without adding anything to the sum', () => {
     expect(workshopKpis([RUNNING, DRAFT], ACTIVE_PROJECT_IDS).profit).toStrictEqual({ amount: 900_000, unknownCount: 1 })
   })

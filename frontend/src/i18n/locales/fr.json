@@ -950,7 +950,7 @@
         },
         "profit": {
           "label": "Profit attendu",
-          "meta": "Ma part sur les projets avec ventes"
+          "meta": "Profit final, provisoire ou prévision Jita des projets actifs"
         },
         "unknownProjects": "{count} projet sans valeur | {count} projets sans valeur"
       },

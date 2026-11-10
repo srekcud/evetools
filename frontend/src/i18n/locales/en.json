@@ -950,7 +950,7 @@
         },
         "profit": {
           "label": "Expected profit",
-          "meta": "My share on the projects with sales"
+          "meta": "Final, provisional or Jita forecast profit of the active projects"
         },
         "unknownProjects": "{count} project without a value | {count} projects without a value"
       },

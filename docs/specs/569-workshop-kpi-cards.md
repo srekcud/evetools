@@ -13,12 +13,12 @@ Décision de Sylvain (2026-11-10, sur l'issue) : les quatre cartes de la maquett
 | un apport de la personne sans valeur estimée | `null` |
 
 ## Front (R2 à R5)
-- **R2 Agrégat** (`workshopKpis`, pur, `frontend/src/utils/workshopKpis.ts`) : sur les projets de l'Atelier dont le statut n'est pas `completed` (statut lu dans `groupProjectStore.myProjects`, jointure par id), `capital` = somme des `engagedCapital` connus et `profit` = somme des `profit.amount` connus (statuts `provisional` et `final`), chacun avec `unknownCount` (projets sans valeur). Aucune valeur connue : `amount: null`. Jamais 0 par défaut ; un projet inconnu n'ajoute rien mais est compté et signalé (précédent #360, `unknownProjectCount`).
+- **R2 Agrégat** (`workshopKpis`, pur, `frontend/src/utils/workshopKpis.ts`) : sur les projets de l'Atelier dont le statut n'est pas `completed` (statut lu dans `groupProjectStore.myProjects`, jointure par id), `capital` = somme des `engagedCapital` connus et `profit` = somme des `profit.amount` connus (statuts `final`, `provisional` et `forecast` : la prévision Jita avant la première vente de #570, montant du projet entier), chacun avec `unknownCount` (projets sans valeur). Aucune valeur connue : `amount: null`. Jamais 0 par défaut ; un projet inconnu n'ajoute rien mais est compté et signalé (précédent #360, `unknownProjectCount`).
 - **R3 Cartes** (en tête de `IndustryWorkshop.vue`, grille 4 colonnes, 2 sur mobile, `data-testid` `workshop-kpi-jobs|slots|capital|profit`) :
   - **Jobs en cours** : nombre de jobs de `slotsStore.data.characters[].jobs` dont `timeLeftSeconds > 0` ; sous-texte « tous les personnages » ou « aucun » ; inconnu tant que les slots ne sont pas chargés.
   - **Slots fabrication libres** : `globalKpis.manufacturing.max - used` avec « / max », sous-texte par personnage `nom N` (`max - used` d'un personnage dont `max` est connu, sinon « nom » + valeur inconnue) ; si `unknownSkillsCharacterCount > 0`, la mention `industry.slots.partialKpis` existante. Inconnu tant que les slots ne sont pas chargés.
   - **Capital engagé** : `formatIsk` de l'agrégat `capital`, sous-texte « jobs, achats et apports des projets actifs » ; `UnknownValue` si `amount` est nul ; si `unknownCount > 0`, mention « N projet(s) sans valeur ».
-  - **Profit attendu** : `formatIsk` signé de l'agrégat `profit` (vert >= 0, rouge < 0), sous-texte « ma part sur les projets avec ventes » ; `UnknownValue` si `amount` est nul ; mention « N projet(s) sans valeur » comme ci-dessus.
+  - **Profit attendu** : `formatIsk` signé de l'agrégat `profit` (vert >= 0, rouge < 0), sous-texte « profit final, provisoire ou prévision Jita des projets actifs » ; `UnknownValue` si `amount` est nul ; mention « N projet(s) sans valeur » comme ci-dessus.
 - **R4 Dashboard** : `IndustryDashboard.vue` perd la grille de trois cartes et le code mort associé (anneaux, couleurs, pipeline) ; alertes, actions rapides, lien « Voir tous les projets » inchangés. Les clés i18n devenues inutiles (`activeProjects`, `slotsUsed`, `pipelineHealth`, `slotsAvailable`, `targetsMet`) sont retirées en FR et EN, les autres restent.
 - **R5** Direction HUD EVE, valeurs en `font-mono`/`tabular-nums`, labels en capitales espacées, noms de personnages tronqués (`truncate` + `title`), mobile 375 px sans débordement, clés FR et EN, aucun commentaire de code.
 
@@ -27,5 +27,5 @@ Décision de Sylvain (2026-11-10, sur l'issue) : les quatre cartes de la maquett
 - Erreur de l'endpoint : valeurs inconnues et bandeau d'erreur du store, jamais un montant par défaut.
 
 ## Hors périmètre
-- Profit prévisionnel avant la première vente (prévision Jita, `ProjectSellForecast`, un appel marché par ligne) : un projet sans vente reste compté « sans valeur ».
+- Pas de part de la personne pour la prévision : le montant `forecast` est celui du projet entier (#570), additionné tel quel ; il ne diffère de la part que pour un projet de groupe.
 - Santé du pipeline du Stockpile : l'indicateur disparaît de l'Atelier (décision de la ligne « remplacent » de l'issue) ; il reste dans la page Stockpile.
