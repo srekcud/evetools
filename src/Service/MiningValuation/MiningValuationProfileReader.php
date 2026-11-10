@@ -5,9 +5,6 @@ declare(strict_types=1);
 namespace App\Service\MiningValuation;
 
 use App\Entity\User;
-use App\Enum\MarketSide;
-use App\Enum\MiningValuationForm;
-use App\Enum\MiningValuationMarket;
 use App\Repository\MiningValuationProfileRepository;
 
 final readonly class MiningValuationProfileReader
@@ -18,6 +15,20 @@ final readonly class MiningValuationProfileReader
 
     public function read(User $user): MiningValuationSettings
     {
-        return new MiningValuationSettings(MiningValuationMarket::Jita, MarketSide::Sell, MiningValuationForm::Raw, null, null, 0.0, false);
+        $profile = $this->profileRepository->findOneBy(['user' => $user]);
+
+        if ($profile === null) {
+            return MiningValuationSettings::defaults();
+        }
+
+        return new MiningValuationSettings(
+            $profile->getMarket(),
+            $profile->getSide(),
+            $profile->getForm(),
+            $profile->getStructureId(),
+            $profile->getStructureName(),
+            $profile->getExportTax(),
+            true,
+        );
     }
 }

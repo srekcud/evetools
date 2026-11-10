@@ -11,6 +11,7 @@ use App\Entity\User;
 use App\Enum\MarketSide;
 use App\Repository\ReprocessingProfileRepository;
 use App\Service\MiningValuation\MiningValuationProfileReader;
+use App\Service\MiningValuation\MiningValuationSettings;
 use App\Service\OreValueTableService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\InputBag;
@@ -36,7 +37,8 @@ final readonly class OreValueTableProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): OreValueTableResource
     {
-        if (!$this->security->getUser() instanceof User) {
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
@@ -46,17 +48,25 @@ final readonly class OreValueTableProvider implements ProviderInterface
         }
 
         $query = $request->query;
-        $market = $this->marketOf($query);
-        $side = $this->sideOf($query);
-        $structureId = $this->structureIdOf($query, $market);
-        $reprocessYield = $this->reprocessYieldOf($query);
+        $settings = $this->profileReader->read($user);
+        $market = $this->marketOf($query, $settings);
+        $side = $this->sideOf($query, $settings);
+        $structureId = $this->structureIdOf($query, $market, $settings);
+        $reprocessYield = $this->reprocessYieldOf($query, $user);
+        $exportTax = $this->exportTaxOf($query, $settings);
 
         $resource = new OreValueTableResource();
         $resource->market = $market;
         $resource->side = $side->value;
         $resource->structureId = $structureId;
         $resource->reprocessYieldKnown = $reprocessYield !== null;
-        $resource->rows = $this->oreValueTableService->build($market, $side, $structureId, $reprocessYield);
+        $resource->valuationSource = [
+            'market' => $market,
+            'side' => $side->value,
+            'form' => $settings->form->value,
+            'structureName' => $structureId !== null && $structureId === $settings->structureId ? $settings->structureName : null,
+        ];
+        $resource->rows = $this->oreValueTableService->build($market, $side, $structureId, $reprocessYield, $exportTax);
 
         return $resource;
     }
@@ -64,9 +74,9 @@ final readonly class OreValueTableProvider implements ProviderInterface
     /**
      * @param InputBag<string> $query
      */
-    private function marketOf(InputBag $query): string
+    private function marketOf(InputBag $query, MiningValuationSettings $settings): string
     {
-        $market = $query->get('market');
+        $market = $query->get('market', $settings->market->value);
         if (!in_array($market, self::MARKETS, true)) {
             throw new BadRequestHttpException(sprintf('market must be one of: %s.', implode(', ', self::MARKETS)));
         }
@@ -77,9 +87,9 @@ final readonly class OreValueTableProvider implements ProviderInterface
     /**
      * @param InputBag<string> $query
      */
-    private function sideOf(InputBag $query): MarketSide
+    private function sideOf(InputBag $query, MiningValuationSettings $settings): MarketSide
     {
-        $side = MarketSide::tryFrom((string) $query->get('side', MarketSide::Sell->value));
+        $side = MarketSide::tryFrom((string) $query->get('side', $settings->side->value));
         if ($side === null) {
             throw new BadRequestHttpException('side must be buy or sell.');
         }
@@ -90,13 +100,13 @@ final readonly class OreValueTableProvider implements ProviderInterface
     /**
      * @param InputBag<string> $query
      */
-    private function structureIdOf(InputBag $query, string $market): ?int
+    private function structureIdOf(InputBag $query, string $market, MiningValuationSettings $settings): ?int
     {
         if ($market !== OreValueTableService::MARKET_STRUCTURE) {
             return null;
         }
 
-        $structureId = filter_var($query->get('structureId'), FILTER_VALIDATE_INT);
+        $structureId = filter_var($query->get('structureId', $settings->structureId), FILTER_VALIDATE_INT);
         if ($structureId === false || $structureId <= 0) {
             throw new BadRequestHttpException('structureId is required for the structure market.');
         }
@@ -107,10 +117,10 @@ final readonly class OreValueTableProvider implements ProviderInterface
     /**
      * @param InputBag<string> $query
      */
-    private function reprocessYieldOf(InputBag $query): ?float
+    private function reprocessYieldOf(InputBag $query, User $user): ?float
     {
         if (!$query->has('reprocessYield')) {
-            return null;
+            return $this->reprocessingProfileRepository->findOneBy(['user' => $user])?->getReprocessYield();
         }
 
         $reprocessYield = filter_var($query->get('reprocessYield'), FILTER_VALIDATE_FLOAT);
@@ -119,5 +129,22 @@ final readonly class OreValueTableProvider implements ProviderInterface
         }
 
         return $reprocessYield;
+    }
+
+    /**
+     * @param InputBag<string> $query
+     */
+    private function exportTaxOf(InputBag $query, MiningValuationSettings $settings): float
+    {
+        if (!$query->has('exportTax')) {
+            return $settings->exportTax;
+        }
+
+        $exportTax = filter_var($query->get('exportTax'), FILTER_VALIDATE_FLOAT);
+        if ($exportTax === false || $exportTax < 0.0) {
+            throw new BadRequestHttpException('exportTax must be a number greater than or equal to 0.');
+        }
+
+        return $exportTax;
     }
 }

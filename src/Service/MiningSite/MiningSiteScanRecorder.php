@@ -70,9 +70,10 @@ final readonly class MiningSiteScanRecorder
 
         $typeIds = array_keys($unitsByTypeId);
         $volumes = $this->volumesOf($typeIds);
+        $reading = $this->unitPrices->read($author, $typeIds);
         $estimate = $this->estimator->estimate(
             [...array_map($this->sampleOf(...), $previousScans), new SiteScanSample($scannedAt, $unitsByTypeId)],
-            $this->unitPrices->read($author, $typeIds)->unitPricesByTypeId,
+            $reading->unitPricesByTypeId,
             $volumes,
         );
 
@@ -86,7 +87,8 @@ final readonly class MiningSiteScanRecorder
             ->setMissingPriceTypeIds($estimate->missingPriceTypeIds)
             ->setRecentEta($estimate->recentEta)
             ->setTrendEta($estimate->trendEta)
-            ->setTypes(array_values(array_map($this->entryOf(...), $estimate->types)));
+            ->setTypes(array_values(array_map($this->entryOf(...), $estimate->types)))
+            ->setValuationSource($reading->valuationSource->toArray());
         $this->entityManager->persist($scan);
 
         if ($estimate->allDepleted) {

@@ -98,6 +98,7 @@ final readonly class MiningSiteResourceMapper
         $resource->recentEta = $this->inEveTimeOrNull($scan->getRecentEta());
         $resource->trendEta = $this->inEveTimeOrNull($scan->getTrendEta());
         $resource->types = $scan->getTypes();
+        $resource->valuationSource = $scan->getValuationSource();
 
         return $resource;
     }

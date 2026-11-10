@@ -46,7 +46,7 @@ final readonly class OreValueTableService
             $typeIds,
             $onStructure ? $structureId : null,
             $reprocessYield ?? self::UNUSED_REPROCESS_YIELD,
-            0.0,
+            $exportTax,
             $side,
         );
         $materials = $this->invTypeMaterialRepository->findByTypeIds($typeIds);

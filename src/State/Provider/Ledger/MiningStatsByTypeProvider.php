@@ -83,6 +83,7 @@ class MiningStatsByTypeProvider implements ProviderInterface
             'days' => $days,
         ];
         $resource->byType = $typeStats;
+        $resource->valuationSource = $this->miningBestValueCalculator->valuationSourceOf($user)->toArray();
 
         return $resource;
     }

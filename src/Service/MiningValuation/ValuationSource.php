@@ -17,4 +17,17 @@ final readonly class ValuationSource
         public ?string $structureName,
     ) {
     }
+
+    /**
+     * @return array{market: string, side: string, form: string, structureName: string|null}
+     */
+    public function toArray(): array
+    {
+        return [
+            'market' => $this->market->value,
+            'side' => $this->side->value,
+            'form' => $this->form->value,
+            'structureName' => $this->structureName,
+        ];
+    }
 }

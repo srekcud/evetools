@@ -12,6 +12,7 @@ use App\Enum\MoonChunkStatus;
 use App\Repository\MoonCompositionRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\MiningValuation\MiningProfileUnitPrices;
+use App\Service\MiningValuation\ValuationSource;
 
 final readonly class MoonChunkValueReader
 {
@@ -38,7 +39,8 @@ final readonly class MoonChunkValueReader
         $compositions = $this->compositionsOf($valuedExtractions);
         $typeIds = $this->typeIdsOf($compositions);
         $types = $typeIds === [] ? [] : $this->invTypeRepository->findByTypeIds($typeIds);
-        $unitPrices = $typeIds === [] ? [] : $this->unitPrices->read($user, $typeIds)->unitPricesByTypeId;
+        $reading = $this->unitPrices->read($user, $typeIds);
+        $unitPrices = $reading->unitPricesByTypeId;
         $unitVolumes = array_map(static fn (?InvType $type): ?float => $type?->getVolume(), array_replace(array_fill_keys($typeIds, null), $types));
 
         /** @var \SplObjectStorage<CorporationMiningExtraction, array<string, mixed>> $views */
@@ -47,7 +49,7 @@ final readonly class MoonChunkValueReader
             $composition = $compositions[$extraction->getCorporationId()][$extraction->getMoonId()] ?? null;
             $volumeM3 = $this->volumeEstimator->volumeM3($extraction->getExtractionStartTime(), $extraction->getChunkArrivalTime());
             $value = $this->valuer->value($this->sharesOf($composition), $volumeM3, $unitPrices, $unitVolumes);
-            $views[$extraction] = $this->viewOf($value, $volumeM3, $composition, $types);
+            $views[$extraction] = $this->viewOf($value, $volumeM3, $composition, $types, $reading->valuationSource);
         }
 
         return $views;
@@ -107,7 +109,7 @@ final readonly class MoonChunkValueReader
      *
      * @return array<string, mixed>
      */
-    private function viewOf(MoonChunkValue $value, float $volumeM3, ?MoonComposition $composition, array $types): array
+    private function viewOf(MoonChunkValue $value, float $volumeM3, ?MoonComposition $composition, array $types, ValuationSource $valuationSource): array
     {
         return [
             'status' => $value->status,
@@ -120,6 +122,7 @@ final readonly class MoonChunkValueReader
                 $value->lines,
             ),
             'scanRecordedAt' => $composition?->getRecordedAt()->setTimezone(new \DateTimeZone('UTC'))->format(\DateTimeInterface::ATOM),
+            'valuationSource' => $valuationSource->toArray(),
         ];
     }
 }

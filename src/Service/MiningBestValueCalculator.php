@@ -5,9 +5,6 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\User;
-use App\Enum\MarketSide;
-use App\Enum\MiningValuationForm;
-use App\Enum\MiningValuationMarket;
 use App\Repository\MiningEntryRepository;
 use App\Service\MiningValuation\MiningProfileUnitPrices;
 use App\Service\MiningValuation\ValuationSource;
@@ -115,12 +112,12 @@ class MiningBestValueCalculator
             return [];
         }
 
-        return array_fill_keys($typeIds, 0.0);
+        return $this->unitPrices->read($user, array_values($typeIds))->unitPricesByTypeId;
     }
 
     public function valuationSourceOf(User $user): ValuationSource
     {
-        return new ValuationSource(MiningValuationMarket::Jita, MarketSide::Sell, MiningValuationForm::Raw, null);
+        return $this->unitPrices->read($user, [])->valuationSource;
     }
 
     /**
