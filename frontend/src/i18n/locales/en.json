@@ -104,6 +104,8 @@
     "dashboard": "Dashboard",
     "characters": "Characters",
     "revenue": "Revenue",
+    "pve": "PVE",
+    "balance": "Balance",
     "industry": "Industry",
     "pi": "PI",
     "production": "Production",
@@ -368,6 +370,9 @@
     "addManually": "Add manually",
     "project": "Project",
     "noSales": "No loot sales",
+    "soldEscalations": "Sold escalations",
+    "soldEscalationsDescription": "Escalations marked as sold, counted on their sale date",
+    "noSoldEscalations": "No sold escalations",
     "expenses": "Expenses",
     "expensesDescription": "Ammo, drones and consumable purchases",
     "noExpenses": "No expenses recorded",
@@ -551,7 +556,8 @@
     },
     "sellModal": {
       "title": "Mark as sold?",
-      "confirming": "Updating..."
+      "confirming": "Updating...",
+      "lootSaleWarning": "Do not also enter a loot sale for this escalation."
     },
     "toast": {
       "updated": "Escalation updated",
@@ -1403,11 +1409,14 @@
     },
     "period": {
       "nDays": "{n} days",
-      "all": "All"
+      "all": "All",
+      "label": "Period"
     },
     "dashboard": {
       "dailyRevenue": "Daily revenue",
       "pveBreakdown": "PVE breakdown",
+      "escalations": "Escalations",
+      "openModule": "Open {module}",
       "miningBreakdown": "Mining breakdown",
       "miningMissingPrices": "{count} ore without a price: mining value unknown | {count} ores without a price: mining value unknown",
       "loot": "Loot"
@@ -3375,6 +3384,16 @@
       "projects": "Projects",
       "analysis": "Analysis",
       "production": "Production"
+    }
+  },
+  "pveModule": {
+    "tabs": {
+      "revenue": "PVE revenue",
+      "escalations": "Escalations"
+    },
+    "pages": {
+      "revenue": "PVE revenue",
+      "escalations": "Escalations"
     }
   },
   "miningModule": {

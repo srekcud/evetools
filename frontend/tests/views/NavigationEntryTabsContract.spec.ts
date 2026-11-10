@@ -7,8 +7,8 @@ import en from '@/i18n/locales/en.json'
 import { useNavigationEntries, type NavigationEntry } from '@/composables/useNavigationEntries'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { apiRequest } from '@/services/api'
+import Balance from '@/views/Balance.vue'
 import Industry from '@/views/Industry.vue'
-import Ledger from '@/views/Ledger.vue'
 import MarketBrowser from '@/views/MarketBrowser.vue'
 import GroupIndustryList from '@/views/GroupIndustry/GroupIndustryList.vue'
 import MiningOperationList from '@/views/MiningOperation/MiningOperationList.vue'
@@ -39,7 +39,7 @@ interface ViewOfRoute {
 }
 
 const VIEWS_BY_ROUTE: Record<string, ViewOfRoute> = {
-  '/ledger': { component: Ledger },
+  '/balance': { component: Balance },
   '/industry/analysis': { component: Industry, props: { page: 'analysis' } },
   '/industry/production': { component: Industry, props: { page: 'production' } },
   '/industry/projects': { component: GroupIndustryList },
@@ -117,9 +117,8 @@ describe('navigation entry tabs contract', () => {
       '/mining/moons?tab=tax',
       '/mining/my-mining?tab=season',
       '/market?tab=alerts',
-      '/ledger?tab=pve',
-      '/ledger?tab=escalations',
-      '/ledger?tab=settings',
+      '/balance?tab=industry',
+      '/balance?tab=settings',
     ])
     expect(TAB_ROUTES.map(tabRoute => splitTabRoute(tabRoute).path).every(path => path in VIEWS_BY_ROUTE)).toBe(true)
   })

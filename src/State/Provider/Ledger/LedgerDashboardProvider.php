@@ -69,9 +69,10 @@ class LedgerDashboardProvider implements ProviderInterface
         $lootSalesTotal = ($pveIncomeByType[PveIncomeType::LootSale->value] ?? 0.0)
             + ($pveIncomeByType[PveIncomeType::LootContract->value] ?? 0.0);
         $corpProjectPveTotal = $pveIncomeByType[PveIncomeType::CorpProject->value] ?? 0.0;
+        $escalationsTotal = $pveIncomeByType[PveIncomeType::Escalation->value] ?? 0.0;
 
         // PVE total: include corp projects if corpProjectAccounting is 'pve'
-        $pveTotal = $bountyTotal + $essTotal + $missionTotal + $lootSalesTotal;
+        $pveTotal = $bountyTotal + $essTotal + $missionTotal + $lootSalesTotal + $escalationsTotal;
         if ($corpProjectAccounting === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE) {
             $pveTotal += $corpProjectPveTotal;
         }
@@ -135,6 +136,7 @@ class LedgerDashboardProvider implements ProviderInterface
             'missions' => $missionTotal,
             'lootSales' => $lootSalesTotal,
             'corpProjects' => $corpProjectAccounting === UserLedgerSettings::CORP_PROJECT_ACCOUNTING_PVE ? $corpProjectPveTotal : 0.0,
+            'escalations' => $escalationsTotal,
         ];
         $resource->miningBreakdown = [
             'sold' => $this->usageValue($miningByUsage, MiningEntry::USAGE_SOLD),

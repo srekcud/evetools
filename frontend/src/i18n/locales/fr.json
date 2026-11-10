@@ -104,6 +104,8 @@
     "dashboard": "Tableau de bord",
     "characters": "Personnages",
     "revenue": "Revenus",
+    "pve": "PVE",
+    "balance": "Bilan",
     "industry": "Industrie",
     "pi": "PI",
     "production": "Production",
@@ -368,6 +370,9 @@
     "addManually": "Ajouter manuellement",
     "project": "Projet",
     "noSales": "Aucune vente de loot",
+    "soldEscalations": "Escalations vendues",
+    "soldEscalationsDescription": "Escalations marquees vendues, comptees a leur date de vente",
+    "noSoldEscalations": "Aucune escalation vendue",
     "expenses": "Depenses",
     "expensesDescription": "Achats de munitions, drones et consommables",
     "noExpenses": "Aucune depense enregistree",
@@ -551,7 +556,8 @@
     },
     "sellModal": {
       "title": "Marquer comme vendu ?",
-      "confirming": "Mise a jour..."
+      "confirming": "Mise a jour...",
+      "lootSaleWarning": "Ne saisissez pas aussi une vente de loot pour cette escalation."
     },
     "toast": {
       "updated": "Escalation mise a jour",
@@ -1403,11 +1409,14 @@
     },
     "period": {
       "nDays": "{n} jours",
-      "all": "Tout"
+      "all": "Tout",
+      "label": "Periode"
     },
     "dashboard": {
       "dailyRevenue": "Revenus journaliers",
       "pveBreakdown": "Repartition PVE",
+      "escalations": "Escalations",
+      "openModule": "Ouvrir {module}",
       "miningBreakdown": "Repartition minage",
       "miningMissingPrices": "{count} minerai sans prix : valeur du minage inconnue | {count} minerais sans prix : valeur du minage inconnue",
       "loot": "Loot"
@@ -3375,6 +3384,16 @@
       "projects": "Projets",
       "analysis": "Analyse",
       "production": "Production"
+    }
+  },
+  "pveModule": {
+    "tabs": {
+      "revenue": "Revenus PVE",
+      "escalations": "Escalations"
+    },
+    "pages": {
+      "revenue": "Revenus PVE",
+      "escalations": "Escalations"
     }
   },
   "miningModule": {

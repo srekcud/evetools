@@ -3,6 +3,7 @@ import { MODULE_LAST_PAGE_STORAGE_KEY, lastPageOf, rememberModulePage } from '@/
 const OPERATION_ID = '0b8f5d2e-4c1a-4e7b-9a36-5d2f8c1e7a40'
 const FALLBACK = '/mining/operations'
 const INDUSTRY_FALLBACK = '/industry'
+const PVE_FALLBACK = '/pve/revenue'
 
 function storedPages(): unknown {
   return JSON.parse(localStorage.getItem(MODULE_LAST_PAGE_STORAGE_KEY) ?? 'null')
@@ -27,6 +28,29 @@ describe('useModuleLastPage', () => {
 
     expect(storedPages()).toEqual({ mining: expectedPage })
     expect(lastPageOf('mining', FALLBACK)).toBe(expectedPage)
+  })
+
+  it.each([
+    ['the revenue page', '/pve/revenue'],
+    ['the escalations page', '/pve/escalations'],
+  ])('remembers %s of the pve module without touching the mining page', (_case, visited) => {
+    rememberModulePage('/mining/moons')
+
+    rememberModulePage(visited)
+
+    expect(storedPages()).toEqual({ mining: '/mining/moons', pve: visited })
+    expect(lastPageOf('pve', PVE_FALLBACK)).toBe(visited)
+    expect(lastPageOf('mining', FALLBACK)).toBe('/mining/moons')
+  })
+
+  it.each([
+    ['an unknown path', { pve: '/pve/elsewhere' }],
+    ['a path of the mining module', { pve: '/mining/moons' }],
+    ['no entry for the module', { mining: '/mining/moons' }],
+  ])('falls back to the revenue page for %s', (_case, stored) => {
+    localStorage.setItem(MODULE_LAST_PAGE_STORAGE_KEY, JSON.stringify(stored))
+
+    expect(lastPageOf('pve', PVE_FALLBACK)).toBe(PVE_FALLBACK)
   })
 
   it('ignores a path outside the module and a path that only shares its prefix', () => {

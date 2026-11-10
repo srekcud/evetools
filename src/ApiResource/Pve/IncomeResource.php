@@ -45,6 +45,9 @@ class IncomeResource
     public array $lootSales = [];
 
     /** @var array<string, mixed> */
+    public array $escalations = [];
+
+    /** @var array<string, mixed> */
     public array $expenses = [];
 
     public float $profit = 0.0;

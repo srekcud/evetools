@@ -61,6 +61,10 @@ class PveIncome
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $corpProjectQuantity = null;
 
+    #[ORM\ManyToOne(targetEntity: Escalation::class)]
+    #[ORM\JoinColumn(nullable: true, unique: true, onDelete: 'SET NULL')]
+    private ?Escalation $escalation = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -195,6 +199,17 @@ class PveIncome
     public function setCorpProjectQuantity(?int $corpProjectQuantity): static
     {
         $this->corpProjectQuantity = $corpProjectQuantity;
+        return $this;
+    }
+
+    public function getEscalation(): ?Escalation
+    {
+        return $this->escalation;
+    }
+
+    public function setEscalation(?Escalation $escalation): static
+    {
+        $this->escalation = $escalation;
         return $this;
     }
 }

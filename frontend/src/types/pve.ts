@@ -24,11 +24,21 @@ export type LootSaleEntry = {
   date: string
 }
 
+export type EscalationIncomeEntry = {
+  id: string
+  date: string
+  refType: string
+  refTypeLabel: string
+  amount: number
+  description: string
+}
+
 export type PveData = {
   period: { from: string; to: string; days: number }
   lastSyncAt: string | null
   bounties: { total: number; count: number; entries: BountyEntry[] }
   lootSales: { total: number; count: number; entries: LootSaleEntry[] }
+  escalations?: { total: number; count: number; entries: EscalationIncomeEntry[] }
   expenses: { total: number; byType: Record<string, number> }
   profit: number
 }

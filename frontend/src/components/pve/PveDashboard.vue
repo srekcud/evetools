@@ -73,7 +73,7 @@ watch(() => props.days, () => {
       </div>
 
       <!-- Income breakdown -->
-      <div v-if="pveStore.stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div v-if="pveStore.stats" class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="bg-slate-900 rounded-lg p-3 border border-slate-800">
           <div class="text-slate-500 text-xs">Bounties</div>
           <div class="text-lg font-medium text-emerald-400">
@@ -96,6 +96,12 @@ watch(() => props.days, () => {
           <div class="text-slate-500 text-xs">{{ t('pve.lootSales') }}</div>
           <div class="text-lg font-medium text-amber-400">
             {{ formatIsk(pveStore.stats.totals.lootSales) }}
+          </div>
+        </div>
+        <div class="bg-slate-900 rounded-lg p-3 border border-slate-800">
+          <div class="text-slate-500 text-xs truncate" :title="t('pve.soldEscalations')">{{ t('pve.soldEscalations') }}</div>
+          <div class="text-lg font-medium text-emerald-400">
+            {{ formatIsk(pveStore.stats.totals.escalations) }}
           </div>
         </div>
       </div>

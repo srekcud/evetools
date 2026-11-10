@@ -72,9 +72,9 @@ class LedgerDailyStatsProvider implements ProviderInterface
             $day = new LedgerDayResource();
             $day->date = $dateStr;
 
-            // PVE (bounties + lootSales)
-            $pveDay = $pveDailyByType[$dateStr] ?? ['bounties' => 0.0, 'lootSales' => 0.0];
-            $day->pve = $pveDay['bounties'] + $pveDay['lootSales'];
+            // PVE (bounties + lootSales + escalations)
+            $pveDay = $pveDailyByType[$dateStr] ?? ['bounties' => 0.0, 'lootSales' => 0.0, 'escalations' => 0.0];
+            $day->pve = $pveDay['bounties'] + $pveDay['lootSales'] + $pveDay['escalations'];
 
             $day->mining = array_key_exists($dateStr, $miningDailyBestValues['byDate']) ? $miningDailyBestValues['byDate'][$dateStr] : 0.0;
 

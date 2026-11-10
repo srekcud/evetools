@@ -14,6 +14,7 @@ use App\Enum\PveIncomeType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * @implements ProcessorInterface<CreateLootSaleInput, LootSaleResource>
@@ -36,9 +37,14 @@ class CreateLootSaleProcessor implements ProcessorInterface
 
         assert($data instanceof CreateLootSaleInput);
 
+        $type = $data->type !== null ? (PveIncomeType::tryFrom($data->type) ?? PveIncomeType::LootSale) : PveIncomeType::LootSale;
+        if ($type === PveIncomeType::Escalation) {
+            throw new UnprocessableEntityHttpException('An escalation income is created by selling the escalation, not as a loot sale');
+        }
+
         $income = new PveIncome();
         $income->setUser($user);
-        $income->setType($data->type !== null ? (PveIncomeType::tryFrom($data->type) ?? PveIncomeType::LootSale) : PveIncomeType::LootSale);
+        $income->setType($type);
         $income->setDescription($data->description);
         $income->setAmount($data->amount);
 

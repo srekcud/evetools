@@ -514,6 +514,10 @@ onUnmounted(() => {
     :is-loading="isSelling"
     @confirm="confirmSell"
     @cancel="cancelSell"
-  />
+  >
+    <p class="mt-3 rounded-sm border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+      {{ t('escalations.sellModal.lootSaleWarning') }}
+    </p>
+  </ConfirmModal>
 
 </template>

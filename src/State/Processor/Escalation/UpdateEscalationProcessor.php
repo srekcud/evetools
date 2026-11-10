@@ -14,6 +14,7 @@ use App\Enum\EscalationSaleStatus;
 use App\Enum\EscalationVisibility;
 use App\Repository\EscalationRepository;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Pve\EscalationIncomeSynchronizer;
 use App\State\Provider\Escalation\EscalationResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -34,6 +35,7 @@ class UpdateEscalationProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $em,
         private readonly RequestStack $requestStack,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly EscalationIncomeSynchronizer $incomeSynchronizer,
     ) {
     }
 
@@ -91,6 +93,8 @@ class UpdateEscalationProcessor implements ProcessorInterface
         if (array_key_exists('notes', $payload)) {
             $escalation->setNotes($payload['notes']);
         }
+
+        $this->incomeSynchronizer->synchronize($escalation);
 
         $this->em->flush();
 

@@ -14,6 +14,8 @@ class DailyStatsResource
 
     public float $lootSales = 0.0;
 
+    public float $escalations = 0.0;
+
     public float $expenses = 0.0;
 
     public float $profit = 0.0;

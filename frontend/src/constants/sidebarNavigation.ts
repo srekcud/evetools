@@ -34,6 +34,7 @@ export const allNavEntries: NavEntry[] = [
     ]
   },
   { id: 'mining', labelKey: 'nav.mining', route: '/mining/operations', activePathPrefixes: ['/mining/'], icon: 'M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9' },
+  { id: 'pve', labelKey: 'nav.pve', route: '/pve/revenue', activePathPrefixes: ['/pve/'], icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   {
     id: 'economy',
     labelKey: 'nav.economy',
@@ -41,7 +42,7 @@ export const allNavEntries: NavEntry[] = [
     collapsible: true,
     children: [
       { id: 'market', labelKey: 'nav.market', route: '/market', icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z' },
-      { id: 'ledger', labelKey: 'nav.revenue', route: '/ledger', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+      { id: 'ledger', labelKey: 'nav.balance', route: '/balance', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
       { id: 'assets', labelKey: 'nav.inventory', route: '/assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
     ]
   },

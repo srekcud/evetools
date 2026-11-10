@@ -12,7 +12,7 @@ export const PAGE_CONTENT_SELECTOR = '[data-testid="page-content"]'
 
 const navigationRoutes = [
   '/dashboard',
-  '/ledger',
+  '/balance',
   '/industry',
   '/industry/projects',
   '/industry/projects/p1',
@@ -22,6 +22,8 @@ const navigationRoutes = [
   '/planetary',
   '/mining/operations',
   '/mining/moons',
+  '/pve/revenue',
+  '/pve/escalations',
   '/market',
   '/assets',
   '/characters',

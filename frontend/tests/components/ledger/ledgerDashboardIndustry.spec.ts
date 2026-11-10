@@ -1,4 +1,4 @@
-import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { enableAutoUnmount, mount, RouterLinkStub } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
@@ -9,7 +9,7 @@ const DASHBOARD_WITH_INDUSTRY: LedgerDashboard = {
   period: { from: '2026-10-08', to: '2026-11-07', days: 30 },
   totals: { total: 8_000_000, pve: 5_000_000, mining: 1_000_000, industry: 2_000_000, expenses: 500_000, profit: 7_500_000 },
   industryBreakdown: { profit: 2_000_000, projectCount: 3, unknownProjectCount: 1 },
-  pveBreakdown: { bounties: 4_200_000, ess: 650_000, missions: 150_000, lootSales: 0, corpProjects: 0 },
+  pveBreakdown: { bounties: 4_200_000, ess: 650_000, missions: 150_000, lootSales: 0, corpProjects: 0, escalations: 0 },
   miningBreakdown: { sold: 1_000_000, corpProject: 0, industry: 0, unknown: 0 },
   expensesByType: { fuel: 500_000 },
   iskPerDay: 250_000,
@@ -34,7 +34,10 @@ const DASHBOARD_WITH_UNKNOWN_MINING: LedgerDashboard = {
 function mountDashboard(dashboard: LedgerDashboard) {
   return mount(LedgerDashboardTab, {
     props: { dashboard, dailyStats: null, selectedDays: 30, maxDailyValue: 0 },
-    global: { plugins: [createI18n({ legacy: false, locale: 'fr', messages: { en, fr } })] },
+    global: {
+      plugins: [createI18n({ legacy: false, locale: 'fr', messages: { en, fr } })],
+      stubs: { RouterLink: RouterLinkStub },
+    },
   })
 }
 

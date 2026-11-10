@@ -1,4 +1,4 @@
-import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { enableAutoUnmount, mount, RouterLinkStub } from '@vue/test-utils'
 import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
 import type { LedgerDashboard } from '@/stores/ledger'
 import { MYSTERY_ORE_TYPE_ID, UNLOADED_ORE_TYPE_ID, i18nPlugin } from './miningLedgerHarness'
@@ -7,7 +7,7 @@ const DASHBOARD_WITH_UNKNOWN_MINING: LedgerDashboard = {
   period: { from: '2026-09-22', to: '2026-10-22', days: 30 },
   totals: { total: null, pve: 5_000_000, mining: null, industry: 0, expenses: 400_000, profit: null },
   industryBreakdown: { profit: 0, projectCount: 0, unknownProjectCount: 0 },
-  pveBreakdown: { bounties: 4_200_000, ess: 650_000, missions: 150_000, lootSales: 0, corpProjects: 0 },
+  pveBreakdown: { bounties: 4_200_000, ess: 650_000, missions: 150_000, lootSales: 0, corpProjects: 0, escalations: 0 },
   miningBreakdown: { sold: 831_214.8, corpProject: 0, industry: null, unknown: 0 },
   expensesByType: { fuel: 400_000 },
   iskPerDay: null,
@@ -23,7 +23,7 @@ const DASHBOARD_WITH_UNKNOWN_MINING: LedgerDashboard = {
 function mountDashboard(dashboard: LedgerDashboard) {
   return mount(LedgerDashboardTab, {
     props: { dashboard, dailyStats: null, selectedDays: 30, maxDailyValue: 0 },
-    global: { plugins: [i18nPlugin()] },
+    global: { plugins: [i18nPlugin()], stubs: { RouterLink: RouterLinkStub } },
   })
 }
 

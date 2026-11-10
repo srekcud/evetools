@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Pve\LootSaleResource;
 use App\Entity\PveIncome;
 use App\Entity\User;
+use App\Enum\PveIncomeType;
 use App\Repository\PveIncomeRepository;
 use App\Service\Pve\RequestedDays;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -43,7 +44,12 @@ class LootSaleCollectionProvider implements ProviderInterface
 
         $lootSales = $this->incomeRepository->findByUserAndDateRange($user, $from, $to);
 
-        return array_values(array_map(fn(PveIncome $i) => $this->toResource($i), $lootSales));
+        $withoutEscalations = array_filter(
+            $lootSales,
+            static fn (PveIncome $income): bool => $income->getType() !== PveIncomeType::Escalation,
+        );
+
+        return array_values(array_map(fn(PveIncome $i) => $this->toResource($i), $withoutEscalations));
     }
 
     private function toResource(PveIncome $income): LootSaleResource
