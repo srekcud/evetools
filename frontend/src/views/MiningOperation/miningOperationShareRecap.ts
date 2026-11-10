@@ -21,6 +21,7 @@ export interface ShareRecap {
   iskPerHour: number | null
   durationSeconds: number | null
   participantsCount: number
+  sitesCount: number | null
   topOres: ShareRecapOre[] | null
   eachForThemselves: boolean
   boosterCutPercent: number
@@ -58,7 +59,7 @@ function rankByValue(ores: ShareRecapOre[]): ShareRecapOre[] {
   return [...valued, ...ores.filter(ore => ore.value === null)].slice(0, TOP_ORES_COUNT)
 }
 
-export function buildShareRecap(operation: MiningOperation, valuation: MiningOperationValuation, ledger: MiningOperationLedger, unknownPilotLabel: string): ShareRecap {
+export function buildShareRecap(operation: MiningOperation, valuation: MiningOperationValuation, ledger: MiningOperationLedger, unknownPilotLabel: string, sitesCount: number | null = null): ShareRecap {
   const someQuantityUnknown = ledger.participants.some(participant => participant.state !== 'known')
   const causes = [missingTypeNames(valuation), someQuantityUnknown ? unknownPilotLabel : ''].filter(cause => cause !== '')
   return {
@@ -70,6 +71,7 @@ export function buildShareRecap(operation: MiningOperation, valuation: MiningOpe
     iskPerHour: valuation.iskPerHour,
     durationSeconds: valuation.durationSeconds,
     participantsCount: operation.participantsCount,
+    sitesCount,
     topOres: someQuantityUnknown ? null : rankByValue(minedValueByType(valuation, ledger)),
     eachForThemselves: operation.splitMode === 'each_for_themselves',
     boosterCutPercent: valuation.settings.boosterCutPercent,
@@ -96,6 +98,9 @@ export function shareRecapLines(recap: ShareRecap, basis: string, t: Translate):
       : t('miningOperation.shareRecap.text.duration', { duration: formatDuration(recap.durationSeconds) }),
     t('miningOperation.shareRecap.text.participants', { count: recap.participantsCount }),
   ]
+  if (recap.sitesCount !== null && recap.sitesCount > 0) {
+    figures.push(t('miningOperation.shareRecap.text.sites', { count: recap.sitesCount }))
+  }
   const lines = [identity.join(SEGMENT_SEPARATOR), `${valueLine}${SEGMENT_SEPARATOR}${basis}`, figures.join(SEGMENT_SEPARATOR)]
   if (recap.topOres === null) {
     lines.push(t('miningOperation.shareRecap.text.topOresUnknown'))
