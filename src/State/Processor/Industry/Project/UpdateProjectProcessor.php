@@ -91,6 +91,7 @@ class UpdateProjectProcessor implements ProcessorInterface
         }
 
         $this->changeTheBlacklist($project, $data);
+        $this->changeTheSelectionPolicy($project, $data);
         $this->changeTheSellStructure($user, $project, $data);
 
         if ($data->name !== null) {
@@ -189,6 +190,38 @@ class UpdateProjectProcessor implements ProcessorInterface
         }
 
         $project->setSellStructure($sellStructure->id, $sellStructure->name);
+    }
+
+    private function changeTheSelectionPolicy(IndustryProject $project, UpdateProjectInput $data): void
+    {
+        if ($data->acceptsOutsideFavoriteSystem === null && $data->minimumOutsideSaving === null) {
+            return;
+        }
+
+        if ($project->isCompleted()) {
+            throw new BadRequestHttpException('The structure policy of a completed project cannot be changed');
+        }
+
+        $previousAcceptsOutside = $project->isAcceptsOutsideFavoriteSystem();
+        $previousMinimumSaving = $project->getMinimumOutsideSaving();
+        $acceptsOutside = $data->acceptsOutsideFavoriteSystem ?? $previousAcceptsOutside;
+        $minimumSaving = $data->minimumOutsideSaving ?? $previousMinimumSaving;
+
+        if ($acceptsOutside === $previousAcceptsOutside && $minimumSaving === $previousMinimumSaving) {
+            return;
+        }
+
+        $project->setAcceptsOutsideFavoriteSystem($acceptsOutside);
+        $project->setMinimumOutsideSaving($minimumSaving);
+
+        try {
+            $this->projectService->buildBom($project, $project->getOwner(), refuseToDropWorkedLines: $project->getStatus() !== ProjectStatus::Draft);
+        } catch (\RuntimeException $e) {
+            $project->setAcceptsOutsideFavoriteSystem($previousAcceptsOutside);
+            $project->setMinimumOutsideSaving($previousMinimumSaving);
+
+            throw new BadRequestHttpException($e->getMessage());
+        }
     }
 
     private function changeTheBlacklist(IndustryProject $project, UpdateProjectInput $data): void

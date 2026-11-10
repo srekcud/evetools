@@ -872,6 +872,116 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertSame([[334], [34]], [$this->project->getBlacklistGroupIds(), $this->project->getBlacklistTypeIds()]);
     }
 
+    #[DataProvider('statusesWhereThePolicyCanBeSwitched')]
+    #[Group('issue-341')]
+    public function testAcceptingTheOutsideOfTheFavoriteSystemIsSavedAndTheBomIsRebuiltRefusingToDropWorkedLinesOutsideTheDraft(ProjectStatus $status, bool $refusesToDropWorkedLines): void
+    {
+        $this->project->setStatus($status);
+        $input = new UpdateProjectInput();
+        $input->acceptsOutsideFavoriteSystem = true;
+
+        $this->projectService->expects($this->once())->method('buildBom')->with($this->project, $this->owner, $refusesToDropWorkedLines);
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $resource = $this->update($input);
+
+        self::assertTrue($this->project->isAcceptsOutsideFavoriteSystem());
+        self::assertTrue($resource->acceptsOutsideFavoriteSystem);
+    }
+
+    public static function statusesWhereThePolicyCanBeSwitched(): iterable
+    {
+        yield 'draft' => [ProjectStatus::Draft, false];
+        yield 'published' => [ProjectStatus::Published, true];
+        yield 'in progress' => [ProjectStatus::InProgress, true];
+        yield 'selling' => [ProjectStatus::Selling, true];
+    }
+
+    #[Group('issue-341')]
+    public function testGoingBackToTheFavoriteSystemAndChangingTheMinimumSavingAreSavedAndRebuildTheBom(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $this->project->setAcceptsOutsideFavoriteSystem(true);
+        $this->project->setMinimumOutsideSaving(500_000.0);
+        $back = new UpdateProjectInput();
+        $back->acceptsOutsideFavoriteSystem = false;
+        $threshold = new UpdateProjectInput();
+        $threshold->minimumOutsideSaving = 250_000.0;
+
+        $this->projectService->expects($this->exactly(2))->method('buildBom');
+
+        $this->update($back);
+        $resource = $this->update($threshold);
+
+        self::assertFalse($this->project->isAcceptsOutsideFavoriteSystem());
+        self::assertSame(250_000.0, $this->project->getMinimumOutsideSaving());
+        self::assertSame(250_000.0, $resource->minimumOutsideSaving);
+    }
+
+    #[Group('issue-341')]
+    public function testValuesEqualToTheCurrentPolicyDoNotRebuildTheBomAndAnUpdateWithoutThePolicyKeepsIt(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $this->project->setAcceptsOutsideFavoriteSystem(true);
+        $this->project->setMinimumOutsideSaving(500_000.0);
+        $same = new UpdateProjectInput();
+        $same->acceptsOutsideFavoriteSystem = true;
+        $same->minimumOutsideSaving = 500_000.0;
+        $unrelated = new UpdateProjectInput();
+        $unrelated->name = 'Ishtar batch';
+
+        $this->projectService->expects($this->never())->method('buildBom');
+
+        $this->update($same);
+        $this->update($unrelated);
+
+        self::assertSame([true, 500_000.0], [$this->project->isAcceptsOutsideFavoriteSystem(), $this->project->getMinimumOutsideSaving()]);
+    }
+
+    #[Group('issue-341')]
+    public function testThePolicyOfACompletedProjectIsRefusedAndNothingIsChanged(): void
+    {
+        $this->project->setStatus(ProjectStatus::Completed);
+        $input = new UpdateProjectInput();
+        $input->acceptsOutsideFavoriteSystem = true;
+        $input->minimumOutsideSaving = 1.0;
+
+        $this->projectService->expects($this->never())->method('buildBom');
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertSame('The structure policy of a completed project cannot be changed', $refusal?->getMessage());
+        self::assertSame([false, IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING], [$this->project->isAcceptsOutsideFavoriteSystem(), $this->project->getMinimumOutsideSaving()]);
+    }
+
+    #[Group('issue-341')]
+    public function testARebuildRefusedForAWorkedLineIsABadRequestWithTheMessageOfTheServiceAndRestoresThePolicy(): void
+    {
+        $this->project->setStatus(ProjectStatus::InProgress);
+        $input = new UpdateProjectInput();
+        $input->acceptsOutsideFavoriteSystem = true;
+        $input->minimumOutsideSaving = 1.0;
+
+        $this->projectService->method('buildBom')->willThrowException(new \RuntimeException('The line "Hull Plating" carries a linked job, a purchase or a contribution and cannot be removed from the plan.'));
+        $this->entityManager->expects($this->never())->method('flush');
+
+        $refusal = null;
+        try {
+            $this->update($input);
+        } catch (BadRequestHttpException $e) {
+            $refusal = $e;
+        }
+
+        self::assertSame('The line "Hull Plating" carries a linked job, a purchase or a contribution and cannot be removed from the plan.', $refusal?->getMessage());
+        self::assertSame([false, IndustryProject::DEFAULT_MINIMUM_OUTSIDE_SAVING], [$this->project->isAcceptsOutsideFavoriteSystem(), $this->project->getMinimumOutsideSaving()]);
+    }
+
     private function assertUpdateIsRefused(UpdateProjectInput $input): void
     {
         $this->entityManager->expects($this->never())->method('flush');

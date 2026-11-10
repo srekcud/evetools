@@ -654,7 +654,11 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           @switched="onBuyOrBuildSwitched"
         />
         <ProjectResearch :project-id="projectId" />
-        <ProjectStructures :project-id="projectId" />
+        <ProjectStructures
+          :project-id="projectId"
+          :can-switch="isOwnerOrAdmin && !isCompleted"
+          @switched="onBuyOrBuildSwitched"
+        />
         <ProjectStructureHealth :project-id="projectId" />
       </div>
 

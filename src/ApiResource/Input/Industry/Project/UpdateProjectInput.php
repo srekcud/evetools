@@ -35,6 +35,11 @@ class UpdateProjectInput
     #[Assert\Length(max: self::MAXIMUM_NOTES_LENGTH)]
     public ?string $notes = null;
 
+    public ?bool $acceptsOutsideFavoriteSystem = null;
+
+    #[Assert\PositiveOrZero]
+    public ?float $minimumOutsideSaving = null;
+
     /** @var int[]|null */
     #[Assert\Count(max: self::MAXIMUM_BLACKLIST_ENTRIES)]
     public ?array $blacklistGroupIds = null;

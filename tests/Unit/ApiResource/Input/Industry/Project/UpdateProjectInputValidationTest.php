@@ -50,6 +50,20 @@ final class UpdateProjectInputValidationTest extends TestCase
         yield 'sales tax absent' => ['salesTaxPercent', null, []];
     }
 
+    #[Group('issue-341')]
+    public function testMinimumOutsideSavingSentIsZeroOrMoreAndAbsentIsValid(): void
+    {
+        $negative = new UpdateProjectInput();
+        $negative->minimumOutsideSaving = -0.01;
+        $zero = new UpdateProjectInput();
+        $zero->minimumOutsideSaving = 0.0;
+
+        self::assertSame(
+            [['minimumOutsideSaving'], [], []],
+            [$this->violatedPathsOf($negative), $this->violatedPathsOf($zero), $this->violatedPathsOf(new UpdateProjectInput())],
+        );
+    }
+
     #[Group('issue-50')]
     public function testSellStructureSentIsStrictlyPositive(): void
     {

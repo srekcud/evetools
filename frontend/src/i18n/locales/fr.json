@@ -2605,6 +2605,11 @@
       "retained": "Structure retenue par le plan",
       "taxDetail": "taxe {percent}",
       "transportDetail": "{volume} m³ × {jumps}",
+      "switch": {
+        "allow": "Autoriser pour ce projet",
+        "revert": "Revenir au système préféré",
+        "error": "Le projet n'a pas pu être mis à jour"
+      },
       "banner": {
         "onlyFavoriteSystem": "{structure} reviendrait {amount} moins cher, transport compris. Non retenue : le projet n'accepte que le système préféré.",
         "belowThreshold": "{structure} reviendrait {amount} moins cher, transport compris. Économie sous le seuil du projet ({threshold}) : le plan reste sur la structure retenue.",
