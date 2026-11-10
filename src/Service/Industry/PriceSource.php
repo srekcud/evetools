@@ -41,17 +41,17 @@ final readonly class PriceSource
 
     public static function jitaSellLowest(): self
     {
-        return self::jitaSellWeighted(null);
+        return new self(self::MARKET_JITA, self::SIDE_SELL, self::METHOD_LOWEST, null);
     }
 
     public static function jitaBuyLowest(): self
     {
-        return self::jitaSellWeighted(null);
+        return new self(self::MARKET_JITA, self::SIDE_BUY, self::METHOD_LOWEST, null);
     }
 
     public static function jitaBuyWeighted(?float $coveragePercent): self
     {
-        return self::jitaSellWeighted($coveragePercent);
+        return new self(self::MARKET_JITA, self::SIDE_BUY, self::METHOD_WEIGHTED, $coveragePercent);
     }
 
     public static function structureSellLowest(): self

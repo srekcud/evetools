@@ -55,6 +55,6 @@ class AppraisalItemResource
     /** Average daily volume traded on Jita market (last 30 days) */
     public ?float $avgDailyVolume = null;
 
-    /** @var array<string, mixed> */
+    /** @var array{sell: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, buy: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, sellWeighted: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, buyWeighted: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null}|array{} */
     public array $priceSources = [];
 }

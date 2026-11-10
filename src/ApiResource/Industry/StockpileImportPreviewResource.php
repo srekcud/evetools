@@ -25,7 +25,7 @@ use App\State\Processor\Industry\StockpileImportPreviewProcessor;
 )]
 class StockpileImportPreviewResource
 {
-    /** @var array<string, list<array{typeId: int, typeName: string, quantity: int, unitPrice: float|null}>> */
+    /** @var array<string, list<array{typeId: int, typeName: string, quantity: int, unitPrice: float|null, priceSource: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null}>> */
     public array $stages = [];
 
     public int $totalItems = 0;
@@ -35,6 +35,6 @@ class StockpileImportPreviewResource
     /** @var list<int> */
     public array $missingPriceTypeIds = [];
 
-    /** @var array<string, mixed> */
+    /** @var array{estimatedCost: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null}|array{} */
     public array $priceSources = [];
 }

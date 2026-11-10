@@ -26,7 +26,7 @@ class StockpileStatusResource
 {
     public int $targetCount = 0;
 
-    /** @var array<string, array{items: list<array<string, mixed>>, totalValue: float|null, healthPercent: float}> */
+    /** @var array<string, array{items: list<array{id: string, typeId: int, typeName: string, targetQuantity: int, remainingTargetQuantity: int, stock: int, percent: float, status: string, unitPrice: float|null, stockValue: float|null, deficit: int, deficitCost: float|null, stage: string, sourceProductTypeId: int|null, locations: list<array{locationId: int, locationName: string, systemName: string|null, quantity: int}>, suggestedProjectRuns: int|null, priceSources: array{stock: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, deficit: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null}}>, totalValue: float|null, healthPercent: float}> */
     public array $stages = [];
 
     /** @var array{pipelineHealth: float, totalInvested: float|null, bottleneck: array<string, mixed>|null, estOutput: array{ready: int, total: int, readyNames: list<string>}}|array{} */
@@ -44,6 +44,6 @@ class StockpileStatusResource
     /** @var list<int> */
     public array $missingPriceTypeIds = [];
 
-    /** @var array<string, mixed> */
+    /** @var array{stockValue: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, deficitCost: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null}|array{} */
     public array $priceSources = [];
 }

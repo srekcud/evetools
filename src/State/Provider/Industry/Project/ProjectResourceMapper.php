@@ -12,9 +12,11 @@ use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
 use App\Enum\ContributionStatus;
+use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\PilotName;
+use App\Service\Industry\Project\ProjectContributionService;
 
 class ProjectResourceMapper
 {
@@ -142,6 +144,7 @@ class ProjectResourceMapper
         $resource->type = $contribution->getType()->value;
         $resource->quantity = $contribution->getQuantity();
         $resource->estimatedValue = $contribution->getEstimatedValue();
+        $resource->estimatedValueSource = ContributionType::Material === $contribution->getType() && null !== $contribution->getEstimatedValue() ? ProjectContributionService::materialContributionPriceSource()->toArray() : null;
         $resource->status = $contribution->getStatus()->value;
         $resource->isAutoDetected = $contribution->isAutoDetected();
         $resource->duplicatesDerived = $contribution->duplicatesDerived();
