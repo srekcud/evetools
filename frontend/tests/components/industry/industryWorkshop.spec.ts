@@ -8,6 +8,7 @@ import type { GroupProject, GroupMemberRole, GroupProjectStatus } from '@/stores
 import type { IndustryAction } from '@/stores/industry/actions'
 import { useSyncStore } from '@/stores/sync'
 import { industryAction } from '../../industryActionFixtures'
+import { slotTrackerWithoutCharacters } from '../../industrySlotsFixtures'
 
 const routerPush = vi.fn()
 const routerResolve = vi.fn((location: { params: { id: string } }) => ({ href: `/industry/projects/${location.params.id}` }))
@@ -125,7 +126,7 @@ function answerWith({ actions = QUEUE, timeline = [], projects = GROUP_PROJECTS 
       if (actions instanceof Error) throw actions
       return actions
     }
-    if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline }
+    if (endpoint === SLOTS_ENDPOINT) return slotTrackerWithoutCharacters(timeline)
     if (endpoint === PROJECTS_ENDPOINT) return projects
     if (endpoint === WORKSHOP_PROJECTS_ENDPOINT) return []
     return new Promise(() => {})

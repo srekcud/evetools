@@ -17,6 +17,7 @@ export type WorkshopProject = {
   members: WorkshopProjectMember[]
   phases: ProjectPhase[]
   profit: { amount: number | null; status: WorkshopProjectProfitStatus }
+  engagedCapital: number | null
 }
 
 export const useIndustryWorkshopProjectsStore = defineStore('industry-workshop-projects', () => {

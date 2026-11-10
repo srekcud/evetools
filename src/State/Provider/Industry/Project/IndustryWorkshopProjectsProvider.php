@@ -16,6 +16,7 @@ use App\Service\Industry\Project\CockpitPhasePresenter;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\Service\Industry\Project\ProjectDistributionService;
+use App\Service\Industry\Project\ViewerEngagedCapital;
 use App\Service\Industry\Project\ViewerProfitShare;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -83,10 +84,10 @@ class IndustryWorkshopProjectsProvider implements ProviderInterface
         $resource->projectId = $project->getId()->toRfc4122();
         $resource->members = $this->membersOf($participants);
         $resource->phases = CockpitPhasePresenter::of($cockpit->phases);
-        $resource->profit = ViewerProfitShare::of(
-            $this->distributionService->calculateDistribution($project),
-            $membership->getId()->toRfc4122(),
-        );
+        $distribution = $this->distributionService->calculateDistribution($project);
+        $memberId = $membership->getId()->toRfc4122();
+        $resource->profit = ViewerProfitShare::of($distribution, $memberId);
+        $resource->engagedCapital = ViewerEngagedCapital::of($distribution, $memberId);
 
         return $resource;
     }

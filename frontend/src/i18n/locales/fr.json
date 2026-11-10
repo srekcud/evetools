@@ -720,11 +720,6 @@
       "blacklist": "Blacklist"
     },
     "dashboard": {
-      "activeProjects": "Projets actifs",
-      "slotsUsed": "Slots utilises",
-      "pipelineHealth": "Sante du pipeline",
-      "slotsAvailable": "{count} slots disponibles",
-      "targetsMet": "{met}/{total} objectifs atteints",
       "alertsTitle": "Alertes",
       "noAlerts": "Aucune alerte — tout fonctionne normalement",
       "newProject": "Nouveau projet",
@@ -940,6 +935,25 @@
       "hint": "Hors implants et hors coût des datacores. Temps : heures de slot libérées valorisées à l'ISK/h de vos projets des 30 derniers jours. Un slot de plus compte comme un slot moyen de sa catégorie."
     },
     "workshop": {
+      "kpis": {
+        "jobs": {
+          "label": "Jobs en cours",
+          "allCharacters": "tous les personnages",
+          "none": "aucun"
+        },
+        "slots": {
+          "label": "Slots de fabrication libres"
+        },
+        "capital": {
+          "label": "Capital engagé",
+          "meta": "Jobs, achats et apports des projets actifs"
+        },
+        "profit": {
+          "label": "Profit attendu",
+          "meta": "Ma part sur les projets avec ventes"
+        },
+        "unknownProjects": "{count} projet sans valeur | {count} projets sans valeur"
+      },
       "skillsLink": "Compétences",
       "unnamedProject": "Sans nom",
       "noPendingAction": "Aucune action en attente",
