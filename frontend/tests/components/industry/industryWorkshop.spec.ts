@@ -117,15 +117,16 @@ interface Answers {
   actions?: IndustryAction[] | Error
   timeline?: ReturnType<typeof timelineJob>[]
   projects?: GroupProject[]
+  jobsSyncedAt?: string | null
 }
 
-function answerWith({ actions = QUEUE, timeline = [], projects = GROUP_PROJECTS }: Answers): void {
+function answerWith({ actions = QUEUE, timeline = [], projects = GROUP_PROJECTS, jobsSyncedAt = null }: Answers): void {
   vi.mocked(apiRequest).mockImplementation((async (endpoint: string) => {
     if (endpoint === ACTIONS_ENDPOINT) {
       if (actions instanceof Error) throw actions
       return actions
     }
-    if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline }
+    if (endpoint === SLOTS_ENDPOINT) return { characters: [], timeline, jobsSyncedAt }
     if (endpoint === PROJECTS_ENDPOINT) return projects
     if (endpoint === WORKSHOP_PROJECTS_ENDPOINT) return []
     return new Promise(() => {})
@@ -191,6 +192,26 @@ describe('IndustryWorkshop action queue', () => {
     expect(rows[3].text()).not.toMatch(/(^|\D)0(\D|$)/)
   })
 
+  it('shows the severity of each row, the impact in ISK of a material to source and an unknown mark instead of zero when its price is unknown', async () => {
+    const wrapper = await mountWorkshop({
+      actions: [
+        industryAction({ projectId: HECATE_PROJECT_ID, projectName: 'Hecate in progress', code: 'source_material', blocked: true, tab: 'materials', typeId: 34, typeName: 'Tritanium', quantity: 27_500, severity: 'warning', impactIsk: 151_250 }),
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'source_material', tab: 'materials', typeId: 35, typeName: 'Pyerite', quantity: 900, severity: 'unknown', impactIsk: null }),
+        industryAction({ projectId: WIDOW_PROJECT_ID, projectName: 'Widow draft', code: 'record_sale', tab: 'sales', quantity: 3 }),
+        industryAction({ projectId: UNNAMED_PROJECT_ID, projectName: null, code: 'launch_job', tab: 'materials', typeId: 638, typeName: 'Raven', quantity: null, severity: 'unknown' }),
+      ],
+    })
+    const rows = queueRows(wrapper)
+
+    expect(rows.map(row => row.get('[data-testid="workshop-action-severity"]').attributes('data-severity'))).toEqual(['warning', 'unknown', 'info', 'unknown'])
+    expect(rows[0].get('[data-testid="workshop-action-impact"]').text()).toMatch(/151\.25 K/)
+    expect(rows[1].find('[data-testid="workshop-action-impact"]').exists()).toBe(false)
+    expect(rows[1].find('[data-testid="workshop-action-impact-unknown"]').exists()).toBe(true)
+    expect(rows[2].find('[data-testid="workshop-action-impact"]').exists()).toBe(false)
+    expect(rows[2].find('[data-testid="workshop-action-impact-unknown"]').exists()).toBe(false)
+    expect(rows[3].find('[data-testid="workshop-action-impact-unknown"]').exists()).toBe(false)
+  })
+
   it('opens the cockpit of the project on the detail tab of the next action, with no tab when the action has none', async () => {
     const wrapper = await mountWorkshop()
     const rows = queueRows(wrapper)
@@ -214,6 +235,22 @@ describe('IndustryWorkshop action queue', () => {
       jobs: testIds(wrapper, 'workshop-upcoming-job').length,
       error: wrapper.find('[data-testid="workshop-error"]').exists(),
     }).toEqual({ emptyQueue: true, rows: 0, emptyJobs: true, jobs: 0, error: false })
+  })
+
+  it('shows how long ago the ESI jobs were synced in the header of the upcoming jobs', async () => {
+    const fourMinutesAgo = new Date(Date.now() - 4 * 60_000).toISOString()
+    const wrapper = await mountWorkshop({ timeline: [timelineJob(0, 'Moa')], jobsSyncedAt: fourMinutesAgo })
+
+    expect(wrapper.get('[data-testid="workshop-jobs-freshness"]').text()).toContain('4min ago')
+  })
+
+  it('says the sync date is unknown instead of a fake age when no job sync date is known', async () => {
+    const wrapper = await mountWorkshop({ timeline: [timelineJob(0, 'Moa')], jobsSyncedAt: null })
+
+    const chip = wrapper.get('[data-testid="workshop-jobs-freshness"]').text()
+    expect(chip).toContain('unknown')
+    expect(chip).not.toContain('just now')
+    expect(chip).not.toContain('ago')
   })
 
   it('shows the failure instead of an empty queue when the actions cannot be loaded', async () => {

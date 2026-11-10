@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\MiningOperation\MiningSeasonResource;
 use App\Enum\MiningSeasonPeriod;
+use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\MiningOperation\MiningOperationRequest;
 use App\Service\MiningOperation\MiningSeasonReader;
 use App\Service\TypeNameResolver;
@@ -25,6 +26,7 @@ final readonly class MiningSeasonProvider implements ProviderInterface
         private Security $security,
         private MiningSeasonReader $reader,
         private TypeNameResolver $typeNameResolver,
+        private MapSolarSystemRepository $solarSystemRepository,
     ) {
     }
 
@@ -62,6 +64,11 @@ final readonly class MiningSeasonProvider implements ProviderInterface
             $summary->ships,
         );
         $resource->unknownShipCharactersCount = $summary->unknownShipCharactersCount;
+        $resource->sitesBySystem = array_map(
+            fn (array $system): array => ['solarSystemName' => $this->solarSystemRepository->findBySolarSystemId($system['solarSystemId'])?->getSolarSystemName()] + $system,
+            $summary->sitesBySystem,
+        );
+        $resource->sitesWithoutSystemCount = $summary->sitesWithoutSystemCount;
 
         return $resource;
     }

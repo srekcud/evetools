@@ -35,4 +35,9 @@ class MiningSeasonResource
     public array $ships = [];
 
     public int $unknownShipCharactersCount = 0;
+
+    /** @var list<array{solarSystemId: int, solarSystemName: ?string, sitesCount: int, bestSite: ?array{label: string, iskPerHour: int, observedSeconds: int}, unknownSites: list<array{label: string, reason: string}>}> */
+    public array $sitesBySystem = [];
+
+    public int $sitesWithoutSystemCount = 0;
 }

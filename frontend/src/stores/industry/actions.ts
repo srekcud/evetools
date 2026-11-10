@@ -4,6 +4,8 @@ import { apiRequest } from '@/services/api'
 import { useSyncStore } from '@/stores/sync'
 import type { GroupProjectStatus, ProjectNextActionCode, ProjectNextActionTab } from '@/stores/group-industry/types'
 
+export type IndustryActionSeverity = 'warning' | 'info' | 'unknown'
+
 export type IndustryAction = {
   projectId: string
   projectName: string | null
@@ -15,6 +17,8 @@ export type IndustryAction = {
   typeId: number | null
   typeName: string | null
   quantity: number | null
+  severity: IndustryActionSeverity
+  impactIsk: number | null
 }
 
 export const useIndustryActionsStore = defineStore('industry-actions', () => {

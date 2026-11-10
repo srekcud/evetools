@@ -134,6 +134,33 @@ class CreateProjectProcessorTest extends TestCase
         self::assertSame([34], $this->createdProjectData->blacklistTypeIds);
     }
 
+    public static function blacklistUnionProvider(): iterable
+    {
+        yield 'B1 settings groups and types come after the input ones' => [[1136], [34], [999], [], [35], [999, 1136], [35, 34]];
+        yield 'B2 an entry of the input already in the settings is kept once at its input rank' => [[1136], [34], [1136, 999], [], [34], [1136, 999], [34]];
+        yield 'B3 without settings the category keys resolve as before' => [[], [], [999], ['fuel_blocks'], [35], [999, 1136], [35]];
+        yield 'B4 an empty input gives the settings alone' => [[1136, 484], [34, 35], [], [], [], [1136, 484], [34, 35]];
+        yield 'B5 the settings group comes after the groups of the category keys' => [[334], [], [], ['biochem_reactions'], [], [661, 662, 334], []];
+    }
+
+    #[Group('issue-575')]
+    #[DataProvider('blacklistUnionProvider')]
+    public function testBlacklistOfTheProjectIsTheUnionOfTheInputAndTheSettingsOfTheOwner(array $settingsGroupIds, array $settingsTypeIds, array $inputGroupIds, array $inputCategoryKeys, array $inputTypeIds, array $expectedGroupIds, array $expectedTypeIds): void
+    {
+        $this->owner->method('getIndustryBlacklistGroupIds')->willReturn($settingsGroupIds);
+        $this->owner->method('getIndustryBlacklistTypeIds')->willReturn($settingsTypeIds);
+        $input = $this->sabreInput();
+        $input->blacklistGroupIds = $inputGroupIds;
+        $input->blacklistCategoryKeys = $inputCategoryKeys;
+        $input->blacklistTypeIds = $inputTypeIds;
+
+        $this->createProjectFrom($input);
+
+        self::assertNotNull($this->createdProjectData);
+        self::assertSame($expectedGroupIds, $this->createdProjectData->blacklistGroupIds);
+        self::assertSame($expectedTypeIds, $this->createdProjectData->blacklistTypeIds);
+    }
+
     #[Group('issue-347')]
     public function testSellerFeesOfFiveAccountingFiveBrokerRelationsAndStandingsGiveTheProjectFeesInPercent(): void
     {

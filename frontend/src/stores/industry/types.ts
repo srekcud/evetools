@@ -562,6 +562,7 @@ export type SlotTrackerData = {
   characters: SlotTrackerCharacter[]; timeline: TimelineJob[]
   skillsMayBeStale: boolean
   unknownSkillsCharacterCount: number
+  jobsSyncedAt: string | null
 }
 
 // Cross-tab navigation intent for the Industry cockpit

@@ -948,6 +948,13 @@
         "count": "{count} à traiter",
         "empty": "Rien à faire maintenant",
         "blocked": "À l'arrêt",
+        "severity": {
+          "warning": "Avertissement",
+          "info": "Information",
+          "unknown": "Donnée inconnue"
+        },
+        "impact": "≈ {amount} ISK",
+        "impactUnknown": "Impact inconnu",
         "stockpileLow": "Stockpile · {typeName} sous le seuil ({stock} / {target})",
         "stockpileRuns": "{runs} runs à lancer pour revenir à la cible",
         "stockpileCreateProject": "Créer le projet"
@@ -990,6 +997,8 @@
         "title": "Prochaines fins de jobs",
         "empty": "Aucun job en cours",
         "endsIn": "dans {duration}",
+        "syncedAgo": "sync ESI {since}",
+        "syncedUnknown": "sync ESI inconnue",
         "unknownProduct": "Produit inconnu"
       },
       "projects": {
@@ -1018,6 +1027,7 @@
         "final": "final",
         "provisional": "ma part provisoire",
         "awaitingSales": "aucune vente",
+        "forecast": "prévision Jita (projet)",
         "unknown": "un coût ou des frais sont inconnus"
       },
       "productSubline": "ME {me} · TE {te} · {team}",
@@ -3133,6 +3143,8 @@
         "blacklistLabel": "Liste noire",
         "blacklistDesc": "Les items ci-dessous seront achetes, pas fabriques.",
         "blacklistHint": "Defauts issus de vos parametres industrie. Surcharge par projet.",
+        "blacklistFromSettings": "depuis vos réglages",
+        "blacklistSettingsItems": "{count} item exclu par vos réglages | {count} items exclus par vos réglages",
         "lineRentalInfo": "Tarifs location de ligne :",
         "lineRentalDefault": "Utilise les defauts de vos parametres",
         "lineRentalCustom": "Tarifs personnalises pour ce projet",
@@ -3976,6 +3988,25 @@
         "booster": "booster, ne mine pas",
         "empty": "Aucun personnage avec un vaisseau connu dans les opérations à valeur figée.",
         "unknownCharacters": "{count} personnage sans vaisseau connu, hors de ce tableau | {count} personnages sans vaisseau connu, hors de ce tableau"
+      },
+      "sites": {
+        "title": "Meilleurs sites par système",
+        "columns": {
+          "system": "Système",
+          "bestSite": "Meilleur site",
+          "iskPerHour": "ISK/h",
+          "duration": "Durée",
+          "sites": "Sites"
+        },
+        "unknown": "Inconnu",
+        "systemOutsideSde": "Système {id}",
+        "unknownSite": "inconnu : {label} ({reason})",
+        "reasons": {
+          "fewScans": "un seul scan",
+          "noPrice": "sans prix"
+        },
+        "empty": "Aucun site scanné sur la période",
+        "withoutSystem": "{count} site sans système, hors de ce tableau | {count} sites sans système, hors de ce tableau"
       },
       "empty": "Aucune opération de votre corporation terminée sur cette période."
     },

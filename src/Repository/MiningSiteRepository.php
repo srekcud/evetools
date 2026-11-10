@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\MiningOperation;
 use App\Entity\MiningSite;
 use App\Entity\User;
+use App\Enum\MiningOperationStatus;
 use App\Enum\MiningSiteStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -45,6 +46,21 @@ class MiningSiteRepository extends ServiceEntityRepository
     /**
      * @return list<MiningSite>
      */
+    public function findActiveOfRunningOperations(): array
+    {
+        return $this->createQueryBuilder('site')
+            ->innerJoin('site.operation', 'operation')
+            ->andWhere('site.status = :siteStatus')
+            ->andWhere('operation.status = :operationStatus')
+            ->setParameter('siteStatus', MiningSiteStatus::Active)
+            ->setParameter('operationStatus', MiningOperationStatus::InProgress)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return list<MiningSite>
+     */
     public function findOfOperation(MiningOperation $operation, ?int $solarSystemId): array
     {
         $criteria = ['operation' => $operation];
@@ -53,5 +69,24 @@ class MiningSiteRepository extends ServiceEntityRepository
         }
 
         return $this->findBy($criteria, ['createdAt' => 'DESC']);
+    }
+
+    /**
+     * @param list<MiningOperation> $operations
+     *
+     * @return list<MiningSite>
+     */
+    public function findOfOperations(array $operations): array
+    {
+        if ($operations === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('site')
+            ->where('site.operation IN (:operations)')
+            ->setParameter('operations', $operations)
+            ->orderBy('site.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 }

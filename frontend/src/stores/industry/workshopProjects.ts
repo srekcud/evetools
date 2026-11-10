@@ -4,7 +4,7 @@ import { apiRequest } from '@/services/api'
 import { useSyncStore } from '@/stores/sync'
 import type { GroupMemberRole, ProjectPhase } from '@/stores/group-industry/types'
 
-export type WorkshopProjectProfitStatus = 'awaiting_sales' | 'provisional' | 'final' | 'unknown'
+export type WorkshopProjectProfitStatus = 'awaiting_sales' | 'forecast' | 'provisional' | 'final' | 'unknown'
 
 export type WorkshopProjectMember = {
   characterId: number | null

@@ -172,6 +172,8 @@ const blacklistCategories = ref<BlacklistCategory[]>([
 ])
 const blacklistEdited = ref(false)
 const blacklistDefaultsUnavailable = ref(false)
+const settingsLockedCategoryIds = ref<string[]>([])
+const settingsExcludedItemCount = ref(0)
 
 async function applyBlacklistDefaults() {
   blacklistDefaultsUnavailable.value = false
@@ -191,6 +193,12 @@ async function applyBlacklistDefaults() {
   blacklistCategories.value.forEach(cat => {
     cat.checked = blacklistedKeys.has(cat.id)
   })
+  settingsLockedCategoryIds.value = [...blacklistedKeys]
+  settingsExcludedItemCount.value = blacklistStore.blacklist?.items.length ?? 0
+}
+
+function isLockedBySettings(categoryId: string): boolean {
+  return settingsLockedCategoryIds.value.includes(categoryId)
 }
 
 // Line rental override
@@ -290,6 +298,8 @@ function resetForm() {
   isParsingBulk.value = false
   blacklistEdited.value = false
   blacklistDefaultsUnavailable.value = false
+  settingsLockedCategoryIds.value = []
+  settingsExcludedItemCount.value = 0
   items.value = []
   blacklistTypeIds.value = []
   blacklistGroupIds.value = []
@@ -891,26 +901,34 @@ function handleClose() {
 
         <!-- Predefined categories -->
         <div class="grid grid-cols-2 gap-x-6 gap-y-2 mb-4">
-          <label
-            v-for="cat in blacklistCategories"
-            :key="cat.id"
-            class="flex items-center gap-2.5 cursor-pointer group"
-          >
-            <input
-              v-model="cat.checked"
-              type="checkbox"
-              @change="blacklistEdited = true"
-              class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
-            />
-            <span
-              class="text-sm group-hover:text-slate-100"
-              :class="cat.checked ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-300'"
+          <div v-for="cat in blacklistCategories" :key="cat.id" class="flex items-center gap-2">
+            <label
+              class="flex items-center gap-2.5 group"
+              :class="isLockedBySettings(cat.id) ? 'cursor-not-allowed' : 'cursor-pointer'"
             >
-              {{ cat.label }}
+              <input
+                v-model="cat.checked"
+                type="checkbox"
+                :disabled="isLockedBySettings(cat.id)"
+                @change="blacklistEdited = true"
+                class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              />
+              <span
+                class="text-sm group-hover:text-slate-100"
+                :class="cat.checked ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-300'"
+              >
+                {{ cat.label }}
+              </span>
+            </label>
+            <span v-if="isLockedBySettings(cat.id)" class="text-xs uppercase tracking-wide text-cyan-500/80">
+              {{ t('groupIndustry.modals.newProject.blacklistFromSettings') }}
             </span>
-          </label>
+          </div>
         </div>
 
+        <p v-if="settingsExcludedItemCount > 0" class="mb-1 text-xs text-cyan-400">
+          {{ t('groupIndustry.modals.newProject.blacklistSettingsItems', { count: settingsExcludedItemCount }, settingsExcludedItemCount) }}
+        </p>
         <p v-if="blacklistDefaultsUnavailable" role="alert" class="mb-1 text-xs text-amber-400">
           {{ t('groupIndustry.modals.newProject.blacklistDefaultsUnavailable') }}
         </p>

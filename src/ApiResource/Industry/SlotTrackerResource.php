@@ -36,4 +36,6 @@ class SlotTrackerResource
     public bool $skillsMayBeStale = false;
 
     public int $unknownSkillsCharacterCount = 0;
+
+    public ?string $jobsSyncedAt = null;
 }

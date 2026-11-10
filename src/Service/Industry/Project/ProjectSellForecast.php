@@ -18,9 +18,9 @@ final readonly class ProjectSellForecast
     ) {
     }
 
-    public function forecast(IndustryProject $project, \DateTimeImmutable $today): SellForecast
+    public function forecast(IndustryProject $project, \DateTimeImmutable $today, bool $onJitaOnly = false): SellForecast
     {
-        $sellStructure = $this->sellStructureOf($project);
+        $sellStructure = $onJitaOnly ? null : $this->sellStructureOf($project);
         $products = [];
         foreach ($this->unsoldProducts->of($project, $project->getSales()) as $unsold) {
             $comparison = $this->comparison->compareAt($project->getOwner(), $sellStructure, $unsold->typeId, $unsold->unsoldQuantity, $today);

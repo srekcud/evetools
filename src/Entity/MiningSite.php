@@ -44,6 +44,12 @@ class MiningSite
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $closedAt = null;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $depletionAlertedAt = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $downtimeAlertedAt = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -134,6 +140,30 @@ class MiningSite
     public function setClosedAt(?\DateTimeImmutable $closedAt): static
     {
         $this->closedAt = $closedAt;
+
+        return $this;
+    }
+
+    public function getDepletionAlertedAt(): ?\DateTimeImmutable
+    {
+        return $this->depletionAlertedAt;
+    }
+
+    public function markDepletionAlerted(\DateTimeImmutable $alertedAt): static
+    {
+        $this->depletionAlertedAt = $alertedAt;
+
+        return $this;
+    }
+
+    public function getDowntimeAlertedAt(): ?\DateTimeImmutable
+    {
+        return $this->downtimeAlertedAt;
+    }
+
+    public function markDowntimeAlerted(\DateTimeImmutable $alertedAt): static
+    {
+        $this->downtimeAlertedAt = $alertedAt;
 
         return $this;
     }
