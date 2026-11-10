@@ -3308,7 +3308,8 @@
       "noCorporation": "Unknown corporation: only operations shared by link are reachable.",
       "participants": "{count} participants",
       "open": "Open",
-      "join": "Join"
+      "join": "Join",
+      "chunkUnavailable": "This moon chunk is no longer available: it has exploded or is no longer visible to you."
     },
     "status": {
       "settled": "Settled",
@@ -3851,6 +3852,8 @@
     "windowTitle": "EVE Tools · mining companion",
     "detach": "Detach",
     "detachTitle": "Detach the companion into a small window (key D)",
+    "detachFree": "Free mode",
+    "detachFreeTitle": "Detach the companion without site or operation: next moon chunk, operation creation, estimate of a single site",
     "sizes": {
       "bar": "Bar",
       "compact": "Compact",
@@ -3860,6 +3863,12 @@
     "pasteTitle": "Record the scan from the clipboard (key V or Ctrl+V)",
     "desk": "Desk",
     "deskTitle": "Back to the main window on this page",
+    "free": {
+      "next": "Next chunk",
+      "none": "No upcoming moon chunk.",
+      "createOperation": "Create the operation",
+      "estimate": "Estimate a single site"
+    },
     "empty": "No active site on this operation.",
     "noScan": "No scan yet: paste the first scan (Ctrl+V).",
     "loading": "Loading the site…",

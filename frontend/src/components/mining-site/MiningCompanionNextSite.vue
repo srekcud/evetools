@@ -6,7 +6,7 @@ import MiningSolarSystemSearch, { type SolarSystemResult } from '@/components/mi
 
 const LABEL_MAX_LENGTH = 100
 
-const props = defineProps<{ failure: string | null; submitting: boolean }>()
+const props = withDefaults(defineProps<{ failure: string | null; submitting: boolean; closesActive?: boolean }>(), { closesActive: true })
 const emit = defineEmits<{ submit: [input: { label: string; solarSystemId: number | null }]; cancel: [] }>()
 
 const { t } = useI18n()
@@ -39,7 +39,7 @@ function submit(): void {
       />
     </label>
 
-    <p class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-200">{{ t('miningSite.create.closesActive') }}</p>
+    <p v-if="closesActive" class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-200">{{ t('miningSite.create.closesActive') }}</p>
 
     <MiningSolarSystemSearch v-model="system" :label="t('miningSite.create.system')" :none-label="t('miningSite.create.systemNone')" />
 

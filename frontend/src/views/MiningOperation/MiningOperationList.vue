@@ -8,8 +8,10 @@ import MiningOperationRecurrencesPanel from '@/components/mining-operation/Minin
 import MiningSiteHistory from '@/components/mining-site/MiningSiteHistory.vue'
 import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.vue'
 import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
+import { moonChunkStatusAt, useCorporationMiningExtractions, type CorporationMiningExtraction } from '@/composables/useCorporationMiningExtractions'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useKnownCorporation } from '@/composables/useKnownCorporation'
+import { useMiningCompanionStore } from '@/stores/miningCompanion'
 import { useMiningOperationStore, type MiningOperation } from '@/stores/miningOperation'
 import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import { formatWhole } from './miningOperationQuantity'
@@ -22,16 +24,21 @@ const LIST_TABS = ['mine', 'available', 'archive', 'season', 'sites'] as const s
 const TABS_WITHOUT_OPERATIONS: readonly ListTab[] = ['season', 'sites']
 const ARCHIVING_ACTIONS = ['operation_settled', 'operation_completed']
 const RECURRENCE_CREATED_ACTION = 'recurrence_created'
+const CHUNK_QUERY_KEY = 'chunk'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useMiningOperationStore()
 const syncStore = useSyncStore()
+const companion = useMiningCompanionStore()
+const extractions = useCorporationMiningExtractions()
 
 const activeTab = useTabQuery<ListTab>(LIST_TABS, 'mine')
 const loading = ref(true)
 const showCreation = ref(false)
+const creationChunk = ref<CorporationMiningExtraction | null>(null)
+const chunkUnavailable = ref(false)
 const seasonPanel = ref<InstanceType<typeof MiningSeasonPanel> | null>(null)
 
 const hasKnownCorporation = useKnownCorporation()
@@ -130,6 +137,36 @@ function joinTarget(joinCode: string) {
   return { name: 'mining-operation-join', params: { code: joinCode } }
 }
 
+function chunkRequestedInUrl(): string | null {
+  const requested = route.query[CHUNK_QUERY_KEY]
+  return typeof requested === 'string' && requested !== '' ? requested : null
+}
+
+function queryWithoutChunk() {
+  return Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== CHUNK_QUERY_KEY))
+}
+
+async function openRequestedChunk(chunkId: string): Promise<void> {
+  await extractions.load()
+  const found = extractions.corporations.value.flatMap(corporation => corporation.extractions).find(extraction => extraction.id === chunkId)
+  if (found === undefined || moonChunkStatusAt(found, new Date()) === 'exploded') {
+    chunkUnavailable.value = true
+  } else {
+    creationChunk.value = found
+    showCreation.value = true
+  }
+  await router.replace({ query: queryWithoutChunk() })
+}
+
+function openCreation(): void {
+  creationChunk.value = null
+  showCreation.value = true
+}
+
+function detachFreeCompanion(): Promise<void> {
+  return companion.detach({ siteId: null, operationId: null })
+}
+
 function openCreatedOperation(operationId: string): void {
   showCreation.value = false
   router.push({ name: 'mining-operation-detail', params: { id: operationId } })
@@ -142,6 +179,8 @@ function openDetail(operation: MiningOperation): void {
 onMounted(async () => {
   await loadLists()
   loading.value = false
+  const chunkId = chunkRequestedInUrl()
+  if (chunkId !== null) await openRequestedChunk(chunkId)
 })
 </script>
 
@@ -150,14 +189,25 @@ onMounted(async () => {
     <div class="mx-auto max-w-5xl px-6 py-8">
       <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 class="font-display text-2xl font-bold text-slate-100">{{ t('miningOperation.title') }}</h1>
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-cyan-500"
-          @click="showCreation = true"
-        >{{ t('miningOperation.list.new') }}</button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            data-testid="operation-list-companion"
+            :title="t('miningCompanion.detachFreeTitle')"
+            class="rounded-md border border-cyan-500/40 px-4 py-2 text-sm text-cyan-200 hover:bg-cyan-500/10"
+            @click="detachFreeCompanion"
+          >{{ t('miningCompanion.detachFree') }}</button>
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-cyan-500"
+            @click="openCreation"
+          >{{ t('miningOperation.list.new') }}</button>
+        </div>
       </header>
 
       <p v-if="operationDeleted" class="mb-4 rounded-md border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200" role="status">{{ t('miningOperation.detail.deleted') }}</p>
+
+      <p v-if="chunkUnavailable" class="mb-4 rounded-md border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200" role="status" data-testid="operation-list-chunk-unavailable">{{ t('miningOperation.list.chunkUnavailable') }}</p>
 
       <div class="mb-6 flex gap-6 border-b border-slate-800" role="tablist">
         <button
@@ -267,6 +317,6 @@ onMounted(async () => {
       <MiningOperationRecurrencesPanel v-if="activeTab === 'mine' && !loading" class="mt-8" />
     </div>
 
-    <NewMiningOperationModal :show="showCreation" @close="showCreation = false" @open="openCreatedOperation" />
+    <NewMiningOperationModal :show="showCreation" :chunk="creationChunk ?? undefined" @close="showCreation = false" @open="openCreatedOperation" />
   </MainLayout>
 </template>

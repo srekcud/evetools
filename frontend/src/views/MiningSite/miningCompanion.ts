@@ -1,3 +1,4 @@
+import { moonChunkStatusAt, type CorporationMiningExtraction, type CorporationMiningExtractions } from '@/composables/useCorporationMiningExtractions'
 import type { MiningSite } from '@/stores/miningSite'
 
 export type CompanionSizeKey = 'bar' | 'compact' | 'detail'
@@ -181,4 +182,13 @@ export async function openCompanionWindow(host: Window, size: CompanionSizeKey):
   const popup = host.open('', COMPANION_WINDOW_NAME, `popup,width=${width},height=${height}`)
   if (popup === null) throw new CompanionWindowError('popup_blocked')
   return { kind: 'popup', window: popup, notice: 'popupFallback', cause }
+}
+
+export function nextChunkOf(corporations: CorporationMiningExtractions[], now: Date): CorporationMiningExtraction | null {
+  let next: CorporationMiningExtraction | null = null
+  for (const extraction of corporations.flatMap(corporation => corporation.extractions)) {
+    if (moonChunkStatusAt(extraction, now) === 'exploded') continue
+    if (next === null || new Date(extraction.chunkArrivalTime).getTime() < new Date(next.chunkArrivalTime).getTime()) next = extraction
+  }
+  return next
 }

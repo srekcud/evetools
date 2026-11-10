@@ -209,7 +209,9 @@ function requestLeave(): void {
       </template>
     </template>
 
-    <p v-else class="rounded-sm border border-slate-700 px-2 py-3 text-sm text-slate-300" data-testid="companion-empty">{{ t('miningCompanion.empty') }}</p>
+    <slot v-else name="free">
+      <p class="rounded-sm border border-slate-700 px-2 py-3 text-sm text-slate-300" data-testid="companion-empty">{{ t('miningCompanion.empty') }}</p>
+    </slot>
 
     <slot v-if="size !== 'bar'" name="next-site" />
 
