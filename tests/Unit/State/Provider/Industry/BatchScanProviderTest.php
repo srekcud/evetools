@@ -31,6 +31,11 @@ class BatchScanProviderTest extends TestCase
     private const int SLASHER_TYPE_ID = 585;
     private const int MORPHITE_TYPE_ID = 11399;
     private const int ROBOTICS_TYPE_ID = 9848;
+    private const array FULL_PRICE_SOURCES = [
+        'materials' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+        'sale' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+        'assumptions' => ['runs' => 1, 'materialEfficiency' => 10],
+    ];
 
     public function testUnknownCostRowIsExposedWithNullCostAndMarginsAndItsReason(): void
     {
@@ -55,6 +60,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_material_price',
             'missingPriceTypeIds' => [self::MORPHITE_TYPE_ID],
+            'priceSources' => self::FULL_PRICE_SOURCES,
         ];
 
         $resources = $this->provideScanReturning([$slasherWithUnknownCost]);
@@ -97,6 +103,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_daily_volume',
             'missingPriceTypeIds' => [],
+            'priceSources' => self::FULL_PRICE_SOURCES,
         ];
 
         $resources = $this->provideScanReturning([$slasherWithUnknownDailyVolume]);
@@ -132,6 +139,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_volume',
             'missingPriceTypeIds' => [],
+            'priceSources' => self::FULL_PRICE_SOURCES,
         ];
         $roboticsWithUnknownExportCost = [
             'typeId' => self::ROBOTICS_TYPE_ID,
@@ -154,6 +162,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => 'missing_volume',
             'missingPriceTypeIds' => [],
+            'priceSources' => self::FULL_PRICE_SOURCES,
         ];
 
         $resources = $this->provideScanReturning([$slasherWithUnknownImportCost, $roboticsWithUnknownExportCost]);
@@ -191,6 +200,7 @@ class BatchScanProviderTest extends TestCase
             'missingSkillCount' => 0,
             'unknownReason' => null,
             'missingPriceTypeIds' => [],
+            'priceSources' => self::FULL_PRICE_SOURCES,
         ];
 
         $resources = $this->provideScanReturning([$roboticsMissingFromTheSde]);
@@ -203,6 +213,43 @@ class BatchScanProviderTest extends TestCase
         $this->assertSame(7350.0, $robotics->profitPerUnit);
         $this->assertSame(2352000.0, $robotics->iskPerDay);
         $this->assertSame(32600.0, $robotics->materialCost);
+    }
+
+    #[Group('issue-538')]
+    public function testPriceSourcesOfARowReachTheResourceAsTheScannerLabelsThem(): void
+    {
+        $priceSources = [
+            'materials' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => 75.0],
+            'sale' => ['market' => 'structure', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+            'assumptions' => ['runs' => 1, 'materialEfficiency' => 8],
+        ];
+        $roboticsWithPartialMaterials = [
+            'typeId' => self::ROBOTICS_TYPE_ID,
+            'typeName' => 'Robotics',
+            'groupName' => 'Construction Components',
+            'categoryLabel' => 'Components',
+            'marginPercent' => 18.4,
+            'profitPerUnit' => 7350.0,
+            'dailyVolume' => 320.0,
+            'iskPerDay' => 2352000.0,
+            'materialCost' => 32600.0,
+            'importCost' => 41.5,
+            'exportCost' => 87.25,
+            'sellPrice' => 40000.0,
+            'meUsed' => 8,
+            'activityType' => 'manufacturing',
+            'isFactionBlueprint' => false,
+            'bpcCostPerRun' => null,
+            'hasAllSkills' => true,
+            'missingSkillCount' => 0,
+            'unknownReason' => null,
+            'missingPriceTypeIds' => [],
+            'priceSources' => $priceSources,
+        ];
+
+        $resources = $this->provideScanReturning([$roboticsWithPartialMaterials]);
+
+        $this->assertSame($priceSources, $resources[0]->priceSources);
     }
 
     #[Group('issue-128')]

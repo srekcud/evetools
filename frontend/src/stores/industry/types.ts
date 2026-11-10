@@ -429,6 +429,26 @@ export type StockpileKpis = {
   estOutput: StockpileEstOutput
 }
 
+export type PriceSource = {
+  market: 'jita' | 'structure' | 'contracts'
+  side: 'sell' | 'buy'
+  method: 'weighted' | 'lowest' | 'median' | 'percentile'
+  coveragePercent: number | null
+  percentile?: number
+}
+
+export type AppraisalPriceSources = {
+  sell: PriceSource | null
+  buy: PriceSource | null
+  sellWeighted: PriceSource | null
+  buyWeighted: PriceSource | null
+}
+
+export type StockpilePriceSources = {
+  stockValue: PriceSource | null
+  deficitCost: PriceSource | null
+}
+
 export type StockpileStatus = {
   targetCount: number
   stages: Record<StockpileStage, StockpileStageStatus>
@@ -437,6 +457,7 @@ export type StockpileStatus = {
   importsWithoutPlan: number[]
   failedProducts: StockpileFailedProduct[]
   missingPriceTypeIds: number[]
+  priceSources?: StockpilePriceSources
 }
 
 export type StockpileFailedProduct = {

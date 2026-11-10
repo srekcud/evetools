@@ -85,6 +85,9 @@ class ProjectContributionResource
 
     public ?float $estimatedValue;
 
+    /** @var array<string, mixed>|null */
+    public ?array $estimatedValueSource = null;
+
     public string $status;
 
     public bool $isAutoDetected;

@@ -43,4 +43,7 @@ class StockpileStatusResource
 
     /** @var list<int> */
     public array $missingPriceTypeIds = [];
+
+    /** @var array<string, mixed> */
+    public array $priceSources = [];
 }

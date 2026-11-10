@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
+import type { AppraisalPriceSources } from '@/stores/industry/types'
 
 export type MergedItem = {
   typeId: number
@@ -26,6 +27,7 @@ export type MergedItem = {
   structureCoverage: number | null
   structureCoverageQty: number | null
   bestLocation: 'jita' | 'structure' | null
+  priceSources?: AppraisalPriceSources | null
 }
 
 const props = defineProps<{

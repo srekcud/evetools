@@ -52,6 +52,9 @@ class ProjectBomLineResource
 
     public ?float $estimatedTotal = null;
 
+    /** @var array<string, mixed>|null */
+    public ?array $estimatedPriceSource = null;
+
     public bool $isJob;
 
     public ?string $jobGroup = null;

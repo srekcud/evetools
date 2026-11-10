@@ -38,6 +38,10 @@ final class BuyVsBuildProviderTest extends TestCase
     private const int FERNITE_ALLOY = 16656;
     private const int CERAMIC_POWDER = 16660;
     private const int ROBOTICS = 9848;
+    private const array PRICE_SOURCES_OF_A_COMPLETE_ANALYSIS = [
+        'materials' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+        'sale' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+    ];
     private const int FULLERIDES = 16679;
     private const int MORPHITE = 11399;
     private const float SELLER_BROKER_FEE_RATE = 0.036;
@@ -253,6 +257,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'buyTypeIds' => [],
             'missingData' => [],
             'warnings' => [],
+            'priceSources' => self::PRICE_SOURCES_OF_A_COMPLETE_ANALYSIS,
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->goldenUser());
@@ -316,6 +321,7 @@ final class BuyVsBuildProviderTest extends TestCase
                 ['reason' => 'market_price', 'typeId' => self::FERNITE_CARBIDE],
             ],
             'warnings' => [],
+            'priceSources' => self::PRICE_SOURCES_OF_A_COMPLETE_ANALYSIS,
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->goldenUser());
@@ -387,6 +393,7 @@ final class BuyVsBuildProviderTest extends TestCase
                 ['reason' => 'cost_index', 'typeId' => null],
             ],
             'warnings' => [],
+            'priceSources' => self::PRICE_SOURCES_OF_A_COMPLETE_ANALYSIS,
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->goldenUser());
@@ -447,6 +454,10 @@ final class BuyVsBuildProviderTest extends TestCase
             ],
         ]];
         $partialPriceWarnings = [['reason' => 'partial_market_depth', 'typeId' => self::CERAMIC_POWDER, 'coveragePercent' => 45.0]];
+        $priceSources = [
+            'materials' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => 45.0],
+            'sale' => ['market' => 'structure', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+        ];
         $buyVsBuildService = $this->createStub(BuyVsBuildService::class);
         $buyVsBuildService->method('analyze')->willReturn([
             'typeId' => self::HAIL_L,
@@ -464,6 +475,7 @@ final class BuyVsBuildProviderTest extends TestCase
             'buyTypeIds' => [],
             'missingData' => [],
             'warnings' => $partialPriceWarnings,
+            'priceSources' => $priceSources,
         ]);
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($this->goldenUser());
@@ -477,6 +489,7 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $this->assertSame($components, $resource->components);
         $this->assertSame($partialPriceWarnings, $resource->warnings);
+        $this->assertSame($priceSources, $resource->priceSources);
     }
 
     public function testJitaCoverageOfAComponentReachesTheResourceCappedBelowFull(): void
@@ -494,6 +507,17 @@ final class BuyVsBuildProviderTest extends TestCase
 
         $this->assertSame(559297.9, $resource->totalProductionCost);
         $this->assertSame([['reason' => 'partial_market_depth', 'typeId' => self::MORPHITE, 'coveragePercent' => 0.1]], $resource->warnings);
+    }
+
+    #[Group('issue-538')]
+    public function testPriceSourcesOfTheAnalysisReachTheResourceAtItsRoot(): void
+    {
+        $resource = $this->provide(self::HAIL_L, [], $this->goldenUser(), null, [self::MORPHITE => 0.00004]);
+
+        $analysis = $this->goldenBuyVsBuildService([self::MORPHITE => 0.00004])->analyze(self::HAIL_L, 1, 10, EveConstants::JITA_SOLAR_SYSTEM_ID, null, new SalesFees(self::SELLER_BROKER_FEE_RATE, self::SELLER_SALES_TAX_RATE), null, null);
+        $this->assertSame('weighted', $analysis['priceSources']['materials']['method']);
+        $this->assertSame(0.1, $analysis['priceSources']['materials']['coveragePercent']);
+        $this->assertSame($analysis['priceSources'], $resource->priceSources);
     }
 
     public function testAnonymousRequestIsUnauthorized(): void

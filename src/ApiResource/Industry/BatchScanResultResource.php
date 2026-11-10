@@ -83,4 +83,7 @@ class BatchScanResultResource
 
     /** @var list<int> Material typeIds without a Jita price */
     public array $missingPriceTypeIds = [];
+
+    /** @var array<string, mixed> */
+    public array $priceSources = [];
 }

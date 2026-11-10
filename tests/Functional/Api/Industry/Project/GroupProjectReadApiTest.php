@@ -111,6 +111,24 @@ final class GroupProjectReadApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-538')]
+    public function testBomExposesThePercentileSourceOfThePricedMaterialLines(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/bom');
+
+        self::assertResponseStatusCodeSame(200);
+        $sourcesByTypeId = [];
+        foreach (json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR) as $line) {
+            if (in_array($line['typeId'], [self::TRITANIUM_TYPE_ID, self::MORPHITE_TYPE_ID], true)) {
+                self::assertArrayHasKey('estimatedPriceSource', $line);
+                $sourcesByTypeId[$line['typeId']] = $line['estimatedPriceSource'];
+            }
+        }
+        $percentileSource = ['market' => 'jita', 'side' => 'sell', 'method' => 'percentile', 'coveragePercent' => null, 'percentile' => 5.0];
+        self::assertSame([self::TRITANIUM_TYPE_ID => $percentileSource, self::MORPHITE_TYPE_ID => $percentileSource], $sourcesByTypeId);
+    }
+
     public function testOutsiderIsRefusedTheBom(): void
     {
         $this->client->loginUser($this->outsider, 'api');

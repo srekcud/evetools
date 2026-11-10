@@ -41,6 +41,22 @@ final class GroupContributionApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-538')]
+    public function testListExposesThePercentileSourceOfTheMaterialContribution(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->contributionsUri());
+
+        self::assertResponseStatusCodeSame(200);
+        $materialContributions = array_values(array_filter($this->responseJson(), static fn (array $contribution): bool => 'material' === $contribution['type']));
+        self::assertCount(1, $materialContributions);
+        self::assertArrayHasKey('estimatedValueSource', $materialContributions[0]);
+        self::assertSame(
+            ['market' => 'jita', 'side' => 'sell', 'method' => 'percentile', 'coveragePercent' => null, 'percentile' => 5.0],
+            $materialContributions[0]['estimatedValueSource'],
+        );
+    }
+
     public function testOutsiderIsRefusedTheContributionList(): void
     {
         $this->client->loginUser($this->outsider, 'api');

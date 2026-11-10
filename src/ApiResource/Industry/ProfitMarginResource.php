@@ -96,4 +96,7 @@ class ProfitMarginResource
 
     /** @var list<array{reason: string, typeId: int, coveragePercent: float}> */
     public array $warnings = [];
+
+    /** @var array<string, mixed> */
+    public array $priceSources = [];
 }

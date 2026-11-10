@@ -269,6 +269,41 @@ class ProjectBomProviderTest extends TestCase
         $this->assertNull($result[0]->estimatedTotal);
     }
 
+    #[Group('issue-538')]
+    public function testMaterialLineWithAPriceCarriesThePercentileSourceOfTheBom(): void
+    {
+        $this->assertSame(
+            ['market' => 'jita', 'side' => 'sell', 'method' => 'percentile', 'coveragePercent' => null, 'percentile' => 5.0],
+            $this->bomLineOf($this->createBomItem(34, 'Tritanium', 1000, 0, 5.0, false, null, null, null, null, null, null))->estimatedPriceSource,
+        );
+    }
+
+    #[Group('issue-538')]
+    public function testJobLineHasNoPriceSourceEvenWhenItCarriesAPrice(): void
+    {
+        $ferox = $this->createBomItem(11399, 'Ferox', 100, 0, 12.0, true, 'final', 'manufacturing', 34, 10, 20, 100);
+
+        $this->assertNull($this->bomLineOf($ferox)->estimatedPriceSource);
+    }
+
+    #[Group('issue-538')]
+    public function testMaterialLineWithoutPriceHasNoPriceSource(): void
+    {
+        $this->assertNull($this->bomLineOf($this->createBomItem(35, 'Pyerite', 600, 0, null, false, null, null, null, null, null, null))->estimatedPriceSource);
+    }
+
+    private function bomLineOf(IndustryProjectBomLine $bomItem): ProjectBomLineResource
+    {
+        $user = $this->createUserStub();
+        $this->security->method('getUser')->willReturn($user);
+        $project = (new IndustryProject());
+        $project->setOwner($user);
+        $this->projectRepository->method('find')->willReturn($project);
+        $this->bomItemRepository->method('findBy')->willReturn([$bomItem]);
+
+        return $this->provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()])[0];
+    }
+
     #[DataProvider('acceptedMemberAccessMatrix')]
     public function testBomIsReadByTheOwnerAndAcceptedMembersOnly(string $profile, string $expectedOutcome): void
     {

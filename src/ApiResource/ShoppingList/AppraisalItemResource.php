@@ -54,4 +54,7 @@ class AppraisalItemResource
 
     /** Average daily volume traded on Jita market (last 30 days) */
     public ?float $avgDailyVolume = null;
+
+    /** @var array<string, mixed> */
+    public array $priceSources = [];
 }
