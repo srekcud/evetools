@@ -30,7 +30,7 @@ framework:
                 default_lifetime: 3600  # 1 hour
             corporation_role_holder.cache:
                 adapter: cache.adapter.redis
-                default_lifetime: 3600  # 1 hour
+                default_lifetime: 900
 
 when@test:
     framework:

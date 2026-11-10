@@ -45,7 +45,7 @@ final readonly class CorporationRoleReader
         $acceptedRoles = [...$roles, self::DIRECTOR_ROLE];
         $candidates = $this->candidatesOf($characters, $scopes);
         $cacheKey = $this->cacheKeyOf($corporationId, $roles);
-        $remembered = $this->rememberedHolderOf($cacheKey, $candidates);
+        $remembered = $this->rememberedHolderOf($cacheKey, $characters, $candidates);
 
         $deniedByEsi = false;
         $failedOnEsi = false;
@@ -148,9 +148,10 @@ final readonly class CorporationRoleReader
     }
 
     /**
+     * @param list<Character> $characters
      * @param list<Character> $candidates
      */
-    private function rememberedHolderOf(string $cacheKey, array $candidates): ?Character
+    private function rememberedHolderOf(string $cacheKey, array $characters, array $candidates): ?Character
     {
         $item = $this->corporationRoleHolderCache->getItem($cacheKey);
         if (!$item->isHit()) {
@@ -163,7 +164,13 @@ final readonly class CorporationRoleReader
             }
         }
 
-        $this->corporationRoleHolderCache->deleteItem($cacheKey);
+        foreach ($characters as $character) {
+            if ($character->getEveCharacterId() === $item->get()) {
+                $this->corporationRoleHolderCache->deleteItem($cacheKey);
+
+                break;
+            }
+        }
 
         return null;
     }
