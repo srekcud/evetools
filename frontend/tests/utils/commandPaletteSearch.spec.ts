@@ -22,23 +22,29 @@ const CATALOG_ROWS: CatalogRow[] = [
   ['/planetary', 'PI', 'PI'],
   ['/market', 'Marche', 'Market'],
   ['/market?tab=alerts', 'Marche › Alertes', 'Market › Alerts'],
+  ['/contracts', 'Commerce › Contrats', 'Commerce › Contracts'],
   ['/assets', 'Inventaire', 'Inventory'],
-  ['/assets?tab=contracts', 'Inventaire › Contrats', 'Inventory › Contracts'],
   ['/characters', 'Personnages', 'Characters'],
 ]
+
+const TAB_PAGE_ROUTE = '/contracts'
+
+function isTabRoute(route: string): boolean {
+  return route.includes('?tab=') || route === TAB_PAGE_ROUTE
+}
 
 const FRENCH_CATALOG: NavigationEntry[] = CATALOG_ROWS.map(([route, label, aliasLabel]) => ({
   route,
   label,
   aliasLabel,
-  isTab: route.includes('?tab='),
+  isTab: isTabRoute(route),
 }))
 
 const ENGLISH_CATALOG: NavigationEntry[] = CATALOG_ROWS.map(([route, , aliasLabel]) => ({
   route,
   label: aliasLabel,
   aliasLabel,
-  isTab: route.includes('?tab='),
+  isTab: isTabRoute(route),
 }))
 
 const ADMIN_ENTRY: NavigationEntry = {
@@ -108,7 +114,7 @@ describe('searchNavigationEntries', () => {
       'Industry › Margins',
       'Industry › Batch Scan',
       'Market',
-      'Inventory › Contracts',
+      'Commerce › Contracts',
       'Characters',
     ])
   })
@@ -138,7 +144,7 @@ describe('searchNavigationEntries', () => {
       'Industry › Margins',
       'Industry › Batch Scan',
       'Market',
-      'Inventory › Contracts',
+      'Commerce › Contracts',
     ])
   })
 
@@ -152,14 +158,14 @@ describe('searchNavigationEntries', () => {
       'Industry › Slots',
       'Industry › Stockpile',
       'Inventory',
-      'Inventory › Contracts',
       'Group Industry',
+      'Group Industry › Available',
     ])
   })
 
   it('matches a French entry on its English alias while keeping the French label', () => {
     expect(labelsFound(FRENCH_CATALOG, 'buy')).toEqual(['Industrie › Achat vs Prod'])
-    expect(labelsFound(FRENCH_CATALOG, 'contracts')).toEqual(['Inventaire › Contrats'])
+    expect(labelsFound(FRENCH_CATALOG, 'contracts')).toEqual(['Commerce › Contrats'])
   })
 
   it('matches an accented query against an unaccented French label', () => {

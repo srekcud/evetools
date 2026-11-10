@@ -109,7 +109,8 @@
     "production": "Production",
     "inventory": "Inventaire",
     "market": "Marche",
-    "appraisal": "Appraisal",
+    "appraisal": "Évaluateur",
+    "commerce": "Commerce",
     "projects": "Projets",
     "economy": "Économie",
     "mining": "Minage",
@@ -1970,8 +1971,15 @@
     "unknown": "Inconnu",
     "missingVolumeWarning": "Volume inconnu dans le SDE pour : {types}. Leur volume, leur cout d'import et les totaux volume, import et Jita + import sont inconnus."
   },
+  "commerce": {
+    "tabs": {
+      "market": "Marché",
+      "appraisal": "Évaluateur",
+      "contracts": "Contrats"
+    }
+  },
   "appraisal": {
-    "title": "Appraisal",
+    "title": "Évaluateur",
     "subtitle": "Evaluez vos items et comparez les prix entre marches -- collez une fois, voyez tout.",
     "appraise": "Evaluer",
     "analyze": "Analyser",

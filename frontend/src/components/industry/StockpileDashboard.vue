@@ -10,8 +10,8 @@ import UnknownValue from '@/components/common/UnknownValue.vue'
 import StockpileColumn from '@/components/industry/StockpileColumn.vue'
 import StockpileImportPanel from '@/components/industry/StockpileImportPanel.vue'
 import StockpileShoppingList from '@/components/industry/StockpileShoppingList.vue'
-import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
-import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
+import MissingVolumeWarning from '@/components/appraisal/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/appraisal/missingVolume'
 
 const { t, te } = useI18n()
 const stockpileStore = useStockpileStore()

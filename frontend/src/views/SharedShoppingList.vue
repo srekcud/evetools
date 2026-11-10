@@ -4,9 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { safeJsonParse } from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
-import AppraisalResults from '@/components/shopping/AppraisalResults.vue'
+import AppraisalResults from '@/components/appraisal/AppraisalResults.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import type { AppraisalItem, AppraisalTotals } from '@/components/shopping/AppraisalResults.vue'
+import type { AppraisalItem, AppraisalTotals } from '@/components/appraisal/AppraisalResults.vue'
 
 interface SharedListResponse {
   token: string

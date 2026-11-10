@@ -7,7 +7,6 @@ import en from '@/i18n/locales/en.json'
 import { useNavigationEntries, type NavigationEntry } from '@/composables/useNavigationEntries'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { apiRequest } from '@/services/api'
-import Assets from '@/views/Assets.vue'
 import Industry from '@/views/Industry.vue'
 import Ledger from '@/views/Ledger.vue'
 import MarketBrowser from '@/views/MarketBrowser.vue'
@@ -42,7 +41,6 @@ const VIEWS_BY_ROUTE: Record<string, Component> = {
   '/mining/moons': MiningMoons,
   '/mining/my-mining': MiningMyMining,
   '/market': MarketBrowser,
-  '/assets': Assets,
 }
 
 function listAllNavigationEntries(): NavigationEntry[] {
@@ -112,7 +110,6 @@ describe('navigation entry tabs contract', () => {
       '/ledger?tab=pve',
       '/ledger?tab=escalations',
       '/ledger?tab=settings',
-      '/assets?tab=contracts',
     ])
     expect(TAB_ROUTES.map(tabRoute => splitTabRoute(tabRoute).path).every(path => path in VIEWS_BY_ROUTE)).toBe(true)
   })

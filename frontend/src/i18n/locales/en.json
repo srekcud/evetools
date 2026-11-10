@@ -110,6 +110,7 @@
     "inventory": "Inventory",
     "market": "Market",
     "appraisal": "Appraisal",
+    "commerce": "Commerce",
     "projects": "Projects",
     "economy": "Economy",
     "mining": "Mining",
@@ -1969,6 +1970,13 @@
     "buyAt": "Buy at",
     "unknown": "Unknown",
     "missingVolumeWarning": "Unknown volume in the SDE for: {types}. Their volume, their import cost and the total volume, import and Jita + import are unknown."
+  },
+  "commerce": {
+    "tabs": {
+      "market": "Market",
+      "appraisal": "Appraisal",
+      "contracts": "Contracts"
+    }
   },
   "appraisal": {
     "title": "Appraisal",

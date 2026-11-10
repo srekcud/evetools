@@ -71,12 +71,12 @@ describe('useNavigationEntries', () => {
       ['/mining/my-mining?tab=season', 'Mining › My mining › Season', true],
       ['/market', 'Market', false],
       ['/market?tab=alerts', 'Market › Alerts', true],
+      ['/contracts', 'Commerce › Contracts', true],
       ['/ledger', 'Revenue', false],
       ['/ledger?tab=pve', 'Revenue › PVE', true],
       ['/ledger?tab=escalations', 'Revenue › Escalations', true],
       ['/ledger?tab=settings', 'Revenue › Settings', true],
       ['/assets', 'Inventory', false],
-      ['/assets?tab=contracts', 'Inventory › Contracts', true],
       ['/characters', 'Characters', false],
     ])
   })
@@ -104,7 +104,7 @@ describe('useNavigationEntries', () => {
       ['Industrie › Blueprints', 'Industry › Blueprints'],
       ['Industrie › Projets', 'Industry › Projects'],
       ['Industrie › Projets › Disponibles', 'Industry › Projects › Available'],
-      ['Appraisal', 'Appraisal'],
+      ['Évaluateur', 'Appraisal'],
       ['PI', 'PI'],
       ['Minage', 'Mining'],
       ['Minage › Disponibles', 'Mining › Available'],
@@ -117,12 +117,12 @@ describe('useNavigationEntries', () => {
       ['Minage › Mon minage › Saison', 'Mining › My mining › Season'],
       ['Marche', 'Market'],
       ['Marche › Alertes', 'Market › Alerts'],
+      ['Commerce › Contrats', 'Commerce › Contracts'],
       ['Revenus', 'Revenue'],
       ['Revenus › PVE', 'Revenue › PVE'],
       ['Revenus › Escalations', 'Revenue › Escalations'],
       ['Revenus › Parametres', 'Revenue › Settings'],
       ['Inventaire', 'Inventory'],
-      ['Inventaire › Contrats', 'Inventory › Contracts'],
       ['Personnages', 'Characters'],
     ])
   })
@@ -151,6 +151,28 @@ describe('useNavigationEntries', () => {
     expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/admin')
   })
 
+  it('lists the contracts page right after the market tabs, as a tab of the Commerce module', () => {
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const entries = listNavigationEntries({ isAdmin: false })
+
+    expect(entries.filter(entry => entry.route === '/contracts')).toEqual([
+      { route: '/contracts', label: 'Commerce › Contracts', aliasLabel: 'Commerce › Contracts', isTab: true },
+    ])
+    expect(routesOf(entries).indexOf('/contracts')).toBe(routesOf(entries).indexOf('/market?tab=alerts') + 1)
+  })
+
+  it('hides the contracts page with the market module and keeps the inventory', () => {
+    hideModules(['market'])
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const routes = routesOf(listNavigationEntries({ isAdmin: false }))
+
+    expect(routes.filter(route => route === '/contracts' || route.startsWith('/market'))).toEqual([])
+    expect(routes).toContain('/assets')
+    expect(routes).toHaveLength(28)
+  })
+
   it('removes the screen, the tabs and the projects of each hidden module', () => {
     hideModules(['industry', 'market'])
     const { listNavigationEntries } = mountNavigationEntries('en')
@@ -173,7 +195,6 @@ describe('useNavigationEntries', () => {
       '/ledger?tab=escalations',
       '/ledger?tab=settings',
       '/assets',
-      '/assets?tab=contracts',
       '/characters',
     ])
   })

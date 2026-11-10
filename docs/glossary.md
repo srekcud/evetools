@@ -296,6 +296,8 @@ Termes du minage groupé et du minage lunaire (#261) : un symbole métier du min
 | **Barre d'onglets de module** | Module tab bar | Barre de liens en tête de chaque page d'un module (Minage : Opérations, Lunes, Sites, Valeur du minerai, Mon minage), une URL par onglet ; composant partagé par les modules. Distincte des sous-vues `?tab=` d'une page (spec #531). | `ModuleTabBar` (`frontend/src/components/layout/`) |
 | **Dernière page visitée** | Last visited page | Chemin de la dernière page d'un module ouvert par l'utilisateur, mémorisé dans le navigateur (`evetools_module_last_page`) et rouvert par un clic sur l'entrée du module ; illisible ou inconnu = première page du module (spec #531). | `useModuleLastPage` |
 | **Chunk lié** | Linked chunk | Chunk lunaire auquel une opération de minage est rattachée (`chunkId`) : le chunk montre l'opération la plus récente de l'utilisateur (`linkedOperation`, propriétaire ou participant seulement), l'opération montre sa lune, sa raffinerie et l'arrivée du chunk (spec #531). | `MiningOperation::$chunk`, `linkedOperation`, `MiningOperationResource::$chunk` |
+| **Commerce** | Commerce | Module regroupant le Marché, l'Évaluateur et les Contrats, une URL par page, sous la barre d'onglets de module (spec #535). | `CommerceModuleTabs` (`frontend/src/components/commerce/`) |
+| **Évaluateur** | Appraiser | Page `/appraisal` : valeur d'une liste collée au prix Jita (vente, achat, pondéré) et comparaison avec une structure ; ancien nom Appraisal. Remplace la liste d'achats `/shopping-list`, supprimée ; la page partagée `/appraisal/shared/:token` affiche le même résultat (spec #535). | `Appraisal.vue`, `components/appraisal/` |
 
 ## Ambiguïtés connues
 

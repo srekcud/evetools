@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
-import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
-import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
+import MissingVolumeWarning from '@/components/appraisal/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/appraisal/missingVolume'
 
 export interface AppraisalItem {
   typeId: number

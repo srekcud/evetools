@@ -9,6 +9,7 @@ import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
 import { JITA_PRICES_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import MainLayout from '@/layouts/MainLayout.vue'
+import CommerceModuleTabs from '@/components/commerce/CommerceModuleTabs.vue'
 import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import MarketSearch from '@/components/market/MarketSearch.vue'
@@ -162,6 +163,7 @@ const allButtonLabel = computed(() => {
 <template>
   <MainLayout>
     <div class="space-y-0">
+      <CommerceModuleTabs active="market" />
 
       <!-- Page Header -->
       <div class="flex items-center justify-between mb-6">

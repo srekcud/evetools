@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
-import { useTabQuery } from '@/composables/useTabQuery'
 import { safeJsonParse } from '@/services/api'
 import { useTypeNames } from '@/composables/useTypeNames'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -12,7 +11,6 @@ import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
 import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
-import ContractsTab from '@/components/assets/ContractsTab.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import type { Asset, CorpAssetVisibility } from '@/types'
@@ -23,11 +21,6 @@ const { pilotName } = usePilotName()
 const authStore = useAuthStore()
 const { typeNameLabel } = useTypeNames()
 const syncStore = useSyncStore()
-
-// Tab state
-type AssetTabId = 'assets' | 'contracts'
-const validTabs: AssetTabId[] = ['assets', 'contracts']
-const activeTab = useTabQuery(validTabs, 'assets')
 
 const user = computed(() => authStore.user)
 const characters = computed(() => user.value?.characters || [])
@@ -417,30 +410,7 @@ watch([selectedCharacterId, viewMode], () => {
 <template>
   <MainLayout>
     <div class="space-y-6">
-      <!-- Tabs -->
-      <div class="border-b border-slate-800">
-        <nav class="flex gap-6">
-          <button
-            v-for="tab in [
-              { id: 'assets', label: t('assets.tabs.assets') },
-              { id: 'contracts', label: t('assets.tabs.contracts') },
-            ]"
-            :key="tab.id"
-            @click="activeTab = tab.id as AssetTabId"
-            :class="[
-              'pb-3 text-sm font-medium border-b-2 transition-colors',
-              activeTab === tab.id
-                ? 'border-cyan-500 text-cyan-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            ]"
-          >
-            {{ tab.label }}
-          </button>
-        </nav>
-      </div>
-
-      <!-- Assets Tab -->
-      <div v-if="activeTab === 'assets'" key="assets" class="space-y-6">
+      <div class="space-y-6">
         <!-- Action bar -->
         <div class="flex items-center justify-between">
           <p class="text-slate-400">{{ t('assets.subtitle') }}</p>
@@ -605,11 +575,6 @@ watch([selectedCharacterId, viewMode], () => {
             <p class="text-slate-500">{{ t('assets.noMatchingItems') }}</p>
           </div>
         </template>
-      </div>
-
-      <!-- Contracts Tab -->
-      <div v-else-if="activeTab === 'contracts'" key="contracts">
-        <ContractsTab />
       </div>
     </div>
   </MainLayout>

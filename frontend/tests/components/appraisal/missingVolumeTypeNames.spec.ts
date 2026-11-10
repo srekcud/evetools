@@ -1,4 +1,4 @@
-import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
+import { missingVolumeTypeNames } from '@/components/appraisal/missingVolume'
 
 const TRITANIUM = { typeId: 34, typeName: 'Tritanium' }
 const PYERITE = { typeId: 35, typeName: 'Pyerite' }

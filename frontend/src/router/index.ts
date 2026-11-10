@@ -47,6 +47,13 @@ function formerLedgerMiningLocation(to: QueriedLocation): RouteLocationRaw | tru
   }
 }
 
+function formerAssetsContractsLocation(to: QueriedLocation): RouteLocationRaw | true {
+  if (to.query.tab !== 'contracts') {
+    return true
+  }
+  return { path: '/contracts', query: queryWithout(to.query, 'tab') }
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   scrollBehavior(to) {
@@ -89,6 +96,7 @@ const router = createRouter({
       path: '/assets',
       name: 'assets',
       component: () => import('@/views/Assets.vue'),
+      beforeEnter: formerAssetsContractsLocation,
       meta: { requiresAuth: true },
     },
     {
@@ -126,13 +134,13 @@ const router = createRouter({
     },
     {
       path: '/contracts',
-      redirect: '/assets?tab=contracts',
+      name: 'contracts',
+      component: () => import('@/views/Contracts.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/shopping-list',
-      name: 'shopping-list',
-      component: () => import('@/views/ShoppingList.vue'),
-      meta: { requiresAuth: true },
+      redirect: to => ({ path: '/appraisal', query: to.query }),
     },
     {
       path: '/appraisal',

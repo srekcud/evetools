@@ -3,6 +3,7 @@ import { ref, computed, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
+import CommerceModuleTabs from '@/components/commerce/CommerceModuleTabs.vue'
 import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import { JITA_PRICES_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
@@ -11,8 +12,8 @@ import AppraisalInputPanel from '@/components/appraisal/AppraisalInputPanel.vue'
 import AppraisalResultsTable from '@/components/appraisal/AppraisalResultsTable.vue'
 import type { MergedItem } from '@/components/appraisal/AppraisalResultsTable.vue'
 import AppraisalActions from '@/components/appraisal/AppraisalActions.vue'
-import MissingVolumeWarning from '@/components/shopping/MissingVolumeWarning.vue'
-import { missingVolumeTypeNames } from '@/components/shopping/missingVolume'
+import MissingVolumeWarning from '@/components/appraisal/MissingVolumeWarning.vue'
+import { missingVolumeTypeNames } from '@/components/appraisal/missingVolume'
 
 // -- Types --
 
@@ -376,6 +377,7 @@ async function shareAppraisal(): Promise<void> {
 <template>
   <MainLayout>
     <div class="flex flex-col gap-6">
+      <CommerceModuleTabs active="appraisal" />
 
       <!-- HEADER -->
       <div>
