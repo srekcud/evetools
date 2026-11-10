@@ -32,7 +32,7 @@ export function useCommandPaletteProjects() {
       key: `project-${project.id}`,
       label: groupProjectLabel(project),
       isCompleted: project.status === COMPLETED_STATUS,
-      route: `/group-industry/${encodeURIComponent(project.id)}`,
+      route: `/industry/projects/${encodeURIComponent(project.id)}`,
     }
   }
 

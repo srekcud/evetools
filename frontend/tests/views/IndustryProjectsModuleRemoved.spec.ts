@@ -8,6 +8,7 @@ import Industry from '@/views/Industry.vue'
 import IndustryWorkshop from '@/components/industry/IndustryWorkshop.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
+import { industryPageOfTab, landingOf } from './industryPages'
 
 const route = reactive<{ query: LocationQuery }>({ query: {} })
 const routerReplace = vi.fn()
@@ -24,6 +25,7 @@ const SABRE_TYPE_ID = 22456
 
 const stubbedChildren = {
   MainLayout: { template: '<div><slot /></div>' },
+  IndustryModuleTabs: true,
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
@@ -44,7 +46,7 @@ const stubbedChildren = {
 async function mountIndustryWithQuery(query: LocationQuery) {
   route.query = query
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const wrapper = mount(Industry, { global: { plugins: [i18n], stubs: stubbedChildren } })
+  const wrapper = mount(Industry, { props: { page: industryPageOfTab(query.tab) }, global: { plugins: [i18n], stubs: stubbedChildren } })
   await flushPromises()
   return wrapper
 }
@@ -73,7 +75,7 @@ describe('Industry without the solo projects module', () => {
     expect(routerReplace).not.toHaveBeenCalled()
   })
 
-  it('sends a projects navigation intent to the group industry screen and leaves the intent for it', async () => {
+  it('sends a projects navigation intent to the projects page and leaves the intent for it', async () => {
     await mountIndustryWithQuery({})
     const prefill = { typeId: SABRE_TYPE_ID, typeName: 'Sabre', runs: 7, me: 3 }
 
@@ -81,7 +83,7 @@ describe('Industry without the solo projects module', () => {
     await flushPromises()
 
     expect(routerPush).toHaveBeenCalledTimes(1)
-    expect(routerPush).toHaveBeenCalledWith('/group-industry')
+    expect(landingOf(routerPush.mock.calls[0][0])).toEqual({ path: '/industry/projects', query: {} })
     expect(useIndustryStore().navigationIntent).toEqual({ target: 'projects', prefill })
   })
 })

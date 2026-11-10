@@ -227,7 +227,7 @@ describe('CommandPalette types', () => {
 
       await pressKey('Enter')
 
-      expect(router.currentRoute.value.fullPath).toBe('/industry?tab=margins&typeId=638')
+      expect(router.currentRoute.value.fullPath).toBe('/industry/analysis?tab=margins&typeId=638')
       expect(wrapper.emitted('close')).toEqual([[]])
     })
 
@@ -238,7 +238,7 @@ describe('CommandPalette types', () => {
 
       await pressKey('Enter', { shiftKey: true })
 
-      expect(router.currentRoute.value.fullPath).toBe('/industry?tab=buy-vs-build&typeId=638')
+      expect(router.currentRoute.value.fullPath).toBe('/industry/analysis?tab=buy-vs-build&typeId=638')
     })
 
     it('opens the active type in Market on Ctrl+Enter', async () => {
@@ -268,7 +268,7 @@ describe('CommandPalette types', () => {
       groupOptions('Types')[1].click()
       await flushPromises()
 
-      expect(router.currentRoute.value.fullPath).toBe(`/industry?tab=margins&typeId=${RAVEN_NAVY_ISSUE.typeId}`)
+      expect(router.currentRoute.value.fullPath).toBe(`/industry/analysis?tab=margins&typeId=${RAVEN_NAVY_ISSUE.typeId}`)
     })
 
     it('runs the clicked action of the active type row', async () => {

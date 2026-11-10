@@ -1,30 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import { useIndustryStore } from '@/stores/industry'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import { useFormatters } from '@/composables/useFormatters'
-import { useEveImages } from '@/composables/useEveImages'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
-import { groupProjectLabel } from '@/utils/groupProjectLabel'
 import { CHART_COLORS } from '@/utils/chartColors'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
-import type { GroupProjectStatus } from '@/stores/group-industry/types'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
-const router = useRouter()
 const store = useIndustryStore()
 const groupProjectStore = useGroupProjectStore()
 const slotsStore = useSlotsStore()
 const kpisUpdated = useUpdateFlash(() => slotsStore.data)
 const stockpileStore = useStockpileStore()
 const { formatIsk } = useFormatters()
-const { getTypeIconUrl, onImageError } = useEveImages()
 
 // SVG ring chart constants (48x48 viewport, radius 19)
 const RING_RADIUS = 19
@@ -213,46 +207,12 @@ function navigateToNewProject(): void {
   store.navigationIntent = { target: 'projects', openCreateModal: true }
 }
 
-function navigateToProjects(): void {
-  store.navigationIntent = { target: 'projects' }
-}
-
 function navigateToScanner(): void {
   store.navigationIntent = { target: 'batch' }
 }
 
 function navigateToStockpile(): void {
   store.navigationIntent = { target: 'stockpile' }
-}
-
-// --- Recent Projects ---
-const recentProjects = computed(() => {
-  const sorted = [...groupProjectStore.myProjects].sort((a, b) => {
-    const dateA = new Date(a.createdAt).getTime()
-    const dateB = new Date(b.createdAt).getTime()
-    return dateB - dateA
-  })
-  return sorted.slice(0, 5)
-})
-
-const PROJECT_STATUS_CLASSES: Record<GroupProjectStatus, string> = {
-  draft: 'bg-slate-700 text-slate-400 border-slate-600',
-  published: 'bg-violet-500/15 text-violet-400 border-violet-500/20',
-  in_progress: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20',
-  selling: 'bg-violet-500/15 text-violet-400 border-violet-500/20',
-  completed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
-}
-
-function projectStatusLabel(status: GroupProjectStatus): string {
-  return t(`groupIndustry.status.${status}`)
-}
-
-function viewProject(projectId: string): void {
-  router.push(`/group-industry/${projectId}`)
-}
-
-function cleanTypeName(name: string): string {
-  return name.replace(/\s*\(BPC\)\s*$/i, '').trim()
 }
 </script>
 
@@ -456,97 +416,16 @@ function cleanTypeName(name: string): string {
     </button>
   </div>
 
-  <!-- Recent Projects Mini-table -->
-  <div class="bg-slate-900 rounded-xl border border-slate-800">
-    <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-      <h3 class="text-lg font-semibold text-slate-100">{{ t('industry.dashboard.recentProjects') }}</h3>
-      <button
-        class="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors"
-        @click="navigateToProjects"
-      >
-        {{ t('industry.dashboard.viewAllProjects') }}
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-        </svg>
-      </button>
-    </div>
-
-    <!-- Empty state -->
-    <div v-if="recentProjects.length === 0" class="px-6 py-8 text-center">
-      <p class="text-sm text-slate-500">{{ t('industry.project.noProjectsDescription') }}</p>
-    </div>
-
-    <!-- Table -->
-    <div v-else class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
-            <th class="text-left py-3 px-6">{{ t('industry.table.product') }}</th>
-            <th class="text-left py-3 px-3">{{ t('common.status.active') }}</th>
-            <th class="text-left py-3 px-6 w-48">{{ t('industry.slots.table.progress') }}</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-800">
-          <tr
-            v-for="project in recentProjects"
-            :key="project.id"
-            class="hover:bg-slate-800/50 cursor-pointer group"
-            @click="viewProject(project.id)"
-          >
-            <!-- Product -->
-            <td class="py-3 px-6">
-              <div class="flex items-center gap-3">
-                <div v-if="project.items.length > 0" class="w-8 h-8 rounded bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden">
-                  <img
-                    :src="getTypeIconUrl(project.items[0].typeId, 64)"
-                    :alt="groupProjectLabel(project)"
-                    class="w-full h-full object-cover"
-                    @error="onImageError"
-                  />
-                </div>
-                <span class="text-slate-100 font-medium group-hover:text-cyan-400 transition-colors">
-                  {{ cleanTypeName(groupProjectLabel(project)) }}
-                </span>
-              </div>
-            </td>
-
-            <!-- Status -->
-            <td class="py-3 px-3">
-              <span
-                class="text-xs px-2 py-0.5 rounded border"
-                :class="PROJECT_STATUS_CLASSES[project.status]"
-              >
-                {{ projectStatusLabel(project.status) }}
-              </span>
-            </td>
-
-            <!-- Progress -->
-            <td class="py-3 px-6">
-              <div class="flex items-center gap-3">
-                <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                  <div
-                    class="h-full rounded-full relative"
-                    :class="project.status === 'completed' ? 'bg-emerald-500/60' : 'bg-cyan-500/60'"
-                    :style="{ width: project.fulfillmentPercent + '%' }"
-                  >
-                    <div
-                      v-if="project.status !== 'completed' && project.fulfillmentPercent > 0"
-                      class="absolute inset-0 progress-shimmer rounded-full"
-                    ></div>
-                  </div>
-                </div>
-                <span
-                  class="text-xs font-mono w-8 text-right"
-                  :class="project.status === 'completed' ? 'text-emerald-400' : 'text-slate-500'"
-                >
-                  {{ project.fulfillmentPercent }}%
-                </span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <div class="flex justify-end">
+    <router-link
+      :to="{ name: 'industry-projects' }"
+      class="text-sm text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors"
+    >
+      {{ t('industry.dashboard.viewAllProjects') }}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+      </svg>
+    </router-link>
   </div>
 
 </template>

@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, useId, watch } from 'vue'
+import { computed, ref, onMounted, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { useIndustryStore } from '@/stores/industry'
 import { useTabQuery } from '@/composables/useTabQuery'
+import { useIndustryStore } from '@/stores/industry'
 import { useAdminStore } from '@/stores/admin'
 import { DATA_FRESHNESS_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
 import MainLayout from '@/layouts/MainLayout.vue'
+import IndustryModuleTabs from '@/components/industry-module/IndustryModuleTabs.vue'
+import MiningSubTabs from '@/components/mining-module/MiningSubTabs.vue'
 import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import BlacklistConfig from '@/components/industry/BlacklistConfig.vue'
@@ -23,6 +25,10 @@ import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 import BlueprintLibraryTab from '@/components/industry/BlueprintLibraryTab.vue'
 
+const props = defineProps<{
+  page: 'workshop' | 'analysis' | 'production'
+}>()
+
 const { t } = useI18n()
 const maxJobDurationFieldId = useId()
 const route = useRoute()
@@ -37,27 +43,40 @@ function typeIdFromQuery(): number | undefined {
   return typeof queryTypeId === 'string' && /^\d+$/.test(queryTypeId) ? Number(queryTypeId) : undefined
 }
 
-// Flat pill navigation (single level)
-type MainTab = 'workshop' | 'dashboard' | 'margins' | 'batch' | 'buy-vs-build' | 'pivot' | 'slots' | 'stockpile' | 'blueprints'
-const MAIN_TABS: MainTab[] = ['workshop', 'dashboard', 'margins', 'batch', 'buy-vs-build', 'pivot', 'slots', 'stockpile', 'blueprints']
-const mainTab = useTabQuery(MAIN_TABS, 'workshop')
-const DATA_FRESHNESS_TABS: readonly MainTab[] = ['margins', 'batch', 'buy-vs-build', 'pivot']
+const ANALYSIS_TABS = ['margins', 'batch', 'buy-vs-build', 'pivot']
+const PRODUCTION_TABS = ['slots', 'stockpile', 'blueprints']
+const analysisTab = useTabQuery(ANALYSIS_TABS, 'margins')
+const productionTab = useTabQuery(PRODUCTION_TABS, 'slots')
+const subTabIds = computed(() => props.page === 'analysis' ? ANALYSIS_TABS : PRODUCTION_TABS)
 
-// Props for analysis tabs that accept an initial type ID
+const activeSubTab = computed<string>({
+  get: () => props.page === 'analysis' ? analysisTab.value : productionTab.value,
+  set: (tab) => {
+    if (props.page === 'analysis') {
+      analysisTab.value = tab
+    } else {
+      productionTab.value = tab
+    }
+  },
+})
+
+const SUB_TAB_LABEL_KEYS: Record<string, string> = {
+  margins: 'industry.tabs.margins',
+  batch: 'industry.tabs.batch',
+  'buy-vs-build': 'industry.tabs.buyVsBuild',
+  pivot: 'industry.tabs.pivot',
+  slots: 'industry.tabs.slots',
+  stockpile: 'industry.tabs.stockpile',
+  blueprints: 'industry.tabs.blueprints',
+}
+
+const subTabs = computed(() => subTabIds.value.map(id => ({ id, label: t(SUB_TAB_LABEL_KEYS[id]) })))
+
 const analysisInitialTypeId = ref<number | undefined>(typeIdFromQuery())
 
 watch(() => route.query.typeId, () => {
   analysisInitialTypeId.value = typeIdFromQuery()
 })
-
-async function selectPill(tab: MainTab) {
-  analysisInitialTypeId.value = undefined
-  if (route.query.typeId !== undefined) {
-    const { typeId: _removedTypeId, ...remainingQuery } = route.query
-    await router.replace({ query: remainingQuery })
-  }
-  mainTab.value = tab
-}
 
 // Config slide-over panel
 const showConfigPanel = ref(false)
@@ -72,66 +91,38 @@ function onOpenConfigSection(section: 'fees' | 'skills' | 'structures' | 'blackl
   expandedConfigSection.value = section
 }
 
-// Navigation pill groups
-type NavPill = { key: MainTab; label: () => string }
-type NavGroup = { label: () => string; pills: NavPill[] }
-
-const navGroups: NavGroup[] = [
-  {
-    label: () => t('industry.groups.overview'),
-    pills: [
-      { key: 'workshop', label: () => t('industry.tabs.workshop') },
-      { key: 'dashboard', label: () => t('industry.tabs.dashboard') },
-    ],
-  },
-  {
-    label: () => t('industry.groups.analysis'),
-    pills: [
-      { key: 'margins', label: () => t('industry.tabs.margins') },
-      { key: 'batch', label: () => t('industry.tabs.batch') },
-      { key: 'buy-vs-build', label: () => t('industry.tabs.buyVsBuild') },
-      { key: 'pivot', label: () => t('industry.tabs.pivot') },
-    ],
-  },
-  {
-    label: () => t('industry.groups.operations'),
-    pills: [
-      { key: 'slots', label: () => t('industry.tabs.slots') },
-      { key: 'stockpile', label: () => t('industry.tabs.stockpile') },
-      { key: 'blueprints', label: () => t('industry.tabs.blueprints') },
-    ],
-  },
-]
-
 onMounted(async () => {
   dataFreshnessStore.fetchDataFreshness()
   isAdmin.value = await adminStore.checkAccess()
 })
 
+const ANALYSIS_PATH = '/industry/analysis'
+const PRODUCTION_PATH = '/industry/production'
+
+function pageLocationOf(path: string, tab: string, typeId?: number) {
+  return { path, query: typeId === undefined ? { tab } : { tab, typeId: String(typeId) } }
+}
+
 // NavigationIntent watcher for cross-tab navigation
 watch(() => store.navigationIntent, (intent) => {
   if (!intent) return
 
-  if (intent.target === 'projects') {
-    router.push('/group-industry')
-    return
-  }
-
-  if (intent.target === 'margins') {
-    mainTab.value = 'margins'
-    analysisInitialTypeId.value = intent.typeId
-  } else if (intent.target === 'batch') {
-    mainTab.value = 'batch'
-  } else if (intent.target === 'buy-vs-build') {
-    mainTab.value = 'buy-vs-build'
-    analysisInitialTypeId.value = intent.typeId
-  } else if (intent.target === 'pivot') {
-    mainTab.value = 'pivot'
-    analysisInitialTypeId.value = intent.typeId
-  } else if (intent.target === 'slots') {
-    mainTab.value = 'slots'
-  } else if (intent.target === 'stockpile') {
-    mainTab.value = 'stockpile'
+  switch (intent.target) {
+    case 'projects':
+      router.push({ name: 'industry-projects' })
+      return
+    case 'margins':
+    case 'buy-vs-build':
+    case 'pivot':
+      router.push(pageLocationOf(ANALYSIS_PATH, intent.target, intent.typeId))
+      break
+    case 'batch':
+      router.push(pageLocationOf(ANALYSIS_PATH, intent.target))
+      break
+    case 'slots':
+    case 'stockpile':
+      router.push(pageLocationOf(PRODUCTION_PATH, intent.target))
+      break
   }
 
   store.navigationIntent = null
@@ -140,40 +131,11 @@ watch(() => store.navigationIntent, (intent) => {
 
 <template>
   <MainLayout>
-      <!-- Header -->
+      <IndustryModuleTabs :active="page" />
+
       <div class="mb-6 flex items-center justify-between">
         <p class="text-slate-400">{{ t('industry.subtitle') }}</p>
-      </div>
 
-      <!-- Flat pill navigation bar -->
-      <div class="flex items-center gap-1 bg-slate-900/50 rounded-xl border border-slate-800/60 px-3 py-2.5 mb-6">
-        <template v-for="(group, groupIndex) in navGroups" :key="groupIndex">
-          <!-- Divider between groups -->
-          <div v-if="groupIndex > 0" class="nav-divider"></div>
-
-          <!-- Group with label -->
-          <div class="relative flex items-center gap-1" :class="groupIndex === 0 ? 'pr-1' : 'px-1'">
-            <span class="group-label">{{ group.label() }}</span>
-            <button
-              v-for="pill in group.pills"
-              :key="pill.key"
-              @click="selectPill(pill.key)"
-              :class="[
-                'px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
-                mainTab === pill.key
-                  ? 'nav-pill-active'
-                  : 'nav-pill-inactive',
-              ]"
-            >
-              {{ pill.label() }}
-            </button>
-          </div>
-        </template>
-
-        <!-- Spacer -->
-        <div class="flex-1"></div>
-
-        <!-- Config gear button -->
         <button
           class="gear-btn nav-pill-inactive p-2 rounded-lg"
           :title="t('industry.tabs.config')"
@@ -187,58 +149,30 @@ watch(() => store.navigationIntent, (intent) => {
         </button>
       </div>
 
-      <!-- Error -->
       <ErrorBanner v-if="store.error" :message="store.error" class="mb-6" @dismiss="store.clearError()" />
 
-      <DataFreshnessList
-        v-if="DATA_FRESHNESS_TABS.includes(mainTab)"
-        :sources="DATA_FRESHNESS_SOURCES"
-        class="mb-4"
-      />
-
-      <div v-if="mainTab === 'workshop'" key="workshop">
-        <IndustryWorkshop />
-      </div>
-
-      <!-- Dashboard -->
-      <div v-else-if="mainTab === 'dashboard'" key="dashboard">
+      <template v-if="page === 'workshop'">
         <IndustryDashboard />
-      </div>
+        <IndustryWorkshop />
+      </template>
 
-      <!-- Margins -->
-      <div v-else-if="mainTab === 'margins'" key="margins">
-        <ProfitMarginTab :initial-type-id="analysisInitialTypeId" />
-      </div>
+      <template v-else>
+        <MiningSubTabs v-model="activeSubTab" :tabs="subTabs" />
 
-      <!-- Batch Scan -->
-      <div v-else-if="mainTab === 'batch'" key="batch">
-        <BatchScanTab />
-      </div>
+        <DataFreshnessList
+          v-if="page === 'analysis'"
+          :sources="DATA_FRESHNESS_SOURCES"
+          class="mb-4"
+        />
 
-      <!-- Buy vs Build -->
-      <div v-else-if="mainTab === 'buy-vs-build'" key="buy-vs-build">
-        <BuyVsBuildTab :initial-type-id="analysisInitialTypeId" />
-      </div>
-
-      <!-- Pivot -->
-      <div v-else-if="mainTab === 'pivot'" key="pivot">
-        <PivotAdvisorTab :initial-type-id="analysisInitialTypeId" />
-      </div>
-
-      <!-- Slots -->
-      <div v-else-if="mainTab === 'slots'" key="slots">
-        <IndustrySlotsSection @open-config="onOpenConfigSection" />
-      </div>
-
-      <!-- Stockpile -->
-      <div v-else-if="mainTab === 'stockpile'" key="stockpile">
-        <StockpileDashboard />
-      </div>
-
-      <!-- Blueprints -->
-      <div v-else-if="mainTab === 'blueprints'" key="blueprints">
-        <BlueprintLibraryTab />
-      </div>
+        <ProfitMarginTab v-if="activeSubTab === 'margins'" :initial-type-id="analysisInitialTypeId" />
+        <BatchScanTab v-else-if="activeSubTab === 'batch'" />
+        <BuyVsBuildTab v-else-if="activeSubTab === 'buy-vs-build'" :initial-type-id="analysisInitialTypeId" />
+        <PivotAdvisorTab v-else-if="activeSubTab === 'pivot'" :initial-type-id="analysisInitialTypeId" />
+        <IndustrySlotsSection v-else-if="activeSubTab === 'slots'" @open-config="onOpenConfigSection" />
+        <StockpileDashboard v-else-if="activeSubTab === 'stockpile'" />
+        <BlueprintLibraryTab v-else-if="activeSubTab === 'blueprints'" />
+      </template>
 
       <!-- Config Slide-Over Panel -->
       <Teleport to="body">
@@ -386,13 +320,6 @@ watch(() => store.navigationIntent, (intent) => {
   animation: slide-in-right 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
-/* Nav pill active state with glow */
-.nav-pill-active {
-  background: linear-gradient(135deg, var(--color-brand-strong), var(--color-brand-deep));
-  color: white;
-  box-shadow: 0 0 12px rgba(8, 145, 178, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
 .nav-pill-inactive {
   background: rgba(30, 41, 59, 0.6);
   color: var(--color-muted);
@@ -404,27 +331,6 @@ watch(() => store.navigationIntent, (intent) => {
   color: var(--color-chart-text);
   border-color: rgba(71, 85, 105, 0.8);
   transform: translateY(-1px);
-}
-
-/* Group label */
-.group-label {
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--color-subtle);
-  position: absolute;
-  top: -14px;
-  left: 4px;
-  white-space: nowrap;
-}
-
-/* Divider between groups */
-.nav-divider {
-  width: 1px;
-  height: 24px;
-  background: linear-gradient(180deg, transparent, var(--color-chart-grid) 30%, var(--color-chart-grid) 70%, transparent);
-  margin: 0 6px;
-  align-self: center;
 }
 
 /* Config gear rotation on hover */

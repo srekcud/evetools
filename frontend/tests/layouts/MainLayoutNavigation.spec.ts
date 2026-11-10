@@ -77,7 +77,7 @@ describe('MainLayout sidebar navigation', () => {
     expect(navigationLink(wrapper, 'Dashboard')?.attributes('aria-current')).toBeUndefined()
   })
 
-  it.each(['/group-industry', '/group-industry/p1', '/industry/projects/p1'])('keeps the industry entry current and titles the page Industry on %s', async (path) => {
+  it.each(['/industry/projects', '/industry/projects/p1', '/industry/analysis', '/industry/production'])('keeps the industry entry current and titles the page Industry on %s', async (path) => {
     const { wrapper } = await mountMainLayoutAt(path)
 
     const currentPageLinks = wrapper.findAll('a[aria-current="page"]')
@@ -87,7 +87,7 @@ describe('MainLayout sidebar navigation', () => {
   })
 
   it('keeps the production section open on a project page even when it was stored as collapsed', async () => {
-    const { wrapper } = await mountMainLayoutAt('/group-industry/p1', { storedCollapsedGroups: '{"production":true}' })
+    const { wrapper } = await mountMainLayoutAt('/industry/projects/p1', { storedCollapsedGroups: '{"production":true}' })
 
     expect(sectionHeader(wrapper, 'Production')?.attributes('aria-expanded')).toBe('true')
     expect(navigationLink(wrapper, 'Industry')).toBeDefined()

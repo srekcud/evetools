@@ -9,7 +9,7 @@ import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useGroupProjectReferencesStore } from '@/stores/group-industry/projectReferences'
 import { useFormatters } from '@/composables/useFormatters'
 import type { ProjectPrefill, SearchResult } from '@/stores/industry/types'
-import type { CreateGroupProjectInput, ProjectReferenceRow, ProjectTemplate } from '@/stores/group-industry/types'
+import type { CreateGroupProjectInput, GroupProject, ProjectReferenceRow, ProjectTemplate } from '@/stores/group-industry/types'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesPanel.vue'
@@ -47,7 +47,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  created: []
+  created: [project: GroupProject]
 }>()
 
 // --- Form state ---
@@ -448,8 +448,8 @@ async function handleCreate() {
   }
 
   try {
-    await groupProjectStore.createProject(input)
-    emit('created')
+    const project = await groupProjectStore.createProject(input)
+    emit('created', project)
   } catch (e) {
     errorMsg.value = e instanceof Error ? e.message : 'Failed to create project'
     isCreating.value = false

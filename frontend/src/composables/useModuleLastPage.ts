@@ -1,6 +1,12 @@
 export const MODULE_LAST_PAGE_STORAGE_KEY = 'evetools_module_last_page'
 
 const MODULE_PAGES: Record<string, readonly string[]> = {
+  industry: [
+    '/industry',
+    '/industry/projects',
+    '/industry/analysis',
+    '/industry/production',
+  ],
   mining: [
     '/mining/operations',
     '/mining/moons',
@@ -20,8 +26,10 @@ function readStoredPages(): Record<string, unknown> {
   }
 }
 
+const EXACT_MATCH_PAGES: readonly string[] = ['/industry']
+
 function listPageOf(path: string, pages: readonly string[]): string | undefined {
-  return pages.find(page => path === page || path.startsWith(`${page}/`))
+  return pages.find(page => path === page || (!EXACT_MATCH_PAGES.includes(page) && path.startsWith(`${page}/`)))
 }
 
 export function lastPageOf(moduleId: string, fallback: string): string {

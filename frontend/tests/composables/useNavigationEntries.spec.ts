@@ -49,15 +49,17 @@ describe('useNavigationEntries', () => {
     expect(listNavigationEntries({ isAdmin: false }).map(entry => [entry.route, entry.label, entry.isTab])).toEqual([
       ['/dashboard', 'Dashboard', false],
       ['/industry', 'Industry', false],
-      ['/industry?tab=margins', 'Industry › Margins', true],
-      ['/industry?tab=batch', 'Industry › Batch Scan', true],
-      ['/industry?tab=buy-vs-build', 'Industry › Buy vs Build', true],
-      ['/industry?tab=pivot', 'Industry › Pivot', true],
-      ['/industry?tab=slots', 'Industry › Slots', true],
-      ['/industry?tab=stockpile', 'Industry › Stockpile', true],
-      ['/industry?tab=blueprints', 'Industry › Blueprints', true],
-      ['/group-industry', 'Industry › Projects', false],
-      ['/group-industry?tab=available', 'Industry › Projects › Available', true],
+      ['/industry/projects', 'Industry › Projects', false],
+      ['/industry/projects?tab=available', 'Industry › Projects › Available', true],
+      ['/industry/analysis', 'Industry › Analysis', true],
+      ['/industry/analysis?tab=margins', 'Industry › Analysis › Margins', true],
+      ['/industry/analysis?tab=batch', 'Industry › Analysis › Batch Scan', true],
+      ['/industry/analysis?tab=buy-vs-build', 'Industry › Analysis › Buy vs Build', true],
+      ['/industry/analysis?tab=pivot', 'Industry › Analysis › Pivot', true],
+      ['/industry/production', 'Industry › Production', true],
+      ['/industry/production?tab=slots', 'Industry › Production › Slots', true],
+      ['/industry/production?tab=stockpile', 'Industry › Production › Stockpile', true],
+      ['/industry/production?tab=blueprints', 'Industry › Production › Blueprints', true],
       ['/appraisal', 'Appraisal', false],
       ['/planetary', 'PI', false],
       ['/mining/operations', 'Mining', false],
@@ -81,6 +83,14 @@ describe('useNavigationEntries', () => {
     ])
   })
 
+  it('offers no entry on the former tabs of the industry screen nor on the former group industry path', () => {
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const routes = routesOf(listNavigationEntries({ isAdmin: false }))
+
+    expect(routes.filter(route => route.startsWith('/industry?') || route.startsWith('/group-industry'))).toEqual([])
+  })
+
   it('uses the English label as alias in English', () => {
     const { listNavigationEntries } = mountNavigationEntries('en')
 
@@ -95,15 +105,17 @@ describe('useNavigationEntries', () => {
     expect(listNavigationEntries({ isAdmin: false }).map(entry => [entry.label, entry.aliasLabel])).toEqual([
       ['Tableau de bord', 'Dashboard'],
       ['Industrie', 'Industry'],
-      ['Industrie › Marges', 'Industry › Margins'],
-      ['Industrie › Scan', 'Industry › Batch Scan'],
-      ['Industrie › Achat vs Prod', 'Industry › Buy vs Build'],
-      ['Industrie › Pivot', 'Industry › Pivot'],
-      ['Industrie › Slots', 'Industry › Slots'],
-      ['Industrie › Stockpile', 'Industry › Stockpile'],
-      ['Industrie › Blueprints', 'Industry › Blueprints'],
       ['Industrie › Projets', 'Industry › Projects'],
       ['Industrie › Projets › Disponibles', 'Industry › Projects › Available'],
+      ['Industrie › Analyse', 'Industry › Analysis'],
+      ['Industrie › Analyse › Marges', 'Industry › Analysis › Margins'],
+      ['Industrie › Analyse › Scan', 'Industry › Analysis › Batch Scan'],
+      ['Industrie › Analyse › Achat vs Prod', 'Industry › Analysis › Buy vs Build'],
+      ['Industrie › Analyse › Pivot', 'Industry › Analysis › Pivot'],
+      ['Industrie › Production', 'Industry › Production'],
+      ['Industrie › Production › Slots', 'Industry › Production › Slots'],
+      ['Industrie › Production › Stockpile', 'Industry › Production › Stockpile'],
+      ['Industrie › Production › Blueprints', 'Industry › Production › Blueprints'],
       ['Évaluateur', 'Appraisal'],
       ['PI', 'PI'],
       ['Minage', 'Mining'],
@@ -127,11 +139,11 @@ describe('useNavigationEntries', () => {
     ])
   })
 
-  it('never includes the sidebar group name in a label', () => {
+  it('never starts a label with a sidebar group name', () => {
     const { listNavigationEntries } = mountNavigationEntries('en')
 
     const labelsWithGroupName = listNavigationEntries({ isAdmin: false })
-      .filter(entry => entry.label.includes('Production') || entry.aliasLabel.includes('Production'))
+      .filter(entry => [entry.label, entry.aliasLabel].some(label => label.startsWith('Production') || label.startsWith('Economy')))
 
     expect(labelsWithGroupName).toEqual([])
   })
@@ -141,8 +153,8 @@ describe('useNavigationEntries', () => {
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(32)
-    expect(entries[31]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(34)
+    expect(entries[33]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -170,7 +182,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route === '/contracts' || route.startsWith('/market'))).toEqual([])
     expect(routes).toContain('/assets')
-    expect(routes).toHaveLength(28)
+    expect(routes).toHaveLength(30)
   })
 
   it('removes the screen, the tabs and the projects of each hidden module', () => {
@@ -206,9 +218,9 @@ describe('useNavigationEntries', () => {
     const routes = routesOf(listNavigationEntries({ isAdmin: false }))
 
     expect(routes).toContain('/industry')
-    expect(routes).toContain('/industry?tab=stockpile')
-    expect(routes.filter(route => route.startsWith('/group-industry'))).toEqual([])
-    expect(routes).toHaveLength(29)
+    expect(routes).toContain('/industry/production?tab=stockpile')
+    expect(routes.filter(route => route.startsWith('/industry/projects'))).toEqual([])
+    expect(routes).toHaveLength(31)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["group-industry"]')
   })
 
@@ -220,7 +232,7 @@ describe('useNavigationEntries', () => {
 
     expect(routes.filter(route => route.startsWith('/mining/'))).toEqual([])
     expect(routes).toContain('/planetary')
-    expect(routes).toHaveLength(22)
+    expect(routes).toHaveLength(24)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["mining-operations"]')
   })
 
@@ -241,6 +253,6 @@ describe('useNavigationEntries', () => {
     hideModules(['planetary'])
 
     expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/planetary')
-    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(30)
+    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(32)
   })
 })

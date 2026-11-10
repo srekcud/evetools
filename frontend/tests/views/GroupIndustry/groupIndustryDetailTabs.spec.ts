@@ -30,7 +30,7 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const COMING_SOON_FRENCH = 'À venir'
-const ACTIVE_TABS = ['bom', 'contributions', 'distribution', 'sales', 'members', 'chain', 'planning', 'journal']
+const ACTIVE_TABS = ['bom', 'distribution', 'sales', 'chain', 'planning', 'journal']
 const COMING_SOON_TABS = ['invention']
 
 async function mountSellingNyxOn(tab: string | undefined) {
@@ -50,7 +50,7 @@ beforeEach(() => {
 })
 
 describe('project cockpit tabs', () => {
-  it('shows the eight working tabs, the team one included for a solo project, then one disabled coming soon tab, and opens on the materials', async () => {
+  it('shows the six working tabs of a solo project, with no contributions and no team tab, then one disabled coming soon tab, and opens on the materials', async () => {
     const wrapper = await mountSellingNyxOn(undefined)
 
     const tabs = wrapper.findAll('[data-testid^="project-tab-"]')
@@ -75,8 +75,8 @@ describe('project cockpit tabs', () => {
       planningQueryKeepsTheMaterialsClosed: !planningQuery.findComponent(BomTable).exists(),
     }).toEqual({
       ids: [...ACTIVE_TABS, ...COMING_SOON_TABS].map(tab => `project-tab-${tab}`),
-      disabled: [false, false, false, false, false, false, false, false, true],
-      comingSoonMentions: [false, false, false, false, false, false, false, false, true],
+      disabled: [false, false, false, false, false, false, true],
+      comingSoonMentions: [false, false, false, false, false, false, true],
       materialsPanel: true,
       chainQueryOpensTheProductionChain: true,
       chainQueryKeepsTheMaterialsClosed: true,

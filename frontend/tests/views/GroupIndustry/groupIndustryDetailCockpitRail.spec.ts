@@ -92,7 +92,7 @@ describe('project cockpit rail', () => {
       title: wrapper.find('h1').text(),
       bomTab: wrapper.find(tabSelector('bom')).exists(),
       membersTab: wrapper.find(tabSelector('members')).exists(),
-    }).toEqual({ rail: false, card: false, title: 'Nyx batch', bomTab: true, membersTab: true })
+    }).toEqual({ rail: false, card: false, title: 'Nyx batch', bomTab: true, membersTab: false })
   })
 
   it('renders the rail and the card with the full project and type names in French and in English', async () => {

@@ -2,7 +2,7 @@ import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/t
 import { createPinia, setActivePinia } from 'pinia'
 import { reactive } from 'vue'
 import { createI18n } from 'vue-i18n'
-import type { LocationQuery } from 'vue-router'
+import type { LocationQuery, RouteLocationRaw } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
 import { ApiError, apiRequest } from '@/services/api'
@@ -10,6 +10,7 @@ import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
 import type { ProfitMarginResult, SearchResult, UserSettings } from '@/stores/industry/types'
 import { apiOutcomesByPath, awaiting, deferred, rejectWith, respondWith } from '../deferred'
+import { industryPageOfTab, queryOfLocation } from './industryPages'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -17,11 +18,14 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 }))
 
 const route = reactive<{ query: LocationQuery }>({ query: {} })
+const routerPush = vi.fn((location: RouteLocationRaw) => {
+  route.query = queryOfLocation(location)
+})
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
   useRoute: (() => route) as never,
-  useRouter: (() => ({ replace: vi.fn() })) as never,
+  useRouter: (() => ({ replace: vi.fn(), push: routerPush })) as never,
 }))
 
 const TYPE_LOOKUP_ENDPOINT = '/industry/types/'
@@ -42,6 +46,7 @@ const USER_SETTINGS: UserSettings = {
 
 const stubbedChildren = {
   MainLayout: { template: '<div><slot /></div>' },
+  IndustryModuleTabs: true,
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
@@ -69,7 +74,7 @@ function lookupAndMarginRequests(): string[] {
 async function mountIndustryWithQuery(query: LocationQuery): Promise<VueWrapper> {
   route.query = query
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const wrapper = mount(Industry, { global: { plugins: [i18n], stubs: stubbedChildren } })
+  const wrapper = mount(Industry, { props: { page: industryPageOfTab(query.tab) }, global: { plugins: [i18n], stubs: stubbedChildren } })
   await flushPromises()
   return wrapper
 }

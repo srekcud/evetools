@@ -75,6 +75,7 @@ async function mountDetailOfTheSabreBatch(): Promise<VueWrapper> {
       plugins: [i18n()],
       stubs: {
         MainLayout: { template: '<div><slot /></div>' },
+        IndustryModuleTabs: true,
         teleport: true,
         BomTable: true,
         JobsTable: true,
