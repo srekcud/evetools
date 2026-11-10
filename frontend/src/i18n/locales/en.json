@@ -948,6 +948,13 @@
         "count": "{count} to process",
         "empty": "Nothing to do right now",
         "blocked": "Blocked",
+        "severity": {
+          "warning": "Warning",
+          "info": "Information",
+          "unknown": "Unknown data"
+        },
+        "impact": "≈ {amount} ISK",
+        "impactUnknown": "Impact unknown",
         "stockpileLow": "Stockpile · {typeName} is below the threshold ({stock} / {target})",
         "stockpileRuns": "{runs} runs to launch to get back to the target",
         "stockpileCreateProject": "Create the project"

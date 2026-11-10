@@ -948,6 +948,13 @@
         "count": "{count} à traiter",
         "empty": "Rien à faire maintenant",
         "blocked": "À l'arrêt",
+        "severity": {
+          "warning": "Avertissement",
+          "info": "Information",
+          "unknown": "Donnée inconnue"
+        },
+        "impact": "≈ {amount} ISK",
+        "impactUnknown": "Impact inconnu",
         "stockpileLow": "Stockpile · {typeName} sous le seuil ({stock} / {target})",
         "stockpileRuns": "{runs} runs à lancer pour revenir à la cible",
         "stockpileCreateProject": "Créer le projet"

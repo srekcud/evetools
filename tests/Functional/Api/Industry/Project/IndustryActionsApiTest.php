@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry\Project;
 
+use App\Service\JitaMarketService;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\MockObject\Stub;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 #[Group('issue-335')]
@@ -14,13 +16,18 @@ final class IndustryActionsApiTest extends WebTestCase
 
     private const string ACTIONS_URI = '/api/industry/actions';
 
+    private JitaMarketService&Stub $jitaMarket;
+
     protected function setUp(): void
     {
         $this->setUpIshtarGroupProject();
+        $this->jitaMarket = $this->createStub(JitaMarketService::class);
+        self::getContainer()->set(JitaMarketService::class, $this->jitaMarket);
     }
 
     public function testOwnerOfTwoProjectsReadsTheBlockedProjectBeforeTheContributionsToReview(): void
     {
+        $this->givenJitaWeightedSellPrices([self::TRITANIUM_TYPE_ID => ['weightedPrice' => 4.25, 'coverage' => 1.0, 'ordersUsed' => 3]]);
         $this->client->loginUser($this->owner, 'api');
         $this->request('GET', self::ACTIONS_URI);
 
@@ -38,6 +45,8 @@ final class IndustryActionsApiTest extends WebTestCase
                     'typeId' => self::TRITANIUM_TYPE_ID,
                     'typeName' => 'Tritanium',
                     'quantity' => 40_000,
+                    'severity' => 'warning',
+                    'impactIsk' => 170_000.0,
                 ],
                 [
                     'projectId' => $this->ishtarBatch->getId()->toRfc4122(),
@@ -50,9 +59,26 @@ final class IndustryActionsApiTest extends WebTestCase
                     'typeId' => null,
                     'typeName' => null,
                     'quantity' => 1,
+                    'severity' => 'info',
+                    'impactIsk' => null,
                 ],
             ],
             $this->responseJson(),
+        );
+    }
+
+    public function testBlockedMaterialWithoutJitaPriceKeepsAnUnknownImpactInsteadOfZero(): void
+    {
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::ACTIONS_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [['source_material', 'warning', null], ['review_contributions', 'info', null]],
+            array_map(
+                static fn (array $entry): array => [$entry['code'] ?? null, $entry['severity'] ?? null, array_key_exists('impactIsk', $entry) ? $entry['impactIsk'] : 'absent'],
+                $this->responseJson(),
+            ),
         );
     }
 
@@ -92,5 +118,13 @@ final class IndustryActionsApiTest extends WebTestCase
         $this->request('GET', self::ACTIONS_URI);
 
         self::assertResponseStatusCodeSame(401);
+    }
+
+    /**
+     * @param array<int, array{weightedPrice: float, coverage: float, ordersUsed: int}|null> $pricesByTypeId
+     */
+    private function givenJitaWeightedSellPrices(array $pricesByTypeId): void
+    {
+        $this->jitaMarket->method('getWeightedSellPricesWithFallback')->willReturn($pricesByTypeId);
     }
 }

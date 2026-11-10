@@ -10,6 +10,7 @@ use App\ApiResource\Industry\Project\IndustryActionResource;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\User;
 use App\Repository\IndustryProjectParticipantRepository;
+use App\Service\Industry\Project\ActionAssessor;
 use App\Service\Industry\Project\ActionQueueEntry;
 use App\Service\Industry\Project\ActionQueueSorter;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
@@ -29,6 +30,7 @@ class IndustryActionsProvider implements ProviderInterface
         private readonly ProjectCockpitInputFactory $inputFactory,
         private readonly ProjectCockpitCalculator $calculator,
         private readonly ActionQueueSorter $sorter,
+        private readonly ActionAssessor $assessor,
     ) {
     }
 
@@ -75,6 +77,7 @@ class IndustryActionsProvider implements ProviderInterface
     private function toResource(ActionQueueEntry $entry): IndustryActionResource
     {
         $nextAction = $entry->nextAction;
+        $assessment = $this->assessor->assess($nextAction);
 
         $resource = new IndustryActionResource();
         $resource->projectId = $entry->projectId;
@@ -87,6 +90,8 @@ class IndustryActionsProvider implements ProviderInterface
         $resource->typeId = $nextAction->typeId;
         $resource->typeName = $nextAction->typeName;
         $resource->quantity = $nextAction->quantity;
+        $resource->severity = $assessment->severity->value;
+        $resource->impactIsk = $assessment->impactIsk;
 
         return $resource;
     }
