@@ -22,6 +22,7 @@ use App\Repository\Sde\DgmTypeAttributeRepository;
 use App\Repository\Sde\InvTypeRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -56,6 +57,7 @@ final class ConfiguredProductionStructuresTest extends TestCase
     private const string COMPOSITE_REACTOR_TE_I = 'Standup M-Set Composite Reactor Time Efficiency I';
     private const string M_SET_THUKKER_BASIC_CAPITAL_COMPONENT = 'Standup M-Set Thukker Basic Capital Component Manufacturing Material Efficiency';
     private const string XL_SET_THUKKER_STRUCTURE_AND_COMPONENT = 'Standup XL-Set Thukker Structure and Component Manufacturing Efficiency';
+    private const string XL_SET_LABORATORY_OPTIMIZATION_II = 'Standup XL-Set Laboratory Optimization II';
 
     /** typeId by rig name (sde_inv_types). */
     private const array RIG_TYPE_IDS = [
@@ -65,11 +67,12 @@ final class ConfiguredProductionStructuresTest extends TestCase
         self::COMPOSITE_REACTOR_TE_I => 46484,
         self::M_SET_THUKKER_BASIC_CAPITAL_COMPONENT => 45544,
         self::XL_SET_THUKKER_STRUCTURE_AND_COMPONENT => 45548,
+        self::XL_SET_LABORATORY_OPTIMIZATION_II => 37182,
     ];
 
     /**
      * typeId => [attributeId => value]: 2600 strEngMatBonus, 2601 strEngCostBonus, 2355 / 2356 / 2357 security
-     * modifiers, 2593 / 2594 manufacturing time / material bonus, 2653 Thukker material bonus, 2713 / 2714 reaction
+     * modifiers, 2593 / 2594 manufacturing time / material bonus, 2595 cost bonus, 2653 Thukker material bonus, 2713 / 2714 reaction
      * time / material bonus. The refineries (Athanor 35835, Tatara 35836) carry no role bonus.
      */
     private const array DOGMA_ATTRIBUTES = [
@@ -78,12 +81,13 @@ final class ConfiguredProductionStructuresTest extends TestCase
         35827 => [2600 => 0.99, 2601 => 0.95],
         35835 => [],
         35836 => [],
-        37159 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => 0, 2594 => -2.4],
-        37160 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => -20, 2594 => 0],
+        37159 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => 0, 2594 => -2.4, 2595 => 0],
+        37160 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => -20, 2594 => 0, 2595 => 0],
         46487 => [2356 => 1, 2357 => 1.1, 2714 => -2.4],
         46484 => [2356 => 1, 2357 => 1.1, 2713 => -20],
         45544 => [2355 => 0.1, 2356 => 1.9, 2357 => 0.1, 2593 => 0, 2653 => -3.7],
         45548 => [2355 => 0.1, 2356 => 1.9, 2357 => 0.1, 2593 => -20, 2594 => -2, 2653 => -3.7],
+        37182 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => -24, 2594 => 0, 2595 => -12],
     ];
 
     private const float FLOAT_TOLERANCE = 1e-12;
@@ -210,6 +214,30 @@ final class ConfiguredProductionStructuresTest extends TestCase
         // 0.99 × (1 − 2.4 × 2.1 / 100) = 0.940104; equipment is not targeted: role bonus only.
         $this->assertEqualsWithDelta(0.940104, $structure->materialMultiplierFor(ActivityKind::Manufacturing, 'ammunition')->value, self::FLOAT_TOLERANCE);
         $this->assertEqualsWithDelta(0.99, $structure->materialMultiplierFor(ActivityKind::Manufacturing, 'equipment')->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-526')]
+    public function testLaboratoryRigReducesTheCostIndexTermOfLaboratoryJobsAndNeverTheMaterials(): void
+    {
+        $this->configure('sotiyo', 'nullsec', rigs: [self::XL_SET_LABORATORY_OPTIMIZATION_II]);
+
+        $structure = $this->onlyStructureOf(self::USER_ID);
+
+        $this->assertCount(1, $structure->rigs);
+        $this->assertEqualsWithDelta(0.95 * 0.748, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(0.95, $structure->installCostMultiplierFor(ActivityKind::Manufacturing)->value, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(0.99, $structure->materialMultiplierFor(ActivityKind::Manufacturing, 'equipment')->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-526')]
+    public function testManufacturingRigCarryingAZeroCostBonusAddsNoCostRig(): void
+    {
+        $this->configure('raitaru', 'nullsec', rigs: [self::AMMUNITION_ME_II]);
+
+        $structure = $this->onlyStructureOf(self::USER_ID);
+
+        $this->assertCount(1, $structure->rigs);
+        $this->assertEqualsWithDelta(0.97, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
     }
 
     public function testRefineryRigReducesTheMaterialsOfItsReactions(): void

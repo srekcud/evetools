@@ -168,7 +168,7 @@ final readonly class ResearchProfitability
             EstimatedItemValue::of(new Runs(1), $this->eivMaterialsOf($recipe)),
             $targetLevel,
             $costIndex,
-            null === $structure ? Multiplier::one() : $structure->costRoleBonus,
+            null === $structure ? Multiplier::one() : $structure->installCostMultiplierFor(ActivityKind::ResearchMaterial),
             null === $structure ? ProductionCostCalculator::NPC_STATION_FACILITY_TAX_RATE : $structure->facilityTaxRate,
             $alphaClone,
         )->total;

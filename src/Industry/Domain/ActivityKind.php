@@ -12,4 +12,12 @@ enum ActivityKind
     case Invention;
     case ResearchMaterial;
     case ResearchTime;
+
+    public function isLaboratory(): bool
+    {
+        return match ($this) {
+            self::Copying, self::Invention, self::ResearchMaterial, self::ResearchTime => true,
+            self::Manufacturing, self::Reaction => false,
+        };
+    }
 }

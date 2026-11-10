@@ -41,6 +41,7 @@ use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -917,6 +918,55 @@ final class ProductionCostCalculatorTest extends TestCase
         $this->assertNotNull($invention);
         $this->assertKnownCost(88.275, $invention->copyInstallCost->total);
         $this->assertKnownCost(1045.588, $invention->inventionInstallCost->total);
+    }
+
+    #[Group('issue-526')]
+    public function testLaboratoryRigLowersTheSystemTermOfCopyingAndInventionButNeitherTheFacilityTaxNorTheSurcharge(): void
+    {
+        $productionCost = self::hobgoblinIICalculator(self::HOBGOBLIN_II_BASE_PROBABILITY)->costOf(self::hobgoblinIIRequest(
+            structures: [self::sotiyoWithLaboratoryRig()],
+        ));
+
+        $invention = $productionCost->invention;
+        $this->assertNotNull($invention);
+        $this->assertKnownCost(11.3295, $invention->copyInstallCost->total);
+        $this->assertKnownCost(6.0, $invention->copyInstallCost->sccSurcharge);
+        $this->assertKnownCost(0.0, $invention->copyInstallCost->facilityTax);
+        $this->assertKnownCost(154.35624, $invention->inventionInstallCost->total);
+        $this->assertKnownCost(68.8, $invention->inventionInstallCost->sccSurcharge);
+    }
+
+    #[Group('issue-526')]
+    public function testLaboratoryRigDoesNotChangeTheInstallCostOfManufacturing(): void
+    {
+        $withLaboratoryRig = ProductionStructures::raitaruWithFacilityTax(
+            'raitaru-nullsec',
+            SecurityClass::NullSec,
+            self::RAITARU_SYSTEM_ID,
+            self::RAITARU_FACILITY_TAX_RATE,
+            ProductionStructures::manufacturingRig(2.4, 'ammunition'),
+            ProductionStructures::laboratoryRig(12.0),
+        );
+
+        $reference = self::hailLCalculator()->costOf(self::hailLRequest(CostMode::MarginalCost, [self::nullsecRaitaru()]));
+        $productionCost = self::hailLCalculator()->costOf(self::hailLRequest(CostMode::MarginalCost, [$withLaboratoryRig]));
+
+        $this->assertSame($reference->installCost->amount()->amount, $productionCost->installCost->amount()->amount);
+    }
+
+    private static function sotiyoWithLaboratoryRig(): ProductionStructure
+    {
+        return new ProductionStructure(
+            'sotiyo-laboratory-rig',
+            StructureType::EngineeringComplex,
+            SecurityClass::NullSec,
+            self::COPYING_AND_INVENTION_SYSTEM_ID,
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            [ProductionStructures::laboratoryRig(12.0)],
+            new Multiplier(ProductionStructures::SOTIYO_COST_ROLE_BONUS),
+            ProductionStructures::NO_FACILITY_TAX,
+        );
     }
 
     public static function costModeProvider(): iterable

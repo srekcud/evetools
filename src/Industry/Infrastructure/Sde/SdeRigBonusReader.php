@@ -19,6 +19,7 @@ final readonly class SdeRigBonusReader
     private const int ATTRIBUTE_NULL_SEC_MODIFIER = 2357;
     private const int ATTRIBUTE_ENG_RIG_TIME_BONUS = 2593;
     private const int ATTRIBUTE_ENG_RIG_MAT_BONUS = 2594;
+    private const int ATTRIBUTE_ENG_RIG_COST_BONUS = 2595;
     private const int ATTRIBUTE_THUKKER_ENG_RIG_MAT_BONUS = 2653;
     private const int ATTRIBUTE_REF_RIG_TIME_BONUS = 2713;
     private const int ATTRIBUTE_REF_RIG_MAT_BONUS = 2714;
@@ -43,6 +44,11 @@ final readonly class SdeRigBonusReader
             ActivityKind::Reaction => $this->bonusOf($rigTypeId, self::ATTRIBUTE_REF_RIG_TIME_BONUS),
             default => throw new \InvalidArgumentException(\sprintf('Rigs give no time bonus to %s.', $activity->name)),
         };
+    }
+
+    public function costBonusOf(int $rigTypeId): ?RigBonus
+    {
+        return $this->bonusOf($rigTypeId, self::ATTRIBUTE_ENG_RIG_COST_BONUS);
     }
 
     public function thukkerMaterialBonusOf(int $rigTypeId): ?RigBonus

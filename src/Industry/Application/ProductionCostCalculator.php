@@ -244,7 +244,7 @@ final readonly class ProductionCostCalculator
 
         return null === $structure
             ? InstallCost::forJob($activity, $estimatedItemValue, $costIndex, Multiplier::one(), self::NPC_STATION_FACILITY_TAX_RATE, $alphaClone)
-            : InstallCost::forJob($activity, $estimatedItemValue, $costIndex, $structure->costRoleBonus, $structure->facilityTaxRate, $alphaClone);
+            : InstallCost::forJob($activity, $estimatedItemValue, $costIndex, $structure->installCostMultiplierFor($activity), $structure->facilityTaxRate, $alphaClone);
     }
 
     /**
