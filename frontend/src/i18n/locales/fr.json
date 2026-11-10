@@ -577,6 +577,33 @@
       "tooltip": "Le carnet d'ordres de vente Jita ne couvre qu'une partie de la quantité demandée. Le prix affiché porte sur la part couverte seulement : le coût réel est probablement plus élevé.",
       "sellTooltip": "Le revenu est calculé sur la seule partie couverte du carnet de vente Jita, pas sur toute la quantité."
     },
+    "priceSource": {
+      "markets": {
+        "jita": "Jita",
+        "structure": "Structure",
+        "contracts": "Contrats"
+      },
+      "sides": {
+        "sell": "vente",
+        "buy": "achat"
+      },
+      "methods": {
+        "weighted": "pondéré",
+        "lowest": "plus bas",
+        "median": "médiane",
+        "percentile": "P{percentile}"
+      },
+      "methodNames": {
+        "weighted": "prix moyen pondéré",
+        "lowest": "prix le plus bas",
+        "median": "médiane",
+        "percentile": "percentile {percentile}"
+      },
+      "label": "{market} · {method}",
+      "labelBuy": "{market} achat · {method}",
+      "tooltip": "Marché : {market} · Côté : {side} · Méthode : {method}",
+      "tooltipCoverage": "Couverture du carnet : {percent} %"
+    },
     "fees": {
       "unknown": "Frais inconnus",
       "unknownReason": "Le courtage et la taxe de vente sont calculés depuis vos compétences et vos standings. Synchronisez-les depuis la page Compétences."

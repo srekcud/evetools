@@ -36,13 +36,13 @@ class PivotAdvisorResource
     #[ApiProperty(identifier: true)]
     public int $typeId;
 
-    /** @var array<string, mixed> */
+    /** @var array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}|array{} */
     public array $sourceProduct = [];
 
     /** @var list<array<string, mixed>> */
     public array $matrix = [];
 
-    /** @var list<array<string, mixed>> */
+    /** @var list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>, priceSources: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float}|null, assumptions: array{runs: int, materialEfficiency: int}}}> */
     public array $candidates = [];
 
     /** @var list<int> */

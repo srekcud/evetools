@@ -150,6 +150,30 @@ final class StockpileImportPreviewProcessorTest extends TestCase
         self::assertSame([self::PYERITE], $preview->missingPriceTypeIds);
     }
 
+    #[Group('issue-538')]
+    public function testExposesTheCompleteWeightedPriceSourceOfTheEstimatedCost(): void
+    {
+        $this->jitaPrices = [self::WIDGET => 1_000_000.0, self::TRITANIUM => 4.0, self::PYERITE => 9.5];
+
+        $preview = $this->preview();
+
+        self::assertSame(
+            ['estimatedCost' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null]],
+            $preview->priceSources,
+        );
+    }
+
+    #[Group('issue-538')]
+    public function testExposesNoPriceSourceForAnUnknownEstimatedCost(): void
+    {
+        $this->jitaPrices = [self::WIDGET => 1_000_000.0, self::TRITANIUM => 4.0];
+
+        $preview = $this->preview();
+
+        self::assertArrayHasKey('estimatedCost', $preview->priceSources);
+        self::assertNull($preview->priceSources['estimatedCost']);
+    }
+
     #[Group('issue-258')]
     public function testPreviewOfATypeWithoutBlueprintNorReactionIsRejectedAsNotPlannableWithAStableMessage(): void
     {

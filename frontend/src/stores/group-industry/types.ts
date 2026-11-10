@@ -3,6 +3,8 @@
  * Types mirror the API resource DTOs from src/ApiResource/GroupIndustry/.
  */
 
+import type { PriceSource } from '@/stores/industry/types'
+
 export type GroupProjectStatus = 'draft' | 'published' | 'in_progress' | 'selling' | 'completed'
 
 export type GroupMemberRole = 'owner' | 'admin' | 'member'
@@ -158,6 +160,7 @@ export type BomItem = {
   fulfillmentPercent: number
   estimatedPrice: number | null
   estimatedTotal: number | null
+  estimatedPriceSource?: PriceSource | null
   isJob: boolean
   jobGroup: JobGroup | null
   activityType: string | null
@@ -186,6 +189,7 @@ export type GroupContribution = {
   type: ContributionType
   quantity: number
   estimatedValue: number | null
+  estimatedValueSource?: PriceSource | null
   status: ContributionStatus
   isAutoDetected: boolean
   duplicatesDerived: boolean

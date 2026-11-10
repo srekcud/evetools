@@ -577,6 +577,33 @@
       "tooltip": "The Jita sell order book only covers part of the requested quantity. The displayed price applies to the covered part only: the actual cost is likely higher.",
       "sellTooltip": "The revenue is computed on the covered part of the Jita sell order book only, not on the whole quantity."
     },
+    "priceSource": {
+      "markets": {
+        "jita": "Jita",
+        "structure": "Structure",
+        "contracts": "Contracts"
+      },
+      "sides": {
+        "sell": "sell",
+        "buy": "buy"
+      },
+      "methods": {
+        "weighted": "weighted",
+        "lowest": "lowest",
+        "median": "median",
+        "percentile": "P{percentile}"
+      },
+      "methodNames": {
+        "weighted": "weighted average price",
+        "lowest": "lowest price",
+        "median": "median",
+        "percentile": "percentile {percentile}"
+      },
+      "label": "{market} · {method}",
+      "labelBuy": "{market} buy · {method}",
+      "tooltip": "Market: {market} · Side: {side} · Method: {method}",
+      "tooltipCoverage": "Order book coverage: {percent}%"
+    },
     "fees": {
       "unknown": "Unknown fees",
       "unknownReason": "The broker fee and the sales tax are computed from your skills and standings. Sync them from the Skills page."

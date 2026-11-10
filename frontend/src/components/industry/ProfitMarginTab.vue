@@ -13,6 +13,7 @@ import { usePartialPriceCoverages } from '@/composables/usePartialPriceCoverages
 import ProductSearch from '@/components/industry/ProductSearch.vue'
 import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
 import PartialPriceNotice from '@/components/industry/PartialPriceNotice.vue'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CostSummaryCards from '@/components/industry/profit/CostSummaryCards.vue'
 import VenueComparisonTable from '@/components/industry/profit/VenueComparisonTable.vue'
@@ -183,6 +184,7 @@ const sellRows = computed((): SellRow[] => {
   function buildRow(key: SellVenue, venue: string, tag: string, unitPrice: number, entry: MarginEntry, dailyVolume: number | null, contractCount: number | null = null, coveragePercent: number | null = null): SellRow {
     return {
       key, venue, tag, unitPrice,
+      source: r.priceSources?.sale?.[key],
       revenue: entry.revenue,
       fees: entry.fees,
       profit: entry.profit,
@@ -619,7 +621,12 @@ store.fetchUserSettings()
               <tr class="border-b border-slate-700 text-slate-400 text-xs uppercase tracking-wider">
                 <th class="text-left py-2.5 px-4">{{ t('industry.costEstimation.material') }}</th>
                 <th class="text-right py-2.5 px-3">{{ t('industry.costEstimation.quantity') }}</th>
-                <th class="text-right py-2.5 px-3">{{ t('industry.margins.unitPrice') }}</th>
+                <th class="text-right py-2.5 px-3">
+                  <div class="flex flex-col items-end gap-0.5">
+                    <span>{{ t('industry.margins.unitPrice') }}</span>
+                    <PriceSourceBadge :source="result.priceSources?.materials" :show-coverage="false" />
+                  </div>
+                </th>
                 <th class="text-right py-2.5 px-4">{{ t('industry.costEstimation.total') }}</th>
               </tr>
             </thead>

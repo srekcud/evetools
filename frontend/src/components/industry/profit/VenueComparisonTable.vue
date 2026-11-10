@@ -3,7 +3,9 @@ import DataTable from '@/components/common/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import type { PriceSource } from '@/stores/industry/types'
 
 export type SellRow = {
   key: string
@@ -18,6 +20,7 @@ export type SellRow = {
   contractCount: number | null
   isBest: boolean
   coveragePercent?: number | null
+  source?: PriceSource | null
 }
 
 defineProps<{
@@ -74,7 +77,10 @@ const { formatIsk } = useFormatters()
                 >{{ t('industry.margins.best') }}</span>
               </div>
             </td>
-            <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="row.isBest ? 'text-slate-100 font-semibold' : 'text-slate-300'">{{ formatIsk(row.unitPrice) }}</td>
+            <td class="py-2.5 px-3 text-right font-mono tabular-nums max-w-[10rem]" :class="row.isBest ? 'text-slate-100 font-semibold' : 'text-slate-300'">
+              {{ formatIsk(row.unitPrice) }}
+              <div><PriceSourceBadge :source="row.source" :show-coverage="false" /></div>
+            </td>
             <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="row.isBest ? 'text-slate-100' : 'text-slate-300'">{{ formatIsk(row.revenue) }}<PartialPriceMarker :percent="row.coveragePercent" tooltip-key="industry.partialPrice.sellTooltip" /></td>
             <td v-if="row.fees === null" class="py-2.5 px-3 text-right font-mono text-slate-500 tabular-nums"><UnknownValue /></td>
             <td v-else class="py-2.5 px-3 text-right font-mono text-amber-400 tabular-nums" :class="!row.isBest ? 'text-amber-400/70' : ''">-{{ formatIsk(Math.abs(row.fees)) }}</td>

@@ -85,6 +85,9 @@ class ProjectContributionResource
 
     public ?float $estimatedValue;
 
+    /** @var array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null */
+    public ?array $estimatedValueSource = null;
+
     public string $status;
 
     public bool $isAutoDetected;

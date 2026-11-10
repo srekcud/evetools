@@ -41,6 +41,7 @@ class StockpileImportPreviewProcessor implements ProcessorInterface
         $resource->totalItems = $preview['totalItems'];
         $resource->estimatedCost = $preview['estimatedCost'];
         $resource->missingPriceTypeIds = $preview['missingPriceTypeIds'];
+        $resource->priceSources = $preview['priceSources'];
 
         return $resource;
     }

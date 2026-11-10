@@ -14,6 +14,7 @@ import type { MergedItem } from '@/components/appraisal/AppraisalResultsTable.vu
 import AppraisalActions from '@/components/appraisal/AppraisalActions.vue'
 import MissingVolumeWarning from '@/components/appraisal/MissingVolumeWarning.vue'
 import { missingVolumeTypeNames } from '@/components/appraisal/missingVolume'
+import type { AppraisalPriceSources } from '@/stores/industry/types'
 
 // -- Types --
 
@@ -34,6 +35,7 @@ type AppraisalItem = {
   sellCoverage: number | null
   buyCoverage: number | null
   avgDailyVolume: number | null
+  priceSources?: AppraisalPriceSources
 }
 
 type AppraisalTotals = {
@@ -160,6 +162,7 @@ const mergedItems = computed((): MergedItem[] => {
       buyTotalWeighted: ai.buyTotalWeighted,
       buyCoverage: ai.buyCoverage,
       avgDailyVolume: ai.avgDailyVolume,
+      priceSources: ai.priceSources,
       jitaWithImport: si?.jitaWithImport ?? null,
       structureTotal: si?.structureTotal ?? null,
       structureCoverage: null,

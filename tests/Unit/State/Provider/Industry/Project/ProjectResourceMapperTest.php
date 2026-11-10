@@ -150,6 +150,46 @@ class ProjectResourceMapperTest extends TestCase
         $this->assertSame(2, $resource->contributionCount);
     }
 
+    #[Group('issue-538')]
+    public function testMaterialContributionWithAValueCarriesThePercentileSourceOfTheDeposit(): void
+    {
+        $resource = $this->mapper->contributionToResource($this->contributionOf(ContributionType::Material, 500.0));
+
+        $this->assertSame(500.0, $resource->estimatedValue);
+        $this->assertSame(
+            ['market' => 'jita', 'side' => 'sell', 'method' => 'percentile', 'coveragePercent' => null, 'percentile' => 5.0],
+            $resource->estimatedValueSource,
+        );
+    }
+
+    #[Group('issue-538')]
+    public function testMaterialContributionWithAnUnknownValueHasNoValueSource(): void
+    {
+        $this->assertNull($this->mapper->contributionToResource($this->contributionOf(ContributionType::Material, null))->estimatedValueSource);
+    }
+
+    #[Group('issue-538')]
+    public function testContributionOfAnotherTypeThanMaterialHasNoValueSourceEvenWithAValue(): void
+    {
+        foreach ([ContributionType::JobInstall, ContributionType::Bpc, ContributionType::LineRental, ContributionType::Courier] as $type) {
+            $this->assertNull($this->mapper->contributionToResource($this->contributionOf($type, 500.0))->estimatedValueSource, $type->value);
+        }
+    }
+
+    private function contributionOf(ContributionType $type, ?float $estimatedValue): IndustryProjectContribution
+    {
+        $contribution = (new IndustryProjectContribution())
+            ->setProject(new IndustryProject())
+            ->setMember($this->anonymizedMember())
+            ->setType($type)
+            ->setQuantity(5)
+            ->setEstimatedValue($estimatedValue)
+            ->setStatus(ContributionStatus::Approved);
+        (new \ReflectionProperty(IndustryProjectContribution::class, 'id'))->setValue($contribution, Uuid::v4());
+
+        return $contribution;
+    }
+
     private function anonymizedMember(): IndustryProjectParticipant
     {
         $mainCharacter = (new Character())->setEveCharacterId(2_112_000_053)->setName('Deleted Pilot')->setCorporationId(98_000_053)->setCorporationName('Deleted Corp');

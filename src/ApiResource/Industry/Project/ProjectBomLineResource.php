@@ -52,6 +52,9 @@ class ProjectBomLineResource
 
     public ?float $estimatedTotal = null;
 
+    /** @var array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null */
+    public ?array $estimatedPriceSource = null;
+
     public bool $isJob;
 
     public ?string $jobGroup = null;

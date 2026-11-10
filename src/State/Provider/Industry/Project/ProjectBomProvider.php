@@ -18,6 +18,7 @@ use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectLineReservationRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Entity\IndustryProjectLineReservation;
+use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\JobInstallerName;
 use App\Service\Industry\Project\ProjectJobLocationResolver;
 use App\Service\Industry\Project\PilotName;
@@ -116,6 +117,7 @@ class ProjectBomProvider implements ProviderInterface
         $resource->estimatedTotal = $item->getEstimatedPrice() !== null
             ? $item->getEstimatedPrice() * $item->getRequiredQuantity()
             : null;
+        $resource->estimatedPriceSource = $item->getEstimatedPrice() !== null && !$item->isJob() ? IndustryProjectService::bomPriceSource()->toArray() : null;
         $resource->isJob = $item->isJob();
         $resource->jobGroup = $item->getJobGroup();
         $resource->activityType = $item->getActivityType();

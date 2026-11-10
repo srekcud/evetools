@@ -8,6 +8,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { apiRequest } from '@/services/api'
 import type { BatchScanItem } from '@/stores/industry/types'
+import PriceSourceBadge from './PriceSourceBadge.vue'
 import ProductionCalculator from './ProductionCalculator.vue'
 
 type UserSettingsResponse = {
@@ -768,8 +769,9 @@ onBeforeUnmount(() => {
                 <td v-if="item.materialCost == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
+                <td v-else class="py-3 px-3 text-right font-mono max-w-[10rem]" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
                   {{ formatIsk(item.materialCost) }}
+                  <div><PriceSourceBadge :source="item.priceSources?.materials" /></div>
                 </td>
                 <td v-if="item.exportCost == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
@@ -786,8 +788,9 @@ onBeforeUnmount(() => {
                 <td v-if="item.sellPrice == null" class="py-3 px-3 text-right font-mono text-amber-400 cursor-help" :title="unknownCostTooltip(item)">
                   {{ t('industry.inventionUnknown.label') }}
                 </td>
-                <td v-else class="py-3 px-3 text-right font-mono" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-200'">
+                <td v-else class="py-3 px-3 text-right font-mono max-w-[10rem]" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-400' : 'text-slate-200'">
                   {{ formatIsk(item.sellPrice) }}
+                  <div><PriceSourceBadge :source="item.priceSources?.sale" /></div>
                 </td>
                 <td class="py-3 px-2 text-center font-mono text-table-cell" :class="item.marginPercent != null && item.marginPercent < 0 ? 'text-slate-500' : 'text-slate-400'">
                   {{ item.meUsed > 0 ? item.meUsed : '--' }}

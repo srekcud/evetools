@@ -44,6 +44,7 @@ final class StockpileStatusProviderTest extends TestCase
     private array $targets = [];
     private array $imports = [];
     private array $jitaPrices = [34 => 4.0, 35 => 9.5];
+    private ?\Closure $sellQuotes = null;
 
     protected function setUp(): void
     {
@@ -62,7 +63,7 @@ final class StockpileStatusProviderTest extends TestCase
         ]);
         $jitaMarketService = $this->createMock(JitaMarketService::class);
         $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(
-            fn (array $requests): array => SellQuoteCallbacks::completeQuotesAt($this->jitaPrices)($requests),
+            fn (array $requests): array => ($this->sellQuotes ?? SellQuoteCallbacks::completeQuotesAt($this->jitaPrices))($requests),
         );
         $productionPlanning = new ProductionPlanning(new InMemoryBlueprintCatalog(), InMemorySystemCostIndices::none(), new InMemoryRigCategories());
         $userStructures = new InMemoryUserProductionStructures();
@@ -156,6 +157,45 @@ final class StockpileStatusProviderTest extends TestCase
         );
         self::assertNull($resource->stages['raw_material']['totalValue']);
         self::assertNull($resource->kpis['totalInvested']);
+    }
+
+    #[Group('issue-538')]
+    public function testExposesTheCompleteWeightedPriceSourceOfTheStockValueAndTheDeficitCost(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createMock(User::class));
+        $completeJitaSell = ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null];
+
+        $resource = $this->provider->provide(new Get());
+
+        self::assertSame(['stockValue' => $completeJitaSell, 'deficitCost' => $completeJitaSell], $resource->priceSources);
+    }
+
+    #[Group('issue-538')]
+    public function testExposesThePartialCoverageOfTheDeficitCostAndNoCoverageForTheCompleteStockValue(): void
+    {
+        $this->sellQuotes = SellQuoteCallbacks::weighedFrom([34 => [[4.0, 400], [5.0, 50]]]);
+        $this->security->method('getUser')->willReturn($this->createMock(User::class));
+
+        $resource = $this->provider->provide(new Get());
+
+        self::assertSame(
+            [
+                'stockValue' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+                'deficitCost' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => 75.0],
+            ],
+            $resource->priceSources,
+        );
+    }
+
+    #[Group('issue-538')]
+    public function testExposesNoPriceSourceForAPilotWithoutTarget(): void
+    {
+        $this->targets = [];
+        $this->security->method('getUser')->willReturn($this->createMock(User::class));
+
+        $resource = $this->provider->provide(new Get());
+
+        self::assertSame(['stockValue' => null, 'deficitCost' => null], $resource->priceSources);
     }
 
     public function testExposesTheRemainingTargetEqualToTheTargetQuantityAndNoImportWarningWithoutReduction(): void

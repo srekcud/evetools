@@ -15,6 +15,7 @@ use App\Service\ItemParserService;
 use App\Service\JitaMarketService;
 use App\State\Processor\ShoppingList\AppraiseProcessor;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -22,23 +23,30 @@ use Symfony\Bundle\SecurityBundle\Security;
 #[CoversClass(AppraiseProcessor::class)]
 final class AppraiseProcessorTest extends TestCase
 {
+    private const int TRITANIUM = 34;
+    private const int PYERITE = 35;
     private const int NITROGEN_ISOTOPES = 17888;
     private const int HEAVY_WATER = 16272;
     private const int STRONTIUM_CLATHRATES = 16275;
     private const string PRICE_ERROR = 'Unable to fetch market prices. Please try again later.';
     private const array TYPE_NAMES = [
+        self::TRITANIUM => 'Tritanium',
+        self::PYERITE => 'Pyerite',
         self::NITROGEN_ISOTOPES => 'Nitrogen Isotopes',
         self::HEAVY_WATER => 'Heavy Water',
         self::STRONTIUM_CLATHRATES => 'Strontium Clathrates',
     ];
-    private const array SELL_PRICES = [self::NITROGEN_ISOTOPES => 500.0, self::HEAVY_WATER => 1000.0, self::STRONTIUM_CLATHRATES => 800.0];
-    private const array BUY_PRICES = [self::NITROGEN_ISOTOPES => 450.0, self::HEAVY_WATER => 900.0, self::STRONTIUM_CLATHRATES => 760.0];
+    private const array SELL_PRICES = [self::TRITANIUM => 5.0, self::PYERITE => 9.0, self::NITROGEN_ISOTOPES => 500.0, self::HEAVY_WATER => 1000.0, self::STRONTIUM_CLATHRATES => 800.0];
+    private const array BUY_PRICES = [self::TRITANIUM => 4.0, self::NITROGEN_ISOTOPES => 450.0, self::HEAVY_WATER => 900.0, self::STRONTIUM_CLATHRATES => 760.0];
     private const array WEIGHTED_SELL_PRICES = [
+        self::TRITANIUM => ['weightedPrice' => 5.5, 'coverage' => 0.75, 'ordersUsed' => 3],
+        self::PYERITE => ['weightedPrice' => 9.4, 'coverage' => 1.0, 'ordersUsed' => 2],
         self::NITROGEN_ISOTOPES => ['weightedPrice' => 510.0, 'coverage' => 1.0, 'ordersUsed' => 2],
         self::HEAVY_WATER => ['weightedPrice' => 1020.0, 'coverage' => 0.8, 'ordersUsed' => 3],
         self::STRONTIUM_CLATHRATES => ['weightedPrice' => 815.0, 'coverage' => 0.7, 'ordersUsed' => 5],
     ];
     private const array WEIGHTED_BUY_PRICES = [
+        self::TRITANIUM => ['weightedPrice' => 4.2, 'coverage' => 1.0, 'ordersUsed' => 2],
         self::NITROGEN_ISOTOPES => ['weightedPrice' => 430.0, 'coverage' => 0.9, 'ordersUsed' => 4],
         self::HEAVY_WATER => ['weightedPrice' => 880.0, 'coverage' => 1.0, 'ordersUsed' => 1],
         self::STRONTIUM_CLATHRATES => ['weightedPrice' => 745.0, 'coverage' => 0.6, 'ordersUsed' => 6],
@@ -138,6 +146,74 @@ final class AppraiseProcessorTest extends TestCase
         self::assertSame($expectedHeavyWaterTotalVolume, $this->itemOf($appraisal, self::HEAVY_WATER)->totalVolume);
         self::assertNull($appraisal->totals['volume']);
         self::assertSame([self::NITROGEN_ISOTOPES], $appraisal->missingVolumeTypeIds);
+    }
+
+    #[Group('issue-538')]
+    public function testEachColumnOfAPricedItemIsLabelledWithTheMarketSideAndMethodOfItsPrice(): void
+    {
+        $appraisal = $this->appraise('100x Tritanium');
+
+        $tritanium = $this->itemOf($appraisal, self::TRITANIUM);
+        self::assertSame(5.0, $tritanium->sellPrice);
+        self::assertSame(4.0, $tritanium->buyPrice);
+        self::assertSame(
+            [
+                'sell' => ['market' => 'jita', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+                'buy' => ['market' => 'jita', 'side' => 'buy', 'method' => 'lowest', 'coveragePercent' => null],
+                'sellWeighted' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => 75.0],
+                'buyWeighted' => ['market' => 'jita', 'side' => 'buy', 'method' => 'weighted', 'coveragePercent' => null],
+            ],
+            $tritanium->priceSources,
+        );
+    }
+
+    #[Group('issue-538')]
+    public function testPartialBuyCoverageIsCarriedByTheBuyWeightedSourceOnly(): void
+    {
+        $appraisal = $this->appraise('100x Nitrogen Isotopes');
+
+        $isotopes = $this->itemOf($appraisal, self::NITROGEN_ISOTOPES);
+        self::assertSame(
+            [
+                'sell' => ['market' => 'jita', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+                'buy' => ['market' => 'jita', 'side' => 'buy', 'method' => 'lowest', 'coveragePercent' => null],
+                'sellWeighted' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+                'buyWeighted' => ['market' => 'jita', 'side' => 'buy', 'method' => 'weighted', 'coveragePercent' => 90.0],
+            ],
+            $isotopes->priceSources,
+        );
+    }
+
+    #[Group('issue-538')]
+    public function testTypeWithoutBuyPriceHasNoBuySourceNorBuyWeightedSource(): void
+    {
+        $appraisal = $this->appraise('10x Pyerite');
+
+        $pyerite = $this->itemOf($appraisal, self::PYERITE);
+        self::assertNull($pyerite->buyPrice);
+        self::assertNull($pyerite->buyPriceWeighted);
+        self::assertSame(
+            [
+                'sell' => ['market' => 'jita', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+                'buy' => null,
+                'sellWeighted' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+                'buyWeighted' => null,
+            ],
+            $pyerite->priceSources,
+        );
+    }
+
+    #[Group('issue-538')]
+    public function testPriceErrorLeavesEverySourceUnknownNextToTheUnknownPrices(): void
+    {
+        $this->marketUnavailable = true;
+
+        $appraisal = $this->appraise('100x Tritanium');
+
+        $tritanium = $this->itemOf($appraisal, self::TRITANIUM);
+        self::assertSame(self::PRICE_ERROR, $appraisal->priceError);
+        self::assertNull($tritanium->sellPrice);
+        self::assertSame(['sell' => null, 'buy' => null, 'sellWeighted' => null, 'buyWeighted' => null], $tritanium->priceSources);
     }
 
     private function assertIsotopesVolumeIsUnknownAndPriceTotalsAreKept(AppraisalResultResource $appraisal): void

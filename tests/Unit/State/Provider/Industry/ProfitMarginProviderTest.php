@@ -36,6 +36,15 @@ use Symfony\Component\Uid\Uuid;
 class ProfitMarginProviderTest extends TestCase
 {
     private const int HAIL_L_TYPE_ID = 12779;
+    private const array PRICE_SOURCES_OF_A_COMPLETE_ANALYSIS = [
+        'materials' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+        'sale' => [
+            'jitaSell' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => null],
+            'structureSell' => ['market' => 'structure', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+            'structureBuy' => ['market' => 'structure', 'side' => 'buy', 'method' => 'lowest', 'coveragePercent' => null],
+            'contractSell' => ['market' => 'contracts', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+        ],
+    ];
     private const int PREFERRED_MARKET_STRUCTURE_ID = 1035466617946;
     private const int FAVORITE_MANUFACTURING_SYSTEM_ID = 30002510;
     private const int FAVORITE_REACTION_SYSTEM_ID = 30000144;
@@ -587,6 +596,27 @@ class ProfitMarginProviderTest extends TestCase
         $this->assertSame($partialPriceWarnings, $resource->warnings);
     }
 
+    #[Group('issue-538')]
+    public function testPriceSourcesOfTheAnalysisReachTheResourceAsTheServiceLabelsThem(): void
+    {
+        $priceSources = [
+            'materials' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => 30.0],
+            'sale' => [
+                'jitaSell' => ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => 99.9],
+                'structureSell' => ['market' => 'structure', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+                'structureBuy' => ['market' => 'structure', 'side' => 'buy', 'method' => 'lowest', 'coveragePercent' => null],
+                'contractSell' => ['market' => 'contracts', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+            ],
+        ];
+        $profitMarginService = $this->createStub(ProfitMarginService::class);
+        $profitMarginService->method('analyze')->willReturn($this->analysis(['priceSources' => $priceSources]));
+
+        $resource = $this->provider(new User(), new Request(), $profitMarginService)
+            ->provide(new Get(), ['typeId' => (string) self::HAIL_L_TYPE_ID]);
+
+        $this->assertSame($priceSources, $resource->priceSources);
+    }
+
     public function testAnalysisWithoutPartialPriceReachesTheResourceWithoutWarnings(): void
     {
         $profitMarginService = $this->createStub(ProfitMarginService::class);
@@ -721,6 +751,7 @@ class ProfitMarginProviderTest extends TestCase
             'dailyVolume' => 0.0,
             'missingData' => [],
             'warnings' => [],
+            'priceSources' => self::PRICE_SOURCES_OF_A_COMPLETE_ANALYSIS,
         ], $overrides);
     }
 }

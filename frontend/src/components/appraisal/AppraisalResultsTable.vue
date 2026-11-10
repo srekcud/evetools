@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
 import OpenInGameButton from '@/components/common/OpenInGameButton.vue'
+import PartialPriceMarker from '@/components/industry/PartialPriceMarker.vue'
+import PriceSourceBadge from '@/components/industry/PriceSourceBadge.vue'
+import type { AppraisalPriceSources, PriceSource } from '@/stores/industry/types'
 
 export type MergedItem = {
   typeId: number
@@ -26,6 +30,7 @@ export type MergedItem = {
   structureCoverage: number | null
   structureCoverageQty: number | null
   bestLocation: 'jita' | 'structure' | null
+  priceSources?: AppraisalPriceSources | null
 }
 
 const props = defineProps<{
@@ -75,6 +80,21 @@ function structureCoverageTextClass(coverage: number | null): string {
   if (coverage >= 0.5) return 'text-amber-500'
   return 'text-red-400'
 }
+
+function firstColumnSource(column: keyof AppraisalPriceSources): PriceSource | null {
+  for (const item of props.items) {
+    const source = item.priceSources?.[column]
+    if (source) return source
+  }
+  return null
+}
+
+const columnSources = computed((): AppraisalPriceSources => ({
+  sell: firstColumnSource('sell'),
+  buy: firstColumnSource('buy'),
+  sellWeighted: firstColumnSource('sellWeighted'),
+  buyWeighted: firstColumnSource('buyWeighted'),
+}))
 
 function displaySellWeighted(item: MergedItem): number | null {
   return item.sellPriceWeighted ?? item.sellPrice
@@ -153,13 +173,21 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
               class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-400"
               :class="props.hasStructureResults ? 'border-l-2 border-cyan-500/15 bg-cyan-500/3' : ''"
             >
-              {{ t('appraisal.unitPrice') }}
+              <div class="flex flex-col items-end gap-0.5">
+                <span>{{ t('appraisal.unitPrice') }}</span>
+                <PriceSourceBadge :source="columnSources.sell" :show-coverage="false" />
+                <PriceSourceBadge :source="columnSources.buy" :show-coverage="false" />
+              </div>
             </th>
             <th
               class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-400"
               :class="props.hasStructureResults ? 'bg-cyan-500/3' : ''"
             >
-              {{ t('appraisal.weightedTotal') }}
+              <div class="flex flex-col items-end gap-0.5">
+                <span>{{ t('appraisal.weightedTotal') }}</span>
+                <PriceSourceBadge :source="columnSources.sellWeighted" :show-coverage="false" />
+                <PriceSourceBadge :source="columnSources.buyWeighted" :show-coverage="false" />
+              </div>
             </th>
             <th
               v-if="props.hasStructureResults"
@@ -263,6 +291,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                 <div class="flex items-center justify-end gap-1.5">
                   <span class="text-[9px] font-semibold text-cyan-700 uppercase tracking-wider">Sell</span>
                   <span class="text-cyan-400 font-semibold">{{ formatNumber(displaySellTotalWeighted(item)!) }}</span>
+                  <PartialPriceMarker :percent="item.priceSources?.sellWeighted?.coveragePercent" />
                 </div>
                 <div v-if="item.sellTotalWeighted != null && item.sellTotal != null" class="text-xs text-slate-500 mt-0.5 text-right">
                   {{ formatNumber(item.sellTotal) }}
@@ -271,6 +300,7 @@ function displayBuyTotalWeighted(item: MergedItem): number | null {
                 <div class="flex items-center justify-end gap-1.5 mt-1.5">
                   <span class="text-[9px] font-semibold text-amber-700 uppercase tracking-wider">Buy</span>
                   <span class="text-amber-500 font-semibold">{{ displayBuyTotalWeighted(item) != null ? formatNumber(displayBuyTotalWeighted(item)!) : '-' }}</span>
+                  <PartialPriceMarker :percent="item.priceSources?.buyWeighted?.coveragePercent" />
                 </div>
                 <div v-if="item.buyTotalWeighted != null && item.buyTotal != null" class="text-xs text-slate-500 mt-0.5 text-right">
                   {{ formatNumber(item.buyTotal) }}

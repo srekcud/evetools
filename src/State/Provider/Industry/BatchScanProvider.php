@@ -110,6 +110,7 @@ class BatchScanProvider implements ProviderInterface
         $resource->missingSkillCount = $data['missingSkillCount'];
         $resource->unknownReason = $data['unknownReason'];
         $resource->missingPriceTypeIds = $data['missingPriceTypeIds'];
+        $resource->priceSources = $data['priceSources'];
 
         return $resource;
     }

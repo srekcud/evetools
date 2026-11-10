@@ -59,6 +59,38 @@ final class PriceSourceTest extends TestCase
         );
     }
 
+    public function testJitaSellLowestIsTheLowestJitaSellOrderWithoutCoverage(): void
+    {
+        $this->assertSame(
+            ['market' => 'jita', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null],
+            PriceSource::jitaSellLowest()->toArray(),
+        );
+    }
+
+    public function testJitaBuyLowestIsTheHighestJitaBuyOrderWithoutCoverage(): void
+    {
+        $this->assertSame(
+            ['market' => 'jita', 'side' => 'buy', 'method' => 'lowest', 'coveragePercent' => null],
+            PriceSource::jitaBuyLowest()->toArray(),
+        );
+    }
+
+    public function testJitaBuyWeightedCarriesThePartialCoverageOnTheBuySide(): void
+    {
+        $this->assertSame(
+            ['market' => 'jita', 'side' => 'buy', 'method' => 'weighted', 'coveragePercent' => 62.5],
+            PriceSource::jitaBuyWeighted(62.5)->toArray(),
+        );
+    }
+
+    public function testJitaBuyWeightedWithACompleteBookHasNoCoverage(): void
+    {
+        $this->assertSame(
+            ['market' => 'jita', 'side' => 'buy', 'method' => 'weighted', 'coveragePercent' => null],
+            PriceSource::jitaBuyWeighted(null)->toArray(),
+        );
+    }
+
     private function sortedByKey(array $label): array
     {
         ksort($label);

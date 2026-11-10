@@ -42,7 +42,7 @@ class PivotAdvisorService
      *
      * @return array{
      *     typeId: int,
-     *     sourceProduct: array<string, mixed>,
+     *     sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}},
      *     matrix: list<array<string, mixed>>,
      *     candidates: list<array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, profitPerUnit: float|null, dailyVolume: float|null, coveragePercent: float|null, missingComponents: list<array{typeId: int, typeName: string|null, quantity: int, cost: float|null}>, additionalCost: float|null, estimatedProfit: float|null, score: float|null, unknownReason: string|null, missingPriceTypeIds: list<int>, priceSources: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float}|null, assumptions: array{runs: int, materialEfficiency: int}}}>,
      *     matrixProductIds: list<int>,
@@ -438,7 +438,7 @@ class PivotAdvisorService
      * @param array<string, int> $solarSystemIdByActivity
      * @param array<string, float> $facilityTaxByActivity
      * @param array<string, ?ProductionStructure> $structureByActivity
-     * @return array<string, mixed>
+     * @return array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}
      */
     private function buildSourceProductSummary(
         int $sourceTypeId,
@@ -662,7 +662,7 @@ class PivotAdvisorService
     }
 
     /**
-     * @return array{typeId: int, sourceProduct: array<string, mixed>, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
+     * @return array{typeId: int, sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
      */
     private function emptyResult(int $sourceTypeId): array
     {
@@ -692,7 +692,7 @@ class PivotAdvisorService
      * @param array<string, int> $solarSystemIdByActivity
      * @param array<string, float> $facilityTaxByActivity
      * @param array<string, ?ProductionStructure> $structureByActivity
-     * @return array{typeId: int, sourceProduct: array<string, mixed>, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
+     * @return array{typeId: int, sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
      */
     private function buildResultWithSourceOnly(
         int $sourceTypeId,

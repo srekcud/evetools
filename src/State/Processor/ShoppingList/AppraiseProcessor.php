@@ -11,6 +11,7 @@ use App\ApiResource\ShoppingList\AppraisalItemResource;
 use App\ApiResource\ShoppingList\AppraisalResultResource;
 use App\Entity\User;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\PriceSource;
 use App\Service\ItemParserService;
 use App\Service\JitaMarketService;
 use Psr\Log\LoggerInterface;
@@ -176,6 +177,12 @@ class AppraiseProcessor implements ProcessorInterface
             $itemResource->buyTotalWeighted = $buyTotalWeighted !== null ? round($buyTotalWeighted, 2) : null;
             $itemResource->splitPriceWeighted = $splitPriceWeighted !== null ? round($splitPriceWeighted, 2) : null;
             $itemResource->splitTotalWeighted = $splitTotalWeighted !== null ? round($splitTotalWeighted, 2) : null;
+            $itemResource->priceSources = [
+                'sell' => null !== $sellPrice ? PriceSource::jitaSellLowest()->toArray() : null,
+                'buy' => null !== $buyPrice ? PriceSource::jitaBuyLowest()->toArray() : null,
+                'sellWeighted' => null !== $sellPriceWeighted ? PriceSource::jitaSellWeighted(PriceSource::partialPercentOf(PriceSource::coverageOfQuote($weightedSell)))->toArray() : null,
+                'buyWeighted' => null !== $buyPriceWeighted ? PriceSource::jitaBuyWeighted(PriceSource::partialPercentOf(PriceSource::coverageOfQuote($weightedBuy)))->toArray() : null,
+            ];
             $itemResource->sellCoverage = isset($weightedSell['coverage']) ? round($weightedSell['coverage'], 4) : null;
             $itemResource->buyCoverage = $weightedBuy !== null ? round($weightedBuy['coverage'], 4) : null;
             $itemResource->avgDailyVolume = $avgDailyVolumes[$typeId] ?? null;

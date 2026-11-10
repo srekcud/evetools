@@ -96,4 +96,7 @@ class ProfitMarginResource
 
     /** @var list<array{reason: string, typeId: int, coveragePercent: float}> */
     public array $warnings = [];
+
+    /** @var array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{jitaSell: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, structureSell: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, structureBuy: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, contractSell: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}}}|array{} */
+    public array $priceSources = [];
 }

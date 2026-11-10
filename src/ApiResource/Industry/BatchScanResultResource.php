@@ -83,4 +83,7 @@ class BatchScanResultResource
 
     /** @var list<int> Material typeIds without a Jita price */
     public array $missingPriceTypeIds = [];
+
+    /** @var array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, assumptions: array{runs: int, materialEfficiency: int}}|array{} */
+    public array $priceSources = [];
 }
