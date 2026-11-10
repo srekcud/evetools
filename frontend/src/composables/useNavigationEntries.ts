@@ -19,6 +19,7 @@ interface ScreenTab {
 
 const INDUSTRY_MODULE = 'industry'
 const MINING_MODULE = 'mining'
+const MARKET_MODULE = 'market'
 const ALIAS_LOCALE = 'en'
 const LABEL_SEPARATOR = ' › '
 
@@ -51,6 +52,13 @@ const MINING_PAGES: MiningPage[] = [
   { route: '/mining/my-mining', labelKey: 'nav.miningMyMining', tabs: [{ query: 'season', labelKey: 'miningOperation.tabs.season' }] },
 ]
 
+const COMMERCE_SCREEN: Screen = {
+  labelKey: 'nav.commerce',
+  route: '/contracts',
+}
+
+const CONTRACTS_LABEL_KEY = 'commerce.tabs.contracts'
+
 const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
   ledger: [
     { query: 'pve', labelKey: 'ledger.tabs.pve' },
@@ -72,9 +80,6 @@ const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
   ],
   market: [
     { query: 'alerts', labelKey: 'market.tabs.alerts' },
-  ],
-  assets: [
-    { query: 'contracts', labelKey: 'assets.tabs.contracts' },
   ],
 }
 
@@ -139,6 +144,16 @@ export function useNavigationEntries(): {
     })
   }
 
+  function contractsEntry(): NavigationEntry {
+    const labelKeys = [COMMERCE_SCREEN.labelKey, CONTRACTS_LABEL_KEY]
+    return {
+      route: COMMERCE_SCREEN.route,
+      label: labelKeys.map(labelInInterfaceLanguage).join(LABEL_SEPARATOR),
+      aliasLabel: labelKeys.map(labelInAliasLanguage).join(LABEL_SEPARATOR),
+      isTab: true,
+    }
+  }
+
   function listNavigationEntries({ isAdmin }: NavigationEntriesOptions): NavigationEntry[] {
     const hiddenModules = readHiddenModules()
     const entries = SIDEBAR_SCREENS
@@ -147,6 +162,7 @@ export function useNavigationEntries(): {
         screenEntry(screen),
         ...(TABS_BY_MODULE[screen.id] ?? []).map(tab => tabEntry(screen, tab)),
         ...(screen.id === MINING_MODULE ? miningPageEntries(screen) : []),
+        ...(screen.id === MARKET_MODULE ? [contractsEntry()] : []),
         ...(screen.id === INDUSTRY_MODULE && !isProjectsHidden(hiddenModules) ? projectEntries(screen) : []),
       ])
     entries.push(screenEntry(CHARACTERS_SCREEN))

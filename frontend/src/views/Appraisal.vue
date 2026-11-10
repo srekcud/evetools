@@ -3,6 +3,7 @@ import { ref, computed, onMounted, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { authFetch, safeJsonParse } from '@/services/api'
 import MainLayout from '@/layouts/MainLayout.vue'
+import CommerceModuleTabs from '@/components/commerce/CommerceModuleTabs.vue'
 import DataFreshnessList from '@/components/common/DataFreshnessList.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import { JITA_PRICES_SOURCES, useDataFreshnessStore } from '@/stores/dataFreshness'
@@ -376,6 +377,7 @@ async function shareAppraisal(): Promise<void> {
 <template>
   <MainLayout>
     <div class="flex flex-col gap-6">
+      <CommerceModuleTabs active="appraisal" />
 
       <!-- HEADER -->
       <div>

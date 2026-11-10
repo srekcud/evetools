@@ -104,7 +104,7 @@ describe('useNavigationEntries', () => {
       ['Industrie › Blueprints', 'Industry › Blueprints'],
       ['Industrie › Projets', 'Industry › Projects'],
       ['Industrie › Projets › Disponibles', 'Industry › Projects › Available'],
-      ['Appraisal', 'Appraisal'],
+      ['Évaluateur', 'Appraisal'],
       ['PI', 'PI'],
       ['Minage', 'Mining'],
       ['Minage › Disponibles', 'Mining › Available'],
