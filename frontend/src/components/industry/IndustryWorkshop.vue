@@ -63,7 +63,7 @@ const groupProjectStore = useGroupProjectStore()
 const syncStore = useSyncStore()
 const workshopProjectsStore = useIndustryWorkshopProjectsStore()
 const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
-const { formatIsk } = useFormatters()
+const { formatIsk, formatTimeSince } = useFormatters()
 
 useIndustryJobsSync(() => slotsStore.fetchSlots())
 
@@ -145,6 +145,13 @@ const upcomingJobs = computed(() =>
 )
 
 const hasLoadedJobs = computed(() => slotsStore.data !== null)
+
+const jobsFreshnessLabel = computed(() => {
+  const jobsSyncedAt = slotsStore.data?.jobsSyncedAt ?? null
+  return jobsSyncedAt === null
+    ? t('industry.workshop.jobs.syncedUnknown')
+    : t('industry.workshop.jobs.syncedAgo', { since: formatTimeSince(jobsSyncedAt) })
+})
 
 function formatEndTime(endDate: string): string {
   const end = new Date(endDate)
@@ -424,8 +431,13 @@ function productSubline(project: GroupProject): string | null {
     <ProductionOpportunitiesCard />
 
     <section class="bg-slate-900 rounded-xl border border-slate-800">
-      <header class="px-4 py-3 border-b border-slate-800">
+      <header class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-800">
         <h2 class="font-display text-base font-bold uppercase tracking-[0.14em] text-slate-100">{{ t('industry.workshop.jobs.title') }}</h2>
+        <span
+          v-if="hasLoadedJobs"
+          data-testid="workshop-jobs-freshness"
+          class="font-mono text-xs text-slate-400"
+        >{{ jobsFreshnessLabel }}</span>
       </header>
 
       <ErrorBanner
