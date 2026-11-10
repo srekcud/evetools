@@ -15,6 +15,7 @@ import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
 import MiningOperationLinkedChunk from '@/components/mining-operation/MiningOperationLinkedChunk.vue'
 import MiningInvitationLink from '@/components/mining-operation/MiningInvitationLink.vue'
 import MiningMinedQuantities from '@/components/mining-operation/MiningMinedQuantities.vue'
+import MiningMinersEstimate from '@/components/mining-operation/MiningMinersEstimate.vue'
 import MiningOperationMembers from '@/components/mining-operation/MiningOperationMembers.vue'
 import MiningOperationRecap from '@/components/mining-operation/MiningOperationRecap.vue'
 import MiningOperationSites from '@/components/mining-operation/MiningOperationSites.vue'
@@ -140,6 +141,7 @@ const showsFleetStorage = computed(() => participates.value && fleetStorage.valu
 const checksFleetStorageContainer = computed(() => operation.value?.status === 'closing' || operation.value?.status === 'shares')
 const rulesFleetStorageRecipientName = computed(() => (fleetStorage.value === null ? (operation.value?.fleetStorageRecipientName ?? null) : fleetStorage.value.recipientName))
 const eachForThemselves = computed(() => operation.value?.splitMode === 'each_for_themselves')
+const showsMinersEstimate = computed(() => operation.value?.status === 'planned' && participates.value)
 const showsHaulerPlan = computed(() => participates.value && operation.value?.status === 'in_progress' && !eachForThemselves.value)
 const haulerPlan = computed(() => (showsHaulerPlan.value && store.haulerPlan?.operationId === operationId.value ? store.haulerPlan : null))
 const canDeclareEmptied = computed(() => canAdminister.value || (ownMemberId.value !== null && fleetStorage.value?.recipientMemberId === ownMemberId.value))
@@ -245,6 +247,9 @@ async function load(): Promise<void> {
     }
     if (showsHaulerPlan.value) {
       await store.fetchHaulerPlan(operationId.value)
+    }
+    if (showsMinersEstimate.value) {
+      await store.fetchMinersEstimate(operationId.value)
     }
   }
 }
@@ -468,6 +473,8 @@ onMounted(async () => {
   store.fleetStorageVerification = null
   store.haulerPlan = null
   store.haulerPlanError = null
+  store.minersEstimate = null
+  store.minersEstimateError = null
   siteStore.operationSites = []
   clockTicker = setInterval(() => {
     now.value = Date.now()
@@ -744,6 +751,11 @@ onBeforeUnmount(() => {
         <template v-if="showsStockpileCoverage">
           <MiningStockpileCoverage v-if="stockpileCoverage !== null" :coverage="stockpileCoverage" />
           <p v-else-if="stockpileCoverageFailed" class="text-sm text-red-400" role="alert">{{ t('miningOperation.stockpileCoverage.error') }}</p>
+        </template>
+
+        <template v-if="showsMinersEstimate">
+          <MiningMinersEstimate v-if="store.minersEstimate !== null && store.minersEstimate.operationId === operationId" :estimate="store.minersEstimate" />
+          <p v-else-if="store.minersEstimateError !== null" class="text-sm text-red-400" role="alert">{{ t('miningOperation.minersEstimate.error') }}</p>
         </template>
 
         <div class="grid gap-5 md:grid-cols-2">

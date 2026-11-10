@@ -38,6 +38,21 @@ class MiningSiteRepository extends ServiceEntityRepository
     /**
      * @return list<MiningSite>
      */
+    public function findClosedLinkedToAnOperationOwnedBy(User $owner): array
+    {
+        return $this->createQueryBuilder('site')
+            ->andWhere('site.owner = :owner')
+            ->andWhere('site.operation IS NOT NULL')
+            ->andWhere('site.status = :status')
+            ->setParameter('owner', $owner)
+            ->setParameter('status', MiningSiteStatus::Closed)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return list<MiningSite>
+     */
     public function findActiveOfOperation(MiningOperation $operation): array
     {
         return $this->findBy(['operation' => $operation, 'status' => MiningSiteStatus::Active], ['createdAt' => 'ASC']);

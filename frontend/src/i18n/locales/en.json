@@ -4143,6 +4143,29 @@
         "noEffect": "This check does not block freezing the shares: the debt follows the declaration."
       }
     },
+    "minersEstimate": {
+      "title": "How many miners?",
+      "subtitle": "From your own sites scanned until depletion: lifespan by crew size",
+      "tabs": "Site types",
+      "empty": "No site of yours linked to an operation was scanned until depletion yet.",
+      "needed": "{type}: {miners} miner to finish before the downtime ({deadline} EVE), starting at {start} EVE ({available} available). | {type}: {miners} miners to finish before the downtime ({deadline} EVE), starting at {start} EVE ({available} available).",
+      "insufficient": "Not enough history: {count} site of this type scanned until depletion with a known crew, 3 are needed. No duration is proposed. | Not enough history: {count} sites of this type scanned until depletion with a known crew, 3 are needed. No duration is proposed.",
+      "crew": "{count} miner | {count} miners",
+      "beforeDowntime": "before the downtime",
+      "afterDowntime": "after the downtime",
+      "calculation": "duration ≈ {work} miner·min (sample mean) ÷ number of miners",
+      "sample": "Sample: {count} site, 90 days | Sample: {count} sites, 90 days",
+      "assumption": "Same boost assumed, rate proportional to the number of miners",
+      "noMiner": "no miner counted",
+      "error": "Could not load the miners estimate.",
+      "columns": {
+        "date": "Date",
+        "site": "Site",
+        "miners": "Miners",
+        "lifespan": "Lifespan",
+        "work": "Miner·min"
+      }
+    },
     "haulerPlan": {
       "title": "Hauler",
       "barLabel": "Fleet hangar · {hauler} ({ship})",
