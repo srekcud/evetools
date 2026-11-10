@@ -40,7 +40,7 @@ const NYX_FORECAST: SellForecast = {
 
 async function mountSellingNyxOn(tab: string): Promise<VueWrapper> {
   route.query = { tab }
-  const project = nyxProject('selling', 'owner', { sellStructureId: 1_042_000_000_001, sellStructureName: 'Perimeter - Tranquility Trade Hub' })
+  const project = nyxProject('selling', 'owner', { membersCount: 2, sellStructureId: 1_042_000_000_001, sellStructureName: 'Perimeter - Tranquility Trade Hub' })
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
     if (endpoint === SETTINGS_ENDPOINT) return { preferredMarketStructureId: null, preferredMarketStructureName: null, marketStructures: [] }
     if (endpoint === PROJECT_PATH) return project
@@ -53,6 +53,7 @@ async function mountSellingNyxOn(tab: string): Promise<VueWrapper> {
       plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
       stubs: {
         MainLayout: { template: '<div><slot /></div>' },
+        IndustryModuleTabs: true,
         teleport: true,
         BomTable: true,
         JobsTable: true,

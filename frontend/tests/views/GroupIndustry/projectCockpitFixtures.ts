@@ -7,6 +7,7 @@ import GroupIndustryDetail from '@/views/GroupIndustry/GroupIndustryDetail.vue'
 import { apiRequest } from '@/services/api'
 import type {
   BomItem,
+  GroupMember,
   GroupMemberRole,
   GroupProject,
   GroupProjectStatus,
@@ -143,14 +144,19 @@ export type CockpitAnswers = {
   bom?: BomItem[]
   cockpit?: ProjectCockpit
   cockpitFailure?: string
+  members?: GroupMember[] | Error | Promise<GroupMember[]>
 }
 
-export function answerApi({ project, bom = [], cockpit, cockpitFailure }: CockpitAnswers): void {
+export function answerApi({ project, bom = [], cockpit, cockpitFailure, members = [] }: CockpitAnswers): void {
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string, options?: RequestInit) => {
     if (options?.method === 'PATCH') return { ...project, ...JSON.parse(String(options.body)) }
     if (endpoint === PROJECT_PATH) return project
     if (endpoint === `${PROJECT_PATH}/bom`) return bom
     if (endpoint === `${PROJECT_PATH}/settlement`) return projectSettlement()
+    if (endpoint === `${PROJECT_PATH}/members`) {
+      if (members instanceof Error) throw members
+      return members
+    }
     if (endpoint === COCKPIT_PATH) {
       if (cockpitFailure !== undefined) throw new Error(cockpitFailure)
       return cockpit
@@ -176,6 +182,7 @@ export async function mountCockpitDetail(answers: CockpitAnswers, locale: TestLo
       plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
       stubs: {
         MainLayout: { template: '<div><slot /></div>' },
+        IndustryModuleTabs: true,
         teleport: true,
         BomTable: true,
         JobsTable: true,

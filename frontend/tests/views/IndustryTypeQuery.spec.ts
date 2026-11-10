@@ -8,6 +8,7 @@ import Industry from '@/views/Industry.vue'
 import BuyVsBuildTab from '@/components/industry/BuyVsBuildTab.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
+import { industryPageOfTab } from './industryPages'
 
 const route = reactive<{ query: LocationQuery }>({ query: {} })
 const routerReplace = vi.fn()
@@ -24,6 +25,7 @@ const SABRE_TYPE_ID = 22456
 
 const stubbedChildren = {
   MainLayout: { template: '<div><slot /></div>' },
+  IndustryModuleTabs: true,
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
@@ -44,7 +46,7 @@ const stubbedChildren = {
 async function mountIndustryWithQuery(query: LocationQuery) {
   route.query = query
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const wrapper = mount(Industry, { global: { plugins: [i18n], stubs: stubbedChildren } })
+  const wrapper = mount(Industry, { props: { page: industryPageOfTab(query.tab) }, global: { plugins: [i18n], stubs: stubbedChildren } })
   await flushPromises()
   return wrapper
 }
@@ -77,7 +79,7 @@ describe('Industry type in the URL', () => {
   })
 
   it('preselects the type of the query when it changes on a mounted screen', async () => {
-    const wrapper = await mountIndustryWithQuery({})
+    const wrapper = await mountIndustryWithQuery({ tab: 'margins' })
 
     await changeQuery({ tab: 'buy-vs-build', typeId: String(RAVEN_NAVY_ISSUE_TYPE_ID) })
 

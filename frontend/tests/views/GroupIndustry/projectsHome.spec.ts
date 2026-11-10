@@ -3,15 +3,15 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { PROJECTS_HOME } from '@/views/GroupIndustry/projectsHome'
 
 describe('PROJECTS_HOME', () => {
-  it('resolves to the workshop tab of the industry module', () => {
+  it('resolves to the projects page of the industry module', () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
         { path: '/industry', name: 'industry', component: {} },
-        { path: '/group-industry', name: 'group-industry', component: {} },
+        { path: '/industry/projects', name: 'industry-projects', component: {} },
       ],
     })
 
-    expect(router.resolve(PROJECTS_HOME).fullPath).toBe('/industry?tab=workshop')
+    expect(router.resolve(PROJECTS_HOME).fullPath).toBe('/industry/projects')
   })
 })

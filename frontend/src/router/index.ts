@@ -114,6 +114,27 @@ const router = createRouter({
       path: '/industry',
       name: 'industry',
       component: () => import('@/views/Industry.vue'),
+      props: { page: 'workshop' },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/industry/projects',
+      name: 'industry-projects',
+      component: () => import('@/views/GroupIndustry/GroupIndustryList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/industry/analysis',
+      name: 'industry-analysis',
+      component: () => import('@/views/Industry.vue'),
+      props: { page: 'analysis' },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/industry/production',
+      name: 'industry-production',
+      component: () => import('@/views/Industry.vue'),
+      props: { page: 'production' },
       meta: { requiresAuth: true },
     },
     {

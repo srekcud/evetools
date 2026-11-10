@@ -23,6 +23,10 @@ import PivotAdvisorTab from '@/components/industry/PivotAdvisorTab.vue'
 import StockpileDashboard from '@/components/industry/StockpileDashboard.vue'
 import BlueprintLibraryTab from '@/components/industry/BlueprintLibraryTab.vue'
 
+defineProps<{
+  page: 'workshop' | 'analysis' | 'production'
+}>()
+
 const { t } = useI18n()
 const maxJobDurationFieldId = useId()
 const route = useRoute()

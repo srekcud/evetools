@@ -40,7 +40,9 @@ const appRoutes = [
   '/dashboard',
   '/ledger',
   '/industry',
-  '/group-industry',
+  '/industry/projects',
+  '/industry/analysis',
+  '/industry/production',
   '/appraisal',
   '/planetary',
   '/mining/operations',
@@ -241,25 +243,25 @@ describe('CommandPalette', () => {
 
       await typeQuery(query)
 
-      expect(optionLabels()).toEqual(['Industry › Buy vs Build'])
+      expect(optionLabels()).toEqual(['Industry › Analysis › Buy vs Build'])
     })
 
-    it('lists Industry, its tabs and its projects for ind, ten rows at most', async () => {
+    it('lists Industry, its pages and their tabs for ind, ten rows at most', async () => {
       await mountOpenPalette()
 
       await typeQuery('ind')
 
       expect(optionLabels()).toEqual([
         'Industry',
-        'Industry › Margins',
-        'Industry › Batch Scan',
-        'Industry › Buy vs Build',
-        'Industry › Pivot',
-        'Industry › Slots',
-        'Industry › Stockpile',
-        'Industry › Blueprints',
         'Industry › Projects',
         'Industry › Projects › Available',
+        'Industry › Analysis',
+        'Industry › Analysis › Margins',
+        'Industry › Analysis › Batch Scan',
+        'Industry › Analysis › Buy vs Build',
+        'Industry › Analysis › Pivot',
+        'Industry › Production',
+        'Industry › Production › Slots',
       ])
     })
 
@@ -271,14 +273,14 @@ describe('CommandPalette', () => {
       expect(optionLabels()).toEqual([
         'Appraisal',
         'Industry › Projects › Available',
+        'Industry › Analysis',
+        'Industry › Analysis › Margins',
+        'Industry › Analysis › Batch Scan',
+        'Industry › Analysis › Buy vs Build',
+        'Industry › Analysis › Pivot',
         'Mining › Available',
         'Mining › Archive',
         'Market › Alerts',
-        'Dashboard',
-        'Industry › Margins',
-        'Industry › Batch Scan',
-        'Mining › Moons › Tax',
-        'Mining › Ore value',
       ])
     })
 
@@ -290,19 +292,24 @@ describe('CommandPalette', () => {
       expect(optionLabels()).toEqual([])
     })
 
-    it('does not match the sidebar group name', async () => {
+    it('finds the production page of Industry and its tabs, not a sidebar group', async () => {
       await mountOpenPalette()
 
       await typeQuery('production')
 
-      expect(optionLabels()).toEqual([])
+      expect(optionLabels()).toEqual([
+        'Industry › Production',
+        'Industry › Production › Slots',
+        'Industry › Production › Stockpile',
+        'Industry › Production › Blueprints',
+      ])
     })
 
     it('shows French labels found through their English alias', async () => {
       await mountOpenPalette({ locale: 'fr' })
 
       await typeQuery('buy')
-      expect(optionLabels()).toEqual(['Industrie › Achat vs Prod'])
+      expect(optionLabels()).toEqual(['Industrie › Analyse › Achat vs Prod'])
 
       await typeQuery('contracts')
       expect(optionLabels()).toEqual(['Commerce › Contrats'])
@@ -341,7 +348,7 @@ describe('CommandPalette', () => {
 
       await typeQuery('buy')
 
-      expect(optionLabels()).toEqual(['Industry › Buy vs Build'])
+      expect(optionLabels()).toEqual(['Industry › Analysis › Buy vs Build'])
     })
 
     it('reads the hidden modules again at the next opening', async () => {
@@ -395,7 +402,7 @@ describe('CommandPalette', () => {
 
       await pressKey('Enter')
 
-      expect(router.currentRoute.value.fullPath).toBe('/industry?tab=buy-vs-build')
+      expect(router.currentRoute.value.fullPath).toBe('/industry/analysis?tab=buy-vs-build')
       expect(wrapper.emitted('close')).toEqual([[]])
       expect(searchInput()).toBeNull()
     })
@@ -431,12 +438,12 @@ describe('CommandPalette', () => {
     it('navigates to a clicked row and closes', async () => {
       const { wrapper, router } = await mountOpenPalette()
       await typeQuery('ind')
-      expect(optionLabels()[1]).toBe('Industry › Margins')
+      expect(optionLabels()[4]).toBe('Industry › Analysis › Margins')
 
-      optionElements()[1].click()
+      optionElements()[4].click()
       await flushPromises()
 
-      expect(router.currentRoute.value.fullPath).toBe('/industry?tab=margins')
+      expect(router.currentRoute.value.fullPath).toBe('/industry/analysis?tab=margins')
       expect(wrapper.emitted('close')).toEqual([[]])
     })
   })
@@ -448,7 +455,7 @@ describe('CommandPalette', () => {
 
       await pressArrowDown(1)
 
-      expect(activeOptionLabel()).toBe('Industry › Margins')
+      expect(activeOptionLabel()).toBe('Industry › Projects')
       expect(searchInput()?.getAttribute('aria-activedescendant')).toBe(optionElements()[1].id)
     })
 
@@ -458,14 +465,14 @@ describe('CommandPalette', () => {
 
       await pressKey('ArrowUp')
 
-      expect(activeOptionLabel()).toBe('Industry › Projects › Available')
+      expect(activeOptionLabel()).toBe('Industry › Production › Slots')
     })
 
     it('wraps ArrowDown from the last row to the first', async () => {
       await mountOpenPalette()
       await typeQuery('ind')
       await pressArrowDown(9)
-      expect(activeOptionLabel()).toBe('Industry › Projects › Available')
+      expect(activeOptionLabel()).toBe('Industry › Production › Slots')
 
       await pressKey('ArrowDown')
 

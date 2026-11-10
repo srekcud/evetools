@@ -52,6 +52,7 @@ async function mountListAndJoin(locale: TestLocale = 'en'): Promise<VueWrapper> 
       plugins: [i18n],
       stubs: {
         MainLayout: { template: '<div><slot /></div>' },
+        IndustryModuleTabs: true,
         LoadingSpinner: true,
         ProjectKpiCards: true,
         ProjectCard: true,

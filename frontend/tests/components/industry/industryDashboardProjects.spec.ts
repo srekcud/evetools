@@ -1,6 +1,7 @@
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import IndustryDashboard from '@/components/industry/IndustryDashboard.vue'
 import { apiRequest } from '@/services/api'
@@ -50,6 +51,16 @@ const GROUP_PROJECTS = [
   groupProject('widow-completed', 'Widow completed', 'completed'),
 ]
 
+function projectsRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/industry', name: 'industry', component: { template: '<div />' } },
+      { path: '/industry/projects', name: 'industry-projects', component: { template: '<div />' } },
+    ],
+  })
+}
+
 enableAutoUnmount(afterEach)
 
 beforeEach(() => {
@@ -60,16 +71,26 @@ beforeEach(() => {
 })
 
 describe('IndustryDashboard projects', () => {
-  it('counts the projects that are not completed from the unified project list and lists them as recent projects', async () => {
+  it('counts the projects that are not completed from the unified project list without repeating them in a recent projects table', async () => {
     const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-    const wrapper = mount(IndustryDashboard, { global: { plugins: [i18n] } })
+    const wrapper = mount(IndustryDashboard, { global: { plugins: [i18n, projectsRouter()] } })
     await flushPromises()
 
     const activeProjectsLabel = wrapper.findAll('p').find(label => label.text() === en.industry.dashboard.activeProjects)
     const activeProjectsCard = activeProjectsLabel?.element.parentElement?.parentElement
     expect(activeProjectsCard?.textContent?.replace(en.industry.dashboard.activeProjects, '').trim()).toBe('2')
-    expect(wrapper.text()).toContain('Widow in progress')
-    expect(wrapper.text()).toContain('Widow completed')
+    expect(wrapper.text()).not.toContain(en.industry.dashboard.recentProjects)
+    expect(wrapper.text()).not.toContain('Widow in progress')
+    expect(wrapper.text()).not.toContain('Widow completed')
+  })
+
+  it('links to the projects page from the view all projects link', async () => {
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+    const wrapper = mount(IndustryDashboard, { global: { plugins: [i18n, projectsRouter()] } })
+    await flushPromises()
+
+    const viewAllLink = wrapper.findAll('a').find(link => link.text() === en.industry.dashboard.viewAllProjects)
+    expect(viewAllLink?.attributes('href')).toBe('/industry/projects')
   })
 
   it('shows the failure message when the project list cannot be loaded', async () => {

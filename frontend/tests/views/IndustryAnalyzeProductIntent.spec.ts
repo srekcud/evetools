@@ -2,19 +2,23 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { reactive } from 'vue'
 import { createI18n } from 'vue-i18n'
-import type { LocationQuery } from 'vue-router'
+import type { LocationQuery, RouteLocationRaw } from 'vue-router'
 import en from '@/i18n/locales/en.json'
 import Industry from '@/views/Industry.vue'
 import ProfitMarginTab from '@/components/industry/ProfitMarginTab.vue'
 import { useAdminStore } from '@/stores/admin'
 import { useIndustryStore } from '@/stores/industry'
+import { industryPageOfTab, queryOfLocation } from './industryPages'
 
 const route = reactive<{ query: LocationQuery }>({ query: {} })
+const routerPush = vi.fn((location: RouteLocationRaw) => {
+  route.query = queryOfLocation(location)
+})
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
   useRoute: (() => route) as never,
-  useRouter: (() => ({ replace: vi.fn() })) as never,
+  useRouter: (() => ({ replace: vi.fn(), push: routerPush })) as never,
 }))
 
 const ORACLE_TYPE_ID = 4302
@@ -25,6 +29,7 @@ const ISHTAR_TYPE_ID = 12005
 
 const stubbedChildren = {
   MainLayout: { template: '<div><slot /></div>' },
+  IndustryModuleTabs: true,
   teleport: true,
   ErrorBanner: true,
   ProductSearch: true,
@@ -45,7 +50,7 @@ const stubbedChildren = {
 async function mountIndustryOnTab(tab: string) {
   route.query = { tab }
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const wrapper = mount(Industry, { global: { plugins: [i18n], stubs: stubbedChildren } })
+  const wrapper = mount(Industry, { props: { page: industryPageOfTab(tab) }, global: { plugins: [i18n], stubs: stubbedChildren } })
   await flushPromises()
   return wrapper
 }
