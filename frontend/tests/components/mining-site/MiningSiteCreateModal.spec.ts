@@ -20,11 +20,14 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const ALDRANETTE_SEARCH = [{ solarSystemId: ALDRANETTE, solarSystemName: 'Aldranette', security: 0.8, regionName: 'Sinq Laison' }]
 const SEARCH_DEBOUNCE_MS = 300
 const LABEL_MAX_LENGTH = '100'
+const NEXT_SITE_PATH = `/mining-operations/${OPERATION_ID}/next-site`
+const OPERATION_SITES_PATH = `${SITES_PATH}?operationId=${OPERATION_ID}`
+const NEXT_SITE_ID = '0198f1e0-7c1a-7a52-9d3e-5b6a1c2d3e60'
 
-async function mountModal(operationId?: string) {
+async function mountModal(operationId?: string, closesActive = false) {
   const i18n = i18nFor('en')
   const wrapper = mount(MiningSiteCreateModal, {
-    props: { show: true, operationId },
+    props: { show: true, operationId, closesActive },
     global: { plugins: [i18n], stubs: { teleport: true, LoadingSpinner: true } },
   })
   await flushPromises()
@@ -122,6 +125,53 @@ describe('MiningSiteCreateModal', () => {
         { label: 'Anomalie Spodumain', solarSystemId: null, operationId: OPERATION_ID },
       ],
       closedAfterSuccess: 1,
+    })
+  })
+
+  it('starts the next site instead of creating one when it closes the active sites, then closes and opens the page of the new site', async () => {
+    vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
+      if (endpoint === NEXT_SITE_PATH) return siteOf({ id: NEXT_SITE_ID, operationId: OPERATION_ID, label: 'Belt Jaspet' }) as never
+      if (endpoint === OPERATION_SITES_PATH) return [] as never
+      throw new Error(`Unexpected request ${endpoint}`)
+    })
+    const { wrapper, t } = await mountModal(OPERATION_ID, true)
+    await found(wrapper, 'input[name="label"]').setValue('Belt Jaspet')
+
+    await submit(wrapper)
+
+    expect({
+      closesActiveText: wrapper.text().includes(t('miningSite.create.closesActive')),
+      requests: vi.mocked(apiRequest).mock.calls.map(call => [call[0], call[1]?.method ?? 'GET']),
+      body: JSON.parse(String(vi.mocked(apiRequest).mock.calls.find(call => call[0] === NEXT_SITE_PATH)?.[1]?.body)),
+      closed: wrapper.emitted('close')?.length ?? 0,
+      pushed: push.mock.calls.map(call => call[0]),
+    }).toEqual({
+      closesActiveText: true,
+      requests: [[NEXT_SITE_PATH, 'POST'], [OPERATION_SITES_PATH, 'GET']],
+      body: { label: 'Belt Jaspet', solarSystemId: null },
+      closed: 1,
+      pushed: [expect.objectContaining({ name: 'mining-site-detail', params: { id: NEXT_SITE_ID } })],
+    })
+  })
+
+  it('shows the refusal of the next site in the window which stays open and does not mention the closure of the active sites for a plain creation', async () => {
+    vi.mocked(apiRequest).mockRejectedValueOnce(new ApiError('Only the site owner or an operation admin can close this site', 403))
+    const closing = await mountModal(OPERATION_ID, true)
+    await found(closing.wrapper, 'input[name="label"]').setValue('Belt Jaspet')
+
+    await submit(closing.wrapper)
+    const refusal = closing.wrapper.find('[data-testid="create-error"]').exists() ? closing.wrapper.find('[data-testid="create-error"]').text() : null
+    const afterRefusal = { closed: closing.wrapper.emitted('close')?.length ?? 0, pushed: push.mock.calls.length }
+    const closingRequests = vi.mocked(apiRequest).mock.calls.map(call => call[0])
+    const closesActiveText = closing.t('miningSite.create.closesActive')
+    closing.wrapper.unmount()
+    const plain = await mountModal(OPERATION_ID)
+
+    expect({ refusal, afterRefusal, closingRequests, plainMentionsClosure: plain.wrapper.text().includes(closesActiveText) }).toEqual({
+      refusal: expect.stringContaining('Only the site owner or an operation admin can close this site'),
+      afterRefusal: { closed: 0, pushed: 0 },
+      closingRequests: [NEXT_SITE_PATH],
+      plainMentionsClosure: false,
     })
   })
 })

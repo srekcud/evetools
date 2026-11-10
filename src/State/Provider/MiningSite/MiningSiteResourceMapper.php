@@ -34,6 +34,8 @@ final readonly class MiningSiteResourceMapper
         $resource->solarSystemName = $this->solarSystemNameOf($site);
         $resource->status = $site->getStatus()->value;
         $resource->createdAt = $this->inEveTime($site->getCreatedAt());
+        $resource->closedAt = $this->inEveTimeOrNull($site->getClosedAt());
+        $resource->scanCount = $this->scanRepository->countVisibleOf($site);
 
         $first = $this->scanRepository->findFirstOf($site);
         $last = $this->scanRepository->findLastOf($site);
@@ -48,6 +50,7 @@ final readonly class MiningSiteResourceMapper
         $resource->firstVolumeM3 = $summary->firstVolumeM3;
         $resource->firstValue = $summary->firstValue;
         $resource->averageTrendRate = $summary->averageTrendRate;
+        $resource->extractedValue = $summary->extractedValue;
         $resource->remainingValue = $last->getRemainingValue();
         $resource->missingPriceTypeIds = $last->getMissingPriceTypeIds();
         $resource->recentEta = $this->inEveTimeOrNull($last->getRecentEta());

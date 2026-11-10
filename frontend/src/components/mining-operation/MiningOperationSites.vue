@@ -3,9 +3,12 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MiningCompressionBanners from '@/components/mining-operation/MiningCompressionBanners.vue'
 import MiningSiteCreateModal from '@/components/mining-site/MiningSiteCreateModal.vue'
-import { useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
+import { UNKNOWN_DASH, useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
 import type { MiningCompression, MiningCompressorKind } from '@/stores/miningOperation'
 import type { MiningSite } from '@/stores/miningSite'
+
+const ISK_UNIT = 'ISK'
+const MIN_SCANS_FOR_EXTRACTED_VALUE = 2
 
 const props = defineProps<{
   operationId: string
@@ -16,9 +19,32 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { lastScanText } = useMiningSiteFormat()
+const { lastScanText, dateTimeText, valueText } = useMiningSiteFormat()
 
 const creating = ref(false)
+const closingActive = ref(false)
+
+const hasActiveSite = computed(() => props.sites.some(site => site.status === 'active'))
+
+function openCreate(closesActive: boolean): void {
+  closingActive.value = closesActive
+  creating.value = true
+}
+
+function endText(site: MiningSite): string {
+  if (site.status === 'active') return t('miningOperationSites.endOngoing')
+  if (site.closedAt === null || site.closedAt === undefined) return t('miningOperationSites.endUnknown')
+  return dateTimeText(site.closedAt)
+}
+
+function extractedText(site: MiningSite): string {
+  if (site.extractedValue === null || site.extractedValue === undefined) return t('miningOperationSites.extractedUnknown')
+  return `${valueText(site.extractedValue)} ${ISK_UNIT}`
+}
+
+function showsExtractedHint(site: MiningSite): boolean {
+  return site.scanCount === undefined || site.scanCount < MIN_SCANS_FOR_EXTRACTED_VALUE
+}
 
 function distinctKinds(lists: MiningCompressorKind[][]): MiningCompressorKind[] {
   return [...new Set(lists.flat())]
@@ -45,13 +71,21 @@ const sitesCompression = computed<MiningCompression | null>(() => {
   <section class="eve-card p-5" data-testid="operation-sites" :aria-label="t('miningOperationSites.title')">
     <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
       <h2 class="font-display text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">{{ t('miningOperationSites.title') }}</h2>
-      <button
-        v-if="canCreate"
-        type="button"
-        data-testid="operation-site-create"
-        class="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
-        @click="creating = true"
-      >{{ t('miningOperationSites.create') }}</button>
+      <div v-if="canCreate" class="flex flex-wrap gap-2">
+        <button
+          v-if="hasActiveSite"
+          type="button"
+          data-testid="operation-site-next"
+          class="rounded-md border border-cyan-500/60 px-3 py-1.5 text-sm font-medium text-cyan-200 hover:bg-cyan-500/10"
+          @click="openCreate(true)"
+        >{{ t('miningOperationSites.next') }}</button>
+        <button
+          type="button"
+          data-testid="operation-site-create"
+          class="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-500"
+          @click="openCreate(false)"
+        >{{ t('miningOperationSites.create') }}</button>
+      </div>
     </div>
 
     <p v-if="failure !== null" class="mb-3 text-sm text-red-400" role="alert">{{ failure }}</p>
@@ -77,10 +111,16 @@ const sitesCompression = computed<MiningCompression | null>(() => {
             >{{ t(`miningSite.status.${site.status}`) }}</span>
           </span>
           <span class="mt-2 block font-mono text-xs text-slate-300">{{ lastScanText(site, now) ?? t('miningOperationSites.noScan') }}</span>
+          <span class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-xs text-slate-300">
+            <span class="min-w-0 truncate" data-testid="operation-site-start" :title="dateTimeText(site.createdAt)"><span class="text-slate-500">{{ t('miningOperationSites.start') }}</span> {{ dateTimeText(site.createdAt) }}</span>
+            <span class="min-w-0 truncate" data-testid="operation-site-end" :title="endText(site)"><span class="text-slate-500">{{ t('miningOperationSites.end') }}</span> {{ endText(site) }}</span>
+            <span class="min-w-0 truncate" data-testid="operation-site-scans"><span class="text-slate-500">{{ t('miningOperationSites.scans') }}</span> {{ site.scanCount ?? UNKNOWN_DASH }}</span>
+            <span class="col-span-2 min-w-0 break-words" data-testid="operation-site-extracted"><span class="text-slate-500">{{ t('miningOperationSites.extracted') }}</span> {{ extractedText(site) }}<span v-if="showsExtractedHint(site)" class="text-slate-500"> ({{ t('miningOperationSites.extractedHint') }})</span></span>
+          </span>
         </RouterLink>
       </li>
     </ul>
 
-    <MiningSiteCreateModal :show="creating" :operation-id="operationId" @close="creating = false" />
+    <MiningSiteCreateModal :show="creating" :operation-id="operationId" :closes-active="closingActive" @close="creating = false" />
   </section>
 </template>

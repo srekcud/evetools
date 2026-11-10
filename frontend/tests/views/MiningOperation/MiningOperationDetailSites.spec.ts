@@ -192,6 +192,23 @@ describe('MiningOperationDetail, sites of the operation', () => {
     })
   })
 
+  it('reloads the sites when the next site is started on the displayed operation and ignores the one of another operation', async () => {
+    served.sites = [belt()]
+    answer(startedSpodumainOperation())
+    const { wrapper } = await mountDetail()
+    vi.mocked(apiRequest).mockClear()
+    served.sites = [siteOf({ ...belt(), status: 'closed', closedAt: at('20:24:00') }), siteOf({ id: CHARLIE_SITE_ID, operationId: OPERATION_O, label: 'Belt Jaspet', status: 'active' })]
+
+    await receive(OPERATION_O, 'site_next_started')
+    const afterOwnEvent = { requests: callsTo(OPERATION_SITES_PATH), cards: cardTexts(wrapper).map(card => card.includes('Belt Jaspet')) }
+    await receive(OPERATION_P2, 'site_next_started')
+
+    expect({ afterOwnEvent, afterOtherOperationEvent: callsTo(OPERATION_SITES_PATH) }).toEqual({
+      afterOwnEvent: { requests: 1, cards: [false, true] },
+      afterOtherOperationEvent: 1,
+    })
+  })
+
   it('loads the sites for an accepted participant only, not for a participant waiting for acceptance', async () => {
     answer(startedSpodumainOperation())
     const accepted = await mountDetail()

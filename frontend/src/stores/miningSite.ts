@@ -25,6 +25,9 @@ export interface MiningSite {
   missingPriceTypeIds: number[]
   recentEta?: string | null
   trendEta?: string | null
+  closedAt?: string | null
+  scanCount?: number
+  extractedValue?: number | null
   lastScanNumber?: number | null
   lastScanAuthorName?: string | null
   compression?: MiningCompression | null
@@ -68,12 +71,18 @@ export interface CreateMiningSiteInput {
   operationId?: string | null
 }
 
+export interface NextMiningSiteInput {
+  label: string
+  solarSystemId?: number | null
+}
+
 export interface MiningSiteScanLine {
   typeId: number
   units: number
 }
 
 const SITES_PATH = '/mining-sites'
+const OPERATIONS_PATH = '/mining-operations'
 
 function messageOf(cause: unknown, fallback: string): string {
   return cause instanceof Error ? cause.message : fallback
@@ -176,6 +185,19 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     }
   }
 
+  async function startNextSite(operationId: string, input: NextMiningSiteInput): Promise<MiningSite> {
+    error.value = null
+    let started: MiningSite
+    try {
+      started = await apiRequest<MiningSite>(`${OPERATIONS_PATH}/${operationId}/next-site`, { method: 'POST', body: JSON.stringify(input) })
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to start the next mining site')
+      throw cause
+    }
+    await fetchOperationSites(operationId)
+    return started
+  }
+
   async function recordScan(siteId: string, lines: MiningSiteScanLine[]): Promise<MiningSiteScan> {
     error.value = null
     try {
@@ -218,6 +240,7 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     fetchCompanion,
     clearCompanion,
     create,
+    startNextSite,
     recordScan,
     close,
   }

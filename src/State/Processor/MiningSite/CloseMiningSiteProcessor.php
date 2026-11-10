@@ -18,6 +18,7 @@ use App\Service\MiningSite\MiningSiteRequest;
 use App\State\Provider\MiningSite\MiningSiteResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
@@ -33,6 +34,7 @@ final readonly class CloseMiningSiteProcessor implements ProcessorInterface
         private MiningSiteRepository $siteRepository,
         private EntityManagerInterface $entityManager,
         private MiningSiteResourceMapper $mapper,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -42,7 +44,10 @@ final readonly class CloseMiningSiteProcessor implements ProcessorInterface
 
         $site = MiningSiteRequest::siteOf($this->siteRepository, $this->access, $user, $uriVariables['id']);
         $this->assertCanClose($user, $site);
-        $site->setStatus(MiningSiteStatus::Closed);
+        if ($site->getStatus() === MiningSiteStatus::Active) {
+            $site->setStatus(MiningSiteStatus::Closed);
+            $site->setClosedAt($this->clock->now());
+        }
         $this->entityManager->flush();
 
         return $this->mapper->siteToResource($site);

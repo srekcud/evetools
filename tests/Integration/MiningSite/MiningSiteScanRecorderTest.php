@@ -163,6 +163,19 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
         );
     }
 
+    #[Group('issue-305')]
+    public function testScanThatDepletesTheLastTypeDatesTheClosureWithTheScanWhileAnActiveSiteHasNoClosureDate(): void
+    {
+        $this->recordAt('20:00:00', [self::SCORDITE => 2_000]);
+        $beforeDepletion = $this->storedClosedAt();
+        self::mockTime(new \DateTimeImmutable('2026-11-05T20:12:00+00:00'));
+        $this->record([]);
+        self::mockTime(new \DateTimeImmutable('2026-11-05T20:50:00+00:00'));
+        $this->refusalOf([self::SCORDITE => 1_500]);
+
+        self::assertSame([null, MiningSiteStatus::Closed->value, '20:12:00'], [$beforeDepletion, $this->storedStatus(), $this->timeOfDay($this->storedClosedAt())]);
+    }
+
     public function testSiteClosedByHandRefusesTheScanAsBadRequest(): void
     {
         $this->site->setStatus(MiningSiteStatus::Closed);
@@ -236,6 +249,13 @@ final class MiningSiteScanRecorderTest extends IntegrationTestCase
     private function storedStatus(): string
     {
         return (string) $this->em->getConnection()->fetchOne('SELECT status FROM mining_sites WHERE id = ?', [(string) $this->site->getId()]);
+    }
+
+    private function storedClosedAt(): ?string
+    {
+        $closedAt = $this->em->getConnection()->fetchOne('SELECT closed_at FROM mining_sites WHERE id = ?', [(string) $this->site->getId()]);
+
+        return $closedAt === false || $closedAt === null ? null : (string) $closedAt;
     }
 
     private function storedScans(): array
