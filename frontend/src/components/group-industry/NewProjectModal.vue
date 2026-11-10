@@ -142,6 +142,7 @@ const blacklistGroupIds = ref<number[]>([])
 const projectName = ref('')
 const containerName = ref('')
 const isPrivate = ref(true)
+const isPersonalUse = ref(false)
 const usedTemplateId = ref<string | null>(null)
 const sellStructureId = ref<number | null>(null)
 const selectableSellStructureIds = ref<number[]>([])
@@ -295,6 +296,7 @@ function resetForm() {
   projectName.value = ''
   containerName.value = ''
   isPrivate.value = true
+  isPersonalUse.value = false
   acceptsOutsideFavoriteSystem.value = false
   minimumOutsideSaving.value = DEFAULT_MINIMUM_OUTSIDE_SAVING
   showLineRentalOverride.value = false
@@ -425,6 +427,7 @@ async function handleCreate() {
   const input: CreateGroupProjectInput = {
     name: projectName.value.trim() || undefined,
     private: isPrivate.value,
+    personalUse: isPersonalUse.value,
     items: items.value.map(i => ({
       typeId: i.typeId,
       typeName: i.typeName,
@@ -836,6 +839,19 @@ function handleClose() {
           <span class="text-sm font-medium text-slate-300">{{ t('groupIndustry.modals.newProject.privateLabel') }}</span>
         </label>
         <p class="text-xs text-slate-500 mt-1.5">{{ t('groupIndustry.modals.newProject.privateHint') }}</p>
+      </div>
+
+      <div>
+        <label class="flex items-center gap-2.5 cursor-pointer">
+          <input
+            v-model="isPersonalUse"
+            data-testid="project-personal-use"
+            type="checkbox"
+            class="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-cyan-500 cursor-pointer"
+          />
+          <span class="text-sm font-medium text-slate-300">{{ t('groupIndustry.modals.newProject.personalUseLabel') }}</span>
+        </label>
+        <p class="text-xs text-slate-500 mt-1.5">{{ t('groupIndustry.modals.newProject.personalUseHint') }}</p>
       </div>
 
       <SellStructureSelect

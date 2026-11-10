@@ -69,6 +69,30 @@ final class ProjectCreationApiTest extends WebTestCase
         );
     }
 
+    #[Group('issue-346')]
+    public function testPersonalUseIsChosenAtCreationAndDefaultsToAProjectMeantToBeSold(): void
+    {
+        $items = [['typeId' => self::ALPHA_HULL, 'typeName' => 'Fixture Alpha Hull', 'meLevel' => 10, 'teLevel' => 20, 'runs' => 5]];
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'To sell', 'items' => $items]);
+        self::assertResponseStatusCodeSame(201);
+        $toSell = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('POST', '/api/industry/projects', ['name' => 'For me', 'items' => $items, 'personalUse' => true]);
+        self::assertResponseStatusCodeSame(201);
+        $forMe = $this->responseJson();
+
+        $this->actAs($this->owner);
+        $this->request('GET', '/api/industry/projects/'.$forMe['id']);
+        self::assertResponseIsSuccessful();
+        $read = $this->responseJson();
+
+        self::assertFalse($toSell['personalUse']);
+        self::assertTrue($forMe['personalUse']);
+        self::assertTrue($read['personalUse']);
+    }
+
     #[Group('issue-50')]
     public function testSellStructureDefaultsToThePreferredOneIsChosenAmongTheMarketStructuresChangedByPatchAndCopiedIntoATemplate(): void
     {

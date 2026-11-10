@@ -2941,6 +2941,10 @@
       "courier": "Courrier",
       "profit": "Profit",
       "loss": "Perte",
+      "personalUse": {
+        "totalCost": "Coût de production",
+        "costPerUnit": "Coût par unité"
+      },
       "breakEven": {
         "title": "Seuil de rentabilité",
         "perUnit": "Seuil de rentabilité par unité",
@@ -3122,6 +3126,8 @@
         "createButton": "Creer le projet",
         "privateLabel": "Projet privé",
         "privateHint": "Absent de la découverte de la corporation, sans adhésion par code.",
+        "personalUseLabel": "Usage personnel (pas de vente)",
+        "personalUseHint": "Pas de vente : les finances montrent le coût par unité à la place du profit.",
         "outsideFavoriteLabel": "Accepter les structures hors systèmes favoris",
         "minimumSavingLabel": "Économie minimale",
         "fromTemplate": "Depuis un modèle"

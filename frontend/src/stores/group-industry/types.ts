@@ -61,6 +61,7 @@ export type GroupProject = {
   shortLinkCode: string
   containerName: string | null
   private: boolean
+  personalUse?: boolean
   acceptsOutsideFavoriteSystem: boolean
   minimumOutsideSaving: number
   sellStructureId: number | null
@@ -318,6 +319,8 @@ export type Distribution = {
   projectedMarginPercent: number | null
   breakEvenPerUnit?: number | null
   breakEvenUnknownReason?: string | null
+  costPerUnit?: number | null
+  costPerUnitUnknownReason?: string | null
   marketRevenue?: number
   contractRevenue?: number
   contractFees?: number | null
@@ -424,6 +427,7 @@ export type UpdateGroupProjectInput = Partial<GroupProject> & {
 export type CreateGroupProjectInput = {
   name?: string
   private: boolean
+  personalUse?: boolean
   items: { typeId: number; typeName: string; meLevel: number; teLevel: number; runs: number }[]
   blacklistCategoryKeys?: string[]
   blacklistGroupIds?: number[]

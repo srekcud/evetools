@@ -82,6 +82,8 @@ class ProjectDistributionProvider implements ProviderInterface
         $resource->projectedMarginPercent = $result->projectedMarginPercent;
         $resource->breakEvenPerUnit = $result->breakEvenPerUnit;
         $resource->breakEvenUnknownReason = $result->breakEvenUnknownReason;
+        $resource->costPerUnit = $result->costPerUnit;
+        $resource->costPerUnitUnknownReason = $result->costPerUnitUnknownReason;
         $resource->members = array_values(array_map(
             fn (ParticipantDistribution $member) => [
                 'memberId' => $member->memberId,

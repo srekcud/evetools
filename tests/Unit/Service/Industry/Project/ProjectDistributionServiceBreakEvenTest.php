@@ -74,6 +74,22 @@ final class ProjectDistributionServiceBreakEvenTest extends TestCase
         self::assertSame('jobs_not_delivered', $distribution->breakEvenUnknownReason);
     }
 
+    public function testTheDistributionCarriesTheCostPerUnitOfTheApprovedCosts(): void
+    {
+        $distribution = $this->distributionOf(9_280_000.0, 100);
+
+        self::assertSame(92_800.0, $distribution->costPerUnit);
+        self::assertNull($distribution->costPerUnitUnknownReason);
+    }
+
+    public function testTheDistributionExplainsAnUnknownCostPerUnitWhenTheFinalJobsAreNotDelivered(): void
+    {
+        $distribution = $this->distributionOf(9_280_000.0, 40);
+
+        self::assertNull($distribution->costPerUnit);
+        self::assertSame('jobs_not_delivered', $distribution->costPerUnitUnknownReason);
+    }
+
     public function testTheDistributionKeepsItsOtherFiguresWhenTheBreakEvenIsKnown(): void
     {
         $distribution = $this->distributionOf(9_280_000.0, 100);

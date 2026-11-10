@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
+import { useGroupProjectStore } from '@/stores/group-industry/project'
 import { useFormatters } from '@/composables/useFormatters'
 import UnknownValue from '@/components/common/UnknownValue.vue'
 
@@ -24,14 +25,19 @@ const LABEL_OFFSET = 6
 
 const { t } = useI18n()
 const distStore = useGroupDistributionStore()
+const projectStore = useGroupProjectStore()
 const { formatIsk } = useFormatters()
 
 const dist = computed(() => distStore.distribution)
+const isPersonalUse = computed(() => projectStore.currentProject?.personalUse === true)
 
 const GAUGE_HEADROOM_RATIO = 1.25
 
 const breakEvenPerUnit = computed((): number | null => dist.value?.breakEvenPerUnit ?? null)
 const breakEvenUnknownReason = computed((): string | null => dist.value?.breakEvenUnknownReason ?? null)
+const costPerUnit = computed((): number | null => dist.value?.costPerUnit ?? null)
+const costPerUnitUnknownReason = computed((): string | null => dist.value?.costPerUnitUnknownReason ?? null)
+const totalProjectCost = computed((): number | null => dist.value?.totalProjectCost ?? null)
 
 const averagePriceObtained = computed((): number | null => {
   const sales = distStore.sales
@@ -67,10 +73,13 @@ function sumOrUnknown(values: (number | null)[]): number | null {
 const steps = computed((): CascadeStep[] => {
   if (!dist.value) return []
   const members = dist.value.members
-  const all: CascadeStep[] = [
+  const salesSteps: CascadeStep[] = isPersonalUse.value ? [] : [
     { key: 'revenue', isCost: false, amount: dist.value.totalRevenue },
     { key: 'brokerFee', isCost: true, amount: dist.value.brokerFee },
     { key: 'salesTax', isCost: true, amount: dist.value.salesTax },
+  ]
+  const all: CascadeStep[] = [
+    ...salesSteps,
     { key: 'materials', isCost: true, amount: sumOrUnknown(members.map(m => m.materialCosts)) },
     { key: 'jobInstall', isCost: true, amount: sumOrUnknown(members.map(m => m.jobInstallCosts)) },
     { key: 'bpc', isCost: true, amount: sumOrUnknown(members.map(m => m.bpcCosts)) },
@@ -118,7 +127,7 @@ type Waterfall = {
 }
 
 const waterfall = computed((): Waterfall | null => {
-  if (!everythingKnown.value || profit.value === null) return null
+  if (isPersonalUse.value || !everythingKnown.value || profit.value === null) return null
   const columns = steps.value.length + 1
   const levels = [0]
   let level = 0
@@ -193,6 +202,16 @@ const waterfall = computed((): Waterfall | null => {
           </dd>
         </div>
         <div
+          v-if="isPersonalUse"
+          class="flex items-center justify-between border-t border-slate-700 pt-2"
+        >
+          <dt class="text-sm font-semibold text-slate-200">{{ t('groupIndustry.financialCascade.personalUse.totalCost') }}</dt>
+          <dd data-testid="personal-use-total-cost" class="font-mono text-lg font-bold text-slate-100" style="font-variant-numeric: tabular-nums;">
+            <UnknownValue v-if="totalProjectCost === null" /><template v-else>{{ formatIsk(totalProjectCost) }}</template>
+          </dd>
+        </div>
+        <div
+          v-else
           data-testid="cascade-step-profit"
           class="flex items-center justify-between border-t border-slate-700 pt-2"
           :class="profitClass"
@@ -204,8 +223,19 @@ const waterfall = computed((): Waterfall | null => {
         </div>
       </dl>
 
+      <div v-if="isPersonalUse" class="space-y-1">
+        <p v-if="costPerUnit === null" data-testid="personal-use-unknown" class="text-xs text-amber-400">
+          <UnknownValue />
+          <template v-if="costPerUnitUnknownReason"> {{ t(`groupIndustry.financialCascade.breakEven.unknown.${costPerUnitUnknownReason}`) }}</template>
+        </p>
+        <div v-else class="flex items-center gap-3 text-sm">
+          <span class="text-slate-400">{{ t('groupIndustry.financialCascade.personalUse.costPerUnit') }}</span>
+          <span data-testid="personal-use-cost-per-unit" class="font-mono text-slate-100" style="font-variant-numeric: tabular-nums;">{{ formatIsk(costPerUnit) }}</span>
+        </div>
+      </div>
+
       <svg
-        v-if="waterfall"
+        v-else-if="waterfall"
         class="w-full"
         :viewBox="`0 0 ${WATERFALL_WIDTH} ${WATERFALL_HEIGHT}`"
         role="img"
@@ -235,7 +265,7 @@ const waterfall = computed((): Waterfall | null => {
       </svg>
       <p v-else class="text-xs text-amber-400">{{ t('groupIndustry.financialCascade.unavailable') }}</p>
 
-      <div data-testid="break-even" class="border-t border-slate-800 pt-4 space-y-3">
+      <div v-if="!isPersonalUse" data-testid="break-even" class="border-t border-slate-800 pt-4 space-y-3">
         <h3 class="text-sm font-semibold text-slate-200">{{ t('groupIndustry.financialCascade.breakEven.title') }}</h3>
         <p v-if="breakEvenPerUnit === null" data-testid="break-even-unknown" class="text-xs text-amber-400">
           <UnknownValue />

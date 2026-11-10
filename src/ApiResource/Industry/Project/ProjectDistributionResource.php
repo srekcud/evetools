@@ -66,6 +66,10 @@ class ProjectDistributionResource
 
     public ?string $breakEvenUnknownReason = null;
 
+    public ?float $costPerUnit = null;
+
+    public ?string $costPerUnitUnknownReason = null;
+
     /**
      * @var list<array{
      *     memberId: string,

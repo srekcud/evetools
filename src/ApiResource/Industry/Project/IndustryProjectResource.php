@@ -122,6 +122,8 @@ class IndustryProjectResource
 
     public bool $private = true;
 
+    public bool $personalUse = false;
+
     public bool $acceptsOutsideFavoriteSystem = false;
 
     public float $minimumOutsideSaving;

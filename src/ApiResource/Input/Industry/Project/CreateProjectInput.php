@@ -64,6 +64,8 @@ class CreateProjectInput
 
     public bool $private = true;
 
+    public bool $personalUse = false;
+
     public bool $acceptsOutsideFavoriteSystem = false;
 
     #[Assert\PositiveOrZero]

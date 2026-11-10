@@ -2941,6 +2941,10 @@
       "courier": "Courier",
       "profit": "Profit",
       "loss": "Loss",
+      "personalUse": {
+        "totalCost": "Production cost",
+        "costPerUnit": "Cost per unit"
+      },
       "breakEven": {
         "title": "Break-even",
         "perUnit": "Break-even price per unit",
@@ -3122,6 +3126,8 @@
         "createButton": "Create Project",
         "privateLabel": "Private project",
         "privateHint": "Absent from corporation discovery, no membership by code.",
+        "personalUseLabel": "Personal use (not sold)",
+        "personalUseHint": "No sale: the finances show the cost per unit instead of the profit.",
         "outsideFavoriteLabel": "Accept structures outside favorite systems",
         "minimumSavingLabel": "Minimum saving",
         "fromTemplate": "From a template"

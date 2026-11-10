@@ -632,8 +632,8 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <!-- Tab Content: Distribution -->
       <div v-else-if="activeTab === 'distribution'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
         <FinancialCascade />
-        <FinancialSummary />
-        <SellForecastCard :project-id="projectId" />
+        <FinancialSummary v-if="!project?.personalUse" />
+        <SellForecastCard v-if="!project?.personalUse" :project-id="projectId" />
         <DistributionTable />
         <ProjectTransfers :project-id="projectId" />
         <ProjectDiscordRecap class="mt-8" />
