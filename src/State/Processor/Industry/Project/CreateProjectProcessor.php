@@ -65,7 +65,14 @@ class CreateProjectProcessor implements ProcessorInterface
         // Resolve items with missing typeId (from bulk paste) by looking up the name in SDE
         $data->items = $this->resolveItemTypeIds($data->items);
 
-        $resolvedGroupIds = IndustryBlacklistService::resolveGroupIds($data->blacklistGroupIds, $data->blacklistCategoryKeys);
+        $resolvedGroupIds = array_values(array_unique([
+            ...IndustryBlacklistService::resolveGroupIds($data->blacklistGroupIds, $data->blacklistCategoryKeys),
+            ...$user->getIndustryBlacklistGroupIds(),
+        ]));
+        $blacklistTypeIds = array_values(array_unique([
+            ...$data->blacklistTypeIds,
+            ...$user->getIndustryBlacklistTypeIds(),
+        ]));
 
         $sellerFees = $this->salesFeesResolver->forUser($user);
         $brokerFeePercent = $data->brokerFeePercent ?? (null === $sellerFees ? null : self::percentOf($sellerFees->brokerFeeRate));
@@ -81,7 +88,7 @@ class CreateProjectProcessor implements ProcessorInterface
                 name: $data->name ?? '',
                 items: $data->items,
                 blacklistGroupIds: $resolvedGroupIds,
-                blacklistTypeIds: $data->blacklistTypeIds,
+                blacklistTypeIds: $blacklistTypeIds,
                 containerName: $data->containerName,
                 lineRentalRatesOverride: $data->lineRentalRatesOverride,
                 brokerFeePercent: $brokerFeePercent,
