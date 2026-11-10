@@ -13,7 +13,7 @@ import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { GroupProject, GroupProjectStatus, ProjectNextActionCode, ProjectPhase } from '@/stores/group-industry/types'
 import { useIndustryStore } from '@/stores/industry'
-import { useIndustryActionsStore, type IndustryAction } from '@/stores/industry/actions'
+import { useIndustryActionsStore, type IndustryAction, type IndustryActionSeverity } from '@/stores/industry/actions'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useIndustryWorkshopProjectsStore, type WorkshopProject, type WorkshopProjectMember, type WorkshopProjectProfitStatus } from '@/stores/industry/workshopProjects'
 import { useStockpileStore } from '@/stores/industry/stockpile'
@@ -45,6 +45,7 @@ const PROFIT_CAPTION_KEYS: Record<WorkshopProjectProfitStatus, string> = {
   final: 'industry.workshop.profit.final',
   provisional: 'industry.workshop.profit.provisional',
   awaiting_sales: 'industry.workshop.profit.awaitingSales',
+  forecast: 'industry.workshop.profit.forecast',
   unknown: 'industry.workshop.profit.unknown',
 }
 const STATUS_CLASSES: Record<GroupProjectStatus, string> = {
@@ -65,7 +66,7 @@ const groupProjectStore = useGroupProjectStore()
 const syncStore = useSyncStore()
 const workshopProjectsStore = useIndustryWorkshopProjectsStore()
 const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
-const { formatIsk } = useFormatters()
+const { formatIsk, formatTimeSince } = useFormatters()
 
 useIndustryJobsSync(() => slotsStore.fetchSlots())
 
@@ -79,6 +80,16 @@ watch(() => syncStore.getSyncProgress('industry-project'), () => {
 
 function projectLabel(name: string | null): string {
   return name === null || name === '' ? t('industry.workshop.unnamedProject') : name
+}
+
+const SEVERITY_DOT_CLASSES: Record<IndustryActionSeverity, string> = {
+  warning: 'bg-amber-400',
+  info: 'bg-cyan-400',
+  unknown: 'border border-dashed border-violet-400',
+}
+
+function hasUnknownImpact(action: IndustryAction): boolean {
+  return action.code === 'source_material' && action.impactIsk === null
 }
 
 function actionPhrase(action: IndustryAction): string {
@@ -174,6 +185,13 @@ const upcomingJobs = computed(() =>
 )
 
 const hasLoadedJobs = computed(() => slotsStore.data !== null)
+
+const jobsFreshnessLabel = computed(() => {
+  const jobsSyncedAt = slotsStore.data?.jobsSyncedAt ?? null
+  return jobsSyncedAt === null
+    ? t('industry.workshop.jobs.syncedUnknown')
+    : t('industry.workshop.jobs.syncedAgo', { since: formatTimeSince(jobsSyncedAt) })
+})
 
 function formatEndTime(endDate: string): string {
   const end = new Date(endDate)
@@ -452,6 +470,15 @@ function productSubline(project: GroupProject): string | null {
           <div class="min-w-0">
             <div class="flex items-center gap-2 min-w-0">
               <span
+                data-testid="workshop-action-severity"
+                :data-severity="action.severity"
+                :title="t(`industry.workshop.queue.severity.${action.severity}`)"
+                class="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                :class="SEVERITY_DOT_CLASSES[action.severity]"
+              >
+                <span class="sr-only">{{ t(`industry.workshop.queue.severity.${action.severity}`) }}</span>
+              </span>
+              <span
                 v-if="action.blocked"
                 data-testid="workshop-action-blocked"
                 class="shrink-0 text-xs px-2 py-0.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-400"
@@ -463,6 +490,20 @@ function productSubline(project: GroupProject): string | null {
               </p>
             </div>
             <p class="break-words text-sm text-slate-400">{{ actionPhrase(action) }}</p>
+            <p
+              v-if="action.impactIsk !== null"
+              data-testid="workshop-action-impact"
+              class="text-sm text-slate-300"
+            >
+              {{ t('industry.workshop.queue.impact', { amount: formatIsk(action.impactIsk) }) }}
+            </p>
+            <p
+              v-else-if="hasUnknownImpact(action)"
+              data-testid="workshop-action-impact-unknown"
+              class="text-sm text-violet-300"
+            >
+              {{ t('industry.workshop.queue.impactUnknown') }}
+            </p>
           </div>
           <button
             type="button"
@@ -506,8 +547,13 @@ function productSubline(project: GroupProject): string | null {
     <ProductionOpportunitiesCard />
 
     <section class="bg-slate-900 rounded-xl border border-slate-800">
-      <header class="px-4 py-3 border-b border-slate-800">
+      <header class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-800">
         <h2 class="font-display text-base font-bold uppercase tracking-[0.14em] text-slate-100">{{ t('industry.workshop.jobs.title') }}</h2>
+        <span
+          v-if="hasLoadedJobs"
+          data-testid="workshop-jobs-freshness"
+          class="font-mono text-xs text-slate-400"
+        >{{ jobsFreshnessLabel }}</span>
       </header>
 
       <ErrorBanner

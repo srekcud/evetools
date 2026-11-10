@@ -39,6 +39,7 @@ class SlotTrackerProvider implements ProviderInterface
         $resource->timeline = $status['timeline'];
         $resource->skillsMayBeStale = $status['skillsMayBeStale'];
         $resource->unknownSkillsCharacterCount = $status['unknownSkillsCharacterCount'];
+        $resource->jobsSyncedAt = $status['jobsSyncedAt'];
 
         return $resource;
     }

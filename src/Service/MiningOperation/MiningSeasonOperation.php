@@ -9,12 +9,14 @@ final readonly class MiningSeasonOperation
     /**
      * @param list<MiningSeasonParticipant> $participants
      * @param list<MiningSeasonCharacter>   $characters
+     * @param list<MiningSeasonSite>        $sites
      */
     public function __construct(
         public int $minutes,
         public ?int $value,
         public array $participants,
         public array $characters = [],
+        public array $sites = [],
     ) {
     }
 }

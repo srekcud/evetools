@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry\Project;
 
+use App\Entity\CachedCharacterSkill;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProjectProduct;
@@ -13,6 +14,7 @@ use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
+use App\Tests\Functional\Api\Industry\SeedsJitaOrderBooksAndCostIndices;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -21,6 +23,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 final class IndustryWorkshopProjectsApiTest extends WebTestCase
 {
     use BuildsIshtarGroupProject;
+    use SeedsJitaOrderBooksAndCostIndices;
 
     private const string WORKSHOP_URI = '/api/industry/workshop-projects';
     private const int REVENUE_UNIT_PRICE = 10_000_000;
@@ -31,6 +34,10 @@ final class IndustryWorkshopProjectsApiTest extends WebTestCase
     private const float MEMBER_PROVISIONAL_PROFIT_PART = 222_000.0;
     private const int ISHTAR_UNITS_TO_SELL = 4;
     private const float PROFIT_TOLERANCE = 0.01;
+    private const float HECATE_JITA_PRICE = 900_000.0;
+    private const float HECATE_JITA_NET_REVENUE = 856_125.0;
+    private const float NOCXIUM_REMAINING_COST = 6_000.0;
+    private const float NOCXIUM_ENGAGED_COST = 4_000.0;
     private const float OWNER_ISHTAR_APPROVED_COST = 499_500.0;
     private const float MEMBER_ISHTAR_APPROVED_COST = 55_500.0;
 
@@ -39,10 +46,13 @@ final class IndustryWorkshopProjectsApiTest extends WebTestCase
     private IndustryProject $outsiderBatch;
     private IndustryProject $soloAwaitingBatch;
     private IndustryProject $soloSoldBatch;
+    private IndustryProjectParticipant $soloAwaitingMembership;
 
     protected function setUp(): void
     {
         $this->setUpIshtarGroupProject();
+        $this->recordEsiRequestsInsteadOfSendingThem();
+        $this->seedNoJitaSellOrderFor(self::HECATE_TYPE_ID);
         $this->ishtarBatch->addItem((new IndustryProjectProduct())->setTypeId(self::ISHTAR_TYPE_ID)->setTypeName('Ishtar')->setRuns(self::ISHTAR_RUNS));
 
         $this->outsiderBatch = (new IndustryProject())->setOwner($this->outsider)->setName('Outsider batch')->setStatus(ProjectStatus::InProgress);
@@ -50,7 +60,7 @@ final class IndustryWorkshopProjectsApiTest extends WebTestCase
         $this->addMembership($this->outsiderBatch, $this->outsider, ParticipantRole::Owner, ParticipantStatus::Accepted);
 
         $this->soloAwaitingBatch = $this->persistProject('Solo awaiting batch');
-        $this->addMembership($this->soloAwaitingBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->soloAwaitingMembership = $this->addMembership($this->soloAwaitingBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
         $this->addJobLine($this->soloAwaitingBatch, self::HECATE_TYPE_ID, 'Hecate', 'final', 1, 1, 10, 20, null);
 
         $this->soloSoldBatch = $this->persistProject('Solo sold batch');
@@ -175,6 +185,100 @@ final class IndustryWorkshopProjectsApiTest extends WebTestCase
         self::assertSame(['amount' => null, 'status' => 'awaiting_sales'], $profit);
     }
 
+    #[Group('issue-570')]
+    public function testProfitIsTheJitaForecastOfTheProjectBeforeTheFirstSale(): void
+    {
+        $this->ownerHasSyncedSalesFeeSkills();
+        $this->seedJitaSellOrderBooks([self::HECATE_TYPE_ID => [['price' => self::HECATE_JITA_PRICE, 'volume' => 10]]]);
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $profit = $this->rowOf($this->soloAwaitingBatch)['profit'];
+        self::assertSame('forecast', $profit['status']);
+        self::assertEqualsWithDelta(self::HECATE_JITA_NET_REVENUE, $profit['amount'], self::PROFIT_TOLERANCE);
+    }
+
+    #[Group('issue-570')]
+    public function testForecastSubtractsTheEngagedCostAndTheMaterialsStillToSource(): void
+    {
+        $this->ownerHasSyncedSalesFeeSkills();
+        $this->seedJitaSellOrderBooks([self::HECATE_TYPE_ID => [['price' => self::HECATE_JITA_PRICE, 'volume' => 10]]]);
+        $nocxiumLine = $this->addMaterialLine($this->soloAwaitingBatch, self::NOCXIUM_TYPE_ID, 'Nocxium', 10, 1_000.0)->setFulfilledQuantity(4);
+        $this->addContribution($this->soloAwaitingMembership, $nocxiumLine, ContributionType::Material, 4, self::NOCXIUM_ENGAGED_COST, ContributionStatus::Approved);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $profit = $this->rowOf($this->soloAwaitingBatch)['profit'];
+        self::assertSame('forecast', $profit['status']);
+        self::assertEqualsWithDelta(
+            self::HECATE_JITA_NET_REVENUE - self::NOCXIUM_REMAINING_COST - self::NOCXIUM_ENGAGED_COST,
+            $profit['amount'],
+            self::PROFIT_TOLERANCE,
+        );
+    }
+
+    #[Group('issue-570')]
+    public function testForecastIsAllTheProjectNotThePartOfTheViewer(): void
+    {
+        $this->ownerHasSyncedSalesFeeSkills();
+        $this->seedJitaSellOrderBooks([self::HECATE_TYPE_ID => [['price' => self::HECATE_JITA_PRICE, 'volume' => 10]]]);
+        $this->addMembership($this->soloAwaitingBatch, $this->member, ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        $profit = $this->rowOf($this->soloAwaitingBatch)['profit'];
+        self::assertSame('forecast', $profit['status']);
+        self::assertEqualsWithDelta(self::HECATE_JITA_NET_REVENUE, $profit['amount'], self::PROFIT_TOLERANCE);
+    }
+
+    #[Group('issue-570')]
+    public function testForecastStaysUnknownWhenTheOwnerSalesFeesAreUnknown(): void
+    {
+        $this->seedJitaSellOrderBooks([self::HECATE_TYPE_ID => [['price' => self::HECATE_JITA_PRICE, 'volume' => 10]]]);
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['amount' => null, 'status' => 'awaiting_sales'], $this->rowOf($this->soloAwaitingBatch)['profit']);
+    }
+
+    #[Group('issue-570')]
+    public function testForecastStaysUnknownWhenAMaterialStillToSourceHasNoPrice(): void
+    {
+        $this->ownerHasSyncedSalesFeeSkills();
+        $this->seedJitaSellOrderBooks([self::HECATE_TYPE_ID => [['price' => self::HECATE_JITA_PRICE, 'volume' => 10]]]);
+        $this->addMaterialLine($this->soloAwaitingBatch, self::NOCXIUM_TYPE_ID, 'Nocxium', 10, null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['amount' => null, 'status' => 'awaiting_sales'], $this->rowOf($this->soloAwaitingBatch)['profit']);
+    }
+
+    #[Group('issue-570')]
+    public function testForecastNeverReplacesTheProfitOfAProjectWithASale(): void
+    {
+        $this->ownerHasSyncedSalesFeeSkills();
+        $this->seedJitaSellOrderBooks([self::HECATE_TYPE_ID => [['price' => self::HECATE_JITA_PRICE, 'volume' => 10]]]);
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', self::WORKSHOP_URI);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('final', $this->rowOf($this->soloSoldBatch)['profit']['status']);
+    }
+
     public function testProfitIsTheProfitPartOfTheOwnerWhileProductsRemainToSell(): void
     {
         $this->ishtarJobLine->setRequiredQuantity(self::ISHTAR_UNITS_TO_SELL);
@@ -293,6 +397,23 @@ final class IndustryWorkshopProjectsApiTest extends WebTestCase
         $row = $this->rowOf($this->hecateBatch);
         self::assertArrayHasKey('engagedCapital', $row);
         self::assertNull($row['engagedCapital']);
+    }
+
+    private function ownerHasSyncedSalesFeeSkills(): void
+    {
+        $seller = $this->owner->getMainCharacter();
+        $seller->setStandingsSyncedAt(new \DateTimeImmutable('2026-11-08T18:00:00+00:00'));
+        foreach ([CachedCharacterSkill::SKILL_ACCOUNTING, CachedCharacterSkill::SKILL_BROKER_RELATIONS] as $skillId) {
+            $this->em->persist(
+                (new CachedCharacterSkill())
+                    ->setCharacter($seller)
+                    ->setSkillId($skillId)
+                    ->setLevel(5)
+                    ->setIsManual(false)
+                    ->setCachedAt(new \DateTimeImmutable('2026-11-08T18:00:00+00:00')),
+            );
+        }
+        $this->em->flush();
     }
 
     private function enrollTeamOnIshtarBatch(): void

@@ -12,7 +12,12 @@ use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
+use App\Industry\Application\MarketPrices;
+use App\Industry\Application\WeightedPrice;
+use App\Industry\Domain\Isk;
+use App\Industry\Domain\OrderBookCoverage;
 use App\Repository\IndustryProjectParticipantRepository;
+use App\Service\Industry\Project\ActionAssessor;
 use App\Service\Industry\Project\ActionQueueSorter;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\State\Provider\Industry\Project\IndustryActionsProvider;
@@ -39,12 +44,14 @@ final class IndustryActionsProviderTest extends TestCase
 
     private Security&Stub $security;
     private IndustryProjectParticipantRepository&Stub $memberRepository;
+    private MarketPrices&Stub $marketPrices;
     private User $viewer;
 
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
         $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
+        $this->marketPrices = $this->createStub(MarketPrices::class);
         $this->viewer = $this->pilot();
         $this->security->method('getUser')->willReturn($this->viewer);
     }
@@ -53,7 +60,7 @@ final class IndustryActionsProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(null);
-        $provider = new IndustryActionsProvider($security, $this->memberRepository, new ProjectCockpitInputFactory(), new ProjectCockpitCalculator(), new ActionQueueSorter());
+        $provider = new IndustryActionsProvider($security, $this->memberRepository, new ProjectCockpitInputFactory(), new ProjectCockpitCalculator(), new ActionQueueSorter(), new ActionAssessor($this->marketPrices));
 
         $this->expectException(UnauthorizedHttpException::class);
 
@@ -124,6 +131,7 @@ final class IndustryActionsProviderTest extends TestCase
         $this->materialOf($ishtarBatch, self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 12_500);
         $tritaniumLine = $ishtarBatch->getBomItems()->first();
         $this->memberOfProjects($ishtarBatch);
+        $this->marketPrices->method('unitPricesFor')->willReturn([self::TRITANIUM_TYPE_ID => new WeightedPrice(new Isk(5.0), new OrderBookCoverage(1.0))]);
 
         $entries = $this->provide();
 
@@ -140,6 +148,8 @@ final class IndustryActionsProviderTest extends TestCase
                 'typeId' => self::TRITANIUM_TYPE_ID,
                 'typeName' => 'Tritanium',
                 'quantity' => 27_500,
+                'severity' => 'warning',
+                'impactIsk' => 137_500.0,
             ]],
             array_map('get_object_vars', $entries),
         );
@@ -162,6 +172,8 @@ final class IndustryActionsProviderTest extends TestCase
                 'typeId' => null,
                 'typeName' => null,
                 'quantity' => null,
+                'severity' => 'info',
+                'impactIsk' => null,
             ]],
             array_map('get_object_vars', $this->provide()),
         );
@@ -176,6 +188,30 @@ final class IndustryActionsProviderTest extends TestCase
         self::assertSame(
             [['launch_job', self::ISHTAR_TYPE_ID, null]],
             array_map(static fn (IndustryActionResource $entry): array => [$entry->code, $entry->typeId, $entry->quantity], $this->provide()),
+        );
+    }
+
+    public function testBlockedMaterialWithoutJitaPriceKeepsAnUnknownImpactInsteadOfZero(): void
+    {
+        $ishtarBatch = $this->ownedProject('Ishtar batch', ProjectStatus::InProgress);
+        $this->materialOf($ishtarBatch, self::TRITANIUM_TYPE_ID, 'Tritanium', 40_000, 0);
+        $this->memberOfProjects($ishtarBatch);
+
+        self::assertSame(
+            [['source_material', 'warning', null]],
+            array_map(static fn (IndustryActionResource $entry): array => [$entry->code, $entry->severity, $entry->impactIsk], $this->provide()),
+        );
+    }
+
+    public function testJobWithAnUnknownRunCountIsUnknownSeverity(): void
+    {
+        $ishtarBatch = $this->ownedProject('Ishtar batch', ProjectStatus::InProgress);
+        $this->jobOf($ishtarBatch, self::ISHTAR_TYPE_ID, 'Ishtar', 'final', null, 2, 0);
+        $this->memberOfProjects($ishtarBatch);
+
+        self::assertSame(
+            [['launch_job', 'unknown', null]],
+            array_map(static fn (IndustryActionResource $entry): array => [$entry->code, $entry->severity, $entry->impactIsk], $this->provide()),
         );
     }
 
@@ -243,6 +279,7 @@ final class IndustryActionsProviderTest extends TestCase
             new ProjectCockpitInputFactory(),
             new ProjectCockpitCalculator(),
             new ActionQueueSorter(),
+            new ActionAssessor($this->marketPrices),
         ))->provide(new GetCollection());
     }
 }

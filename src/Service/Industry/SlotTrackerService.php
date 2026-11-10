@@ -64,7 +64,7 @@ class SlotTrackerService
     }
 
     /**
-     * @return array{globalKpis: array<string, array{used: int, max: int, percent: float}>, characters: list<array<string, mixed>>, timeline: list<array<string, mixed>>, skillsMayBeStale: bool, unknownSkillsCharacterCount: int}
+     * @return array{globalKpis: array<string, array{used: int, max: int, percent: float}>, characters: list<array<string, mixed>>, timeline: list<array<string, mixed>>, skillsMayBeStale: bool, unknownSkillsCharacterCount: int, jobsSyncedAt: string|null}
      */
     public function getSlotStatus(User $user): array
     {
@@ -100,12 +100,18 @@ class SlotTrackerService
         $allTimelineJobs = [];
         $charactersOutput = [];
         $unknownSkillsCharacterCount = 0;
+        $newestCachingOfEachCharacter = [];
 
         foreach ($characterData as $data) {
             /** @var Character $character */
             $character = $data['character'];
             /** @var CachedIndustryJob[] $jobs */
             $jobs = $data['jobs'];
+
+            $newestCaching = self::newestCachedAt($jobs);
+            if ($newestCaching !== null) {
+                $newestCachingOfEachCharacter[] = $newestCaching;
+            }
 
             $skillsUnknown = !$this->skillRepository->hasCachedSkills($character);
             $maxSlots = $skillsUnknown
@@ -251,7 +257,22 @@ class SlotTrackerService
             'timeline' => $allTimelineJobs,
             'skillsMayBeStale' => $skillsMayBeStale,
             'unknownSkillsCharacterCount' => $unknownSkillsCharacterCount,
+            'jobsSyncedAt' => $newestCachingOfEachCharacter === []
+                ? null
+                : min($newestCachingOfEachCharacter)->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    /**
+     * @param CachedIndustryJob[] $jobs
+     */
+    private static function newestCachedAt(array $jobs): ?\DateTimeImmutable
+    {
+        if ($jobs === []) {
+            return null;
+        }
+
+        return max(array_map(static fn (CachedIndustryJob $job): \DateTimeImmutable => $job->getCachedAt(), $jobs));
     }
 
     /**
@@ -263,11 +284,10 @@ class SlotTrackerService
             return true;
         }
 
-        if ($jobs === []) {
+        $newestCachedAt = self::newestCachedAt($jobs);
+        if ($newestCachedAt === null) {
             return false;
         }
-
-        $newestCachedAt = max(array_map(static fn (CachedIndustryJob $job): \DateTimeImmutable => $job->getCachedAt(), $jobs));
 
         return $newestCachedAt < $now->modify(self::JOBS_STALE_AFTER);
     }

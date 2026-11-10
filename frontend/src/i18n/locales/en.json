@@ -962,6 +962,13 @@
         "count": "{count} to process",
         "empty": "Nothing to do right now",
         "blocked": "Blocked",
+        "severity": {
+          "warning": "Warning",
+          "info": "Information",
+          "unknown": "Unknown data"
+        },
+        "impact": "≈ {amount} ISK",
+        "impactUnknown": "Impact unknown",
         "stockpileLow": "Stockpile · {typeName} is below the threshold ({stock} / {target})",
         "stockpileRuns": "{runs} runs to launch to get back to the target",
         "stockpileCreateProject": "Create the project"
@@ -1004,6 +1011,8 @@
         "title": "Next job completions",
         "empty": "No job running",
         "endsIn": "in {duration}",
+        "syncedAgo": "ESI sync {since}",
+        "syncedUnknown": "ESI sync unknown",
         "unknownProduct": "Unknown product"
       },
       "projects": {
@@ -1032,6 +1041,7 @@
         "final": "final",
         "provisional": "my provisional share",
         "awaitingSales": "no sale yet",
+        "forecast": "Jita forecast (project)",
         "unknown": "a cost or a fee is unknown"
       },
       "productSubline": "ME {me} · TE {te} · {team}"
@@ -3146,6 +3156,8 @@
         "blacklistLabel": "Blacklist",
         "blacklistDesc": "Items below will be purchased, not manufactured.",
         "blacklistHint": "Defaults from your industry settings. Override per project.",
+        "blacklistFromSettings": "from your settings",
+        "blacklistSettingsItems": "{count} item excluded by your settings | {count} items excluded by your settings",
         "lineRentalInfo": "Line Rental Rates:",
         "lineRentalDefault": "Using defaults from your settings",
         "lineRentalCustom": "Custom rates for this project",
@@ -3989,6 +4001,25 @@
         "booster": "booster, does not mine",
         "empty": "No character with a known ship in the operations with a frozen value.",
         "unknownCharacters": "{count} character without a known ship, left out of this table | {count} characters without a known ship, left out of this table"
+      },
+      "sites": {
+        "title": "Best sites by system",
+        "columns": {
+          "system": "System",
+          "bestSite": "Best site",
+          "iskPerHour": "ISK/h",
+          "duration": "Duration",
+          "sites": "Sites"
+        },
+        "unknown": "Unknown",
+        "systemOutsideSde": "System {id}",
+        "unknownSite": "unknown: {label} ({reason})",
+        "reasons": {
+          "fewScans": "a single scan",
+          "noPrice": "no price"
+        },
+        "empty": "No site scanned in this period",
+        "withoutSystem": "{count} site without a solar system, left out of this table | {count} sites without a solar system, left out of this table"
       },
       "empty": "No operation of your corporation ended within this period."
     },

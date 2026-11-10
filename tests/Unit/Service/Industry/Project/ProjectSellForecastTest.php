@@ -481,6 +481,29 @@ final class ProjectSellForecastTest extends TestCase
     }
 
     #[Group('issue-483')]
+    #[Group('issue-570')]
+    public function testJitaOnlyForecastSkipsTheSellStructureEvenWhenTheProjectHasOne(): void
+    {
+        $project = $this->projectSellingAt(
+            [
+                $this->finalJobLine(self::SABRE_TYPE_ID, 'Sabre', 3, 3),
+                $this->materialLine(self::TRITANIUM_TYPE_ID, 10, 4, 100.0),
+            ],
+            [],
+        );
+        $this->comparison->expects(self::once())->method('compareAt')
+            ->with(self::identicalTo($this->owner), self::isNull(), self::SABRE_TYPE_ID, 3, self::anything())
+            ->willReturn($this->comparisonResultOf(self::SABRE_TYPE_ID, 3, [$this->row('jita', self::JITA_NAME, 1_250_000.0, 1_190_550.0)]));
+
+        $forecast = (new ProjectSellForecast($this->comparison, new UnsoldProductsOfProject(), new RemainingBomCost()))->forecast($project, $this->today, true);
+
+        self::assertNull($forecast->sellStructure);
+        self::assertNull($forecast->structureProfit);
+        self::assertSame(3_571_650.0, $forecast->jitaNetRevenue);
+        self::assertSame(600.0, $forecast->remainingCost);
+        self::assertSame(3_571_050.0, $forecast->jitaProfit);
+    }
+
     public function testNothingLeftToSellHasNoProfitButKeepsTheRemainingCost(): void
     {
         $project = $this->projectSellingAt(

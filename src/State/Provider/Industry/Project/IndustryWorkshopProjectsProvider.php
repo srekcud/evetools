@@ -13,12 +13,15 @@ use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Service\Industry\Project\CockpitPhasePresenter;
+use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\Service\Industry\Project\ProjectDistributionService;
+use App\Service\Industry\Project\ProjectSellForecast;
 use App\Service\Industry\Project\ViewerEngagedCapital;
 use App\Service\Industry\Project\ViewerProfitShare;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -38,6 +41,8 @@ class IndustryWorkshopProjectsProvider implements ProviderInterface
         private readonly ProjectCockpitInputFactory $inputFactory,
         private readonly ProjectCockpitCalculator $calculator,
         private readonly ProjectDistributionService $distributionService,
+        private readonly ProjectSellForecast $sellForecast,
+        private readonly ClockInterface $clock,
     ) {
     }
 
@@ -86,10 +91,24 @@ class IndustryWorkshopProjectsProvider implements ProviderInterface
         $resource->phases = CockpitPhasePresenter::of($cockpit->phases);
         $distribution = $this->distributionService->calculateDistribution($project);
         $memberId = $membership->getId()->toRfc4122();
-        $resource->profit = ViewerProfitShare::of($distribution, $memberId);
+        $resource->profit = $this->profitOf($project, $distribution, $memberId);
         $resource->engagedCapital = ViewerEngagedCapital::of($distribution, $memberId);
 
         return $resource;
+    }
+
+    /**
+     * @return array{amount: float|null, status: string}
+     */
+    private function profitOf(IndustryProject $project, DistributionResult $distribution, string $memberId): array
+    {
+        $profit = ViewerProfitShare::of($distribution, $memberId);
+
+        if ($profit['status'] !== ViewerProfitShare::AWAITING_SALES) {
+            return $profit;
+        }
+
+        return ViewerProfitShare::forecastOf($distribution, $this->sellForecast->forecast($project, $this->clock->now(), true));
     }
 
     /**
