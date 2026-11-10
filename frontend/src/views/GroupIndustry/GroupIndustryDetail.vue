@@ -139,6 +139,9 @@ onMounted(async () => {
     projectStore.fetchBom(projectId.value),
     loadCockpit(projectId.value),
   ])
+  if (projectStore.currentProject?.containerName) {
+    await projectStore.fetchContainerVerification(projectId.value)
+  }
   if (activeTab.value === 'journal') {
     await activityStore.fetchActivity(projectId.value)
   }

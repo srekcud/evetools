@@ -75,7 +75,7 @@ class ContainerVerificationProviderTest extends TestCase
         $this->provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()]);
     }
 
-    public function testThrowsAccessDeniedWhenUserIsRegularMember(): void
+    public function testThrowsAccessDeniedWhenUserIsNotAMember(): void
     {
         $owner = $this->createUserStub();
         $user = $this->createUserStub();
@@ -128,6 +128,32 @@ class ContainerVerificationProviderTest extends TestCase
         $member->setRole(ParticipantRole::Admin);
         $member->setStatus(ParticipantStatus::Accepted);
         $this->memberRepository->method('findOneBy')->willReturn($member);
+        $this->containerService->method('verifyContainer')->willReturn([]);
+
+        $result = $this->provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()]);
+
+        $this->assertSame([], $result);
+    }
+
+    public function testAcceptedPlainMemberCanVerifyContainer(): void
+    {
+        $owner = $this->createUserStub();
+        $user = $this->createUserStub();
+
+        $this->security->method('getUser')->willReturn($user);
+
+        $project = (new IndustryProject());
+        $project->setOwner($owner);
+        $this->projectRepository->method('find')->willReturn($project);
+
+        $member = new IndustryProjectParticipant();
+        $member->setUser($user);
+        $member->setProject($project);
+        $member->setRole(ParticipantRole::Member);
+        $member->setStatus(ParticipantStatus::Accepted);
+        $this->memberRepository->method('findOneBy')->willReturnCallback(
+            static fn (array $criteria): ?IndustryProjectParticipant => isset($criteria['role']) ? null : $member,
+        );
         $this->containerService->method('verifyContainer')->willReturn([]);
 
         $result = $this->provider->provide(new GetCollection(), ['projectId' => Uuid::v4()->toString()]);
