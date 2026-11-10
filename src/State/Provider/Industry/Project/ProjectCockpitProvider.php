@@ -13,6 +13,8 @@ use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\CockpitPhasePresenter;
 use App\Service\Industry\Project\ProjectCockpit;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
+use App\Service\Industry\Project\ProjectPriceAlert;
+use App\Service\Industry\Project\ProjectPriceAlertReader;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -29,6 +31,7 @@ class ProjectCockpitProvider implements ProviderInterface
         private readonly ProjectAccessChecker $accessChecker,
         private readonly ProjectCockpitCalculator $calculator,
         private readonly ProjectCockpitInputFactory $inputFactory,
+        private readonly ProjectPriceAlertReader $priceAlertReader,
     ) {
     }
 
@@ -54,10 +57,10 @@ class ProjectCockpitProvider implements ProviderInterface
 
         $cockpit = $this->calculator->calculate($this->inputFactory->create($project, $user));
 
-        return $this->mapToResource($project, $cockpit);
+        return $this->mapToResource($project, $cockpit, $this->priceAlertReader->of($project));
     }
 
-    private function mapToResource(IndustryProject $project, ProjectCockpit $cockpit): ProjectCockpitResource
+    private function mapToResource(IndustryProject $project, ProjectCockpit $cockpit, ?ProjectPriceAlert $priceAlert): ProjectCockpitResource
     {
         $resource = new ProjectCockpitResource();
         $resource->projectId = $project->getId()->toRfc4122();
@@ -72,6 +75,14 @@ class ProjectCockpitProvider implements ProviderInterface
             'typeId' => $cockpit->nextAction->typeId,
             'typeName' => $cockpit->nextAction->typeName,
             'quantity' => $cockpit->nextAction->quantity,
+        ];
+        $resource->priceAlert = $priceAlert === null ? null : [
+            'typeId' => $priceAlert->typeId,
+            'typeName' => $priceAlert->typeName,
+            'quantity' => $priceAlert->quantity,
+            'jitaUnitPrice' => $priceAlert->jitaUnitPrice,
+            'breakEvenPerUnit' => $priceAlert->breakEvenPerUnit,
+            'gapPerUnit' => $priceAlert->gapPerUnit(),
         ];
 
         return $resource;

@@ -1027,6 +1027,10 @@
         "start_project": {
           "text": "Materials are ready to be contributed: move the project to in progress.",
           "button": "Start the project"
+        },
+        "price_below_break_even": {
+          "text": "Jita ({jitaPrice}) is below the break-even price of {breakEven}: {gap} lost per unit sold on the market.",
+          "button": "Where to sell"
         }
       },
       "jobs": {
@@ -3336,6 +3340,11 @@
           "title": "Nothing to do for you",
           "description": "The project is moving along without you for now."
         }
+      },
+      "priceAlert": {
+        "title": "Jita ({jitaPrice}) is below your break-even price ({breakEven}).",
+        "detail": "Each unit sold on the market loses {gap}. Check the capital market or wait before selling.",
+        "button": "Where to sell"
       }
     },
     "empty": {
@@ -3466,7 +3475,8 @@
         "jobReadyGeneric": "A job is ready to deliver",
         "bomComplete": "BOM complete",
         "moveProducts": "Move {quantity} products into the project container ({count} jobs)",
-        "joinRequest": "{count} join requests"
+        "joinRequest": "{count} join requests",
+        "priceBelowBreakEven": "Jita {jitaPrice} < break-even {breakEven} · do not sell on the market for now"
       },
       "notices": {
         "popupBlocked": "The browser blocked the popup: allow popups for this site, then open the companion again.",

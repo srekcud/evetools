@@ -1,5 +1,5 @@
 import { buildCompanionTasks, type CompanionTasks } from '@/components/group-industry/companionTasks'
-import type { BomItem, GroupMember, GroupProject } from '@/stores/group-industry/types'
+import type { BomItem, GroupMember, GroupProject, ProjectPriceAlert } from '@/stores/group-industry/types'
 import { bomLine, companionProject, jobLocations, jobMatch, member } from './companionFixtures'
 
 const NOW = Date.parse('2026-11-09T12:00:00+00:00')
@@ -8,12 +8,13 @@ const ONE_HOUR = 3_600_000
 
 function tasksOf(
   bomItems: BomItem[],
-  options: { project?: GroupProject; members?: GroupMember[] } = {},
+  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null } = {},
 ): CompanionTasks {
   return buildCompanionTasks({
     bomItems,
     project: options.project ?? companionProject(),
     members: options.members ?? [],
+    priceAlert: options.priceAlert ?? null,
     myCharacterNames: ['Alpha'],
     now: NOW,
   })
@@ -361,5 +362,40 @@ describe('buildCompanionTasks', () => {
         ignored: NO_MOVE,
       })
     })
+  })
+})
+
+describe('buildCompanionTasks price alert', () => {
+  const PRICE_ALERT: ProjectPriceAlert = {
+    typeId: 11_993,
+    typeName: 'Hammerhead II',
+    quantity: 6,
+    jitaUnitPrice: 690_000,
+    breakEvenPerUnit: 760_000,
+    gapPerUnit: 70_000,
+  }
+
+  function priceAlertsOf(tasks: CompanionTasks): CompanionTasks['alerts'] {
+    return tasks.alerts.filter(alert => alert.kind === 'price_below_break_even')
+  }
+
+  it('adds one visual alert and keeps the price alert of the project when Jita is below the break-even', () => {
+    const tasks = tasksOf([], { priceAlert: PRICE_ALERT })
+
+    expect({ alerts: priceAlertsOf(tasks), priceAlert: tasks.priceAlert }).toEqual({
+      alerts: [{ key: 'price_below_break_even', kind: 'price_below_break_even' }],
+      priceAlert: PRICE_ALERT,
+    })
+  })
+
+  it('adds no price alert when the project has none, and leaves the other alerts untouched', () => {
+    const withoutAlert = tasksOf([], { priceAlert: null })
+    const withAlert = tasksOf([], { priceAlert: PRICE_ALERT })
+
+    expect({
+      priceAlert: withoutAlert.priceAlert,
+      alerts: withoutAlert.alerts,
+      otherAlertsWithAlert: withAlert.alerts.filter(alert => alert.kind !== 'price_below_break_even'),
+    }).toEqual({ priceAlert: null, alerts: [], otherAlertsWithAlert: [] })
   })
 })

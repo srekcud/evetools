@@ -47,6 +47,7 @@ const tasks = computed(() => {
     project,
     members: companion.members,
     myCharacterNames: authStore.user === null ? [] : authStore.user.characters.map(character => character.name),
+    priceAlert: companion.priceAlert,
     now: now.value,
   })
 })

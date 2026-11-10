@@ -6,7 +6,7 @@ import type { BomItem, JobLocation } from '@/stores/group-industry/types'
 import type { CompanionAlert, CompanionTasks } from './companionTasks'
 
 const FREE_LINES_SHOWN = 6
-const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'join_request', 'bom_complete']
+const ALERT_PRIORITY: CompanionAlert['kind'][] = ['job_ready', 'move_products', 'price_below_break_even', 'join_request', 'bom_complete']
 const VALUE_DECIMALS = 1
 const BOM_PERCENT_DECIMALS = 0
 
@@ -53,6 +53,12 @@ function alertText(alert: CompanionAlert): string {
     return t('groupIndustry.companion.alerts.moveProducts', {
       quantity: formatNumber(props.tasks.moveProducts.quantity, 0),
       count: props.tasks.moveProducts.jobCount,
+    })
+  }
+  if (alert.kind === 'price_below_break_even' && props.tasks.priceAlert !== null) {
+    return t('groupIndustry.companion.alerts.priceBelowBreakEven', {
+      jitaPrice: formatIsk(props.tasks.priceAlert.jitaUnitPrice),
+      breakEven: formatIsk(props.tasks.priceAlert.breakEvenPerUnit),
     })
   }
   if (alert.kind === 'join_request') return t('groupIndustry.companion.alerts.joinRequest', { count: props.tasks.joinRequests })

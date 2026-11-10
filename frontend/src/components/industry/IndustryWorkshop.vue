@@ -13,7 +13,7 @@ import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { GroupProject, GroupProjectStatus, ProjectNextActionCode, ProjectPhase } from '@/stores/group-industry/types'
 import { useIndustryStore } from '@/stores/industry'
-import { useIndustryActionsStore, type IndustryAction, type IndustryActionSeverity } from '@/stores/industry/actions'
+import { PRICE_ALERT_ACTION_CODE, useIndustryActionsStore, type IndustryAction, type IndustryActionSeverity } from '@/stores/industry/actions'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useIndustryWorkshopProjectsStore, type WorkshopProject, type WorkshopProjectMember, type WorkshopProjectProfitStatus } from '@/stores/industry/workshopProjects'
 import { useStockpileStore } from '@/stores/industry/stockpile'
@@ -92,12 +92,19 @@ function hasUnknownImpact(action: IndustryAction): boolean {
   return action.code === 'source_material' && action.impactIsk === null
 }
 
+function priceAlertGap(action: IndustryAction): number | null {
+  return action.jitaUnitPrice === null || action.breakEvenPerUnit === null ? null : action.breakEvenPerUnit - action.jitaUnitPrice
+}
+
 function actionPhrase(action: IndustryAction): string {
   const base = `industry.workshop.actions.${action.code}`
   const quantityIsUnknown = QUANTITY_CODES.includes(action.code) && action.quantity === null
   return t(quantityIsUnknown ? `${base}.textUnknownQuantity` : `${base}.text`, {
     typeName: action.typeName,
     quantity: action.quantity === null ? '' : n(action.quantity),
+    jitaPrice: formatIsk(action.jitaUnitPrice),
+    breakEven: formatIsk(action.breakEvenPerUnit),
+    gap: formatIsk(priceAlertGap(action)),
   })
 }
 
@@ -243,7 +250,7 @@ const selectedProject = computed<GroupProject | null>(() =>
 )
 
 const selectedAction = computed<IndustryAction | null>(() =>
-  actionsStore.actions.find(action => action.projectId === selectedProject.value?.id) ?? null,
+  actionsStore.actions.find(action => action.projectId === selectedProject.value?.id && action.code !== PRICE_ALERT_ACTION_CODE) ?? null,
 )
 
 function productLabel(project: GroupProject): string {
@@ -474,7 +481,7 @@ function productSubline(project: GroupProject): string | null {
       <ul v-else class="divide-y divide-slate-800">
         <li
           v-for="action in actionsStore.actions"
-          :key="action.projectId"
+          :key="`${action.projectId}:${action.code}`"
           data-testid="workshop-action-row"
           class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >

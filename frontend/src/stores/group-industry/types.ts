@@ -568,11 +568,21 @@ export type ProjectNextAction = {
   quantity: number | null
 }
 
+export type ProjectPriceAlert = {
+  typeId: number
+  typeName: string
+  quantity: number
+  jitaUnitPrice: number
+  breakEvenPerUnit: number
+  gapPerUnit: number
+}
+
 export type ProjectCockpit = {
   projectId: string
   status: GroupProjectStatus
   phases: ProjectPhase[]
   nextAction: ProjectNextAction
+  priceAlert: ProjectPriceAlert | null
 }
 
 export type ChainStage = 'blueprint' | 'material' | 'component' | 'product' | 'sale'

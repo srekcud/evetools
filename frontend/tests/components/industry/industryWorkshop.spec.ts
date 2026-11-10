@@ -226,6 +226,49 @@ describe('IndustryWorkshop action queue', () => {
     ])
   })
 
+  it('shows the price alert of a project on its own row before its next action, with the Jita price, the break-even price and the loss per unit, and opens its sales', async () => {
+    const wrapper = await mountWorkshop({
+      actions: [
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'price_below_break_even', tab: 'sales', typeId: 22_456, typeName: 'Sabre', quantity: 3, severity: 'warning', jitaUnitPrice: 690_000, breakEvenPerUnit: 760_000 }),
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'record_sale', tab: 'sales', quantity: 3 }),
+      ],
+    })
+    const rows = queueRows(wrapper)
+    const alertText = rows[0].text().replace(/[\u00a0\u202f]/g, ' ')
+
+    await rows[0].get('[data-testid="workshop-action-button"]').trigger('click')
+
+    expect({
+      rows: rows.length,
+      severity: rows[0].get('[data-testid="workshop-action-severity"]').attributes('data-severity'),
+      alertText,
+      button: rows[0].get('[data-testid="workshop-action-button"]').text(),
+      impactShown: rows[0].find('[data-testid="workshop-action-impact"]').exists() || rows[0].find('[data-testid="workshop-action-impact-unknown"]').exists(),
+      routed: routerPush.mock.calls.map(([location]) => ({ id: location.params.id, tab: location.query?.tab })),
+    }).toMatchObject({
+      rows: 2,
+      severity: 'warning',
+      alertText: expect.stringContaining('Jita (690.00 K) is below the break-even price of 760.00 K: 70.00 K lost per unit sold on the market.'),
+      button: en.industry.workshop.actions.price_below_break_even.button,
+      impactShown: false,
+      routed: [{ id: SABRE_PROJECT_ID, tab: 'sales' }],
+    })
+  })
+
+  it('keeps the next action of the project in its panel when a price alert row exists for the same project', async () => {
+    const wrapper = await mountWorkshop({
+      actions: [
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'price_below_break_even', tab: 'sales', typeId: 22_456, typeName: 'Sabre', quantity: 3, severity: 'warning', jitaUnitPrice: 690_000, breakEvenPerUnit: 760_000 }),
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'record_sale', tab: 'sales', quantity: 3 }),
+      ],
+    })
+
+    const panel = wrapper.get('[data-testid="workshop-project-panel"]')
+
+    expect(panel.text()).toContain(en.industry.workshop.actions.record_sale.text.replace('{quantity}', '3'))
+    expect(panel.text()).not.toContain('break-even')
+  })
+
   it('shows the empty states of the queue and of the upcoming jobs when there is nothing to do and no job running', async () => {
     const wrapper = await mountWorkshop({ actions: [], timeline: [] })
 

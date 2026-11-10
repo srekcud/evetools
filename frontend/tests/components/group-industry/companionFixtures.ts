@@ -103,6 +103,7 @@ export function companionTasksOf(overrides: Partial<CompanionTasks> = {}): Compa
     finalJobsRunning: 0,
     alerts: [],
     moveProducts: { quantity: 0, jobCount: 0, unknownJobCount: 0 },
+    priceAlert: null,
     ...overrides,
   }
 }

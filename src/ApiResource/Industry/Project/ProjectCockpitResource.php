@@ -60,4 +60,16 @@ class ProjectCockpitResource
      * }
      */
     public array $nextAction;
+
+    /**
+     * @var array{
+     *     typeId: int,
+     *     typeName: string,
+     *     quantity: int,
+     *     jitaUnitPrice: float,
+     *     breakEvenPerUnit: float,
+     *     gapPerUnit: float,
+     * }|null
+     */
+    public ?array $priceAlert = null;
 }

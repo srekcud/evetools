@@ -1027,6 +1027,10 @@
         "start_project": {
           "text": "Les matériaux sont prêts à être apportés : passez le projet en cours.",
           "button": "Démarrer le projet"
+        },
+        "price_below_break_even": {
+          "text": "Jita ({jitaPrice}) est sous le seuil de rentabilité de {breakEven} : {gap} perdus par unité vendue au marché.",
+          "button": "Où vendre"
         }
       },
       "jobs": {
@@ -3336,6 +3340,11 @@
           "title": "Rien à faire pour vous",
           "description": "Le projet avance sans vous pour le moment."
         }
+      },
+      "priceAlert": {
+        "title": "Jita ({jitaPrice}) est sous votre seuil de rentabilité ({breakEven}).",
+        "detail": "Chaque unité vendue au marché perd {gap}. Regardez la capitale ou attendez avant de vendre.",
+        "button": "Où vendre"
       }
     },
     "empty": {
@@ -3466,7 +3475,8 @@
         "jobReadyGeneric": "Un job est prêt à livrer",
         "bomComplete": "BOM complète",
         "moveProducts": "Déplacer {quantity} produits dans le container du projet ({count} jobs)",
-        "joinRequest": "{count} demandes d'adhésion"
+        "joinRequest": "{count} demandes d'adhésion",
+        "priceBelowBreakEven": "Jita {jitaPrice} < seuil {breakEven} · ne pas vendre au marché pour l'instant"
       },
       "notices": {
         "popupBlocked": "Le navigateur a bloqué la popup : autorisez les popups pour ce site, puis rouvrez le compagnon.",

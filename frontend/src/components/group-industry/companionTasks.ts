@@ -1,6 +1,6 @@
-import type { BomItem, GroupMember, GroupProject, JobMatch } from '@/stores/group-industry/types'
+import type { BomItem, GroupMember, GroupProject, JobMatch, ProjectPriceAlert } from '@/stores/group-industry/types'
 
-export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'move_products'
+export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'move_products' | 'price_below_break_even'
 
 export type CompanionAlert = { key: string; kind: CompanionAlertKind }
 
@@ -16,6 +16,7 @@ export type CompanionTasks = {
   finalJobsRunning: number
   alerts: CompanionAlert[]
   moveProducts: MoveProducts
+  priceAlert: ProjectPriceAlert | null
 }
 
 export type CompanionTasksInput = {
@@ -23,6 +24,7 @@ export type CompanionTasksInput = {
   project: GroupProject
   members: GroupMember[]
   myCharacterNames: string[]
+  priceAlert: ProjectPriceAlert | null
   now: number
 }
 
@@ -35,6 +37,7 @@ const PRODUCT_ACTIVITIES = ['manufacturing', 'reaction']
 const OUTPUT_OUTSIDE = 'outside'
 const OUTPUT_UNKNOWN = 'unknown'
 const MOVE_PRODUCTS_ALERT_KEY = 'move_products'
+const PRICE_ALERT_KEY = 'price_below_break_even'
 
 function isFree(item: BomItem): boolean {
   const alreadyHasLinkedJob = item.isJob && item.jobMatches.length > 0
@@ -74,7 +77,7 @@ function isAdmin(project: GroupProject): boolean {
 }
 
 export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks {
-  const { bomItems, project, members, myCharacterNames, now } = input
+  const { bomItems, project, members, myCharacterNames, priceAlert, now } = input
 
   const free = bomItems.filter(isFree)
 
@@ -105,6 +108,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     .map(({ match }) => ({ key: `job_ready:${match.id}`, kind: 'job_ready' }))
   const moveProducts = moveProductsOf(jobs)
   if (moveProducts.jobCount > 0) alerts.push({ key: MOVE_PRODUCTS_ALERT_KEY, kind: 'move_products' })
+  if (priceAlert !== null) alerts.push({ key: PRICE_ALERT_KEY, kind: 'price_below_break_even' })
   if (joinRequests !== null && joinRequests > 0) alerts.push({ key: 'join_request', kind: 'join_request' })
   if (materials.length > 0 && materials.every(material => material.isFulfilled)) {
     alerts.push({ key: 'bom_complete', kind: 'bom_complete' })
@@ -120,5 +124,6 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     finalJobsRunning,
     alerts,
     moveProducts,
+    priceAlert,
   }
 }

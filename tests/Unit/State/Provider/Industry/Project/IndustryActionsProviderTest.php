@@ -20,6 +20,8 @@ use App\Repository\IndustryProjectParticipantRepository;
 use App\Service\Industry\Project\ActionAssessor;
 use App\Service\Industry\Project\ActionQueueSorter;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
+use App\Service\Industry\Project\ProjectPriceAlert;
+use App\Service\Industry\Project\ProjectPriceAlertReader;
 use App\State\Provider\Industry\Project\IndustryActionsProvider;
 use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -45,6 +47,7 @@ final class IndustryActionsProviderTest extends TestCase
     private Security&Stub $security;
     private IndustryProjectParticipantRepository&Stub $memberRepository;
     private MarketPrices&Stub $marketPrices;
+    private ProjectPriceAlertReader&Stub $priceAlertReader;
     private User $viewer;
 
     protected function setUp(): void
@@ -52,6 +55,7 @@ final class IndustryActionsProviderTest extends TestCase
         $this->security = $this->createStub(Security::class);
         $this->memberRepository = $this->createStub(IndustryProjectParticipantRepository::class);
         $this->marketPrices = $this->createStub(MarketPrices::class);
+        $this->priceAlertReader = $this->createStub(ProjectPriceAlertReader::class);
         $this->viewer = $this->pilot();
         $this->security->method('getUser')->willReturn($this->viewer);
     }
@@ -60,7 +64,7 @@ final class IndustryActionsProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(null);
-        $provider = new IndustryActionsProvider($security, $this->memberRepository, new ProjectCockpitInputFactory(), new ProjectCockpitCalculator(), new ActionQueueSorter(), new ActionAssessor($this->marketPrices));
+        $provider = new IndustryActionsProvider($security, $this->memberRepository, new ProjectCockpitInputFactory(), new ProjectCockpitCalculator(), new ActionQueueSorter(), new ActionAssessor($this->marketPrices), $this->priceAlertReader);
 
         $this->expectException(UnauthorizedHttpException::class);
 
@@ -150,6 +154,8 @@ final class IndustryActionsProviderTest extends TestCase
                 'quantity' => 27_500,
                 'severity' => 'warning',
                 'impactIsk' => 137_500.0,
+                'jitaUnitPrice' => null,
+                'breakEvenPerUnit' => null,
             ]],
             array_map('get_object_vars', $entries),
         );
@@ -174,9 +180,56 @@ final class IndustryActionsProviderTest extends TestCase
                 'quantity' => null,
                 'severity' => 'info',
                 'impactIsk' => null,
+                'jitaUnitPrice' => null,
+                'breakEvenPerUnit' => null,
             ]],
             array_map('get_object_vars', $this->provide()),
         );
+    }
+
+    public function testProjectWithAJitaPriceBelowItsBreakEvenGetsAWarningLineBeforeTheOtherActions(): void
+    {
+        $sabreBatch = $this->ownedProject('Sabre batch', ProjectStatus::Selling);
+        $this->jobOf($sabreBatch, self::SABRE_TYPE_ID, 'Sabre', 'final', 5, 5, 5);
+        $this->saleOf($sabreBatch, self::SABRE_TYPE_ID, 'Sabre', 2);
+        $cutlassBatch = $this->ownedProject('Cutlass batch', ProjectStatus::Draft);
+        $this->memberOfProjects($cutlassBatch, $sabreBatch);
+        $this->priceAlertReader->method('of')->willReturnCallback(
+            static fn (IndustryProject $project): ?ProjectPriceAlert => $project === $sabreBatch ? new ProjectPriceAlert(self::SABRE_TYPE_ID, 'Sabre', 3, 690_000.0, 760_000.0) : null,
+        );
+
+        $entries = $this->provide();
+
+        self::assertSame(
+            [['Sabre batch', 'price_below_break_even'], ['Sabre batch', 'record_sale'], ['Cutlass batch', 'start_project']],
+            array_map(static fn (IndustryActionResource $entry): array => [$entry->projectName, $entry->code], $entries),
+        );
+        self::assertSame(
+            [$sabreBatch->getId()->toRfc4122(), false, 'sales', null, null, self::SABRE_TYPE_ID, 'Sabre', 3, 'warning', null, 690_000.0, 760_000.0],
+            [
+                $entries[0]->projectId,
+                $entries[0]->blocked,
+                $entries[0]->tab,
+                $entries[0]->targetStatus,
+                $entries[0]->bomLineId,
+                $entries[0]->typeId,
+                $entries[0]->typeName,
+                $entries[0]->quantity,
+                $entries[0]->severity,
+                $entries[0]->impactIsk,
+                $entries[0]->jitaUnitPrice,
+                $entries[0]->breakEvenPerUnit,
+            ],
+        );
+    }
+
+    public function testProjectWithAPriceAlertAndNothingElseToDoStillAppearsInTheQueue(): void
+    {
+        $completedBatch = $this->ownedProject('Ishtar batch', ProjectStatus::Completed);
+        $this->memberOfProjects($completedBatch);
+        $this->priceAlertReader->method('of')->willReturn(new ProjectPriceAlert(self::ISHTAR_TYPE_ID, 'Ishtar', 2, 90_000_000.0, 100_000_000.0));
+
+        self::assertSame([['Ishtar batch', 'price_below_break_even', false]], $this->queueSummary());
     }
 
     public function testJobWithAnUnknownRunCountKeepsAnUnknownQuantityInsteadOfZero(): void
@@ -280,6 +333,7 @@ final class IndustryActionsProviderTest extends TestCase
             new ProjectCockpitCalculator(),
             new ActionQueueSorter(),
             new ActionAssessor($this->marketPrices),
+            $this->priceAlertReader,
         ))->provide(new GetCollection());
     }
 }
