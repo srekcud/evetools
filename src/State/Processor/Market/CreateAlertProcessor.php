@@ -10,10 +10,10 @@ use App\ApiResource\Input\Market\CreateAlertInput;
 use App\ApiResource\Market\MarketAlertResource;
 use App\Entity\MarketPriceAlert;
 use App\Entity\User;
-use App\Enum\AlertDirection;
 use App\Enum\AlertPriceSource;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
+use App\Service\MarketAlertRules;
 use App\Service\StructureMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -51,10 +51,7 @@ class CreateAlertProcessor implements ProcessorInterface
         }
 
         // Validate direction
-        $direction = AlertDirection::tryFrom($data->direction);
-        if ($direction === null) {
-            throw new BadRequestHttpException('Invalid direction. Must be "above" or "below"');
-        }
+        $direction = MarketAlertRules::directionOrBadRequest($data->direction);
 
         // Validate price source
         $priceSource = AlertPriceSource::tryFrom($data->priceSource);
@@ -70,9 +67,7 @@ class CreateAlertProcessor implements ProcessorInterface
         }
 
         // Validate threshold
-        if ($data->threshold <= 0) {
-            throw new BadRequestHttpException('Threshold must be positive');
-        }
+        MarketAlertRules::assertThresholdIsPositive($data->threshold);
 
         $alert = new MarketPriceAlert();
         $alert->setUser($user);

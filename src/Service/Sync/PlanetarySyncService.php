@@ -9,15 +9,18 @@ use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\PlanetaryRoute;
+use App\Enum\ExtractorExpiryLevel;
 use App\Repository\PlanetaryColonyRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\PlanetaryService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
+use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\TypeNameResolver;
 use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\ClockInterface;
 
 class PlanetarySyncService
 {
@@ -30,6 +33,8 @@ class PlanetarySyncService
         private readonly MercurePublisherService $mercurePublisher,
         private readonly NotificationDispatcher $notificationDispatcher,
         private readonly LoggerInterface $logger,
+        private readonly PlanetaryExpiryThresholdResolver $expiryThresholdResolver,
+        private readonly ClockInterface $clock,
     ) {
     }
 
@@ -122,6 +127,8 @@ class PlanetarySyncService
                     }
                 }
 
+                $notifiedLevels = $this->notifiedLevelsByPinId($colony);
+
                 // Clear existing pins and routes (orphanRemoval handles deletion)
                 $colony->clearPins();
                 $colony->clearRoutes();
@@ -130,7 +137,7 @@ class PlanetarySyncService
                 $this->entityManager->flush();
 
                 // Process pins from detail
-                $this->processPins($colony, $detail['pins'] ?? []);
+                $this->processPins($colony, $detail['pins'] ?? [], $notifiedLevels);
 
                 // Process routes from detail
                 $this->processRoutes($colony, $detail['routes'] ?? []);
@@ -195,8 +202,9 @@ class PlanetarySyncService
 
     /**
      * @param array<array<string, mixed>> $pinsData
+     * @param array<int, array{expiryTime: \DateTimeImmutable, level: ExtractorExpiryLevel}> $notifiedLevels
      */
-    private function processPins(PlanetaryColony $colony, array $pinsData): void
+    private function processPins(PlanetaryColony $colony, array $pinsData, array $notifiedLevels): void
     {
         // Collect type IDs to resolve names in batch
         $typeIds = array_unique(array_column($pinsData, 'type_id'));
@@ -243,8 +251,42 @@ class PlanetarySyncService
                 $pin->setContents($pinData['contents']);
             }
 
+            $remembered = $notifiedLevels[$pin->getPinId()] ?? null;
+            if ($remembered !== null && $remembered['expiryTime'] == $pin->getExpiryTime()) {
+                $pin->setExpiryNotifiedLevel($remembered['level']);
+            }
+
             $colony->addPin($pin);
         }
+    }
+
+    /**
+     * @return array<int, array{expiryTime: \DateTimeImmutable, level: ExtractorExpiryLevel}>
+     */
+    private function notifiedLevelsByPinId(PlanetaryColony $colony): array
+    {
+        $notifiedLevels = [];
+        foreach ($colony->getPins() as $pin) {
+            $expiryTime = $pin->getExpiryTime();
+            $level = $pin->getExpiryNotifiedLevel();
+            if ($expiryTime !== null && $level !== null) {
+                $notifiedLevels[$pin->getPinId()] = ['expiryTime' => $expiryTime, 'level' => $level];
+            }
+        }
+
+        return $notifiedLevels;
+    }
+
+    private function claimNotification(PlanetaryPin $pin, ExtractorExpiryLevel $level): bool
+    {
+        if (!$level->isHigherThan($pin->getExpiryNotifiedLevel())) {
+            return false;
+        }
+
+        $pin->setExpiryNotifiedLevel($level);
+        $this->entityManager->flush();
+
+        return true;
     }
 
     /**
@@ -270,13 +312,13 @@ class PlanetarySyncService
 
     private function checkExpiringExtractors(Character $character, ?string $userId): void
     {
-        if ($userId === null) {
+        $user = $character->getUser();
+        if ($userId === null || $user === null) {
             return;
         }
 
-        $user = $character->getUser();
-        $now = new \DateTimeImmutable();
-        $threshold = $now->modify('+2 hours');
+        $now = $this->clock->now();
+        $threshold = $now->modify(sprintf('+%d minutes', $this->expiryThresholdResolver->minutesFor($user)));
 
         $colonies = $this->colonyRepository->findByCharacter($character);
         foreach ($colonies as $colony) {
@@ -306,7 +348,7 @@ class PlanetarySyncService
                     ]);
 
                     // Dispatch notification
-                    if ($user !== null) {
+                    if ($this->claimNotification($pin, ExtractorExpiryLevel::Expired)) {
                         $this->notificationDispatcher->dispatch(
                             $user,
                             Notification::CATEGORY_PLANETARY,
@@ -338,7 +380,8 @@ class PlanetarySyncService
                     ]);
 
                     // Dispatch notification
-                    if ($user !== null) {
+                    $memoryLevel = $minutesRemaining < 30 ? ExtractorExpiryLevel::Critical : ExtractorExpiryLevel::Warning;
+                    if ($this->claimNotification($pin, $memoryLevel)) {
                         $notifLevel = $minutesRemaining < 30 ? Notification::LEVEL_CRITICAL : Notification::LEVEL_WARNING;
                         $this->notificationDispatcher->dispatch(
                             $user,

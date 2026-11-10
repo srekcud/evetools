@@ -82,6 +82,7 @@ export interface PlanetaryStats {
   totalFactories: number
   estimatedDailyIsk: number
   nearestExpiry: string | null
+  expiryThresholdMinutes?: number
 }
 
 export interface ProductionInput {

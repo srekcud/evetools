@@ -9,11 +9,15 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Market\CreateAlertInput;
+use App\ApiResource\Input\Market\UpdateAlertInput;
 use App\State\Processor\Market\CreateAlertProcessor;
 use App\State\Processor\Market\DeleteAlertProcessor;
+use App\State\Processor\Market\UpdateAlertProcessor;
 use App\State\Provider\Market\MarketAlertCollectionProvider;
 use App\State\Provider\Market\MarketAlertDeleteProvider;
 
@@ -37,6 +41,14 @@ use App\State\Provider\Market\MarketAlertDeleteProvider;
             processor: CreateAlertProcessor::class,
             openapi: new Model\Operation(tags: ['Market']),
         ),
+        new Patch(
+            uriTemplate: '/market/alerts/{id}',
+            uriVariables: ['id' => new Link(fromClass: self::class)],
+            input: UpdateAlertInput::class,
+            provider: MarketAlertDeleteProvider::class,
+            processor: UpdateAlertProcessor::class,
+            openapi: new Model\Operation(summary: 'Update an alert threshold and direction, re-arming it when triggered', tags: ['Market']),
+        ),
         new Delete(
             uriTemplate: '/market/alerts/{id}',
             provider: MarketAlertDeleteProvider::class,
@@ -44,6 +56,7 @@ use App\State\Provider\Market\MarketAlertDeleteProvider;
             openapi: new Model\Operation(tags: ['Market']),
         ),
     ],
+    normalizationContext: ['skip_null_values' => false],
     security: "is_granted('ROLE_USER')",
 )]
 class MarketAlertResource

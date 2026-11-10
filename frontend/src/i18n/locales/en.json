@@ -277,14 +277,15 @@
       "expired": "expired | expired | expired",
       "totalExtractors": "{count} extractors total",
       "expiringSoon": "Expiring soon",
-      "inNext24h": "within next 24h",
+      "inNextWindow": "within next {window}",
       "theoreticalProduction": "Theoretical production/day",
       "iskPerDay": "ISK / day",
       "sellPriceJita": "Jita sell price"
     },
     "alerts": {
       "extractorsExpired": "{count} extractor expired | {count} extractor expired | {count} extractors expired",
-      "expireIn24h": "{count} expiring within 24h"
+      "expireInWindow": "{count} expiring within {window}",
+      "expireSoon": "{count} expiring soon"
     },
     "production": {
       "title": "Global production by tier",
@@ -3301,6 +3302,9 @@
     },
     "alert": {
       "create": "Create Alert",
+      "edit": "Edit Alert",
+      "rearm": "Save and re-arm",
+      "readOnlyHint": "The item and the price source cannot be changed",
       "setAlert": "Set Alert",
       "direction": "Direction",
       "above": "Above",

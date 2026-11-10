@@ -9,11 +9,14 @@ use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\User;
+use App\Entity\UserNotificationPreference;
 use App\Repository\PlanetaryColonyRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\ESI\PlanetaryService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
+use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Sync\PlanetarySyncService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Service\Industry\ResolvesTypeNamesFromSde;
@@ -23,6 +26,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
@@ -46,7 +50,20 @@ final class PlanetarySyncServiceTest extends TestCase
 
     private array $dispatchedNotifications = [];
 
+    private int $dispatchAttempts = 0;
+
+    private bool $dispatcherFails = false;
+
+    private ?int $planetaryThresholdMinutes = null;
+
+    private MockClock $clock;
+
     private ?PlanetaryColony $syncedColony = null;
+
+    protected function setUp(): void
+    {
+        $this->clock = new MockClock();
+    }
 
     public function testPinOfTypeMissingFromSdeIsStoredWithoutTypeNameWhileKnownPinKeepsItsSdeName(): void
     {
@@ -131,6 +148,171 @@ final class PlanetarySyncServiceTest extends TestCase
         self::assertSame([null], $this->planetaryExpiryAlertProductNames());
     }
 
+    #[Group('issue-537')]
+    public function testExtractorExpiringWithinTheUserThresholdIsNotifiedAndAlerted(): void
+    {
+        $this->planetaryThresholdMinutes = 360;
+
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_010, self::AQUEOUS_LIQUIDS_TYPE_ID, $this->in('+300 minutes'))]);
+
+        self::assertSame(
+            [[
+                'level' => Notification::LEVEL_WARNING,
+                'title' => 'Extractor expiring soon',
+                'message' => 'Aqueous Liquids extractor on Planet I expires in 300 min (Test Pilot)',
+                'data' => [
+                    'colonyId' => null,
+                    'planetName' => self::PLANET_NAME,
+                    'productName' => self::AQUEOUS_LIQUIDS_NAME,
+                    'minutesRemaining' => 300,
+                    'characterName' => self::PILOT_NAME,
+                ],
+            ]],
+            $this->dispatchedNotifications,
+        );
+        self::assertSame([self::AQUEOUS_LIQUIDS_NAME], $this->planetaryExpiryAlertProductNames());
+    }
+
+    #[Group('issue-537')]
+    public function testExtractorBeyondTheUserThresholdIsNeitherNotifiedNorAlerted(): void
+    {
+        $this->planetaryThresholdMinutes = 360;
+
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_011, self::AQUEOUS_LIQUIDS_TYPE_ID, $this->in('+420 minutes'))]);
+
+        self::assertSame([], $this->dispatchedNotifications);
+        self::assertSame([], $this->planetaryExpiryAlertProductNames());
+    }
+
+    #[Group('issue-537')]
+    public function testWithoutPlanetaryPreferenceTheThresholdIsOneDay(): void
+    {
+        $this->planetaryThresholdMinutes = null;
+
+        $this->syncColonyWithPins([
+            self::extractorPin(1_017_000_012, self::AQUEOUS_LIQUIDS_TYPE_ID, $this->in('+23 hours')),
+            self::extractorPin(1_017_000_013, self::ROBOTICS_TYPE_ID, $this->in('+25 hours')),
+        ]);
+
+        self::assertSame(
+            [[Notification::LEVEL_WARNING, 'Aqueous Liquids extractor on Planet I expires in 1380 min (Test Pilot)']],
+            array_map(static fn (array $notification): array => [$notification['level'], $notification['message']], $this->dispatchedNotifications),
+        );
+        self::assertSame([self::AQUEOUS_LIQUIDS_NAME], $this->planetaryExpiryAlertProductNames());
+    }
+
+    #[Group('issue-537')]
+    public function testExtractorNotifiedAtWarningIsNotNotifiedAgainAtTheFollowingSyncsWhileMercureAlertsKeepComing(): void
+    {
+        $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
+        $this->planetaryThresholdMinutes = 360;
+        $expiry = $this->in('+300 minutes');
+
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_014, self::AQUEOUS_LIQUIDS_TYPE_ID, $expiry)]);
+        $this->clock->sleep(3600);
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_014, self::AQUEOUS_LIQUIDS_TYPE_ID, $expiry)]);
+        $this->clock->sleep(3600);
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_014, self::AQUEOUS_LIQUIDS_TYPE_ID, $expiry)]);
+
+        self::assertSame(
+            [[Notification::LEVEL_WARNING, 'Aqueous Liquids extractor on Planet I expires in 300 min (Test Pilot)']],
+            array_map(static fn (array $notification): array => [$notification['level'], $notification['message']], $this->dispatchedNotifications),
+        );
+        self::assertCount(3, $this->planetaryExpiryAlertProductNames());
+    }
+
+    #[Group('issue-537')]
+    public function testExtractorIsNotifiedOncePerLevelWarningThenCriticalThenExpired(): void
+    {
+        $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
+        $this->planetaryThresholdMinutes = null;
+        $expiry = $this->in('+300 minutes');
+        $sync = fn () => $this->syncColonyWithPins([self::extractorPin(1_017_000_015, self::AQUEOUS_LIQUIDS_TYPE_ID, $expiry)]);
+
+        $sync();
+        $this->clock->modify('2026-11-10 16:40:00 UTC');
+        $sync();
+        $this->clock->modify('2026-11-10 16:50:00 UTC');
+        $sync();
+        $this->clock->modify('2026-11-10 17:01:00 UTC');
+        $sync();
+        $this->clock->modify('2026-11-10 19:00:00 UTC');
+        $sync();
+
+        self::assertSame(
+            [
+                [Notification::LEVEL_WARNING, 'Aqueous Liquids extractor on Planet I expires in 300 min (Test Pilot)'],
+                [Notification::LEVEL_CRITICAL, 'Aqueous Liquids extractor on Planet I expires in 20 min (Test Pilot)'],
+                [Notification::LEVEL_ERROR, 'Aqueous Liquids extractor on Planet I has expired (Test Pilot)'],
+            ],
+            array_map(static fn (array $notification): array => [$notification['level'], $notification['message']], $this->dispatchedNotifications),
+        );
+    }
+
+    #[Group('issue-537')]
+    public function testNewExtractionCycleWithAChangedExpiryTimeResetsTheNotificationMemory(): void
+    {
+        $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
+        $this->planetaryThresholdMinutes = 360;
+
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_016, self::AQUEOUS_LIQUIDS_TYPE_ID, $this->in('+300 minutes'))]);
+        $this->clock->sleep(3600);
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_016, self::AQUEOUS_LIQUIDS_TYPE_ID, $this->in('+300 minutes'))]);
+
+        self::assertSame(
+            [
+                [Notification::LEVEL_WARNING, 'Aqueous Liquids extractor on Planet I expires in 300 min (Test Pilot)'],
+                [Notification::LEVEL_WARNING, 'Aqueous Liquids extractor on Planet I expires in 300 min (Test Pilot)'],
+            ],
+            array_map(static fn (array $notification): array => [$notification['level'], $notification['message']], $this->dispatchedNotifications),
+        );
+    }
+
+    #[Group('issue-537')]
+    public function testEachExtractorOfAColonyIsNotifiedOnceIndependently(): void
+    {
+        $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
+        $this->planetaryThresholdMinutes = 360;
+        $pins = [
+            self::extractorPin(1_017_000_017, self::AQUEOUS_LIQUIDS_TYPE_ID, $this->in('+300 minutes')),
+            self::extractorPin(1_017_000_018, self::ROBOTICS_TYPE_ID, $this->in('+200 minutes')),
+        ];
+
+        $this->syncColonyWithPins($pins);
+        $this->clock->sleep(1800);
+        $this->syncColonyWithPins($pins);
+
+        self::assertSame(
+            [
+                'Aqueous Liquids extractor on Planet I expires in 300 min (Test Pilot)',
+                'type 9848 (name missing from the SDE) extractor on Planet I expires in 200 min (Test Pilot)',
+            ],
+            array_column($this->dispatchedNotifications, 'message'),
+        );
+    }
+
+    #[Group('issue-537')]
+    public function testNotificationFailureIsNotReplayedAtTheNextSync(): void
+    {
+        $this->clock = new MockClock('2026-11-10 12:00:00 UTC');
+        $this->planetaryThresholdMinutes = 360;
+        $expiry = $this->in('+300 minutes');
+        $this->dispatcherFails = true;
+
+        try {
+            $this->syncColonyWithPins([self::extractorPin(1_017_000_019, self::AQUEOUS_LIQUIDS_TYPE_ID, $expiry)]);
+            self::fail('The dispatcher failure must reach the caller');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('notification storage unavailable', $exception->getMessage());
+        }
+        $this->dispatcherFails = false;
+        $this->clock->sleep(1800);
+        $this->syncColonyWithPins([self::extractorPin(1_017_000_019, self::AQUEOUS_LIQUIDS_TYPE_ID, $expiry)]);
+
+        self::assertSame(1, $this->dispatchAttempts);
+        self::assertSame([], $this->dispatchedNotifications);
+    }
+
     private function syncColonyWithPins(array $pins): void
     {
         $user = $this->createStub(User::class);
@@ -159,7 +341,7 @@ final class PlanetarySyncServiceTest extends TestCase
         });
 
         $colonyRepository = $this->createStub(PlanetaryColonyRepository::class);
-        $colonyRepository->method('findByCharacterAndPlanet')->willReturn(null);
+        $colonyRepository->method('findByCharacterAndPlanet')->willReturnCallback(fn (): ?PlanetaryColony => $this->syncedColony);
         $colonyRepository->method('findByCharacter')->willReturnCallback(
             fn (): array => $this->syncedColony === null ? [] : [$this->syncedColony],
         );
@@ -174,6 +356,10 @@ final class PlanetarySyncServiceTest extends TestCase
         $notificationDispatcher = $this->createStub(NotificationDispatcher::class);
         $notificationDispatcher->method('dispatch')->willReturnCallback(
             function (User $recipient, string $category, string $level, string $title, string $message, ?array $data = null): void {
+                $this->dispatchAttempts++;
+                if ($this->dispatcherFails) {
+                    throw new \RuntimeException('notification storage unavailable');
+                }
                 $this->dispatchedNotifications[] = ['level' => $level, 'title' => $title, 'message' => $message, 'data' => $data];
             },
         );
@@ -182,6 +368,13 @@ final class PlanetarySyncServiceTest extends TestCase
             self::EXTRACTOR_CONTROL_UNIT_TYPE_ID => self::EXTRACTOR_CONTROL_UNIT_NAME,
             self::AQUEOUS_LIQUIDS_TYPE_ID => self::AQUEOUS_LIQUIDS_NAME,
         ]);
+
+        $preferenceRepository = $this->createStub(UserNotificationPreferenceRepository::class);
+        $preferenceRepository->method('findByUserAndCategory')->willReturnCallback(
+            fn (User $owner): ?UserNotificationPreference => $owner === $user && $this->planetaryThresholdMinutes !== null
+                ? (new UserNotificationPreference())->setCategory(Notification::CATEGORY_PLANETARY)->setThresholdMinutes($this->planetaryThresholdMinutes)
+                : null,
+        );
 
         $service = new PlanetarySyncService(
             $planetaryService,
@@ -192,9 +385,16 @@ final class PlanetarySyncServiceTest extends TestCase
             new MercurePublisherService($hub, new NullLogger()),
             $notificationDispatcher,
             new NullLogger(),
+            new PlanetaryExpiryThresholdResolver($preferenceRepository),
+            $this->clock,
         );
 
         self::assertSame(1, $service->syncCharacterColonies($character));
+    }
+
+    private function in(string $modifier): string
+    {
+        return $this->clock->now()->modify($modifier)->format(\DateTimeInterface::ATOM);
     }
 
     private function planetaryExpiryAlertProductNames(): array

@@ -13,6 +13,7 @@ use App\Repository\MarketPriceAlertRepository;
 use App\Service\JitaMarketService;
 use App\Service\MarketAlertService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use App\Service\StructureMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -50,6 +51,7 @@ class MarketAlertServiceTest extends TestCase
             $this->em,
             new NullLogger(),
             $mercurePublisher,
+            $this->createStub(NotificationDispatcher::class),
         );
     }
 

@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import UnknownValue from '@/components/common/UnknownValue.vue'
+import { formatExpiryThreshold } from '@/composables/usePlanetaryTimers'
 
 const { t } = useI18n()
 const { formatIsk } = useFormatters()
@@ -13,6 +14,7 @@ defineProps<{
   expiredExtractors: number | null
   totalExtractors: number | null
   expiringExtractors: number | null
+  thresholdMinutes: number | null
   estimatedDailyIsk: number
   updated?: boolean
 }>()
@@ -67,7 +69,10 @@ defineProps<{
         <UnknownValue v-if="expiringExtractors === null" />
         <template v-else>{{ expiringExtractors }}</template>
       </div>
-      <div class="mt-1 text-xs text-slate-500">{{ t('pi.kpi.inNext24h') }}</div>
+      <div class="mt-1 text-xs text-slate-500">
+        <UnknownValue v-if="thresholdMinutes === null" />
+        <template v-else>{{ t('pi.kpi.inNextWindow', { window: formatExpiryThreshold(thresholdMinutes) }) }}</template>
+      </div>
     </div>
 
     <!-- Production theorique -->

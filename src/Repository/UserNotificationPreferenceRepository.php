@@ -26,7 +26,7 @@ class UserNotificationPreferenceRepository extends ServiceEntityRepository
     ];
 
     private const DEFAULT_THRESHOLDS = [
-        Notification::CATEGORY_PLANETARY => 120,
+        Notification::CATEGORY_PLANETARY => UserNotificationPreference::DEFAULT_PLANETARY_THRESHOLD_MINUTES,
         Notification::CATEGORY_ESCALATION => 60,
     ];
 

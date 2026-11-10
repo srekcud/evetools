@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, useId, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { useFormatters } from '@/composables/useFormatters'
 import { useEveImages } from '@/composables/useEveImages'
+import type { MarketAlert } from '@/stores/market'
 
 const props = defineProps<{
   visible: boolean
@@ -15,6 +16,7 @@ const props = defineProps<{
   structureName?: string | null
   currentStructureSellPrice?: number | null
   currentStructureBuyPrice?: number | null
+  editingAlert?: MarketAlert | null
 }>()
 
 function extractSystemName(name: string | null | undefined): string {
@@ -26,6 +28,7 @@ function extractSystemName(name: string | null | undefined): string {
 const emit = defineEmits<{
   close: []
   submit: [payload: { typeId: number; direction: 'above' | 'below'; threshold: number; priceSource: string }]
+  update: [payload: { id: string; direction: 'above' | 'below'; threshold: number }]
 }>()
 
 const { t } = useI18n()
@@ -41,12 +44,37 @@ const threshold = ref<number>(0)
 const priceSource = ref<string>('jita_sell')
 const isSubmitting = ref(false)
 
+const isEditing = computed(() => props.editingAlert != null)
+
+const modalTitle = computed(() => isEditing.value ? t('market.alert.edit') : t('market.alert.create'))
+
+const submitLabel = computed(() => {
+  if (props.editingAlert == null) return t('market.alert.create')
+  return props.editingAlert.status === 'triggered' ? t('market.alert.rearm') : t('common.actions.save')
+})
+
+const priceSourceLabel = computed(() => {
+  switch (props.editingAlert?.priceSource) {
+    case 'jita_sell': return 'Jita Sell'
+    case 'jita_buy': return 'Jita Buy'
+    case 'structure_sell': return extractSystemName(props.structureName) + ' Sell'
+    case 'structure_buy': return extractSystemName(props.structureName) + ' Buy'
+    default: return props.editingAlert?.priceSource ?? ''
+  }
+})
+
 // Reset form when modal opens
 watch(() => props.visible, (val) => {
   if (val) {
-    direction.value = 'below'
-    threshold.value = props.currentSellPrice ?? 0
-    priceSource.value = 'jita_sell'
+    if (props.editingAlert != null) {
+      direction.value = props.editingAlert.direction
+      threshold.value = props.editingAlert.threshold
+      priceSource.value = props.editingAlert.priceSource
+    } else {
+      direction.value = 'below'
+      threshold.value = props.currentSellPrice ?? 0
+      priceSource.value = 'jita_sell'
+    }
     isSubmitting.value = false
   }
 })
@@ -56,12 +84,20 @@ async function handleSubmit(): Promise<void> {
   isSubmitting.value = true
 
   try {
-    emit('submit', {
-      typeId: props.typeId,
-      direction: direction.value,
-      threshold: threshold.value,
-      priceSource: priceSource.value,
-    })
+    if (props.editingAlert != null) {
+      emit('update', {
+        id: props.editingAlert.id,
+        direction: direction.value,
+        threshold: threshold.value,
+      })
+    } else {
+      emit('submit', {
+        typeId: props.typeId,
+        direction: direction.value,
+        threshold: threshold.value,
+        priceSource: priceSource.value,
+      })
+    }
   } finally {
     isSubmitting.value = false
   }
@@ -71,14 +107,14 @@ async function handleSubmit(): Promise<void> {
 <template>
   <BaseModal
     :show="visible"
-    :title="t('market.alert.create')"
+    :title="modalTitle"
     panel-class="border-cyan-500/30 shadow-cyan-500/10 max-w-md"
     @close="emit('close')"
   >
     <!-- Header -->
     <template #title="{ titleId }">
       <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-        <h3 :id="titleId" class="text-lg font-semibold text-slate-100">{{ t('market.alert.create') }}</h3>
+        <h3 :id="titleId" class="text-lg font-semibold text-slate-100">{{ modalTitle }}</h3>
         <button
           @click="emit('close')"
           class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
@@ -101,14 +137,18 @@ async function handleSubmit(): Promise<void> {
             :src="getTypeIconUrl(typeId, 32)"
             @error="onImageError"
             :alt="typeName"
-            class="w-6 h-6 rounded"
+            class="w-6 h-6 rounded shrink-0"
           />
-          <span class="text-slate-200">{{ typeName }}</span>
+          <span class="text-slate-200 truncate" :title="typeName">{{ typeName }}</span>
         </div>
       </div>
 
       <!-- Current price reference -->
-      <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      <div v-if="editingAlert" class="text-sm">
+        <span class="text-slate-500">{{ t('market.alert.currentPrice') }}:</span>
+        <span class="ml-1 text-cyan-400 font-mono">{{ formatIsk(editingAlert.currentPrice) }}</span>
+      </div>
+      <div v-else class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
         <div>
           <span class="text-slate-500">Jita Sell:</span>
           <span class="ml-1 text-cyan-400 font-mono">{{ formatIsk(currentSellPrice) }}</span>
@@ -130,7 +170,13 @@ async function handleSubmit(): Promise<void> {
       </div>
 
       <!-- Price Source -->
-      <div>
+      <div v-if="editingAlert">
+        <span class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.priceSource') }}</span>
+        <div class="px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700 text-slate-200" :title="t('market.alert.readOnlyHint')">
+          {{ priceSourceLabel }}
+        </div>
+      </div>
+      <div v-else>
         <label :for="priceSourceId" class="block text-sm font-medium text-slate-400 mb-1">{{ t('market.alert.priceSource') }}</label>
         <select
           :id="priceSourceId"
@@ -198,7 +244,7 @@ async function handleSubmit(): Promise<void> {
           :disabled="isSubmitting || threshold <= 0"
           class="flex-1 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-sm font-medium transition-colors"
         >
-          {{ t('market.alert.create') }}
+          {{ submitLabel }}
         </button>
       </div>
     </form>
