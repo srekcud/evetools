@@ -107,11 +107,23 @@ describe('JobContainersTable', () => {
     expect(wrapper.get(CHECK).text()).toContain(texts.check.ok)
   })
 
-  it('warns when the blueprint comes from outside the project container', () => {
+  it('does not warn when the blueprint comes from outside the project container', () => {
     const wrapper = mountWith([jobMatch('match-1', 'Aria Solberg', { blueprint: side({ name: 'Perso box', status: 'outside' }), output: side({}) })])
 
-    expect(wrapper.get(CHECK).attributes('data-check')).toBe('blueprint-outside')
-    expect(wrapper.get(CHECK).text()).toContain(texts.check.blueprintOutside)
+    expect(wrapper.get(CHECK).attributes('data-check')).toBe('ok')
+    expect(wrapper.get(CHECK).text()).toContain(texts.check.ok)
+    expect(wrapper.get(ROW).text()).toContain('Perso box')
+  })
+
+  it('shows the blueprint container in neutral colour when it is outside and in grey when it is unknown', () => {
+    const outside = mountWith([jobMatch('match-1', 'Aria Solberg', { blueprint: side({ name: 'Perso box', status: 'outside' }), output: side({}) })])
+    const unknown = mountWith([
+      jobMatch('match-1', 'Aria Solberg', { blueprint: side({ name: null, status: 'unknown', unknownReason: 'no_director' }), output: side({}) }),
+    ])
+
+    const blueprintCell = (wrapper: typeof outside) => wrapper.findAll(`${ROW} td`)[2]
+    expect(blueprintCell(outside).classes()).not.toContain('text-amber-400')
+    expect(blueprintCell(unknown).classes()).toContain('text-slate-500')
   })
 
   it('asks to move the products delivered outside the project container', () => {
@@ -134,6 +146,17 @@ describe('JobContainersTable', () => {
     expect(wrapper.get(CHECK).attributes('data-check')).toBe('unknown')
     expect(wrapper.get(CHECK).text()).toContain(texts.check.unknown)
     expect(wrapper.get(REASON).text()).toContain(texts.reasons.location_missing)
+  })
+
+  it('keeps the check impossible when the blueprint is outside and the output is unknown', () => {
+    const wrapper = mountWith([
+      jobMatch('match-1', 'Aria Solberg', {
+        blueprint: side({ name: 'Perso box', status: 'outside' }),
+        output: side({ locationId: null, kind: null, name: null, divisionName: null, status: 'unknown', unknownReason: 'location_missing' }),
+      }),
+    ])
+
+    expect(wrapper.get(CHECK).attributes('data-check')).toBe('unknown')
   })
 
   it('keeps the move request when the other side is unknown', () => {

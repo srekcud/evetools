@@ -98,6 +98,13 @@ describe('JobsTable job locations', () => {
     expect(wrapper.get(LOCATIONS_CHECK).attributes('data-check')).toBe('ok')
   })
 
+  it('does not warn about an entry outside the project container', () => {
+    const wrapper = mountWith({ blueprint: side({ name: 'Perso box', divisionName: null, status: 'outside' }), output: side({}) })
+
+    expect(wrapper.get(LOCATIONS_CHECK).attributes('data-check')).toBe('ok')
+    expect(wrapper.get(LOCATIONS_LINE).text()).toContain('Perso box')
+  })
+
   it('shows no line when the locations are not shared with the viewer', () => {
     const wrapper = mountWith(null)
 

@@ -35,10 +35,13 @@ function sideName(side: JobLocation): string {
   return side.name ?? t('groupIndustry.jobLocations.unknownLocation')
 }
 
-function sideClass(side: JobLocation): string {
-  if (side.status === 'outside') return 'text-amber-400'
-  if (side.status === 'unknown') return 'text-slate-500'
-  return 'text-slate-200'
+function entryClass(entry: JobLocation): string {
+  return entry.status === 'unknown' ? 'text-slate-500' : 'text-slate-200'
+}
+
+function outputClass(output: JobLocation): string {
+  if (output.status === 'outside') return 'text-amber-400'
+  return entryClass(output)
 }
 
 function reasonText(locations: JobLocations): string {
@@ -66,11 +69,11 @@ function reasonText(locations: JobLocations): string {
           <tr v-for="row in rows" :key="row.id" data-testid="job-container-row" class="hover:bg-slate-800/30">
             <td class="py-2.5 px-6 text-slate-200">{{ row.productName }} <span class="text-xs text-slate-500">&times; {{ row.runs }}</span></td>
             <td class="py-2.5 px-3 text-slate-400">{{ row.characterName }}</td>
-            <td class="py-2.5 px-3" :class="sideClass(row.locations.blueprint)">
+            <td class="py-2.5 px-3" :class="entryClass(row.locations.blueprint)">
               {{ sideName(row.locations.blueprint) }}
               <span v-if="row.locations.blueprint.divisionName !== null" class="text-xs text-slate-500">{{ row.locations.blueprint.divisionName }}</span>
             </td>
-            <td class="py-2.5 px-3" :class="sideClass(row.locations.output)">
+            <td class="py-2.5 px-3" :class="outputClass(row.locations.output)">
               {{ sideName(row.locations.output) }}
               <span v-if="row.locations.output.divisionName !== null" class="text-xs text-slate-500">{{ row.locations.output.divisionName }}</span>
             </td>

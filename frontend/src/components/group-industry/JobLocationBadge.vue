@@ -12,14 +12,12 @@ const { t } = useI18n()
 
 const CHECK_TEXT_KEYS: Record<JobLocationCheck, string> = {
   ok: 'ok',
-  'blueprint-outside': 'blueprintOutside',
   'output-outside': 'outputOutside',
   unknown: 'unknown',
 }
 
 const CHECK_CLASSES: Record<JobLocationCheck, string> = {
   ok: 'bg-emerald-500/[0.12] text-emerald-400 border-emerald-500/25',
-  'blueprint-outside': 'bg-amber-500/[0.12] text-amber-400 border-amber-500/25',
   'output-outside': 'bg-amber-500/[0.12] text-amber-400 border-amber-500/25',
   unknown: 'bg-slate-500/[0.12] text-slate-400 border-slate-500/25',
 }

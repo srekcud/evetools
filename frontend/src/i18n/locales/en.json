@@ -2599,7 +2599,6 @@
       "unknownLocation": "Unknown location",
       "check": {
         "ok": "✓ In the project container",
-        "blueprintOutside": "Input outside the project container",
         "outputOutside": "To move into the project container",
         "unknown": "Check impossible"
       },
