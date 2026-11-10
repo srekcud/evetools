@@ -15,6 +15,7 @@ final readonly class SkillTimeModifier
     public const float INDUSTRY_REDUCTION_PER_LEVEL = 0.04;
     public const float ADVANCED_INDUSTRY_REDUCTION_PER_LEVEL = 0.03;
     private const float SCIENCE_SKILL_REDUCTION_PER_LEVEL = 0.01;
+    private const float SCIENCE_COPY_REDUCTION_PER_LEVEL = 0.05;
     public const float REACTIONS_REDUCTION_PER_LEVEL = 0.04;
 
     /**
@@ -33,7 +34,10 @@ final readonly class SkillTimeModifier
 
     public static function forCopy(int $scienceLevel, int $advancedIndustryLevel): Multiplier
     {
-        return Multiplier::one();
+        return new Multiplier(
+            self::reduction($scienceLevel, self::SCIENCE_COPY_REDUCTION_PER_LEVEL)
+            * self::reduction($advancedIndustryLevel, self::ADVANCED_INDUSTRY_REDUCTION_PER_LEVEL),
+        );
     }
 
     public static function forReaction(int $reactionsLevel): Multiplier

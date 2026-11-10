@@ -6,12 +6,14 @@ namespace App\Industry\Infrastructure\Doctrine;
 
 use App\Constant\StructureRigTargets;
 use App\Entity\IndustryStructureConfig;
+use App\Entity\Sde\InvType;
 use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\StructureRig;
 use App\Industry\Application\StructureType;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\ScienceRig;
 use App\Industry\Domain\SecurityClass;
 use App\Industry\Infrastructure\Sde\SdeRigBonusReader;
 use App\Industry\Infrastructure\Sde\SdeStructureBonusReader;
@@ -65,6 +67,8 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
         }
         $structureTypeId = self::STRUCTURE_TYPE_IDS[$structureType];
         $type = \in_array($structureType, self::REFINERIES, true) ? StructureType::Refinery : StructureType::EngineeringComplex;
+        $rigNames = $configuration->getRigs();
+        $rigTypes = $this->invTypeRepository->findByNames(array_values($rigNames));
 
         return new ProductionStructure(
             $configuration->getId()->toRfc4122(),
@@ -73,9 +77,11 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
             $configuration->getSolarSystemId(),
             $configuration->getCreatedAt(),
             $this->structureBonusReader->materialMultiplierOf($structureTypeId) ?? Multiplier::one(),
-            $this->rigsOf($configuration->getRigs(), StructureType::Refinery === $type ? ActivityKind::Reaction : ActivityKind::Manufacturing),
+            $this->rigsOf($rigNames, $rigTypes, StructureType::Refinery === $type ? ActivityKind::Reaction : ActivityKind::Manufacturing),
             $this->structureBonusReader->costMultiplierOf($structureTypeId) ?? Multiplier::one(),
             ($configuration->getFacilityTaxPercent() ?? self::UNSET_FACILITY_TAX_PERCENT) / self::PERCENT,
+            $this->structureBonusReader->timeMultiplierOf($structureTypeId, ActivityKind::Copying) ?? Multiplier::one(),
+            $this->scienceRigsOf($rigNames, $rigTypes),
         );
     }
 
@@ -91,22 +97,37 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
 
     /**
      * @param array<string> $rigNames
+     * @param array<string, InvType> $rigTypes
+     *
+     * @return list<ScienceRig>
+     */
+    private function scienceRigsOf(array $rigNames, array $rigTypes): array
+    {
+        $scienceRigs = [];
+        foreach ($rigNames as $rigName) {
+            if (\array_key_exists($rigName, $rigTypes)) {
+                array_push($scienceRigs, ...$this->rigBonusReader->scienceRigsOf($rigTypes[$rigName]->getTypeId()));
+            }
+        }
+
+        return $scienceRigs;
+    }
+
+    /**
+     * @param array<string> $rigNames
+     * @param array<string, InvType> $rigTypes
      *
      * @return list<StructureRig>
      */
-    private function rigsOf(array $rigNames, ActivityKind $activity): array
+    private function rigsOf(array $rigNames, array $rigTypes, ActivityKind $activity): array
     {
-        $rigTypes = $this->invTypeRepository->findByNames(array_values($rigNames));
-
         $rigs = [];
         foreach ($rigNames as $rigName) {
-            $rigTypeId = ($rigTypes[$rigName] ?? throw new \UnexpectedValueException(\sprintf('Rig "%s" is missing from the SDE.', $rigName)))->getTypeId();
-            $targetedCategories = StructureRigTargets::categoriesOf($rigName);
-
-            $costBonus = $this->rigBonusReader->costBonusOf($rigTypeId);
-            if (null !== $costBonus && $costBonus->reductionPercent > 0.0) {
-                $rigs[] = StructureRig::costOnly($costBonus);
+            if (!\array_key_exists($rigName, $rigTypes)) {
+                continue;
             }
+            $rigTypeId = $rigTypes[$rigName]->getTypeId();
+            $targetedCategories = StructureRigTargets::categoriesOf($rigName);
 
             $thukkerBonus = ActivityKind::Manufacturing === $activity ? $this->rigBonusReader->thukkerMaterialBonusOf($rigTypeId) : null;
             if (null !== $thukkerBonus) {

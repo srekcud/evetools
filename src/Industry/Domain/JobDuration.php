@@ -42,7 +42,11 @@ final readonly class JobDuration
 
     public static function forCopyJob(int $baseTimePerRunSeconds, Runs $runs, Multiplier $timeModifier): self
     {
-        return new self(0);
+        if ($baseTimePerRunSeconds < 0) {
+            throw new \InvalidArgumentException(\sprintf('A base time cannot be negative, got %d seconds.', $baseTimePerRunSeconds));
+        }
+
+        return new self((int) round($runs->value * $baseTimePerRunSeconds * $timeModifier->value));
     }
 
     public static function forReactionJob(int $baseTimePerRunSeconds, Runs $runs, Multiplier $timeModifier): self

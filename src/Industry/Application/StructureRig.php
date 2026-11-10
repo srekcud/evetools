@@ -14,13 +14,8 @@ final readonly class StructureRig
     /**
      * @param list<string> $targetedCategories
      */
-    public function __construct(public RigBonus $materialBonus, public array $targetedCategories, public ?RigBonus $costBonus = null)
+    public function __construct(public RigBonus $materialBonus, public array $targetedCategories)
     {
-    }
-
-    public static function costOnly(RigBonus $costBonus): self
-    {
-        return new self(new RigBonus(0.0, $costBonus->securityModifiers), [], $costBonus);
     }
 
     public function targets(string $productCategory): bool

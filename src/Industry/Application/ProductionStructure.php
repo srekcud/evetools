@@ -6,6 +6,7 @@ namespace App\Industry\Application;
 
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\ScienceRig;
 use App\Industry\Domain\SecurityClass;
 
 /**
@@ -17,6 +18,7 @@ final readonly class ProductionStructure
 {
     /**
      * @param list<StructureRig> $rigs
+     * @param list<ScienceRig> $scienceRigs
      */
     public function __construct(
         public string $id,
@@ -35,7 +37,18 @@ final readonly class ProductionStructure
 
     public function timeMultiplierFor(ActivityKind $activity): Multiplier
     {
-        return Multiplier::one();
+        if (ActivityKind::Copying !== $activity) {
+            throw new \InvalidArgumentException(\sprintf('The structure time multiplier is not modelled for %s.', $activity->name));
+        }
+
+        $multiplier = $this->timeRoleBonus;
+        foreach ($this->scienceRigs as $scienceRig) {
+            if ($scienceRig->activity === $activity && null !== $scienceRig->timeBonus) {
+                $multiplier = $multiplier->times($scienceRig->timeBonus->multiplierIn($this->security));
+            }
+        }
+
+        return $multiplier;
     }
 
     public function installCostMultiplierFor(ActivityKind $activity): Multiplier
@@ -45,9 +58,9 @@ final readonly class ProductionStructure
             return $multiplier;
         }
 
-        foreach ($this->rigs as $rig) {
-            if (null !== $rig->costBonus) {
-                $multiplier = $multiplier->times($rig->costBonus->multiplierIn($this->security));
+        foreach ($this->scienceRigs as $scienceRig) {
+            if ($scienceRig->activity === $activity && null !== $scienceRig->costBonus) {
+                $multiplier = $multiplier->times($scienceRig->costBonus->multiplierIn($this->security));
             }
         }
 

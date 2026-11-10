@@ -122,10 +122,12 @@ final class RigCatalogue
 
             // === Laboratory (Research/Invention/Copy) ===
 
-            ['name' => 'Standup M-Set Laboratory Optimization I', 'bonus' => 0, 'timeBonus' => 20.0, 'category' => 'Laboratory', 'size' => 'M', 'targetCategories' => []],
-            ['name' => 'Standup M-Set Laboratory Optimization II', 'bonus' => 0, 'timeBonus' => 24.0, 'category' => 'Laboratory', 'size' => 'M', 'targetCategories' => []],
-            ['name' => 'Standup L-Set Laboratory Optimization I', 'bonus' => 0, 'timeBonus' => 20.0, 'category' => 'Laboratory', 'size' => 'L', 'targetCategories' => []],
-            ['name' => 'Standup L-Set Laboratory Optimization II', 'bonus' => 0, 'timeBonus' => 24.0, 'category' => 'Laboratory', 'size' => 'L', 'targetCategories' => []],
+            ['name' => 'Standup M-Set Blueprint Copy Accelerator I', 'bonus' => 0, 'timeBonus' => 20.0, 'category' => 'Laboratory', 'size' => 'M', 'targetCategories' => []],
+            ['name' => 'Standup M-Set Blueprint Copy Accelerator II', 'bonus' => 0, 'timeBonus' => 24.0, 'category' => 'Laboratory', 'size' => 'M', 'targetCategories' => []],
+            ['name' => 'Standup M-Set Blueprint Copy Cost Optimization I', 'bonus' => 0, 'category' => 'Laboratory', 'size' => 'M', 'targetCategories' => []],
+            ['name' => 'Standup M-Set Blueprint Copy Cost Optimization II', 'bonus' => 0, 'category' => 'Laboratory', 'size' => 'M', 'targetCategories' => []],
+            ['name' => 'Standup L-Set Blueprint Copy Optimization I', 'bonus' => 0, 'timeBonus' => 20.0, 'category' => 'Laboratory', 'size' => 'L', 'targetCategories' => []],
+            ['name' => 'Standup L-Set Blueprint Copy Optimization II', 'bonus' => 0, 'timeBonus' => 24.0, 'category' => 'Laboratory', 'size' => 'L', 'targetCategories' => []],
             ['name' => 'Standup XL-Set Laboratory Optimization I', 'bonus' => 0, 'timeBonus' => 20.0, 'category' => 'Laboratory', 'size' => 'XL', 'targetCategories' => []],
             ['name' => 'Standup XL-Set Laboratory Optimization II', 'bonus' => 0, 'timeBonus' => 24.0, 'category' => 'Laboratory', 'size' => 'XL', 'targetCategories' => []],
         ],
