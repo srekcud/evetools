@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import MiningCompressionBanners from '@/components/mining-operation/MiningCompressionBanners.vue'
+import { useMiningCompression } from '@/composables/useMiningCompression'
 import { UNKNOWN_DASH, useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
 import type { MiningSite, MiningSiteScan, MiningSiteScanType } from '@/stores/miningSite'
 import { formatCountdown, formatEveClock } from '@/views/MiningOperation/miningOperationTime'
@@ -35,6 +37,7 @@ const emit = defineEmits<{ paste: []; leave: []; 'next-site': []; 'open-desk': [
 
 const { t } = useI18n()
 const { etaText, wholeText, valueText, lastScanText } = useMiningSiteFormat()
+const { badges: compressionBadges } = useMiningCompression(() => props.site?.compression)
 
 const confirmingLeave = ref(false)
 
@@ -169,6 +172,8 @@ function requestLeave(): void {
         <p v-if="hasIrregularType" class="text-xs text-orange-300" data-testid="companion-irregular">
           <span class="rounded-sm border border-orange-400/40 px-1.5 py-0.5">{{ t('miningSite.badge.irregular') }}</span>
         </p>
+
+        <MiningCompressionBanners :compression="site.compression" data-testid="companion-compression-banners" />
       </template>
 
       <template v-if="size === 'detail' && lastScan !== null">
@@ -200,6 +205,7 @@ function requestLeave(): void {
               <span class="block truncate font-display font-semibold text-slate-100" :title="typeNameOf(type.typeId)">{{ typeNameOf(type.typeId) }}</span>
               <span v-if="isNotMined(type)" class="text-xs text-slate-400">{{ t('miningSite.badge.notMined') }}</span>
               <span v-if="isIrregularRate(type)" class="text-xs text-orange-300">{{ t('miningSite.badge.irregular') }}</span>
+              <span v-if="compressionBadges.has(type.typeId)" data-testid="companion-type-compression" class="rounded-sm border px-1.5 py-0.5 text-xs" :class="compressionBadges.get(type.typeId)?.classes" :title="compressionBadges.get(type.typeId)?.hint">{{ compressionBadges.get(type.typeId)?.text }}</span>
             </span>
             <span class="text-right text-slate-100">{{ remainingText(type) }}</span>
             <span class="text-right text-slate-300">{{ etaCellText(type.recentEta) }}</span>
