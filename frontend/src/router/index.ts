@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type LocationQuery, type RouteLocationRaw } from 'vue-router'
 import { rememberModulePage } from '@/composables/useModuleLastPage'
 import { useAuthStore } from '@/stores/auth'
+import { DEFAULT_SETTINGS_SECTION, SETTINGS_PATH, SETTINGS_SECTIONS } from '@/constants/settingsSections'
 
 const MINING_OPERATIONS_PATH = '/mining/operations'
 const MINING_MOONS_PATH = '/mining/moons'
@@ -92,6 +93,14 @@ function formerAssetsContractsLocation(to: QueriedLocation): RouteLocationRaw | 
     return true
   }
   return { path: '/contracts', query: queryWithout(to.query, 'tab') }
+}
+
+function settingsAccountLocation(to: QueriedLocation): RouteLocationRaw {
+  return { name: 'settings', params: { section: DEFAULT_SETTINGS_SECTION }, query: to.query }
+}
+
+function settingsSectionRequired(to: QueriedLocation & { params: { section?: unknown } }): RouteLocationRaw | true {
+  return to.params.section === undefined || to.params.section === '' ? settingsAccountLocation(to) : true
 }
 
 const router = createRouter({
@@ -343,6 +352,17 @@ const router = createRouter({
     {
       path: `/mining-sites/:id(${UUID_PATTERN})`,
       redirect: to => ({ name: 'mining-site-detail', params: to.params, query: to.query }),
+    },
+    {
+      path: `${SETTINGS_PATH}/:section(${SETTINGS_SECTIONS.join('|')})?`,
+      name: 'settings',
+      component: () => import('@/views/Settings.vue'),
+      beforeEnter: settingsSectionRequired,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: `${SETTINGS_PATH}/:unknownSection`,
+      redirect: settingsAccountLocation,
     },
     {
       path: '/admin',

@@ -13,6 +13,7 @@ import AssetsStatsCards from '@/components/assets/AssetsStatsCards.vue'
 import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
+import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
 import type { Asset, CorpAssetVisibility } from '@/types'
 import { useFlash } from '@/composables/useUpdateFlash'
 
@@ -409,6 +410,7 @@ watch([selectedCharacterId, viewMode], () => {
 
 <template>
   <MainLayout>
+    <PatrimoineModuleTabs active="assets" />
     <div class="space-y-6">
       <div class="space-y-6">
         <!-- Action bar -->

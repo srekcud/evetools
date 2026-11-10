@@ -184,7 +184,7 @@ describe('CommandPalette', () => {
 
       expect(document.activeElement).toBe(searchInput())
       expect(searchInput()?.value).toBe('')
-      expect(activeOptionLabel()).toBe('Dashboard')
+      expect(activeOptionLabel()).toBe('Home')
     })
 
     it('exposes a modal dialog with a combobox controlling a listbox of grouped options', async () => {
@@ -204,7 +204,7 @@ describe('CommandPalette', () => {
       expect(activeOption.id).not.toBe('')
       expect(input.getAttribute('aria-activedescendant')).toBe(activeOption.id)
       expect(optionElements().map(option => option.getAttribute('aria-selected'))).toEqual([
-        'false', 'true', 'false', 'false', 'false', 'false', 'false', 'false', 'false', 'false',
+        'false', 'true', 'false', 'false', 'false', 'false', 'false', 'false', 'false',
       ])
       expect(groups.map(accessibleName)).toEqual(['Navigation'])
     })
@@ -215,16 +215,15 @@ describe('CommandPalette', () => {
       await mountOpenPalette()
 
       expect(optionLabels()).toEqual([
-        'Dashboard',
+        'Home',
         'Industry',
         'Industry › Projects',
-        'Appraisal',
-        'PI',
         'Mining',
         'PVE',
-        'Market',
-        'Balance',
-        'Inventory',
+        'Planetary',
+        'Commerce',
+        'Wealth',
+        'Account',
       ])
     })
 
@@ -273,16 +272,16 @@ describe('CommandPalette', () => {
       await typeQuery('a')
 
       expect(optionLabels()).toEqual([
-        'Appraisal',
+        'Account',
+        'Account › Settings',
+        'Account › Settings › Account',
+        'Account › Settings › Display',
+        'Account › Settings › Market',
+        'Account › Settings › Industry',
+        'Account › Settings › Mining',
+        'Account › Settings › PVE',
+        'Account › Settings › Notifications',
         'Industry › Projects › Available',
-        'Industry › Analysis',
-        'Industry › Analysis › Margins',
-        'Industry › Analysis › Batch Scan',
-        'Industry › Analysis › Buy vs Build',
-        'Industry › Analysis › Pivot',
-        'Mining › Available',
-        'Mining › Archive',
-        'Market › Alerts',
       ])
     })
 
@@ -322,7 +321,7 @@ describe('CommandPalette', () => {
 
       await typeQuery('marché')
 
-      expect(optionLabels()).toEqual(['Marche', 'Marche › Alertes'])
+      expect(optionLabels()).toEqual(['Compte › Parametres › Marché'])
     })
   })
 
@@ -337,8 +336,8 @@ describe('CommandPalette', () => {
       expect(paletteText()).toContain('No results for "buy"')
     })
 
-    it('removes the contracts page with the market module', async () => {
-      await mountOpenPalette({ hiddenModules: ['market'] })
+    it('removes the contracts page with the commerce module', async () => {
+      await mountOpenPalette({ hiddenModules: ['commerce'] })
 
       await typeQuery('contracts')
 
@@ -355,23 +354,21 @@ describe('CommandPalette', () => {
 
     it('reads the hidden modules again at the next opening', async () => {
       const { reopen } = await mountOpenPalette()
-      expect(optionLabels()).toContain('Market')
+      expect(optionLabels()).toContain('Commerce')
       await pressKey('Escape')
 
-      localStorage.setItem(HIDDEN_MODULES_STORAGE_KEY, JSON.stringify(['market']))
+      localStorage.setItem(HIDDEN_MODULES_STORAGE_KEY, JSON.stringify(['commerce']))
       await reopen()
 
       expect(optionLabels()).toEqual([
-        'Dashboard',
+        'Home',
         'Industry',
         'Industry › Projects',
-        'Appraisal',
-        'PI',
         'Mining',
         'PVE',
-        'Balance',
-        'Inventory',
-        'Characters',
+        'Planetary',
+        'Wealth',
+        'Account',
       ])
     })
   })
@@ -412,7 +409,7 @@ describe('CommandPalette', () => {
 
     it('navigates to the row reached with the arrows on Enter', async () => {
       const { router } = await mountOpenPalette()
-      await typeQuery('market')
+      await typeQuery('commerce')
       await pressArrowDown(1)
 
       await pressKey('Enter')
@@ -431,7 +428,7 @@ describe('CommandPalette', () => {
 
     it('navigates to a screen without a tab query', async () => {
       const { router } = await mountOpenPalette()
-      await pressArrowDown(7)
+      await pressArrowDown(6)
 
       await pressKey('Enter')
 
@@ -563,7 +560,7 @@ describe('CommandPalette', () => {
       await reopen()
 
       expect(searchInput()?.value).toBe('')
-      expect(activeOptionLabel()).toBe('Dashboard')
+      expect(activeOptionLabel()).toBe('Home')
     })
   })
 })

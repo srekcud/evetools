@@ -6,41 +6,32 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useRateLimitStore } from '@/stores/rateLimit'
 import { useAdminStore } from '@/stores/admin'
-import { useFormatters } from '@/composables/useFormatters'
-import { apiRequest } from '@/services/api'
-import { useStructuresStore } from '@/stores/industry/structures'
 import { useIndustryActionsStore } from '@/stores/industry/actions'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import CommandPalette from '@/components/common/CommandPalette.vue'
 import AccountMenu from '@/components/layout/AccountMenu.vue'
 import { useModuleLastPage } from '@/composables/useModuleLastPage'
+import { useHiddenModules } from '@/composables/useHiddenModules'
 import {
   adminNavItem,
   allNavEntries,
-  isModuleHidden,
-  isNavGroup,
   isNavItemActive,
   isProjectsHidden,
-  moduleIdsToUnhide,
-  readHiddenModules,
-  saveHiddenModules,
-  settableModules,
-  type NavEntry,
-  type NavGroup,
+  pageOfPath,
   type NavItem,
 } from '@/constants/sidebarNavigation'
 
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const rateLimitStore = useRateLimitStore()
 const adminStore = useAdminStore()
-const { dateFormat, setDateFormat } = useFormatters()
 const { lastPageOf } = useModuleLastPage()
-const industryStructuresStore = useStructuresStore()
+const { hiddenModules, reloadHiddenModules, isModuleVisible } = useHiddenModules()
 const industryActionsStore = useIndustryActionsStore()
 const INDUSTRY_NAV_ITEM_ID = 'industry'
+const TITLE_SEPARATOR = ' › '
 
 // Check admin access on mount
 const isAdmin = ref(false)
@@ -120,44 +111,7 @@ onUnmounted(() => {
 const user = computed(() => authStore.user)
 const mainCharacter = computed(() => user.value?.mainCharacter || user.value?.characters?.[0])
 
-// Settings
-const showSettings = ref(false)
-const hiddenModules = ref<string[]>([])
-
-// Collapse state for nav groups
-const collapsedGroups = ref<Record<string, boolean>>({})
-
-function loadCollapsedGroups(): void {
-  const saved = localStorage.getItem('evetools_nav_collapsed')
-  if (saved) {
-    try {
-      collapsedGroups.value = JSON.parse(saved)
-    } catch {
-      collapsedGroups.value = {}
-    }
-  }
-}
-
-function saveCollapsedGroups(): void {
-  localStorage.setItem('evetools_nav_collapsed', JSON.stringify(collapsedGroups.value))
-}
-
-function toggleGroup(groupId: string): void {
-  collapsedGroups.value[groupId] = !collapsedGroups.value[groupId]
-  saveCollapsedGroups()
-}
-
-function isGroupExpanded(group: NavGroup): boolean {
-  // Auto-expand if a child route is active
-  const currentPath = router.currentRoute.value.path
-  const hasActiveChild = group.children.some(child => isNavItemActive(child, currentPath))
-  if (hasActiveChild) return true
-  // Otherwise use stored state (default expanded)
-  return !collapsedGroups.value[group.id]
-}
-
 const NAVIGATION_DRAWER_ID = 'navigation-drawer'
-const NAV_SECTION_HEADING_CLASS = 'w-full flex items-center gap-2 px-3 pb-1 font-display text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 hover:text-slate-200 transition-colors'
 const NAV_LINK_BASE_CLASS = 'w-full flex items-center gap-3 px-3 py-2 rounded-md border-l-2 font-display text-base font-semibold tracking-wide transition-colors'
 
 function navLinkClass(isActive: boolean): string[] {
@@ -220,81 +174,35 @@ watch(isWideScreen, (isWide) => {
   if (isWide) closeDrawer()
 })
 watch(() => router.currentRoute.value.fullPath, closeDrawer)
-watch(showSettings, (opened) => {
-  if (opened) closeDrawer()
-})
 
-// Load settings from localStorage
 onMounted(() => {
-  loadCollapsedGroups()
-  hiddenModules.value = readHiddenModules()
+  reloadHiddenModules()
   if (!isProjectsHidden(hiddenModules.value)) {
     void industryActionsStore.fetchActions()
   }
 })
 
-// Save settings to localStorage
-function saveSettings(): void {
-  saveHiddenModules(hiddenModules.value)
-}
-
-function toggleModule(moduleId: string): void {
-  if (isModuleHidden(hiddenModules.value, moduleId)) {
-    const idsToUnhide = moduleIdsToUnhide(moduleId)
-    hiddenModules.value = hiddenModules.value.filter(hiddenId => !idsToUnhide.includes(hiddenId))
-  } else {
-    hiddenModules.value.push(moduleId)
-  }
-  saveSettings()
-}
-
-function isModuleVisible(moduleId: string): boolean {
-  return !isModuleHidden(hiddenModules.value, moduleId)
-}
-
 function navTargetOf(item: NavItem): string {
   return lastPageOf(item.id, item.route)
 }
 
-// Filtered nav entries (visible only)
-const filteredNavEntries = computed((): NavEntry[] => {
-  const result: NavEntry[] = []
-  for (const entry of allNavEntries) {
-    if (isNavGroup(entry)) {
-      const visibleChildren = entry.children.filter(child => isModuleVisible(child.id))
-      if (visibleChildren.length > 0) {
-        result.push({ ...entry, children: visibleChildren })
-      }
-    } else {
-      if (isModuleVisible(entry.id)) {
-        result.push(entry)
-      }
-    }
-  }
-  // Add admin item if admin
-  if (isAdmin.value) {
-    result.push(adminNavItem)
-  }
-  return result
+const visibleNavEntries = computed((): NavItem[] => {
+  const visibleModules: NavItem[] = allNavEntries.filter(module => isModuleVisible(module.id))
+  return isAdmin.value ? [...visibleModules, adminNavItem] : visibleModules
 })
 
 function isActiveRoute(item: NavItem): boolean {
   return isNavItemActive(item, router.currentRoute.value.path)
 }
 
-// Current page title - search all entries including group children
 const currentPageTitle = computed(() => {
   const currentPath = router.currentRoute.value.path
-  for (const entry of allNavEntries) {
-    if (isNavGroup(entry)) {
-      const child = entry.children.find(c => isNavItemActive(c, currentPath))
-      if (child) return t(child.labelKey)
-    } else {
-      if (isNavItemActive(entry, currentPath)) return t(entry.labelKey)
-    }
+  const activeModule = allNavEntries.find(module => isNavItemActive(module, currentPath))
+  if (activeModule !== undefined) {
+    const activePage = pageOfPath(activeModule, currentPath)
+    return activePage === undefined ? t(activeModule.labelKey) : `${t(activeModule.labelKey)}${TITLE_SEPARATOR}${t(activePage.labelKey)}`
   }
   if (currentPath === adminNavItem.route) return t(adminNavItem.labelKey)
-  if (currentPath === '/characters') return t('nav.characters')
   return t('nav.dashboard')
 })
 
@@ -317,114 +225,6 @@ const logout = async () => {
   }
 }
 
-// Language switcher
-function setLocale(lang: 'fr' | 'en') {
-  locale.value = lang
-  localStorage.setItem('locale', lang)
-}
-
-// Market structures list
-const marketStructures = ref<Array<{ id: number; name: string }>>([])
-const loadingStructures = ref(false)
-const savingStructure = ref(false)
-const structureSaveSuccess = ref(false)
-
-// ESI structure search state
-const structureSearchQuery = ref('')
-const structureSearchResults = ref<{ locationId: number; locationName: string; solarSystemName: string | null }[]>([])
-const isSearchingStructures = ref(false)
-const showStructureSearchDropdown = ref(false)
-let structureSearchTimeout: number | undefined
-
-function onStructureSearchInput(): void {
-  clearTimeout(structureSearchTimeout)
-  if (structureSearchQuery.value.length < 3) {
-    structureSearchResults.value = []
-    showStructureSearchDropdown.value = false
-    return
-  }
-  structureSearchTimeout = window.setTimeout(async () => {
-    isSearchingStructures.value = true
-    const result = await industryStructuresStore.searchStructures(structureSearchQuery.value)
-    structureSearchResults.value = result.structures.map(s => ({
-      locationId: s.locationId,
-      locationName: s.locationName,
-      solarSystemName: s.solarSystemName,
-    }))
-    showStructureSearchDropdown.value = result.structures.length > 0
-    isSearchingStructures.value = false
-  }, 500)
-}
-
-function selectStructureSearchResult(result: { locationId: number; locationName: string; solarSystemName: string | null }): void {
-  if (!marketStructures.value.some(s => s.id === result.locationId)) {
-    marketStructures.value.push({ id: result.locationId, name: result.locationName })
-    saveMarketStructures()
-  }
-  structureSearchQuery.value = ''
-  structureSearchResults.value = []
-  showStructureSearchDropdown.value = false
-}
-
-function hideStructureDropdownDelayed(): void {
-  window.setTimeout(() => {
-    showStructureSearchDropdown.value = false
-  }, 200)
-}
-
-function removeMarketStructure(id: number): void {
-  marketStructures.value = marketStructures.value.filter(s => s.id !== id)
-  saveMarketStructures()
-}
-
-async function loadMarketSettings(): Promise<void> {
-  loadingStructures.value = true
-  try {
-    const settings = await apiRequest<{
-      preferredMarketStructureId: number | null
-      preferredMarketStructureName: string | null
-      marketStructures: Array<{ id: number; name: string }>
-    }>('/me/settings')
-    if (settings.marketStructures?.length > 0) {
-      marketStructures.value = settings.marketStructures
-    } else if (settings.preferredMarketStructureId) {
-      // Fallback: migrate single preferred to list
-      marketStructures.value = [{ id: settings.preferredMarketStructureId, name: settings.preferredMarketStructureName ?? 'Unknown' }]
-    }
-  } catch {
-    // Non-blocking: settings section will still show with defaults
-  } finally {
-    loadingStructures.value = false
-  }
-}
-
-async function saveMarketStructures(): Promise<void> {
-  savingStructure.value = true
-  structureSaveSuccess.value = false
-  try {
-    await apiRequest('/me/settings', {
-      method: 'PATCH',
-      body: JSON.stringify({ marketStructures: marketStructures.value }),
-    })
-    structureSaveSuccess.value = true
-    setTimeout(() => { structureSaveSuccess.value = false }, 2000)
-  } catch {
-    await loadMarketSettings()
-  } finally {
-    savingStructure.value = false
-  }
-}
-
-// Load market settings when the settings modal opens
-watch(showSettings, (opened) => {
-  if (opened) {
-    loadMarketSettings()
-    // Reset search state
-    structureSearchQuery.value = ''
-    structureSearchResults.value = []
-    showStructureSearchDropdown.value = false
-  }
-})
 </script>
 
 <template>
@@ -473,86 +273,24 @@ watch(showSettings, (opened) => {
         </div>
 
         <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto min-h-0">
-          <template v-for="entry in filteredNavEntries" :key="entry.id">
-            <div v-if="'collapsible' in entry && entry.collapsible" class="pt-3">
-              <button
-                @click="toggleGroup(entry.id)"
-                :aria-expanded="isGroupExpanded(entry as NavGroup)"
-                :class="NAV_SECTION_HEADING_CLASS"
-              >
-                <span>{{ t(entry.labelKey) }}</span>
-                <svg
-                  class="w-3.5 h-3.5 ml-auto transition-transform duration-200"
-                  :class="{ 'rotate-90': isGroupExpanded(entry as NavGroup) }"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-              </button>
-              <div v-if="isGroupExpanded(entry as NavGroup)" class="mt-0.5 space-y-0.5">
-                <RouterLink
-                  v-for="child in (entry as NavGroup).children"
-                  :key="child.id"
-                  :to="navTargetOf(child)"
-                  :aria-current="isActiveRoute(child) ? 'page' : undefined"
-                  @click="closeDrawerOnNavigationClick"
-                  :class="navLinkClass(isActiveRoute(child))"
-                >
-                  <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="child.icon"/>
-                  </svg>
-                  <span class="truncate">{{ t(child.labelKey) }}</span>
-                  <span
-                    v-if="child.id === INDUSTRY_NAV_ITEM_ID && industryActionsStore.count"
-                    data-testid="nav-industry-action-count"
-                    class="ml-auto shrink-0 rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 font-mono text-xs text-cyan-400"
-                  >{{ industryActionsStore.count }}</span>
-                </RouterLink>
-              </div>
-            </div>
-
-            <RouterLink
-              v-else
-              :to="navTargetOf(entry as NavItem)"
-              :aria-current="isActiveRoute(entry as NavItem) ? 'page' : undefined"
-              @click="closeDrawerOnNavigationClick"
-              :class="navLinkClass(isActiveRoute(entry as NavItem))"
-            >
-              <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="(entry as NavItem).icon"/>
-              </svg>
-              <span class="truncate">{{ t((entry as NavItem).labelKey) }}</span>
-            </RouterLink>
-          </template>
-
-          <div class="pt-3">
-            <p :class="NAV_SECTION_HEADING_CLASS">{{ t('nav.account') }}</p>
-            <div class="mt-0.5 space-y-0.5">
-              <RouterLink
-                to="/characters"
-                :aria-current="router.currentRoute.value.path === '/characters' ? 'page' : undefined"
-                @click="closeDrawerOnNavigationClick"
-                :class="navLinkClass(router.currentRoute.value.path === '/characters')"
-              >
-                <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                </svg>
-                <span class="truncate">{{ t('nav.characters') }}</span>
-              </RouterLink>
-              <button
-                type="button"
-                :title="t('auth.openSettings')"
-                :class="navLinkClass(false)"
-                @click="showSettings = true"
-              >
-                <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <span class="truncate">{{ t('settings.title') }}</span>
-              </button>
-            </div>
-          </div>
+          <RouterLink
+            v-for="entry in visibleNavEntries"
+            :key="entry.id"
+            :to="navTargetOf(entry)"
+            :aria-current="isActiveRoute(entry) ? 'page' : undefined"
+            @click="closeDrawerOnNavigationClick"
+            :class="navLinkClass(isActiveRoute(entry))"
+          >
+            <svg class="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="entry.icon"/>
+            </svg>
+            <span class="truncate">{{ t(entry.labelKey) }}</span>
+            <span
+              v-if="entry.id === INDUSTRY_NAV_ITEM_ID && industryActionsStore.count"
+              data-testid="nav-industry-action-count"
+              class="ml-auto shrink-0 rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 font-mono text-xs text-cyan-400"
+            >{{ industryActionsStore.count }}</span>
+          </RouterLink>
         </nav>
 
         <div class="px-4 py-3 border-t border-slate-800 shrink-0">
@@ -566,201 +304,6 @@ watch(showSettings, (opened) => {
           </button>
         </div>
       </aside>
-
-      <!-- Settings Modal -->
-      <BaseModal
-        :show="showSettings"
-        :title="t('settings.title')"
-        panel-class="border-cyan-500/30 shadow-cyan-500/10 max-w-md max-h-[85vh] flex flex-col"
-        @close="showSettings = false"
-      >
-        <!-- Header -->
-        <template #title="{ titleId }">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
-            <h3 :id="titleId" class="text-lg font-semibold text-slate-100">{{ t('settings.title') }}</h3>
-            <button
-              @click="showSettings = false"
-              :aria-label="t('common.actions.close')"
-              class="p-1 hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
-        </template>
-
-        <!-- Content -->
-        <div class="p-6 overflow-y-auto min-h-0">
-          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">{{ t('settings.visibleModules') }}</h4>
-          <div class="space-y-2">
-            <label
-              v-for="item in settableModules"
-              :key="item.id"
-              class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer transition-colors"
-            >
-              <input
-                type="checkbox"
-                :checked="isModuleVisible(item.id)"
-                @change="toggleModule(item.id)"
-                class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
-              />
-              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="item.icon"/>
-              </svg>
-              <span class="text-slate-200">{{ t(item.labelKey) }}</span>
-            </label>
-          </div>
-
-          <p class="mt-4 text-xs text-slate-500">
-            {{ t('settings.hiddenModulesNote') }}
-          </p>
-
-          <!-- Language selector -->
-          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 mt-6">{{ t('settings.language') }}</h4>
-          <div class="flex gap-2">
-            <button
-              @click="setLocale('fr')"
-              :class="[
-                'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
-                locale === 'fr'
-                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
-              ]"
-            >
-              {{ t('settings.french') }}
-            </button>
-            <button
-              @click="setLocale('en')"
-              :class="[
-                'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
-                locale === 'en'
-                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
-              ]"
-            >
-              {{ t('settings.english') }}
-            </button>
-          </div>
-          <p class="mt-2 text-xs text-slate-500">
-            {{ t('settings.languageNote') }}
-          </p>
-
-          <!-- Date format selector -->
-          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 mt-6">{{ t('settings.dateFormat') }}</h4>
-          <div class="flex gap-2">
-            <button
-              @click="setDateFormat('eu')"
-              :class="[
-                'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
-                dateFormat === 'eu'
-                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
-              ]"
-            >
-              JJ/MM/AA
-            </button>
-            <button
-              @click="setDateFormat('us')"
-              :class="[
-                'flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border',
-                dateFormat === 'us'
-                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-500/30 hover:text-slate-200'
-              ]"
-            >
-              MM/DD/YY
-            </button>
-          </div>
-          <p class="mt-2 text-xs text-slate-500">
-            {{ t('settings.dateFormatNote') }}
-          </p>
-
-          <!-- Market structures list -->
-          <h4 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-2 mt-6">{{ t('settings.marketStructure') }}</h4>
-          <p class="text-xs text-slate-500 mb-3">{{ t('settings.marketStructureDesc') }}</p>
-          <div v-if="loadingStructures" class="flex items-center gap-2 text-sm text-slate-500 py-2">
-            <LoadingSpinner size="sm" class="text-cyan-500" />
-            {{ t('settings.marketStructureLoading') }}
-          </div>
-          <div v-else>
-            <!-- Current structures list -->
-            <div v-if="marketStructures.length > 0" class="space-y-1.5 mb-3">
-              <div
-                v-for="struct in marketStructures"
-                :key="struct.id"
-                class="flex items-center justify-between bg-cyan-900/20 border border-cyan-700/50 rounded-lg px-3 py-2"
-              >
-                <div class="flex items-center gap-2 min-w-0">
-                  <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <span class="text-sm text-cyan-300 truncate">{{ struct.name }}</span>
-                </div>
-                <button
-                  @click="removeMarketStructure(struct.id)"
-                  class="p-1 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-sm shrink-0 ml-2"
-                  :title="t('common.actions.delete')"
-                  :aria-label="t('common.actions.delete')"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- Search to add new structure -->
-            <div class="relative">
-              <input
-                v-model="structureSearchQuery"
-                type="text"
-                :aria-label="t('industry.structures.searchStructure')"
-                :placeholder="t('industry.structures.searchStructure')"
-                @input="onStructureSearchInput"
-                @focus="showStructureSearchDropdown = structureSearchResults.length > 0"
-                @blur="hideStructureDropdownDelayed"
-                class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 text-sm focus:outline-none focus:border-cyan-500/50 disabled:opacity-50"
-                :disabled="savingStructure"
-              />
-              <div v-if="isSearchingStructures" class="absolute right-3 top-1/2 -translate-y-1/2">
-                <LoadingSpinner size="sm" class="text-slate-400" />
-              </div>
-
-              <!-- Search results dropdown -->
-              <div
-                v-if="showStructureSearchDropdown && structureSearchResults.length > 0"
-                class="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-              >
-                <button
-                  v-for="result in structureSearchResults"
-                  :key="result.locationId"
-                  @mousedown.prevent="selectStructureSearchResult(result)"
-                  class="w-full px-3 py-2 hover:bg-slate-700 text-left"
-                >
-                  <div class="text-sm text-slate-200">{{ result.locationName }}</div>
-                  <div v-if="result.solarSystemName" class="text-xs text-slate-500">{{ result.solarSystemName }}</div>
-                </button>
-              </div>
-            </div>
-          </div>
-          <Transition name="fade">
-            <p v-if="structureSaveSuccess" class="mt-2 text-xs text-emerald-400">
-              {{ t('settings.marketStructureSaved') }}
-            </p>
-          </Transition>
-        </div>
-
-        <!-- Footer -->
-        <div class="px-6 py-4 border-t border-slate-800 flex justify-end shrink-0">
-          <button
-            @click="showSettings = false"
-            class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
-          >
-            {{ t('common.actions.close') }}
-          </button>
-        </div>
-      </BaseModal>
 
       <!-- Release Notes Modal -->
       <BaseModal
@@ -855,7 +398,6 @@ watch(showSettings, (opened) => {
             <AccountMenu
               :character="mainCharacter"
               :is-logging-out="isLoggingOut"
-              @open-settings="showSettings = true"
               @open-release-notes="openReleaseNotes"
               @logout="logout"
             />

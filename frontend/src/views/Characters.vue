@@ -10,6 +10,7 @@ import CharacterCard from '@/components/characters/CharacterCard.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import { useAccountDeletion } from '@/composables/useAccountDeletion'
+import AccountModuleTabs from '@/components/account/AccountModuleTabs.vue'
 
 const { t } = useI18n()
 
@@ -255,6 +256,7 @@ async function reauthorize(character: Character) {
 
 <template>
   <MainLayout>
+      <AccountModuleTabs active="characters" />
       <!-- Header -->
       <div class="flex items-center justify-between mb-8">
         <div>

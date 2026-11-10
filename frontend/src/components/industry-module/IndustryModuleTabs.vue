@@ -20,5 +20,5 @@ const tabs = computed<ModuleTab[]>(() => [
 </script>
 
 <template>
-  <ModuleTabBar :tabs="tabs" :active-id="active" :aria-label="t('nav.industry')" class="mb-6" />
+  <ModuleTabBar :tabs="tabs" :active-id="active" :aria-label="t('nav.industry')" settings-section="industry" class="mb-6" />
 </template>

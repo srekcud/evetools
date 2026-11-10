@@ -101,7 +101,7 @@
     }
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "dashboard": "Home",
     "characters": "Characters",
     "revenue": "Revenue",
     "pve": "PVE",
@@ -125,7 +125,9 @@
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
     "menu": "Navigation menu",
-    "account": "Account"
+    "account": "Account",
+    "planetary": "Planetary",
+    "patrimoine": "Wealth"
   },
   "commandPalette": {
     "open": "Open command palette (Ctrl+K)",
@@ -165,7 +167,18 @@
     "marketStructure": "Market Structure",
     "marketStructureDesc": "Choose a structure to compare prices against Jita.",
     "marketStructureLoading": "Loading structures...",
-    "marketStructureSaved": "Structure saved"
+    "marketStructureLoadError": "Market structures could not be loaded.",
+    "marketStructureSaved": "Structure saved",
+    "shortcut": "Settings",
+    "sections": {
+      "account": "Account",
+      "display": "Display",
+      "market": "Market",
+      "industry": "Industry",
+      "mining": "Mining",
+      "pve": "PVE",
+      "notifications": "Notifications"
+    }
   },
   "auth": {
     "logout": "Logout",

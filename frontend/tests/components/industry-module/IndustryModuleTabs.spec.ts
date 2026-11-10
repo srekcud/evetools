@@ -38,7 +38,7 @@ describe('IndustryModuleTabs', () => {
   it('links the four pages of the module in order', async () => {
     const wrapper = await mountTabs('workshop')
 
-    expect(wrapper.findAll('a').map(link => link.attributes('href'))).toEqual(PAGES.map(([, path]) => path))
+    expect(wrapper.findAll('a[title]').map(link => link.attributes('href'))).toEqual(PAGES.map(([, path]) => path))
   })
 
   it.each([
@@ -47,7 +47,7 @@ describe('IndustryModuleTabs', () => {
   ] as const)('labels the four pages in %s', async (locale, labels) => {
     const wrapper = await mountTabs('workshop', locale)
 
-    expect(wrapper.findAll('a').map(link => link.text().trim())).toEqual(labels)
+    expect(wrapper.findAll('a[title]').map(link => link.text().trim())).toEqual(labels)
   })
 
   it.each(PAGES)('marks only the %s tab as the current page', async (active, path) => {
