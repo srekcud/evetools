@@ -35,6 +35,7 @@ final readonly class JobInstallCostEstimator
             'manufacturing' => ActivityKind::Manufacturing,
             'reaction' => ActivityKind::Reaction,
             'invention' => ActivityKind::Invention,
+            'copying' => ActivityKind::Copying,
             default => throw new \InvalidArgumentException(sprintf('Unsupported install cost activity "%s".', $activity)),
         };
         $materialTypeIds = array_column($materials, 'materialTypeId');

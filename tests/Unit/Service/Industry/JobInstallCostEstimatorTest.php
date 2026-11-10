@@ -31,6 +31,8 @@ class JobInstallCostEstimatorTest extends TestCase
     private const MANUFACTURING_COST_INDEX = 0.05;
     private const REACTION_COST_INDEX = 0.04;
     private const INVENTION_COST_INDEX = 0.08;
+    private const COPYING_COST_INDEX = 0.02;
+    private const BLUEPRINT_MATERIAL_ADJUSTED_PRICE = 5_000_000.0;
     private const FACILITY_TAX_PERCENT = 10.0;
 
     private JobInstallCostEstimator $estimator;
@@ -200,6 +202,36 @@ class JobInstallCostEstimatorTest extends TestCase
         $this->assertNull($estimate['cost']);
         $this->assertSame('missing_cost_index', $estimate['unknownReason']);
         $this->assertSame([self::COOLANT, self::ROBOTICS], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testCopyingOfTenRunsMatchesTheReferenceVectorWithTheSccSurcharge(): void
+    {
+        $estimate = $this->estimator->estimate(
+            [['materialTypeId' => self::MORPHITE, 'quantity' => 1]],
+            [self::MORPHITE => self::BLUEPRINT_MATERIAL_ADJUSTED_PRICE],
+            self::COPYING_COST_INDEX,
+            10,
+            'copying',
+            null,
+        );
+
+        $this->assertEqualsWithDelta(60_000.0, $estimate['cost'], 1e-6);
+        $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    public function testCopyingFacilityTaxIsAddedOnTheJobCostBaseInsteadOfMultiplyingTheCostIndexTerm(): void
+    {
+        $estimate = $this->estimator->estimate(
+            [['materialTypeId' => self::MORPHITE, 'quantity' => 1]],
+            [self::MORPHITE => self::BLUEPRINT_MATERIAL_ADJUSTED_PRICE],
+            self::COPYING_COST_INDEX,
+            10,
+            'copying',
+            5.0,
+        );
+
+        $this->assertEqualsWithDelta(110_000.0, $estimate['cost'], 1e-6);
     }
 
     public function testBlueprintWithoutMaterialHasAnInstallCostOfZero(): void

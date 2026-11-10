@@ -12,7 +12,7 @@ final readonly class InstallCost
     /** Copying and invention pay on the job cost base, 2 % of the manufacturing EIV of the blueprint concerned. */
     private const float JOB_COST_BASE_RATE = 0.02;
 
-    /** Same SCC for every activity in scope; the July 2025 drop to 2 % only targets ME/TE research (D11a pending for copying). */
+    /** Same SCC for every activity in scope; the July 2025 drop to 2 % only targets ME/TE research. */
     private const float SCC_SURCHARGE_RATE = 0.04;
 
     private const float RESEARCH_SCC_SURCHARGE_RATE = 0.02;
