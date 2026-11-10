@@ -6,6 +6,7 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import { apiRequest } from '@/services/api'
+import { deferred } from '../../deferred'
 import type { StructureComparisonGroup } from '@/stores/group-industry/types'
 import { useSyncStore, type GroupProjectEvent } from '@/stores/sync'
 import {
@@ -45,12 +46,16 @@ function text(key: string, params: Record<string, unknown> = {}): string {
 async function mountStructures(
   groups: StructureComparisonGroup[],
   project: { acceptsOutsideFavoriteSystem?: boolean, minimumOutsideSaving?: number } = {},
+  canSwitch = false,
+  patchOutcome: () => Promise<unknown> = () => Promise.resolve({}),
 ): Promise<VueWrapper> {
-  vi.mocked(apiRequest).mockResolvedValue(projectStructures(PROJECT_ID, groups, project))
+  vi.mocked(apiRequest).mockImplementation((_endpoint: string, options?: RequestInit) =>
+    Promise.resolve(options?.method === 'PATCH' ? patchOutcome() : projectStructures(PROJECT_ID, groups, project)),
+  )
   setActivePinia(createPinia())
   const syncStore = useSyncStore()
   vi.spyOn(syncStore, 'getGroupProjectEvent').mockImplementation(projectId => projectEvents.value[projectId] ?? null)
-  const wrapper = mount(ProjectStructures, { props: { projectId: PROJECT_ID }, global: { plugins: [i18n] } })
+  const wrapper = mount(ProjectStructures, { props: { projectId: PROJECT_ID, canSwitch }, global: { plugins: [i18n] } })
   await flushPromises()
   return wrapper
 }
@@ -199,6 +204,96 @@ describe('ProjectStructures', () => {
       readsAtMount: 1,
       readsAfterOtherProject: 1,
       readsAfterOwnEvent: 2,
+    })
+  })
+
+  describe('policy button', () => {
+    const SWITCH_REFUSAL = 'The line "Fernite Composite" carries a linked job, a purchase or a contribution and cannot be removed from the plan.'
+
+    function switchButton(wrapper: VueWrapper) {
+      return wrapper.find(`[data-testid="structures-banner-${ISHTAR_TYPE_ID}-switch"]`)
+    }
+
+    function patchesSent(): string[] {
+      return vi.mocked(apiRequest).mock.calls
+        .filter(([endpoint, options]) => endpoint === `/industry/projects/${PROJECT_ID}` && options?.method === 'PATCH')
+        .map(([, options]) => String(options?.body))
+    }
+
+    async function clickSwitch(wrapper: VueWrapper): Promise<void> {
+      const button = switchButton(wrapper)
+      expect(button.exists()).toBe(true)
+      if (button.exists()) await button.trigger('click')
+      await flushPromises()
+    }
+
+    it('offers to allow the project outside the favorite system when the cheaper structure is refused for that reason, and sends the option', async () => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: false }, true)
+
+      expect(switchButton(wrapper).text()).toBe(text('groupIndustry.structures.switch.allow'))
+
+      await clickSwitch(wrapper)
+
+      expect(patchesSent()).toEqual([JSON.stringify({ acceptsOutsideFavoriteSystem: true })])
+    })
+
+    it.each([
+      ['below the threshold', ISHTAR_FAVORITE_SYSTEM_RETAINED, 200_000],
+      ['above the threshold', ISHTAR_FAVORITE_SYSTEM_RETAINED, 100_000],
+      ['retained for its total cost', ISHTAR_CHEAPEST_RETAINED, 100_000],
+    ])('offers to go back to the favorite system when the project accepts the outside and the saving is %s, and sends the option', async (_case, group, minimumOutsideSaving) => {
+      const wrapper = await mountStructures([group], { acceptsOutsideFavoriteSystem: true, minimumOutsideSaving }, true)
+
+      expect(switchButton(wrapper).text()).toBe(text('groupIndustry.structures.switch.revert'))
+
+      await clickSwitch(wrapper)
+
+      expect(patchesSent()).toEqual([JSON.stringify({ acceptsOutsideFavoriteSystem: false })])
+    })
+
+    it('shows no button without the right to switch and none in a group without banner', async () => {
+      const withoutRight = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], { acceptsOutsideFavoriteSystem: false }, false)
+      const withoutBanner = await mountStructures([FERNITE_COMPOSITE_UNKNOWN_PRICE], { acceptsOutsideFavoriteSystem: true }, true)
+
+      expect(withoutRight.findAll('button')).toHaveLength(0)
+      expect(withoutBanner.findAll('button')).toHaveLength(0)
+    })
+
+    it('disables the button while the project is being updated', async () => {
+      const pending = deferred<unknown>()
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], {}, true, () => pending.promise)
+
+      await clickSwitch(wrapper)
+      const whileUpdating = switchButton(wrapper).attributes('disabled')
+      pending.resolve({})
+      await flushPromises()
+
+      expect(whileUpdating).toBeDefined()
+      expect(switchButton(wrapper).attributes('disabled')).toBeUndefined()
+    })
+
+    it('reads the structures again and emits switched once the option is saved', async () => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], {}, true)
+      const readsBeforeTheSwitch = structureReads()
+
+      await clickSwitch(wrapper)
+
+      expect([readsBeforeTheSwitch, structureReads()]).toEqual([1, 2])
+      expect(wrapper.emitted('switched')).toHaveLength(1)
+      expect(wrapper.find('[data-testid="structures-switch-error"]').exists()).toBe(false)
+    })
+
+    it('shows the message of the server in an alert and does not emit switched when the option is refused', async () => {
+      const wrapper = await mountStructures([ISHTAR_FAVORITE_SYSTEM_RETAINED], {}, true, () => Promise.reject(new Error(SWITCH_REFUSAL)))
+
+      await clickSwitch(wrapper)
+
+      const alert = wrapper.get('[data-testid="structures-switch-error"]')
+      expect(alert.attributes('role')).toBe('alert')
+      expect(alert.text()).toContain(text('groupIndustry.structures.switch.error'))
+      expect(alert.text()).toContain(SWITCH_REFUSAL)
+      expect(wrapper.emitted('switched')).toBeUndefined()
+      expect(structureReads()).toBe(1)
     })
   })
 })
