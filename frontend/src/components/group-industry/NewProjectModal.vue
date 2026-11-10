@@ -920,7 +920,7 @@ function handleClose() {
                 {{ cat.label }}
               </span>
             </label>
-            <span v-if="isLockedBySettings(cat.id)" class="text-[10px] uppercase tracking-wide text-cyan-500/80">
+            <span v-if="isLockedBySettings(cat.id)" class="text-xs uppercase tracking-wide text-cyan-500/80">
               {{ t('groupIndustry.modals.newProject.blacklistFromSettings') }}
             </span>
           </div>
