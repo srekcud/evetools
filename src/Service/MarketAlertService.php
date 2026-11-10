@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\MarketPriceAlert;
+use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\AlertDirection;
 use App\Enum\AlertPriceSource;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -22,6 +24,7 @@ class MarketAlertService
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly NotificationDispatcher $notificationDispatcher,
     ) {
     }
 
@@ -88,6 +91,8 @@ class MarketAlertService
                         'currentPrice' => $currentPrice,
                         'priceSource' => $alert->getPriceSource()->value,
                     ]);
+
+                    $this->notifyOwner($alert, $currentPrice);
                 }
             }
         }
@@ -97,6 +102,56 @@ class MarketAlertService
         }
 
         return $triggered;
+    }
+
+    private function notifyOwner(MarketPriceAlert $alert, float $currentPrice): void
+    {
+        try {
+            $this->notificationDispatcher->dispatch(
+                $alert->getUser(),
+                Notification::CATEGORY_PRICE,
+                Notification::LEVEL_WARNING,
+                sprintf('Price alert: %s', $alert->getTypeName()),
+                sprintf(
+                    '%s on %s is now %s ISK, %s your threshold of %s ISK.',
+                    $alert->getTypeName(),
+                    $this->priceSourceLabel($alert->getPriceSource()),
+                    $this->formatPrice($currentPrice),
+                    $alert->getDirection()->value,
+                    $this->formatPrice($alert->getThreshold()),
+                ),
+                [
+                    'alertId' => $alert->getId()?->toRfc4122(),
+                    'typeId' => $alert->getTypeId(),
+                    'direction' => $alert->getDirection()->value,
+                    'threshold' => $alert->getThreshold(),
+                    'currentPrice' => $currentPrice,
+                    'priceSource' => $alert->getPriceSource()->value,
+                ],
+                sprintf('/market?tab=detail&typeId=%d', $alert->getTypeId()),
+            );
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to send market alert notification', [
+                'alertId' => $alert->getId()?->toRfc4122(),
+                'typeId' => $alert->getTypeId(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function formatPrice(float $price): string
+    {
+        return rtrim(rtrim(number_format($price, 4, '.', ','), '0'), '.');
+    }
+
+    private function priceSourceLabel(AlertPriceSource $priceSource): string
+    {
+        return match ($priceSource) {
+            AlertPriceSource::JitaSell => 'Jita sell',
+            AlertPriceSource::JitaBuy => 'Jita buy',
+            AlertPriceSource::StructureSell => 'structure sell',
+            AlertPriceSource::StructureBuy => 'structure buy',
+        };
     }
 
     /**

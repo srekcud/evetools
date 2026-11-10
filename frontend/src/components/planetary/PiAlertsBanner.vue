@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { formatExpiryThreshold } from '@/composables/usePlanetaryTimers'
 import type { Colony } from '@/stores/planetary'
 
 const { t } = useI18n()
@@ -7,6 +8,7 @@ const { t } = useI18n()
 defineProps<{
   expiredColonies: Colony[]
   expiringColonies: Colony[]
+  thresholdMinutes: number | null
 }>()
 </script>
 
@@ -22,7 +24,10 @@ defineProps<{
     </div>
     <div v-if="expiringColonies.length > 0" class="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm">
       <div class="w-2 h-2 rounded-full bg-amber-500 timer-urgent"></div>
-      <span class="text-amber-400">{{ t('pi.alerts.expireIn24h', { count: expiringColonies.length }) }}</span>
+      <span class="text-amber-400">
+        <template v-if="thresholdMinutes === null">{{ t('pi.alerts.expireSoon', { count: expiringColonies.length }) }}</template>
+        <template v-else>{{ t('pi.alerts.expireInWindow', { count: expiringColonies.length, window: formatExpiryThreshold(thresholdMinutes) }) }}</template>
+      </span>
     </div>
   </div>
 </template>

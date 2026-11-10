@@ -14,6 +14,7 @@ use App\Entity\UserNotificationPreference;
 use App\Repository\UserNotificationPreferenceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -31,6 +32,9 @@ class PreferencesProcessor implements ProcessorInterface
         Notification::CATEGORY_MOON_CHUNK,
     ];
 
+    private const int PLANETARY_MIN_THRESHOLD_MINUTES = 15;
+    private const int PLANETARY_MAX_THRESHOLD_MINUTES = 10080;
+
     public function __construct(
         private readonly Security $security,
         private readonly UserNotificationPreferenceRepository $preferenceRepository,
@@ -47,6 +51,8 @@ class PreferencesProcessor implements ProcessorInterface
         }
 
         assert($data instanceof PreferencesInput);
+
+        $this->assertPlanetaryThresholdIsValid($data->preferences);
 
         foreach ($data->preferences as $prefData) {
             $category = $prefData['category'] ?? null;
@@ -91,5 +97,33 @@ class PreferencesProcessor implements ProcessorInterface
         ], $preferences));
 
         return $resource;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $preferences
+     */
+    private function assertPlanetaryThresholdIsValid(array $preferences): void
+    {
+        foreach ($preferences as $prefData) {
+            if (($prefData['category'] ?? null) !== Notification::CATEGORY_PLANETARY || !array_key_exists('thresholdMinutes', $prefData)) {
+                continue;
+            }
+
+            $threshold = $prefData['thresholdMinutes'];
+            if ($threshold === null) {
+                continue;
+            }
+
+            if (!is_int($threshold)
+                || $threshold < self::PLANETARY_MIN_THRESHOLD_MINUTES
+                || $threshold > self::PLANETARY_MAX_THRESHOLD_MINUTES
+            ) {
+                throw new BadRequestHttpException(sprintf(
+                    'Planetary threshold must be an integer between %d and %d minutes',
+                    self::PLANETARY_MIN_THRESHOLD_MINUTES,
+                    self::PLANETARY_MAX_THRESHOLD_MINUTES,
+                ));
+            }
+        }
     }
 }

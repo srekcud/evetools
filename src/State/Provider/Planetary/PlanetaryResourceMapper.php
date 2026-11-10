@@ -11,6 +11,7 @@ use App\Entity\PlanetaryPin;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
+use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\TypeNameResolver;
 
 class PlanetaryResourceMapper
@@ -25,6 +26,7 @@ class PlanetaryResourceMapper
         private readonly TypeNameResolver $typeNameResolver,
         private readonly PlanetSchematicRepository $schematicRepository,
         private readonly MapSolarSystemRepository $solarSystemRepository,
+        private readonly PlanetaryExpiryThresholdResolver $expiryThresholdResolver,
     ) {
     }
 
@@ -59,9 +61,10 @@ class PlanetaryResourceMapper
     public function toDetailResource(PlanetaryColony $colony): ColonyResource
     {
         $resource = $this->toResource($colony);
+        $thresholdMinutes = $this->expiryThresholdMinutesOf($colony);
 
         foreach ($colony->getPins() as $pin) {
-            $resource->pins[] = $this->mapPin($pin);
+            $resource->pins[] = $this->mapPin($pin, $thresholdMinutes);
         }
 
         foreach ($colony->getRoutes() as $route) {
@@ -100,10 +103,18 @@ class PlanetaryResourceMapper
         }
 
         $resource->nearestExpiry = $nearestExpiry?->format('c');
-        $resource->status = $this->computeStatus($colony);
+        $resource->status = $this->computeStatus($colony, $this->expiryThresholdMinutesOf($colony));
     }
 
-    private function computeStatus(PlanetaryColony $colony): string
+    private function expiryThresholdMinutesOf(PlanetaryColony $colony): int
+    {
+        $owner = $colony->getCharacter()->getUser()
+            ?? throw new \LogicException('Planetary colony of a character without user');
+
+        return $this->expiryThresholdResolver->minutesFor($owner);
+    }
+
+    private function computeStatus(PlanetaryColony $colony, int $thresholdMinutes): string
     {
         $now = new \DateTimeImmutable();
         $hasActive = false;
@@ -121,7 +132,7 @@ class PlanetaryResourceMapper
 
             if ($expiry < $now) {
                 $hasExpired = true;
-            } elseif ($pin->isExpiringSoon(24)) {
+            } elseif ($pin->isExpiringWithinMinutes($thresholdMinutes)) {
                 $hasExpiring = true;
             } else {
                 $hasActive = true;
@@ -142,7 +153,7 @@ class PlanetaryResourceMapper
     }
 
     /** @return array<string, mixed> */
-    private function mapPin(PlanetaryPin $pin): array
+    private function mapPin(PlanetaryPin $pin, int $thresholdMinutes): array
     {
         $schematicDetail = $pin->getSchematicId()
             ? $this->resolveSchematicDetail($pin->getSchematicId())
@@ -172,7 +183,7 @@ class PlanetaryResourceMapper
             'isExtractor' => $pin->isExtractor(),
             'isFactory' => $pin->isFactory(),
             'isExpired' => $pin->isExpired(),
-            'isExpiringSoon' => $pin->isExpiringSoon(24),
+            'isExpiringSoon' => $pin->isExpiringWithinMinutes($thresholdMinutes),
             'extractorProductTypeId' => $pin->getExtractorProductTypeId(),
             'extractorProductName' => $pin->getExtractorProductTypeId()
                 ? $this->typeNameResolver->findName($pin->getExtractorProductTypeId())

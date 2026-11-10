@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\ExtractorExpiryLevel;
 use App\Repository\PlanetaryPinRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -71,6 +72,9 @@ class PlanetaryPin
     /** @var array<int, array{type_id: int, amount: int}>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $contents = null;
+
+    #[ORM\Column(type: 'string', length: 10, nullable: true, enumType: ExtractorExpiryLevel::class)]
+    private ?ExtractorExpiryLevel $expiryNotifiedLevel = null;
 
     public function getId(): ?Uuid
     {
@@ -255,6 +259,17 @@ class PlanetaryPin
         return $this;
     }
 
+    public function getExpiryNotifiedLevel(): ?ExtractorExpiryLevel
+    {
+        return $this->expiryNotifiedLevel;
+    }
+
+    public function setExpiryNotifiedLevel(?ExtractorExpiryLevel $expiryNotifiedLevel): static
+    {
+        $this->expiryNotifiedLevel = $expiryNotifiedLevel;
+        return $this;
+    }
+
     public function isExtractor(): bool
     {
         return $this->extractorProductTypeId !== null;
@@ -272,10 +287,15 @@ class PlanetaryPin
 
     public function isExpiringSoon(int $hours = 24): bool
     {
+        return $this->isExpiringWithinMinutes($hours * 60);
+    }
+
+    public function isExpiringWithinMinutes(int $minutes): bool
+    {
         if ($this->expiryTime === null) {
             return false;
         }
-        $threshold = new \DateTimeImmutable("+{$hours} hours");
+        $threshold = new \DateTimeImmutable("+{$minutes} minutes");
         return !$this->isExpired() && $this->expiryTime < $threshold;
     }
 }

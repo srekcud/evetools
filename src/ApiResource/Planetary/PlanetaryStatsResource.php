@@ -41,4 +41,6 @@ class PlanetaryStatsResource
     public float $estimatedDailyIsk = 0.0;
 
     public ?string $nearestExpiry = null;
+
+    public int $expiryThresholdMinutes;
 }

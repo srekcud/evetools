@@ -18,6 +18,7 @@ use App\Service\ESI\EsiClient;
 use App\Service\JitaMarketService;
 use App\Service\MarketAlertService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
 use App\Service\StructureMarketService;
 use App\Service\StructureMarketSnapshotService;
 use App\Service\StructureTradedVolumeService;
@@ -212,6 +213,7 @@ final class CheckAlertPricesHandlerTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
             $mercurePublisher,
+            $this->createStub(NotificationDispatcher::class),
         );
     }
 

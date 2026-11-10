@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace App\Tests\Unit\State\Provider\Planetary;
 
 use App\Entity\Character;
+use App\Entity\Notification;
 use App\Entity\PlanetaryColony;
 use App\Entity\PlanetaryPin;
 use App\Entity\PlanetaryRoute;
 use App\Entity\Sde\InvType;
 use App\Entity\Sde\PlanetSchematic;
 use App\Entity\Sde\PlanetSchematicType;
+use App\Entity\User;
+use App\Entity\UserNotificationPreference;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\Sde\PlanetSchematicRepository;
+use App\Repository\UserNotificationPreferenceRepository;
+use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\TypeNameResolver;
 use App\State\Provider\Planetary\PlanetaryResourceMapper;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(PlanetaryResourceMapper::class)]
@@ -58,6 +64,8 @@ final class PlanetaryResourceMapperTest extends TestCase
     ];
 
     private int $nextPinId = 1;
+
+    private ?int $planetaryThresholdMinutes = null;
 
     public function testRoutesToKnownTypesKeepTheirSdeContentTypeName(): void
     {
@@ -220,6 +228,52 @@ final class PlanetaryResourceMapperTest extends TestCase
         );
     }
 
+    #[Group('issue-537')]
+    public function testExtractorExpiringWithinTheUserThresholdMakesTheColonyExpiring(): void
+    {
+        $this->planetaryThresholdMinutes = 360;
+
+        $this->assertSame(['expiring', true], $this->statusAndExpiringFlagOfAnExtractorExpiring('+300 minutes'));
+    }
+
+    #[Group('issue-537')]
+    public function testExtractorBeyondTheUserThresholdKeepsTheColonyActive(): void
+    {
+        $this->planetaryThresholdMinutes = 360;
+
+        $this->assertSame(['active', false], $this->statusAndExpiringFlagOfAnExtractorExpiring('+420 minutes'));
+    }
+
+    #[Group('issue-537')]
+    public function testWithoutPlanetaryPreferenceTheThresholdIsOneDay(): void
+    {
+        $this->planetaryThresholdMinutes = null;
+
+        $this->assertSame(['expiring', true], $this->statusAndExpiringFlagOfAnExtractorExpiring('+23 hours'));
+        $this->assertSame(['active', false], $this->statusAndExpiringFlagOfAnExtractorExpiring('+25 hours'));
+    }
+
+    #[Group('issue-537')]
+    public function testExpiredExtractorStaysExpiredWhateverTheUserThreshold(): void
+    {
+        $this->planetaryThresholdMinutes = 10080;
+
+        $this->assertSame(['expired', false], $this->statusAndExpiringFlagOfAnExtractorExpiring('-1 minute'));
+    }
+
+    private function statusAndExpiringFlagOfAnExtractorExpiring(string $expiresIn): array
+    {
+        $colony = $this->colony();
+        $colony->addPin($this->extractorPin(self::BACTERIA)->setExpiryTime(new \DateTimeImmutable($expiresIn)));
+
+        $resource = $this->mapper()->toDetailResource($colony);
+
+        $this->assertCount(1, $resource->pins);
+        $this->assertArrayHasKey('isExpiringSoon', $resource->pins[0]);
+
+        return [$resource->status, $resource->pins[0]['isExpiringSoon']];
+    }
+
     private function mapSinglePin(PlanetaryPin $pin): array
     {
         $colony = $this->colony();
@@ -266,11 +320,19 @@ final class PlanetaryResourceMapperTest extends TestCase
         $solarSystemRepository = $this->createStub(MapSolarSystemRepository::class);
         $solarSystemRepository->method('findBySolarSystemId')->willReturn(null);
 
+        $preferenceRepository = $this->createStub(UserNotificationPreferenceRepository::class);
+        $preferenceRepository->method('findByUserAndCategory')->willReturn(
+            $this->planetaryThresholdMinutes === null
+                ? null
+                : (new UserNotificationPreference())->setCategory(Notification::CATEGORY_PLANETARY)->setThresholdMinutes($this->planetaryThresholdMinutes),
+        );
+
         return new PlanetaryResourceMapper(
             $invTypeRepository,
             new TypeNameResolver($invTypeRepository),
             $schematicRepository,
             $solarSystemRepository,
+            new PlanetaryExpiryThresholdResolver($preferenceRepository),
         );
     }
 
@@ -310,6 +372,7 @@ final class PlanetaryResourceMapperTest extends TestCase
         $character = new Character();
         $character->setEveCharacterId(2112000201);
         $character->setName('Planetary Pilot');
+        $character->setUser(new User());
 
         return (new PlanetaryColony())
             ->setCharacter($character)

@@ -14,6 +14,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\UniqueConstraint(columns: ['user_id', 'category'])]
 class UserNotificationPreference
 {
+    public const int DEFAULT_PLANETARY_THRESHOLD_MINUTES = 1440;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]

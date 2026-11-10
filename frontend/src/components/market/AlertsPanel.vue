@@ -12,6 +12,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   delete: [id: string]
+  edit: [alert: MarketAlert]
   selectItem: [typeId: number]
 }>()
 
@@ -72,7 +73,7 @@ function priceSourceLabel(priceSource: string): string {
             <th class="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider hidden md:table-cell">{{ t('market.alert.currentPrice') }}</th>
             <th class="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
             <th class="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider hidden lg:table-cell">Created</th>
-            <th class="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider w-10"></th>
+            <th class="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider w-20"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800/30">
@@ -94,8 +95,8 @@ function priceSourceLabel(priceSource: string): string {
                   class="w-7 h-7 rounded shrink-0"
                   loading="lazy"
                 />
-                <div>
-                  <div class="text-sm font-medium text-slate-200">{{ alert.typeName }}</div>
+                <div class="min-w-0">
+                  <div class="text-sm font-medium text-slate-200 truncate max-w-[16rem]" :title="alert.typeName">{{ alert.typeName }}</div>
                   <div class="text-xs text-slate-500">
                     {{ priceSourceLabel(alert.priceSource) }}
                   </div>
@@ -150,7 +151,19 @@ function priceSourceLabel(priceSource: string): string {
             <td class="px-4 py-3 text-right text-xs text-slate-500 hidden lg:table-cell">
               {{ formatDate(alert.createdAt) }}
             </td>
-            <td class="px-4 py-3 text-center">
+            <td class="px-4 py-3 text-center whitespace-nowrap">
+              <button
+                v-if="alert.status !== 'expired'"
+                data-testid="alert-edit"
+                @click="emit('edit', alert)"
+                class="p-1 text-slate-500 hover:text-cyan-400 rounded transition-colors"
+                :title="t('common.actions.edit')"
+                :aria-label="t('common.actions.edit')"
+              >
+                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                </svg>
+              </button>
               <button
                 @click="emit('delete', alert.id)"
                 class="p-1 text-slate-500 hover:text-red-400 rounded transition-colors"

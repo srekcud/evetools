@@ -82,6 +82,11 @@ export interface CreateAlertInput {
   priceSource: string
 }
 
+export interface UpdateAlertInput {
+  direction: 'above' | 'below'
+  threshold: number
+}
+
 export interface MarketGroup {
   id: number
   name: string
@@ -300,6 +305,23 @@ export const useMarketStore = defineStore('market', () => {
     }
   }
 
+  async function updateAlert(id: string, input: UpdateAlertInput): Promise<void> {
+    error.value = null
+
+    try {
+      const updated = await apiRequest<MarketAlert>(`/market/alerts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      })
+      alerts.value = alerts.value.map(alert =>
+        alert.id === id ? { ...updated, currentPrice: alert.currentPrice } : alert
+      )
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to update alert'
+      throw e
+    }
+  }
+
   async function deleteAlert(id: string): Promise<void> {
     error.value = null
 
@@ -398,6 +420,7 @@ export const useMarketStore = defineStore('market', () => {
     removeFavorite,
     fetchAlerts,
     createAlert,
+    updateAlert,
     deleteAlert,
     clearError,
     clearDetail,

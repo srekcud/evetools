@@ -9,11 +9,16 @@ use App\Entity\User;
 use App\Enum\AlertDirection;
 use App\Enum\AlertPriceSource;
 use App\Enum\AlertStatus;
+use App\Entity\Notification;
+use App\Entity\UserNotificationPreference;
 use App\Repository\MarketPriceAlertRepository;
+use App\Repository\UserNotificationPreferenceRepository;
 use App\Service\ESI\EsiClient;
 use App\Service\JitaMarketService;
 use App\Service\MarketAlertService;
 use App\Service\Mercure\MercurePublisherService;
+use App\Service\Notification\NotificationDispatcher;
+use App\Service\Notification\WebPushService;
 use App\Service\StructureMarketService;
 use App\Service\StructureMarketSnapshotService;
 use App\Service\StructureTradedVolumeService;
@@ -48,13 +53,21 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
 
     private MarketPriceAlertRepository&Stub $alertRepository;
     private JitaMarketService&Stub $jitaMarketService;
+    private UserNotificationPreferenceRepository&Stub $preferenceRepository;
+    private WebPushService&Stub $webPushService;
     private ArrayAdapter $structureCache;
     private BufferingLogger $logger;
+    private BufferingLogger $dispatcherLogger;
+    private NotificationDispatcher $notificationDispatcher;
     private MercurePublisherService $mercurePublisher;
     private StructureMarketService $structureMarketService;
     private MarketAlertService $service;
 
     private array $publishedUpdates = [];
+
+    private array $persistedNotifications = [];
+
+    private array $pushedNotifications = [];
 
     private array $requestedJitaTypeIds = [];
 
@@ -64,6 +77,9 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
         $this->jitaMarketService = $this->createStub(JitaMarketService::class);
         $this->structureCache = new ArrayAdapter();
         $this->logger = new BufferingLogger();
+        $this->dispatcherLogger = new BufferingLogger();
+        $this->preferenceRepository = $this->createStub(UserNotificationPreferenceRepository::class);
+        $this->webPushService = $this->createStub(WebPushService::class);
 
         $hub = $this->createStub(HubInterface::class);
         $hub->method('publish')->willReturnCallback(function (Update $update): string {
@@ -82,12 +98,27 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
             $this->createStub(StructureTradedVolumeService::class),
         );
 
+        $notificationEntityManager = $this->createStub(EntityManagerInterface::class);
+        $notificationEntityManager->method('persist')->willReturnCallback(function (object $entity): void {
+            $this->persistedNotifications[] = $entity;
+        });
+        $notificationHub = $this->createStub(HubInterface::class);
+        $notificationHub->method('publish')->willReturn('urn:uuid:notification');
+        $this->notificationDispatcher = new NotificationDispatcher(
+            $notificationEntityManager,
+            $this->preferenceRepository,
+            new MercurePublisherService($notificationHub, new NullLogger()),
+            $this->webPushService,
+            $this->dispatcherLogger,
+        );
+
         $this->service = $this->createService($this->createStub(EntityManagerInterface::class));
     }
 
     protected function tearDown(): void
     {
         $this->logger->cleanLogs();
+        $this->dispatcherLogger->cleanLogs();
     }
 
     public function testJitaAlertsAreEvaluatedOnTheSideOfTheirPriceSourceWithTheThresholdIncluded(): void
@@ -173,17 +204,22 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
         ]], $this->logger->cleanLogs());
     }
 
-    #[Group('market-audit-2')]
-    public function testTriggeredAlertCurrentlyOnlyPublishesARawMercureAlertAndNoNotificationMarketAudit2(): void
+    public function testTriggeredAlertPublishesTheRawMercureAlertAndSendsAPriceNotificationToItsOwnerOnly(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects($this->never())->method('persist');
         $entityManager->expects($this->once())->method('flush');
         $service = $this->createService($entityManager);
         $user = $this->createUser(self::USER_ID, null);
+        $otherUser = $this->createUser(self::OTHER_USER_ID, null);
         $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $alertNotCrossed = $this->createAlert($otherUser, self::TRITANIUM, 'Tritanium', AlertDirection::Above, 5.0, AlertPriceSource::JitaSell);
         (new \ReflectionProperty(MarketPriceAlert::class, 'id'))->setValue($alert, Uuid::fromString(self::ALERT_ID));
-        $this->givenActiveAlertsAndJitaPrices([$alert], [self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+        $this->givenActiveAlertsAndJitaPrices(
+            [$alert, $alertNotCrossed],
+            [self::PYERITE => 10.25, self::TRITANIUM => 4.5],
+            [self::PYERITE => 8.6875, self::TRITANIUM => 3.9375],
+        );
         $checkStartedAt = time();
 
         $service->checkAlerts();
@@ -210,6 +246,259 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
                 'priceSource' => 'jita_buy',
             ],
         ], $payload);
+        $this->assertCount(1, $this->persistedNotifications);
+        $notification = $this->persistedNotifications[0];
+        $this->assertInstanceOf(Notification::class, $notification);
+        $this->assertSame($user, $notification->getUser());
+        $this->assertSame(Notification::CATEGORY_PRICE, $notification->getCategory());
+        $this->assertSame(Notification::LEVEL_WARNING, $notification->getLevel());
+        $this->assertSame('/market?tab=detail&typeId=35', $notification->getRoute());
+        $this->assertStringContainsString('Pyerite', $notification->getTitle());
+        $this->assertStringContainsString('Pyerite', $notification->getMessage());
+        $this->assertStringContainsString('below', $notification->getMessage());
+    }
+
+    public function testNotificationRouteOpensTheMarketDetailOfTheTypeOfTheAlert(): void
+    {
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::ISOGEN, 'Isogen', AlertDirection::Above, 47.0, AlertPriceSource::JitaSell);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::ISOGEN => 52.5], [self::ISOGEN => 46.875]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $this->assertSame('/market?tab=detail&typeId=37', $this->persistedNotifications[0]->getRoute());
+        $this->assertStringContainsString('Isogen', $this->persistedNotifications[0]->getTitle());
+        $this->assertStringContainsString('above', $this->persistedNotifications[0]->getMessage());
+    }
+
+    public function testPriceNotificationOfABelowAlertOnJitaBuyHasTheExactTextAndTheFullData(): void
+    {
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        (new \ReflectionProperty(MarketPriceAlert::class, 'id'))->setValue($alert, Uuid::fromString(self::ALERT_ID));
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $notification = $this->persistedNotifications[0];
+        $this->assertSame('Price alert: Pyerite', $notification->getTitle());
+        $this->assertSame('Pyerite on Jita buy is now 8.6875 ISK, below your threshold of 9.125 ISK.', $notification->getMessage());
+        $this->assertSame([
+            'alertId' => self::ALERT_ID,
+            'typeId' => self::PYERITE,
+            'direction' => 'below',
+            'threshold' => 9.125,
+            'currentPrice' => 8.6875,
+            'priceSource' => 'jita_buy',
+        ], $notification->getData());
+    }
+
+    public function testPriceNotificationOfAnAboveAlertOnJitaSellShowsAWholeThresholdWithoutDecimals(): void
+    {
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::ISOGEN, 'Isogen', AlertDirection::Above, 47.0, AlertPriceSource::JitaSell);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::ISOGEN => 52.5], [self::ISOGEN => 46.875]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $notification = $this->persistedNotifications[0];
+        $this->assertSame('Price alert: Isogen', $notification->getTitle());
+        $this->assertSame('Isogen on Jita sell is now 52.5 ISK, above your threshold of 47 ISK.', $notification->getMessage());
+        $this->assertSame([
+            'alertId' => null,
+            'typeId' => self::ISOGEN,
+            'direction' => 'above',
+            'threshold' => 47.0,
+            'currentPrice' => 52.5,
+            'priceSource' => 'jita_sell',
+        ], $notification->getData());
+    }
+
+    public function testPriceNotificationOfAStructureSellAlertNamesTheStructureSourceAndGroupsThousands(): void
+    {
+        $this->givenStructurePrices(self::STRUCTURE_AT_CREATION, [self::MEXALLON => ['sell' => 1187500.25, 'buy' => 1000000.0]]);
+        $user = $this->createUser(self::USER_ID, self::STRUCTURE_AT_CREATION);
+        $alert = $this->createAlert($user, self::MEXALLON, 'Mexallon', AlertDirection::Below, 1250000.0, AlertPriceSource::StructureSell);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::MEXALLON => 61.5], [self::MEXALLON => 55.25]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $notification = $this->persistedNotifications[0];
+        $this->assertSame('Mexallon on structure sell is now 1,187,500.25 ISK, below your threshold of 1,250,000 ISK.', $notification->getMessage());
+        $this->assertSame('structure_sell', $notification->getData()['priceSource']);
+        $this->assertSame(1187500.25, $notification->getData()['currentPrice']);
+    }
+
+    public function testPriceNotificationOfAStructureBuyAlertNamesTheStructureBuySource(): void
+    {
+        $this->givenStructurePrices(self::STRUCTURE_AT_CREATION, [self::TRITANIUM => ['sell' => 5.5, 'buy' => 4.75]]);
+        $user = $this->createUser(self::USER_ID, self::STRUCTURE_AT_CREATION);
+        $alert = $this->createAlert($user, self::TRITANIUM, 'Tritanium', AlertDirection::Above, 4.5, AlertPriceSource::StructureBuy);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::TRITANIUM => 4.5], [self::TRITANIUM => 3.9375]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $this->assertSame('Tritanium on structure buy is now 4.75 ISK, above your threshold of 4.5 ISK.', $this->persistedNotifications[0]->getMessage());
+        $this->assertSame('structure_buy', $this->persistedNotifications[0]->getData()['priceSource']);
+    }
+
+    public function testDispatcherFailureIsLoggedAsAnErrorWithTheAlertAndTheTypeOfTheAlert(): void
+    {
+        $dispatcher = $this->createMock(NotificationDispatcher::class);
+        $dispatcher->expects($this->once())->method('dispatch')->willThrowException(new \RuntimeException('database unavailable'));
+        $service = new MarketAlertService(
+            $this->alertRepository,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $this->createStub(EntityManagerInterface::class),
+            $this->logger,
+            $this->mercurePublisher,
+            $dispatcher,
+        );
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        (new \ReflectionProperty(MarketPriceAlert::class, 'id'))->setValue($alert, Uuid::fromString(self::ALERT_ID));
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+
+        $service->checkAlerts();
+
+        $errors = array_values(array_filter($this->logger->cleanLogs(), static fn (array $log): bool => $log[0] === LogLevel::ERROR));
+        $this->assertSame(
+            [[LogLevel::ERROR, 'Failed to send market alert notification', ['alertId' => self::ALERT_ID, 'typeId' => self::PYERITE, 'error' => 'database unavailable']]],
+            $errors,
+        );
+    }
+
+    public function testTriggeredAlertWithPricePreferenceDisabledStaysTriggeredAndPublishesMercureWithoutNotification(): void
+    {
+        $this->preferenceRepository->method('findByUserAndCategory')->willReturn($this->preference(enabled: false, pushEnabled: true));
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+
+        $triggeredCount = $this->service->checkAlerts();
+
+        $this->assertSame(1, $triggeredCount);
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
+        $this->assertCount(1, $this->publishedUpdates);
+        $this->assertSame(['/user/' . self::USER_ID . '/alerts/market-price'], $this->publishedUpdates[0]->getTopics());
+        $this->assertSame([], $this->persistedNotifications);
+        $this->assertSame([], $this->pushedNotifications);
+    }
+
+    public function testTriggeredAlertSendsAWebPushThroughTheDispatcherWhenPushIsEnabledOnThePricePreference(): void
+    {
+        $this->preferenceRepository->method('findByUserAndCategory')->willReturn($this->preference(enabled: true, pushEnabled: true));
+        $this->webPushService->method('send')->willReturnCallback(function (User $user, Notification $notification): void {
+            $this->pushedNotifications[] = [$user, $notification];
+        });
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+
+        $this->service->checkAlerts();
+
+        $this->assertCount(1, $this->persistedNotifications);
+        $this->assertCount(1, $this->pushedNotifications);
+        $this->assertSame($user, $this->pushedNotifications[0][0]);
+        $this->assertSame($this->persistedNotifications[0], $this->pushedNotifications[0][1]);
+    }
+
+    public function testWebPushFailureIsLoggedAndDoesNotAffectTheTriggeredAlert(): void
+    {
+        $this->preferenceRepository->method('findByUserAndCategory')->willReturn($this->preference(enabled: true, pushEnabled: true));
+        $this->webPushService->method('send')->willThrowException(new \RuntimeException('push gateway unreachable'));
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('flush');
+        $service = $this->createService($entityManager);
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+
+        $triggeredCount = $service->checkAlerts();
+
+        $this->assertSame(1, $triggeredCount);
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
+        $this->assertCount(1, $this->persistedNotifications);
+        $this->assertSame(
+            [[LogLevel::WARNING, 'Failed to send web push notification', ['userId' => self::USER_ID, 'category' => 'price', 'error' => 'push gateway unreachable']]],
+            $this->dispatcherLogger->cleanLogs(),
+        );
+    }
+
+    public function testTriggeredAlertNotifiesOnlyOnceAcrossSuccessiveChecks(): void
+    {
+        $user = $this->createUser(self::USER_ID, null);
+        $alert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $this->alertRepository->method('findActiveAlerts')->willReturnCallback(
+            static fn (): array => array_values(array_filter([$alert], static fn (MarketPriceAlert $candidate): bool => $candidate->getStatus() === AlertStatus::Active)),
+        );
+        $this->givenJitaPrices([self::PYERITE => 10.25], [self::PYERITE => 8.6875]);
+
+        $firstCheck = $this->service->checkAlerts();
+        $secondCheck = $this->service->checkAlerts();
+
+        $this->assertSame([1, 0], [$firstCheck, $secondCheck]);
+        $this->assertCount(1, $this->persistedNotifications);
+        $this->assertCount(1, $this->publishedUpdates);
+    }
+
+    public function testDispatcherFailureOnOneAlertDoesNotStopItsTriggeringNorTheEvaluationOfTheFollowingAlerts(): void
+    {
+        $dispatcher = $this->createMock(NotificationDispatcher::class);
+        $dispatchedTitles = [];
+        $dispatcher->expects($this->exactly(2))->method('dispatch')->willReturnCallback(
+            function (User $user, string $category, string $level, string $title) use (&$dispatchedTitles): void {
+                $dispatchedTitles[] = $title;
+                if (count($dispatchedTitles) === 1) {
+                    throw new \RuntimeException('database unavailable');
+                }
+            },
+        );
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects($this->once())->method('flush');
+        $service = new MarketAlertService(
+            $this->alertRepository,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $entityManager,
+            $this->logger,
+            $this->mercurePublisher,
+            $dispatcher,
+        );
+        $user = $this->createUser(self::USER_ID, null);
+        $pyeriteAlert = $this->createAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $mexallonAlert = $this->createAlert($user, self::MEXALLON, 'Mexallon', AlertDirection::Above, 60.0, AlertPriceSource::JitaSell);
+        $this->givenActiveAlertsAndJitaPrices(
+            [$pyeriteAlert, $mexallonAlert],
+            [self::PYERITE => 10.25, self::MEXALLON => 61.5],
+            [self::PYERITE => 8.6875, self::MEXALLON => 55.25],
+        );
+
+        $triggeredCount = $service->checkAlerts();
+
+        $this->assertSame(2, $triggeredCount);
+        $this->assertSame([AlertStatus::Triggered, AlertStatus::Triggered], [$pyeriteAlert->getStatus(), $mexallonAlert->getStatus()]);
+        $this->assertCount(2, $this->publishedUpdates);
+    }
+
+    public function testTriggeredAlertOfAUserWithoutIdentifierSendsNoNotificationAndNoMercureAlert(): void
+    {
+        $userWithoutId = $this->createUser(null, null);
+        $alert = $this->createAlert($userWithoutId, self::TRITANIUM, 'Tritanium', AlertDirection::Above, 4.375, AlertPriceSource::JitaSell);
+        $this->givenActiveAlertsAndJitaPrices([$alert], [self::TRITANIUM => 4.5], [self::TRITANIUM => 3.9375]);
+
+        $triggeredCount = $this->service->checkAlerts();
+
+        $this->assertSame(1, $triggeredCount);
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
+        $this->assertSame([], $this->persistedNotifications);
+        $this->assertSame([], $this->publishedUpdates);
     }
 
     public function testStructureAlertsAreEvaluatedOnTheStructurePricesOfTheirOwnUser(): void
@@ -297,6 +586,7 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
             $this->assertNull($alert->getTriggeredAt());
         }
         $this->assertSame([], $this->publishedUpdates);
+        $this->assertSame([], $this->persistedNotifications);
         $this->assertSame([], $this->logger->cleanLogs());
     }
 
@@ -344,7 +634,16 @@ final class MarketAlertServiceCharacterizationTest extends TestCase
             $entityManager,
             $this->logger,
             $this->mercurePublisher,
+            $this->notificationDispatcher,
         );
+    }
+
+    private function preference(bool $enabled, bool $pushEnabled): UserNotificationPreference
+    {
+        return (new UserNotificationPreference())
+            ->setCategory(Notification::CATEGORY_PRICE)
+            ->setEnabled($enabled)
+            ->setPushEnabled($pushEnabled);
     }
 
     private function triggeredAlerts(array $alerts): array

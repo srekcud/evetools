@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { Pin } from '@/stores/planetary'
@@ -15,7 +15,18 @@ export interface TimerColors {
   pulse: string
 }
 
-export function usePlanetaryTimers() {
+export const DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES = 1440
+
+const MINUTES_PER_HOUR = 60
+
+export function formatExpiryThreshold(thresholdMinutes: number): string {
+  if (thresholdMinutes < MINUTES_PER_HOUR) return `${thresholdMinutes} min`
+  const hours = Math.floor(thresholdMinutes / MINUTES_PER_HOUR)
+  const remainingMinutes = thresholdMinutes % MINUTES_PER_HOUR
+  return remainingMinutes === 0 ? `${hours}h` : `${hours}h${String(remainingMinutes).padStart(2, '0')}`
+}
+
+export function usePlanetaryTimers(thresholdMinutes: Ref<number>) {
   const { t } = useI18n()
   const { formatNumber } = useFormatters()
 
@@ -50,7 +61,7 @@ export function usePlanetaryTimers() {
     const seconds = totalSeconds % 60
 
     const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-    const status = hours < 24 ? 'expiring' : 'active'
+    const status = diff < thresholdMinutes.value * 60_000 ? 'expiring' : 'active'
 
     return { remaining: totalSeconds, formatted, status }
   }

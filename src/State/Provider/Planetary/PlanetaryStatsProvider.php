@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Planetary\PlanetaryStatsResource;
 use App\Entity\User;
 use App\Repository\PlanetaryColonyRepository;
+use App\Service\Planetary\PlanetaryExpiryThresholdResolver;
 use App\Service\Planetary\PlanetaryProductionCalculator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -22,6 +23,7 @@ class PlanetaryStatsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly PlanetaryColonyRepository $colonyRepository,
         private readonly PlanetaryProductionCalculator $productionCalculator,
+        private readonly PlanetaryExpiryThresholdResolver $expiryThresholdResolver,
     ) {
     }
 
@@ -35,8 +37,10 @@ class PlanetaryStatsProvider implements ProviderInterface
 
         $colonies = $this->colonyRepository->findByUser($user);
         $now = new \DateTimeImmutable();
+        $thresholdMinutes = $this->expiryThresholdResolver->minutesFor($user);
 
         $resource = new PlanetaryStatsResource();
+        $resource->expiryThresholdMinutes = $thresholdMinutes;
         $resource->totalColonies = count($colonies);
 
         $nearestExpiry = null;
@@ -53,7 +57,7 @@ class PlanetaryStatsProvider implements ProviderInterface
 
                     if ($expiry < $now) {
                         $resource->expiredExtractors++;
-                    } elseif ($pin->isExpiringSoon(24)) {
+                    } elseif ($pin->isExpiringWithinMinutes($thresholdMinutes)) {
                         $resource->expiringExtractors++;
                         $resource->activeExtractors++;
                         if ($nearestExpiry === null || $expiry < $nearestExpiry) {

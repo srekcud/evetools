@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { useMarketStore, type MarketSearchItem } from '@/stores/market'
+import { useMarketStore, type MarketAlert, type MarketSearchItem, type UpdateAlertInput } from '@/stores/market'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useTypeNames } from '@/composables/useTypeNames'
@@ -15,6 +15,7 @@ import MarketSearch from '@/components/market/MarketSearch.vue'
 import MarketResultsTable from '@/components/market/MarketResultsTable.vue'
 import MarketTypeDetail from '@/components/market/MarketTypeDetail.vue'
 import AlertsPanel from '@/components/market/AlertsPanel.vue'
+import AlertFormModal from '@/components/market/AlertFormModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
@@ -121,6 +122,14 @@ function handleCloseDetail(): void {
 
 function selectItemFromAlerts(typeId: number): void {
   selectItem(typeId)
+}
+
+const editingAlert = ref<MarketAlert | null>(null)
+
+async function saveEditedAlert(payload: UpdateAlertInput & { id: string }): Promise<void> {
+  editingAlert.value = null
+  await marketStore.updateAlert(payload.id, { direction: payload.direction, threshold: payload.threshold })
+    .catch(() => undefined)
 }
 
 const categoryPillClasses = (groupId: number): string => {
@@ -355,7 +364,19 @@ const allButtonLabel = computed(() => {
           :alerts="marketStore.alerts"
           :structure-name="marketStore.typeDetail?.structureName"
           @delete="(id: string) => marketStore.deleteAlert(id)"
+          @edit="(alert: MarketAlert) => editingAlert = alert"
           @select-item="selectItemFromAlerts"
+        />
+        <AlertFormModal
+          :visible="editingAlert !== null"
+          :editing-alert="editingAlert"
+          :type-name="editingAlert?.typeName ?? ''"
+          :type-id="editingAlert?.typeId ?? 0"
+          :current-sell-price="null"
+          :current-buy-price="null"
+          :structure-name="marketStore.typeDetail?.structureName"
+          @close="editingAlert = null"
+          @update="saveEditedAlert"
         />
       </div>
 

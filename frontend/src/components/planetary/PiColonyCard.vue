@@ -2,11 +2,20 @@
 import DataTable from '@/components/common/DataTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
-import { usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
+import { computed } from 'vue'
+import { DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES, usePlanetaryTimers } from '@/composables/usePlanetaryTimers'
 import { usePlanetaryHelpers, TIER_CONFIG } from '@/composables/usePlanetaryHelpers'
 import { useTypeNames } from '@/composables/useTypeNames'
 import type { Colony } from '@/stores/planetary'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
+
+const props = withDefaults(defineProps<{
+  colony: Colony
+  expanded: boolean
+  thresholdMinutes?: number
+}>(), {
+  thresholdMinutes: DEFAULT_PI_EXPIRY_THRESHOLD_MINUTES,
+})
 
 const { t } = useI18n()
 const { formatIsk, formatNumber, formatTimeSince } = useFormatters()
@@ -17,7 +26,7 @@ const {
   formatCycleTime,
   formatDailyOutput,
   isStaleData,
-} = usePlanetaryTimers()
+} = usePlanetaryTimers(computed(() => props.thresholdMinutes))
 const {
   getSecurityColorClass,
   formatSecurity,
@@ -33,10 +42,6 @@ const {
   getColonyProduction,
 } = usePlanetaryHelpers()
 
-const props = defineProps<{
-  colony: Colony
-  expanded: boolean
-}>()
 
 const colonyUpdated = useUpdateFlash(() => JSON.stringify(props.colony))
 

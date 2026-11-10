@@ -171,12 +171,14 @@ async function toggleColony(colonyId: string): Promise<void> {
           :total-extractors="statsData?.totalExtractors ?? null"
           :expiring-extractors="statsData?.expiringExtractors ?? null"
           :estimated-daily-isk="statsData?.estimatedDailyIsk ?? planetaryStore.totalDailyIsk"
+          :threshold-minutes="statsData?.expiryThresholdMinutes ?? null"
           :updated="coloniesUpdated"
         />
 
         <PiAlertsBanner
           :expired-colonies="planetaryStore.expiredColonies"
           :expiring-colonies="planetaryStore.expiringColonies"
+          :threshold-minutes="statsData?.expiryThresholdMinutes ?? null"
         />
 
         <PiProductionTable
@@ -213,6 +215,7 @@ async function toggleColony(colonyId: string): Promise<void> {
               :key="colony.id"
               :colony="colony"
               :expanded="expandedColonies.has(colony.id)"
+              :threshold-minutes="statsData?.expiryThresholdMinutes"
               @toggle="toggleColony(colony.id)"
             />
           </div>
