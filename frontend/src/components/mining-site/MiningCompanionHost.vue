@@ -3,9 +3,11 @@ import { useEventListener } from '@vueuse/core'
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import MiningCompanionFree from '@/components/mining-site/MiningCompanionFree.vue'
 import MiningCompanionNextSite from '@/components/mining-site/MiningCompanionNextSite.vue'
 import MiningCompanionPanel from '@/components/mining-site/MiningCompanionPanel.vue'
 import MiningCompanionSettings from '@/components/mining-site/MiningCompanionSettings.vue'
+import { useCorporationMiningExtractions } from '@/composables/useCorporationMiningExtractions'
 import { useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
 import { useMiningSiteOreTypes } from '@/composables/useMiningSiteOreTypes'
 import { useToast } from '@/composables/useToast'
@@ -20,6 +22,7 @@ import {
   fingerprintOf,
   isTextEntryTarget,
   latestActiveSiteOf,
+  nextChunkOf,
 } from '@/views/MiningSite/miningCompanion'
 import {
   RESCAN_MINUTES_STORAGE_KEY,
@@ -63,6 +66,7 @@ const syncStore = useSyncStore()
 const oreTypes = useMiningSiteOreTypes()
 const { etaText } = useMiningSiteFormat()
 const { showToast } = useToast()
+const extractions = useCorporationMiningExtractions()
 
 const now = ref(new Date())
 const rescanMinutes = ref(readRescanMinutes(localStorage))
@@ -75,6 +79,8 @@ const operation = ref<CompanionOperation | null>(null)
 const nextSiteOpen = ref(false)
 const nextSiteSubmitting = ref(false)
 const nextSiteFailure = ref<string | null>(null)
+const estimating = ref(false)
+const estimateFailure = ref<string | null>(null)
 const settingsRevision = ref(0)
 const mountPoint = shallowRef<HTMLElement | null>(null)
 const observedDepletion = new Map<string, boolean>()
@@ -95,6 +101,9 @@ const noticeText = computed(() => {
   return companion.noticeCause === null ? t(companion.notice) : `${t(companion.notice)} (${companion.noticeCause})`
 })
 const shownNotice = computed(() => message.value ?? failure.value ?? noticeText.value)
+const isFreeTarget = computed(() => companion.target !== null && companion.target.siteId === null && companion.target.operationId === null)
+const nextChunk = computed(() => nextChunkOf(extractions.corporations.value, now.value))
+const extractionsFailure = computed(() => (extractions.hasError.value ? t('ledger.mining.moonChunks.loadError') : null))
 const typeNames = computed<Record<number, string>>(() => {
   const typeIds = siteStore.companionScans.flatMap(scan => [...scan.types.map(type => type.typeId), ...scan.missingPriceTypeIds])
   return Object.fromEntries(typeIds.map(typeId => [typeId, oreTypes.nameOf(typeId)]))
@@ -139,9 +148,14 @@ async function reloadSite(siteId: string): Promise<void> {
   failure.value = siteStore.companionError
 }
 
+function isFreeTargetOf(requested: CompanionTarget): boolean {
+  return requested.siteId === null && requested.operationId === null
+}
+
 async function loadTarget(requested: CompanionTarget): Promise<void> {
   const token = ++loadCounter
   failure.value = null
+  if (isFreeTargetOf(requested)) void extractions.load()
   if (requested.operationId !== null) await loadOperation(requested.operationId)
   const siteId = requested.siteId ?? (requested.operationId === null ? null : await resolveActiveSiteId(requested.operationId))
   if (token !== loadCounter) return
@@ -163,6 +177,8 @@ function resetData(): void {
   nextSiteOpen.value = false
   nextSiteSubmitting.value = false
   nextSiteFailure.value = null
+  estimating.value = false
+  estimateFailure.value = null
   observedDepletion.clear()
   notifiedDepletions.clear()
   lastRecordedFingerprint = null
@@ -324,6 +340,24 @@ async function startNextSite(input: { label: string; solarSystemId: number | nul
   await loadTarget(requested)
 }
 
+async function estimateSingleSite(input: { label: string; solarSystemId: number | null }): Promise<void> {
+  estimating.value = true
+  estimateFailure.value = null
+  try {
+    const created = await siteStore.create({ ...input, operationId: undefined })
+    companion.retarget({ siteId: created.id, operationId: null })
+  } catch (cause) {
+    estimateFailure.value = failureText(cause)
+  } finally {
+    estimating.value = false
+  }
+}
+
+function createOperationFromChunk(chunkId: string): void {
+  window.focus()
+  router.push({ name: 'mining-operations', query: { chunk: chunkId } })
+}
+
 function followNextSite(requested: CompanionTarget, data: Record<string, unknown> | null): void {
   if (requested.siteId === null) {
     loadTarget(requested)
@@ -367,6 +401,7 @@ function openDesk(): void {
   window.focus()
   if (requested.siteId !== null) router.push({ name: 'mining-site-detail', params: { id: requested.siteId } })
   else if (requested.operationId !== null) router.push({ name: 'mining-operation-detail', params: { id: requested.operationId } })
+  else router.push({ name: 'mining-operations' })
 }
 
 function changeRescanMinutes(minutes: number): void {
@@ -511,6 +546,19 @@ onBeforeUnmount(closeWindowContent)
           class="rounded-sm border border-slate-700 px-1.5 py-0.5 text-xs text-slate-300 hover:bg-slate-800"
           @click="settingsOpen = !settingsOpen"
         >⚙</button>
+      </template>
+      <template v-if="isFreeTarget" #free>
+        <MiningCompanionFree
+          :chunk="nextChunk"
+          :now="now"
+          :loading="extractions.isLoading.value"
+          :failure="extractionsFailure"
+          :estimating="estimating"
+          :estimate-failure="estimateFailure"
+          :size="companion.size"
+          @create-operation="createOperationFromChunk"
+          @estimate="estimateSingleSite"
+        />
       </template>
       <template #next-site>
         <MiningCompanionNextSite
