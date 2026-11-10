@@ -35,6 +35,20 @@ export const COMPANION_OPACITY_STORAGE_KEY = 'miningCompanion.opacity'
 export const COMPANION_TEXT_SCALES: Record<CompanionTextScaleKey, number> = { S: 0.9, M: 1, L: 1.2 }
 export const DEFAULT_COMPANION_TEXT_SCALE: CompanionTextScaleKey = 'M'
 export const COMPANION_TEXT_SCALE_STORAGE_KEY = 'miningCompanion.textScale'
+export const COMPANION_NOTIFICATIONS_STORAGE_KEY = 'miningCompanion.notifications'
+export const COMPANION_CLIPBOARD_STORAGE_KEY = 'miningCompanion.clipboardOnFocus'
+const COMPANION_FLAG_ENABLED = 'true'
+
+const FINGERPRINT_SEED_HIGH = 0xdeadbeef
+const FINGERPRINT_SEED_LOW = 0x41c6ce57
+const FINGERPRINT_MULTIPLIER_HIGH = 2654435761
+const FINGERPRINT_MULTIPLIER_LOW = 1597334677
+const FINGERPRINT_MIX_HIGH = 2246822507
+const FINGERPRINT_MIX_LOW = 3266489909
+const FINGERPRINT_SHIFT_WIDE = 16
+const FINGERPRINT_SHIFT_NARROW = 13
+const FINGERPRINT_LOW_BITS_MASK = 0x1fffff
+const FINGERPRINT_HIGH_FACTOR = 2 ** 32
 
 const TEXT_FIELD_TAGS = ['input', 'textarea', 'select']
 
@@ -108,6 +122,35 @@ export function readCompanionOpacity(storage: Pick<Storage, 'getItem'>): number 
 export function readCompanionTextScale(storage: Pick<Storage, 'getItem'>): CompanionTextScaleKey {
   const stored = storage.getItem(COMPANION_TEXT_SCALE_STORAGE_KEY)
   return stored !== null && isCompanionTextScaleKey(stored) ? stored : DEFAULT_COMPANION_TEXT_SCALE
+}
+
+export function readCompanionFlag(storage: Pick<Storage, 'getItem'>, key: string): boolean {
+  return storage.getItem(key) === COMPANION_FLAG_ENABLED
+}
+
+export function readCompanionNotifications(storage: Pick<Storage, 'getItem'>): boolean {
+  return readCompanionFlag(storage, COMPANION_NOTIFICATIONS_STORAGE_KEY)
+}
+
+export function readCompanionClipboard(storage: Pick<Storage, 'getItem'>): boolean {
+  return readCompanionFlag(storage, COMPANION_CLIPBOARD_STORAGE_KEY)
+}
+
+export function companionFlagValue(enabled: boolean): string {
+  return enabled ? COMPANION_FLAG_ENABLED : 'false'
+}
+
+export function fingerprintOf(text: string): number {
+  let high = FINGERPRINT_SEED_HIGH
+  let low = FINGERPRINT_SEED_LOW
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index)
+    high = Math.imul(high ^ code, FINGERPRINT_MULTIPLIER_HIGH)
+    low = Math.imul(low ^ code, FINGERPRINT_MULTIPLIER_LOW)
+  }
+  high = Math.imul(high ^ (high >>> FINGERPRINT_SHIFT_WIDE), FINGERPRINT_MIX_HIGH) ^ Math.imul(low ^ (low >>> FINGERPRINT_SHIFT_NARROW), FINGERPRINT_MIX_LOW)
+  low = Math.imul(low ^ (low >>> FINGERPRINT_SHIFT_WIDE), FINGERPRINT_MIX_HIGH) ^ Math.imul(high ^ (high >>> FINGERPRINT_SHIFT_NARROW), FINGERPRINT_MIX_LOW)
+  return FINGERPRINT_HIGH_FACTOR * (low & FINGERPRINT_LOW_BITS_MASK) + (high >>> 0)
 }
 
 export function latestActiveSiteOf(sites: MiningSite[]): MiningSite | null {

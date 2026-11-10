@@ -87,6 +87,16 @@ class MoonTaxStatementResource
 
     public ?bool $outsideAlliance = null;
 
+    public ?int $recordedCorporationId = null;
+
+    public ?string $recordedCorporationName = null;
+
+    public ?int $allianceId = null;
+
+    public ?string $allianceName = null;
+
+    public bool $affiliationKnown = false;
+
     /** @var list<int> */
     public array $unknownTypeIds = [];
 }

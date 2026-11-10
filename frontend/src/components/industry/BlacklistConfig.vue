@@ -36,16 +36,7 @@ async function saveBlacklist(groupIds: number[], typeIds: number[]): Promise<boo
   }
 }
 
-const activeGroupIds = computed(() => {
-  if (!store.blacklist) return new Set<number>()
-  const ids = new Set<number>()
-  for (const cat of store.blacklist.categories) {
-    if (cat.blacklisted) {
-      for (const gid of cat.groupIds) ids.add(gid)
-    }
-  }
-  return ids
-})
+const activeGroupIds = computed(() => new Set(store.blacklist?.groupIds ?? []))
 
 const activeTypeIds = computed(() => {
   if (!store.blacklist) return new Set<number>()
@@ -134,6 +125,7 @@ function hideDropdownDelayed() {
             <input
               type="checkbox"
               :checked="cat.blacklisted"
+              :indeterminate="cat.partiallyBlacklisted"
               @change="toggleCategory(cat.key, $event)"
               class="w-4 h-4 rounded-sm border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
             />

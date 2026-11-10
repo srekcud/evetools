@@ -247,6 +247,30 @@
   }
 }
 
+@layer components {
+  @media (prefers-reduced-motion: no-preference) {
+    .companion-pulse-amber {
+      animation: companion-pulse-amber 1s ease-in-out;
+      animation-iteration-count: 3;
+    }
+
+    .companion-pulse-green {
+      animation: companion-pulse-green 1s ease-in-out;
+      animation-iteration-count: 3;
+    }
+  }
+}
+
+@keyframes companion-pulse-amber {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgb(245 158 11 / 0); }
+  50% { box-shadow: inset 0 0 0 4px rgb(245 158 11 / 0.9); }
+}
+
+@keyframes companion-pulse-green {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgb(16 185 129 / 0); }
+  50% { box-shadow: inset 0 0 0 4px rgb(16 185 129 / 0.9); }
+}
+
 @keyframes hud-updated-glow {
   0% { box-shadow: 0 0 0 1px rgb(34 211 238 / 0.55), 0 0 22px rgb(34 211 238 / 0.25); }
   100% { box-shadow: 0 0 0 1px rgb(34 211 238 / 0), 0 0 22px rgb(34 211 238 / 0); }

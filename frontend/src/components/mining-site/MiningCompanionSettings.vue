@@ -11,8 +11,11 @@ import { RESCAN_MINUTES_MAX, RESCAN_MINUTES_MIN } from '@/views/MiningSite/minin
 const OPACITY_STEP = 5
 const TEXT_SCALE_KEYS = Object.keys(COMPANION_TEXT_SCALES) as CompanionTextScaleKey[]
 
-defineProps<{ opacity: number; textScale: CompanionTextScaleKey; rescanMinutes: number }>()
-const emit = defineEmits<{ opacity: [opacity: number]; 'text-scale': [textScale: CompanionTextScaleKey]; rescan: [minutes: number] }>()
+withDefaults(
+  defineProps<{ opacity: number; textScale: CompanionTextScaleKey; rescanMinutes: number; notifications?: boolean; clipboardOnFocus?: boolean }>(),
+  { notifications: false, clipboardOnFocus: false },
+)
+const emit = defineEmits<{ opacity: [opacity: number]; 'text-scale': [textScale: CompanionTextScaleKey]; rescan: [minutes: number]; notifications: [enabled: boolean]; clipboard: [enabled: boolean] }>()
 
 const { t } = useI18n()
 
@@ -23,6 +26,10 @@ function numberOf(event: Event): number {
 function changeOpacity(event: Event): void {
   const typed = numberOf(event)
   if (!Number.isNaN(typed)) emit('opacity', typed)
+}
+
+function checkedOf(event: Event): boolean {
+  return (event.target as HTMLInputElement).checked
 }
 
 function changeRescan(event: Event): void {
@@ -76,6 +83,26 @@ function changeRescan(event: Event): void {
         />
         <span>{{ t('miningCompanion.settings.minutes') }}</span>
       </span>
+    </label>
+    <label class="flex items-center justify-between gap-2">
+      <span>{{ t('miningCompanion.settings.notifications') }}</span>
+      <input
+        type="checkbox"
+        name="companionNotifications"
+        data-testid="companion-notifications-toggle"
+        :checked="notifications"
+        @change="emit('notifications', checkedOf($event))"
+      />
+    </label>
+    <label class="flex items-center justify-between gap-2">
+      <span>{{ t('miningCompanion.settings.clipboard') }}</span>
+      <input
+        type="checkbox"
+        name="companionClipboardOnFocus"
+        data-testid="companion-clipboard-toggle"
+        :checked="clipboardOnFocus"
+        @change="emit('clipboard', checkedOf($event))"
+      />
     </label>
   </div>
 </template>

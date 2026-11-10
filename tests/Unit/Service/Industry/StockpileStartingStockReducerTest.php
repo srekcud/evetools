@@ -65,6 +65,34 @@ final class StockpileStartingStockReducerTest extends TestCase
         self::assertSame([], $reduction['failedProducts']);
     }
 
+    public function testBlacklistedIntermediateIsBoughtSoItsStockDoesNotReduceTheMaterialsBelowIt(): void
+    {
+        $this->givenTheBlacklistOfThePilot(self::FRAME);
+        $frameStock = 5;
+
+        $reduction = $this->reducer->reduce(
+            [$this->stockpileImport($this->pilot, self::WIDGET, self::ONE_RUN, self::ME_ZERO)],
+            [self::FRAME => $frameStock],
+            $this->pilot,
+        );
+
+        self::assertSame([], self::nonZeroReductions($reduction));
+        self::assertSame([], $reduction['failedProducts']);
+    }
+
+    public function testStockOfTheProductCoveringTheWholeImportReducesABlacklistedIntermediateAsALeafWithNoMaterialsBelowIt(): void
+    {
+        $this->givenTheBlacklistOfThePilot(self::FRAME);
+
+        $reduction = $this->reducer->reduce(
+            [$this->stockpileImport($this->pilot, self::WIDGET, self::ONE_RUN, self::ME_ZERO)],
+            [self::WIDGET => 1],
+            $this->pilot,
+        );
+
+        self::assertSame([self::FRAME => 10], self::nonZeroReductions($reduction));
+    }
+
     public function testRemainderOfAPartlyCoveredIntermediateIsRoundedUpToWholeRuns(): void
     {
         $this->useTheTwoFrameFormula();
@@ -357,6 +385,7 @@ final class StockpileStartingStockReducerTest extends TestCase
             },
             $this->productRepositoryOnWidgetSde(),
             new NullLogger(),
+            $this->blacklistOfThePilot(),
         );
 
         $this->expectExceptionObject($structureFailure);

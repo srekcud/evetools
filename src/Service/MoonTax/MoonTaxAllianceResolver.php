@@ -73,6 +73,64 @@ final readonly class MoonTaxAllianceResolver
         return $namesByCharacterId;
     }
 
+    /**
+     * @param list<int> $corporationIds
+     *
+     * @return array<int, MoonTaxAffiliation> keyed by corporation id
+     */
+    public function affiliations(array $corporationIds): array
+    {
+        $allianceNames = [];
+        $affiliations = [];
+        foreach (array_unique($corporationIds) as $corporationId) {
+            try {
+                $affiliations[$corporationId] = $this->affiliationOf($corporationId, $allianceNames);
+            } catch (EsiApiException|\UnexpectedValueException $exception) {
+                $this->logger->warning('Affiliation of a corporation unreadable, it stays unknown', [
+                    'corporation_id' => $corporationId,
+                    'error' => $exception->getMessage(),
+                ]);
+                $affiliations[$corporationId] = MoonTaxAffiliation::unknown();
+            }
+        }
+
+        return $affiliations;
+    }
+
+    /**
+     * @param array<int, string> $allianceNames
+     */
+    private function affiliationOf(int $corporationId, array &$allianceNames): MoonTaxAffiliation
+    {
+        $corporation = $this->esiClient->getWithCache(sprintf('/corporations/%d/', $corporationId));
+        $corporationName = $corporation['name'] ?? null;
+        if (!is_string($corporationName)) {
+            throw new \UnexpectedValueException(sprintf('ESI corporation %d has no readable name', $corporationId));
+        }
+
+        $allianceId = $corporation['alliance_id'] ?? null;
+        if ($allianceId === null) {
+            return new MoonTaxAffiliation(true, $corporationName, null, null);
+        }
+        if (!is_int($allianceId)) {
+            throw new \UnexpectedValueException(sprintf('ESI corporation %d has a non-integer alliance_id', $corporationId));
+        }
+
+        $allianceNames[$allianceId] ??= $this->allianceNameOf($allianceId);
+
+        return new MoonTaxAffiliation(true, $corporationName, $allianceId, $allianceNames[$allianceId]);
+    }
+
+    private function allianceNameOf(int $allianceId): string
+    {
+        $name = $this->esiClient->getWithCache(sprintf('/alliances/%d/', $allianceId))['name'] ?? null;
+        if (!is_string($name)) {
+            throw new \UnexpectedValueException(sprintf('ESI alliance %d has no readable name', $allianceId));
+        }
+
+        return $name;
+    }
+
     private function allianceIdOf(int $corporationId): ?int
     {
         $allianceId = $this->esiClient->getWithCache(sprintf('/corporations/%d/', $corporationId))['alliance_id'] ?? null;

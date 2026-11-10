@@ -64,6 +64,8 @@ const VALUATION_ACTION = 'valuation_updated'
 const PAYMENT_ACTION = 'payment_updated'
 const FLEET_STORAGE_ACTION = 'fleet_storage_updated'
 const SITE_SCAN_ACTION = 'site_scan_recorded'
+const SITE_NEXT_STARTED_ACTION = 'site_next_started'
+const SITE_RELOADING_ACTIONS = [SITE_SCAN_ACTION, SITE_NEXT_STARTED_ACTION]
 const CORPORATION_ASSETS_SYNC_COMPLETED = 'completed'
 const PAYMENT_STATUSES = ['shares', 'settled']
 const FULL_PERCENT = 100
@@ -392,7 +394,7 @@ watch(
       store.fetchValuation(operationId.value)
     } else if (event.action === PAYMENT_ACTION) {
       store.fetchPayments(operationId.value)
-    } else if (event.action === SITE_SCAN_ACTION) {
+    } else if (SITE_RELOADING_ACTIONS.includes(event.action)) {
       loadSites()
     } else if (event.action === FLEET_STORAGE_ACTION) {
       store.fetchFleetStorage(operationId.value)

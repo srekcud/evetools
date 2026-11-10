@@ -70,6 +70,7 @@ final class StockpileStatusDeficitTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $importRepository,
             $this->startingStockReducerOnWidgetSde(),
+            $this->blacklistOfThePilot(),
         );
     }
 

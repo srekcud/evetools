@@ -16,6 +16,9 @@ export const UNLISTED_STRUCTURE_ID = 1035000000999
 export const DAX_ID = 2112000101
 export const MIRA_ID = 2112000102
 export const TOLA_ID = 2112000103
+export const ALT_OF_DAX_ID = 2112000201
+export const STRANGER_ALT_ID = 2112000202
+export const PANDEMIC_LEGION_ID = 99000001
 export const WALLET_SCOPE = 'esi-wallet.read_corporation_wallets.v1'
 
 export interface MoonTaxAccess {
@@ -58,6 +61,25 @@ export interface MoonTaxStatementPayload {
   status: string
   outsideAlliance: boolean | null
   unknownTypeIds: number[]
+  recordedCorporationId: number | null
+  recordedCorporationName: string | null
+  allianceId: number | null
+  allianceName: string | null
+  affiliationKnown: boolean
+}
+
+export interface MoonTaxDonationPayload {
+  journalId: number
+  corporationId: number
+  date: string
+  amount: number
+  reason: string | null
+  firstPartyId: number
+  firstPartyName: string | null
+  attributedCharacterId: number | null
+  attributedCharacterName: string | null
+  attributedAt: string | null
+  payerIsMiner: boolean
 }
 
 export interface MoonTaxMinePayload {
@@ -114,6 +136,11 @@ export function statement(overrides: Partial<MoonTaxStatementPayload>): MoonTaxS
     status: 'due',
     outsideAlliance: false,
     unknownTypeIds: [],
+    recordedCorporationId: CORPORATION_A,
+    recordedCorporationName: 'Rock Hollow Mining',
+    allianceId: PANDEMIC_LEGION_ID,
+    allianceName: 'Pandemic Legion',
+    affiliationKnown: true,
     ...overrides,
   }
 }
@@ -192,6 +219,58 @@ export const STRANGE_STATEMENT = statement({
   status: 'frozen_by_audit',
 })
 
+export function donation(overrides: Partial<MoonTaxDonationPayload>): MoonTaxDonationPayload {
+  return {
+    journalId: 7001,
+    corporationId: CORPORATION_A,
+    date: '2026-11-03T10:00:00+00:00',
+    amount: 4_000_000,
+    reason: 'weekly moon tax',
+    firstPartyId: DAX_ID,
+    firstPartyName: 'Dax Orlen',
+    attributedCharacterId: null,
+    attributedCharacterName: null,
+    attributedAt: null,
+    payerIsMiner: true,
+    ...overrides,
+  }
+}
+
+export const MINER_DONATION = donation({})
+
+export const UNMATCHED_DONATION = donation({
+  journalId: 7002,
+  date: '2026-11-05T09:30:00+00:00',
+  amount: 1_250_000,
+  reason: null,
+  firstPartyId: STRANGER_ALT_ID,
+  firstPartyName: null,
+  payerIsMiner: false,
+})
+
+export const ALT_DONATION = donation({
+  journalId: 7003,
+  date: '2026-11-07T14:45:00+00:00',
+  amount: 2_750_000,
+  reason: 'moon rent',
+  firstPartyId: ALT_OF_DAX_ID,
+  firstPartyName: 'Vex Orlen',
+  payerIsMiner: false,
+})
+
+export const ATTRIBUTED_DONATION = donation({
+  journalId: 7004,
+  date: '2026-10-20T18:15:00+00:00',
+  amount: 3_500_000,
+  reason: null,
+  firstPartyId: ALT_OF_DAX_ID,
+  firstPartyName: 'Vex Orlen',
+  attributedCharacterId: MIRA_ID,
+  attributedCharacterName: 'Mira Venn',
+  attributedAt: '2026-10-21T08:00:00+00:00',
+  payerIsMiner: true,
+})
+
 export const MINE_DUE: MoonTaxMinePayload = {
   corporationId: CORPORATION_A,
   structureId: ROCK_HOLLOW_STRUCTURE_ID,
@@ -237,11 +316,20 @@ export function statementsPath(corporationId: number, query = ''): string {
   return `${corporationPath(corporationId)}/statements${query}`
 }
 
+export function donationsPath(corporationId: number): string {
+  return `${corporationPath(corporationId)}/donations`
+}
+
+export function attributePath(corporationId: number, journalId: number): string {
+  return `${donationsPath(corporationId)}/${journalId}/attribute`
+}
+
 export function defaultRoutes(extractions: CorporationMiningExtractionsResponse = response(SYNCED_CORPORATION)): Record<string, unknown> {
   return {
     'GET /mining/corporation-extractions': extractions,
     [`GET ${corporationPath(CORPORATION_A)}`]: moonTaxCorporation(),
     [`GET ${statementsPath(CORPORATION_A)}`]: [],
+    [`GET ${donationsPath(CORPORATION_A)}`]: [],
   }
 }
 
@@ -310,6 +398,20 @@ export function statementRow(wrapper: MoonTaxWrapper, index: number, corporation
 export function statementCell(wrapper: MoonTaxWrapper, index: number, name: string, corporationId = CORPORATION_A) {
   const found = statementRow(wrapper, index, corporationId).find(`[data-cell="${name}"]`)
   expect(found.exists(), `cell ${name} of row ${index}`).toBe(true)
+  return found
+}
+
+export function donationsSection(corporationId = CORPORATION_A): string {
+  return section(corporationId, '[data-donations]')
+}
+
+export function donationRows(wrapper: MoonTaxWrapper, corporationId = CORPORATION_A) {
+  return wrapper.findAll(section(corporationId, '[data-donation-row]'))
+}
+
+export function donationRow(wrapper: MoonTaxWrapper, journalId: number, corporationId = CORPORATION_A) {
+  const found = wrapper.find(section(corporationId, `[data-donation-row][data-journal-id="${journalId}"]`))
+  expect(found.exists(), `donation row ${journalId}`).toBe(true)
   return found
 }
 

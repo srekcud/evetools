@@ -47,6 +47,25 @@ export interface MoonTaxStatement {
   status: string
   outsideAlliance: boolean | null
   unknownTypeIds: number[]
+  recordedCorporationId: number | null
+  recordedCorporationName: string | null
+  allianceId: number | null
+  allianceName: string | null
+  affiliationKnown: boolean
+}
+
+export interface MoonTaxDonationEntry {
+  journalId: number
+  corporationId: number
+  date: string
+  amount: number
+  reason: string | null
+  firstPartyId: number
+  firstPartyName: string | null
+  attributedCharacterId: number | null
+  attributedCharacterName: string | null
+  attributedAt: string | null
+  payerIsMiner: boolean
 }
 
 export interface MoonTaxMineStatement {
@@ -140,7 +159,7 @@ function isCorporationPayload(payload: unknown): payload is MoonTaxCorporation {
   return Array.isArray(candidate.refineries) && typeof candidate.access === 'object' && candidate.access !== null
 }
 
-function withoutKey<Key extends string | number, Value>(record: Record<Key, Value>, key: Key): Record<Key, Value> {
+export function withoutKey<Key extends string | number, Value>(record: Record<Key, Value>, key: Key): Record<Key, Value> {
   const copy = { ...record }
   delete copy[key]
   return copy
@@ -354,6 +373,7 @@ export function useMoonTaxCorporation(corporationId: number) {
     isExporting,
     exportError,
     loadAll,
+    loadStatements,
     setLateOnly,
     saveRefinery,
     runStatementAction,

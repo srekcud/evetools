@@ -25,6 +25,9 @@ export interface MiningSite {
   missingPriceTypeIds: number[]
   recentEta?: string | null
   trendEta?: string | null
+  closedAt?: string | null
+  scanCount?: number
+  extractedValue?: number | null
   lastScanNumber?: number | null
   lastScanAuthorName?: string | null
   compression?: MiningCompression | null
@@ -68,12 +71,18 @@ export interface CreateMiningSiteInput {
   operationId?: string | null
 }
 
+export interface NextMiningSiteInput {
+  label: string
+  solarSystemId?: number | null
+}
+
 export interface MiningSiteScanLine {
   typeId: number
   units: number
 }
 
 const SITES_PATH = '/mining-sites'
+const OPERATIONS_PATH = '/mining-operations'
 
 function messageOf(cause: unknown, fallback: string): string {
   return cause instanceof Error ? cause.message : fallback
@@ -84,6 +93,7 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
   const currentSite = ref<MiningSite | null>(null)
   const scans = ref<MiningSiteScan[]>([])
   const operationSites = ref<MiningSite[]>([])
+  const operationSitesOperationId = ref<string | null>(null)
   const companionSite = ref<MiningSite | null>(null)
   const companionScans = ref<MiningSiteScan[]>([])
   const companionError = ref<string | null>(null)
@@ -100,12 +110,17 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
 
   async function fetchOperationSites(operationId: string): Promise<void> {
     error.value = null
+    operationSitesOperationId.value = operationId
     try {
       operationSites.value = await apiRequest<MiningSite[]>(`${SITES_PATH}?operationId=${operationId}`)
     } catch (cause) {
       operationSites.value = []
       error.value = messageOf(cause, 'Failed to fetch the sites of the mining operation')
     }
+  }
+
+  async function readOperationSites(operationId: string): Promise<MiningSite[]> {
+    return apiRequest<MiningSite[]>(`${SITES_PATH}?operationId=${operationId}`)
   }
 
   async function fetchSite(siteId: string): Promise<void> {
@@ -176,6 +191,19 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     }
   }
 
+  async function startNextSite(operationId: string, input: NextMiningSiteInput): Promise<MiningSite> {
+    error.value = null
+    let started: MiningSite
+    try {
+      started = await apiRequest<MiningSite>(`${OPERATIONS_PATH}/${operationId}/next-site`, { method: 'POST', body: JSON.stringify(input) })
+    } catch (cause) {
+      error.value = messageOf(cause, 'Failed to start the next mining site')
+      throw cause
+    }
+    if (operationSitesOperationId.value === null || operationSitesOperationId.value === operationId) await fetchOperationSites(operationId)
+    return started
+  }
+
   async function recordScan(siteId: string, lines: MiningSiteScanLine[]): Promise<MiningSiteScan> {
     error.value = null
     try {
@@ -206,18 +234,21 @@ export const useMiningSiteStore = defineStore('miningSite', () => {
     currentSite,
     scans,
     operationSites,
+    operationSitesOperationId,
     companionSite,
     companionScans,
     companionError,
     error,
     fetchSites,
     fetchOperationSites,
+    readOperationSites,
     fetchSite,
     fetchScans,
     reloadSiteAndScans,
     fetchCompanion,
     clearCompanion,
     create,
+    startNextSite,
     recordScan,
     close,
   }

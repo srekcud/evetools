@@ -9,6 +9,7 @@ import { useGroupContributionStore } from '@/stores/group-industry/contribution'
 import { useGroupDistributionStore } from '@/stores/group-industry/distribution'
 import { useGroupSettlementStore } from '@/stores/group-industry/settlement'
 import { useGroupActivityStore } from '@/stores/group-industry/activity'
+import { useGroupCompanionStore } from '@/stores/group-industry/companion'
 import { useSyncStore } from '@/stores/sync'
 import { useEveImages } from '@/composables/useEveImages'
 import { useToast } from '@/composables/useToast'
@@ -38,6 +39,7 @@ import ProjectNextActionCard from '@/components/group-industry/ProjectNextAction
 import ProjectTabBar from '@/components/group-industry/ProjectTabBar.vue'
 import ProductionChain from '@/components/group-industry/ProductionChain.vue'
 import ProjectBuyOrBuild from '@/components/group-industry/ProjectBuyOrBuild.vue'
+import ProjectResearch from '@/components/group-industry/ProjectResearch.vue'
 import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
 import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklistEditor.vue'
@@ -67,6 +69,7 @@ const contributionStore = useGroupContributionStore()
 const distributionStore = useGroupDistributionStore()
 const settlementStore = useGroupSettlementStore()
 const activityStore = useGroupActivityStore()
+const companionStore = useGroupCompanionStore()
 const syncStore = useSyncStore()
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { showToast } = useToast()
@@ -136,9 +139,13 @@ onMounted(async () => {
     projectStore.fetchBom(projectId.value),
     loadCockpit(projectId.value),
   ])
+  if (projectStore.currentProject?.containerName) {
+    await projectStore.fetchContainerVerification(projectId.value)
+  }
   if (activeTab.value === 'journal') {
     await activityStore.fetchActivity(projectId.value)
   }
+  openContributionOfQuery()
 })
 
 const refreshGroupProject: Record<GroupProjectRefresh, (id: string) => Promise<void>> = {
@@ -212,6 +219,21 @@ async function copyShareLink(): Promise<void> {
 function openContributeModal(bomItem?: BomItem): void {
   prefilledBomItem.value = bomItem
   showContributeModal.value = true
+}
+
+function openContributionOfQuery(): void {
+  const lineId = route.query.contribute
+  if (typeof lineId !== 'string') return
+  const line = projectStore.bomItems.find(item => item.id === lineId)
+  if (line !== undefined) openContributeModal(line)
+  const { contribute: _consumed, ...remainingQuery } = route.query
+  router.replace({ query: remainingQuery })
+}
+
+watch(() => route.query.contribute, openContributionOfQuery)
+
+function openCompanion(): void {
+  companionStore.open(projectId.value)
 }
 
 function feeOrNull(percent: number | string | null): number | null {
@@ -444,6 +466,16 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
               {{ t('groupIndustry.detail.shareLink') }}
             </button>
             <button
+              v-if="isAcceptedMember && !isCompleted"
+              type="button"
+              data-testid="open-companion"
+              class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all hover:-translate-y-px"
+              :title="t('groupIndustry.companion.openTitle')"
+              @click="openCompanion"
+            >
+              {{ t('groupIndustry.companion.open') }}
+            </button>
+            <button
               v-if="isAcceptedMember"
               data-testid="save-as-template"
               class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all hover:-translate-y-px"
@@ -582,6 +614,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       <div v-else-if="activeTab === 'chain'" class="relative rounded-xl space-y-6">
         <ProductionChain :project-id="projectId" />
         <ProjectBuyOrBuild :project-id="projectId" />
+        <ProjectResearch :project-id="projectId" />
         <ProjectStructures :project-id="projectId" />
         <ProjectStructureHealth :project-id="projectId" />
       </div>

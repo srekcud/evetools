@@ -1593,6 +1593,8 @@
         },
         "columns": {
           "character": "Character",
+          "corporation": "Corporation",
+          "alliance": "Alliance",
           "refinery": "Refinery",
           "period": "Period",
           "reference": "Reference",
@@ -1602,6 +1604,34 @@
           "status": "Status",
           "outside": "Alliance",
           "actions": "Actions"
+        },
+        "affiliation": {
+          "noAlliance": "No alliance",
+          "unknown": "unknown"
+        },
+        "donations": {
+          "title": "Donations received",
+          "filterLabel": "Donation filter",
+          "filters": {
+            "unmatched": "To attribute",
+            "all": "All"
+          },
+          "columns": {
+            "date": "Date",
+            "donor": "Donor",
+            "amount": "Amount",
+            "reason": "Reason",
+            "attribution": "Attribution",
+            "actions": "Attribute to"
+          },
+          "noReason": "—",
+          "notAttributed": "Not attributed",
+          "attributedOn": "on {date}",
+          "chooseMiner": "Choose a miner",
+          "attribute": "Attribute",
+          "loadError": "The donations could not be loaded.",
+          "emptyUnmatched": "No donation to attribute",
+          "emptyAll": "No donation in 90 days"
         },
         "status": {
           "provisional": "Provisional",
@@ -2279,6 +2309,31 @@
       "savingIfSurplusReused": "with the surplus reused, building saves {amount}",
       "withoutImport": "without the import: buy",
       "hint": "Build = materials and job, per unit. Buy = Jita price plus import to the workshop (m³ × jumps × the rate). The surplus of a run is not credited to the project."
+    },
+    "research": {
+      "title": "Research worth launching",
+      "loading": "Evaluating the material efficiency researches...",
+      "loadError": "The research suggestions could not be read",
+      "inGameNotice": "To confirm in game",
+      "levels": "ME {current} → {target} · {runs} runs",
+      "columns": {
+        "saving": "Saving",
+        "cost": "Cost",
+        "net": "Net"
+      },
+      "unknown": "Not proposed, unknown: {reasons}",
+      "notWorth": "{count} research does not pay on the runs of the project | {count} researches do not pay on the runs of the project",
+      "reason": {
+        "adjusted_price": "ESI adjusted price",
+        "market_price": "Jita price",
+        "structure_price": "structure price",
+        "cost_index": "system cost index",
+        "item_volume": "item volume",
+        "jump_route": "jump route",
+        "research_skill": "research skill",
+        "inventor_skills": "inventor skills",
+        "invention_probability": "invention probability"
+      }
     },
     "materialSourcing": {
       "title": "Where to buy the materials",
@@ -3099,6 +3154,65 @@
         "unknown_cost": "A cost is unknown or the total cost is zero: payouts, and so transfers, cannot be computed.",
         "unknown_seller": "A sale was recorded by someone who is no longer an accepted participant: transfers cannot be computed."
       }
+    },
+    "companion": {
+      "windowTitle": "Project companion",
+      "loading": "Loading the project...",
+      "open": "Companion",
+      "openTitle": "Open the project companion in a detached window",
+      "live": "live",
+      "liveTitle": "Updated in real time",
+      "bomPercent": "BOM {percent}%",
+      "toBar": "Collapse to the bar",
+      "toColumn": "Expand to the column",
+      "collapse": "Bar",
+      "expand": "Column",
+      "counters": {
+        "free": "{count} to assign",
+        "mine": "{count} to deliver",
+        "review": "{count} to review"
+      },
+      "sections": {
+        "free": "To assign",
+        "mine": "My lines to deliver",
+        "todo": "To do",
+        "jobs": "My jobs (ESI)",
+        "project": "Project"
+      },
+      "emptyFree": "Every line has an owner.",
+      "emptyMine": "Nothing to deliver.",
+      "emptyJobs": "No job of yours on this project.",
+      "moreFree": "+ {count} more free lines · see the BOM",
+      "claim": "I'll handle it",
+      "release": "Release",
+      "deliver": "Deliver",
+      "runs": "{runs} runs",
+      "todo": {
+        "contributions": "{count} contributions to review",
+        "joinRequests": "{count} join requests"
+      },
+      "jobStatus": {
+        "active": "Running",
+        "paused": "Paused",
+        "ready": "Ready"
+      },
+      "output": "Output: {place}",
+      "outputUnknown": "Output: unknown",
+      "bomFulfillment": "BOM fulfilled: {percent}%",
+      "finalJobsRunning": "Final jobs running: {count}",
+      "moveProductsUnknown": "Output location unknown for {count} jobs: check it in the BOM",
+      "alerts": {
+        "jobReady": "{name} ×{runs} · {character} · to deliver",
+        "jobReadyGeneric": "A job is ready to deliver",
+        "bomComplete": "BOM complete",
+        "moveProducts": "Move {quantity} products into the project container ({count} jobs)",
+        "joinRequest": "{count} join requests"
+      },
+      "notices": {
+        "popupBlocked": "The browser blocked the popup: allow popups for this site, then open the companion again.",
+        "popupFallback": "Picture-in-Picture is not available: the companion opened as a popup.",
+        "resizeRefused": "The browser refused to resize the window: adjust it by hand."
+      }
     }
   },
   "market": {
@@ -3761,13 +3875,23 @@
         "L": "L"
       },
       "rescan": "Re-scan reminder after",
-      "minutes": "min"
+      "minutes": "min",
+      "notifications": "Notify when a site is empty",
+      "clipboard": "Read the clipboard when the window regains focus"
+    },
+    "nextSite": {
+      "open": "New site",
+      "started": "New site {label} started."
+    },
+    "notification": {
+      "depletedTitle": "Site empty"
     },
     "notices": {
       "popupBlocked": "The browser blocked the popup: allow popups for this site, then detach again.",
       "popupFallback": "Picture-in-Picture is not available: the companion opened as a popup.",
       "resizeRefused": "The browser refused to resize the window: adjust it by hand.",
-      "clipboardDenied": "The browser denied access to the clipboard: use Ctrl+V."
+      "clipboardDenied": "The browser denied access to the clipboard: use Ctrl+V.",
+      "notificationsDenied": "Notifications are not allowed by the browser: allow them for this site, then enable them again."
     },
     "errors": {
       "noActiveSite": "No active site to record the scan on.",
@@ -3866,7 +3990,8 @@
       "labelRequired": "The site name is required.",
       "system": "Solar system (optional)",
       "systemNone": "No solar system",
-      "submit": "Create the site"
+      "submit": "Create the site",
+      "closesActive": "Active sites of this operation will be closed."
     },
     "history": {
       "hint": "The sites you scanned, newest first.",
@@ -3942,6 +4067,15 @@
     "title": "Mining sites",
     "create": "New site",
     "empty": "No site for this operation yet. Create one to share your scans with the fleet.",
-    "noScan": "no scan"
+    "noScan": "no scan",
+    "next": "Next site",
+    "start": "Start",
+    "end": "End",
+    "endOngoing": "ongoing",
+    "endUnknown": "end unknown",
+    "scans": "Scans",
+    "extracted": "Extracted",
+    "extractedUnknown": "unknown",
+    "extractedHint": "measured between the first and the last scan"
   }
 }

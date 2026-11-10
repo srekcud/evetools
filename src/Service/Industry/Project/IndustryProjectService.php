@@ -282,7 +282,7 @@ class IndustryProjectService
                 $this->favoriteSystemsOf($owner),
                 $blacklistedTypeIds,
                 selectionPolicy: new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving())),
-                ownedBlueprints: $this->ownedBlueprintsByProductOf($owner),
+                ownedBlueprints: $this->ownedBlueprintsOf($owner),
             ));
         } catch (\DomainException $e) {
             throw new \RuntimeException($e->getMessage(), 0, $e);
@@ -292,7 +292,7 @@ class IndustryProjectService
     /**
      * @return array<int, OwnedBlueprintUse> by product typeId
      */
-    private function ownedBlueprintsByProductOf(User $owner): array
+    public function ownedBlueprintsOf(User $owner): array
     {
         $usesByBlueprint = $this->originalBlueprintFinder->bestUsesOwnedBy($owner);
         if ([] === $usesByBlueprint) {

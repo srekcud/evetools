@@ -25,6 +25,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Repository\Sde\IndustryBlueprintRepository;
 use App\Repository\Sde\InvTypeRepository;
+use App\Service\Industry\IndustryBlacklistService;
 use App\Service\Industry\StockpileService;
 use App\Service\Industry\StockpileStartingStockReducer;
 use App\Service\JitaMarketService;
@@ -136,7 +137,8 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
             $productRepository,
             $this->entityManager,
             $this->importRepository,
-            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger()),
+            new StockpileStartingStockReducer($productionPlanning, $userStructures, $productRepository, new NullLogger(), $this->createStub(IndustryBlacklistService::class)),
+            $this->createStub(IndustryBlacklistService::class),
         );
         $this->pilot = $this->createMock(User::class);
         $this->pilot->method('getId')->willReturn(Uuid::fromString(self::PILOT_ID));

@@ -229,6 +229,8 @@ deptrac:
       - App\State\Provider\MiningSite\MiningSiteResourceMapper
     App\State\Processor\MiningSite\CreateMiningSiteProcessor:
       - App\State\Provider\MiningSite\MiningSiteResourceMapper
+    App\State\Processor\MiningSite\NextMiningSiteProcessor:
+      - App\State\Provider\MiningSite\MiningSiteResourceMapper
     App\State\Processor\MiningSite\RecordMiningSiteScanProcessor:
       - App\State\Provider\MiningSite\MiningSiteResourceMapper
     App\State\Processor\Notification\MarkReadProcessor:
