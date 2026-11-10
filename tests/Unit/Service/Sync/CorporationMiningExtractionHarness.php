@@ -15,6 +15,7 @@ use App\Exception\EsiApiException;
 use App\Repository\CharacterRepository;
 use App\Repository\CorporationMiningExtractionRepository;
 use App\Repository\CorporationMiningSyncStateRepository;
+use App\Repository\MiningOperationRepository;
 use App\Repository\MoonCompositionRepository;
 use App\Repository\MoonRefineryFollowRepository;
 use App\Repository\Sde\InvTypeRepository;
@@ -402,6 +403,8 @@ trait CorporationMiningExtractionHarness
             fn (array $criteria, ?array $orderBy = null): array => self::matching($this->storedFollows, $criteria, $orderBy),
         );
 
+        $miningOperationRepository = $this->createStub(MiningOperationRepository::class);
+
         $solarSystemRepository = $this->createStub(MapSolarSystemRepository::class);
         foreach (['find', 'findBySolarSystemId'] as $method) {
             $solarSystemRepository->method($method)->willReturnCallback(static fn (int $solarSystemId): ?MapSolarSystem => self::solarSystem($solarSystemId));
@@ -446,6 +449,7 @@ trait CorporationMiningExtractionHarness
             $extractionRepository,
             $syncStateRepository,
             $followRepository,
+            $miningOperationRepository,
             $solarSystemRepository,
             $entityManager,
             $this->mercurePublisher(),

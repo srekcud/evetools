@@ -7,12 +7,11 @@ import fr from '@/i18n/locales/fr.json'
 import MiningOperationList from '@/views/MiningOperation/MiningOperationList.vue'
 import { apiRequest } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
-import type { MiningOperation, MiningSeason } from '@/stores/miningOperation'
+import type { MiningOperation } from '@/stores/miningOperation'
 import { useSyncStore, type MiningOperationEvent } from '@/stores/sync'
 import type { User } from '@/types'
 import { expectOnlyLocaleTexts, TEST_LOCALES, type TestLocale } from '../../localeTexts'
-import { SITES_PATH, SITE_ID, siteAfterThreeScans } from '../MiningSite/miningSiteFixtures'
-import { OPERATION_O } from './miningOperationLedgerFixtures'
+import { OPERATION_O, OPERATION_P2, startedSpodumainOperation } from './miningOperationLedgerFixtures'
 import { ARCHIVE_PATH, P2_LABEL, completedP2Operation, g1Operation, settledArchiveSummary, settledG1Operation } from './miningOperationPaymentFixtures'
 
 const route = reactive<{ params: Record<string, string>; query: Record<string, string> }>({ params: {}, query: {} })
@@ -72,19 +71,6 @@ function radio(wrapper: VueWrapper, value: string) {
 }
 
 const MINE_PATH = '/mining-operations'
-const SEASON_PATH_30_DAYS = '/mining-operations/season?period=30d'
-const SEASON_OF_ONE_KNOWN_OPERATION: MiningSeason = {
-  period: '30d',
-  operationsCount: 1,
-  unknownValueOperationsCount: 0,
-  knownValue: 150_000_000,
-  knownOperationMinutes: 180,
-  playedMinutes: 180,
-  iskPerHour: 50_000_000,
-  players: [{ name: 'Aria Solberg', operationsCount: 1, minutes: 180, minedValue: 150_000_000, hasUnknownValue: false }],
-  ships: [],
-  unknownShipCharactersCount: 0,
-}
 const LONG_OPERATION_LABEL = 'Anomalie Spodumain du dimanche soir dans la ceinture la plus lointaine'
 const events = reactive<Record<string, MiningOperationEvent | null>>({})
 
@@ -98,6 +84,11 @@ function answerLists(mine: MiningOperation[], archive: MiningOperation[]): void 
 
 function archiveRowOf(wrapper: VueWrapper, label: string) {
   return wrapper.findAll('tr').find(row => row.text().includes(label))
+}
+
+function linkedChunkText(container: { find: (selector: string) => { exists: () => boolean; text: () => string } } | undefined): string | null {
+  const link = container?.find('[data-linked-chunk]')
+  return link !== undefined && link.exists() ? link.text() : null
 }
 
 function callsTo(path: string): number {
@@ -200,10 +191,28 @@ describe('MiningOperationList, archive', () => {
       settled: ['5,567,729', '2,294,229', '3 / 3 paid', 'Settled', 'Aldranette'].every(text => settledRow.includes(text)),
       completed: ['812,300', 'my value · everyone keeps their own', 'nothing to settle', 'Completed'].every(text => completedRow.includes(text)),
     }).toEqual({
-      archiveTab: ['My operations', 'Available', 'Archive', 'Season', 'Sites'],
+      archiveTab: ['My operations', 'Available', 'Archive'],
       settled: true,
       completed: true,
     })
+  })
+
+  it('links the linked moon from the operation card and from the archive row, and offers no moon link without chunk', async () => {
+    const linkedChunk = { id: '0195f3a0-2740-7000-8000-000000000103', moonId: 40_302_003, moonName: 'Ihakana II - Moon 1', structureId: 1_035_000_000_102, structureName: 'Ihakana - Deep Core Tatara', chunkArrivalTime: '2026-11-05T17:00:00+00:00' }
+    answerLists([g1Operation({ chunkId: linkedChunk.id, chunk: linkedChunk }), startedSpodumainOperation({ id: OPERATION_P2, label: P2_LABEL })], [])
+    const mine = await mountList(ARIA_OF_C1, 'fr')
+    const mineState = mine.findAll('li').map(card => linkedChunkText(card))
+    mine.unmount()
+    route.query = { tab: 'archive' }
+    answerLists([], [settledG1Operation({ chunkId: linkedChunk.id, chunk: linkedChunk }), completedP2Operation()])
+
+    const archive = await mountList(ARIA_OF_C1, 'fr')
+
+    expect({
+      mineState,
+      archiveLinked: linkedChunkText(archiveRowOf(archive, 'Anomalie Spodumain — 20:00')),
+      archiveWithoutChunk: linkedChunkText(archiveRowOf(archive, P2_LABEL)),
+    }).toEqual({ mineState: ['Lune liée →', null], archiveLinked: 'Lune liée →', archiveWithoutChunk: null })
   })
 
   it('says that a corporation member who did not take part has no share', async () => {
@@ -269,43 +278,5 @@ describe('MiningOperationList, archive', () => {
       'miningOperation.status.settled',
       'miningOperation.status.completed',
     ])
-  })
-})
-
-describe('MiningOperationList, season', () => {
-  it('opens the season tab, which loads the season of the last 30 days and shows its indicators', async () => {
-    vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
-      if (endpoint === SEASON_PATH_30_DAYS) return SEASON_OF_ONE_KNOWN_OPERATION as never
-      return [] as never
-    })
-    const wrapper = await mountList(ARIA_OF_C1)
-
-    const seasonTab = wrapper.findAll('[role="tab"]').find(tab => tab.text().startsWith('Season'))
-    expect(seasonTab, 'season tab').toBeDefined()
-    await seasonTab?.trigger('click')
-    await flushPromises()
-
-    expect([callsTo(SEASON_PATH_30_DAYS) > 0, wrapper.text().includes('150,000,000')]).toEqual([true, true])
-  })
-})
-
-describe('MiningOperationList, sites', () => {
-  it('opens the sites tab, which loads my mining sites and shows their history', async () => {
-    vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
-      if (endpoint === SITES_PATH) return [siteAfterThreeScans()] as never
-      return [] as never
-    })
-    const wrapper = await mountList(ARIA_OF_C1)
-
-    const sitesTab = wrapper.findAll('[role="tab"]').find(tab => tab.text().startsWith('Sites'))
-    expect(sitesTab, 'sites tab').toBeDefined()
-    await sitesTab?.trigger('click')
-    await flushPromises()
-
-    expect({
-      selected: sitesTab?.attributes('aria-selected'),
-      siteRequests: callsTo(SITES_PATH),
-      siteRow: wrapper.find(`[data-testid="site-row-${SITE_ID}"]`).exists() ? wrapper.find(`[data-testid="site-row-${SITE_ID}"]`).text() : null,
-    }).toEqual({ selected: 'true', siteRequests: 1, siteRow: expect.stringContaining('Belt Aldranette') })
   })
 })

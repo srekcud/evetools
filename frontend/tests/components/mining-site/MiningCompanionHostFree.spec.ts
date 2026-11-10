@@ -114,8 +114,8 @@ describe('MiningCompanionHost free target', () => {
     await found(screen(), '[data-testid="companion-desk"]').trigger('click')
 
     expect({ afterCreate, pushed: router.push.mock.calls, focused: focus.mock.calls.length }).toEqual({
-      afterCreate: { focused: 1, pushed: [[{ name: 'mining-operations', query: { chunk: CHUNK_B.id } }]] },
-      pushed: [[{ name: 'mining-operations', query: { chunk: CHUNK_B.id } }], [{ name: 'mining-operations' }]],
+      afterCreate: { focused: 1, pushed: [[{ name: 'mining-moons', query: { chunk: CHUNK_B.id } }]] },
+      pushed: [[{ name: 'mining-moons', query: { chunk: CHUNK_B.id } }], [{ name: 'mining-operations' }]],
       focused: 2,
     })
   })

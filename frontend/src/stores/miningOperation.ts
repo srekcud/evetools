@@ -175,6 +175,15 @@ export interface MiningPayment {
   paidByName: string | null
 }
 
+export interface MiningOperationChunk {
+  id: string
+  moonId: number
+  moonName: string | null
+  structureId: number
+  structureName: string | null
+  chunkArrivalTime: string
+}
+
 export interface MiningOperation {
   id: string
   label: string
@@ -203,6 +212,7 @@ export interface MiningOperation {
   fleetStorageRecipientName: string | null
   recurrenceId: string | null
   chunkId: string | null
+  chunk: MiningOperationChunk | null
 }
 
 export interface MiningOperationMemberCharacter {

@@ -1,5 +1,6 @@
 import type {
   CorporationMiningExtraction,
+  MoonChunkLinkedOperation,
   MoonChunkValue,
   CorporationMiningExtractions,
   CorporationMiningExtractionsResponse,
@@ -26,6 +27,8 @@ export function extraction(overrides: Partial<CorporationMiningExtraction>): Cor
     naturalDecayTime: '2026-11-05T23:00:00+00:00',
     status: 'extracting',
     chunkValue: null,
+    linkedOperation: null,
+    linkedOperationCount: 0,
     ...overrides,
   }
 }
@@ -150,3 +153,33 @@ export const NO_SCAN_CHUNK = extraction({ id: '0195f3a0-2740-7000-8000-000000000
 export const NO_PRICE_CHUNK = extraction({ id: '0195f3a0-2740-7000-8000-000000000303', moonId: 40301013, moonName: 'NOL-M9 VII - Moon 6', chunkValue: NO_PRICE_VALUE })
 
 export const LONG_MOON_CHUNK = extraction({ id: '0195f3a0-2740-7000-8000-000000000304', moonId: 40301014, moonName: LONG_MOON_NAME, chunkValue: NO_SCAN_VALUE })
+
+export const ROCK_HOLLOW_OPERATION: MoonChunkLinkedOperation = {
+  id: '0199a1f0-0000-7000-8000-0000000005c1',
+  label: 'Rock Hollow chunk, Thursday evening',
+  status: 'planned',
+}
+
+export const EXPLODED_OPERATION: MoonChunkLinkedOperation = {
+  id: '0199a1f0-0000-7000-8000-0000000005c2',
+  label: 'Rock Hollow chunk, October',
+  status: 'settled',
+}
+
+export const LINKED_ROCK_HOLLOW_CHUNK = extraction({
+  id: '0195f3a0-2740-7000-8000-000000000401',
+  linkedOperation: ROCK_HOLLOW_OPERATION,
+  linkedOperationCount: 2,
+})
+
+export const LINKED_EXPLODED_CHUNK = extraction({
+  id: '0195f3a0-2740-7000-8000-000000000402',
+  moonId: 40301021,
+  moonName: 'NOL-M9 VII - Moon 9',
+  extractionStartTime: '2026-10-14T19:00:00+00:00',
+  chunkArrivalTime: '2026-10-20T19:00:00+00:00',
+  naturalDecayTime: '2026-10-23T19:00:00+00:00',
+  status: 'exploded',
+  linkedOperation: EXPLODED_OPERATION,
+  linkedOperationCount: 1,
+})

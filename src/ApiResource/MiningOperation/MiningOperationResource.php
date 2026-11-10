@@ -299,4 +299,7 @@ class MiningOperationResource
     public ?string $recurrenceId = null;
 
     public ?string $chunkId = null;
+
+    /** @var array{id: string, moonId: int, moonName: ?string, structureId: int, structureName: ?string, chunkArrivalTime: string}|null */
+    public ?array $chunk = null;
 }

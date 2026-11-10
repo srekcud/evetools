@@ -83,7 +83,7 @@ describe('MiningStockpileCoverage', () => {
 
     const yieldUnknown = found(wrapper, '[data-coverage-yield-unknown]')
     expect(yieldUnknown.text()).toContain(messageOf('en', 'miningOperation.stockpileCoverage.yieldUnknown'))
-    expect(yieldUnknown.findComponent(RouterLinkStub).props('to')).toEqual({ name: 'ledger', query: { tab: 'mining' } })
+    expect(yieldUnknown.findComponent(RouterLinkStub).props('to')).toEqual({ name: 'mining-ore-value' })
     expect(wrapper.findAll('[data-coverage-mineral]')).toHaveLength(0)
   })
 

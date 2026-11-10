@@ -73,6 +73,6 @@ trait RecordsMiningOperationNotifications
 
     private function operationRouteOf(MiningOperation $operation): string
     {
-        return '/mining-operations/' . $operation->getId()->toRfc4122();
+        return '/mining/operations/' . $operation->getId()->toRfc4122();
     }
 }

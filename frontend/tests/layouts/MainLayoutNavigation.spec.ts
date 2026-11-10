@@ -27,13 +27,13 @@ describe('MainLayout sidebar navigation', () => {
     expect(navigationLink(wrapper, 'Dashboard')?.attributes('href')).toBe('/dashboard')
   })
 
-  it('renders each group child as a link to its route', async () => {
+  it('renders each group child and the flat mining entry as a link to its route', async () => {
     const { wrapper } = await mountMainLayoutAt('/dashboard')
 
     expect(navigationLink(wrapper, 'Industry')?.attributes('href')).toBe('/industry')
     expect(navigationLink(wrapper, 'Appraisal')?.attributes('href')).toBe('/appraisal')
     expect(navigationLink(wrapper, 'PI')?.attributes('href')).toBe('/planetary')
-    expect(navigationLink(wrapper, 'Mining operations')?.attributes('href')).toBe('/mining-operations')
+    expect(navigationLink(wrapper, 'Mining')?.attributes('href')).toBe('/mining/operations')
     expect(navigationLink(wrapper, 'Market')?.attributes('href')).toBe('/market')
     expect(navigationLink(wrapper, 'Revenue')?.attributes('href')).toBe('/ledger')
     expect(navigationLink(wrapper, 'Inventory')?.attributes('href')).toBe('/assets')
@@ -47,7 +47,7 @@ describe('MainLayout sidebar navigation', () => {
       'Industry',
       'Appraisal',
       'PI',
-      'Mining operations',
+      'Mining',
       'Market',
       'Revenue',
       'Inventory',
@@ -55,7 +55,6 @@ describe('MainLayout sidebar navigation', () => {
     ])
     expect(wrapper.get('aside nav').findAll('button, p').map(heading => heading.text().trim())).toEqual([
       'Production',
-      'Mining',
       'Economy',
       'Account',
       'Settings',
@@ -115,6 +114,17 @@ describe('MainLayout sidebar navigation', () => {
     await flushPromises()
 
     const moduleLabels = Array.from(document.querySelectorAll('[role="dialog"] label')).map(label => label.textContent?.trim())
-    expect(moduleLabels).toEqual(['Dashboard', 'Industry', 'Appraisal', 'PI', 'Mining operations', 'Market', 'Revenue', 'Inventory'])
+    expect(moduleLabels).toEqual(['Dashboard', 'Industry', 'Appraisal', 'PI', 'Mining', 'Market', 'Revenue', 'Inventory'])
+  })
+
+  it('hides the mining entry and shows it unchecked in the settings for a user who had hidden the former mining operations module', async () => {
+    const { wrapper } = await mountMainLayoutAt('/dashboard', { storedHiddenModules: ['mining-operations'] })
+
+    expect(sidebarLinkLabels(wrapper)).not.toContain('Mining')
+    await wrapper.findAll('aside nav button').find(button => button.text().trim() === 'Settings')?.trigger('click')
+    await flushPromises()
+
+    const miningModule = Array.from(document.querySelectorAll('[role="dialog"] label')).find(label => label.textContent?.trim() === 'Mining')
+    expect(miningModule?.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(false)
   })
 })

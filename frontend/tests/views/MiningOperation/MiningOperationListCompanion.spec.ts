@@ -53,21 +53,6 @@ function extractionRequests(): number {
   return vi.mocked(apiRequest).mock.calls.filter(call => call[0] === EXTRACTIONS_PATH).length
 }
 
-function modalState(wrapper: VueWrapper): { system: string | null; label: string | null } {
-  const system = wrapper.find('[data-chunk-system]')
-  const label = wrapper.find('input[type="text"][maxlength="100"]')
-  return { system: system.exists() ? system.text() : null, label: label.exists() ? (label.element as HTMLInputElement).value : null }
-}
-
-function roleOfUnavailableMessage(wrapper: VueWrapper): string | null {
-  const message = wrapper.find('[data-testid="operation-list-chunk-unavailable"]')
-  return message.exists() ? (message.attributes('role') ?? null) : null
-}
-
-function replacedQueries(): unknown[] {
-  return router.replace.mock.calls.map(call => (call[0] as { query?: Record<string, string> }).query)
-}
-
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(FREE_NOW)
@@ -102,50 +87,6 @@ describe('MiningOperationList companion', () => {
       detached: [[{ siteId: null, operationId: null }]],
       extractionRequests: 0,
       replaced: [],
-    })
-  })
-
-  it('opens the operation creation on the chunk of the url once found and not exploded, then removes the chunk from the url', async () => {
-    route.query = { chunk: CHUNK_B.id, period: '30d' }
-    const wrapper = await mountList()
-
-    expect({
-      modal: modalState(wrapper),
-      unavailable: wrapper.find('[data-testid="operation-list-chunk-unavailable"]').exists(),
-      extractionRequests: extractionRequests(),
-      replacedQueries: replacedQueries(),
-    }).toEqual({
-      modal: { system: expect.stringContaining('Jaspet'), label: 'Jaspet V - Moon 1' },
-      unavailable: false,
-      extractionRequests: 2,
-      replacedQueries: [{ period: '30d' }],
-    })
-  })
-
-  it('opens no modal and says the chunk is unavailable when the chunk of the url is unknown or exploded, and removes it from the url', async () => {
-    route.query = { chunk: 'unknown-chunk' }
-    const unknown = await mountList()
-    const unknownState = {
-      modal: modalState(unknown),
-      message: roleOfUnavailableMessage(unknown),
-      replacedQueries: replacedQueries(),
-    }
-
-    unknown.unmount()
-    router.replace.mockReset()
-    route.query = { chunk: CHUNK_C_EXPLODED.id }
-    const exploded = await mountList()
-
-    expect({
-      unknownState,
-      explodedModal: modalState(exploded),
-      explodedMessage: exploded.find('[data-testid="operation-list-chunk-unavailable"]').exists(),
-      explodedReplacedQueries: replacedQueries(),
-    }).toEqual({
-      unknownState: { modal: { system: null, label: null }, message: 'status', replacedQueries: [{}] },
-      explodedModal: { system: null, label: null },
-      explodedMessage: true,
-      explodedReplacedQueries: [{}],
     })
   })
 })

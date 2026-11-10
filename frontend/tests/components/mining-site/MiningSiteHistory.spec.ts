@@ -1,9 +1,9 @@
-import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount, RouterLinkStub, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { apiRequest } from '@/services/api'
 import type { MiningSite } from '@/stores/miningSite'
 import MiningSiteHistory from '@/components/mining-site/MiningSiteHistory.vue'
-import { ALDRANETTE, JASPET, LONG_SITE_LABEL, SITES_PATH, at, found, i18nFor, siteOf } from '../../views/MiningSite/miningSiteFixtures'
+import { ALDRANETTE, JASPET, LONG_SITE_LABEL, OPERATION_ID, SITES_PATH, at, found, i18nFor, siteOf } from '../../views/MiningSite/miningSiteFixtures'
 
 const push = vi.fn()
 
@@ -25,6 +25,7 @@ const JASPET_ID = '0198f1e0-7c1a-7a52-9d3e-5b6a1c2d3e63'
 
 const BELT = siteOf({
   id: BELT_ID,
+  operationId: OPERATION_ID,
   label: 'Belt Aldranette',
   firstScanAt: at('20:00:00'),
   lastScanAt: at('20:20:00'),
@@ -59,7 +60,7 @@ function answerWithSites(sites: MiningSite[]): void {
 async function mountHistory() {
   const i18n = i18nFor('en')
   const wrapper = mount(MiningSiteHistory, {
-    global: { plugins: [i18n], stubs: { teleport: true, LoadingSpinner: true, 'router-link': { template: '<a><slot /></a>' } } },
+    global: { plugins: [i18n], stubs: { teleport: true, LoadingSpinner: true, RouterLink: RouterLinkStub } },
   })
   await flushPromises()
   return { wrapper, t: i18n.global.t }
@@ -72,6 +73,15 @@ function rowOf(wrapper: VueWrapper, siteId: string) {
 function cellsOf(wrapper: VueWrapper, siteId: string): string[] {
   const row = rowOf(wrapper, siteId)
   return row.exists() ? row.findAll('td').map(cell => cell.text()) : []
+}
+
+function operationLinksOf(wrapper: VueWrapper, siteId: string): Array<{ name: string }> {
+  const row = rowOf(wrapper, siteId).element
+  return wrapper
+    .findAllComponents(RouterLinkStub)
+    .filter(link => row.contains(link.element))
+    .map(link => link.props('to') as { name: string })
+    .filter(target => target.name === 'mining-operation-detail')
 }
 
 function shownSiteIds(wrapper: VueWrapper): string[] {
@@ -98,6 +108,8 @@ describe('MiningSiteHistory', () => {
     const longLabel = wrapper.find(`[title="${LONG_SITE_LABEL}"]`)
     const longLabelShown = longLabel.exists()
     const longLabelTruncated = longLabel.exists() && longLabel.classes().includes('truncate')
+    const beltOperationLinks = operationLinksOf(wrapper, BELT_ID)
+    const operationLinksOfOtherSites = [ANOMALY_ID, JASPET_ID].map(siteId => operationLinksOf(wrapper, siteId))
     const filter = found(wrapper, '[data-testid="system-filter"]')
     const filterOptions = filter.findAll('option').map(option => option.element.value)
     await filter.setValue(String(ALDRANETTE))
@@ -109,6 +121,8 @@ describe('MiningSiteHistory', () => {
       beltCells,
       anomalyValue,
       jaspetScanColumns,
+      beltOperationLinks,
+      operationLinksOfOtherSites,
       longLabelShown,
       longLabelTruncated,
       filterOptions,
@@ -129,6 +143,8 @@ describe('MiningSiteHistory', () => {
       ],
       anomalyValue: expect.stringContaining(t('miningSite.value.unknown')),
       jaspetScanColumns: [UNKNOWN_DASH, UNKNOWN_DASH, UNKNOWN_DASH, UNKNOWN_DASH, UNKNOWN_DASH, UNKNOWN_DASH],
+      beltOperationLinks: [{ name: 'mining-operation-detail', params: { id: OPERATION_ID } }],
+      operationLinksOfOtherSites: [[], []],
       longLabelShown: true,
       longLabelTruncated: true,
       filterOptions: ['', String(ALDRANETTE), String(JASPET)],

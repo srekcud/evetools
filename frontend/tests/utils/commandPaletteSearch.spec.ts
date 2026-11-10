@@ -7,7 +7,6 @@ const CATALOG_ROWS: CatalogRow[] = [
   ['/dashboard', 'Tableau de bord', 'Dashboard'],
   ['/ledger', 'Revenus', 'Revenue'],
   ['/ledger?tab=pve', 'Revenus › PVE', 'Revenue › PVE'],
-  ['/ledger?tab=mining', 'Revenus › Minage', 'Revenue › Mining'],
   ['/ledger?tab=escalations', 'Revenus › Escalations', 'Revenue › Escalations'],
   ['/ledger?tab=settings', 'Revenus › Parametres', 'Revenue › Settings'],
   ['/industry', 'Industrie', 'Industry'],

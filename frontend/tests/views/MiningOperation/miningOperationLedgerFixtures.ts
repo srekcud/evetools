@@ -119,6 +119,7 @@ export function spodumainOperation(overrides: Partial<MiningOperation> = {}): Mi
     fleetStorageRecipientName: null,
     recurrenceId: null,
     chunkId: null,
+    chunk: null,
     ...overrides,
   }
 }

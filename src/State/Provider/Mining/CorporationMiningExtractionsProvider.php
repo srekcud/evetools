@@ -141,6 +141,8 @@ final readonly class CorporationMiningExtractionsProvider implements ProviderInt
             'naturalDecayTime' => $this->formatTime($extraction->getNaturalDecayTime()),
             'status' => MoonChunkStatus::fromTimes($now, $extraction->getChunkArrivalTime(), $extraction->getNaturalDecayTime())->value,
             'chunkValue' => $chunkValues[$extraction] ?? null,
+            'linkedOperation' => null,
+            'linkedOperationCount' => 0,
         ];
     }
 

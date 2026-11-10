@@ -13,6 +13,8 @@ import Ledger from '@/views/Ledger.vue'
 import MarketBrowser from '@/views/MarketBrowser.vue'
 import GroupIndustryList from '@/views/GroupIndustry/GroupIndustryList.vue'
 import MiningOperationList from '@/views/MiningOperation/MiningOperationList.vue'
+import MiningMoons from '@/views/Mining/MiningMoons.vue'
+import MiningMyMining from '@/views/Mining/MiningMyMining.vue'
 
 const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/', params: {}, query: {} })
 
@@ -36,7 +38,9 @@ const VIEWS_BY_ROUTE: Record<string, Component> = {
   '/ledger': Ledger,
   '/industry': Industry,
   '/group-industry': GroupIndustryList,
-  '/mining-operations': MiningOperationList,
+  '/mining/operations': MiningOperationList,
+  '/mining/moons': MiningMoons,
+  '/mining/my-mining': MiningMyMining,
   '/market': MarketBrowser,
   '/assets': Assets,
 }
@@ -69,8 +73,8 @@ async function activeTabOfViewOpenedAt(path: string, tab: string): Promise<strin
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
   await flushPromises()
-  const activeTab = vi.mocked(useTabQuery).mock.results[0].value as Ref<string>
-  return activeTab.value
+  const tabQueryResult = vi.mocked(useTabQuery).mock.results[0]
+  return tabQueryResult === undefined ? 'no tab read from the URL' : (tabQueryResult.value as Ref<string>).value
 }
 
 enableAutoUnmount(afterEach)
@@ -100,10 +104,12 @@ describe('navigation entry tabs contract', () => {
       '/industry?tab=stockpile',
       '/industry?tab=blueprints',
       '/group-industry?tab=available',
-      '/mining-operations?tab=available',
+      '/mining/operations?tab=available',
+      '/mining/operations?tab=archive',
+      '/mining/moons?tab=tax',
+      '/mining/my-mining?tab=season',
       '/market?tab=alerts',
       '/ledger?tab=pve',
-      '/ledger?tab=mining',
       '/ledger?tab=escalations',
       '/ledger?tab=settings',
       '/assets?tab=contracts',

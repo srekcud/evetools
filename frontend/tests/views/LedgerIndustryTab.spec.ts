@@ -65,13 +65,13 @@ beforeEach(() => {
 })
 
 describe('Ledger industry tab', () => {
-  it('lists the Industrie tab between Mining and Escalations, in French and in English', async () => {
+  it('lists the Industrie tab between PVE and Escalations, in French and in English', async () => {
     const french = tabLabels(await mountLedger('fr'))
     const english = tabLabels(await mountLedger('en'))
 
-    expect(french.indexOf('Industrie')).toBe(french.indexOf(fr.ledger.tabs.mining) + 1)
+    expect(french.indexOf('Industrie')).toBe(french.indexOf(fr.ledger.tabs.pve) + 1)
     expect(french.indexOf('Industrie')).toBe(french.indexOf(fr.ledger.tabs.escalations) - 1)
-    expect(english.indexOf('Industry')).toBe(english.indexOf(en.ledger.tabs.mining) + 1)
+    expect(english.indexOf('Industry')).toBe(english.indexOf(en.ledger.tabs.pve) + 1)
     expect(english.indexOf('Industry')).toBe(english.indexOf(en.ledger.tabs.escalations) - 1)
   })
 

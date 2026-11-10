@@ -124,6 +124,14 @@ class MiningOperationRepository extends ServiceEntityRepository
     /**
      * @return list<MiningOperation>
      */
+    public function findLinkedToChunksOf(User $user): array
+    {
+        return [];
+    }
+
+    /**
+     * @return list<MiningOperation>
+     */
     public function findOfSeason(int $corporationId, ?\DateTimeImmutable $endedSince): array
     {
         $queryBuilder = $this->withOwner($this->createQueryBuilder('operation'))

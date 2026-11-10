@@ -60,13 +60,19 @@ describe('useNavigationEntries', () => {
       ['/group-industry?tab=available', 'Industry › Projects › Available', true],
       ['/appraisal', 'Appraisal', false],
       ['/planetary', 'PI', false],
-      ['/mining-operations', 'Mining operations', false],
-      ['/mining-operations?tab=available', 'Mining operations › Available', true],
+      ['/mining/operations', 'Mining', false],
+      ['/mining/operations?tab=available', 'Mining › Available', true],
+      ['/mining/operations?tab=archive', 'Mining › Archive', true],
+      ['/mining/moons', 'Mining › Moons', true],
+      ['/mining/moons?tab=tax', 'Mining › Moons › Tax', true],
+      ['/mining/sites', 'Mining › Sites', true],
+      ['/mining/ore-value', 'Mining › Ore value', true],
+      ['/mining/my-mining', 'Mining › My mining', true],
+      ['/mining/my-mining?tab=season', 'Mining › My mining › Season', true],
       ['/market', 'Market', false],
       ['/market?tab=alerts', 'Market › Alerts', true],
       ['/ledger', 'Revenue', false],
       ['/ledger?tab=pve', 'Revenue › PVE', true],
-      ['/ledger?tab=mining', 'Revenue › Mining', true],
       ['/ledger?tab=escalations', 'Revenue › Escalations', true],
       ['/ledger?tab=settings', 'Revenue › Settings', true],
       ['/assets', 'Inventory', false],
@@ -100,13 +106,19 @@ describe('useNavigationEntries', () => {
       ['Industrie › Projets › Disponibles', 'Industry › Projects › Available'],
       ['Appraisal', 'Appraisal'],
       ['PI', 'PI'],
-      ['Opérations de minage', 'Mining operations'],
-      ['Opérations de minage › Disponibles', 'Mining operations › Available'],
+      ['Minage', 'Mining'],
+      ['Minage › Disponibles', 'Mining › Available'],
+      ['Minage › Archive', 'Mining › Archive'],
+      ['Minage › Lunes', 'Mining › Moons'],
+      ['Minage › Lunes › Taxe', 'Mining › Moons › Tax'],
+      ['Minage › Sites', 'Mining › Sites'],
+      ['Minage › Valeur du minerai', 'Mining › Ore value'],
+      ['Minage › Mon minage', 'Mining › My mining'],
+      ['Minage › Mon minage › Saison', 'Mining › My mining › Season'],
       ['Marche', 'Market'],
       ['Marche › Alertes', 'Market › Alerts'],
       ['Revenus', 'Revenue'],
       ['Revenus › PVE', 'Revenue › PVE'],
-      ['Revenus › Minage', 'Revenue › Mining'],
       ['Revenus › Escalations', 'Revenue › Escalations'],
       ['Revenus › Parametres', 'Revenue › Settings'],
       ['Inventaire', 'Inventory'],
@@ -129,8 +141,8 @@ describe('useNavigationEntries', () => {
 
     const entries = listNavigationEntries({ isAdmin: true })
 
-    expect(entries).toHaveLength(26)
-    expect(entries[25]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
+    expect(entries).toHaveLength(32)
+    expect(entries[31]).toEqual({ route: '/admin', label: 'Administration', aliasLabel: 'Administration', isTab: false })
   })
 
   it('leaves the admin screen out for a user who is not an administrator', () => {
@@ -147,11 +159,17 @@ describe('useNavigationEntries', () => {
       '/dashboard',
       '/appraisal',
       '/planetary',
-      '/mining-operations',
-      '/mining-operations?tab=available',
+      '/mining/operations',
+      '/mining/operations?tab=available',
+      '/mining/operations?tab=archive',
+      '/mining/moons',
+      '/mining/moons?tab=tax',
+      '/mining/sites',
+      '/mining/ore-value',
+      '/mining/my-mining',
+      '/mining/my-mining?tab=season',
       '/ledger',
       '/ledger?tab=pve',
-      '/ledger?tab=mining',
       '/ledger?tab=escalations',
       '/ledger?tab=settings',
       '/assets',
@@ -169,8 +187,20 @@ describe('useNavigationEntries', () => {
     expect(routes).toContain('/industry')
     expect(routes).toContain('/industry?tab=stockpile')
     expect(routes.filter(route => route.startsWith('/group-industry'))).toEqual([])
-    expect(routes).toHaveLength(23)
+    expect(routes).toHaveLength(29)
     expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["group-industry"]')
+  })
+
+  it('keeps hiding every mining page for a user who had hidden the former mining operations module', () => {
+    hideModules(['mining-operations'])
+    const { listNavigationEntries } = mountNavigationEntries('en')
+
+    const routes = routesOf(listNavigationEntries({ isAdmin: false }))
+
+    expect(routes.filter(route => route.startsWith('/mining/'))).toEqual([])
+    expect(routes).toContain('/planetary')
+    expect(routes).toHaveLength(22)
+    expect(localStorage.getItem(HIDDEN_MODULES_STORAGE_KEY)).toBe('["mining-operations"]')
   })
 
   it('keeps characters and admin even when listed as hidden modules', () => {
@@ -190,6 +220,6 @@ describe('useNavigationEntries', () => {
     hideModules(['planetary'])
 
     expect(routesOf(listNavigationEntries({ isAdmin: false }))).not.toContain('/planetary')
-    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(24)
+    expect(listNavigationEntries({ isAdmin: false })).toHaveLength(30)
   })
 })
