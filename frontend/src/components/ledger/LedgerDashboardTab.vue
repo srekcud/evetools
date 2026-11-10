@@ -221,6 +221,13 @@ const chartOptions = computed(() => ({
         <div class="mt-2 text-xs text-slate-500">
           Bounties: {{ formatIskShort(dashboard.pveBreakdown.bounties) }}
         </div>
+        <RouterLink
+          to="/pve/revenue"
+          class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-cyan-400 hover:text-white"
+        >
+          {{ t('ledger.dashboard.openModule', { module: t('nav.pve') }) }}
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        </RouterLink>
       </div>
 
       <!-- Mining -->
@@ -240,6 +247,13 @@ const chartOptions = computed(() => ({
         <div v-if="dashboard.missingPriceTypeIds.length > 0" class="mt-1 text-xs text-amber-400">
           {{ t('ledger.dashboard.miningMissingPrices', { count: dashboard.missingPriceTypeIds.length }, dashboard.missingPriceTypeIds.length) }}
         </div>
+        <RouterLink
+          to="/mining/my-mining"
+          class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-white"
+        >
+          {{ t('ledger.dashboard.openModule', { module: t('nav.mining') }) }}
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        </RouterLink>
       </div>
 
       <div class="bg-slate-900 rounded-xl p-4 border border-emerald-500/20">
@@ -254,6 +268,13 @@ const chartOptions = computed(() => ({
           <IskAmount v-else :value="dashboard.totals.industry" short />
         </div>
         <div class="mt-2 text-xs text-slate-500">{{ industrySummary }}</div>
+        <RouterLink
+          to="/industry"
+          class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-white"
+        >
+          {{ t('ledger.dashboard.openModule', { module: t('nav.industry') }) }}
+          <svg aria-hidden="true" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        </RouterLink>
       </div>
     </div>
 
@@ -299,6 +320,10 @@ const chartOptions = computed(() => ({
           <div class="flex items-center justify-between">
             <span class="text-slate-400">{{ t('ledger.dashboard.loot') }}</span>
             <span class="text-white font-medium">{{ formatIskShort(dashboard.pveBreakdown.lootSales) }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400">{{ t('ledger.dashboard.escalations') }}</span>
+            <span class="text-white font-medium">{{ formatIskShort(dashboard.pveBreakdown.escalations) }}</span>
           </div>
           <div v-if="dashboard.settings.corpProjectAccounting === 'pve'" class="flex items-center justify-between">
             <span class="text-slate-400">{{ t('ledger.pve.corpProject') }}</span>

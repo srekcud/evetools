@@ -8,6 +8,10 @@ const MODULE_PAGES: Record<string, readonly string[]> = {
     '/mining/ore-value',
     '/mining/my-mining',
   ],
+  pve: [
+    '/pve/revenue',
+    '/pve/escalations',
+  ],
 }
 
 function readStoredPages(): Record<string, unknown> {

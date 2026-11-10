@@ -1,69 +1,40 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLedgerStore } from '@/stores/ledger'
-import { usePveStore } from '@/stores/pve'
+import { useLedgerPeriod, daysSinceOldestEntry } from '@/composables/useLedgerPeriod'
 import { useTabQuery } from '@/composables/useTabQuery'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
-import PveTab from '@/components/ledger/PveTab.vue'
 import LedgerDashboardTab from '@/components/ledger/LedgerDashboardTab.vue'
+import LedgerPeriodSelector from '@/components/ledger/LedgerPeriodSelector.vue'
 import LedgerSettingsTab from '@/components/ledger/LedgerSettingsTab.vue'
-import EscalationsTab from '@/components/ledger/EscalationsTab.vue'
 import LedgerIndustryTab from '@/components/ledger/LedgerIndustryTab.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
 const ledgerStore = useLedgerStore()
-const pveStore = usePveStore()
 
-// Tab state
-type TabId = 'dashboard' | 'pve' | 'industry' | 'settings' | 'escalations'
-const validTabs: TabId[] = ['dashboard', 'pve', 'industry', 'settings', 'escalations']
+type TabId = 'dashboard' | 'industry' | 'settings'
+const validTabs: TabId[] = ['dashboard', 'industry', 'settings']
 const activeTab = useTabQuery(validTabs, 'dashboard')
 
-// Period selection (cached in localStorage)
-const selectedDays = ref(parseInt(localStorage.getItem('ledgerSelectedDays') || '30'))
-const periodOptions = computed(() => [
-  { value: 7, label: t('ledger.period.nDays', { n: 7 }) },
-  { value: 14, label: t('ledger.period.nDays', { n: 14 }) },
-  { value: 30, label: t('ledger.period.nDays', { n: 30 }) },
-  { value: 60, label: t('ledger.period.nDays', { n: 60 }) },
-  { value: 90, label: t('ledger.period.nDays', { n: 90 }) },
-])
+const { selectedDays, periodOptions, yearToDateDays } = useLedgerPeriod()
 
-const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
+const isLoading = computed(() => ledgerStore.isLoading)
 
-const ytdDays = computed(() => {
-  const now = new Date()
-  const startOfYear = new Date(now.getFullYear(), 0, 1)
-  return Math.ceil((now.getTime() - startOfYear.getTime()) / MILLISECONDS_PER_DAY)
-})
-
-// Loading states
-const isLoading = computed(() => ledgerStore.isLoading || pveStore.isLoading)
-
-// Dashboard data
 const dashboard = computed(() => ledgerStore.dashboard)
-const allDays = computed(() => {
-  const oldestEntryDate = dashboard.value?.oldestEntryDate
-  if (!oldestEntryDate) return null
-  const oldestEntryStart = new Date(`${oldestEntryDate}T00:00:00Z`)
-  return Math.ceil((Date.now() - oldestEntryStart.getTime()) / MILLISECONDS_PER_DAY) + 1
-})
+const allDays = computed(() => daysSinceOldestEntry(dashboard.value?.oldestEntryDate))
 const dailyStats = computed(() => ledgerStore.dailyStats)
 
-// Settings
 const settings = computed(() => ledgerStore.settings)
 
-// Max daily value for chart scaling
 const maxDailyValue = computed(() => {
   if (!dailyStats.value?.daily) return 0
   const knownTotals = dailyStats.value.daily.map(d => d.total).filter((total): total is number => total !== null)
   return Math.max(...knownTotals)
 })
 
-// Fetch dashboard data
 async function fetchData() {
   await Promise.all([
     ledgerStore.fetchDashboard(selectedDays.value),
@@ -72,7 +43,6 @@ async function fetchData() {
   ])
 }
 
-// Update settings
 async function updateCorpProjectAccounting(key: string, value: string) {
   try {
     await ledgerStore.updateSettings({ [key]: value })
@@ -81,15 +51,11 @@ async function updateCorpProjectAccounting(key: string, value: string) {
   }
 }
 
-// Watch for period changes
 watch(selectedDays, async () => {
-  localStorage.setItem('ledgerSelectedDays', selectedDays.value.toString())
   ledgerStore.setSelectedDays(selectedDays.value)
-  pveStore.setSelectedDays(selectedDays.value)
   await fetchData()
 })
 
-// Initialize
 onMounted(async () => {
   await fetchData()
 })
@@ -98,49 +64,7 @@ onMounted(async () => {
 <template>
   <MainLayout>
     <div class="space-y-6">
-      <!-- Header with period selector -->
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2 bg-slate-900 rounded-lg p-1">
-            <button
-              v-for="option in periodOptions"
-              :key="option.value"
-              @click="selectedDays = option.value"
-              :class="[
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                selectedDays === option.value
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              ]"
-            >
-              {{ option.label }}
-            </button>
-            <button
-              @click="selectedDays = ytdDays"
-              :class="[
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                selectedDays === ytdDays
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              ]"
-            >
-              YTD
-            </button>
-            <button
-              v-if="allDays !== null"
-              @click="selectedDays = allDays"
-              :class="[
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                selectedDays === allDays
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              ]"
-            >
-              {{ t('ledger.period.all') }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <LedgerPeriodSelector v-model="selectedDays" :options="periodOptions" :ytd-days="yearToDateDays" :all-days="allDays" />
 
       <!-- Tabs -->
       <div class="border-b border-slate-800">
@@ -148,9 +72,7 @@ onMounted(async () => {
           <button
             v-for="tab in [
               { id: 'dashboard', label: t('ledger.tabs.dashboard') },
-              { id: 'pve', label: t('ledger.tabs.pve') },
               { id: 'industry', label: t('ledger.tabs.industry') },
-              { id: 'escalations', label: t('ledger.tabs.escalations') },
               { id: 'settings', label: t('ledger.tabs.settings') },
             ]"
             :key="tab.id"
@@ -182,21 +104,8 @@ onMounted(async () => {
         />
       </div>
 
-      <!-- PVE Tab -->
-      <div v-else-if="activeTab === 'pve'" key="pve">
-        <PveTab
-          :selected-days="selectedDays"
-          @sync="fetchData"
-        />
-      </div>
-
       <div v-else-if="activeTab === 'industry'" key="industry">
         <LedgerIndustryTab :selected-days="selectedDays" />
-      </div>
-
-      <!-- Escalations Tab -->
-      <div v-else-if="activeTab === 'escalations'" key="escalations">
-        <EscalationsTab />
       </div>
 
       <!-- Settings Tab -->

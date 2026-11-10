@@ -7,6 +7,9 @@ const MINING_MOONS_PATH = '/mining/moons'
 const MINING_SITES_PATH = '/mining/sites'
 const MINING_ORE_VALUE_PATH = '/mining/ore-value'
 const MINING_MY_MINING_PATH = '/mining/my-mining'
+const PVE_REVENUE_PATH = '/pve/revenue'
+const PVE_ESCALATIONS_PATH = '/pve/escalations'
+const BALANCE_PATH = '/balance'
 interface QueriedLocation {
   query: LocationQuery
 }
@@ -31,19 +34,32 @@ function formerMiningOperationsLocation(to: QueriedLocation): RouteLocationRaw {
   return { path: MINING_OPERATIONS_PATH, query: to.query }
 }
 
-function formerLedgerMiningLocation(to: QueriedLocation): RouteLocationRaw | true {
-  if (to.query.tab !== 'mining') {
-    return true
-  }
+function formerLedgerMiningLocation(to: QueriedLocation): RouteLocationRaw {
   switch (to.query.view) {
     case 'oreValue':
-      return { path: MINING_ORE_VALUE_PATH }
+      return { path: MINING_ORE_VALUE_PATH, query: {} }
     case 'moonChunks':
-      return { path: MINING_MOONS_PATH }
+      return { path: MINING_MOONS_PATH, query: {} }
     case 'moonTax':
       return { path: MINING_MOONS_PATH, query: { tab: 'tax' } }
     default:
-      return { path: MINING_MY_MINING_PATH }
+      return { path: MINING_MY_MINING_PATH, query: {} }
+  }
+}
+
+function formerLedgerLocation(to: QueriedLocation): RouteLocationRaw {
+  switch (to.query.tab) {
+    case 'mining':
+      return formerLedgerMiningLocation(to)
+    case 'pve':
+      return { path: PVE_REVENUE_PATH, query: queryWithout(to.query, 'tab') }
+    case 'escalations':
+      return { path: PVE_ESCALATIONS_PATH, query: queryWithout(to.query, 'tab') }
+    case 'industry':
+    case 'settings':
+      return { path: BALANCE_PATH, query: to.query }
+    default:
+      return { path: BALANCE_PATH, query: queryWithout(to.query, 'tab') }
   }
 }
 
@@ -101,14 +117,29 @@ const router = createRouter({
     },
     {
       path: '/pve',
-      redirect: '/ledger',
+      redirect: to => ({ path: PVE_REVENUE_PATH, query: to.query }),
+    },
+    {
+      path: PVE_REVENUE_PATH,
+      name: 'pve-revenue',
+      component: () => import('@/views/Pve/PveRevenue.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: PVE_ESCALATIONS_PATH,
+      name: 'pve-escalations',
+      component: () => import('@/views/Pve/PveEscalations.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: BALANCE_PATH,
+      name: 'balance',
+      component: () => import('@/views/Balance.vue'),
+      meta: { requiresAuth: true },
     },
     {
       path: '/ledger',
-      name: 'ledger',
-      component: () => import('@/views/Balance.vue'),
-      beforeEnter: formerLedgerMiningLocation,
-      meta: { requiresAuth: true },
+      redirect: formerLedgerLocation,
     },
     {
       path: '/industry',
@@ -124,7 +155,7 @@ const router = createRouter({
     },
     {
       path: '/escalations',
-      redirect: '/ledger?tab=escalations',
+      redirect: to => ({ path: PVE_ESCALATIONS_PATH, query: to.query }),
     },
     {
       path: '/planetary',

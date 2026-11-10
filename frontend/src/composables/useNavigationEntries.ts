@@ -18,7 +18,6 @@ interface ScreenTab {
 }
 
 const INDUSTRY_MODULE = 'industry'
-const MINING_MODULE = 'mining'
 const MARKET_MODULE = 'market'
 const ALIAS_LOCALE = 'en'
 const LABEL_SEPARATOR = ' › '
@@ -39,18 +38,23 @@ const PROJECTS_TABS: ScreenTab[] = [
   { query: 'available', labelKey: 'groupIndustry.tabs.available' },
 ]
 
-interface MiningPage {
+interface ModulePage {
   route: string
   labelKey: string
   tabs: ScreenTab[]
 }
 
-const MINING_PAGES: MiningPage[] = [
-  { route: '/mining/moons', labelKey: 'nav.miningMoons', tabs: [{ query: 'tax', labelKey: 'nav.miningMoonTax' }] },
-  { route: '/mining/sites', labelKey: 'miningOperation.tabs.sites', tabs: [] },
-  { route: '/mining/ore-value', labelKey: 'nav.miningOreValue', tabs: [] },
-  { route: '/mining/my-mining', labelKey: 'nav.miningMyMining', tabs: [{ query: 'season', labelKey: 'miningOperation.tabs.season' }] },
-]
+const PAGES_BY_MODULE: Record<string, ModulePage[]> = {
+  mining: [
+    { route: '/mining/moons', labelKey: 'nav.miningMoons', tabs: [{ query: 'tax', labelKey: 'nav.miningMoonTax' }] },
+    { route: '/mining/sites', labelKey: 'miningOperation.tabs.sites', tabs: [] },
+    { route: '/mining/ore-value', labelKey: 'nav.miningOreValue', tabs: [] },
+    { route: '/mining/my-mining', labelKey: 'nav.miningMyMining', tabs: [{ query: 'season', labelKey: 'miningOperation.tabs.season' }] },
+  ],
+  pve: [
+    { route: '/pve/escalations', labelKey: 'ledger.tabs.escalations', tabs: [] },
+  ],
+}
 
 const COMMERCE_SCREEN: Screen = {
   labelKey: 'nav.commerce',
@@ -61,8 +65,7 @@ const CONTRACTS_LABEL_KEY = 'commerce.tabs.contracts'
 
 const TABS_BY_MODULE: Record<string, ScreenTab[]> = {
   ledger: [
-    { query: 'pve', labelKey: 'ledger.tabs.pve' },
-    { query: 'escalations', labelKey: 'ledger.tabs.escalations' },
+    { query: 'industry', labelKey: 'ledger.tabs.industry' },
     { query: 'settings', labelKey: 'ledger.tabs.settings' },
   ],
   industry: [
@@ -129,9 +132,9 @@ export function useNavigationEntries(): {
     ]
   }
 
-  function miningPageEntries(mining: Screen): NavigationEntry[] {
-    return MINING_PAGES.flatMap((page) => {
-      const labelKeys = [mining.labelKey, page.labelKey]
+  function modulePageEntries(module: Screen, pages: ModulePage[]): NavigationEntry[] {
+    return pages.flatMap((page) => {
+      const labelKeys = [module.labelKey, page.labelKey]
       return [
         {
           route: page.route,
@@ -139,7 +142,7 @@ export function useNavigationEntries(): {
           aliasLabel: labelKeys.map(labelInAliasLanguage).join(LABEL_SEPARATOR),
           isTab: true,
         },
-        ...page.tabs.map(tab => tabEntry(page, tab, mining)),
+        ...page.tabs.map(tab => tabEntry(page, tab, module)),
       ]
     })
   }
@@ -161,7 +164,7 @@ export function useNavigationEntries(): {
       .flatMap(screen => [
         screenEntry(screen),
         ...(TABS_BY_MODULE[screen.id] ?? []).map(tab => tabEntry(screen, tab)),
-        ...(screen.id === MINING_MODULE ? miningPageEntries(screen) : []),
+        ...modulePageEntries(screen, PAGES_BY_MODULE[screen.id] ?? []),
         ...(screen.id === MARKET_MODULE ? [contractsEntry()] : []),
         ...(screen.id === INDUSTRY_MODULE && !isProjectsHidden(hiddenModules) ? projectEntries(screen) : []),
       ])

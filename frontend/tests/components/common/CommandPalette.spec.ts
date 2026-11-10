@@ -424,7 +424,7 @@ describe('CommandPalette', () => {
 
     it('navigates to a screen without a tab query', async () => {
       const { router } = await mountOpenPalette()
-      await pressArrowDown(6)
+      await pressArrowDown(7)
 
       await pressKey('Enter')
 

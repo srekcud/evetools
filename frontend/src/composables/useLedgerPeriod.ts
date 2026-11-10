@@ -6,6 +6,12 @@ const DEFAULT_PERIOD_DAYS = 30
 const PRESET_DAYS = [7, 14, 30, 60, 90] as const
 const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24
 
+export function daysSinceOldestEntry(oldestEntryDate: string | null | undefined): number | null {
+  if (!oldestEntryDate) return null
+  const oldestEntryStart = new Date(`${oldestEntryDate}T00:00:00Z`)
+  return Math.ceil((Date.now() - oldestEntryStart.getTime()) / MILLISECONDS_PER_DAY) + 1
+}
+
 export function useLedgerPeriod() {
   const { t } = useI18n()
   const stored = localStorage.getItem(LEDGER_PERIOD_STORAGE_KEY)

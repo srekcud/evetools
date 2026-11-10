@@ -14,6 +14,7 @@ export interface PveStats {
     ess: number
     missions: number
     lootSales: number
+    escalations: number
     expenses: number
     profit: number
   }
@@ -31,6 +32,7 @@ export interface DailyStats {
   income: number
   bounties: number
   lootSales: number
+  escalations: number
   expenses: number
   profit: number
 }
