@@ -6,6 +6,7 @@ import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
 import { safeJsonParse } from '@/services/api'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import MainLayout from '@/layouts/MainLayout.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import AssetsFilterBar from '@/components/assets/AssetsFilterBar.vue'
@@ -14,7 +15,7 @@ import AssetLocationGroup from '@/components/assets/AssetLocationGroup.vue'
 import AssetDistributionChart from '@/components/assets/AssetDistributionChart.vue'
 import CorpVisibilityPanel from '@/components/assets/CorpVisibilityPanel.vue'
 import PatrimoineModuleTabs from '@/components/patrimoine/PatrimoineModuleTabs.vue'
-import type { Asset, CorpAssetVisibility } from '@/types'
+import type { Asset } from '@/types'
 import { useFlash } from '@/composables/useUpdateFlash'
 
 const { t } = useI18n()
@@ -39,12 +40,9 @@ const selectedLocation = ref<string>('')
 const expandedContainers = ref<Set<number>>(new Set())
 const collapsedLocations = ref<Set<string>>(new Set())
 
-// Corp visibility
-const visibility = ref<CorpAssetVisibility | null>(null)
-const visibilityPanel = ref<InstanceType<typeof CorpVisibilityPanel> | null>(null)
+const { visibility, visibilityPanel, isDirector, saveError: visibilitySaveError, fetchVisibility, saveVisibility, clearVisibility } = useCorporationAssetVisibility()
 
 const isCorpView = computed(() => viewMode.value === 'corporation')
-const isDirector = computed(() => visibility.value?.isDirector === true)
 const noDivisionsShared = computed(() =>
   isCorpView.value
   && !isDirector.value
@@ -246,37 +244,11 @@ async function fetchAssets() {
   }
 }
 
-// Corp visibility
-async function fetchVisibility() {
-  try {
-    const response = await fetch('/api/me/corporation/assets/visibility', {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    if (!response.ok) throw new Error('Failed to fetch visibility')
-    visibility.value = await safeJsonParse<CorpAssetVisibility>(response)
-  } catch (e) {
-    console.error('Failed to load corp visibility:', e)
-    visibility.value = null
-  }
-}
-
-async function saveVisibility(payload: { visibleDivisions: number[]; restrictedDivisions: Record<number, string[]> }) {
-  try {
-    const response = await fetch('/api/me/corporation/assets/visibility', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/ld+json'
-      },
-      body: JSON.stringify(payload)
-    })
-    if (!response.ok) throw new Error('Failed to save visibility')
-    visibilityPanel.value?.onSaveComplete()
-    await fetchVisibility()
+async function onSaveVisibility(payload: CorporationVisibilityPayload) {
+  if (await saveVisibility(payload)) {
     await fetchAssets()
-  } catch (e) {
-    visibilityPanel.value?.onSaveError()
-    error.value = e instanceof Error ? e.message : 'Failed to save visibility'
+  } else {
+    error.value = visibilitySaveError.value
   }
 }
 
@@ -402,7 +374,7 @@ watch([selectedCharacterId, viewMode], () => {
   if (viewMode.value === 'corporation') {
     fetchVisibility()
   } else {
-    visibility.value = null
+    clearVisibility()
   }
   fetchAssets()
 }, { immediate: true })
@@ -449,7 +421,7 @@ watch([selectedCharacterId, viewMode], () => {
           v-if="isCorpView && visibility"
           ref="visibilityPanel"
           :visibility="visibility"
-          @save="saveVisibility"
+          @save="onSaveVisibility"
         />
 
         <!-- Shared divisions info (non-director, read-only) -->

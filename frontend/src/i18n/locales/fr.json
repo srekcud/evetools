@@ -178,6 +178,14 @@
       "mining": "Minage",
       "pve": "PVE",
       "notifications": "Notifications"
+    },
+    "account": {
+      "loading": "Chargement des réglages de la corporation...",
+      "unavailable": "La visibilité des inventaires de la corporation ne peut être réglée que par un directeur de la corporation.",
+      "loadError": "La visibilité des inventaires de la corporation n'a pas pu être chargée."
+    },
+    "pve": {
+      "typesTitle": "Types de munitions"
     }
   },
   "auth": {
@@ -238,7 +246,54 @@
       "unknownCharacters": "Personnages à reconnecter : inconnu",
       "unknownExtractors": "Extracteurs PI : inconnu (échec du chargement)",
       "unknownPriceAlerts": "Alertes de prix : inconnu (échec du chargement)",
-      "allCaughtUp": "Tout est à jour"
+      "allCaughtUp": "Tout est à jour",
+      "level": {
+        "critical": "Critique",
+        "warning": "Attention",
+        "info": "Info"
+      }
+    },
+    "bridge": {
+      "unknown": "Inconnu : chargement impossible",
+      "progress": {
+        "title": "En cours",
+        "miningOperations": {
+          "title": "Opérations de minage",
+          "count": "{count} en cours",
+          "empty": "Aucune opération en cours",
+          "link": "Opérations"
+        },
+        "jobs": {
+          "title": "Jobs qui finissent",
+          "empty": "Aucun job en cours",
+          "link": "Production",
+          "unknownProduct": "produit inconnu",
+          "done": "terminé"
+        },
+        "chunks": {
+          "title": "Prochains chunks",
+          "empty": "Aucun chunk à venir",
+          "link": "Lunes",
+          "unknownMoon": "Lune inconnue"
+        },
+        "extractors": {
+          "title": "Extracteurs PI",
+          "empty": "Aucun extracteur",
+          "link": "Planétaire",
+          "active": "{active} / {total} actifs",
+          "expired": "{count} arrêtés",
+          "expiring": "{count} expirent sous {threshold}",
+          "expiringWithoutThreshold": "{count} bientôt expirés"
+        }
+      },
+      "balance": {
+        "title": "Bilan des 30 derniers jours",
+        "pve": "PVE",
+        "mining": "Minage",
+        "industry": "Industrie",
+        "total": "Total",
+        "link": "Bilan"
+      }
     }
   },
   "characters": {

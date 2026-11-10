@@ -4,6 +4,13 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
 import AccountModuleTabs from '@/components/account/AccountModuleTabs.vue'
+import AccountSettings from '@/components/settings/AccountSettings.vue'
+import DisplaySettings from '@/components/settings/DisplaySettings.vue'
+import MarketStructuresSettings from '@/components/settings/MarketStructuresSettings.vue'
+import MiningSettings from '@/components/settings/MiningSettings.vue'
+import PveSettings from '@/components/settings/PveSettings.vue'
+import IndustrySettings from '@/components/industry/IndustrySettings.vue'
+import NotificationSettings from '@/components/notifications/NotificationSettings.vue'
 import { DEFAULT_SETTINGS_SECTION, SETTINGS_SECTIONS, isSettingsSection, settingsSectionLabelKey } from '@/constants/settingsSections'
 
 const SECTION_LINK_BASE_CLASS = 'flex w-full items-center rounded-md border-l-2 px-3 py-2 font-display text-sm font-semibold uppercase tracking-wider transition-colors'
@@ -30,7 +37,18 @@ const currentSection = computed(() => isSettingsSection(route.params.section) ? 
           :class="[SECTION_LINK_BASE_CLASS, section === currentSection ? SECTION_LINK_ACTIVE_CLASS : SECTION_LINK_INACTIVE_CLASS]"
         >{{ t(settingsSectionLabelKey(section)) }}</RouterLink>
       </nav>
-      <section :data-section="currentSection" class="min-w-0 flex-1" />
+      <section :data-section="currentSection" class="min-w-0 flex-1 space-y-4">
+        <h2 class="font-display text-lg font-semibold uppercase tracking-wider text-slate-200">{{ t(settingsSectionLabelKey(currentSection)) }}</h2>
+        <div :class="['bg-slate-900 rounded-2xl border border-slate-800', currentSection === 'industry' || currentSection === 'notifications' ? 'overflow-hidden' : 'p-6']">
+          <AccountSettings v-if="currentSection === 'account'" />
+          <DisplaySettings v-else-if="currentSection === 'display'" />
+          <MarketStructuresSettings v-else-if="currentSection === 'market'" />
+          <IndustrySettings v-else-if="currentSection === 'industry'" />
+          <MiningSettings v-else-if="currentSection === 'mining'" />
+          <PveSettings v-else-if="currentSection === 'pve'" />
+          <NotificationSettings v-else inline />
+        </div>
+      </section>
     </div>
   </MainLayout>
 </template>

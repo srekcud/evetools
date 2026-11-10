@@ -8,6 +8,8 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useNotificationFeed } from '@/composables/useNotificationFeed'
 import { useTodoItems, type TodoLevel } from '@/composables/useTodoItems'
 import MainLayout from '@/layouts/MainLayout.vue'
+import BridgeProgress from '@/components/dashboard/BridgeProgress.vue'
+import BridgeBalance from '@/components/dashboard/BridgeBalance.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useUpdateFlash } from '@/composables/useUpdateFlash'
 
@@ -18,7 +20,7 @@ const { formatIsk } = useFormatters()
 const { notifications, unreadCount, clearAll, removeNotification } = useNotificationFeed()
 const activityUpdated = useUpdateFlash(() => notifications.value.map(notification => notification.id).join())
 
-const { items: todoItems, isLoading: isTodoLoading, isAllCaughtUp } = useTodoItems()
+const { items: todoItems, isLoading: isTodoLoading, isAllCaughtUp, planetaryStats } = useTodoItems()
 const todoUpdated = useUpdateFlash(() => JSON.stringify(todoItems.value))
 
 const user = computed(() => authStore.user)
@@ -106,15 +108,20 @@ onMounted(() => {
     <section data-testid="dashboard-todo" class="relative bg-slate-900 rounded-2xl p-5 border border-slate-800" :class="{ 'hud-updated': todoUpdated }">
       <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3">{{ t('dashboard.todo.title') }}</h3>
       <ul v-if="todoItems.length > 0" class="space-y-2">
-        <li v-for="todoItem in todoItems" :key="todoItem.labelKey">
+        <li v-for="todoItem in todoItems" :key="todoItem.labelKey" class="flex items-stretch gap-2">
           <RouterLink
             :to="todoItem.link"
             data-testid="dashboard-todo-item"
-            :class="['flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors', getTodoLevelClasses(todoItem.level)]"
+            :class="['flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors', getTodoLevelClasses(todoItem.level)]"
           >
             <span>{{ todoItem.count === null ? t(`dashboard.todo.${todoItem.labelKey}`) : t(`dashboard.todo.${todoItem.labelKey}`, todoItem.count) }}</span>
             <span v-if="todoItem.characterNames.length > 0" class="text-xs font-normal opacity-80">{{ todoItem.characterNames.join(', ') }}</span>
           </RouterLink>
+          <span
+            v-if="todoItem.level !== null"
+            data-testid="dashboard-todo-level"
+            :class="['flex shrink-0 items-center px-3 rounded-lg border text-xs font-semibold uppercase tracking-wider', getTodoLevelClasses(todoItem.level)]"
+          >{{ t(`dashboard.todo.level.${todoItem.level}`) }}</span>
         </li>
       </ul>
       <div v-if="isTodoLoading" data-testid="dashboard-todo-loading" class="flex items-center py-2">
@@ -122,6 +129,10 @@ onMounted(() => {
       </div>
       <p v-else-if="isAllCaughtUp" class="text-sm text-slate-500">{{ t('dashboard.todo.allCaughtUp') }}</p>
     </section>
+
+    <BridgeProgress :planetary-stats="planetaryStats" />
+
+    <BridgeBalance />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left column: Stats + Characters (2 cols) -->
