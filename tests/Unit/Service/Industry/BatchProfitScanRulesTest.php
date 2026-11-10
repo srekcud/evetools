@@ -16,6 +16,7 @@ use App\Repository\Sde\IndustryActivityMaterialRepository;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\IndustryActivitySkillRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Service\JitaMarketService;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\ContractSales\ContractSalesConfidence;
 use App\Service\Industry\ContractSales\ContractSalesIndicators;
@@ -25,7 +26,7 @@ use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\JobInstallCostEstimator;
 use App\Service\Industry\SalesFees\SalesFees;
-use App\Tests\Unit\Service\Industry\Double\QuotingJitaMarketService;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
 use App\Industry\Domain\SecurityClass;
@@ -1208,9 +1209,9 @@ class BatchProfitScanRulesTest extends TestCase
             },
         );
 
-        $jitaMarketService = $this->createStub(QuotingJitaMarketService::class);
+        $jitaMarketService = $this->createStub(JitaMarketService::class);
         $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(
-            fn (array $requests): array => QuotingJitaMarketService::completeQuotesAt($this->jitaPrices)($requests),
+            fn (array $requests): array => SellQuoteCallbacks::completeQuotesAt($this->jitaPrices)($requests),
         );
         $jitaMarketService->method('getCachedDailyVolumes')->willReturnCallback(
             fn (array $typeIds): array => $this->onlyRequested($this->jitaDailyVolumes, $typeIds),

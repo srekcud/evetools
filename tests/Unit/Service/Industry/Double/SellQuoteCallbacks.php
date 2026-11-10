@@ -4,19 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Industry\Double;
 
-use App\Service\JitaMarketService;
-
-class QuotingJitaMarketService extends JitaMarketService
+final class SellQuoteCallbacks
 {
-    public function __construct()
-    {
-    }
-
-    public function getWeightedSellQuotesWithFallback(array $requests): array
-    {
-        throw new \LogicException('Configure this method on the test double.');
-    }
-
     public static function completeQuotesAt(array $unitPrices): \Closure
     {
         return static function (array $requests) use ($unitPrices): array {

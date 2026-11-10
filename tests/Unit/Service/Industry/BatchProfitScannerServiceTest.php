@@ -16,7 +16,7 @@ use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
-use App\Tests\Unit\Service\Industry\Double\QuotingJitaMarketService;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\IndustryBpcPriceRepository;
@@ -74,7 +74,7 @@ class BatchProfitScannerServiceTest extends TestCase
     {
         $this->productRepository = $this->createMock(IndustryActivityProductRepository::class);
         $this->materialRepository = $this->createMock(IndustryActivityMaterialRepository::class);
-        $this->jitaMarketService = $this->createMock(QuotingJitaMarketService::class);
+        $this->jitaMarketService = $this->createMock(JitaMarketService::class);
         $this->structureMarketService = $this->createMock(StructureMarketService::class);
         $this->esiCostIndexService = $this->createMock(EsiCostIndexService::class);
         $this->typeNameResolver = new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::SCAN_SDE_TYPE_NAMES));
@@ -279,7 +279,7 @@ class BatchProfitScannerServiceTest extends TestCase
 
         $this->jitaMarketService->expects($this->never())->method('getPrices');
         $this->jitaMarketService->expects($this->never())->method('getWeightedSellPrices');
-        $this->jitaMarketService->expects($this->atLeastOnce())->method('getWeightedSellQuotesWithFallback')->willReturnCallback(QuotingJitaMarketService::completeQuotesAt([34 => 5.0, 587 => 100000.0]));
+        $this->jitaMarketService->expects($this->atLeastOnce())->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([34 => 5.0, 587 => 100000.0]));
         $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 2.0]);
         $this->givenZeroEstimatedItemValue();
 
@@ -1366,12 +1366,12 @@ class BatchProfitScannerServiceTest extends TestCase
 
     private function givenJitaSellPrices(array $unitPrices): void
     {
-        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(QuotingJitaMarketService::completeQuotesAt($unitPrices));
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt($unitPrices));
     }
 
     private function givenJitaSellBooks(array $sellBooks): void
     {
-        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(QuotingJitaMarketService::weighedFrom($sellBooks));
+        $this->jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::weighedFrom($sellBooks));
     }
 
     private function givenZeroEstimatedItemValue(): void
@@ -1711,7 +1711,7 @@ class BatchProfitScannerServiceTest extends TestCase
             self::SLASHER_BLUEPRINT_ID => [self::SLASHER_TYPE_ID, [self::TRITANIUM_TYPE_ID => self::BASE_QUANTITY_NEEDING_300_AFTER_ME10], 20],
         ]);
         $this->jitaMarketService->expects($this->once())->method('getWeightedSellQuotesWithFallback')->willReturnCallback(
-            QuotingJitaMarketService::weighedFrom([
+            SellQuoteCallbacks::weighedFrom([
                 self::TRITANIUM_TYPE_ID => self::TRITANIUM_SELL_BOOK,
                 self::RIFTER_TYPE_ID => self::RIFTER_SELL_BOOK,
                 self::SLASHER_TYPE_ID => self::SLASHER_SELL_BOOK,

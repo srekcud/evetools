@@ -23,7 +23,6 @@ use App\Industry\Domain\Cost;
 use App\Industry\Domain\Decryptor;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\MissingData;
-use App\Industry\Domain\OrderBookCoverage;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
@@ -92,6 +91,7 @@ class ProfitMarginService
         $marginsOf = fn (Cost $totalCost): array => $this->marginsOf($sellPrices, $outputQuantity, $totalCost, $salesFees);
 
         $volumes = $this->jitaMarketService->getAverageDailyVolumes([$typeId]);
+        $warnings = PartialPricePresenter::of($productionCost->totalCost);
 
         return [
             'typeId' => $typeId,
@@ -116,7 +116,28 @@ class ProfitMarginService
             'margins' => $marginsOf($productionCost->totalCost),
             'dailyVolume' => $volumes[$typeId] ?? null,
             'missingData' => MissingDataPresenter::of($productionCost->totalCost),
-            'warnings' => PartialPricePresenter::of($productionCost->totalCost),
+            'warnings' => $warnings,
+            'priceSources' => self::priceSourcesOf($warnings, $sellPrices['jitaSellCoveragePercent']),
+        ];
+    }
+
+    /**
+     * @param list<array{reason: string, typeId: int, coveragePercent: float}> $warnings
+     *
+     * @return array{materials: array{market: string, side: string, method: string, coveragePercent: ?float}, sale: array<string, array{market: string, side: string, method: string, coveragePercent: ?float}>}
+     */
+    private static function priceSourcesOf(array $warnings, ?float $jitaSellCoveragePercent): array
+    {
+        $materialCoveragePercents = array_column($warnings, 'coveragePercent');
+
+        return [
+            'materials' => PriceSource::jitaSellWeighted([] === $materialCoveragePercents ? null : min($materialCoveragePercents))->toArray(),
+            'sale' => [
+                'jitaSell' => PriceSource::jitaSellWeighted($jitaSellCoveragePercent)->toArray(),
+                'structureSell' => PriceSource::structureSellLowest()->toArray(),
+                'structureBuy' => PriceSource::structureBuyLowest()->toArray(),
+                'contractSell' => PriceSource::contractsSellLowest()->toArray(),
+            ],
         ];
     }
 
@@ -296,12 +317,12 @@ class ProfitMarginService
      */
     private function sellPrices(int $typeId, int $outputQuantity, int $sellStructureId): array
     {
-        $jitaSellData = $this->jitaMarketService->getWeightedSellPrice($typeId, $outputQuantity);
-        $jitaSellCoverage = $this->jitaSellCoverageOf($jitaSellData);
+        $jitaSellData = $this->jitaMarketService->getWeightedSellPricesWithFallback([$typeId => $outputQuantity])[$typeId];
+        $jitaSellCoverage = PriceSource::coverageOfQuote($jitaSellData);
 
         return [
             'jitaSell' => null === $jitaSellCoverage || null === $jitaSellData ? null : $jitaSellData['weightedPrice'],
-            'jitaSellCoveragePercent' => null !== $jitaSellCoverage && $jitaSellCoverage->isPartial() ? PartialPricePresenter::coveragePercentOfCoverage($jitaSellCoverage) : null,
+            'jitaSellCoveragePercent' => PriceSource::partialPercentOf($jitaSellCoverage),
             'structureSell' => $this->structureMarketService->getLowestSellPrice($sellStructureId, $typeId),
             'structureBuy' => $this->structureMarketService->getHighestBuyPrice($sellStructureId, $typeId),
             'contractSell' => $this->publicContractPriceService->getLowestUnitPrice($typeId),
@@ -309,16 +330,6 @@ class ProfitMarginService
             'structureId' => $sellStructureId,
             'structureName' => $this->resolveStructureName($sellStructureId),
         ];
-    }
-
-    /**
-     * @param array{weightedPrice: float, coverage?: float, ordersUsed: int}|null $jitaSellData
-     */
-    private function jitaSellCoverageOf(?array $jitaSellData): ?OrderBookCoverage
-    {
-        $fraction = $jitaSellData['coverage'] ?? null;
-
-        return null !== $fraction && $fraction > 0.0 ? new OrderBookCoverage($fraction) : null;
     }
 
     /**
