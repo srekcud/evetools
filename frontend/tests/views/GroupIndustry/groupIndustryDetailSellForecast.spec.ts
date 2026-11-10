@@ -35,7 +35,7 @@ const NYX_FORECAST: SellForecast = {
     structure: { name: 'Perimeter - Tranquility Trade Hub', unitPrice: 20_000_000_000, coveragePercent: null, feeRate: 0.04755, netUnitPrice: 19_049_000_000, netRevenue: 38_098_000_000, daysToSell: 31 },
     jita: { name: 'Jita IV - Moon 4', unitPrice: 19_500_000_000, coveragePercent: null, feeRate: 0.04755, netUnitPrice: 18_572_775_000, netRevenue: 37_145_550_000, daysToSell: 12 },
   }],
-  totals: { structureNetRevenue: 38_098_000_000, jitaNetRevenue: 37_145_550_000, structureUnknownProductCount: 0, jitaUnknownProductCount: 0 },
+  totals: { structureNetRevenue: 38_098_000_000, jitaNetRevenue: 37_145_550_000, structureUnknownProductCount: 0, jitaUnknownProductCount: 0, remainingCost: 3_600_000, remainingCostUnknownLineCount: 0, structureProfit: 38_094_400_000, jitaProfit: 37_141_950_000 },
 }
 
 async function mountSellingNyxOn(tab: string): Promise<VueWrapper> {

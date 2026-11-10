@@ -14,6 +14,7 @@ final readonly class ProjectSellForecast
     public function __construct(
         private SellMarketComparison $comparison,
         private UnsoldProductsOfProject $unsoldProducts,
+        private RemainingBomCost $remainingBomCost,
     ) {
     }
 
@@ -36,14 +37,27 @@ final readonly class ProjectSellForecast
         $structureRevenues = null === $sellStructure ? [] : array_map(static fn (ForecastedProduct $product): ?float => $product->structureNetRevenue(), $products);
         $jitaRevenues = array_map(static fn (ForecastedProduct $product): ?float => $product->jitaNetRevenue(), $products);
 
+        $structureNetRevenue = $this->totalOf($structureRevenues);
+        $jitaNetRevenue = $this->totalOf($jitaRevenues);
+        $remainingCost = $this->remainingBomCost->of($project);
+
         return new SellForecast(
             $sellStructure,
             $products,
-            $this->totalOf($structureRevenues),
-            $this->totalOf($jitaRevenues),
+            $structureNetRevenue,
+            $jitaNetRevenue,
             $this->unknownCountOf($structureRevenues),
             $this->unknownCountOf($jitaRevenues),
+            $remainingCost->total,
+            $remainingCost->unknownLineCount,
+            $this->profitOf($structureNetRevenue, $remainingCost->total),
+            $this->profitOf($jitaNetRevenue, $remainingCost->total),
         );
+    }
+
+    private function profitOf(?float $netRevenue, ?float $remainingCost): ?float
+    {
+        return null === $netRevenue || null === $remainingCost ? null : $netRevenue - $remainingCost;
     }
 
     private function sellStructureOf(IndustryProject $project): ?SellStructure

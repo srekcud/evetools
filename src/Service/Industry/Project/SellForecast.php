@@ -16,6 +16,10 @@ final readonly class SellForecast
         public ?float $jitaNetRevenue,
         public int $structureUnknownProductCount,
         public int $jitaUnknownProductCount,
+        public ?float $remainingCost = null,
+        public int $remainingCostUnknownLineCount = 0,
+        public ?float $structureProfit = null,
+        public ?float $jitaProfit = null,
     ) {
     }
 }

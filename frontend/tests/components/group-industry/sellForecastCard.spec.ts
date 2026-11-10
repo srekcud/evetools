@@ -82,21 +82,21 @@ const FULLY_PRICED_FORECAST: SellForecast = {
   projectId: NYX_PROJECT_ID,
   sellStructure: PERIMETER_STRUCTURE,
   products: [BARRAGE_L, HAIL_L],
-  totals: { structureNetRevenue: 35_526_385, jitaNetRevenue: 34_107_234.5, structureUnknownProductCount: 0, jitaUnknownProductCount: 0 },
+  totals: { structureNetRevenue: 35_526_385, jitaNetRevenue: 34_107_234.5, structureUnknownProductCount: 0, jitaUnknownProductCount: 0, remainingCost: 3_600_000, remainingCostUnknownLineCount: 0, structureProfit: 31_926_385, jitaProfit: 30_507_234.5 },
 }
 
 const WITHOUT_STRUCTURE_FORECAST: SellForecast = {
   projectId: NYX_PROJECT_ID,
   sellStructure: null,
   products: [{ ...BARRAGE_L, structure: null }, { ...HAIL_L, structure: null }],
-  totals: { structureNetRevenue: null, jitaNetRevenue: 34_107_234.5, structureUnknownProductCount: 0, jitaUnknownProductCount: 0 },
+  totals: { structureNetRevenue: null, jitaNetRevenue: 34_107_234.5, structureUnknownProductCount: 0, jitaUnknownProductCount: 0, remainingCost: 3_600_000, remainingCostUnknownLineCount: 0, structureProfit: null, jitaProfit: 30_507_234.5 },
 }
 
 const NOTHING_TO_SELL_FORECAST: SellForecast = {
   projectId: NYX_PROJECT_ID,
   sellStructure: PERIMETER_STRUCTURE,
   products: [],
-  totals: { structureNetRevenue: null, jitaNetRevenue: null, structureUnknownProductCount: 0, jitaUnknownProductCount: 0 },
+  totals: { structureNetRevenue: null, jitaNetRevenue: null, structureUnknownProductCount: 0, jitaUnknownProductCount: 0, remainingCost: 3_600_000, remainingCostUnknownLineCount: 0, structureProfit: null, jitaProfit: null },
 }
 
 function distributionOf(id: string, totalRevenue: number): Distribution {
@@ -181,6 +181,10 @@ function cellOf(wrapper: VueWrapper, typeId: number, cell: string) {
   return cardOf(wrapper).get(`${ROW_OF(typeId)} [data-testid="sell-forecast-${cell}"]`)
 }
 
+function profitOf(wrapper: VueWrapper, column: 'structure' | 'jita') {
+  return cardOf(wrapper).get(`[data-testid="sell-forecast-profit-${column}"]`)
+}
+
 function totalOf(wrapper: VueWrapper, column: 'structure' | 'jita') {
   return cardOf(wrapper).get(`[data-testid="sell-forecast-total-${column}"]`)
 }
@@ -195,12 +199,12 @@ beforeEach(() => {
 })
 
 describe('SellForecastCard', () => {
-  it('loads the sell forecast of the project once and shows its title and the net revenue only mention', async () => {
+  it('loads the sell forecast of the project once and shows its title and the profit basis mention', async () => {
     const { wrapper, t } = await mountCardOf(FULLY_PRICED_FORECAST)
 
     expect(sellForecastCalls()).toBe(1)
     expect(cardOf(wrapper).text()).toContain(t('groupIndustry.sellForecast.title'))
-    expect(cardOf(wrapper).text()).toContain(t('groupIndustry.sellForecast.netRevenueOnly'))
+    expect(cardOf(wrapper).text()).toContain(t('groupIndustry.sellForecast.profitBasis'))
   })
 
   it('names the sell structure of the project in the subtitle', async () => {
@@ -248,7 +252,7 @@ describe('SellForecastCard', () => {
     const withUnknownStructurePrice: SellForecast = {
       ...FULLY_PRICED_FORECAST,
       products: [BARRAGE_L, { ...HAIL_L, structure: UNKNOWN_MARKET }],
-      totals: { structureNetRevenue: null, jitaNetRevenue: 34_107_234.5, structureUnknownProductCount: 1, jitaUnknownProductCount: 0 },
+      totals: { structureNetRevenue: null, jitaNetRevenue: 34_107_234.5, structureUnknownProductCount: 1, jitaUnknownProductCount: 0, remainingCost: 3_600_000, remainingCostUnknownLineCount: 0, structureProfit: null, jitaProfit: 30_507_234.5 },
     }
     const { wrapper, t } = await mountCardOf(withUnknownStructurePrice)
 
@@ -266,7 +270,7 @@ describe('SellForecastCard', () => {
         { ...BARRAGE_L, jita: { ...BARRAGE_L_JITA, feeRate: null, netUnitPrice: null, netRevenue: null } },
         { ...HAIL_L, jita: { ...HAIL_L_JITA, feeRate: null, netUnitPrice: null, netRevenue: null } },
       ],
-      totals: { structureNetRevenue: 35_526_385, jitaNetRevenue: null, structureUnknownProductCount: 0, jitaUnknownProductCount: 2 },
+      totals: { structureNetRevenue: 35_526_385, jitaNetRevenue: null, structureUnknownProductCount: 0, jitaUnknownProductCount: 2, remainingCost: 3_600_000, remainingCostUnknownLineCount: 0, structureProfit: 31_926_385, jitaProfit: null },
     }
     const { wrapper, t } = await mountCardOf(withUnknownFees)
 
@@ -295,13 +299,83 @@ describe('SellForecastCard', () => {
     const withOnlyUnknownRevenue: SellForecast = {
       ...FULLY_PRICED_FORECAST,
       products: [{ ...HAIL_L, jita: { ...HAIL_L_JITA, netRevenue: null } }],
-      totals: { structureNetRevenue: 4_571_760, jitaNetRevenue: null, structureUnknownProductCount: 0, jitaUnknownProductCount: 1 },
+      totals: { structureNetRevenue: 4_571_760, jitaNetRevenue: null, structureUnknownProductCount: 0, jitaUnknownProductCount: 1, remainingCost: 3_600_000, remainingCostUnknownLineCount: 0, structureProfit: 4_568_160, jitaProfit: null },
     }
     const { wrapper } = await mountCardOf(withOnlyUnknownRevenue)
 
     expect(cellOf(wrapper, HAIL_L_TYPE_ID, 'jita-net-unit').text()).toContain('723.86 K')
     expect(cellOf(wrapper, HAIL_L_TYPE_ID, 'jita-net-revenue').findComponent(UnknownValue).exists()).toBe(true)
     expect(cellOf(wrapper, HAIL_L_TYPE_ID, 'jita-net-revenue').text()).not.toMatch(/\d/)
+  })
+
+  it('shows the cost of the remaining materials once, under the total, and the forecast profit of each column', async () => {
+    const { wrapper, t } = await mountCardOf(FULLY_PRICED_FORECAST)
+
+    const remainingCost = cardOf(wrapper).get('[data-testid="sell-forecast-remaining-cost"]')
+    expect(remainingCost.text()).toContain(t('groupIndustry.sellForecast.remainingCost'))
+    expect(remainingCost.text()).toContain('3.60 M')
+    expect(remainingCost.findComponent(UnknownValue).exists()).toBe(false)
+    expect(cardOf(wrapper).get('[data-testid="sell-forecast-profit"]').text()).toContain(t('groupIndustry.sellForecast.plannedProfit'))
+    expect(profitOf(wrapper, 'structure').text()).toContain('31.93 M')
+    expect(profitOf(wrapper, 'jita').text()).toContain('30.51 M')
+  })
+
+  it('shows a remaining cost of zero as a known value, not as unknown', async () => {
+    const { wrapper } = await mountCardOf({
+      ...FULLY_PRICED_FORECAST,
+      totals: { ...FULLY_PRICED_FORECAST.totals, remainingCost: 0, structureProfit: 35_526_385, jitaProfit: 34_107_234.5 },
+    })
+
+    expect(cardOf(wrapper).get('[data-testid="sell-forecast-remaining-cost"]').findComponent(UnknownValue).exists()).toBe(false)
+    expect(profitOf(wrapper, 'structure').text()).toContain('35.53 M')
+  })
+
+  it('shows an unknown remaining cost with the count of material lines without price, and an unknown profit in each column', async () => {
+    const { wrapper, t } = await mountCardOf({
+      ...FULLY_PRICED_FORECAST,
+      totals: { ...FULLY_PRICED_FORECAST.totals, remainingCost: null, remainingCostUnknownLineCount: 2, structureProfit: null, jitaProfit: null },
+    })
+
+    const remainingCost = cardOf(wrapper).get('[data-testid="sell-forecast-remaining-cost"]')
+    expect(remainingCost.findComponent(UnknownValue).exists()).toBe(true)
+    expect(remainingCost.text()).toContain(t('groupIndustry.sellForecast.remainingCostUnknownLines', { count: 2 }))
+    expect(remainingCost.text()).not.toContain('3.60 M')
+    expect(profitOf(wrapper, 'structure').findComponent(UnknownValue).exists()).toBe(true)
+    expect(profitOf(wrapper, 'structure').text()).not.toMatch(/\d/)
+    expect(profitOf(wrapper, 'jita').findComponent(UnknownValue).exists()).toBe(true)
+  })
+
+  it('shows an unknown structure profit while keeping the Jita profit when the structure revenue is unknown', async () => {
+    const { wrapper } = await mountCardOf({
+      ...FULLY_PRICED_FORECAST,
+      totals: { ...FULLY_PRICED_FORECAST.totals, structureNetRevenue: null, structureUnknownProductCount: 1, structureProfit: null },
+    })
+
+    expect(profitOf(wrapper, 'structure').findComponent(UnknownValue).exists()).toBe(true)
+    expect(profitOf(wrapper, 'jita').text()).toContain('30.51 M')
+    expect(profitOf(wrapper, 'jita').findComponent(UnknownValue).exists()).toBe(false)
+  })
+
+  it('colors a positive profit in green and a negative profit in red', async () => {
+    const { wrapper } = await mountCardOf({
+      ...FULLY_PRICED_FORECAST,
+      totals: { ...FULLY_PRICED_FORECAST.totals, remainingCost: 40_000_000, structureProfit: -4_473_615, jitaProfit: -5_892_765.5 },
+    })
+    expect(profitOf(wrapper, 'structure').classes()).toContain('text-red-400')
+    expect(profitOf(wrapper, 'jita').classes()).toContain('text-red-400')
+    expect(profitOf(wrapper, 'structure').text()).toContain('4.47 M')
+
+    const positive = await mountCardOf(FULLY_PRICED_FORECAST)
+    expect(profitOf(positive.wrapper, 'structure').classes()).toContain('text-emerald-400')
+    expect(profitOf(positive.wrapper, 'jita').classes()).toContain('text-emerald-400')
+  })
+
+  it('shows the profit of the Jita column only when the project has no sell structure', async () => {
+    const { wrapper } = await mountCardOf(WITHOUT_STRUCTURE_FORECAST)
+
+    expect(cardOf(wrapper).find('[data-testid="sell-forecast-profit-structure"]').exists()).toBe(false)
+    expect(profitOf(wrapper, 'jita').text()).toContain('30.51 M')
+    expect(cardOf(wrapper).get('[data-testid="sell-forecast-remaining-cost"]').text()).toContain('3.60 M')
   })
 
   it('marks the coverage of a partial Jita price on its row and not on the structure cells', async () => {
@@ -379,7 +453,7 @@ describe('SellForecastCard', () => {
     const afterSale: SellForecast = {
       ...FULLY_PRICED_FORECAST,
       products: [{ ...HAIL_L, quantity: 4, structure: { ...HAIL_L_STRUCTURE, netRevenue: 3_047_840 }, jita: { ...HAIL_L_JITA, netRevenue: 2_895_448 } }],
-      totals: { structureNetRevenue: 3_047_840, jitaNetRevenue: 2_895_448, structureUnknownProductCount: 0, jitaUnknownProductCount: 0 },
+      totals: { structureNetRevenue: 3_047_840, jitaNetRevenue: 2_895_448, structureUnknownProductCount: 0, jitaUnknownProductCount: 0, remainingCost: 3_600_000, remainingCostUnknownLineCount: 0, structureProfit: 3_044_240, jitaProfit: 2_891_848 },
     }
     vi.mocked(apiRequest)
       .mockResolvedValueOnce(FULLY_PRICED_FORECAST)

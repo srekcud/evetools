@@ -10,6 +10,7 @@ use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Service\Industry\Project\ForecastedProduct;
 use App\Service\Industry\Project\ProjectSellForecast;
+use App\Service\Industry\Project\RemainingBomCost;
 use App\Service\Industry\Project\SellForecast;
 use App\Service\Industry\Project\SellStructure;
 use App\Service\Industry\Project\UnsoldProductsOfProject;
@@ -31,6 +32,8 @@ final class ProjectSellForecastTest extends TestCase
     private const int HAMMERHEAD_TYPE_ID = 2185;
     private const int SABRE_TYPE_ID = 22456;
     private const int RAVEN_TYPE_ID = 638;
+    private const int TRITANIUM_TYPE_ID = 34;
+    private const int PYERITE_TYPE_ID = 35;
     private const int SELL_STRUCTURE_ID = 1_035_466_617_946;
     private const string SELL_STRUCTURE_NAME = 'Perimeter - Tranquility Trade Hub';
     private const string JITA_NAME = 'Jita IV - Moon 4';
@@ -300,9 +303,207 @@ final class ProjectSellForecastTest extends TestCase
         self::assertSame(13_585_000.0, $product->structureNetRevenue());
     }
 
+    #[Group('issue-483')]
+    public function testProfitIsTheNetRevenueMinusTheRemainingCostOfEachColumn(): void
+    {
+        $project = $this->projectSellingAt(
+            [
+                $this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 4, 4),
+                $this->materialLine(self::TRITANIUM_TYPE_ID, 10, 4, 100.0),
+                $this->materialLine(self::PYERITE_TYPE_ID, 3, 0, 1_000.0),
+            ],
+            [],
+        );
+        $this->comparisonReturns([
+            self::HAMMERHEAD_TYPE_ID => [
+                'structure' => $this->row('capital', self::SELL_STRUCTURE_NAME, 1_200_000.0, 1_142_940.0),
+                'jita' => $this->row('jita', self::JITA_NAME, 1_050_000.0, 1_000_000.0),
+            ],
+        ]);
+
+        $forecast = $this->forecastOf($project);
+
+        self::assertSame(3_600.0, $forecast->remainingCost);
+        self::assertSame(0, $forecast->remainingCostUnknownLineCount);
+        self::assertSame(4_568_160.0, $forecast->structureProfit);
+        self::assertSame(3_996_400.0, $forecast->jitaProfit);
+    }
+
+    #[Group('issue-483')]
+    public function testProfitIsTheWholeNetRevenueWhenEveryMaterialIsFulfilled(): void
+    {
+        $project = $this->projectSellingAt(
+            [
+                $this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 4, 4),
+                $this->materialLine(self::TRITANIUM_TYPE_ID, 10, 10, 100.0),
+            ],
+            [],
+        );
+        $this->comparisonReturns([
+            self::HAMMERHEAD_TYPE_ID => [
+                'structure' => $this->row('capital', self::SELL_STRUCTURE_NAME, 1_200_000.0, 1_142_940.0),
+                'jita' => $this->row('jita', self::JITA_NAME, 1_050_000.0, 1_000_000.0),
+            ],
+        ]);
+
+        $forecast = $this->forecastOf($project);
+
+        self::assertSame(0.0, $forecast->remainingCost);
+        self::assertSame(4_571_760.0, $forecast->structureProfit);
+        self::assertSame(4_000_000.0, $forecast->jitaProfit);
+    }
+
+    #[Group('issue-483')]
+    public function testProfitCanBeNegativeWhenTheRemainingCostExceedsTheNetRevenue(): void
+    {
+        $project = $this->projectSellingAt(
+            [
+                $this->finalJobLine(self::SABRE_TYPE_ID, 'Sabre', 3, 3),
+                $this->materialLine(self::PYERITE_TYPE_ID, 2_000_000, 0, 5.5),
+            ],
+            [],
+        );
+        $this->comparisonReturns([
+            self::SABRE_TYPE_ID => [
+                'structure' => $this->row('capital', self::SELL_STRUCTURE_NAME, 1_300_000.0, 1_235_000.0),
+                'jita' => $this->row('jita', self::JITA_NAME, 1_250_000.0, 1_180_000.0),
+            ],
+        ]);
+
+        $forecast = $this->forecastOf($project);
+
+        self::assertSame(11_000_000.0, $forecast->remainingCost);
+        self::assertSame(3_705_000.0 - 11_000_000.0, $forecast->structureProfit);
+        self::assertSame(3_540_000.0 - 11_000_000.0, $forecast->jitaProfit);
+    }
+
+    #[Group('issue-483')]
+    public function testProfitsAreUnknownWhenTheRemainingCostIsUnknownAndTheUnpricedLinesAreCounted(): void
+    {
+        $project = $this->projectSellingAt(
+            [
+                $this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 4, 4),
+                $this->materialLine(self::TRITANIUM_TYPE_ID, 10, 4, 100.0),
+                $this->materialLine(self::PYERITE_TYPE_ID, 3, 0, null),
+            ],
+            [],
+        );
+        $this->comparisonReturns([
+            self::HAMMERHEAD_TYPE_ID => [
+                'structure' => $this->row('capital', self::SELL_STRUCTURE_NAME, 1_200_000.0, 1_142_940.0),
+                'jita' => $this->row('jita', self::JITA_NAME, 1_050_000.0, 1_000_000.0),
+            ],
+        ]);
+
+        $forecast = $this->forecastOf($project);
+
+        self::assertNull($forecast->remainingCost);
+        self::assertSame(1, $forecast->remainingCostUnknownLineCount);
+        self::assertNull($forecast->structureProfit);
+        self::assertNull($forecast->jitaProfit);
+        self::assertSame(4_571_760.0, $forecast->structureNetRevenue);
+    }
+
+    #[Group('issue-483')]
+    public function testStructureProfitIsUnknownWhenTheStructureRevenueIsUnknownWhileTheJitaProfitIsComputed(): void
+    {
+        $project = $this->projectSellingAt(
+            [
+                $this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 4, 4),
+                $this->finalJobLine(self::SABRE_TYPE_ID, 'Sabre', 3, 3),
+                $this->materialLine(self::TRITANIUM_TYPE_ID, 10, 4, 100.0),
+                $this->materialLine(self::PYERITE_TYPE_ID, 3, 0, 1_000.0),
+            ],
+            [],
+        );
+        $this->comparisonReturns([
+            self::HAMMERHEAD_TYPE_ID => [
+                'structure' => $this->row('capital', self::SELL_STRUCTURE_NAME, null, null),
+                'jita' => $this->row('jita', self::JITA_NAME, 1_050_000.0, 1_000_000.0),
+            ],
+            self::SABRE_TYPE_ID => [
+                'structure' => $this->row('capital', self::SELL_STRUCTURE_NAME, 1_300_000.0, 1_235_000.0),
+                'jita' => $this->row('jita', self::JITA_NAME, 1_250_000.0, 1_180_000.0),
+            ],
+        ]);
+
+        $forecast = $this->forecastOf($project);
+
+        self::assertNull($forecast->structureProfit);
+        self::assertSame(3_600.0, $forecast->remainingCost);
+        self::assertSame(7_540_000.0 - 3_600.0, $forecast->jitaProfit);
+    }
+
+    #[Group('issue-483')]
+    public function testJitaProfitIsUnknownWhenTheJitaRevenueIsUnknownWhileTheStructureProfitIsComputed(): void
+    {
+        $project = $this->projectSellingAt(
+            [
+                $this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 4, 4),
+                $this->materialLine(self::TRITANIUM_TYPE_ID, 10, 4, 100.0),
+                $this->materialLine(self::PYERITE_TYPE_ID, 3, 0, 1_000.0),
+            ],
+            [],
+        );
+        $this->comparisonReturns([
+            self::HAMMERHEAD_TYPE_ID => [
+                'structure' => $this->row('capital', self::SELL_STRUCTURE_NAME, 1_200_000.0, 1_142_940.0),
+                'jita' => $this->row('jita', self::JITA_NAME, null, null),
+            ],
+        ]);
+
+        $forecast = $this->forecastOf($project);
+
+        self::assertSame(4_568_160.0, $forecast->structureProfit);
+        self::assertNull($forecast->jitaProfit);
+    }
+
+    #[Group('issue-483')]
+    public function testProjectWithoutSellStructureHasNoStructureProfitAndAJitaProfit(): void
+    {
+        $project = $this->projectWithoutSellStructure([
+            $this->finalJobLine(self::SABRE_TYPE_ID, 'Sabre', 3, 3),
+            $this->materialLine(self::TRITANIUM_TYPE_ID, 10, 4, 100.0),
+            $this->materialLine(self::PYERITE_TYPE_ID, 3, 0, 1_000.0),
+        ]);
+        $this->comparisonReturns([
+            self::SABRE_TYPE_ID => [
+                'structure' => $this->row('capital', self::SELL_STRUCTURE_NAME, 1.0, 1.0),
+                'jita' => $this->row('jita', self::JITA_NAME, 1_250_000.0, 1_190_550.0),
+            ],
+        ]);
+
+        $forecast = $this->forecastOf($project);
+
+        self::assertNull($forecast->structureProfit);
+        self::assertSame(3_600.0, $forecast->remainingCost);
+        self::assertSame(3_571_650.0 - 3_600.0, $forecast->jitaProfit);
+    }
+
+    #[Group('issue-483')]
+    public function testNothingLeftToSellHasNoProfitButKeepsTheRemainingCost(): void
+    {
+        $project = $this->projectSellingAt(
+            [
+                $this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 10, 10),
+                $this->materialLine(self::TRITANIUM_TYPE_ID, 10, 4, 100.0),
+                $this->materialLine(self::PYERITE_TYPE_ID, 3, 0, 1_000.0),
+            ],
+            [$this->sale(self::HAMMERHEAD_TYPE_ID, 10)],
+        );
+
+        $forecast = $this->forecastOf($project);
+
+        self::assertSame([], $forecast->products);
+        self::assertSame(3_600.0, $forecast->remainingCost);
+        self::assertSame(0, $forecast->remainingCostUnknownLineCount);
+        self::assertNull($forecast->structureProfit);
+        self::assertNull($forecast->jitaProfit);
+    }
+
     private function forecastOf(IndustryProject $project): SellForecast
     {
-        return (new ProjectSellForecast($this->comparison, new UnsoldProductsOfProject()))->forecast($project, $this->today);
+        return (new ProjectSellForecast($this->comparison, new UnsoldProductsOfProject(), new RemainingBomCost()))->forecast($project, $this->today);
     }
 
     /**
@@ -367,6 +568,17 @@ final class ProjectSellForecastTest extends TestCase
             ->setIsJob(true)
             ->setJobGroup('final')
             ->setRuns($runs);
+    }
+
+    private function materialLine(int $typeId, int $requiredQuantity, int $fulfilledQuantity, ?float $estimatedPrice): IndustryProjectBomLine
+    {
+        return (new IndustryProjectBomLine())
+            ->setTypeId($typeId)
+            ->setTypeName('Material ' . $typeId)
+            ->setRequiredQuantity($requiredQuantity)
+            ->setFulfilledQuantity($fulfilledQuantity)
+            ->setEstimatedPrice($estimatedPrice)
+            ->setIsJob(false);
     }
 
     private function sale(int $typeId, int $quantity): IndustryProjectSale

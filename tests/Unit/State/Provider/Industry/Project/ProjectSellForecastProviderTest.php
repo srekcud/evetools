@@ -10,6 +10,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectSale;
 use App\Entity\User;
 use App\Service\Industry\Project\ProjectSellForecast;
+use App\Service\Industry\Project\RemainingBomCost;
 use App\Service\Industry\Project\SellStructure;
 use App\Service\Industry\Project\UnsoldProductsOfProject;
 use App\Service\Industry\SellMarkets\ImmediateSale;
@@ -35,6 +36,7 @@ final class ProjectSellForecastProviderTest extends TestCase
 
     private const int HAMMERHEAD_TYPE_ID = 2185;
     private const int SABRE_TYPE_ID = 22456;
+    private const int TRITANIUM_TYPE_ID = 34;
     private const int SELL_STRUCTURE_ID = 1_040_000_000_001;
     private const string SELL_STRUCTURE_NAME = 'Ishtar Citadel';
     private const string JITA_NAME = 'Jita IV - Moon 4';
@@ -182,6 +184,10 @@ final class ProjectSellForecastProviderTest extends TestCase
                 'jitaNetRevenue' => 7_867_650.0,
                 'structureUnknownProductCount' => 1,
                 'jitaUnknownProductCount' => 0,
+                'remainingCost' => 3_300.0,
+                'remainingCostUnknownLineCount' => 0,
+                'structureProfit' => null,
+                'jitaProfit' => 7_864_350.0,
             ],
         ], get_object_vars($forecast));
         self::assertSame($this->sabreBatchOwner, $calls[0][0]);
@@ -208,6 +214,9 @@ final class ProjectSellForecastProviderTest extends TestCase
             ['structureNetRevenue' => $forecast->totals['structureNetRevenue'], 'jitaNetRevenue' => $forecast->totals['jitaNetRevenue']],
         );
         self::assertSame(1_250_000.0, $forecast->products[1]['jita']['unitPrice']);
+        self::assertSame(3_300.0, $forecast->totals['remainingCost']);
+        self::assertNull($forecast->totals['structureProfit']);
+        self::assertSame(7_864_350.0, $forecast->totals['jitaProfit']);
     }
 
     public function testProjectWithNothingLeftToSellIsMappedWithoutProductAndWithUnknownTotals(): void
@@ -223,7 +232,16 @@ final class ProjectSellForecastProviderTest extends TestCase
 
         self::assertSame([], $forecast->products);
         self::assertSame(
-            ['structureNetRevenue' => null, 'jitaNetRevenue' => null, 'structureUnknownProductCount' => 0, 'jitaUnknownProductCount' => 0],
+            [
+                'structureNetRevenue' => null,
+                'jitaNetRevenue' => null,
+                'structureUnknownProductCount' => 0,
+                'jitaUnknownProductCount' => 0,
+                'remainingCost' => 3_300.0,
+                'remainingCostUnknownLineCount' => 0,
+                'structureProfit' => null,
+                'jitaProfit' => null,
+            ],
             $forecast->totals,
         );
         self::assertSame(['id' => self::SELL_STRUCTURE_ID, 'name' => self::SELL_STRUCTURE_NAME], $forecast->sellStructure);
@@ -240,7 +258,7 @@ final class ProjectSellForecastProviderTest extends TestCase
             $this->security,
             $this->sabreBatchProjectRepository(),
             new ProjectAccessChecker($this->sabreBatchMemberRepository()),
-            new ProjectSellForecast($this->comparison, new UnsoldProductsOfProject()),
+            new ProjectSellForecast($this->comparison, new UnsoldProductsOfProject(), new RemainingBomCost()),
             $this->clock,
         );
     }
@@ -275,7 +293,19 @@ final class ProjectSellForecastProviderTest extends TestCase
         }
         $this->sabreBatch->addBomItem($this->finalJobLine(self::SABRE_TYPE_ID, 'Sabre', 3));
         $this->sabreBatch->addBomItem($this->finalJobLine(self::HAMMERHEAD_TYPE_ID, 'Hammerhead II', 10));
+        $this->sabreBatch->addBomItem($this->materialLine(self::TRITANIUM_TYPE_ID, 1_000, 400, 5.5));
         $this->sabreBatch->addSale($this->sale(self::HAMMERHEAD_TYPE_ID, 4));
+    }
+
+    private function materialLine(int $typeId, int $requiredQuantity, int $fulfilledQuantity, float $estimatedPrice): IndustryProjectBomLine
+    {
+        return (new IndustryProjectBomLine())
+            ->setTypeId($typeId)
+            ->setTypeName('Tritanium')
+            ->setRequiredQuantity($requiredQuantity)
+            ->setFulfilledQuantity($fulfilledQuantity)
+            ->setEstimatedPrice($estimatedPrice)
+            ->setIsJob(false);
     }
 
     private function finalJobLine(int $typeId, string $typeName, int $requiredQuantity): IndustryProjectBomLine
