@@ -1018,6 +1018,7 @@
         "final": "final",
         "provisional": "ma part provisoire",
         "awaitingSales": "aucune vente",
+        "forecast": "prévision Jita (projet)",
         "unknown": "un coût ou des frais sont inconnus"
       },
       "productSubline": "ME {me} · TE {te} · {team}"

@@ -16,8 +16,10 @@ use App\Service\Industry\Project\CockpitPhasePresenter;
 use App\Service\Industry\Project\PilotName;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\Service\Industry\Project\ProjectDistributionService;
+use App\Service\Industry\Project\ProjectSellForecast;
 use App\Service\Industry\Project\ViewerProfitShare;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 /**
@@ -37,6 +39,8 @@ class IndustryWorkshopProjectsProvider implements ProviderInterface
         private readonly ProjectCockpitInputFactory $inputFactory,
         private readonly ProjectCockpitCalculator $calculator,
         private readonly ProjectDistributionService $distributionService,
+        private readonly ProjectSellForecast $sellForecast,
+        private readonly ClockInterface $clock,
     ) {
     }
 
@@ -83,12 +87,24 @@ class IndustryWorkshopProjectsProvider implements ProviderInterface
         $resource->projectId = $project->getId()->toRfc4122();
         $resource->members = $this->membersOf($participants);
         $resource->phases = CockpitPhasePresenter::of($cockpit->phases);
-        $resource->profit = ViewerProfitShare::of(
-            $this->distributionService->calculateDistribution($project),
-            $membership->getId()->toRfc4122(),
-        );
+        $resource->profit = $this->profitOf($project, $membership);
 
         return $resource;
+    }
+
+    /**
+     * @return array{amount: float|null, status: string}
+     */
+    private function profitOf(IndustryProject $project, IndustryProjectParticipant $membership): array
+    {
+        $distribution = $this->distributionService->calculateDistribution($project);
+        $profit = ViewerProfitShare::of($distribution, $membership->getId()->toRfc4122());
+
+        if ($profit['status'] !== ViewerProfitShare::AWAITING_SALES) {
+            return $profit;
+        }
+
+        return ViewerProfitShare::forecastOf($distribution, $this->sellForecast->forecast($project, $this->clock->now(), true));
     }
 
     /**

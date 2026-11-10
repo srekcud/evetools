@@ -1018,6 +1018,7 @@
         "final": "final",
         "provisional": "my provisional share",
         "awaitingSales": "no sale yet",
+        "forecast": "Jita forecast (project)",
         "unknown": "a cost or a fee is unknown"
       },
       "productSubline": "ME {me} · TE {te} · {team}"

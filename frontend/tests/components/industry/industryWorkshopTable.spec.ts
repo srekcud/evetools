@@ -379,6 +379,36 @@ describe('IndustryWorkshop project profit', () => {
     })
   })
 
+  it('shows the Jita forecast of a project without sale as a signed amount with its own caption', async () => {
+    const forecastRow = workshopProject({ projectId: WIDOW_PROJECT_ID, members: WIDOW_WORKSHOP.members, phases: WIDOW_WORKSHOP.phases, profit: { amount: 856_125, status: 'forecast' } })
+    const wrapper = await mountWorkshop({ workshop: [SABRE_WORKSHOP, forecastRow, HECATE_WORKSHOP, ISHTAR_WORKSHOP] })
+    const rows = projectRows(wrapper)
+    const otherCaptions = [SABRE_ROW, HECATE_ROW, ISHTAR_ROW].map(index => rows[index].get('[data-testid="workshop-profit-caption"]').text())
+    const forecastCaption = rows[WIDOW_ROW].get('[data-testid="workshop-profit-caption"]').text()
+
+    expect({
+      amount: rows[WIDOW_ROW].get('[data-testid="workshop-profit"]').text(),
+      isGreen: rows[WIDOW_ROW].get('[data-testid="workshop-profit"]').classes().join(' ').includes('emerald'),
+      isUnknown: rows[WIDOW_ROW].find('[data-testid="workshop-profit-unknown"]').exists(),
+      caption: forecastCaption,
+      captionIsOwn: forecastCaption !== '' && !otherCaptions.includes(forecastCaption),
+    }).toEqual({
+      amount: '+856.13 K',
+      isGreen: true,
+      isUnknown: false,
+      caption: en.industry.workshop.profit.forecast,
+      captionIsOwn: true,
+    })
+  })
+
+  it('shows a negative Jita forecast in red', async () => {
+    const forecastRow = workshopProject({ projectId: WIDOW_PROJECT_ID, members: WIDOW_WORKSHOP.members, phases: WIDOW_WORKSHOP.phases, profit: { amount: -2_000_000, status: 'forecast' } })
+    const wrapper = await mountWorkshop({ workshop: [SABRE_WORKSHOP, forecastRow, HECATE_WORKSHOP, ISHTAR_WORKSHOP] })
+    const amount = projectRows(wrapper)[WIDOW_ROW].get('[data-testid="workshop-profit"]')
+
+    expect({ text: amount.text(), isRed: amount.classes().join(' ').includes('red') }).toEqual({ text: '-2.00 M', isRed: true })
+  })
+
   it('shows the unknown value, never zero, for an unknown profit and for a project missing from the answer', async () => {
     const unknownProfit = workshopProject({ projectId: SABRE_PROJECT_ID, members: SABRE_WORKSHOP.members, phases: SABRE_WORKSHOP.phases, profit: { amount: null, status: 'unknown' } })
     const wrapper = await mountWorkshop({ workshop: [unknownProfit] })
