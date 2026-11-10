@@ -128,6 +128,14 @@ final class JobDurationTest extends TestCase
     }
 
     #[Group('issue-523')]
+    public function testCopyJobRefusesANegativeBaseTimeEvenWhenTheRoundedDurationIsZero(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        JobDuration::forCopyJob(-1, new Runs(1), new Multiplier(0.3));
+    }
+
+    #[Group('issue-523')]
     public function testCopyJobIsRoundedOnceOnRunsTimesBaseTimeTimesTheTimeModifier(): void
     {
         $duration = JobDuration::forCopyJob(240, new Runs(600), (new Multiplier(0.6375))->times(new Multiplier(0.7)));
