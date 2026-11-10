@@ -7,8 +7,8 @@ import en from '@/i18n/locales/en.json'
 import { useNavigationEntries, type NavigationEntry } from '@/composables/useNavigationEntries'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { apiRequest } from '@/services/api'
+import Balance from '@/views/Balance.vue'
 import Industry from '@/views/Industry.vue'
-import Ledger from '@/views/Ledger.vue'
 import MarketBrowser from '@/views/MarketBrowser.vue'
 import GroupIndustryList from '@/views/GroupIndustry/GroupIndustryList.vue'
 import MiningOperationList from '@/views/MiningOperation/MiningOperationList.vue'
@@ -34,7 +34,7 @@ vi.mock(import('@/composables/useTabQuery'), async importOriginal => {
 })
 
 const VIEWS_BY_ROUTE: Record<string, Component> = {
-  '/ledger': Ledger,
+  '/balance': Balance,
   '/industry': Industry,
   '/group-industry': GroupIndustryList,
   '/mining/operations': MiningOperationList,
@@ -67,6 +67,9 @@ const TAB_ROUTES = listAllNavigationEntries().filter(entry => entry.isTab && ent
 async function activeTabOfViewOpenedAt(path: string, tab: string): Promise<string> {
   route.path = path
   route.query = { tab }
+  if (!(path in VIEWS_BY_ROUTE)) {
+    return `no view for ${path}`
+  }
   shallowMount(VIEWS_BY_ROUTE[path], {
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
@@ -107,9 +110,8 @@ describe('navigation entry tabs contract', () => {
       '/mining/moons?tab=tax',
       '/mining/my-mining?tab=season',
       '/market?tab=alerts',
-      '/ledger?tab=pve',
-      '/ledger?tab=escalations',
-      '/ledger?tab=settings',
+      '/balance?tab=industry',
+      '/balance?tab=settings',
     ])
     expect(TAB_ROUTES.map(tabRoute => splitTabRoute(tabRoute).path).every(path => path in VIEWS_BY_ROUTE)).toBe(true)
   })

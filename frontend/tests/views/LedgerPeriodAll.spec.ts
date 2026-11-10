@@ -7,9 +7,9 @@ import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import { apiRequest } from '@/services/api'
 import type { LedgerDailyStats, LedgerDashboard, LedgerSettings } from '@/stores/ledger'
-import Ledger from '@/views/Ledger.vue'
+import Balance from '@/views/Balance.vue'
 
-const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/ledger', params: {}, query: {} })
+const route = reactive<{ path: string; params: Record<string, string>; query: LocationQuery }>({ path: '/balance', params: {}, query: {} })
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
@@ -35,7 +35,7 @@ function dashboard(oldestEntryDate: string | null): LedgerDashboard {
     period: { from: '2026-09-30', to: '2026-10-30', days: 30 },
     totals: { total: 7_250_000, pve: 6_100_000, mining: 1_150_000, industry: 0, expenses: 320_000, profit: 6_930_000 },
     industryBreakdown: { profit: 0, projectCount: 0, unknownProjectCount: 0 },
-    pveBreakdown: { bounties: 4_400_000, ess: 700_000, missions: 250_000, lootSales: 125_000, corpProjects: 625_000 },
+    pveBreakdown: { bounties: 4_400_000, ess: 700_000, missions: 250_000, lootSales: 125_000, corpProjects: 625_000, escalations: 0 },
     miningBreakdown: { sold: 1_150_000, corpProject: 0, industry: 0, unknown: 0 },
     expensesByType: { ammo: 320_000 },
     iskPerDay: 231_000,
@@ -74,7 +74,7 @@ function respondWithDashboard(oldestEntryDate: string | null) {
 }
 
 async function mountLedger(locale: 'en' | 'fr' = 'en'): Promise<VueWrapper> {
-  const wrapper = mount(Ledger, {
+  const wrapper = mount(Balance, {
     global: {
       plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })],
       stubs: {
@@ -119,7 +119,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('Ledger period selector All', () => {
+describe('Balance period selector All', () => {
   it('offers the All period right after YTD when the oldest entry date is known', async () => {
     respondWithDashboard('2026-01-31')
 

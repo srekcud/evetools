@@ -36,7 +36,7 @@ final class LedgerDailyStatsProviderTest extends TestCase
         $unknownDay = (new \DateTimeImmutable('-19 days'))->format('Y-m-d');
         $pveIncomeRepository = $this->createStub(PveIncomeRepository::class);
         $pveIncomeRepository->method('getDailyTotalsByType')->willReturn([
-            $unknownDay => ['bounties' => 95_000.0, 'lootSales' => 25_000.0, 'corpProject' => 0.0],
+            $unknownDay => ['bounties' => 95_000.0, 'lootSales' => 25_000.0, 'corpProject' => 0.0, 'escalations' => 0.0],
         ]);
         $pveExpenseRepository = $this->createStub(PveExpenseRepository::class);
         $pveExpenseRepository->method('getDailyTotals')->willReturn([
@@ -81,7 +81,7 @@ final class LedgerDailyStatsProviderTest extends TestCase
         $miningDay = (new \DateTimeImmutable('-12 days'))->format('Y-m-d');
         $pveIncomeRepository = $this->createStub(PveIncomeRepository::class);
         $pveIncomeRepository->method('getDailyTotalsByType')->willReturn([
-            $miningDay => ['bounties' => 60.0, 'lootSales' => 40.0, 'corpProject' => 0.0],
+            $miningDay => ['bounties' => 60.0, 'lootSales' => 40.0, 'corpProject' => 0.0, 'escalations' => 0.0],
         ]);
         $pveExpenseRepository = $this->createStub(PveExpenseRepository::class);
         $pveExpenseRepository->method('getDailyTotals')->willReturn([
@@ -106,6 +106,34 @@ final class LedgerDailyStatsProviderTest extends TestCase
             ['pve' => $days[0]->pve, 'mining' => $days[0]->mining, 'expenses' => $days[0]->expenses, 'total' => $days[0]->total, 'profit' => $days[0]->profit],
         );
         $this->assertSame([], $dailyStats->missingPriceTypeIds);
+    }
+
+    public function testSoldEscalationIsCountedInThePveAndTheTotalOfItsSaleDayOnly(): void
+    {
+        $saleDay = (new \DateTimeImmutable('-9 days'))->format('Y-m-d');
+        $otherDay = (new \DateTimeImmutable('-8 days'))->format('Y-m-d');
+        $pveIncomeRepository = $this->createStub(PveIncomeRepository::class);
+        $pveIncomeRepository->method('getDailyTotalsByType')->willReturn([
+            $saleDay => ['bounties' => 70_000.0, 'lootSales' => 30_000.0, 'corpProject' => 0.0, 'escalations' => 100_000_000.0],
+        ]);
+        $pveExpenseRepository = $this->createStub(PveExpenseRepository::class);
+        $pveExpenseRepository->method('getDailyTotals')->willReturn([
+            $saleDay => ['date' => $saleDay, 'total' => 20_000.0],
+        ]);
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByTypeAndDate')->willReturn([]);
+
+        $dailyStats = $this->createProvider($pveIncomeRepository, $pveExpenseRepository, $miningEntryRepository)->provide(new Get());
+
+        $daysByDate = array_combine(
+            array_map(static fn (LedgerDayResource $day): string => $day->date, $dailyStats->daily),
+            $dailyStats->daily,
+        );
+        $this->assertSame(
+            ['pve' => 100_100_000.0, 'mining' => 0.0, 'expenses' => 20_000.0, 'total' => 100_100_000.0, 'profit' => 100_080_000.0],
+            ['pve' => $daysByDate[$saleDay]->pve, 'mining' => $daysByDate[$saleDay]->mining, 'expenses' => $daysByDate[$saleDay]->expenses, 'total' => $daysByDate[$saleDay]->total, 'profit' => $daysByDate[$saleDay]->profit],
+        );
+        $this->assertSame([0.0, 0.0], [$daysByDate[$otherDay]->pve, $daysByDate[$otherDay]->total]);
     }
 
     private function createProvider(

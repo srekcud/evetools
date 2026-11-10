@@ -34,8 +34,9 @@ describe('MainLayout sidebar navigation', () => {
     expect(navigationLink(wrapper, 'Appraisal')?.attributes('href')).toBe('/appraisal')
     expect(navigationLink(wrapper, 'PI')?.attributes('href')).toBe('/planetary')
     expect(navigationLink(wrapper, 'Mining')?.attributes('href')).toBe('/mining/operations')
+    expect(navigationLink(wrapper, 'PVE')?.attributes('href')).toBe('/pve/revenue')
     expect(navigationLink(wrapper, 'Market')?.attributes('href')).toBe('/market')
-    expect(navigationLink(wrapper, 'Revenue')?.attributes('href')).toBe('/ledger')
+    expect(navigationLink(wrapper, 'Balance')?.attributes('href')).toBe('/balance')
     expect(navigationLink(wrapper, 'Inventory')?.attributes('href')).toBe('/assets')
   })
 
@@ -48,8 +49,9 @@ describe('MainLayout sidebar navigation', () => {
       'Appraisal',
       'PI',
       'Mining',
+      'PVE',
       'Market',
-      'Revenue',
+      'Balance',
       'Inventory',
       'Characters',
     ])
@@ -114,7 +116,7 @@ describe('MainLayout sidebar navigation', () => {
     await flushPromises()
 
     const moduleLabels = Array.from(document.querySelectorAll('[role="dialog"] label')).map(label => label.textContent?.trim())
-    expect(moduleLabels).toEqual(['Dashboard', 'Industry', 'Appraisal', 'PI', 'Mining', 'Market', 'Revenue', 'Inventory'])
+    expect(moduleLabels).toEqual(['Dashboard', 'Industry', 'Appraisal', 'PI', 'Mining', 'PVE', 'Market', 'Balance', 'Inventory'])
   })
 
   it('hides the mining entry and shows it unchecked in the settings for a user who had hidden the former mining operations module', async () => {

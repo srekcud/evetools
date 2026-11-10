@@ -324,4 +324,17 @@ class PveIncomeRepository extends ServiceEntityRepository
 
         return $oldestDate === null ? null : new \DateTimeImmutable((string) $oldestDate);
     }
+
+    /**
+     * @return PveIncome[]
+     */
+    public function findEscalationsByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to, int $limit = 100): array
+    {
+        return [];
+    }
+
+    public function getTotalEscalationsByUserAndDateRange(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): float
+    {
+        return 0.0;
+    }
 }

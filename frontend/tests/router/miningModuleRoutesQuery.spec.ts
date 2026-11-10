@@ -37,10 +37,10 @@ describe('mining module routes, query and memory', () => {
   })
 
   it.each([
-    ['another tab of the ledger', '/ledger?tab=pve'],
-    ['the ledger without tab', '/ledger'],
-  ])('leaves %s on the ledger', async (_case, url) => {
-    expect(await landingPathOf(url)).toBe(url)
+    ['another tab of the ledger', '/ledger?tab=pve', '/pve/revenue'],
+    ['the ledger without tab', '/ledger', '/balance'],
+  ])('moves %s to its page outside the mining module', async (_case, url, expectedPath) => {
+    expect(await landingPathOf(url)).toBe(expectedPath)
   })
 
   it('sends an unknown view of the ledger mining tab to the personal mining page', async () => {

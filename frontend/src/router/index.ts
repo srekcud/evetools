@@ -106,7 +106,7 @@ const router = createRouter({
     {
       path: '/ledger',
       name: 'ledger',
-      component: () => import('@/views/Ledger.vue'),
+      component: () => import('@/views/Balance.vue'),
       beforeEnter: formerLedgerMiningLocation,
       meta: { requiresAuth: true },
     },

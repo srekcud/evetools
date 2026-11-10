@@ -108,9 +108,9 @@ final class LedgerDashboardProviderTest extends TestCase
 
         $dashboard = $this->createProvider($miningEntryRepository, $this->everyPveIncomeType())->provide(new Get());
 
-        $this->assertSame(2_427_000.0, $dashboard->totals['pve']);
+        $this->assertSame(3_777_000.0, $dashboard->totals['pve']);
         $this->assertSame(
-            ['bounties' => 1_000_000.0, 'ess' => 230_000.0, 'missions' => 470_000.0, 'lootSales' => 117_000.0, 'corpProjects' => 610_000.0],
+            ['bounties' => 1_000_000.0, 'ess' => 230_000.0, 'missions' => 470_000.0, 'lootSales' => 117_000.0, 'corpProjects' => 610_000.0, 'escalations' => 1_350_000.0],
             $dashboard->pveBreakdown,
         );
     }
@@ -149,6 +149,41 @@ final class LedgerDashboardProviderTest extends TestCase
         $this->assertEqualsWithDelta(831214.8, $dashboard->totals['mining'], self::VALUE_DELTA);
         $this->assertSame(0.0, $dashboard->miningBreakdown['corpProject']);
         $this->assertSame(610_000.0, $dashboard->pveBreakdown['corpProjects']);
+        $this->assertSame(1_350_000.0, $dashboard->pveBreakdown['escalations']);
+    }
+
+    public function testSoldEscalationIsTheWholePveTotalAndTheWholeIncomeWithoutMiningNorIndustry(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([]);
+
+        $dashboard = $this->createProvider(
+            $miningEntryRepository,
+            [PveIncomeType::Escalation->value => 100_000_000.0],
+            25_000.0,
+        )->provide(new Get());
+
+        $this->assertSame(100_000_000.0, $dashboard->totals['pve']);
+        $this->assertSame(100_000_000.0, $dashboard->totals['total']);
+        $this->assertSame(99_975_000.0, $dashboard->totals['profit']);
+        $this->assertSame(100.0, $dashboard->pvePercent);
+        $this->assertSame(
+            ['bounties' => 0.0, 'ess' => 0.0, 'missions' => 0.0, 'lootSales' => 0.0, 'corpProjects' => 0.0, 'escalations' => 100_000_000.0],
+            $dashboard->pveBreakdown,
+        );
+    }
+
+    public function testEscalationIncomeIsZeroInTheBreakdownWithoutAnyEscalationSale(): void
+    {
+        $miningEntryRepository = $this->createStub(MiningEntryRepository::class);
+        $miningEntryRepository->method('getQuantitiesByType')->willReturn([]);
+        $miningEntryRepository->method('getQuantitiesByTypeAndUsage')->willReturn([]);
+
+        $dashboard = $this->createProvider($miningEntryRepository)->provide(new Get());
+
+        $this->assertSame(0.0, $dashboard->pveBreakdown['escalations']);
+        $this->assertSame(self::BOUNTIES, $dashboard->totals['pve']);
     }
 
     public function testMiningModeCountsCorpProjectMiningInTheMiningTotalAndItsBreakdown(): void
@@ -169,8 +204,9 @@ final class LedgerDashboardProviderTest extends TestCase
         $dashboard = $this->createProvider($miningEntryRepository, $this->everyPveIncomeType(), self::EXPENSES, UserLedgerSettings::CORP_PROJECT_ACCOUNTING_MINING)
             ->provide(new Get());
 
-        $this->assertSame(1_817_000.0, $dashboard->totals['pve']);
+        $this->assertSame(3_167_000.0, $dashboard->totals['pve']);
         $this->assertSame(0.0, $dashboard->pveBreakdown['corpProjects']);
+        $this->assertSame(1_350_000.0, $dashboard->pveBreakdown['escalations']);
         $this->assertEqualsWithDelta(1653514.8, $dashboard->totals['mining'], self::VALUE_DELTA);
         $this->assertSame(822_300.0, $dashboard->miningBreakdown['corpProject']);
     }
@@ -263,6 +299,7 @@ final class LedgerDashboardProviderTest extends TestCase
             PveIncomeType::LootSale->value => 85_000.0,
             PveIncomeType::LootContract->value => 32_000.0,
             PveIncomeType::CorpProject->value => 610_000.0,
+            PveIncomeType::Escalation->value => 1_350_000.0,
         ];
     }
 

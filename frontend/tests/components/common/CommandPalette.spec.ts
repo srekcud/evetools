@@ -38,7 +38,9 @@ async function emptyApiAnswer(endpoint: string): Promise<unknown> {
 
 const appRoutes = [
   '/dashboard',
-  '/ledger',
+  '/balance',
+  '/pve/revenue',
+  '/pve/escalations',
   '/industry',
   '/group-industry',
   '/appraisal',
@@ -217,10 +219,10 @@ describe('CommandPalette', () => {
         'Appraisal',
         'PI',
         'Mining',
+        'PVE',
         'Market',
-        'Revenue',
+        'Balance',
         'Inventory',
-        'Characters',
       ])
     })
 
@@ -359,7 +361,8 @@ describe('CommandPalette', () => {
         'Appraisal',
         'PI',
         'Mining',
-        'Revenue',
+        'PVE',
+        'Balance',
         'Inventory',
         'Characters',
       ])

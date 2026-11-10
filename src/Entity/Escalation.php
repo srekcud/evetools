@@ -72,6 +72,8 @@ class Escalation
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $expiresAt;
 
+    private ?\DateTimeImmutable $soldAt = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -254,6 +256,17 @@ class Escalation
     public function setExpiresAt(\DateTimeImmutable $expiresAt): static
     {
         $this->expiresAt = $expiresAt;
+        return $this;
+    }
+
+    public function getSoldAt(): ?\DateTimeImmutable
+    {
+        return $this->soldAt;
+    }
+
+    public function setSoldAt(?\DateTimeImmutable $soldAt): static
+    {
+        $this->soldAt = $soldAt;
         return $this;
     }
 
