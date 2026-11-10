@@ -39,11 +39,7 @@ final readonly class ResearchJobDuration
         ?int $advancedIndustryLevel,
         Multiplier $structureTimeModifier,
     ): self {
-        $researchSkillTypeId = match ($activity) {
-            ActivityKind::ResearchMaterial => self::METALLURGY_SKILL_TYPE_ID,
-            ActivityKind::ResearchTime => self::RESEARCH_SKILL_TYPE_ID,
-            default => throw new \InvalidArgumentException(\sprintf('%s is not a research activity.', $activity->name)),
-        };
+        $researchSkillTypeId = self::researchSkillTypeIdOf($activity);
         if ($baseTimeSeconds < 0) {
             throw new \InvalidArgumentException(\sprintf('A base time cannot be negative, got %d seconds.', $baseTimeSeconds));
         }
@@ -72,6 +68,15 @@ final readonly class ResearchJobDuration
             * $structureTimeModifier->value;
 
         return new self(new JobDuration((int) round($seconds)), []);
+    }
+
+    public static function researchSkillTypeIdOf(ActivityKind $activity): int
+    {
+        return match ($activity) {
+            ActivityKind::ResearchMaterial => self::METALLURGY_SKILL_TYPE_ID,
+            ActivityKind::ResearchTime => self::RESEARCH_SKILL_TYPE_ID,
+            default => throw new \InvalidArgumentException(\sprintf('%s is not a research activity.', $activity->name)),
+        };
     }
 
     public function isKnown(): bool

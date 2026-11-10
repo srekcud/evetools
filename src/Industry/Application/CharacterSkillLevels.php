@@ -6,5 +6,5 @@ namespace App\Industry\Application;
 
 interface CharacterSkillLevels
 {
-    public function levelOf(int $characterId, int $skillTypeId): ?int;
+    public function levelOf(int $eveCharacterId, int $skillTypeId): ?int;
 }

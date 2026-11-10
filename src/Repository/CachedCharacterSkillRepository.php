@@ -75,7 +75,7 @@ class CachedCharacterSkillRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<int, int> cached skill levels of one character by skill ID, empty when nothing is cached
+     * @return array<int, int>
      */
     public function findLevelsByEveCharacterId(int $eveCharacterId): array
     {

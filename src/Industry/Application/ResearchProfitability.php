@@ -112,32 +112,32 @@ final readonly class ResearchProfitability
             $net,
             self::verdictOf($net),
             $currentCost->plus($nextCost)->plus($researchCost)->missingData,
-            $this->researchEstimateOf(ActivityKind::ResearchMaterial, $firstJob->productTypeId, $targetLevel, $owned->researcherCharacterId),
+            $this->researchEstimateOf(ActivityKind::ResearchMaterial, $firstJob->productTypeId, $targetLevel, $owned->researcherEveCharacterId),
             $firstJob->timeEfficiency->value >= TimeEfficiency::MAXIMUM_LEVEL
                 ? null
-                : $this->researchEstimateOf(ActivityKind::ResearchTime, $firstJob->productTypeId, intdiv($firstJob->timeEfficiency->value, TimeEfficiency::LEVEL_STEP) + 1, $owned->researcherCharacterId),
+                : $this->researchEstimateOf(ActivityKind::ResearchTime, $firstJob->productTypeId, intdiv($firstJob->timeEfficiency->value, TimeEfficiency::LEVEL_STEP) + 1, $owned->researcherEveCharacterId),
         );
     }
 
-    private function researchEstimateOf(ActivityKind $activity, int $productTypeId, int $targetLevel, ?int $researcherCharacterId): ResearchJobEstimate
+    private function researchEstimateOf(ActivityKind $activity, int $productTypeId, int $targetLevel, ?int $researcherEveCharacterId): ResearchJobEstimate
     {
         $baseTimeSeconds = $this->researchBaseTimes->of($productTypeId, $activity);
 
-        if (null === $baseTimeSeconds || null === $researcherCharacterId) {
+        if (null === $baseTimeSeconds || null === $researcherEveCharacterId) {
             return new ResearchJobEstimate($targetLevel, ResearchJobDuration::unknown(array_values(array_filter([
                 null === $baseTimeSeconds ? MissingData::researchBaseTime($productTypeId) : null,
-                null === $researcherCharacterId ? MissingData::researcher() : null,
+                null === $researcherEveCharacterId ? MissingData::researcher() : null,
             ]))));
         }
 
-        $researchSkillTypeId = ActivityKind::ResearchMaterial === $activity ? ResearchJobDuration::METALLURGY_SKILL_TYPE_ID : ResearchJobDuration::RESEARCH_SKILL_TYPE_ID;
+        $researchSkillTypeId = ResearchJobDuration::researchSkillTypeIdOf($activity);
 
         return new ResearchJobEstimate($targetLevel, ResearchJobDuration::of(
             $activity,
             $baseTimeSeconds,
             $targetLevel,
-            $this->characterSkillLevels->levelOf($researcherCharacterId, $researchSkillTypeId),
-            $this->characterSkillLevels->levelOf($researcherCharacterId, ResearchJobDuration::ADVANCED_INDUSTRY_SKILL_TYPE_ID),
+            $this->characterSkillLevels->levelOf($researcherEveCharacterId, $researchSkillTypeId),
+            $this->characterSkillLevels->levelOf($researcherEveCharacterId, ResearchJobDuration::ADVANCED_INDUSTRY_SKILL_TYPE_ID),
             Multiplier::one(),
         ));
     }

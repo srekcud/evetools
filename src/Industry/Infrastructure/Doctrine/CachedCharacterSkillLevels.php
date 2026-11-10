@@ -17,11 +17,11 @@ final class CachedCharacterSkillLevels implements CharacterSkillLevels, ResetInt
     {
     }
 
-    public function levelOf(int $characterId, int $skillTypeId): ?int
+    public function levelOf(int $eveCharacterId, int $skillTypeId): ?int
     {
-        $this->levelsByEveCharacterId[$characterId] ??= $this->skillRepository->findLevelsByEveCharacterId($characterId);
+        $this->levelsByEveCharacterId[$eveCharacterId] ??= $this->skillRepository->findLevelsByEveCharacterId($eveCharacterId);
 
-        return $this->levelsByEveCharacterId[$characterId][$skillTypeId] ?? null;
+        return $this->levelsByEveCharacterId[$eveCharacterId][$skillTypeId] ?? null;
     }
 
     public function reset(): void
