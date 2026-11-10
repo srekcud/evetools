@@ -16,6 +16,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\UniqueConstraint(columns: ['eve_character_id'])]
 class Character
 {
+    public const int FIRST_PLAYER_CORPORATION_ID = 2_000_000;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -96,6 +98,11 @@ class Character
     public function getCorporationId(): int
     {
         return $this->corporationId;
+    }
+
+    public function isInPlayerCorporation(): bool
+    {
+        return $this->corporationId >= self::FIRST_PLAYER_CORPORATION_ID;
     }
 
     public function setCorporationId(int $corporationId): static

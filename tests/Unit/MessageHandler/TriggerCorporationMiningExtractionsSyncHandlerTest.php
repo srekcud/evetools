@@ -35,6 +35,17 @@ final class TriggerCorporationMiningExtractionsSyncHandlerTest extends TestCase
         self::assertSame([SyncCorporationMiningExtractions::class, SyncCorporationMiningExtractions::class], array_map(get_class(...), $this->dispatchedMessages));
     }
 
+    public function testNpcCorporationsAreNotDispatched(): void
+    {
+        $this->stationManager($this->userA, 'Ilyra Castell', 2_112_274_001, self::CORPORATION_A);
+        $this->addCharacter($this->userA, 'Mara Venn', 2_112_582_001, self::NPC_CORPORATION, [self::MINING_SCOPE], []);
+        $this->addCharacter($this->userB, 'Iven Dask', 2_112_582_002, self::FIRST_PLAYER_CORPORATION, [self::MINING_SCOPE], []);
+
+        $this->trigger();
+
+        self::assertSame([self::FIRST_PLAYER_CORPORATION, self::CORPORATION_A], $this->dispatchedCorporationIds());
+    }
+
     public function testACorporationWithoutAnyStationManagerIsStillDispatchedSoItsDeniedStateIsRecorded(): void
     {
         $this->addCharacter($this->userC, 'Sora Vantel', 2_112_274_004, self::CORPORATION_C, [self::MINING_SCOPE], []);

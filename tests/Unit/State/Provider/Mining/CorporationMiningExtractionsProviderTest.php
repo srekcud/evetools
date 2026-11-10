@@ -67,6 +67,26 @@ final class CorporationMiningExtractionsProviderTest extends TestCase
         );
     }
 
+    public function testACharacterInANpcCorporationAddsNoEntry(): void
+    {
+        $this->addCharacter($this->userA, 'Mara Venn', 2_112_582_001, self::NPC_CORPORATION, [], []);
+
+        self::assertSame(
+            [self::CORPORATION_A, self::CORPORATION_B],
+            array_column($this->provide(), 'corporationId'),
+        );
+    }
+
+    public function testACorporationAtTheFirstPlayerCorporationIdIsStillListed(): void
+    {
+        $this->addCharacter($this->userA, 'Mara Venn', 2_112_582_001, self::FIRST_PLAYER_CORPORATION, [], []);
+
+        self::assertSame(
+            [self::FIRST_PLAYER_CORPORATION, self::CORPORATION_A, self::CORPORATION_B],
+            array_column($this->provide(), 'corporationId'),
+        );
+    }
+
     public function testEachExtractionIsExposedWithItsNamesTimesAndStatusSortedByChunkArrival(): void
     {
         self::assertSame(

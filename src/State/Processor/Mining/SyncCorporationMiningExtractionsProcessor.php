@@ -31,7 +31,7 @@ final readonly class SyncCorporationMiningExtractionsProcessor implements Proces
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
-        foreach ($user->getCharacterCorporationIds() as $corporationId) {
+        foreach ($user->getPlayerCorporationIds() as $corporationId) {
             $this->messageBus->dispatch(new SyncCorporationMiningExtractions($corporationId));
         }
 

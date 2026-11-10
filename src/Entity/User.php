@@ -93,6 +93,17 @@ class User implements UserInterface
         return $corporationIds;
     }
 
+    /**
+     * @return list<int>
+     */
+    public function getPlayerCorporationIds(): array
+    {
+        return array_values(array_filter(
+            $this->getCharacterCorporationIds(),
+            static fn (int $corporationId): bool => $corporationId >= Character::FIRST_PLAYER_CORPORATION_ID,
+        ));
+    }
+
     public function addCharacter(Character $character): static
     {
         if (!$this->characters->contains($character)) {
