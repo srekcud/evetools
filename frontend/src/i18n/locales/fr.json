@@ -2344,6 +2344,11 @@
         "cost": "Coût",
         "net": "Net"
       },
+      "duration": {
+        "me": "Durée ME (vers ME {level})",
+        "te": "Durée TE (niveau {level})"
+      },
+      "durationNotice": "Durées informatives, hors verdict, sans bonus de structure.",
       "unknown": "Non proposée, inconnu : {reasons}",
       "notWorth": "{count} recherche ne paie pas sur les runs du projet | {count} recherches ne paient pas sur les runs du projet",
       "reason": {
@@ -2354,6 +2359,8 @@
         "item_volume": "volume de l'objet",
         "jump_route": "route de sauts",
         "research_skill": "compétence de recherche",
+        "research_base_time": "temps de base de la recherche",
+        "researcher": "chercheur",
         "inventor_skills": "compétences d'inventeur",
         "invention_probability": "probabilité d'invention"
       }

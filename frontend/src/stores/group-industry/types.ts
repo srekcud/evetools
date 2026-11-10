@@ -670,6 +670,12 @@ export interface ProjectBuyOrBuild {
 
 export type ResearchVerdict = 'worth' | 'not_worth' | 'unknown'
 
+export interface ResearchDuration {
+  targetLevel: number
+  seconds: number | null
+  missingData: BuyOrBuildMissingData[]
+}
+
 export interface ResearchRow {
   typeId: number
   typeName: string | null
@@ -681,6 +687,8 @@ export interface ResearchRow {
   net: number | null
   verdict: ResearchVerdict
   missingData: BuyOrBuildMissingData[]
+  meResearchDuration: ResearchDuration
+  teResearchDuration: ResearchDuration | null
 }
 
 export interface ProjectResearch {

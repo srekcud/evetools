@@ -73,4 +73,25 @@ class CachedCharacterSkillRepository extends ServiceEntityRepository
 
         return $indexed;
     }
+
+    /**
+     * @return array<int, int> cached skill levels of one character by skill ID, empty when nothing is cached
+     */
+    public function findLevelsByEveCharacterId(int $eveCharacterId): array
+    {
+        $rows = $this->createQueryBuilder('s')
+            ->select('s.skillId AS skillId', 's.level AS level')
+            ->join('s.character', 'c')
+            ->where('c.eveCharacterId = :eveCharacterId')
+            ->setParameter('eveCharacterId', $eveCharacterId)
+            ->getQuery()
+            ->getArrayResult();
+
+        $levels = [];
+        foreach ($rows as $row) {
+            $levels[$row['skillId']] = $row['level'];
+        }
+
+        return $levels;
+    }
 }

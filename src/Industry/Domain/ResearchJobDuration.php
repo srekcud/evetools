@@ -23,6 +23,14 @@ final readonly class ResearchJobDuration
     {
     }
 
+    /**
+     * @param list<MissingData> $missingData
+     */
+    public static function unknown(array $missingData): self
+    {
+        return new self(null, $missingData);
+    }
+
     public static function of(
         ActivityKind $activity,
         int $baseTimeSeconds,
@@ -39,7 +47,7 @@ final readonly class ResearchJobDuration
         if ($baseTimeSeconds < 0) {
             throw new \InvalidArgumentException(\sprintf('A base time cannot be negative, got %d seconds.', $baseTimeSeconds));
         }
-        $levelSeconds = ResearchLevels::rankOneSeconds($targetLevel);
+        $levelMultiplier = ResearchLevels::costMultiplier($targetLevel);
         foreach ([$researchSkillLevel, $advancedIndustryLevel] as $skillLevel) {
             if (null !== $skillLevel && ($skillLevel < self::MINIMUM_SKILL_LEVEL || $skillLevel > self::MAXIMUM_SKILL_LEVEL)) {
                 throw new \InvalidArgumentException(\sprintf('A skill level must be between %d and %d, got %d.', self::MINIMUM_SKILL_LEVEL, self::MAXIMUM_SKILL_LEVEL, $skillLevel));
@@ -57,8 +65,8 @@ final readonly class ResearchJobDuration
             return new self(null, $missingData);
         }
 
-        $seconds = $baseTimeSeconds / ResearchLevels::RANK_ONE_BASE_TIME_SECONDS
-            * $levelSeconds
+        $seconds = $baseTimeSeconds
+            * $levelMultiplier
             * (1 - self::RESEARCH_SKILL_REDUCTION_PER_LEVEL * $researchSkillLevel)
             * (1 - self::ADVANCED_INDUSTRY_REDUCTION_PER_LEVEL * $advancedIndustryLevel)
             * $structureTimeModifier->value;

@@ -38,6 +38,7 @@ class OriginalBlueprintFinder
             $use = new OwnedBlueprintUse(
                 new BlueprintEfficiency(new MaterialEfficiency($blueprint->getMaterialEfficiency()), new TimeEfficiency($blueprint->getTimeEfficiency())),
                 $blueprint->isOriginal(),
+                $blueprint->getCharacter()?->getEveCharacterId(),
             );
             if (!isset($uses[$blueprint->getTypeId()]) || $use->isBetterThan($uses[$blueprint->getTypeId()])) {
                 $uses[$blueprint->getTypeId()] = $use;

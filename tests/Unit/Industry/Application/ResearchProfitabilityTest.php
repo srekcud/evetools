@@ -29,6 +29,8 @@ use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Tests\Unit\Industry\Application\Double\BuildCostsByMaterialEfficiency;
 use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
+use App\Tests\Unit\Industry\Application\Double\InMemoryCharacterSkillLevels;
+use App\Tests\Unit\Industry\Application\Double\InMemoryResearchBaseTimes;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -349,6 +351,8 @@ final class ResearchProfitabilityTest extends TestCase
             ),
             new InMemoryAdjustedPrices($adjustedPrices),
             $costIndices ?? new InMemorySystemCostIndices([self::MANUFACTURING_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::RESEARCH_COST_INDEX]]),
+            new InMemoryResearchBaseTimes([]),
+            new InMemoryCharacterSkillLevels([]),
         );
 
         return $profitability->suggestionsOf(
