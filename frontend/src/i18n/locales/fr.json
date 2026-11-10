@@ -3985,6 +3985,7 @@
         "duration": "durée {duration}",
         "durationUnknown": "durée inconnue",
         "participants": "{count} participant | {count} participants",
+        "sites": "{count} site | {count} sites",
         "topOres": "Top minerais : {ores}",
         "topOresUnknown": "Top minerais : inconnu",
         "boosterShare": "Part du booster {percent} % : {amount}",

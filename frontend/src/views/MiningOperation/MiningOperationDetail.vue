@@ -701,7 +701,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <MiningOperationShareRecap v-if="showsShareRecap && valuation !== null && operationLedger !== null" :operation="operation" :valuation="valuation" :ledger="operationLedger" :market-label="marketLabel" />
+        <MiningOperationShareRecap v-if="showsShareRecap && valuation !== null && operationLedger !== null" :operation="operation" :valuation="valuation" :ledger="operationLedger" :market-label="marketLabel" :sites-count="siteStore.operationSites.length" />
 
         <OreSalePanel v-if="showsOreSale" :key="oreSaleKey" :operation-id="operationId" />
 
