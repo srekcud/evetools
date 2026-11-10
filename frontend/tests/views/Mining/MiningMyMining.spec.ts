@@ -40,6 +40,8 @@ const SEASON_OF_ONE_KNOWN_OPERATION: MiningSeason = {
   players: [{ name: 'Aria Solberg', operationsCount: 1, minutes: 180, minedValue: 150_000_000, hasUnknownValue: false }],
   ships: [],
   unknownShipCharactersCount: 0,
+  sitesBySystem: [],
+  sitesWithoutSystemCount: 0,
 }
 
 const ARIA_OF_C1 = {

@@ -54,4 +54,23 @@ class MiningSiteRepository extends ServiceEntityRepository
 
         return $this->findBy($criteria, ['createdAt' => 'DESC']);
     }
+
+    /**
+     * @param list<MiningOperation> $operations
+     *
+     * @return list<MiningSite>
+     */
+    public function findOfOperations(array $operations): array
+    {
+        if ($operations === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('site')
+            ->where('site.operation IN (:operations)')
+            ->setParameter('operations', $operations)
+            ->orderBy('site.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

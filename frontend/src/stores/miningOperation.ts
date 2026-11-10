@@ -68,6 +68,27 @@ export interface MiningSeasonShip {
   isBooster: boolean
 }
 
+export type MiningSeasonUnknownSiteReason = 'fewScans' | 'noPrice'
+
+export interface MiningSeasonUnknownSite {
+  label: string
+  reason: MiningSeasonUnknownSiteReason
+}
+
+export interface MiningSeasonBestSite {
+  label: string
+  iskPerHour: number
+  observedSeconds: number
+}
+
+export interface MiningSeasonSystemSites {
+  solarSystemId: number
+  solarSystemName: string | null
+  sitesCount: number
+  bestSite: MiningSeasonBestSite | null
+  unknownSites: MiningSeasonUnknownSite[]
+}
+
 export interface MiningSeason {
   period: MiningSeasonPeriod
   operationsCount: number
@@ -79,6 +100,8 @@ export interface MiningSeason {
   players: MiningSeasonPlayer[]
   ships: MiningSeasonShip[]
   unknownShipCharactersCount: number
+  sitesBySystem: MiningSeasonSystemSites[]
+  sitesWithoutSystemCount: number
 }
 
 export interface MiningArchiveSummary {

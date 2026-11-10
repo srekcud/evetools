@@ -3977,6 +3977,25 @@
         "empty": "No character with a known ship in the operations with a frozen value.",
         "unknownCharacters": "{count} character without a known ship, left out of this table | {count} characters without a known ship, left out of this table"
       },
+      "sites": {
+        "title": "Best sites by system",
+        "columns": {
+          "system": "System",
+          "bestSite": "Best site",
+          "iskPerHour": "ISK/h",
+          "duration": "Duration",
+          "sites": "Sites"
+        },
+        "unknown": "Unknown",
+        "systemOutsideSde": "System {id}",
+        "unknownSite": "unknown: {label} ({reason})",
+        "reasons": {
+          "fewScans": "a single scan",
+          "noPrice": "no price"
+        },
+        "empty": "No site scanned in this period",
+        "withoutSystem": "{count} site without a solar system, left out of this table | {count} sites without a solar system, left out of this table"
+      },
       "empty": "No operation of your corporation ended within this period."
     },
     "payments": {

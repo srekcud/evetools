@@ -7,6 +7,10 @@ namespace App\Service\MiningOperation;
 final readonly class MiningSeasonCalculator
 {
     private const int MINUTES_PER_HOUR = 60;
+    private const int SECONDS_PER_HOUR = 3_600;
+    private const int MINIMUM_SCANS_TO_MEASURE = 2;
+    private const string FEW_SCANS = 'fewScans';
+    private const string NO_PRICE = 'noPrice';
 
     /**
      * @param list<MiningSeasonOperation> $operations
@@ -20,8 +24,10 @@ final readonly class MiningSeasonCalculator
         $playersByUserKey = [];
         $shipsByTypeId = [];
         $unknownShipCharactersCount = 0;
+        $sites = [];
 
         foreach ($operations as $operation) {
+            array_push($sites, ...$operation->sites);
             if ($operation->value !== null) {
                 ++$knownOperationsCount;
                 $knownValue += $operation->value;
@@ -73,7 +79,70 @@ final readonly class MiningSeasonCalculator
             $players,
             $this->shipsOf($shipsByTypeId),
             $unknownShipCharactersCount,
+            ...$this->sitesBySystemOf($sites),
         );
+    }
+
+    /**
+     * @param list<MiningSeasonSite> $sites
+     *
+     * @return array{sitesBySystem: list<array{solarSystemId: int, sitesCount: int, bestSite: ?array{label: string, iskPerHour: int, observedSeconds: int}, unknownSites: list<array{label: string, reason: string}>}>, sitesWithoutSystemCount: int}
+     */
+    private function sitesBySystemOf(array $sites): array
+    {
+        $systems = [];
+        $sitesWithoutSystemCount = 0;
+
+        foreach ($sites as $site) {
+            if ($site->solarSystemId === null) {
+                ++$sitesWithoutSystemCount;
+                continue;
+            }
+
+            $system = $systems[$site->solarSystemId] ?? ['solarSystemId' => $site->solarSystemId, 'sitesCount' => 0, 'bestSite' => null, 'unknownSites' => []];
+            ++$system['sitesCount'];
+            $iskPerHour = $this->iskPerHourOf($site);
+            if ($iskPerHour !== null) {
+                $candidate = ['label' => $site->label, 'iskPerHour' => $iskPerHour, 'observedSeconds' => $site->observedSeconds];
+                $system['bestSite'] = $system['bestSite'] === null || $this->isBetterSite($candidate, $system['bestSite']) ? $candidate : $system['bestSite'];
+            } else {
+                $system['unknownSites'][] = ['label' => $site->label, 'reason' => $site->scansCount < self::MINIMUM_SCANS_TO_MEASURE ? self::FEW_SCANS : self::NO_PRICE];
+            }
+            $systems[$site->solarSystemId] = $system;
+        }
+
+        $rows = array_values($systems);
+        foreach ($rows as &$row) {
+            usort($row['unknownSites'], static fn (array $left, array $right): int => $left['label'] <=> $right['label']);
+        }
+        unset($row);
+        usort($rows, static fn (array $left, array $right): int => match (true) {
+            $left['bestSite'] === null && $right['bestSite'] === null => $left['solarSystemId'] <=> $right['solarSystemId'],
+            $left['bestSite'] === null => 1,
+            $right['bestSite'] === null => -1,
+            $left['bestSite']['iskPerHour'] === $right['bestSite']['iskPerHour'] => $left['solarSystemId'] <=> $right['solarSystemId'],
+            default => $right['bestSite']['iskPerHour'] <=> $left['bestSite']['iskPerHour'],
+        });
+
+        return ['sitesBySystem' => $rows, 'sitesWithoutSystemCount' => $sitesWithoutSystemCount];
+    }
+
+    private function iskPerHourOf(MiningSeasonSite $site): ?int
+    {
+        if ($site->scansCount < self::MINIMUM_SCANS_TO_MEASURE || $site->observedSeconds === 0 || $site->extractedValue === null) {
+            return null;
+        }
+
+        return (int) round($site->extractedValue * self::SECONDS_PER_HOUR / $site->observedSeconds);
+    }
+
+    /**
+     * @param array{label: string, iskPerHour: int, observedSeconds: int} $candidate
+     * @param array{label: string, iskPerHour: int, observedSeconds: int} $current
+     */
+    private function isBetterSite(array $candidate, array $current): bool
+    {
+        return ([$candidate['iskPerHour'], $candidate['observedSeconds'], $current['label']] <=> [$current['iskPerHour'], $current['observedSeconds'], $candidate['label']]) === 1;
     }
 
     /**

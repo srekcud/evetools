@@ -71,4 +71,92 @@ class MiningSiteScanRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['site' => $site, 'scannedAt' => $instant]) !== null;
     }
+
+    /**
+     * @param list<MiningSite> $sites
+     *
+     * @return array<string, MiningSiteScan>
+     */
+    public function findFirstVisibleOfSites(array $sites): array
+    {
+        return $this->findVisibleBoundOfSites($sites, 'MIN');
+    }
+
+    /**
+     * @param list<MiningSite> $sites
+     *
+     * @return array<string, MiningSiteScan>
+     */
+    public function findLastVisibleOfSites(array $sites): array
+    {
+        return $this->findVisibleBoundOfSites($sites, 'MAX');
+    }
+
+    /**
+     * @param list<MiningSite> $sites
+     *
+     * @return array<string, int>
+     */
+    public function countVisibleOfSites(array $sites): array
+    {
+        $counts = [];
+        foreach ($sites as $site) {
+            $counts[$this->keyOf($site)] = 0;
+        }
+        if ($sites === []) {
+            return $counts;
+        }
+
+        $rows = $this->createQueryBuilder('scan')
+            ->select('IDENTITY(scan.site) AS siteId', 'COUNT(scan.id) AS scansCount')
+            ->where('scan.site IN (:sites)')
+            ->andWhere('scan.hiddenAt IS NULL')
+            ->groupBy('scan.site')
+            ->setParameter('sites', $sites)
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($rows as $row) {
+            $counts[(string) $row['siteId']] = (int) $row['scansCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param list<MiningSite> $sites
+     *
+     * @return array<string, MiningSiteScan>
+     */
+    private function findVisibleBoundOfSites(array $sites, string $aggregate): array
+    {
+        if ($sites === []) {
+            return [];
+        }
+
+        $queryBuilder = $this->createQueryBuilder('scan');
+        $bound = $this->createQueryBuilder('bound')
+            ->select(sprintf('%s(bound.scannedAt)', $aggregate))
+            ->where('bound.site = scan.site')
+            ->andWhere('bound.hiddenAt IS NULL');
+
+        $scans = $queryBuilder
+            ->where('scan.site IN (:sites)')
+            ->andWhere('scan.hiddenAt IS NULL')
+            ->andWhere(sprintf('scan.scannedAt = (%s)', $bound->getDQL()))
+            ->setParameter('sites', $sites)
+            ->getQuery()
+            ->getResult();
+
+        $scansBySite = [];
+        foreach ($scans as $scan) {
+            $scansBySite[$this->keyOf($scan->getSite())] = $scan;
+        }
+
+        return $scansBySite;
+    }
+
+    private function keyOf(MiningSite $site): string
+    {
+        return ($site->getId() ?? throw new \LogicException('A persisted site has an id'))->toRfc4122();
+    }
 }

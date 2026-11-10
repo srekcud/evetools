@@ -23,7 +23,7 @@ final class MiningSeasonApiTest extends WebTestCase
     private const string MISSING = '<key missing>';
     private const string SEASON_URI = '/api/mining-operations/season';
     private const string AFTER_ENDED_AT = '2026-11-05T21:31:00+00:00';
-    private const array SEASON_KEYS_SORTED = ['iskPerHour', 'knownOperationMinutes', 'knownValue', 'operationsCount', 'period', 'playedMinutes', 'players', 'ships', 'unknownShipCharactersCount', 'unknownValueOperationsCount'];
+    private const array SEASON_KEYS_SORTED = ['iskPerHour', 'knownOperationMinutes', 'knownValue', 'operationsCount', 'period', 'playedMinutes', 'players', 'ships', 'sitesBySystem', 'sitesWithoutSystemCount', 'unknownShipCharactersCount', 'unknownValueOperationsCount'];
     private const array EMPTY_SEASON = ['30d', 0, 0, null, 0, 0, null, []];
     private const array SHIP_KEYS = ['shipTypeId', 'shipName', 'charactersCount', 'minutes', 'minedValue', 'iskPerHour', 'isBooster'];
 

@@ -2,13 +2,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import { useMiningOperationStore, type MiningSeasonPeriod } from '@/stores/miningOperation'
+import { useMiningOperationStore, type MiningSeasonPeriod, type MiningSeasonSystemSites } from '@/stores/miningOperation'
 import { formatSeasonDuration } from './miningOperationSeason'
 import { formatWhole } from './miningOperationQuantity'
 
 const SEASON_PERIODS = ['30d', '90d', 'all'] as const satisfies readonly MiningSeasonPeriod[]
 const PERCENT_MAX = 100
 const NOT_APPLICABLE = '–'
+const SECONDS_PER_MINUTE = 60
 
 const { t, locale } = useI18n()
 const store = useMiningOperationStore()
@@ -28,6 +29,14 @@ function barWidth(minutes: number): string {
 
 function shipBarWidth(iskPerHour: number): string {
   return `${bestShipIskPerHour.value === 0 ? 0 : Math.round((iskPerHour / bestShipIskPerHour.value) * PERCENT_MAX)}%`
+}
+
+function systemName(system: MiningSeasonSystemSites): string {
+  return system.solarSystemName ?? t('miningOperation.season.sites.systemOutsideSde', { id: system.solarSystemId })
+}
+
+function observedDuration(observedSeconds: number): string {
+  return formatSeasonDuration(Math.floor(observedSeconds / SECONDS_PER_MINUTE))
 }
 
 async function reload(): Promise<void> {
@@ -134,7 +143,42 @@ onMounted(reload)
         <p v-if="season.unknownShipCharactersCount > 0" class="px-3 py-2 text-xs text-amber-300" data-testid="season-unknown-ships">{{ t('miningOperation.season.ships.unknownCharacters', { count: season.unknownShipCharactersCount }) }}</p>
       </div>
 
-      <div class="eve-card overflow-x-auto p-2">
+      <div class="eve-card overflow-x-auto p-2" data-testid="season-sites">
+        <h2 class="px-3 py-2 font-display text-base font-semibold text-slate-100">{{ t('miningOperation.season.sites.title') }}</h2>
+        <p v-if="season.sitesBySystem.length === 0" class="px-3 py-4 text-sm text-slate-300" data-testid="season-sites-empty">{{ t('miningOperation.season.sites.empty') }}</p>
+        <table v-else class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b border-slate-800 font-mono text-xs uppercase tracking-wider text-slate-400">
+              <th class="px-3 py-2 font-medium">{{ t('miningOperation.season.sites.columns.system') }}</th>
+              <th class="px-3 py-2 font-medium">{{ t('miningOperation.season.sites.columns.bestSite') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.sites.columns.iskPerHour') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.sites.columns.duration') }}</th>
+              <th class="px-3 py-2 text-right font-medium">{{ t('miningOperation.season.sites.columns.sites') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="system in season.sitesBySystem" :key="system.solarSystemId" class="border-b border-slate-800/60" data-testid="season-site-row">
+              <td class="max-w-40 px-3 py-2.5 font-display font-semibold text-slate-100 [overflow-wrap:anywhere]">{{ systemName(system) }}</td>
+              <td class="max-w-56 px-3 py-2.5">
+                <span v-if="system.bestSite !== null" class="block text-slate-100 [overflow-wrap:anywhere]" data-testid="season-site-best">{{ system.bestSite.label }}</span>
+                <span v-else class="block text-amber-300" data-testid="season-site-best">{{ t('miningOperation.season.sites.unknown') }}</span>
+                <span
+                  v-for="unknownSite in system.unknownSites"
+                  :key="unknownSite.label"
+                  class="block text-xs text-amber-300 [overflow-wrap:anywhere]"
+                  data-testid="season-site-unknown"
+                >{{ t('miningOperation.season.sites.unknownSite', { label: unknownSite.label, reason: t(`miningOperation.season.sites.reasons.${unknownSite.reason}`) }) }}</span>
+              </td>
+              <td class="px-3 py-2.5 text-right font-mono text-slate-100" data-testid="season-site-isk-per-hour">{{ system.bestSite === null ? NOT_APPLICABLE : formatWhole(system.bestSite.iskPerHour, locale) }}</td>
+              <td class="px-3 py-2.5 text-right font-mono text-xs text-cyan-200">{{ system.bestSite === null ? NOT_APPLICABLE : observedDuration(system.bestSite.observedSeconds) }}</td>
+              <td class="px-3 py-2.5 text-right font-mono text-slate-300">{{ system.sitesCount }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="season.sitesWithoutSystemCount > 0" class="px-3 py-2 text-xs text-amber-300" data-testid="season-sites-no-system">{{ t('miningOperation.season.sites.withoutSystem', { count: season.sitesWithoutSystemCount }) }}</p>
+      </div>
+
+      <div class="eve-card overflow-x-auto p-2 lg:col-span-2">
         <h2 class="px-3 py-2 font-display text-base font-semibold text-slate-100">{{ t('miningOperation.season.players.title') }}</h2>
         <table class="w-full text-left text-sm">
           <thead>
