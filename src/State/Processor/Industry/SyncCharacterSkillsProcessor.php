@@ -76,22 +76,20 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
 
         foreach ($user->getCharacters() as $character) {
             $token = $character->getEveToken();
-            $missingScopeReported = false;
+            $characterFailure = null;
 
             if ($token === null) {
-                $failures[] = CharacterSyncFailure::missingToken($character);
+                $characterFailure = CharacterSyncFailure::missingToken($character);
             } elseif (!$token->hasScope(self::SKILLS_SCOPE)) {
-                $failures[] = CharacterSyncFailure::missingScope($character);
-                $missingScopeReported = true;
+                $characterFailure = CharacterSyncFailure::missingScope($character);
             } else {
                 try {
                     $this->syncCharacterSkills($character, $token);
                     $this->attributesSynchronizer->sync($character, $token);
                     $syncedCount++;
                 } catch (\Throwable $e) {
-                    $failure = CharacterSyncFailure::fromThrowable($character, $e);
-                    $this->logger->warning('Failed to sync skills for character', $failure->logContext($e->getMessage()));
-                    $failures[] = $failure;
+                    $characterFailure = CharacterSyncFailure::fromThrowable($character, $e);
+                    $this->logger->warning('Failed to sync skills for character', $characterFailure->logContext($e->getMessage()));
                 }
             }
 
@@ -100,13 +98,17 @@ class SyncCharacterSkillsProcessor implements ProcessorInterface
                     try {
                         $this->standingsSynchronizer->sync($character, $token);
                     } catch (\Throwable $e) {
-                        $failure = CharacterSyncFailure::fromThrowable($character, $e);
-                        $this->logger->warning('Failed to sync standings for character', $failure->logContext($e->getMessage()));
-                        $failures[] = $failure;
+                        $standingsFailure = CharacterSyncFailure::fromThrowable($character, $e);
+                        $this->logger->warning('Failed to sync standings for character', $standingsFailure->logContext($e->getMessage()));
+                        $characterFailure ??= $standingsFailure;
                     }
-                } elseif (!$missingScopeReported) {
-                    $failures[] = CharacterSyncFailure::missingScope($character);
+                } else {
+                    $characterFailure ??= CharacterSyncFailure::missingScope($character);
                 }
+            }
+
+            if ($characterFailure !== null) {
+                $failures[] = $characterFailure;
             }
 
             $skills = $this->skillRepository->findBy(['character' => $character]);

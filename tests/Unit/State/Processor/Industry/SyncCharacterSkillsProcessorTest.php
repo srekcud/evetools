@@ -84,6 +84,8 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
     private array $attributesSyncFailures = [];
 
+    private array $standingsSyncFailures = [];
+
     private int $sdeSkillQueryCount = 0;
 
     protected function setUp(): void
@@ -766,6 +768,44 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
         );
     }
 
+    public function testNamesOnceTheCharacterWhoseAuthorizationIsRevokedAndWhoseTokenLacksTheStandingsScope(): void
+    {
+        $this->pilotTwoToken->setScopes([self::SKILLS_SCOPE]);
+        $this->accessTokenFailures[self::PILOT_TWO] = new EveAuthRequiredException((string) self::PILOT_TWO_ID, 'Grant revoked for Pilot Two');
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [['characterName' => self::PILOT_TWO, 'reason' => 'authentication_required', 'statusCode' => null]],
+            $result->failedCharacters,
+        );
+    }
+
+    public function testNamesOnceTheCharacterWhoseSkillsAndStandingsBothFail(): void
+    {
+        $this->accessTokenFailures[self::PILOT_TWO] = new EveAuthRequiredException((string) self::PILOT_TWO_ID, 'Grant revoked for Pilot Two');
+        $this->standingsSyncFailures[self::PILOT_TWO] = new EveAuthRequiredException((string) self::PILOT_TWO_ID, 'Grant revoked for Pilot Two');
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [['characterName' => self::PILOT_TWO, 'reason' => 'authentication_required', 'statusCode' => null]],
+            $result->failedCharacters,
+        );
+    }
+
+    public function testNamesTheCharacterWhoseStandingsFailAfterItsSkillsSynchronized(): void
+    {
+        $this->standingsSyncFailures[self::PILOT_TWO] = new EsiApiException('Bad gateway for Pilot Two', 502);
+
+        $result = $this->syncSkills();
+
+        $this->assertSame(
+            [2, [['characterName' => self::PILOT_TWO, 'reason' => 'esi_unavailable', 'statusCode' => 502]]],
+            [$result->syncedCount, $result->failedCharacters],
+        );
+    }
+
     #[Group('issue-347')]
     public function testDoesNotSynchronizeTheStandingsOfACharacterWithoutToken(): void
     {
@@ -981,6 +1021,9 @@ final class SyncCharacterSkillsProcessorTest extends TestCase
 
         $standingsSynchronizer = $this->createStub(CharacterStandingsSynchronizer::class);
         $standingsSynchronizer->method('sync')->willReturnCallback(function (Character $character): void {
+            if (isset($this->standingsSyncFailures[$character->getName()])) {
+                throw $this->standingsSyncFailures[$character->getName()];
+            }
             $this->standingsSyncedCharacterNames[] = $character->getName();
         });
 
