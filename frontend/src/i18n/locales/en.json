@@ -896,6 +896,24 @@
         "unitsDay": "units/day"
       }
     },
+    "hangars": {
+      "kicker": "Production · {name}",
+      "title": "Corp hangars",
+      "subtitle": "Who sees which division of the corporation hangars in evetools.",
+      "back": "← Workshop",
+      "loadFailed": "Could not read the corporation hangars visibility.",
+      "cardTitle": "Divisions",
+      "divisionsCount": "{count} divisions",
+      "notReadable": "Not readable",
+      "empty": "No division read for this corporation.",
+      "division": "Division",
+      "divisionNumber": "Division {number}",
+      "visibleBy": "Visible by",
+      "unknown": "Unknown: no director connected",
+      "noDirector": "No director connected. Corporation assets, and so the containers of group projects, need the in-game Director role with the assets scope. The content of the corporation containers is unknown, never 0.",
+      "directorHint": "You are a director: you can change the visibility of each division.",
+      "readOnlyHint": "Only a director changes the visibility; you see this setting read-only."
+    },
     "skillGains": {
       "kicker": "Production · {name}",
       "title": "Skills",
@@ -1033,6 +1051,7 @@
         "participants": "{count} participants"
       },
       "header": {
+        "hangars": "Corp hangars",
         "blueprints": "Blueprints",
         "revenue": "Industry revenue",
         "newProject": "New project"

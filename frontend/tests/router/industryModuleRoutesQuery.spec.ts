@@ -30,6 +30,7 @@ describe('industry module routes, query and memory', () => {
     ['projects', 'industry-projects', '/industry/projects'],
     ['production', 'industry-production', '/industry/production'],
     ['workshop', 'industry', '/industry'],
+    ['corporation hangars', 'industry-hangars', '/industry/hangars'],
   ])('names the %s page and gives it its path', (_page, routeName, expectedPath) => {
     expect(router.resolve({ name: routeName }).path).toBe(expectedPath)
   })
@@ -59,6 +60,7 @@ describe('industry module routes, query and memory', () => {
     ['the workshop with a type', '/industry?typeId=587'],
     ['the analysis page', '/industry/analysis?tab=pivot&typeId=587'],
     ['the skills page', '/industry/skills'],
+    ['the corporation hangars page', '/industry/hangars'],
   ])('leaves %s where it is', async (_case, url) => {
     expect(await landingPathOf(url)).toBe(url)
   })
@@ -77,8 +79,9 @@ describe('industry module routes, query and memory', () => {
     expect(JSON.parse(localStorage.getItem(MODULE_LAST_PAGE_STORAGE_KEY) ?? 'null')).toEqual({ industry: '/industry/projects' })
   })
 
-  it('remembers nothing when the skills page or an invitation is opened', async () => {
+  it('remembers nothing when the skills page, the corporation hangars page or an invitation is opened', async () => {
     await router.push('/industry/skills')
+    await router.push('/industry/hangars')
     await router.push('/industry/join/AB12CD')
 
     expect(localStorage.getItem(MODULE_LAST_PAGE_STORAGE_KEY)).toBeNull()

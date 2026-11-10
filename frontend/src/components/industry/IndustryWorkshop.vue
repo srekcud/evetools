@@ -352,6 +352,14 @@ function productSubline(project: GroupProject): string | null {
       </button>
       <button
         type="button"
+        data-testid="workshop-link-hangars"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-400"
+        @click="router.push({ name: 'industry-hangars' })"
+      >
+        {{ t('industry.workshop.header.hangars') }}
+      </button>
+      <button
+        type="button"
         data-testid="workshop-link-blueprints"
         class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-400"
         @click="router.push({ path: '/industry/production', query: { tab: 'blueprints' } })"

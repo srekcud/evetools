@@ -209,6 +209,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/industry/hangars',
+      name: 'industry-hangars',
+      component: () => import('@/views/IndustryHangars.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/escalations',
       redirect: to => ({ path: PVE_ESCALATIONS_PATH, query: to.query }),
     },

@@ -896,6 +896,24 @@
         "unitsDay": "unites/jour"
       }
     },
+    "hangars": {
+      "kicker": "Production · {name}",
+      "title": "Hangars corpo",
+      "subtitle": "Qui voit quelle division des hangars de la corporation dans evetools.",
+      "back": "← Atelier",
+      "loadFailed": "Impossible de lire la visibilité des hangars corpo.",
+      "cardTitle": "Divisions",
+      "divisionsCount": "{count} divisions",
+      "notReadable": "Non lisible",
+      "empty": "Aucune division lue pour cette corporation.",
+      "division": "Division",
+      "divisionNumber": "Division {number}",
+      "visibleBy": "Visible par",
+      "unknown": "Inconnu : aucun directeur connecté",
+      "noDirector": "Aucun directeur connecté. Les assets corpo, et donc les containers des projets de groupe, demandent le rôle Director en jeu avec le scope assets. Le contenu des containers corpo est inconnu, jamais 0.",
+      "directorHint": "Vous êtes directeur : vous pouvez modifier la visibilité de chaque division.",
+      "readOnlyHint": "Seul un directeur modifie la visibilité ; vous voyez ce réglage en lecture."
+    },
     "skillGains": {
       "kicker": "Production · {name}",
       "title": "Compétences",
@@ -1033,6 +1051,7 @@
         "participants": "{count} participants"
       },
       "header": {
+        "hangars": "Hangars corpo",
         "blueprints": "Blueprints",
         "revenue": "Revenus Industrie",
         "newProject": "Nouveau projet"
