@@ -4,14 +4,17 @@ import { useI18n } from 'vue-i18n'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import UnknownValue from '@/components/common/UnknownValue.vue'
 import ProductionOpportunitiesCard from '@/components/industry/ProductionOpportunitiesCard.vue'
 import { useEveImages } from '@/composables/useEveImages'
+import { useFormatters } from '@/composables/useFormatters'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
-import type { GroupProject, GroupProjectStatus, ProjectNextActionCode } from '@/stores/group-industry/types'
+import type { GroupProject, GroupProjectStatus, ProjectNextActionCode, ProjectPhase } from '@/stores/group-industry/types'
 import { useIndustryStore } from '@/stores/industry'
 import { useIndustryActionsStore, type IndustryAction } from '@/stores/industry/actions'
 import { useSlotsStore } from '@/stores/industry/slots'
+import { useIndustryWorkshopProjectsStore, type WorkshopProject, type WorkshopProjectMember, type WorkshopProjectProfitStatus } from '@/stores/industry/workshopProjects'
 import { useStockpileStore } from '@/stores/industry/stockpile'
 import type { StockpileItemStatus } from '@/stores/industry/types'
 import { useSyncStore } from '@/stores/sync'
@@ -35,6 +38,13 @@ const LIFECYCLE_STEPS: Record<GroupProjectStatus, number> = {
   completed: 5,
 }
 const LIFECYCLE_SEGMENTS = [1, 2, 3, 4, 5]
+const MAX_AVATARS = 5
+const PROFIT_CAPTION_KEYS: Record<WorkshopProjectProfitStatus, string> = {
+  final: 'industry.workshop.profit.final',
+  provisional: 'industry.workshop.profit.provisional',
+  awaiting_sales: 'industry.workshop.profit.awaitingSales',
+  unknown: 'industry.workshop.profit.unknown',
+}
 const STATUS_CLASSES: Record<GroupProjectStatus, string> = {
   draft: 'bg-slate-700 text-slate-400 border-slate-600',
   published: 'bg-violet-500/15 text-violet-400 border-violet-500/20',
@@ -51,12 +61,14 @@ const industryStore = useIndustryStore()
 const stockpileStore = useStockpileStore()
 const groupProjectStore = useGroupProjectStore()
 const syncStore = useSyncStore()
-const { getTypeIconUrl, onImageError } = useEveImages()
+const workshopProjectsStore = useIndustryWorkshopProjectsStore()
+const { getTypeIconUrl, getCharacterPortraitUrl, onImageError } = useEveImages()
+const { formatIsk } = useFormatters()
 
 useIndustryJobsSync(() => slotsStore.fetchSlots())
 
 onMounted(() => {
-  void Promise.all([actionsStore.fetchActions(), slotsStore.fetchSlots(), groupProjectStore.fetchMyProjects(), stockpileStore.fetchStockpileStatus()])
+  void Promise.all([actionsStore.fetchActions(), slotsStore.fetchSlots(), groupProjectStore.fetchMyProjects(), stockpileStore.fetchStockpileStatus(), workshopProjectsStore.fetchWorkshopProjects()])
 })
 
 watch(() => syncStore.getSyncProgress('industry-project'), () => {
@@ -134,6 +146,11 @@ const upcomingJobs = computed(() =>
 
 const hasLoadedJobs = computed(() => slotsStore.data !== null)
 
+function formatEndTime(endDate: string): string {
+  const end = new Date(endDate)
+  return `${String(end.getHours()).padStart(MINUTES_PAD, '0')}:${String(end.getMinutes()).padStart(MINUTES_PAD, '0')}`
+}
+
 function formatTimeLeft(seconds: number): string {
   const hours = Math.floor(seconds / SECONDS_PER_HOUR)
   const minutes = Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE)
@@ -195,10 +212,120 @@ function extraProductCount(project: GroupProject): number {
 function statusLabel(status: GroupProjectStatus): string {
   return t(`groupIndustry.status.${status}`)
 }
+
+function workshopRowOf(project: GroupProject): WorkshopProject | null {
+  return workshopProjectsStore.rows.find(row => row.projectId === project.id) ?? null
+}
+
+function displayedPhase(project: GroupProject): ProjectPhase | null {
+  const phases = workshopRowOf(project)?.phases ?? []
+  return phases.find(phase => phase.state === 'current' || phase.state === 'blocked')
+    ?? phases.find(phase => phase.state === 'upcoming')
+    ?? null
+}
+
+function phaseLabel(project: GroupProject): string | null {
+  if (workshopRowOf(project) === null) return null
+  if (project.status === 'completed') return statusLabel('completed')
+  const phase = displayedPhase(project)
+  return phase === null ? statusLabel(project.status) : t(`groupIndustry.cockpit.phases.${phase.key}`)
+}
+
+function phaseCounter(project: GroupProject): string | null {
+  if (project.status === 'completed') return null
+  const phase = displayedPhase(project)
+  return phase === null ? null : `${phase.counter.done} / ${phase.counter.total}`
+}
+
+function blockedPhaseIndex(project: GroupProject): number {
+  if (project.status === 'completed') return -1
+  return (workshopRowOf(project)?.phases ?? []).findIndex(phase => phase.state === 'blocked')
+}
+
+function blockedReason(project: GroupProject): string | null {
+  const reason = workshopRowOf(project)?.phases.find(phase => phase.state === 'blocked')?.blockedReason
+  if (project.status === 'completed' || reason === null || reason === undefined) return null
+  return t(`groupIndustry.cockpit.blockedReasons.${reason.code}`, { count: reason.count })
+}
+
+function membersOf(project: GroupProject): WorkshopProjectMember[] {
+  return workshopRowOf(project)?.members ?? []
+}
+
+function visibleMembers(project: GroupProject): WorkshopProjectMember[] {
+  return membersOf(project).slice(0, MAX_AVATARS)
+}
+
+function hiddenMembersCount(project: GroupProject): number {
+  return Math.max(membersOf(project).length - MAX_AVATARS, 0)
+}
+
+function memberInitial(member: WorkshopProjectMember): string {
+  return member.characterName.charAt(0).toUpperCase()
+}
+
+function profitOf(project: GroupProject): WorkshopProject['profit'] | null {
+  const profit = workshopRowOf(project)?.profit ?? null
+  return profit === null || profit.amount === null ? null : profit
+}
+
+function profitCaption(project: GroupProject): string | null {
+  const status = workshopRowOf(project)?.profit.status
+  return status === undefined ? null : t(PROFIT_CAPTION_KEYS[status])
+}
+
+function signedIsk(amount: number): string {
+  return `${amount >= 0 ? '+' : ''}${formatIsk(amount)}`
+}
+
+function productSubline(project: GroupProject): string | null {
+  const [firstItem] = project.items
+  if (firstItem === undefined) return null
+  return t('industry.workshop.productSubline', {
+    me: firstItem.meLevel,
+    te: firstItem.teLevel,
+    team: isSolo(project) ? t('industry.workshop.team.solo') : t('industry.workshop.team.participants', { count: project.membersCount }),
+  })
+}
 </script>
 
 <template>
   <div class="space-y-6">
+    <nav :aria-label="t('industry.tabs.workshop')" class="flex flex-wrap items-center justify-end gap-2">
+      <button
+        type="button"
+        data-testid="workshop-link-skills"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-400"
+        @click="router.push({ name: 'industry-skills' })"
+      >
+        {{ t('industry.workshop.skillsLink') }}
+      </button>
+      <button
+        type="button"
+        data-testid="workshop-link-blueprints"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-400"
+        @click="router.push({ path: '/industry/production', query: { tab: 'blueprints' } })"
+      >
+        {{ t('industry.workshop.header.blueprints') }}
+      </button>
+      <button
+        type="button"
+        data-testid="workshop-link-revenue"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-400"
+        @click="router.push({ name: 'pve-revenue', query: { tab: 'industry' } })"
+      >
+        {{ t('industry.workshop.header.revenue') }}
+      </button>
+      <button
+        type="button"
+        data-testid="workshop-link-new-project"
+        class="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-medium text-white transition-all hover:-translate-y-px hover:bg-cyan-500"
+        @click="industryStore.navigationIntent = { target: 'projects', openCreateModal: true }"
+      >
+        {{ t('industry.workshop.header.newProject') }}
+      </button>
+    </nav>
+
     <section data-testid="workshop-action-queue" class="bg-slate-900 rounded-xl border border-slate-800">
       <header class="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-slate-800">
         <h2 class="font-display text-base font-bold uppercase tracking-[0.14em] text-slate-100">{{ t('industry.workshop.queue.title') }}</h2>
@@ -209,14 +336,6 @@ function statusLabel(status: GroupProjectStatus): string {
         >
           {{ t('industry.workshop.queue.count', { count: queueCount }) }}
         </span>
-        <div class="flex-1"></div>
-        <button
-          data-testid="workshop-skills-link"
-          class="px-3 py-1 rounded-lg text-xs font-medium border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-400"
-          @click="router.push({ name: 'industry-skills' })"
-        >
-          {{ t('industry.workshop.skillsLink') }}
-        </button>
       </header>
 
       <ErrorBanner
@@ -338,7 +457,8 @@ function statusLabel(status: GroupProjectStatus): string {
             <p class="truncate text-xs text-slate-500" :title="job.characterName">{{ job.characterName }}</p>
           </div>
           <span class="shrink-0 font-mono text-sm text-cyan-400" style="font-variant-numeric: tabular-nums;">
-            {{ t('industry.workshop.jobs.endsIn', { duration: formatTimeLeft(job.timeLeftSeconds) }) }}
+            <span data-testid="workshop-job-end-time">{{ formatEndTime(job.endDate) }}</span>
+            · {{ t('industry.workshop.jobs.endsIn', { duration: formatTimeLeft(job.timeLeftSeconds) }) }}
           </span>
         </li>
       </ul>
@@ -365,6 +485,13 @@ function statusLabel(status: GroupProjectStatus): string {
           </button>
         </div>
       </header>
+
+      <ErrorBanner
+        v-if="workshopProjectsStore.error !== null"
+        data-testid="workshop-rows-error"
+        :message="workshopProjectsStore.error"
+        class="m-4"
+      />
 
       <ErrorBanner
         v-if="groupProjectStore.error"
@@ -400,7 +527,7 @@ function statusLabel(status: GroupProjectStatus): string {
             tabindex="0"
             data-testid="workshop-project-row"
             :aria-selected="selectedProject !== null && selectedProject.id === project.id"
-            class="grid cursor-pointer gap-2 px-4 py-3 transition-colors hover:bg-slate-800/50 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1fr)] sm:items-center sm:gap-4"
+            class="grid cursor-pointer gap-2 px-4 py-3 transition-colors hover:bg-slate-800/50 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,0.9fr)] sm:items-center sm:gap-4"
             :class="selectedProject !== null && selectedProject.id === project.id ? 'bg-cyan-500/5 border-l-2 border-cyan-400' : 'border-l-2 border-transparent'"
             @mouseenter="pickedProjectId = project.id"
             @focus="pickedProjectId = project.id"
@@ -426,6 +553,14 @@ function statusLabel(status: GroupProjectStatus): string {
                 <p v-if="project.items.length > 0" class="truncate text-xs text-slate-500" :title="projectLabel(project.name)">
                   {{ projectLabel(project.name) }}
                 </p>
+                <p
+                  v-if="productSubline(project) !== null"
+                  data-testid="workshop-product-subline"
+                  class="truncate text-xs text-slate-500"
+                  :title="productSubline(project) ?? undefined"
+                >
+                  {{ productSubline(project) }}
+                </p>
               </div>
             </div>
 
@@ -447,20 +582,96 @@ function statusLabel(status: GroupProjectStatus): string {
               <span v-if="project.myRole !== null" class="truncate text-xs text-slate-500">
                 {{ t(`groupIndustry.members.roles.${project.myRole}`) }}
               </span>
+              <div v-if="membersOf(project).length > 0" class="flex w-full items-center -space-x-1.5">
+                <span
+                  v-for="member in visibleMembers(project)"
+                  :key="`${member.characterName}-${member.characterId}`"
+                  data-testid="workshop-member-avatar"
+                  :title="member.characterName"
+                  class="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-900 bg-slate-700 text-xs font-bold text-slate-200"
+                >
+                  <img
+                    v-if="member.characterId !== null"
+                    :src="getCharacterPortraitUrl(member.characterId, 32)"
+                    alt=""
+                    class="h-full w-full object-cover"
+                    @error="onImageError"
+                  />
+                  <template v-else>{{ memberInitial(member) }}</template>
+                </span>
+                <span
+                  v-if="hiddenMembersCount(project) > 0"
+                  data-testid="workshop-member-overflow"
+                  class="pl-2 font-mono text-xs text-slate-400"
+                >
+                  +{{ hiddenMembersCount(project) }}
+                </span>
+              </div>
             </div>
 
-            <div class="flex min-w-0 items-center gap-2">
-              <div class="flex gap-0.5" aria-hidden="true">
+            <div class="min-w-0">
+              <div class="flex min-w-0 flex-wrap items-center gap-x-2">
                 <span
-                  v-for="segment in LIFECYCLE_SEGMENTS"
+                  v-if="phaseLabel(project) !== null"
+                  data-testid="workshop-phase-label"
+                  class="truncate text-xs"
+                  :class="blockedPhaseIndex(project) >= 0 ? 'text-amber-400' : 'text-slate-300'"
+                >{{ phaseLabel(project) }}</span>
+                <span v-else class="truncate text-xs text-slate-400">{{ statusLabel(project.status) }}</span>
+                <span
+                  v-if="phaseCounter(project) !== null"
+                  data-testid="workshop-phase-counter"
+                  class="font-mono text-xs text-slate-400"
+                >{{ phaseCounter(project) }}</span>
+              </div>
+              <div class="mt-1 flex gap-0.5" aria-hidden="true">
+                <span
+                  v-for="(segment, segmentIndex) in LIFECYCLE_SEGMENTS"
                   :key="segment"
+                  :data-testid="segmentIndex === blockedPhaseIndex(project) ? 'workshop-phase-blocked-segment' : undefined"
                   class="h-1.5 w-4 rounded-sm"
-                  :class="segment <= LIFECYCLE_STEPS[project.status]
-                    ? (project.status === 'completed' ? 'bg-emerald-500/70' : 'bg-cyan-500/70')
-                    : 'bg-slate-700'"
+                  :class="segmentIndex === blockedPhaseIndex(project)
+                    ? 'bg-amber-500/80'
+                    : segment <= LIFECYCLE_STEPS[project.status]
+                      ? (project.status === 'completed' ? 'bg-emerald-500/70' : 'bg-cyan-500/70')
+                      : 'bg-slate-700'"
                 ></span>
               </div>
-              <span class="truncate text-xs text-slate-400">{{ statusLabel(project.status) }}</span>
+              <p
+                v-if="blockedReason(project) !== null"
+                data-testid="workshop-phase-blocked-reason"
+                class="mt-1 truncate text-xs text-amber-400"
+                :title="blockedReason(project) ?? undefined"
+              >
+                {{ blockedReason(project) }}
+              </p>
+            </div>
+
+            <div class="min-w-0 sm:text-right">
+              <p
+                v-if="profitOf(project) !== null"
+                data-testid="workshop-profit"
+                class="font-mono text-sm"
+                :class="(profitOf(project)?.amount ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                style="font-variant-numeric: tabular-nums;"
+              >
+                {{ signedIsk(profitOf(project)?.amount ?? 0) }}
+              </p>
+              <p
+                v-else
+                data-testid="workshop-profit-unknown"
+                class="text-sm text-violet-400"
+              >
+                <UnknownValue />
+              </p>
+              <p
+                v-if="profitCaption(project) !== null"
+                data-testid="workshop-profit-caption"
+                class="truncate text-xs text-slate-500"
+                :title="profitCaption(project) ?? undefined"
+              >
+                {{ profitCaption(project) }}
+              </p>
             </div>
           </li>
         </ul>
@@ -478,6 +689,17 @@ function statusLabel(status: GroupProjectStatus): string {
               {{ statusLabel(selectedProject.status) }}
             </span>
           </div>
+
+          <ul v-if="membersOf(selectedProject).length > 0" class="space-y-1">
+            <li
+              v-for="member in membersOf(selectedProject)"
+              :key="`${member.characterName}-${member.characterId}`"
+              class="flex items-center justify-between gap-2 text-sm"
+            >
+              <span class="truncate text-slate-200" :title="member.characterName">{{ member.characterName }}</span>
+              <span class="shrink-0 text-xs text-slate-500">{{ t(`groupIndustry.members.roles.${member.role}`) }}</span>
+            </li>
+          </ul>
 
           <p v-if="actionsStore.error !== null" class="text-sm text-slate-500">
             {{ t('industry.workshop.projects.actionUnavailable') }}

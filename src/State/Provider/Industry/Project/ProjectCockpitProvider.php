@@ -10,7 +10,7 @@ use App\ApiResource\Industry\Project\ProjectCockpitResource;
 use App\Entity\IndustryProject;
 use App\Entity\User;
 use App\Repository\IndustryProjectRepository;
-use App\Service\Industry\Project\CockpitPhase;
+use App\Service\Industry\Project\CockpitPhasePresenter;
 use App\Service\Industry\Project\ProjectCockpit;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\Service\UuidOrNotFound;
@@ -62,17 +62,7 @@ class ProjectCockpitProvider implements ProviderInterface
         $resource = new ProjectCockpitResource();
         $resource->projectId = $project->getId()->toRfc4122();
         $resource->status = $cockpit->status->value;
-        $resource->phases = array_map(
-            static fn (CockpitPhase $phase): array => [
-                'key' => $phase->key,
-                'state' => $phase->state,
-                'counter' => ['done' => $phase->counterDone, 'total' => $phase->counterTotal],
-                'blockedReason' => $phase->blockedReason === null
-                    ? null
-                    : ['code' => $phase->blockedReason->code, 'count' => $phase->blockedReason->count],
-            ],
-            $cockpit->phases,
-        );
+        $resource->phases = CockpitPhasePresenter::of($cockpit->phases);
         $resource->nextAction = [
             'code' => $cockpit->nextAction->code,
             'blocked' => $cockpit->nextAction->blocked,
