@@ -51,6 +51,7 @@ framework:
             App\Message\TakeMiningLedgerSnapshot: async
             App\Message\TriggerMiningOperationRecurrences: async
             App\Message\CheckMoonChunkAlerts: async
+            App\Message\CheckMiningSiteDepletionAlerts: async
             App\Message\CreateRecurringMiningOperations: async
 
 when@test:

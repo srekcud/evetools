@@ -7,6 +7,7 @@ namespace App\Service\MiningOperation;
 use App\Entity\MiningOperation;
 use App\Entity\MiningOperationMember;
 use App\Entity\MiningPayment;
+use App\Entity\MiningSite;
 use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\MiningLedgerSnapshotKind;
@@ -21,6 +22,9 @@ final readonly class MiningOperationNotifier
     private const string SHARES_COMPUTED_TITLE = 'Mining shares computed';
     private const string PAYMENT_RECEIVED_TITLE = 'Payment received';
     private const string JOIN_REQUEST_TITLE = 'Mining operation join request';
+    private const string SITE_DEPLETING_TITLE = 'Mining site almost depleted';
+    private const string SITE_BEYOND_DOWNTIME_TITLE = 'Mining site not emptied before downtime';
+    private const string EVE_CLOCK_FORMAT = 'H:i';
     private const string ROUTE_TEMPLATE = '/mining/operations/%s';
 
     public function __construct(private NotificationDispatcher $dispatcher)
@@ -125,6 +129,48 @@ final readonly class MiningOperationNotifier
         }
     }
 
+    public function siteNearlyDepleted(MiningOperation $operation, MiningSite $site, \DateTimeImmutable $eta): void
+    {
+        $message = sprintf(
+            'The site "%s" of "%s" is about to be depleted: its depletion is estimated at %s EVE time.',
+            $site->getLabel(),
+            $operation->getLabel(),
+            $this->eveClockOf($eta),
+        );
+
+        foreach ($operation->participantUsers() as $user) {
+            $this->notify($user, $operation, Notification::LEVEL_WARNING, self::SITE_DEPLETING_TITLE, $message, $this->siteData($site, 'depletion'));
+        }
+    }
+
+    public function siteBeyondDowntime(MiningOperation $operation, MiningSite $site, \DateTimeImmutable $eta, \DateTimeImmutable $downtime): void
+    {
+        $message = sprintf(
+            'The site "%s" of "%s" will not be emptied before the downtime at %s EVE time: its depletion is estimated at %s.',
+            $site->getLabel(),
+            $operation->getLabel(),
+            $this->eveClockOf($downtime),
+            $this->eveClockOf($eta),
+        );
+
+        foreach ($operation->participantUsers() as $user) {
+            $this->notify($user, $operation, Notification::LEVEL_WARNING, self::SITE_BEYOND_DOWNTIME_TITLE, $message, $this->siteData($site, 'downtime'));
+        }
+    }
+
+    /**
+     * @return array{siteId: string, kind: string}
+     */
+    private function siteData(MiningSite $site, string $kind): array
+    {
+        return ['siteId' => PersistedUuid::of($site->getId()), 'kind' => $kind];
+    }
+
+    private function eveClockOf(\DateTimeImmutable $instant): string
+    {
+        return $instant->setTimezone(new \DateTimeZone('UTC'))->format(self::EVE_CLOCK_FORMAT);
+    }
+
     /**
      * @return list<User>
      */
@@ -161,7 +207,10 @@ final readonly class MiningOperationNotifier
         return number_format(round($amount), 0, '.', ' ') . ' ISK';
     }
 
-    private function notify(User $user, MiningOperation $operation, string $level, string $title, string $message): void
+    /**
+     * @param array<string, string> $extraData
+     */
+    private function notify(User $user, MiningOperation $operation, string $level, string $title, string $message, array $extraData = []): void
     {
         $operationId = PersistedUuid::of($operation->getId());
 
@@ -171,7 +220,7 @@ final readonly class MiningOperationNotifier
             $level,
             $title,
             $message,
-            ['operationId' => $operationId],
+            ['operationId' => $operationId, ...$extraData],
             sprintf(self::ROUTE_TEMPLATE, $operationId),
         );
     }

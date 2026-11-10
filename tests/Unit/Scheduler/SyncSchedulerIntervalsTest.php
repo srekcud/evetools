@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Scheduler;
 
 use App\Message\CheckAlertPrices;
 use App\Message\CheckCourierContracts;
+use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\PurgeExpiredSharedLists;
 use App\Message\PurgeOldMarketHistory;
@@ -78,6 +79,7 @@ class SyncSchedulerIntervalsTest extends TestCase
     private const UNTRACKED_RECURRING_MESSAGES = [
         TriggerMiningOperationRecurrences::class,
         CheckMoonChunkAlerts::class,
+        CheckMiningSiteDepletionAlerts::class,
     ];
 
     private const FIVE_MINUTES_IN_SECONDS = 300;
@@ -152,6 +154,15 @@ class SyncSchedulerIntervalsTest extends TestCase
         $this->assertSame(
             self::FIVE_MINUTES_IN_SECONDS,
             $this->scheduledIntervalsByMessageClass()[CheckMoonChunkAlerts::class] ?? null,
+        );
+    }
+
+    #[Group('issue-271')]
+    public function testMiningSiteDepletionAlertsAreCheckedEveryFiveMinutes(): void
+    {
+        $this->assertSame(
+            self::FIVE_MINUTES_IN_SECONDS,
+            $this->scheduledIntervalsByMessageClass()[CheckMiningSiteDepletionAlerts::class] ?? null,
         );
     }
 
