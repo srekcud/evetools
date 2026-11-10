@@ -19,19 +19,24 @@ const REFRESH_ENDPOINT = '/industry/blueprints/refresh'
 
 const DRAKE_BPO: BlueprintLibraryEntry = {
   typeId: 1, name: 'Drake Blueprint', kind: 'bpo', me: 10, te: 20, runs: null,
-  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1, usedByRunningJob: false,
 }
 const RIFTER_BPO_STACK: BlueprintLibraryEntry = {
   typeId: 2, name: 'Rifter Blueprint', kind: 'bpo', me: 0, te: 0, runs: null,
-  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 3,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 3, usedByRunningJob: false,
 }
 const HAMMERHEAD_BPC: BlueprintLibraryEntry = {
   typeId: 3, name: 'Hammerhead II Blueprint', kind: 'bpc', me: 2, te: 4, runs: 50,
-  scope: 'corporation', ownerName: 'Stellar Corp', locationId: 1042000000001, divisionNumber: 3, count: 1,
+  scope: 'corporation', ownerName: 'Stellar Corp', locationId: 1042000000001, divisionNumber: 3, count: 1, usedByRunningJob: false,
 }
 const UNNAMED_BPO: BlueprintLibraryEntry = {
   typeId: 99, name: 'unknown_type', kind: 'bpo', me: 1, te: 2, runs: null,
-  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1, usedByRunningJob: false,
+}
+
+const VEXOR_BPC_IN_JOB: BlueprintLibraryEntry = {
+  typeId: 4, name: 'Vexor Blueprint', kind: 'bpc', me: 6, te: 12, runs: 25,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1, usedByRunningJob: true,
 }
 
 function libraryOf(corporationState: BlueprintLibrary['corporationState'], blueprints: BlueprintLibraryEntry[]): BlueprintLibrary {
@@ -92,6 +97,25 @@ enableAutoUnmount(afterEach)
 
 beforeEach(() => {
   vi.mocked(apiRequest).mockReset()
+})
+
+const IN_USE_BADGE = '[data-testid="blueprint-in-use"]'
+
+describe('BlueprintLibraryTab blueprint held by a job in progress (issue 411)', () => {
+  it('flags only the row of a blueprint used by a job in progress', async () => {
+    const wrapper = await mountTab([libraryOf('known', [DRAKE_BPO, VEXOR_BPC_IN_JOB])])
+
+    const rows = wrapper.findAll(ROWS)
+    expect(rows[0].find(IN_USE_BADGE).exists()).toBe(false)
+    expect(rows[1].find(IN_USE_BADGE).exists()).toBe(true)
+    expect(rows[1].text()).toContain(expectedMessage('en', 'industry.blueprints.inUse'))
+  })
+
+  it('shows the in-use flag in French', async () => {
+    const wrapper = await mountTab([libraryOf('known', [VEXOR_BPC_IN_JOB])], 'fr')
+
+    expect(wrapper.find(IN_USE_BADGE).text()).toBe(expectedMessage('fr', 'industry.blueprints.inUse'))
+  })
 })
 
 describe('BlueprintLibraryTab rows (issue 409)', () => {

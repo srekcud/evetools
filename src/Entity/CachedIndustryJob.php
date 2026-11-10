@@ -14,6 +14,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\UniqueConstraint(columns: ['job_id'])]
 #[ORM\Index(columns: ['character_id'])]
 #[ORM\Index(columns: ['blueprint_type_id'])]
+#[ORM\Index(columns: ['blueprint_id'])]
 #[ORM\Index(columns: ['product_type_id'])]
 #[ORM\Index(columns: ['status'])]
 class CachedIndustryJob
@@ -45,6 +46,9 @@ class CachedIndustryJob
 
     #[ORM\Column(type: 'integer')]
     private int $blueprintTypeId;
+
+    #[ORM\Column(type: 'bigint', nullable: true)]
+    private ?int $blueprintId = null;
 
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $productTypeId = null;
@@ -133,6 +137,17 @@ class CachedIndustryJob
     public function setBlueprintTypeId(int $blueprintTypeId): static
     {
         $this->blueprintTypeId = $blueprintTypeId;
+        return $this;
+    }
+
+    public function getBlueprintId(): ?int
+    {
+        return $this->blueprintId;
+    }
+
+    public function setBlueprintId(?int $blueprintId): static
+    {
+        $this->blueprintId = $blueprintId;
         return $this;
     }
 

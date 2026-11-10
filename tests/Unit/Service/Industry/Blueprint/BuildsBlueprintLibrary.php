@@ -9,6 +9,7 @@ use App\Entity\CorpAssetVisibility;
 use App\Entity\EveToken;
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
+use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
 use Symfony\Component\Uid\Uuid;
@@ -129,6 +130,17 @@ trait BuildsBlueprintLibrary
                 $blueprints,
                 static fn (OwnedBlueprint $blueprint): bool => $blueprint->getCorporationId() === $corporationId,
             )),
+        );
+
+        return $repository;
+    }
+
+    /** @param list<int> $itemIdsWithJobInProgress */
+    private function jobsInProgressOn(array $itemIdsWithJobInProgress): CachedIndustryJobRepository
+    {
+        $repository = $this->createStub(CachedIndustryJobRepository::class);
+        $repository->method('findBlueprintItemIdsInProgress')->willReturnCallback(
+            static fn (array $itemIds): array => array_values(array_intersect($itemIds, $itemIdsWithJobInProgress)),
         );
 
         return $repository;

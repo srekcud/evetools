@@ -180,6 +180,11 @@ onMounted(() => {
                     <img :src="getTypeIconUrl(entry.typeId)" alt="" class="w-6 h-6 rounded-sm" @error="onImageError" />
                     <span class="truncate text-slate-200">{{ nameOf(entry) }}</span>
                     <span v-if="entry.count > 1" class="text-xs text-slate-500">×{{ entry.count }}</span>
+                    <span
+                      v-if="entry.usedByRunningJob"
+                      data-testid="blueprint-in-use"
+                      class="shrink-0 px-2 py-0.5 rounded-sm text-xs border bg-amber-500/10 text-amber-400 border-amber-500/20"
+                    >{{ t('industry.blueprints.inUse') }}</span>
                   </div>
                 </td>
                 <td class="px-4 py-2">

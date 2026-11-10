@@ -36,6 +36,33 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         $this->character = $this->createCharacter();
     }
 
+    #[Group('issue-411')]
+    public function testBlueprintItemsInProgressAreThoseOfActivePausedAndReadyJobsAmongTheRequestedItems(): void
+    {
+        $this->createJob(status: 'active', blueprintId: 7_001);
+        $this->createJob(status: 'paused', blueprintId: 7_002);
+        $this->createJob(status: 'ready', blueprintId: 7_003);
+        $this->createJob(status: 'delivered', blueprintId: 7_004);
+        $this->createJob(status: 'cancelled', blueprintId: 7_005);
+        $this->createJob(status: 'active', blueprintId: 7_006);
+        $this->createJob(status: 'active');
+        $this->flushAndClear();
+
+        $inProgress = $this->repository->findBlueprintItemIdsInProgress([7_001, 7_002, 7_003, 7_004, 7_005, 7_007]);
+        sort($inProgress);
+
+        self::assertSame([7_001, 7_002, 7_003], $inProgress);
+    }
+
+    #[Group('issue-411')]
+    public function testNoBlueprintItemIsInProgressWhenNoItemIsRequested(): void
+    {
+        $this->createJob(status: 'active', blueprintId: 7_001);
+        $this->flushAndClear();
+
+        self::assertSame([], $this->repository->findBlueprintItemIdsInProgress([]));
+    }
+
     public function testReturnsMatchingJobsOrderedByStartDateAscending(): void
     {
         $this->createJob(startDate: '2026-03-03', runs: 3);
@@ -288,6 +315,7 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
         ?Character $character = null,
         ?int $jobId = null,
         float $cost = 1_000.0,
+        ?int $blueprintId = null,
     ): void {
         $start = new \DateTimeImmutable($startDate);
 
@@ -296,6 +324,7 @@ final class CachedIndustryJobRepositoryTest extends IntegrationTestCase
             ->setJobId($jobId ?? $this->nextJobId++)
             ->setActivityId($activityId)
             ->setBlueprintTypeId($blueprintTypeId)
+            ->setBlueprintId($blueprintId)
             ->setProductTypeId($blueprintTypeId + 1)
             ->setRuns($runs)
             ->setCost($cost)

@@ -67,6 +67,29 @@ class CachedIndustryJobRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @param list<int> $blueprintItemIds
+     *
+     * @return list<int>
+     */
+    public function findBlueprintItemIdsInProgress(array $blueprintItemIds): array
+    {
+        if ($blueprintItemIds === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('j')
+            ->select('DISTINCT j.blueprintId')
+            ->where('j.blueprintId IN (:blueprintItemIds)')
+            ->andWhere('j.status IN (:statuses)')
+            ->setParameter('blueprintItemIds', $blueprintItemIds)
+            ->setParameter('statuses', [CachedIndustryJob::STATUS_ACTIVE, CachedIndustryJob::STATUS_PAUSED, CachedIndustryJob::STATUS_READY])
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(intval(...), $rows));
+    }
+
     public function claimCompletionNotification(int $jobId, \DateTimeImmutable $claimedAt): bool
     {
         return $this->createQueryBuilder('j')

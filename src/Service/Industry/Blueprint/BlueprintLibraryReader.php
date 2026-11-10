@@ -7,6 +7,7 @@ namespace App\Service\Industry\Blueprint;
 use App\Entity\Character;
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
+use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
@@ -31,6 +32,7 @@ class BlueprintLibraryReader
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
         private readonly CharacterRepository $characterRepository,
         private readonly TypeNameResolver $typeNameResolver,
+        private readonly CachedIndustryJobRepository $jobRepository,
     ) {
     }
 
@@ -48,8 +50,13 @@ class BlueprintLibraryReader
             $blueprints,
         ))));
 
+        $itemIdsInProgress = array_flip($this->jobRepository->findBlueprintItemIdsInProgress(array_map(
+            static fn (OwnedBlueprint $blueprint): int => $blueprint->getItemId(),
+            $blueprints,
+        )));
+
         $rows = array_map(
-            fn (OwnedBlueprint $blueprint): BlueprintLibraryRow => $this->rowOf($blueprint, $names, $main),
+            fn (OwnedBlueprint $blueprint): BlueprintLibraryRow => $this->rowOf($blueprint, $names, $main, isset($itemIdsInProgress[$blueprint->getItemId()])),
             $blueprints,
         );
         usort($rows, self::compareRows(...));
@@ -79,7 +86,7 @@ class BlueprintLibraryReader
     }
 
     /** @param array<int, string> $names */
-    private function rowOf(OwnedBlueprint $blueprint, array $names, Character $main): BlueprintLibraryRow
+    private function rowOf(OwnedBlueprint $blueprint, array $names, Character $main, bool $usedByRunningJob): BlueprintLibraryRow
     {
         $character = $blueprint->getCharacter();
         $isOriginal = $blueprint->isOriginal();
@@ -96,6 +103,7 @@ class BlueprintLibraryReader
             $blueprint->getLocationId(),
             $blueprint->getDivisionNumber(),
             $isOriginal && $blueprint->getQuantity() > 0 ? $blueprint->getQuantity() : 1,
+            $usedByRunningJob,
         );
     }
 

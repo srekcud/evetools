@@ -18,6 +18,7 @@ final readonly class BlueprintLibraryRow
         public int $locationId,
         public ?int $divisionNumber,
         public int $count,
+        public bool $usedByRunningJob,
     ) {
     }
 }
