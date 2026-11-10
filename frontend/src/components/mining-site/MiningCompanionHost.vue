@@ -3,6 +3,7 @@ import { useEventListener } from '@vueuse/core'
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import MiningCompanionNextSite from '@/components/mining-site/MiningCompanionNextSite.vue'
 import MiningCompanionPanel from '@/components/mining-site/MiningCompanionPanel.vue'
 import MiningCompanionSettings from '@/components/mining-site/MiningCompanionSettings.vue'
 import { useMiningSiteFormat } from '@/composables/useMiningSiteFormat'
@@ -10,12 +11,13 @@ import { useMiningSiteOreTypes } from '@/composables/useMiningSiteOreTypes'
 import { useToast } from '@/composables/useToast'
 import { useMiningCompanionStore, type CompanionTarget } from '@/stores/miningCompanion'
 import { useMiningOperationStore, type MiningOperation } from '@/stores/miningOperation'
-import { useMiningSiteStore, type MiningSiteScan } from '@/stores/miningSite'
+import { useMiningSiteStore, type MiningSite, type MiningSiteScan, type MiningSiteScanLine } from '@/stores/miningSite'
 import { useSyncStore } from '@/stores/sync'
 import {
   COMPANION_TEXT_SCALES,
   companionShortcutOf,
   companionSizeOfShortcut,
+  fingerprintOf,
   isTextEntryTarget,
   latestActiveSiteOf,
 } from '@/views/MiningSite/miningCompanion'
@@ -33,8 +35,22 @@ interface CompanionOperation {
   myDepartedAt: string | null
 }
 
+type PasteOutcome =
+  | { kind: 'lines'; lines: MiningSiteScanLine[] }
+  | { kind: 'not-a-scan'; message: string }
+  | { kind: 'unavailable'; message: string }
+
+interface DepletionObservation {
+  site: MiningSite
+  scanNumber: number
+  depleted: boolean
+}
+
 const CLOCK_TICK_MS = 1000
 const SITE_SCAN_RECORDED_ACTION = 'site_scan_recorded'
+const SITE_NEXT_STARTED_ACTION = 'site_next_started'
+const NOTIFICATION_GRANTED = 'granted'
+const NOTIFICATION_DENIED = 'denied'
 const PERCENT_DIVISOR = 100
 const BACKGROUND_RGB = '2 6 23'
 
@@ -56,11 +72,21 @@ const message = ref<string | null>(null)
 const failure = ref<string | null>(null)
 const resolvedSiteId = ref<string | null>(null)
 const operation = ref<CompanionOperation | null>(null)
+const nextSiteOpen = ref(false)
+const nextSiteSubmitting = ref(false)
+const nextSiteFailure = ref<string | null>(null)
+const settingsRevision = ref(0)
 const mountPoint = shallowRef<HTMLElement | null>(null)
+const observedDepletion = new Map<string, boolean>()
+const notifiedDepletions = new Set<string>()
 let clockTimer: ReturnType<typeof setInterval> | null = null
 let loadCounter = 0
+let lastRecordedFingerprint: number | null = null
+let clipboardDeniedShown = false
+let readingClipboardOnFocus = false
 
 const companionDocument = computed(() => companion.companionWindow?.document ?? null)
+const companionWindowTarget = computed(() => companion.companionWindow)
 const targetKey = computed(() => (companion.target === null ? null : `${companion.target.siteId}|${companion.target.operationId}`))
 const eventOperationId = computed(() => companion.target?.operationId ?? siteStore.companionSite?.operationId ?? null)
 const operationEvent = computed(() => (eventOperationId.value === null ? null : syncStore.getMiningOperationEvent(eventOperationId.value)))
@@ -74,23 +100,38 @@ const typeNames = computed<Record<number, string>>(() => {
   return Object.fromEntries(typeIds.map(typeId => [typeId, oreTypes.nameOf(typeId)]))
 })
 
+const depletionObservation = computed<DepletionObservation | null>(() => {
+  const site = siteStore.companionSite
+  const scans = siteStore.companionScans
+  if (site === null || site.status !== 'active' || scans.length === 0) return null
+  const lastScan = scans.reduce((latest, scan) => (scan.number > latest.number ? scan : latest))
+  return { site, scanNumber: lastScan.number, depleted: isEverythingDepleted(lastScan) }
+})
+
+function failureText(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause)
+}
+
 function operationOf(source: MiningOperation | null, operationId: string): CompanionOperation | null {
   return source !== null && source.id === operationId ? { id: source.id, status: source.status, myDepartedAt: source.myDepartedAt } : null
 }
 
 async function loadOperation(operationId: string): Promise<void> {
-  await operationStore.fetchDetail(operationId)
-  operation.value = operationOf(operationStore.currentOperation, operationId)
-  if (operation.value === null) failure.value = operationStore.error
+  try {
+    operation.value = operationOf(await operationStore.readOperation(operationId), operationId)
+  } catch (cause) {
+    operation.value = null
+    failure.value = failureText(cause)
+  }
 }
 
 async function resolveActiveSiteId(operationId: string): Promise<string | null> {
-  await siteStore.fetchOperationSites(operationId)
-  if (siteStore.error !== null) {
-    failure.value = siteStore.error
+  try {
+    return latestActiveSiteOf(await siteStore.readOperationSites(operationId))?.id ?? null
+  } catch (cause) {
+    failure.value = failureText(cause)
     return null
   }
-  return latestActiveSiteOf(siteStore.operationSites)?.id ?? null
 }
 
 async function reloadSite(siteId: string): Promise<void> {
@@ -119,6 +160,13 @@ function resetData(): void {
   message.value = null
   failure.value = null
   settingsOpen.value = false
+  nextSiteOpen.value = false
+  nextSiteSubmitting.value = false
+  nextSiteFailure.value = null
+  observedDepletion.clear()
+  notifiedDepletions.clear()
+  lastRecordedFingerprint = null
+  clipboardDeniedShown = false
   siteStore.clearCompanion()
 }
 
@@ -130,6 +178,30 @@ function trendEtaAfter(scan: MiningSiteScan): string {
   return isEverythingDepleted(scan) ? t('miningSite.eta.depleted') : etaText(scan.trendEta)
 }
 
+async function interpretPastedText(text: string): Promise<PasteOutcome> {
+  if (text.trim() === '') return { kind: 'not-a-scan', message: t('miningSite.scan.errors.noLines') }
+  if (oreTypes.rows.value.length === 0) await oreTypes.load()
+  if (oreTypes.rows.value.length === 0) return { kind: 'unavailable', message: oreTypes.error.value ?? t('miningCompanion.errors.oreTypesUnavailable') }
+  const result = parseSurveyPaste(text, oreTypes.rows.value.map(row => ({ typeId: row.typeId, typeName: row.typeName, volume: row.volume })))
+  if (result.issues.length > 0 || result.lines.length === 0) {
+    return { kind: 'not-a-scan', message: result.issues.length === 0 ? t('miningSite.scan.errors.noLines') : result.issues.map(issueText).join(' ') }
+  }
+  return { kind: 'lines', lines: result.lines }
+}
+
+async function recordLines(siteId: string, site: MiningSite, lines: MiningSiteScanLine[], text: string): Promise<void> {
+  const trendEtaBefore = etaText(site.trendEta)
+  try {
+    const recorded = await siteStore.recordScan(siteId, lines)
+    lastRecordedFingerprint = fingerprintOf(text)
+    message.value = t('miningSite.scan.added', { number: recorded.number, from: trendEtaBefore, to: trendEtaAfter(recorded) })
+  } catch (cause) {
+    message.value = failureText(cause)
+    return
+  }
+  await reloadSite(siteId)
+}
+
 async function recordPastedText(text: string): Promise<void> {
   message.value = null
   const siteId = resolvedSiteId.value
@@ -138,42 +210,129 @@ async function recordPastedText(text: string): Promise<void> {
     message.value = t('miningCompanion.errors.noActiveSite')
     return
   }
-  if (text.trim() === '') {
-    message.value = t('miningSite.scan.errors.noLines')
+  const outcome = await interpretPastedText(text)
+  if (outcome.kind !== 'lines') {
+    message.value = outcome.message
     return
   }
-  if (oreTypes.rows.value.length === 0) await oreTypes.load()
-  if (oreTypes.rows.value.length === 0) {
-    message.value = oreTypes.error.value ?? t('miningCompanion.errors.oreTypesUnavailable')
-    return
-  }
-  const result = parseSurveyPaste(text, oreTypes.rows.value.map(row => ({ typeId: row.typeId, typeName: row.typeName, volume: row.volume })))
-  if (result.issues.length > 0 || result.lines.length === 0) {
-    message.value = result.issues.length === 0 ? t('miningSite.scan.errors.noLines') : result.issues.map(issueText).join(' ')
-    return
-  }
-  const trendEtaBefore = etaText(site.trendEta)
+  await recordLines(siteId, site, outcome.lines, text)
+}
+
+async function readClipboardOf(opened: Window): Promise<string | null> {
   try {
-    const recorded = await siteStore.recordScan(siteId, result.lines)
-    message.value = t('miningSite.scan.added', { number: recorded.number, from: trendEtaBefore, to: trendEtaAfter(recorded) })
-  } catch (cause) {
-    message.value = cause instanceof Error ? cause.message : String(cause)
-    return
+    return await opened.navigator.clipboard.readText()
+  } catch {
+    return null
   }
-  await reloadSite(siteId)
 }
 
 async function pasteFromClipboard(): Promise<void> {
   const opened = companion.companionWindow
   if (opened === null) return
-  let text: string
-  try {
-    text = await opened.navigator.clipboard.readText()
-  } catch {
+  const text = await readClipboardOf(opened)
+  if (text === null) {
     message.value = t('miningCompanion.notices.clipboardDenied')
     return
   }
   await recordPastedText(text)
+}
+
+async function recordClipboardOnFocus(): Promise<void> {
+  const opened = companion.companionWindow
+  const siteId = resolvedSiteId.value
+  const site = siteStore.companionSite
+  if (!companion.settings.clipboardOnFocus || readingClipboardOnFocus || !loaded.value) return
+  if (opened === null || siteId === null || site === null || site.status !== 'active') return
+  readingClipboardOnFocus = true
+  try {
+    const text = await readClipboardOf(opened)
+    if (text === null) {
+      if (!clipboardDeniedShown) message.value = t('miningCompanion.notices.clipboardDenied')
+      clipboardDeniedShown = true
+      return
+    }
+    if (fingerprintOf(text) === lastRecordedFingerprint) return
+    const outcome = await interpretPastedText(text)
+    if (outcome.kind === 'unavailable') message.value = outcome.message
+    if (outcome.kind !== 'lines' || resolvedSiteId.value !== siteId) return
+    message.value = null
+    await recordLines(siteId, site, outcome.lines, text)
+  } finally {
+    readingClipboardOnFocus = false
+  }
+}
+
+function isNotificationGranted(): boolean {
+  return typeof Notification !== 'undefined' && Notification.permission === NOTIFICATION_GRANTED
+}
+
+function notifyDepleted(site: MiningSite): void {
+  new Notification(t('miningCompanion.notification.depletedTitle'), {
+    body: site.label,
+    tag: `companion-depleted-${site.id}`,
+    silent: true,
+  })
+}
+
+function observeDepletion(observation: DepletionObservation | null): void {
+  if (observation === null) return
+  const siteId = observation.site.id
+  const wasObservedNotEmpty = observedDepletion.get(siteId) === false
+  observedDepletion.set(siteId, observation.depleted)
+  const notificationKey = `${siteId}|${observation.scanNumber}`
+  if (!wasObservedNotEmpty || !observation.depleted || notifiedDepletions.has(notificationKey)) return
+  if (!companion.settings.notifications || !isNotificationGranted()) return
+  notifiedDepletions.add(notificationKey)
+  notifyDepleted(observation.site)
+}
+
+async function changeNotifications(enabled: boolean): Promise<void> {
+  if (!enabled) {
+    companion.setNotifications(false)
+    return
+  }
+  const permission = typeof Notification === 'undefined' ? NOTIFICATION_DENIED : await Notification.requestPermission()
+  if (permission === NOTIFICATION_GRANTED) {
+    companion.setNotifications(true)
+    return
+  }
+  companion.setNotifications(false)
+  message.value = t('miningCompanion.notices.notificationsDenied')
+  settingsRevision.value++
+}
+
+function toggleNextSite(): void {
+  nextSiteOpen.value = !nextSiteOpen.value
+  nextSiteFailure.value = null
+}
+
+async function startNextSite(input: { label: string; solarSystemId: number | null }): Promise<void> {
+  const requested = companion.target
+  if (requested === null || requested.operationId === null) return
+  nextSiteSubmitting.value = true
+  nextSiteFailure.value = null
+  try {
+    const started = await siteStore.startNextSite(requested.operationId, input)
+    nextSiteOpen.value = false
+    message.value = t('miningCompanion.nextSite.started', { label: started.label })
+  } catch (cause) {
+    nextSiteFailure.value = failureText(cause)
+    return
+  } finally {
+    nextSiteSubmitting.value = false
+  }
+  await loadTarget(requested)
+}
+
+function followNextSite(requested: CompanionTarget, data: Record<string, unknown> | null): void {
+  if (requested.siteId === null) {
+    loadTarget(requested)
+    return
+  }
+  const startedSiteId = data?.siteId
+  const closedSiteIds = data?.closedSiteIds
+  if (typeof startedSiteId !== 'string' || !Array.isArray(closedSiteIds) || !closedSiteIds.includes(requested.siteId)) return
+  companion.retarget({ siteId: startedSiteId, operationId: requested.operationId })
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -194,9 +353,9 @@ async function leave(): Promise<void> {
   const operationId = companion.target?.operationId ?? null
   if (operationId === null) return
   try {
-    await operationStore.depart(operationId)
+    await operationStore.leaveOperation(operationId)
   } catch (cause) {
-    message.value = operationStore.error ?? (cause instanceof Error ? cause.message : String(cause))
+    message.value = failureText(cause)
     return
   }
   await loadOperation(operationId)
@@ -297,10 +456,17 @@ watch(
 
 watch(operationEvent, (event) => {
   const requested = companion.target
-  if (event === null || requested === null || event.action !== SITE_SCAN_RECORDED_ACTION) return
+  if (event === null || requested === null) return
+  if (event.action === SITE_NEXT_STARTED_ACTION) {
+    followNextSite(requested, event.data)
+    return
+  }
+  if (event.action !== SITE_SCAN_RECORDED_ACTION) return
   if (requested.siteId === null) loadTarget(requested)
   else if (event.data?.siteId === requested.siteId) reloadSite(requested.siteId)
 })
+
+watch(depletionObservation, observeDepletion)
 
 watch(
   () => companion.notice,
@@ -311,6 +477,7 @@ watch(
 
 useEventListener(companionDocument, 'keydown', onKeydown)
 useEventListener(companionDocument, 'paste', onPaste)
+useEventListener(companionWindowTarget, 'focus', recordClipboardOnFocus)
 
 onBeforeUnmount(closeWindowContent)
 </script>
@@ -330,6 +497,7 @@ onBeforeUnmount(closeWindowContent)
       :notice="shownNotice"
       @paste="pasteFromClipboard"
       @leave="leave"
+      @next-site="toggleNextSite"
       @open-desk="openDesk"
       @size="companion.setSize"
     >
@@ -344,12 +512,26 @@ onBeforeUnmount(closeWindowContent)
           @click="settingsOpen = !settingsOpen"
         >⚙</button>
       </template>
+      <template #next-site>
+        <MiningCompanionNextSite
+          v-if="nextSiteOpen"
+          :failure="nextSiteFailure"
+          :submitting="nextSiteSubmitting"
+          @submit="startNextSite"
+          @cancel="toggleNextSite"
+        />
+      </template>
       <template #settings>
         <MiningCompanionSettings
           v-if="settingsOpen"
+          :key="settingsRevision"
           :opacity="companion.settings.opacity"
           :text-scale="companion.settings.textScale"
           :rescan-minutes="rescanMinutes"
+          :notifications="companion.settings.notifications"
+          :clipboard-on-focus="companion.settings.clipboardOnFocus"
+          @notifications="changeNotifications"
+          @clipboard="companion.setClipboardOnFocus"
           @opacity="companion.setOpacity"
           @text-scale="companion.setTextScale"
           @rescan="changeRescanMinutes"

@@ -31,7 +31,7 @@ const props = defineProps<{
   operation: { id: string; status: string; myDepartedAt: string | null } | null
   notice: string | null
 }>()
-const emit = defineEmits<{ paste: []; leave: []; 'open-desk': []; size: [size: CompanionSizeKey] }>()
+const emit = defineEmits<{ paste: []; leave: []; 'next-site': []; 'open-desk': []; size: [size: CompanionSizeKey] }>()
 
 const { t } = useI18n()
 const { etaText, wholeText, valueText, lastScanText } = useMiningSiteFormat()
@@ -68,6 +68,7 @@ const hasIrregularType = computed(() => lastScan.value?.types.some(isIrregularRa
 const lastScanLine = computed(() => (isActive.value && props.site !== null ? lastScanText(props.site, props.now.getTime()) : null))
 const missingPriceNames = computed(() => (lastScan.value?.missingPriceTypeIds ?? []).map(typeNameOf).join(', '))
 const canLeave = computed(() => props.operation !== null && props.operation.status === OPERATION_IN_PROGRESS && props.operation.myDepartedAt === null)
+const canStartNextSite = computed(() => canLeave.value && props.size !== 'bar')
 const showsFooter = computed(() => props.size !== 'bar' || props.site === null)
 const showsVolumeRing = computed(() => props.size !== 'bar' && props.site !== null)
 
@@ -210,6 +211,8 @@ function requestLeave(): void {
 
     <p v-else class="rounded-sm border border-slate-700 px-2 py-3 text-sm text-slate-300" data-testid="companion-empty">{{ t('miningCompanion.empty') }}</p>
 
+    <slot v-if="size !== 'bar'" name="next-site" />
+
     <footer v-if="showsFooter" class="mt-auto flex flex-wrap items-center gap-2 pt-1">
       <button
         v-if="site !== null"
@@ -226,6 +229,13 @@ function requestLeave(): void {
         class="rounded-sm border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
         @click="emit('open-desk')"
       >{{ t('miningCompanion.desk') }}</button>
+      <button
+        v-if="canStartNextSite"
+        type="button"
+        data-testid="companion-next-site"
+        class="rounded-sm border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+        @click="emit('next-site')"
+      >{{ t('miningCompanion.nextSite.open') }}</button>
       <button
         v-if="canLeave"
         type="button"

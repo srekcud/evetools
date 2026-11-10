@@ -3873,13 +3873,23 @@
         "L": "L"
       },
       "rescan": "Re-scan reminder after",
-      "minutes": "min"
+      "minutes": "min",
+      "notifications": "Notify when a site is empty",
+      "clipboard": "Read the clipboard when the window regains focus"
+    },
+    "nextSite": {
+      "open": "New site",
+      "started": "New site {label} started."
+    },
+    "notification": {
+      "depletedTitle": "Site empty"
     },
     "notices": {
       "popupBlocked": "The browser blocked the popup: allow popups for this site, then detach again.",
       "popupFallback": "Picture-in-Picture is not available: the companion opened as a popup.",
       "resizeRefused": "The browser refused to resize the window: adjust it by hand.",
-      "clipboardDenied": "The browser denied access to the clipboard: use Ctrl+V."
+      "clipboardDenied": "The browser denied access to the clipboard: use Ctrl+V.",
+      "notificationsDenied": "Notifications are not allowed by the browser: allow them for this site, then enable them again."
     },
     "errors": {
       "noActiveSite": "No active site to record the scan on.",

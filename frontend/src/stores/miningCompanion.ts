@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import {
+  COMPANION_CLIPBOARD_STORAGE_KEY,
+  COMPANION_NOTIFICATIONS_STORAGE_KEY,
   COMPANION_OPACITY_DEFAULT,
   COMPANION_OPACITY_STORAGE_KEY,
   COMPANION_SIZES,
@@ -10,7 +12,10 @@ import {
   DEFAULT_COMPANION_SIZE,
   DEFAULT_COMPANION_TEXT_SCALE,
   clampCompanionOpacity,
+  companionFlagValue,
   openCompanionWindow,
+  readCompanionClipboard,
+  readCompanionNotifications,
   readCompanionOpacity,
   readCompanionSize,
   readCompanionTextScale,
@@ -26,6 +31,8 @@ export interface CompanionTarget {
 export interface CompanionSettings {
   opacity: number
   textScale: CompanionTextScaleKey
+  notifications: boolean
+  clipboardOnFocus: boolean
 }
 
 const POPUP_BLOCKED_NOTICE = 'miningCompanion.notices.popupBlocked'
@@ -59,6 +66,8 @@ export const useMiningCompanionStore = defineStore('miningCompanion', () => {
   const settings = ref<CompanionSettings>({
     opacity: recall(readCompanionOpacity, COMPANION_OPACITY_DEFAULT),
     textScale: recall(readCompanionTextScale, DEFAULT_COMPANION_TEXT_SCALE),
+    notifications: recall(readCompanionNotifications, false),
+    clipboardOnFocus: recall(readCompanionClipboard, false),
   })
   let opening = false
 
@@ -132,5 +141,19 @@ export const useMiningCompanionStore = defineStore('miningCompanion', () => {
     remember(COMPANION_TEXT_SCALE_STORAGE_KEY, requested)
   }
 
-  return { target, size, windowKind, notice, noticeCause, companionWindow, settings, detach, close, setSize, setOpacity, setTextScale }
+  function retarget(requested: CompanionTarget): void {
+    target.value = requested
+  }
+
+  function setNotifications(enabled: boolean): void {
+    settings.value = { ...settings.value, notifications: enabled }
+    remember(COMPANION_NOTIFICATIONS_STORAGE_KEY, companionFlagValue(enabled))
+  }
+
+  function setClipboardOnFocus(enabled: boolean): void {
+    settings.value = { ...settings.value, clipboardOnFocus: enabled }
+    remember(COMPANION_CLIPBOARD_STORAGE_KEY, companionFlagValue(enabled))
+  }
+
+  return { target, size, windowKind, notice, noticeCause, companionWindow, settings, detach, close, retarget, setSize, setOpacity, setTextScale, setNotifications, setClipboardOnFocus }
 })

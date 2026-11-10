@@ -3873,13 +3873,23 @@
         "L": "L"
       },
       "rescan": "Rappel de re-scan après",
-      "minutes": "min"
+      "minutes": "min",
+      "notifications": "Notifier quand un site est vide",
+      "clipboard": "Lire le presse-papiers au retour sur la fenêtre"
+    },
+    "nextSite": {
+      "open": "Nouveau site",
+      "started": "Nouveau site {label} démarré."
+    },
+    "notification": {
+      "depletedTitle": "Site vide"
     },
     "notices": {
       "popupBlocked": "Le navigateur a bloqué la popup : autorisez les popups pour ce site, puis détachez à nouveau.",
       "popupFallback": "Picture-in-Picture indisponible : le compagnon s'est ouvert en popup.",
       "resizeRefused": "Le navigateur a refusé de redimensionner la fenêtre : ajustez-la à la main.",
-      "clipboardDenied": "Le navigateur refuse l'accès au presse-papiers : utilisez Ctrl+V."
+      "clipboardDenied": "Le navigateur refuse l'accès au presse-papiers : utilisez Ctrl+V.",
+      "notificationsDenied": "Les notifications ne sont pas autorisées par le navigateur : autorisez-les pour ce site, puis réactivez-les."
     },
     "errors": {
       "noActiveSite": "Aucun site actif sur lequel enregistrer le scan.",

@@ -621,6 +621,14 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
 
   const depart = (id: string) => postLifecycleAction(id, 'depart', {}, 'Failed to leave the mining operation early')
 
+  async function readOperation(id: string): Promise<MiningOperation> {
+    return apiRequest<MiningOperation>(`/mining-operations/${id}`)
+  }
+
+  async function leaveOperation(id: string): Promise<MiningOperation> {
+    return apiRequest<MiningOperation>(`/mining-operations/${id}/depart`, { method: 'POST', body: JSON.stringify({}) })
+  }
+
   async function recordPresence(id: string): Promise<void> {
     error.value = null
     try {
@@ -852,6 +860,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     start,
     end,
     depart,
+    readOperation,
+    leaveOperation,
     recordPresence,
     fetchLedger,
     retrySnapshot,
