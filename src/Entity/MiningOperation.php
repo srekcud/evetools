@@ -155,6 +155,8 @@ class MiningOperation
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $mountedCompressorKinds = [];
 
+    private ?\DateTimeImmutable $fleetHangarEmptiedAt = null;
+
     public function __construct()
     {
         $this->members = new ArrayCollection();
@@ -614,6 +616,16 @@ class MiningOperation
         $recipient?->declareFleetStorage(MiningFleetStorageDelivery::None, null);
         $this->fleetStorageRecipient = $recipient;
         $this->fleetStorageContainerName = $containerName;
+    }
+
+    public function getFleetHangarEmptiedAt(): ?\DateTimeImmutable
+    {
+        return $this->fleetHangarEmptiedAt;
+    }
+
+    public function markFleetHangarEmptied(\DateTimeImmutable $emptiedAt): void
+    {
+        $this->fleetHangarEmptiedAt = $emptiedAt;
     }
 
     public function getRecurrence(): ?MiningOperationRecurrence

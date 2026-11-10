@@ -161,6 +161,42 @@ export interface MiningFleetStorageVerification {
   lines: MiningFleetStorageVerificationLine[]
 }
 
+export type MiningHaulerPlanUnknownReason =
+  | 'operation_not_running'
+  | 'no_boost_ship'
+  | 'no_fleet_storage_recipient'
+  | 'no_active_site'
+  | 'site_rate_unknown'
+  | 'ledger_unknown'
+  | 'nothing_delivered'
+  | 'capacity_missing_from_sde'
+  | 'volume_missing'
+  | 'compression_unknown'
+
+export interface MiningHaulerPlan {
+  operationId: string
+  state: 'known' | 'unknown'
+  unknownReason: MiningHaulerPlanUnknownReason | null
+  boostShipName: string | null
+  haulerName: string | null
+  emptiedAt: string | null
+  originIsStart: boolean
+  capacityM3: number | null
+  holdCapacityM3: number | null
+  share: number | null
+  inflowM3PerMinute: number | null
+  fillM3: number | null
+  fillRatio: number | null
+  fullInMinutes: number | null
+  isFull: boolean | null
+  transportM3PerMinute: number | null
+  toMoveM3: number | null
+  trips: number | null
+  siteEtaAt: string | null
+  rawTypeIds: number[]
+  contributorNames: string[]
+}
+
 export interface MiningPayment {
   id: string
   position: number
@@ -440,6 +476,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
   const recurrences = ref<MiningOperationRecurrence[]>([])
   const fleetStorage = ref<MiningFleetStorage | null>(null)
   const fleetStorageVerification = ref<MiningFleetStorageVerification | null>(null)
+  const haulerPlan = ref<MiningHaulerPlan | null>(null)
   const boostShips = ref<MiningBoostShipOption[]>([])
   const error = ref<string | null>(null)
 
@@ -767,6 +804,15 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     }
   }
 
+  async function fetchHaulerPlan(id: string): Promise<void> {
+    void id
+  }
+
+  async function declareHangarEmptied(id: string): Promise<MiningHaulerPlan | null> {
+    void id
+    return null
+  }
+
   async function fetchFleetStorage(id: string): Promise<void> {
     error.value = null
     try {
@@ -850,6 +896,7 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     season,
     fleetStorage,
     fleetStorageVerification,
+    haulerPlan,
     boostShips,
     error,
     fetchMine,
@@ -886,6 +933,8 @@ export const useMiningOperationStore = defineStore('miningOperation', () => {
     fetchArchive,
     fetchSeason,
     fetchFleetStorage,
+    fetchHaulerPlan,
+    declareHangarEmptied,
     updateFleetStorage,
     declareFleetStorage,
     fetchFleetStorageVerification,
