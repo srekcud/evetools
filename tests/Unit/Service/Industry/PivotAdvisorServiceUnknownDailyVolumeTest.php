@@ -18,6 +18,7 @@ use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -214,7 +215,7 @@ final class PivotAdvisorServiceUnknownDailyVolumeTest extends TestCase
         $assetRepository->method('getAggregatedQuantitiesByUser')->willReturn([self::COMPONENT_TWO => 1]);
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPricesWithFallback')->willReturn($jitaPrices);
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt($jitaPrices));
         $jitaMarketService->method('getCachedDailyVolumes')->willReturn($dailyVolumes);
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);

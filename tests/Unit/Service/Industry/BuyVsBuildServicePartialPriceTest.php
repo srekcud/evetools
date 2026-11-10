@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service\Industry;
 use App\Service\Industry\BuyVsBuildService;
 use App\Service\Industry\SalesFees\SalesFees;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(BuyVsBuildService::class)]
@@ -57,6 +58,8 @@ final class BuyVsBuildServicePartialPriceTest extends TestCase
     private const float FERNITE_CARBIDE_COVERAGE = 0.9375;
     private const float FERNITE_ALLOY_COVERAGE = 0.6;
     private const float PLATINUM_TECHNITE_COVERAGE = 0.45;
+    private const float CERAMIC_POWDER_COVERAGE = 0.35;
+    private const array STRUCTURE_SELL_LOWEST = ['market' => 'structure', 'side' => 'sell', 'method' => 'lowest', 'coveragePercent' => null];
     private const float MORPHITE_COVERAGE = 0.7;
     private const float STUB_DATACORE_A_COVERAGE = 0.55;
     private const float RAM_AMMUNITION_TECH_COVERAGE = 0.2;
@@ -300,6 +303,79 @@ final class BuyVsBuildServicePartialPriceTest extends TestCase
         );
     }
 
+    #[Group('issue-538')]
+    public function testComponentPriceSourcesLabelTheBuildMaterialsTheJitaPurchaseAndTheStructurePurchase(): void
+    {
+        $result = $this->analyzeHailL(
+            [
+                self::RAM_AMMUNITION_TECH => self::RAM_AMMUNITION_TECH_COVERAGE,
+                self::FERNITE_ALLOY => self::FERNITE_ALLOY_COVERAGE,
+                self::CERAMIC_POWDER => self::CERAMIC_POWDER_COVERAGE,
+                self::PLATINUM_TECHNITE => self::PLATINUM_TECHNITE_COVERAGE,
+            ],
+            [self::RAM_AMMUNITION_TECH => self::RAM_AMMUNITION_TECH_STRUCTURE_PRICE],
+        );
+
+        $this->assertSame(
+            [
+                self::RAM_AMMUNITION_TECH => [
+                    'build' => self::jitaSellWeighted(null),
+                    'buyJita' => self::jitaSellWeighted(20.0),
+                    'buyStructure' => self::STRUCTURE_SELL_LOWEST,
+                ],
+                self::FERNITE_CARBIDE => [
+                    'build' => self::jitaSellWeighted(35.0),
+                    'buyJita' => self::jitaSellWeighted(null),
+                    'buyStructure' => null,
+                ],
+                self::FULLERIDES => [
+                    'build' => self::jitaSellWeighted(45.0),
+                    'buyJita' => self::jitaSellWeighted(null),
+                    'buyStructure' => null,
+                ],
+            ],
+            [
+                self::RAM_AMMUNITION_TECH => $this->priceSourcesOfComponent($result, self::RAM_AMMUNITION_TECH),
+                self::FERNITE_CARBIDE => $this->priceSourcesOfComponent($result, self::FERNITE_CARBIDE),
+                self::FULLERIDES => $this->priceSourcesOfComponent($result, self::FULLERIDES),
+            ],
+        );
+    }
+
+    #[Group('issue-538')]
+    public function testComponentBuildPriceSourceCarriesTheLowestCoverageOfTheComponentWarnings(): void
+    {
+        $result = $this->analyzeHailL([
+            self::FERNITE_ALLOY => self::FERNITE_ALLOY_COVERAGE,
+            self::CERAMIC_POWDER => self::CERAMIC_POWDER_COVERAGE,
+        ]);
+
+        $this->assertEqualsCanonicalizing(
+            [self::partialMarketDepth(self::FERNITE_ALLOY, 60.0), self::partialMarketDepth(self::CERAMIC_POWDER, 35.0)],
+            $this->componentOf($result, self::FERNITE_CARBIDE)['warnings'],
+        );
+        $this->assertSame(self::jitaSellWeighted(35.0), $this->priceSourcesOfComponent($result, self::FERNITE_CARBIDE)['build']);
+    }
+
+    #[Group('issue-538')]
+    public function testAnalysisPriceSourcesLabelTheMaterialsWithTheLowestWarningCoverageAndTheSaleWithoutCoverageWhenTheBookIsDeepEnough(): void
+    {
+        $result = $this->analyzeHailL([
+            self::FERNITE_ALLOY => self::FERNITE_ALLOY_COVERAGE,
+            self::CERAMIC_POWDER => self::CERAMIC_POWDER_COVERAGE,
+        ]);
+
+        $this->assertEqualsCanonicalizing(
+            [self::partialMarketDepth(self::FERNITE_ALLOY, 60.0), self::partialMarketDepth(self::CERAMIC_POWDER, 35.0)],
+            $result['warnings'],
+        );
+        $this->assertArrayHasKey('priceSources', $result);
+        $this->assertSame(
+            ['materials' => self::jitaSellWeighted(35.0), 'sale' => self::jitaSellWeighted(null)],
+            $result['priceSources'],
+        );
+    }
+
     private function analyzeHailL(array $jitaCoverages, array $structurePrices = []): array
     {
         return $this->buyVsBuildServiceOnGoldenSde(
@@ -325,5 +401,18 @@ final class BuyVsBuildServicePartialPriceTest extends TestCase
         }
 
         $this->fail("No component {$typeId} in the buy-vs-build output");
+    }
+
+    private static function jitaSellWeighted(?float $coveragePercent): array
+    {
+        return ['market' => 'jita', 'side' => 'sell', 'method' => 'weighted', 'coveragePercent' => $coveragePercent];
+    }
+
+    private function priceSourcesOfComponent(array $result, int $typeId): array
+    {
+        $component = $this->componentOf($result, $typeId);
+        $this->assertArrayHasKey('priceSources', $component);
+
+        return $component['priceSources'];
     }
 }

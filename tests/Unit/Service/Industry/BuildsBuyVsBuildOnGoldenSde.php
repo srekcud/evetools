@@ -19,6 +19,7 @@ use App\Service\Industry\EsiCostIndexService;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Uid\Uuid;
@@ -37,6 +38,8 @@ trait BuildsBuyVsBuildOnGoldenSde
         array $costIndices,
         ?StructureMarketService $structureMarket = null,
         array $jitaCoverages = [],
+        array $jitaSellBooks = [],
+        ?\Closure $saleQuotes = null,
     ): BuyVsBuildService {
         if ([] === $this->recipes) {
             $this->loadGoldenSde();
@@ -45,7 +48,7 @@ trait BuildsBuyVsBuildOnGoldenSde
         $productRepository = $this->sdeProductRepository();
         $materialRepository = $this->sdeMaterialRepository();
         $blueprintCatalog = new SdeBlueprintCatalog($productRepository, $this->sdeActivityTimeRepository(), $materialRepository, $this->sdeBlueprintRepository());
-        $jitaMarketService = $this->jitaMarketServiceAt($jitaPrices, $jitaCoverages);
+        $jitaMarketService = $this->jitaMarketServiceAt($jitaPrices, $jitaCoverages, $jitaSellBooks, $saleQuotes);
         $esiCostIndexService = $this->esiCostIndexServiceSyncedWith($adjustedPrices, $costIndices);
 
         return new BuyVsBuildService(
@@ -93,7 +96,7 @@ trait BuildsBuyVsBuildOnGoldenSde
         return ['reason' => 'invention_probability', 'typeId' => $t1BlueprintTypeId];
     }
 
-    private function jitaMarketServiceAt(array $jitaPrices, array $jitaCoverages = []): JitaMarketService
+    private function jitaMarketServiceAt(array $jitaPrices, array $jitaCoverages = [], array $jitaSellBooks = [], ?\Closure $saleQuotes = null): JitaMarketService
     {
         $jitaMarketService = $this->createStub(JitaMarketService::class);
         $jitaMarketService->method('getWeightedSellPricesWithFallback')->willReturnCallback(
@@ -108,15 +111,8 @@ trait BuildsBuyVsBuildOnGoldenSde
                 return $prices;
             },
         );
-        $jitaMarketService->method('getPricesWithFallback')->willReturnCallback(
-            static function (array $typeIds) use ($jitaPrices): array {
-                $prices = [];
-                foreach ($typeIds as $typeId) {
-                    $prices[$typeId] = $jitaPrices[$typeId] ?? null;
-                }
-
-                return $prices;
-            },
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(
+            $saleQuotes ?? ([] !== $jitaSellBooks ? SellQuoteCallbacks::weighedFrom($jitaSellBooks) : SellQuoteCallbacks::completeQuotesAt($jitaPrices)),
         );
 
         return $jitaMarketService;

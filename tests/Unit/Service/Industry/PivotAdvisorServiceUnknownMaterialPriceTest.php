@@ -18,6 +18,7 @@ use App\Service\JitaMarketService;
 use App\Service\TypeNameResolver;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Service\Industry\Double\SellQuoteCallbacks;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -184,7 +185,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
                 'unknownReason' => BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
                 'missingPriceTypeIds' => [self::COMPONENT_FOUR],
             ],
-        ], $result['candidates']);
+        ], array_map($this->withoutPriceSources(...), $result['candidates']));
     }
 
     public function testSourceProductWithAnUnpricedMaterialHasAnUnknownMarginWithTheMissingMaterialPriceReason(): void
@@ -204,7 +205,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
             ],
             'unknownReason' => BatchProfitScannerService::UNKNOWN_REASON_MISSING_MATERIAL_PRICE,
             'missingPriceTypeIds' => [self::COMPONENT_FOUR],
-        ], $result['sourceProduct']);
+        ], $this->withoutPriceSources($result['sourceProduct']));
     }
 
     public function testUnpricedMaterialListedTwiceAppearsOnceInSortedMissingPriceTypeIds(): void
@@ -633,7 +634,7 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         $assetRepository->method('getAggregatedQuantitiesByUser')->willReturn($stockByTypeId);
 
         $jitaMarketService = $this->createStub(JitaMarketService::class);
-        $jitaMarketService->method('getPricesWithFallback')->willReturn($jitaPrices);
+        $jitaMarketService->method('getWeightedSellQuotesWithFallback')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt($jitaPrices));
         $jitaMarketService->method('getCachedDailyVolumes')->willReturn($dailyVolumes);
 
         $esiCostIndexService = $this->createStub(EsiCostIndexService::class);
@@ -703,5 +704,10 @@ final class PivotAdvisorServiceUnknownMaterialPriceTest extends TestCase
         }
 
         $this->fail("Candidate {$typeId} is missing from the pivot analysis");
+    }
+
+    private function withoutPriceSources(array $row): array
+    {
+        return array_diff_key($row, ['priceSources' => true]);
     }
 }
