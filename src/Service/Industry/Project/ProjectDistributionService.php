@@ -49,6 +49,7 @@ class ProjectDistributionService
         $unsoldProducts = $awaitingSales ? [] : $this->unsoldProducts->of($project, $sales);
 
         $breakEven = $this->projectBreakEven->of($project, $totalProjectCost);
+        $costPerUnit = $this->projectBreakEven->costPerUnitOf($project, $totalProjectCost);
 
         $members = $this->buildMemberDistributions($approvedContributions, $totalProjectCost, $marginRatio);
 
@@ -74,6 +75,8 @@ class ProjectDistributionService
             contractFees: $contractFees,
             breakEvenPerUnit: $breakEven->perUnit,
             breakEvenUnknownReason: $breakEven->unknownReason,
+            costPerUnit: $costPerUnit->perUnit,
+            costPerUnitUnknownReason: $costPerUnit->unknownReason,
         );
     }
 

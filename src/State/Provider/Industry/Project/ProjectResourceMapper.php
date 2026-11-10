@@ -39,6 +39,7 @@ class ProjectResourceMapper
         $resource->shortLinkCode = $project->getShortLinkCode();
         $resource->containerName = $project->getContainerName();
         $resource->private = $project->isPrivate();
+        $resource->personalUse = $project->isPersonalUse();
         $resource->acceptsOutsideFavoriteSystem = $project->isAcceptsOutsideFavoriteSystem();
         $resource->minimumOutsideSaving = $project->getMinimumOutsideSaving();
         $resource->notes = $project->getNotes();

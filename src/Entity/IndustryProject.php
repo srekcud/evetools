@@ -80,6 +80,9 @@ class IndustryProject
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $private = true;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $personalUse = false;
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $notes = null;
 
@@ -142,6 +145,18 @@ class IndustryProject
     public function setOwner(User $owner): static
     {
         $this->owner = $owner;
+        return $this;
+    }
+
+    public function isPersonalUse(): bool
+    {
+        return $this->personalUse;
+    }
+
+    public function setPersonalUse(bool $personalUse): static
+    {
+        $this->personalUse = $personalUse;
+
         return $this;
     }
 

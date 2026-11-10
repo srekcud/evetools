@@ -21,46 +21,76 @@ final readonly class ProjectBreakEven
 
     public function of(IndustryProject $project, ?float $totalProjectCost): BreakEven
     {
-        $finalLines = array_values(array_filter(
-            $project->getBomItems()->toArray(),
-            static fn (IndustryProjectBomLine $line): bool => $line->isJob() && $line->getJobGroup() === self::FINAL_JOB_GROUP,
-        ));
-
-        if ($finalLines === []) {
-            return BreakEven::unknown(self::NO_FINAL_PRODUCT);
+        $production = $this->productionOf($project, $totalProjectCost);
+        if (is_string($production)) {
+            return BreakEven::unknown($production);
         }
 
-        $typeIds = array_unique(array_map(static fn (IndustryProjectBomLine $line): int => $line->getTypeId(), $finalLines));
-        if (count($typeIds) > 1) {
-            return BreakEven::unknown(self::SEVERAL_FINAL_PRODUCTS);
-        }
-
-        foreach ($finalLines as $line) {
-            if (!$line->isFulfilled()) {
-                return BreakEven::unknown(self::JOBS_NOT_DELIVERED);
-            }
-        }
-
-        if ($totalProjectCost === null) {
-            return BreakEven::unknown(self::COST_UNKNOWN);
-        }
-
-        if ($totalProjectCost <= 0.0) {
-            return BreakEven::unknown(self::NO_COST);
-        }
-
+        [$units, $cost] = $production;
         $brokerFeePercent = $project->getBrokerFeePercent();
         $salesTaxPercent = $project->getSalesTaxPercent();
         if ($brokerFeePercent === null || $salesTaxPercent === null) {
             return BreakEven::unknown(self::FEES_UNKNOWN);
         }
 
-        $units = array_sum(array_map(static fn (IndustryProjectBomLine $line): int => $line->getRequiredQuantity(), $finalLines));
         $keptRatio = 1 - ($brokerFeePercent + $salesTaxPercent) / self::PERCENT;
-        if ($units <= 0 || $keptRatio <= 0.0) {
+        if ($keptRatio <= 0.0) {
             return BreakEven::unknown(self::FEES_UNKNOWN);
         }
 
-        return BreakEven::known($totalProjectCost / ($units * $keptRatio));
+        return BreakEven::known($cost / ($units * $keptRatio));
+    }
+
+    public function costPerUnitOf(IndustryProject $project, ?float $totalProjectCost): BreakEven
+    {
+        $production = $this->productionOf($project, $totalProjectCost);
+        if (is_string($production)) {
+            return BreakEven::unknown($production);
+        }
+
+        [$units, $cost] = $production;
+
+        return BreakEven::known($cost / $units);
+    }
+
+    /**
+     * @return string|array{int, float}
+     */
+    private function productionOf(IndustryProject $project, ?float $totalProjectCost): string|array
+    {
+        $finalLines = array_values(array_filter(
+            $project->getBomItems()->toArray(),
+            static fn (IndustryProjectBomLine $line): bool => $line->isJob() && $line->getJobGroup() === self::FINAL_JOB_GROUP,
+        ));
+
+        if ($finalLines === []) {
+            return self::NO_FINAL_PRODUCT;
+        }
+
+        $typeIds = array_unique(array_map(static fn (IndustryProjectBomLine $line): int => $line->getTypeId(), $finalLines));
+        if (count($typeIds) > 1) {
+            return self::SEVERAL_FINAL_PRODUCTS;
+        }
+
+        foreach ($finalLines as $line) {
+            if (!$line->isFulfilled()) {
+                return self::JOBS_NOT_DELIVERED;
+            }
+        }
+
+        if ($totalProjectCost === null) {
+            return self::COST_UNKNOWN;
+        }
+
+        if ($totalProjectCost <= 0.0) {
+            return self::NO_COST;
+        }
+
+        $units = array_sum(array_map(static fn (IndustryProjectBomLine $line): int => $line->getRequiredQuantity(), $finalLines));
+        if ($units <= 0) {
+            return self::NO_FINAL_PRODUCT;
+        }
+
+        return [$units, $totalProjectCost];
     }
 }

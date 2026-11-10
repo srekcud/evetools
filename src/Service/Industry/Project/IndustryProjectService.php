@@ -76,6 +76,7 @@ class IndustryProjectService
         $project->setBrokerFeePercent($data->brokerFeePercent);
         $project->setSalesTaxPercent($data->salesTaxPercent);
         $project->setPrivate($data->private);
+        $project->setPersonalUse($data->personalUse);
         $project->setAcceptsOutsideFavoriteSystem($data->acceptsOutsideFavoriteSystem);
         $project->setMinimumOutsideSaving($data->minimumOutsideSaving);
         $project->setTemplate($data->template);

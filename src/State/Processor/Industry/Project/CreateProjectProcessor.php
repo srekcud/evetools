@@ -87,6 +87,7 @@ class CreateProjectProcessor implements ProcessorInterface
                 brokerFeePercent: $brokerFeePercent,
                 salesTaxPercent: $salesTaxPercent,
                 private: $data->private,
+                personalUse: $data->personalUse,
                 acceptsOutsideFavoriteSystem: $data->acceptsOutsideFavoriteSystem,
                 minimumOutsideSaving: $data->minimumOutsideSaving,
                 template: $template,
