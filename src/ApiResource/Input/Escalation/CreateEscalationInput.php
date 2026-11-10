@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\ApiResource\Input\Escalation;
 
+use App\Entity\Escalation;
+use Symfony\Component\Validator\Constraints as Assert;
+
 class CreateEscalationInput
 {
     public int $characterId;
@@ -16,6 +19,7 @@ class CreateEscalationInput
 
     public float $securityStatus;
 
+    #[Assert\Range(min: 0, max: Escalation::MAXIMUM_PRICE)]
     public int $price;
 
     public ?string $notes = null;
