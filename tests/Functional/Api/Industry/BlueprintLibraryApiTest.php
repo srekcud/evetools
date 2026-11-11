@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Api\Industry;
 
+use App\Entity\CachedAsset;
 use App\Entity\CachedIndustryJob;
 use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
@@ -57,12 +58,13 @@ final class BlueprintLibraryApiTest extends WebTestCase
     {
         $aria = $this->persistPilot('Aria Solberg', self::CORPORATION_ID, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE]);
         $other = $this->persistPilot('Corin Vale', self::OTHER_CORPORATION_ID, [self::PERSONAL_SCOPE]);
-        $this->em->persist((new CorpAssetVisibility())->setCorporationId(self::CORPORATION_ID)->setVisibleDivisions([3])->setConfiguredBy($aria));
+        $this->em->persist((new CorpAssetVisibility())->setCorporationId(self::CORPORATION_ID)->setVisibleDivisions([3])->setShareBlueprintsOfHiddenDivisions(false)->setConfiguredBy($aria));
         $this->persistPersonalBlueprint($aria, 1_001, self::DRAKE_BLUEPRINT, -1, -1, 10, 20);
         $this->persistPersonalBlueprint($other, 1_002, self::VEXOR_BLUEPRINT, -1, -1, 4, 8);
         $this->persistCorporationBlueprint(self::CORPORATION_ID, 1_003, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3);
         $this->persistCorporationBlueprint(self::CORPORATION_ID, 1_004, self::HURRICANE_BLUEPRINT, -2, 30, 6, 12, 5);
         $this->persistCorporationBlueprint(self::OTHER_CORPORATION_ID, 1_005, self::RIFTER_BLUEPRINT, -1, -1, 8, 16, 3);
+        $this->persistCorporationHangarAsset(self::CORPORATION_ID, 1_006, 3, 'Blueprint Vault');
         $this->em->flush();
 
         $this->client->loginUser($aria, 'api');
@@ -75,6 +77,7 @@ final class BlueprintLibraryApiTest extends WebTestCase
             [
                 [
                     'count' => 1,
+                    'divisionName' => null,
                     'divisionNumber' => null,
                     'kind' => 'bpo',
                     'locationId' => self::DRAKE_LOCATION_ID,
@@ -89,6 +92,7 @@ final class BlueprintLibraryApiTest extends WebTestCase
                 ],
                 [
                     'count' => 1,
+                    'divisionName' => 'Blueprint Vault',
                     'divisionNumber' => 3,
                     'kind' => 'bpc',
                     'locationId' => self::CORPORATION_HANGAR_ID,
@@ -271,6 +275,23 @@ final class BlueprintLibraryApiTest extends WebTestCase
                 ->setCorporationId($corporationId)
                 ->setDivisionNumber($divisionNumber)
                 ->setSyncedAt(new \DateTimeImmutable('2026-11-07 02:00:00')),
+        );
+    }
+
+    private function persistCorporationHangarAsset(int $corporationId, int $itemId, int $divisionNumber, string $divisionName): void
+    {
+        $this->em->persist(
+            (new CachedAsset())
+                ->setItemId($itemId)
+                ->setTypeId(self::HAMMERHEAD_II_BLUEPRINT)
+                ->setQuantity(1)
+                ->setLocationId(self::CORPORATION_HANGAR_ID)
+                ->setLocationName('Corporation Hangar')
+                ->setLocationType('structure')
+                ->setLocationFlag('CorpSAG' . $divisionNumber)
+                ->setDivisionName($divisionName)
+                ->setCorporationId($corporationId)
+                ->setIsCorporationAsset(true),
         );
     }
 

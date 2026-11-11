@@ -19,24 +19,24 @@ const REFRESH_ENDPOINT = '/industry/blueprints/refresh'
 
 const DRAKE_BPO: BlueprintLibraryEntry = {
   typeId: 1, name: 'Drake Blueprint', kind: 'bpo', me: 10, te: 20, runs: null,
-  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1, usedByRunningJob: false,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, divisionName: null, count: 1, usedByRunningJob: false,
 }
 const RIFTER_BPO_STACK: BlueprintLibraryEntry = {
   typeId: 2, name: 'Rifter Blueprint', kind: 'bpo', me: 0, te: 0, runs: null,
-  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 3, usedByRunningJob: false,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, divisionName: null, count: 3, usedByRunningJob: false,
 }
 const HAMMERHEAD_BPC: BlueprintLibraryEntry = {
   typeId: 3, name: 'Hammerhead II Blueprint', kind: 'bpc', me: 2, te: 4, runs: 50,
-  scope: 'corporation', ownerName: 'Stellar Corp', locationId: 1042000000001, divisionNumber: 3, count: 1, usedByRunningJob: false,
+  scope: 'corporation', ownerName: 'Stellar Corp', locationId: 1042000000001, divisionNumber: 3, divisionName: null, count: 1, usedByRunningJob: false,
 }
 const UNNAMED_BPO: BlueprintLibraryEntry = {
   typeId: 99, name: 'unknown_type', kind: 'bpo', me: 1, te: 2, runs: null,
-  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1, usedByRunningJob: false,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, divisionName: null, count: 1, usedByRunningJob: false,
 }
 
 const VEXOR_BPC_IN_JOB: BlueprintLibraryEntry = {
   typeId: 4, name: 'Vexor Blueprint', kind: 'bpc', me: 6, te: 12, runs: 25,
-  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1, usedByRunningJob: true,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, divisionName: null, count: 1, usedByRunningJob: true,
 }
 
 function libraryOf(corporationState: BlueprintLibrary['corporationState'], blueprints: BlueprintLibraryEntry[]): BlueprintLibrary {
@@ -115,6 +115,24 @@ describe('BlueprintLibraryTab blueprint held by a job in progress (issue 411)', 
     const wrapper = await mountTab([libraryOf('known', [VEXOR_BPC_IN_JOB])], 'fr')
 
     expect(wrapper.find(IN_USE_BADGE).text()).toBe(expectedMessage('fr', 'industry.blueprints.inUse'))
+  })
+})
+
+describe('BlueprintLibraryTab corporation division (issue 655)', () => {
+  const NAMED_HAMMERHEAD_BPC: BlueprintLibraryEntry = { ...HAMMERHEAD_BPC, divisionName: 'Blueprint Vault' }
+
+  it('shows the name of the division instead of its number when the name is known', async () => {
+    const wrapper = await mountTab([libraryOf('known', [NAMED_HAMMERHEAD_BPC])])
+
+    const row = rowTexts(wrapper)[0]
+    expect(row).toContain('Blueprint Vault')
+    expect(row).not.toContain('Division 3')
+  })
+
+  it('keeps the numbered label when the name of the division is unknown', async () => {
+    const wrapper = await mountTab([libraryOf('known', [HAMMERHEAD_BPC])])
+
+    expect(rowTexts(wrapper)[0]).toContain('Division 3')
   })
 })
 

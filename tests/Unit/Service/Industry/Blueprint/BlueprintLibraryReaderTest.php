@@ -221,12 +221,38 @@ final class BlueprintLibraryReaderTest extends TestCase
         );
     }
 
+    public function testCorporationBlueprintCarriesTheNameOfItsDivisionAndNoNameWhenTheDivisionIsUnknownOrForAPersonalBlueprint(): void
+    {
+        $reader = $this->reader([
+            $this->personalBlueprint($this->main, 7_091, self::DRAKE_BLUEPRINT, -1, -1, 10, 20),
+            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_092, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3),
+            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_093, self::HURRICANE_BLUEPRINT, -2, 30, 4, 8, 5),
+            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_094, self::ATRON_BLUEPRINT, -1, -1, 9, 18, null),
+        ], visibleDivisions: null, corporationReader: $this->main, divisionNamesByCorporationId: [
+            self::MAIN_CORPORATION_ID => [3 => 'Blueprints', 4 => 'Minerals'],
+            self::OTHER_CORPORATION_ID => [5 => 'Ships'],
+        ]);
+
+        $library = $reader->readFor($this->user);
+
+        self::assertSame(
+            [
+                [self::ATRON_BLUEPRINT, null, null],
+                [self::DRAKE_BLUEPRINT, null, null],
+                [self::HAMMERHEAD_II_BLUEPRINT, 3, 'Blueprints'],
+                [self::HURRICANE_BLUEPRINT, 5, null],
+            ],
+            array_map(static fn (BlueprintLibraryRow $row): array => [$row->typeId, $row->divisionNumber, $row->divisionName], $library->rows),
+        );
+    }
+
     private function reader(
         array $blueprints,
         ?array $visibleDivisions,
         ?Character $corporationReader,
         ?array $visibleDivisionsOfOtherCorporation = null,
         bool $sharesBlueprintsOfHiddenDivisions = false,
+        array $divisionNamesByCorporationId = [],
     ): BlueprintLibraryReader {
         $visibleDivisionsByCorporationId = [];
         if ($visibleDivisions !== null) {
@@ -247,6 +273,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn([]),
+            $this->divisionsNamed($divisionNamesByCorporationId),
         );
     }
 
@@ -268,6 +295,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn([]),
+            $this->divisionsNamed(),
         );
     }
 
