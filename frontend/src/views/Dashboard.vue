@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import { useNotificationFeed } from '@/composables/useNotificationFeed'
-import { useTodoItems, type TodoLevel } from '@/composables/useTodoItems'
+import { useTodoItems, type TodoItem, type TodoLevel } from '@/composables/useTodoItems'
 import MainLayout from '@/layouts/MainLayout.vue'
 import BridgeProgress from '@/components/dashboard/BridgeProgress.vue'
 import BridgeBalance from '@/components/dashboard/BridgeBalance.vue'
@@ -20,7 +20,8 @@ const { formatIsk } = useFormatters()
 const { notifications, unreadCount, clearAll, removeNotification } = useNotificationFeed()
 const activityUpdated = useUpdateFlash(() => notifications.value.map(notification => notification.id).join())
 
-const { items: todoItems, isLoading: isTodoLoading, isAllCaughtUp, planetaryStats } = useTodoItems()
+const { items: todoItems, isLoading: isTodoLoading, isAllCaughtUp, planetaryStats, acknowledge, acknowledgeAll } = useTodoItems()
+const hasAcknowledgeableTodoItem = computed(() => todoItems.value.some(todoItem => todoItem.acknowledgeable))
 const todoUpdated = useUpdateFlash(() => JSON.stringify(todoItems.value))
 
 const user = computed(() => authStore.user)
@@ -79,6 +80,10 @@ function formatTimeAgo(date: Date): string {
   return t('common.time.hoursAgo', { hours })
 }
 
+function todoLineLabel(todoItem: TodoItem): string {
+  return todoItem.count === null ? t(`dashboard.todo.${todoItem.labelKey}`) : t(`dashboard.todo.${todoItem.labelKey}`, todoItem.count)
+}
+
 function getTodoLevelClasses(level: TodoLevel | null): string {
   switch (level) {
     case 'critical': return 'border-red-500/30 bg-red-500/10 text-red-300 hover:border-red-500/60'
@@ -114,16 +119,33 @@ onMounted(() => {
             data-testid="dashboard-todo-item"
             :class="['flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors', getTodoLevelClasses(todoItem.level)]"
           >
-            <span>{{ todoItem.count === null ? t(`dashboard.todo.${todoItem.labelKey}`) : t(`dashboard.todo.${todoItem.labelKey}`, todoItem.count) }}</span>
-            <span v-if="todoItem.characterNames.length > 0" class="text-xs font-normal opacity-80">{{ todoItem.characterNames.join(', ') }}</span>
+            <span>{{ todoLineLabel(todoItem) }}</span>
+            <span v-if="todoItem.characterNames.length > 0" class="text-xs font-normal opacity-80">{{ ` ${todoItem.characterNames.join(', ')}` }}</span>
           </RouterLink>
           <span
             v-if="todoItem.level !== null"
             data-testid="dashboard-todo-level"
             :class="['flex shrink-0 items-center px-3 rounded-lg border text-xs font-semibold uppercase tracking-wider', getTodoLevelClasses(todoItem.level)]"
           >{{ t(`dashboard.todo.level.${todoItem.level}`) }}</span>
+          <button
+            v-if="todoItem.acknowledgeable"
+            type="button"
+            data-testid="dashboard-todo-acknowledge"
+            :aria-label="t('dashboard.todo.acknowledgeLine', { line: todoLineLabel(todoItem) })"
+            class="flex shrink-0 items-center px-3 rounded-lg border border-slate-700 bg-slate-800/50 text-xs font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+            @click="acknowledge(todoItem)"
+          >{{ t('dashboard.todo.acknowledge') }}</button>
         </li>
       </ul>
+      <div v-if="hasAcknowledgeableTodoItem" class="mt-3 flex justify-end">
+        <button
+          type="button"
+          data-testid="dashboard-todo-acknowledge-all"
+          :aria-label="t('dashboard.todo.acknowledgeAllLabel')"
+          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/50 text-xs font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+          @click="acknowledgeAll()"
+        >{{ t('dashboard.todo.acknowledgeAll') }}</button>
+      </div>
       <div v-if="isTodoLoading" data-testid="dashboard-todo-loading" class="flex items-center py-2">
         <LoadingSpinner size="sm" />
       </div>

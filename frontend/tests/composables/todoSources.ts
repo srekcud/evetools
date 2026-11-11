@@ -98,7 +98,18 @@ export const TRIGGERED_NOCXIUM_ALERT = priceAlert(38, 'Nocxium', 640, 'triggered
 
 export const PENDING = 'pending'
 
-export type SourceAnswer = PlanetaryStats | MarketAlert[] | Error | typeof PENDING
+export const ACKNOWLEDGEMENTS_ENDPOINT = '/me/bridge/acknowledgements'
+
+export interface AcknowledgementRow {
+  itemKey: string
+  acknowledgedCount: number
+}
+
+export function acknowledgement(itemKey: string, acknowledgedCount: number): AcknowledgementRow {
+  return { itemKey, acknowledgedCount }
+}
+
+export type SourceAnswer = PlanetaryStats | MarketAlert[] | AcknowledgementRow[] | Error | typeof PENDING
 
 function answer(source: SourceAnswer): Promise<unknown> {
   if (source === PENDING) return new Promise(() => {})
@@ -106,17 +117,62 @@ function answer(source: SourceAnswer): Promise<unknown> {
   return Promise.resolve(source)
 }
 
-export function sourcesAnswering(answers: { user: User | null; planetaryStats: SourceAnswer[]; marketAlerts: SourceAnswer[] }) {
+interface SourceAnswers {
+  user: User | null
+  planetaryStats: SourceAnswer[]
+  marketAlerts: SourceAnswer[]
+  acknowledgements?: SourceAnswer[]
+  acknowledgementWriteError?: Error
+}
+
+export function sourcesAnswering(answers: SourceAnswers) {
   const planetaryStatsQueue = [...answers.planetaryStats]
   const marketAlertsQueue = [...answers.marketAlerts]
+  const acknowledgementsQueue = [...(answers.acknowledgements ?? [[]])]
+  const written = new Map<string, number | null>()
   const next = (queue: SourceAnswer[]): SourceAnswer => (queue.length > 1 ? queue.shift() as SourceAnswer : queue[0])
 
-  return (endpoint: string): Promise<unknown> => {
+  function acknowledgementsAfterWrites(source: SourceAnswer): SourceAnswer {
+    if (!Array.isArray(source)) return source
+    const stored = new Map((source as AcknowledgementRow[]).map(row => [row.itemKey, row.acknowledgedCount]))
+    written.forEach((count, itemKey) => {
+      if (count === null) stored.delete(itemKey)
+      else stored.set(itemKey, count)
+    })
+    return [...stored].map(([itemKey, acknowledgedCount]) => acknowledgement(itemKey, acknowledgedCount))
+  }
+
+  function writeAcknowledgement(endpoint: string, options: RequestInit | undefined): Promise<unknown> {
+    if (answers.acknowledgementWriteError) return Promise.reject(answers.acknowledgementWriteError)
+    const method = options?.method?.toUpperCase()
+    if (method === 'DELETE') written.set(endpoint.slice(ACKNOWLEDGEMENTS_ENDPOINT.length + 1), null)
+    if (method === 'POST' && typeof options?.body === 'string') {
+      const body = JSON.parse(options.body) as { itemKey: string; count: number }
+      written.set(body.itemKey, body.count)
+    }
+    return Promise.resolve(null)
+  }
+
+  return (endpoint: string, options?: RequestInit): Promise<unknown> => {
     if (endpoint === '/me') return Promise.resolve(answers.user)
     if (endpoint === '/planetary/stats') return answer(next(planetaryStatsQueue))
     if (endpoint === '/market/alerts') return answer(next(marketAlertsQueue))
+    if (endpoint === ACKNOWLEDGEMENTS_ENDPOINT && (options?.method ?? 'GET').toUpperCase() === 'GET') {
+      return answer(acknowledgementsAfterWrites(next(acknowledgementsQueue)))
+    }
+    if (endpoint.startsWith(ACKNOWLEDGEMENTS_ENDPOINT)) return writeAcknowledgement(endpoint, options)
     return new Promise(() => {})
   }
+}
+
+export function acknowledgementWrites(calls: ReadonlyArray<readonly [string, RequestInit?]>): Array<{ endpoint: string; method: string; body: unknown }> {
+  return calls
+    .filter(([endpoint, options]) => endpoint.startsWith(ACKNOWLEDGEMENTS_ENDPOINT) && (options?.method ?? 'GET').toUpperCase() !== 'GET')
+    .map(([endpoint, options]) => ({
+      endpoint,
+      method: (options?.method ?? 'GET').toUpperCase(),
+      body: typeof options?.body === 'string' ? JSON.parse(options.body) : null,
+    }))
 }
 
 export function serverError(): Error {
