@@ -114,6 +114,29 @@ final class ProjectReactionStepsBuilderTest extends TestCase
         );
     }
 
+    #[Group('issue-706')]
+    public function testStockConsumedByALineIsNotCountedInTheQuantityProducedByItsStep(): void
+    {
+        $steps = $this->build(
+            [$this->reactionLine(self::FULLERIDES, 1, 3_500, 2_509, 'component')],
+            [self::FULLERIDES => $this->fulleridesRecipe()],
+        );
+
+        self::assertCount(1, $steps);
+        self::assertSame([1, 3_000], [$steps[0]->runs, $steps[0]->producedQuantity]);
+    }
+
+    #[Group('issue-706')]
+    public function testLineCoveredByStockAtZeroRunsMakesNoStep(): void
+    {
+        $steps = $this->build(
+            [$this->reactionLine(self::FULLERIDES, 0, 500, 0, 'component')],
+            [self::FULLERIDES => $this->fulleridesRecipe()],
+        );
+
+        self::assertSame([], $steps);
+    }
+
     public function testLineWithoutRecordedSurplusLeavesTheSurplusAndTheNeedUnknownButKeepsTheFormula(): void
     {
         $steps = $this->build(

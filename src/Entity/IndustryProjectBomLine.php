@@ -294,7 +294,7 @@ class IndustryProjectBomLine
 
     public function isCoveredByStock(): bool
     {
-        return false;
+        return $this->isJob && 0 === $this->runs;
     }
 
     public function isManufacturingOrReactionJob(): bool

@@ -51,7 +51,7 @@ final readonly class ProjectPlanningInputLoader
         $bomLines = $this->bomLineRepository->findBy(['project' => $project]);
         $this->bomLineRepository->loadJobMatchesOfProject($project);
 
-        $jobLines = array_values(array_filter($bomLines, static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob()));
+        $jobLines = array_values(array_filter($bomLines, static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob() && !$line->isCoveredByStock()));
         $cachedJobsById = $this->cachedJobRepository->findByJobIds($this->linkedJobIdsOf($jobLines));
         $scienceSkillIdsByLineId = $this->scienceSkillIdsByLineId($jobLines);
         $ownerId = $project->getOwner()->getId() ?? throw new \LogicException('A project owner without id has no configured structure.');

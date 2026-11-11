@@ -218,6 +218,67 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         self::assertSame([], $this->repository->findContributedBomItemIds($ishtar));
     }
 
+    #[Group('issue-706')]
+    public function testIntermediateStockByTypeIdAddsOnlyTheApprovedMaterialContributionsOfJobLinesOfTheProject(): void
+    {
+        $project = $this->createProject('Ishtar');
+        $member = $this->addMember($project, ParticipantRole::Owner);
+        $firstJobLine = $this->addJobLine($project, 4_246, 'Hydrogen Fuel Block');
+        $secondJobLine = $this->addJobLine($project, 4_246, 'Hydrogen Fuel Block');
+        $otherJobLine = $this->addJobLine($project, 16_673, 'Fernite Carbide');
+        $materialLine = $this->addBomLine($project, 34, 'Tritanium', 500);
+        $this->addContributionOn($member, $firstJobLine, ContributionStatus::Approved)->setQuantity(30);
+        $this->addContributionOn($member, $secondJobLine, ContributionStatus::Approved)->setQuantity(12);
+        $this->addContributionOn($member, $otherJobLine, ContributionStatus::Pending)->setQuantity(7);
+        $this->addContributionOn($member, $materialLine, ContributionStatus::Approved);
+        $this->addJobInstallContributionOn($member, $firstJobLine);
+
+        $otherProject = $this->createProject('Revenant');
+        $otherMember = $this->addMember($otherProject, ParticipantRole::Owner);
+        $this->addContributionOn($otherMember, $this->addJobLine($otherProject, 4_246, 'Hydrogen Fuel Block'), ContributionStatus::Approved)->setQuantity(99);
+        $this->em->flush();
+
+        self::assertSame([4_246 => 42], $this->repository->findIntermediateStockByTypeId($project));
+    }
+
+    #[Group('issue-706')]
+    public function testProjectWithoutIntermediateContributionHasNoIntermediateStock(): void
+    {
+        $project = $this->createProject('Ishtar');
+        $this->addMember($project, ParticipantRole::Owner);
+        $this->em->flush();
+
+        self::assertSame([], $this->repository->findIntermediateStockByTypeId($project));
+    }
+
+    private function addJobLine(IndustryProject $project, int $typeId, string $typeName): IndustryProjectBomLine
+    {
+        $line = (new IndustryProjectBomLine())
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setRequiredQuantity(100)
+            ->setIsJob(true)
+            ->setJobGroup('component')
+            ->setActivityType('manufacturing')
+            ->setRuns(1);
+        $project->addBomItem($line);
+
+        return $line;
+    }
+
+    private function addJobInstallContributionOn(IndustryProjectParticipant $member, IndustryProjectBomLine $line): void
+    {
+        $member->getProject()->addContribution(
+            (new IndustryProjectContribution())
+                ->setMember($member)
+                ->setBomItem($line)
+                ->setType(ContributionType::JobInstall)
+                ->setQuantity(5)
+                ->setEstimatedValue(1_000.0)
+                ->setStatus(ContributionStatus::Approved),
+        );
+    }
+
     private function createProject(string $name): IndustryProject
     {
         $project = (new IndustryProject())->setOwner($this->createUser())->setName($name);

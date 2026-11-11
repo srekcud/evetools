@@ -283,7 +283,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
 
     #[Group('issue-257')]
     #[DataProvider('projectOfSeveralLineCountsProvider')]
-    public function testRebuildReadsTheContributedLinesOfTheProjectInOneQueryWhateverItsLineCount(int $runs, int $lineCount): void
+    public function testRebuildReadsTheIntermediateStockAndTheContributedLinesOfTheProjectInTwoQueriesWhateverItsLineCount(int $runs, int $lineCount): void
     {
         $this->connection->update('sde_industry_blueprints', ['max_production_limit' => 1], ['type_id' => self::NITROGEN_FUEL_BLOCK_BLUEPRINT]);
         $projectId = (string) $this->createNitrogenFuelBlockProject(runs: $runs, meLevel: 0, teLevel: 0)->getId();
@@ -297,7 +297,7 @@ final class GroupIndustryBomPersistenceTest extends IntegrationTestCase
         );
 
         self::assertCount($lineCount, $project->getBomItems());
-        self::assertCount(1, $contributionQueries, implode("\n", $contributionQueries));
+        self::assertCount(2, $contributionQueries, implode("\n", $contributionQueries));
     }
 
     private function loadedProjectAndOwner(string $projectId): array

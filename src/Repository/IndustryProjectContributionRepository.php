@@ -98,7 +98,26 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
      */
     public function findIntermediateStockByTypeId(IndustryProject $project): array
     {
-        return [];
+        $rows = $this->createQueryBuilder('c')
+            ->select('line.typeId AS typeId', 'SUM(c.quantity) AS stock')
+            ->join('c.bomItem', 'line')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.type = :type')
+            ->andWhere('c.status = :status')
+            ->andWhere('line.isJob = true')
+            ->setParameter('project', $project)
+            ->setParameter('type', ContributionType::Material->value)
+            ->setParameter('status', ContributionStatus::Approved->value)
+            ->groupBy('line.typeId')
+            ->getQuery()
+            ->getScalarResult();
+
+        $stockByTypeId = [];
+        foreach ($rows as $row) {
+            $stockByTypeId[(int) $row['typeId']] = (int) $row['stock'];
+        }
+
+        return $stockByTypeId;
     }
 
     /**
