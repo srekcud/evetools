@@ -132,3 +132,32 @@ jobs:
         env:
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+
+  github-release:
+    name: GitHub Release
+    needs: deploy
+    if: github.event_name == 'push' && needs.deploy.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Publish the GitHub Release
+        run: |
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "::notice::A release already exists for ${VERSION}, kept as is"
+            exit 0
+          fi
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match 'V*' "${VERSION}^" 2> /dev/null || echo "")
+          if [ -n "$PREVIOUS_TAG" ]; then
+            gh release create "$VERSION" --verify-tag --generate-notes --notes-start-tag "$PREVIOUS_TAG"
+          else
+            gh release create "$VERSION" --verify-tag --generate-notes
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
