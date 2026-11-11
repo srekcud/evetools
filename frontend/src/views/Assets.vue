@@ -123,8 +123,37 @@ function isContainer(asset: Asset): boolean {
   return containerContents.value.has(asset.itemId)
 }
 
+const assetsByItemId = computed(() => new Map(assets.value.map(a => [a.itemId, a])))
+
+const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase())
+
+function matchesItemSearch(asset: Asset, query: string): boolean {
+  return typeNameLabel(asset.typeName, asset.typeId).toLowerCase().includes(query) ||
+    (asset.itemName !== null && asset.itemName.toLowerCase().includes(query))
+}
+
+function matchesSearch(asset: Asset, query: string): boolean {
+  return matchesItemSearch(asset, query) ||
+    asset.locationName.toLowerCase().includes(query) ||
+    (asset.solarSystemName !== null && asset.solarSystemName.toLowerCase().includes(query))
+}
+
+const visibleContainerContents = computed(() => {
+  const query = normalizedSearchQuery.value
+  if (!query) {
+    return containerContents.value
+  }
+  const visible = new Map<number, Asset[]>()
+  for (const [containerId, contents] of containerContents.value) {
+    const container = assetsByItemId.value.get(containerId)
+    const containerMatches = container !== undefined && matchesSearch(container, query)
+    visible.set(containerId, containerMatches ? contents : contents.filter(item => matchesItemSearch(item, query)))
+  }
+  return visible
+})
+
 function getContainerContents(asset: Asset): Asset[] {
-  return containerContents.value.get(asset.itemId) || []
+  return visibleContainerContents.value.get(asset.itemId) || []
 }
 
 function toggleContainer(itemId: number) {
@@ -156,12 +185,8 @@ const filteredAssets = computed(() => {
     result = result.filter(a => a.locationName === selectedLocation.value)
   }
   if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(a =>
-      typeNameLabel(a.typeName, a.typeId).toLowerCase().includes(query) ||
-      a.locationName.toLowerCase().includes(query) ||
-      (a.solarSystemName && a.solarSystemName.toLowerCase().includes(query))
-    )
+    const query = normalizedSearchQuery.value
+    result = result.filter(a => matchesSearch(a, query) || getContainerContents(a).length > 0)
   }
 
   return result
@@ -203,6 +228,20 @@ const assetsByLocation = computed(() => {
   }
 
   return Object.values(grouped).sort((a, b) => a.locationName.localeCompare(b.locationName))
+})
+
+watch(searchQuery, () => {
+  const query = normalizedSearchQuery.value
+  if (!query) {
+    return
+  }
+  const opened = new Set(expandedContainers.value)
+  for (const [containerId, contents] of containerContents.value) {
+    if (contents.some(item => matchesItemSearch(item, query))) {
+      opened.add(containerId)
+    }
+  }
+  expandedContainers.value = opened
 })
 
 // Reset location filter when solar system changes
@@ -538,7 +577,7 @@ watch([selectedCharacterId, viewMode], () => {
               :location="location"
               :expanded-containers="expandedContainers"
               :collapsed-locations="collapsedLocations"
-              :container-contents="containerContents"
+              :container-contents="visibleContainerContents"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"
             />
