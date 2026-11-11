@@ -59,7 +59,7 @@ run_args=(
   -e JWT_SECRET_KEY=%kernel.project_dir%/config/jwt/private.pem
   -e MESSENGER_TRANSPORT_DSN=in-memory://
   -e LOCK_DSN=flock
-  -v "$worktree":/app -v "$main_repo/vendor":/app/vendor:ro -w /app
+  -v "$worktree":/app -v "${WT_VENDOR_DIR:-$main_repo/vendor}":/app/vendor:ro -w /app
   --entrypoint php
 )
 

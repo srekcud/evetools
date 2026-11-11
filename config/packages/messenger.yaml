@@ -11,7 +11,7 @@ framework:
                     multiplier: 2
                     max_delay: 0
             failed:
-                dsn: '%env(MESSENGER_TRANSPORT_DSN)%?queues[failed]/exchange[failed]'
+                dsn: 'doctrine://default?queue_name=failed&auto_setup=false'
 
         routing:
             App\Message\SyncCharacterAssets: async
@@ -62,4 +62,3 @@ when@test:
         messenger:
             transports:
                 async: 'in-memory://'
-                failed: 'in-memory://'
