@@ -13,7 +13,6 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(OriginalBlueprintFinder::class)]
 #[Group('issue-357')]
-#[Group('corp-blueprints-hidden-divisions')]
 final class OriginalBlueprintFinderTest extends TestCase
 {
     use BuildsBlueprintLibrary;
@@ -72,38 +71,5 @@ final class OriginalBlueprintFinderTest extends TestCase
         );
 
         self::assertSame([], $finder->typeIdsOwnedBy($this->user));
-    }
-
-    public function testListsTheOriginalsOfTheCorporationInEveryDivisionWhenBlueprintsOfHiddenDivisionsAreShared(): void
-    {
-        $finder = new OriginalBlueprintFinder(
-            $this->repositoryHolding([
-                $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 8_031, self::ATRON_BLUEPRINT, -1, -1, 9, 18, 3),
-                $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 8_032, self::HURRICANE_BLUEPRINT, -1, -1, 6, 12, 5),
-                $this->corporationBlueprint(self::OTHER_CORPORATION_ID, 8_033, self::DRAKE_BLUEPRINT, -1, -1, 1, 2, 5),
-            ]),
-            $this->visibilityOf([self::MAIN_CORPORATION_ID => [3]], sharesBlueprintsOfHiddenDivisions: true),
-        );
-
-        $typeIds = $finder->typeIdsOwnedBy($this->user);
-        sort($typeIds);
-
-        self::assertSame([self::ATRON_BLUEPRINT, self::HURRICANE_BLUEPRINT], $typeIds);
-    }
-
-    public function testListsTheOriginalsOfTheCorporationInEveryDivisionWithoutVisibilitySetting(): void
-    {
-        $finder = new OriginalBlueprintFinder(
-            $this->repositoryHolding([
-                $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 8_041, self::ATRON_BLUEPRINT, -1, -1, 9, 18, 3),
-                $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 8_042, self::HURRICANE_BLUEPRINT, -1, -1, 6, 12, 5),
-            ]),
-            $this->visibilityOf([]),
-        );
-
-        $typeIds = $finder->typeIdsOwnedBy($this->user);
-        sort($typeIds);
-
-        self::assertSame([self::ATRON_BLUEPRINT, self::HURRICANE_BLUEPRINT], $typeIds);
     }
 }

@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+
+dockerfile="${1:-Dockerfile.base}"
+month="${BASE_IMAGE_MONTH:-$(date -u +%Y%m)}"
+
+if [ ! -f "$dockerfile" ]; then
+    echo "base-image-tag: ${dockerfile} not found" >&2
+    exit 66
+fi
+
+hash="$(sha256sum "$dockerfile" | cut -c1-12)"
+echo "${hash}-${month}"

@@ -143,28 +143,6 @@ class UpdateCorpVisibilityProcessorTest extends TestCase
         $this->assertSame([1, 2], $result->visibleDivisions);
     }
 
-    public function testBlueprintsOfHiddenDivisionsAreSharedByDefault(): void
-    {
-        $saved = $this->savedVisibilityOfADirector();
-
-        $result = $this->processor->process(new UpdateCorpVisibilityInput(), new Put());
-
-        $this->assertTrue($saved->sharesBlueprintsOfHiddenDivisions());
-        $this->assertTrue($result->shareBlueprintsOfHiddenDivisions);
-    }
-
-    public function testDirectorCanStopSharingTheBlueprintsOfHiddenDivisions(): void
-    {
-        $saved = $this->savedVisibilityOfADirector();
-        $input = new UpdateCorpVisibilityInput();
-        $input->shareBlueprintsOfHiddenDivisions = false;
-
-        $result = $this->processor->process($input, new Put());
-
-        $this->assertFalse($saved->sharesBlueprintsOfHiddenDivisions());
-        $this->assertFalse($result->shareBlueprintsOfHiddenDivisions);
-    }
-
     public function testDuplicateDivisionsAreDeduped(): void
     {
         $user = $this->createDirectorUser();
@@ -438,17 +416,5 @@ class UpdateCorpVisibilityProcessorTest extends TestCase
         $user->method('getMainCharacter')->willReturn($character);
 
         return $user;
-    }
-
-    private function savedVisibilityOfADirector(): CorpAssetVisibility
-    {
-        $this->security->method('getUser')->willReturn($this->createDirectorUser());
-        $this->characterService->method('canReadCorporationAssets')->willReturn(true);
-        $this->corporationService->method('getDivisions')->willReturn([1 => 'Materials']);
-        $saved = (new CorpAssetVisibility())->setCorporationId(98000001);
-        $this->visibilityRepository->method('findByCorporationId')->willReturn($saved);
-        $this->em->expects($this->once())->method('flush');
-
-        return $saved;
     }
 }

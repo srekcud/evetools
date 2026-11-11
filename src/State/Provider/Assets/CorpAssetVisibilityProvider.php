@@ -74,7 +74,6 @@ class CorpAssetVisibilityProvider implements ProviderInterface
             ? $visibility->getVisibleDivisions()
             : array_keys($allDivisions);
         $resource->restrictedDivisions = CorpVisibilityPlayers::namedByDivision($restrictedDivisions, $players);
-        $resource->shareBlueprintsOfHiddenDivisions = $visibility?->sharesBlueprintsOfHiddenDivisions() ?? true;
         $resource->accessibleDivisions = $visibility?->divisionsVisibleTo($user) ?? [];
         $resource->players = $isDirector
             ? array_map(CorpVisibilityPlayers::describe(...), $players)

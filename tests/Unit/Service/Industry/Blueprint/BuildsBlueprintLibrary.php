@@ -146,15 +146,12 @@ trait BuildsBlueprintLibrary
         return $repository;
     }
 
-    private function visibilityOf(array $visibleDivisionsByCorporationId, bool $sharesBlueprintsOfHiddenDivisions = false): CorpAssetVisibilityRepository
+    private function visibilityOf(array $visibleDivisionsByCorporationId): CorpAssetVisibilityRepository
     {
         $repository = $this->createStub(CorpAssetVisibilityRepository::class);
         $repository->method('findByCorporationId')->willReturnCallback(
             static fn (int $corporationId): ?CorpAssetVisibility => isset($visibleDivisionsByCorporationId[$corporationId])
-                ? (new CorpAssetVisibility())
-                    ->setCorporationId($corporationId)
-                    ->setVisibleDivisions($visibleDivisionsByCorporationId[$corporationId])
-                    ->setShareBlueprintsOfHiddenDivisions($sharesBlueprintsOfHiddenDivisions)
+                ? (new CorpAssetVisibility())->setCorporationId($corporationId)->setVisibleDivisions($visibleDivisionsByCorporationId[$corporationId])
                 : null,
         );
 

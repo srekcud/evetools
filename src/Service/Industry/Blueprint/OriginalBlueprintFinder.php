@@ -54,18 +54,19 @@ class OriginalBlueprintFinder
         $blueprints = $this->ownedBlueprintRepository->findByCharacters($user->getCharacters()->getValues());
 
         $corporationId = $user->getMainCharacter()?->getCorporationId();
-        if ($corporationId === null) {
-            return $blueprints;
+        if ($corporationId !== null) {
+            $visibleDivisions = $this->visibilityRepository->findByCorporationId($corporationId)?->divisionsVisibleTo($user);
+            if ($visibleDivisions !== null && $visibleDivisions !== []) {
+                $blueprints = [
+                    ...$blueprints,
+                    ...array_filter(
+                        $this->ownedBlueprintRepository->findByCorporationId($corporationId),
+                        static fn (OwnedBlueprint $blueprint): bool => in_array($blueprint->getDivisionNumber(), $visibleDivisions, true),
+                    ),
+                ];
+            }
         }
 
-        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
-
-        return [
-            ...$blueprints,
-            ...array_filter(
-                $this->ownedBlueprintRepository->findByCorporationId($corporationId),
-                static fn (OwnedBlueprint $blueprint): bool => $visibility?->showsBlueprintIn($blueprint->getDivisionNumber(), $user) ?? true,
-            ),
-        ];
+        return $blueprints;
     }
 }

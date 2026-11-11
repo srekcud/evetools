@@ -71,8 +71,8 @@ class BlueprintLibraryReader
             return [self::STATE_NO_DIRECTOR, []];
         }
 
-        $visibility = $this->visibilityRepository->findByCorporationId($corporationId);
-        if ($visibility?->hidesEveryBlueprintFrom($user) === true) {
+        $visibleDivisions = $this->visibilityRepository->findByCorporationId($corporationId)?->divisionsVisibleTo($user);
+        if ($visibleDivisions === null || $visibleDivisions === []) {
             return [self::STATE_NO_VISIBILITY, []];
         }
 
@@ -80,7 +80,7 @@ class BlueprintLibraryReader
             self::STATE_KNOWN,
             array_values(array_filter(
                 $this->ownedBlueprintRepository->findByCorporationId($corporationId),
-                static fn (OwnedBlueprint $blueprint): bool => $visibility?->showsBlueprintIn($blueprint->getDivisionNumber(), $user) ?? true,
+                static fn (OwnedBlueprint $blueprint): bool => in_array($blueprint->getDivisionNumber(), $visibleDivisions, true),
             )),
         ];
     }

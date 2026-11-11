@@ -22,7 +22,6 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(BlueprintLibraryReader::class)]
 #[Group('issue-357')]
 #[Group('issue-358')]
-#[Group('corp-blueprints-hidden-divisions')]
 final class BlueprintLibraryReaderTest extends TestCase
 {
     use BuildsBlueprintLibrary;
@@ -79,7 +78,7 @@ final class BlueprintLibraryReaderTest extends TestCase
         ));
     }
 
-    public function testCorporationStateIsNoDirectorWithoutAnyCharacterWithTheScopeNoVisibilityWhenNoDivisionIsVisibleAndBlueprintsOfHiddenDivisionsAreNotSharedAndKnownOtherwise(): void
+    public function testCorporationStateIsNoDirectorWithoutAnyCharacterWithTheScopeNoVisibilityWithoutVisibleDivisionAndKnownOtherwise(): void
     {
         $corporationBlueprint = $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_021, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3);
         $personalBlueprint = $this->personalBlueprint($this->main, 7_022, self::DRAKE_BLUEPRINT, -1, -1, 10, 20);
@@ -94,7 +93,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             [
                 ['known', [self::DRAKE_BLUEPRINT, self::HAMMERHEAD_II_BLUEPRINT]],
                 ['no_director', [self::DRAKE_BLUEPRINT]],
-                ['known', [self::DRAKE_BLUEPRINT, self::HAMMERHEAD_II_BLUEPRINT]],
+                ['no_visibility', [self::DRAKE_BLUEPRINT]],
                 ['no_visibility', [self::DRAKE_BLUEPRINT]],
             ],
             array_map(
@@ -190,43 +189,11 @@ final class BlueprintLibraryReaderTest extends TestCase
         );
     }
 
-    public function testCorporationBlueprintsOfEveryDivisionAreReadWhenBlueprintsOfHiddenDivisionsAreShared(): void
-    {
-        $reader = $this->reader([
-            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_071, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3),
-            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_072, self::HURRICANE_BLUEPRINT, -2, 30, 4, 8, 5),
-            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_073, self::ATRON_BLUEPRINT, -1, -1, 9, 18, null),
-        ], visibleDivisions: [], corporationReader: $this->main, sharesBlueprintsOfHiddenDivisions: true);
-
-        $library = $reader->readFor($this->user);
-
-        self::assertSame(
-            ['known', [self::ATRON_BLUEPRINT, self::HAMMERHEAD_II_BLUEPRINT, self::HURRICANE_BLUEPRINT]],
-            [$library->corporationState, array_map(static fn (BlueprintLibraryRow $row): int => $row->typeId, $library->rows)],
-        );
-    }
-
-    public function testCorporationBlueprintsOfEveryDivisionAreReadWithoutVisibilitySetting(): void
-    {
-        $reader = $this->reader([
-            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_081, self::HAMMERHEAD_II_BLUEPRINT, -2, 50, 2, 4, 3),
-            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_082, self::HURRICANE_BLUEPRINT, -2, 30, 4, 8, 5),
-        ], visibleDivisions: null, corporationReader: $this->main);
-
-        $library = $reader->readFor($this->user);
-
-        self::assertSame(
-            [self::HAMMERHEAD_II_BLUEPRINT, self::HURRICANE_BLUEPRINT],
-            array_map(static fn (BlueprintLibraryRow $row): int => $row->typeId, $library->rows),
-        );
-    }
-
     private function reader(
         array $blueprints,
         ?array $visibleDivisions,
         ?Character $corporationReader,
         ?array $visibleDivisionsOfOtherCorporation = null,
-        bool $sharesBlueprintsOfHiddenDivisions = false,
     ): BlueprintLibraryReader {
         $visibleDivisionsByCorporationId = [];
         if ($visibleDivisions !== null) {
@@ -243,7 +210,7 @@ final class BlueprintLibraryReaderTest extends TestCase
 
         return new BlueprintLibraryReader(
             $this->repositoryHolding($blueprints),
-            $this->visibilityOf($visibleDivisionsByCorporationId, $sharesBlueprintsOfHiddenDivisions),
+            $this->visibilityOf($visibleDivisionsByCorporationId),
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn([]),
@@ -255,8 +222,7 @@ final class BlueprintLibraryReaderTest extends TestCase
         $visibility = (new CorpAssetVisibility())
             ->setCorporationId(self::MAIN_CORPORATION_ID)
             ->setVisibleDivisions($visibleDivisions)
-            ->setRestrictedDivisions([$restrictedDivision => $listedUserIds])
-            ->setShareBlueprintsOfHiddenDivisions(false);
+            ->setRestrictedDivisions([$restrictedDivision => $listedUserIds]);
         $visibilityRepository = $this->createStub(CorpAssetVisibilityRepository::class);
         $visibilityRepository->method('findByCorporationId')->willReturn($visibility);
         $characterRepository = $this->createStub(CharacterRepository::class);

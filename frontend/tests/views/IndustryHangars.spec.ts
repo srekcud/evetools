@@ -29,7 +29,6 @@ function visibility(overrides: Partial<CorpAssetVisibility> = {}): CorpAssetVisi
   return {
     visibleDivisions: [FUEL_DIVISION],
     restrictedDivisions: { [MINERALS_DIVISION]: [{ id: BOB_ID, name: 'Bob Tamm' }] },
-    shareBlueprintsOfHiddenDivisions: true,
     accessibleDivisions: [FUEL_DIVISION],
     players: [{ id: BOB_ID, name: 'Bob Tamm' }],
     directorConnected: true,
@@ -128,7 +127,6 @@ describe('IndustryHangars', () => {
     expect(JSON.parse((saveCall?.[1] as RequestInit).body as string)).toEqual({
       visibleDivisions: [FUEL_DIVISION, AMMO_DIVISION],
       restrictedDivisions: { [MINERALS_DIVISION]: [BOB_ID] },
-      shareBlueprintsOfHiddenDivisions: true,
     })
   })
 

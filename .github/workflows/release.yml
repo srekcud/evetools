@@ -56,12 +56,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build the base image
-        run: docker build --file Dockerfile.base --tag evetools-base:latest .
+      - name: Compute the base image tag
+        run: |
+          BASE_IMAGE="${IMAGE_REPOSITORY}/evetools-base:$(bin/base-image-tag)"
+          echo "BASE_IMAGE=${BASE_IMAGE}" >> "$GITHUB_ENV"
+
+      - name: Pull the base image
+        id: base
+        run: |
+          if docker manifest inspect "$BASE_IMAGE" > /dev/null 2>&1; then
+            docker pull "$BASE_IMAGE"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push the base image
+        if: steps.base.outputs.published == 'false'
+        run: |
+          docker build --pull --file Dockerfile.base \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --tag "$BASE_IMAGE" .
+          docker push "$BASE_IMAGE"
 
       - name: Build the app image
         run: >-
           docker build
+          --build-arg "BASE_IMAGE=${BASE_IMAGE}"
           --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"
           --label "org.opencontainers.image.version=${VERSION}"
           --tag "${IMAGE_REPOSITORY}/evetools-app:${VERSION}" .

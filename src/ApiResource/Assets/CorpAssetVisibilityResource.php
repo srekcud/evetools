@@ -60,8 +60,6 @@ class CorpAssetVisibilityResource
     /** @var list<array{id: string, name: string}> */
     public array $players = [];
 
-    public bool $shareBlueprintsOfHiddenDivisions = true;
-
     public bool $directorConnected = false;
 
     public bool $isDirector = false;

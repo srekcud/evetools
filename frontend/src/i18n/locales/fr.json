@@ -2089,11 +2089,7 @@
       "modeHidden": "Masquée",
       "noPlayerListed": "Aucun joueur listé : la division reste masquée",
       "readOnlyDescription": "Qui voit chaque division de hangar de la corporation. Seul un directeur peut la modifier.",
-      "noDirectorWarning": "Aucun directeur connecté : le contenu des containers corpo est inconnu, pas vide.",
-      "shareBlueprints": "Montrer les blueprints de la corpo des divisions masquées",
-      "shareBlueprintsHelp": "Les BPO, BPC et formules de réaction de toutes les divisions apparaissent dans la bibliothèque de blueprints ; le reste du contenu des divisions masquées reste caché.",
-      "shareBlueprintsOn": "Blueprints des divisions masquées : visibles",
-      "shareBlueprintsOff": "Blueprints des divisions masquées : cachés"
+      "noDirectorWarning": "Aucun directeur connecté : le contenu des containers corpo est inconnu, pas vide."
     }
   },
   "contracts": {

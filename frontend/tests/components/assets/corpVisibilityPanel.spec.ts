@@ -14,7 +14,6 @@ function visibility(overrides: Partial<CorpAssetVisibility> = {}): CorpAssetVisi
   return {
     visibleDivisions: [FUEL_DIVISION],
     restrictedDivisions: { [MINERALS_DIVISION]: [{ id: BOB_ID, name: 'Bob Tamm' }] },
-    shareBlueprintsOfHiddenDivisions: true,
     accessibleDivisions: [FUEL_DIVISION],
     players: [
       { id: ALICE_ID, name: 'Alice Voss' },
@@ -59,7 +58,7 @@ describe('CorpVisibilityPanel', () => {
     await wrapper.get('[data-testid="save"]').trigger('click')
 
     expect(wrapper.emitted('save')).toEqual([[
-      { visibleDivisions: [], restrictedDivisions: { [MINERALS_DIVISION]: [BOB_ID], [AMMO_DIVISION]: [ALICE_ID] }, shareBlueprintsOfHiddenDivisions: true },
+      { visibleDivisions: [], restrictedDivisions: { [MINERALS_DIVISION]: [BOB_ID], [AMMO_DIVISION]: [ALICE_ID] } },
     ]])
   })
 
@@ -69,30 +68,5 @@ describe('CorpVisibilityPanel', () => {
 
     expect(withoutDirector.find('[data-testid="no-director-warning"]').exists()).toBe(true)
     expect(withDirector.find('[data-testid="no-director-warning"]').exists()).toBe(false)
-  })
-
-  it('keeps the blueprints of hidden divisions shared by default and saves false once the director unchecks it', async () => {
-    const wrapper = await mountExpandedPanel()
-    const checkbox = wrapper.get<HTMLInputElement>('[data-testid="share-blueprints-checkbox"]')
-
-    expect(checkbox.element.checked).toBe(true)
-    expect(wrapper.get('[data-testid="save"]').attributes('disabled')).toBeDefined()
-
-    await checkbox.setValue(false)
-    expect(wrapper.get('[data-testid="save"]').attributes('disabled')).toBeUndefined()
-    await wrapper.get('[data-testid="save"]').trigger('click')
-
-    expect(wrapper.emitted('save')).toEqual([[
-      { visibleDivisions: [FUEL_DIVISION], restrictedDivisions: { [MINERALS_DIVISION]: [BOB_ID] }, shareBlueprintsOfHiddenDivisions: false },
-    ]])
-  })
-
-  it('shows the blueprint sharing state read-only to a member who is not a director', async () => {
-    const shared = await mountExpandedPanel({ isDirector: false })
-    const notShared = await mountExpandedPanel({ isDirector: false, shareBlueprintsOfHiddenDivisions: false })
-
-    expect(shared.find('[data-testid="share-blueprints-checkbox"]').exists()).toBe(false)
-    expect(shared.get('[data-testid="share-blueprints-state"]').text()).toContain(fr.assets.visibility.shareBlueprintsOn)
-    expect(notShared.get('[data-testid="share-blueprints-state"]').text()).toContain(fr.assets.visibility.shareBlueprintsOff)
   })
 })

@@ -31,9 +31,6 @@ class CorpAssetVisibility
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $restrictedDivisions = [];
 
-    #[ORM\Column(options: ['default' => true])]
-    private bool $shareBlueprintsOfHiddenDivisions = true;
-
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $configuredBy = null;
@@ -86,31 +83,6 @@ class CorpAssetVisibility
     {
         $this->restrictedDivisions = $restrictedDivisions;
         return $this;
-    }
-
-    public function sharesBlueprintsOfHiddenDivisions(): bool
-    {
-        return $this->shareBlueprintsOfHiddenDivisions;
-    }
-
-    public function setShareBlueprintsOfHiddenDivisions(bool $shareBlueprintsOfHiddenDivisions): static
-    {
-        $this->shareBlueprintsOfHiddenDivisions = $shareBlueprintsOfHiddenDivisions;
-        return $this;
-    }
-
-    public function showsBlueprintIn(?int $division, ?User $viewer): bool
-    {
-        if ($this->shareBlueprintsOfHiddenDivisions) {
-            return true;
-        }
-
-        return $division !== null && $this->isVisibleTo($division, $viewer);
-    }
-
-    public function hidesEveryBlueprintFrom(?User $viewer): bool
-    {
-        return !$this->shareBlueprintsOfHiddenDivisions && $this->divisionsVisibleTo($viewer) === [];
     }
 
     public function isVisibleTo(int $division, ?User $viewer): bool
