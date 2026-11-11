@@ -15,13 +15,18 @@ use App\Entity\IndustryStructureConfig;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
+use App\Industry\Application\PlannedCopyDurations;
 use App\Industry\Application\PlannedProduction;
+use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\StructureType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
+use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\Plan;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Runs;
+use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
@@ -35,6 +40,10 @@ use App\Service\Industry\Project\ProjectChainNode;
 use App\Service\Industry\Project\ProjectJobMaterialNeedsLoader;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectChainProvider;
+use App\Tests\Unit\Industry\Application\Double\InMemoryCharacterSkillLevels;
+use App\Tests\Unit\Industry\Application\Double\InMemoryResearchBaseTimes;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -52,6 +61,19 @@ final class ProjectChainProviderTest extends TestCase
     private const string NOT_A_UUID = 'abc';
     private const string OSTINGELE_RAITARU_NAME = 'Ostingele - Raitaru of the Hammerheads';
     private const string TATARA_NAME = 'Ostingele - Tatara of the Fullerides';
+    private const string OWNER_ID = '01970000-0000-7000-8000-0000000000f2';
+    private const string AZBEL_ID = '01970000-0000-7000-8000-0000000000b1';
+    private const int ARIA_EVE_CHARACTER_ID = 2_120_000_001;
+    private const int ARIA_COPIER_EVE_CHARACTER_ID = 2_120_000_003;
+    private const int BRANN_EVE_CHARACTER_ID = 2_120_000_011;
+    private const int ELIA_EVE_CHARACTER_ID = 2_120_000_021;
+    private const int SCIENCE = 3402;
+    private const int ADVANCED_INDUSTRY = 3388;
+    private const int ISHTAR = 12005;
+    private const int ISHTAR_COPY_BASE_TIME_SECONDS = 18_000;
+    private const int ISHTAR_COPY_RUNS = 3;
+    private const float AZBEL_TIME_ROLE_BONUS = 0.80;
+    private const float AZBEL_COST_ROLE_BONUS = 0.96;
 
     private Security&Stub $security;
     private IndustryProjectRepository&Stub $projectRepository;
@@ -78,9 +100,10 @@ final class ProjectChainProviderTest extends TestCase
         $this->projectService = $this->createStub(IndustryProjectService::class);
         $this->projectService->method('planOf')->willThrowException(new \RuntimeException('No blueprint or reaction found for product type ID 337002'));
 
-        $this->owner = $this->pilot('Aria Solberg');
-        $this->member = $this->pilot('Brann Holt');
-        $this->outsider = $this->pilot('Elia Varr');
+        $this->owner = $this->pilot('Aria Solberg', self::ARIA_EVE_CHARACTER_ID);
+        (new \ReflectionProperty(User::class, 'id'))->setValue($this->owner, Uuid::fromString(self::OWNER_ID));
+        $this->member = $this->pilot('Brann Holt', self::BRANN_EVE_CHARACTER_ID);
+        $this->outsider = $this->pilot('Elia Varr', self::ELIA_EVE_CHARACTER_ID);
         $this->project = (new IndustryProject())->setOwner($this->owner)->setName('Hammerhead batch');
         $memberParticipant = (new IndustryProjectParticipant())->setUser($this->member)->setRole(ParticipantRole::Member)->setStatus(ParticipantStatus::Accepted);
         $this->project->addMember($memberParticipant);
@@ -204,7 +227,7 @@ final class ProjectChainProviderTest extends TestCase
             $this->saleRepository,
             $this->structureConfigRepository,
             new ProjectAccessChecker($this->participantRepository),
-            new ProjectChainBuilder(),
+            $this->chainBuilder(),
             new ProjectJobMaterialNeedsLoader($projectService),
         );
 
@@ -237,7 +260,7 @@ final class ProjectChainProviderTest extends TestCase
                 $this->saleRepository,
                 $this->structureConfigRepository,
                 new ProjectAccessChecker($this->participantRepository),
-                new ProjectChainBuilder(),
+                $this->chainBuilder(),
                 new ProjectJobMaterialNeedsLoader($this->projectService),
             );
             $chain = $provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]);
@@ -245,6 +268,69 @@ final class ProjectChainProviderTest extends TestCase
         }
 
         self::assertSame([['Aria Solberg'], ['Aria Alt']], $installersByViewer);
+    }
+
+    #[Group('issue-524')]
+    public function testPlannedCopyDurationNamesTheCopierToTheOwnerAndTheMainCharacterOfTheOwnerToAMember(): void
+    {
+        $this->owner->addCharacter((new Character())->setEveCharacterId(self::ARIA_COPIER_EVE_CHARACTER_ID)->setName('Aria Copier'));
+        $copy = $this->jobLine(self::ISHTAR, 'Ishtar', 'copy', self::AZBEL_ID, 'best_configured');
+        $copy->setJobGroup('blueprint')->setRuns(self::ISHTAR_COPY_RUNS)->setRequiredQuantity(self::ISHTAR_COPY_RUNS);
+        $this->bomLineRepository->method('findBy')->willReturn([$copy]);
+        $this->contributionRepository->method('findApprovedByProject')->willReturn([]);
+        $this->saleRepository->method('findByProjectForListing')->willReturn([]);
+        $this->structureConfigRepository->method('findByUser')->willReturn([]);
+        $durationsByViewer = [];
+
+        foreach ([$this->member, $this->owner] as $viewer) {
+            $security = $this->createStub(Security::class);
+            $security->method('getUser')->willReturn($viewer);
+            $provider = new ProjectChainProvider(
+                $security,
+                $this->projectRepository,
+                $this->bomLineRepository,
+                $this->contributionRepository,
+                $this->saleRepository,
+                $this->structureConfigRepository,
+                new ProjectAccessChecker($this->participantRepository),
+                $this->chainBuilder(),
+                new ProjectJobMaterialNeedsLoader($this->projectService),
+            );
+            $copyNode = $this->node($provider->provide(new Get(), ['projectId' => $this->project->getId()->toRfc4122()]), $copy->getId()->toRfc4122());
+            self::assertObjectHasProperty('plannedCopyDuration', $copyNode);
+            $durationsByViewer[] = $copyNode->plannedCopyDuration;
+        }
+
+        self::assertSame(
+            [
+                ['seconds' => 28_512, 'missingData' => [], 'characterName' => 'Aria Solberg'],
+                ['seconds' => 28_512, 'missingData' => [], 'characterName' => 'Aria Copier'],
+            ],
+            $durationsByViewer,
+        );
+    }
+
+    private function chainBuilder(): ProjectChainBuilder
+    {
+        return new ProjectChainBuilder(new PlannedCopyDurations(
+            new InMemoryResearchBaseTimes([self::ISHTAR => [ActivityKind::Copying->name => self::ISHTAR_COPY_BASE_TIME_SECONDS]]),
+            new InMemoryCharacterSkillLevels([
+                self::ARIA_EVE_CHARACTER_ID => [self::SCIENCE => 2, self::ADVANCED_INDUSTRY => 1],
+                self::ARIA_COPIER_EVE_CHARACTER_ID => [self::SCIENCE => 5, self::ADVANCED_INDUSTRY => 4],
+            ]),
+            new InMemoryUserProductionStructures([self::OWNER_ID => [new ProductionStructure(
+                self::AZBEL_ID,
+                StructureType::EngineeringComplex,
+                SecurityClass::LowSec,
+                null,
+                new \DateTimeImmutable('2026-01-01 00:00:00'),
+                new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+                [],
+                new Multiplier(self::AZBEL_COST_ROLE_BONUS),
+                ProductionStructures::NO_FACILITY_TAX,
+                timeRoleBonus: new Multiplier(self::AZBEL_TIME_ROLE_BONUS),
+            )]]),
+        ));
     }
 
     private function node(ProjectChainResource $chain, string $id): ProjectChainNode
@@ -268,7 +354,7 @@ final class ProjectChainProviderTest extends TestCase
             $this->saleRepository,
             $this->structureConfigRepository,
             new ProjectAccessChecker($this->participantRepository),
-            new ProjectChainBuilder(),
+            $this->chainBuilder(),
             new ProjectJobMaterialNeedsLoader($this->projectService),
         );
     }
@@ -286,9 +372,9 @@ final class ProjectChainProviderTest extends TestCase
         return $plannedStructures;
     }
 
-    private function pilot(string $name): User
+    private function pilot(string $name, int $eveCharacterId): User
     {
-        $character = (new Character())->setName($name);
+        $character = (new Character())->setName($name)->setEveCharacterId($eveCharacterId);
         $user = new User();
         $user->addCharacter($character);
         $user->setMainCharacter($character);

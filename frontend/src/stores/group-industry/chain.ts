@@ -16,6 +16,7 @@ const NULLABLE_NODE_FIELDS = [
   'fulfilledQuantity',
   'realCost',
   'plannedStructure',
+  'plannedCopyDuration',
   'soldQuantity',
   'grossRevenue',
 ] as const satisfies readonly (keyof ChainNode)[]

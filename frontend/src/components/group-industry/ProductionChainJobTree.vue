@@ -46,7 +46,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { getTypeIconUrl, onImageError } = useEveImages()
-const { formatDateTime, formatNumber } = useFormatters()
+const { formatDateTime, formatDuration, formatNumber } = useFormatters()
 
 const COLUMN_KEYS = ['element', 'activity', 'runs', 'meTe', 'character', 'status', 'realCost', 'end', 'inOut', 'structure'] as const
 
@@ -223,6 +223,18 @@ function plansStructure(node: ChainNode): boolean {
 
           <td class="py-2 px-3 text-slate-400 whitespace-nowrap">
             <template v-if="item.endDate !== null">{{ formatDateTime(item.endDate) }}</template>
+            <template v-else-if="item.node.plannedCopyDuration !== null">
+              <span
+                v-if="item.node.plannedCopyDuration.seconds !== null"
+                data-testid="chain-planned-copy-duration"
+                class="font-mono tabular-nums text-cyan-300"
+                :title="item.node.plannedCopyDuration.characterName ?? undefined"
+              >{{ t('groupIndustry.chain.plannedCopyDuration.planned', { duration: formatDuration(item.node.plannedCopyDuration.seconds) }) }}</span>
+              <template v-else>
+                <span data-testid="chain-planned-copy-duration-unknown" class="block text-violet-300">{{ t('groupIndustry.chain.plannedCopyDuration.unknown') }}</span>
+                <span v-for="missing in item.node.plannedCopyDuration.missingData" :key="missing.reason" class="block text-xs text-violet-300 whitespace-normal max-w-56">{{ t(`groupIndustry.chain.plannedCopyDuration.reason.${missing.reason}`) }}</span>
+              </template>
+            </template>
           </td>
 
           <td class="py-2 px-3">

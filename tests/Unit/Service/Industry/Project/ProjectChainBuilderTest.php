@@ -17,9 +17,19 @@ use App\Enum\ContributionType;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
+use App\Industry\Application\PlannedCopyDurations;
+use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\StructureType;
+use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\Multiplier;
+use App\Industry\Domain\SecurityClass;
 use App\Service\Industry\Project\ProjectChain;
 use App\Service\Industry\Project\ProjectChainBuilder;
 use App\Service\Industry\Project\ProjectChainNode;
+use App\Tests\Unit\Industry\Application\Double\InMemoryCharacterSkillLevels;
+use App\Tests\Unit\Industry\Application\Double\InMemoryResearchBaseTimes;
+use App\Tests\Unit\Industry\Application\Double\InMemoryUserProductionStructures;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -49,6 +59,15 @@ final class ProjectChainBuilderTest extends TestCase
     private const string OSTINGELE_RAITARU_ID = '01970000-0000-7000-8000-0000000000a1';
     private const string DELETED_STRUCTURE_ID = '01970000-0000-7000-8000-0000000000a2';
     private const string OSTINGELE_RAITARU_NAME = 'Ostingele - Raitaru of the Hammerheads';
+    private const string OWNER_ID = '01970000-0000-7000-8000-0000000000f1';
+    private const int ARIA_EVE_CHARACTER_ID = 2_120_337_001;
+    private const int URIEL_EVE_CHARACTER_ID = 2_120_337_002;
+    private const int VESNA_EVE_CHARACTER_ID = 2_120_337_003;
+    private const int SCIENCE = 3402;
+    private const int ADVANCED_INDUSTRY = 3388;
+    private const int HAMMERHEAD_I_COPY_BASE_TIME_SECONDS = 300;
+    private const float RAITARU_TIME_ROLE_BONUS = 0.85;
+    private const int COPY_RUNS = 20;
 
     private const int PRODUCT_RUNS = 50;
     private const int COMPONENT_RUNS = 50;
@@ -67,17 +86,22 @@ final class ProjectChainBuilderTest extends TestCase
 
     private int $nextEsiJobId = 6_337_000_001;
 
+    private array $ownerStructures = [];
+
+    private array $skillLevels = [];
+
     protected function setUp(): void
     {
-        $owner = $this->pilot('Aria Solberg');
+        $owner = $this->pilot('Aria Solberg', self::ARIA_EVE_CHARACTER_ID);
+        (new \ReflectionProperty(User::class, 'id'))->setValue($owner, Uuid::fromString(self::OWNER_ID));
         $this->project = (new IndustryProject())->setOwner($owner)->setStatus(ProjectStatus::InProgress);
         $this->ownerParticipant = $this->participant($owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
-        $this->uriel = $this->participant($this->pilot('Uriel Kade'), ParticipantRole::Member, ParticipantStatus::Accepted);
-        $this->vesna = $this->participant($this->pilot('Vesna Moor'), ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->uriel = $this->participant($this->pilot('Uriel Kade', self::URIEL_EVE_CHARACTER_ID), ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->vesna = $this->participant($this->pilot('Vesna Moor', self::VESNA_EVE_CHARACTER_ID), ParticipantRole::Member, ParticipantStatus::Accepted);
 
         $this->product = $this->jobLine(self::PRODUCT_LINE_ID, self::HAMMERHEAD_II, 'Hammerhead II', 'final', 'manufacturing', self::PRODUCT_RUNS, 2, 4, null);
         $this->component = $this->jobLine(self::COMPONENT_LINE_ID, self::HAMMERHEAD_I, 'Hammerhead I', 'component', 'manufacturing', self::COMPONENT_RUNS, 10, 20, self::HAMMERHEAD_II);
-        $this->copy = $this->jobLine(self::COPY_LINE_ID, self::HAMMERHEAD_I, 'Hammerhead I', 'blueprint', 'copy', 20, null, null, self::HAMMERHEAD_II);
+        $this->copy = $this->jobLine(self::COPY_LINE_ID, self::HAMMERHEAD_I, 'Hammerhead I', 'blueprint', 'copy', self::COPY_RUNS, null, null, self::HAMMERHEAD_II);
         $this->invention = $this->jobLine(self::INVENTION_LINE_ID, self::HAMMERHEAD_II, 'Hammerhead II', 'blueprint', 'invention', 20, null, null, null);
         $this->tritanium = $this->materialLine(self::TRITANIUM_LINE_ID, self::TRITANIUM, 'Tritanium', 1_000, 0);
         $this->particleAcceleratorUnit = $this->materialLine(self::PARTICLE_ACCELERATOR_UNIT_LINE_ID, self::PARTICLE_ACCELERATOR_UNIT, 'Particle Accelerator Unit', 4_000, 0);
@@ -341,11 +365,85 @@ final class ProjectChainBuilderTest extends TestCase
         self::assertSame(['name' => null, 'status' => 'best_outside_favorite_system'], $component->plannedStructure);
     }
 
-    public function testLineWithoutPlannedStructureAndCopyLineHaveNoPlannedStructure(): void
+    #[Group('issue-524')]
+    public function testLineWithoutPlannedStructureHasNoPlannedStructureWhileTheCopyLineShowsTheStructurePlannedForTheCopy(): void
     {
+        $this->copy->setPlannedStructureId(self::OSTINGELE_RAITARU_ID)->setPlannedStructureStatus('best_in_favorite_system');
+
         $chain = $this->chainOfHammerheads(structureNamesById: [self::OSTINGELE_RAITARU_ID => self::OSTINGELE_RAITARU_NAME]);
 
-        self::assertSame([null, null], [$this->node($chain, self::PRODUCT_LINE_ID)->plannedStructure, $this->node($chain, self::COPY_LINE_ID)->plannedStructure]);
+        self::assertSame(
+            [null, ['name' => self::OSTINGELE_RAITARU_NAME, 'status' => 'best_in_favorite_system']],
+            [$this->node($chain, self::PRODUCT_LINE_ID)->plannedStructure, $this->node($chain, self::COPY_LINE_ID)->plannedStructure],
+        );
+    }
+
+    #[Group('issue-524')]
+    public function testCopyNodeCarriesTheDurationOfItsRunsInThePlannedStructureByTheCopierOfTheOwner(): void
+    {
+        $this->givenOwnerCopiesInTheOstingeleRaitaruAtScienceVAndAdvancedIndustryV();
+
+        $copy = $this->node($this->chainOfHammerheads(), self::COPY_LINE_ID);
+
+        self::assertSame(['seconds' => 3_251, 'missingData' => [], 'characterName' => 'Aria Solberg'], $this->plannedCopyDurationOf($copy));
+    }
+
+    #[Group('issue-524')]
+    public function testCopyNodeWithAnActiveEsiJobKeepsItsPlannedCopyDurationNextToTheJob(): void
+    {
+        $this->givenOwnerCopiesInTheOstingeleRaitaruAtScienceVAndAdvancedIndustryV();
+        $this->link($this->copy, 'active', self::COPY_RUNS, 'Ostingele - Raitaru of the Hammerheads', 'Aria Solberg', '2026-11-12 18:00:00');
+
+        $copy = $this->node($this->chainOfHammerheads(), self::COPY_LINE_ID);
+
+        self::assertSame(
+            [['2026-11-12T18:00:00+00:00'], 3_251],
+            [array_column($copy->jobs, 'endDate'), $this->plannedCopyDurationOf($copy)['seconds']],
+        );
+    }
+
+    #[Group('issue-524')]
+    public function testCopyNodeOfABomBuiltBeforeTheCopyStructureWasPlannedHasAnUnknownDurationWithItsCause(): void
+    {
+        $this->givenOwnerCopiesInTheOstingeleRaitaruAtScienceVAndAdvancedIndustryV();
+        $this->copy->setPlannedStructureId(null)->setPlannedStructureStatus(null);
+
+        $copy = $this->node($this->chainOfHammerheads(), self::COPY_LINE_ID);
+
+        self::assertSame(
+            ['seconds' => null, 'missingData' => [['reason' => 'copy_structure_not_planned', 'typeId' => null]]],
+            array_intersect_key($this->plannedCopyDurationOf($copy), ['seconds' => true, 'missingData' => true]),
+        );
+    }
+
+    #[Group('issue-524')]
+    public function testCopyNodePlannedWithoutConfiguredStructureHasAnUnknownDurationCausedByTheMissingCopyStructureAndNoPlannedStructure(): void
+    {
+        $this->givenOwnerCopiesInTheOstingeleRaitaruAtScienceVAndAdvancedIndustryV();
+        $this->copy->setPlannedStructureId(null)->setPlannedStructureStatus('not_configured');
+
+        $copy = $this->node($this->chainOfHammerheads(), self::COPY_LINE_ID);
+
+        self::assertSame(
+            [['seconds' => null, 'missingData' => [['reason' => 'no_copy_structure', 'typeId' => null]]], null],
+            [array_intersect_key($this->plannedCopyDurationOf($copy), ['seconds' => true, 'missingData' => true]), $copy->plannedStructure],
+        );
+    }
+
+    #[Group('issue-524')]
+    public function testOnlyTheCopyNodeCarriesAPlannedCopyDuration(): void
+    {
+        $this->givenOwnerCopiesInTheOstingeleRaitaruAtScienceVAndAdvancedIndustryV();
+
+        $chain = $this->chainOfHammerheads();
+
+        self::assertSame(
+            [null, null, null, null, null],
+            array_map(
+                fn (string $id): ?array => $this->plannedCopyDurationOf($this->node($chain, $id)),
+                [self::PRODUCT_LINE_ID, self::COMPONENT_LINE_ID, self::INVENTION_LINE_ID, self::TRITANIUM_LINE_ID, self::SALE_NODE_ID],
+            ),
+        );
     }
 
     public function testLinePlannedWithoutConfiguredStructureHasNoPlannedStructure(): void
@@ -645,7 +743,41 @@ final class ProjectChainBuilderTest extends TestCase
 
     private function chainWithNeeds(array $bomLines, ?array $jobMaterialNeeds, array $contributions = [], array $sales = [], array $structureNamesById = []): ProjectChain
     {
-        return (new ProjectChainBuilder())->build($this->project, $bomLines, $contributions, $sales, $structureNamesById, $jobMaterialNeeds);
+        return (new ProjectChainBuilder($this->plannedCopyDurations()))->build($this->project, $bomLines, $contributions, $sales, $structureNamesById, $jobMaterialNeeds);
+    }
+
+    private function plannedCopyDurations(): PlannedCopyDurations
+    {
+        return new PlannedCopyDurations(
+            new InMemoryResearchBaseTimes([self::HAMMERHEAD_I => [ActivityKind::Copying->name => self::HAMMERHEAD_I_COPY_BASE_TIME_SECONDS]]),
+            new InMemoryCharacterSkillLevels($this->skillLevels),
+            new InMemoryUserProductionStructures([self::OWNER_ID => $this->ownerStructures]),
+        );
+    }
+
+    private function givenOwnerCopiesInTheOstingeleRaitaruAtScienceVAndAdvancedIndustryV(): void
+    {
+        $this->ownerStructures = [new ProductionStructure(
+            self::OSTINGELE_RAITARU_ID,
+            StructureType::EngineeringComplex,
+            SecurityClass::NullSec,
+            null,
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            [],
+            new Multiplier(ProductionStructures::RAITARU_COST_ROLE_BONUS),
+            ProductionStructures::NO_FACILITY_TAX,
+            timeRoleBonus: new Multiplier(self::RAITARU_TIME_ROLE_BONUS),
+        )];
+        $this->skillLevels = [self::ARIA_EVE_CHARACTER_ID => [self::SCIENCE => 5, self::ADVANCED_INDUSTRY => 5]];
+        $this->copy->setPlannedStructureId(self::OSTINGELE_RAITARU_ID)->setPlannedStructureStatus('best_in_favorite_system');
+    }
+
+    private function plannedCopyDurationOf(ProjectChainNode $node): ?array
+    {
+        self::assertObjectHasProperty('plannedCopyDuration', $node);
+
+        return $node->plannedCopyDuration;
     }
 
     private function noMaterialNeedsOf(array $bomLines): array
@@ -684,9 +816,9 @@ final class ProjectChainBuilderTest extends TestCase
         return $suppliers;
     }
 
-    private function pilot(string $name): User
+    private function pilot(string $name, int $eveCharacterId): User
     {
-        $character = (new Character())->setName($name);
+        $character = (new Character())->setName($name)->setEveCharacterId($eveCharacterId);
         $user = new User();
         $user->addCharacter($character);
         $user->setMainCharacter($character);

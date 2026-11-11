@@ -17,6 +17,7 @@ final class SdeResearchBaseTimesTest extends IntegrationTestCase
     private const int ACTIVITY_MANUFACTURING = 1;
     private const int ACTIVITY_RESEARCH_TIME = 3;
     private const int ACTIVITY_RESEARCH_MATERIAL = 4;
+    private const int ACTIVITY_COPYING = 5;
     private const int ACTIVITY_REACTION = 11;
 
     private const int RESEARCHED_PRODUCT = 990_475_001;
@@ -33,6 +34,9 @@ final class SdeResearchBaseTimesTest extends IntegrationTestCase
     private const int RESEARCHED_TE_SECONDS = 2_800;
     private const int TE_SECONDS_WITHOUT_MATERIAL_TIME = 3_150;
     private const int ME_SECONDS_WITHOUT_TIME_ROW = 4_200;
+    private const int HORNET_COPY_SECONDS = 240;
+    private const int COPIED_PRODUCT = 990_524_011;
+    private const int COPIED_BLUEPRINT = 990_524_012;
 
     private Connection $connection;
 
@@ -91,6 +95,19 @@ final class SdeResearchBaseTimesTest extends IntegrationTestCase
 
         self::assertSame(self::ME_SECONDS_WITHOUT_TIME_ROW, $this->baseTimes()->of(self::PRODUCT_WITHOUT_TIME_ROW, ActivityKind::ResearchMaterial));
         self::assertNull($this->baseTimes()->of(self::PRODUCT_WITHOUT_TIME_ROW, ActivityKind::ResearchTime));
+    }
+
+    #[Group('issue-524')]
+    public function testCopyBaseTimeIsReadFromTheCopyActivityOfTheManufacturingBlueprintAndIsUnknownWithoutIt(): void
+    {
+        $this->insertBlueprint(self::COPIED_BLUEPRINT, self::COPIED_PRODUCT);
+        $this->insertActivity(self::COPIED_BLUEPRINT, self::ACTIVITY_COPYING, self::HORNET_COPY_SECONDS);
+        $this->insertBlueprint(self::BLUEPRINT_WITHOUT_TIME_ROW, self::PRODUCT_WITHOUT_TIME_ROW);
+
+        self::assertSame(
+            [self::HORNET_COPY_SECONDS, null],
+            [$this->baseTimes()->of(self::COPIED_PRODUCT, ActivityKind::Copying), $this->baseTimes()->of(self::PRODUCT_WITHOUT_TIME_ROW, ActivityKind::Copying)],
+        );
     }
 
     private function baseTimes(): SdeResearchBaseTimes

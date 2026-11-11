@@ -11,9 +11,14 @@ use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProjectSale;
 use App\Enum\ContributionStatus;
+use App\Industry\Application\PlannedCopyDurations;
+use App\Industry\Application\StructureChoiceStatus;
+use App\Industry\Domain\MissingData;
+use App\Industry\Domain\Runs;
 
 final readonly class ProjectChainBuilder
 {
+    private const string ACTIVITY_COPY = 'copy';
     private const string STAGE_BLUEPRINT = 'blueprint';
     private const string STAGE_MATERIAL = 'material';
     private const string STAGE_COMPONENT = 'component';
@@ -65,11 +70,24 @@ final readonly class ProjectChainBuilder
         self::PLANNED_STRUCTURE_NOT_CONFIGURED,
     ];
 
+    private const array PLANNED_STRUCTURE_STATUS_CASES = [
+        'assigned' => StructureChoiceStatus::Assigned,
+        'best_in_favorite_system' => StructureChoiceStatus::BestInFavoriteSystem,
+        'best_configured' => StructureChoiceStatus::BestConfigured,
+        'best_outside_favorite_system' => StructureChoiceStatus::BestOutsideFavoriteSystem,
+        'best_by_total_cost' => StructureChoiceStatus::BestByTotalCost,
+        self::PLANNED_STRUCTURE_NOT_CONFIGURED => StructureChoiceStatus::NotConfigured,
+    ];
+
     private const array LINK_STATUSES_IN_PROGRESS = [
         CachedIndustryJob::STATUS_ACTIVE,
         CachedIndustryJob::STATUS_PAUSED,
         CachedIndustryJob::STATUS_READY,
     ];
+
+    public function __construct(private PlannedCopyDurations $plannedCopyDurations)
+    {
+    }
 
     /**
      * @param array<IndustryProjectBomLine>      $bomLines
@@ -97,6 +115,13 @@ final readonly class ProjectChainBuilder
         $levelByTypeId = ChainManufacturingLevels::byTypeId($bomLines);
         $supply = ChainMaterialSupply::allocate($bomLines, $levelByTypeId, $jobMaterialNeeds);
 
+        $owner = $project->getOwner();
+        $ownerId = $owner->getId() ?? throw new \LogicException('The owner of a project has no id.');
+        $ownerCharacterNames = [];
+        foreach ($owner->getCharacters() as $character) {
+            $ownerCharacterNames[$character->getEveCharacterId()] = $character->getName();
+        }
+
         $jobStatusByLineId = [];
         $nodes = [];
         foreach ($orderedLines as $line) {
@@ -109,6 +134,7 @@ final readonly class ProjectChainBuilder
                 $jobStatusByLineId,
                 $levelByTypeId,
                 $supply,
+                self::ACTIVITY_COPY === $line->getActivityType() ? $this->plannedCopyDurationOf($line, $ownerId->toRfc4122(), $ownerCharacterNames) : null,
             );
         }
         usort($nodes, fn (ProjectChainNode $left, ProjectChainNode $right): int => self::STAGE_ORDER[$left->stage] <=> self::STAGE_ORDER[$right->stage]
@@ -229,6 +255,7 @@ final readonly class ProjectChainBuilder
      * @param array<string, list<IndustryProjectBomLine>>   $componentsByParentId
      * @param array<string, string>                         $jobStatusByLineId
      * @param array<int, int>                               $levelByTypeId
+     * @param array{seconds: int|null, missingData: list<array{reason: string, typeId: int|null}>, characterName: string|null}|null $plannedCopyDuration
      */
     private function nodeOf(
         IndustryProjectBomLine $line,
@@ -239,6 +266,7 @@ final readonly class ProjectChainBuilder
         array &$jobStatusByLineId,
         array $levelByTypeId,
         ChainMaterialSupply $supply,
+        ?array $plannedCopyDuration,
     ): ProjectChainNode {
         $stage = $this->stageOf($line);
         [$costState, $realCost] = $this->costOf($approvedContributions);
@@ -263,7 +291,7 @@ final readonly class ProjectChainBuilder
             $this->suppliersOf($approvedContributions),
             $jobs,
             $this->structuresOf($jobs),
-            \in_array($stage, [self::STAGE_COMPONENT, self::STAGE_PRODUCT], true) ? $this->plannedStructureOf($line, $structureNamesById) : null,
+            \in_array($stage, [self::STAGE_COMPONENT, self::STAGE_PRODUCT], true) || null !== $plannedCopyDuration ? $this->plannedStructureOf($line, $structureNamesById) : null,
             null,
             null,
             match ($stage) {
@@ -272,7 +300,31 @@ final readonly class ProjectChainBuilder
                 self::STAGE_BLUEPRINT => $levelByTypeId[$line->getTypeId()] ?? null,
                 default => null,
             },
+            $plannedCopyDuration,
         );
+    }
+
+    /**
+     * @param array<int, string> $ownerCharacterNames
+     * @return array{seconds: int|null, missingData: list<array{reason: string, typeId: int|null}>, characterName: string|null}
+     */
+    private function plannedCopyDurationOf(IndustryProjectBomLine $line, string $ownerId, array $ownerCharacterNames): array
+    {
+        $status = $line->getPlannedStructureStatus();
+        $duration = $this->plannedCopyDurations->of(
+            $ownerId,
+            $ownerCharacterNames,
+            $line->getTypeId(),
+            new Runs($line->getRuns() ?? throw new \UnexpectedValueException(\sprintf('Copy line %s has no runs.', self::lineId($line)))),
+            $line->getPlannedStructureId(),
+            null === $status ? null : self::PLANNED_STRUCTURE_STATUS_CASES[$status] ?? throw new \UnexpectedValueException(\sprintf('BOM line %s has the unknown planned structure status "%s".', self::lineId($line), $status)),
+        );
+
+        return [
+            'seconds' => $duration->seconds,
+            'missingData' => array_map(static fn (MissingData $missingData): array => ['reason' => $missingData->reason, 'typeId' => $missingData->typeId], $duration->missingData),
+            'characterName' => $duration->characterName,
+        ];
     }
 
     private function materialStatusOf(IndustryProjectBomLine $line): string

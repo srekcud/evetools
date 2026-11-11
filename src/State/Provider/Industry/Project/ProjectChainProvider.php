@@ -82,7 +82,7 @@ final readonly class ProjectChainProvider implements ProviderInterface
             static fn (ProjectChainNode $node): ProjectChainNode => $node->withJobs(array_map(
                 static fn (array $job): array => [...$job, 'characterName' => JobInstallerName::seenBy($job['characterName'], $project, $user)],
                 $node->jobs,
-            )),
+            ))->withPlannedCopyDurationSeenBy($project->getOwner(), $user),
             $chain->nodes,
         );
 

@@ -15,6 +15,7 @@ import {
   HAMMERHEAD_I_COPY_ID,
   HAMMERHEAD_I_ID,
   HAMMERHEAD_II_ID,
+  HAMMERHEAD_II_INVENTION,
   HAMMERHEAD_II_INVENTION_ID,
   PARTICLE_ACCELERATOR_UNIT,
   PARTICLE_ACCELERATOR_UNIT_ID,
@@ -114,7 +115,7 @@ beforeEach(() => {
 })
 
 describe('ProductionChain tree with the null fields omitted by the API', () => {
-  const OMITTED_NULL_FIELDS = ['parentId', 'activity', 'runs', 'meLevel', 'teLevel', 'realCost', 'plannedStructure', 'soldQuantity', 'grossRevenue'] as const
+  const OMITTED_NULL_FIELDS = ['parentId', 'activity', 'runs', 'meLevel', 'teLevel', 'realCost', 'plannedStructure', 'plannedCopyDuration', 'soldQuantity', 'grossRevenue'] as const
 
   function withoutNullFields(node: ChainNode): ChainNode {
     const sent: Record<string, unknown> = { ...node }
@@ -508,6 +509,70 @@ describe('ProductionChain job tree', () => {
     expect(inTree.classes()).toContain('truncate')
     expect(treeTab).toBe(label(locale, 'views.tree'))
     expect(wrapper.get('[data-testid="chain-tree"] thead').text()).toContain(label(locale, 'columns.realCost'))
+  })
+})
+
+describe('ProductionChain end of a copy job', () => {
+  const COPY_WITHOUT_JOB_ID = 'node-ishtar-copy'
+  const copyWith = (id: string, overrides: Partial<ChainNode>): ChainNode => chainNode({
+    id,
+    stage: 'blueprint',
+    level: 1,
+    typeName: `Ishtar Blueprint ${id}`,
+    activity: 'copy',
+    runs: 600,
+    requiredQuantity: 600,
+    status: 'todo',
+    ...overrides,
+  })
+
+  it('shows the planned duration of a copy without linked job with its copier as title, and nothing on an invention without job', async () => {
+    const wrapper = await mountChain([
+      copyWith(COPY_WITHOUT_JOB_ID, { plannedCopyDuration: { seconds: 31_873, missingData: [], characterName: 'Aurelie Vanth' } }),
+      chainNode({ ...HAMMERHEAD_II_INVENTION, jobs: [] }),
+    ])
+    await openTree(wrapper)
+
+    const planned = cell(wrapper, COPY_WITHOUT_JOB_ID, 'end').find('[data-testid="chain-planned-copy-duration"]')
+
+    expect(planned.exists()).toBe(true)
+    expect(planned.text()).toContain('8h 51m')
+    expect(planned.attributes('title')).toContain('Aurelie Vanth')
+    expect(planned.text()).toBe(label('en', 'plannedCopyDuration.planned').replace('{duration}', '8h 51m'))
+    expect(cell(wrapper, HAMMERHEAD_II_INVENTION_ID, 'end').text()).toBe('')
+  })
+
+  it('shows an unknown planned duration with its own cause on each copy, never a zero duration', async () => {
+    const reasons = ['no_copy_structure', 'planned_structure_deleted', 'copy_skills', 'copy_structure_not_planned', 'copy_base_time']
+    const wrapper = await mountChain(reasons.map(reason => copyWith(`copy-${reason}`, {
+      plannedCopyDuration: { seconds: null, missingData: [{ reason, typeId: reason === 'copy_base_time' ? 12_005 : null }], characterName: null },
+    })))
+    await openTree(wrapper)
+
+    const unknownMarkers = reasons.map(reason => cell(wrapper, `copy-${reason}`, 'end').find('[data-testid="chain-planned-copy-duration-unknown"]'))
+
+    expect(unknownMarkers.map(marker => marker.exists())).toEqual(reasons.map(() => true))
+    for (const reason of reasons) {
+      const shown = cell(wrapper, `copy-${reason}`, 'end').text()
+      expect(shown).toContain(label('en', 'plannedCopyDuration.unknown'))
+      expect(shown).toContain(label('en', `plannedCopyDuration.reason.${reason}`))
+      expect(shown, reason).not.toMatch(/\b0s\b/)
+    }
+  })
+
+  it('shows the ESI end date of a copy with a linked job and not its planned duration', async () => {
+    const wrapper = await mountChain([copyWith('copy-launched', {
+      status: 'active',
+      jobs: [{ esiJobId: 920_001, status: 'active', runs: 600, characterName: 'Aurelie Vanth', endDate: '2026-11-12T18:00:00+00:00', cost: 1_250_000, facilityName: 'Sotiyo Gamma' }],
+      plannedCopyDuration: { seconds: 31_873, missingData: [], characterName: 'Aurelie Vanth' },
+    })])
+    await openTree(wrapper)
+
+    const end = cell(wrapper, 'copy-launched', 'end')
+
+    expect(end.text()).toContain('12/11')
+    expect(end.find('[data-testid="chain-planned-copy-duration"]').exists()).toBe(false)
+    expect(end.text()).not.toContain('8h 51m')
   })
 })
 

@@ -12,7 +12,7 @@ final readonly class PlannedProduction
     /**
      * @param array<string, StructureChoice> $structureChoices by activity and product typeId, see choiceKey()
      */
-    public function __construct(public Plan $plan, private array $structureChoices)
+    public function __construct(public Plan $plan, private array $structureChoices, public ?StructureChoice $copyStructureChoice = null)
     {
     }
 

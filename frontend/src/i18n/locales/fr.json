@@ -2530,6 +2530,17 @@
       "characterUnknown": "Personnage inconnu",
       "ioUnknownCause": "Entrée → sortie : lieux des jobs pas encore synchronisés",
       "unknownCostCause": "un apport n'a pas de prix connu : le coût reste inconnu, jamais partiel",
+      "plannedCopyDuration": {
+        "planned": "Prévue : {duration}",
+        "unknown": "Durée prévue inconnue",
+        "reason": {
+          "no_copy_structure": "aucune structure ne peut copier",
+          "planned_structure_deleted": "la structure prévue a été supprimée",
+          "copy_skills": "compétences de copie inconnues",
+          "copy_structure_not_planned": "structure de copie non planifiée",
+          "copy_base_time": "temps de base de copie absent"
+        }
+      },
       "structure": {
         "unknown": "Structure inconnue : aucune structure configurée pour ce job",
         "deleted": "Structure conseillée supprimée",

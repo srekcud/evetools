@@ -20,6 +20,7 @@ use App\Industry\Application\PlannedProduction;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\ProductionPlanRequest;
 use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\StructureChoice;
 use App\Industry\Application\StructureChoiceStatus;
 use App\Industry\Application\StructureSelectionPolicy;
 use App\Industry\Application\UserProductionStructures;
@@ -129,7 +130,7 @@ class IndustryProjectService
         }
         $jobAggregation = $this->jobLinesOf($plannedProduction, $producers, $typeNames, $owner);
 
-        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation);
+        $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'));
 
         $bomLineCount = count($materialAggregation) + count($jobAggregation);
         if ($bomLineCount > self::MAX_BOM_LINES) {
@@ -450,7 +451,7 @@ class IndustryProjectService
             ];
         }
 
-        return $lines + $this->copyLinesOf($lines, $producers, $owner);
+        return $lines + $this->copyLinesOf($lines, $producers, $owner, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'));
     }
 
     /**
@@ -458,7 +459,7 @@ class IndustryProjectService
      * @param array<int, IndustryActivityProduct> $producers
      * @return array<string, JobLine>
      */
-    private function copyLinesOf(array $jobLines, array $producers, User $owner): array
+    private function copyLinesOf(array $jobLines, array $producers, User $owner, StructureChoice $copyStructureChoice): array
     {
         $ownedOriginalTypeIds = array_flip($this->originalBlueprintFinder->typeIdsOwnedBy($owner));
         $blueprintTypeIds = array_map(static fn (IndustryActivityProduct $producer): int => $producer->getTypeId(), $producers);
@@ -486,13 +487,23 @@ class IndustryProjectService
                 'jobGroup' => 'blueprint',
                 'parentTypeId' => $jobLine['parentTypeId'],
                 'outputPerRun' => $jobLine['outputPerRun'],
-                'plannedStructureId' => null,
-                'plannedStructureStatus' => null,
+                ...$this->plannedStructureOf($copyStructureChoice),
                 'surplusQuantity' => null,
             ];
         }
 
         return $copyLines;
+    }
+
+    /**
+     * @return array{plannedStructureId: string|null, plannedStructureStatus: string}
+     */
+    private function plannedStructureOf(StructureChoice $choice): array
+    {
+        return [
+            'plannedStructureId' => $choice->structure?->id,
+            'plannedStructureStatus' => $this->plannedStructureStatusOf($choice->status),
+        ];
     }
 
     private function plannedStructureStatusOf(StructureChoiceStatus $status): string
@@ -520,7 +531,7 @@ class IndustryProjectService
      * @param array<int, array{typeName: string, quantity: int}> $materialAggregation
      * @param array<int|string, JobLine> $jobAggregation
      */
-    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation): void
+    private function replaceT2BlueprintCopiesByInventions(array &$materialAggregation, array &$jobAggregation, StructureChoice $copyStructureChoice): void
     {
         $manufacturingRunsByProduct = [];
         $firstManufacturingJobByProduct = [];
@@ -594,8 +605,7 @@ class IndustryProjectService
                     'jobGroup' => 'blueprint',
                     'parentTypeId' => $firstManufacturingJob['parentTypeId'],
                     'outputPerRun' => 1,
-                    'plannedStructureId' => null,
-                    'plannedStructureStatus' => null,
+                    ...$this->plannedStructureOf($copyStructureChoice),
                     'surplusQuantity' => null,
                 ];
             }

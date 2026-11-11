@@ -12,6 +12,7 @@ use App\Repository\Sde\IndustryActivityRepository;
 final readonly class SdeResearchBaseTimes implements ResearchBaseTimes
 {
     private const int ACTIVITY_MANUFACTURING = 1;
+    private const int ACTIVITY_COPYING = 5;
     private const int ACTIVITY_RESEARCH_TIME = 3;
     private const int ACTIVITY_RESEARCH_MATERIAL = 4;
 
@@ -24,9 +25,10 @@ final readonly class SdeResearchBaseTimes implements ResearchBaseTimes
     public function of(int $productTypeId, ActivityKind $activity): ?int
     {
         $researchActivityId = match ($activity) {
+            ActivityKind::Copying => self::ACTIVITY_COPYING,
             ActivityKind::ResearchMaterial => self::ACTIVITY_RESEARCH_MATERIAL,
             ActivityKind::ResearchTime => self::ACTIVITY_RESEARCH_TIME,
-            default => throw new \InvalidArgumentException(\sprintf('%s is not a research activity.', $activity->name)),
+            default => throw new \InvalidArgumentException(\sprintf('%s has no base time.', $activity->name)),
         };
 
         $blueprint = $this->activityProductRepository->findBlueprintForProduct($productTypeId, self::ACTIVITY_MANUFACTURING);

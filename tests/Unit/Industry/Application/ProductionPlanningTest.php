@@ -11,6 +11,7 @@ use App\Industry\Application\ProductionCostCalculator;
 use App\Industry\Application\ProductionCostRequest;
 use App\Industry\Application\ProductionPlanning;
 use App\Industry\Application\ProductionPlanRequest;
+use App\Industry\Application\StructureChoiceStatus;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintCatalog;
 use App\Industry\Domain\BlueprintEfficiency;
@@ -308,6 +309,47 @@ final class ProductionPlanningTest extends TestCase
             [self::FIRST_LEAF => 6416, self::SECOND_LEAF => 1443, self::THIRD_LEAF => 684, self::FOURTH_LEAF => 425],
             self::leaves($plan),
         );
+    }
+
+    public function testCopyStructureIsTheRaitaruOfTheFavoriteSystemWhenItsInstallRateEqualsTheOneOfARaitaruOutsideIt(): void
+    {
+        $favoriteSystemId = 30_002_187;
+        $otherSystemId = 30_000_142;
+        $planning = new ProductionPlanning(
+            self::handwrittenCatalog(),
+            new InMemorySystemCostIndices([
+                $favoriteSystemId => [ActivityKind::Copying->name => 0.0214],
+                $otherSystemId => [ActivityKind::Copying->name => 0.0214],
+            ]),
+            new InMemoryRigCategories(),
+        );
+
+        $planned = $planning->planWithStructuresOf(new ProductionPlanRequest(
+            [self::target(self::TARGET, 12, 10, 20)],
+            [
+                ProductionStructures::raitaru('raitaru-outside-favorite', SecurityClass::NullSec, $otherSystemId, '2025-01-01 00:00:00'),
+                ProductionStructures::raitaru('raitaru-favorite', SecurityClass::NullSec, $favoriteSystemId, '2026-01-01 00:00:00'),
+            ],
+            new FavoriteSystems($favoriteSystemId, null),
+        ));
+
+        $choice = $planned->copyStructureChoice;
+        $this->assertSame(
+            ['raitaru-favorite', StructureChoiceStatus::BestInFavoriteSystem],
+            [$choice?->structure?->id, $choice?->status],
+        );
+    }
+
+    public function testCopyStructureIsNotConfiguredWhenNoStructureOfTheUserCanCopy(): void
+    {
+        $planned = self::planningOn(self::handwrittenCatalog())->planWithStructuresOf(new ProductionPlanRequest(
+            [self::target(self::TARGET, 12, 10, 20)],
+            [ProductionStructures::tatara('tatara-nullsec', SecurityClass::NullSec, 30_002_187)],
+            new FavoriteSystems(30_002_187, null),
+        ));
+
+        $choice = $planned->copyStructureChoice;
+        $this->assertSame([null, StructureChoiceStatus::NotConfigured], [$choice?->structure, $choice?->status]);
     }
 
     public function testTargetWithoutRecipeThrowsADomainExceptionNamingIt(): void

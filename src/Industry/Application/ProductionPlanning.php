@@ -62,7 +62,7 @@ final readonly class ProductionPlanning
             $structureChoices[PlannedProduction::choiceKey($job->productTypeId, $job->activity)] = $materialModifiers->choiceFor($recipe);
         }
 
-        return new PlannedProduction($plan, $structureChoices);
+        return new PlannedProduction($plan, $structureChoices, $selector->select(ActivityKind::Copying, null));
     }
 
     /**

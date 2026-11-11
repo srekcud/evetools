@@ -21,6 +21,7 @@ export function chainNode(overrides: Partial<ChainNode>): ChainNode {
     jobs: [],
     structures: [],
     plannedStructure: null,
+    plannedCopyDuration: null,
     soldQuantity: null,
     grossRevenue: null,
     ...overrides,
