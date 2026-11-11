@@ -88,6 +88,7 @@ class MarketAlertCollectionProvider implements ProviderInterface
             $resource->priceSource = $alert->getPriceSource()->value;
             $resource->status = $alert->getStatus()->value;
             $resource->triggeredAt = $alert->getTriggeredAt()?->format('c');
+            $resource->triggeredPrice = $alert->getTriggeredPrice();
             $resource->createdAt = $alert->getCreatedAt()->format('c');
 
             // Enrich with current price

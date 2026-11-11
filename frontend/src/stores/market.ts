@@ -72,6 +72,7 @@ export interface MarketAlert {
   status: 'active' | 'triggered' | 'expired'
   currentPrice: number | null
   triggeredAt: string | null
+  triggeredPrice: number | null
   createdAt: string
 }
 

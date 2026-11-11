@@ -9,6 +9,7 @@ use App\Entity\Notification;
 use App\Entity\User;
 use App\Enum\AlertDirection;
 use App\Enum\AlertPriceSource;
+use App\Enum\AlertStatus;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
@@ -34,7 +35,10 @@ class MarketAlertService
      */
     public function checkAlerts(): int
     {
-        $alerts = $this->alertRepository->findActiveAlerts();
+        $alerts = array_merge(
+            $this->alertRepository->findActiveAlerts(),
+            $this->alertRepository->findTriggeredAlerts(),
+        );
 
         if (empty($alerts)) {
             return 0;
@@ -54,6 +58,7 @@ class MarketAlertService
         $structurePricesByUser = $this->loadStructurePrices($alerts);
 
         $triggered = 0;
+        $changed = false;
 
         foreach ($alerts as $alert) {
             $userId = $alert->getUser()->getId()?->toRfc4122() ?? '';
@@ -68,9 +73,21 @@ class MarketAlertService
                 continue;
             }
 
-            if ($this->isTriggered($alert, $currentPrice)) {
-                $alert->trigger();
+            $conditionMet = $this->isTriggered($alert, $currentPrice);
+
+            if ($alert->getStatus() === AlertStatus::Triggered) {
+                if (!$conditionMet) {
+                    $alert->rearm();
+                    $changed = true;
+                }
+
+                continue;
+            }
+
+            if ($conditionMet) {
+                $alert->trigger($currentPrice);
                 $triggered++;
+                $changed = true;
 
                 $this->logger->info('Market alert triggered', [
                     'alertId' => $alert->getId()?->toRfc4122(),
@@ -97,7 +114,7 @@ class MarketAlertService
             }
         }
 
-        if ($triggered > 0) {
+        if ($changed) {
             $this->em->flush();
         }
 

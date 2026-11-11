@@ -14,6 +14,7 @@ const PYERITE_ALERT: MarketAlert = {
   status: 'triggered',
   currentPrice: 8.6875,
   triggeredAt: '2026-11-09T18:30:00+00:00',
+  triggeredPrice: 8.6875,
   createdAt: '2026-11-01T09:00:00+00:00',
 }
 
@@ -27,6 +28,7 @@ const MEXALLON_ALERT: MarketAlert = {
   status: 'active',
   currentPrice: 55.25,
   triggeredAt: null,
+  triggeredPrice: null,
   createdAt: '2026-11-02T10:00:00+00:00',
 }
 

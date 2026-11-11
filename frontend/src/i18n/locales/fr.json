@@ -3621,6 +3621,7 @@
     "alert": {
       "create": "Creer une alerte",
       "edit": "Modifier l'alerte",
+      "lastTrigger": "Déclenchée le {date} à {price} ISK",
       "rearm": "Enregistrer et rearmer",
       "readOnlyHint": "L'objet et la source de prix ne peuvent pas etre modifies",
       "setAlert": "Creer alerte",

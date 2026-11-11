@@ -81,5 +81,7 @@ class MarketAlertResource
 
     public ?string $triggeredAt = null;
 
+    public ?float $triggeredPrice = null;
+
     public string $createdAt;
 }

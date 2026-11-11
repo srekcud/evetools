@@ -85,6 +85,7 @@ function priceAlert(typeId: number, typeName: string, threshold: number, status:
     status,
     currentPrice: status === 'triggered' ? threshold + 1.5 : threshold - 0.75,
     triggeredAt: status === 'triggered' ? '2026-10-26T14:30:00+00:00' : null,
+    triggeredPrice: status === 'triggered' ? threshold : null,
     createdAt: '2026-10-20T10:00:00+00:00',
   }
 }
