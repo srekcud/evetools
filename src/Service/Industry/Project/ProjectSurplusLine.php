@@ -15,6 +15,7 @@ final readonly class ProjectSurplusLine
         public int $surplusQuantity,
         public ?float $unitPrice,
         public ?float $surplusValue,
+        public ProjectSurplusSource $source = ProjectSurplusSource::Contribution,
     ) {
     }
 }
