@@ -2566,6 +2566,18 @@
         "error": "Le composant n'a pas pu être basculé"
       }
     },
+    "invention": {
+      "title": "Invention · choix du décrypteur",
+      "units": "{count} unité | {count} unités",
+      "efficiency": "ME {me} · TE {te}",
+      "copyEfficiency": "ME / TE de la copie",
+      "attempt": "tentative",
+      "cheapest": "Le moins cher",
+      "loading": "Lecture des données d'invention...",
+      "loadError": "Impossible de lire la comparaison des décrypteurs.",
+      "empty": "Aucun produit final inventé (T2) dans ce projet : il n'y a pas de décrypteur à comparer.",
+      "footnote": "Lecture seule : rien n'est enregistré et le plan du projet ne change pas. La probabilité, les runs, le ME et le TE de la copie inventée viennent du SDE et des compétences de l'inventeur choisi ; le coût par unité porte sur les unités du projet."
+    },
     "research": {
       "title": "Recherche à lancer ?",
       "loading": "Évaluation des recherches de rendement matériaux...",

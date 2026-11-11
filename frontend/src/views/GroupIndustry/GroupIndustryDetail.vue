@@ -49,6 +49,7 @@ import ProjectStructureHealth from '@/components/group-industry/ProjectStructure
 import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklistEditor.vue'
 import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
+import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
 import ProjectJournal from '@/components/group-industry/ProjectJournal.vue'
 import SaveProjectTemplateModal from '@/components/group-industry/SaveProjectTemplateModal.vue'
@@ -668,6 +669,10 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <div v-else-if="activeTab === 'planning'" class="relative rounded-xl">
         <ProjectPlanning :project-id="projectId" />
+      </div>
+
+      <div v-else-if="activeTab === 'invention'" class="relative rounded-xl">
+        <ProjectInvention :project-id="projectId" />
       </div>
 
       <div v-else-if="activeTab === 'journal'" class="relative rounded-xl">

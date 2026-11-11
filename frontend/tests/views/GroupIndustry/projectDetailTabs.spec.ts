@@ -1,15 +1,17 @@
 import { COMING_SOON_TABS, DETAIL_TABS } from '@/views/GroupIndustry/projectDetailTabs'
 
 describe('project detail tabs', () => {
-  it('exposes the planning and the journal as working tabs and keeps only the invention as a coming soon tab', () => {
+  it('exposes the planning, the journal and the invention as working tabs and keeps no coming soon tab', () => {
     expect({
       planningIsAWorkingTab: (DETAIL_TABS as string[]).includes('planning'),
       journalIsAWorkingTab: (DETAIL_TABS as string[]).includes('journal'),
+      inventionIsAWorkingTab: (DETAIL_TABS as string[]).includes('invention'),
       comingSoonTabs: [...COMING_SOON_TABS] as string[],
     }).toEqual({
       planningIsAWorkingTab: true,
       journalIsAWorkingTab: true,
-      comingSoonTabs: ['invention'],
+      inventionIsAWorkingTab: true,
+      comingSoonTabs: [],
     })
   })
 })

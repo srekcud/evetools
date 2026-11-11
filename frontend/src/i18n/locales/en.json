@@ -2566,6 +2566,18 @@
         "error": "The component could not be switched"
       }
     },
+    "invention": {
+      "title": "Invention · decryptor choice",
+      "units": "{count} unit | {count} units",
+      "efficiency": "ME {me} · TE {te}",
+      "copyEfficiency": "ME / TE of the copy",
+      "attempt": "attempt",
+      "cheapest": "Cheapest",
+      "loading": "Reading the invention data...",
+      "loadError": "Could not read the decryptor comparison.",
+      "empty": "No invented (T2) final product in this project: there is no decryptor to compare.",
+      "footnote": "Read only: nothing is saved and the project plan is unchanged. Probability, runs, ME and TE of the invented copy come from the SDE and the skills of the chosen inventor; the cost per unit covers the units of the project."
+    },
     "research": {
       "title": "Research worth launching",
       "loading": "Evaluating the material efficiency researches...",
