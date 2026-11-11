@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useFlash } from '@/composables/useUpdateFlash'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -10,6 +10,11 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import AdminStatusBanner from '@/components/admin/AdminStatusBanner.vue'
 import AdminKpiGrid from '@/components/admin/AdminKpiGrid.vue'
 import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
+import EsiErrorBudgetCard from '@/components/admin/EsiErrorBudgetCard.vue'
+import MercureCookieCard from '@/components/admin/MercureCookieCard.vue'
+import CharactersToRepairCard from '@/components/admin/CharactersToRepairCard.vue'
+import AdminCharactersCard from '@/components/admin/AdminCharactersCard.vue'
+import UserSupportCard from '@/components/admin/UserSupportCard.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
 import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
 import PveCorpRevenue from '@/components/admin/PveCorpRevenue.vue'
@@ -77,29 +82,16 @@ const queues = computed(() => adminStore.queues)
 const charts = computed(() => adminStore.charts)
 const failedMessageCount = computed(() => queues.value?.queues.failed ?? null)
 
-const syncActionMap: Record<string, { action: () => Promise<{ success: boolean; message: string }>; key: string }> = {
-  'assets': { action: adminStore.syncAssets, key: 'sync-assets' },
-  'industry': { action: adminStore.syncIndustry, key: 'sync-industry' },
-  'pve': { action: adminStore.syncPve, key: 'sync-pve' },
-  'wallet': { action: adminStore.syncWallet, key: 'sync-wallet' },
-  'mining': { action: adminStore.syncMining, key: 'sync-mining' },
-  'ansiblex': { action: adminStore.syncAnsiblex, key: 'sync-ansiblex' },
-  'planetary': { action: adminStore.syncPlanetary, key: 'sync-planetary' },
-  'market-jita': { action: adminStore.syncMarket, key: 'sync-market' },
-  'market-structure': { action: adminStore.syncMarket, key: 'sync-market' },
-  'market-alerts': { action: adminStore.checkMarketAlerts, key: 'check-market-alerts' },
-  'alert-prices': { action: adminStore.syncAlertPrices, key: 'sync-alert-prices' },
-  'public-contracts': { action: adminStore.syncPublicContracts, key: 'sync-public-contracts' },
-}
-
-// Sync action keys that should wait for Mercure completion
-const syncKeys = new Set(Object.values(syncActionMap).map(v => v.key))
-
 async function refreshData() {
   await adminStore.fetchAll()
 }
 
-async function executeAction(actionName: string, actionFn: () => Promise<{ success: boolean; message: string }>) {
+async function executeAction(
+  actionName: string,
+  actionFn: () => Promise<{ success: boolean; message: string }>,
+  isSync = false,
+) {
+  let waitsForMercure = false
   actionLoading.value = actionName
   actionMessage.value = null
 
@@ -107,7 +99,8 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
     const result = await actionFn()
 
     // For sync actions, keep spinner alive until Mercure confirms completion
-    if (result.success && syncKeys.has(actionName)) {
+    if (result.success && isSync) {
+      waitsForMercure = true
       actionMessage.value = {
         type: 'success',
         text: result.message + ` (${t('admin.sync.waiting')})`,
@@ -128,7 +121,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       text: e instanceof Error ? e.message : t('admin.sync.actionFailed'),
     }
   } finally {
-    if (!syncKeys.has(actionName)) {
+    if (!waitsForMercure) {
       actionLoading.value = null
     }
     setTimeout(() => {
@@ -137,8 +130,8 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
   }
 }
 
-function handleSchedulerAction(key: string, action: () => Promise<{ success: boolean; message: string }>) {
-  executeAction(key, action)
+function handleSchedulerAction(type: string) {
+  executeAction(type, () => adminStore.triggerSync(type), true)
 }
 
 function handleMaintenanceAction(name: string, actionKey: MaintenanceActionKey) {
@@ -154,6 +147,15 @@ function handleMaintenanceAction(name: string, actionKey: MaintenanceActionKey) 
 }
 
 const { isFlashing: statsUpdated, flash: flashStats } = useFlash()
+
+const selectedUserId = ref<string | null>(null)
+
+async function openUserSheet(userId: string): Promise<void> {
+  selectedUserId.value = null
+  await nextTick()
+  selectedUserId.value = userId
+  document.getElementById('user-support')?.scrollIntoView({ behavior: 'smooth' })
+}
 
 // Watch for Mercure admin-sync events
 watch(
@@ -268,7 +270,6 @@ watch(
           <div id="admin-section-scheduler-health" class="lg:col-span-2">
             <SchedulerHealthTable
               :entries="stats?.schedulerHealth || []"
-              :sync-action-map="syncActionMap"
               :action-loading="actionLoading"
               @execute-action="handleSchedulerAction"
             />
@@ -281,12 +282,22 @@ watch(
             />
           </div>
         </div>
+
+        <EsiErrorBudgetCard v-if="stats?.esiErrorBudget" :budget="stats.esiErrorBudget" />
+
+        <MercureCookieCard v-if="stats?.mercureCookie" :mercure-cookie="stats.mercureCookie" />
       </template>
 
       <template v-else-if="activeTab === 'users'">
         <div class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
           <AdminKpiGrid :stats="stats" :queues="queues" scope="users" />
         </div>
+
+        <CharactersToRepairCard v-if="stats?.charactersToRepair" :characters-to-repair="stats.charactersToRepair" @open-user="openUserSheet" />
+
+        <AdminCharactersCard v-if="stats?.adminCharacters" :admin-characters="stats.adminCharacters" />
+
+        <UserSupportCard :selected-user-id="selectedUserId" />
       </template>
 
       <template v-else>

@@ -16,6 +16,9 @@ framework:
                 adapter: cache.adapter.redis_tag_aware
                 tags: true
                 default_lifetime: 300
+            esi_error_budget.cache:
+                adapter: cache.adapter.redis
+                default_lifetime: 90000
             jwt.blacklist:
                 adapter: cache.adapter.redis
                 default_lifetime: 604900  # 1 week + 100 seconds buffer
@@ -44,6 +47,8 @@ when@test:
                 esi.cache:
                     adapter: cache.adapter.array
                     tags: true
+                esi_error_budget.cache:
+                    adapter: cache.adapter.array
                 jwt.blacklist:
                     adapter: cache.adapter.array
                 structure_market.cache:

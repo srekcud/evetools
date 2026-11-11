@@ -32,7 +32,4 @@ class ChartResource
 
     /** @var array<string, mixed> */
     public array $activity = [];
-
-    /** @var array<string, mixed> */
-    public array $assetDistribution = [];
 }

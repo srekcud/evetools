@@ -2378,6 +2378,7 @@
         "market-history-purge": "Purge de l'historique de marche",
         "shared-lists-purge": "Purge des listes partagees",
         "assets": "Assets",
+        "corporation-assets": "Assets de corporation",
         "market-alerts": "Alertes de marche"
       }
     },
@@ -2392,6 +2393,97 @@
       "onDemand": "A la demande",
       "onDemandHint": "A la demande (non planifie)"
     },
+    "charactersToRepair": {
+      "title": "Personnages à réparer",
+      "character": "Personnage",
+      "lastLogin": "Dernière connexion",
+      "stateColumn": "État",
+      "missingScopes": "Scopes manquants",
+      "since": "Token mis à jour le",
+      "never": "Jamais",
+      "openSheet": "Ouvrir la fiche utilisateur",
+      "state": {
+        "invalid": "Autorisation révoquée",
+        "missing_scopes": "Scopes manquants"
+      },
+      "empty": "Aucun personnage ne doit se reconnecter"
+    },
+    "adminCharacters": {
+      "title": "Personnages admin",
+      "character": "Personnage",
+      "eveCharacterId": "Id EVE",
+      "user": "Compte utilisateur",
+      "hasUser": "Utilisateur existant",
+      "noUser": "Pas encore d'utilisateur",
+      "unknownName": "Jamais vu",
+      "readOnlyHint": "Lecture seule. Les admins sont définis par la variable d'environnement ADMIN_CHARACTER_IDS.",
+      "empty": "Aucun admin configuré"
+    },
+    "userSupport": {
+      "title": "Support utilisateur",
+      "searchPlaceholder": "Nom de personnage ou id EVE",
+      "search": "Rechercher",
+      "noResult": "Aucun utilisateur trouvé",
+      "noMainCharacter": "Pas de personnage principal",
+      "characterCount": "{count} personnage | {count} personnages",
+      "loadError": "La fiche utilisateur n'a pas pu être chargée",
+      "lastLogin": "Dernière connexion",
+      "createdAt": "Compte créé le",
+      "never": "Jamais",
+      "unknown": "Inconnue",
+      "refresh": "Rafraîchir",
+      "character": "Personnage",
+      "main": "Principal",
+      "tokenStateColumn": "Token",
+      "tokenState": {
+        "valid": "Valide",
+        "expiring": "Expire bientôt",
+        "invalid": "Autorisation révoquée",
+        "no_token": "Pas de token"
+      },
+      "missingScopes": "Scopes manquants",
+      "lastSync": "Dernière synchro",
+      "syncColumn": "Synchro",
+      "lastData": "Dernières données reçues",
+      "trigger": "Relancer",
+      "triggered": "Synchro {type} mise en file",
+      "syncType": {
+        "industry": "Jobs industrie",
+        "blueprints": "Blueprints",
+        "character-orders": "Ordres de marché",
+        "pve": "PVE",
+        "mining": "Minage",
+        "assets": "Assets",
+        "wallet": "Transactions du wallet",
+        "planetary": "Colonies planétaires"
+      }
+    },
+    "mercureCookie": {
+      "title": "Taille du cookie Mercure",
+      "threshold": "Utilisateurs à partir de {warning} octets, pour une limite navigateur de {limit} octets",
+      "user": "Utilisateur",
+      "cookieSize": "Cookie (octets)",
+      "topics": "Topics",
+      "overLimit": "au-delà de la limite",
+      "empty": "Aucun utilisateur proche de la limite du cookie Mercure"
+    },
+    "esiBudget": {
+      "title": "Budget d'erreurs ESI",
+      "remain": "Erreurs restantes",
+      "lastReset": "Dernière observation",
+      "resetIn": "fenêtre de {seconds}s",
+      "limited420": "420 sur 24h",
+      "limited429": "429 sur 24h",
+      "hourly": "420/429 par heure, 24 dernières heures (rouge : 420, ambre : 429)",
+      "family": "Famille d'endpoint",
+      "noLimited": "Aucun 420 ni 429 sur les 24 dernières heures",
+      "level": {
+        "unknown": "Inconnu",
+        "ok": "Sain",
+        "low": "Bas",
+        "critical": "Critique"
+      }
+    },
     "scheduler": {
       "throttleEsi": "Throttle ESI : progressif sous 20 errors remain, pause sous 5"
     },
@@ -2400,12 +2492,7 @@
       "logins": "Connexions",
       "registrationsPerWeek": "Inscriptions par semaine",
       "loginsLast7d": "Connexions (7 derniers jours)",
-      "assetDistribution": "Repartition des assets",
-      "weekLabel": "Sem {week}",
-      "assetKinds": {
-        "personal": "Personnel",
-        "corporation": "Corporation"
-      }
+      "weekLabel": "Sem {week}"
     },
     "pve": {
       "revenueByCorpTitle": "Revenus PVE par Corporation (30j)",

@@ -41,7 +41,6 @@ class ChartDataProvider implements ProviderInterface
         $resource = new ChartResource();
         $resource->registrations = $chartData['registrations'] ?? [];
         $resource->activity = $chartData['activity'] ?? [];
-        $resource->assetDistribution = $chartData['assetDistribution'] ?? [];
 
         return $resource;
     }

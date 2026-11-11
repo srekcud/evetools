@@ -11,10 +11,10 @@ const TRACKED_SYNC_TYPES = [
   'alert-prices', 'adjusted-prices', 'cost-indices', 'public-contracts', 'corporation-mining-extractions',
   'moon-tax', 'blueprints', 'market-volumes', 'courier-contracts', 'character-orders',
   'mining-operation-recurrences', 'moon-chunk-alerts', 'mining-site-depletion-alerts',
-  'notifications-purge', 'market-history-purge', 'shared-lists-purge', 'assets', 'market-alerts',
+  'notifications-purge', 'market-history-purge', 'shared-lists-purge', 'assets', 'corporation-assets', 'market-alerts',
 ]
 
-function entryOfType(type: string): SchedulerHealthEntry {
+function entryOfType(type: string, triggerable = false): SchedulerHealthEntry {
   return {
     type,
     status: 'ok',
@@ -24,12 +24,13 @@ function entryOfType(type: string): SchedulerHealthEntry {
     message: null,
     expectedInterval: 1800,
     onDemand: false,
+    triggerable,
   } as SchedulerHealthEntry
 }
 
 function renderedTextFor(type: string, locale: TestLocale): string {
   const wrapper = mount(SchedulerHealthTable, {
-    props: { entries: [entryOfType(type)], syncActionMap: {}, actionLoading: null },
+    props: { entries: [entryOfType(type)], actionLoading: null },
     global: { plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })] },
   })
   return wrapper.text()
@@ -51,6 +52,35 @@ describe('SchedulerHealthTable sync names', () => {
   })
 })
 
+function mountTableWith(entries: SchedulerHealthEntry[], actionLoading: string | null = null) {
+  return mount(SchedulerHealthTable, {
+    props: { entries, actionLoading },
+    global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })] },
+  })
+}
+
+describe('SchedulerHealthTable manual trigger', () => {
+  it('shows a trigger button on each triggerable row only', () => {
+    const wrapper = mountTableWith([entryOfType('cost-indices', true), entryOfType('legacy-type', false)])
+
+    expect(wrapper.findAll('button')).toHaveLength(1)
+  })
+
+  it('emits the type of the row when its trigger button is clicked', async () => {
+    const wrapper = mountTableWith([entryOfType('industry', true), entryOfType('cost-indices', true)])
+
+    await wrapper.findAll('button')[1].trigger('click')
+
+    expect(wrapper.emitted('execute-action')).toEqual([['cost-indices']])
+  })
+
+  it('disables the trigger buttons while an action is running', () => {
+    const wrapper = mountTableWith([entryOfType('cost-indices', true)], 'cost-indices')
+
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+  })
+})
+
 const NOW = new Date('2026-11-11T12:00:00Z')
 const HOURLY_INTERVAL = 3_600
 const MAPPED_TYPE = 'industry-jobs'
@@ -67,6 +97,7 @@ function entry(type: string, overrides: Partial<SchedulerHealthEntry> = {}): Sch
     message: null,
     expectedInterval: HOURLY_INTERVAL,
     onDemand: false,
+    triggerable: false,
     ...overrides,
   }
 }
@@ -78,7 +109,6 @@ function mountTable(entries: SchedulerHealthEntry[]): VueWrapper {
   return mount(SchedulerHealthTable, {
     props: {
       entries,
-      syncActionMap: { [MAPPED_TYPE]: { key: 'industry-jobs-sync', action: async () => ({ success: true, message: 'ok' }) } },
       actionLoading: null,
     },
     global: { plugins: [i18n] },
@@ -175,11 +205,11 @@ describe('SchedulerHealthTable', () => {
   })
 
   it('still triggers a sync from the row action', async () => {
-    const wrapper = mountTable([entry(MAPPED_TYPE)])
+    const wrapper = mountTable([entry(MAPPED_TYPE, { triggerable: true })])
 
     await rowFor(wrapper, MAPPED_TYPE).find('button').trigger('click')
 
-    expect(wrapper.emitted('execute-action')?.[0][0]).toBe('industry-jobs-sync')
+    expect(wrapper.emitted('execute-action')?.[0][0]).toBe(MAPPED_TYPE)
   })
 })
 

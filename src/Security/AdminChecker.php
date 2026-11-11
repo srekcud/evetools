@@ -33,4 +33,14 @@ final readonly class AdminChecker
 
         return \in_array((string) $mainCharacter->getEveCharacterId(), $this->adminEveCharacterIds, true);
     }
+
+    /**
+     * @return list<int>
+     */
+    public function listedEveCharacterIds(): array
+    {
+        $numericEntries = array_filter($this->adminEveCharacterIds, ctype_digit(...));
+
+        return array_values(array_unique(array_map(\intval(...), $numericEntries)));
+    }
 }

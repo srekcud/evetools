@@ -93,6 +93,7 @@ class SyncTrackerTest extends TestCase
                 ['market-history-purge', 86400, false],
                 ['shared-lists-purge', 86400, false],
                 ['assets', null, true],
+                ['corporation-assets', null, true],
                 ['market-alerts', null, true],
             ],
             array_map(
@@ -100,6 +101,13 @@ class SyncTrackerTest extends TestCase
                 $entries,
             ),
         );
+    }
+
+    public function testEveryTrackedEntryCanBeTriggeredManually(): void
+    {
+        foreach ($this->syncTracker->getAll() as $entry) {
+            $this->assertTrue($entry['triggerable'], $entry['type'] . ' has no manual trigger');
+        }
     }
 
     public function testNeverRunScheduledSyncIsUnknown(): void
@@ -114,6 +122,7 @@ class SyncTrackerTest extends TestCase
                 'message' => null,
                 'expected_interval' => self::INDUSTRY_INTERVAL,
                 'on_demand' => false,
+                'triggerable' => true,
             ],
             $this->entryFor('industry'),
         );
@@ -131,6 +140,7 @@ class SyncTrackerTest extends TestCase
                 'message' => null,
                 'expected_interval' => null,
                 'on_demand' => true,
+                'triggerable' => true,
             ],
             $this->entryFor('assets'),
         );

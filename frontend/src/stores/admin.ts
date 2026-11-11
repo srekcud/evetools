@@ -72,6 +72,73 @@ export interface SchedulerHealthEntry {
   // null for on-demand syncs: not scheduled, so no health is computed
   expectedInterval?: number | null
   onDemand: boolean
+  triggerable: boolean
+}
+
+export interface AdminEsiErrorBudgetFamily {
+  family: string
+  limited420: number
+  limited429: number
+}
+
+export interface AdminEsiErrorBudgetHour {
+  hour: string
+  limited420: number
+  limited429: number
+}
+
+export interface AdminEsiErrorBudget {
+  remain: number | null
+  resetSeconds: number | null
+  observedAt: string | null
+  windowEndsAt: string | null
+  level: 'unknown' | 'ok' | 'low' | 'critical'
+  limited420: number
+  limited429: number
+  byFamily: AdminEsiErrorBudgetFamily[]
+  hourly: AdminEsiErrorBudgetHour[]
+}
+
+export interface AdminMercureCookieUser {
+  userId: string
+  mainCharacterName: string | null
+  cookieBytes: number
+  topicCount: number
+}
+
+export interface AdminMercureCookie {
+  limitBytes: number
+  warningThresholdBytes: number
+  nearLimitCount: number
+  users: AdminMercureCookieUser[]
+}
+
+export type AdminCharacterRepairState = 'invalid' | 'missing_scopes'
+
+export interface AdminCharacterToRepair {
+  eveCharacterId: number
+  characterName: string
+  userId?: string | null
+  userLastLoginAt?: string | null
+  state: AdminCharacterRepairState
+  missingScopes: string[]
+  sinceAt: string
+}
+
+export interface AdminCharactersToRepair {
+  count: number
+  characters: AdminCharacterToRepair[]
+}
+
+export interface AdminCharacter {
+  eveCharacterId: number
+  characterName?: string | null
+  hasUser: boolean
+}
+
+export interface AdminCharacters {
+  count: number
+  characters: AdminCharacter[]
 }
 
 export interface AdminNotificationStats {
@@ -101,6 +168,10 @@ export interface AdminStats {
   notifications: AdminNotificationStats
   market: AdminMarketStats
   schedulerHealth: SchedulerHealthEntry[]
+  esiErrorBudget: AdminEsiErrorBudget
+  mercureCookie: AdminMercureCookie
+  charactersToRepair: AdminCharactersToRepair
+  adminCharacters: AdminCharacters
 }
 
 export interface AdminQueues {
@@ -119,10 +190,40 @@ export interface AdminChartData {
     labels: string[]
     logins: number[]
   }
-  assetDistribution: {
-    labels: string[]
-    data: number[]
-  }
+}
+
+export type AdminUserTokenState = 'valid' | 'expiring' | 'invalid' | 'no_token'
+
+export interface AdminUserSearchHit {
+  userId: string
+  mainCharacterName?: string | null
+  mainEveCharacterId?: number | null
+  characterCount: number
+  lastLoginAt?: string | null
+}
+
+export interface AdminUserSheetCharacter {
+  eveCharacterId: number
+  name: string
+  isMain: boolean
+  tokenState: AdminUserTokenState
+  accessTokenExpiresAt?: string | null
+  missingScopes: string[]
+  lastSyncAt?: string | null
+}
+
+export interface AdminUserSheetSync {
+  type: string
+  lastDataAt?: string | null
+  triggerable: boolean
+}
+
+export interface AdminUserSheet {
+  userId: string
+  createdAt: string
+  lastLoginAt?: string | null
+  characters: AdminUserSheetCharacter[]
+  syncs: AdminUserSheetSync[]
 }
 
 export interface AdminStatusRule {
@@ -242,6 +343,42 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  async function triggerSync(type: string): Promise<{ success: boolean; message: string }> {
+    try {
+      return await apiRequest<{ success: boolean; message: string }>('/admin/actions/sync', {
+        method: 'POST',
+        body: JSON.stringify({ type }),
+      })
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : 'Action failed',
+      }
+    }
+  }
+
+  async function searchUsers(term: string): Promise<AdminUserSearchHit[]> {
+    return apiRequest<AdminUserSearchHit[]>(`/admin/users?search=${encodeURIComponent(term)}`)
+  }
+
+  async function fetchUserSheet(userId: string): Promise<AdminUserSheet> {
+    return apiRequest<AdminUserSheet>(`/admin/users/${userId}`)
+  }
+
+  async function triggerUserSync(userId: string, type: string): Promise<{ success: boolean; message: string }> {
+    try {
+      return await apiRequest<{ success: boolean; message: string }>(`/admin/users/${userId}/sync`, {
+        method: 'POST',
+        body: JSON.stringify({ type }),
+      })
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : 'Action failed',
+      }
+    }
+  }
+
   async function syncAssets(): Promise<{ success: boolean; message: string }> {
     return triggerAction('sync-assets')
   }
@@ -321,6 +458,10 @@ export const useAdminStore = defineStore('admin', () => {
     fetchStatus,
     fetchAll,
     clearError,
+    triggerSync,
+    searchUsers,
+    fetchUserSheet,
+    triggerUserSync,
     syncAssets,
     syncMarket,
     syncPve,

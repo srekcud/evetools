@@ -13,6 +13,7 @@ function entry(type: string, overrides: Partial<SchedulerHealthEntry> = {}): Sch
     message: null,
     expectedInterval: HOURLY_INTERVAL,
     onDemand: false,
+    triggerable: false,
     ...overrides,
   }
 }
