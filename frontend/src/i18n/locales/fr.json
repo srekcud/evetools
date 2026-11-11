@@ -3766,7 +3766,10 @@
       "corporationUnavailable": "Corporation inconnue : visibilité privée seulement.",
       "chunkSystem": "Système du chunk",
       "chunkSystemHint": "Le système est fixé au démarrage de l'opération.",
-      "submit": "Créer l'opération"
+      "submit": "Créer l'opération",
+      "selectedCount": "{selected}/{total} sélectionnés",
+      "selectAllReady": "Tous les prêts",
+      "selectNone": "Aucun"
     },
     "recurrence": {
       "title": "Récurrences",

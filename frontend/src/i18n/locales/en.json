@@ -3766,7 +3766,10 @@
       "corporationUnavailable": "Unknown corporation: private visibility only.",
       "chunkSystem": "Chunk system",
       "chunkSystemHint": "The system is set when the operation starts.",
-      "submit": "Create operation"
+      "submit": "Create operation",
+      "selectedCount": "{selected}/{total} selected",
+      "selectAllReady": "Select all ready",
+      "selectNone": "Clear"
     },
     "recurrence": {
       "title": "Recurrences",
