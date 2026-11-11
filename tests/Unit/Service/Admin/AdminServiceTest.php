@@ -105,26 +105,23 @@ class AdminServiceTest extends TestCase
 
         $this->assertArrayHasKey('registrations', $charts);
         $this->assertArrayHasKey('activity', $charts);
-        $this->assertArrayHasKey('assetDistribution', $charts);
+        $this->assertArrayNotHasKey('assetDistribution', $charts);
 
         $this->assertArrayHasKey('labels', $charts['registrations']);
         $this->assertArrayHasKey('data', $charts['registrations']);
 
         $this->assertArrayHasKey('labels', $charts['activity']);
         $this->assertArrayHasKey('logins', $charts['activity']);
-
-        $this->assertArrayHasKey('labels', $charts['assetDistribution']);
-        $this->assertArrayHasKey('data', $charts['assetDistribution']);
     }
 
-    public function testRegistrationChartLabelsAreIsoWeeksOfTheLastFourWeeks(): void
+    public function testRegistrationChartLabelsAreIsoWeeksOfTheLastTwelveWeeks(): void
     {
         $this->connection->method('fetchOne')->willReturn(0);
 
         $labels = $this->adminService->getChartData()['registrations']['labels'];
 
         $expected = [];
-        for ($weeksAgo = 3; $weeksAgo >= 0; $weeksAgo--) {
+        for ($weeksAgo = 11; $weeksAgo >= 0; $weeksAgo--) {
             $expected[] = (new \DateTimeImmutable("-{$weeksAgo} weeks"))->format('o-\WW');
         }
         $this->assertSame($expected, $labels);
@@ -143,14 +140,23 @@ class AdminServiceTest extends TestCase
         $this->assertSame($expected, $labels);
     }
 
-    public function testAssetDistributionLabelsAreStableKeys(): void
+    public function testRegistrationChartCountsEachOfTheTwelveWeeksSeparately(): void
     {
-        $this->connection->method('fetchOne')->willReturnOnConsecutiveCalls(...array_fill(0, 11, 0), ...[7, 3]);
+        $this->connection->method('fetchOne')->willReturnOnConsecutiveCalls(...range(1, 12), ...array_fill(0, 20, 0));
 
-        $distribution = $this->adminService->getChartData()['assetDistribution'];
+        $registrations = $this->adminService->getChartData()['registrations'];
 
-        $this->assertSame(['personal', 'corporation'], $distribution['labels']);
-        $this->assertSame([7, 3], $distribution['data']);
+        $this->assertSame(range(1, 12), $registrations['data']);
+    }
+
+    public function testActivityChartStillCoversTheLastSevenDays(): void
+    {
+        $this->connection->method('fetchOne')->willReturn(0);
+
+        $activity = $this->adminService->getChartData()['activity'];
+
+        $this->assertCount(7, $activity['labels']);
+        $this->assertCount(7, $activity['logins']);
     }
 
     public function testGetStatsPveStructure(): void

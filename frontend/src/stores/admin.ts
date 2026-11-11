@@ -120,10 +120,6 @@ export interface AdminChartData {
     labels: string[]
     logins: number[]
   }
-  assetDistribution: {
-    labels: string[]
-    data: number[]
-  }
 }
 
 export interface AdminAccess {
