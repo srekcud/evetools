@@ -31,6 +31,7 @@ final class MigrationsReplayTest extends KernelTestCase
 {
     private const string MIGRATIONS_NAMESPACE = 'DoctrineMigrations';
     private const string MIGRATIONS_TABLE = 'doctrine_migration_versions';
+    private const string MESSENGER_TABLE = 'messenger_messages';
     private const string MAINTENANCE_DATABASE = 'postgres';
 
     private Connection $maintenanceConnection;
@@ -106,7 +107,11 @@ final class MigrationsReplayTest extends KernelTestCase
     {
         $configuration = new DbalConfiguration();
         $configuration->setSchemaAssetsFilter(
-            static fn (string|AbstractAsset $asset): bool => ($asset instanceof AbstractAsset ? $asset->getName() : $asset) !== self::MIGRATIONS_TABLE,
+            static fn (string|AbstractAsset $asset): bool => !\in_array(
+                $asset instanceof AbstractAsset ? $asset->getName() : $asset,
+                [self::MIGRATIONS_TABLE, self::MESSENGER_TABLE],
+                true,
+            ),
         );
 
         return $configuration;

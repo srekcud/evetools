@@ -2289,6 +2289,35 @@
       "purgeNotifications": "Purge Notifications (>7d)",
       "purgeMarketHistory": "Purge Market History (>365d)"
     },
+    "failedMessages": {
+      "title": "Failed messages",
+      "empty": "No failed message",
+      "retry": "Retry",
+      "remove": "Remove",
+      "retryClass": "Retry class",
+      "removeClass": "Remove class",
+      "columns": {
+        "messageClass": "Message class",
+        "exception": "Exception",
+        "message": "Message",
+        "failedAt": "Failed at",
+        "retryCount": "Retries",
+        "actions": "Actions"
+      },
+      "showingRecent": "Showing the {shown} most recent messages out of {total}",
+      "loadError": "The failed messages could not be loaded.",
+      "actionError": "The action failed. The list was reloaded.",
+      "confirm": {
+        "removeMessage": {
+          "title": "Remove this failed message?",
+          "message": "The message will be deleted without being run."
+        },
+        "removeClass": {
+          "title": "Remove the whole message class?",
+          "message": "{count} failed message of {messageClass} will be deleted without being run. | {count} failed messages of {messageClass} will be deleted without being run."
+        }
+      }
+    },
     "maintenance": "Maintenance",
     "clearCache": "Clear Cache",
     "confirm": {

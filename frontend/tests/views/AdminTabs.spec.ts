@@ -48,6 +48,7 @@ async function mountAdmin(query: LocationQuery = {}): Promise<VueWrapper> {
         AdminKpiGrid: true,
         SchedulerHealthTable: true,
         MaintenanceActions: true,
+        FailedMessagesCard: true,
         AdminChartsGrid: true,
         PveCorpRevenue: true,
       },
@@ -94,6 +95,16 @@ describe('Admin tabs', () => {
     expect(wrapper.findComponent(MaintenanceActions).exists()).toBe(true)
     expect(wrapper.findComponent(AdminChartsGrid).exists()).toBe(false)
     expect(wrapper.findComponent(PveCorpRevenue).exists()).toBe(false)
+  })
+
+  it('shows the failed messages card in the maintenance section of Health only', async () => {
+    const healthWrapper = await mountAdmin()
+
+    expect(healthWrapper.get('#admin-section-maintenance').findComponent({ name: 'FailedMessagesCard' }).exists()).toBe(true)
+
+    const statisticsWrapper = await mountAdmin({ tab: 'statistics' })
+
+    expect(statisticsWrapper.findComponent({ name: 'FailedMessagesCard' }).exists()).toBe(false)
   })
 
   it('shows the product tiles, the charts and the PVE revenue by corporation on Statistics only', async () => {

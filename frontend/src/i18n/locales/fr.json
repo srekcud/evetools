@@ -2289,6 +2289,35 @@
       "purgeNotifications": "Purger les notifications (>7j)",
       "purgeMarketHistory": "Purger l'historique marche (>365j)"
     },
+    "failedMessages": {
+      "title": "Messages en échec",
+      "empty": "Aucun message en échec",
+      "retry": "Relancer",
+      "remove": "Retirer",
+      "retryClass": "Relancer la classe",
+      "removeClass": "Retirer la classe",
+      "columns": {
+        "messageClass": "Classe de message",
+        "exception": "Exception",
+        "message": "Message",
+        "failedAt": "Échec le",
+        "retryCount": "Reprises",
+        "actions": "Actions"
+      },
+      "showingRecent": "Les {shown} messages les plus récents sur {total}",
+      "loadError": "Les messages en échec n'ont pas pu être chargés.",
+      "actionError": "L'action a échoué. La liste a été rechargée.",
+      "confirm": {
+        "removeMessage": {
+          "title": "Retirer ce message en échec ?",
+          "message": "Le message sera supprimé sans être exécuté."
+        },
+        "removeClass": {
+          "title": "Retirer toute la classe de message ?",
+          "message": "{count} message en échec de {messageClass} sera supprimé sans être exécuté. | {count} messages en échec de {messageClass} seront supprimés sans être exécutés."
+        }
+      }
+    },
     "maintenance": "Maintenance",
     "clearCache": "Clear Cache",
     "confirm": {
