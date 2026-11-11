@@ -39,6 +39,11 @@ const VEXOR_BPC_IN_JOB: BlueprintLibraryEntry = {
   scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, divisionName: null, count: 1, usedByRunningJob: true,
 }
 
+const ECLAIR_BPO: BlueprintLibraryEntry = {
+  typeId: 77, name: 'Éclair Blueprint', kind: 'bpo', me: 3, te: 6, runs: null,
+  scope: 'corporation', ownerName: 'Stellar Corp', locationId: 1042000000001, divisionNumber: 3, count: 1, usedByRunningJob: false,
+}
+
 function libraryOf(corporationState: BlueprintLibrary['corporationState'], blueprints: BlueprintLibraryEntry[]): BlueprintLibrary {
   return { corporationState, blueprints }
 }
@@ -229,6 +234,98 @@ describe('BlueprintLibraryTab filter (issue 409)', () => {
     expect(wrapper.findAll(ROWS)).toHaveLength(0)
     expect(wrapper.find(EMPTY).exists()).toBe(true)
     expect(wrapper.find(LOAD_ERROR).exists()).toBe(false)
+  })
+})
+
+describe('BlueprintLibraryTab search (issue 658)', () => {
+  const SEARCH = '[data-testid="blueprints-search"]'
+  const SEARCH_EMPTY = '[data-testid="blueprints-search-empty"]'
+  const LIBRARY = libraryOf('known', [DRAKE_BPO, RIFTER_BPO_STACK, HAMMERHEAD_BPC, ECLAIR_BPO])
+
+  function namesShown(wrapper: VueWrapper): string[] {
+    return rowTexts(wrapper).map(text => text.split(' ')[0])
+  }
+
+  it('lists every blueprint while the search is empty or blank', async () => {
+    const wrapper = await mountTab([LIBRARY])
+
+    expect(wrapper.findAll(ROWS)).toHaveLength(4)
+    await wrapper.get(SEARCH).setValue('   ')
+    expect(wrapper.findAll(ROWS)).toHaveLength(4)
+  })
+
+  it('keeps the blueprints whose name contains the search, ignoring case', async () => {
+    const wrapper = await mountTab([LIBRARY])
+
+    await wrapper.get(SEARCH).setValue('rAK')
+    expect(namesShown(wrapper)).toEqual(['Drake'])
+
+    await wrapper.get(SEARCH).setValue('blueprint')
+    expect(wrapper.findAll(ROWS)).toHaveLength(4)
+  })
+
+  it('ignores accents in the name and in the search', async () => {
+    const wrapper = await mountTab([LIBRARY])
+
+    await wrapper.get(SEARCH).setValue('eclair')
+    expect(namesShown(wrapper)).toEqual(['Éclair'])
+
+    await wrapper.get(SEARCH).setValue('ÉCLAIR')
+    expect(namesShown(wrapper)).toEqual(['Éclair'])
+  })
+
+  it('combines with the personal and corporation filter without a new request', async () => {
+    const wrapper = await mountTab([LIBRARY])
+
+    await wrapper.get(SEARCH).setValue('blueprint')
+    await wrapper.get('[data-testid="blueprints-filter-corporation"]').trigger('click')
+    expect(namesShown(wrapper)).toEqual(['Hammerhead', 'Éclair'])
+
+    await wrapper.get(SEARCH).setValue('rifter')
+    expect(wrapper.findAll(ROWS)).toHaveLength(0)
+    await wrapper.get('[data-testid="blueprints-filter-personal"]').trigger('click')
+    expect(namesShown(wrapper)).toEqual(['Rifter'])
+    expect(callsTo(LIBRARY_ENDPOINT)).toBe(1)
+  })
+
+  it('shows a dedicated message, not the empty library message, when the search finds nothing', async () => {
+    const wrapper = await mountTab([LIBRARY])
+
+    await wrapper.get(SEARCH).setValue('zzz')
+
+    expect(wrapper.findAll(ROWS)).toHaveLength(0)
+    expect(wrapper.get(SEARCH_EMPTY).text()).toBe(expectedMessage('en', 'industry.blueprints.searchEmpty'))
+    expect(wrapper.find(EMPTY).exists()).toBe(false)
+
+    await wrapper.get(SEARCH).setValue('')
+    expect(wrapper.find(SEARCH_EMPTY).exists()).toBe(false)
+    expect(wrapper.findAll(ROWS)).toHaveLength(4)
+  })
+
+  it('keeps the empty library message when nothing is searched', async () => {
+    const wrapper = await mountTab([libraryOf('known', [])])
+
+    expect(wrapper.find(EMPTY).exists()).toBe(true)
+    expect(wrapper.find(SEARCH_EMPTY).exists()).toBe(false)
+  })
+
+  it('searches the display name of a blueprint with an unknown type', async () => {
+    const wrapper = await mountTab([libraryOf('known', [DRAKE_BPO, UNNAMED_BPO])])
+
+    await wrapper.get(SEARCH).setValue('unknown_type')
+
+    expect(wrapper.findAll(ROWS)).toHaveLength(0)
+    expect(wrapper.find(SEARCH_EMPTY).exists()).toBe(true)
+  })
+
+  it('labels the search field in English and in French', async () => {
+    const english = await mountTab([LIBRARY])
+    const french = await mountTab([LIBRARY], 'fr')
+
+    expect(english.get(SEARCH).attributes('placeholder')).toBe(expectedMessage('en', 'industry.blueprints.searchPlaceholder'))
+    expect(english.get(SEARCH).attributes('aria-label')).toBe(expectedMessage('en', 'industry.blueprints.searchLabel'))
+    expect(french.get(SEARCH).attributes('placeholder')).toBe(expectedMessage('fr', 'industry.blueprints.searchPlaceholder'))
+    expect(french.get(SEARCH).attributes('aria-label')).toBe(expectedMessage('fr', 'industry.blueprints.searchLabel'))
   })
 })
 
