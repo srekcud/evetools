@@ -84,12 +84,7 @@ class AssetsSyncService
 
             // Notify sync completed
             if ($userId !== null) {
-                $this->mercurePublisher->syncCompleted(
-                    $userId,
-                    'character-assets',
-                    'Sync completed',
-                    ['count' => count($assets)]
-                );
+                $this->publishCompletion($userId, 'character-assets', count($assets));
             }
         } catch (\Throwable $e) {
             if ($userId !== null) {
@@ -97,6 +92,24 @@ class AssetsSyncService
             }
             throw $e;
         }
+    }
+
+    private function publishCompletion(string $userId, string $syncType, int $assetCount): void
+    {
+        $rejectedNameBatches = $this->assetsService->lastNameBatchFailures();
+
+        if ($rejectedNameBatches === 0) {
+            $this->mercurePublisher->syncCompleted($userId, $syncType, 'Sync completed', ['count' => $assetCount]);
+
+            return;
+        }
+
+        $this->mercurePublisher->syncCompleted(
+            $userId,
+            $syncType,
+            sprintf('Sync completed, item name batches rejected by ESI: %d', $rejectedNameBatches),
+            ['count' => $assetCount, 'nameBatchFailures' => $rejectedNameBatches],
+        );
     }
 
     /**
@@ -164,12 +177,7 @@ class AssetsSyncService
 
             // Notify sync completed
             if ($userId !== null) {
-                $this->mercurePublisher->syncCompleted(
-                    $userId,
-                    'corporation-assets',
-                    'Sync completed',
-                    ['count' => count($assets)]
-                );
+                $this->publishCompletion($userId, 'corporation-assets', count($assets));
             }
         } catch (\Throwable $e) {
             if ($userId !== null) {
