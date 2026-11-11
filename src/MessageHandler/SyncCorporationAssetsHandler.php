@@ -18,7 +18,7 @@ use Symfony\Component\Uid\Uuid;
 #[AsMessageHandler]
 final readonly class SyncCorporationAssetsHandler
 {
-    private const string TRACKED_SYNC_TYPE = 'assets';
+    private const string TRACKED_SYNC_TYPE = 'corporation-assets';
     private const string MERCURE_SYNC_TYPE = 'corporation-assets';
     private const string TRIGGER_CHARACTER_NOT_FOUND = 'Corporation assets sync could not run: the trigger character no longer exists';
     private const string AUTH_REQUIRED = 'Corporation assets sync could not run: the trigger character must log in again';
@@ -34,6 +34,8 @@ final readonly class SyncCorporationAssetsHandler
 
     public function __invoke(SyncCorporationAssets $message): void
     {
+        $this->syncTracker->start(self::TRACKED_SYNC_TYPE);
+
         $uuid = Uuid::fromString($message->triggerCharacterId);
         $character = $this->characterRepository->find($uuid);
 
@@ -66,6 +68,7 @@ final readonly class SyncCorporationAssetsHandler
                 'corporationId' => $message->corporationId,
                 'triggeredBy' => $character->getName(),
             ]);
+            $this->syncTracker->complete(self::TRACKED_SYNC_TYPE);
         } catch (EveAuthRequiredException $e) {
             $this->logger->error('EVE auth required for corporation sync', [
                 'characterId' => $message->triggerCharacterId,
