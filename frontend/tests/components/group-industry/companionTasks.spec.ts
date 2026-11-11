@@ -1,5 +1,6 @@
 import { buildCompanionTasks, type CompanionTasks } from '@/components/group-industry/companionTasks'
-import type { BomItem, GroupMember, GroupProject, ProjectPriceAlert } from '@/stores/group-industry/types'
+import type { BomItem, GroupMember, GroupProject, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
+import { sellOrder } from '../../sellOrderFixtures'
 import { bomLine, companionProject, jobLocations, jobMatch, member } from './companionFixtures'
 
 const NOW = Date.parse('2026-11-09T12:00:00+00:00')
@@ -8,13 +9,14 @@ const ONE_HOUR = 3_600_000
 
 function tasksOf(
   bomItems: BomItem[],
-  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null } = {},
+  options: { project?: GroupProject; members?: GroupMember[]; priceAlert?: ProjectPriceAlert | null; undercutOrders?: ProjectSellOrder[] } = {},
 ): CompanionTasks {
   return buildCompanionTasks({
     bomItems,
     project: options.project ?? companionProject(),
     members: options.members ?? [],
     priceAlert: options.priceAlert ?? null,
+    undercutOrders: options.undercutOrders ?? [],
     myCharacterNames: ['Alpha'],
     now: NOW,
   })
@@ -397,5 +399,33 @@ describe('buildCompanionTasks price alert', () => {
       alerts: withoutAlert.alerts,
       otherAlertsWithAlert: withAlert.alerts.filter(alert => alert.kind !== 'price_below_break_even'),
     }).toEqual({ priceAlert: null, alerts: [], otherAlertsWithAlert: [] })
+  })
+})
+
+describe('buildCompanionTasks undercut sell orders', () => {
+  function undercutAlertsOf(tasks: CompanionTasks): CompanionTasks['alerts'] {
+    return tasks.alerts.filter(alert => alert.kind === 'undercut_sell_order')
+  }
+
+  it('adds one visual alert for all the undercut orders and keeps them for the alert text', () => {
+    const undercutOrders = [sellOrder(), sellOrder({ orderId: 6_350_000_002, typeName: 'Sabre' })]
+
+    const tasks = tasksOf([], { undercutOrders })
+
+    expect({ alerts: undercutAlertsOf(tasks), undercutOrders: tasks.undercutOrders }).toEqual({
+      alerts: [{ key: 'undercut_sell_order', kind: 'undercut_sell_order' }],
+      undercutOrders,
+    })
+  })
+
+  it('adds no alert without an undercut order, and leaves the other alerts untouched', () => {
+    const withoutOrder = tasksOf([])
+    const withOrder = tasksOf([], { undercutOrders: [sellOrder()] })
+
+    expect({
+      undercutOrders: withoutOrder.undercutOrders,
+      alerts: withoutOrder.alerts,
+      otherAlertsWithOrder: withOrder.alerts.filter(alert => alert.kind !== 'undercut_sell_order'),
+    }).toEqual({ undercutOrders: [], alerts: [], otherAlertsWithOrder: [] })
   })
 })

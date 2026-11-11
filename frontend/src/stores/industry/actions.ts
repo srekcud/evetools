@@ -2,13 +2,15 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
 import { useSyncStore } from '@/stores/sync'
-import type { GroupProjectStatus, ProjectNextActionCode, ProjectNextActionTab } from '@/stores/group-industry/types'
+import type { GroupProjectStatus, ProjectNextActionCode, ProjectNextActionTab, ProjectSellOrder } from '@/stores/group-industry/types'
 
 export type IndustryActionSeverity = 'warning' | 'info' | 'unknown'
 
 export const PRICE_ALERT_ACTION_CODE = 'price_below_break_even'
 
-export type IndustryActionCode = ProjectNextActionCode | typeof PRICE_ALERT_ACTION_CODE
+export const UNDERCUT_ORDER_ACTION_CODE = 'undercut_sell_order'
+
+export type IndustryActionCode = ProjectNextActionCode | typeof PRICE_ALERT_ACTION_CODE | typeof UNDERCUT_ORDER_ACTION_CODE
 
 export type IndustryAction = {
   projectId: string
@@ -25,6 +27,7 @@ export type IndustryAction = {
   impactIsk: number | null
   jitaUnitPrice: number | null
   breakEvenPerUnit: number | null
+  undercutOrder: ProjectSellOrder | null
 }
 
 export const useIndustryActionsStore = defineStore('industry-actions', () => {

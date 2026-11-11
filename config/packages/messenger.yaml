@@ -41,6 +41,8 @@ framework:
             App\Message\SyncMoonTax: async
             App\Message\SyncBlueprints: async
             App\Message\SyncUserBlueprints: async
+            App\Message\SyncCharacterOrders: async
+            App\Message\SyncUserCharacterOrders: async
             App\Message\SyncAdjustedPrices: async
             App\Message\SyncCostIndices: async
             App\Message\CheckAlertPrices: async

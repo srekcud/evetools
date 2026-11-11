@@ -17,6 +17,7 @@ import type {
   ProjectPhaseKey,
   ProjectPhaseState,
   ProjectPriceAlert,
+  ProjectSellOrder,
 } from '@/stores/group-industry/types'
 import type { TestLocale } from '../../localeTexts'
 import { projectSettlement } from '../../components/group-industry/projectSettlementFixtures'
@@ -136,8 +137,8 @@ export function nextAction(overrides: Partial<ProjectNextAction> & Pick<ProjectN
   }
 }
 
-export function cockpitOf(status: GroupProjectStatus, action: ProjectNextAction, phases: ProjectPhase[] = supplyRail(), priceAlert: ProjectPriceAlert | null = null): ProjectCockpit {
-  return { projectId: PROJECT_ID, status, phases, nextAction: action, priceAlert }
+export function cockpitOf(status: GroupProjectStatus, action: ProjectNextAction, phases: ProjectPhase[] = supplyRail(), priceAlert: ProjectPriceAlert | null = null, undercutOrders: ProjectSellOrder[] = []): ProjectCockpit {
+  return { projectId: PROJECT_ID, status, phases, nextAction: action, priceAlert, undercutOrders }
 }
 
 export type CockpitAnswers = {

@@ -18,6 +18,8 @@ use App\Service\Industry\Project\ActionSeverity;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\Service\Industry\Project\ProjectPriceAlert;
 use App\Service\Industry\Project\ProjectPriceAlertReader;
+use App\Service\Industry\SellOrders\ProjectSellOrder;
+use App\Service\Industry\SellOrders\ProjectSellOrdersReader;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -29,6 +31,7 @@ class IndustryActionsProvider implements ProviderInterface
     private const array NO_ACTION_CODES = ['project_completed', 'nothing_to_do'];
     private const string PRICE_ALERT_CODE = 'price_below_break_even';
     private const string PRICE_ALERT_TAB = 'sales';
+    private const string UNDERCUT_ORDER_CODE = 'undercut_sell_order';
 
     public function __construct(
         private readonly Security $security,
@@ -38,6 +41,7 @@ class IndustryActionsProvider implements ProviderInterface
         private readonly ActionQueueSorter $sorter,
         private readonly ActionAssessor $assessor,
         private readonly ProjectPriceAlertReader $priceAlertReader,
+        private readonly ProjectSellOrdersReader $sellOrdersReader,
     ) {
     }
 
@@ -52,6 +56,7 @@ class IndustryActionsProvider implements ProviderInterface
 
         $entries = [];
         $priceAlerts = [];
+        $undercutOrders = [];
         foreach ($this->memberRepository->findAcceptedWithProjectsByUser($user) as $membership) {
             $entry = $this->entryOf($membership, $user);
             if ($entry !== null) {
@@ -61,18 +66,24 @@ class IndustryActionsProvider implements ProviderInterface
             if ($priceAlert !== null) {
                 $priceAlerts[] = [$membership->getProject(), $priceAlert];
             }
+            foreach ($this->sellOrdersReader->undercutOrdersOf($membership->getProject(), $user) as $order) {
+                $undercutOrders[] = [$membership->getProject(), $order];
+            }
         }
 
         return [
             ...array_map($this->priceAlertResource(...), $this->sortedByProject($priceAlerts)),
+            ...array_map($this->undercutOrderResource(...), $this->sortedByProject($undercutOrders)),
             ...array_map($this->toResource(...), $this->sorter->sort($entries)),
         ];
     }
 
     /**
-     * @param list<array{IndustryProject, ProjectPriceAlert}> $priceAlerts
+     * @template TAlert
      *
-     * @return list<array{IndustryProject, ProjectPriceAlert}>
+     * @param list<array{IndustryProject, TAlert}> $priceAlerts
+     *
+     * @return list<array{IndustryProject, TAlert}>
      */
     private function sortedByProject(array $priceAlerts): array
     {
@@ -101,6 +112,28 @@ class IndustryActionsProvider implements ProviderInterface
         $resource->severity = ActionSeverity::Warning->value;
         $resource->jitaUnitPrice = $priceAlert->jitaUnitPrice;
         $resource->breakEvenPerUnit = $priceAlert->breakEvenPerUnit;
+
+        return $resource;
+    }
+
+    /**
+     * @param array{IndustryProject, ProjectSellOrder} $projectOrder
+     */
+    private function undercutOrderResource(array $projectOrder): IndustryActionResource
+    {
+        [$project, $order] = $projectOrder;
+
+        $resource = new IndustryActionResource();
+        $resource->projectId = $project->getId()->toRfc4122();
+        $resource->projectName = $project->getName();
+        $resource->code = self::UNDERCUT_ORDER_CODE;
+        $resource->blocked = false;
+        $resource->tab = self::PRICE_ALERT_TAB;
+        $resource->typeId = $order->typeId;
+        $resource->typeName = $order->typeName;
+        $resource->quantity = $order->volumeRemain;
+        $resource->severity = ActionSeverity::Warning->value;
+        $resource->undercutOrder = $order->toArray();
 
         return $resource;
     }

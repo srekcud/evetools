@@ -37,7 +37,7 @@ docker compose exec app php bin/console <commande>
 - **Auth**: OAuth 2.0 via EVE SSO, `Authorization: Bearer <token>`
 - **Rate Limit**: **420** = budget d'erreurs épuisé (`x-esi-error-limit-*`), **429** = rate limit. Support ETag / Cache-Control. Comportement du client : `.claude/skills/esi-api/SKILL.md`.
 - **Pagination**: `page` param + header `X-Pages` → toujours `EsiClient::getPaginated()` (un `get()` ne lit que la page 1)
-- **29 scopes** (`AuthenticationService::REQUIRED_SCOPES`) : assets, wallet, contracts, industry, mining, blueprints, skills, location, fleet, structures, search, notifications, killmails, market, UI, corp projects, PI, standings
+- **30 scopes** (`AuthenticationService::REQUIRED_SCOPES`) : assets, wallet, contracts, industry, mining, blueprints, skills, location, fleet, structures, search, notifications, killmails, market, ordres de marché du personnage, UI, corp projects, PI, standings
 
 ---
 
@@ -187,6 +187,7 @@ Source : `src/Scheduler/SyncScheduler.php`.
 | Corporation moon chunks (extractions) | 30 min |
 | Opérations de minage récurrentes (occurrences `weekly` et `chunk`) | 30 min |
 | Alertes de chunk lunaire (suiveurs d'une raffinerie : prêt dans 1 h, arrivé) | 5 min |
+| Ordres de vente des personnages comparés au meilleur prix (produits des projets vendables, Jita 4-4 et structures suivies ; position, sous-coté depuis, prix à copier) | 5 min |
 | Taxe lunaire (ledger des observers + journal wallet corpo, par corporation à raffinerie ouverte) | 1h |
 | Blueprints sync (blueprints personnels + corpo, par utilisateur actif) | 1h |
 | Alerte d'un contrat de courrier lié à un projet qui échoue (une notification par contrat, propriétaire du projet) | 30 min |

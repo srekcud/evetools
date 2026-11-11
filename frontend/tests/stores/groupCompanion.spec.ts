@@ -1,8 +1,10 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { apiRequest } from '@/services/api'
 import { useGroupCompanionStore } from '@/stores/group-industry/companion'
-import type { BomItem, ProjectPriceAlert } from '@/stores/group-industry/types'
+import { useSyncStore } from '@/stores/sync'
+import type { BomItem, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
 import { bomLine, companionProject, COMPANION_PROJECT_ID } from '../components/group-industry/companionFixtures'
+import { sellOrder } from '../sellOrderFixtures'
 
 vi.mock(import('@/services/api'), async importOriginal => ({
   ...(await importOriginal()),
@@ -25,6 +27,7 @@ const PRICE_ALERT: ProjectPriceAlert = {
 
 let currentBom: BomItem[]
 let currentPriceAlert: ProjectPriceAlert | null
+let currentUndercutOrders: ProjectSellOrder[]
 
 function nocxium(overrides: Partial<BomItem> = {}): BomItem {
   return bomLine({
@@ -47,11 +50,12 @@ beforeEach(() => {
   setActivePinia(createPinia())
   currentBom = [nocxium()]
   currentPriceAlert = null
+  currentUndercutOrders = []
   vi.mocked(apiRequest).mockReset()
   vi.mocked(apiRequest).mockImplementation(async (endpoint: string) => {
     if (endpoint === PROJECT_PATH) return companionProject()
     if (endpoint === BOM_PATH) return currentBom
-    if (endpoint === COCKPIT_PATH) return { priceAlert: currentPriceAlert }
+    if (endpoint === COCKPIT_PATH) return { priceAlert: currentPriceAlert, undercutOrders: currentUndercutOrders }
     return []
   })
 })
@@ -110,5 +114,46 @@ describe('useGroupCompanionStore', () => {
     store.close()
 
     expect(store.priceAlert).toBeNull()
+  })
+
+  it('keeps the undercut sell orders of the cockpit when opened and refreshes them on every project event, dropping them once nothing is undercut', async () => {
+    currentUndercutOrders = [sellOrder()]
+    const store = useGroupCompanionStore()
+    await store.open(COMPANION_PROJECT_ID)
+    const opened = store.undercutOrders
+    currentUndercutOrders = []
+
+    await store.handleEvent('sale_recorded')
+
+    expect({ opened, refreshed: store.undercutOrders, cockpitLoads: callsTo(COCKPIT_PATH) }).toEqual({
+      opened: [sellOrder()],
+      refreshed: [],
+      cockpitLoads: 2,
+    })
+  })
+
+  it('forgets the undercut sell orders when the companion is closed', async () => {
+    currentUndercutOrders = [sellOrder()]
+    const store = useGroupCompanionStore()
+    await store.open(COMPANION_PROJECT_ID)
+
+    store.close()
+
+    expect(store.undercutOrders).toEqual([])
+  })
+
+  it('refreshes the undercut sell orders when a character orders sync completes, and ignores the other syncs', async () => {
+    const store = useGroupCompanionStore()
+    await store.open(COMPANION_PROJECT_ID)
+    currentUndercutOrders = [sellOrder()]
+    const syncStore = useSyncStore()
+
+    syncStore.syncStatus['blueprints'] = { syncType: 'blueprints', status: 'completed', progress: 100, message: null, data: null, timestamp: '2026-11-10T12:16:00+00:00' }
+    await vi.waitFor(() => expect(callsTo(COCKPIT_PATH)).toBe(1))
+    const afterOtherSync = store.undercutOrders
+    syncStore.syncStatus['character-orders'] = { syncType: 'character-orders', status: 'completed', progress: 100, message: null, data: null, timestamp: '2026-11-10T12:20:00+00:00' }
+    await vi.waitFor(() => expect(store.undercutOrders).toEqual([sellOrder()]))
+
+    expect({ afterOtherSync, cockpitLoads: callsTo(COCKPIT_PATH) }).toEqual({ afterOtherSync: [], cockpitLoads: 2 })
   })
 })

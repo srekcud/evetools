@@ -8,6 +8,7 @@ import type { GroupProject, GroupMemberRole, GroupProjectStatus } from '@/stores
 import type { IndustryAction } from '@/stores/industry/actions'
 import { useSyncStore } from '@/stores/sync'
 import { industryAction } from '../../industryActionFixtures'
+import { sellOrder } from '../../sellOrderFixtures'
 import { slotTrackerWithoutCharacters } from '../../industrySlotsFixtures'
 
 const routerPush = vi.fn()
@@ -267,6 +268,50 @@ describe('IndustryWorkshop action queue', () => {
 
     expect(panel.text()).toContain(en.industry.workshop.actions.record_sale.text.replace('{quantity}', '3'))
     expect(panel.text()).not.toContain('break-even')
+  })
+
+  it('shows each undercut sell order on its own row before the next action of the project, with the best price against mine, and opens the sales', async () => {
+    const order = sellOrder({ typeName: 'Sabre', volumeRemain: 4, price: 760_000, bestPrice: 690_000 })
+    const wrapper = await mountWorkshop({
+      actions: [
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'undercut_sell_order', tab: 'sales', typeId: 22_456, typeName: 'Sabre', quantity: 4, severity: 'warning', undercutOrder: order }),
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'record_sale', tab: 'sales', quantity: 3 }),
+      ],
+    })
+    const rows = queueRows(wrapper)
+    const alertText = rows[0].text().replace(/[\u00a0\u202f]/g, ' ')
+
+    await rows[0].get('[data-testid="workshop-action-button"]').trigger('click')
+
+    expect({
+      rows: rows.length,
+      severity: rows[0].get('[data-testid="workshop-action-severity"]').attributes('data-severity'),
+      alertText,
+      button: rows[0].get('[data-testid="workshop-action-button"]').text(),
+      impactShown: rows[0].find('[data-testid="workshop-action-impact"]').exists() || rows[0].find('[data-testid="workshop-action-impact-unknown"]').exists(),
+      routed: routerPush.mock.calls.map(([location]) => ({ id: location.params.id, tab: location.query?.tab })),
+    }).toMatchObject({
+      rows: 2,
+      severity: 'warning',
+      alertText: expect.stringContaining('Undercut order: Sabre ×4, best price 690.00 K against your 760.00 K.'),
+      button: en.industry.workshop.actions.undercut_sell_order.button,
+      impactShown: false,
+      routed: [{ id: SABRE_PROJECT_ID, tab: 'sales' }],
+    })
+  })
+
+  it('keeps the next action of the project in its panel when an undercut sell order row exists for the same project', async () => {
+    const wrapper = await mountWorkshop({
+      actions: [
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'undercut_sell_order', tab: 'sales', typeId: 22_456, typeName: 'Sabre', quantity: 4, severity: 'warning', undercutOrder: sellOrder() }),
+        industryAction({ projectId: SABRE_PROJECT_ID, projectName: 'Sabre selling', code: 'record_sale', tab: 'sales', quantity: 3 }),
+      ],
+    })
+
+    const panel = wrapper.get('[data-testid="workshop-project-panel"]')
+
+    expect(panel.text()).toContain(en.industry.workshop.actions.record_sale.text.replace('{quantity}', '3'))
+    expect(panel.text()).not.toContain('Undercut order')
   })
 
   it('shows the empty states of the queue and of the upcoming jobs when there is nothing to do and no job running', async () => {

@@ -85,6 +85,7 @@ class SyncTrackerTest extends TestCase
                 ['blueprints', 'Blueprints', 3600, false],
                 ['market-volumes', 'Market Volumes', 86400, false],
                 ['courier-contracts', 'Courier Contracts', 1800, false],
+                ['character-orders', 'Character Orders', 300, false],
                 ['assets', 'Assets', null, true],
                 ['market-alerts', 'Market Alerts', null, true],
             ],

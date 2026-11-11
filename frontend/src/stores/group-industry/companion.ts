@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
-import type { BomItem, GroupMember, GroupProject, ProjectCockpit, ProjectPriceAlert } from './types'
+import { useSyncStore } from '@/stores/sync'
+import type { BomItem, GroupMember, GroupProject, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder } from './types'
 
 const MEMBER_EVENT_PREFIX = 'member_'
+const CHARACTER_ORDERS_SYNC = 'character-orders'
 
 export const useGroupCompanionStore = defineStore('group-companion', () => {
   const projectId = ref<string | null>(null)
@@ -11,6 +13,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   const project = ref<GroupProject | null>(null)
   const members = ref<GroupMember[]>([])
   const priceAlert = ref<ProjectPriceAlert | null>(null)
+  const undercutOrders = ref<ProjectSellOrder[]>([])
   const error = ref<string | null>(null)
 
   const isAdmin = computed(() => project.value?.myRole === 'owner' || project.value?.myRole === 'admin')
@@ -43,10 +46,13 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     }
   }
 
-  async function loadPriceAlert(id: string): Promise<void> {
+  async function loadCockpitAlerts(id: string): Promise<void> {
     try {
       const cockpit = await apiRequest<ProjectCockpit>(`/industry/projects/${id}/cockpit`)
-      if (isStillOpen(id)) priceAlert.value = cockpit.priceAlert
+      if (isStillOpen(id)) {
+        priceAlert.value = cockpit.priceAlert
+        undercutOrders.value = cockpit.undercutOrders
+      }
     } catch (failure) {
       if (isStillOpen(id)) reportFailure(failure, 'Failed to fetch cockpit')
     }
@@ -67,8 +73,9 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     project.value = null
     members.value = []
     priceAlert.value = null
+    undercutOrders.value = []
     error.value = null
-    await Promise.all([loadProject(id), loadBom(id), loadPriceAlert(id)])
+    await Promise.all([loadProject(id), loadBom(id), loadCockpitAlerts(id)])
     if (isStillOpen(id) && isAdmin.value) await loadMembers(id)
   }
 
@@ -78,6 +85,7 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     project.value = null
     members.value = []
     priceAlert.value = null
+    undercutOrders.value = []
     error.value = null
   }
 
@@ -113,10 +121,16 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
   async function handleEvent(action: string): Promise<void> {
     const id = projectId.value
     if (id === null) return
-    const loads = [loadProject(id), loadBom(id), loadPriceAlert(id)]
+    const loads = [loadProject(id), loadBom(id), loadCockpitAlerts(id)]
     if (action.startsWith(MEMBER_EVENT_PREFIX) && isAdmin.value) loads.push(loadMembers(id))
     await Promise.all(loads)
   }
 
-  return { projectId, bomItems, project, members, priceAlert, error, open, close, claim, release, handleEvent }
+  const syncStore = useSyncStore()
+  watch(() => syncStore.getSyncProgress(CHARACTER_ORDERS_SYNC), (progress) => {
+    const id = projectId.value
+    if (id !== null && progress?.status === 'completed') void loadCockpitAlerts(id)
+  })
+
+  return { projectId, bomItems, project, members, priceAlert, undercutOrders, error, open, close, claim, release, handleEvent }
 })

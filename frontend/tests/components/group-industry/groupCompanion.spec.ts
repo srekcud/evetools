@@ -4,6 +4,7 @@ import GroupCompanion from '@/components/group-industry/GroupCompanion.vue'
 import type { CompanionTasks } from '@/components/group-industry/companionTasks'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
+import { sellOrder } from '../../sellOrderFixtures'
 import { bomLine, companionTasksOf } from './companionFixtures'
 
 const FREE_LINE = '[data-testid="companion-free-line"]'
@@ -131,6 +132,33 @@ describe('GroupCompanion', () => {
       column: ['Jita 690.00 K < break-even 760.00 K · do not sell on the market for now'],
       bar: ['price_below_break_even'],
       barWithJobReady: ['job_ready'],
+      audio: 0,
+    })
+  })
+
+  it('shows the undercut sell order in the column and as the bar pill, below the price alert and above a join request, without sound', () => {
+    const order = sellOrder()
+    const undercutOnly = companionTasksOf({ alerts: [{ key: 'undercut_sell_order', kind: 'undercut_sell_order' }], undercutOrders: [order] })
+    const withJoinRequest = companionTasksOf({
+      alerts: [{ key: 'join_request', kind: 'join_request' }, { key: 'undercut_sell_order', kind: 'undercut_sell_order' }],
+      undercutOrders: [order],
+      joinRequests: 1,
+    })
+
+    const column = mountCompanion(undercutOnly)
+    const bar = mountCompanion(undercutOnly, { size: 'bar' })
+    const barWithJoinRequest = mountCompanion(withJoinRequest, { size: 'bar' })
+    const normalize = (text: string): string => text.replace(/[\u00a0\u202f]/g, ' ')
+
+    expect({
+      column: column.findAll(ALERT).map(alert => normalize(alert.text())),
+      bar: bar.findAll(ALERT).map(alert => alert.attributes('data-kind')),
+      barWithJoinRequest: barWithJoinRequest.findAll(ALERT).map(alert => alert.attributes('data-kind')),
+      audio: column.findAll('audio').length,
+    }).toEqual({
+      column: ['Undercut: Hammerhead II ×4 at Jita IV - Moon 4, best price 690.00 K against your 760.00 K'],
+      bar: ['undercut_sell_order'],
+      barWithJoinRequest: ['undercut_sell_order'],
       audio: 0,
     })
   })

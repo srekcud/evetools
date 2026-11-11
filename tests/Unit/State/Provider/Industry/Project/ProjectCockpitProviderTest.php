@@ -19,6 +19,9 @@ use App\Enum\ParticipantStatus;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\Service\Industry\Project\ProjectPriceAlert;
 use App\Service\Industry\Project\ProjectPriceAlertReader;
+use App\Service\Industry\SellOrders\ProjectSellOrder;
+use App\Service\Industry\SellOrders\ProjectSellOrdersReader;
+use App\Enum\OrderPositionState;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectCockpitInputFactory;
 use App\State\Provider\Industry\Project\ProjectCockpitProvider;
@@ -44,11 +47,13 @@ final class ProjectCockpitProviderTest extends TestCase
     private Security&Stub $security;
     private IndustryProjectBomLine $sabreJobLine;
     private ProjectPriceAlertReader&Stub $priceAlertReader;
+    private ProjectSellOrdersReader&Stub $sellOrdersReader;
 
     protected function setUp(): void
     {
         $this->security = $this->createStub(Security::class);
         $this->priceAlertReader = $this->createStub(ProjectPriceAlertReader::class);
+        $this->sellOrdersReader = $this->createStub(ProjectSellOrdersReader::class);
     }
 
     public function testCockpitWithoutConnectedUserIsUnauthorized(): void
@@ -113,6 +118,7 @@ final class ProjectCockpitProviderTest extends TestCase
                 'quantity' => 3,
             ],
             'priceAlert' => null,
+            'undercutOrders' => [],
         ], get_object_vars($cockpit));
     }
 
@@ -128,6 +134,39 @@ final class ProjectCockpitProviderTest extends TestCase
         self::assertSame(
             ['typeId' => self::SABRE_TYPE_ID, 'typeName' => 'Sabre', 'quantity' => 4, 'jitaUnitPrice' => 690_000.0, 'breakEvenPerUnit' => 760_000.0, 'gapPerUnit' => 70_000.0],
             $cockpit->priceAlert,
+        );
+    }
+
+    public function testCockpitCarriesTheUndercutSellOrdersOfTheViewer(): void
+    {
+        $this->createSabreBatch();
+        $this->stockSabreBatch();
+        $viewer = $this->userWithProfile(self::ACCEPTED_MEMBER);
+        $this->security->method('getUser')->willReturn($viewer);
+        $order = new ProjectSellOrder(11, 'Aria Solberg', self::SABRE_TYPE_ID, 'Sabre', 4, 60_003_760, 'Jita IV - Moon 4', 760_000.0, 690_000.0, 3, OrderPositionState::Undercut, null, new \DateTimeImmutable('2026-11-10 12:10:00'), 689_900.0);
+        $this->sellOrdersReader->method('undercutOrdersOf')->with($this->sabreBatch, $viewer)->willReturn([$order]);
+
+        $cockpit = $this->provider()->provide(new Get(), ['projectId' => $this->sabreBatch->getId()->toRfc4122()]);
+
+        self::assertSame([$order->toArray()], $cockpit->undercutOrders);
+        self::assertSame(
+            [
+                'orderId' => 11,
+                'characterName' => 'Aria Solberg',
+                'typeId' => self::SABRE_TYPE_ID,
+                'typeName' => 'Sabre',
+                'volumeRemain' => 4,
+                'locationId' => 60_003_760,
+                'marketName' => 'Jita IV - Moon 4',
+                'price' => 760_000.0,
+                'bestPrice' => 690_000.0,
+                'rank' => 3,
+                'state' => 'undercut',
+                'unknownReason' => null,
+                'undercutSince' => (new \DateTimeImmutable('2026-11-10 12:10:00'))->format(\DATE_ATOM),
+                'suggestedPrice' => 689_900.0,
+            ],
+            $order->toArray(),
         );
     }
 
@@ -218,6 +257,7 @@ final class ProjectCockpitProviderTest extends TestCase
             new ProjectCockpitCalculator(),
             new ProjectCockpitInputFactory(),
             $this->priceAlertReader,
+            $this->sellOrdersReader,
         );
     }
 }

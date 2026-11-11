@@ -34,6 +34,7 @@ class SyncTracker
         'blueprints' => 3600,
         'market-volumes' => 86400,
         'courier-contracts' => 1800,
+        'character-orders' => 300,
     ];
 
     /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */
@@ -64,6 +65,7 @@ class SyncTracker
         'blueprints' => 'Blueprints',
         'market-volumes' => 'Market Volumes',
         'courier-contracts' => 'Courier Contracts',
+        'character-orders' => 'Character Orders',
     ];
 
     public function __construct(
