@@ -1259,7 +1259,8 @@
       },
       "kind": {
         "bpo": "BPO",
-        "bpc": "BPC"
+        "bpc": "BPC",
+        "bpr": "BPR"
       },
       "efficiency": "ME {me} · TE {te}",
       "runs": "{count} runs",

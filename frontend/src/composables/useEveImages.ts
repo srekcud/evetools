@@ -14,9 +14,9 @@ const FALLBACK_ICON_DATA_URI = 'data:image/svg+xml,' + encodeURIComponent(FALLBA
 
 export type ImageSize = 32 | 64 | 128 | 256 | 512
 
-export type BlueprintImageKind = 'bpo' | 'bpc'
+export type BlueprintImageKind = 'bpo' | 'bpc' | 'bpr'
 
-const BLUEPRINT_IMAGE_VARIATION: Record<BlueprintImageKind, string> = { bpo: 'bp', bpc: 'bpc' }
+const BLUEPRINT_IMAGE_VARIATION: Record<BlueprintImageKind, string> = { bpo: 'bp', bpc: 'bpc', bpr: 'bp' }
 
 // EVE categories whose types have no icon on images.evetech.net
 const ICONLESS_CATEGORY_IDS = new Set([91]) // 91 = SKINs

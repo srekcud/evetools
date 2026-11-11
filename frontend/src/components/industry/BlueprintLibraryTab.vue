@@ -7,7 +7,7 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { useBlueprintsStore } from '@/stores/industry/blueprints'
-import type { BlueprintLibraryEntry, BlueprintScope, CharacterSyncFailure } from '@/stores/industry/types'
+import type { BlueprintKind, BlueprintLibraryEntry, BlueprintScope, CharacterSyncFailure } from '@/stores/industry/types'
 import { useSyncStore } from '@/stores/sync'
 
 type ScopeFilter = 'all' | BlueprintScope
@@ -15,6 +15,12 @@ type ScopeFilter = 'all' | BlueprintScope
 const UNKNOWN_TYPE_MARKER = 'unknown_type'
 const SYNC_TYPE = 'blueprints'
 const FILTERS: ScopeFilter[] = ['all', 'personal', 'corporation']
+const NOT_APPLICABLE = '—'
+const KIND_BADGE_CLASSES: Record<BlueprintKind, string> = {
+  bpo: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+  bpr: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+  bpc: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+}
 
 const { t } = useI18n()
 const { getBlueprintIconUrl, onImageError } = useEveImages()
@@ -208,14 +214,16 @@ onMounted(() => {
                 <td class="px-4 py-2">
                   <span
                     class="px-2 py-0.5 rounded-sm text-xs border"
-                    :class="entry.kind === 'bpo' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'"
+                    :class="KIND_BADGE_CLASSES[entry.kind]"
                   >{{ t(`industry.blueprints.kind.${entry.kind}`) }}</span>
                 </td>
                 <td class="px-4 py-2 text-right font-mono text-slate-300">
-                  {{ t('industry.blueprints.efficiency', { me: entry.me, te: entry.te }) }}
+                  <template v-if="entry.kind === 'bpr'">{{ NOT_APPLICABLE }}</template>
+                  <template v-else>{{ t('industry.blueprints.efficiency', { me: entry.me, te: entry.te }) }}</template>
                 </td>
                 <td class="px-4 py-2 text-right font-mono text-slate-300">
-                  <template v-if="entry.runs === null">{{ t('industry.blueprints.unlimitedRuns') }}</template>
+                  <template v-if="entry.kind === 'bpr'">{{ NOT_APPLICABLE }}</template>
+                  <template v-else-if="entry.runs === null">{{ t('industry.blueprints.unlimitedRuns') }}</template>
                   <template v-else>{{ t('industry.blueprints.runs', { count: entry.runs }) }}</template>
                 </td>
                 <td class="px-4 py-2 text-slate-300">
