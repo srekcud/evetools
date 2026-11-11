@@ -1,5 +1,6 @@
-# Application image — requires evetools-base:latest (see: make base-build)
-FROM evetools-base:latest
+# Application image — requires evetools-base:latest (see: make base-build), or any base image passed as BASE_IMAGE
+ARG BASE_IMAGE=evetools-base:latest
+FROM ${BASE_IMAGE}
 
 ENV APP_ENV=prod
 

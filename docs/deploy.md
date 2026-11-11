@@ -9,7 +9,7 @@ git tag V0.14 && git push origin V0.14
 Release (.github/workflows/release.yml)
   0. release-notes : RELEASE_NOTES.txt contient une section pour la version
   1. ci       : suites Unit + Integration (ci.yml réutilisé)
-  2. images   : build base → app → proxy, push sur ghcr.io/srekcud/evetools-{app,proxy}:V0.14
+  2. images   : base (pull, ou build + push si le tag n'existe pas) → app → proxy, push sur ghcr.io/srekcud/evetools-{app,proxy}:V0.14
   3. deploy   : environnement GitHub "production", ssh vers le serveur
         │
         ▼
@@ -28,6 +28,16 @@ Aucun build sur le serveur. Une image par version : revenir en arrière consiste
 - **Depuis le serveur, sans GitHub** : `make deploy VERSION=V0.14` (ou `bin/deploy V0.14`).
 
 Si l'environnement `production` a un *required reviewer*, le job `deploy` attend une validation dans l'onglet Actions.
+
+## Image de base
+
+`Dockerfile.base` (FrankenPHP, extensions PHP, Composer) est publiée sur `ghcr.io/srekcud/evetools-base:<empreinte>-<AAAAMM>` : `<empreinte>` = 12 premiers caractères du SHA-256 de `Dockerfile.base`, `<AAAAMM>` = mois UTC du build (`bin/base-image-tag`).
+
+- Le job `images` fait `docker manifest inspect` du tag : s'il existe, `docker pull` (étape « Pull the base image ») ; sinon `docker build --pull` puis `docker push` (étape « Build and push the base image »).
+- La base est donc reconstruite quand `Dockerfile.base` change, et au plus une fois par mois sinon, ce qui récupère les correctifs d'Alpine et de FrankenPHP sans workflow planifié.
+- Une release sans changement de base réutilise les mêmes couches : `bin/deploy` ne télécharge que les couches applicatives.
+- L'image app se construit avec `--build-arg BASE_IMAGE=<tag ci-dessus>` ; sans argument, `FROM evetools-base:latest` (`make base-build` puis `docker compose build app`, inchangé en local).
+- Les anciens tags de base restent dans GHCR : les supprimer à la main (Packages → evetools-base) quand ils s'accumulent.
 
 ## Ce que fait `bin/deploy`
 
@@ -88,7 +98,7 @@ Prérequis : Docker Compose ≥ 2.17 (`up --wait-timeout`), `flock` (util-linux)
   - secrets `DEPLOY_SSH_KEY` (clé privée de l'étape 2) et `DEPLOY_SSH_KNOWN_HOSTS` (sortie de `ssh-keyscan`)
   - variables `DEPLOY_HOST` et `DEPLOY_USER`
 - Variable de dépôt `VAPID_PUBLIC_KEY` (clé publique, lue au build du frontend ; sans elle les notifications push sont désactivées côté navigateur).
-- Après la première release : passer les paquets `evetools-app` et `evetools-proxy` en *Public* (Package settings → Visibility). Sinon, `docker login ghcr.io` sur le serveur avec un token `read:packages`.
+- Après la première release : passer les paquets `evetools-app` et `evetools-proxy` en *Public* (`evetools-base` n'est lu que par le job `images`, qui s'authentifie avec `GITHUB_TOKEN` : *Public* est facultatif) (Package settings → Visibility). Sinon, `docker login ghcr.io` sur le serveur avec un token `read:packages`.
 
 Les images ne contiennent aucun secret : `.env` et `config/jwt/*.pem` sont exclus par `.dockerignore`, l'image embarque un `.env` vide et reçoit sa configuration par l'environnement de `docker-compose.prod.yml`.
 

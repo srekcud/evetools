@@ -83,7 +83,7 @@ make base-build            # image de base locale (dev)
 ```
 
 **Architecture Docker** :
-- `evetools-base:latest` — Image de base (PHP, extensions, Composer). Construite en CI à chaque release, en local via `make base-build`.
+- `evetools-base:latest` — Image de base (PHP, extensions, Composer). En local via `make base-build`. En CI : publiée sur `ghcr.io/srekcud/evetools-base:<empreinte de Dockerfile.base>-<AAAAMM>` (`bin/base-image-tag`), reconstruite seulement si `Dockerfile.base` change ou au changement de mois, passée au `Dockerfile` par `BASE_IMAGE`.
 - `evetools-app` — Image applicative. `app` et `worker` partagent la même image. En prod : `ghcr.io/srekcud/evetools-app:V0.x` (et `evetools-proxy`), sans `.env` ni clés JWT.
 
 **IMPORTANT**: Lors de changements impliquant des seeds, fixtures ou commandes console, toujours rappeler à l'utilisateur d'exécuter ces commandes en production après le déploiement.
