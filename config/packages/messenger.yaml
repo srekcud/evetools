@@ -17,6 +17,7 @@ framework:
             App\Message\SyncCharacterAssets: async
             App\Message\SyncCorporationAssets: async
             App\Message\TriggerAssetsSync: async
+            App\Message\TriggerCorporationAssetsSync: async
             App\Message\TriggerPlanetarySync: async
             App\Message\SyncPlanetaryColonies: async
             App\Message\SyncCharacterPlanetaryColonies: async
