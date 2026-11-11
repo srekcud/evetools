@@ -15,6 +15,7 @@ type ScopeFilter = 'all' | BlueprintScope
 const UNKNOWN_TYPE_MARKER = 'unknown_type'
 const SYNC_TYPE = 'blueprints'
 const FILTERS: ScopeFilter[] = ['all', 'personal', 'corporation']
+const KINDS: BlueprintKind[] = ['bpo', 'bpc', 'bpr']
 const NOT_APPLICABLE = '—'
 const KIND_BADGE_CLASSES: Record<BlueprintKind, string> = {
   bpo: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
@@ -30,17 +31,35 @@ const syncStore = useSyncStore()
 
 const filter = ref<ScopeFilter>('all')
 const search = ref('')
+const selectedKinds = ref<BlueprintKind[]>([...KINDS])
 const syncErrors = ref<string[]>([])
 const lastSyncFailures = ref<CharacterSyncFailure[]>([])
 
 const normalizedSearch = computed(() => normalizeSearchText(search.value))
 
-const entries = computed<BlueprintLibraryEntry[]>(() => {
+const entriesInScope = computed<BlueprintLibraryEntry[]>(() => {
   const blueprints = store.library?.blueprints ?? []
   const inScope = filter.value === 'all' ? blueprints : blueprints.filter(blueprint => blueprint.scope === filter.value)
   if (normalizedSearch.value === '') return inScope
   return inScope.filter(entry => normalizeSearchText(nameOf(entry)).includes(normalizedSearch.value))
 })
+
+const entries = computed<BlueprintLibraryEntry[]>(() => entriesInScope.value.filter(entry => selectedKinds.value.includes(entry.kind)))
+
+const countByKind = computed<Record<BlueprintKind, number>>(() => {
+  const counts: Record<BlueprintKind, number> = { bpo: 0, bpc: 0, bpr: 0 }
+  for (const entry of entriesInScope.value) counts[entry.kind] += entry.count
+  return counts
+})
+
+function toggleKind(kind: BlueprintKind): void {
+  if (!selectedKinds.value.includes(kind)) {
+    selectedKinds.value = KINDS.filter(candidate => candidate === kind || selectedKinds.value.includes(candidate))
+    return
+  }
+  if (selectedKinds.value.length === 1) return
+  selectedKinds.value = selectedKinds.value.filter(candidate => candidate !== kind)
+}
 
 const syncing = computed(() => store.requestingRefresh || syncStore.isLoading(SYNC_TYPE))
 
@@ -148,28 +167,49 @@ onMounted(() => {
       </div>
 
       <div class="bg-slate-900 rounded-xl border border-slate-800">
-        <div class="flex items-center justify-between p-4 border-b border-slate-800">
+        <div class="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-slate-800">
           <h2 class="text-base font-semibold text-white">{{ t('industry.blueprints.library') }}</h2>
-          <input
-            v-model="search"
-            data-testid="blueprints-search"
-            type="search"
-            :placeholder="t('industry.blueprints.searchPlaceholder')"
-            :aria-label="t('industry.blueprints.searchLabel')"
-            class="flex-1 min-w-40 max-w-xs px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500"
-          />
-          <div class="inline-flex rounded-lg border border-slate-700 overflow-hidden" role="group" :aria-label="t('industry.blueprints.library')">
-            <button
-              v-for="option in FILTERS"
-              :key="option"
-              :data-testid="`blueprints-filter-${option}`"
-              :aria-pressed="filter === option"
-              class="px-3 py-1.5 text-sm transition-colors"
-              :class="filter === option ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
-              @click="filter = option"
+          <div class="flex flex-wrap items-center gap-3">
+            <input
+              v-model="search"
+              data-testid="blueprints-search"
+              type="search"
+              :placeholder="t('industry.blueprints.searchPlaceholder')"
+              :aria-label="t('industry.blueprints.searchLabel')"
+              class="flex-1 min-w-40 max-w-xs px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500"
+            />
+            <div
+              data-testid="blueprints-type-filter"
+              class="inline-flex rounded-lg border border-slate-700 overflow-hidden"
+              role="group"
+              :aria-label="t('industry.blueprints.typeFilter')"
             >
-              {{ t(`industry.blueprints.filter.${option}`) }}
-            </button>
+              <button
+                v-for="kind in KINDS"
+                :key="kind"
+                :data-testid="`blueprints-type-${kind}`"
+                :aria-pressed="selectedKinds.includes(kind)"
+                class="px-3 py-1.5 text-sm transition-colors"
+                :class="selectedKinds.includes(kind) ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+                @click="toggleKind(kind)"
+              >
+                {{ t(`industry.blueprints.kind.${kind}`) }}
+                <span class="ml-1 font-mono text-xs opacity-80">{{ countByKind[kind] }}</span>
+              </button>
+            </div>
+            <div class="inline-flex rounded-lg border border-slate-700 overflow-hidden" role="group" :aria-label="t('industry.blueprints.library')">
+              <button
+                v-for="option in FILTERS"
+                :key="option"
+                :data-testid="`blueprints-filter-${option}`"
+                :aria-pressed="filter === option"
+                class="px-3 py-1.5 text-sm transition-colors"
+                :class="filter === option ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+                @click="filter = option"
+              >
+                {{ t(`industry.blueprints.filter.${option}`) }}
+              </button>
+            </div>
           </div>
         </div>
 

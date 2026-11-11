@@ -1257,6 +1257,7 @@
         "runs": "Runs",
         "where": "Où"
       },
+      "typeFilter": "Filtrer par type",
       "kind": {
         "bpo": "BPO",
         "bpc": "BPC",
