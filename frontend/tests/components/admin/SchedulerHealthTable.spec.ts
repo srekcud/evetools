@@ -134,3 +134,11 @@ describe('SchedulerHealthTable', () => {
     expect(wrapper.emitted('execute-action')?.[0][0]).toBe('industry-jobs-sync')
   })
 })
+
+describe('SchedulerHealthTable ESI throttle note', () => {
+  it('shows the ESI throttle note in its header', () => {
+    const wrapper = mountTable([entry(MAPPED_TYPE)])
+
+    expect(wrapper.text()).toContain(en.admin.scheduler.throttleEsi)
+  })
+})

@@ -52,7 +52,8 @@ function intervalLabel(entry: SchedulerHealthEntry): string {
 
 <template>
   <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-    <h3 class="text-lg font-semibold text-slate-200 mb-4">{{ t('admin.sync.title') }}</h3>
+    <h3 class="text-lg font-semibold text-slate-200">{{ t('admin.sync.title') }}</h3>
+    <p class="text-xs text-slate-500 mt-1 mb-4">{{ t('admin.scheduler.throttleEsi') }}</p>
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>

@@ -9,6 +9,7 @@ vi.mock('@/services/api', () => ({ apiRequest: vi.fn() }))
 
 vi.mock(import('vue-router'), async importOriginal => ({
   ...(await importOriginal()),
+  useRoute: (() => ({ query: {} })) as never,
   useRouter: vi.fn(() => ({ replace: vi.fn(), push: vi.fn() })) as never,
 }))
 

@@ -2255,6 +2255,11 @@
     "missingVolumeWarning": "Volume inconnu dans le SDE pour : {types}. Leur volume et le volume total sont inconnus."
   },
   "admin": {
+    "tabs": {
+      "health": "Santé",
+      "users": "Utilisateurs",
+      "statistics": "Statistiques"
+    },
     "status": {
       "levels": {
         "ok": "Tous les systèmes opérationnels",
@@ -2360,9 +2365,6 @@
       "onDemandHint": "A la demande (non planifie)"
     },
     "scheduler": {
-      "title": "Scheduler & Rate Limiting",
-      "syncScope": "Sync scope",
-      "activeChars": "chars actifs (login < 7j)",
       "throttleEsi": "Throttle ESI : progressif sous 20 errors remain, pause sous 5"
     },
     "charts": {
