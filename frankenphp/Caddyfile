@@ -17,6 +17,7 @@
             publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} HS256
             subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} HS256
             anonymous
+            transport local
             cors_origins *
         }
     }
