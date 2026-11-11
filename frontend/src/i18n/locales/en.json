@@ -2255,6 +2255,23 @@
     "missingVolumeWarning": "Unknown volume in the SDE for: {types}. Their volume and the total volume are unknown."
   },
   "admin": {
+    "status": {
+      "levels": {
+        "ok": "All systems operational",
+        "degraded": "Degraded",
+        "down": "Down",
+        "unknown": "Status unavailable"
+      },
+      "rules": {
+        "scheduler_stale": "{count} scheduled task(s) stale",
+        "scheduler_error": "{count} scheduled task(s) in error",
+        "failed_messages": "{count} failed message(s) in the queue",
+        "async_queue_backlog": "Async queue backlog: {count} messages (above {threshold})",
+        "async_queue_unreachable": "Async queue unreachable",
+        "failed_queue_unreachable": "Failed queue unreachable",
+        "tokens_invalid": "{count} user(s) with an invalid token"
+      }
+    },
     "title": "Administration",
     "subtitle": "Platform statistics and metrics",
     "users": "Users",

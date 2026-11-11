@@ -7,6 +7,7 @@ import { useAdminStore } from '@/stores/admin'
 import { useSyncStore } from '@/stores/sync'
 import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner.vue'
 import AdminKpiGrid from '@/components/admin/AdminKpiGrid.vue'
 import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
@@ -164,6 +165,7 @@ watch(
         text: `${t('admin.sync.syncCompleted', { type: syncType || '' })} : ${progress.message || 'OK'}`,
       }
       adminStore.fetchStats().then(flashStats)
+      adminStore.fetchStatus()
       syncStore.clearSyncStatus('admin-sync')
       setTimeout(() => { actionMessage.value = null }, 5000)
     } else if (progress.status === 'error') {
@@ -174,6 +176,7 @@ watch(
         text: `${t('admin.sync.syncError', { type: syncType || '' })} : ${progress.message || t('admin.sync.unknownError')}`,
       }
       adminStore.fetchStats()
+      adminStore.fetchStatus()
       syncStore.clearSyncStatus('admin-sync')
       setTimeout(() => { actionMessage.value = null }, 8000)
     }
@@ -230,14 +233,16 @@ watch(
         </div>
       </Transition>
 
+      <AdminStatusBanner :status="adminStore.status" />
+
       <!-- KPI Grid (3 rows) -->
-      <div class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
+      <div id="admin-section-kpis" class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
         <AdminKpiGrid :stats="stats" :queues="queues" />
       </div>
 
       <!-- Scheduler Health + Maintenance Actions -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2">
+        <div id="admin-section-scheduler-health" class="lg:col-span-2">
           <SchedulerHealthTable
             :entries="stats?.schedulerHealth || []"
             :sync-action-map="syncActionMap"
@@ -245,11 +250,13 @@ watch(
             @execute-action="handleSchedulerAction"
           />
         </div>
-        <MaintenanceActions
-          :action-loading="actionLoading"
-          :failed-message-count="failedMessageCount"
-          @execute-action="handleMaintenanceAction"
-        />
+        <div id="admin-section-maintenance">
+          <MaintenanceActions
+            :action-loading="actionLoading"
+            :failed-message-count="failedMessageCount"
+            @execute-action="handleMaintenanceAction"
+          />
+        </div>
       </div>
 
       <!-- Scheduler Config -->

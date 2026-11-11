@@ -49,6 +49,7 @@ function respondToApi(actionResponse: () => Promise<unknown>, failedMessages: nu
   apiRequestMock.mockImplementation(async (path: string) => {
     if (path === '/admin/access') return { hasAccess: true, characterName: null }
     if (path === '/admin/queues') return { queues: { async: 0, failed: failedMessages } }
+    if (path === '/admin/status') return { level: 'ok', rules: [] }
     if (path.startsWith(ACTION_PATH_PREFIX)) return actionResponse()
     return {}
   })
