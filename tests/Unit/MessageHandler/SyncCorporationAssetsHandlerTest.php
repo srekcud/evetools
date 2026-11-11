@@ -28,6 +28,7 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
     private const int CORPORATION_ID = 98_000_001;
     private const string CHARACTER_UUID = '0199a1f0-0000-7000-8000-000000000001';
     private const string USER_UUID = '0199a1f0-0000-7000-8000-0000000000a1';
+    private const string REQUESTER_UUID = '0199a1f0-0000-7000-8000-0000000000b2';
     private const string ASSETS_SYNC_TYPE = 'assets';
     private const string CORPORATION_ASSETS_TOPIC = '/user/' . self::USER_UUID . '/sync/corporation-assets';
 
@@ -120,7 +121,38 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
         self::assertNotSame('error', $this->trackedAssetsEntry()['status']);
     }
 
-    private function handle(?Character $character, AssetsSyncService $assetsSyncService): void
+    public function testSyncIsRunForTheRequestingUser(): void
+    {
+        $character = $this->characterWithUser();
+        $assetsSyncService = $this->createMock(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $assetsSyncService->expects(self::once())->method('syncCorporationAssets')->with($character, self::REQUESTER_UUID);
+
+        $this->handle($character, $assetsSyncService, self::REQUESTER_UUID);
+    }
+
+    public function testCharacterThatCannotSyncPublishesTheErrorToTheRequestingUser(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(false);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService, self::REQUESTER_UUID);
+
+        self::assertCount(1, $this->errorPayloadsOn('/user/' . self::REQUESTER_UUID . '/sync/corporation-assets'));
+        self::assertCount(1, $this->errorPayloadsOn(self::CORPORATION_ASSETS_TOPIC));
+    }
+
+    public function testRequesterWhoOwnsTheTriggerCharacterGetsTheErrorOnlyOnce(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(false);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService, self::USER_UUID);
+
+        self::assertCount(1, $this->errorPayloadsOn(self::CORPORATION_ASSETS_TOPIC));
+    }
+
+    private function handle(?Character $character, AssetsSyncService $assetsSyncService, string $requestedByUserId = self::USER_UUID): void
     {
         $characterRepository = $this->createStub(CharacterRepository::class);
         $characterRepository->method('find')->willReturn($character);
@@ -133,7 +165,7 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
             new NullLogger(),
         );
 
-        $handler(new SyncCorporationAssets(self::CORPORATION_ID, self::CHARACTER_UUID));
+        $handler(new SyncCorporationAssets(self::CORPORATION_ID, self::CHARACTER_UUID, $requestedByUserId));
     }
 
     private function hubCollectingUpdates(): HubInterface

@@ -103,13 +103,13 @@ class AssetsSyncService
      * Sync corporation assets using a specific character's token.
      * The character must have the required scope and Director role.
      */
-    public function syncCorporationAssets(Character $character): void
+    public function syncCorporationAssets(Character $character, ?string $requestedByUserId = null): void
     {
         $corporationId = $character->getCorporationId();
-        $userId = $character->getUser()?->getId()?->toRfc4122();
+        $recipientUserIds = CorporationSyncRecipients::of($character, $requestedByUserId);
 
         // Notify sync started
-        if ($userId !== null) {
+        foreach ($recipientUserIds as $userId) {
             $this->mercurePublisher->syncStarted($userId, 'corporation-assets', 'Fetching corporation assets...');
         }
 
@@ -121,7 +121,7 @@ class AssetsSyncService
             $this->cachedAssetRepository->deleteByCorporationId($corporationId);
 
             // Notify progress
-            if ($userId !== null) {
+            foreach ($recipientUserIds as $userId) {
                 $this->mercurePublisher->syncProgress(
                     $userId,
                     'corporation-assets',
@@ -163,7 +163,7 @@ class AssetsSyncService
             $this->entityManager->flush();
 
             // Notify sync completed
-            if ($userId !== null) {
+            foreach ($recipientUserIds as $userId) {
                 $this->mercurePublisher->syncCompleted(
                     $userId,
                     'corporation-assets',
@@ -172,7 +172,7 @@ class AssetsSyncService
                 );
             }
         } catch (\Throwable $e) {
-            if ($userId !== null) {
+            foreach ($recipientUserIds as $userId) {
                 $this->mercurePublisher->syncError($userId, 'corporation-assets', $e->getMessage());
             }
             throw $e;
