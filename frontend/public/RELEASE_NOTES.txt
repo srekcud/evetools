@@ -3,6 +3,27 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.15 (2026-11-11)
+--------------------------------------------------------------------------------
+
+### Pont
+- Les lignes de la section "A faire" peuvent etre marquees comme vues
+- Une ligne vue revient si son nombre augmente
+
+### Industrie
+- Blueprints de corporation : le directeur peut partager ceux des divisions
+  masquees sans montrer le reste de ces divisions (coche par defaut)
+- Images des blueprints affichees dans la bibliotheque
+- Classement de quoi produire plus rapide, base sur les prix Jita en cache
+
+### Assets
+- Les assets dans les hangars des structures Upwell sont rattaches a leur structure
+
+### Alertes de prix
+- Une alerte declenchee se rearme quand sa condition n'est plus remplie
+- Le prix qui a declenche l'alerte est affiche avec sa date
+
+--------------------------------------------------------------------------------
 Version 0.14 (2026-11-11)
 --------------------------------------------------------------------------------
 
