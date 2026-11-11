@@ -15,6 +15,7 @@ use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\Project\ProjectSellStructures;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
+use App\Service\Industry\SellQuoteReading;
 use App\Service\Industry\SlotTrackerService;
 use App\Service\TypeNameResolver;
 
@@ -66,6 +67,7 @@ final readonly class ProductionOpportunities
                 $exportCostPerM3,
                 $user,
                 $solarSystems->reactionSolarSystemId,
+                SellQuoteReading::CachedOnly,
             );
         }
 

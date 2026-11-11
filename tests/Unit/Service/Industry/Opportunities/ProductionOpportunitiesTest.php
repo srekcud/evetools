@@ -21,6 +21,7 @@ use App\Service\Industry\Opportunities\ProductionOpportunityRanker;
 use App\Service\Industry\Project\ProjectSellStructures;
 use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
+use App\Service\Industry\SellQuoteReading;
 use App\Service\Industry\SlotTrackerService;
 use App\Service\TypeNameResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -38,7 +39,7 @@ final class ProductionOpportunitiesTest extends TestCase
     private const int CAPITAL_HUB_ID = 1_035_466_617_946;
     private const int MANUFACTURING_ACTIVITY_ID = 1;
 
-    /** @var list<array{venue: string, structureId: ?int, fees: ?SalesFees}> */
+    /** @var list<array{venue: string, structureId: ?int, fees: ?SalesFees, sellQuoteReading: SellQuoteReading}> */
     private array $scans = [];
 
     /** @var array<string, array<string, mixed>> */
@@ -66,6 +67,15 @@ final class ProductionOpportunitiesTest extends TestCase
         ));
         self::assertSame('Capital Hub', $result->capitalStructureName);
         self::assertEqualsCanonicalizing(['jita', 'capital'], array_map(static fn ($row): string => $row->market, $result->rows));
+    }
+
+    public function testEveryMarketIsScannedOnCachedSellQuotesOnlySoTheRankingNeverWaitsOnEsi(): void
+    {
+        $user = $this->pilot(preferredStructureId: self::CAPITAL_HUB_ID, preferredStructureName: 'Capital Hub');
+
+        $this->opportunities()->for($user, OpportunityMarket::All, OpportunitySort::WeeklyProfit, null);
+
+        self::assertSame([SellQuoteReading::CachedOnly, SellQuoteReading::CachedOnly], array_column($this->scans, 'sellQuoteReading'));
     }
 
     public function testWithoutAPreferredStructureOnlyJitaIsScannedAndTheCapitalIsAbsent(): void
@@ -185,8 +195,8 @@ final class ProductionOpportunitiesTest extends TestCase
     private function opportunities(): ProductionOpportunities
     {
         $scanner = $this->createStub(BatchProfitScannerService::class);
-        $scanner->method('scan')->willReturnCallback(function (?string $category, ?float $minMargin, ?float $minVolume, string $venue, ?int $structureId, int $solarSystemId, ?SalesFees $fees): array {
-            $this->scans[] = ['venue' => $venue, 'structureId' => $structureId, 'fees' => $fees];
+        $scanner->method('scan')->willReturnCallback(function (?string $category, ?float $minMargin, ?float $minVolume, string $venue, ?int $structureId, int $solarSystemId, ?SalesFees $fees, float $exportCostPerM3, ?User $user, int $reactionSolarSystemId, SellQuoteReading $sellQuoteReading = SellQuoteReading::WithEsiFallback): array {
+            $this->scans[] = ['venue' => $venue, 'structureId' => $structureId, 'fees' => $fees, 'sellQuoteReading' => $sellQuoteReading];
 
             return [$this->scanRow()];
         });

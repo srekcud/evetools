@@ -164,6 +164,18 @@ final class JitaMarketServiceSellQuotesTest extends TestCase
         $this->assertSame([], $this->requestedTypeIds);
     }
 
+    public function testTheCachedReadingLeavesATypeAbsentFromTheCachedBookWithoutQuoteAndNeverCallsEsi(): void
+    {
+        $quotes = $this->serviceOnEsiServing([])->getCachedWeightedSellQuotes([
+            ['typeId' => self::MORPHITE, 'quantity' => 25],
+            ['typeId' => self::TRITANIUM, 'quantity' => 150],
+        ]);
+
+        $this->assertNull($quotes[0]);
+        $this->assertEqualsWithDelta(800.0 / 150.0, $quotes[1]['weightedPrice'], self::PRICE_TOLERANCE);
+        $this->assertSame([], $this->requestedTypeIds);
+    }
+
     private function seedSellOrderBook(array $sellOrderBook): void
     {
         $item = $this->marketCache->getItem(self::SELL_ORDER_BOOK_KEY);

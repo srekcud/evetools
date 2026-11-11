@@ -26,6 +26,7 @@ final class JitaMarketSyncCharacterizationTest extends TestCase
     private const int ISOGEN = 37;
     private const int VELDSPAR = 1230;
     private const int BACTERIA = 2393;
+    private const int RIFTER = 587;
 
     private const string SELL_ORDER_BOOK_KEY = 'jita_market_prices';
     private const string BUY_ORDER_BOOK_KEY = 'jita_market_buy_prices';
@@ -82,7 +83,7 @@ final class JitaMarketSyncCharacterizationTest extends TestCase
         ], $this->esiUrlsWithoutPage($this->requestedEsiUrls));
     }
 
-    public function testSyncReadsTheUnionOfIndustryMaterialsOresReprocessOutputsAndPlanetaryCommoditiesOnce(): void
+    public function testSyncReadsTheUnionOfIndustryMaterialsOresReprocessOutputsPlanetaryCommoditiesAndManufacturableProductsOnce(): void
     {
         $connection = $this->createStub(Connection::class);
         $connection->method('fetchFirstColumn')->willReturnCallback(static fn (string $sql): array => match (true) {
@@ -90,6 +91,7 @@ final class JitaMarketSyncCharacterizationTest extends TestCase
             str_contains($sql, 'c.category_id = 25') => [(string) self::VELDSPAR, (string) self::PYERITE],
             str_contains($sql, 'sde_inv_type_materials') => [(string) self::TRITANIUM, (string) self::MEXALLON],
             str_contains($sql, 'market_group_id IN (1334, 1335, 1336, 1337)') => [(string) self::BACTERIA],
+            str_contains($sql, 'sde_industry_activity_products') => [(string) self::RIFTER, (string) self::TRITANIUM],
         });
         $service = $this->createJitaMarketServiceOnSimulatedEsi([
             $this->theForgeOrdersRoute(self::TRITANIUM) => [$this->tritaniumOrders()],
@@ -97,21 +99,23 @@ final class JitaMarketSyncCharacterizationTest extends TestCase
             $this->theForgeOrdersRoute(self::VELDSPAR) => [[$this->esiSellOrder(self::VELDSPAR, 17.375, 2240, self::JITA_STATION)]],
             $this->theForgeOrdersRoute(self::MEXALLON) => [$this->mexallonOrders()],
             $this->theForgeOrdersRoute(self::BACTERIA) => [[$this->esiSellOrder(self::BACTERIA, 431.5, 58, self::JITA_STATION)]],
+            $this->theForgeOrdersRoute(self::RIFTER) => [[$this->esiSellOrder(self::RIFTER, 512000.0, 14, self::JITA_STATION)]],
         ], $this->marketCache, $connection);
 
         $result = $service->syncJitaMarket();
 
-        $this->assertSame(5, $result['typeCount']);
+        $this->assertSame(6, $result['typeCount']);
         $this->assertSame([
             $this->theForgeOrdersUrl(self::TRITANIUM),
             $this->theForgeOrdersUrl(self::PYERITE),
             $this->theForgeOrdersUrl(self::VELDSPAR),
             $this->theForgeOrdersUrl(self::MEXALLON),
             $this->theForgeOrdersUrl(self::BACTERIA),
+            $this->theForgeOrdersUrl(self::RIFTER),
         ], $this->esiUrlsWithoutPage($this->requestedEsiUrls));
         $this->assertSame(
-            [self::TRITANIUM => 3.875, self::PYERITE => 9.75, self::VELDSPAR => 17.375, self::MEXALLON => 58.75, self::BACTERIA => 431.5],
-            $service->getPrices([self::TRITANIUM, self::PYERITE, self::VELDSPAR, self::MEXALLON, self::BACTERIA]),
+            [self::TRITANIUM => 3.875, self::PYERITE => 9.75, self::VELDSPAR => 17.375, self::MEXALLON => 58.75, self::BACTERIA => 431.5, self::RIFTER => 512000.0],
+            $service->getPrices([self::TRITANIUM, self::PYERITE, self::VELDSPAR, self::MEXALLON, self::BACTERIA, self::RIFTER]),
         );
     }
 
@@ -125,6 +129,7 @@ final class JitaMarketSyncCharacterizationTest extends TestCase
             str_contains($sql, 'c.category_id = 25') => [(string) $lastFirstBatchTypeId, (string) self::VELDSPAR],
             str_contains($sql, 'sde_inv_type_materials') => [(string) self::VELDSPAR],
             str_contains($sql, 'market_group_id IN (1334, 1335, 1336, 1337)') => [(string) self::TRITANIUM],
+            str_contains($sql, 'sde_industry_activity_products') => [],
         });
         $syncedTypeIds = [...$firstBatchTypeIds, self::VELDSPAR];
         $esiResponsesByRoute = [];

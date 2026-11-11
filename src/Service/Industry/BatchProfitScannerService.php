@@ -168,6 +168,7 @@ class BatchProfitScannerService
         float $exportCostPerM3,
         ?User $user,
         int $reactionSolarSystemId,
+        SellQuoteReading $sellQuoteReading = SellQuoteReading::WithEsiFallback,
     ): array {
         // 1. Fetch all manufacturable products
         $allProducts = $this->productRepository->findAllManufacturableProducts();
@@ -258,7 +259,7 @@ class BatchProfitScannerService
 
         // 7. Batch prices
         $isJitaSale = $sellVenue !== 'structure' && $sellVenue !== self::VENUE_CONTRACTS;
-        $quotes = $this->weightedQuotesFor($filteredProducts, $materialsByBlueprint, $t2ProductIds, $isJitaSale);
+        $quotes = $this->weightedQuotesFor($filteredProducts, $materialsByBlueprint, $t2ProductIds, $isJitaSale, $sellQuoteReading);
 
         // Structure prices if needed
         $structurePrices = [];
@@ -504,7 +505,7 @@ class BatchProfitScannerService
      * @param array<int, list<array{materialTypeId: int, quantity: int}>> $materialsByBlueprint
      * @param array<int, mixed> $t2ProductIds
      */
-    private function weightedQuotesFor(array $products, array $materialsByBlueprint, array $t2ProductIds, bool $isJitaSale): WeightedSellQuotes
+    private function weightedQuotesFor(array $products, array $materialsByBlueprint, array $t2ProductIds, bool $isJitaSale, SellQuoteReading $sellQuoteReading): WeightedSellQuotes
     {
         $requests = [];
         foreach ($products as $product) {
@@ -519,7 +520,7 @@ class BatchProfitScannerService
             }
         }
 
-        return WeightedSellQuotes::read($this->jitaMarketService, $requests);
+        return WeightedSellQuotes::read($this->jitaMarketService, $requests, $sellQuoteReading);
     }
 
     private static function assumedMaterialEfficiency(bool $isT2, bool $isReaction): int

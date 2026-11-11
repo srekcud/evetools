@@ -11,6 +11,7 @@ use App\Service\Industry\FacilityTaxResolver;
 use App\Service\Industry\InventionService;
 use App\Service\Industry\JobInstallCostEstimator;
 use App\Service\Industry\SalesFees\SalesFees;
+use App\Service\Industry\SellQuoteReading;
 use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\Service\TypeNameResolver;
@@ -284,6 +285,33 @@ class BatchProfitScannerServiceTest extends TestCase
         $this->givenZeroEstimatedItemValue();
 
         $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.036, 0.036), 0.0, null, self::SOLAR_SYSTEM_ID);
+
+        $this->assertCount(1, $result);
+    }
+
+    public function testScanOnCachedSellQuotesNeverAsksTheOnDemandFallback(): void
+    {
+        $this->productRepository->method('findAllManufacturableProducts')->willReturn([
+            ['blueprintTypeId' => 586, 'productTypeId' => 587, 'outputPerRun' => 1, 'activityId' => 1],
+        ]);
+
+        $this->connection->method('fetchFirstColumn')->willReturn([]);
+        $this->connection->method('fetchAllAssociative')->willReturnCallback(
+            fn (string $sql): array => str_contains($sql, 'group_id')
+                ? [['type_id' => 587, 'group_id' => 25, 'group_name' => 'Frigate', 'category_id' => 6, 'volume' => 28100.0]]
+                : [['type_id' => 34, 'volume' => 0.01]]
+        );
+
+        $this->materialRepository->method('findMaterialsForBlueprints')->willReturn([
+            586 => [['materialTypeId' => 34, 'quantity' => 100]],
+        ]);
+
+        $this->jitaMarketService->expects($this->never())->method('getWeightedSellQuotesWithFallback');
+        $this->jitaMarketService->expects($this->atLeastOnce())->method('getCachedWeightedSellQuotes')->willReturnCallback(SellQuoteCallbacks::completeQuotesAt([34 => 5.0, 587 => 100000.0]));
+        $this->jitaMarketService->method('getCachedDailyVolumes')->willReturn([587 => 2.0]);
+        $this->givenZeroEstimatedItemValue();
+
+        $result = $this->service->scan('all', null, null, 'jita', null, self::SOLAR_SYSTEM_ID, new SalesFees(0.036, 0.036), 0.0, null, self::SOLAR_SYSTEM_ID, SellQuoteReading::CachedOnly);
 
         $this->assertCount(1, $result);
     }
