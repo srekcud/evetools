@@ -51,35 +51,6 @@ class SyncTracker
 
     private const ON_DEMAND_HEALTH = 'on-demand';
 
-    private const LABELS = [
-        'assets' => 'Assets',
-        'industry' => 'Jobs industrie',
-        'pve' => 'PVE',
-        'wallet' => 'Wallet',
-        'mining' => 'Mining',
-        'ansiblex' => 'Ansiblex',
-        'planetary' => 'Planetary',
-        'market-jita' => 'Market Jita',
-        'market-structure' => 'Market Structure',
-        'market-alerts' => 'Market Alerts',
-        'alert-prices' => 'Alert Price Refresh',
-        'adjusted-prices' => 'Adjusted Prices',
-        'cost-indices' => 'Cost Indices',
-        'public-contracts' => 'Public Contracts',
-        'corporation-mining-extractions' => 'Corporation Moon Chunks',
-        'moon-tax' => 'Moon Tax',
-        'blueprints' => 'Blueprints',
-        'market-volumes' => 'Market Volumes',
-        'courier-contracts' => 'Courier Contracts',
-        'character-orders' => 'Character Orders',
-        'mining-operation-recurrences' => 'Recurring Mining Operations',
-        'moon-chunk-alerts' => 'Moon Chunk Alerts',
-        'mining-site-depletion-alerts' => 'Mining Site Depletion Alerts',
-        'notifications-purge' => 'Notifications Purge',
-        'market-history-purge' => 'Market History Purge',
-        'shared-lists-purge' => 'Shared Lists Purge',
-    ];
-
     public function __construct(
         private readonly CacheInterface $cache,
         private readonly MercurePublisherService $mercurePublisher,
@@ -190,7 +161,6 @@ class SyncTracker
     {
         return [
             'type' => $type,
-            'label' => self::LABELS[$type],
             'status' => $state['status'] ?? 'unknown',
             'health' => $health,
             'started_at' => $state['started_at'] ?? null,

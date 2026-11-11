@@ -117,6 +117,42 @@ class AdminServiceTest extends TestCase
         $this->assertArrayHasKey('data', $charts['assetDistribution']);
     }
 
+    public function testRegistrationChartLabelsAreIsoWeeksOfTheLastFourWeeks(): void
+    {
+        $this->connection->method('fetchOne')->willReturn(0);
+
+        $labels = $this->adminService->getChartData()['registrations']['labels'];
+
+        $expected = [];
+        for ($weeksAgo = 3; $weeksAgo >= 0; $weeksAgo--) {
+            $expected[] = (new \DateTimeImmutable("-{$weeksAgo} weeks"))->format('o-\WW');
+        }
+        $this->assertSame($expected, $labels);
+    }
+
+    public function testActivityChartLabelsAreIsoDatesOfTheLastSevenDays(): void
+    {
+        $this->connection->method('fetchOne')->willReturn(0);
+
+        $labels = $this->adminService->getChartData()['activity']['labels'];
+
+        $expected = [];
+        for ($daysAgo = 6; $daysAgo >= 0; $daysAgo--) {
+            $expected[] = (new \DateTimeImmutable("-{$daysAgo} days"))->format('Y-m-d');
+        }
+        $this->assertSame($expected, $labels);
+    }
+
+    public function testAssetDistributionLabelsAreStableKeys(): void
+    {
+        $this->connection->method('fetchOne')->willReturnOnConsecutiveCalls(...array_fill(0, 11, 0), ...[7, 3]);
+
+        $distribution = $this->adminService->getChartData()['assetDistribution'];
+
+        $this->assertSame(['personal', 'corporation'], $distribution['labels']);
+        $this->assertSame([7, 3], $distribution['data']);
+    }
+
     public function testGetStatsPveStructure(): void
     {
         $this->connection->method('fetchOne')->willReturn(0.0);

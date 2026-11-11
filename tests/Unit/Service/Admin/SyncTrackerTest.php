@@ -62,41 +62,41 @@ class SyncTrackerTest extends TestCase
         ClockMock::withClockMock(false);
     }
 
-    public function testGetAllListsScheduledSyncsThenOnDemandSyncsWithLabelsAndExpectedIntervals(): void
+    public function testGetAllListsScheduledSyncsThenOnDemandSyncsAndExpectedIntervals(): void
     {
         $entries = $this->syncTracker->getAll();
 
         $this->assertSame(
             [
-                ['industry', 'Jobs industrie', 1800, false],
-                ['pve', 'PVE', 3600, false],
-                ['wallet', 'Wallet', 3600, false],
-                ['mining', 'Mining', 3600, false],
-                ['ansiblex', 'Ansiblex', 43200, false],
-                ['planetary', 'Planetary', 1800, false],
-                ['market-jita', 'Market Jita', 3600, false],
-                ['market-structure', 'Market Structure', 3600, false],
-                ['alert-prices', 'Alert Price Refresh', 1800, false],
-                ['adjusted-prices', 'Adjusted Prices', 86400, false],
-                ['cost-indices', 'Cost Indices', 7200, false],
-                ['public-contracts', 'Public Contracts', 1800, false],
-                ['corporation-mining-extractions', 'Corporation Moon Chunks', 1800, false],
-                ['moon-tax', 'Moon Tax', 3600, false],
-                ['blueprints', 'Blueprints', 3600, false],
-                ['market-volumes', 'Market Volumes', 86400, false],
-                ['courier-contracts', 'Courier Contracts', 1800, false],
-                ['character-orders', 'Character Orders', 300, false],
-                ['mining-operation-recurrences', 'Recurring Mining Operations', 1800, false],
-                ['moon-chunk-alerts', 'Moon Chunk Alerts', 300, false],
-                ['mining-site-depletion-alerts', 'Mining Site Depletion Alerts', 300, false],
-                ['notifications-purge', 'Notifications Purge', 86400, false],
-                ['market-history-purge', 'Market History Purge', 86400, false],
-                ['shared-lists-purge', 'Shared Lists Purge', 86400, false],
-                ['assets', 'Assets', null, true],
-                ['market-alerts', 'Market Alerts', null, true],
+                ['industry', 1800, false],
+                ['pve', 3600, false],
+                ['wallet', 3600, false],
+                ['mining', 3600, false],
+                ['ansiblex', 43200, false],
+                ['planetary', 1800, false],
+                ['market-jita', 3600, false],
+                ['market-structure', 3600, false],
+                ['alert-prices', 1800, false],
+                ['adjusted-prices', 86400, false],
+                ['cost-indices', 7200, false],
+                ['public-contracts', 1800, false],
+                ['corporation-mining-extractions', 1800, false],
+                ['moon-tax', 3600, false],
+                ['blueprints', 3600, false],
+                ['market-volumes', 86400, false],
+                ['courier-contracts', 1800, false],
+                ['character-orders', 300, false],
+                ['mining-operation-recurrences', 1800, false],
+                ['moon-chunk-alerts', 300, false],
+                ['mining-site-depletion-alerts', 300, false],
+                ['notifications-purge', 86400, false],
+                ['market-history-purge', 86400, false],
+                ['shared-lists-purge', 86400, false],
+                ['assets', null, true],
+                ['market-alerts', null, true],
             ],
             array_map(
-                static fn (array $entry): array => [$entry['type'], $entry['label'], $entry['expected_interval'], $entry['on_demand']],
+                static fn (array $entry): array => [$entry['type'], $entry['expected_interval'], $entry['on_demand']],
                 $entries,
             ),
         );
@@ -107,7 +107,6 @@ class SyncTrackerTest extends TestCase
         $this->assertSame(
             [
                 'type' => 'industry',
-                'label' => 'Jobs industrie',
                 'status' => 'unknown',
                 'health' => 'unknown',
                 'started_at' => null,
@@ -125,7 +124,6 @@ class SyncTrackerTest extends TestCase
         $this->assertSame(
             [
                 'type' => 'assets',
-                'label' => 'Assets',
                 'status' => 'unknown',
                 'health' => 'on-demand',
                 'started_at' => null,

@@ -112,7 +112,6 @@ class AdminStatsProvider implements ProviderInterface
         $resource->schedulerHealth = array_map(
             fn(array $entry) => new SchedulerHealthEntryDto(
                 $entry['type'] ?? '',
-                $entry['label'] ?? '',
                 $entry['status'] ?? 'unknown',
                 $entry['health'] ?? 'unknown',
                 $entry['started_at'] ?? null,

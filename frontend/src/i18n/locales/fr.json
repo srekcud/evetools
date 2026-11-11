@@ -2306,7 +2306,35 @@
       "actionFailed": "Action echouee",
       "syncCompleted": "Sync {type} terminee",
       "syncError": "Erreur sync {type}",
-      "unknownError": "Erreur inconnue"
+      "unknownError": "Erreur inconnue",
+      "types": {
+        "industry": "Jobs industrie",
+        "pve": "PVE",
+        "wallet": "Wallet",
+        "mining": "Minage",
+        "ansiblex": "Ansiblex",
+        "planetary": "Planetaire",
+        "market-jita": "Marche Jita",
+        "market-structure": "Marche de structure",
+        "alert-prices": "Rafraichissement des prix d'alerte",
+        "adjusted-prices": "Prix ajustes",
+        "cost-indices": "Indices de cout",
+        "public-contracts": "Contrats publics",
+        "corporation-mining-extractions": "Extractions lunaires de la corporation",
+        "moon-tax": "Taxe lunaire",
+        "blueprints": "Blueprints",
+        "market-volumes": "Volumes de marche",
+        "courier-contracts": "Contrats de courrier",
+        "character-orders": "Ordres des personnages",
+        "mining-operation-recurrences": "Operations de minage recurrentes",
+        "moon-chunk-alerts": "Alertes de chunk lunaire",
+        "mining-site-depletion-alerts": "Alertes d'epuisement de site de minage",
+        "notifications-purge": "Purge des notifications",
+        "market-history-purge": "Purge de l'historique de marche",
+        "shared-lists-purge": "Purge des listes partagees",
+        "assets": "Assets",
+        "market-alerts": "Alertes de marche"
+      }
     },
     "health": {
       "onTime": "Dans les temps",
@@ -2330,7 +2358,12 @@
       "logins": "Connexions",
       "registrationsPerWeek": "Inscriptions par semaine",
       "loginsLast7d": "Connexions (7 derniers jours)",
-      "assetDistribution": "Repartition des assets"
+      "assetDistribution": "Repartition des assets",
+      "weekLabel": "Sem {week}",
+      "assetKinds": {
+        "personal": "Personnel",
+        "corporation": "Corporation"
+      }
     },
     "pve": {
       "revenueByCorpTitle": "Revenus PVE par Corporation (30j)",

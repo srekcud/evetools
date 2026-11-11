@@ -287,7 +287,7 @@ class AdminService
             $weekStart = (new \DateTimeImmutable("-{$i} weeks"))->modify('monday this week');
             $weekEnd = $weekStart->modify('+7 days');
 
-            $labels[] = 'Sem ' . $weekStart->format('W');
+            $labels[] = $weekStart->format('o-\WW');
             $count = (int) $this->connection->fetchOne(
                 'SELECT COUNT(*) FROM users WHERE created_at >= ? AND created_at < ?',
                 [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')]
@@ -313,8 +313,7 @@ class AdminService
             $dayStart = $day->setTime(0, 0, 0);
             $dayEnd = $day->setTime(23, 59, 59);
 
-            $dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-            $labels[] = $dayNames[(int) $day->format('w')];
+            $labels[] = $day->format('Y-m-d');
 
             $loginCount = (int) $this->connection->fetchOne(
                 'SELECT COUNT(*) FROM users WHERE last_login_at >= ? AND last_login_at <= ?',
@@ -340,7 +339,7 @@ class AdminService
         );
 
         return [
-            'labels' => ['Personnel', 'Corporation'],
+            'labels' => ['personal', 'corporation'],
             'data' => [$personal, $corporation],
         ];
     }
