@@ -122,15 +122,11 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       const url = new URL(tokenData.hubUrl, window.location.origin)
 
-      // Add topics to subscribe to
       tokenData.topics.forEach((topic) => {
-        url.searchParams.append('topic', topic)
+        url.searchParams.append('match', topic)
       })
 
-      // Pass JWT token via URL parameter for Mercure authentication
-      url.searchParams.set('authorization', tokenData.token)
-
-      eventSource.value = new EventSource(url.toString())
+      eventSource.value = new EventSource(url.toString(), { withCredentials: true })
 
       eventSource.value.onopen = () => {
         isConnected.value = true

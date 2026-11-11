@@ -162,7 +162,8 @@ new Patch(
 
 - Hub : `/.well-known/mercure` (intégré dans FrankenPHP/Caddy)
 - Backend : `MercurePublisherService` (syncStarted → syncProgress → syncCompleted/syncError)
-- Frontend : `stores/sync.ts` (EventSource + token via `/api/mercure/token`)
+- Protocole Mercure 1.0 (FrankenPHP 1.13) : `GET /api/mercure/token` (`TokenProvider`) pose le cookie `__Secure-mercure_access_token` (JWT `authorization_details`, `iss` et `aud` = `MERCURE_RESOURCE_IDENTIFIER`), le hub (`frankenphp/Caddyfile`, bloc `issuer`) vérifie le même secret `MERCURE_JWT_SECRET` (32 octets au moins). Pas de JWT en query string
+- Frontend : `stores/sync.ts` (EventSource sur `?match=<topic>` + cookie, token via `/api/mercure/token`). Cookie limité à 4096 octets par les navigateurs : au-delà d'environ 30 projets acceptés, `TokenProvider` lève une `LengthException`
 - Topics : `/user/{userId}/sync/{syncType}`
 - Types sync (`MercurePublisherService::getTopicsForUser()`) : character-assets, corporation-assets, ansiblex, industry-jobs, industry-job-completed, industry-project, pve, mining, corporation-mining-extractions, wallet-transactions, market-structure, planetary, public-contracts, admin-sync, mining-operation-snapshot, moon-tax, blueprints
 - Autres topics utilisateur : `/user/{userId}/alerts/planetary-expiry`, `/user/{userId}/alerts/market-price`, `/user/{userId}/notifications`, `/user/{userId}/mining-operations`

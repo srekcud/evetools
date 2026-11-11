@@ -14,8 +14,15 @@
     @mercure path /.well-known/mercure*
     handle @mercure {
         mercure {
-            publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} HS256
-            subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} HS256
+            resource_identifier {$MERCURE_RESOURCE_IDENTIFIER}
+            issuer {$MERCURE_RESOURCE_IDENTIFIER} {
+                publisher {
+                    jwt {$MERCURE_PUBLISHER_JWT_KEY} HS256
+                }
+                subscriber {
+                    jwt {$MERCURE_SUBSCRIBER_JWT_KEY} HS256
+                }
+            }
             anonymous
             transport local
             cors_origins *

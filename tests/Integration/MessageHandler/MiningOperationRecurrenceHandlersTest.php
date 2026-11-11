@@ -20,6 +20,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Jwt\TokenFactoryInterface;
+use Symfony\Component\Mercure\ProtocolVersion;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -84,6 +85,16 @@ final class MiningOperationRecurrenceHandlersTest extends IntegrationTestCase
                 $this->published[] = $update;
 
                 return 'urn:uuid:published';
+            }
+
+            public function getProtocolVersion(): ProtocolVersion
+            {
+                return ProtocolVersion::V1;
+            }
+
+            public function getCookieName(): string
+            {
+                return '__Secure-mercure_access_token';
             }
         };
         self::getContainer()->set(MercurePublisherService::class, new MercurePublisherService($hub, new NullLogger()));
