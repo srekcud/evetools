@@ -1269,6 +1269,9 @@
       "corporation": "corp",
       "division": "Division {number}",
       "empty": "No blueprint to show.",
+      "searchLabel": "Search a blueprint by name",
+      "searchPlaceholder": "Search by name…",
+      "searchEmpty": "No blueprint matches your search.",
       "noDirector": {
         "title": "Corporation blueprints unknown.",
         "detail": "The ESI only gives them to the token of a Director. Your personal blueprints stay up to date."

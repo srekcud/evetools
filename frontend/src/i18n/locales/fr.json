@@ -1269,6 +1269,9 @@
       "corporation": "corpo",
       "division": "Division {number}",
       "empty": "Aucun blueprint à afficher.",
+      "searchLabel": "Rechercher un blueprint par nom",
+      "searchPlaceholder": "Rechercher par nom…",
+      "searchEmpty": "Aucun blueprint ne correspond à votre recherche.",
       "noDirector": {
         "title": "Blueprints corpo inconnus.",
         "detail": "L'ESI ne les donne qu'au jeton d'un directeur. Vos blueprints personnels restent à jour."
