@@ -325,6 +325,76 @@ final class FailedMessagesApiTest extends WebTestCase
         self::assertSame(1, $this->failedRowCount());
     }
 
+    /**
+     * @return iterable<string, array{string, string, ?string}>
+     */
+    public static function adminRoutes(): iterable
+    {
+        yield 'list' => ['GET', self::FAILED_MESSAGES_URI, null];
+        yield 'retry one' => ['POST', self::FAILED_MESSAGES_URI . '/{id}/retry', null];
+        yield 'remove one' => ['DELETE', self::FAILED_MESSAGES_URI . '/{id}', null];
+        yield 'retry class' => ['POST', self::FAILED_MESSAGES_URI . '/retry-class', self::BLUEPRINTS_CLASS];
+        yield 'remove class' => ['POST', self::FAILED_MESSAGES_URI . '/remove-class', self::BLUEPRINTS_CLASS];
+    }
+
+    #[DataProvider('adminRoutes')]
+    public function testANonAdminIsForbiddenOnEveryRouteAndNothingIsSentNorRemoved(string $method, string $uriTemplate, ?string $messageClass): void
+    {
+        $this->client->loginUser($this->persistedUser(self::PLAYER_EVE_CHARACTER_ID), 'api');
+        $targetId = $this->sendFailed(new SyncBlueprints());
+        $this->sendFailed(new SyncCharacterAssets('char-1'));
+
+        $this->client->request(
+            $method,
+            str_replace('{id}', $targetId, $uriTemplate),
+            server: ['HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json'],
+            content: null === $messageClass ? null : json_encode(['messageClass' => $messageClass], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([], $this->asyncTransport()->getSent());
+        self::assertSame(2, $this->failedRowCount());
+        self::assertSame(1, $this->failedRowCountOfId($targetId));
+    }
+
+    public function testTheFailureDateIsExposedAsTheExactIso8601RedeliveryInstant(): void
+    {
+        $this->loginAsAdmin();
+        $this->sendFailed(
+            new SyncBlueprints(),
+            new SentToFailureTransportStamp('async'),
+            new ErrorDetailsStamp(\RuntimeException::class, 0, 'boom'),
+            new RedeliveryStamp(1, new \DateTimeImmutable('2026-11-10 08:15:00', new \DateTimeZone('UTC'))),
+        );
+
+        $this->request('GET', self::FAILED_MESSAGES_URI);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('2026-11-10T08:15:00+00:00', $this->jsonBody()['messages'][0]['failedAt']);
+    }
+
+    public function testAnEmptyMessageClassFilterListsEveryMessageLikeNoFilter(): void
+    {
+        $this->loginAsAdmin();
+        $this->sendFailed(new SyncCharacterAssets('char-1'));
+        $this->sendFailed(new SyncBlueprints());
+        $this->sendFailed(new SyncCharacterAssets('char-2'));
+
+        $this->request('GET', self::FAILED_MESSAGES_URI . '?messageClass=');
+
+        self::assertResponseIsSuccessful();
+        $body = $this->jsonBody();
+        self::assertSame(3, $body['total']);
+        self::assertCount(3, $body['messages']);
+        self::assertSame(
+            [
+                ['messageClass' => self::ASSETS_CLASS, 'count' => 2],
+                ['messageClass' => self::BLUEPRINTS_CLASS, 'count' => 1],
+            ],
+            $body['classes'],
+        );
+    }
+
     private function loginAsAdmin(): void
     {
         $admin = $this->persistedUser(self::ADMIN_EVE_CHARACTER_ID);

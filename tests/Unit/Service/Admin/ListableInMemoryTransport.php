@@ -13,10 +13,16 @@ use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 final class ListableInMemoryTransport extends InMemoryTransport implements ListableReceiverInterface, MessageCountAwareInterface
 {
     private ?\Throwable $failure = null;
+    private ?int $idRemovedRightAfterTheNextListing = null;
 
     public function failWith(\Throwable $failure): void
     {
         $this->failure = $failure;
+    }
+
+    public function removeRightAfterTheNextListing(int $id): void
+    {
+        $this->idRemovedRightAfterTheNextListing = $id;
     }
 
     public function get(): iterable
@@ -40,6 +46,14 @@ final class ListableInMemoryTransport extends InMemoryTransport implements Lista
     public function all(?int $limit = null): iterable
     {
         $envelopes = $this->get();
+
+        if (null !== $this->idRemovedRightAfterTheNextListing) {
+            $removed = $this->find($this->idRemovedRightAfterTheNextListing);
+            $this->idRemovedRightAfterTheNextListing = null;
+            if (null !== $removed) {
+                parent::reject($removed);
+            }
+        }
 
         return null === $limit ? $envelopes : \array_slice($envelopes, 0, $limit);
     }

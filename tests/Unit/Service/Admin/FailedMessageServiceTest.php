@@ -448,6 +448,170 @@ final class FailedMessageServiceTest extends TestCase
         $this->service->remove((string) $removedId);
     }
 
+    public function testRetryOfAMessageWhoseOriginalTransportIsUnreachableIsAnExplicitErrorAndKeepsTheMessage(): void
+    {
+        $retriedId = $this->seedFailure(new SyncBlueprints());
+        $unreachableTransport = new FailingSendInMemoryTransport();
+        $unreachableTransport->failWith(new TransportException('broker down'));
+        $service = $this->serviceSendingTo($unreachableTransport);
+
+        $thrown = null;
+        try {
+            $service->retry((string) $retriedId);
+        } catch (\Throwable $exception) {
+            $thrown = $exception;
+        }
+
+        self::assertInstanceOf(FailedMessagesUnavailable::class, $thrown);
+        self::assertSame(1, $this->failedMessageCount());
+        self::assertNotNull($this->failedTransport->find($retriedId));
+    }
+
+    public function testRetryOfAMessageWithoutSentToFailureTransportStampIsNotRedeliverableAndKeepsTheMessage(): void
+    {
+        $retriedId = $this->seed(new SyncBlueprints(), new ErrorDetailsStamp(\RuntimeException::class, 0, 'boom'));
+
+        try {
+            $this->service->retry((string) $retriedId);
+            self::fail('A message without original transport cannot be redelivered.');
+        } catch (FailedMessageNotRedeliverable) {
+        }
+
+        self::assertSame(1, $this->failedMessageCount());
+        self::assertSame([], $this->asyncTransport->getSent());
+        self::assertSame([], $this->lowPriorityTransport->getSent());
+    }
+
+    public function testRetryOfAMessageComingFromAnUnknownTransportIsNotRedeliverableAndKeepsTheMessage(): void
+    {
+        $retriedId = $this->seed(new SyncBlueprints(), new SentToFailureTransportStamp('retired_transport'));
+
+        try {
+            $this->service->retry((string) $retriedId);
+            self::fail('A message whose original transport is unknown cannot be redelivered.');
+        } catch (FailedMessageNotRedeliverable) {
+        }
+
+        self::assertSame(1, $this->failedMessageCount());
+        self::assertSame([], $this->asyncTransport->getSent());
+        self::assertSame([], $this->lowPriorityTransport->getSent());
+    }
+
+    public function testRetryClassGoesOnPastAMessageWhichCannotBeRedeliveredAndKeepsItInFailed(): void
+    {
+        $this->seedFailure(new SyncCharacterAssets('char-1'));
+        $withoutOriginalTransportId = $this->seed(new SyncCharacterAssets('char-2'), new ErrorDetailsStamp(\RuntimeException::class, 0, 'boom'));
+        $this->seedFailure(new SyncCharacterAssets('char-3'));
+
+        $outcome = $this->completedBatch(fn (): FailedMessageClassOutcome => $this->service->retryClass(self::ASSETS_CLASS));
+
+        self::assertEquals(new FailedMessageClassOutcome(2, 1), $outcome);
+        self::assertEquals([new SyncCharacterAssets('char-1'), new SyncCharacterAssets('char-3')], $this->messagesOf($this->asyncTransport));
+        self::assertSame([(string) $withoutOriginalTransportId], $this->failedIds());
+    }
+
+    public function testRetryClassOfAVanishedClassProcessesNothingAndKeepsEveryMessage(): void
+    {
+        $this->seed($this->vanishedClassMessage(), new SentToFailureTransportStamp('async'));
+        $this->seed($this->vanishedClassMessage(), new SentToFailureTransportStamp('async'));
+        $this->seedFailure(new SyncBlueprints());
+
+        $outcome = $this->completedBatch(fn (): FailedMessageClassOutcome => $this->service->retryClass(self::RENAMED_CLASS));
+
+        self::assertEquals(new FailedMessageClassOutcome(0, 2), $outcome);
+        self::assertSame(3, $this->failedMessageCount());
+        self::assertSame([], $this->asyncTransport->getSent());
+    }
+
+    public function testRetryClassGoesOnPastAMessageRemovedAfterTheListing(): void
+    {
+        $this->seedFailure(new SyncCharacterAssets('char-1'));
+        $removedId = $this->seedFailure(new SyncCharacterAssets('char-2'));
+        $this->seedFailure(new SyncCharacterAssets('char-3'));
+        $this->failedTransport->removeRightAfterTheNextListing($removedId);
+
+        $outcome = $this->completedBatch(fn (): FailedMessageClassOutcome => $this->service->retryClass(self::ASSETS_CLASS));
+
+        self::assertEquals(new FailedMessageClassOutcome(2, 0), $outcome);
+        self::assertEquals([new SyncCharacterAssets('char-1'), new SyncCharacterAssets('char-3')], $this->messagesOf($this->asyncTransport));
+        self::assertSame(0, $this->failedMessageCount());
+    }
+
+    public function testRemoveClassGoesOnPastAMessageRemovedAfterTheListing(): void
+    {
+        $this->seedFailure(new SyncCharacterAssets('char-1'));
+        $removedId = $this->seedFailure(new SyncCharacterAssets('char-2'));
+        $this->seedFailure(new SyncCharacterAssets('char-3'));
+        $blueprintsId = $this->seedFailure(new SyncBlueprints());
+        $this->failedTransport->removeRightAfterTheNextListing($removedId);
+
+        $outcome = $this->completedBatch(fn (): FailedMessageClassOutcome => $this->service->removeClass(self::ASSETS_CLASS));
+
+        self::assertEquals(new FailedMessageClassOutcome(2, 0), $outcome);
+        self::assertSame([(string) $blueprintsId], $this->failedIds());
+        self::assertSame([], $this->asyncTransport->getSent());
+    }
+
+    public function testListingAnUnreachableFailedTransportRestoresTheStrictDecodingOfTheSerializer(): void
+    {
+        $this->seedFailure(new SyncBlueprints());
+        $encodedVanishedMessage = $this->serializer->encode(new Envelope($this->vanishedClassMessage()));
+        $this->failedTransport->failWith(new TransportException('connection refused'));
+
+        $unavailableReachedTheCaller = false;
+        try {
+            $this->service->list(null);
+        } catch (FailedMessagesUnavailable) {
+            $unavailableReachedTheCaller = true;
+        }
+
+        self::assertTrue($unavailableReachedTheCaller);
+        $this->expectException(MessageDecodingFailedException::class);
+        $this->serializer->decode($encodedVanishedMessage);
+    }
+
+    public function testRemoveClassLeavesTheSixHundredthToFiveHundredAndFirstMessagesOfTheClass(): void
+    {
+        foreach (range(1, 600) as $characterNumber) {
+            $this->seedFailure(new SyncCharacterAssets('char-' . $characterNumber));
+        }
+
+        $this->service->removeClass(self::ASSETS_CLASS);
+
+        self::assertSame(array_map('strval', range(501, 600)), $this->failedIds());
+    }
+
+    public function testRetryClassTakesTheLowestIdsFirstAndStopsAtFiveHundredMessages(): void
+    {
+        foreach (range(1, 600) as $characterNumber) {
+            $this->seedFailure(new SyncCharacterAssets('char-' . $characterNumber));
+        }
+
+        $outcome = $this->service->retryClass(self::ASSETS_CLASS);
+
+        self::assertEquals(new FailedMessageClassOutcome(500, 100), $outcome);
+        self::assertEquals(
+            array_map(static fn (int $characterNumber): SyncCharacterAssets => new SyncCharacterAssets('char-' . $characterNumber), range(1, 500)),
+            $this->messagesOf($this->asyncTransport),
+        );
+        self::assertSame(array_map('strval', range(501, 600)), $this->failedIds());
+    }
+
+    public function testAListedFailureDateIsTheExactRedeliveryInstantInIso8601(): void
+    {
+        $this->seed(
+            new SyncCharacterAssets('char-1'),
+            new SentToFailureTransportStamp('async'),
+            new ErrorDetailsStamp(\RuntimeException::class, 0, 'boom'),
+            new RedeliveryStamp(1, new \DateTimeImmutable('2026-11-10 08:15:00', new \DateTimeZone('UTC'))),
+        );
+
+        $failedAt = $this->onlyListedMessage()->failedAt;
+
+        self::assertNotNull($failedAt);
+        self::assertSame('2026-11-10T08:15:00+00:00', $failedAt->format(\DATE_ATOM));
+    }
+
     private function failedMessageCount(): int
     {
         $this->serializer->acceptPhpIncompleteClass();
@@ -457,6 +621,47 @@ final class FailedMessageServiceTest extends TestCase
         } finally {
             $this->serializer->rejectPhpIncompleteClass();
         }
+    }
+
+    /**
+     * @param callable(): FailedMessageClassOutcome $batch
+     */
+    private function completedBatch(callable $batch): FailedMessageClassOutcome
+    {
+        try {
+            return $batch();
+        } catch (\Throwable $interruption) {
+            self::fail(sprintf('The batch was interrupted by %s.', $interruption::class));
+        }
+    }
+
+    private function serviceSendingTo(InMemoryTransport $originalTransport): FailedMessageService
+    {
+        return new FailedMessageService(
+            $this->failedTransport,
+            new ServiceLocator(['async' => static fn (): InMemoryTransport => $originalTransport]),
+            $this->serializer,
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function failedIds(): array
+    {
+        $this->serializer->acceptPhpIncompleteClass();
+
+        try {
+            $ids = array_map(
+                static fn (Envelope $envelope): string => (string) $envelope->last(TransportMessageIdStamp::class)?->getId(),
+                $this->failedTransport->get(),
+            );
+        } finally {
+            $this->serializer->rejectPhpIncompleteClass();
+        }
+        usort($ids, static fn (string $left, string $right): int => (int) $left <=> (int) $right);
+
+        return $ids;
     }
 
     private function onlyListedMessage(): FailedMessage

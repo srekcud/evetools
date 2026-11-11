@@ -258,3 +258,126 @@ describe('FailedMessagesCard', () => {
     expect(wrapper.get('[data-testid="failed-messages-empty"]').text()).toBe(messageOf('en', 'admin.failedMessages.empty'))
   })
 })
+
+const UNKNOWN_VALUE = '—'
+const SERVER_ERROR_STATUS = 500
+
+const RETRY_COUNT_ZERO_LISTING: FailedMessageListing = {
+  total: 2,
+  classes: [{ messageClass: ASSETS_CLASS, count: 2 }],
+  messages: [
+    { ...FILLED_LISTING.messages[0], id: '51', retryCount: 0 },
+    { ...FILLED_LISTING.messages[0], id: '52', retryCount: null },
+  ],
+}
+
+function actionButtons(wrapper: VueWrapper): Array<{ disabled: boolean }> {
+  return wrapper
+    .findAll('[data-testid="failed-message-retry"], [data-testid="failed-message-remove"], [data-testid="failed-message-class-retry"], [data-testid="failed-message-class-remove"]')
+    .map(button => ({ disabled: button.attributes('disabled') !== undefined }))
+}
+
+describe('FailedMessagesCard failures, limits and unknown values', () => {
+  beforeEach(() => {
+    apiRequestMock.mockReset()
+  })
+
+  it('shows the action error and reloads the list when an action fails with a server error', async () => {
+    respondToApi([FILLED_LISTING, FILLED_LISTING], async () => {
+      throw new ApiError('Failed messages transport unreachable', SERVER_ERROR_STATUS)
+    })
+    const wrapper = await mountCard()
+
+    await click(wrapper, '[data-testid="failed-message-retry"]')
+
+    expect(wrapper.get('[data-testid="failed-messages-action-error"]').text()).toBe(messageOf('en', 'admin.failedMessages.actionError'))
+    expect(listingCalls()).toBe(2)
+  })
+
+  it('does not show the action error when the message is already gone', async () => {
+    respondToApi([FILLED_LISTING, EMPTY_LISTING], async () => {
+      throw new ApiError('Failed message not found', 404)
+    })
+    const wrapper = await mountCard()
+
+    await click(wrapper, '[data-testid="failed-message-retry"]')
+
+    expect(wrapper.find('[data-testid="failed-messages-action-error"]').exists()).toBe(false)
+  })
+
+  it('shows the load error instead of an empty list when the failed messages cannot be loaded', async () => {
+    apiRequestMock.mockRejectedValue(new ApiError('Service unavailable', 503))
+
+    const wrapper = await mountCard()
+
+    expect(wrapper.get('[data-testid="failed-messages-load-error"]').text()).toBe(messageOf('en', 'admin.failedMessages.loadError'))
+    expect(wrapper.find('[data-testid="failed-messages-empty"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="failed-messages-total"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="failed-message-row"]').exists()).toBe(false)
+  })
+
+  it('tells that only the most recent messages are listed when the total exceeds them, and only then', async () => {
+    respondToApi([{ ...FILLED_LISTING, total: 120 }])
+    const wrapper = await mountCard()
+
+    expect(wrapper.text()).toContain('Showing the 2 most recent messages out of 120')
+    expect(wrapper.get('[data-testid="failed-messages-total"]').text()).toBe('120')
+
+    respondToApi([{ ...FILLED_LISTING, total: 2 }])
+    const completeWrapper = await mountCard()
+
+    expect(completeWrapper.text()).not.toContain('most recent messages')
+  })
+
+  it('writes a retry count of zero as 0 and an unknown retry count as a dash', async () => {
+    respondToApi([RETRY_COUNT_ZERO_LISTING])
+
+    const wrapper = await mountCard()
+
+    const retryCounts = wrapper.findAll('[data-testid="failed-message-retry-count"]').map(cell => cell.text())
+    expect(retryCounts).toEqual(['0', UNKNOWN_VALUE])
+  })
+
+  it('writes an unknown failure date as a dash', async () => {
+    respondToApi([FILLED_LISTING])
+
+    const wrapper = await mountCard()
+
+    const failureDateCells = wrapper.findAll('[data-testid="failed-message-row"]').map(row => row.findAll('td')[3].text())
+    expect(failureDateCells[1]).toBe(UNKNOWN_VALUE)
+    expect(failureDateCells[0]).not.toBe(UNKNOWN_VALUE)
+  })
+
+  it('disables every action button while an action is running and enables them again afterwards', async () => {
+    let finishAction: () => void = () => {}
+    respondToApi([FILLED_LISTING, FILLED_LISTING], () => new Promise<unknown>(resolve => {
+      finishAction = () => resolve({ processed: 1, remaining: 0 })
+    }))
+    const wrapper = await mountCard()
+    expect(actionButtons(wrapper).every(button => !button.disabled)).toBe(true)
+
+    await click(wrapper, '[data-testid="failed-message-retry"]')
+
+    expect(actionButtons(wrapper)).toHaveLength(8)
+    expect(actionButtons(wrapper).every(button => button.disabled)).toBe(true)
+
+    finishAction()
+    await flushPromises()
+
+    expect(actionButtons(wrapper).every(button => !button.disabled)).toBe(true)
+  })
+
+  it('removes nothing when the removal of a whole class is cancelled', async () => {
+    respondToApi([FILLED_LISTING])
+    const wrapper = await mountCard()
+
+    await click(wrapper, '[data-testid="failed-message-class-remove"]')
+    const cancelButton = wrapper.findAll('button').find(button => button.text() === en.common.actions.cancel)
+    await cancelButton?.trigger('click')
+    await flushPromises()
+
+    expect(writeCalls()).toEqual([])
+    expect(listingCalls()).toBe(1)
+    expect(wrapper.text()).not.toContain(en.common.actions.confirm)
+  })
+})
