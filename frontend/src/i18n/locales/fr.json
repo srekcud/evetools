@@ -2255,6 +2255,23 @@
     "missingVolumeWarning": "Volume inconnu dans le SDE pour : {types}. Leur volume et le volume total sont inconnus."
   },
   "admin": {
+    "status": {
+      "levels": {
+        "ok": "Tous les systèmes opérationnels",
+        "degraded": "Dégradé",
+        "down": "En panne",
+        "unknown": "Statut indisponible"
+      },
+      "rules": {
+        "scheduler_stale": "{count} tâche(s) planifiée(s) en retard critique",
+        "scheduler_error": "{count} tâche(s) planifiée(s) en erreur",
+        "failed_messages": "{count} message(s) en échec dans la file",
+        "async_queue_backlog": "File async engorgée : {count} messages (au-dessus de {threshold})",
+        "async_queue_unreachable": "File async injoignable",
+        "failed_queue_unreachable": "File des échecs injoignable",
+        "tokens_invalid": "{count} utilisateur(s) avec un token invalide"
+      }
+    },
     "title": "Administration",
     "subtitle": "Statistiques et metriques de la plateforme",
     "users": "Utilisateurs",
