@@ -7,6 +7,7 @@ namespace App\Tests\Unit\MessageHandler;
 use App\Message\PurgeExpiredSharedLists;
 use App\MessageHandler\PurgeExpiredSharedListsHandler;
 use App\Repository\SharedShoppingListRepository;
+use App\Service\Admin\SyncTracker;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -24,7 +25,7 @@ final class PurgeExpiredSharedListsHandlerTest extends TestCase
             ->method('deleteExpired')
             ->willReturn(3);
 
-        $handler = new PurgeExpiredSharedListsHandler($sharedListRepository, new NullLogger());
+        $handler = new PurgeExpiredSharedListsHandler($sharedListRepository, new NullLogger(), $this->createStub(SyncTracker::class));
 
         $handler(new PurgeExpiredSharedLists());
     }
