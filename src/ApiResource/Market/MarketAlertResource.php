@@ -19,7 +19,7 @@ use App\State\Processor\Market\CreateAlertProcessor;
 use App\State\Processor\Market\DeleteAlertProcessor;
 use App\State\Processor\Market\UpdateAlertProcessor;
 use App\State\Provider\Market\MarketAlertCollectionProvider;
-use App\State\Provider\Market\MarketAlertDeleteProvider;
+use App\State\Provider\Market\MarketAlertItemProvider;
 
 #[ApiResource(
     shortName: 'MarketAlert',
@@ -32,7 +32,7 @@ use App\State\Provider\Market\MarketAlertDeleteProvider;
         ),
         new Get(
             uriTemplate: '/market/alerts/{id}',
-            provider: MarketAlertDeleteProvider::class,
+            provider: MarketAlertItemProvider::class,
             openapi: new Model\Operation(summary: 'Get a single alert', tags: ['Market']),
         ),
         new Post(
@@ -46,13 +46,13 @@ use App\State\Provider\Market\MarketAlertDeleteProvider;
             uriVariables: ['id' => new Link(fromClass: self::class)],
             inputFormats: ['json' => ['application/merge-patch+json']],
             input: UpdateAlertInput::class,
-            provider: MarketAlertDeleteProvider::class,
+            provider: MarketAlertItemProvider::class,
             processor: UpdateAlertProcessor::class,
             openapi: new Model\Operation(summary: 'Update an alert threshold and direction, re-arming it when triggered', tags: ['Market']),
         ),
         new Delete(
             uriTemplate: '/market/alerts/{id}',
-            provider: MarketAlertDeleteProvider::class,
+            provider: MarketAlertItemProvider::class,
             processor: DeleteAlertProcessor::class,
             openapi: new Model\Operation(tags: ['Market']),
         ),

@@ -11,8 +11,10 @@ use App\ApiResource\Market\MarketAlertResource;
 use App\Entity\User;
 use App\Enum\AlertStatus;
 use App\Repository\MarketPriceAlertRepository;
+use App\Service\MarketAlertPriceResolver;
 use App\Service\MarketAlertRules;
 use App\Service\UuidOrNotFound;
+use App\State\Provider\Market\MarketAlertResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -29,6 +31,7 @@ class UpdateAlertProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly MarketPriceAlertRepository $alertRepository,
         private readonly EntityManagerInterface $em,
+        private readonly MarketAlertPriceResolver $priceResolver,
     ) {
     }
 
@@ -78,18 +81,6 @@ class UpdateAlertProcessor implements ProcessorInterface
 
         $this->em->flush();
 
-        $resource = new MarketAlertResource();
-        $resource->id = $alert->getId()?->toRfc4122() ?? '';
-        $resource->typeId = $alert->getTypeId();
-        $resource->typeName = $alert->getTypeName();
-        $resource->direction = $alert->getDirection()->value;
-        $resource->threshold = $alert->getThreshold();
-        $resource->priceSource = $alert->getPriceSource()->value;
-        $resource->status = $alert->getStatus()->value;
-        $resource->triggeredAt = $alert->getTriggeredAt()?->format('c');
-        $resource->triggeredPrice = $alert->getTriggeredPrice();
-        $resource->createdAt = $alert->getCreatedAt()->format('c');
-
-        return $resource;
+        return MarketAlertResourceMapper::toResource($alert, $this->priceResolver->currentPrice($user, $alert));
     }
 }

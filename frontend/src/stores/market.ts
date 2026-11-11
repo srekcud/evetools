@@ -315,7 +315,7 @@ export const useMarketStore = defineStore('market', () => {
         body: JSON.stringify(input),
       })
       alerts.value = alerts.value.map(alert =>
-        alert.id === id ? { ...updated, currentPrice: alert.currentPrice } : alert
+        alert.id === id ? updated : alert
       )
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to update alert'

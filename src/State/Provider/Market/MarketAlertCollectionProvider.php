@@ -9,10 +9,8 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Market\MarketAlertResource;
 use App\Entity\MarketPriceAlert;
 use App\Entity\User;
-use App\Enum\AlertPriceSource;
 use App\Repository\MarketPriceAlertRepository;
-use App\Service\JitaMarketService;
-use App\Service\StructureMarketService;
+use App\Service\MarketAlertPriceResolver;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -24,8 +22,7 @@ class MarketAlertCollectionProvider implements ProviderInterface
     public function __construct(
         private readonly Security $security,
         private readonly MarketPriceAlertRepository $alertRepository,
-        private readonly JitaMarketService $jitaMarketService,
-        private readonly StructureMarketService $structureMarketService,
+        private readonly MarketAlertPriceResolver $priceResolver,
     ) {
     }
 
@@ -46,60 +43,12 @@ class MarketAlertCollectionProvider implements ProviderInterface
             return [];
         }
 
-        // Batch-load current Jita prices
-        $typeIds = array_values(array_unique(array_map(
-            static fn (MarketPriceAlert $a) => $a->getTypeId(),
+        $currentPrices = $this->priceResolver->currentPrices($user, $alerts);
+
+        return array_map(
+            static fn (MarketPriceAlert $alert, ?float $currentPrice): MarketAlertResource => MarketAlertResourceMapper::toResource($alert, $currentPrice),
             $alerts,
-        )));
-        $sellPrices = $this->jitaMarketService->getPricesWithFallback($typeIds);
-        $buyPrices = $this->jitaMarketService->getBuyPricesWithFallback($typeIds);
-
-        // Batch-load structure prices if user has a preferred structure and any alerts use it
-        $structureSellPrices = [];
-        $structureBuyPrices = [];
-        $structureId = $user->getPreferredMarketStructureId();
-
-        if ($structureId !== null) {
-            $hasStructureAlerts = array_filter(
-                $alerts,
-                static fn (MarketPriceAlert $a) => in_array($a->getPriceSource(), [
-                    AlertPriceSource::StructureSell,
-                    AlertPriceSource::StructureBuy,
-                ], true),
-            );
-
-            if (!empty($hasStructureAlerts)) {
-                $structureTypeIds = array_values(array_unique(array_map(
-                    static fn (MarketPriceAlert $a) => $a->getTypeId(),
-                    $hasStructureAlerts,
-                )));
-                $structureSellPrices = $this->structureMarketService->getLowestSellPrices($structureId, $structureTypeIds);
-                $structureBuyPrices = $this->structureMarketService->getHighestBuyPrices($structureId, $structureTypeIds);
-            }
-        }
-
-        return array_map(function (MarketPriceAlert $alert) use ($sellPrices, $buyPrices, $structureSellPrices, $structureBuyPrices) {
-            $resource = new MarketAlertResource();
-            $resource->id = $alert->getId()?->toRfc4122() ?? '';
-            $resource->typeId = $alert->getTypeId();
-            $resource->typeName = $alert->getTypeName();
-            $resource->direction = $alert->getDirection()->value;
-            $resource->threshold = $alert->getThreshold();
-            $resource->priceSource = $alert->getPriceSource()->value;
-            $resource->status = $alert->getStatus()->value;
-            $resource->triggeredAt = $alert->getTriggeredAt()?->format('c');
-            $resource->triggeredPrice = $alert->getTriggeredPrice();
-            $resource->createdAt = $alert->getCreatedAt()->format('c');
-
-            // Enrich with current price
-            $resource->currentPrice = match ($alert->getPriceSource()) {
-                AlertPriceSource::JitaSell => $sellPrices[$alert->getTypeId()] ?? null,
-                AlertPriceSource::JitaBuy => $buyPrices[$alert->getTypeId()] ?? null,
-                AlertPriceSource::StructureSell => $structureSellPrices[$alert->getTypeId()] ?? null,
-                AlertPriceSource::StructureBuy => $structureBuyPrices[$alert->getTypeId()] ?? null,
-            };
-
-            return $resource;
-        }, $alerts);
+            $currentPrices,
+        );
     }
 }

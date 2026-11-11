@@ -138,6 +138,10 @@ deptrac:
       - App\State\Provider\MoonTax\MoonTaxResourceMapper
     App\State\Processor\MoonTax\CancelMoonTaxStatementProcessor:
       - App\State\Provider\MoonTax\MoonTaxResourceMapper
+    App\State\Processor\Market\CreateAlertProcessor:
+      - App\State\Provider\Market\MarketAlertResourceMapper
+    App\State\Processor\Market\UpdateAlertProcessor:
+      - App\State\Provider\Market\MarketAlertResourceMapper
     App\State\Processor\Escalation\CreateEscalationProcessor:
       - App\State\Provider\Escalation\EscalationResourceMapper
     App\State\Processor\Escalation\UpdateEscalationProcessor:

@@ -14,6 +14,7 @@ use App\Enum\AlertDirection;
 use App\Enum\AlertPriceSource;
 use App\Repository\Sde\InvTypeRepository;
 use App\Service\JitaMarketService;
+use App\Service\MarketAlertPriceResolver;
 use App\Service\StructureMarketService;
 use App\State\Processor\Market\CreateAlertProcessor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,8 +51,7 @@ class CreateAlertProcessorTest extends TestCase
             $this->security,
             $this->em,
             $this->invTypeRepository,
-            $this->jitaMarketService,
-            $this->structureMarketService,
+            new MarketAlertPriceResolver($this->jitaMarketService, $this->structureMarketService),
         );
     }
 
