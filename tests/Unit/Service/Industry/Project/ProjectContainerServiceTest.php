@@ -27,6 +27,7 @@ use Symfony\Component\Uid\Uuid;
 #[Group('issue-158')]
 #[Group('issue-358')]
 #[Group('issue-319')]
+#[Group('issue-707')]
 final class ProjectContainerServiceTest extends TestCase
 {
     private const int CORPORATION_ID = 98_000_001;
@@ -41,6 +42,7 @@ final class ProjectContainerServiceTest extends TestCase
     private const int TRITANIUM = 34;
     private const int PYERITE = 35;
     private const int MEXALLON = 36;
+    private const int HYDROGEN_FUEL_BLOCK = 4_246;
     private const int TRITANIUM_REQUIRED = 500;
     private const int PYERITE_REQUIRED = 800;
     private const int MEXALLON_REQUIRED = 200;
@@ -49,6 +51,7 @@ final class ProjectContainerServiceTest extends TestCase
         self::TRITANIUM => 'Tritanium',
         self::PYERITE => 'Pyerite',
         self::MEXALLON => 'Mexallon',
+        self::HYDROGEN_FUEL_BLOCK => 'Hydrogen Fuel Block',
         self::STATION_CONTAINER => 'Station Container',
     ];
 
@@ -57,6 +60,8 @@ final class ProjectContainerServiceTest extends TestCase
     private ?CorpAssetVisibility $visibility = null;
 
     private array $materialLines = [];
+
+    private array $componentLines = [];
 
     private ?Character $directorCharacter = null;
 
@@ -100,6 +105,7 @@ final class ProjectContainerServiceTest extends TestCase
 
         $this->bomItemRepository = $this->createStub(IndustryProjectBomLineRepository::class);
         $this->bomItemRepository->method('findMaterialsByProject')->willReturnCallback(fn (): array => $this->materialLines);
+        $this->bomItemRepository->method('findComponentJobsByProject')->willReturnCallback(fn (): array => $this->componentLines);
 
         $this->directorCharacter = $this->createStub(Character::class);
         $this->characterRepository = $this->createStub(CharacterRepository::class);
@@ -117,6 +123,64 @@ final class ProjectContainerServiceTest extends TestCase
         $this->allowDivisions(2);
 
         self::assertSame([], $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)));
+    }
+
+    public function testIntermediateConsumedByAnotherJobIsListedAfterTheMaterials(): void
+    {
+        $this->componentLines = [$this->componentLine(self::HYDROGEN_FUEL_BLOCK, 80)];
+        $build = $this->containerInHangar(self::CONTAINER_NAME);
+        $this->storeInside($build, self::TRITANIUM, 500);
+        $this->storeInside($build, self::HYDROGEN_FUEL_BLOCK, 30);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [
+                [self::TRITANIUM, 500, 500, 'verified', null],
+                [self::PYERITE, 800, 0, 'missing', null],
+                [self::HYDROGEN_FUEL_BLOCK, 80, 30, 'partial', null],
+            ],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    public function testIntermediateAbsentFromTheContainerIsMissingAndFullyStoredOneIsVerified(): void
+    {
+        $this->materialLines = [];
+        $this->componentLines = [$this->componentLine(self::HYDROGEN_FUEL_BLOCK, 80), $this->componentLine(self::MEXALLON, 20)];
+        $this->storeInside($this->containerInHangar(self::CONTAINER_NAME), self::MEXALLON, 25);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [
+                [self::HYDROGEN_FUEL_BLOCK, 80, 0, 'missing', null],
+                [self::MEXALLON, 20, 25, 'verified', null],
+            ],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
+    }
+
+    public function testIntermediateIsUnknownWhenTheContainerCannotBeRead(): void
+    {
+        $this->materialLines = [];
+        $this->componentLines = [$this->componentLine(self::HYDROGEN_FUEL_BLOCK, 80)];
+
+        self::assertSame(
+            [[self::HYDROGEN_FUEL_BLOCK, 80, null, 'unknown', 'owner_without_corporation']],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME, $this->ownerOfCorporation(null))),
+        );
+    }
+
+    public function testIntermediateIsNotFoundWhenNoContainerHasTheProjectName(): void
+    {
+        $this->materialLines = [];
+        $this->componentLines = [$this->componentLine(self::HYDROGEN_FUEL_BLOCK, 80)];
+        $this->storeInside($this->containerInHangar('Another box'), self::HYDROGEN_FUEL_BLOCK, 80);
+        $this->allowDivisions(2);
+
+        self::assertSame(
+            [[self::HYDROGEN_FUEL_BLOCK, 80, null, 'container_not_found', null]],
+            $this->verificationOf($this->projectUsingContainer(self::CONTAINER_NAME)),
+        );
     }
 
     public function testWithoutMaterialLinesTheCorporationAssetsAreNotRead(): void
@@ -738,6 +802,21 @@ final class ProjectContainerServiceTest extends TestCase
         (new \ReflectionProperty(IndustryProjectBomLine::class, 'id'))->setValue($materialLine, Uuid::v4());
 
         return $materialLine;
+    }
+
+    private function componentLine(int $typeId, int $requiredQuantity): IndustryProjectBomLine
+    {
+        $componentLine = (new IndustryProjectBomLine())
+            ->setTypeId($typeId)
+            ->setTypeName(self::TYPE_NAMES[$typeId])
+            ->setRequiredQuantity($requiredQuantity)
+            ->setIsJob(true)
+            ->setJobGroup('component')
+            ->setActivityType('manufacturing')
+            ->setRuns(1);
+        (new \ReflectionProperty(IndustryProjectBomLine::class, 'id'))->setValue($componentLine, Uuid::v4());
+
+        return $componentLine;
     }
 
     private function allowDivisions(int ...$divisionNumbers): void

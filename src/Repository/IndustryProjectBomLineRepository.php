@@ -27,6 +27,14 @@ class IndustryProjectBomLineRepository extends ServiceEntityRepository
         return $this->findBy(['project' => $project, 'isJob' => false]);
     }
 
+    /**
+     * @return IndustryProjectBomLine[]
+     */
+    public function findComponentJobsByProject(IndustryProject $project): array
+    {
+        return $this->findBy(['project' => $project, 'isJob' => true, 'jobGroup' => 'component']);
+    }
+
     public function loadJobMatchesOfProject(IndustryProject $project): void
     {
         $this->createQueryBuilder('line')
