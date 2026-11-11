@@ -22,7 +22,7 @@ function mountBanner(locale: 'en' | 'fr' = 'en'): VueWrapper {
 }
 
 function normalized(wrapper: VueWrapper): string {
-  return wrapper.text().replace(/[  ]/g, ' ')
+  return wrapper.text().replace(/[\u00a0\u202f]/g, ' ')
 }
 
 describe('ProjectPriceAlertBanner', () => {
