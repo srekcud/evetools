@@ -9,7 +9,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Admin\ActionResultResource;
 use App\Entity\User;
 use App\Security\AdminChecker;
-use Doctrine\DBAL\Connection;
+use App\Service\Admin\MessengerQueueService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -21,7 +21,7 @@ class PurgeFailedProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly Connection $connection,
+        private readonly MessengerQueueService $queueService,
         private readonly AdminChecker $adminChecker,
     ) {
     }
@@ -39,9 +39,7 @@ class PurgeFailedProcessor implements ProcessorInterface
         $resource = new ActionResultResource();
 
         try {
-            $deleted = $this->connection->executeStatement(
-                "DELETE FROM messenger_messages WHERE queue_name = 'failed'"
-            );
+            $deleted = $this->queueService->purgeFailed();
 
             $resource->success = true;
             $resource->message = "Purged {$deleted} failed messages";
