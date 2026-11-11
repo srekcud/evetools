@@ -90,6 +90,13 @@ describe('nextRunAt', () => {
   ])('is unknown for %s', (_label, overrides) => {
     expect(nextRunAt(entry('x', overrides))).toBeNull()
   })
+
+  it('is unknown when the interval is absent from the payload', () => {
+    const onDemandEntry = entry('absent', { health: 'on-demand', onDemand: true })
+    Reflect.deleteProperty(onDemandEntry, 'expectedInterval')
+
+    expect(nextRunAt(onDemandEntry)).toBeNull()
+  })
 })
 
 describe('runDurationSeconds', () => {

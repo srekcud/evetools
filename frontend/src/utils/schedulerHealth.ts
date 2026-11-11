@@ -16,10 +16,15 @@ export function sortBySeverity(entries: SchedulerHealthEntry[]): SchedulerHealth
   )
 }
 
-export function nextRunAt(entry: SchedulerHealthEntry): Date | null {
-  if (entry.expectedInterval === null || entry.completedAt === null || entry.status === 'running') return null
+export function intervalOf(entry: SchedulerHealthEntry): number | null {
+  return typeof entry.expectedInterval === 'number' ? entry.expectedInterval : null
+}
 
-  return new Date(new Date(entry.completedAt).getTime() + entry.expectedInterval * MS_PER_SECOND)
+export function nextRunAt(entry: SchedulerHealthEntry): Date | null {
+  const interval = intervalOf(entry)
+  if (interval === null || entry.completedAt === null || entry.status === 'running') return null
+
+  return new Date(new Date(entry.completedAt).getTime() + interval * MS_PER_SECOND)
 }
 
 export function runDurationSeconds(entry: SchedulerHealthEntry): number | null {

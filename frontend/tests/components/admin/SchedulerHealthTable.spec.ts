@@ -97,6 +97,23 @@ describe('SchedulerHealthTable', () => {
     expect(rowFor(wrapper, `${label}-sync`).find('[data-testid="scheduler-next-run"]').text()).toBe('--')
   })
 
+  it('shows the on-demand label for a sync whose interval is absent from the payload', () => {
+    const onDemandEntry = entry('absent-interval-sync', { health: 'on-demand', onDemand: true })
+    Reflect.deleteProperty(onDemandEntry, 'expectedInterval')
+
+    const row = rowFor(mountTable([onDemandEntry]), 'absent-interval-sync')
+
+    expect(row.text()).toContain(`(${en.admin.health.onDemand})`)
+    expect(row.text()).not.toContain('NaN')
+    expect(row.find('[data-testid="scheduler-next-run"]').text()).toBe('--')
+  })
+
+  it('keeps showing the interval of a scheduled sync', () => {
+    const row = rowFor(mountTable([entry('scheduled-sync')]), 'scheduled-sync')
+
+    expect(row.text()).toContain('(1h)')
+  })
+
   it('shows the duration of the last run', () => {
     const wrapper = mountTable([entry('timed-sync', { startedAt: '2026-11-11T11:00:00+00:00', completedAt: '2026-11-11T11:02:00+00:00' })])
 
