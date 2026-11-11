@@ -190,10 +190,6 @@ export interface AdminChartData {
     labels: string[]
     logins: number[]
   }
-  assetDistribution: {
-    labels: string[]
-    data: number[]
-  }
 }
 
 export type AdminUserTokenState = 'valid' | 'expiring' | 'invalid' | 'no_token'

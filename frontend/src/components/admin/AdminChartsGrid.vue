@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Bar, Doughnut, Line } from 'vue-chartjs'
+import { Bar, Line } from 'vue-chartjs'
 import type { AdminChartData } from '@/stores/admin'
 
 const props = defineProps<{
@@ -56,27 +56,6 @@ const activityChartData = computed(() => {
   }
 })
 
-const assetDistributionData = computed(() => {
-  if (!props.charts?.assetDistribution) return null
-  return {
-    labels: props.charts.assetDistribution.labels.map(kind => t(`admin.charts.assetKinds.${kind}`)),
-    datasets: [
-      {
-        data: props.charts.assetDistribution.data,
-        backgroundColor: [
-          'rgba(6, 182, 212, 0.7)',
-          'rgba(245, 158, 11, 0.7)',
-        ],
-        borderColor: [
-          'rgb(6, 182, 212)',
-          'rgb(245, 158, 11)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  }
-})
-
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -96,21 +75,10 @@ const chartOptions = {
     },
   },
 }
-
-const doughnutOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'bottom' as const,
-      labels: { color: 'rgb(148, 163, 184)' },
-    },
-  },
-}
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <!-- Registrations Chart -->
     <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
       <h3 class="text-lg font-semibold text-slate-200 mb-4">{{ t('admin.charts.registrationsPerWeek') }}</h3>
@@ -131,18 +99,6 @@ const doughnutOptions = {
           v-if="activityChartData"
           :data="activityChartData"
           :options="chartOptions"
-        />
-      </div>
-    </div>
-
-    <!-- Asset Distribution Chart -->
-    <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-      <h3 class="text-lg font-semibold text-slate-200 mb-4">{{ t('admin.charts.assetDistribution') }}</h3>
-      <div class="h-48">
-        <Doughnut
-          v-if="assetDistributionData"
-          :data="assetDistributionData"
-          :options="doughnutOptions"
         />
       </div>
     </div>
