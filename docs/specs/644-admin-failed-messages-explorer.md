@@ -8,10 +8,10 @@ Les messages en échec ne se relancent (`RetryFailedProcessor`, 50 au plus) ou n
 ## Règles
 1. `config/packages/messenger.yaml` : `failed` = `doctrine://default?queue_name=failed&auto_setup=false`. La table vient d'une migration, jamais de `auto_setup`. `failure_transport: failed` et la stratégie de reprise de `async` (3 reprises, délai 1 s, ×2) ne changent pas.
 2. `GET /api/admin/failed-messages` (admin seulement, comme les autres ressources `Admin`) renvoie `total`, `classes[]` (`messageClass`, `count`, triées par `count` décroissant puis nom) et `messages[]`.
-3. Un message liste : `id`, `messageClass`, `exceptionClass`, `exceptionMessage`, `failedAt` (ISO 8601), `retryCount`. Source : enveloppe (`ErrorDetailsStamp`, `SentToFailureTransportStamp`, `RedeliveryStamp`). Une valeur absente de l'enveloppe vaut `null`, jamais une valeur par défaut (`retryCount` inclus).
+3. Un message liste : `id`, `messageClass`, `exceptionClass`, `exceptionMessage`, `failedAt` (ISO 8601), `retryCount`. Source : enveloppe (`ErrorDetailsStamp`, `SentToFailureTransportStamp`, `RedeliveryStamp`). `retryCount` = le plus grand compteur des `RedeliveryStamp` (le bridge en ajoute un à 0 à l'entrée dans `failed`), `failedAt` = `redeliveredAt` du dernier. Une valeur absente de l'enveloppe vaut `null`, jamais une valeur par défaut (`retryCount` inclus).
 4. Filtre optionnel `?messageClass=<FQCN>`. `messages[]` : les 100 plus récents d'abord (constante `FAILED_MESSAGES_PAGE_SIZE`), `total` et `classes[]` portent sur l'ensemble des messages, pas sur la page.
 5. `exceptionMessage` est tronqué à 500 caractères (constante) ; il n'est ni journalisé ni recopié ailleurs (il peut contenir un nom de personnage).
-6. Relancer un message (`POST /api/admin/failed-messages/{id}/retry`) : même effet que `messenger:failed:retry --force <id>` — le message retourne sur son transport d'origine (`SentToFailureTransportStamp::getOriginalReceiverName()`), la stratégie de reprise de `messenger.yaml` s'applique, il quitte `failed`. S'il échoue encore, il revient dans `failed` avec son nouveau détail d'erreur.
+6. Relancer un message (`POST /api/admin/failed-messages/{id}/retry`) le réexpédie sans l'exécuter dans la requête (décision nuit, câblage `.claude/tasks/644-wiring.md`) : renvoi sur son transport d'origine (`SentToFailureTransportStamp::getOriginalReceiverName()`) avec les stamps de réception et de reprise retirés, `SentToFailureTransportStamp` compris ; puis retrait de `failed`, dans cet ordre (un doublon plutôt qu'une perte). La stratégie de reprise de `messenger.yaml` s'applique au transport d'origine ; s'il échoue encore, il revient dans `failed` avec un nouveau détail et un compteur à 0.
 7. Retirer un message (`DELETE /api/admin/failed-messages/{id}`) le supprime de `failed` sans l'exécuter. Un `provider` renvoie la ressource (règle DELETE du projet).
 8. Par classe : `POST /api/admin/failed-messages/retry-class` et `POST /api/admin/failed-messages/remove-class`, corps `{ "messageClass": "<FQCN>" }`, appliquent 6 ou 7 à tous les messages de cette classe, 500 au plus par appel (constante). Réponse : `processed` (nombre traité) et `remaining` (messages de la classe restants).
 9. Les actions globales existantes (`/admin/actions/retry-failed`, `/admin/actions/purge-failed`, tuile « Failed » du bandeau, `MessengerQueueService::getDepth()` et `purgeFailed()`) restent valides sur le transport Doctrine ; aucun changement de contrat.
@@ -34,7 +34,7 @@ Les messages en échec ne se relancent (`RetryFailedProcessor`, 50 au plus) ou n
 | non admin | toute route | 403 |
 
 ## Cas limites
-- Classe de message disparue (renommée après déploiement) : le message est listé avec la classe lue dans l'en-tête `type` du transport ; la liste ne plante pas. Le relancer échoue avec une erreur explicite, il reste dans `failed`.
+- Classe de message disparue (renommée après déploiement) : lister ou lire un message ne le supprime jamais (le décodage tolère les classes incomplètes) ; il est listé avec la classe lue dans `__PHP_Incomplete_Class_Name`. Le relancer renvoie 422 explicite, il reste dans `failed` ; le retirer fonctionne.
 - Message retiré ou relancé entre la liste et le clic : 404 explicite, pas de succès silencieux, la liste est rechargée.
 - Transport `failed` injoignable (base indisponible) : erreur 503 explicite sur la liste et les actions, jamais une liste vide.
 - Classe sans message : `processed` 0, `remaining` 0, 200.
@@ -43,7 +43,7 @@ Les messages en échec ne se relancent (`RetryFailedProcessor`, 50 au plus) ou n
 Admin seulement (`AdminChecker::isAdmin`), vérifié dans chaque provider et processor comme `RetryFailedProcessor`. Aucun identifiant d'un autre périmètre. Lecture en direct, sans cache. `exceptionMessage` peut contenir un nom de personnage : page admin seulement, rien dans les journaux, issues ou commentaires.
 
 ## Tests existants modifiés
-`tests/Unit/Service/Admin/MessengerQueueServiceTest.php` : à relire si le test fige le type du transport `failed` ; l'architecte liste les autres (config `when@test` de `failed`, harnais).
+`tests/Integration/Migrations/MigrationsReplayTest.php` : la table `messenger_messages` n'est pas dans le mapping ORM, le test l'exclut de sa comparaison (comme la table des migrations). `when@test` : `failed` passe en Doctrine, `async` reste en mémoire. Les autres tests admin restent verts (note de câblage).
 
 ## Hors périmètre
 Éditer un message avant relance ; déplacer les messages AMQP `failed` existants vers la table (action prod : les vider ou les relancer avant le déploiement) ; changer le transport `async` ; un journal des relances ; les compteurs par classe sur le bandeau d'état (#642).
