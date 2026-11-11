@@ -2347,6 +2347,15 @@
       "onDemand": "A la demande",
       "onDemandHint": "A la demande (non planifie)"
     },
+    "mercureCookie": {
+      "title": "Taille du cookie Mercure",
+      "threshold": "Utilisateurs à partir de {warning} octets, pour une limite navigateur de {limit} octets",
+      "user": "Utilisateur",
+      "cookieSize": "Cookie (octets)",
+      "topics": "Topics",
+      "overLimit": "au-delà de la limite",
+      "empty": "Aucun utilisateur proche de la limite du cookie Mercure"
+    },
     "esiBudget": {
       "title": "Budget d'erreurs ESI",
       "remain": "Erreurs restantes",

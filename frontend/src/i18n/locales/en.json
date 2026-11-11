@@ -2347,6 +2347,15 @@
       "onDemand": "On demand",
       "onDemandHint": "On demand (not scheduled)"
     },
+    "mercureCookie": {
+      "title": "Mercure cookie size",
+      "threshold": "Users from {warning} bytes up to the browser limit of {limit} bytes",
+      "user": "User",
+      "cookieSize": "Cookie (bytes)",
+      "topics": "Topics",
+      "overLimit": "over the limit",
+      "empty": "No user close to the Mercure cookie limit"
+    },
     "esiBudget": {
       "title": "ESI error budget",
       "remain": "Errors remaining",

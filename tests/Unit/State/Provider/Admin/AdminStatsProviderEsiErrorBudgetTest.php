@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
 use App\Service\ESI\EsiErrorBudget;
+use App\Service\Mercure\MercureCookieSizeMonitor;
 use App\State\Provider\Admin\AdminStatsProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -73,6 +74,7 @@ class AdminStatsProviderEsiErrorBudgetTest extends TestCase
             $adminService,
             new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID),
             $errorBudget,
+            $this->createStub(MercureCookieSizeMonitor::class),
         );
     }
 }
