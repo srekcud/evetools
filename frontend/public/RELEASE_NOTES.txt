@@ -15,6 +15,8 @@ Version 0.15 (2026-11-11)
   masquees sans montrer le reste de ces divisions (coche par defaut)
 - Images des blueprints affichees dans la bibliotheque
 - Classement de quoi produire plus rapide, base sur les prix Jita en cache
+- Chaine de production : duree prevue des copies de blueprints, selon les
+  competences du personnage le plus rapide et la structure choisie
 
 ### Assets
 - Les assets dans les hangars des structures Upwell sont rattaches a leur structure
