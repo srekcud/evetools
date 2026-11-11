@@ -5,6 +5,7 @@ import CharacterSyncFailuresAlert from '@/components/industry/CharacterSyncFailu
 import SyncErrorAlert from '@/components/industry/SyncErrorAlert.vue'
 import { useEveImages } from '@/composables/useEveImages'
 import { useTypeNames } from '@/composables/useTypeNames'
+import { normalizeSearchText } from '@/utils/commandPaletteSearch'
 import { useBlueprintsStore } from '@/stores/industry/blueprints'
 import type { BlueprintKind, BlueprintLibraryEntry, BlueprintScope, CharacterSyncFailure } from '@/stores/industry/types'
 import { useSyncStore } from '@/stores/sync'
@@ -29,13 +30,18 @@ const store = useBlueprintsStore()
 const syncStore = useSyncStore()
 
 const filter = ref<ScopeFilter>('all')
+const search = ref('')
 const selectedKinds = ref<BlueprintKind[]>([...KINDS])
 const syncErrors = ref<string[]>([])
 const lastSyncFailures = ref<CharacterSyncFailure[]>([])
 
+const normalizedSearch = computed(() => normalizeSearchText(search.value))
+
 const entriesInScope = computed<BlueprintLibraryEntry[]>(() => {
   const blueprints = store.library?.blueprints ?? []
-  return filter.value === 'all' ? blueprints : blueprints.filter(blueprint => blueprint.scope === filter.value)
+  const inScope = filter.value === 'all' ? blueprints : blueprints.filter(blueprint => blueprint.scope === filter.value)
+  if (normalizedSearch.value === '') return inScope
+  return inScope.filter(entry => normalizeSearchText(nameOf(entry)).includes(normalizedSearch.value))
 })
 
 const entries = computed<BlueprintLibraryEntry[]>(() => entriesInScope.value.filter(entry => selectedKinds.value.includes(entry.kind)))
@@ -164,6 +170,14 @@ onMounted(() => {
         <div class="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-slate-800">
           <h2 class="text-base font-semibold text-white">{{ t('industry.blueprints.library') }}</h2>
           <div class="flex flex-wrap items-center gap-3">
+            <input
+              v-model="search"
+              data-testid="blueprints-search"
+              type="search"
+              :placeholder="t('industry.blueprints.searchPlaceholder')"
+              :aria-label="t('industry.blueprints.searchLabel')"
+              class="flex-1 min-w-40 max-w-xs px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-cyan-500"
+            />
             <div
               data-testid="blueprints-type-filter"
               class="inline-flex rounded-lg border border-slate-700 overflow-hidden"
@@ -199,7 +213,11 @@ onMounted(() => {
           </div>
         </div>
 
-        <p v-if="entries.length === 0" data-testid="blueprints-empty" class="p-6 text-sm text-slate-500">
+        <p v-if="entries.length === 0 && normalizedSearch !== ''" data-testid="blueprints-search-empty" class="p-6 text-sm text-slate-500">
+          {{ t('industry.blueprints.searchEmpty') }}
+        </p>
+
+        <p v-else-if="entries.length === 0" data-testid="blueprints-empty" class="p-6 text-sm text-slate-500">
           {{ t('industry.blueprints.empty') }}
         </p>
 
@@ -254,7 +272,7 @@ onMounted(() => {
                     class="mr-1 px-2 py-0.5 rounded-sm text-xs border bg-slate-500/10 text-slate-400 border-slate-500/20"
                   >{{ t('industry.blueprints.corporation') }}</span>
                   <span v-if="entry.ownerName !== null">{{ entry.ownerName }}</span>
-                  <span v-if="entry.divisionNumber !== null" class="text-slate-500"> · {{ t('industry.blueprints.division', { number: entry.divisionNumber }) }}</span>
+                  <span v-if="entry.divisionNumber !== null" class="text-slate-500"> · {{ entry.divisionName ?? t('industry.blueprints.division', { number: entry.divisionNumber }) }}</span>
                   <span class="text-slate-500 font-mono text-xs"> · #{{ entry.locationId }}</span>
                 </td>
               </tr>

@@ -88,6 +88,7 @@ final class BlueprintLibraryReaderRunningJobTest extends TestCase
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn($itemIdsWithJobInProgress),
+            $this->divisionsNamed(),
             $this->reactionFormulas(),
         );
     }

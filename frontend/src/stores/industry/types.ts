@@ -669,6 +669,7 @@ export interface BlueprintLibraryEntry {
   ownerName: string | null
   locationId: number
   divisionNumber: number | null
+  divisionName: string | null
   count: number
   usedByRunningJob: boolean
 }
