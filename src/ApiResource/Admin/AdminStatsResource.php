@@ -59,9 +59,12 @@ class AdminStatsResource
 
     public EsiErrorBudgetDto $esiErrorBudget;
 
+    public MercureCookieDto $mercureCookie;
+
     public function __construct()
     {
         $this->esiErrorBudget = new EsiErrorBudgetDto();
+        $this->mercureCookie = new MercureCookieDto();
         $this->users = new UserStatsDto();
         $this->characters = new CharacterStatsDto();
         $this->tokens = new TokenStatsDto();
@@ -239,6 +242,27 @@ class EsiLimitedHourDto
         public string $hour = '',
         public int $limited420 = 0,
         public int $limited429 = 0,
+    ) {
+    }
+}
+
+class MercureCookieDto
+{
+    public int $limitBytes = 0;
+    public int $warningThresholdBytes = 0;
+    public int $nearLimitCount = 0;
+
+    /** @var MercureCookieUserDto[] */
+    public array $users = [];
+}
+
+class MercureCookieUserDto
+{
+    public function __construct(
+        public string $userId = '',
+        public ?string $mainCharacterName = null,
+        public int $cookieBytes = 0,
+        public int $topicCount = 0,
     ) {
     }
 }

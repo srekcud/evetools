@@ -99,6 +99,20 @@ export interface AdminEsiErrorBudget {
   hourly: AdminEsiErrorBudgetHour[]
 }
 
+export interface AdminMercureCookieUser {
+  userId: string
+  mainCharacterName: string | null
+  cookieBytes: number
+  topicCount: number
+}
+
+export interface AdminMercureCookie {
+  limitBytes: number
+  warningThresholdBytes: number
+  nearLimitCount: number
+  users: AdminMercureCookieUser[]
+}
+
 export interface AdminNotificationStats {
   total: number
   unread: number
@@ -127,6 +141,7 @@ export interface AdminStats {
   market: AdminMarketStats
   schedulerHealth: SchedulerHealthEntry[]
   esiErrorBudget: AdminEsiErrorBudget
+  mercureCookie: AdminMercureCookie
 }
 
 export interface AdminQueues {

@@ -41,6 +41,26 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return array<string, list<string>> accepted project UUIDs, keyed by user UUID
+     */
+    public function findAcceptedProjectIdsByUser(): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('IDENTITY(m.user) AS userId', 'IDENTITY(m.project) AS projectId')
+            ->andWhere('m.status = :status')
+            ->setParameter('status', ParticipantStatus::Accepted->value)
+            ->getQuery()
+            ->getScalarResult();
+
+        $projectIdsByUser = [];
+        foreach ($rows as $row) {
+            $projectIdsByUser[$row['userId']][] = $row['projectId'];
+        }
+
+        return $projectIdsByUser;
+    }
+
+    /**
      * Accepted memberships of a user, most recent first, with everything the project listing maps:
      * the project, its owner and the owner's main character are fetch-joined, the project items and
      * BOM items are batch-loaded (one query per collection, to avoid a row explosion).

@@ -9,12 +9,15 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\AdminStatsResource;
 use App\ApiResource\Admin\EsiLimitedFamilyDto;
 use App\ApiResource\Admin\EsiLimitedHourDto;
+use App\ApiResource\Admin\MercureCookieUserDto;
 use App\ApiResource\Admin\PveCorporationStatsDto;
 use App\ApiResource\Admin\SchedulerHealthEntryDto;
 use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
 use App\Service\ESI\EsiErrorBudget;
+use App\Service\Mercure\MercureCookieSizeMonitor;
+use App\Service\Mercure\MercureCookieUsage;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -29,6 +32,7 @@ class AdminStatsProvider implements ProviderInterface
         private readonly AdminService $adminService,
         private readonly AdminChecker $adminChecker,
         private readonly EsiErrorBudget $errorBudget,
+        private readonly MercureCookieSizeMonitor $mercureCookieMonitor,
     ) {
     }
 
@@ -129,8 +133,23 @@ class AdminStatsProvider implements ProviderInterface
         );
 
         $this->fillEsiErrorBudget($resource);
+        $this->fillMercureCookie($resource);
 
         return $resource;
+    }
+
+    private function fillMercureCookie(AdminStatsResource $resource): void
+    {
+        $usages = $this->mercureCookieMonitor->usersNearLimit();
+        $mercureCookie = $resource->mercureCookie;
+
+        $mercureCookie->limitBytes = MercureCookieSizeMonitor::BROWSER_COOKIE_LIMIT_BYTES;
+        $mercureCookie->warningThresholdBytes = $this->mercureCookieMonitor->warningThresholdBytes();
+        $mercureCookie->nearLimitCount = count($usages);
+        $mercureCookie->users = array_map(
+            static fn (MercureCookieUsage $usage): MercureCookieUserDto => new MercureCookieUserDto($usage->userId, $usage->mainCharacterName, $usage->cookieBytes, $usage->topicCount),
+            $usages,
+        );
     }
 
     private function fillEsiErrorBudget(AdminStatsResource $resource): void
