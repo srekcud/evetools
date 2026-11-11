@@ -244,7 +244,7 @@ final class FailedMessageServiceTest extends TestCase
 
         self::assertSame(2, $list->total);
         self::assertEquals(
-            [new MessageClassCount(self::BLUEPRINTS_CLASS, 1), new MessageClassCount(self::RENAMED_CLASS, 1)],
+            [new MessageClassCount(self::RENAMED_CLASS, 1), new MessageClassCount(self::BLUEPRINTS_CLASS, 1)],
             $list->classes,
         );
         self::assertSame(self::RENAMED_CLASS, $list->messages[1]->messageClass);
