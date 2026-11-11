@@ -113,6 +113,23 @@ export interface AdminMercureCookie {
   users: AdminMercureCookieUser[]
 }
 
+export type AdminCharacterRepairState = 'invalid' | 'missing_scopes'
+
+export interface AdminCharacterToRepair {
+  eveCharacterId: number
+  characterName: string
+  userId?: string | null
+  userLastLoginAt?: string | null
+  state: AdminCharacterRepairState
+  missingScopes: string[]
+  sinceAt: string
+}
+
+export interface AdminCharactersToRepair {
+  count: number
+  characters: AdminCharacterToRepair[]
+}
+
 export interface AdminNotificationStats {
   total: number
   unread: number
@@ -142,6 +159,7 @@ export interface AdminStats {
   schedulerHealth: SchedulerHealthEntry[]
   esiErrorBudget: AdminEsiErrorBudget
   mercureCookie: AdminMercureCookie
+  charactersToRepair: AdminCharactersToRepair
 }
 
 export interface AdminQueues {

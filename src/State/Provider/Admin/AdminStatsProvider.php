@@ -7,6 +7,7 @@ namespace App\State\Provider\Admin;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\AdminStatsResource;
+use App\ApiResource\Admin\CharacterToRepairDto;
 use App\ApiResource\Admin\EsiLimitedFamilyDto;
 use App\ApiResource\Admin\EsiLimitedHourDto;
 use App\ApiResource\Admin\MercureCookieUserDto;
@@ -15,6 +16,8 @@ use App\ApiResource\Admin\SchedulerHealthEntryDto;
 use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
+use App\Service\Admin\CharacterRepairLister;
+use App\Service\Admin\CharacterToRepair;
 use App\Service\ESI\EsiErrorBudget;
 use App\Service\Mercure\MercureCookieSizeMonitor;
 use App\Service\Mercure\MercureCookieUsage;
@@ -33,6 +36,7 @@ class AdminStatsProvider implements ProviderInterface
         private readonly AdminChecker $adminChecker,
         private readonly EsiErrorBudget $errorBudget,
         private readonly MercureCookieSizeMonitor $mercureCookieMonitor,
+        private readonly CharacterRepairLister $characterRepairLister,
     ) {
     }
 
@@ -134,8 +138,28 @@ class AdminStatsProvider implements ProviderInterface
 
         $this->fillEsiErrorBudget($resource);
         $this->fillMercureCookie($resource);
+        $this->fillCharactersToRepair($resource);
 
         return $resource;
+    }
+
+    private function fillCharactersToRepair(AdminStatsResource $resource): void
+    {
+        $entries = $this->characterRepairLister->all();
+
+        $resource->charactersToRepair->count = count($entries);
+        $resource->charactersToRepair->characters = array_map(
+            static fn (CharacterToRepair $entry): CharacterToRepairDto => new CharacterToRepairDto(
+                $entry->eveCharacterId,
+                $entry->characterName,
+                $entry->userId,
+                $entry->userLastLoginAt,
+                $entry->state->value,
+                $entry->missingScopes,
+                $entry->sinceAt,
+            ),
+            $entries,
+        );
     }
 
     private function fillMercureCookie(AdminStatsResource $resource): void

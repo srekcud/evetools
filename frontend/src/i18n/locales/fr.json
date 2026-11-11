@@ -2347,6 +2347,20 @@
       "onDemand": "A la demande",
       "onDemandHint": "A la demande (non planifie)"
     },
+    "charactersToRepair": {
+      "title": "Personnages à réparer",
+      "character": "Personnage",
+      "lastLogin": "Dernière connexion",
+      "stateColumn": "État",
+      "missingScopes": "Scopes manquants",
+      "since": "Token mis à jour le",
+      "never": "Jamais",
+      "state": {
+        "invalid": "Autorisation révoquée",
+        "missing_scopes": "Scopes manquants"
+      },
+      "empty": "Aucun personnage ne doit se reconnecter"
+    },
     "mercureCookie": {
       "title": "Taille du cookie Mercure",
       "threshold": "Utilisateurs à partir de {warning} octets, pour une limite navigateur de {limit} octets",

@@ -11,6 +11,7 @@ import AdminKpiGrid from '@/components/admin/AdminKpiGrid.vue'
 import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
 import EsiErrorBudgetCard from '@/components/admin/EsiErrorBudgetCard.vue'
 import MercureCookieCard from '@/components/admin/MercureCookieCard.vue'
+import CharactersToRepairCard from '@/components/admin/CharactersToRepairCard.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
 import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
 import PveCorpRevenue from '@/components/admin/PveCorpRevenue.vue'
@@ -239,6 +240,8 @@ watch(
       </div>
 
       <EsiErrorBudgetCard v-if="stats?.esiErrorBudget" :budget="stats.esiErrorBudget" />
+
+      <CharactersToRepairCard v-if="stats?.charactersToRepair" :characters-to-repair="stats.charactersToRepair" />
 
       <MercureCookieCard v-if="stats?.mercureCookie" :mercure-cookie="stats.mercureCookie" />
 
