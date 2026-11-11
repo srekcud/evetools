@@ -91,6 +91,19 @@ class CharacterRepository extends ServiceEntityRepository
     /**
      * @return Character[]
      */
+    public function findAllWithToken(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->addSelect('t', 'u')
+            ->join('c.eveToken', 't')
+            ->leftJoin('c.user', 'u')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return Character[]
+     */
     public function findActiveWithValidTokens(int $activeDays = 7): array
     {
         $threshold = new \DateTimeImmutable("-{$activeDays} days");

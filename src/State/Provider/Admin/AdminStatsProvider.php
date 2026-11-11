@@ -7,11 +7,23 @@ namespace App\State\Provider\Admin;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\AdminStatsResource;
+use App\ApiResource\Admin\AdminCharacterDto;
+use App\ApiResource\Admin\CharacterToRepairDto;
+use App\ApiResource\Admin\EsiLimitedFamilyDto;
+use App\ApiResource\Admin\EsiLimitedHourDto;
+use App\ApiResource\Admin\MercureCookieUserDto;
 use App\ApiResource\Admin\PveCorporationStatsDto;
 use App\ApiResource\Admin\SchedulerHealthEntryDto;
 use App\Entity\User;
+use App\Security\AdminCharacterEntry;
+use App\Security\AdminCharacterLister;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
+use App\Service\Admin\CharacterRepairLister;
+use App\Service\Admin\CharacterToRepair;
+use App\Service\ESI\EsiErrorBudget;
+use App\Service\Mercure\MercureCookieSizeMonitor;
+use App\Service\Mercure\MercureCookieUsage;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -25,6 +37,10 @@ class AdminStatsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly AdminService $adminService,
         private readonly AdminChecker $adminChecker,
+        private readonly EsiErrorBudget $errorBudget,
+        private readonly MercureCookieSizeMonitor $mercureCookieMonitor,
+        private readonly CharacterRepairLister $characterRepairLister,
+        private readonly AdminCharacterLister $adminCharacterLister,
     ) {
     }
 
@@ -119,11 +135,87 @@ class AdminStatsProvider implements ProviderInterface
                 $entry['message'] ?? null,
                 $entry['expected_interval'],
                 $entry['on_demand'],
+                $entry['triggerable'],
             ),
             $stats['schedulerHealth'] ?? []
         );
 
+        $this->fillEsiErrorBudget($resource);
+        $this->fillMercureCookie($resource);
+        $this->fillCharactersToRepair($resource);
+        $this->fillAdminCharacters($resource);
+
         return $resource;
+    }
+
+    private function fillCharactersToRepair(AdminStatsResource $resource): void
+    {
+        $entries = $this->characterRepairLister->all();
+
+        $resource->charactersToRepair->count = count($entries);
+        $resource->charactersToRepair->characters = array_map(
+            static fn (CharacterToRepair $entry): CharacterToRepairDto => new CharacterToRepairDto(
+                $entry->eveCharacterId,
+                $entry->characterName,
+                $entry->userId,
+                $entry->userLastLoginAt,
+                $entry->state->value,
+                $entry->missingScopes,
+                $entry->sinceAt,
+            ),
+            $entries,
+        );
+    }
+
+    private function fillAdminCharacters(AdminStatsResource $resource): void
+    {
+        $entries = $this->adminCharacterLister->all();
+
+        $resource->adminCharacters->count = count($entries);
+        $resource->adminCharacters->characters = array_map(
+            static fn (AdminCharacterEntry $entry): AdminCharacterDto => new AdminCharacterDto(
+                $entry->eveCharacterId,
+                $entry->characterName,
+                $entry->hasUser,
+            ),
+            $entries,
+        );
+    }
+
+    private function fillMercureCookie(AdminStatsResource $resource): void
+    {
+        $usages = $this->mercureCookieMonitor->usersNearLimit();
+        $mercureCookie = $resource->mercureCookie;
+
+        $mercureCookie->limitBytes = MercureCookieSizeMonitor::BROWSER_COOKIE_LIMIT_BYTES;
+        $mercureCookie->warningThresholdBytes = $this->mercureCookieMonitor->warningThresholdBytes();
+        $mercureCookie->nearLimitCount = count($usages);
+        $mercureCookie->users = array_map(
+            static fn (MercureCookieUsage $usage): MercureCookieUserDto => new MercureCookieUserDto($usage->userId, $usage->mainCharacterName, $usage->cookieBytes, $usage->topicCount),
+            $usages,
+        );
+    }
+
+    private function fillEsiErrorBudget(AdminStatsResource $resource): void
+    {
+        $snapshot = $this->errorBudget->snapshot();
+        $budget = $resource->esiErrorBudget;
+
+        $budget->remain = $snapshot['remain'];
+        $budget->resetSeconds = $snapshot['resetSeconds'];
+        $budget->observedAt = $snapshot['observedAt'];
+        $budget->windowEndsAt = $snapshot['windowEndsAt'];
+        $budget->level = $snapshot['level'];
+        $budget->limited420 = $snapshot['limited420'];
+        $budget->limited429 = $snapshot['limited429'];
+        $budget->byFamily = array_map(
+            static fn (array $family): EsiLimitedFamilyDto => new EsiLimitedFamilyDto($family['family'], $family['limited420'], $family['limited429']),
+            $snapshot['byFamily'],
+        );
+        $budget->hourly = array_map(
+            static fn (array $hour): EsiLimitedHourDto => new EsiLimitedHourDto($hour['hour'], $hour['limited420'], $hour['limited429']),
+            $snapshot['hourly'],
+        );
     }
 
     private function checkAdminAccess(User $user): void

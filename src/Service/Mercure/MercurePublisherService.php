@@ -8,6 +8,7 @@ use App\Event\GroupProjectEventPublished;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Jwt\Grant;
 use Symfony\Component\Mercure\Update;
 
 final readonly class MercurePublisherService
@@ -372,5 +373,16 @@ final readonly class MercurePublisherService
         }
 
         return $topics;
+    }
+
+    /**
+     * @param list<string> $groupTopics
+     */
+    public static function getSubscriberGrant(string $userId, array $groupTopics): Grant
+    {
+        return new Grant([Grant::ACTION_SUBSCRIBE], [
+            'urlpattern' => [sprintf('/user/%s/*', $userId)],
+            'exact' => $groupTopics,
+        ]);
     }
 }

@@ -47,6 +47,10 @@ services:
             $clientId: '%eve_client_id%'
             $clientSecret: '%eve_client_secret%'
 
+    App\Service\ESI\EsiErrorBudget:
+        arguments:
+            $cache: '@esi_error_budget.cache'
+
     App\Service\ESI\EsiClient:
         arguments:
             $esiCache: '@esi.cache'

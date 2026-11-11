@@ -57,8 +57,20 @@ class AdminStatsResource
     /** @var SchedulerHealthEntryDto[] */
     public array $schedulerHealth = [];
 
+    public EsiErrorBudgetDto $esiErrorBudget;
+
+    public MercureCookieDto $mercureCookie;
+
+    public CharactersToRepairDto $charactersToRepair;
+
+    public AdminCharactersDto $adminCharacters;
+
     public function __construct()
     {
+        $this->charactersToRepair = new CharactersToRepairDto();
+        $this->adminCharacters = new AdminCharactersDto();
+        $this->esiErrorBudget = new EsiErrorBudgetDto();
+        $this->mercureCookie = new MercureCookieDto();
         $this->users = new UserStatsDto();
         $this->characters = new CharacterStatsDto();
         $this->tokens = new TokenStatsDto();
@@ -178,6 +190,7 @@ class SchedulerHealthEntryDto
     /** Null for on-demand syncs, which are not scheduled. */
     public ?int $expectedInterval;
     public bool $onDemand;
+    public bool $triggerable;
 
     public function __construct(
         string $type = '',
@@ -188,6 +201,7 @@ class SchedulerHealthEntryDto
         ?string $message = null,
         ?int $expectedInterval = null,
         bool $onDemand = false,
+        bool $triggerable = false,
     ) {
         $this->type = $type;
         $this->status = $status;
@@ -197,5 +211,107 @@ class SchedulerHealthEntryDto
         $this->message = $message;
         $this->expectedInterval = $expectedInterval;
         $this->onDemand = $onDemand;
+        $this->triggerable = $triggerable;
+    }
+}
+
+class EsiErrorBudgetDto
+{
+    public ?int $remain = null;
+    public ?int $resetSeconds = null;
+    public ?string $observedAt = null;
+    public ?string $windowEndsAt = null;
+    public string $level = 'unknown';
+    public int $limited420 = 0;
+    public int $limited429 = 0;
+
+    /** @var EsiLimitedFamilyDto[] */
+    public array $byFamily = [];
+
+    /** @var EsiLimitedHourDto[] */
+    public array $hourly = [];
+}
+
+class EsiLimitedFamilyDto
+{
+    public function __construct(
+        public string $family = '',
+        public int $limited420 = 0,
+        public int $limited429 = 0,
+    ) {
+    }
+}
+
+class EsiLimitedHourDto
+{
+    public function __construct(
+        public string $hour = '',
+        public int $limited420 = 0,
+        public int $limited429 = 0,
+    ) {
+    }
+}
+
+class MercureCookieDto
+{
+    public int $limitBytes = 0;
+    public int $warningThresholdBytes = 0;
+    public int $nearLimitCount = 0;
+
+    /** @var MercureCookieUserDto[] */
+    public array $users = [];
+}
+
+class MercureCookieUserDto
+{
+    public function __construct(
+        public string $userId = '',
+        public ?string $mainCharacterName = null,
+        public int $cookieBytes = 0,
+        public int $topicCount = 0,
+    ) {
+    }
+}
+
+class CharactersToRepairDto
+{
+    public int $count = 0;
+
+    /** @var CharacterToRepairDto[] */
+    public array $characters = [];
+}
+
+class CharacterToRepairDto
+{
+    /**
+     * @param list<string> $missingScopes
+     */
+    public function __construct(
+        public int $eveCharacterId = 0,
+        public string $characterName = '',
+        public ?string $userId = null,
+        public ?string $userLastLoginAt = null,
+        public string $state = '',
+        public array $missingScopes = [],
+        public string $sinceAt = '',
+    ) {
+    }
+}
+
+class AdminCharactersDto
+{
+    public int $count = 0;
+
+    /** @var AdminCharacterDto[] */
+    public array $characters = [];
+}
+
+class AdminCharacterDto
+{
+    public function __construct(
+        public int $eveCharacterId = 0,
+        public ?string $characterName = null,
+        public bool $hasUser = false,
+    ) {
     }
 }

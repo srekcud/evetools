@@ -9,6 +9,7 @@ use App\Exception\EsiApiException;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Uid\Uuid;
@@ -37,6 +38,7 @@ class EsiClient
         private readonly string $baseUrl,
         private readonly LoggerInterface $logger,
         private readonly ClockInterface $clock = new NativeClock(),
+        private readonly EsiErrorBudget $errorBudget = new EsiErrorBudget(new ArrayAdapter()),
     ) {
     }
 
@@ -227,6 +229,7 @@ class EsiClient
                 } else {
                     // Consume body to prevent curl handle issues
                     $response->getContent(false);
+                    $this->recordIfLimited($statusCode, $paginatedEndpoint);
                     throw EsiApiException::fromResponse($statusCode, 'ESI request failed', $paginatedEndpoint);
                 }
             } catch (TransportExceptionInterface $e) {
@@ -254,6 +257,7 @@ class EsiClient
             $response->getContent(false);
 
             if ($statusCode < 200 || $statusCode >= 300) {
+                $this->recordIfLimited($statusCode, $endpoint);
                 $message = match ($statusCode) {
                     401 => 'Authentication failed',
                     403 => 'Access forbidden',
@@ -360,7 +364,7 @@ class EsiClient
             try {
                 $statusCode = $response->getStatusCode();
                 if ($statusCode === 420 || $statusCode === 429) {
-                    $retryDelays[$key] = $this->retryDelaySeconds($response, $statusCode);
+                    $retryDelays[$key] = $this->retryDelaySeconds($response, $statusCode, $requests[$key]['endpoint']);
                     continue;
                 }
 
@@ -436,7 +440,7 @@ class EsiClient
             return $response;
         }
 
-        $sleepSeconds = $this->retryDelaySeconds($response, $statusCode);
+        $sleepSeconds = $this->retryDelaySeconds($response, $statusCode, $endpoint);
         $this->logger->warning('ESI {status} received, sleeping {seconds}s before retry', [
             'status' => $statusCode,
             'seconds' => $sleepSeconds,
@@ -459,9 +463,10 @@ class EsiClient
      * Records the error-limit headers of a 420/429 response, releases its body and returns
      * how long to wait before replaying it: Retry-After for a 429, else the error-limit reset.
      */
-    private function retryDelaySeconds(ResponseInterface $response, int $statusCode): int
+    private function retryDelaySeconds(ResponseInterface $response, int $statusCode, string $endpoint): int
     {
         $this->processRateLimitHeaders($response);
+        $this->errorBudget->recordLimitedResponse($statusCode, $endpoint);
         // Consume response body to prevent curl handle issues
         $response->getContent(false);
 
@@ -543,6 +548,7 @@ class EsiClient
     {
         // Consume response body to prevent curl handle issues
         $response->getContent(false);
+        $this->recordIfLimited($statusCode, $endpoint);
 
         $message = match ($statusCode) {
             401 => 'Authentication failed',
@@ -571,19 +577,29 @@ class EsiClient
         if (isset($headers['x-esi-error-limit-reset'][0])) {
             $this->errorLimitReset = (int) $headers['x-esi-error-limit-reset'][0];
         }
+        if (isset($headers['x-esi-error-limit-remain'][0], $headers['x-esi-error-limit-reset'][0])) {
+            $this->errorBudget->observe($this->errorLimitRemain, $this->errorLimitReset);
+        }
+    }
+
+    private function recordIfLimited(int $statusCode, string $endpoint): void
+    {
+        if ($statusCode === 420 || $statusCode === 429) {
+            $this->errorBudget->recordLimitedResponse($statusCode, $endpoint);
+        }
     }
 
     private function throttleIfNeeded(): void
     {
-        if ($this->errorLimitRemain < 5) {
+        if ($this->errorLimitRemain < EsiErrorBudget::CRITICAL_BELOW) {
             $sleepSeconds = $this->errorLimitWaitSeconds();
             $this->logger->warning('ESI error limit critical ({remain} remaining), pausing {seconds}s', [
                 'remain' => $this->errorLimitRemain,
                 'seconds' => $sleepSeconds,
             ]);
             $this->clock->sleep($sleepSeconds);
-        } elseif ($this->errorLimitRemain < 20) {
-            $delayMs = (20 - $this->errorLimitRemain) * 100;
+        } elseif ($this->errorLimitRemain < EsiErrorBudget::LOW_BELOW) {
+            $delayMs = (EsiErrorBudget::LOW_BELOW - $this->errorLimitRemain) * 100;
             $this->logger->info('ESI error limit low ({remain} remaining), throttling {delay}ms', [
                 'remain' => $this->errorLimitRemain,
                 'delay' => $delayMs,

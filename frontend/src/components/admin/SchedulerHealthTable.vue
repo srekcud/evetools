@@ -5,12 +5,11 @@ import type { SchedulerHealthEntry } from '@/stores/admin'
 
 defineProps<{
   entries: SchedulerHealthEntry[]
-  syncActionMap: Record<string, { action: () => Promise<{ success: boolean; message: string }>; key: string }>
   actionLoading: string | null
 }>()
 
 const emit = defineEmits<{
-  'execute-action': [key: string, action: () => Promise<{ success: boolean; message: string }>]
+  'execute-action': [type: string]
 }>()
 
 const { t } = useI18n()
@@ -85,14 +84,14 @@ function formatInterval(seconds: number): string {
             </td>
             <td class="py-2.5 text-center">
               <button
-                v-if="syncActionMap[entry.type]"
-                @click="emit('execute-action', syncActionMap[entry.type].key, syncActionMap[entry.type].action)"
+                v-if="entry.triggerable"
+                @click="emit('execute-action', entry.type)"
                 :disabled="actionLoading !== null"
                 class="p-1.5 rounded-sm hover:bg-cyan-500/20 text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 :title="t('admin.triggerSync')"
                 :aria-label="t('admin.triggerSync')"
               >
-                <svg aria-hidden="true" :class="['w-3.5 h-3.5', actionLoading === syncActionMap[entry.type].key ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" :class="['w-3.5 h-3.5', actionLoading === entry.type ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
               </button>
