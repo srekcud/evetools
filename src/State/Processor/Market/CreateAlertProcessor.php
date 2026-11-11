@@ -104,6 +104,7 @@ class CreateAlertProcessor implements ProcessorInterface
         $resource->status = $alert->getStatus()->value;
         $resource->currentPrice = $currentPrice;
         $resource->triggeredAt = null;
+        $resource->triggeredPrice = null;
         $resource->createdAt = $alert->getCreatedAt()->format('c');
 
         return $resource;

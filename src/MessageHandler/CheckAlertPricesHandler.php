@@ -29,7 +29,7 @@ final readonly class CheckAlertPricesHandler
         $this->syncTracker->start('alert-prices');
 
         try {
-            $typeIds = $this->alertRepository->getActiveAlertTypeIds();
+            $typeIds = $this->alertRepository->getWatchedAlertTypeIds();
 
             if (empty($typeIds)) {
                 $this->logger->info('No active alerts, skipping alert price refresh');

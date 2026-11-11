@@ -16,6 +16,7 @@ use App\Service\JitaMarketService;
 use App\Service\StructureMarketService;
 use App\State\Provider\Market\MarketAlertCollectionProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -87,7 +88,27 @@ class MarketAlertCollectionProviderTest extends TestCase
         $this->assertSame('jita_sell', $resource->priceSource);
         $this->assertSame('active', $resource->status);
         $this->assertNull($resource->triggeredAt);
+        $this->assertNull($resource->triggeredPrice);
         $this->assertNotEmpty($resource->createdAt);
+    }
+
+    #[Group('issue-626')]
+    public function testExposesTheLastTriggerDateAndPriceOfARearmedAlert(): void
+    {
+        $user = $this->createUserStub();
+        $this->security->method('getUser')->willReturn($user);
+        $alert = $this->createAlert($user, 37, 'Isogen', AlertDirection::Above, 9000000.0, AlertPriceSource::JitaSell);
+        $alert->setTriggeredAt(new \DateTimeImmutable('2026-11-09T18:30:00+00:00'));
+        $alert->setTriggeredPrice(9100000.0);
+        $this->alertRepository->method('findByUser')->willReturn([$alert]);
+        $this->jitaMarketService->method('getPricesWithFallback')->willReturn([37 => 8700000.0]);
+        $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn([37 => 8000000.0]);
+
+        $resource = $this->provider->provide(new GetCollection())[0];
+
+        $this->assertSame('active', $resource->status);
+        $this->assertSame('2026-11-09T18:30:00+00:00', $resource->triggeredAt);
+        $this->assertSame(9100000.0, $resource->triggeredPrice);
     }
 
     // ===========================================

@@ -73,6 +73,7 @@ class UpdateAlertProcessor implements ProcessorInterface
         if ($alert->getStatus() === AlertStatus::Triggered) {
             $alert->setStatus(AlertStatus::Active);
             $alert->setTriggeredAt(null);
+            $alert->setTriggeredPrice(null);
         }
 
         $this->em->flush();
@@ -86,6 +87,7 @@ class UpdateAlertProcessor implements ProcessorInterface
         $resource->priceSource = $alert->getPriceSource()->value;
         $resource->status = $alert->getStatus()->value;
         $resource->triggeredAt = $alert->getTriggeredAt()?->format('c');
+        $resource->triggeredPrice = $alert->getTriggeredPrice();
         $resource->createdAt = $alert->getCreatedAt()->format('c');
 
         return $resource;

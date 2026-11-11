@@ -17,6 +17,7 @@ use App\Service\Notification\NotificationDispatcher;
 use App\Service\StructureMarketService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
@@ -311,9 +312,149 @@ class MarketAlertServiceTest extends TestCase
         $this->assertSame(2, $triggered);
     }
 
+    #[Group('issue-626')]
+    public function testAboveAlertStoresThePriceThatTriggeredIt(): void
+    {
+        $alert = $this->createAlert(37, 'Isogen', AlertDirection::Above, 9000000.0, AlertPriceSource::JitaSell);
+        $this->givenAlertsOfAllStatuses([$alert], [37 => 9100000.0], [37 => 8000000.0]);
+
+        $triggered = $this->service->checkAlerts();
+
+        $this->assertSame(1, $triggered);
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
+        $this->assertSame(9100000.0, $alert->getTriggeredPrice());
+    }
+
+    #[Group('issue-626')]
+    public function testTriggeredAboveAlertBecomesActiveAgainWhenPriceFallsBelowThresholdKeepingLastTriggerAndNotifyingNobody(): void
+    {
+        $alert = $this->createAlert(37, 'Isogen', AlertDirection::Above, 9000000.0, AlertPriceSource::JitaSell);
+        $sellPrices = [37 => 9100000.0];
+        $this->givenAlertsOfAllStatuses([$alert], $sellPrices, [37 => 8000000.0], $sellPrices);
+        $dispatcher = $this->createMock(NotificationDispatcher::class);
+        $dispatcher->expects($this->once())->method('dispatch');
+        $this->hub->expects($this->once())->method('publish');
+        $service = $this->serviceWith($dispatcher);
+        $service->checkAlerts();
+        $triggeredAt = $alert->getTriggeredAt();
+
+        $sellPrices = [37 => 8700000.0];
+        $triggeredOnSecondCheck = $service->checkAlerts();
+
+        $this->assertSame(0, $triggeredOnSecondCheck);
+        $this->assertSame(AlertStatus::Active, $alert->getStatus());
+        $this->assertSame($triggeredAt, $alert->getTriggeredAt());
+        $this->assertSame(9100000.0, $alert->getTriggeredPrice());
+    }
+
+    #[Group('issue-626')]
+    public function testRearmedAboveAlertTriggersAgainAndOverwritesTheLastTriggerAndNotifies(): void
+    {
+        $alert = $this->createAlert(37, 'Isogen', AlertDirection::Above, 9000000.0, AlertPriceSource::JitaSell);
+        $alert->setStatus(AlertStatus::Active)
+            ->setTriggeredAt(new \DateTimeImmutable('2026-11-01T10:00:00+00:00'))
+            ->setTriggeredPrice(9100000.0);
+        $this->givenAlertsOfAllStatuses([$alert], [37 => 9200000.0], [37 => 8000000.0]);
+        $dispatcher = $this->createMock(NotificationDispatcher::class);
+        $dispatcher->expects($this->once())->method('dispatch');
+        $this->hub->expects($this->once())->method('publish');
+
+        $triggered = $this->serviceWith($dispatcher)->checkAlerts();
+
+        $this->assertSame(1, $triggered);
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
+        $this->assertSame(9200000.0, $alert->getTriggeredPrice());
+        $this->assertGreaterThan(new \DateTimeImmutable('2026-11-01T10:00:00+00:00'), $alert->getTriggeredAt());
+    }
+
+    #[Group('issue-626')]
+    public function testTriggeredBelowAlertBecomesActiveAgainWhenPriceRisesAboveThresholdKeepingLastTrigger(): void
+    {
+        $alert = $this->createAlert(35, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $triggeredAt = new \DateTimeImmutable('2026-11-09T18:30:00+00:00');
+        $alert->setStatus(AlertStatus::Triggered)->setTriggeredAt($triggeredAt)->setTriggeredPrice(8.6875);
+        $this->givenAlertsOfAllStatuses([$alert], [35 => 11.0], [35 => 9.5]);
+        $dispatcher = $this->createMock(NotificationDispatcher::class);
+        $dispatcher->expects($this->never())->method('dispatch');
+        $this->hub->expects($this->never())->method('publish');
+        $this->em->expects($this->atLeastOnce())->method('flush');
+
+        $triggered = $this->serviceWith($dispatcher)->checkAlerts();
+
+        $this->assertSame(0, $triggered);
+        $this->assertSame(AlertStatus::Active, $alert->getStatus());
+        $this->assertSame($triggeredAt, $alert->getTriggeredAt());
+        $this->assertSame(8.6875, $alert->getTriggeredPrice());
+    }
+
+    #[Group('issue-626')]
+    public function testTriggeredAlertStaysTriggeredWhilePriceStillMeetsOrEqualsTheThreshold(): void
+    {
+        $above = $this->createAlert(37, 'Isogen', AlertDirection::Above, 9000000.0, AlertPriceSource::JitaSell);
+        $below = $this->createAlert(35, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $above->setStatus(AlertStatus::Triggered)->setTriggeredAt(new \DateTimeImmutable('2026-11-09T18:30:00+00:00'))->setTriggeredPrice(9100000.0);
+        $below->setStatus(AlertStatus::Triggered)->setTriggeredAt(new \DateTimeImmutable('2026-11-09T18:30:00+00:00'))->setTriggeredPrice(8.5);
+        $this->givenAlertsOfAllStatuses([$above, $below], [37 => 9000000.0, 35 => 20.0], [37 => 1.0, 35 => 9.125]);
+        $this->hub->expects($this->never())->method('publish');
+        $this->em->expects($this->never())->method('flush');
+
+        $this->service->checkAlerts();
+
+        $this->assertSame([AlertStatus::Triggered, AlertStatus::Triggered], [$above->getStatus(), $below->getStatus()]);
+        $this->assertSame([9100000.0, 8.5], [$above->getTriggeredPrice(), $below->getTriggeredPrice()]);
+    }
+
+    #[Group('issue-626')]
+    public function testTriggeredAlertWithoutCurrentPriceStaysTriggered(): void
+    {
+        $alert = $this->createAlert(37, 'Isogen', AlertDirection::Above, 9000000.0, AlertPriceSource::JitaSell);
+        $triggeredAt = new \DateTimeImmutable('2026-11-09T18:30:00+00:00');
+        $alert->setStatus(AlertStatus::Triggered)->setTriggeredAt($triggeredAt)->setTriggeredPrice(9100000.0);
+        $this->givenAlertsOfAllStatuses([$alert], [], []);
+        $this->hub->expects($this->never())->method('publish');
+        $this->em->expects($this->never())->method('flush');
+
+        $this->service->checkAlerts();
+
+        $this->assertSame(AlertStatus::Triggered, $alert->getStatus());
+        $this->assertSame($triggeredAt, $alert->getTriggeredAt());
+        $this->assertSame(9100000.0, $alert->getTriggeredPrice());
+    }
+
     // ===========================================
     // Helpers
     // ===========================================
+
+    private function givenAlertsOfAllStatuses(array $alerts, array $sellPrices, array $buyPrices, ?array &$liveSellPrices = null): void
+    {
+        $this->alertRepository->method('findActiveAlerts')->willReturnCallback(
+            static fn (): array => array_values(array_filter($alerts, static fn (MarketPriceAlert $a): bool => $a->getStatus() === AlertStatus::Active)),
+        );
+        $this->alertRepository->method('findTriggeredAlerts')->willReturnCallback(
+            static fn (): array => array_values(array_filter($alerts, static fn (MarketPriceAlert $a): bool => $a->getStatus() === AlertStatus::Triggered)),
+        );
+        if ($liveSellPrices !== null) {
+            $this->jitaMarketService->method('getPricesWithFallback')->willReturnCallback(static function () use (&$liveSellPrices): array {
+                return $liveSellPrices;
+            });
+        } else {
+            $this->jitaMarketService->method('getPricesWithFallback')->willReturn($sellPrices);
+        }
+        $this->jitaMarketService->method('getBuyPricesWithFallback')->willReturn($buyPrices);
+    }
+
+    private function serviceWith(NotificationDispatcher $dispatcher): MarketAlertService
+    {
+        return new MarketAlertService(
+            $this->alertRepository,
+            $this->jitaMarketService,
+            $this->structureMarketService,
+            $this->em,
+            new NullLogger(),
+            new MercurePublisherService($this->hub, new NullLogger()),
+            $dispatcher,
+        );
+    }
 
     private function createUserStub(): User&Stub
     {

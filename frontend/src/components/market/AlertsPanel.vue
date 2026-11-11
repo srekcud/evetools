@@ -100,6 +100,13 @@ function priceSourceLabel(priceSource: string): string {
                   <div class="text-xs text-slate-500">
                     {{ priceSourceLabel(alert.priceSource) }}
                   </div>
+                  <div
+                    v-if="alert.triggeredAt && alert.triggeredPrice !== null"
+                    class="text-xs text-amber-400/80"
+                    data-testid="alert-last-trigger"
+                  >
+                    {{ t('market.alert.lastTrigger', { date: formatDate(alert.triggeredAt), price: formatIsk(alert.triggeredPrice) }) }}
+                  </div>
                 </div>
               </button>
             </td>

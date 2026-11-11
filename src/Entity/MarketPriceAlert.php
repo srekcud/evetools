@@ -49,6 +49,9 @@ class MarketPriceAlert
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $triggeredAt = null;
 
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $triggeredPrice = null;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -150,6 +153,17 @@ class MarketPriceAlert
         return $this;
     }
 
+    public function getTriggeredPrice(): ?float
+    {
+        return $this->triggeredPrice;
+    }
+
+    public function setTriggeredPrice(?float $triggeredPrice): static
+    {
+        $this->triggeredPrice = $triggeredPrice;
+        return $this;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -167,10 +181,17 @@ class MarketPriceAlert
         return $thisId->equals($otherId);
     }
 
-    public function trigger(): static
+    public function trigger(float $currentPrice): static
     {
         $this->status = AlertStatus::Triggered;
         $this->triggeredAt = new \DateTimeImmutable();
+        $this->triggeredPrice = $currentPrice;
+        return $this;
+    }
+
+    public function rearm(): static
+    {
+        $this->status = AlertStatus::Active;
         return $this;
     }
 }

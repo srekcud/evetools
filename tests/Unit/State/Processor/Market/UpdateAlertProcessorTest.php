@@ -59,6 +59,20 @@ final class UpdateAlertProcessorTest extends TestCase
         $this->assertNull($resource->triggeredAt);
     }
 
+    #[Group('issue-626')]
+    public function testManualRearmClearsTheLastTriggerPriceAlongWithItsDate(): void
+    {
+        $user = $this->createUser(self::USER_ID);
+        $alert = $this->triggeredAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy)
+            ->setTriggeredPrice(8.6875);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+
+        $resource = $this->processorFor($user, $alert, $entityManager)->process($this->input(threshold: 8.0), new Patch(), ['id' => self::ALERT_ID]);
+
+        $this->assertNull($alert->getTriggeredPrice());
+        $this->assertNull($resource->triggeredPrice);
+    }
+
     public function testRearmsATriggeredAlertSavedWithAnEmptyBodyAndKeepsItsThresholdAndDirection(): void
     {
         $user = $this->createUser(self::USER_ID);

@@ -73,7 +73,7 @@ final class CheckAlertPricesHandlerTest extends TestCase
     {
         $trackerStatusesDuringRefresh = [];
         $alertRepository = $this->createStub(MarketPriceAlertRepository::class);
-        $alertRepository->method('getActiveAlertTypeIds')->willReturnCallback(function () use (&$trackerStatusesDuringRefresh): array {
+        $alertRepository->method('getWatchedAlertTypeIds')->willReturnCallback(function () use (&$trackerStatusesDuringRefresh): array {
             $trackerStatusesDuringRefresh[] = $this->trackerState()['status'];
 
             return [self::PYERITE];
@@ -146,7 +146,7 @@ final class CheckAlertPricesHandlerTest extends TestCase
     public function testFailsWithTheErrorOfTheAlertCheck(): void
     {
         $alertRepository = $this->createStub(MarketPriceAlertRepository::class);
-        $alertRepository->method('getActiveAlertTypeIds')->willReturn([self::TRITANIUM]);
+        $alertRepository->method('getWatchedAlertTypeIds')->willReturn([self::TRITANIUM]);
         $alertRepository->method('findActiveAlerts')->willThrowException(new \RuntimeException('Alert table locked'));
         $handler = $this->createHandler($alertRepository, [
             $this->theForgeOrdersRoute(self::TRITANIUM) => [[$this->esiSellOrder(self::TRITANIUM, 3.875, 1200, self::JITA_STATION)]],
@@ -176,6 +176,28 @@ final class CheckAlertPricesHandlerTest extends TestCase
         $this->assertMatchesRegularExpression('/^1 types refreshed in 0(\.\d+)?s, 1 alerts triggered$/', $tracker['message']);
         $this->assertSame(AlertStatus::Triggered, $tritaniumBelowAlert->getStatus());
         $this->assertSame([$this->theForgeOrdersUrl(self::TRITANIUM)], $this->esiUrlsWithoutPage($this->requestedEsiUrls));
+    }
+
+    #[Group('issue-626')]
+    public function testRefreshesTheTypesOfTriggeredAlertsAndRearmsThemWhenOnlyTriggeredAlertsExist(): void
+    {
+        $tritaniumTriggeredAlert = $this->jitaSellAlert(self::TRITANIUM, AlertDirection::Below, 3.9)->setStatus(AlertStatus::Triggered);
+        $alertRepository = $this->createStub(MarketPriceAlertRepository::class);
+        $alertRepository->method('getWatchedAlertTypeIds')->willReturn([self::TRITANIUM]);
+        $alertRepository->method('findActiveAlerts')->willReturn([]);
+        $alertRepository->method('findTriggeredAlerts')->willReturn([$tritaniumTriggeredAlert]);
+        $handler = $this->createHandler($alertRepository, [
+            $this->theForgeOrdersRoute(self::TRITANIUM) => [[
+                $this->esiSellOrder(self::TRITANIUM, 4.25, 800, self::JITA_STATION),
+                $this->esiBuyOrder(self::TRITANIUM, 3.625, 2100, self::JITA_STATION),
+            ]],
+        ]);
+
+        $handler(new CheckAlertPrices());
+
+        $this->assertSame('ok', $this->trackerState()['status']);
+        $this->assertSame([$this->theForgeOrdersUrl(self::TRITANIUM)], $this->esiUrlsWithoutPage($this->requestedEsiUrls));
+        $this->assertSame(AlertStatus::Active, $tritaniumTriggeredAlert->getStatus());
     }
 
     private function createHandler(MarketPriceAlertRepository $alertRepository, array $esiResponsesByRoute): CheckAlertPricesHandler
@@ -220,7 +242,7 @@ final class CheckAlertPricesHandlerTest extends TestCase
     private function alertRepository(array $activeAlertTypeIds, array $activeAlerts): MarketPriceAlertRepository
     {
         $alertRepository = $this->createStub(MarketPriceAlertRepository::class);
-        $alertRepository->method('getActiveAlertTypeIds')->willReturn($activeAlertTypeIds);
+        $alertRepository->method('getWatchedAlertTypeIds')->willReturn($activeAlertTypeIds);
         $alertRepository->method('findActiveAlerts')->willReturn($activeAlerts);
 
         return $alertRepository;

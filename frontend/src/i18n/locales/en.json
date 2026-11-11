@@ -3617,6 +3617,7 @@
     "alert": {
       "create": "Create Alert",
       "edit": "Edit Alert",
+      "lastTrigger": "Triggered on {date} at {price} ISK",
       "rearm": "Save and re-arm",
       "readOnlyHint": "The item and the price source cannot be changed",
       "setAlert": "Set Alert",
