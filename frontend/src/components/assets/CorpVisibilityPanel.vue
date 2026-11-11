@@ -3,13 +3,14 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePilotName } from '@/composables/usePilotName'
 import type { CorpAssetVisibility } from '@/types'
+import type { CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 
 const props = defineProps<{
   visibility: CorpAssetVisibility
 }>()
 
 const emit = defineEmits<{
-  save: [payload: { visibleDivisions: number[]; restrictedDivisions: Record<number, string[]> }]
+  save: [payload: CorporationVisibilityPayload]
 }>()
 
 const { t } = useI18n()
@@ -30,6 +31,7 @@ const MODE_LABEL_KEYS: Record<DivisionMode, string> = {
 
 const divisionModes = ref<Record<number, DivisionMode>>({})
 const listedPlayerIds = ref<Record<number, string[]>>({})
+const shareBlueprintsOfHiddenDivisions = ref(true)
 
 const isEditable = computed(() => props.visibility.isDirector)
 
@@ -52,6 +54,7 @@ function resetSelections() {
   }
   divisionModes.value = modes
   listedPlayerIds.value = players
+  shareBlueprintsOfHiddenDivisions.value = props.visibility.shareBlueprintsOfHiddenDivisions
 }
 
 const sortedDivisions = computed(() =>
@@ -68,7 +71,7 @@ function currentMode(divisionNumber: number): DivisionMode {
   return divisionModes.value[divisionNumber] ?? modeOf(divisionNumber)
 }
 
-const pendingPayload = computed(() => {
+const pendingPayload = computed((): CorporationVisibilityPayload => {
   const visibleDivisions: number[] = []
   const restrictedDivisions: Record<number, string[]> = {}
   for (const division of sortedDivisions.value) {
@@ -80,15 +83,19 @@ const pendingPayload = computed(() => {
       restrictedDivisions[division.number] = [...playerIds].sort()
     }
   }
-  return { visibleDivisions, restrictedDivisions }
+  return { visibleDivisions, restrictedDivisions, shareBlueprintsOfHiddenDivisions: shareBlueprintsOfHiddenDivisions.value }
 })
 
-const savedPayload = computed(() => {
+const savedPayload = computed((): CorporationVisibilityPayload => {
   const restrictedDivisions: Record<number, string[]> = {}
   for (const [number, players] of Object.entries(props.visibility.restrictedDivisions)) {
     if (players.length > 0) restrictedDivisions[Number(number)] = players.map(player => player.id).sort()
   }
-  return { visibleDivisions: [...props.visibility.visibleDivisions].sort(), restrictedDivisions }
+  return {
+    visibleDivisions: [...props.visibility.visibleDivisions].sort(),
+    restrictedDivisions,
+    shareBlueprintsOfHiddenDivisions: props.visibility.shareBlueprintsOfHiddenDivisions,
+  }
 })
 
 const hasChanges = computed(() => JSON.stringify(pendingPayload.value) !== JSON.stringify(savedPayload.value))
@@ -287,6 +294,37 @@ defineExpose({ onSaveComplete, onSaveError })
             </span>
           </div>
         </div>
+      </div>
+
+      <label
+        v-if="isEditable"
+        class="flex items-start gap-3 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800/50 cursor-pointer hover:border-slate-600 transition-colors"
+      >
+        <input
+          v-model="shareBlueprintsOfHiddenDivisions"
+          data-testid="share-blueprints-checkbox"
+          type="checkbox"
+          class="mt-0.5 w-4 h-4 shrink-0 rounded border-slate-600 bg-slate-900 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-slate-900"
+        />
+        <span class="space-y-0.5">
+          <span class="block text-sm text-slate-200">{{ t('assets.visibility.shareBlueprints') }}</span>
+          <span class="block text-xs text-slate-500">{{ t('assets.visibility.shareBlueprintsHelp') }}</span>
+        </span>
+      </label>
+      <div
+        v-else
+        data-testid="share-blueprints-state"
+        class="px-3 py-2 rounded-lg border border-slate-700 bg-slate-800/50 space-y-0.5"
+      >
+        <span
+          :class="[
+            'block text-sm',
+            props.visibility.shareBlueprintsOfHiddenDivisions ? 'text-cyan-400' : 'text-slate-400'
+          ]"
+        >
+          {{ t(props.visibility.shareBlueprintsOfHiddenDivisions ? 'assets.visibility.shareBlueprintsOn' : 'assets.visibility.shareBlueprintsOff') }}
+        </span>
+        <span class="block text-xs text-slate-500">{{ t('assets.visibility.shareBlueprintsHelp') }}</span>
       </div>
 
       <!-- Footer: metadata + save -->
