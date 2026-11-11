@@ -88,6 +88,7 @@ class CorpAssetVisibilityProviderTest extends TestCase
         $this->assertNull($result->configuredByName);
         $this->assertNull($result->updatedAt);
         $this->assertSame([1 => 'Minerals', 2 => 'Fuel'], $result->allDivisions);
+        $this->assertTrue($result->shareBlueprintsOfHiddenDivisions);
     }
 
     // ===========================================
@@ -103,6 +104,7 @@ class CorpAssetVisibilityProviderTest extends TestCase
         $visibility = new CorpAssetVisibility();
         $visibility->setCorporationId(98000001);
         $visibility->setVisibleDivisions([1, 3]);
+        $visibility->setShareBlueprintsOfHiddenDivisions(false);
         $visibility->setConfiguredBy($configUser);
         $visibility->setUpdatedAt(new \DateTimeImmutable('2026-01-15T12:00:00Z'));
 
@@ -120,6 +122,7 @@ class CorpAssetVisibilityProviderTest extends TestCase
         $this->assertSame('ConfigAdmin', $result->configuredByName);
         $this->assertNotNull($result->updatedAt);
         $this->assertSame([1 => 'Materials', 2 => 'Ships', 3 => 'Ammo'], $result->allDivisions);
+        $this->assertFalse($result->shareBlueprintsOfHiddenDivisions);
     }
 
     // ===========================================
