@@ -2255,6 +2255,28 @@
     "missingVolumeWarning": "Unknown volume in the SDE for: {types}. Their volume and the total volume are unknown."
   },
   "admin": {
+    "tabs": {
+      "health": "Health",
+      "users": "Users",
+      "statistics": "Statistics"
+    },
+    "status": {
+      "levels": {
+        "ok": "All systems operational",
+        "degraded": "Degraded",
+        "down": "Down",
+        "unknown": "Status unavailable"
+      },
+      "rules": {
+        "scheduler_stale": "{count} scheduled task(s) stale",
+        "scheduler_error": "{count} scheduled task(s) in error",
+        "failed_messages": "{count} failed message(s) in the queue",
+        "async_queue_backlog": "Async queue backlog: {count} messages (above {threshold})",
+        "async_queue_unreachable": "Async queue unreachable",
+        "failed_queue_unreachable": "Failed queue unreachable",
+        "tokens_invalid": "{count} user(s) with an invalid token"
+      }
+    },
     "title": "Administration",
     "subtitle": "Platform statistics and metrics",
     "users": "Users",
@@ -2269,6 +2291,25 @@
     },
     "maintenance": "Maintenance",
     "clearCache": "Clear Cache",
+    "confirm": {
+      "purgeFailed": {
+        "title": "Purge failed messages?",
+        "message": "{count} failed message will be deleted permanently. | {count} failed messages will be deleted permanently.",
+        "messageUnknownCount": "The failed messages will be deleted permanently. Their count could not be read."
+      },
+      "clearCache": {
+        "title": "Clear the cache?",
+        "message": "The application cache will be emptied. Pages can be slower until it fills again."
+      },
+      "purgeNotifications": {
+        "title": "Purge notifications?",
+        "message": "Every notification older than 7 days will be deleted."
+      },
+      "purgeMarketHistory": {
+        "title": "Purge market history?",
+        "message": "Every market history entry older than 365 days will be deleted."
+      }
+    },
     "kpi": {
       "validAuth": "Valid auth",
       "invalidAuth": "Invalid auth",
@@ -2298,6 +2339,10 @@
       "title": "Synchronizations",
       "type": "Type",
       "lastRun": "Last run",
+      "nextRun": "Next run",
+      "duration": "Duration",
+      "nextRunIn": "in {delay}",
+      "overdueBy": "overdue by {delay}",
       "status": "Status",
       "health": "Health",
       "message": "Message",
@@ -2348,9 +2393,6 @@
       "onDemandHint": "On demand (not scheduled)"
     },
     "scheduler": {
-      "title": "Scheduler & Rate Limiting",
-      "syncScope": "Sync scope",
-      "activeChars": "active chars (login < 7d)",
       "throttleEsi": "ESI throttle: progressive under 20 errors remain, pause under 5"
     },
     "charts": {

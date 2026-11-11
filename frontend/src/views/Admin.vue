@@ -5,8 +5,9 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminStore } from '@/stores/admin'
 import { useSyncStore } from '@/stores/sync'
-import { useFormatters } from '@/composables/useFormatters'
+import { useTabQuery } from '@/composables/useTabQuery'
 import MainLayout from '@/layouts/MainLayout.vue'
+import AdminStatusBanner from '@/components/admin/AdminStatusBanner.vue'
 import AdminKpiGrid from '@/components/admin/AdminKpiGrid.vue'
 import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
@@ -45,7 +46,13 @@ const { t } = useI18n()
 const router = useRouter()
 const adminStore = useAdminStore()
 const syncStore = useSyncStore()
-const { formatNumber } = useFormatters()
+
+type AdminTab = 'health' | 'users' | 'statistics'
+
+const ADMIN_TABS: readonly AdminTab[] = ['health', 'users', 'statistics']
+const DEFAULT_ADMIN_TAB: AdminTab = 'health'
+
+const activeTab = useTabQuery(ADMIN_TABS, DEFAULT_ADMIN_TAB)
 
 const hasAccess = ref(false)
 const isCheckingAccess = ref(true)
@@ -68,6 +75,7 @@ onMounted(async () => {
 const stats = computed(() => adminStore.stats)
 const queues = computed(() => adminStore.queues)
 const charts = computed(() => adminStore.charts)
+const failedMessageCount = computed(() => queues.value?.queues.failed ?? null)
 
 const syncActionMap: Record<string, { action: () => Promise<{ success: boolean; message: string }>; key: string }> = {
   'assets': { action: adminStore.syncAssets, key: 'sync-assets' },
@@ -163,6 +171,7 @@ watch(
         text: `${t('admin.sync.syncCompleted', { type: syncType || '' })} : ${progress.message || 'OK'}`,
       }
       adminStore.fetchStats().then(flashStats)
+      adminStore.fetchStatus()
       syncStore.clearSyncStatus('admin-sync')
       setTimeout(() => { actionMessage.value = null }, 5000)
     } else if (progress.status === 'error') {
@@ -173,6 +182,7 @@ watch(
         text: `${t('admin.sync.syncError', { type: syncType || '' })} : ${progress.message || t('admin.sync.unknownError')}`,
       }
       adminStore.fetchStats()
+      adminStore.fetchStatus()
       syncStore.clearSyncStatus('admin-sync')
       setTimeout(() => { actionMessage.value = null }, 8000)
     }
@@ -229,47 +239,63 @@ watch(
         </div>
       </Transition>
 
-      <!-- KPI Grid (3 rows) -->
-      <div class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
-        <AdminKpiGrid :stats="stats" :queues="queues" />
-      </div>
-
-      <!-- Scheduler Health + Maintenance Actions -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2">
-          <SchedulerHealthTable
-            :entries="stats?.schedulerHealth || []"
-            :sync-action-map="syncActionMap"
-            :action-loading="actionLoading"
-            @execute-action="handleSchedulerAction"
-          />
-        </div>
-        <MaintenanceActions
-          :action-loading="actionLoading"
-          @execute-action="handleMaintenanceAction"
-        />
-      </div>
-
-      <!-- Scheduler Config -->
-      <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">
-        <h3 class="text-lg font-semibold text-slate-200 mb-4">{{ t('admin.scheduler.title') }}</h3>
-        <div class="flex items-center gap-4 text-sm text-slate-400">
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
-            <span>{{ t('admin.scheduler.syncScope') }} : <strong class="text-yellow-300">{{ formatNumber(stats?.characters?.activeSyncScope) }}</strong> {{ t('admin.scheduler.activeChars') }} / {{ formatNumber(stats?.characters?.total) }} total</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-cyan-400"></div>
-            <span>{{ t('admin.scheduler.throttleEsi') }}</span>
-          </div>
+      <div class="border-b border-slate-800 overflow-x-auto">
+        <div class="flex gap-6 min-w-max" role="tablist">
+          <button
+            v-for="tab in ADMIN_TABS"
+            :key="tab"
+            :data-testid="`admin-tab-${tab}`"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === tab"
+            class="px-1 pb-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap"
+            :class="activeTab === tab ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'"
+            @click="activeTab = tab"
+          >
+            {{ t(`admin.tabs.${tab}`) }}
+          </button>
         </div>
       </div>
 
-      <!-- Charts -->
-      <AdminChartsGrid :charts="charts" />
+      <template v-if="activeTab === 'health'">
+        <AdminStatusBanner :status="adminStore.status" />
 
-      <!-- PVE Stats by Corporation -->
-      <PveCorpRevenue :pve="stats?.pve" />
+        <div id="admin-section-kpis" class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
+          <AdminKpiGrid :stats="stats" :queues="queues" scope="operations" />
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div id="admin-section-scheduler-health" class="lg:col-span-2">
+            <SchedulerHealthTable
+              :entries="stats?.schedulerHealth || []"
+              :sync-action-map="syncActionMap"
+              :action-loading="actionLoading"
+              @execute-action="handleSchedulerAction"
+            />
+          </div>
+          <div id="admin-section-maintenance">
+            <MaintenanceActions
+              :action-loading="actionLoading"
+              :failed-message-count="failedMessageCount"
+              @execute-action="handleMaintenanceAction"
+            />
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="activeTab === 'users'">
+        <div class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
+          <AdminKpiGrid :stats="stats" :queues="queues" scope="users" />
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
+          <AdminKpiGrid :stats="stats" :queues="queues" scope="statistics" />
+        </div>
+        <AdminChartsGrid :charts="charts" />
+        <PveCorpRevenue :pve="stats?.pve" />
+      </template>
     </div>
   </MainLayout>
 </template>

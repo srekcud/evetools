@@ -2255,6 +2255,28 @@
     "missingVolumeWarning": "Volume inconnu dans le SDE pour : {types}. Leur volume et le volume total sont inconnus."
   },
   "admin": {
+    "tabs": {
+      "health": "Santé",
+      "users": "Utilisateurs",
+      "statistics": "Statistiques"
+    },
+    "status": {
+      "levels": {
+        "ok": "Tous les systèmes opérationnels",
+        "degraded": "Dégradé",
+        "down": "En panne",
+        "unknown": "Statut indisponible"
+      },
+      "rules": {
+        "scheduler_stale": "{count} tâche(s) planifiée(s) en retard critique",
+        "scheduler_error": "{count} tâche(s) planifiée(s) en erreur",
+        "failed_messages": "{count} message(s) en échec dans la file",
+        "async_queue_backlog": "File async engorgée : {count} messages (au-dessus de {threshold})",
+        "async_queue_unreachable": "File async injoignable",
+        "failed_queue_unreachable": "File des échecs injoignable",
+        "tokens_invalid": "{count} utilisateur(s) avec un token invalide"
+      }
+    },
     "title": "Administration",
     "subtitle": "Statistiques et metriques de la plateforme",
     "users": "Utilisateurs",
@@ -2269,6 +2291,25 @@
     },
     "maintenance": "Maintenance",
     "clearCache": "Clear Cache",
+    "confirm": {
+      "purgeFailed": {
+        "title": "Purger les messages en echec ?",
+        "message": "{count} message en echec sera supprime definitivement. | {count} messages en echec seront supprimes definitivement.",
+        "messageUnknownCount": "Les messages en echec seront supprimes definitivement. Leur nombre n'a pas pu etre lu."
+      },
+      "clearCache": {
+        "title": "Vider le cache ?",
+        "message": "Le cache de l'application sera vide. Les pages peuvent etre plus lentes le temps qu'il se remplisse."
+      },
+      "purgeNotifications": {
+        "title": "Purger les notifications ?",
+        "message": "Toutes les notifications de plus de 7 jours seront supprimees."
+      },
+      "purgeMarketHistory": {
+        "title": "Purger l'historique marche ?",
+        "message": "Toutes les entrees de l'historique marche de plus de 365 jours seront supprimees."
+      }
+    },
     "kpi": {
       "validAuth": "Auth valide",
       "invalidAuth": "Auth invalide",
@@ -2298,6 +2339,10 @@
       "title": "Synchronisations",
       "type": "Type",
       "lastRun": "Dernier run",
+      "nextRun": "Prochain run",
+      "duration": "Durée",
+      "nextRunIn": "dans {delay}",
+      "overdueBy": "en retard de {delay}",
       "status": "Status",
       "health": "Sante",
       "message": "Message",
@@ -2348,9 +2393,6 @@
       "onDemandHint": "A la demande (non planifie)"
     },
     "scheduler": {
-      "title": "Scheduler & Rate Limiting",
-      "syncScope": "Sync scope",
-      "activeChars": "chars actifs (login < 7j)",
       "throttleEsi": "Throttle ESI : progressif sous 20 errors remain, pause sous 5"
     },
     "charts": {
