@@ -204,6 +204,15 @@ final class PlannedCopyDurationsTest extends TestCase
         self::assertSame([null, [['copy_base_time', $productWithoutCopyTime]]], [$duration->seconds, self::reasonsOf($duration)]);
     }
 
+    public function testCopyWithoutBaseTimeNorAnyKnownCopySkillListsBothCausesBaseTimeFirst(): void
+    {
+        $productWithoutCopyTime = 990_524_002;
+
+        $duration = $this->durationOf($productWithoutCopyTime, self::ONE_RUN, self::RAITARU_ID, StructureChoiceStatus::BestConfigured, [self::AURELIE_ID => 'Aurelie Vanth']);
+
+        self::assertSame([null, [['copy_base_time', $productWithoutCopyTime], ['copy_skills', null]]], [$duration->seconds, self::reasonsOf($duration)]);
+    }
+
     private function durationOf(int $productTypeId, int $runs, ?string $plannedStructureId, ?StructureChoiceStatus $plannedStructureStatus, array $characterNamesByEveCharacterId): PlannedCopyDuration
     {
         $durations = new PlannedCopyDurations(

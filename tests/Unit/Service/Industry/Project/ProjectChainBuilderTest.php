@@ -417,6 +417,20 @@ final class ProjectChainBuilderTest extends TestCase
     }
 
     #[Group('issue-524')]
+    public function testCopyNodePlannedWithoutConfiguredStructureHasAnUnknownDurationCausedByTheMissingCopyStructureAndNoPlannedStructure(): void
+    {
+        $this->givenOwnerCopiesInTheOstingeleRaitaruAtScienceVAndAdvancedIndustryV();
+        $this->copy->setPlannedStructureId(null)->setPlannedStructureStatus('not_configured');
+
+        $copy = $this->node($this->chainOfHammerheads(), self::COPY_LINE_ID);
+
+        self::assertSame(
+            [['seconds' => null, 'missingData' => [['reason' => 'no_copy_structure', 'typeId' => null]]], null],
+            [array_intersect_key($this->plannedCopyDurationOf($copy), ['seconds' => true, 'missingData' => true]), $copy->plannedStructure],
+        );
+    }
+
+    #[Group('issue-524')]
     public function testOnlyTheCopyNodeCarriesAPlannedCopyDuration(): void
     {
         $this->givenOwnerCopiesInTheOstingeleRaitaruAtScienceVAndAdvancedIndustryV();
