@@ -90,6 +90,7 @@ class CreateAlertProcessorTest extends TestCase
         $this->assertSame('active', $result->status);
         $this->assertSame(12.0, $result->currentPrice);
         $this->assertNull($result->triggeredAt);
+        $this->assertNull($result->triggeredPrice);
         $this->assertNotEmpty($result->createdAt);
     }
 
