@@ -256,7 +256,7 @@ class AssetsSyncService
         $directorUser = $this->visibilityRepository->findByCorporationId($corporationId)?->getConfiguredBy();
         if ($directorUser !== null) {
             foreach ($directorUser->getCharacters() as $character) {
-                if ($character->getCorporationId() === $corporationId) {
+                if ($character->getCorporationId() === $corporationId && $character->isAuthValid()) {
                     $token = $character->getEveToken();
                     if ($token !== null && $token->hasScope('esi-assets.read_corporation_assets.v1')) {
                         return $character;
