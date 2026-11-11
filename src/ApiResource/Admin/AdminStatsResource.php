@@ -170,7 +170,6 @@ class MarketStatsDto
 class SchedulerHealthEntryDto
 {
     public string $type;
-    public string $label;
     public string $status;
     public string $health;
     public ?string $startedAt = null;
@@ -182,7 +181,6 @@ class SchedulerHealthEntryDto
 
     public function __construct(
         string $type = '',
-        string $label = '',
         string $status = 'unknown',
         string $health = 'unknown',
         ?string $startedAt = null,
@@ -192,7 +190,6 @@ class SchedulerHealthEntryDto
         bool $onDemand = false,
     ) {
         $this->type = $type;
-        $this->label = $label;
         $this->status = $status;
         $this->health = $health;
         $this->startedAt = $startedAt;

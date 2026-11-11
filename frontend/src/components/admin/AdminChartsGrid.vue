@@ -8,12 +8,25 @@ const props = defineProps<{
   charts: AdminChartData | null
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+const ISO_WEEK_LABEL = /^\d{4}-W(\d{2})$/
+
+function weekLabelOf(isoWeek: string): string {
+  const match = ISO_WEEK_LABEL.exec(isoWeek)
+  if (match === null) throw new Error(`unexpected ISO week label ${isoWeek}`)
+  return t('admin.charts.weekLabel', { week: match[1] })
+}
+
+function weekdayLabelOf(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  return new Date(year, month - 1, day).toLocaleDateString(locale.value, { weekday: 'short' })
+}
 
 const registrationChartData = computed(() => {
   if (!props.charts?.registrations) return null
   return {
-    labels: props.charts.registrations.labels,
+    labels: props.charts.registrations.labels.map(weekLabelOf),
     datasets: [
       {
         label: t('admin.charts.registrations'),
@@ -29,7 +42,7 @@ const registrationChartData = computed(() => {
 const activityChartData = computed(() => {
   if (!props.charts?.activity) return null
   return {
-    labels: props.charts.activity.labels,
+    labels: props.charts.activity.labels.map(weekdayLabelOf),
     datasets: [
       {
         label: t('admin.charts.logins'),
@@ -46,7 +59,7 @@ const activityChartData = computed(() => {
 const assetDistributionData = computed(() => {
   if (!props.charts?.assetDistribution) return null
   return {
-    labels: props.charts.assetDistribution.labels,
+    labels: props.charts.assetDistribution.labels.map(kind => t(`admin.charts.assetKinds.${kind}`)),
     datasets: [
       {
         data: props.charts.assetDistribution.data,

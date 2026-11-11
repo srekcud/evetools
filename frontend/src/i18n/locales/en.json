@@ -2306,7 +2306,35 @@
       "actionFailed": "Action failed",
       "syncCompleted": "Sync {type} completed",
       "syncError": "Sync error {type}",
-      "unknownError": "Unknown error"
+      "unknownError": "Unknown error",
+      "types": {
+        "industry": "Industry jobs",
+        "pve": "PVE",
+        "wallet": "Wallet",
+        "mining": "Mining",
+        "ansiblex": "Ansiblex",
+        "planetary": "Planetary",
+        "market-jita": "Market Jita",
+        "market-structure": "Market structure",
+        "alert-prices": "Alert price refresh",
+        "adjusted-prices": "Adjusted prices",
+        "cost-indices": "Cost indices",
+        "public-contracts": "Public contracts",
+        "corporation-mining-extractions": "Corporation moon chunks",
+        "moon-tax": "Moon tax",
+        "blueprints": "Blueprints",
+        "market-volumes": "Market volumes",
+        "courier-contracts": "Courier contracts",
+        "character-orders": "Character orders",
+        "mining-operation-recurrences": "Recurring mining operations",
+        "moon-chunk-alerts": "Moon chunk alerts",
+        "mining-site-depletion-alerts": "Mining site depletion alerts",
+        "notifications-purge": "Notifications purge",
+        "market-history-purge": "Market history purge",
+        "shared-lists-purge": "Shared lists purge",
+        "assets": "Assets",
+        "market-alerts": "Market alerts"
+      }
     },
     "health": {
       "onTime": "On time",
@@ -2330,7 +2358,12 @@
       "logins": "Logins",
       "registrationsPerWeek": "Registrations per week",
       "loginsLast7d": "Logins (last 7 days)",
-      "assetDistribution": "Asset distribution"
+      "assetDistribution": "Asset distribution",
+      "weekLabel": "Wk {week}",
+      "assetKinds": {
+        "personal": "Personal",
+        "corporation": "Corporation"
+      }
     },
     "pve": {
       "revenueByCorpTitle": "PVE Revenue by Corporation (30d)",

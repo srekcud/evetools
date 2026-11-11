@@ -64,7 +64,6 @@ export interface AdminPveStats {
 
 export interface SchedulerHealthEntry {
   type: string
-  label: string
   status: 'running' | 'ok' | 'error' | 'unknown'
   health: 'healthy' | 'late' | 'stale' | 'running' | 'unknown' | 'on-demand'
   startedAt: string | null

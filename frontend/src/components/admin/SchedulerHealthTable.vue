@@ -40,7 +40,7 @@ function formatInterval(seconds: number): string {
         <tbody class="divide-y divide-slate-800">
           <tr v-for="entry in entries" :key="entry.type" class="hover:bg-slate-800/30">
             <td class="py-2.5 pr-3">
-              <span class="text-slate-200 font-medium">{{ entry.label }}</span>
+              <span class="text-slate-200 font-medium">{{ t(`admin.sync.types.${entry.type}`) }}</span>
               <span class="text-slate-500 text-xs ml-1">({{ entry.expectedInterval === null ? t('admin.health.onDemand') : formatInterval(entry.expectedInterval) }})</span>
             </td>
             <td class="py-2.5 pr-3">

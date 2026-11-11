@@ -263,7 +263,7 @@ final class SyncTrackerLastSuccessTest extends TestCase
         $this->syncTracker->complete(self::MARKET_JITA, '4210 prices refreshed');
 
         $this->assertSame(
-            ['type', 'label', 'status', 'health', 'started_at', 'completed_at', 'message', 'expected_interval', 'on_demand'],
+            ['type', 'status', 'health', 'started_at', 'completed_at', 'message', 'expected_interval', 'on_demand'],
             array_keys($this->adminEntryFor(self::MARKET_JITA)),
         );
     }
