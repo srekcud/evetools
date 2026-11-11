@@ -3,6 +3,13 @@ mercure:
         default:
             url: '%env(MERCURE_URL)%'
             public_url: '%env(MERCURE_PUBLIC_URL)%'
+            protocol_version: '1.0'
+            cookie_name: __Secure-mercure_access_token
             jwt:
                 secret: '%env(MERCURE_JWT_SECRET)%'
                 publish: '*'
+                claims:
+                    iss: '%env(MERCURE_RESOURCE_IDENTIFIER)%'
+                    aud: '%env(MERCURE_RESOURCE_IDENTIFIER)%'
+                    sub: evetools
+                    client_id: evetools

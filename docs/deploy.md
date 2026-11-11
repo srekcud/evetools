@@ -91,3 +91,11 @@ Prérequis : Docker Compose ≥ 2.17 (`up --wait-timeout`), `flock` (util-linux)
 - Après la première release : passer les paquets `evetools-app` et `evetools-proxy` en *Public* (Package settings → Visibility). Sinon, `docker login ghcr.io` sur le serveur avec un token `read:packages`.
 
 Les images ne contiennent aucun secret : `.env` et `config/jwt/*.pem` sont exclus par `.dockerignore`, l'image embarque un `.env` vide et reçoit sa configuration par l'environnement de `docker-compose.prod.yml`.
+
+## Mercure
+
+Le hub est celui de FrankenPHP (`frankenphp/Caddyfile`), protocole Mercure 1.0.
+
+- `MERCURE_JWT_SECRET` : secret HMAC du hub et du bundle, 32 octets au moins (en dessous, le hub démarre avec un avertissement).
+- `MERCURE_RESOURCE_IDENTIFIER` : identifiant du hub, porté par `iss` et `aud` des JWT. Défaut du compose : `https://${DOMAIN}/.well-known/mercure`. Il doit être identique pour `app` et `worker`.
+- Les navigateurs reçoivent leur JWT dans le cookie `__Secure-mercure_access_token` (`GET /api/mercure/token`) et s'abonnent avec `?match=<topic>`. Le paramètre `?topic=` et le JWT en query string répondent 400.

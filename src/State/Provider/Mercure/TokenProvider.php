@@ -12,18 +12,23 @@ use App\Repository\IndustryProjectParticipantRepository;
 use App\Service\Mercure\MercurePublisherService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use Symfony\Component\Mercure\Authorization;
+use Symfony\Component\Mercure\Jwt\Grant;
 
 /**
  * @implements ProviderInterface<TokenResource>
  */
 class TokenProvider implements ProviderInterface
 {
+    private const string USER_TOPICS_PATTERN = '/user/%s/*';
+    private const int BROWSER_COOKIE_LIMIT_BYTES = 4096;
+
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectParticipantRepository $memberRepository,
-        #[Autowire('%env(MERCURE_JWT_SECRET)%')]
-        private readonly string $mercureSecret,
+        private readonly Authorization $authorization,
         #[Autowire('%env(MERCURE_PUBLIC_URL)%')]
         private readonly string $mercurePublicUrl,
     ) {
@@ -50,52 +55,26 @@ class TokenProvider implements ProviderInterface
             $groupProjectIds,
         );
         $topics = array_merge($topics, $groupTopics);
-        $token = $this->createSubscriberJwt($topics);
+        $request = $context['request'] ?? null;
+        if (!$request instanceof Request) {
+            throw new \LogicException('The Mercure token needs the current request to set the authorization cookie.');
+        }
+
+        $this->authorization->setCookie($request, [new Grant([Grant::ACTION_SUBSCRIBE], [
+            'urlpattern' => [sprintf(self::USER_TOPICS_PATTERN, $userId)],
+            'exact' => $groupTopics,
+        ])]);
+
+        $cookie = $request->attributes->get('_mercure_authorization_cookies')[''];
+        if (strlen((string) $cookie) > self::BROWSER_COOKIE_LIMIT_BYTES) {
+            throw new \LengthException(sprintf('The Mercure authorization cookie of user %s needs %d bytes, browsers keep at most %d.', $userId, strlen((string) $cookie), self::BROWSER_COOKIE_LIMIT_BYTES));
+        }
 
         $resource = new TokenResource();
-        $resource->token = $token;
+        $resource->token = $cookie->getValue();
         $resource->topics = $topics;
         $resource->hubUrl = $this->mercurePublicUrl;
 
         return $resource;
-    }
-
-    /**
-     * Create a JWT for Mercure subscriber authentication.
-     *
-     * @param string[] $topics List of topics the subscriber can subscribe to
-     */
-    private function createSubscriberJwt(array $topics): string
-    {
-        $header = [
-            'alg' => 'HS256',
-            'typ' => 'JWT',
-        ];
-
-        $payload = [
-            'mercure' => [
-                'subscribe' => $topics,
-            ],
-            'exp' => time() + 3600, // 1 hour expiration
-            'iat' => time(),
-        ];
-
-        $headerEncoded = $this->base64UrlEncode(json_encode($header, JSON_THROW_ON_ERROR));
-        $payloadEncoded = $this->base64UrlEncode(json_encode($payload, JSON_THROW_ON_ERROR));
-
-        $signature = hash_hmac(
-            'sha256',
-            $headerEncoded . '.' . $payloadEncoded,
-            $this->mercureSecret,
-            true
-        );
-        $signatureEncoded = $this->base64UrlEncode($signature);
-
-        return $headerEncoded . '.' . $payloadEncoded . '.' . $signatureEncoded;
-    }
-
-    private function base64UrlEncode(string $data): string
-    {
-        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 }
