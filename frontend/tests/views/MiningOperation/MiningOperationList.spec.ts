@@ -177,6 +177,60 @@ describe('MiningOperationList', () => {
   })
 })
 
+const ARIA_WITH_ALTS = {
+  ...ARIA_OF_C1,
+  characters: [
+    { id: 'c-aria', name: 'Aria', isMain: true, hasValidToken: true },
+    { id: 'c-cyra', name: 'Cyra', isMain: false, hasValidToken: true },
+    { id: 'c-dorn', name: 'Dorn', isMain: false, hasValidToken: false },
+  ],
+} as unknown as User
+
+function characterBox(wrapper: VueWrapper, characterId: string) {
+  return wrapper.find<HTMLInputElement>(`input[type="checkbox"][value="${characterId}"]`)
+}
+
+function tickedCharacters(wrapper: VueWrapper): string[] {
+  return ['c-aria', 'c-cyra', 'c-dorn'].filter(characterId => characterBox(wrapper, characterId).element.checked)
+}
+
+async function clickButton(wrapper: VueWrapper, text: string): Promise<void> {
+  const button = wrapper.findAll('button').find(candidate => candidate.text() === text)
+  expect(button, `button ${text}`).toBeDefined()
+  await button?.trigger('click')
+}
+
+describe('MiningOperationList, creation characters', () => {
+  it('ticks every ready character at once and shows how many are ticked', async () => {
+    const wrapper = await mountList(ARIA_WITH_ALTS)
+    await openCreation(wrapper)
+
+    await clickButton(wrapper, 'Select all ready')
+
+    expect(tickedCharacters(wrapper)).toEqual(['c-aria', 'c-cyra'])
+    expect(wrapper.text()).toContain('2/3 selected')
+  })
+
+  it('unticks every character at once', async () => {
+    const wrapper = await mountList(ARIA_WITH_ALTS)
+    await openCreation(wrapper)
+
+    await clickButton(wrapper, 'Clear')
+
+    expect(tickedCharacters(wrapper)).toEqual([])
+    expect(wrapper.text()).toContain('0/3 selected')
+  })
+
+  it('flags only the characters that cannot mine', async () => {
+    const wrapper = await mountList(ARIA_WITH_ALTS)
+    await openCreation(wrapper)
+
+    const rowOf = (characterId: string) => characterBox(wrapper, characterId).element.closest('label')?.textContent ?? ''
+    expect(rowOf('c-dorn')).toContain('reconnect needed')
+    expect(rowOf('c-cyra')).not.toContain('ready')
+  })
+})
+
 describe('MiningOperationList, archive', () => {
   it('lists the settled and completed operations with their value, my share and their payments', async () => {
     route.query = { tab: 'archive' }

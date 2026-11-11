@@ -30,6 +30,9 @@ interface Refinery {
 
 const RECURRENCE_CHOICES = ['once', 'weekly', 'chunk'] as const satisfies readonly RecurrenceChoice[]
 
+const LEGEND_CLASS = 'mb-1.5 text-xs font-medium uppercase tracking-wider text-slate-400'
+const SEGMENT_CLASS = 'flex cursor-pointer items-center gap-1.5 rounded-sm border border-slate-700 px-2.5 py-1 text-sm text-slate-200 has-[:checked]:border-cyan-400 has-[:checked]:bg-cyan-500/10 has-[:checked]:text-cyan-100 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-cyan-400 has-[:disabled]:cursor-not-allowed has-[:disabled]:text-slate-500'
+
 const props = defineProps<{
   show: boolean
   chunk?: CorporationMiningExtraction
@@ -99,6 +102,16 @@ const pickableCharacters = computed<PickableCharacter[]>(() =>
     })),
 )
 
+const readyCharacterIds = computed(() => pickableCharacters.value.filter(character => character.eligibility === 'eligible').map(character => character.id))
+
+function tickAllReady(): void {
+  tickedCharacterIds.value = readyCharacterIds.value
+}
+
+function untickAll(): void {
+  tickedCharacterIds.value = []
+}
+
 const recurrenceInput = computed<MiningOperationRecurrenceInput | undefined>(() => {
   if (recurrenceChoice.value === 'weekly') return { kind: 'weekly' }
   if (recurrenceChoice.value === 'chunk' && recurrenceStructureId.value !== null) return { kind: 'chunk', structureId: recurrenceStructureId.value }
@@ -158,104 +171,118 @@ watch(() => props.show, (show) => {
 </script>
 
 <template>
-  <BaseModal :show="show" :title="step === 'form' ? t('miningOperation.create.title') : t('miningOperation.created.title')" panel-class="max-w-xl border-slate-700" @close="emit('close')">
+  <BaseModal :show="show" :title="step === 'form' ? t('miningOperation.create.title') : t('miningOperation.created.title')" :panel-class="step === 'form' ? 'flex max-h-[calc(100dvh-2rem)] max-w-4xl flex-col border-slate-700' : 'max-w-xl border-slate-700'" @close="emit('close')">
     <template #title="{ titleId }">
-      <h2 :id="titleId" class="px-6 pt-6 font-display text-xl font-bold text-slate-100">
+      <h2 :id="titleId" class="shrink-0 border-b border-slate-800 px-6 py-4 font-display text-xl font-bold text-slate-100">
         {{ step === 'form' ? t('miningOperation.create.title') : t('miningOperation.created.title') }}
       </h2>
     </template>
 
-    <form v-if="step === 'form'" class="space-y-5 p-6" @submit.prevent="submit">
-      <div>
-        <label :for="`${fieldId}-label`" class="mb-1 block text-sm font-medium text-slate-300">{{ t('miningOperation.create.label') }}</label>
-        <input :id="`${fieldId}-label`" v-model="label" type="text" maxlength="100" required class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+    <form v-if="step === 'form'" class="flex min-h-0 flex-1 flex-col" @submit.prevent="submit">
+      <div class="grid min-h-0 flex-1 gap-6 overflow-y-auto px-6 py-5 md:grid-cols-[minmax(0,1fr)_minmax(0,19rem)]">
+        <div class="min-w-0 space-y-4">
+          <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div class="min-w-0">
+              <label :for="`${fieldId}-label`" :class="LEGEND_CLASS" class="block">{{ t('miningOperation.create.label') }}</label>
+              <input :id="`${fieldId}-label`" v-model="label" type="text" maxlength="100" required class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />
+            </div>
+            <div>
+              <label :for="`${fieldId}-start`" :class="LEGEND_CLASS" class="block">{{ t('miningOperation.create.start') }}</label>
+              <input :id="`${fieldId}-start`" v-model="startInput" type="datetime-local" required class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-slate-100" />
+            </div>
+          </div>
+
+          <div v-if="chunk !== undefined" data-chunk-system class="min-w-0 rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2">
+            <span class="block text-xs font-medium uppercase tracking-wider text-slate-400">{{ t('miningOperation.create.chunkSystem') }}</span>
+            <span class="block text-sm text-slate-100">
+              <span aria-hidden="true" class="text-cyan-300">◔ </span><MoonChunkName :name="chunk.solarSystemName" :id="chunk.solarSystemId" />
+            </span>
+            <span class="mt-1 block text-xs text-slate-400">{{ t('miningOperation.create.chunkSystemHint') }}</span>
+          </div>
+
+          <fieldset>
+            <legend :class="LEGEND_CLASS">{{ t('miningOperation.create.visibility') }}</legend>
+            <div class="flex flex-wrap gap-2">
+              <label :class="SEGMENT_CLASS">
+                <input v-model="visibility" type="radio" :name="`${fieldId}-visibility`" value="private" class="sr-only" />
+                {{ t('miningOperation.visibility.private') }}
+              </label>
+              <label :class="SEGMENT_CLASS">
+                <input v-model="visibility" type="radio" :name="`${fieldId}-visibility`" value="corporation" :disabled="!hasKnownCorporation" class="sr-only" />
+                {{ t('miningOperation.visibility.corporation') }}
+              </label>
+            </div>
+            <p v-if="!hasKnownCorporation" class="mt-1 text-xs text-amber-300">{{ t('miningOperation.create.corporationUnavailable') }}</p>
+          </fieldset>
+
+          <fieldset>
+            <legend :class="LEGEND_CLASS">{{ t('miningOperation.create.splitMode') }}</legend>
+            <div class="flex flex-wrap gap-2">
+              <label :class="SEGMENT_CLASS">
+                <input v-model="splitMode" type="radio" :name="`${fieldId}-split`" value="value_prorata" class="sr-only" />
+                {{ t('miningOperation.splitMode.value_prorata') }}
+              </label>
+              <label :class="SEGMENT_CLASS">
+                <input type="radio" :name="`${fieldId}-split`" value="weighted_time" disabled class="sr-only" />
+                {{ t('miningOperation.splitMode.weighted_time') }}
+                <span class="rounded-sm border border-slate-700 px-1 font-mono text-[0.65rem] uppercase">{{ t('miningOperation.splitMode.soon') }}</span>
+              </label>
+              <label :class="SEGMENT_CLASS">
+                <input v-model="splitMode" type="radio" :name="`${fieldId}-split`" value="each_for_themselves" class="sr-only" />
+                {{ t('miningOperation.splitMode.each_for_themselves') }}
+              </label>
+            </div>
+            <p class="mt-1 text-xs text-slate-400">{{ t(`miningOperation.splitMode.hint.${splitMode}`) }}</p>
+          </fieldset>
+
+          <MiningBoostFitField v-model="boostFit" />
+
+          <fieldset v-if="chunk === undefined">
+            <legend :class="LEGEND_CLASS">{{ t('miningOperation.recurrence.field.legend') }}</legend>
+            <div class="flex flex-wrap gap-2">
+              <label v-for="choice in availableRecurrenceChoices" :key="choice" :class="SEGMENT_CLASS">
+                <input v-model="recurrenceChoice" type="radio" :name="`${fieldId}-recurrence`" :value="choice" class="sr-only" />
+                <span v-if="choice !== 'once'" class="text-violet-300" aria-hidden="true">↻</span>
+                {{ t(`miningOperation.recurrence.field.${choice}`) }}
+              </label>
+            </div>
+            <p v-if="recurrenceChoice === 'weekly'" class="mt-1 text-xs text-slate-400">
+              {{ t('miningOperation.recurrence.field.weeklyHint') }}
+              <span v-if="startWeekday !== null" class="font-mono text-cyan-200">{{ t('miningOperation.recurrence.rule.weekly', startWeekday) }}</span>
+            </p>
+            <div v-else-if="recurrenceChoice === 'chunk'" class="mt-2">
+              <label :for="`${fieldId}-refinery`" class="mb-1 block text-xs font-medium text-slate-300">{{ t('miningOperation.recurrence.field.refinery') }}</label>
+              <select
+                :id="`${fieldId}-refinery`"
+                v-model.number="recurrenceStructureId"
+                data-testid="recurrence-structure"
+                class="w-full max-w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+              >
+                <option v-for="refinery in refineries" :key="refinery.structureId" :value="refinery.structureId">{{ refinery.name }}</option>
+              </select>
+              <p class="mt-1 text-xs text-slate-400">{{ t('miningOperation.recurrence.field.chunkHint') }}</p>
+            </div>
+          </fieldset>
+        </div>
+
+        <fieldset class="flex min-h-0 min-w-0 flex-col md:border-l md:border-slate-800 md:pl-6">
+          <legend class="sr-only">{{ t('miningOperation.create.characters') }}</legend>
+          <div class="mb-1.5 flex items-baseline justify-between gap-2" aria-hidden="true">
+            <span class="text-xs font-medium uppercase tracking-wider text-slate-400">{{ t('miningOperation.create.characters') }}</span>
+            <span class="font-mono text-xs text-cyan-300">{{ t('miningOperation.create.selectedCount', { selected: tickedCharacterIds.length, total: pickableCharacters.length }) }}</span>
+          </div>
+          <div class="mb-2 flex gap-2 text-xs">
+            <button type="button" class="rounded-sm border border-slate-700 px-2 py-0.5 text-slate-300 hover:bg-slate-800 disabled:opacity-50" :disabled="readyCharacterIds.length === 0" @click="tickAllReady">{{ t('miningOperation.create.selectAllReady') }}</button>
+            <button type="button" class="rounded-sm border border-slate-700 px-2 py-0.5 text-slate-300 hover:bg-slate-800 disabled:opacity-50" :disabled="tickedCharacterIds.length === 0" @click="untickAll">{{ t('miningOperation.create.selectNone') }}</button>
+          </div>
+          <div class="min-h-0 md:max-h-[26rem] md:overflow-y-auto md:pr-1">
+            <MiningCharacterPicker v-model="tickedCharacterIds" :characters="pickableCharacters" dense />
+          </div>
+        </fieldset>
       </div>
 
-      <div>
-        <label :for="`${fieldId}-start`" class="mb-1 block text-sm font-medium text-slate-300">{{ t('miningOperation.create.start') }}</label>
-        <input :id="`${fieldId}-start`" v-model="startInput" type="datetime-local" required class="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-slate-100" />
-      </div>
-
-      <div v-if="chunk !== undefined" data-chunk-system class="min-w-0 rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2">
-        <span class="block text-xs font-medium uppercase tracking-wider text-slate-400">{{ t('miningOperation.create.chunkSystem') }}</span>
-        <span class="block text-sm text-slate-100">
-          <span aria-hidden="true" class="text-cyan-300">◔ </span><MoonChunkName :name="chunk.solarSystemName" :id="chunk.solarSystemId" />
-        </span>
-        <span class="mt-1 block text-xs text-slate-400">{{ t('miningOperation.create.chunkSystemHint') }}</span>
-      </div>
-
-      <fieldset>
-        <legend class="mb-1 text-sm font-medium text-slate-300">{{ t('miningOperation.create.visibility') }}</legend>
-        <div class="flex flex-wrap gap-4">
-          <label class="flex items-center gap-2 text-sm text-slate-200">
-            <input v-model="visibility" type="radio" :name="`${fieldId}-visibility`" value="private" class="accent-cyan-500" />
-            {{ t('miningOperation.visibility.private') }}
-          </label>
-          <label class="flex items-center gap-2 text-sm" :class="hasKnownCorporation ? 'text-slate-200' : 'text-slate-500'">
-            <input v-model="visibility" type="radio" :name="`${fieldId}-visibility`" value="corporation" :disabled="!hasKnownCorporation" class="accent-cyan-500" />
-            {{ t('miningOperation.visibility.corporation') }}
-          </label>
-        </div>
-        <p v-if="!hasKnownCorporation" class="mt-1 text-xs text-amber-300">{{ t('miningOperation.create.corporationUnavailable') }}</p>
-      </fieldset>
-
-      <fieldset>
-        <legend class="mb-1 text-sm font-medium text-slate-300">{{ t('miningOperation.create.splitMode') }}</legend>
-        <div class="flex flex-wrap gap-4">
-          <label class="flex items-center gap-2 text-sm text-slate-200">
-            <input v-model="splitMode" type="radio" :name="`${fieldId}-split`" value="value_prorata" class="accent-cyan-500" />
-            {{ t('miningOperation.splitMode.value_prorata') }}
-          </label>
-          <label class="flex items-center gap-2 text-sm text-slate-500">
-            <input type="radio" :name="`${fieldId}-split`" value="weighted_time" disabled class="accent-cyan-500" />
-            {{ t('miningOperation.splitMode.weighted_time') }}
-            <span class="rounded-sm border border-slate-700 px-1.5 py-0.5 font-mono text-xs">{{ t('miningOperation.splitMode.soon') }}</span>
-          </label>
-          <label class="flex items-center gap-2 text-sm text-slate-200">
-            <input v-model="splitMode" type="radio" :name="`${fieldId}-split`" value="each_for_themselves" class="accent-cyan-500" />
-            {{ t('miningOperation.splitMode.each_for_themselves') }}
-          </label>
-        </div>
-        <p class="mt-1 text-xs text-slate-400">{{ t(`miningOperation.splitMode.hint.${splitMode}`) }}</p>
-      </fieldset>
-
-      <MiningBoostFitField v-model="boostFit" />
-
-      <fieldset v-if="chunk === undefined">
-        <legend class="mb-1 text-sm font-medium text-slate-300">{{ t('miningOperation.recurrence.field.legend') }}</legend>
-        <div class="flex flex-wrap gap-4">
-          <label v-for="choice in availableRecurrenceChoices" :key="choice" class="flex items-center gap-2 text-sm text-slate-200">
-            <input v-model="recurrenceChoice" type="radio" :name="`${fieldId}-recurrence`" :value="choice" class="accent-cyan-500" />
-            <span v-if="choice !== 'once'" class="text-violet-300" aria-hidden="true">↻</span>
-            {{ t(`miningOperation.recurrence.field.${choice}`) }}
-          </label>
-        </div>
-        <p v-if="recurrenceChoice === 'weekly'" class="mt-1 text-xs text-slate-400">
-          {{ t('miningOperation.recurrence.field.weeklyHint') }}
-          <span v-if="startWeekday !== null" class="font-mono text-cyan-200">{{ t('miningOperation.recurrence.rule.weekly', startWeekday) }}</span>
-        </p>
-        <div v-else-if="recurrenceChoice === 'chunk'" class="mt-2">
-          <label :for="`${fieldId}-refinery`" class="mb-1 block text-xs font-medium text-slate-300">{{ t('miningOperation.recurrence.field.refinery') }}</label>
-          <select
-            :id="`${fieldId}-refinery`"
-            v-model.number="recurrenceStructureId"
-            data-testid="recurrence-structure"
-            class="w-full max-w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
-          >
-            <option v-for="refinery in refineries" :key="refinery.structureId" :value="refinery.structureId">{{ refinery.name }}</option>
-          </select>
-          <p class="mt-1 text-xs text-slate-400">{{ t('miningOperation.recurrence.field.chunkHint') }}</p>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend class="mb-2 text-sm font-medium text-slate-300">{{ t('miningOperation.create.characters') }}</legend>
-        <MiningCharacterPicker v-model="tickedCharacterIds" :characters="pickableCharacters" />
-      </fieldset>
-
-      <p v-if="failure !== null" class="text-sm text-red-400" role="alert">{{ failure }}</p>
-
-      <div class="flex justify-end gap-3">
+      <div class="flex shrink-0 items-center justify-end gap-3 border-t border-slate-800 px-6 py-4">
+        <p v-if="failure !== null" class="mr-auto min-w-0 truncate text-sm text-red-400" role="alert" :title="failure">{{ failure }}</p>
         <button type="button" class="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800" @click="emit('close')">{{ t('common.actions.cancel') }}</button>
         <button type="submit" :disabled="!canSubmit" class="flex items-center gap-2 rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50">
           <LoadingSpinner v-if="submitting" size="sm" />

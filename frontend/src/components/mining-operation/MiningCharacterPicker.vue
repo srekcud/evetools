@@ -14,6 +14,7 @@ export interface PickableCharacter {
 const props = defineProps<{
   characters: PickableCharacter[]
   modelValue: string[]
+  dense?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -55,11 +56,11 @@ const ELIGIBILITY_BADGE_CLASS: Record<MiningCharacterEligibility, string> = {
 </script>
 
 <template>
-  <ul class="space-y-2">
+  <ul :class="dense ? 'space-y-1' : 'space-y-2'">
     <li v-for="character in characters" :key="character.id">
       <label
-        class="flex items-center gap-3 rounded-md border px-3 py-2.5 transition-colors"
-        :class="isDisabled(character) ? 'border-slate-800 bg-slate-900/40 opacity-80' : 'border-slate-700 bg-slate-900 hover:border-cyan-500/60 cursor-pointer'"
+        class="flex items-center rounded-md border transition-colors"
+        :class="[dense ? 'gap-2 px-2.5 py-1.5' : 'gap-3 px-3 py-2.5', isDisabled(character) ? 'border-slate-800 bg-slate-900/40 opacity-80' : 'border-slate-700 bg-slate-900 hover:border-cyan-500/60 cursor-pointer']"
       >
         <input
           v-model="ticked"
@@ -69,15 +70,17 @@ const ELIGIBILITY_BADGE_CLASS: Record<MiningCharacterEligibility, string> = {
           class="h-4 w-4 shrink-0 accent-cyan-500"
         />
         <span
-          class="hud-hex flex h-9 w-9 shrink-0 items-center justify-center bg-slate-800 font-display text-sm font-semibold text-cyan-300"
+          class="hud-hex flex shrink-0 items-center justify-center bg-slate-800 font-display font-semibold text-cyan-300"
+          :class="dense ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm'"
           aria-hidden="true"
         >{{ initialsOf(character.name) }}</span>
-        <span class="min-w-0 flex-1 truncate font-display text-base font-semibold text-slate-100" :title="character.name">{{ character.name }}</span>
+        <span class="min-w-0 flex-1 truncate font-display font-semibold text-slate-100" :class="dense ? 'text-sm' : 'text-base'" :title="character.name">{{ character.name }}</span>
         <span
           v-if="character.isMain"
           class="shrink-0 rounded-sm border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-xs uppercase tracking-wider text-cyan-300"
         >{{ t('miningOperation.join.main') }}</span>
         <span
+          v-if="!dense || character.eligibility !== 'eligible'"
           class="max-w-[45%] shrink-0 truncate rounded-sm border px-2 py-0.5 font-mono text-xs"
           :class="ELIGIBILITY_BADGE_CLASS[character.eligibility]"
           :title="eligibilityLabel(character)"
