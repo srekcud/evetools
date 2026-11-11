@@ -184,6 +184,40 @@ export interface AdminChartData {
   }
 }
 
+export type AdminUserTokenState = 'valid' | 'expiring' | 'invalid' | 'no_token'
+
+export interface AdminUserSearchHit {
+  userId: string
+  mainCharacterName?: string | null
+  mainEveCharacterId?: number | null
+  characterCount: number
+  lastLoginAt?: string | null
+}
+
+export interface AdminUserSheetCharacter {
+  eveCharacterId: number
+  name: string
+  isMain: boolean
+  tokenState: AdminUserTokenState
+  accessTokenExpiresAt?: string | null
+  missingScopes: string[]
+  lastSyncAt?: string | null
+}
+
+export interface AdminUserSheetSync {
+  type: string
+  lastDataAt?: string | null
+  triggerable: boolean
+}
+
+export interface AdminUserSheet {
+  userId: string
+  createdAt: string
+  lastLoginAt?: string | null
+  characters: AdminUserSheetCharacter[]
+  syncs: AdminUserSheetSync[]
+}
+
 export interface AdminAccess {
   hasAccess: boolean
   characterName: string | null
@@ -291,6 +325,28 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  async function searchUsers(term: string): Promise<AdminUserSearchHit[]> {
+    return apiRequest<AdminUserSearchHit[]>(`/admin/users?search=${encodeURIComponent(term)}`)
+  }
+
+  async function fetchUserSheet(userId: string): Promise<AdminUserSheet> {
+    return apiRequest<AdminUserSheet>(`/admin/users/${userId}`)
+  }
+
+  async function triggerUserSync(userId: string, type: string): Promise<{ success: boolean; message: string }> {
+    try {
+      return await apiRequest<{ success: boolean; message: string }>(`/admin/users/${userId}/sync`, {
+        method: 'POST',
+        body: JSON.stringify({ type }),
+      })
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : 'Action failed',
+      }
+    }
+  }
+
   async function syncAssets(): Promise<{ success: boolean; message: string }> {
     return triggerAction('sync-assets')
   }
@@ -369,6 +425,9 @@ export const useAdminStore = defineStore('admin', () => {
     fetchAll,
     clearError,
     triggerSync,
+    searchUsers,
+    fetchUserSheet,
+    triggerUserSync,
     syncAssets,
     syncMarket,
     syncPve,

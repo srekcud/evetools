@@ -82,6 +82,22 @@ describe('CharactersToRepairCard', () => {
     expect(wrapper.get('[data-testid="characters-to-repair-empty"]').text()).toBe(messageOf(locale, 'admin.charactersToRepair.empty'))
   })
 
+  it('lets the admin open the sheet of the user of a row', async () => {
+    const wrapper = mountCard(charactersToRepairOf())
+
+    await wrapper.findAll('[data-testid="character-to-repair-open-user"]')[0].trigger('click')
+
+    expect(wrapper.emitted('open-user')).toEqual([['0196a1c0-0000-7000-8000-000000000001']])
+  })
+
+  it('offers no sheet link for a character without user', () => {
+    const wrapper = mountCard(charactersToRepairOf())
+
+    const rows = wrapper.findAll('[data-testid="character-to-repair"]')
+    expect(rows[0].find('[data-testid="character-to-repair-open-user"]').exists()).toBe(true)
+    expect(rows[1].find('[data-testid="character-to-repair-open-user"]').exists()).toBe(false)
+  })
+
   it('names the card in both locales', () => {
     for (const locale of TEST_LOCALES) {
       expect(messageOf(locale, 'admin.charactersToRepair.title')).not.toBe('')

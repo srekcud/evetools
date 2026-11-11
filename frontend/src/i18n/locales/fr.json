@@ -2355,11 +2355,51 @@
       "missingScopes": "Scopes manquants",
       "since": "Token mis à jour le",
       "never": "Jamais",
+      "openSheet": "Ouvrir la fiche utilisateur",
       "state": {
         "invalid": "Autorisation révoquée",
         "missing_scopes": "Scopes manquants"
       },
       "empty": "Aucun personnage ne doit se reconnecter"
+    },
+    "userSupport": {
+      "title": "Support utilisateur",
+      "searchPlaceholder": "Nom de personnage ou id EVE",
+      "search": "Rechercher",
+      "noResult": "Aucun utilisateur trouvé",
+      "noMainCharacter": "Pas de personnage principal",
+      "characterCount": "{count} personnage | {count} personnages",
+      "loadError": "La fiche utilisateur n'a pas pu être chargée",
+      "lastLogin": "Dernière connexion",
+      "createdAt": "Compte créé le",
+      "never": "Jamais",
+      "unknown": "Inconnue",
+      "refresh": "Rafraîchir",
+      "character": "Personnage",
+      "main": "Principal",
+      "tokenStateColumn": "Token",
+      "tokenState": {
+        "valid": "Valide",
+        "expiring": "Expire bientôt",
+        "invalid": "Autorisation révoquée",
+        "no_token": "Pas de token"
+      },
+      "missingScopes": "Scopes manquants",
+      "lastSync": "Dernière synchro",
+      "syncColumn": "Synchro",
+      "lastData": "Dernières données reçues",
+      "trigger": "Relancer",
+      "triggered": "Synchro {type} mise en file",
+      "syncType": {
+        "industry": "Jobs industrie",
+        "blueprints": "Blueprints",
+        "character-orders": "Ordres de marché",
+        "pve": "PVE",
+        "mining": "Minage",
+        "assets": "Assets",
+        "wallet": "Transactions du wallet",
+        "planetary": "Colonies planétaires"
+      }
     },
     "mercureCookie": {
       "title": "Taille du cookie Mercure",

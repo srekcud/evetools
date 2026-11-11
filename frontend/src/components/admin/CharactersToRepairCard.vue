@@ -6,6 +6,10 @@ defineProps<{
   charactersToRepair: AdminCharactersToRepair
 }>()
 
+const emit = defineEmits<{
+  'open-user': [userId: string]
+}>()
+
 const { t, locale } = useI18n()
 
 const STATE_CLASSES: Record<AdminCharacterRepairState, string> = {
@@ -41,7 +45,16 @@ function formatDay(isoDate: string): string {
         </thead>
         <tbody class="divide-y divide-slate-800">
           <tr v-for="character in charactersToRepair.characters" :key="character.eveCharacterId" data-testid="character-to-repair">
-            <td class="py-1.5 text-slate-300">{{ character.characterName }}</td>
+            <td class="py-1.5 text-slate-300">
+              {{ character.characterName }}
+              <button
+                v-if="character.userId"
+                type="button"
+                data-testid="character-to-repair-open-user"
+                class="ml-2 text-xs text-cyan-400 hover:text-cyan-300 underline"
+                @click="emit('open-user', character.userId)"
+              >{{ t('admin.charactersToRepair.openSheet') }}</button>
+            </td>
             <td class="py-1.5 text-slate-400">
               <template v-if="character.userLastLoginAt">{{ formatDay(character.userLastLoginAt) }}</template>
               <template v-else>{{ t('admin.charactersToRepair.never') }}</template>
