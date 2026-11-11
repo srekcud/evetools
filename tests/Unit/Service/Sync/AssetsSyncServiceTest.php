@@ -693,6 +693,54 @@ class AssetsSyncServiceTest extends TestCase
         );
     }
 
+    public function testSyncCorporationAssetsPublishesStartProgressAndCompletionToTheRequestingUserAndTheSyncCharacterOwner(): void
+    {
+        $ownerId = Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a71');
+        $requesterId = '0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a72';
+        $character = $this->createCharacterOfUser($ownerId);
+        $this->assetsService->method('getCorporationAssets')->willReturn([$this->createAsset(itemId: 2301, locationFlag: 'CorpSAG1')]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character, $requesterId);
+
+        $ownerTopic = '/user/' . $ownerId->toRfc4122() . '/sync/corporation-assets';
+        $requesterTopic = '/user/' . $requesterId . '/sync/corporation-assets';
+        $this->assertSame([
+            [$requesterTopic, 'started', 0, 'Fetching corporation assets...', null],
+            [$requesterTopic, 'in_progress', 50, 'Processing 1 assets...', null],
+            [$requesterTopic, 'completed', 100, 'Sync completed', ['count' => 1]],
+        ], $this->eventsOnTopic($requesterTopic));
+        $this->assertCount(3, $this->eventsOnTopic($ownerTopic));
+    }
+
+    public function testFailedCorporationAssetsSyncPublishesTheErrorToTheRequestingUser(): void
+    {
+        $ownerId = Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a73');
+        $requesterId = '0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a74';
+        $character = $this->createCharacterOfUser($ownerId);
+        $this->assetsService->method('getCorporationAssets')->willThrowException(EsiApiException::fromResponse(503, 'Service Unavailable'));
+
+        $this->catchThrowable(fn () => $this->service->syncCorporationAssets($character, $requesterId));
+
+        $requesterTopic = '/user/' . $requesterId . '/sync/corporation-assets';
+        $this->assertSame([
+            [$requesterTopic, 'started', 0, 'Fetching corporation assets...', null],
+            [$requesterTopic, 'error', null, 'Service Unavailable', null],
+        ], $this->eventsOnTopic($requesterTopic));
+    }
+
+    public function testSyncCorporationAssetsPublishesOnceWhenTheRequestingUserOwnsTheSyncCharacter(): void
+    {
+        $userId = Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a75');
+        $character = $this->createCharacterOfUser($userId);
+        $this->assetsService->method('getCorporationAssets')->willReturn([$this->createAsset(itemId: 2302, locationFlag: 'CorpSAG1')]);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character, $userId->toRfc4122());
+
+        $this->assertCount(3, $this->publishedSyncEvents);
+    }
+
     public function testFailedCharacterAssetsSyncPublishesTheErrorToTheUser(): void
     {
         $character = $this->createCharacterOfUser(Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6d'));
@@ -943,6 +991,15 @@ class AssetsSyncServiceTest extends TestCase
             'solarSystemName' => $cachedAsset->getSolarSystemName(),
             'itemName' => $cachedAsset->getItemName(),
         ];
+    }
+
+    /** @return list<array<int, mixed>> */
+    private function eventsOnTopic(string $topic): array
+    {
+        return array_values(array_filter(
+            $this->publishedSyncEvents,
+            static fn (array $event): bool => $event[0] === $topic,
+        ));
     }
 
     private function createCharacterOfUser(Uuid $userId): Character

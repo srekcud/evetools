@@ -10,6 +10,7 @@ use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
+use App\Service\Sync\CorporationSyncRecipients;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;
@@ -51,8 +52,7 @@ final readonly class SyncCorporationAssetsHandler
                 'characterId' => $message->triggerCharacterId,
                 'corporationId' => $message->corporationId,
             ]);
-            $userId = $character->getUser()?->getId()?->toRfc4122();
-            if ($userId !== null) {
+            foreach (CorporationSyncRecipients::of($character, $message->requestedByUserId) as $userId) {
                 $this->mercurePublisher->syncError($userId, self::MERCURE_SYNC_TYPE, self::AUTH_REQUIRED);
             }
             $this->syncTracker->fail(self::TRACKED_SYNC_TYPE, self::AUTH_REQUIRED);
@@ -61,7 +61,7 @@ final readonly class SyncCorporationAssetsHandler
         }
 
         try {
-            $this->assetsSyncService->syncCorporationAssets($character);
+            $this->assetsSyncService->syncCorporationAssets($character, $message->requestedByUserId);
             $this->logger->info('Corporation assets synced', [
                 'corporationId' => $message->corporationId,
                 'triggeredBy' => $character->getName(),
