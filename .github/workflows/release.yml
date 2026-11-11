@@ -21,9 +21,26 @@ jobs:
     if: github.event_name == 'push'
     uses: ./.github/workflows/ci.yml
 
+  release-notes:
+    name: Release notes
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the in-app release notes cover the version
+        run: |
+          if ! grep -q "^Version ${VERSION#V} (" frontend/public/RELEASE_NOTES.txt; then
+            echo "::error file=frontend/public/RELEASE_NOTES.txt::No 'Version ${VERSION#V} (' section for ${VERSION}"
+            exit 1
+          fi
+
   images:
     name: Images
-    needs: ci
+    needs: [ci, release-notes]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -53,6 +70,7 @@ jobs:
         run: >-
           docker build --file proxy/Dockerfile
           --build-arg "VITE_VAPID_PUBLIC_KEY=${VITE_VAPID_PUBLIC_KEY}"
+          --build-arg "VITE_APP_VERSION=${VERSION}"
           --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"
           --label "org.opencontainers.image.version=${VERSION}"
           --tag "${IMAGE_REPOSITORY}/evetools-proxy:${VERSION}" .
@@ -69,7 +87,7 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: [ci, images]
+    needs: [ci, release-notes, images]
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.images.result == 'success') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30

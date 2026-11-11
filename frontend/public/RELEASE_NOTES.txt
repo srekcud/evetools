@@ -3,6 +3,106 @@
 ================================================================================
 
 --------------------------------------------------------------------------------
+Version 0.14 (2026-11-11)
+--------------------------------------------------------------------------------
+
+### A lire avant tout
+- Les projets industrie solo et de groupe ne font plus qu'un seul module
+- Tous les projets industrie existants ont ete effaces : il faut les recreer
+
+### Nouvelle interface
+- Barre laterale en huit modules, page d'accueil "Pont" et page de reglages
+- Palette de commandes Ctrl+K : ecrans, onglets, projets et items
+- Menu en tiroir sur petit ecran
+- Indicateur de fraicheur des donnees sur les ecrans de decision
+- Les panneaux mis a jour en direct clignotent
+- Contraste des textes secondaires releve (WCAG AA)
+
+### Industrie : projets unifies
+- Un seul type de projet, prive ou partage avec d'autres joueurs
+- Cockpit du projet : phases, prochaine action, onglets chaine, planning, finances
+- Atelier : file d'actions de tous les projets, avec gravite et impact en ISK
+- Chaine de production et arbre des jobs, reactions comprises
+- Planning des jobs sur les slots de chaque personnage
+- Choix de la structure de chaque job, comparaison des structures au cout total
+- Bonus de temps de la structure appliques aux durees
+- Suivi des jobs ESI et des achats du wallet sur les lignes de la BOM
+- Contrat de courrier pre-rempli pour les achats, alerte s'il echoue
+- Prix de revient, prix d'equilibre et alerte si Jita passe en dessous
+- Previsions de vente et profit reel des projets termines
+- Modeles de projet partageables avec la corporation
+- Recap d'un projet termine copiable pour Discord
+
+### Industrie : outils
+- Onglet Blueprints : bibliotheque personnelle et corporation
+- Onglet Invention : comparaison des decryptors par unite
+- Page Skills : gain de chaque skill par jour d'entrainement
+- Hangars corpo : le directeur choisit qui voit chaque division
+- Achat vs fabrication pour chaque intermediaire, import depuis Jita compris
+- Comparaison des marches de vente avec frais et jours pour vendre
+- Taxes et frais de courtage calcules depuis les skills et standings du vendeur
+- Classement de quoi produire selon le marche, le capital et les slots
+- Alerte quand un ordre de vente est sous-cote, prix a copier
+
+### Industrie de groupe
+- Fenetre compagnon : lignes a assigner, mes livraisons, alertes
+- Onglet Journal : activite en direct et compte a rebours des jobs
+- Reserver une ligne de BOM et contribuer depuis la ligne
+- Ventes liees aux contrats et aux transactions du wallet, frais reels
+- Transferts entre membres verifies dans le journal du wallet
+- Les autres joueurs ne voient que votre main, jamais vos alts
+
+### Minage
+- Module en cinq pages
+- Operations de minage : creation, lien d'invitation, operations recurrentes
+- Fenetre compagnon detachable
+- Scans de sites partages, estimation d'epuisement avant le downtime
+- Calendrier des chunks lunaires et valeur estimee d'un chunk
+- Taxe lunaire pour les gestionnaires et les mineurs (role Accountant)
+- Saison de corporation : KPIs, heures minees par joueur, meilleur site
+- Rendement de retraitement selon les skills, valeur brute, compressee ou retraitee
+- Aide a la vente du minerai compresse
+- Resume d'operation partageable (texte Discord et image)
+
+### Commerce
+- Module Commerce : marche, estimation, contrats
+- La liste de courses est retiree
+
+### PVE
+- Module PVE : les escalations vendues comptent comme revenu PVE
+- Import des contributions aux projets de corporation
+
+### Notifications
+- Les alertes de prix declenchees notifient et se rearment
+- Seuil d'expiration PI configurable
+
+### Compte
+- Suppression de son compte depuis les reglages
+
+--------------------------------------------------------------------------------
+Version 0.13 (2026-02-26)
+--------------------------------------------------------------------------------
+
+### Industrie de groupe (nouveau)
+- Projets de fabrication collaboratifs, plusieurs items par projet
+- Roles proprietaire, admin et membre
+- Quatre types de contribution : materiaux, installation de job, BPC, location de ligne
+- Calcul de repartition : remboursement des couts et partage du profit
+- Verification des containers dans les assets corpo partages
+- Rejoindre par lien court ou parcourir les projets ouverts
+
+### Scanner industrie
+- Scans favoris
+- Prix des BPC personnalisables pour l'estimation des couts
+
+### Assets corpo
+- Le directeur partage des divisions d'assets avec les membres
+
+### Notifications
+- Effacer les notifications lues
+- Supprimer une notification
+
+--------------------------------------------------------------------------------
 Version 0.12 (2026-02-25)
 --------------------------------------------------------------------------------
 
