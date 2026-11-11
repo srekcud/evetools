@@ -7,6 +7,7 @@ git tag V0.14 && git push origin V0.14
         │
         ▼
 Release (.github/workflows/release.yml)
+  0. release-notes : RELEASE_NOTES.txt contient une section pour la version
   1. ci       : suites Unit + Integration (ci.yml réutilisé)
   2. images   : build base → app → proxy, push sur ghcr.io/srekcud/evetools-{app,proxy}:V0.14
   3. deploy   : environnement GitHub "production", ssh vers le serveur
@@ -21,6 +22,7 @@ Aucun build sur le serveur. Une image par version : revenir en arrière consiste
 
 ## Déployer
 
+- **Avant le tag** : ajouter en tête de `frontend/public/RELEASE_NOTES.txt` une section `Version 0.14 (AAAA-MM-JJ)`, rédigée pour les joueurs (lien « Release notes » du bas de page). Sans elle, le job `release-notes` échoue et rien n'est construit. La version affichée dans l'app vient du tag (`VITE_APP_VERSION`), sans fichier à modifier.
 - **Nouvelle version** : `git tag V0.14 && git push origin V0.14`. Le déploiement ne part que si la CI et le build des images sont verts.
 - **Redéployer / revenir à une version déjà construite** : Actions → Release → *Run workflow*, `version = V0.13`. Pas de rebuild.
 - **Depuis le serveur, sans GitHub** : `make deploy VERSION=V0.14` (ou `bin/deploy V0.14`).
