@@ -119,6 +119,16 @@ describe('BlueprintLibraryTab blueprint held by a job in progress (issue 411)', 
 })
 
 describe('BlueprintLibraryTab rows (issue 409)', () => {
+  it('shows the blueprint image of an original and of a copy, never the type icon', async () => {
+    const wrapper = await mountTab([libraryOf('known', [DRAKE_BPO, HAMMERHEAD_BPC])])
+
+    const sources = wrapper.findAll(`${ROWS} img`).map(image => image.attributes('src'))
+    expect(sources).toEqual([
+      'https://images.evetech.net/types/1/bp?size=32',
+      'https://images.evetech.net/types/3/bpc?size=32',
+    ])
+  })
+
   it('shows kind, ME/TE, runs and owner of personal and corporation blueprints, infinite runs for an original', async () => {
     const wrapper = await mountTab([libraryOf('known', [DRAKE_BPO, HAMMERHEAD_BPC])])
 
