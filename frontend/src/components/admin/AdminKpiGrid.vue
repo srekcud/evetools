@@ -2,9 +2,12 @@
 import { useI18n } from 'vue-i18n'
 import type { AdminStats, AdminQueues } from '@/stores/admin'
 
+export type AdminKpiScope = 'operations' | 'users' | 'statistics'
+
 defineProps<{
   stats: AdminStats | null
   queues: AdminQueues | null
+  scope: AdminKpiScope
 }>()
 
 const { t } = useI18n()
@@ -16,34 +19,7 @@ function formatNumber(n: number | null | undefined): string {
 </script>
 
 <template>
-  <!-- KPI Cards - Row 1: Users -->
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-    <!-- Total Users -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.users') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-slate-100">{{ formatNumber(stats?.users?.total) }}</p>
-    </div>
-
-    <!-- Valid Auth -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.validAuth') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-emerald-400">{{ formatNumber(stats?.users?.valid) }}</p>
-    </div>
-
+  <div v-if="scope === 'operations'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
     <!-- Invalid Auth -->
     <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
       <div class="flex items-center gap-2 mb-2">
@@ -55,74 +31,6 @@ function formatNumber(n: number | null | undefined): string {
         <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.invalidAuth') }}</span>
       </div>
       <p class="text-2xl font-bold text-red-400">{{ formatNumber(stats?.users?.invalid) }}</p>
-    </div>
-
-    <!-- Active 7d -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.active7d') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-blue-400">{{ formatNumber(stats?.users?.activeLastWeek) }}</p>
-    </div>
-
-    <!-- Active 30d -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.active30d') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-purple-400">{{ formatNumber(stats?.users?.activeLastMonth) }}</p>
-    </div>
-  </div>
-
-  <!-- KPI Cards - Row 2: Characters & Tokens -->
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-    <!-- Total Characters -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.characters') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-slate-100">{{ formatNumber(stats?.characters?.total) }}</p>
-    </div>
-
-    <!-- Tokens Total -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.tokens') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-amber-400">{{ formatNumber(stats?.tokens?.total) }}</p>
-    </div>
-
-    <!-- Tokens Healthy -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.tokensHealthy') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-emerald-400">{{ formatNumber(stats?.tokens?.healthy) }}</p>
     </div>
 
     <!-- Tokens Expiring -->
@@ -164,10 +72,128 @@ function formatNumber(n: number | null | undefined): string {
       <p class="text-2xl font-bold text-yellow-400">{{ formatNumber(stats?.characters?.activeSyncScope) }}</p>
       <p class="text-xs text-slate-500 mt-1">/ {{ formatNumber(stats?.characters?.total) }} {{ t('admin.kpi.characters').toLowerCase() }}</p>
     </div>
+
+    <!-- Queue Async -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.queue') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-cyan-400">{{ queues?.queues?.async ?? '--' }}</p>
+    </div>
+
+    <!-- Queue Failed -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.failed') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-red-400">{{ queues?.queues?.failed ?? '--' }}</p>
+    </div>
   </div>
 
-  <!-- KPI Cards - Row 3: Assets, Industry, Queues -->
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+  <div v-if="scope === 'users'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+    <!-- Total Users -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.users') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-slate-100">{{ formatNumber(stats?.users?.total) }}</p>
+    </div>
+
+    <!-- Valid Auth -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.validAuth') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-emerald-400">{{ formatNumber(stats?.users?.valid) }}</p>
+    </div>
+
+    <!-- Active 7d -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.active7d') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-blue-400">{{ formatNumber(stats?.users?.activeLastWeek) }}</p>
+    </div>
+
+    <!-- Active 30d -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.active30d') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-purple-400">{{ formatNumber(stats?.users?.activeLastMonth) }}</p>
+    </div>
+
+    <!-- Total Characters -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.characters') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-slate-100">{{ formatNumber(stats?.characters?.total) }}</p>
+    </div>
+
+    <!-- Tokens Total -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.tokens') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-amber-400">{{ formatNumber(stats?.tokens?.total) }}</p>
+    </div>
+
+    <!-- Tokens Healthy -->
+    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.tokensHealthy') }}</span>
+      </div>
+      <p class="text-2xl font-bold text-emerald-400">{{ formatNumber(stats?.tokens?.healthy) }}</p>
+    </div>
+  </div>
+
+  <div v-if="scope === 'statistics'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
     <!-- Total Assets -->
     <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
       <div class="flex items-center gap-2 mb-2">
@@ -220,35 +246,6 @@ function formatNumber(n: number | null | undefined): string {
       <p class="text-2xl font-bold text-teal-400">{{ formatNumber(stats?.syncs?.structuresCached) }}</p>
     </div>
 
-    <!-- Queue Async -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.queue') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-cyan-400">{{ queues?.queues?.async ?? '--' }}</p>
-    </div>
-
-    <!-- Queue Failed -->
-    <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-          <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-          </svg>
-        </div>
-        <span class="text-xs text-slate-500 uppercase">{{ t('admin.kpi.failed') }}</span>
-      </div>
-      <p class="text-2xl font-bold text-red-400">{{ queues?.queues?.failed ?? '--' }}</p>
-    </div>
-  </div>
-
-  <!-- KPI Cards - Row 4: Market & Notifications -->
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
     <!-- Notifications Total -->
     <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
       <div class="flex items-center gap-2 mb-2">

@@ -70,7 +70,7 @@ export interface SchedulerHealthEntry {
   completedAt: string | null
   message: string | null
   // null for on-demand syncs: not scheduled, so no health is computed
-  expectedInterval: number | null
+  expectedInterval?: number | null
   onDemand: boolean
   triggerable: boolean
 }
@@ -226,6 +226,19 @@ export interface AdminUserSheet {
   syncs: AdminUserSheetSync[]
 }
 
+export interface AdminStatusRule {
+  key: string
+  severity: 'degraded' | 'down'
+  value: number
+  threshold: number | null
+  section: string
+}
+
+export interface AdminStatus {
+  level: 'ok' | 'degraded' | 'down'
+  rules: AdminStatusRule[]
+}
+
 export interface AdminAccess {
   hasAccess: boolean
   characterName: string | null
@@ -235,6 +248,7 @@ export const useAdminStore = defineStore('admin', () => {
   const stats = ref<AdminStats | null>(null)
   const queues = ref<AdminQueues | null>(null)
   const charts = ref<AdminChartData | null>(null)
+  const status = ref<AdminStatus | null>(null)
   const access = ref<AdminAccess | null>(null)
 
   const isLoading = ref(false)
@@ -274,6 +288,15 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  async function fetchStatus(): Promise<void> {
+    try {
+      status.value = await apiRequest<AdminStatus>('/admin/status')
+    } catch (e) {
+      status.value = null
+      console.error('Failed to fetch status:', e)
+    }
+  }
+
   async function fetchCharts(): Promise<void> {
     try {
       const response = await apiRequest<AdminChartData>('/admin/charts')
@@ -291,6 +314,7 @@ export const useAdminStore = defineStore('admin', () => {
       await Promise.all([
         fetchStats(),
         fetchQueues(),
+        fetchStatus(),
         fetchCharts(),
       ])
     } catch (e) {
@@ -423,6 +447,7 @@ export const useAdminStore = defineStore('admin', () => {
     stats,
     queues,
     charts,
+    status,
     access,
     isLoading,
     error,
@@ -430,6 +455,7 @@ export const useAdminStore = defineStore('admin', () => {
     fetchStats,
     fetchQueues,
     fetchCharts,
+    fetchStatus,
     fetchAll,
     clearError,
     triggerSync,

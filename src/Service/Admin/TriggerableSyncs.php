@@ -21,6 +21,7 @@ use App\Message\SyncRegionalMarketVolumes;
 use App\Message\SyncWalletTransactions;
 use App\Message\TriggerAnsiblexSync;
 use App\Message\TriggerAssetsSync;
+use App\Message\TriggerCorporationAssetsSync;
 use App\Message\TriggerCorporationMiningExtractionsSync;
 use App\Message\TriggerJitaMarketSync;
 use App\Message\TriggerMiningOperationRecurrences;
@@ -60,6 +61,7 @@ final class TriggerableSyncs
         'market-history-purge' => [PurgeOldMarketHistory::class],
         'shared-lists-purge' => [PurgeExpiredSharedLists::class],
         'assets' => [TriggerAssetsSync::class],
+        'corporation-assets' => [TriggerCorporationAssetsSync::class],
         self::SYNCHRONOUS_TYPE => [],
     ];
 
