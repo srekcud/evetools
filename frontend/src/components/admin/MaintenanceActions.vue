@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import type { MaintenanceActionKey } from '@/components/admin/maintenanceActionKeys'
 
 defineProps<{
   actionLoading: string | null
 }>()
 
 const emit = defineEmits<{
-  'execute-action': [name: string, action: string]
+  'execute-action': [name: string, action: MaintenanceActionKey]
 }>()
 
 const { t } = useI18n()

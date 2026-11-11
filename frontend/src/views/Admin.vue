@@ -12,6 +12,7 @@ import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
 import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
 import PveCorpRevenue from '@/components/admin/PveCorpRevenue.vue'
+import type { MaintenanceActionKey } from '@/components/admin/maintenanceActionKeys'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import {
   Chart as ChartJS,
@@ -132,16 +133,16 @@ function handleSchedulerAction(key: string, action: () => Promise<{ success: boo
   executeAction(key, action)
 }
 
-function handleMaintenanceAction(name: string, actionKey: string) {
-  const actionMap: Record<string, () => Promise<{ success: boolean; message: string }>> = {
+function handleMaintenanceAction(name: string, actionKey: MaintenanceActionKey) {
+  const actionMap: Record<MaintenanceActionKey, () => Promise<{ success: boolean; message: string }>> = {
     retryFailed: adminStore.retryFailed,
     purgeFailed: adminStore.purgeFailed,
     clearCache: adminStore.clearCache,
+    checkMarketAlerts: adminStore.checkMarketAlerts,
+    purgeNotifications: adminStore.purgeNotifications,
+    purgeMarketHistory: adminStore.purgeMarketHistory,
   }
-  const fn = actionMap[actionKey]
-  if (fn) {
-    executeAction(name, fn)
-  }
+  executeAction(name, actionMap[actionKey])
 }
 
 const { isFlashing: statsUpdated, flash: flashStats } = useFlash()
