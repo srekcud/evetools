@@ -12,6 +12,7 @@ import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
 import EsiErrorBudgetCard from '@/components/admin/EsiErrorBudgetCard.vue'
 import MercureCookieCard from '@/components/admin/MercureCookieCard.vue'
 import CharactersToRepairCard from '@/components/admin/CharactersToRepairCard.vue'
+import AdminCharactersCard from '@/components/admin/AdminCharactersCard.vue'
 import UserSupportCard from '@/components/admin/UserSupportCard.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
 import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
@@ -252,6 +253,8 @@ watch(
       <EsiErrorBudgetCard v-if="stats?.esiErrorBudget" :budget="stats.esiErrorBudget" />
 
       <CharactersToRepairCard v-if="stats?.charactersToRepair" :characters-to-repair="stats.charactersToRepair" @open-user="openUserSheet" />
+
+      <AdminCharactersCard v-if="stats?.adminCharacters" :admin-characters="stats.adminCharacters" />
 
       <UserSupportCard :selected-user-id="selectedUserId" />
 

@@ -63,9 +63,12 @@ class AdminStatsResource
 
     public CharactersToRepairDto $charactersToRepair;
 
+    public AdminCharactersDto $adminCharacters;
+
     public function __construct()
     {
         $this->charactersToRepair = new CharactersToRepairDto();
+        $this->adminCharacters = new AdminCharactersDto();
         $this->esiErrorBudget = new EsiErrorBudgetDto();
         $this->mercureCookie = new MercureCookieDto();
         $this->users = new UserStatsDto();
@@ -291,6 +294,24 @@ class CharacterToRepairDto
         public string $state = '',
         public array $missingScopes = [],
         public string $sinceAt = '',
+    ) {
+    }
+}
+
+class AdminCharactersDto
+{
+    public int $count = 0;
+
+    /** @var AdminCharacterDto[] */
+    public array $characters = [];
+}
+
+class AdminCharacterDto
+{
+    public function __construct(
+        public int $eveCharacterId = 0,
+        public ?string $characterName = null,
+        public bool $hasUser = false,
     ) {
     }
 }

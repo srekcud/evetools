@@ -2362,6 +2362,17 @@
       },
       "empty": "No character needs a new login"
     },
+    "adminCharacters": {
+      "title": "Admin characters",
+      "character": "Character",
+      "eveCharacterId": "EVE character id",
+      "user": "User account",
+      "hasUser": "User exists",
+      "noUser": "No user yet",
+      "unknownName": "Never seen",
+      "readOnlyHint": "Read-only. Admins are set by the ADMIN_CHARACTER_IDS environment variable.",
+      "empty": "No admin configured"
+    },
     "userSupport": {
       "title": "User support",
       "searchPlaceholder": "Character name or EVE character id",

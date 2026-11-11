@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Provider\Admin;
 use ApiPlatform\Metadata\Get;
 use App\Entity\Character;
 use App\Entity\User;
+use App\Security\AdminCharacterLister;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
 use App\Service\Admin\CharacterRepairLister;
@@ -86,6 +87,7 @@ class AdminStatsProviderMercureCookieTest extends TestCase
             new EsiErrorBudget(new ArrayAdapter()),
             $monitor,
             $this->createStub(CharacterRepairLister::class),
+            $this->createStub(AdminCharacterLister::class),
         );
     }
 }

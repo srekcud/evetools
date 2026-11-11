@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Provider\Admin;
 use ApiPlatform\Metadata\Get;
 use App\Entity\Character;
 use App\Entity\User;
+use App\Security\AdminCharacterLister;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
 use App\Service\Admin\CharacterRepairLister;
@@ -77,6 +78,7 @@ class AdminStatsProviderEsiErrorBudgetTest extends TestCase
             $errorBudget,
             $this->createStub(MercureCookieSizeMonitor::class),
             $this->createStub(CharacterRepairLister::class),
+            $this->createStub(AdminCharacterLister::class),
         );
     }
 }
