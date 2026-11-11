@@ -146,7 +146,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.75.
 | ESLint | 0 erreur, **38 avertissements** |
 | Build (`vue-tsc -b && vite build`) | OK |
 
-- Le build modifie des fichiers versionnés (`frontend/dist/index.html`, `frontend/tsconfig.tsbuildinfo`) alors qu'ils figurent dans le `.gitignore`. Ce ménage est prévu en Phase 2.
+- Le build modifie un fichier versionné (`frontend/tsconfig.tsbuildinfo`) alors qu'il figure dans le `.gitignore`. `frontend/dist/` n'est plus suivi par git (#615).
 
 ```bash
 npm --prefix frontend run test && npm --prefix frontend run lint && npm --prefix frontend run build
