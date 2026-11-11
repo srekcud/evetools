@@ -2269,6 +2269,25 @@
     },
     "maintenance": "Maintenance",
     "clearCache": "Clear Cache",
+    "confirm": {
+      "purgeFailed": {
+        "title": "Purger les messages en echec ?",
+        "message": "{count} message en echec sera supprime definitivement. | {count} messages en echec seront supprimes definitivement.",
+        "messageUnknownCount": "Les messages en echec seront supprimes definitivement. Leur nombre n'a pas pu etre lu."
+      },
+      "clearCache": {
+        "title": "Vider le cache ?",
+        "message": "Le cache de l'application sera vide. Les pages peuvent etre plus lentes le temps qu'il se remplisse."
+      },
+      "purgeNotifications": {
+        "title": "Purger les notifications ?",
+        "message": "Toutes les notifications de plus de 7 jours seront supprimees."
+      },
+      "purgeMarketHistory": {
+        "title": "Purger l'historique marche ?",
+        "message": "Toutes les entrees de l'historique marche de plus de 365 jours seront supprimees."
+      }
+    },
     "kpi": {
       "validAuth": "Auth valide",
       "invalidAuth": "Auth invalide",
