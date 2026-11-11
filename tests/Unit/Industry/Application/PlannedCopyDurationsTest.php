@@ -131,6 +131,26 @@ final class PlannedCopyDurationsTest extends TestCase
         self::assertSame('Aurelie Vanth', $duration->characterName);
     }
 
+    public function testCopiersOfTheSameSpeedListedInAlphabeticalOrderKeepTheFirstName(): void
+    {
+        $this->givenSkills(self::AURELIE_ID, 3, 2);
+        $this->givenSkills(self::CYRA_ID, 3, 2);
+
+        $duration = $this->durationOf(self::RAVEN, self::ONE_RUN, self::RAITARU_ID, StructureChoiceStatus::BestConfigured, [self::AURELIE_ID => 'Aurelie Vanth', self::CYRA_ID => 'Cyra Lindqvist']);
+
+        self::assertSame('Aurelie Vanth', $duration->characterName);
+    }
+
+    public function testFasterCopierListedFirstIsNotOvertakenByASlowerOneEarlierInTheAlphabet(): void
+    {
+        $this->givenSkills(self::BASTIEN_ID, 4, 5);
+        $this->givenSkills(self::AURELIE_ID, 5, 3);
+
+        $duration = $this->durationOf(self::RAVEN, self::ONE_RUN, self::RAITARU_ID, StructureChoiceStatus::BestConfigured, [self::BASTIEN_ID => 'Bastien Orr', self::AURELIE_ID => 'Aurelie Vanth']);
+
+        self::assertSame(['seconds' => 8_323, 'missingData' => [], 'characterName' => 'Bastien Orr'], self::shapeOf($duration));
+    }
+
     public function testCopyPlannedWithoutAStructureAbleToCopyIsUnknownAndNeverTimedInANpcStation(): void
     {
         $this->givenSkills(self::AURELIE_ID, 5, 5);

@@ -84,7 +84,7 @@ final readonly class PlannedCopyDurations
      */
     private function fastestCopier(array $namesByEveCharacterId): ?array
     {
-        $fastest = null;
+        $copiers = [];
         foreach ($namesByEveCharacterId as $eveCharacterId => $name) {
             $scienceLevel = $this->characterSkillLevels->levelOf($eveCharacterId, self::SCIENCE_SKILL_TYPE_ID);
             $advancedIndustryLevel = $this->characterSkillLevels->levelOf($eveCharacterId, self::ADVANCED_INDUSTRY_SKILL_TYPE_ID);
@@ -92,12 +92,15 @@ final readonly class PlannedCopyDurations
                 continue;
             }
 
-            $multiplier = SkillTimeModifier::forCopy($scienceLevel, $advancedIndustryLevel);
-            if (null === $fastest || $multiplier->value < $fastest['multiplier']->value || ($multiplier->value === $fastest['multiplier']->value && strcmp($name, $fastest['name']) < 0)) {
-                $fastest = ['multiplier' => $multiplier, 'name' => $name];
-            }
+            $copiers[] = ['multiplier' => SkillTimeModifier::forCopy($scienceLevel, $advancedIndustryLevel), 'name' => $name];
         }
 
-        return $fastest;
+        if ([] === $copiers) {
+            return null;
+        }
+
+        usort($copiers, static fn (array $left, array $right): int => [$left['multiplier']->value, $left['name']] <=> [$right['multiplier']->value, $right['name']]);
+
+        return $copiers[0];
     }
 }
