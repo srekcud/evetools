@@ -178,6 +178,7 @@ class SchedulerHealthEntryDto
     /** Null for on-demand syncs, which are not scheduled. */
     public ?int $expectedInterval;
     public bool $onDemand;
+    public bool $triggerable;
 
     public function __construct(
         string $type = '',
@@ -188,6 +189,7 @@ class SchedulerHealthEntryDto
         ?string $message = null,
         ?int $expectedInterval = null,
         bool $onDemand = false,
+        bool $triggerable = false,
     ) {
         $this->type = $type;
         $this->status = $status;
@@ -197,5 +199,6 @@ class SchedulerHealthEntryDto
         $this->message = $message;
         $this->expectedInterval = $expectedInterval;
         $this->onDemand = $onDemand;
+        $this->triggerable = $triggerable;
     }
 }

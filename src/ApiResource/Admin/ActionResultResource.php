@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
+use App\ApiResource\Input\Admin\TriggerSyncInput;
 use App\ApiResource\Input\EmptyInput;
 use App\State\Processor\Admin\ClearCacheProcessor;
 use App\State\Processor\Admin\PurgeFailedProcessor;
@@ -18,6 +19,13 @@ use App\State\Processor\Admin\TriggerSyncProcessor;
     shortName: 'AdminAction',
     description: 'Admin actions (sync, retry, purge)',
     operations: [
+        new Post(
+            uriTemplate: '/admin/actions/sync',
+            processor: TriggerSyncProcessor::class,
+            input: TriggerSyncInput::class,
+            name: 'trigger_sync',
+            openapi: new Model\Operation(summary: 'Trigger the manual run of a tracked sync type', tags: ['Administration']),
+        ),
         new Post(
             uriTemplate: '/admin/actions/sync-assets',
             processor: TriggerSyncProcessor::class,

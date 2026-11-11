@@ -68,29 +68,16 @@ const stats = computed(() => adminStore.stats)
 const queues = computed(() => adminStore.queues)
 const charts = computed(() => adminStore.charts)
 
-const syncActionMap: Record<string, { action: () => Promise<{ success: boolean; message: string }>; key: string }> = {
-  'assets': { action: adminStore.syncAssets, key: 'sync-assets' },
-  'industry': { action: adminStore.syncIndustry, key: 'sync-industry' },
-  'pve': { action: adminStore.syncPve, key: 'sync-pve' },
-  'wallet': { action: adminStore.syncWallet, key: 'sync-wallet' },
-  'mining': { action: adminStore.syncMining, key: 'sync-mining' },
-  'ansiblex': { action: adminStore.syncAnsiblex, key: 'sync-ansiblex' },
-  'planetary': { action: adminStore.syncPlanetary, key: 'sync-planetary' },
-  'market-jita': { action: adminStore.syncMarket, key: 'sync-market' },
-  'market-structure': { action: adminStore.syncMarket, key: 'sync-market' },
-  'market-alerts': { action: adminStore.checkMarketAlerts, key: 'check-market-alerts' },
-  'alert-prices': { action: adminStore.syncAlertPrices, key: 'sync-alert-prices' },
-  'public-contracts': { action: adminStore.syncPublicContracts, key: 'sync-public-contracts' },
-}
-
-// Sync action keys that should wait for Mercure completion
-const syncKeys = new Set(Object.values(syncActionMap).map(v => v.key))
-
 async function refreshData() {
   await adminStore.fetchAll()
 }
 
-async function executeAction(actionName: string, actionFn: () => Promise<{ success: boolean; message: string }>) {
+async function executeAction(
+  actionName: string,
+  actionFn: () => Promise<{ success: boolean; message: string }>,
+  isSync = false,
+) {
+  let waitsForMercure = false
   actionLoading.value = actionName
   actionMessage.value = null
 
@@ -98,7 +85,8 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
     const result = await actionFn()
 
     // For sync actions, keep spinner alive until Mercure confirms completion
-    if (result.success && syncKeys.has(actionName)) {
+    if (result.success && isSync) {
+      waitsForMercure = true
       actionMessage.value = {
         type: 'success',
         text: result.message + ` (${t('admin.sync.waiting')})`,
@@ -119,7 +107,7 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
       text: e instanceof Error ? e.message : t('admin.sync.actionFailed'),
     }
   } finally {
-    if (!syncKeys.has(actionName)) {
+    if (!waitsForMercure) {
       actionLoading.value = null
     }
     setTimeout(() => {
@@ -128,8 +116,8 @@ async function executeAction(actionName: string, actionFn: () => Promise<{ succe
   }
 }
 
-function handleSchedulerAction(key: string, action: () => Promise<{ success: boolean; message: string }>) {
-  executeAction(key, action)
+function handleSchedulerAction(type: string) {
+  executeAction(type, () => adminStore.triggerSync(type), true)
 }
 
 function handleMaintenanceAction(name: string, actionKey: string) {
@@ -238,7 +226,6 @@ watch(
         <div class="lg:col-span-2">
           <SchedulerHealthTable
             :entries="stats?.schedulerHealth || []"
-            :sync-action-map="syncActionMap"
             :action-loading="actionLoading"
             @execute-action="handleSchedulerAction"
           />

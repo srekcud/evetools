@@ -168,6 +168,7 @@ class SyncTracker
             'message' => $state['message'] ?? null,
             'expected_interval' => $expectedInterval,
             'on_demand' => $expectedInterval === null,
+            'triggerable' => TriggerableSyncs::isTriggerable($type),
         ];
     }
 

@@ -72,6 +72,7 @@ export interface SchedulerHealthEntry {
   // null for on-demand syncs: not scheduled, so no health is computed
   expectedInterval: number | null
   onDemand: boolean
+  triggerable: boolean
 }
 
 export interface AdminNotificationStats {
@@ -218,6 +219,20 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  async function triggerSync(type: string): Promise<{ success: boolean; message: string }> {
+    try {
+      return await apiRequest<{ success: boolean; message: string }>('/admin/actions/sync', {
+        method: 'POST',
+        body: JSON.stringify({ type }),
+      })
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : 'Action failed',
+      }
+    }
+  }
+
   async function syncAssets(): Promise<{ success: boolean; message: string }> {
     return triggerAction('sync-assets')
   }
@@ -295,6 +310,7 @@ export const useAdminStore = defineStore('admin', () => {
     fetchCharts,
     fetchAll,
     clearError,
+    triggerSync,
     syncAssets,
     syncMarket,
     syncPve,
