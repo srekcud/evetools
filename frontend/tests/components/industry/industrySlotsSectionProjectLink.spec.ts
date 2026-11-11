@@ -55,6 +55,7 @@ const MERLIN_JOB_UNNAMED_PROJECT = tableJob(7_539_002, 603, 'Merlin', { id: MERL
 const KESTREL_JOB_WITHOUT_PROJECT = tableJob(7_539_003, 602, 'Kestrel', null)
 
 const SLOTS: SlotTrackerData = {
+  jobsSyncedAt: null,
   globalKpis: {
     manufacturing: { used: 3, max: 10, percent: 30 },
     reaction: { used: 0, max: 5, percent: 0 },

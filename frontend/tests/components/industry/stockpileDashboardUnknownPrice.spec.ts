@@ -16,6 +16,8 @@ const MEXALLON_TYPE_ID = 36
 const UNPRICED_COMPONENT_TYPE_ID = 57486
 
 const MEXALLON_TARGET: StockpileItemStatus = {
+  deficit: 6,
+  suggestedProjectRuns: null,
   id: '00000000-0000-4000-8000-000000000036',
   typeId: MEXALLON_TYPE_ID,
   typeName: 'Mexallon',
@@ -32,6 +34,8 @@ const MEXALLON_TARGET: StockpileItemStatus = {
 }
 
 const UNPRICED_COMPONENT_TARGET: StockpileItemStatus = {
+  deficit: 60,
+  suggestedProjectRuns: null,
   id: '00000000-0000-4000-8000-000000057486',
   typeId: UNPRICED_COMPONENT_TYPE_ID,
   typeName: 'Unpriced Component',

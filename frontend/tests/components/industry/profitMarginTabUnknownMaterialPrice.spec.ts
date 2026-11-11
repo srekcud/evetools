@@ -19,6 +19,7 @@ const NITROGEN_ISOTOPES_TYPE_ID = 17888
 const ATTAINMENT_DECRYPTOR_TYPE_ID = 34202
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,
@@ -35,6 +36,7 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: ATTAINMENT_DECRYPTOR_TYPE_ID,
   decryptorName: 'Attainment Decryptor',
   me: 1,

@@ -23,6 +23,7 @@ const PROFIT_COLUMN = 4
 const MARGIN_COLUMN = 5
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,
@@ -39,6 +40,7 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: 34_204,
   decryptorName: 'Attainment Decryptor',
   me: 1,

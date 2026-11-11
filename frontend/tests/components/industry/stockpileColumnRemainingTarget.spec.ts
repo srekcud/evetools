@@ -17,6 +17,8 @@ const FRAME_REMAINING_TARGET_QUANTITY = 10
 const FRAME_STOCK = 5
 
 const oreItem: ItemWithRemainingTarget = {
+  deficit: ORE_TARGET_QUANTITY - ORE_STOCK,
+  suggestedProjectRuns: null,
   id: '00000000-0000-4000-8000-000000003003',
   typeId: ORE_TYPE_ID,
   typeName: 'Ore',
@@ -33,6 +35,8 @@ const oreItem: ItemWithRemainingTarget = {
 }
 
 const frameItem: ItemWithRemainingTarget = {
+  deficit: FRAME_TARGET_QUANTITY - FRAME_STOCK,
+  suggestedProjectRuns: null,
   id: '00000000-0000-4000-8000-000000003002',
   typeId: FRAME_TYPE_ID,
   typeName: 'Frame',

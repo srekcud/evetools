@@ -60,6 +60,7 @@ const SABRE_MARGIN_RESULT: ProfitMarginResult = {
     selectedDecryptorTypeId: null,
     selectedDecryptorName: 'No Decryptor',
     options: [{
+      manufacturingJobs: 1,
       decryptorTypeId: null,
       decryptorName: 'No Decryptor',
       me: 2,
