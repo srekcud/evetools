@@ -50,6 +50,9 @@ class SyncTracker
     ];
 
     private const ON_DEMAND_HEALTH = 'on-demand';
+    private const STUCK_RUNNING_INTERVAL_RATIO = 2;
+    private const ON_DEMAND_STUCK_RUNNING_SECONDS = 3600;
+    private const SECONDS_PER_MINUTE = 60;
 
     public function __construct(
         private readonly CacheInterface $cache,
@@ -124,12 +127,16 @@ class SyncTracker
         $result = [];
 
         foreach (self::EXPECTED_INTERVALS as $type => $interval) {
-            $state = $this->getState($type);
+            $state = $this->reportStuckRunning(
+                $this->getState($type),
+                $interval * self::STUCK_RUNNING_INTERVAL_RATIO,
+            );
             $result[] = $this->buildEntry($type, $state, $this->computeHealth($state, $interval), $interval);
         }
 
         foreach (self::ON_DEMAND as $type) {
-            $result[] = $this->buildEntry($type, $this->getState($type), self::ON_DEMAND_HEALTH, null);
+            $state = $this->reportStuckRunning($this->getState($type), self::ON_DEMAND_STUCK_RUNNING_SECONDS);
+            $result[] = $this->buildEntry($type, $state, self::ON_DEMAND_HEALTH, null);
         }
 
         return $result;
@@ -157,6 +164,33 @@ class SyncTracker
      *
      * @return array<string, mixed>
      */
+    private function reportStuckRunning(array $state, int $maxRunningSeconds): array
+    {
+        $startedAt = $state['started_at'] ?? null;
+        if ($state['status'] !== 'running' || $startedAt === null) {
+            return $state;
+        }
+
+        $runningSeconds = time() - (new \DateTimeImmutable($startedAt))->getTimestamp();
+        if ($runningSeconds <= $maxRunningSeconds) {
+            return $state;
+        }
+
+        $state['status'] = 'error';
+        $state['stuck'] = true;
+        $state['message'] = sprintf(
+            'Stuck: still running after %d min without completion',
+            intdiv($runningSeconds, self::SECONDS_PER_MINUTE),
+        );
+
+        return $state;
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     *
+     * @return array<string, mixed>
+     */
     private function buildEntry(string $type, array $state, string $health, ?int $expectedInterval): array
     {
         return [
@@ -168,12 +202,17 @@ class SyncTracker
             'message' => $state['message'] ?? null,
             'expected_interval' => $expectedInterval,
             'on_demand' => $expectedInterval === null,
+            'triggerable' => TriggerableSyncs::isTriggerable($type),
         ];
     }
 
     /** @param array<string, mixed> $state */
     private function computeHealth(array $state, int $expectedInterval): string
     {
+        if (($state['stuck'] ?? false) === true) {
+            return 'stale';
+        }
+
         if ($state['status'] === 'running') {
             return 'running';
         }

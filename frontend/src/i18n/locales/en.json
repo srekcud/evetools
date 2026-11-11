@@ -2347,6 +2347,97 @@
       "onDemand": "On demand",
       "onDemandHint": "On demand (not scheduled)"
     },
+    "charactersToRepair": {
+      "title": "Characters to repair",
+      "character": "Character",
+      "lastLogin": "User last login",
+      "stateColumn": "State",
+      "missingScopes": "Missing scopes",
+      "since": "Token last updated",
+      "never": "Never",
+      "openSheet": "Open the user sheet",
+      "state": {
+        "invalid": "Authorization revoked",
+        "missing_scopes": "Scopes missing"
+      },
+      "empty": "No character needs a new login"
+    },
+    "adminCharacters": {
+      "title": "Admin characters",
+      "character": "Character",
+      "eveCharacterId": "EVE character id",
+      "user": "User account",
+      "hasUser": "User exists",
+      "noUser": "No user yet",
+      "unknownName": "Never seen",
+      "readOnlyHint": "Read-only. Admins are set by the ADMIN_CHARACTER_IDS environment variable.",
+      "empty": "No admin configured"
+    },
+    "userSupport": {
+      "title": "User support",
+      "searchPlaceholder": "Character name or EVE character id",
+      "search": "Search",
+      "noResult": "No user found",
+      "noMainCharacter": "No main character",
+      "characterCount": "{count} character | {count} characters",
+      "loadError": "The user sheet could not be loaded",
+      "lastLogin": "Last login",
+      "createdAt": "Account created",
+      "never": "Never",
+      "unknown": "Unknown",
+      "refresh": "Refresh",
+      "character": "Character",
+      "main": "Main",
+      "tokenStateColumn": "Token",
+      "tokenState": {
+        "valid": "Valid",
+        "expiring": "Expiring",
+        "invalid": "Authorization revoked",
+        "no_token": "No token"
+      },
+      "missingScopes": "Missing scopes",
+      "lastSync": "Last sync",
+      "syncColumn": "Sync",
+      "lastData": "Last data received",
+      "trigger": "Run now",
+      "triggered": "{type} sync queued",
+      "syncType": {
+        "industry": "Industry jobs",
+        "blueprints": "Blueprints",
+        "character-orders": "Market orders",
+        "pve": "PVE",
+        "mining": "Mining",
+        "assets": "Assets",
+        "wallet": "Wallet transactions",
+        "planetary": "Planetary colonies"
+      }
+    },
+    "mercureCookie": {
+      "title": "Mercure cookie size",
+      "threshold": "Users from {warning} bytes up to the browser limit of {limit} bytes",
+      "user": "User",
+      "cookieSize": "Cookie (bytes)",
+      "topics": "Topics",
+      "overLimit": "over the limit",
+      "empty": "No user close to the Mercure cookie limit"
+    },
+    "esiBudget": {
+      "title": "ESI error budget",
+      "remain": "Errors remaining",
+      "lastReset": "Last observed",
+      "resetIn": "window of {seconds}s",
+      "limited420": "420 in 24h",
+      "limited429": "429 in 24h",
+      "hourly": "Hourly 420/429, last 24h (red: 420, amber: 429)",
+      "family": "Endpoint family",
+      "noLimited": "No 420 or 429 in the last 24h",
+      "level": {
+        "unknown": "Unknown",
+        "ok": "Healthy",
+        "low": "Low",
+        "critical": "Critical"
+      }
+    },
     "scheduler": {
       "title": "Scheduler & Rate Limiting",
       "syncScope": "Sync scope",
@@ -2358,12 +2449,7 @@
       "logins": "Logins",
       "registrationsPerWeek": "Registrations per week",
       "loginsLast7d": "Logins (last 7 days)",
-      "assetDistribution": "Asset distribution",
-      "weekLabel": "Wk {week}",
-      "assetKinds": {
-        "personal": "Personal",
-        "corporation": "Corporation"
-      }
+      "weekLabel": "Wk {week}"
     },
     "pve": {
       "revenueByCorpTitle": "PVE Revenue by Corporation (30d)",
