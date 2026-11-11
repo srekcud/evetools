@@ -71,7 +71,7 @@ export interface SchedulerHealthEntry {
   completedAt: string | null
   message: string | null
   // null for on-demand syncs: not scheduled, so no health is computed
-  expectedInterval: number | null
+  expectedInterval?: number | null
   onDemand: boolean
 }
 

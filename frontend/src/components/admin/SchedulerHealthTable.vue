@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { SchedulerHealthEntry } from '@/stores/admin'
-import { nextRunAt, runDurationSeconds, sortBySeverity } from '@/utils/schedulerHealth'
+import { intervalOf, nextRunAt, runDurationSeconds, sortBySeverity } from '@/utils/schedulerHealth'
 
 const MS_PER_SECOND = 1000
 
@@ -43,6 +43,11 @@ function formatInterval(seconds: number): string {
   if (seconds >= 3600) return `${seconds / 3600}h`
   return `${seconds / 60}min`
 }
+
+function intervalLabel(entry: SchedulerHealthEntry): string {
+  const interval = intervalOf(entry)
+  return interval === null ? t('admin.health.onDemand') : formatInterval(interval)
+}
 </script>
 
 <template>
@@ -66,7 +71,7 @@ function formatInterval(seconds: number): string {
           <tr v-for="entry in sortedEntries" :key="entry.type" class="hover:bg-slate-800/30">
             <td class="py-2.5 pr-3">
               <span class="text-slate-200 font-medium">{{ entry.label }}</span>
-              <span class="text-slate-500 text-xs ml-1">({{ entry.expectedInterval === null ? t('admin.health.onDemand') : formatInterval(entry.expectedInterval) }})</span>
+              <span class="text-slate-500 text-xs ml-1">({{ intervalLabel(entry) }})</span>
             </td>
             <td class="py-2.5 pr-3">
               <span class="text-slate-300 font-mono text-xs">{{ entry.completedAt ? formatTimeSince(entry.completedAt) : '--' }}</span>
