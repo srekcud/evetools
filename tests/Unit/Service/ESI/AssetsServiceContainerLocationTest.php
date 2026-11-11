@@ -80,6 +80,7 @@ class AssetsServiceContainerLocationTest extends TestCase
     private const int CYCLIC_CONTAINER_A = 1000000010;
     private const int CYCLIC_CONTAINER_B = 1000000011;
     private const int CONTAINER_IN_MISSING_PARENT = 1000000012;
+    private const int SHIP_IN_STRUCTURE_REPORTED_AS_ITEM = 1000000013;
     /** item_id absent de la liste d'assets ESI (parent non renvoyé) */
     private const int MISSING_PARENT_ID = 1000000099;
 
@@ -96,6 +97,9 @@ class AssetsServiceContainerLocationTest extends TestCase
     private const int ISOGEN_IN_CYCLIC_CONTAINER_A = 2000000010;
     private const int PYERITE_IN_MISSING_PARENT = 2000000011;
     private const int TRITANIUM_IN_CONTAINER_IN_MISSING_PARENT = 2000000012;
+    private const int TRITANIUM_IN_STRUCTURE_HANGAR_REPORTED_AS_ITEM = 2000000013;
+    private const int PYERITE_IN_SHIP_IN_STRUCTURE_REPORTED_AS_ITEM = 2000000014;
+    private const int MEXALLON_IN_FORBIDDEN_STRUCTURE_REPORTED_AS_ITEM = 2000000015;
 
     /** Noms personnalisés renvoyés par /characters/{id}/assets/names/ */
     private const array CUSTOM_ITEM_NAMES = [
@@ -107,6 +111,7 @@ class AssetsServiceContainerLocationTest extends TestCase
         self::OUTER_CONTAINER_IN_SHIP_IN_STATION => 'Coffre',
         self::INNER_CONTAINER_IN_OUTER_CONTAINER => 'Tiroir',
         self::CONTAINER_WITH_EMPTY_CUSTOM_NAME => '',
+        self::SHIP_IN_STRUCTURE_REPORTED_AS_ITEM => 'Mineur 02',
     ];
 
     /** @var array<int, AssetDto> indexés par item_id */
@@ -308,6 +313,39 @@ class AssetsServiceContainerLocationTest extends TestCase
         ], $locationLookups);
     }
 
+    public function testItemInStructureHangarReportedAsItemIsLocatedAtStructure(): void
+    {
+        $tritanium = $this->assetsByItemId[self::TRITANIUM_IN_STRUCTURE_HANGAR_REPORTED_AS_ITEM];
+
+        $this->assertSame(self::ACCESSIBLE_STRUCTURE_NAME, $tritanium->locationName);
+        $this->assertSame(self::ACCESSIBLE_STRUCTURE_ID, $tritanium->locationId);
+        $this->assertSame(self::ACCESSIBLE_STRUCTURE_SYSTEM_ID, $tritanium->solarSystemId);
+        $this->assertSame(self::ACCESSIBLE_STRUCTURE_SYSTEM_NAME, $tritanium->solarSystemName);
+    }
+
+    public function testItemInShipInStructureReportedAsItemIsLocatedAtShipAndStructure(): void
+    {
+        $pyerite = $this->assetsByItemId[self::PYERITE_IN_SHIP_IN_STRUCTURE_REPORTED_AS_ITEM];
+
+        $this->assertSame('Mineur 02 — C-J6MT - Goonswarm Keepstar', $pyerite->locationName);
+        $this->assertSame(self::ACCESSIBLE_STRUCTURE_SYSTEM_NAME, $pyerite->solarSystemName);
+    }
+
+    public function testShipInStructureReportedAsItemIsLocatedAtStructure(): void
+    {
+        $ship = $this->assetsByItemId[self::SHIP_IN_STRUCTURE_REPORTED_AS_ITEM];
+
+        $this->assertSame(self::ACCESSIBLE_STRUCTURE_NAME, $ship->locationName);
+    }
+
+    public function testItemInForbiddenStructureReportedAsItemKeepsStructureFallback(): void
+    {
+        $mexallon = $this->assetsByItemId[self::MEXALLON_IN_FORBIDDEN_STRUCTURE_REPORTED_AS_ITEM];
+
+        $this->assertSame('Structure #1040000000001', $mexallon->locationName);
+        $this->assertNull($mexallon->solarSystemId);
+    }
+
     public function testCyclicChainIsStillCountedInStock(): void
     {
         $this->assertSame(40, $this->assetsByItemId[self::ISOGEN_IN_CYCLIC_CONTAINER_A]->quantity);
@@ -379,6 +417,10 @@ class AssetsServiceContainerLocationTest extends TestCase
             $this->rawAsset(self::PYERITE_IN_MISSING_PARENT, self::TYPE_PYERITE, 250, self::MISSING_PARENT_ID, 'item', 'Unlocked'),
             $this->rawAsset(self::CONTAINER_IN_MISSING_PARENT, self::TYPE_SMALL_STANDARD_CONTAINER, 1, self::MISSING_PARENT_ID, 'item', 'Cargo'),
             $this->rawAsset(self::TRITANIUM_IN_CONTAINER_IN_MISSING_PARENT, self::TYPE_TRITANIUM, 330, self::CONTAINER_IN_MISSING_PARENT, 'item', 'Unlocked'),
+            $this->rawAsset(self::TRITANIUM_IN_STRUCTURE_HANGAR_REPORTED_AS_ITEM, self::TYPE_TRITANIUM, 1500, self::ACCESSIBLE_STRUCTURE_ID, 'item', 'Hangar'),
+            $this->rawAsset(self::SHIP_IN_STRUCTURE_REPORTED_AS_ITEM, self::TYPE_VENTURE, 1, self::ACCESSIBLE_STRUCTURE_ID, 'item', 'Hangar'),
+            $this->rawAsset(self::PYERITE_IN_SHIP_IN_STRUCTURE_REPORTED_AS_ITEM, self::TYPE_PYERITE, 70, self::SHIP_IN_STRUCTURE_REPORTED_AS_ITEM, 'item', 'Cargo'),
+            $this->rawAsset(self::MEXALLON_IN_FORBIDDEN_STRUCTURE_REPORTED_AS_ITEM, self::TYPE_MEXALLON, 25, self::FORBIDDEN_STRUCTURE_ID, 'item', 'Hangar'),
         ];
     }
 
