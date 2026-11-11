@@ -3,7 +3,7 @@
  * Types mirror the API resource DTOs from src/ApiResource/GroupIndustry/.
  */
 
-import type { PriceSource } from '@/stores/industry/types'
+import type { InventionUnknownReason, PriceSource, ProfitMarginInventionOption } from '@/stores/industry/types'
 
 export type GroupProjectStatus = 'draft' | 'published' | 'in_progress' | 'selling' | 'completed'
 
@@ -749,6 +749,29 @@ export interface ResearchRow {
 export interface ProjectResearch {
   id: string
   rows: ResearchRow[]
+}
+
+export type ProjectInventionOption = Omit<ProfitMarginInventionOption, 'bestMargin'>
+
+export interface ProjectInventionProduct {
+  typeId: number
+  typeName: string | null
+  runs: number
+  me: number
+  te: number
+  invention: {
+    baseProbability: number | null
+    unknownReason: InventionUnknownReason | null
+    datacores: (string | null)[]
+    datacoresCostPerAttempt: number | null
+    inventor: { characterId: string, characterName: string, skillsKnown: boolean } | null
+    options: ProjectInventionOption[]
+  }
+}
+
+export interface ProjectInvention {
+  id: string
+  products: ProjectInventionProduct[]
 }
 
 export type MaterialSourcingSide = 'jita' | 'structure' | 'unknown'
