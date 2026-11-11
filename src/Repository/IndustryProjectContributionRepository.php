@@ -8,6 +8,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
+use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -91,6 +92,14 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
 
         return array_values(array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $bomItemIds));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function findBomItemIdsWithMaterialContributionOf(IndustryProject $project, User $user): array
+    {
+        return [];
     }
 
     /**

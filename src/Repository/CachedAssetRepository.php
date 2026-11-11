@@ -140,6 +140,11 @@ class CachedAssetRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function hasPersonalAssetsOf(User $user): bool
+    {
+        return false;
+    }
+
     public function hasCorporationAssets(int $corporationId): bool
     {
         return $this->createQueryBuilder('a')

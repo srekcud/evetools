@@ -114,6 +114,11 @@ class ProjectContainerService
         return new ProjectContainerScope(null, array_values(array_unique($containerItemIds)), $visibleAssetsByItemId);
     }
 
+    public function containerStockOf(IndustryProject $project): ProjectContainerStock
+    {
+        return new ProjectContainerStock(null, []);
+    }
+
     private function unavailabilityReason(int $corporationId, User $owner): ?string
     {
         if ($this->characterRepository->findWithCorpAssetsAccess($corporationId) === null) {
