@@ -15,6 +15,8 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class UserRepository extends ServiceEntityRepository
 {
+    private const MAXIMUM_EVE_CHARACTER_ID_DIGITS = 18;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, User::class);
@@ -89,5 +91,29 @@ class UserRepository extends ServiceEntityRepository
             ->orderBy('mainCharacter.name', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * @return list<User>
+     */
+    public function searchByCharacter(string $term, int $limit): array
+    {
+        $queryBuilder = $this->createQueryBuilder('u')
+            ->innerJoin('u.characters', 'c')
+            ->leftJoin('u.mainCharacter', 'm')
+            ->setParameter('nameFragment', '%' . addcslashes(mb_strtolower($term), '%_\\') . '%')
+            ->groupBy('u.id', 'm.name')
+            ->orderBy('m.name', 'ASC')
+            ->addOrderBy('u.id', 'ASC')
+            ->setMaxResults($limit);
+
+        if (ctype_digit($term) && strlen($term) <= self::MAXIMUM_EVE_CHARACTER_ID_DIGITS) {
+            $queryBuilder->where('LOWER(c.name) LIKE :nameFragment OR c.eveCharacterId = :eveCharacterId')
+                ->setParameter('eveCharacterId', (int) $term);
+        } else {
+            $queryBuilder->where('LOWER(c.name) LIKE :nameFragment');
+        }
+
+        return $queryBuilder->getQuery()->getResult();
     }
 }

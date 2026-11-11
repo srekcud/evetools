@@ -6,14 +6,17 @@ namespace App\ApiResource\Admin;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model;
 use App\ApiResource\Input\Admin\TriggerSyncInput;
+use App\ApiResource\Input\Admin\TriggerUserSyncInput;
 use App\ApiResource\Input\EmptyInput;
 use App\State\Processor\Admin\ClearCacheProcessor;
 use App\State\Processor\Admin\PurgeFailedProcessor;
 use App\State\Processor\Admin\RetryFailedProcessor;
 use App\State\Processor\Admin\TriggerSyncProcessor;
+use App\State\Processor\Admin\TriggerUserSyncProcessor;
 
 #[ApiResource(
     shortName: 'AdminAction',
@@ -25,6 +28,14 @@ use App\State\Processor\Admin\TriggerSyncProcessor;
             input: TriggerSyncInput::class,
             name: 'trigger_sync',
             openapi: new Model\Operation(summary: 'Trigger the manual run of a tracked sync type', tags: ['Administration']),
+        ),
+        new Post(
+            uriTemplate: '/admin/users/{userId}/sync',
+            uriVariables: ['userId' => new Link(fromClass: AdminUserSheetResource::class)],
+            processor: TriggerUserSyncProcessor::class,
+            input: TriggerUserSyncInput::class,
+            name: 'trigger_user_sync',
+            openapi: new Model\Operation(summary: 'Trigger a sync of one user', tags: ['Administration']),
         ),
         new Post(
             uriTemplate: '/admin/actions/sync-assets',
