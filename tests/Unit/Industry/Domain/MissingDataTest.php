@@ -26,4 +26,21 @@ final class MissingDataTest extends TestCase
         $this->assertSame('jump_route', $missingData->reason);
         $this->assertNull($missingData->typeId);
     }
+
+    public function testCopyBaseTimeNamesTheProductWhoseCopyTimeIsAbsent(): void
+    {
+        $missingData = MissingData::copyBaseTime(638);
+
+        $this->assertSame(['copy_base_time', 638], [$missingData->reason, $missingData->typeId]);
+    }
+
+    public function testCopyReasonsOfThePlannedCopyBelongToNoType(): void
+    {
+        $reasons = array_map(
+            static fn (MissingData $missingData): array => [$missingData->reason, $missingData->typeId],
+            [MissingData::copySkills(), MissingData::copyStructureNotPlanned(), MissingData::noCopyStructure(), MissingData::plannedStructureDeleted()],
+        );
+
+        $this->assertSame([['copy_skills', null], ['copy_structure_not_planned', null], ['no_copy_structure', null], ['planned_structure_deleted', null]], $reasons);
+    }
 }
