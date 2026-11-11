@@ -9,7 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\QueueResource;
 use App\Entity\User;
 use App\Security\AdminChecker;
-use App\Service\Admin\AdminService;
+use App\Service\Admin\MessengerQueueService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -21,7 +21,7 @@ class QueueStatusProvider implements ProviderInterface
 {
     public function __construct(
         private readonly Security $security,
-        private readonly AdminService $adminService,
+        private readonly MessengerQueueService $queueService,
         private readonly AdminChecker $adminChecker,
     ) {
     }
@@ -36,10 +36,11 @@ class QueueStatusProvider implements ProviderInterface
 
         $this->checkAdminAccess($user);
 
-        $queueStatus = $this->adminService->getQueueStatus();
-
         $resource = new QueueResource();
-        $resource->queues = $queueStatus['queues'] ?? [];
+        $resource->queues = [
+            'async' => $this->queueService->getDepth('async'),
+            'failed' => $this->queueService->getDepth('failed'),
+        ];
 
         return $resource;
     }

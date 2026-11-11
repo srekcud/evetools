@@ -97,17 +97,6 @@ class AdminServiceTest extends TestCase
         $this->assertArrayHasKey('ansiblexCount', $stats['syncs']);
     }
 
-    public function testGetQueueStatusStructure(): void
-    {
-        $this->connection->method('fetchOne')->willReturn(0);
-
-        $queues = $this->adminService->getQueueStatus();
-
-        $this->assertArrayHasKey('queues', $queues);
-        $this->assertArrayHasKey('async', $queues['queues']);
-        $this->assertArrayHasKey('failed', $queues['queues']);
-    }
-
     public function testGetChartDataStructure(): void
     {
         $this->connection->method('fetchOne')->willReturn(0);

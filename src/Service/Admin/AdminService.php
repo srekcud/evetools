@@ -266,36 +266,6 @@ class AdminService
         ];
     }
 
-    /** @return array<string, array<string, int|null>> */
-    public function getQueueStatus(): array
-    {
-        // Try to get messenger transport status via Symfony's messenger:stats command output
-        // For now, we'll query the messenger_messages table if it exists (async transport)
-        $queues = [];
-
-        try {
-            $asyncCount = (int) $this->connection->fetchOne(
-                "SELECT COUNT(*) FROM messenger_messages WHERE queue_name = 'async'"
-            );
-            $queues['async'] = $asyncCount;
-        } catch (\Throwable) {
-            $queues['async'] = null;
-        }
-
-        try {
-            $failedCount = (int) $this->connection->fetchOne(
-                "SELECT COUNT(*) FROM messenger_messages WHERE queue_name = 'failed'"
-            );
-            $queues['failed'] = $failedCount;
-        } catch (\Throwable) {
-            $queues['failed'] = null;
-        }
-
-        return [
-            'queues' => $queues,
-        ];
-    }
-
     /** @return array<string, array<string, mixed>> */
     public function getChartData(): array
     {
