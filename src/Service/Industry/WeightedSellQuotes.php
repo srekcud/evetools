@@ -19,16 +19,21 @@ final readonly class WeightedSellQuotes
     /**
      * @param list<array{typeId: int, quantity: int}> $requests
      */
-    public static function read(JitaMarketService $jitaMarketService, array $requests): self
+    public static function read(JitaMarketService $jitaMarketService, array $requests, SellQuoteReading $reading = SellQuoteReading::WithEsiFallback): self
     {
         $distinctRequests = [];
         foreach ($requests as $request) {
             $distinctRequests[self::keyOf($request['typeId'], $request['quantity'])] = $request;
         }
 
+        $distinctRequestList = array_values($distinctRequests);
+
         return new self(array_combine(
             array_keys($distinctRequests),
-            $jitaMarketService->getWeightedSellQuotesWithFallback(array_values($distinctRequests)),
+            match ($reading) {
+                SellQuoteReading::WithEsiFallback => $jitaMarketService->getWeightedSellQuotesWithFallback($distinctRequestList),
+                SellQuoteReading::CachedOnly => $jitaMarketService->getCachedWeightedSellQuotes($distinctRequestList),
+            },
         ));
     }
 

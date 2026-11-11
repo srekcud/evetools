@@ -347,21 +347,31 @@ class JitaMarketService
      * @param list<array{typeId: int, quantity: int}> $requests
      * @return list<array{weightedPrice: float, coverage?: float, ordersUsed: int}|null> aligned on $requests
      */
-    public function getWeightedSellQuotesWithFallback(array $requests): array
+    public function getCachedWeightedSellQuotes(array $requests): array
     {
         if ($requests === []) {
             return [];
         }
 
         $orderBook = $this->getOrderBook(self::CACHE_KEY);
-        $quotes = [];
+
+        return array_map(
+            fn (array $request): ?array => $this->calculateWeightedPrice($orderBook[$request['typeId']] ?? [], $request['quantity']),
+            $requests,
+        );
+    }
+
+    /**
+     * @param list<array{typeId: int, quantity: int}> $requests
+     * @return list<array{weightedPrice: float, coverage?: float, ordersUsed: int}|null> aligned on $requests
+     */
+    public function getWeightedSellQuotesWithFallback(array $requests): array
+    {
+        $quotes = $this->getCachedWeightedSellQuotes($requests);
         $unquotedTypeIds = [];
 
-        foreach ($requests as $request) {
-            $quote = $this->calculateWeightedPrice($orderBook[$request['typeId']] ?? [], $request['quantity']);
-            $quotes[] = $quote;
-
-            if ($quote === null && $request['quantity'] > 0) {
+        foreach ($requests as $index => $request) {
+            if ($quotes[$index] === null && $request['quantity'] > 0) {
                 $unquotedTypeIds[$request['typeId']] = $request['typeId'];
             }
         }
@@ -968,7 +978,26 @@ class JitaMarketService
         $piTypeIds = $this->getPiCommodityTypeIds();
         $typeIds = array_unique(array_merge($typeIds, $piTypeIds));
 
-        return $typeIds;
+        return array_unique(array_merge($typeIds, $this->getManufacturableProductTypeIds()));
+    }
+
+    /**
+     * @return int[]
+     */
+    private function getManufacturableProductTypeIds(): array
+    {
+        $sql = <<<SQL
+            SELECT DISTINCT p.product_type_id
+            FROM sde_industry_activity_products p
+            JOIN sde_inv_types t ON t.type_id = p.product_type_id
+            JOIN sde_inv_groups g ON g.group_id = t.group_id
+            WHERE p.activity_id IN (1, 11)
+              AND t.published = true
+              AND t.market_group_id IS NOT NULL
+              AND g.category_id NOT IN (2, 25)
+        SQL;
+
+        return array_map('intval', $this->connection->fetchFirstColumn($sql));
     }
 
     /**

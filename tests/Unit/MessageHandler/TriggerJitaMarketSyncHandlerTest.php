@@ -74,7 +74,7 @@ final class TriggerJitaMarketSyncHandlerTest extends TestCase
         $handler(new TriggerJitaMarketSync());
 
         $tracker = $this->trackerState();
-        $this->assertSame(['running', 'running', 'running', 'running'], $trackerStatusesDuringSync);
+        $this->assertSame(['running', 'running', 'running', 'running', 'running'], $trackerStatusesDuringSync);
         $this->assertSame('ok', $tracker['status']);
         $this->assertMatchesRegularExpression('/^2 types, 0(\.\d)?s$/', $tracker['message']);
         $this->assertNotNull($tracker['started_at']);
