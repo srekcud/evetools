@@ -74,6 +74,7 @@ async function mountAdmin(): Promise<VueWrapper> {
         SchedulerHealthTable: true,
         AdminChartsGrid: true,
         PveCorpRevenue: true,
+        FailedMessagesCard: true,
       },
     },
   })
