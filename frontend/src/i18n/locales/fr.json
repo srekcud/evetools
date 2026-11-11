@@ -2362,6 +2362,17 @@
       },
       "empty": "Aucun personnage ne doit se reconnecter"
     },
+    "adminCharacters": {
+      "title": "Personnages admin",
+      "character": "Personnage",
+      "eveCharacterId": "Id EVE",
+      "user": "Compte utilisateur",
+      "hasUser": "Utilisateur existant",
+      "noUser": "Pas encore d'utilisateur",
+      "unknownName": "Jamais vu",
+      "readOnlyHint": "Lecture seule. Les admins sont définis par la variable d'environnement ADMIN_CHARACTER_IDS.",
+      "empty": "Aucun admin configuré"
+    },
     "userSupport": {
       "title": "Support utilisateur",
       "searchPlaceholder": "Nom de personnage ou id EVE",

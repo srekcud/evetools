@@ -7,6 +7,7 @@ namespace App\State\Provider\Admin;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\AdminStatsResource;
+use App\ApiResource\Admin\AdminCharacterDto;
 use App\ApiResource\Admin\CharacterToRepairDto;
 use App\ApiResource\Admin\EsiLimitedFamilyDto;
 use App\ApiResource\Admin\EsiLimitedHourDto;
@@ -14,6 +15,8 @@ use App\ApiResource\Admin\MercureCookieUserDto;
 use App\ApiResource\Admin\PveCorporationStatsDto;
 use App\ApiResource\Admin\SchedulerHealthEntryDto;
 use App\Entity\User;
+use App\Security\AdminCharacterEntry;
+use App\Security\AdminCharacterLister;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
 use App\Service\Admin\CharacterRepairLister;
@@ -37,6 +40,7 @@ class AdminStatsProvider implements ProviderInterface
         private readonly EsiErrorBudget $errorBudget,
         private readonly MercureCookieSizeMonitor $mercureCookieMonitor,
         private readonly CharacterRepairLister $characterRepairLister,
+        private readonly AdminCharacterLister $adminCharacterLister,
     ) {
     }
 
@@ -139,6 +143,7 @@ class AdminStatsProvider implements ProviderInterface
         $this->fillEsiErrorBudget($resource);
         $this->fillMercureCookie($resource);
         $this->fillCharactersToRepair($resource);
+        $this->fillAdminCharacters($resource);
 
         return $resource;
     }
@@ -157,6 +162,21 @@ class AdminStatsProvider implements ProviderInterface
                 $entry->state->value,
                 $entry->missingScopes,
                 $entry->sinceAt,
+            ),
+            $entries,
+        );
+    }
+
+    private function fillAdminCharacters(AdminStatsResource $resource): void
+    {
+        $entries = $this->adminCharacterLister->all();
+
+        $resource->adminCharacters->count = count($entries);
+        $resource->adminCharacters->characters = array_map(
+            static fn (AdminCharacterEntry $entry): AdminCharacterDto => new AdminCharacterDto(
+                $entry->eveCharacterId,
+                $entry->characterName,
+                $entry->hasUser,
             ),
             $entries,
         );

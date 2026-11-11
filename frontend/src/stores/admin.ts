@@ -130,6 +130,17 @@ export interface AdminCharactersToRepair {
   characters: AdminCharacterToRepair[]
 }
 
+export interface AdminCharacter {
+  eveCharacterId: number
+  characterName?: string | null
+  hasUser: boolean
+}
+
+export interface AdminCharacters {
+  count: number
+  characters: AdminCharacter[]
+}
+
 export interface AdminNotificationStats {
   total: number
   unread: number
@@ -160,6 +171,7 @@ export interface AdminStats {
   esiErrorBudget: AdminEsiErrorBudget
   mercureCookie: AdminMercureCookie
   charactersToRepair: AdminCharactersToRepair
+  adminCharacters: AdminCharacters
 }
 
 export interface AdminQueues {
