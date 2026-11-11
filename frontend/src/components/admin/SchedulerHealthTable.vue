@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { SchedulerHealthEntry } from '@/stores/admin'
+import { nextRunAt, runDurationSeconds, sortBySeverity } from '@/utils/schedulerHealth'
 
-defineProps<{
+const MS_PER_SECOND = 1000
+
+const props = defineProps<{
   entries: SchedulerHealthEntry[]
   syncActionMap: Record<string, { action: () => Promise<{ success: boolean; message: string }>; key: string }>
   actionLoading: string | null
@@ -14,7 +18,26 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { formatTimeSince } = useFormatters()
+const { formatTimeSince, formatDuration } = useFormatters()
+
+const sortedEntries = computed(() => sortBySeverity(props.entries))
+
+function nextRunView(entry: SchedulerHealthEntry): { text: string; overdue: boolean } | null {
+  const next = nextRunAt(entry)
+  if (next === null) return null
+
+  const gapSeconds = Math.floor(Math.abs(next.getTime() - Date.now()) / MS_PER_SECOND)
+  const delay = formatDuration(gapSeconds)
+
+  return next.getTime() < Date.now()
+    ? { text: t('admin.sync.overdueBy', { delay }), overdue: true }
+    : { text: t('admin.sync.nextRunIn', { delay }), overdue: false }
+}
+
+function durationText(entry: SchedulerHealthEntry): string {
+  const seconds = runDurationSeconds(entry)
+  return seconds === null ? '--' : formatDuration(seconds)
+}
 
 function formatInterval(seconds: number): string {
   if (seconds >= 3600) return `${seconds / 3600}h`
@@ -31,6 +54,8 @@ function formatInterval(seconds: number): string {
           <tr class="text-slate-500 text-xs uppercase">
             <th class="text-left pb-3 font-medium">{{ t('admin.sync.type') }}</th>
             <th class="text-left pb-3 font-medium">{{ t('admin.sync.lastRun') }}</th>
+            <th class="text-left pb-3 font-medium">{{ t('admin.sync.nextRun') }}</th>
+            <th class="text-left pb-3 font-medium">{{ t('admin.sync.duration') }}</th>
             <th class="text-center pb-3 font-medium">{{ t('admin.sync.status') }}</th>
             <th class="text-center pb-3 font-medium">{{ t('admin.sync.health') }}</th>
             <th class="text-left pb-3 font-medium">{{ t('admin.sync.message') }}</th>
@@ -38,13 +63,22 @@ function formatInterval(seconds: number): string {
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
-          <tr v-for="entry in entries" :key="entry.type" class="hover:bg-slate-800/30">
+          <tr v-for="entry in sortedEntries" :key="entry.type" class="hover:bg-slate-800/30">
             <td class="py-2.5 pr-3">
               <span class="text-slate-200 font-medium">{{ entry.label }}</span>
               <span class="text-slate-500 text-xs ml-1">({{ entry.expectedInterval === null ? t('admin.health.onDemand') : formatInterval(entry.expectedInterval) }})</span>
             </td>
             <td class="py-2.5 pr-3">
               <span class="text-slate-300 font-mono text-xs">{{ entry.completedAt ? formatTimeSince(entry.completedAt) : '--' }}</span>
+            </td>
+            <td class="py-2.5 pr-3">
+              <span
+                data-testid="scheduler-next-run"
+                :class="['font-mono text-xs', nextRunView(entry)?.overdue ? 'text-red-400' : 'text-slate-300']"
+              >{{ nextRunView(entry)?.text ?? '--' }}</span>
+            </td>
+            <td class="py-2.5 pr-3">
+              <span data-testid="scheduler-duration" class="text-slate-300 font-mono text-xs">{{ durationText(entry) }}</span>
             </td>
             <td class="py-2.5 text-center">
               <span
