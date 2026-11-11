@@ -1618,6 +1618,23 @@
         "moonChunks": "Chunks lunaires",
         "moonTax": "Taxe lunaire"
       },
+      "accessRequired": {
+        "role_missing": "L'ESI exige le rôle {role} (ou Director) pour lire cette donnée. Aucun de tes personnages de cette corporation ne l'a.",
+        "reconnect": "Aucun de tes personnages de cette corporation ne peut lire ses rôles : son token est invalide ou n'a pas le scope de lecture des rôles.",
+        "esi_error": "Les rôles de tes personnages de cette corporation n'ont pas pu être lus sur l'ESI.",
+        "checkedCharacters": "Personnages vérifiés",
+        "main": "principal",
+        "withoutRole": "sans le rôle",
+        "toReconnect": "à reconnecter",
+        "unreadable": "illisible",
+        "unknown": "non vérifié",
+        "steps": "Demande le rôle {role} à un directeur de la corporation, de préférence pour ton personnage principal. Les rôles mettent jusqu'à environ 1 h à apparaître côté ESI.",
+        "reconnectLink": "Reconnecter sur la page Personnages",
+        "recheck": "Revérifier",
+        "rechecking": "Vérification...",
+        "rolesDetail": "Rôles lus pour chaque personnage",
+        "noRole": "aucun rôle"
+      },
       "moonChunks": {
         "title": "Chunks lunaires",
         "subtitle": "Extractions des raffineries de la corporation. Les heures sont en EVE time (UTC), avec une conversion en heure locale possible.",
@@ -1752,6 +1769,14 @@
         "mineLoadError": "Votre taxe lunaire n'a pas pu être chargée.",
         "denied": "Accès gestionnaire refusé",
         "unreadable": "Rôles de la corporation illisibles",
+        "noneManageable": "Aucune de tes corporations ne t'est gérable",
+        "blockedLine": {
+          "role_missing": "rôle {role} manquant",
+          "reconnect": "à reconnecter",
+          "esi_error": "rôles illisibles"
+        },
+        "blockedRole": "{count} corporation sans le rôle {role} | {count} corporations sans le rôle {role}",
+        "blockedAny": "{count} corporation sans accès | {count} corporations sans accès",
         "noRefinery": "Aucune raffinerie connue, synchronisez les extractions.",
         "filterLabel": "Filtre des relevés",
         "filters": {

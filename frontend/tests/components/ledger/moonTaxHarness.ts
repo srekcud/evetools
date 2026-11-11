@@ -327,6 +327,7 @@ export function attributePath(corporationId: number, journalId: number): string 
 export function defaultRoutes(extractions: CorporationMiningExtractionsResponse = response(SYNCED_CORPORATION)): Record<string, unknown> {
   return {
     'GET /mining/corporation-extractions': extractions,
+    [`GET /mining/corporation-role-access/${CORPORATION_A}?feature=moon-tax`]: { corporationId: CORPORATION_A, status: 'held', requiredRole: 'Accountant', characters: [] },
     [`GET ${corporationPath(CORPORATION_A)}`]: moonTaxCorporation(),
     [`GET ${statementsPath(CORPORATION_A)}`]: [],
     [`GET ${donationsPath(CORPORATION_A)}`]: [],
