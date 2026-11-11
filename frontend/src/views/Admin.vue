@@ -68,6 +68,7 @@ onMounted(async () => {
 const stats = computed(() => adminStore.stats)
 const queues = computed(() => adminStore.queues)
 const charts = computed(() => adminStore.charts)
+const failedMessageCount = computed(() => queues.value?.queues.failed ?? null)
 
 const syncActionMap: Record<string, { action: () => Promise<{ success: boolean; message: string }>; key: string }> = {
   'assets': { action: adminStore.syncAssets, key: 'sync-assets' },
@@ -246,6 +247,7 @@ watch(
         </div>
         <MaintenanceActions
           :action-loading="actionLoading"
+          :failed-message-count="failedMessageCount"
           @execute-action="handleMaintenanceAction"
         />
       </div>

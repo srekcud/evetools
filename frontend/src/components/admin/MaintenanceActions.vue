@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import type { MaintenanceActionKey } from '@/components/admin/maintenanceActionKeys'
 
-defineProps<{
+const props = defineProps<{
   actionLoading: string | null
+  failedMessageCount: number | null
 }>()
 
 const emit = defineEmits<{
@@ -11,6 +14,55 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+type DestructiveActionKey = Extract<MaintenanceActionKey, 'purgeFailed' | 'clearCache' | 'purgeNotifications' | 'purgeMarketHistory'>
+
+const DESTRUCTIVE_ACTION_KEYS: ReadonlySet<MaintenanceActionKey> = new Set<DestructiveActionKey>([
+  'purgeFailed',
+  'clearCache',
+  'purgeNotifications',
+  'purgeMarketHistory',
+])
+
+const pendingAction = ref<{ name: string; action: DestructiveActionKey } | null>(null)
+
+const confirmationTitle = computed(() =>
+  pendingAction.value ? t(`admin.confirm.${pendingAction.value.action}.title`) : '',
+)
+
+const confirmationMessage = computed(() => {
+  if (!pendingAction.value) return ''
+  const { action } = pendingAction.value
+  if (action === 'purgeFailed') {
+    return props.failedMessageCount === null
+      ? t('admin.confirm.purgeFailed.messageUnknownCount')
+      : t('admin.confirm.purgeFailed.message', { count: props.failedMessageCount }, props.failedMessageCount)
+  }
+  return t(`admin.confirm.${action}.message`)
+})
+
+function isDestructive(action: MaintenanceActionKey): action is DestructiveActionKey {
+  return DESTRUCTIVE_ACTION_KEYS.has(action)
+}
+
+function requestAction(name: string, action: MaintenanceActionKey) {
+  if (isDestructive(action)) {
+    pendingAction.value = { name, action }
+    return
+  }
+  emit('execute-action', name, action)
+}
+
+function confirmPendingAction() {
+  if (!pendingAction.value) return
+  const { name, action } = pendingAction.value
+  pendingAction.value = null
+  emit('execute-action', name, action)
+}
+
+function cancelPendingAction() {
+  pendingAction.value = null
+}
 </script>
 
 <template>
@@ -18,7 +70,7 @@ const { t } = useI18n()
     <h3 class="text-lg font-semibold text-slate-200 mb-4">{{ t('admin.maintenance') }}</h3>
     <div class="space-y-3">
       <button
-        @click="emit('execute-action', 'retry-failed', 'retryFailed')"
+        @click="requestAction('retry-failed', 'retryFailed')"
         :disabled="actionLoading !== null"
         class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -29,7 +81,7 @@ const { t } = useI18n()
       </button>
 
       <button
-        @click="emit('execute-action', 'purge-failed', 'purgeFailed')"
+        @click="requestAction('purge-failed', 'purgeFailed')"
         :disabled="actionLoading !== null"
         class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -40,7 +92,7 @@ const { t } = useI18n()
       </button>
 
       <button
-        @click="emit('execute-action', 'clear-cache', 'clearCache')"
+        @click="requestAction('clear-cache', 'clearCache')"
         :disabled="actionLoading !== null"
         class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -54,7 +106,7 @@ const { t } = useI18n()
       <p class="text-xs text-slate-500 uppercase mb-2">{{ t('admin.actions.marketAndNotifications') }}</p>
 
       <button
-        @click="emit('execute-action', 'check-market-alerts', 'checkMarketAlerts')"
+        @click="requestAction('check-market-alerts', 'checkMarketAlerts')"
         :disabled="actionLoading !== null"
         class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -65,7 +117,7 @@ const { t } = useI18n()
       </button>
 
       <button
-        @click="emit('execute-action', 'purge-notifications', 'purgeNotifications')"
+        @click="requestAction('purge-notifications', 'purgeNotifications')"
         :disabled="actionLoading !== null"
         class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -76,7 +128,7 @@ const { t } = useI18n()
       </button>
 
       <button
-        @click="emit('execute-action', 'purge-market-history', 'purgeMarketHistory')"
+        @click="requestAction('purge-market-history', 'purgeMarketHistory')"
         :disabled="actionLoading !== null"
         class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -86,5 +138,13 @@ const { t } = useI18n()
         {{ t('admin.actions.purgeMarketHistory') }}
       </button>
     </div>
+
+    <ConfirmModal
+      :show="pendingAction !== null"
+      :title="confirmationTitle"
+      :subtitle="confirmationMessage"
+      @confirm="confirmPendingAction"
+      @cancel="cancelPendingAction"
+    />
   </div>
 </template>
