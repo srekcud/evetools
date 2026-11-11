@@ -10,6 +10,7 @@ use App\Entity\EveToken;
 use App\Entity\OwnedBlueprint;
 use App\Entity\Sde\IndustryActivity;
 use App\Entity\User;
+use App\Repository\CachedAssetRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
@@ -165,6 +166,17 @@ trait BuildsBlueprintLibrary
                     ->setVisibleDivisions($visibleDivisionsByCorporationId[$corporationId])
                     ->setShareBlueprintsOfHiddenDivisions($sharesBlueprintsOfHiddenDivisions)
                 : null,
+        );
+
+        return $repository;
+    }
+
+    /** @param array<int, array<int, string>> $divisionNamesByCorporationId */
+    private function divisionsNamed(array $divisionNamesByCorporationId = []): CachedAssetRepository
+    {
+        $repository = $this->createStub(CachedAssetRepository::class);
+        $repository->method('findDistinctDivisions')->willReturnCallback(
+            static fn (int $corporationId): array => $divisionNamesByCorporationId[$corporationId] ?? [],
         );
 
         return $repository;

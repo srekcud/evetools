@@ -7,10 +7,11 @@ namespace App\Service\Industry\Blueprint;
 use App\Entity\Character;
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
+use App\Enum\IndustryActivityType;
+use App\Repository\CachedAssetRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
-use App\Enum\IndustryActivityType;
 use App\Repository\OwnedBlueprintRepository;
 use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\TypeNameResolver;
@@ -38,6 +39,7 @@ class BlueprintLibraryReader
         private readonly CharacterRepository $characterRepository,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly CachedIndustryJobRepository $jobRepository,
+        private readonly CachedAssetRepository $assetRepository,
         private readonly IndustryActivityRepository $activityRepository,
     ) {
     }
@@ -61,10 +63,11 @@ class BlueprintLibraryReader
             $blueprints,
         )));
 
+        $divisionNames = $corporate === [] ? [] : $this->assetRepository->findDistinctDivisions($corporationId);
         $reactionFormulaTypeIds = $this->reactionFormulaTypeIdsAmong($blueprints);
 
         $rows = array_map(
-            fn (OwnedBlueprint $blueprint): BlueprintLibraryRow => $this->rowOf($blueprint, $names, $main, isset($itemIdsInProgress[$blueprint->getItemId()]), isset($reactionFormulaTypeIds[$blueprint->getTypeId()])),
+            fn (OwnedBlueprint $blueprint): BlueprintLibraryRow => $this->rowOf($blueprint, $names, $divisionNames, $main, isset($itemIdsInProgress[$blueprint->getItemId()]), isset($reactionFormulaTypeIds[$blueprint->getTypeId()])),
             $blueprints,
         );
         usort($rows, self::compareRows(...));
@@ -113,11 +116,15 @@ class BlueprintLibraryReader
         return $typeIds;
     }
 
-    /** @param array<int, string> $names */
-    private function rowOf(OwnedBlueprint $blueprint, array $names, Character $main, bool $usedByRunningJob, bool $isReactionFormula): BlueprintLibraryRow
+    /**
+     * @param array<int, string> $names
+     * @param array<int, string> $divisionNames
+     */
+    private function rowOf(OwnedBlueprint $blueprint, array $names, array $divisionNames, Character $main, bool $usedByRunningJob, bool $isReactionFormula): BlueprintLibraryRow
     {
         $character = $blueprint->getCharacter();
         $isOriginal = $blueprint->isOriginal();
+        $divisionNumber = $blueprint->getDivisionNumber();
         $kind = match (true) {
             $isReactionFormula => self::KIND_REACTION,
             $isOriginal => self::KIND_ORIGINAL,
@@ -134,7 +141,8 @@ class BlueprintLibraryReader
             $character === null ? self::SCOPE_CORPORATION : self::SCOPE_PERSONAL,
             $character === null ? $main->getCorporationName() : $character->getName(),
             $blueprint->getLocationId(),
-            $blueprint->getDivisionNumber(),
+            $divisionNumber,
+            $divisionNumber === null ? null : $divisionNames[$divisionNumber] ?? null,
             $isOriginal && $blueprint->getQuantity() > 0 ? $blueprint->getQuantity() : 1,
             $usedByRunningJob,
         );

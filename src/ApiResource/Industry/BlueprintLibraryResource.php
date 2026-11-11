@@ -47,6 +47,6 @@ class BlueprintLibraryResource
 {
     public string $corporationState;
 
-    /** @var list<array{typeId: int, name: string, kind: string, me: int, te: int, runs: int|null, scope: string, ownerName: string|null, locationId: int, divisionNumber: int|null, count: int, usedByRunningJob: bool}> */
+    /** @var list<array{typeId: int, name: string, kind: string, me: int, te: int, runs: int|null, scope: string, ownerName: string|null, locationId: int, divisionNumber: int|null, divisionName: string|null, count: int, usedByRunningJob: bool}> */
     public array $blueprints = [];
 }
