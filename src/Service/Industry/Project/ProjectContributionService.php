@@ -29,6 +29,7 @@ class ProjectContributionService
         private readonly EntityManagerInterface $entityManager,
         private readonly JitaMarketService $jitaMarket,
         private readonly LineReservationService $lineReservations,
+        private readonly IndustryProjectService $projectService,
     ) {
     }
 

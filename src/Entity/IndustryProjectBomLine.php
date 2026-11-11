@@ -292,6 +292,11 @@ class IndustryProjectBomLine
         return $this->fulfilledQuantity >= $this->requiredQuantity;
     }
 
+    public function isCoveredByStock(): bool
+    {
+        return false;
+    }
+
     public function isManufacturingOrReactionJob(): bool
     {
         return $this->isJob && \in_array($this->activityType, [self::ACTIVITY_MANUFACTURING, self::ACTIVITY_REACTION], true);

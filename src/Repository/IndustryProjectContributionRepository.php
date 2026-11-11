@@ -94,6 +94,14 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return array<int, int> by typeId
+     */
+    public function findIntermediateStockByTypeId(IndustryProject $project): array
+    {
+        return [];
+    }
+
+    /**
      * Find an existing contribution for a member on a specific BOM item with a given type and matching statuses.
      *
      * @param ContributionStatus[] $statuses

@@ -57,4 +57,41 @@ final class IndustryProjectBomLineTest extends TestCase
             [$finalJob->getPlannedStructureId(), $finalJob->getPlannedStructureStatus()],
         );
     }
+
+    #[Group('issue-706')]
+    public function testJobLineOfZeroRunsIsCoveredByStock(): void
+    {
+        $coveredJob = (new IndustryProjectBomLine())
+            ->setIsJob(true)
+            ->setActivityType('manufacturing')
+            ->setRuns(0)
+            ->setRequiredQuantity(15)
+            ->setFulfilledQuantity(20);
+
+        self::assertTrue($coveredJob->isCoveredByStock());
+    }
+
+    #[Group('issue-706')]
+    public function testJobLineOfOneRunIsNotCoveredByStockWhateverItsFulfilledQuantity(): void
+    {
+        $partlyCoveredJob = (new IndustryProjectBomLine())
+            ->setIsJob(true)
+            ->setActivityType('reaction')
+            ->setRuns(1)
+            ->setRequiredQuantity(10_030)
+            ->setFulfilledQuantity(10_030);
+
+        self::assertFalse($partlyCoveredJob->isCoveredByStock());
+    }
+
+    #[Group('issue-706')]
+    public function testMaterialLineIsNeverCoveredByStock(): void
+    {
+        $leaf = (new IndustryProjectBomLine())
+            ->setIsJob(false)
+            ->setRequiredQuantity(405)
+            ->setFulfilledQuantity(405);
+
+        self::assertFalse($leaf->isCoveredByStock());
+    }
 }
