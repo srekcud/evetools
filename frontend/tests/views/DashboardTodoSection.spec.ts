@@ -9,6 +9,8 @@ import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
 import {
   ACTIVE_TRITANIUM_ALERT,
+  acknowledgement,
+  acknowledgementWrites,
   INVALID_TOKEN,
   PENDING,
   TRIGGERED_MEXALLON_ALERT,
@@ -38,12 +40,13 @@ const COMPLETE_WALLETS = {
   ],
 }
 
-async function mountDashboard(sources: { locale?: 'en' | 'fr'; user?: User; planetaryStats?: SourceAnswer[]; marketAlerts?: SourceAnswer[] }): Promise<VueWrapper> {
+async function mountDashboard(sources: { locale?: 'en' | 'fr'; user?: User; planetaryStats?: SourceAnswer[]; marketAlerts?: SourceAnswer[]; acknowledgements?: SourceAnswer[] }): Promise<VueWrapper> {
   const user = sources.user ?? todoUser()
   vi.mocked(apiRequest).mockImplementation(sourcesAnswering({
     user,
     planetaryStats: sources.planetaryStats ?? [planetaryStats()],
     marketAlerts: sources.marketAlerts ?? [[ACTIVE_TRITANIUM_ALERT]],
+    acknowledgements: sources.acknowledgements,
   }))
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(COMPLETE_WALLETS), { status: 200 })))
 
@@ -77,6 +80,17 @@ function todoRows(wrapper: VueWrapper): { text: string; href: string | null }[] 
     const link = row.element.tagName === 'A' ? row.element : row.element.querySelector('a')
     return { text: row.text().replace(/\s+/g, ' ').trim(), href: link?.getAttribute('href') ?? null }
   })
+}
+
+function todoLines(wrapper: VueWrapper): { text: string; hasAcknowledgeButton: boolean }[] {
+  return todoSection(wrapper).findAll('li').map(row => ({
+    text: row.find('[data-testid="dashboard-todo-item"]').text().replace(/\s+/g, ' ').trim(),
+    hasAcknowledgeButton: row.find('[data-testid="dashboard-todo-acknowledge"]').exists(),
+  }))
+}
+
+function writes() {
+  return acknowledgementWrites(vi.mocked(apiRequest).mock.calls)
 }
 
 function sectionText(wrapper: VueWrapper): string {
@@ -196,5 +210,65 @@ describe('Dashboard to-do section', () => {
 
     expect(todoSection(wrapper).find('[data-testid="dashboard-todo-loading"]').exists()).toBe(true)
     expect(sectionText(wrapper)).not.toContain('All caught up')
+  })
+})
+
+describe('Dashboard to-do section, acknowledgements', () => {
+  it('hides the stopped extractors line acknowledged at 2 and shows all caught up', async () => {
+    const wrapper = await mountDashboard({
+      planetaryStats: [planetaryStats({ expiredExtractors: 2 })],
+      acknowledgements: [[acknowledgement('expiredExtractors', 2)]],
+    })
+
+    expect(todoRows(wrapper)).toEqual([])
+    expect(sectionText(wrapper)).toContain('All caught up')
+  })
+
+  it('offers an acknowledge button on each acknowledgeable line and on no character or unknown line', async () => {
+    const wrapper = await mountDashboard({
+      user: todoUser({ doran: INVALID_TOKEN }),
+      planetaryStats: [planetaryStats({ expiredExtractors: 1 })],
+      marketAlerts: [serverError()],
+    })
+
+    expect(todoLines(wrapper)).toEqual([
+      { text: '1 character to reconnect Doran Vex', hasAcknowledgeButton: false },
+      { text: '1 PI extractor stopped', hasAcknowledgeButton: true },
+      { text: 'Price alerts: unknown (loading failed)', hasAcknowledgeButton: false },
+    ])
+  })
+
+  it('posts the current count of a line and hides it when its acknowledge button is clicked', async () => {
+    const wrapper = await mountDashboard({ planetaryStats: [planetaryStats({ expiredExtractors: 1, expiringExtractors: 3 })] })
+
+    await wrapper.findAll('[data-testid="dashboard-todo-acknowledge"]')[1].trigger('click')
+    await flushPromises()
+
+    expect(writes()).toEqual([{ endpoint: '/me/bridge/acknowledgements', method: 'POST', body: { itemKey: 'expiringExtractors', count: 3 } }])
+    expect(todoRows(wrapper).map(row => row.text)).toEqual(['1 PI extractor stopped'])
+  })
+
+  it('acknowledges every acknowledgeable line at its current count with the acknowledge all button, keeping the character line', async () => {
+    const wrapper = await mountDashboard({
+      user: todoUser({ doran: INVALID_TOKEN }),
+      planetaryStats: [planetaryStats({ expiredExtractors: 1, expiringExtractors: 3 })],
+      marketAlerts: [[TRIGGERED_PYERITE_ALERT, TRIGGERED_MEXALLON_ALERT]],
+    })
+
+    await todoSection(wrapper).find('[data-testid="dashboard-todo-acknowledge-all"]').trigger('click')
+    await flushPromises()
+
+    expect(writes().map(write => write.body)).toEqual([
+      { itemKey: 'expiredExtractors', count: 1 },
+      { itemKey: 'expiringExtractors', count: 3 },
+      { itemKey: 'triggeredPriceAlerts', count: 2 },
+    ])
+    expect(todoRows(wrapper).map(row => row.text)).toEqual(['1 character to reconnect Doran Vex'])
+  })
+
+  it('offers no acknowledge all button when no line is acknowledgeable', async () => {
+    const wrapper = await mountDashboard({ user: todoUser({ doran: INVALID_TOKEN }), planetaryStats: [serverError()] })
+
+    expect(todoSection(wrapper).find('[data-testid="dashboard-todo-acknowledge-all"]').exists()).toBe(false)
   })
 })

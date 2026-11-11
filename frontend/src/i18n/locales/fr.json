@@ -246,6 +246,10 @@
       "unknownCharacters": "Personnages à reconnecter : inconnu",
       "unknownExtractors": "Extracteurs PI : inconnu (échec du chargement)",
       "unknownPriceAlerts": "Alertes de prix : inconnu (échec du chargement)",
+      "acknowledge": "Acquitter",
+      "acknowledgeAll": "Tout acquitter",
+      "acknowledgeAllLabel": "Acquitter toutes les lignes acquittables",
+      "acknowledgeLine": "Acquitter : {line}",
       "allCaughtUp": "Tout est à jour",
       "level": {
         "critical": "Critique",

@@ -36,6 +36,7 @@ async function mountDashboard() {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url === '/api/planetary/stats') return new Response(JSON.stringify(knownPlanetaryStats), { status: 200 })
     if (url === '/api/market/alerts') return new Response(JSON.stringify([]), { status: 200 })
+    if (url === '/api/me/bridge/acknowledgements') return new Response(JSON.stringify([]), { status: 200 })
     return new Response(JSON.stringify(walletsWithOneUnknownBalance), { status: 200 })
   }))
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })

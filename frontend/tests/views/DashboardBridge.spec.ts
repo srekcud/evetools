@@ -116,6 +116,7 @@ function healthyBackend(): Record<string, BackendAnswer> {
   return {
     'GET /api/me/wallets': WALLETS,
     'GET /api/market/alerts': [],
+    'GET /api/me/bridge/acknowledgements': [],
     [`GET ${PLANETARY_STATS_URL}`]: EXTRACTORS,
     [`GET ${OPERATIONS_URL}`]: OPERATIONS,
     [`GET ${SLOTS_URL}`]: SLOTS,

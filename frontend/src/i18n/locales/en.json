@@ -246,6 +246,10 @@
       "unknownCharacters": "Characters to reconnect: unknown",
       "unknownExtractors": "PI extractors: unknown (loading failed)",
       "unknownPriceAlerts": "Price alerts: unknown (loading failed)",
+      "acknowledge": "Acknowledge",
+      "acknowledgeAll": "Acknowledge all",
+      "acknowledgeAllLabel": "Acknowledge every line that can be acknowledged",
+      "acknowledgeLine": "Acknowledge: {line}",
       "allCaughtUp": "All caught up",
       "level": {
         "critical": "Critical",

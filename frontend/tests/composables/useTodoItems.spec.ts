@@ -1,13 +1,15 @@
 import { defineComponent } from 'vue'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { useTodoItems, type TodoItems } from '@/composables/useTodoItems'
+import { useTodoItems, type TodoItem, type TodoItems } from '@/composables/useTodoItems'
 import { apiRequest } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import type { User } from '@/types'
 import {
   ACTIVE_TRITANIUM_ALERT,
+  acknowledgement,
+  acknowledgementWrites,
   EXPIRED_ISOGEN_ALERT,
   INVALID_TOKEN,
   MISSING_SCOPES_TOKEN,
@@ -53,12 +55,22 @@ async function receiveMercure(message: Record<string, unknown>): Promise<void> {
   await flushPromises()
 }
 
-async function useTodoItemsWith(sources: { user?: User | null; planetaryStats?: SourceAnswer[]; marketAlerts?: SourceAnswer[] }): Promise<TodoItems> {
+interface TodoSources {
+  user?: User | null
+  planetaryStats?: SourceAnswer[]
+  marketAlerts?: SourceAnswer[]
+  acknowledgements?: SourceAnswer[]
+  acknowledgementWriteError?: Error
+}
+
+async function useTodoItemsWith(sources: TodoSources): Promise<TodoItems> {
   const user = sources.user === undefined ? todoUser() : sources.user
   vi.mocked(apiRequest).mockImplementation(sourcesAnswering({
     user,
     planetaryStats: sources.planetaryStats ?? [planetaryStats()],
     marketAlerts: sources.marketAlerts ?? [[ACTIVE_TRITANIUM_ALERT]],
+    acknowledgements: sources.acknowledgements,
+    acknowledgementWriteError: sources.acknowledgementWriteError,
   }))
 
   const pinia = createPinia()
@@ -77,6 +89,14 @@ async function useTodoItemsWith(sources: { user?: User | null; planetaryStats?: 
   await flushPromises()
 
   return todo as unknown as TodoItems
+}
+
+function writes() {
+  return acknowledgementWrites(vi.mocked(apiRequest).mock.calls)
+}
+
+function labelsAndCounts(todo: TodoItems): Array<[string, number | null]> {
+  return todo.items.value.map(todoItem => [todoItem.labelKey, todoItem.count])
 }
 
 function apiCallsTo(endpoint: string): number {
@@ -112,7 +132,7 @@ describe('useTodoItems, one item per non-empty category', () => {
   it('lists two expiring extractors as one warning item linking to planetary', async () => {
     const todo = await useTodoItemsWith({ planetaryStats: [planetaryStats({ expiringExtractors: 2 })] })
 
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'expiringExtractors', count: 2, characterNames: [], level: 'warning', link: '/planetary' },
     ])
     expect(todo.isAllCaughtUp.value).toBe(false)
@@ -121,7 +141,7 @@ describe('useTodoItems, one item per non-empty category', () => {
   it('lists one character to reconnect as a critical item citing Doran Vex', async () => {
     const todo = await useTodoItemsWith({ user: todoUser({ doran: INVALID_TOKEN }) })
 
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'charactersToReconnect', count: 1, characterNames: ['Doran Vex'], level: 'critical', link: '/characters' },
     ])
     expect(todo.isAllCaughtUp.value).toBe(false)
@@ -130,7 +150,7 @@ describe('useTodoItems, one item per non-empty category', () => {
   it('counts two characters with missing scopes and cites the main character first', async () => {
     const todo = await useTodoItemsWith({ user: todoUser({ ilyra: MISSING_SCOPES_TOKEN, doran: MISSING_SCOPES_TOKEN }) })
 
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'charactersToReconnect', count: 2, characterNames: ['Ilyra Castell', 'Doran Vex'], level: 'critical', link: '/characters' },
     ])
   })
@@ -138,7 +158,7 @@ describe('useTodoItems, one item per non-empty category', () => {
   it('reports at least one character to reconnect without a name when the authorization is revoked', async () => {
     const todo = await useTodoItemsWith({ user: todoUser({ authStatus: 'invalid' }) })
 
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'atLeastCharactersToReconnect', count: 1, characterNames: [], level: 'critical', link: '/characters' },
     ])
     expect(todo.isAllCaughtUp.value).toBe(false)
@@ -147,7 +167,7 @@ describe('useTodoItems, one item per non-empty category', () => {
   it('reports at least one character to reconnect citing Doran Vex when the authorization is revoked and his token is invalid', async () => {
     const todo = await useTodoItemsWith({ user: todoUser({ authStatus: 'invalid', doran: INVALID_TOKEN }) })
 
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'atLeastCharactersToReconnect', count: 1, characterNames: ['Doran Vex'], level: 'critical', link: '/characters' },
     ])
   })
@@ -155,7 +175,7 @@ describe('useTodoItems, one item per non-empty category', () => {
   it('reports at least two characters to reconnect when the authorization is revoked and both tokens are invalid', async () => {
     const todo = await useTodoItemsWith({ user: todoUser({ authStatus: 'invalid', ilyra: INVALID_TOKEN, doran: INVALID_TOKEN }) })
 
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'atLeastCharactersToReconnect', count: 2, characterNames: ['Ilyra Castell', 'Doran Vex'], level: 'critical', link: '/characters' },
     ])
   })
@@ -167,7 +187,7 @@ describe('useTodoItems, one item per non-empty category', () => {
       marketAlerts: [[TRIGGERED_PYERITE_ALERT, ACTIVE_TRITANIUM_ALERT, TRIGGERED_MEXALLON_ALERT]],
     })
 
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'charactersToReconnect', count: 1, characterNames: ['Doran Vex'], level: 'critical', link: '/characters' },
       { labelKey: 'expiredExtractors', count: 1, characterNames: [], level: 'critical', link: '/planetary' },
       { labelKey: 'expiringExtractors', count: 3, characterNames: [], level: 'warning', link: '/planetary' },
@@ -271,7 +291,7 @@ describe('useTodoItems, live updates', () => {
     await receiveMercure({ alertType: 'market-price', data: { typeId: 36, typeName: 'Mexallon', currentPrice: 87.25 }, timestamp: '2026-10-27T13:20:00+00:00' })
 
     expect(apiCallsTo('/market/alerts')).toBe(2)
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'unknownPriceAlerts', count: null, characterNames: [], level: null, link: '/market?tab=alerts' },
     ])
     expect(todo.isAllCaughtUp.value).toBe(false)
@@ -288,7 +308,7 @@ describe('useTodoItems, live updates', () => {
 
     expect(syncStore.planetaryProgress?.status).toBe(status)
     expect(apiCallsTo('/planetary/stats')).toBe(1)
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'expiringExtractors', count: 5, characterNames: [], level: 'warning', link: '/planetary' },
     ])
   })
@@ -301,7 +321,7 @@ describe('useTodoItems, live updates', () => {
     await receiveMercure({ alertType: 'market-price', data: { typeId: 38, typeName: 'Nocxium', currentPrice: 641.5 }, timestamp: '2026-10-27T11:15:00+00:00' })
 
     expect(apiCallsTo('/market/alerts')).toBe(2)
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'triggeredPriceAlerts', count: 1, characterNames: [], level: 'info', link: '/market?tab=alerts' },
     ])
     expect(Object.keys(syncStore.syncStatus)).not.toContain('undefined')
@@ -315,8 +335,163 @@ describe('useTodoItems, live updates', () => {
     await receiveMercure({ alertType: 'planetary-expiry', data: { planetName: 'Perimeter II', hoursLeft: 2 }, timestamp: '2026-10-27T12:45:00+00:00' })
 
     expect(apiCallsTo('/planetary/stats')).toBe(2)
-    expect(todo.items.value).toEqual([
+    expect(todo.items.value).toMatchObject([
       { labelKey: 'expiringExtractors', count: 1, characterNames: [], level: 'warning', link: '/planetary' },
     ])
+  })
+})
+
+describe('useTodoItems, acknowledgements', () => {
+  const EXPIRED_ACKNOWLEDGEMENT = acknowledgement('expiredExtractors', 2)
+
+  it('keeps an unacknowledged line visible and marks only the three aggregated lines as acknowledgeable', async () => {
+    const todo = await useTodoItemsWith({
+      user: todoUser({ doran: INVALID_TOKEN }),
+      planetaryStats: [planetaryStats({ expiredExtractors: 2, expiringExtractors: 1 })],
+      marketAlerts: [[TRIGGERED_PYERITE_ALERT]],
+    })
+
+    expect(todo.items.value.map(todoItem => [todoItem.labelKey, todoItem.count, todoItem.acknowledgeable])).toEqual([
+      ['charactersToReconnect', 1, false],
+      ['expiredExtractors', 2, true],
+      ['expiringExtractors', 1, true],
+      ['triggeredPriceAlerts', 1, true],
+    ])
+  })
+
+  it.each([
+    [2, [] as Array<[string, number | null]>],
+    [3, [['expiredExtractors', 3]] as Array<[string, number | null]>],
+    [1, [] as Array<[string, number | null]>],
+  ])('shows the stopped extractors line as %i against an acknowledgement at 2 with the lines %j', async (stoppedExtractors, expected) => {
+    const todo = await useTodoItemsWith({
+      planetaryStats: [planetaryStats({ expiredExtractors: stoppedExtractors })],
+      acknowledgements: [[EXPIRED_ACKNOWLEDGEMENT]],
+    })
+
+    expect(labelsAndCounts(todo)).toEqual(expected)
+    expect(writes()).toEqual([])
+    expect(todo.isAllCaughtUp.value).toBe(expected.length === 0)
+  })
+
+  it('deletes the acknowledgement when the count falls to 0 and shows the line again when the cause returns at 2', async () => {
+    const todo = await useTodoItemsWith({
+      planetaryStats: [planetaryStats({ expiredExtractors: 0 }), planetaryStats({ expiredExtractors: 2 })],
+      acknowledgements: [[EXPIRED_ACKNOWLEDGEMENT]],
+    })
+
+    expect(writes()).toEqual([{ endpoint: '/me/bridge/acknowledgements/expiredExtractors', method: 'DELETE', body: null }])
+    expect(todo.items.value).toEqual([])
+
+    useSyncStore()
+    await receiveMercure({ syncType: 'planetary', status: 'completed', progress: 100, message: null, data: null, timestamp: '2026-11-11T09:30:00+00:00' })
+
+    expect(labelsAndCounts(todo)).toEqual([['expiredExtractors', 2]])
+  })
+
+  it('hides the triggered price alerts line acknowledged at 1 without touching the alert', async () => {
+    const todo = await useTodoItemsWith({
+      marketAlerts: [[TRIGGERED_PYERITE_ALERT]],
+      acknowledgements: [[acknowledgement('triggeredPriceAlerts', 1)]],
+    })
+
+    expect(todo.items.value).toEqual([])
+    expect(apiCallsTo('/market/alerts')).toBe(1)
+    expect(vi.mocked(apiRequest).mock.calls.filter(([endpoint]) => endpoint.startsWith('/market/alerts/'))).toEqual([])
+  })
+
+  it('acknowledges the expiring extractors line and the expired one independently', async () => {
+    const todo = await useTodoItemsWith({
+      planetaryStats: [planetaryStats({ expiredExtractors: 2, expiringExtractors: 1 })],
+      acknowledgements: [[acknowledgement('expiringExtractors', 1)]],
+    })
+
+    expect(labelsAndCounts(todo)).toEqual([['expiredExtractors', 2]])
+  })
+
+  it('deletes no acknowledgement while a source failed or is still loading', async () => {
+    const todo = await useTodoItemsWith({
+      planetaryStats: [serverError()],
+      marketAlerts: [PENDING],
+      acknowledgements: [[EXPIRED_ACKNOWLEDGEMENT, acknowledgement('triggeredPriceAlerts', 1)]],
+    })
+
+    expect(writes()).toEqual([])
+    expect(todo.items.value.map(todoItem => [todoItem.labelKey, todoItem.acknowledgeable])).toEqual([['unknownExtractors', false]])
+  })
+
+  it('marks the unknown lines as not acknowledgeable', async () => {
+    const todo = await useTodoItemsWith({ user: null, marketAlerts: [serverError()] })
+
+    expect(todo.items.value.map(todoItem => [todoItem.labelKey, todoItem.acknowledgeable])).toEqual([
+      ['unknownCharacters', false],
+      ['unknownPriceAlerts', false],
+    ])
+  })
+
+  it('hides no line when the acknowledgements cannot be read', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const todo = await useTodoItemsWith({
+      planetaryStats: [planetaryStats({ expiredExtractors: 2 })],
+      acknowledgements: [serverError()],
+    })
+
+    expect(labelsAndCounts(todo)).toEqual([['expiredExtractors', 2]])
+    expect(todo.isLoading.value).toBe(false)
+    expect(writes()).toEqual([])
+  })
+
+  it('keeps showing the loading state and not all caught up until the acknowledgements are loaded', async () => {
+    const todo = await useTodoItemsWith({
+      planetaryStats: [planetaryStats({ expiredExtractors: 2 })],
+      acknowledgements: [PENDING],
+    })
+
+    expect(todo.isLoading.value).toBe(true)
+    expect(todo.isAllCaughtUp.value).toBe(false)
+  })
+
+  it('posts the current count when acknowledging a line and hides it', async () => {
+    const todo = await useTodoItemsWith({ planetaryStats: [planetaryStats({ expiredExtractors: 2, expiringExtractors: 3 })] })
+    const expiringLine = todo.items.value.find(todoItem => todoItem.labelKey === 'expiringExtractors')
+
+    await todo.acknowledge(expiringLine as TodoItem)
+    await flushPromises()
+
+    expect(writes()).toEqual([{ endpoint: '/me/bridge/acknowledgements', method: 'POST', body: { itemKey: 'expiringExtractors', count: 3 } }])
+    expect(labelsAndCounts(todo)).toEqual([['expiredExtractors', 2]])
+  })
+
+  it('keeps the line visible and logs the failure when the acknowledgement cannot be written', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const todo = await useTodoItemsWith({
+      planetaryStats: [planetaryStats({ expiredExtractors: 2 })],
+      acknowledgementWriteError: serverError(),
+    })
+
+    await todo.acknowledge(todo.items.value[0])
+    await flushPromises()
+
+    expect(labelsAndCounts(todo)).toEqual([['expiredExtractors', 2]])
+    expect(consoleError).toHaveBeenCalled()
+  })
+
+  it('acknowledges all the acknowledgeable lines with one post each at their current count and keeps the character line', async () => {
+    const todo = await useTodoItemsWith({
+      user: todoUser({ doran: INVALID_TOKEN }),
+      planetaryStats: [planetaryStats({ expiredExtractors: 2, expiringExtractors: 3 })],
+      marketAlerts: [[TRIGGERED_PYERITE_ALERT, TRIGGERED_MEXALLON_ALERT, TRIGGERED_NOCXIUM_ALERT]],
+    })
+
+    await todo.acknowledgeAll()
+    await flushPromises()
+
+    expect(writes()).toEqual([
+      { endpoint: '/me/bridge/acknowledgements', method: 'POST', body: { itemKey: 'expiredExtractors', count: 2 } },
+      { endpoint: '/me/bridge/acknowledgements', method: 'POST', body: { itemKey: 'expiringExtractors', count: 3 } },
+      { endpoint: '/me/bridge/acknowledgements', method: 'POST', body: { itemKey: 'triggeredPriceAlerts', count: 3 } },
+    ])
+    expect(labelsAndCounts(todo)).toEqual([['charactersToReconnect', 1]])
   })
 })
