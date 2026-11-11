@@ -35,6 +35,12 @@ class SyncTracker
         'market-volumes' => 86400,
         'courier-contracts' => 1800,
         'character-orders' => 300,
+        'mining-operation-recurrences' => 1800,
+        'moon-chunk-alerts' => 300,
+        'mining-site-depletion-alerts' => 300,
+        'notifications-purge' => 86400,
+        'market-history-purge' => 86400,
+        'shared-lists-purge' => 86400,
     ];
 
     /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */
@@ -66,6 +72,12 @@ class SyncTracker
         'market-volumes' => 'Market Volumes',
         'courier-contracts' => 'Courier Contracts',
         'character-orders' => 'Character Orders',
+        'mining-operation-recurrences' => 'Recurring Mining Operations',
+        'moon-chunk-alerts' => 'Moon Chunk Alerts',
+        'mining-site-depletion-alerts' => 'Mining Site Depletion Alerts',
+        'notifications-purge' => 'Notifications Purge',
+        'market-history-purge' => 'Market History Purge',
+        'shared-lists-purge' => 'Shared Lists Purge',
     ];
 
     public function __construct(

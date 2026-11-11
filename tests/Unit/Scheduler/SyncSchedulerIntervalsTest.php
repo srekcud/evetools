@@ -69,19 +69,18 @@ class SyncSchedulerIntervalsTest extends TestCase
         SyncCharacterOrders::class => 'character-orders',
         SyncRegionalMarketVolumes::class => 'market-volumes',
         CheckCourierContracts::class => 'courier-contracts',
+        TriggerMiningOperationRecurrences::class => 'mining-operation-recurrences',
+        CheckMoonChunkAlerts::class => 'moon-chunk-alerts',
+        CheckMiningSiteDepletionAlerts::class => 'mining-site-depletion-alerts',
+        PurgeOldNotifications::class => 'notifications-purge',
+        PurgeOldMarketHistory::class => 'market-history-purge',
+        PurgeExpiredSharedLists::class => 'shared-lists-purge',
     ];
 
-    /** Maintenance planifiée dont les handlers n'utilisent pas le SyncTracker. */
-    private const UNTRACKED_HOUSEKEEPING_MESSAGES = [
+    private const DAILY_PURGE_MESSAGES = [
         PurgeOldNotifications::class,
         PurgeOldMarketHistory::class,
         PurgeExpiredSharedLists::class,
-    ];
-
-    private const UNTRACKED_RECURRING_MESSAGES = [
-        TriggerMiningOperationRecurrences::class,
-        CheckMoonChunkAlerts::class,
-        CheckMiningSiteDepletionAlerts::class,
     ];
 
     private const FIVE_MINUTES_IN_SECONDS = 300;
@@ -116,14 +115,20 @@ class SyncSchedulerIntervalsTest extends TestCase
             'cost-indices' => 7200,
             'courier-contracts' => 1800,
             'industry' => 1800,
+            'market-history-purge' => 86400,
             'market-jita' => 3600,
             'market-structure' => 3600,
             'market-volumes' => 86400,
             'mining' => 3600,
+            'mining-operation-recurrences' => 1800,
+            'mining-site-depletion-alerts' => 300,
+            'moon-chunk-alerts' => 300,
             'moon-tax' => 3600,
+            'notifications-purge' => 86400,
             'planetary' => 1800,
             'public-contracts' => 1800,
             'pve' => 3600,
+            'shared-lists-purge' => 86400,
             'wallet' => 3600,
         ], $this->scheduledIntervalsBySyncTrackerKey());
     }
@@ -131,7 +136,7 @@ class SyncSchedulerIntervalsTest extends TestCase
     public function testHousekeepingPurgesAreScheduledDaily(): void
     {
         // Issue #34 : la purge des listes partagées expirées rejoint les purges quotidiennes.
-        $expectedDailyPurges = array_fill_keys(self::UNTRACKED_HOUSEKEEPING_MESSAGES, self::ONE_DAY_IN_SECONDS);
+        $expectedDailyPurges = array_fill_keys(self::DAILY_PURGE_MESSAGES, self::ONE_DAY_IN_SECONDS);
         ksort($expectedDailyPurges);
 
         $scheduledPurges = array_intersect_key(
@@ -220,10 +225,6 @@ class SyncSchedulerIntervalsTest extends TestCase
             );
 
             foreach ($recurringMessage->getMessages($context) as $message) {
-                if (\in_array($message::class, [...self::UNTRACKED_HOUSEKEEPING_MESSAGES, ...self::UNTRACKED_RECURRING_MESSAGES], true)) {
-                    continue;
-                }
-
                 $this->assertArrayHasKey(
                     $message::class,
                     self::SYNC_TRACKER_KEY_BY_SCHEDULED_MESSAGE,

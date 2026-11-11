@@ -9,6 +9,7 @@ use App\MessageHandler\PurgeOldMarketHistoryHandler;
 use App\Repository\MarketPriceHistoryRepository;
 use App\Repository\StructureMarketSnapshotRepository;
 use App\Repository\StructureTradedVolumeRepository;
+use App\Service\Admin\SyncTracker;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -35,6 +36,7 @@ final class PurgeOldMarketHistoryHandlerTest extends TestCase
             snapshotRepository: $this->snapshotRepository,
             tradedVolumeRepository: $this->tradedVolumeRepository,
             logger: new NullLogger(),
+            syncTracker: $this->createStub(SyncTracker::class),
         );
     }
 
