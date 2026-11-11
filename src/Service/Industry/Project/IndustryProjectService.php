@@ -487,13 +487,23 @@ class IndustryProjectService
                 'jobGroup' => 'blueprint',
                 'parentTypeId' => $jobLine['parentTypeId'],
                 'outputPerRun' => $jobLine['outputPerRun'],
-                'plannedStructureId' => $copyStructureChoice->structure?->id,
-                'plannedStructureStatus' => $this->plannedStructureStatusOf($copyStructureChoice->status),
+                ...$this->plannedStructureOf($copyStructureChoice),
                 'surplusQuantity' => null,
             ];
         }
 
         return $copyLines;
+    }
+
+    /**
+     * @return array{plannedStructureId: string|null, plannedStructureStatus: string}
+     */
+    private function plannedStructureOf(StructureChoice $choice): array
+    {
+        return [
+            'plannedStructureId' => $choice->structure?->id,
+            'plannedStructureStatus' => $this->plannedStructureStatusOf($choice->status),
+        ];
     }
 
     private function plannedStructureStatusOf(StructureChoiceStatus $status): string
@@ -595,8 +605,7 @@ class IndustryProjectService
                     'jobGroup' => 'blueprint',
                     'parentTypeId' => $firstManufacturingJob['parentTypeId'],
                     'outputPerRun' => 1,
-                    'plannedStructureId' => $copyStructureChoice->structure?->id,
-                    'plannedStructureStatus' => $this->plannedStructureStatusOf($copyStructureChoice->status),
+                    ...$this->plannedStructureOf($copyStructureChoice),
                     'surplusQuantity' => null,
                 ];
             }

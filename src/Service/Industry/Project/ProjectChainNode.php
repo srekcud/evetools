@@ -49,9 +49,17 @@ final readonly class ProjectChainNode
         return clone($this, ['jobs' => $jobs]);
     }
 
+    private static function sameUser(User $first, User $second): bool
+    {
+        $firstId = $first->getId();
+        $secondId = $second->getId();
+
+        return null !== $firstId && null !== $secondId && $firstId->equals($secondId);
+    }
+
     public function withPlannedCopyDurationSeenBy(User $owner, User $viewer): self
     {
-        if (null === $this->plannedCopyDuration || null === $this->plannedCopyDuration['characterName'] || $owner === $viewer) {
+        if (null === $this->plannedCopyDuration || null === $this->plannedCopyDuration['characterName'] || self::sameUser($owner, $viewer)) {
             return $this;
         }
 
