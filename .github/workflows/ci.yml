@@ -77,6 +77,7 @@ jobs:
       MERCURE_URL: http://127.0.0.1:1/.well-known/mercure
       MERCURE_PUBLIC_URL: https://evetools.local/.well-known/mercure
       MERCURE_RESOURCE_IDENTIFIER: https://evetools.local/.well-known/mercure
+      MERCURE_JWT_SECRET: ci-mercure-secret-of-at-least-thirty-two-bytes
     steps:
       - uses: actions/checkout@v7.0.1
         with:
