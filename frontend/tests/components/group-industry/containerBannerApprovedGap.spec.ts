@@ -168,6 +168,42 @@ describe('ContainerBanner gap between the approved contributions and the contain
   })
 })
 
+function withoutContainerQuantity(line: ContainerVerification): ContainerVerification {
+  const { containerQuantity: _omitted, ...rest } = line
+  return rest as ContainerVerification
+}
+
+describe('ContainerBanner when the API omits the container quantity', () => {
+  it.each<[string, ContainerVerificationStatus]>([
+    ['container not found', 'container_not_found'],
+    ['unknown', 'unknown'],
+  ])('does not list a gap line when the check is %s and the quantity is absent', (_state, status) => {
+    const text = normalized(mountBanner('en', [[TRITANIUM, 500]], [withoutContainerQuantity(verification(TRITANIUM, status, null))], true))
+
+    expect([text.includes('Tritanium'), text.includes('---'), text.includes('0 approved')]).toEqual([false, false, false])
+  })
+
+  it('keeps the container problem message as the only signal', () => {
+    const lines = [withoutContainerQuantity(verification(TRITANIUM, 'container_not_found', null))]
+    const text = normalized(mountBanner('en', [[TRITANIUM, 500]], lines, true))
+
+    expect([text.includes('Container not found'), text.includes('in the container')]).toEqual([true, false])
+  })
+
+  it('still lists a partial line next to a line whose quantity is absent', () => {
+    const lines = [
+      withoutContainerQuantity(verification(PYERITE, 'unknown', null)),
+      verification(TRITANIUM, 'partial', 450),
+    ]
+    const text = normalized(mountBanner('en', [[TRITANIUM, 500], [PYERITE, 800]], lines, true))
+
+    expect([
+      text.includes('Tritanium: 450 / 500 in the container, 500 approved'),
+      text.includes('Pyerite'),
+    ]).toEqual([true, false])
+  })
+})
+
 describe('ContainerBanner verification button', () => {
   it('shows the button to an admin', () => {
     const wrapper = mountBanner('en', APPROVED_QUANTITIES, [], true)
