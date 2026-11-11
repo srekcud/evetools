@@ -14,6 +14,10 @@ const FALLBACK_ICON_DATA_URI = 'data:image/svg+xml,' + encodeURIComponent(FALLBA
 
 export type ImageSize = 32 | 64 | 128 | 256 | 512
 
+export type BlueprintImageKind = 'bpo' | 'bpc'
+
+const BLUEPRINT_IMAGE_VARIATION: Record<BlueprintImageKind, string> = { bpo: 'bp', bpc: 'bpc' }
+
 // EVE categories whose types have no icon on images.evetech.net
 const ICONLESS_CATEGORY_IDS = new Set([91]) // 91 = SKINs
 
@@ -27,6 +31,10 @@ export function useEveImages() {
       return FALLBACK_ICON_DATA_URI
     }
     return `${EVE_IMAGE_SERVER}/types/${typeId}/icon?size=${size}`
+  }
+
+  function getBlueprintIconUrl(typeId: number, kind: BlueprintImageKind, size: ImageSize = 32): string {
+    return `${EVE_IMAGE_SERVER}/types/${typeId}/${BLUEPRINT_IMAGE_VARIATION[kind]}?size=${size}`
   }
 
   /**
@@ -73,6 +81,7 @@ export function useEveImages() {
 
   return {
     getTypeIconUrl,
+    getBlueprintIconUrl,
     getCharacterPortraitUrl,
     getCorporationLogoUrl,
     getAllianceLogoUrl,

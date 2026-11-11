@@ -16,7 +16,7 @@ const SYNC_TYPE = 'blueprints'
 const FILTERS: ScopeFilter[] = ['all', 'personal', 'corporation']
 
 const { t } = useI18n()
-const { getTypeIconUrl, onImageError } = useEveImages()
+const { getBlueprintIconUrl, onImageError } = useEveImages()
 const { typeNameLabel } = useTypeNames()
 const store = useBlueprintsStore()
 const syncStore = useSyncStore()
@@ -177,7 +177,7 @@ onMounted(() => {
               >
                 <td class="px-4 py-2">
                   <div class="flex items-center gap-2 min-w-0">
-                    <img :src="getTypeIconUrl(entry.typeId)" alt="" class="w-6 h-6 rounded-sm" @error="onImageError" />
+                    <img :src="getBlueprintIconUrl(entry.typeId, entry.kind)" alt="" class="w-6 h-6 rounded-sm" @error="onImageError" />
                     <span class="truncate text-slate-200">{{ nameOf(entry) }}</span>
                     <span v-if="entry.count > 1" class="text-xs text-slate-500">×{{ entry.count }}</span>
                     <span
