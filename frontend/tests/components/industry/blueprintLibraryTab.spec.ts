@@ -249,6 +249,91 @@ describe('BlueprintLibraryTab filter (issue 409)', () => {
   })
 })
 
+describe('BlueprintLibraryTab type filter (issue 657)', () => {
+  const MIXED = libraryOf('known', [DRAKE_BPO, RIFTER_BPO_STACK, HAMMERHEAD_BPC, VEXOR_BPC_IN_JOB, COMPOSITE_REACTION_FORMULA])
+  const TYPE_BUTTON = (kind: string) => `[data-testid="blueprints-type-${kind}"]`
+
+  function namesShown(wrapper: VueWrapper): string[] {
+    return rowTexts(wrapper).map(text => text.split(' ')[0])
+  }
+
+  it('selects every type by default and shows the number of blueprints of each type on its button', async () => {
+    const wrapper = await mountTab([MIXED])
+
+    expect(wrapper.findAll(ROWS)).toHaveLength(5)
+    for (const kind of ['bpo', 'bpc', 'bpr']) {
+      expect(wrapper.get(TYPE_BUTTON(kind)).attributes('aria-pressed')).toBe('true')
+    }
+    expect(wrapper.get(TYPE_BUTTON('bpo')).text()).toContain('4')
+    expect(wrapper.get(TYPE_BUTTON('bpc')).text()).toContain('2')
+    expect(wrapper.get(TYPE_BUTTON('bpr')).text()).toContain('1')
+  })
+
+  it('hides a type when its button is toggled off and brings it back when toggled on, without a new request', async () => {
+    const wrapper = await mountTab([MIXED])
+
+    await wrapper.get(TYPE_BUTTON('bpc')).trigger('click')
+    expect(wrapper.get(TYPE_BUTTON('bpc')).attributes('aria-pressed')).toBe('false')
+    expect(namesShown(wrapper)).toEqual(['Drake', 'Rifter', 'Composite'])
+
+    await wrapper.get(TYPE_BUTTON('bpc')).trigger('click')
+    expect(wrapper.findAll(ROWS)).toHaveLength(5)
+    expect(callsTo(LIBRARY_ENDPOINT)).toBe(1)
+  })
+
+  it('shows only the types that stay selected', async () => {
+    const wrapper = await mountTab([MIXED])
+
+    await wrapper.get(TYPE_BUTTON('bpo')).trigger('click')
+    await wrapper.get(TYPE_BUTTON('bpc')).trigger('click')
+
+    expect(namesShown(wrapper)).toEqual(['Composite'])
+  })
+
+  it('keeps the last selected type selected', async () => {
+    const wrapper = await mountTab([MIXED])
+
+    await wrapper.get(TYPE_BUTTON('bpo')).trigger('click')
+    await wrapper.get(TYPE_BUTTON('bpc')).trigger('click')
+    await wrapper.get(TYPE_BUTTON('bpr')).trigger('click')
+
+    expect(wrapper.get(TYPE_BUTTON('bpr')).attributes('aria-pressed')).toBe('true')
+    expect(wrapper.findAll(ROWS)).toHaveLength(1)
+  })
+
+  it('combines with the personal and corporation filter, and the counts follow it', async () => {
+    const wrapper = await mountTab([MIXED])
+
+    await wrapper.get('[data-testid="blueprints-filter-corporation"]').trigger('click')
+    expect(wrapper.get(TYPE_BUTTON('bpo')).text()).toContain('0')
+    expect(wrapper.get(TYPE_BUTTON('bpc')).text()).toContain('1')
+    expect(namesShown(wrapper)).toEqual(['Hammerhead'])
+
+    await wrapper.get('[data-testid="blueprints-filter-personal"]').trigger('click')
+    await wrapper.get(TYPE_BUTTON('bpo')).trigger('click')
+    expect(namesShown(wrapper)).toEqual(['Vexor', 'Composite'])
+  })
+
+  it('shows the empty state when the selected types match nothing in the scope', async () => {
+    const wrapper = await mountTab([libraryOf('known', [DRAKE_BPO, HAMMERHEAD_BPC])])
+
+    await wrapper.get(TYPE_BUTTON('bpr')).trigger('click')
+    await wrapper.get(TYPE_BUTTON('bpo')).trigger('click')
+    await wrapper.get('[data-testid="blueprints-filter-personal"]').trigger('click')
+
+    expect(wrapper.findAll(ROWS)).toHaveLength(0)
+    expect(wrapper.find(EMPTY).exists()).toBe(true)
+  })
+
+  it('labels the group of buttons in English and in French', async () => {
+    const english = await mountTab([MIXED])
+    const french = await mountTab([MIXED], 'fr')
+
+    expect(english.get('[data-testid="blueprints-type-filter"]').attributes('aria-label')).toBe(expectedMessage('en', 'industry.blueprints.typeFilter'))
+    expect(french.get('[data-testid="blueprints-type-filter"]').attributes('aria-label')).toBe(expectedMessage('fr', 'industry.blueprints.typeFilter'))
+  })
+})
+
 describe('BlueprintLibraryTab corporation state (issue 409)', () => {
   it('warns that the corporation blueprints are unknown without a director and keeps the personal list', async () => {
     const wrapper = await mountTab([libraryOf('no_director', [DRAKE_BPO])])
