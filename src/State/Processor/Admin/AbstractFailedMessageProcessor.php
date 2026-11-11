@@ -4,45 +4,44 @@ declare(strict_types=1);
 
 namespace App\State\Processor\Admin;
 
+use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Security\AdminAccessGuard;
-use App\Service\Admin\FailedMessageNotFound;
-use App\Service\Admin\FailedMessageNotRedeliverable;
-use App\Service\Admin\FailedMessagesUnavailable;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+use App\Service\Admin\FailedMessageHttpExceptionMapper;
+use App\Service\Admin\FailedMessageService;
 
 /**
  * @template TInput
- * @template TOutput
+ * @template TOutput of object|null
  *
  * @implements ProcessorInterface<TInput, TOutput>
  */
 abstract class AbstractFailedMessageProcessor implements ProcessorInterface
 {
     public function __construct(
-        protected readonly AdminAccessGuard $accessGuard,
+        private readonly AdminAccessGuard $accessGuard,
+        protected readonly FailedMessageService $failedMessages,
+        private readonly FailedMessageHttpExceptionMapper $exceptionMapper,
     ) {
     }
 
     /**
-     * @template TResult
+     * @param array<string, mixed> $uriVariables
+     * @param array<string, mixed> $context
      *
-     * @param callable(): TResult $action
-     *
-     * @return TResult
+     * @return TOutput
      */
-    protected function mappingServiceFailures(callable $action): mixed
+    final public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): ?object
     {
-        try {
-            return $action();
-        } catch (FailedMessageNotFound $notFound) {
-            throw new NotFoundHttpException($notFound->getMessage(), $notFound);
-        } catch (FailedMessageNotRedeliverable $notRedeliverable) {
-            throw new UnprocessableEntityHttpException($notRedeliverable->getMessage(), $notRedeliverable);
-        } catch (FailedMessagesUnavailable $unavailable) {
-            throw new ServiceUnavailableHttpException(null, $unavailable->getMessage(), $unavailable);
-        }
+        $this->accessGuard->requireAdmin();
+
+        return $this->exceptionMapper->mapping(fn (): ?object => $this->apply($data, $uriVariables));
     }
+
+    /**
+     * @param array<string, mixed> $uriVariables
+     *
+     * @return TOutput
+     */
+    abstract protected function apply(mixed $data, array $uriVariables): ?object;
 }

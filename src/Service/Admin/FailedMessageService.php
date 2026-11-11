@@ -80,11 +80,15 @@ final class FailedMessageService
             throw new FailedMessageNotRedeliverable(sprintf('The original transport "%s" cannot be sent to.', $originalTransportName));
         }
 
-        $originalTransport->send($envelope->withoutAll(ReceivedStamp::class)
-            ->withoutAll(TransportMessageIdStamp::class)
-            ->withoutAll(DoctrineReceivedStamp::class)
-            ->withoutAll(RedeliveryStamp::class)
-            ->withoutAll(SentToFailureTransportStamp::class));
+        try {
+            $originalTransport->send($envelope->withoutAll(ReceivedStamp::class)
+                ->withoutAll(TransportMessageIdStamp::class)
+                ->withoutAll(DoctrineReceivedStamp::class)
+                ->withoutAll(RedeliveryStamp::class)
+                ->withoutAll(SentToFailureTransportStamp::class));
+        } catch (TransportException $exception) {
+            throw new FailedMessagesUnavailable(sprintf('The original transport "%s" is unreachable.', $originalTransportName), 0, $exception);
+        }
 
         $this->onFailedTransport(fn () => $this->failedTransport->reject($envelope));
     }
@@ -118,11 +122,19 @@ final class FailedMessageService
         usort($classIds, static fn (string $left, string $right): int => (int) $left <=> (int) $right);
 
         $batch = \array_slice($classIds, 0, self::CLASS_ACTION_LIMIT);
+        $processed = 0;
+        $keptInFailed = 0;
         foreach ($batch as $id) {
-            $action($id);
+            try {
+                $action($id);
+                ++$processed;
+            } catch (FailedMessageNotRedeliverable) {
+                ++$keptInFailed;
+            } catch (FailedMessageNotFound) {
+            }
         }
 
-        return new FailedMessageClassOutcome(\count($batch), \count($classIds) - \count($batch));
+        return new FailedMessageClassOutcome($processed, \count($classIds) - \count($batch) + $keptInFailed);
     }
 
     /**

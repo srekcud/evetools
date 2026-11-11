@@ -4,28 +4,17 @@ declare(strict_types=1);
 
 namespace App\State\Processor\Admin;
 
-use ApiPlatform\Metadata\Operation;
 use App\ApiResource\Admin\FailedMessageResource;
-use App\Security\AdminAccessGuard;
-use App\Service\Admin\FailedMessageService;
 
 /**
- * @extends AbstractFailedMessageProcessor<FailedMessageResource, void>
+ * @extends AbstractFailedMessageProcessor<FailedMessageResource, null>
  */
 class RemoveFailedMessageProcessor extends AbstractFailedMessageProcessor
 {
-    public function __construct(
-        AdminAccessGuard $accessGuard,
-        private readonly FailedMessageService $failedMessages,
-    ) {
-        parent::__construct($accessGuard);
-    }
-
-    public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): void
+    protected function apply(mixed $data, array $uriVariables): null
     {
-        $this->accessGuard->requireAdmin();
+        $this->failedMessages->remove((string) $uriVariables['id']);
 
-        $id = (string) $uriVariables['id'];
-        $this->mappingServiceFailures(fn () => $this->failedMessages->remove($id));
+        return null;
     }
 }
