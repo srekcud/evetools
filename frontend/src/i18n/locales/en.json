@@ -2530,6 +2530,17 @@
       "characterUnknown": "Character unknown",
       "ioUnknownCause": "Input → output: job locations not synchronized yet",
       "unknownCostCause": "a contribution has no known price: the cost stays unknown, never partial",
+      "plannedCopyDuration": {
+        "planned": "Planned: {duration}",
+        "unknown": "Planned duration unknown",
+        "reason": {
+          "no_copy_structure": "no structure can copy",
+          "planned_structure_deleted": "the planned structure was deleted",
+          "copy_skills": "copy skills unknown",
+          "copy_structure_not_planned": "copy structure not planned",
+          "copy_base_time": "copy base time missing"
+        }
+      },
       "structure": {
         "unknown": "Unknown structure: no structure configured for this job",
         "deleted": "Planned structure deleted",

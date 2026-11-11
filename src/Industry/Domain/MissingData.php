@@ -10,12 +10,17 @@ namespace App\Industry\Domain;
 final readonly class MissingData
 {
     private const string ADJUSTED_PRICE = 'adjusted_price';
+    private const string COPY_BASE_TIME = 'copy_base_time';
+    private const string COPY_SKILLS = 'copy_skills';
+    private const string COPY_STRUCTURE_NOT_PLANNED = 'copy_structure_not_planned';
     private const string COST_INDEX = 'cost_index';
     private const string INVENTION_PROBABILITY = 'invention_probability';
     private const string ITEM_VOLUME = 'item_volume';
     private const string JUMP_ROUTE = 'jump_route';
     private const string INVENTOR_SKILLS = 'inventor_skills';
     private const string MARKET_PRICE = 'market_price';
+    private const string NO_COPY_STRUCTURE = 'no_copy_structure';
+    private const string PLANNED_STRUCTURE_DELETED = 'planned_structure_deleted';
     private const string RESEARCH_BASE_TIME = 'research_base_time';
     private const string RESEARCH_SKILL = 'research_skill';
     private const string RESEARCHER = 'researcher';
@@ -81,5 +86,30 @@ final readonly class MissingData
     public static function inventorSkills(int $blueprintTypeId): self
     {
         return new self(self::INVENTOR_SKILLS, $blueprintTypeId);
+    }
+
+    public static function copyBaseTime(int $productTypeId): self
+    {
+        return new self(self::COPY_BASE_TIME, $productTypeId);
+    }
+
+    public static function copySkills(): self
+    {
+        return new self(self::COPY_SKILLS, null);
+    }
+
+    public static function copyStructureNotPlanned(): self
+    {
+        return new self(self::COPY_STRUCTURE_NOT_PLANNED, null);
+    }
+
+    public static function noCopyStructure(): self
+    {
+        return new self(self::NO_COPY_STRUCTURE, null);
+    }
+
+    public static function plannedStructureDeleted(): self
+    {
+        return new self(self::PLANNED_STRUCTURE_DELETED, null);
     }
 }

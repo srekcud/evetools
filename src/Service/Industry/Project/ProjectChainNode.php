@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project;
 
+use App\Entity\User;
+
 final readonly class ProjectChainNode
 {
     /**
@@ -11,6 +13,7 @@ final readonly class ProjectChainNode
      * @param list<array{esiJobId: int, status: string, runs: int, characterName: string|null, endDate: string|null, cost: float|null, facilityName: string|null}> $jobs
      * @param list<string>                                                                                                                                                         $structures
      * @param array{name: string|null, status: string}|null                                                                                                                        $plannedStructure
+     * @param array{seconds: int|null, missingData: list<array{reason: string, typeId: int|null}>, characterName: string|null}|null $plannedCopyDuration
      */
     public function __construct(
         public string $id,
@@ -34,6 +37,7 @@ final readonly class ProjectChainNode
         public ?int $soldQuantity,
         public ?float $grossRevenue,
         public ?int $level,
+        public ?array $plannedCopyDuration = null,
     ) {
     }
 
@@ -43,5 +47,14 @@ final readonly class ProjectChainNode
     public function withJobs(array $jobs): self
     {
         return clone($this, ['jobs' => $jobs]);
+    }
+
+    public function withPlannedCopyDurationSeenBy(User $owner, User $viewer): self
+    {
+        if (null === $this->plannedCopyDuration || null === $this->plannedCopyDuration['characterName'] || $owner === $viewer) {
+            return $this;
+        }
+
+        return clone($this, ['plannedCopyDuration' => [...$this->plannedCopyDuration, 'characterName' => PilotName::of($owner)]]);
     }
 }
