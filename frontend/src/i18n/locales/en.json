@@ -2333,6 +2333,7 @@
         "market-history-purge": "Market history purge",
         "shared-lists-purge": "Shared lists purge",
         "assets": "Assets",
+        "corporation-assets": "Corporation assets",
         "market-alerts": "Market alerts"
       }
     },

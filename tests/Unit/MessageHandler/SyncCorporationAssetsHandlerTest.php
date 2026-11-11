@@ -29,7 +29,8 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
     private const string CHARACTER_UUID = '0199a1f0-0000-7000-8000-000000000001';
     private const string USER_UUID = '0199a1f0-0000-7000-8000-0000000000a1';
     private const string REQUESTER_UUID = '0199a1f0-0000-7000-8000-0000000000b2';
-    private const string ASSETS_SYNC_TYPE = 'assets';
+    private const string ASSETS_SYNC_TYPE = 'corporation-assets';
+    private const string CHARACTER_ASSETS_SYNC_TYPE = 'assets';
     private const string CORPORATION_ASSETS_TOPIC = '/user/' . self::USER_UUID . '/sync/corporation-assets';
 
     /** @var list<Update> */
@@ -119,6 +120,49 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
 
         self::assertSame([], $this->errorPayloadsOn(self::CORPORATION_ASSETS_TOPIC));
         self::assertNotSame('error', $this->trackedAssetsEntry()['status']);
+    }
+
+    public function testSuccessfulSyncIsRecordedAsACompletedCorporationAssetsSync(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService);
+
+        $entry = $this->trackedAssetsEntry();
+        self::assertSame('ok', $entry['status']);
+        self::assertNotNull($entry['completed_at']);
+    }
+
+    public function testCorporationAssetsSyncIsRecordedAsRunningWhileItSyncs(): void
+    {
+        $statusDuringSync = null;
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(true);
+        $assetsSyncService->method('syncCorporationAssets')->willReturnCallback(function () use (&$statusDuringSync): void {
+            $statusDuringSync = $this->trackedAssetsEntry()['status'];
+        });
+
+        $this->handle($this->characterWithUser(), $assetsSyncService);
+
+        self::assertSame('running', $statusDuringSync);
+    }
+
+    public function testCorporationAssetsSyncDoesNotTouchTheCharacterAssetsRow(): void
+    {
+        $assetsSyncService = $this->createStub(AssetsSyncService::class);
+        $assetsSyncService->method('canSync')->willReturn(false);
+
+        $this->handle($this->characterWithUser(), $assetsSyncService);
+
+        foreach ($this->syncTracker->getAll() as $entry) {
+            if ($entry['type'] === self::CHARACTER_ASSETS_SYNC_TYPE) {
+                self::assertSame('unknown', $entry['status']);
+
+                return;
+            }
+        }
+        self::fail('assets sync type is not tracked');
     }
 
     public function testSyncIsRunForTheRequestingUser(): void
