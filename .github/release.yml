@@ -1,0 +1,29 @@
+changelog:
+  exclude:
+    labels:
+      - duplicate
+      - invalid
+      - wontfix
+      - question
+      - investigation
+      - documentation
+      - docs
+  categories:
+    - title: Features
+      labels:
+        - feature
+        - enhancement
+    - title: Bug fixes
+      labels:
+        - bug
+    - title: UX
+      labels:
+        - ux
+    - title: Technical
+      labels:
+        - tech-debt
+        - infra
+        - perf
+    - title: Other changes
+      labels:
+        - '*'

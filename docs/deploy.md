@@ -11,6 +11,7 @@ Release (.github/workflows/release.yml)
   1. ci       : suites Unit + Integration (ci.yml réutilisé)
   2. images   : base (pull, ou build + push si le tag n'existe pas) → app → proxy, push sur ghcr.io/srekcud/evetools-{app,proxy}:V0.14
   3. deploy   : environnement GitHub "production", ssh vers le serveur
+  4. github-release : GitHub Release du tag, notes générées depuis le tag V* précédent (PR groupées par label, .github/release.yml)
         │
         ▼
 Serveur : bin/deploy V0.14 (commande forcée de la clé SSH)
@@ -26,6 +27,8 @@ Aucun build sur le serveur. Une image par version : revenir en arrière consiste
 - **Nouvelle version** : `git tag V0.14 && git push origin V0.14`. Le déploiement ne part que si la CI et le build des images sont verts.
 - **Redéployer / revenir à une version déjà construite** : Actions → Release → *Run workflow*, `version = V0.13`. Pas de rebuild.
 - **Depuis le serveur, sans GitHub** : `make deploy VERSION=V0.14` (ou `bin/deploy V0.14`).
+
+- **GitHub Release** : créée par le job `github-release` après un déploiement réussi, sur push de tag uniquement (ni après un échec, ni sur *Run workflow*). Une release qui existe déjà pour le tag, brouillon écrit à la main compris, est gardée telle quelle. Les PR sont rangées par label (`feature`/`enhancement`, `bug`, `ux`, `tech-debt`/`infra`/`perf`) ; une PR sans label tombe dans *Other changes*.
 
 Si l'environnement `production` a un *required reviewer*, le job `deploy` attend une validation dans l'onglet Actions.
 
