@@ -48,6 +48,7 @@ import ProjectCourier from '@/components/group-industry/ProjectCourier.vue'
 import ProjectStructureHealth from '@/components/group-industry/ProjectStructureHealth.vue'
 import ProjectBlacklistEditor from '@/components/group-industry/ProjectBlacklistEditor.vue'
 import ProjectSurplus from '@/components/group-industry/ProjectSurplus.vue'
+import IntermediateStockProposal from '@/components/group-industry/IntermediateStockProposal.vue'
 import ProjectStructures from '@/components/group-industry/ProjectStructures.vue'
 import ProjectInvention from '@/components/group-industry/ProjectInvention.vue'
 import ProjectPlanning from '@/components/group-industry/ProjectPlanning.vue'
@@ -602,6 +603,13 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         />
 
         <ProjectCourier :project-id="projectId" />
+
+        <IntermediateStockProposal
+          v-if="isOwner && !isCompleted"
+          :project-id="projectId"
+          :project-status="project.status"
+          @validated="onContributionSubmitted"
+        />
 
         <!-- Materials Table -->
         <BomTable @contribute="openContributeModal" />

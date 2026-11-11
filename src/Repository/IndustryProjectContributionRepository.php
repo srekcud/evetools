@@ -99,7 +99,22 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
      */
     public function findBomItemIdsWithMaterialContributionOf(IndustryProject $project, User $user): array
     {
-        return [];
+        $bomItemIds = $this->createQueryBuilder('c')
+            ->select('DISTINCT IDENTITY(c.bomItem)')
+            ->join('c.member', 'm')
+            ->andWhere('c.project = :project')
+            ->andWhere('m.user = :user')
+            ->andWhere('c.bomItem IS NOT NULL')
+            ->andWhere('c.type = :type')
+            ->andWhere('c.status IN (:statuses)')
+            ->setParameter('project', $project)
+            ->setParameter('user', $user)
+            ->setParameter('type', ContributionType::Material->value)
+            ->setParameter('statuses', [ContributionStatus::Pending->value, ContributionStatus::Approved->value])
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $bomItemIds));
     }
 
     /**

@@ -142,7 +142,15 @@ class CachedAssetRepository extends ServiceEntityRepository
 
     public function hasPersonalAssetsOf(User $user): bool
     {
-        return false;
+        return $this->createQueryBuilder('a')
+            ->select('a.id')
+            ->join('a.character', 'c')
+            ->where('c.user = :user')
+            ->andWhere('a.isCorporationAsset = false')
+            ->setParameter('user', $user)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult() !== null;
     }
 
     public function hasCorporationAssets(int $corporationId): bool
