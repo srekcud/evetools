@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useFlash } from '@/composables/useUpdateFlash'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -12,6 +12,7 @@ import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
 import EsiErrorBudgetCard from '@/components/admin/EsiErrorBudgetCard.vue'
 import MercureCookieCard from '@/components/admin/MercureCookieCard.vue'
 import CharactersToRepairCard from '@/components/admin/CharactersToRepairCard.vue'
+import UserSupportCard from '@/components/admin/UserSupportCard.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
 import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
 import PveCorpRevenue from '@/components/admin/PveCorpRevenue.vue'
@@ -137,6 +138,15 @@ function handleMaintenanceAction(name: string, actionKey: string) {
 
 const { isFlashing: statsUpdated, flash: flashStats } = useFlash()
 
+const selectedUserId = ref<string | null>(null)
+
+async function openUserSheet(userId: string): Promise<void> {
+  selectedUserId.value = null
+  await nextTick()
+  selectedUserId.value = userId
+  document.getElementById('user-support')?.scrollIntoView({ behavior: 'smooth' })
+}
+
 // Watch for Mercure admin-sync events
 watch(
   () => syncStore.adminSyncProgress,
@@ -241,7 +251,9 @@ watch(
 
       <EsiErrorBudgetCard v-if="stats?.esiErrorBudget" :budget="stats.esiErrorBudget" />
 
-      <CharactersToRepairCard v-if="stats?.charactersToRepair" :characters-to-repair="stats.charactersToRepair" />
+      <CharactersToRepairCard v-if="stats?.charactersToRepair" :characters-to-repair="stats.charactersToRepair" @open-user="openUserSheet" />
+
+      <UserSupportCard :selected-user-id="selectedUserId" />
 
       <MercureCookieCard v-if="stats?.mercureCookie" :mercure-cookie="stats.mercureCookie" />
 

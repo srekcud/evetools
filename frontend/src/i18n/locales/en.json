@@ -2355,11 +2355,51 @@
       "missingScopes": "Missing scopes",
       "since": "Token last updated",
       "never": "Never",
+      "openSheet": "Open the user sheet",
       "state": {
         "invalid": "Authorization revoked",
         "missing_scopes": "Scopes missing"
       },
       "empty": "No character needs a new login"
+    },
+    "userSupport": {
+      "title": "User support",
+      "searchPlaceholder": "Character name or EVE character id",
+      "search": "Search",
+      "noResult": "No user found",
+      "noMainCharacter": "No main character",
+      "characterCount": "{count} character | {count} characters",
+      "loadError": "The user sheet could not be loaded",
+      "lastLogin": "Last login",
+      "createdAt": "Account created",
+      "never": "Never",
+      "unknown": "Unknown",
+      "refresh": "Refresh",
+      "character": "Character",
+      "main": "Main",
+      "tokenStateColumn": "Token",
+      "tokenState": {
+        "valid": "Valid",
+        "expiring": "Expiring",
+        "invalid": "Authorization revoked",
+        "no_token": "No token"
+      },
+      "missingScopes": "Missing scopes",
+      "lastSync": "Last sync",
+      "syncColumn": "Sync",
+      "lastData": "Last data received",
+      "trigger": "Run now",
+      "triggered": "{type} sync queued",
+      "syncType": {
+        "industry": "Industry jobs",
+        "blueprints": "Blueprints",
+        "character-orders": "Market orders",
+        "pve": "PVE",
+        "mining": "Mining",
+        "assets": "Assets",
+        "wallet": "Wallet transactions",
+        "planetary": "Planetary colonies"
+      }
     },
     "mercureCookie": {
       "title": "Mercure cookie size",
