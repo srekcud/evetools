@@ -18,18 +18,19 @@ final class EveAuthRequiredRetryPolicyTest extends TestCase
 {
     private const int CORPORATION_ID = 98_000_001;
     private const string TRIGGER_CHARACTER_ID = '0199a1f0-0000-7000-8000-000000000001';
+    private const string REQUESTED_BY_USER_ID = '0199a1f0-0000-7000-8000-000000000002';
 
     public function testHandlerFailureCausedByEveAuthRequiredIsNotRetried(): void
     {
         $failure = new EveAuthRequiredException('2112000001');
 
-        self::assertFalse(MessengerRetryProbe::wouldRetry(new SyncCorporationAssets(self::CORPORATION_ID, self::TRIGGER_CHARACTER_ID), $failure));
+        self::assertFalse(MessengerRetryProbe::wouldRetry(new SyncCorporationAssets(self::CORPORATION_ID, self::TRIGGER_CHARACTER_ID, self::REQUESTED_BY_USER_ID), $failure));
     }
 
     public function testOrdinaryHandlerFailureIsStillRetried(): void
     {
         $failure = new \RuntimeException('ESI server error');
 
-        self::assertTrue(MessengerRetryProbe::wouldRetry(new SyncCorporationAssets(self::CORPORATION_ID, self::TRIGGER_CHARACTER_ID), $failure));
+        self::assertTrue(MessengerRetryProbe::wouldRetry(new SyncCorporationAssets(self::CORPORATION_ID, self::TRIGGER_CHARACTER_ID, self::REQUESTED_BY_USER_ID), $failure));
     }
 }

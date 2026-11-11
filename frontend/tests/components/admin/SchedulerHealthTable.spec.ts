@@ -11,7 +11,7 @@ const TRACKED_SYNC_TYPES = [
   'alert-prices', 'adjusted-prices', 'cost-indices', 'public-contracts', 'corporation-mining-extractions',
   'moon-tax', 'blueprints', 'market-volumes', 'courier-contracts', 'character-orders',
   'mining-operation-recurrences', 'moon-chunk-alerts', 'mining-site-depletion-alerts',
-  'notifications-purge', 'market-history-purge', 'shared-lists-purge', 'assets', 'market-alerts',
+  'notifications-purge', 'market-history-purge', 'shared-lists-purge', 'assets', 'corporation-assets', 'market-alerts',
 ]
 
 function entryOfType(type: string, triggerable = false): SchedulerHealthEntry {

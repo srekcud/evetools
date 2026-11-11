@@ -46,6 +46,7 @@ class SyncTracker
     /** Not scheduled, only triggered manually: their last run is shown but no health is computed. */
     public const ON_DEMAND = [
         'assets',
+        'corporation-assets',
         'market-alerts',
     ];
 
