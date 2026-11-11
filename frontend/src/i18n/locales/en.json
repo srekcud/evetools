@@ -2358,12 +2358,7 @@
       "logins": "Logins",
       "registrationsPerWeek": "Registrations per week",
       "loginsLast7d": "Logins (last 7 days)",
-      "assetDistribution": "Asset distribution",
-      "weekLabel": "Wk {week}",
-      "assetKinds": {
-        "personal": "Personal",
-        "corporation": "Corporation"
-      }
+      "weekLabel": "Wk {week}"
     },
     "pve": {
       "revenueByCorpTitle": "PVE Revenue by Corporation (30d)",

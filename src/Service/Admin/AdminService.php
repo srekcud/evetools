@@ -10,6 +10,8 @@ use Doctrine\DBAL\Connection;
 
 class AdminService
 {
+    private const REGISTRATION_CHART_WEEKS = 12;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly SyncTracker $syncTracker,
@@ -272,7 +274,6 @@ class AdminService
         return [
             'registrations' => $this->getRegistrationChartData(),
             'activity' => $this->getActivityChartData(),
-            'assetDistribution' => $this->getAssetDistributionData(),
         ];
     }
 
@@ -282,8 +283,7 @@ class AdminService
         $labels = [];
         $data = [];
 
-        // Get registrations per week for the last 4 weeks
-        for ($i = 3; $i >= 0; $i--) {
+        for ($i = self::REGISTRATION_CHART_WEEKS - 1; $i >= 0; $i--) {
             $weekStart = (new \DateTimeImmutable("-{$i} weeks"))->modify('monday this week');
             $weekEnd = $weekStart->modify('+7 days');
 
@@ -325,22 +325,6 @@ class AdminService
         return [
             'labels' => $labels,
             'logins' => $logins,
-        ];
-    }
-
-    /** @return array<string, list<string|int>> */
-    private function getAssetDistributionData(): array
-    {
-        $personal = (int) $this->connection->fetchOne(
-            'SELECT COUNT(*) FROM cached_assets WHERE is_corporation_asset = false'
-        );
-        $corporation = (int) $this->connection->fetchOne(
-            'SELECT COUNT(*) FROM cached_assets WHERE is_corporation_asset = true'
-        );
-
-        return [
-            'labels' => ['personal', 'corporation'],
-            'data' => [$personal, $corporation],
         ];
     }
 

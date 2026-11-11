@@ -2358,12 +2358,7 @@
       "logins": "Connexions",
       "registrationsPerWeek": "Inscriptions par semaine",
       "loginsLast7d": "Connexions (7 derniers jours)",
-      "assetDistribution": "Repartition des assets",
-      "weekLabel": "Sem {week}",
-      "assetKinds": {
-        "personal": "Personnel",
-        "corporation": "Corporation"
-      }
+      "weekLabel": "Sem {week}"
     },
     "pve": {
       "revenueByCorpTitle": "Revenus PVE par Corporation (30j)",
