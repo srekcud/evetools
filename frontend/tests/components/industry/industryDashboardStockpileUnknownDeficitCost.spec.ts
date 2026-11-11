@@ -15,6 +15,8 @@ vi.mock(import('@/services/api'), async importOriginal => ({
 const KNOWN_DEFICIT_COST_TEXT = '400 ISK'
 
 const UNPRICED_COMPONENT_TARGET: StockpileItemStatus = {
+  deficit: 90,
+  suggestedProjectRuns: null,
   id: '00000000-0000-4000-8000-000000057486',
   typeId: 57486,
   typeName: 'Unpriced Component',
@@ -31,6 +33,8 @@ const UNPRICED_COMPONENT_TARGET: StockpileItemStatus = {
 }
 
 const MEXALLON_TARGET: StockpileItemStatus = {
+  deficit: 8,
+  suggestedProjectRuns: null,
   id: '00000000-0000-4000-8000-000000000036',
   typeId: 36,
   typeName: 'Mexallon',

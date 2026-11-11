@@ -25,6 +25,7 @@ const BASE_DISTRIBUTION: Distribution = {
 
 function sale(quantity: number, unitPrice: number): GroupSale {
   return {
+    createdAt: '2026-11-05T20:41:00+00:00',
     id: `sale-${quantity}-${unitPrice}`,
     typeId: 11993,
     typeName: 'Hammerhead II',

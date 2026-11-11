@@ -23,6 +23,7 @@ const SABRE: SearchResult = { typeId: SABRE_TYPE_ID, typeName: 'Sabre', isT2: tr
 const PYERITE_COVERAGE_PERCENT = 41
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,

@@ -28,6 +28,7 @@ const MEXALLON_TOTAL_PRICE = 72_750
 const PYERITE_TOTAL_PRICE = 29_610
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,

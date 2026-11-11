@@ -21,6 +21,7 @@ const JITA_SELL_COVERAGE_PERCENT = 30
 const TRITANIUM_COVERAGE_PERCENT = 62
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,
@@ -37,6 +38,7 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: 34_204,
   decryptorName: 'Attainment Decryptor',
   me: 1,

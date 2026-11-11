@@ -24,6 +24,8 @@ const UNKNOWN_GADGET_TEXT = `Unknown product #${GADGET_TYPE_ID}`
 const IMPORT_WARNINGS_SELECTOR = '[data-testid="stockpile-import-warnings"]'
 
 const widgetItem: StockpileItemStatus = {
+  deficit: WIDGET_TARGET_QUANTITY - WIDGET_STOCK,
+  suggestedProjectRuns: null,
   id: '00000000-0000-4000-8000-000000003001',
   typeId: WIDGET_TYPE_ID,
   typeName: 'Widget',

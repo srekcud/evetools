@@ -18,6 +18,7 @@ const unknownReasons: Record<string, string> = en.industry.inventionUnknown
 const frenchUnknownReasons: Record<string, string> = fr.industry.inventionUnknown
 
 const OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,

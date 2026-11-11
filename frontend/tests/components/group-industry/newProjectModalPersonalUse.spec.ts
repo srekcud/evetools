@@ -33,7 +33,6 @@ const SETTINGS_WITH_KEEPSTAR: Settings = {
   marketStructures: [JITA_4_4, KEEPSTAR_A],
 }
 const SETTINGS_WITH_JITA_ONLY: Settings = { ...SETTINGS_WITH_KEEPSTAR, marketStructures: [JITA_4_4] }
-const SETTINGS_WITHOUT_STRUCTURE: Settings = { preferredMarketStructureId: null, preferredMarketStructureName: null, marketStructures: [] }
 
 type Wrapper = Awaited<ReturnType<typeof mountModal>>
 
@@ -53,13 +52,6 @@ async function mountModal(settings: Settings) {
   await wrapper.setProps({ show: true })
   await flushPromises()
   return wrapper
-}
-
-async function useTheTemplateOfAlice(wrapper: Wrapper) {
-  await wrapper.get('[data-testid="new-project-template-tab"]').trigger('click')
-  await flushPromises()
-  await wrapper.get('[data-testid="project-template-use"]').trigger('click')
-  await flushPromises()
 }
 
 async function submitAndReadCreationBody(wrapper: Wrapper) {

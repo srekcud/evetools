@@ -21,6 +21,7 @@ const PROFIT_MARGIN_ENDPOINT = `/industry/profit-margin/${SABRE_TYPE_ID}`
 const SABRE: SearchResult = { typeId: SABRE_TYPE_ID, typeName: 'Sabre', isT2: true }
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,
@@ -37,6 +38,7 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: ATTAINMENT_DECRYPTOR_TYPE_ID,
   decryptorName: 'Attainment Decryptor',
   me: 1,
@@ -53,6 +55,7 @@ const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
 }
 
 const PARITY_OPTION_WITHOUT_MATERIAL_PRICE: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: PARITY_DECRYPTOR_TYPE_ID,
   decryptorName: 'Parity Decryptor',
   me: 3,

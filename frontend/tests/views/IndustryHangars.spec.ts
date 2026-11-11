@@ -41,7 +41,7 @@ function visibility(overrides: Partial<CorpAssetVisibility> = {}): CorpAssetVisi
 }
 
 function stubVisibility(response: CorpAssetVisibility | 'failure') {
-  const fetchMock = vi.fn(async () => response === 'failure'
+  const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => response === 'failure'
     ? new Response('{}', { status: 500 })
     : new Response(JSON.stringify(response), { status: 200 }))
   vi.stubGlobal('fetch', fetchMock)

@@ -19,6 +19,7 @@ const JITA_SELL_UNIT_PRICE = 100
 const BASE_TOTAL_COST = 860
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,
@@ -35,6 +36,7 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
 }
 
 const ATTAINMENT_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: 34_204,
   decryptorName: 'Attainment Decryptor',
   me: 1,

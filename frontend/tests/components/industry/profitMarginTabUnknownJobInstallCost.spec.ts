@@ -111,6 +111,7 @@ const FERNITE_CARBIDE_WITH_FIGURED_JOB_INSTALL_COSTS: ProfitMarginResult = {
 }
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,
@@ -127,6 +128,7 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
 }
 
 const PROCESS_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: PROCESS_DECRYPTOR_TYPE_ID,
   decryptorName: 'Process Decryptor',
   me: 5,

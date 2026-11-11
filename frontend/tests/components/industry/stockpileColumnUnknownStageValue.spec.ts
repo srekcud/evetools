@@ -6,6 +6,8 @@ import StockpileColumn from '@/components/industry/StockpileColumn.vue'
 import type { StockpileItemStatus, StockpileStageStatus } from '@/stores/industry/types'
 
 const UNPRICED_COMPONENT_TARGET: StockpileItemStatus = {
+  deficit: 60,
+  suggestedProjectRuns: null,
   id: '00000000-0000-4000-8000-000000057486',
   typeId: 57486,
   typeName: 'Unpriced Component',

@@ -8,6 +8,7 @@ import type { InventionUnknownReason, ProfitMarginInventionOption } from '@/stor
 const MISSING_MARKET_PRICE: InventionUnknownReason = 'missing_market_price'
 
 const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: null,
   decryptorName: 'No Decryptor',
   me: 2,
@@ -24,6 +25,7 @@ const NO_DECRYPTOR_OPTION: ProfitMarginInventionOption = {
 }
 
 const PARITY_OPTION_WITHOUT_PRICE: ProfitMarginInventionOption = {
+  manufacturingJobs: 1,
   decryptorTypeId: 34204,
   decryptorName: 'Parity Decryptor',
   me: 3,
