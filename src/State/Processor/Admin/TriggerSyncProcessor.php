@@ -23,6 +23,8 @@ use App\Message\SyncWalletTransactions;
 use App\Repository\MarketPriceHistoryRepository;
 use App\Repository\NotificationRepository;
 use App\Service\Admin\SyncTracker;
+use App\Service\Admin\TriggerableSyncs;
+use App\ApiResource\Input\Admin\TriggerSyncInput;
 use App\Service\MarketAlertService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -45,7 +47,8 @@ class TriggerSyncProcessor implements ProcessorInterface
     ) {
     }
 
-    private const MARKET_ALERTS_SYNC_TYPE = 'market-alerts';
+    private const TRIGGER_SYNC_OPERATION = 'trigger_sync';
+    private const MARKET_ALERTS_SYNC_TYPE = TriggerableSyncs::SYNCHRONOUS_TYPE;
 
     private const ACTION_TO_SYNC_TYPE = [
         'sync_assets' => 'assets',
@@ -74,6 +77,12 @@ class TriggerSyncProcessor implements ProcessorInterface
         $userId = $user->getId()?->toRfc4122();
         $resource = new ActionResultResource();
         $resource->success = true;
+
+        if ($operationName === self::TRIGGER_SYNC_OPERATION && $data instanceof TriggerSyncInput) {
+            $this->triggerTrackedSync($resource, $data->type, $userId);
+
+            return $resource;
+        }
 
         // Resolve short operation name (strip API Platform prefix)
         $shortName = $operationName ?? '';
@@ -174,6 +183,32 @@ class TriggerSyncProcessor implements ProcessorInterface
         }
 
         return $resource;
+    }
+
+    private function triggerTrackedSync(ActionResultResource $resource, string $type, ?string $userId): void
+    {
+        if (!TriggerableSyncs::isTriggerable($type)) {
+            $resource->success = false;
+            $resource->message = 'Unknown sync type';
+
+            return;
+        }
+
+        if ($type === self::MARKET_ALERTS_SYNC_TYPE) {
+            $this->checkMarketAlerts($resource, $userId);
+
+            return;
+        }
+
+        if ($userId !== null) {
+            $this->syncTracker->setTriggeredBy($type, $userId);
+        }
+
+        foreach (TriggerableSyncs::messagesFor($type) as $message) {
+            $this->messageBus->dispatch($message);
+        }
+
+        $resource->message = sprintf('Sync triggered: %s', $type);
     }
 
     private function checkMarketAlerts(ActionResultResource $resource, ?string $userId): void

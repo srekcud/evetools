@@ -102,6 +102,13 @@ class SyncTrackerTest extends TestCase
         );
     }
 
+    public function testEveryTrackedEntryCanBeTriggeredManually(): void
+    {
+        foreach ($this->syncTracker->getAll() as $entry) {
+            $this->assertTrue($entry['triggerable'], $entry['type'] . ' has no manual trigger');
+        }
+    }
+
     public function testNeverRunScheduledSyncIsUnknown(): void
     {
         $this->assertSame(
@@ -114,6 +121,7 @@ class SyncTrackerTest extends TestCase
                 'message' => null,
                 'expected_interval' => self::INDUSTRY_INTERVAL,
                 'on_demand' => false,
+                'triggerable' => true,
             ],
             $this->entryFor('industry'),
         );
@@ -131,6 +139,7 @@ class SyncTrackerTest extends TestCase
                 'message' => null,
                 'expected_interval' => null,
                 'on_demand' => true,
+                'triggerable' => true,
             ],
             $this->entryFor('assets'),
         );

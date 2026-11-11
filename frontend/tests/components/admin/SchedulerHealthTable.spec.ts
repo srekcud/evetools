@@ -14,7 +14,7 @@ const TRACKED_SYNC_TYPES = [
   'notifications-purge', 'market-history-purge', 'shared-lists-purge', 'assets', 'market-alerts',
 ]
 
-function entryOfType(type: string): SchedulerHealthEntry {
+function entryOfType(type: string, triggerable = false): SchedulerHealthEntry {
   return {
     type,
     status: 'ok',
@@ -24,12 +24,13 @@ function entryOfType(type: string): SchedulerHealthEntry {
     message: null,
     expectedInterval: 1800,
     onDemand: false,
+    triggerable,
   } as SchedulerHealthEntry
 }
 
 function renderedTextFor(type: string, locale: TestLocale): string {
   const wrapper = mount(SchedulerHealthTable, {
-    props: { entries: [entryOfType(type)], syncActionMap: {}, actionLoading: null },
+    props: { entries: [entryOfType(type)], actionLoading: null },
     global: { plugins: [createI18n({ legacy: false, locale, messages: { en, fr } })] },
   })
   return wrapper.text()
@@ -48,5 +49,34 @@ describe('SchedulerHealthTable sync names', () => {
     for (const locale of TEST_LOCALES) {
       expect(messageOf(locale, `admin.sync.types.${type}`)).not.toBe('')
     }
+  })
+})
+
+function mountTableWith(entries: SchedulerHealthEntry[], actionLoading: string | null = null) {
+  return mount(SchedulerHealthTable, {
+    props: { entries, actionLoading },
+    global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })] },
+  })
+}
+
+describe('SchedulerHealthTable manual trigger', () => {
+  it('shows a trigger button on each triggerable row only', () => {
+    const wrapper = mountTableWith([entryOfType('cost-indices', true), entryOfType('legacy-type', false)])
+
+    expect(wrapper.findAll('button')).toHaveLength(1)
+  })
+
+  it('emits the type of the row when its trigger button is clicked', async () => {
+    const wrapper = mountTableWith([entryOfType('industry', true), entryOfType('cost-indices', true)])
+
+    await wrapper.findAll('button')[1].trigger('click')
+
+    expect(wrapper.emitted('execute-action')).toEqual([['cost-indices']])
+  })
+
+  it('disables the trigger buttons while an action is running', () => {
+    const wrapper = mountTableWith([entryOfType('cost-indices', true)], 'cost-indices')
+
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
   })
 })
