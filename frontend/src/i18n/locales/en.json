@@ -2347,6 +2347,23 @@
       "onDemand": "On demand",
       "onDemandHint": "On demand (not scheduled)"
     },
+    "esiBudget": {
+      "title": "ESI error budget",
+      "remain": "Errors remaining",
+      "lastReset": "Last observed",
+      "resetIn": "window of {seconds}s",
+      "limited420": "420 in 24h",
+      "limited429": "429 in 24h",
+      "hourly": "Hourly 420/429, last 24h (red: 420, amber: 429)",
+      "family": "Endpoint family",
+      "noLimited": "No 420 or 429 in the last 24h",
+      "level": {
+        "unknown": "Unknown",
+        "ok": "Healthy",
+        "low": "Low",
+        "critical": "Critical"
+      }
+    },
     "scheduler": {
       "title": "Scheduler & Rate Limiting",
       "syncScope": "Sync scope",

@@ -57,8 +57,11 @@ class AdminStatsResource
     /** @var SchedulerHealthEntryDto[] */
     public array $schedulerHealth = [];
 
+    public EsiErrorBudgetDto $esiErrorBudget;
+
     public function __construct()
     {
+        $this->esiErrorBudget = new EsiErrorBudgetDto();
         $this->users = new UserStatsDto();
         $this->characters = new CharacterStatsDto();
         $this->tokens = new TokenStatsDto();
@@ -200,5 +203,42 @@ class SchedulerHealthEntryDto
         $this->expectedInterval = $expectedInterval;
         $this->onDemand = $onDemand;
         $this->triggerable = $triggerable;
+    }
+}
+
+class EsiErrorBudgetDto
+{
+    public ?int $remain = null;
+    public ?int $resetSeconds = null;
+    public ?string $observedAt = null;
+    public ?string $windowEndsAt = null;
+    public string $level = 'unknown';
+    public int $limited420 = 0;
+    public int $limited429 = 0;
+
+    /** @var EsiLimitedFamilyDto[] */
+    public array $byFamily = [];
+
+    /** @var EsiLimitedHourDto[] */
+    public array $hourly = [];
+}
+
+class EsiLimitedFamilyDto
+{
+    public function __construct(
+        public string $family = '',
+        public int $limited420 = 0,
+        public int $limited429 = 0,
+    ) {
+    }
+}
+
+class EsiLimitedHourDto
+{
+    public function __construct(
+        public string $hour = '',
+        public int $limited420 = 0,
+        public int $limited429 = 0,
+    ) {
     }
 }

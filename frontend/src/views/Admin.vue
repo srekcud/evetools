@@ -9,6 +9,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import MainLayout from '@/layouts/MainLayout.vue'
 import AdminKpiGrid from '@/components/admin/AdminKpiGrid.vue'
 import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
+import EsiErrorBudgetCard from '@/components/admin/EsiErrorBudgetCard.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
 import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
 import PveCorpRevenue from '@/components/admin/PveCorpRevenue.vue'
@@ -235,6 +236,8 @@ watch(
           @execute-action="handleMaintenanceAction"
         />
       </div>
+
+      <EsiErrorBudgetCard v-if="stats?.esiErrorBudget" :budget="stats.esiErrorBudget" />
 
       <!-- Scheduler Config -->
       <div class="bg-slate-900 rounded-xl p-6 border border-slate-800">

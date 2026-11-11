@@ -2347,6 +2347,23 @@
       "onDemand": "A la demande",
       "onDemandHint": "A la demande (non planifie)"
     },
+    "esiBudget": {
+      "title": "Budget d'erreurs ESI",
+      "remain": "Erreurs restantes",
+      "lastReset": "Dernière observation",
+      "resetIn": "fenêtre de {seconds}s",
+      "limited420": "420 sur 24h",
+      "limited429": "429 sur 24h",
+      "hourly": "420/429 par heure, 24 dernières heures (rouge : 420, ambre : 429)",
+      "family": "Famille d'endpoint",
+      "noLimited": "Aucun 420 ni 429 sur les 24 dernières heures",
+      "level": {
+        "unknown": "Inconnu",
+        "ok": "Sain",
+        "low": "Bas",
+        "critical": "Critique"
+      }
+    },
     "scheduler": {
       "title": "Scheduler & Rate Limiting",
       "syncScope": "Sync scope",

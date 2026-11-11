@@ -75,6 +75,30 @@ export interface SchedulerHealthEntry {
   triggerable: boolean
 }
 
+export interface AdminEsiErrorBudgetFamily {
+  family: string
+  limited420: number
+  limited429: number
+}
+
+export interface AdminEsiErrorBudgetHour {
+  hour: string
+  limited420: number
+  limited429: number
+}
+
+export interface AdminEsiErrorBudget {
+  remain: number | null
+  resetSeconds: number | null
+  observedAt: string | null
+  windowEndsAt: string | null
+  level: 'unknown' | 'ok' | 'low' | 'critical'
+  limited420: number
+  limited429: number
+  byFamily: AdminEsiErrorBudgetFamily[]
+  hourly: AdminEsiErrorBudgetHour[]
+}
+
 export interface AdminNotificationStats {
   total: number
   unread: number
@@ -102,6 +126,7 @@ export interface AdminStats {
   notifications: AdminNotificationStats
   market: AdminMarketStats
   schedulerHealth: SchedulerHealthEntry[]
+  esiErrorBudget: AdminEsiErrorBudget
 }
 
 export interface AdminQueues {
