@@ -267,6 +267,7 @@ class AssetsSyncServiceTest extends TestCase
         $directorCharacter = $this->createStub(Character::class);
         $directorCharacter->method('getCorporationId')->willReturn(98000001);
         $directorCharacter->method('getEveToken')->willReturn($token);
+        $directorCharacter->method('isAuthValid')->willReturn(true);
 
         $directorUser = $this->createStub(User::class);
         $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$directorCharacter]));
@@ -285,6 +286,85 @@ class AssetsSyncServiceTest extends TestCase
         $result = $this->service->getCorpAssetsCharacter(98000001);
 
         $this->assertSame($directorCharacter, $result);
+    }
+
+    public function testGetCorpAssetsCharacterFallsBackWhenDirectorAuthIsInvalid(): void
+    {
+        $token = $this->createStub(EveToken::class);
+        $token->method('hasScope')->willReturn(true);
+
+        $directorCharacter = $this->createStub(Character::class);
+        $directorCharacter->method('getCorporationId')->willReturn(98000001);
+        $directorCharacter->method('getEveToken')->willReturn($token);
+        $directorCharacter->method('isAuthValid')->willReturn(false);
+
+        $directorUser = $this->createStub(User::class);
+        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$directorCharacter]));
+
+        $visibility = new CorpAssetVisibility();
+        $visibility->setCorporationId(98000001);
+        $visibility->setVisibleDivisions([1]);
+        $visibility->setConfiguredBy($directorUser);
+
+        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
+
+        $validCorpCharacter = $this->createStub(Character::class);
+        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($validCorpCharacter);
+
+        $this->assertSame($validCorpCharacter, $this->service->getCorpAssetsCharacter(98000001));
+    }
+
+    public function testGetCorpAssetsCharacterUsesTheValidDirectorCharacterWhenAnotherOneOfTheSameUserIsInvalid(): void
+    {
+        $token = $this->createStub(EveToken::class);
+        $token->method('hasScope')->willReturn(true);
+
+        $invalidCharacter = $this->createStub(Character::class);
+        $invalidCharacter->method('getCorporationId')->willReturn(98000001);
+        $invalidCharacter->method('getEveToken')->willReturn($token);
+        $invalidCharacter->method('isAuthValid')->willReturn(false);
+
+        $validCharacter = $this->createStub(Character::class);
+        $validCharacter->method('getCorporationId')->willReturn(98000001);
+        $validCharacter->method('getEveToken')->willReturn($token);
+        $validCharacter->method('isAuthValid')->willReturn(true);
+
+        $directorUser = $this->createStub(User::class);
+        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$invalidCharacter, $validCharacter]));
+
+        $visibility = new CorpAssetVisibility();
+        $visibility->setCorporationId(98000001);
+        $visibility->setVisibleDivisions([1]);
+        $visibility->setConfiguredBy($directorUser);
+
+        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
+        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn($this->createStub(Character::class));
+
+        $this->assertSame($validCharacter, $this->service->getCorpAssetsCharacter(98000001));
+    }
+
+    public function testGetCorpAssetsCharacterReturnsNullWhenDirectorAuthIsInvalidAndNoOtherCharacterHasAccess(): void
+    {
+        $token = $this->createStub(EveToken::class);
+        $token->method('hasScope')->willReturn(true);
+
+        $directorCharacter = $this->createStub(Character::class);
+        $directorCharacter->method('getCorporationId')->willReturn(98000001);
+        $directorCharacter->method('getEveToken')->willReturn($token);
+        $directorCharacter->method('isAuthValid')->willReturn(false);
+
+        $directorUser = $this->createStub(User::class);
+        $directorUser->method('getCharacters')->willReturn(new ArrayCollection([$directorCharacter]));
+
+        $visibility = new CorpAssetVisibility();
+        $visibility->setCorporationId(98000001);
+        $visibility->setVisibleDivisions([1]);
+        $visibility->setConfiguredBy($directorUser);
+
+        $this->visibilityRepository->method('findByCorporationId')->willReturn($visibility);
+        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturn(null);
+
+        $this->assertNull($this->service->getCorpAssetsCharacter(98000001));
     }
 
     public function testGetCorpAssetsCharacterFallsBackWhenNoVisibilityConfig(): void
