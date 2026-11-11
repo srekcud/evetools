@@ -13,6 +13,9 @@ use App\Enum\AlertDirection;
 use App\Enum\AlertPriceSource;
 use App\Enum\AlertStatus;
 use App\Repository\MarketPriceAlertRepository;
+use App\Service\JitaMarketService;
+use App\Service\MarketAlertPriceResolver;
+use App\Service\StructureMarketService;
 use App\State\Processor\Market\UpdateAlertProcessor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -71,6 +74,19 @@ final class UpdateAlertProcessorTest extends TestCase
 
         $this->assertNull($alert->getTriggeredPrice());
         $this->assertNull($resource->triggeredPrice);
+    }
+
+    #[Group('issue-632')]
+    public function testReturnsTheLiveCurrentPriceOfTheRearmedAlert(): void
+    {
+        $user = $this->createUser(self::USER_ID);
+        $alert = $this->triggeredAlert($user, self::PYERITE, 'Pyerite', AlertDirection::Below, 9.125, AlertPriceSource::JitaBuy);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+
+        $resource = $this->processorFor($user, $alert, $entityManager)->process($this->input(threshold: 8.0), new Patch(), ['id' => self::ALERT_ID]);
+
+        $this->assertSame(9.0, $resource->currentPrice);
+        $this->assertSame('active', $resource->status);
     }
 
     public function testRearmsATriggeredAlertSavedWithAnEmptyBodyAndKeepsItsThresholdAndDirection(): void
@@ -239,7 +255,7 @@ final class UpdateAlertProcessorTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn(null);
-        $processor = new UpdateAlertProcessor($security, $this->createStub(MarketPriceAlertRepository::class), $this->createStub(EntityManagerInterface::class));
+        $processor = new UpdateAlertProcessor($security, $this->createStub(MarketPriceAlertRepository::class), $this->createStub(EntityManagerInterface::class), $this->priceResolver());
 
         $this->expectException(UnauthorizedHttpException::class);
 
@@ -253,7 +269,16 @@ final class UpdateAlertProcessorTest extends TestCase
         $repository = $this->createStub(MarketPriceAlertRepository::class);
         $repository->method('find')->willReturn($alert);
 
-        return new UpdateAlertProcessor($security, $repository, $entityManager);
+        return new UpdateAlertProcessor($security, $repository, $entityManager, $this->priceResolver());
+    }
+
+    private function priceResolver(): MarketAlertPriceResolver
+    {
+        $jitaMarketService = $this->createStub(JitaMarketService::class);
+        $jitaMarketService->method('getPricesWithFallback')->willReturn([self::PYERITE => 12.0, self::MEXALLON => 55.25, self::ISOGEN => 8700000.0]);
+        $jitaMarketService->method('getBuyPricesWithFallback')->willReturn([self::PYERITE => 9.0, self::MEXALLON => 50.0, self::ISOGEN => 8000000.0]);
+
+        return new MarketAlertPriceResolver($jitaMarketService, $this->createStub(StructureMarketService::class));
     }
 
     private function input(?float $threshold = null, ?string $direction = null): UpdateAlertInput

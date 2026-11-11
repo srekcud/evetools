@@ -13,6 +13,7 @@ use App\Enum\AlertPriceSource;
 use App\Enum\AlertStatus;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\JitaMarketService;
+use App\Service\MarketAlertPriceResolver;
 use App\Service\StructureMarketService;
 use App\State\Provider\Market\MarketAlertCollectionProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -42,8 +43,7 @@ class MarketAlertCollectionProviderTest extends TestCase
         $this->provider = new MarketAlertCollectionProvider(
             $this->security,
             $this->alertRepository,
-            $this->jitaMarketService,
-            $this->structureMarketService,
+            new MarketAlertPriceResolver($this->jitaMarketService, $this->structureMarketService),
         );
     }
 

@@ -12,9 +12,9 @@ use App\Entity\MarketPriceAlert;
 use App\Entity\User;
 use App\Enum\AlertPriceSource;
 use App\Repository\Sde\InvTypeRepository;
-use App\Service\JitaMarketService;
+use App\Service\MarketAlertPriceResolver;
 use App\Service\MarketAlertRules;
-use App\Service\StructureMarketService;
+use App\State\Provider\Market\MarketAlertResourceMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -29,8 +29,7 @@ class CreateAlertProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly EntityManagerInterface $em,
         private readonly InvTypeRepository $invTypeRepository,
-        private readonly JitaMarketService $jitaMarketService,
-        private readonly StructureMarketService $structureMarketService,
+        private readonly MarketAlertPriceResolver $priceResolver,
     ) {
     }
 
@@ -80,33 +79,6 @@ class CreateAlertProcessor implements ProcessorInterface
         $this->em->persist($alert);
         $this->em->flush();
 
-        // Get current price for response
-        $currentPrice = match ($priceSource) {
-            AlertPriceSource::JitaSell => $this->jitaMarketService->getPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
-            AlertPriceSource::JitaBuy => $this->jitaMarketService->getBuyPricesWithFallback([$data->typeId])[$data->typeId] ?? null,
-            AlertPriceSource::StructureSell => $this->structureMarketService->getLowestSellPrice(
-                $user->getPreferredMarketStructureId() ?? throw new \LogicException('Structure price alert without preferred market structure'),
-                $data->typeId,
-            ),
-            AlertPriceSource::StructureBuy => $this->structureMarketService->getHighestBuyPrice(
-                $user->getPreferredMarketStructureId() ?? throw new \LogicException('Structure price alert without preferred market structure'),
-                $data->typeId,
-            ),
-        };
-
-        $resource = new MarketAlertResource();
-        $resource->id = $alert->getId()?->toRfc4122() ?? '';
-        $resource->typeId = $alert->getTypeId();
-        $resource->typeName = $alert->getTypeName();
-        $resource->direction = $alert->getDirection()->value;
-        $resource->threshold = $alert->getThreshold();
-        $resource->priceSource = $alert->getPriceSource()->value;
-        $resource->status = $alert->getStatus()->value;
-        $resource->currentPrice = $currentPrice;
-        $resource->triggeredAt = null;
-        $resource->triggeredPrice = null;
-        $resource->createdAt = $alert->getCreatedAt()->format('c');
-
-        return $resource;
+        return MarketAlertResourceMapper::toResource($alert, $this->priceResolver->currentPrice($user, $alert));
     }
 }

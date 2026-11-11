@@ -29,12 +29,12 @@ const MEXALLON_ALERT: MarketAlert = {
   createdAt: '2026-11-02T10:00:00+00:00',
 }
 
-const REARMED_PYERITE_WITHOUT_PRICE = {
+const REARMED_PYERITE = {
   ...PYERITE_ALERT,
   direction: 'below',
   threshold: 8.5,
   status: 'active',
-  currentPrice: null,
+  currentPrice: 8.75,
   triggeredAt: null,
   triggeredPrice: null,
 }
@@ -58,7 +58,7 @@ afterEach(() => {
 
 describe('market store updateAlert', () => {
   it('patches the alert with the merge-patch content type and the new direction and threshold', async () => {
-    const fetchStub = stubFetch(new Response(JSON.stringify(REARMED_PYERITE_WITHOUT_PRICE), { status: 200 }))
+    const fetchStub = stubFetch(new Response(JSON.stringify(REARMED_PYERITE), { status: 200 }))
     const store = storeWithAlerts()
 
     await store.updateAlert('alert-pyerite', { direction: 'below', threshold: 8.5 })
@@ -70,14 +70,14 @@ describe('market store updateAlert', () => {
     expect(JSON.parse(String(options.body))).toEqual({ direction: 'below', threshold: 8.5 })
   })
 
-  it('keeps the current price of the alert and leaves the other alerts as they were', async () => {
-    stubFetch(new Response(JSON.stringify(REARMED_PYERITE_WITHOUT_PRICE), { status: 200 }))
+  it('replaces the alert with the PATCH response and leaves the other alerts as they were', async () => {
+    stubFetch(new Response(JSON.stringify(REARMED_PYERITE), { status: 200 }))
     const store = storeWithAlerts()
 
     await store.updateAlert('alert-pyerite', { direction: 'below', threshold: 8.5 })
 
     expect(store.alerts).toEqual([
-      { ...REARMED_PYERITE_WITHOUT_PRICE, currentPrice: 8.6875 },
+      REARMED_PYERITE,
       MEXALLON_ALERT,
     ])
   })
