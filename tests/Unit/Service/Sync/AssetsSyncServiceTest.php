@@ -573,6 +573,46 @@ class AssetsSyncServiceTest extends TestCase
         ], $this->publishedSyncEvents);
     }
 
+    #[Group('issue-670')]
+    public function testCharacterAssetsSyncReportsTheRejectedItemNameBatchesInItsCompletion(): void
+    {
+        $userId = Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6d');
+        $character = $this->createCharacterOfUser($userId);
+        $this->assetsService->method('getCharacterAssets')->willReturn([
+            $this->createAsset(itemId: 1001, locationFlag: 'Hangar'),
+        ]);
+        $this->assetsService->method('lastNameBatchFailures')->willReturn(2);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCharacterAssets($character);
+
+        $topic = '/user/0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6d/sync/character-assets';
+        $this->assertSame(
+            [$topic, 'completed', 100, 'Sync completed, item name batches rejected by ESI: 2', ['count' => 1, 'nameBatchFailures' => 2]],
+            $this->publishedSyncEvents[2],
+        );
+    }
+
+    #[Group('issue-670')]
+    public function testCorporationAssetsSyncReportsTheRejectedItemNameBatchesInItsCompletion(): void
+    {
+        $userId = Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6e');
+        $character = $this->createCharacterOfUser($userId);
+        $this->assetsService->method('getCorporationAssets')->willReturn([
+            $this->createAsset(itemId: 2001, locationFlag: 'CorpSAG1'),
+        ]);
+        $this->assetsService->method('lastNameBatchFailures')->willReturn(1);
+        $this->recordCacheDeletionsAndWrites();
+
+        $this->service->syncCorporationAssets($character);
+
+        $topic = '/user/0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6e/sync/corporation-assets';
+        $this->assertSame(
+            [$topic, 'completed', 100, 'Sync completed, item name batches rejected by ESI: 1', ['count' => 1, 'nameBatchFailures' => 1]],
+            $this->publishedSyncEvents[2],
+        );
+    }
+
     public function testFailedCharacterAssetsSyncPublishesTheErrorToTheUser(): void
     {
         $character = $this->createCharacterOfUser(Uuid::fromString('0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6d'));

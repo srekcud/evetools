@@ -22,6 +22,8 @@ class AssetsService
     /** @var array<int, array{name: string, solar_system_id: ?int, owner_id?: ?int, type_id?: ?int}> */
     private array $structureCache = [];
 
+    private int $nameBatchFailures = 0;
+
     public function __construct(
         private readonly EsiClient $esiClient,
         private readonly MapSolarSystemRepository $solarSystemRepository,
@@ -30,6 +32,11 @@ class AssetsService
         private readonly LoggerInterface $logger,
         private readonly TypeNameResolver $typeNameResolver,
     ) {
+    }
+
+    public function lastNameBatchFailures(): int
+    {
+        return $this->nameBatchFailures;
     }
 
     /**
@@ -72,13 +79,18 @@ class AssetsService
      */
     private function processAssets(array $rawAssets, mixed $token, ?int $characterId, ?int $corporationId): array
     {
+        $this->nameBatchFailures = 0;
+
         if (empty($rawAssets)) {
             return [];
         }
 
         // Collect unique type IDs and location IDs with their types
         $typeIds = array_unique(array_column($rawAssets, 'type_id'));
-        $itemIds = array_column($rawAssets, 'item_id');
+        $nameableItemIds = array_column(
+            array_filter($rawAssets, static fn (array $raw): bool => $raw['is_singleton'] === true),
+            'item_id',
+        );
         $rawAssetsByItemId = array_column($rawAssets, null, 'item_id');
 
         // Collect resolvable location IDs (skip location_type "item" — those are container/ship item_ids, not structures)
@@ -98,7 +110,7 @@ class AssetsService
         $locationInfo = $this->resolveLocationInfo($locationIds, $token);
 
         // Get item names (custom names for containers, ships, etc.)
-        $itemNames = $this->resolveItemNames($itemIds, $token, $characterId, $corporationId);
+        $itemNames = $this->resolveItemNames($nameableItemIds, $token, $characterId, $corporationId);
 
         $assets = [];
 
@@ -206,8 +218,13 @@ class AssetsService
                         $names[$item['item_id']] = $item['name'];
                     }
                 }
-            } catch (\Throwable) {
-                // Ignore errors - item names are optional
+            } catch (\Throwable $e) {
+                ++$this->nameBatchFailures;
+                $this->logger->warning('Item names batch rejected by ESI', [
+                    'endpoint' => $endpoint,
+                    'batchSize' => count($chunk),
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
