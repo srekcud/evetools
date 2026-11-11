@@ -27,14 +27,15 @@ const approvedGapLines = computed(() => {
 
   return projectStore.containerVerification.flatMap(line => {
     const approvedQuantity = approvedByBomItemId.get(line.bomItemId)
-    if (approvedQuantity === undefined || line.containerQuantity === null || line.containerQuantity >= approvedQuantity) {
+    const containerQuantity = line.containerQuantity
+    if (approvedQuantity === undefined || typeof containerQuantity !== 'number' || containerQuantity >= approvedQuantity) {
       return []
     }
 
     return [{
       bomItemId: line.bomItemId,
       typeName: line.typeName,
-      containerQuantity: line.containerQuantity,
+      containerQuantity,
       approvedQuantity,
     }]
   })
