@@ -1044,6 +1044,7 @@ export interface ProjectSurplusLine {
   surplusQuantity: number
   unitPrice: number | null
   surplusValue: number | null
+  source: 'contribution' | 'production'
 }
 
 export interface ProjectSurplus {

@@ -2984,17 +2984,21 @@
       }
     },
     "surplus": {
-      "title": "Surplus de matières",
+      "title": "Surplus",
       "loading": "Lecture du surplus...",
       "loadError": "Le surplus de matières n'a pas pu être lu",
-      "empty": "Aucun surplus : aucune ligne de matière n'a été apportée au-delà de sa quantité requise.",
-      "readOnly": "Lecture seule : rien n'est versé au Stockpile et le profit n'est pas modifié. Valorisé au prix des apports.",
+      "empty": "Aucun surplus : aucune ligne n'a été apportée au-delà de sa quantité requise et aucun job n'a produit plus que sa demande.",
+      "readOnly": "Lecture seule : rien n'est versé au Stockpile et le profit n'est pas modifié. Les matières sont valorisées au prix des apports ; les intermédiaires produits au-delà de la demande (runs entiers) ne sont pas valorisés et restent hors du total.",
+      "notValued": "non valorisé",
+      "source": {
+        "production": "produit"
+      },
       "unknown": "inconnu",
       "total": "Valeur totale du surplus",
       "columns": {
         "type": "Matière",
         "required": "Requis",
-        "contributed": "Apporté",
+        "contributed": "Apporté / produit",
         "surplus": "Surplus",
         "unitPrice": "Prix d'apport",
         "value": "Valeur"

@@ -3,6 +3,7 @@ import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupSurplusStore } from '@/stores/group-industry/surplus'
+import type { ProjectSurplusLine } from '@/stores/group-industry/types'
 
 const props = defineProps<{
   projectId: string
@@ -18,6 +19,18 @@ function priceText(price: number | null): string {
 
 function valueText(value: number | null): string {
   return value === null ? t('groupIndustry.surplus.unknown') : formatIskFull(value)
+}
+
+function isProduction(line: ProjectSurplusLine): boolean {
+  return line.source === 'production'
+}
+
+function rowKey(line: ProjectSurplusLine): string {
+  return `${line.source}-${line.lineId}`
+}
+
+function rowTestId(line: ProjectSurplusLine): string {
+  return isProduction(line) ? `project-surplus-row-production-${line.lineId}` : `project-surplus-row-${line.lineId}`
 }
 
 watch(() => props.projectId, projectId => surplusStore.fetchSurplus(projectId), { immediate: true })
@@ -68,15 +81,21 @@ watch(() => props.projectId, projectId => surplusStore.fetchSurplus(projectId), 
         <tbody class="divide-y divide-slate-800/60">
           <tr
             v-for="line in surplusStore.lines"
-            :key="line.lineId"
-            :data-testid="`project-surplus-row-${line.lineId}`"
+            :key="rowKey(line)"
+            :data-testid="rowTestId(line)"
           >
-            <td class="px-4 py-2 font-medium text-slate-100 max-w-[18rem] truncate" :title="line.typeName">{{ line.typeName }}</td>
+            <td class="px-4 py-2 font-medium text-slate-100 max-w-[18rem] truncate" :title="line.typeName">
+              {{ line.typeName }}
+              <span
+                v-if="isProduction(line)"
+                class="ml-2 rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-cyan-300"
+              >{{ t('groupIndustry.surplus.source.production') }}</span>
+            </td>
             <td class="px-4 py-2 text-right tabular-nums text-slate-400">{{ formatNumber(line.requiredQuantity, 0) }}</td>
             <td class="px-4 py-2 text-right tabular-nums text-slate-400">{{ formatNumber(line.contributedQuantity, 0) }}</td>
             <td class="px-4 py-2 text-right tabular-nums text-amber-300">{{ formatNumber(line.surplusQuantity, 0) }}</td>
-            <td class="px-4 py-2 text-right tabular-nums text-slate-400">{{ priceText(line.unitPrice) }}</td>
-            <td class="px-4 py-2 text-right tabular-nums text-slate-100">{{ valueText(line.surplusValue) }}</td>
+            <td class="px-4 py-2 text-right tabular-nums text-slate-400">{{ isProduction(line) ? t('groupIndustry.surplus.notValued') : priceText(line.unitPrice) }}</td>
+            <td class="px-4 py-2 text-right tabular-nums text-slate-100">{{ isProduction(line) ? t('groupIndustry.surplus.notValued') : valueText(line.surplusValue) }}</td>
           </tr>
         </tbody>
         <tfoot>
