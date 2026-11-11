@@ -11,7 +11,10 @@ use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectBomLine;
 use App\Enum\IndustryActivityType;
 use App\Industry\Domain\ActivityKind;
+use App\Industry\Application\PlannedJobTimeModifier;
+use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\BlueprintCatalog;
+use App\Industry\Domain\Multiplier;
 use App\Repository\CachedCharacterSkillRepository;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
@@ -38,6 +41,8 @@ final readonly class ProjectPlanningInputLoader
         private BlueprintCatalog $blueprintCatalog,
         private IndustryActivityProductRepository $activityProductRepository,
         private IndustryActivitySkillRepository $activitySkillRepository,
+        private UserProductionStructures $userStructures,
+        private PlannedJobTimeModifier $plannedJobTimeModifier,
     ) {
     }
 
@@ -49,21 +54,32 @@ final readonly class ProjectPlanningInputLoader
         $jobLines = array_values(array_filter($bomLines, static fn (IndustryProjectBomLine $line): bool => $line->isManufacturingOrReactionJob()));
         $cachedJobsById = $this->cachedJobRepository->findByJobIds($this->linkedJobIdsOf($jobLines));
         $scienceSkillIdsByLineId = $this->scienceSkillIdsByLineId($jobLines);
+        $ownerId = $project->getOwner()->getId() ?? throw new \LogicException('A project owner without id has no configured structure.');
+        $ownerStructures = $this->userStructures->configuredBy($ownerId->toRfc4122());
 
         $lines = [];
         foreach ($jobLines as $line) {
             $lineId = $line->getId()->toRfc4122();
+            $activity = $this->activityOf($line);
+            $structureTimeModifier = $this->plannedJobTimeModifier->of(
+                $line->getPlannedStructureId(),
+                $ownerStructures,
+                $line->getTypeId(),
+                self::ACTIVITY_REACTION === $activity ? ActivityKind::Reaction : ActivityKind::Manufacturing,
+            );
             $lines[] = new PlanningLine(
                 $lineId,
                 $line->getTypeId(),
                 $line->getTypeName(),
-                $this->activityOf($line),
+                $activity,
                 $line->getRuns() ?? throw new \UnexpectedValueException(\sprintf('Job line %s has no runs.', $lineId)),
                 $line->getTeLevel(),
                 $line->getParentTypeId(),
                 $this->baseTimeSecondsOf($line),
                 $scienceSkillIdsByLineId[$lineId] ?? [],
                 $this->linkedJobsOf($line, $cachedJobsById),
+                $structureTimeModifier ?? Multiplier::one(),
+                null !== $structureTimeModifier,
             );
         }
 

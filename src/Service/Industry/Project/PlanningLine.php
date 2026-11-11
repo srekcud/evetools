@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project;
 
+use App\Industry\Domain\Multiplier;
+
 final readonly class PlanningLine
 {
     /**
@@ -22,6 +24,8 @@ final readonly class PlanningLine
         public ?int $baseTimeSeconds,
         public array $scienceSkillIds,
         public array $linkedJobs,
+        public Multiplier $structureTimeModifier = new Multiplier(1.0),
+        public bool $structureTimeKnown = true,
     ) {
     }
 }

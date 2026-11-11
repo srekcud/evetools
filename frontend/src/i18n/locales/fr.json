@@ -2425,7 +2425,7 @@
         "early": "{duration} d'avance",
         "onTime": "Dans les temps"
       },
-      "structureNotice": "Durées sans bonus de structure : les jobs réels peuvent finir plus tôt.",
+      "structureNotice": "Une structure prévue pour certains jobs n'est plus configurée : leurs durées sont sans bonus de structure, les jobs réels peuvent finir plus tôt.",
       "unscheduledTitle": "Jobs impossibles à planifier",
       "unscheduledReason": {
         "no_eligible_worker": "Aucun personnage ne peut lancer ce job",

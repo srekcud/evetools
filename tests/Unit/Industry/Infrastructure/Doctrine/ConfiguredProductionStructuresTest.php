@@ -85,7 +85,7 @@ final class ConfiguredProductionStructuresTest extends TestCase
         35826 => [2600 => 0.99, 2601 => 0.96, 2602 => 0.8],
         35827 => [2600 => 0.99, 2601 => 0.95, 2602 => 0.7],
         35835 => [],
-        35836 => [],
+        35836 => [2721 => 0.75],
         37159 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => 0, 2594 => -2.4, 2595 => 0],
         37160 => [2355 => 1, 2356 => 1.9, 2357 => 2.1, 2593 => -20, 2594 => 0, 2595 => 0],
         46487 => [2356 => 1, 2357 => 1.1, 2714 => -2.4],
@@ -246,6 +246,65 @@ final class ConfiguredProductionStructuresTest extends TestCase
         $this->assertEqualsWithDelta(0.95 * 0.748, $structure->installCostMultiplierFor(ActivityKind::Copying)->value, self::FLOAT_TOLERANCE);
         $this->assertEqualsWithDelta(0.95, $structure->installCostMultiplierFor(ActivityKind::Manufacturing)->value, self::FLOAT_TOLERANCE);
         $this->assertEqualsWithDelta(0.99, $structure->materialMultiplierFor(ActivityKind::Manufacturing, 'equipment')->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-338')]
+    public function testManufacturingTimeRigShortensTheJobsOfTheCategoriesOfItsNameOnly(): void
+    {
+        $this->configure('raitaru', 'nullsec', rigs: [self::EQUIPMENT_TE_I]);
+
+        $structure = $this->onlyStructureOf(self::USER_ID);
+
+        $this->assertCount(1, $structure->timeRigs);
+        $this->assertEqualsWithDelta(0.85 * 0.58, $structure->jobTimeMultiplierFor(ActivityKind::Manufacturing, 'equipment')->value, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(0.85, $structure->jobTimeMultiplierFor(ActivityKind::Manufacturing, 'ammunition')->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-338')]
+    public function testMaterialRigCarryingAZeroTimeBonusAddsNoTimeRig(): void
+    {
+        $this->configure('raitaru', 'nullsec', rigs: [self::AMMUNITION_ME_II]);
+
+        $this->assertSame([], $this->onlyStructureOf(self::USER_ID)->timeRigs);
+    }
+
+    #[Group('issue-338')]
+    public function testLaboratoryRigNeverShortensTheManufacturingJobsEvenThoughItCarriesATimeBonus(): void
+    {
+        $this->configure('sotiyo', 'nullsec', rigs: [self::XL_SET_LABORATORY_OPTIMIZATION_II]);
+
+        $structure = $this->onlyStructureOf(self::USER_ID);
+
+        $this->assertSame([], $structure->timeRigs);
+        $this->assertEqualsWithDelta(0.7, $structure->jobTimeMultiplierFor(ActivityKind::Manufacturing, 'basic_large_ship')->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-338')]
+    public function testRefineryReactionTimeIsItsRoleBonusTimesTheReactorTimeRigOfTheFormulaCategory(): void
+    {
+        $this->configure('tatara', 'nullsec', rigs: [self::COMPOSITE_REACTOR_TE_I, self::COMPOSITE_REACTOR_ME_II]);
+
+        $structure = $this->onlyStructureOf(self::USER_ID);
+
+        $this->assertCount(1, $structure->timeRigs);
+        $this->assertEqualsWithDelta(0.75 * 0.78, $structure->jobTimeMultiplierFor(ActivityKind::Reaction, 'composite_reaction')->value, self::FLOAT_TOLERANCE);
+        $this->assertEqualsWithDelta(0.75, $structure->jobTimeMultiplierFor(ActivityKind::Reaction, 'hybrid_reaction')->value, self::FLOAT_TOLERANCE);
+    }
+
+    #[Group('issue-338')]
+    public function testAthanorHasNoReactionTimeRoleBonus(): void
+    {
+        $this->configure('athanor', 'nullsec');
+
+        $this->assertSame(1.0, $this->onlyStructureOf(self::USER_ID)->jobTimeMultiplierFor(ActivityKind::Reaction, null)->value);
+    }
+
+    #[Group('issue-338')]
+    public function testRaitaruTimeRoleBonusAppliesToItsManufacturingJobs(): void
+    {
+        $this->configure('raitaru', 'nullsec');
+
+        $this->assertEqualsWithDelta(0.85, $this->onlyStructureOf(self::USER_ID)->jobTimeMultiplierFor(ActivityKind::Manufacturing, 'equipment')->value, self::FLOAT_TOLERANCE);
     }
 
     #[Group('issue-526')]
