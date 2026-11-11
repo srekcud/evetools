@@ -9,6 +9,7 @@ use App\Entity\Character;
 use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
+use App\Service\Admin\CharacterRepairLister;
 use App\Service\ESI\EsiErrorBudget;
 use App\Service\Mercure\MercureCookieSizeMonitor;
 use App\Service\Mercure\MercureCookieUsage;
@@ -84,6 +85,7 @@ class AdminStatsProviderMercureCookieTest extends TestCase
             new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID),
             new EsiErrorBudget(new ArrayAdapter()),
             $monitor,
+            $this->createStub(CharacterRepairLister::class),
         );
     }
 }

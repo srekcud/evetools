@@ -9,6 +9,7 @@ use App\Entity\Character;
 use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
+use App\Service\Admin\CharacterRepairLister;
 use App\Service\ESI\EsiErrorBudget;
 use App\Service\Mercure\MercureCookieSizeMonitor;
 use App\State\Provider\Admin\AdminStatsProvider;
@@ -50,6 +51,6 @@ class AdminStatsProviderSchedulerHealthTest extends TestCase
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
 
-        return new AdminStatsProvider($security, $adminService, new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID), new EsiErrorBudget(new ArrayAdapter()), $this->createStub(MercureCookieSizeMonitor::class));
+        return new AdminStatsProvider($security, $adminService, new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID), new EsiErrorBudget(new ArrayAdapter()), $this->createStub(MercureCookieSizeMonitor::class), $this->createStub(CharacterRepairLister::class));
     }
 }
