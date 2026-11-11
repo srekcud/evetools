@@ -206,7 +206,7 @@ onMounted(() => {
                     class="mr-1 px-2 py-0.5 rounded-sm text-xs border bg-slate-500/10 text-slate-400 border-slate-500/20"
                   >{{ t('industry.blueprints.corporation') }}</span>
                   <span v-if="entry.ownerName !== null">{{ entry.ownerName }}</span>
-                  <span v-if="entry.divisionNumber !== null" class="text-slate-500"> · {{ t('industry.blueprints.division', { number: entry.divisionNumber }) }}</span>
+                  <span v-if="entry.divisionNumber !== null" class="text-slate-500"> · {{ entry.divisionName ?? t('industry.blueprints.division', { number: entry.divisionNumber }) }}</span>
                   <span class="text-slate-500 font-mono text-xs"> · #{{ entry.locationId }}</span>
                 </td>
               </tr>
