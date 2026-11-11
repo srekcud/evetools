@@ -9,6 +9,7 @@ const VISIBILITY_URL = '/api/me/corporation/assets/visibility'
 export interface CorporationVisibilityPayload {
   visibleDivisions: number[]
   restrictedDivisions: Record<number, string[]>
+  shareBlueprintsOfHiddenDivisions: boolean
 }
 
 export function useCorporationAssetVisibility() {

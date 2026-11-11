@@ -56,6 +56,7 @@ export interface LocationGroup {
 export type CorpAssetVisibility = {
   visibleDivisions: number[]
   restrictedDivisions: Record<number, { id: string; name: string }[]>
+  shareBlueprintsOfHiddenDivisions: boolean
   accessibleDivisions: number[]
   players: { id: string; name: string }[]
   directorConnected: boolean

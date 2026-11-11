@@ -11,4 +11,6 @@ class UpdateCorpVisibilityInput
 
     /** @var array<int, list<string>> Division number => player ids allowed to see it */
     public array $restrictedDivisions = [];
+
+    public bool $shareBlueprintsOfHiddenDivisions = true;
 }

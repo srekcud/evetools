@@ -78,6 +78,7 @@ class UpdateCorpVisibilityProcessor implements ProcessorInterface
 
         $visibility->setVisibleDivisions(array_values(array_unique($data->visibleDivisions)));
         $visibility->setRestrictedDivisions($restrictedDivisions);
+        $visibility->setShareBlueprintsOfHiddenDivisions($data->shareBlueprintsOfHiddenDivisions);
         $visibility->setConfiguredBy($user);
         $visibility->setUpdatedAt(new \DateTimeImmutable());
 
@@ -87,6 +88,7 @@ class UpdateCorpVisibilityProcessor implements ProcessorInterface
         $resource = new CorpAssetVisibilityResource();
         $resource->visibleDivisions = $visibility->getVisibleDivisions();
         $resource->restrictedDivisions = CorpVisibilityPlayers::namedByDivision($restrictedDivisions, $players);
+        $resource->shareBlueprintsOfHiddenDivisions = $visibility->sharesBlueprintsOfHiddenDivisions();
         $resource->allDivisions = $allDivisions;
         $resource->isDirector = true;
         $resource->configuredByName = $mainCharacter->getName();
