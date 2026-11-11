@@ -17,6 +17,8 @@ use Psr\Log\LoggerInterface;
 
 class AssetsService
 {
+    private const int FIRST_STRUCTURE_ID = 1000000000000;
+
     /** @var array<int, array{name: string, solar_system_id: ?int, owner_id?: ?int, type_id?: ?int}> */
     private array $structureCache = [];
 
@@ -77,12 +79,13 @@ class AssetsService
         // Collect unique type IDs and location IDs with their types
         $typeIds = array_unique(array_column($rawAssets, 'type_id'));
         $itemIds = array_column($rawAssets, 'item_id');
+        $rawAssetsByItemId = array_column($rawAssets, null, 'item_id');
 
         // Collect resolvable location IDs (skip location_type "item" — those are container/ship item_ids, not structures)
         $locationIds = [];
         foreach ($rawAssets as $raw) {
             $locId = $raw['location_id'];
-            if (!isset($locationIds[$locId]) && ($raw['location_type'] ?? '') !== 'item') {
+            if (($raw['location_type'] ?? '') !== 'item' || $this->isStructureOutsideAssetList($locId, $rawAssetsByItemId)) {
                 $locationIds[$locId] = true;
             }
         }
@@ -96,8 +99,6 @@ class AssetsService
 
         // Get item names (custom names for containers, ships, etc.)
         $itemNames = $this->resolveItemNames($itemIds, $token, $characterId, $corporationId);
-
-        $rawAssetsByItemId = array_column($rawAssets, null, 'item_id');
 
         $assets = [];
 
@@ -147,14 +148,14 @@ class AssetsService
     ): ?array {
         $container = $rawAssetsByItemId[$containerId] ?? null;
         if ($container === null) {
-            return null;
+            return $locationInfo[$containerId] ?? null;
         }
 
         $current = $container;
         $visited = [$containerId => true];
-        while (($current['location_type'] ?? '') === 'item') {
+        while (($current['location_type'] ?? '') === 'item' && isset($rawAssetsByItemId[$current['location_id']])) {
             $parentId = $current['location_id'];
-            if (isset($visited[$parentId]) || !isset($rawAssetsByItemId[$parentId])) {
+            if (isset($visited[$parentId])) {
                 return null;
             }
             $visited[$parentId] = true;
@@ -170,6 +171,14 @@ class AssetsService
         $containerName = $itemNames[$containerId] ?? $typeNames[$containerTypeId] ?? UnknownTypeName::label($containerTypeId);
 
         return [...$root, 'name' => "{$containerName} — {$root['name']}"];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rawAssetsByItemId
+     */
+    private function isStructureOutsideAssetList(int $locationId, array $rawAssetsByItemId): bool
+    {
+        return $locationId >= self::FIRST_STRUCTURE_ID && !isset($rawAssetsByItemId[$locationId]);
     }
 
     /**
@@ -252,7 +261,7 @@ class AssetsService
         $structureIds = [];
 
         foreach ($locationIds as $id) {
-            if ($id < 1000000000000) {
+            if ($id < self::FIRST_STRUCTURE_ID) {
                 $stationIds[] = $id;
             } else {
                 $structureIds[] = $id;
