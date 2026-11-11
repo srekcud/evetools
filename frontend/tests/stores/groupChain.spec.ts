@@ -52,6 +52,17 @@ describe('group chain store', () => {
     expect(store.nodes.map(node => node.level)).toEqual([1, null])
   })
 
+  it('keeps the planned copy duration of a copy and turns one omitted by the API into an explicit null', async () => {
+    const plannedCopyDuration = { seconds: 12_240, missingData: [], characterName: 'Bastien Orr' }
+    const { plannedCopyDuration: _omitted, ...withoutPlannedCopyDuration } = TRITANIUM
+    vi.mocked(apiRequest).mockResolvedValue({ id: HAMMERHEAD_BATCH_ID, nodes: [{ ...HAMMERHEAD_I, plannedCopyDuration }, withoutPlannedCopyDuration] })
+    const store = useGroupChainStore()
+
+    await store.fetchChain(HAMMERHEAD_BATCH_ID)
+
+    expect(store.nodes.map(node => node.plannedCopyDuration)).toEqual([plannedCopyDuration, null])
+  })
+
   it('exposes the API error instead of an empty chain when the request fails', async () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('Chain unavailable: project not found'))
     const store = useGroupChainStore()

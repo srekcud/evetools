@@ -18,8 +18,11 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Enum\IndustryActivityType;
 use App\Industry\Application\ProductionPlanning;
+use App\Industry\Application\ProductionStructure;
+use App\Industry\Application\StructureType;
 use App\Industry\Application\StructureTotalCostComparator;
 use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
@@ -93,6 +96,12 @@ final class IndustryProjectServiceTest extends TestCase
     private const int REFINERY_SYSTEM_ID = 30_004_759;
     private const string RAITARU_ID = '01970000-0000-7000-8000-0000000000a1';
     private const string TATARA_ID = '01970000-0000-7000-8000-0000000000a2';
+    private const string SOTIYO_ID = '01970000-0000-7000-8000-0000000000a3';
+    private const float COPYING_COST_INDEX = 0.02;
+    private const float RAITARU_FACILITY_TAX = 0.04;
+    private const float SOTIYO_FACILITY_TAX = 0.05;
+    private const float SOTIYO_TIME_ROLE_BONUS = 0.70;
+    private const float XL_LABORATORY_OPTIMIZATION_II_TIME_REDUCTION_PERCENT = 24.0;
 
     private const array SDE_TYPE_NAMES = [
         self::TRITANIUM => 'Tritanium',
@@ -117,6 +126,8 @@ final class IndustryProjectServiceTest extends TestCase
 
     private ?IndustryUserSettings $ownerSettings = null;
 
+    private InMemorySystemCostIndices $costIndices;
+
     private JitaMarketService&MockObject $jitaMarketService;
     private EntityManagerInterface&MockObject $entityManager;
     private Connection&Stub $connection;
@@ -125,6 +136,7 @@ final class IndustryProjectServiceTest extends TestCase
     protected function setUp(): void
     {
         $this->jitaMarketService = $this->createMock(JitaMarketService::class);
+        $this->costIndices = InMemorySystemCostIndices::none();
         $this->connection = $this->createStub(Connection::class);
         $this->inventionService = $this->createStub(InventionService::class);
 
@@ -754,7 +766,8 @@ final class IndustryProjectServiceTest extends TestCase
     }
 
     #[Group('issue-337')]
-    public function testJobLinesOfTheProductAndOfItsComponentsKeepThePlannedStructureAndHowItWasChosenWhileTheCopyAndMaterialsHaveNone(): void
+    #[Group('issue-524')]
+    public function testJobAndCopyLinesKeepThePlannedStructureAndHowItWasChosenWhileTheMaterialsHaveNone(): void
     {
         $this->givenOwnerStructuresInHisFavoriteManufacturingSystemAndAnotherSystem();
         $this->givenRecipe(self::RIFTER, 'Rifter', [self::TRITANIUM => 28_000, self::COMPONENT => 10, self::REACTION_PRODUCT => 20]);
@@ -769,7 +782,7 @@ final class IndustryProjectServiceTest extends TestCase
         $this->assertSame(
             [
                 [self::RIFTER, 'manufacturing', 'final', self::RAITARU_ID, 'best_in_favorite_system'],
-                [self::COMPONENT, 'copy', 'blueprint', null, null],
+                [self::COMPONENT, 'copy', 'blueprint', self::RAITARU_ID, 'best_in_favorite_system'],
                 [self::COMPONENT, 'manufacturing', 'component', self::RAITARU_ID, 'best_in_favorite_system'],
                 [self::REACTION_PRODUCT, 'reaction', 'component', self::TATARA_ID, 'best_configured'],
             ],
@@ -837,7 +850,8 @@ final class IndustryProjectServiceTest extends TestCase
     }
 
     #[Group('issue-337')]
-    public function testInventionAndCopyOfAnInventedProductHaveNoPlannedStructureNextToItsPlannedManufacturingJob(): void
+    #[Group('issue-524')]
+    public function testCopyForTheInventionOfAnInventedProductIsPlannedInTheCopyStructureWhileTheInventionHasNone(): void
     {
         $this->givenOwnerStructuresInHisFavoriteManufacturingSystemAndAnotherSystem();
         $this->givenInventedProducts();
@@ -848,7 +862,7 @@ final class IndustryProjectServiceTest extends TestCase
 
         $this->assertSame(
             [
-                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', null, null],
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', self::RAITARU_ID, 'best_in_favorite_system'],
                 [self::HAIL_L, 'invention', 'blueprint', null, null],
                 [self::HAIL_L, 'manufacturing', 'final', self::RAITARU_ID, 'best_in_favorite_system'],
             ],
@@ -895,6 +909,108 @@ final class IndustryProjectServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-524')]
+    public function testCopyAndCopyForInventionLinesArePlannedInTheOnlyStructureAbleToCopyOutsideAnyFavoriteSystem(): void
+    {
+        $this->ownerStructures = [
+            ProductionStructures::raitaru(self::RAITARU_ID, SecurityClass::NullSec, self::FAVORITE_MANUFACTURING_SYSTEM_ID),
+            ProductionStructures::tatara(self::TATARA_ID, SecurityClass::NullSec, self::REFINERY_SYSTEM_ID),
+        ];
+        $this->givenInventedProducts();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::TRITANIUM => 42_000], hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 3], [self::THRASHER, 'Thrasher', 6]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', self::RAITARU_ID, 'best_configured'],
+                [self::THRASHER, 'copy', 'blueprint', self::RAITARU_ID, 'best_configured'],
+                [self::THRASHER, 'manufacturing', 'final', self::RAITARU_ID, 'best_configured'],
+                [self::HAIL_L, 'invention', 'blueprint', null, null],
+                [self::HAIL_L, 'manufacturing', 'final', self::RAITARU_ID, 'best_configured'],
+            ],
+            $this->plannedStructuresOfJobLines($project),
+        );
+    }
+
+    #[Group('issue-524')]
+    public function testCopyIsPlannedInTheStructureOfLowestInstallRateLikeItsCostEvenWhenAMoreRecentOneCopiesFaster(): void
+    {
+        $this->ownerStructures = [
+            ProductionStructures::raitaruWithFacilityTax(self::RAITARU_ID, SecurityClass::NullSec, self::FAVORITE_MANUFACTURING_SYSTEM_ID, self::RAITARU_FACILITY_TAX),
+            new ProductionStructure(
+                self::SOTIYO_ID,
+                StructureType::EngineeringComplex,
+                SecurityClass::NullSec,
+                self::FAVORITE_MANUFACTURING_SYSTEM_ID,
+                new \DateTimeImmutable('2026-06-01 00:00:00'),
+                new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+                [],
+                new Multiplier(ProductionStructures::SOTIYO_COST_ROLE_BONUS),
+                self::SOTIYO_FACILITY_TAX,
+                timeRoleBonus: new Multiplier(self::SOTIYO_TIME_ROLE_BONUS),
+                scienceRigs: [ProductionStructures::scienceRig(ActivityKind::Copying, self::XL_LABORATORY_OPTIMIZATION_II_TIME_REDUCTION_PERCENT, null)],
+            ),
+        ];
+        $this->ownerSettings = (new IndustryUserSettings())->setFavoriteManufacturingSystemId(self::FAVORITE_MANUFACTURING_SYSTEM_ID);
+        $this->costIndices = new InMemorySystemCostIndices([self::FAVORITE_MANUFACTURING_SYSTEM_ID => [ActivityKind::Copying->name => self::COPYING_COST_INDEX]]);
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::TRITANIUM => 42_000], hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::THRASHER, 'Thrasher', 6]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [self::THRASHER, 'copy', 'blueprint', self::RAITARU_ID, 'best_in_favorite_system'],
+            $this->plannedStructuresOfJobLines($project)[0],
+        );
+    }
+
+    #[Group('issue-524')]
+    public function testCopyOfAnOwnerWhoseOnlyStructureIsARefineryIsPlannedWithoutStructure(): void
+    {
+        $this->ownerStructures = [ProductionStructures::tatara(self::TATARA_ID, SecurityClass::NullSec, self::REFINERY_SYSTEM_ID)];
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::TRITANIUM => 42_000], hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::THRASHER, 'Thrasher', 6]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::THRASHER, 'copy', 'blueprint', null, 'not_configured'],
+                [self::THRASHER, 'manufacturing', 'final', null, 'not_configured'],
+            ],
+            $this->plannedStructuresOfJobLines($project),
+        );
+    }
+
+    #[Group('issue-524')]
+    public function testRebuildingTheBomPlansTheCopyStructureOfACopyLineBuiltWithoutIt(): void
+    {
+        $this->givenRecipe(self::THRASHER, 'Thrasher', [self::TRITANIUM => 42_000], hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::THRASHER, 'Thrasher', 6]]);
+        $this->service()->buildBom($project, $this->createUser());
+        $copyLine = $this->copyLineOf($project);
+        $copyLine->setPlannedStructureId(null)->setPlannedStructureStatus(null);
+        $this->givenOwnerStructuresInHisFavoriteManufacturingSystemAndAnotherSystem();
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [$copyLine->getId()->toRfc4122(), self::RAITARU_ID, 'best_in_favorite_system'],
+            [$this->copyLineOf($project)->getId()->toRfc4122(), $copyLine->getPlannedStructureId(), $copyLine->getPlannedStructureStatus()],
+        );
+    }
+
+    private function copyLineOf(IndustryProject $project): IndustryProjectBomLine
+    {
+        $copyLines = array_values(array_filter($this->getJobBomItems($project), static fn (IndustryProjectBomLine $job): bool => 'copy' === $job->getActivityType()));
+        $this->assertCount(1, $copyLines);
+
+        return $copyLines[0];
+    }
+
     private function service(): IndustryProjectService
     {
         $recipes = [];
@@ -916,7 +1032,7 @@ final class IndustryProjectServiceTest extends TestCase
         return new IndustryProjectService(
             new ProductionPlanning(
                 new InMemoryBlueprintCatalog(...$recipes),
-                InMemorySystemCostIndices::none(),
+                $this->costIndices,
                 new InMemoryRigCategories(),
                 new StructureTotalCostComparator(new InMemoryMarketPrices([]), new InMemoryAdjustedPrices([]), InMemorySystemCostIndices::none(), new InMemoryJumpDistances(), new InMemoryItemVolumes()),
             ),

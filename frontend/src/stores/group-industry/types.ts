@@ -651,6 +651,12 @@ export type ChainPlannedStructure = {
   status: PlannedStructureStatus
 }
 
+export type ChainPlannedCopyDuration = {
+  seconds: number | null
+  missingData: BuyOrBuildMissingData[]
+  characterName: string | null
+}
+
 export type ChainNode = {
   id: string
   stage: ChainStage
@@ -671,6 +677,7 @@ export type ChainNode = {
   jobs: ChainJob[]
   structures: string[]
   plannedStructure: ChainPlannedStructure | null
+  plannedCopyDuration: ChainPlannedCopyDuration | null
   soldQuantity: number | null
   grossRevenue: number | null
 }

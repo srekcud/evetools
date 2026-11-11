@@ -48,11 +48,11 @@ final class ProjectChainApiTest extends WebTestCase
         $material = $nodes[$this->idOf($this->morphiteLine)];
         $sale = $nodes['sale'];
 
-        foreach (['parentId', 'activity', 'runs', 'meLevel', 'teLevel', 'plannedStructure', 'soldQuantity', 'grossRevenue'] as $field) {
+        foreach (['parentId', 'activity', 'runs', 'meLevel', 'teLevel', 'plannedStructure', 'plannedCopyDuration', 'soldQuantity', 'grossRevenue'] as $field) {
             self::assertArrayHasKey($field, $material, $field);
             self::assertNull($material[$field], $field);
         }
-        foreach (['parentId', 'typeId', 'typeName', 'activity', 'runs', 'meLevel', 'teLevel', 'requiredQuantity', 'fulfilledQuantity', 'realCost', 'plannedStructure'] as $field) {
+        foreach (['parentId', 'typeId', 'typeName', 'activity', 'runs', 'meLevel', 'teLevel', 'requiredQuantity', 'fulfilledQuantity', 'realCost', 'plannedStructure', 'plannedCopyDuration'] as $field) {
             self::assertArrayHasKey($field, $sale, $field);
             self::assertNull($sale[$field], $field);
         }
