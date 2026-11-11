@@ -654,7 +654,7 @@ export interface ProductionOpportunitiesResponse {
   rows: ProductionOpportunity[]
 }
 
-export type BlueprintKind = 'bpo' | 'bpc'
+export type BlueprintKind = 'bpo' | 'bpc' | 'bpr'
 export type BlueprintScope = 'personal' | 'corporation'
 export type CorporationBlueprintState = 'known' | 'no_director' | 'no_visibility'
 

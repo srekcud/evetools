@@ -39,6 +39,11 @@ const VEXOR_BPC_IN_JOB: BlueprintLibraryEntry = {
   scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1, usedByRunningJob: true,
 }
 
+const COMPOSITE_REACTION_FORMULA: BlueprintLibraryEntry = {
+  typeId: 46166, name: 'Composite Reaction Formula', kind: 'bpr', me: 0, te: 0, runs: null,
+  scope: 'personal', ownerName: 'Pilot Four', locationId: 60003760, divisionNumber: null, count: 1, usedByRunningJob: false,
+}
+
 function libraryOf(corporationState: BlueprintLibrary['corporationState'], blueprints: BlueprintLibraryEntry[]): BlueprintLibrary {
   return { corporationState, blueprints }
 }
@@ -115,6 +120,36 @@ describe('BlueprintLibraryTab blueprint held by a job in progress (issue 411)', 
     const wrapper = await mountTab([libraryOf('known', [VEXOR_BPC_IN_JOB])], 'fr')
 
     expect(wrapper.find(IN_USE_BADGE).text()).toBe(expectedMessage('fr', 'industry.blueprints.inUse'))
+  })
+})
+
+describe('BlueprintLibraryTab reaction formulas (issue 656)', () => {
+  it('labels a reaction formula BPR and shows neither efficiency nor runs', async () => {
+    const wrapper = await mountTab([libraryOf('known', [COMPOSITE_REACTION_FORMULA])])
+
+    const row = rowTexts(wrapper)[0]
+    expect(row).toContain('Composite Reaction Formula')
+    expect(row).toContain(expectedMessage('en', 'industry.blueprints.kind.bpr'))
+    expect(row).not.toContain('ME 0')
+    expect(row).not.toContain('TE 0')
+    expect(row).not.toContain(expectedMessage('en', 'industry.blueprints.unlimitedRuns'))
+  })
+
+  it('shows the BPR label in French and the original blueprint image of the formula', async () => {
+    const wrapper = await mountTab([libraryOf('known', [COMPOSITE_REACTION_FORMULA])], 'fr')
+
+    expect(rowTexts(wrapper)[0]).toContain(expectedMessage('fr', 'industry.blueprints.kind.bpr'))
+    expect(wrapper.find(`${ROWS} img`).attributes('src')).toBe('https://images.evetech.net/types/46166/bp?size=32')
+  })
+
+  it('keeps efficiency and runs on originals and copies', async () => {
+    const wrapper = await mountTab([libraryOf('known', [DRAKE_BPO, HAMMERHEAD_BPC])])
+
+    const rows = rowTexts(wrapper)
+    expect(rows[0]).toContain('ME 10')
+    expect(rows[0]).toContain('∞')
+    expect(rows[1]).toContain('ME 2')
+    expect(rows[1]).toContain('50')
   })
 })
 

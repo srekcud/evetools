@@ -221,12 +221,64 @@ final class BlueprintLibraryReaderTest extends TestCase
         );
     }
 
+    public function testReactionFormulasOfAPilotAndOfTheCorporationAreReadAsReactionBlueprintsWithoutRuns(): void
+    {
+        $reader = $this->reader([
+            $this->personalBlueprint($this->main, 7_101, self::COMPOSITE_REACTION_FORMULA, -1, -1, 0, 0),
+            $this->corporationBlueprint(self::MAIN_CORPORATION_ID, 7_102, self::POLYMER_REACTION_FORMULA, -1, -1, 0, 0, 3),
+            $this->personalBlueprint($this->main, 7_103, self::DRAKE_BLUEPRINT, -1, -1, 10, 20),
+        ], visibleDivisions: null, corporationReader: $this->main, reactionFormulaTypeIds: [self::COMPOSITE_REACTION_FORMULA, self::POLYMER_REACTION_FORMULA]);
+
+        $library = $reader->readFor($this->user);
+
+        self::assertSame(
+            [
+                [self::COMPOSITE_REACTION_FORMULA, 'bpr', null, 'personal', 1],
+                [self::DRAKE_BLUEPRINT, 'bpo', null, 'personal', 1],
+                [self::POLYMER_REACTION_FORMULA, 'bpr', null, 'corporation', 1],
+            ],
+            array_map(static fn (BlueprintLibraryRow $row): array => [$row->typeId, $row->kind, $row->runs, $row->scope, $row->count], $library->rows),
+        );
+    }
+
+    public function testBlueprintsOfTheSameNameAreSortedOriginalThenReactionThenCopy(): void
+    {
+        $reader = $this->reader([
+            $this->personalBlueprint($this->main, 7_111, self::VEXOR_BLUEPRINT, -2, 25, 6, 12),
+            $this->personalBlueprint($this->main, 7_112, self::VEXOR_NAMESAKE_REACTION_FORMULA, -1, -1, 0, 0),
+            $this->personalBlueprint($this->main, 7_113, self::VEXOR_BLUEPRINT, -1, -1, 10, 20),
+        ], visibleDivisions: null, corporationReader: $this->main, reactionFormulaTypeIds: [self::VEXOR_NAMESAKE_REACTION_FORMULA]);
+
+        $library = $reader->readFor($this->user);
+
+        self::assertSame(
+            ['bpo', 'bpr', 'bpc'],
+            array_map(static fn (BlueprintLibraryRow $row): string => $row->kind, $library->rows),
+        );
+    }
+
+    public function testAnOriginalAndACopyWithoutReactionActivityKeepTheirKind(): void
+    {
+        $reader = $this->reader([
+            $this->personalBlueprint($this->main, 7_121, self::DRAKE_BLUEPRINT, -1, -1, 10, 20),
+            $this->personalBlueprint($this->main, 7_122, self::VEXOR_BLUEPRINT, -2, 25, 6, 12),
+        ], visibleDivisions: null, corporationReader: $this->main, reactionFormulaTypeIds: [self::COMPOSITE_REACTION_FORMULA]);
+
+        $library = $reader->readFor($this->user);
+
+        self::assertSame(
+            [[self::DRAKE_BLUEPRINT, 'bpo'], [self::VEXOR_BLUEPRINT, 'bpc']],
+            array_map(static fn (BlueprintLibraryRow $row): array => [$row->typeId, $row->kind], $library->rows),
+        );
+    }
+
     private function reader(
         array $blueprints,
         ?array $visibleDivisions,
         ?Character $corporationReader,
         ?array $visibleDivisionsOfOtherCorporation = null,
         bool $sharesBlueprintsOfHiddenDivisions = false,
+        array $reactionFormulaTypeIds = [],
     ): BlueprintLibraryReader {
         $visibleDivisionsByCorporationId = [];
         if ($visibleDivisions !== null) {
@@ -247,6 +299,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn([]),
+            $this->reactionFormulas($reactionFormulaTypeIds),
         );
     }
 
@@ -268,6 +321,7 @@ final class BlueprintLibraryReaderTest extends TestCase
             $characterRepository,
             new TypeNameResolver($this->sdeTypeRepositoryKnowing(self::BLUEPRINT_NAMES)),
             $this->jobsInProgressOn([]),
+            $this->reactionFormulas(),
         );
     }
 

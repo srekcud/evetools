@@ -10,7 +10,9 @@ use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
+use App\Enum\IndustryActivityType;
 use App\Repository\OwnedBlueprintRepository;
+use App\Repository\Sde\IndustryActivityRepository;
 use App\Service\TypeNameResolver;
 
 class BlueprintLibraryReader
@@ -21,6 +23,9 @@ class BlueprintLibraryReader
 
     public const string KIND_ORIGINAL = 'bpo';
     public const string KIND_COPY = 'bpc';
+    public const string KIND_REACTION = 'bpr';
+
+    private const array KIND_RANK = [self::KIND_ORIGINAL => 0, self::KIND_REACTION => 1, self::KIND_COPY => 2];
 
     public const string SCOPE_PERSONAL = 'personal';
     public const string SCOPE_CORPORATION = 'corporation';
@@ -33,6 +38,7 @@ class BlueprintLibraryReader
         private readonly CharacterRepository $characterRepository,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly CachedIndustryJobRepository $jobRepository,
+        private readonly IndustryActivityRepository $activityRepository,
     ) {
     }
 
@@ -55,8 +61,10 @@ class BlueprintLibraryReader
             $blueprints,
         )));
 
+        $reactionFormulaTypeIds = $this->reactionFormulaTypeIdsAmong($blueprints);
+
         $rows = array_map(
-            fn (OwnedBlueprint $blueprint): BlueprintLibraryRow => $this->rowOf($blueprint, $names, $main, isset($itemIdsInProgress[$blueprint->getItemId()])),
+            fn (OwnedBlueprint $blueprint): BlueprintLibraryRow => $this->rowOf($blueprint, $names, $main, isset($itemIdsInProgress[$blueprint->getItemId()]), isset($reactionFormulaTypeIds[$blueprint->getTypeId()])),
             $blueprints,
         );
         usort($rows, self::compareRows(...));
@@ -85,19 +93,44 @@ class BlueprintLibraryReader
         ];
     }
 
+    /**
+     * @param list<OwnedBlueprint> $blueprints
+     * @return array<int, true>
+     */
+    private function reactionFormulaTypeIdsAmong(array $blueprints): array
+    {
+        $reaction = IndustryActivityType::Reaction->value;
+        $activities = $this->activityRepository->findByTypeIdsAndActivityIds(
+            array_map(static fn (OwnedBlueprint $blueprint): int => $blueprint->getTypeId(), $blueprints),
+            [$reaction],
+        );
+
+        $typeIds = [];
+        foreach ($activities as $activity) {
+            $typeIds[$activity->getTypeId()] = true;
+        }
+
+        return $typeIds;
+    }
+
     /** @param array<int, string> $names */
-    private function rowOf(OwnedBlueprint $blueprint, array $names, Character $main, bool $usedByRunningJob): BlueprintLibraryRow
+    private function rowOf(OwnedBlueprint $blueprint, array $names, Character $main, bool $usedByRunningJob, bool $isReactionFormula): BlueprintLibraryRow
     {
         $character = $blueprint->getCharacter();
         $isOriginal = $blueprint->isOriginal();
+        $kind = match (true) {
+            $isReactionFormula => self::KIND_REACTION,
+            $isOriginal => self::KIND_ORIGINAL,
+            default => self::KIND_COPY,
+        };
 
         return new BlueprintLibraryRow(
             $blueprint->getTypeId(),
             $names[$blueprint->getTypeId()] ?? self::UNKNOWN_TYPE_NAME,
-            $isOriginal ? self::KIND_ORIGINAL : self::KIND_COPY,
+            $kind,
             $blueprint->getMaterialEfficiency(),
             $blueprint->getTimeEfficiency(),
-            $isOriginal ? null : $blueprint->getRuns(),
+            $kind === self::KIND_COPY ? $blueprint->getRuns() : null,
             $character === null ? self::SCOPE_CORPORATION : self::SCOPE_PERSONAL,
             $character === null ? $main->getCorporationName() : $character->getName(),
             $blueprint->getLocationId(),
@@ -109,7 +142,7 @@ class BlueprintLibraryReader
 
     private static function compareRows(BlueprintLibraryRow $left, BlueprintLibraryRow $right): int
     {
-        return [$left->name, $left->kind === self::KIND_ORIGINAL ? 0 : 1, $right->me]
-            <=> [$right->name, $right->kind === self::KIND_ORIGINAL ? 0 : 1, $left->me];
+        return [$left->name, self::KIND_RANK[$left->kind], $right->me]
+            <=> [$right->name, self::KIND_RANK[$right->kind], $left->me];
     }
 }

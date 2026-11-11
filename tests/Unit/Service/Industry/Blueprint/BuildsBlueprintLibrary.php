@@ -8,10 +8,12 @@ use App\Entity\Character;
 use App\Entity\CorpAssetVisibility;
 use App\Entity\EveToken;
 use App\Entity\OwnedBlueprint;
+use App\Entity\Sde\IndustryActivity;
 use App\Entity\User;
 use App\Repository\CachedIndustryJobRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
+use App\Repository\Sde\IndustryActivityRepository;
 use Symfony\Component\Uid\Uuid;
 
 trait BuildsBlueprintLibrary
@@ -32,6 +34,10 @@ trait BuildsBlueprintLibrary
     private const int ATRON_BLUEPRINT = 20_600;
     private const int HURRICANE_BLUEPRINT = 21_700;
     private const int UNKNOWN_BLUEPRINT = 29_900;
+    private const int COMPOSITE_REACTION_FORMULA = 46_166;
+    private const int POLYMER_REACTION_FORMULA = 46_167;
+    private const int VEXOR_NAMESAKE_REACTION_FORMULA = 46_168;
+    private const int REACTION_ACTIVITY_ID = 11;
 
     private const array BLUEPRINT_NAMES = [
         self::DRAKE_BLUEPRINT => 'Drake Blueprint',
@@ -40,6 +46,9 @@ trait BuildsBlueprintLibrary
         self::RIFTER_BLUEPRINT => 'Rifter Blueprint',
         self::ATRON_BLUEPRINT => 'Atron Blueprint',
         self::HURRICANE_BLUEPRINT => 'Hurricane Blueprint',
+        self::COMPOSITE_REACTION_FORMULA => 'Composite Reaction Formula',
+        self::POLYMER_REACTION_FORMULA => 'Polymer Reaction Formula',
+        self::VEXOR_NAMESAKE_REACTION_FORMULA => 'Vexor Blueprint',
     ];
 
     private static int $nextEveCharacterId = 2_113_357_001;
@@ -156,6 +165,26 @@ trait BuildsBlueprintLibrary
                     ->setVisibleDivisions($visibleDivisionsByCorporationId[$corporationId])
                     ->setShareBlueprintsOfHiddenDivisions($sharesBlueprintsOfHiddenDivisions)
                 : null,
+        );
+
+        return $repository;
+    }
+
+    /** @param list<int> $reactionFormulaTypeIds */
+    private function reactionFormulas(array $reactionFormulaTypeIds = []): IndustryActivityRepository
+    {
+        $repository = $this->createStub(IndustryActivityRepository::class);
+        $repository->method('findByTypeIdsAndActivityIds')->willReturnCallback(
+            static function (array $typeIds, array $activityIds) use ($reactionFormulaTypeIds): array {
+                $activities = [];
+                foreach (array_intersect($typeIds, $reactionFormulaTypeIds) as $typeId) {
+                    if (in_array(self::REACTION_ACTIVITY_ID, $activityIds, true)) {
+                        $activities[$typeId . '-' . self::REACTION_ACTIVITY_ID] = (new IndustryActivity())->setTypeId($typeId)->setActivityId(self::REACTION_ACTIVITY_ID);
+                    }
+                }
+
+                return $activities;
+            },
         );
 
         return $repository;
