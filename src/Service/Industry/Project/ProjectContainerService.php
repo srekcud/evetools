@@ -48,7 +48,10 @@ class ProjectContainerService
      */
     public function verifyContainer(IndustryProject $project): array
     {
-        $materialItems = $this->bomItemRepository->findMaterialsByProject($project);
+        $materialItems = [
+            ...$this->bomItemRepository->findMaterialsByProject($project),
+            ...$this->bomItemRepository->findComponentJobsByProject($project),
+        ];
         $containerName = $project->getContainerName();
 
         if ($materialItems === [] || $containerName === null) {

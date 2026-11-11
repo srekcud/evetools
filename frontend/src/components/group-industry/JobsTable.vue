@@ -9,8 +9,9 @@ import JobLinkModal from './JobLinkModal.vue'
 import LinePurchases from './LinePurchases.vue'
 import LineReservation from './LineReservation.vue'
 import JobLocationBadge from './JobLocationBadge.vue'
+import ContainerLineStatus from './ContainerLineStatus.vue'
 import { showsBlueprintEfficiency } from './blueprintEfficiency'
-import type { AvailableJob, BomItem, CharacterMatchFailure } from '@/stores/group-industry/types'
+import type { AvailableJob, BomItem, CharacterMatchFailure, ContainerVerification, ContainerVerificationStatus } from '@/stores/group-industry/types'
 
 const emit = defineEmits<{
   contribute: [bomItem: BomItem]
@@ -36,6 +37,14 @@ const blueprintJobs = computed(() => projectStore.blueprintJobs)
 const componentJobs = computed(() => projectStore.componentJobs)
 const finalJobs = computed(() => projectStore.finalJobs)
 const allJobs = computed(() => projectStore.jobs)
+
+const CONTAINER_LINE_STATUSES: readonly ContainerVerificationStatus[] = ['verified', 'partial', 'missing']
+const COMPONENT_JOB_GROUP = 'component'
+
+function containerLineOf(job: BomItem): ContainerVerification | undefined {
+  if (job.jobGroup !== COMPONENT_JOB_GROUP) return undefined
+  return projectStore.containerVerification.find(line => line.bomItemId === job.id && CONTAINER_LINE_STATUSES.includes(line.status))
+}
 
 const isProjectOwner = computed(() => projectStore.currentProject?.myRole === 'owner')
 const isMatchingJobs = ref(false)
@@ -342,6 +351,7 @@ function isJobDimmed(job: BomItem): boolean {
                     <!-- Product name -->
                     <td class="py-2.5 px-3 text-slate-200">
                       {{ job.typeName }}
+                      <ContainerLineStatus v-if="containerLineOf(job) !== undefined" :verification="containerLineOf(job)!" />
                       <ul v-if="job.jobMatches !== undefined && job.jobMatches.length > 0" class="mt-1 space-y-0.5">
                         <li
                           v-for="jobMatch in job.jobMatches"

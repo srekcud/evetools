@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Project;
 
+use App\Entity\CachedIndustryJob;
 use App\Entity\IndustryProjectBomLine;
 
 final readonly class ChainMaterialSupply
 {
-    private const array JOB_GROUPS = ['component', 'final'];
+    private const string GROUP_COMPONENT = 'component';
+    private const array JOB_GROUPS = [self::GROUP_COMPONENT, 'final'];
 
     /**
      * @param array<string, bool> $suppliedByLineId
@@ -33,9 +35,14 @@ final readonly class ChainMaterialSupply
         $jobLines = [];
         foreach ($bomLines as $line) {
             if (!$line->isJob()) {
-                $remainingByMaterialTypeId[$line->getTypeId()] = $line->getFulfilledQuantity();
-            } elseif (\in_array($line->getJobGroup(), self::JOB_GROUPS, true) && isset($jobMaterialNeeds[$line->getId()->toRfc4122()])) {
-                $jobLines[] = $line;
+                $remainingByMaterialTypeId[$line->getTypeId()] ??= 0;
+                $remainingByMaterialTypeId[$line->getTypeId()] += $line->getFulfilledQuantity();
+            } elseif (\in_array($line->getJobGroup(), self::JOB_GROUPS, true)) {
+                $remainingByMaterialTypeId[$line->getTypeId()] ??= 0;
+                $remainingByMaterialTypeId[$line->getTypeId()] += $line->getFulfilledQuantity() + self::deliveredProductionOf($line);
+                if (isset($jobMaterialNeeds[$line->getId()->toRfc4122()])) {
+                    $jobLines[] = $line;
+                }
             }
         }
 
@@ -71,6 +78,27 @@ final readonly class ChainMaterialSupply
     public function firstConsumerLevel(int $materialTypeId): ?int
     {
         return $this->firstConsumerLevelByTypeId[$materialTypeId] ?? null;
+    }
+
+    private static function deliveredProductionOf(IndustryProjectBomLine $line): int
+    {
+        if (self::GROUP_COMPONENT !== $line->getJobGroup()) {
+            return 0;
+        }
+
+        $runs = $line->getRuns() ?? throw new \UnexpectedValueException(\sprintf('Job line %s has no runs.', $line->getId()->toRfc4122()));
+        if (0 === $runs) {
+            return 0;
+        }
+
+        $deliveredRuns = 0;
+        foreach ($line->getJobMatches() as $jobMatch) {
+            if (CachedIndustryJob::STATUS_DELIVERED === $jobMatch->getStatus()) {
+                $deliveredRuns += $jobMatch->getRuns();
+            }
+        }
+
+        return intdiv($line->getRemainingQuantity() * min($deliveredRuns, $runs), $runs);
     }
 
     /**

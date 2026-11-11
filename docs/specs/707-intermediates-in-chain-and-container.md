@@ -9,7 +9,7 @@ Mode nuit (2026-11-11) : spec rédigée sans gate, branche empilée sur `fix/nig
 
 ## Règles
 
-1. **Stock disponible d'un type** dans `ChainMaterialSupply` : pour une ligne de matériau, `fulfilledQuantity` (inchangé) ; pour une ligne de job `component` ou `final`, `fulfilledQuantity` (apports d'intermédiaire, #706) plus la production livrée.
+1. **Stock disponible d'un type** dans `ChainMaterialSupply` : pour une ligne de matériau, `fulfilledQuantity` (inchangé) ; pour une ligne de job `component` ou `final`, `fulfilledQuantity` (apports d'intermédiaire, #706) ; une ligne `component` ajoute sa production livrée (une ligne `final` est le produit du projet, jamais fourni à un autre job).
 2. **Production livrée d'une ligne de job** : `intdiv(remainingQuantity × min(runsLivrés, runs), runs)`, où `runsLivrés` = somme des `runs` des jobs liés au statut `delivered` et `remainingQuantity = max(0, requiredQuantity − fulfilledQuantity)` (la production prévue, spec #706 règle 4). Une ligne à 0 run (couverte par le stock) ne livre rien, sans division par zéro.
 3. Un job est approvisionné si chacun de ses besoins (matériaux et intermédiaires) reçoit sa quantité du stock disponible. Les jobs sont servis par niveau croissant puis nom, comme aujourd'hui ; le stock d'un type se partage entre ses consommateurs.
 4. Un besoin dont le type n'a aucune ligne (matériau ou job) dans la BOM reste ignoré (comportement actuel).
