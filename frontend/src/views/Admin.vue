@@ -16,6 +16,7 @@ import CharactersToRepairCard from '@/components/admin/CharactersToRepairCard.vu
 import AdminCharactersCard from '@/components/admin/AdminCharactersCard.vue'
 import UserSupportCard from '@/components/admin/UserSupportCard.vue'
 import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
+import FailedMessagesCard from '@/components/admin/FailedMessagesCard.vue'
 import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
 import PveCorpRevenue from '@/components/admin/PveCorpRevenue.vue'
 import type { MaintenanceActionKey } from '@/components/admin/maintenanceActionKeys'
@@ -266,21 +267,25 @@ watch(
           <AdminKpiGrid :stats="stats" :queues="queues" scope="operations" />
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div id="admin-section-scheduler-health" class="lg:col-span-2">
-            <SchedulerHealthTable
-              :entries="stats?.schedulerHealth || []"
-              :action-loading="actionLoading"
-              @execute-action="handleSchedulerAction"
-            />
+        <div id="admin-section-maintenance" class="space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div id="admin-section-scheduler-health" class="lg:col-span-2">
+              <SchedulerHealthTable
+                :entries="stats?.schedulerHealth || []"
+                :action-loading="actionLoading"
+                @execute-action="handleSchedulerAction"
+              />
+            </div>
+            <div>
+              <MaintenanceActions
+                :action-loading="actionLoading"
+                :failed-message-count="failedMessageCount"
+                @execute-action="handleMaintenanceAction"
+              />
+            </div>
           </div>
-          <div id="admin-section-maintenance">
-            <MaintenanceActions
-              :action-loading="actionLoading"
-              :failed-message-count="failedMessageCount"
-              @execute-action="handleMaintenanceAction"
-            />
-          </div>
+
+          <FailedMessagesCard />
         </div>
 
         <EsiErrorBudgetCard v-if="stats?.esiErrorBudget" :budget="stats.esiErrorBudget" />
