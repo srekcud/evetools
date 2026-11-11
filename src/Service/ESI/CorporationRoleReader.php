@@ -25,6 +25,14 @@ final readonly class CorporationRoleReader
     }
 
     /**
+     * @param list<string> $roles
+     */
+    public function forget(int $corporationId, array $roles): void
+    {
+        $this->corporationRoleHolderCache->deleteItem($this->cacheKeyOf($corporationId, $roles));
+    }
+
+    /**
      * @param list<Character> $characters
      * @param list<string>    $roles
      * @param list<string>    $scopes
@@ -131,7 +139,7 @@ final readonly class CorporationRoleReader
     /**
      * @param list<string> $scopes
      */
-    private function canRead(Character $character, array $scopes): bool
+    public function canRead(Character $character, array $scopes): bool
     {
         return $character->isAuthValid() && $character->getEveToken()?->hasAllScopes($scopes) === true;
     }

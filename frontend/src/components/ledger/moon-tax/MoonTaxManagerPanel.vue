@@ -123,11 +123,10 @@ onMounted(() => {
     <div
       v-if="accessFailure?.kind === 'denied'"
       data-moon-tax-denied
-      role="alert"
+      role="status"
       class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300"
     >
       <p class="font-semibold uppercase tracking-wider"><span aria-hidden="true">⚠ </span>{{ t('ledger.mining.moonTax.denied') }}</p>
-      <p class="break-words">{{ accessFailure.message }}</p>
     </div>
     <div
       v-else-if="accessFailure?.kind === 'unreadable'"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -19,9 +19,11 @@ import {
   type MoonChunkStatus,
 } from '@/composables/useCorporationMiningExtractions'
 import { useMoonChunkMiners } from '@/composables/useMoonChunkMiners'
+import { isBlocked, useCorporationRoleAccess, type CorporationRoleAccess } from '@/composables/useCorporationRoleAccess'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorBanner from '@/components/common/ErrorBanner.vue'
 import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
+import MoonChunkAccessState from './MoonChunkAccessState.vue'
 import MoonChunkMinersButton from './MoonChunkMinersButton.vue'
 import MoonChunkMinersPanel from './MoonChunkMinersPanel.vue'
 import MoonChunkName from './MoonChunkName.vue'
@@ -34,6 +36,8 @@ import MoonChunkValuePanel from './MoonChunkValuePanel.vue'
 const CLOCK_TICK_MS = 30_000
 
 const LIST_COLUMNS = ['moon', 'structure', 'system', 'arrival', 'decay', 'countdown', 'status', 'value', 'miners', 'operation']
+
+const ROLE_LACKING_ACCESS_STATES: string[] = ['denied', 'reconnect']
 
 const views: ChunkView[] = ['list', 'week', 'month']
 const timeModes: ChunkTimeMode[] = ['eve', 'local']
@@ -50,6 +54,7 @@ const authStore = useAuthStore()
 const { corporations, isLoading, hasError, isRefreshing, syncProgress, timeMode, pendingFollowStructureId, hasFollowError, load, refresh, setRefineryFollowed } = useCorporationMiningExtractions()
 
 const { states: minersStates, load: loadMiners } = useMoonChunkMiners()
+const { accesses, recheckingIds, loadAll: loadAccesses, recheck } = useCorporationRoleAccess('extractions')
 
 const view = ref<ChunkView>('list')
 const openDetailIds = ref<Set<string>>(new Set())
@@ -65,6 +70,32 @@ const progressLabel = computed(() => {
   const percent = syncProgress.value?.progress ?? null
   return percent === null ? t('ledger.mining.moonChunks.syncing') : t('ledger.mining.moonChunks.syncProgress', { percent })
 })
+
+function lacksRole(entry: CorporationMiningExtractions): boolean {
+  return ROLE_LACKING_ACCESS_STATES.includes(entry.access)
+}
+
+const foldedEntries = computed(() => corporations.value.filter(entry => lacksRole(entry) && entry.extractions.length === 0))
+const listedEntries = computed(() => corporations.value.filter(entry => !foldedEntries.value.includes(entry)))
+
+function blockedAccessOf(entry: CorporationMiningExtractions): CorporationRoleAccess | null {
+  const access = accesses.value[entry.corporationId]
+  return lacksRole(entry) && isBlocked(access) ? access : null
+}
+
+async function recheckAccess(corporationId: number): Promise<void> {
+  const access = await recheck(corporationId)
+  if (access?.status === 'held') void refresh()
+}
+
+watch(
+  corporations,
+  entries => {
+    const unread = entries.filter(entry => lacksRole(entry) && accesses.value[entry.corporationId] === undefined)
+    void loadAccesses(unread.map(entry => entry.corporationId))
+  },
+  { immediate: true },
+)
 
 function chunksByArrival(extractions: CorporationMiningExtraction[]): CorporationMiningExtraction[] {
   return [...extractions].sort((left, right) => new Date(left.chunkArrivalTime).getTime() - new Date(right.chunkArrivalTime).getTime())
@@ -230,7 +261,7 @@ onUnmounted(() => {
     </div>
 
     <section
-      v-for="entry in corporations"
+      v-for="entry in listedEntries"
       :key="entry.corporationId"
       :data-corporation="entry.corporationId"
       class="space-y-3"
@@ -258,18 +289,14 @@ onUnmounted(() => {
         </p>
       </div>
 
-      <p
+      <MoonChunkAccessState
         v-if="entry.access !== 'ok'"
-        :data-access-state="entry.access"
-        role="status"
-        class="rounded-sm border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300"
-      >
-        <span aria-hidden="true">⚠ </span>{{ t(`ledger.mining.moonChunks.access.${entry.access}`) }}
-        <template v-if="entry.lastSuccessAt !== null">
-          · {{ t('ledger.mining.moonChunks.lastSuccess') }}
-          <time data-last-success-at :datetime="entry.lastSuccessAt">{{ formatChunkTime(entry.lastSuccessAt, timeZone) }}</time>
-        </template>
-      </p>
+        :entry="entry"
+        :access="blockedAccessOf(entry)"
+        :is-rechecking="recheckingIds.includes(entry.corporationId)"
+        :time-zone="timeZone"
+        @recheck="recheckAccess(entry.corporationId)"
+      />
       <p v-else-if="entry.extractions.length === 0" data-empty-extractions class="text-sm text-slate-500">
         {{ t('ledger.mining.moonChunks.empty') }}
       </p>
@@ -420,6 +447,28 @@ onUnmounted(() => {
         </div>
       </div>
     </section>
+
+    <details
+      v-for="entry in foldedEntries"
+      :key="entry.corporationId"
+      data-blocked-corporation
+      :data-corporation="entry.corporationId"
+      class="rounded-sm border border-slate-800 bg-slate-900/60"
+    >
+      <summary class="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+        <span class="truncate font-medium uppercase tracking-wider text-slate-300" :title="corporationLabel(entry.corporationId)">{{ corporationLabel(entry.corporationId) }}</span>
+        <span class="text-amber-300">{{ blockedAccessOf(entry) === null ? t(`ledger.mining.moonChunks.access.${entry.access}`) : t(`ledger.mining.moonTax.blockedLine.${blockedAccessOf(entry)?.status}`, { role: blockedAccessOf(entry)?.requiredRole }) }}</span>
+      </summary>
+      <div class="px-3 pb-3">
+        <MoonChunkAccessState
+          :entry="entry"
+          :access="blockedAccessOf(entry)"
+          :is-rechecking="recheckingIds.includes(entry.corporationId)"
+          :time-zone="timeZone"
+          @recheck="recheckAccess(entry.corporationId)"
+        />
+      </div>
+    </details>
 
     <NewMiningOperationModal
       :show="operationChunk !== null"

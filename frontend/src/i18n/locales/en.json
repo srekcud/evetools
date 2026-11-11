@@ -1614,6 +1614,23 @@
         "moonChunks": "Moon chunks",
         "moonTax": "Moon tax"
       },
+      "accessRequired": {
+        "role_missing": "The ESI requires the {role} role (or Director) to read this data. None of your characters in this corporation has it.",
+        "reconnect": "None of your characters in this corporation can read its roles: their token is invalid or lacks the scope that reads corporation roles.",
+        "esi_error": "The roles of your characters in this corporation could not be read from the ESI.",
+        "checkedCharacters": "Characters checked",
+        "main": "main",
+        "withoutRole": "without the role",
+        "toReconnect": "to reconnect",
+        "unreadable": "unreadable",
+        "unknown": "not verified",
+        "steps": "Ask a director of the corporation to grant the {role} role, preferably to your main character. Roles take up to about 1 h to show up on the ESI side.",
+        "reconnectLink": "Reconnect on the Characters page",
+        "recheck": "Recheck",
+        "rechecking": "Checking...",
+        "rolesDetail": "Roles read for each character",
+        "noRole": "no role"
+      },
       "moonChunks": {
         "title": "Moon chunks",
         "subtitle": "Extractions of the corporation refineries. Times are in EVE time (UTC) unless you switch to local time.",
@@ -1748,6 +1765,14 @@
         "mineLoadError": "Your moon tax could not be loaded.",
         "denied": "Manager access denied",
         "unreadable": "Corporation roles unreadable",
+        "noneManageable": "None of your corporations is manageable by you",
+        "blockedLine": {
+          "role_missing": "{role} role missing",
+          "reconnect": "to reconnect",
+          "esi_error": "roles unreadable"
+        },
+        "blockedRole": "{count} corporation without the {role} role | {count} corporations without the {role} role",
+        "blockedAny": "{count} corporation without access | {count} corporations without access",
         "noRefinery": "No known refinery, sync the extractions.",
         "filterLabel": "Statement filter",
         "filters": {

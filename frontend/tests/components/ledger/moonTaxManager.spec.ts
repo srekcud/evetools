@@ -85,14 +85,15 @@ function withStatements(statements: unknown[]): Record<string, unknown> {
 }
 
 describe('MoonTaxTab access states', () => {
-  it('shows the server message in a denied panel or an unreadable panel for each corporation, never an empty table', async () => {
+  it('shows a denied panel without the raw server message or an unreadable panel with it for each corporation, never an empty table', async () => {
     const wrapper = await mountMoonTax({
       ...defaultRoutes(response(SYNCED_CORPORATION, DENIED_CORPORATION)),
       [`GET ${corporationPath(CORPORATION_A)}`]: new ApiError(DENIED_MESSAGE, 403),
       [`GET ${corporationPath(CORPORATION_B)}`]: new ApiError(UNREADABLE_MESSAGE, 503),
     })
 
-    expect(present(wrapper, section(CORPORATION_A, '[data-moon-tax-denied]')).text()).toContain(DENIED_MESSAGE)
+    expect(present(wrapper, section(CORPORATION_A, '[data-moon-tax-denied]')).text()).not.toContain(DENIED_MESSAGE)
+    expect(present(wrapper, section(CORPORATION_A, '[data-moon-tax-denied]')).attributes('role')).toBe('status')
     expect(present(wrapper, section(CORPORATION_B, '[data-moon-tax-unreadable]')).text()).toContain(UNREADABLE_MESSAGE)
     expect(wrapper.find(section(CORPORATION_A, '[data-moon-tax-unreadable]')).exists()).toBe(false)
     expect(wrapper.find(section(CORPORATION_B, '[data-moon-tax-denied]')).exists()).toBe(false)
@@ -147,6 +148,7 @@ describe('MoonTaxTab refinery settings', () => {
 
     expect([...requestLines()].sort()).toEqual([
       'GET /mining/corporation-extractions',
+      `GET /mining/corporation-role-access/${CORPORATION_A}?feature=moon-tax`,
       `GET ${corporationPath(CORPORATION_A)}`,
       `GET ${donationsPath(CORPORATION_A)}`,
       `GET ${statementsPath(CORPORATION_A)}`,
