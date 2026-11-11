@@ -39,6 +39,11 @@ class RefreshCorporationAssetsProcessor implements ProcessorInterface
             throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
         }
 
+        $requesterId = $user->getId()?->toRfc4122();
+        if ($requesterId === null) {
+            throw new UnauthorizedHttpException('Bearer', 'Unauthorized');
+        }
+
         $mainCharacter = $user->getMainCharacter();
         if ($mainCharacter === null) {
             throw new AccessDeniedHttpException('No main character set');
@@ -65,7 +70,8 @@ class RefreshCorporationAssetsProcessor implements ProcessorInterface
         if ($async) {
             $this->messageBus->dispatch(new SyncCorporationAssets(
                 $corporationId,
-                $directorCharacter->getId()?->toRfc4122() ?? ''
+                $directorCharacter->getId()?->toRfc4122() ?? '',
+                $requesterId
             ));
 
             $result->status = 'pending';
