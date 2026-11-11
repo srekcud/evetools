@@ -9,10 +9,12 @@ use App\Entity\Character;
 use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
+use App\Service\ESI\EsiErrorBudget;
 use App\State\Provider\Admin\AdminStatsProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 #[CoversClass(AdminStatsProvider::class)]
 class AdminStatsProviderSchedulerHealthTest extends TestCase
@@ -47,6 +49,6 @@ class AdminStatsProviderSchedulerHealthTest extends TestCase
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
 
-        return new AdminStatsProvider($security, $adminService, new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID));
+        return new AdminStatsProvider($security, $adminService, new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID), new EsiErrorBudget(new ArrayAdapter()));
     }
 }

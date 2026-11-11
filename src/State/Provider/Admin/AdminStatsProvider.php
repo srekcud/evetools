@@ -7,11 +7,14 @@ namespace App\State\Provider\Admin;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Admin\AdminStatsResource;
+use App\ApiResource\Admin\EsiLimitedFamilyDto;
+use App\ApiResource\Admin\EsiLimitedHourDto;
 use App\ApiResource\Admin\PveCorporationStatsDto;
 use App\ApiResource\Admin\SchedulerHealthEntryDto;
 use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\AdminService;
+use App\Service\ESI\EsiErrorBudget;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -25,6 +28,7 @@ class AdminStatsProvider implements ProviderInterface
         private readonly Security $security,
         private readonly AdminService $adminService,
         private readonly AdminChecker $adminChecker,
+        private readonly EsiErrorBudget $errorBudget,
     ) {
     }
 
@@ -124,7 +128,31 @@ class AdminStatsProvider implements ProviderInterface
             $stats['schedulerHealth'] ?? []
         );
 
+        $this->fillEsiErrorBudget($resource);
+
         return $resource;
+    }
+
+    private function fillEsiErrorBudget(AdminStatsResource $resource): void
+    {
+        $snapshot = $this->errorBudget->snapshot();
+        $budget = $resource->esiErrorBudget;
+
+        $budget->remain = $snapshot['remain'];
+        $budget->resetSeconds = $snapshot['resetSeconds'];
+        $budget->observedAt = $snapshot['observedAt'];
+        $budget->windowEndsAt = $snapshot['windowEndsAt'];
+        $budget->level = $snapshot['level'];
+        $budget->limited420 = $snapshot['limited420'];
+        $budget->limited429 = $snapshot['limited429'];
+        $budget->byFamily = array_map(
+            static fn (array $family): EsiLimitedFamilyDto => new EsiLimitedFamilyDto($family['family'], $family['limited420'], $family['limited429']),
+            $snapshot['byFamily'],
+        );
+        $budget->hourly = array_map(
+            static fn (array $hour): EsiLimitedHourDto => new EsiLimitedHourDto($hour['hour'], $hour['limited420'], $hour['limited429']),
+            $snapshot['hourly'],
+        );
     }
 
     private function checkAdminAccess(User $user): void

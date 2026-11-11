@@ -124,6 +124,8 @@ The client automatically handles ESI error budget via `x-esi-error-limit-remain`
 
 **420 / 429**: replayed once, identically, by `requestWithRetry()` (`get()`, `getUnversioned()`, `getWithCache()`, `getPaginated()` per page, `post()`), after sleeping `Retry-After` (429, capped at 60 s) or `max(x-esi-error-limit-reset, 1)` seconds. `getBatch()`/`getScalarBatch()` replay the failed keys once, together, after a single wait (`null` if they fail again). `postEmpty()` does not retry.
 
+**Shared error budget (#645)**: every response that carries both error-limit headers is reported to `EsiErrorBudget` (dedicated Redis pool `esi_error_budget.cache`), and every 420/429 response is counted once per UTC hour and endpoint family (`/characters/{id}/assets/`). The admin stats expose it as `esiErrorBudget`; the throttle thresholds are `EsiErrorBudget::CRITICAL_BELOW` and `LOW_BELOW`. A new request path that reads a response must go through `processRateLimitHeaders()` and, on a 420/429, `retryDelaySeconds()` or `recordIfLimited()`.
+
 
 ### Error Handling
 
