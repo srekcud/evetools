@@ -13,6 +13,7 @@ use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
 use App\Message\SyncAdjustedPrices;
 use App\Message\SyncBlueprints;
+use App\Message\SyncCharacterOrders;
 use App\Message\SyncRegionalMarketVolumes;
 use App\Message\SyncCostIndices;
 use App\Message\SyncPublicContracts;
@@ -87,6 +88,9 @@ class SyncScheduler implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::every('1 hour', new SyncBlueprints())
+            )
+            ->add(
+                RecurringMessage::every('5 minutes', new SyncCharacterOrders())
             )
             // Planetary colonies sync every 30 minutes
             ->add(

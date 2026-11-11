@@ -8,6 +8,7 @@ use App\Message\CheckAlertPrices;
 use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
+use App\Message\SyncCharacterOrders;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
 use App\Message\TriggerCorporationMiningExtractionsSync;
@@ -78,7 +79,7 @@ class SyncSchedulerLockTest extends TestCase
         ];
 
         $this->assertSame(
-            [CheckMoonChunkAlerts::class, CheckMiningSiteDepletionAlerts::class, SyncIndustryJobs::class, TriggerPlanetarySync::class, CheckAlertPrices::class, SyncPublicContracts::class, TriggerCorporationMiningExtractionsSync::class, TriggerMiningOperationRecurrences::class, CheckCourierContracts::class],
+            [SyncCharacterOrders::class, CheckMoonChunkAlerts::class, CheckMiningSiteDepletionAlerts::class, SyncIndustryJobs::class, TriggerPlanetarySync::class, CheckAlertPrices::class, SyncPublicContracts::class, TriggerCorporationMiningExtractionsSync::class, TriggerMiningOperationRecurrences::class, CheckCourierContracts::class],
             $firstConsumerMessageClasses,
         );
         $this->assertSame([], $secondConsumerMessageClasses);

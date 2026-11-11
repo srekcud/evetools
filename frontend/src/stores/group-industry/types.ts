@@ -577,12 +577,41 @@ export type ProjectPriceAlert = {
   gapPerUnit: number
 }
 
+export type OrderPositionState = 'first' | 'undercut' | 'unknown'
+
+export type OrderPositionUnknownReason = 'market_not_followed' | 'no_market_data'
+
+export type ProjectSellOrder = {
+  orderId: number
+  characterName: string
+  typeId: number
+  typeName: string
+  volumeRemain: number
+  locationId: number
+  marketName: string | null
+  price: number
+  bestPrice: number | null
+  rank: number | null
+  state: OrderPositionState
+  unknownReason: OrderPositionUnknownReason | null
+  undercutSince: string | null
+  suggestedPrice: number | null
+}
+
+export type ProjectSellOrders = {
+  projectId: string
+  orders: ProjectSellOrder[]
+  charactersToReconnect: string[]
+  syncedAt: string | null
+}
+
 export type ProjectCockpit = {
   projectId: string
   status: GroupProjectStatus
   phases: ProjectPhase[]
   nextAction: ProjectNextAction
   priceAlert: ProjectPriceAlert | null
+  undercutOrders: ProjectSellOrder[]
 }
 
 export type ChainStage = 'blueprint' | 'material' | 'component' | 'product' | 'sale'

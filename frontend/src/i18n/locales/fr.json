@@ -1031,6 +1031,10 @@
         "price_below_break_even": {
           "text": "Jita ({jitaPrice}) est sous le seuil de rentabilité de {breakEven} : {gap} perdus par unité vendue au marché.",
           "button": "Où vendre"
+        },
+        "undercut_sell_order": {
+          "text": "Ordre sous-coté : {typeName} ×{quantity}, meilleur prix {bestPrice} contre {myPrice}.",
+          "button": "Voir mes ordres"
         }
       },
       "jobs": {
@@ -3477,13 +3481,41 @@
         "bomComplete": "BOM complète",
         "moveProducts": "Déplacer {quantity} produits dans le container du projet ({count} jobs)",
         "joinRequest": "{count} demandes d'adhésion",
-        "priceBelowBreakEven": "Jita {jitaPrice} < seuil {breakEven} · ne pas vendre au marché pour l'instant"
+        "priceBelowBreakEven": "Jita {jitaPrice} < seuil {breakEven} · ne pas vendre au marché pour l'instant",
+        "undercutSellOrder": "Sous-coté : {typeName} ×{quantity} à {market}, meilleur prix {best} contre {mine}"
       },
       "notices": {
         "popupBlocked": "Le navigateur a bloqué la popup : autorisez les popups pour ce site, puis rouvrez le compagnon.",
         "popupFallback": "Picture-in-Picture indisponible : le compagnon s'est ouvert en popup.",
         "resizeRefused": "Le navigateur a refusé de redimensionner la fenêtre : ajustez-la à la main."
       }
+    },
+    "sellOrders": {
+      "title": "Mes ordres de vente",
+      "columns": {
+        "order": "Ordre",
+        "market": "Marché",
+        "myPrice": "Mon prix",
+        "bestPrice": "Meilleur prix",
+        "position": "Position"
+      },
+      "position": {
+        "first": "1er",
+        "undercut": "#{rank} · sous-coté depuis {duration}"
+      },
+      "duration": {
+        "minutes": "{count} min",
+        "hours": "{count} h",
+        "days": "{count} j"
+      },
+      "unknownReason": {
+        "market_not_followed": "Marché non suivi",
+        "no_market_data": "Pas de données de marché"
+      },
+      "copyPrice": "Copier {price}",
+      "reconnect": "Reconnectez-vous avec {characters} pour lire leurs ordres de vente (nouvelle permission ESI).",
+      "empty": "Aucun ordre de vente pour les produits de ce projet.",
+      "hint": "Ordres lus toutes les 5 minutes. Le bouton copie le prix à coller en modifiant l'ordre en jeu (100 ISK sous le meilleur prix) ; rien n'est modifié depuis evetools."
     }
   },
   "market": {

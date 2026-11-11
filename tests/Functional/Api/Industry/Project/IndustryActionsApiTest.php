@@ -49,6 +49,7 @@ final class IndustryActionsApiTest extends WebTestCase
                     'impactIsk' => 170_000.0,
                     'jitaUnitPrice' => null,
                     'breakEvenPerUnit' => null,
+                    'undercutOrder' => null,
                 ],
                 [
                     'projectId' => $this->ishtarBatch->getId()->toRfc4122(),
@@ -65,6 +66,7 @@ final class IndustryActionsApiTest extends WebTestCase
                     'impactIsk' => null,
                     'jitaUnitPrice' => null,
                     'breakEvenPerUnit' => null,
+                    'undercutOrder' => null,
                 ],
             ],
             $this->responseJson(),

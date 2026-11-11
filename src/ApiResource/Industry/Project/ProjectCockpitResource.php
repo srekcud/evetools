@@ -72,4 +72,9 @@ class ProjectCockpitResource
      * }|null
      */
     public ?array $priceAlert = null;
+
+    /**
+     * @var list<array<string, mixed>>
+     */
+    public array $undercutOrders = [];
 }

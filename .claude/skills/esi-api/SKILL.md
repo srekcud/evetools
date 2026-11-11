@@ -577,6 +577,7 @@ Current schedule intervals (`src/Scheduler/SyncScheduler.php`):
 | Task | Message | Interval |
 |---|---|---|
 | Ansiblex sync | `TriggerAnsiblexSync` | 12 hours |
+| Character sell orders vs best price | `SyncCharacterOrders` | 5 minutes |
 | Structure market | `TriggerStructureMarketSync` | 1 hour |
 | Jita market | `TriggerJitaMarketSync` | 1 hour |
 | PVE data | `TriggerPveSync` | 1 hour |
@@ -762,7 +763,7 @@ https://esi.evetech.net/latest
 
 ## 10. OAuth2 Scopes Reference
 
-All 29 scopes requested during authentication (defined in `AuthenticationService::REQUIRED_SCOPES`):
+All 30 scopes requested during authentication (defined in `AuthenticationService::REQUIRED_SCOPES`):
 
 ### Assets & Corporation
 | Scope | Endpoint | Description |
@@ -820,6 +821,7 @@ All 29 scopes requested during authentication (defined in `AuthenticationService
 | Scope | Endpoint | Description |
 |---|---|---|
 | `esi-markets.structure_markets.v1` | `/markets/structures/{id}/` | Structure market orders |
+| `esi-markets.read_character_orders.v1` | `/characters/{id}/orders/` | Sell orders of the character compared to the best price (read-only, #350) |
 
 ### UI
 | Scope | Endpoint | Description |

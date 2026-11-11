@@ -63,6 +63,7 @@ class AuthenticationService
 
         // Market (prix citadelles)
         'esi-markets.structure_markets.v1',
+        'esi-markets.read_character_orders.v1',
 
         // UI (quality of life)
         'esi-ui.open_window.v1',

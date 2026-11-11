@@ -15,4 +15,5 @@ final class EveConstants
     public const STRUCTURE_MARKET_SCOPE = 'esi-markets.structure_markets.v1';
     public const CHARACTER_BLUEPRINTS_SCOPE = 'esi-characters.read_blueprints.v1';
     public const CORPORATION_BLUEPRINTS_SCOPE = 'esi-corporations.read_blueprints.v1';
+    public const CHARACTER_ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
 }

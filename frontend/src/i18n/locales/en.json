@@ -1031,6 +1031,10 @@
         "price_below_break_even": {
           "text": "Jita ({jitaPrice}) is below the break-even price of {breakEven}: {gap} lost per unit sold on the market.",
           "button": "Where to sell"
+        },
+        "undercut_sell_order": {
+          "text": "Undercut order: {typeName} ×{quantity}, best price {bestPrice} against your {myPrice}.",
+          "button": "See my orders"
         }
       },
       "jobs": {
@@ -3477,13 +3481,41 @@
         "bomComplete": "BOM complete",
         "moveProducts": "Move {quantity} products into the project container ({count} jobs)",
         "joinRequest": "{count} join requests",
-        "priceBelowBreakEven": "Jita {jitaPrice} < break-even {breakEven} · do not sell on the market for now"
+        "priceBelowBreakEven": "Jita {jitaPrice} < break-even {breakEven} · do not sell on the market for now",
+        "undercutSellOrder": "Undercut: {typeName} ×{quantity} at {market}, best price {best} against your {mine}"
       },
       "notices": {
         "popupBlocked": "The browser blocked the popup: allow popups for this site, then open the companion again.",
         "popupFallback": "Picture-in-Picture is not available: the companion opened as a popup.",
         "resizeRefused": "The browser refused to resize the window: adjust it by hand."
       }
+    },
+    "sellOrders": {
+      "title": "My sell orders",
+      "columns": {
+        "order": "Order",
+        "market": "Market",
+        "myPrice": "My price",
+        "bestPrice": "Best price",
+        "position": "Position"
+      },
+      "position": {
+        "first": "1st",
+        "undercut": "#{rank} · undercut for {duration}"
+      },
+      "duration": {
+        "minutes": "{count} min",
+        "hours": "{count} h",
+        "days": "{count} d"
+      },
+      "unknownReason": {
+        "market_not_followed": "Market not followed",
+        "no_market_data": "No market data"
+      },
+      "copyPrice": "Copy {price}",
+      "reconnect": "Log in again with {characters} to read their sell orders (new ESI permission).",
+      "empty": "No sell order for the products of this project.",
+      "hint": "Orders are read every 5 minutes. The button copies the price to paste when you edit the order in game (100 ISK below the best price); nothing is modified from evetools."
     }
   },
   "market": {

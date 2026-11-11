@@ -15,6 +15,8 @@ use App\Service\Industry\Project\ProjectCockpit;
 use App\Service\Industry\Project\ProjectCockpitCalculator;
 use App\Service\Industry\Project\ProjectPriceAlert;
 use App\Service\Industry\Project\ProjectPriceAlertReader;
+use App\Service\Industry\SellOrders\ProjectSellOrder;
+use App\Service\Industry\SellOrders\ProjectSellOrdersReader;
 use App\Service\UuidOrNotFound;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -32,6 +34,7 @@ class ProjectCockpitProvider implements ProviderInterface
         private readonly ProjectCockpitCalculator $calculator,
         private readonly ProjectCockpitInputFactory $inputFactory,
         private readonly ProjectPriceAlertReader $priceAlertReader,
+        private readonly ProjectSellOrdersReader $sellOrdersReader,
     ) {
     }
 
@@ -57,10 +60,13 @@ class ProjectCockpitProvider implements ProviderInterface
 
         $cockpit = $this->calculator->calculate($this->inputFactory->create($project, $user));
 
-        return $this->mapToResource($project, $cockpit, $this->priceAlertReader->of($project));
+        return $this->mapToResource($project, $cockpit, $this->priceAlertReader->of($project), $this->sellOrdersReader->undercutOrdersOf($project, $user));
     }
 
-    private function mapToResource(IndustryProject $project, ProjectCockpit $cockpit, ?ProjectPriceAlert $priceAlert): ProjectCockpitResource
+    /**
+     * @param list<ProjectSellOrder> $undercutOrders
+     */
+    private function mapToResource(IndustryProject $project, ProjectCockpit $cockpit, ?ProjectPriceAlert $priceAlert, array $undercutOrders): ProjectCockpitResource
     {
         $resource = new ProjectCockpitResource();
         $resource->projectId = $project->getId()->toRfc4122();
@@ -84,6 +90,7 @@ class ProjectCockpitProvider implements ProviderInterface
             'breakEvenPerUnit' => $priceAlert->breakEvenPerUnit,
             'gapPerUnit' => $priceAlert->gapPerUnit(),
         ];
+        $resource->undercutOrders = array_map(static fn (ProjectSellOrder $order): array => $order->toArray(), $undercutOrders);
 
         return $resource;
     }

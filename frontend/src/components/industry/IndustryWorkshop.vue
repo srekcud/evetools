@@ -11,9 +11,9 @@ import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useIndustryJobsSync } from '@/composables/useIndustryJobsSync'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
-import type { GroupProject, GroupProjectStatus, ProjectNextActionCode, ProjectPhase } from '@/stores/group-industry/types'
+import type { GroupProject, GroupProjectStatus, ProjectPhase } from '@/stores/group-industry/types'
 import { useIndustryStore } from '@/stores/industry'
-import { PRICE_ALERT_ACTION_CODE, useIndustryActionsStore, type IndustryAction, type IndustryActionSeverity } from '@/stores/industry/actions'
+import { PRICE_ALERT_ACTION_CODE, UNDERCUT_ORDER_ACTION_CODE, useIndustryActionsStore, type IndustryAction, type IndustryActionCode, type IndustryActionSeverity } from '@/stores/industry/actions'
 import { useSlotsStore } from '@/stores/industry/slots'
 import { useIndustryWorkshopProjectsStore, type WorkshopProject, type WorkshopProjectMember, type WorkshopProjectProfitStatus } from '@/stores/industry/workshopProjects'
 import { useStockpileStore } from '@/stores/industry/stockpile'
@@ -31,7 +31,7 @@ const SECONDS_PER_MINUTE = 60
 const MINUTES_PAD = 2
 const TEAM_FILTERS: TeamFilter[] = ['all', 'solo', 'group']
 const SOLO_MEMBERS_COUNT = 1
-const QUANTITY_CODES: readonly ProjectNextActionCode[] = ['review_contributions', 'source_material', 'launch_job', 'record_sale']
+const QUANTITY_CODES: readonly IndustryActionCode[] = ['review_contributions', 'source_material', 'launch_job', 'record_sale']
 const LIFECYCLE_STEPS: Record<GroupProjectStatus, number> = {
   draft: 1,
   published: 2,
@@ -105,6 +105,8 @@ function actionPhrase(action: IndustryAction): string {
     jitaPrice: formatIsk(action.jitaUnitPrice),
     breakEven: formatIsk(action.breakEvenPerUnit),
     gap: formatIsk(priceAlertGap(action)),
+    bestPrice: formatIsk(action.undercutOrder?.bestPrice),
+    myPrice: formatIsk(action.undercutOrder?.price),
   })
 }
 
@@ -250,7 +252,7 @@ const selectedProject = computed<GroupProject | null>(() =>
 )
 
 const selectedAction = computed<IndustryAction | null>(() =>
-  actionsStore.actions.find(action => action.projectId === selectedProject.value?.id && action.code !== PRICE_ALERT_ACTION_CODE) ?? null,
+  actionsStore.actions.find(action => action.projectId === selectedProject.value?.id && action.code !== PRICE_ALERT_ACTION_CODE && action.code !== UNDERCUT_ORDER_ACTION_CODE) ?? null,
 )
 
 function productLabel(project: GroupProject): string {

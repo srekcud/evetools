@@ -21,6 +21,7 @@ import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
 import ContributionTable from '@/components/group-industry/ContributionTable.vue'
 import JobContainersTable from '@/components/group-industry/JobContainersTable.vue'
+import ProjectSellOrdersSection from '@/components/group-industry/ProjectSellOrdersSection.vue'
 import SalesTable from '@/components/group-industry/SalesTable.vue'
 import SaleSuggestionsPanel from '@/components/group-industry/SaleSuggestionsPanel.vue'
 import ContractSaleSuggestions from '@/components/group-industry/ContractSaleSuggestions.vue'
@@ -642,6 +643,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
       </div>
 
       <div v-else-if="activeTab === 'sales'" class="relative rounded-xl" :class="{ 'hud-updated': projectUpdated }">
+        <ProjectSellOrdersSection :project-id="projectId" />
         <SalesTable :project-id="projectId" :is-admin="isOwnerOrAdmin" />
         <SaleSuggestionsPanel v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />
         <ContractSaleSuggestions v-if="isOwnerOrAdmin" :project-id="projectId" :recording-disabled="isCompleted" />

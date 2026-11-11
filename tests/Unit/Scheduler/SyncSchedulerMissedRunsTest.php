@@ -9,6 +9,7 @@ use App\Message\CheckCourierContracts;
 use App\Message\CheckMiningSiteDepletionAlerts;
 use App\Message\CheckMoonChunkAlerts;
 use App\Message\SyncBlueprints;
+use App\Message\SyncCharacterOrders;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
@@ -57,6 +58,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
 
         $this->assertSame(
             [
+                SyncCharacterOrders::class,
                 CheckMoonChunkAlerts::class,
                 CheckMiningSiteDepletionAlerts::class,
                 SyncIndustryJobs::class,

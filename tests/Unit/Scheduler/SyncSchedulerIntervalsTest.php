@@ -13,6 +13,7 @@ use App\Message\PurgeOldMarketHistory;
 use App\Message\PurgeOldNotifications;
 use App\Message\SyncAdjustedPrices;
 use App\Message\SyncBlueprints;
+use App\Message\SyncCharacterOrders;
 use App\Message\SyncCostIndices;
 use App\Message\SyncIndustryJobs;
 use App\Message\SyncPublicContracts;
@@ -65,6 +66,7 @@ class SyncSchedulerIntervalsTest extends TestCase
         TriggerCorporationMiningExtractionsSync::class => 'corporation-mining-extractions',
         TriggerMoonTaxSync::class => 'moon-tax',
         SyncBlueprints::class => 'blueprints',
+        SyncCharacterOrders::class => 'character-orders',
         SyncRegionalMarketVolumes::class => 'market-volumes',
         CheckCourierContracts::class => 'courier-contracts',
     ];
@@ -109,6 +111,7 @@ class SyncSchedulerIntervalsTest extends TestCase
             'alert-prices' => 1800,
             'ansiblex' => 43200,
             'blueprints' => 3600,
+            'character-orders' => 300,
             'corporation-mining-extractions' => 1800,
             'cost-indices' => 7200,
             'courier-contracts' => 1800,

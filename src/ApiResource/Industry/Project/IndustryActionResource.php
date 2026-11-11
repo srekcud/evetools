@@ -58,4 +58,9 @@ class IndustryActionResource
     public ?float $jitaUnitPrice = null;
 
     public ?float $breakEvenPerUnit = null;
+
+    /**
+     * @var array<string, mixed>|null
+     */
+    public ?array $undercutOrder = null;
 }

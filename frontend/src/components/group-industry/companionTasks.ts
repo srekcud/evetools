@@ -1,6 +1,6 @@
-import type { BomItem, GroupMember, GroupProject, JobMatch, ProjectPriceAlert } from '@/stores/group-industry/types'
+import type { BomItem, GroupMember, GroupProject, JobMatch, ProjectPriceAlert, ProjectSellOrder } from '@/stores/group-industry/types'
 
-export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'move_products' | 'price_below_break_even'
+export type CompanionAlertKind = 'job_ready' | 'bom_complete' | 'join_request' | 'move_products' | 'price_below_break_even' | 'undercut_sell_order'
 
 export type CompanionAlert = { key: string; kind: CompanionAlertKind }
 
@@ -17,6 +17,7 @@ export type CompanionTasks = {
   alerts: CompanionAlert[]
   moveProducts: MoveProducts
   priceAlert: ProjectPriceAlert | null
+  undercutOrders: ProjectSellOrder[]
 }
 
 export type CompanionTasksInput = {
@@ -25,6 +26,7 @@ export type CompanionTasksInput = {
   members: GroupMember[]
   myCharacterNames: string[]
   priceAlert: ProjectPriceAlert | null
+  undercutOrders: ProjectSellOrder[]
   now: number
 }
 
@@ -38,6 +40,7 @@ const OUTPUT_OUTSIDE = 'outside'
 const OUTPUT_UNKNOWN = 'unknown'
 const MOVE_PRODUCTS_ALERT_KEY = 'move_products'
 const PRICE_ALERT_KEY = 'price_below_break_even'
+const UNDERCUT_ORDER_ALERT_KEY = 'undercut_sell_order'
 
 function isFree(item: BomItem): boolean {
   const alreadyHasLinkedJob = item.isJob && item.jobMatches.length > 0
@@ -77,7 +80,7 @@ function isAdmin(project: GroupProject): boolean {
 }
 
 export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks {
-  const { bomItems, project, members, myCharacterNames, priceAlert, now } = input
+  const { bomItems, project, members, myCharacterNames, priceAlert, undercutOrders, now } = input
 
   const free = bomItems.filter(isFree)
 
@@ -109,6 +112,7 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
   const moveProducts = moveProductsOf(jobs)
   if (moveProducts.jobCount > 0) alerts.push({ key: MOVE_PRODUCTS_ALERT_KEY, kind: 'move_products' })
   if (priceAlert !== null) alerts.push({ key: PRICE_ALERT_KEY, kind: 'price_below_break_even' })
+  if (undercutOrders.length > 0) alerts.push({ key: UNDERCUT_ORDER_ALERT_KEY, kind: 'undercut_sell_order' })
   if (joinRequests !== null && joinRequests > 0) alerts.push({ key: 'join_request', kind: 'join_request' })
   if (materials.length > 0 && materials.every(material => material.isFulfilled)) {
     alerts.push({ key: 'bom_complete', kind: 'bom_complete' })
@@ -125,5 +129,6 @@ export function buildCompanionTasks(input: CompanionTasksInput): CompanionTasks 
     alerts,
     moveProducts,
     priceAlert,
+    undercutOrders,
   }
 }
