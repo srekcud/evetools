@@ -643,7 +643,6 @@ export interface ProductionOpportunity {
   iskPerSlotHour: number | null
   missingSkills: OpportunityMissingSkill[]
   groupHint: boolean
-  loss: boolean
 }
 
 export interface ProductionOpportunitiesResponse {

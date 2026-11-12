@@ -25,7 +25,6 @@ final readonly class ProductionOpportunity
         public ?float $iskPerSlotHour,
         public array $missingSkills,
         public bool $groupHint,
-        public bool $loss,
     ) {
     }
 }

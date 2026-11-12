@@ -34,7 +34,6 @@ const HAMMERHEAD_AT_JITA: ProductionOpportunity = {
   iskPerSlotHour: 138_819.92,
   missingSkills: [],
   groupHint: true,
-  loss: false,
 }
 
 const HOBGOBLIN_AT_CAPITAL: ProductionOpportunity = {
@@ -59,19 +58,6 @@ const SENTRY_NEEDING_A_SKILL: ProductionOpportunity = {
   iskPerSlotHour: null,
   missingSkills: [{ skillId: 11_433, name: 'High Energy Physics', level: 5 }],
   groupHint: true,
-}
-
-const SENTRY_AT_A_LOSS: ProductionOpportunity = {
-  ...HAMMERHEAD_AT_JITA,
-  typeId: SENTRY_TYPE_ID,
-  typeName: 'Curator II',
-  profitPerUnit: -50,
-  weeklyQuantity: null,
-  limitedBy: null,
-  weeklyProfit: null,
-  iskPerSlotHour: null,
-  groupHint: false,
-  loss: true,
 }
 
 function opportunities(rows: ProductionOpportunity[], overrides: Partial<ProductionOpportunitiesResponse> = {}): ProductionOpportunitiesResponse {
@@ -180,14 +166,6 @@ describe('ProductionOpportunitiesCard', () => {
     expect(sentry.text()).toContain(t('industry.opportunities.required', { skills: 'High Energy Physics 5' }))
     expect(sentry.find('[data-testid="opportunity-quantity"]').text()).not.toMatch(/\b0\b/)
     expect(sentry.find('[data-testid="opportunity-group-hint"]').exists()).toBe(true)
-  })
-
-  it('marks a product sold at a loss without a quantity or a profit', async () => {
-    const { wrapper, t } = await mountCard(opportunities([SENTRY_AT_A_LOSS]))
-
-    const sentry = row(wrapper, SENTRY_TYPE_ID, 'jita')
-    expect(sentry.text()).toContain(t('industry.opportunities.loss'))
-    expect(sentry.find('[data-testid="opportunity-limit"]').exists()).toBe(false)
   })
 
   it('shows an unknown quantity with its cause, never as zero, when the free slots are unknown', async () => {

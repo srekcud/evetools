@@ -18,7 +18,6 @@ final readonly class ProductionOpportunityRanker
     private const int UNTRAINED_LEVEL = 0;
     private const int OPPORTUNITY_RANK = 0;
     private const int BLOCKED_RANK = 1;
-    private const int LOSS_RANK = 2;
     private const int SINGLE_RUN = 1;
 
     private ProductionCapacityCalculator $capacity;
@@ -37,6 +36,14 @@ final readonly class ProductionOpportunityRanker
         $unknownProductCount = 0;
         foreach ($scanRowsByMarket as $market => $scanRows) {
             foreach ($scanRows as $scanRow) {
+                if (!$this->hasKnownBasis($scanRow, $context)) {
+                    ++$unknownProductCount;
+
+                    continue;
+                }
+                if ($scanRow['profitPerUnit'] <= 0.0) {
+                    continue;
+                }
                 $opportunity = $this->opportunityOf((string) $market, $scanRow, $context);
                 if (null === $opportunity) {
                     ++$unknownProductCount;
@@ -55,19 +62,30 @@ final readonly class ProductionOpportunityRanker
     /**
      * @param array<string, mixed> $scanRow
      */
+    private function hasKnownBasis(array $scanRow, OpportunityContext $context): bool
+    {
+        $baseTimeSeconds = $context->baseTimeSecondsByBlueprint[$scanRow['blueprintTypeId']] ?? null;
+
+        return null === $scanRow['unknownReason']
+            && null !== $scanRow['profitPerUnit']
+            && null !== $scanRow['unitCost']
+            && null !== $scanRow['dailyVolume']
+            && null !== $baseTimeSeconds
+            && $scanRow['unitCost'] > 0.0;
+    }
+
+    /**
+     * @param array<string, mixed> $scanRow
+     */
     private function opportunityOf(string $market, array $scanRow, OpportunityContext $context): ?ProductionOpportunity
     {
         $profitPerUnit = $scanRow['profitPerUnit'];
         $unitCost = $scanRow['unitCost'];
         $dailyVolume = $scanRow['dailyVolume'];
-        $baseTimeSeconds = $context->baseTimeSecondsByBlueprint[$scanRow['blueprintTypeId']] ?? null;
-        if (null !== $scanRow['unknownReason'] || null === $profitPerUnit || null === $unitCost || null === $dailyVolume || null === $baseTimeSeconds || $unitCost <= 0.0) {
-            return null;
-        }
+        $baseTimeSeconds = $context->baseTimeSecondsByBlueprint[$scanRow['blueprintTypeId']];
 
         $isReaction = self::REACTION_ACTIVITY === $scanRow['activityType'];
         $requiredSkills = $context->requiredSkillsByBlueprint[$scanRow['blueprintTypeId']] ?? [];
-        $loss = $profitPerUnit <= 0.0;
 
         $secondsPerRun = null;
         $missingSkills = [];
@@ -87,7 +105,7 @@ final readonly class ProductionOpportunityRanker
         $weeklyProfit = null;
         $iskPerSlotHour = null;
         $freeSlots = null === $context->freeSlots ? null : ($isReaction ? $context->freeSlots->reaction : $context->freeSlots->manufacturing);
-        if (!$loss && [] === $missingSkills && null !== $secondsPerUnit && null !== $freeSlots) {
+        if ([] === $missingSkills && null !== $secondsPerUnit && null !== $freeSlots) {
             $weekly = $this->capacity->weekly($dailyVolume, $unitCost, $context->capitalCap, $freeSlots, $secondsPerUnit);
             $quantity = $weekly->quantity;
             $limitedBy = $weekly->limitedBy;
@@ -96,7 +114,7 @@ final readonly class ProductionOpportunityRanker
         }
 
         $capitalLimit = $this->capacity->capitalLimit($context->capitalCap, $unitCost);
-        $groupHint = !$loss && ([] !== $missingSkills || (null !== $capitalLimit && $capitalLimit < $this->capacity->marketLimit($dailyVolume)));
+        $groupHint = [] !== $missingSkills || (null !== $capitalLimit && $capitalLimit < $this->capacity->marketLimit($dailyVolume));
 
         return new ProductionOpportunity(
             $scanRow['typeId'],
@@ -114,7 +132,6 @@ final readonly class ProductionOpportunityRanker
             $iskPerSlotHour,
             $missingSkills,
             $groupHint,
-            $loss,
         );
     }
 
@@ -225,11 +242,7 @@ final readonly class ProductionOpportunityRanker
 
     private function rankOf(ProductionOpportunity $opportunity): int
     {
-        return match (true) {
-            $opportunity->loss => self::LOSS_RANK,
-            [] !== $opportunity->missingSkills => self::BLOCKED_RANK,
-            default => self::OPPORTUNITY_RANK,
-        };
+        return [] !== $opportunity->missingSkills ? self::BLOCKED_RANK : self::OPPORTUNITY_RANK;
     }
 
     private function measureOf(ProductionOpportunity $opportunity, OpportunitySort $sort): ?float

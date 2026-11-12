@@ -48,7 +48,6 @@ final class ProductionOpportunityRankerTest extends TestCase
         self::assertEqualsWithDelta(5_767_967.7, $row->weeklyProfit, 0.01);
         self::assertEqualsWithDelta(138_819.92, $row->iskPerSlotHour, 0.01);
         self::assertTrue($row->groupHint);
-        self::assertFalse($row->loss);
         self::assertSame([], $row->missingSkills);
     }
 
@@ -200,29 +199,38 @@ final class ProductionOpportunityRankerTest extends TestCase
         self::assertSame(CapacityLimit::Slots, $row->limitedBy);
     }
 
-    public function testAProductAtALossComesLastWithoutAQuantityOrAProfit(): void
+    #[Group('issue-792')]
+    public function testProductsAtALossOrAtZeroProfitAreLeftOutAndNotCountedAsUnknown(): void
     {
         $ranking = $this->rank(
             ['jita' => [
                 $this->hammerhead(['typeId' => 1, 'blueprintTypeId' => 101, 'profitPerUnit' => -50.0]),
                 $this->hammerhead(['typeId' => 2, 'blueprintTypeId' => 102, 'profitPerUnit' => 10.0]),
                 $this->hammerhead(['typeId' => 3, 'blueprintTypeId' => 103, 'profitPerUnit' => 5.0]),
+                $this->hammerhead(['typeId' => 4, 'blueprintTypeId' => 104, 'profitPerUnit' => 0.0]),
             ]],
             $this->context(
                 requiredSkills: [102 => [['skillId' => self::HIGH_ENERGY_PHYSICS_SKILL_ID, 'level' => 5]]],
                 characterSkillLevels: [[]],
-                baseTimes: [101 => 1_000, 102 => 1_000, 103 => 1_000],
+                baseTimes: [101 => 1_000, 102 => 1_000, 103 => 1_000, 104 => 1_000],
                 freeSlots: new FreeSlots(5, 0),
             ),
         );
 
-        self::assertSame([3, 2, 1], array_map(static fn ($row): int => $row->typeId, $ranking->rows));
-        $loss = $ranking->rows[2];
-        self::assertTrue($loss->loss);
-        self::assertNull($loss->weeklyQuantity);
-        self::assertNull($loss->weeklyProfit);
-        self::assertNull($loss->iskPerSlotHour);
-        self::assertFalse($ranking->rows[0]->loss);
+        self::assertSame([3, 2], array_map(static fn ($row): int => $row->typeId, $ranking->rows));
+        self::assertSame(0, $ranking->unknownProductCount);
+    }
+
+    #[Group('issue-792')]
+    public function testOnlyProductsAtALossLeaveAnEmptyRanking(): void
+    {
+        $ranking = $this->rank(
+            ['jita' => [$this->hammerhead(['profitPerUnit' => -1.0])]],
+            $this->context(baseTimes: [self::HAMMERHEAD_BLUEPRINT_ID => 1_000], freeSlots: new FreeSlots(5, 0)),
+        );
+
+        self::assertSame([], $ranking->rows);
+        self::assertSame(0, $ranking->unknownProductCount);
     }
 
     public function testProductsWithUnknownDataAreLeftOutAndCounted(): void
@@ -253,7 +261,6 @@ final class ProductionOpportunityRankerTest extends TestCase
         self::assertNull($row->limitedBy);
         self::assertNull($row->weeklyProfit);
         self::assertNull($row->iskPerSlotHour);
-        self::assertFalse($row->loss);
     }
 
     public function testNoMoreThanOneHundredRowsAreReturned(): void

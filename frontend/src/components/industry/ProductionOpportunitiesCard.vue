@@ -56,8 +56,7 @@ watch(
   { immediate: true },
 )
 
-function stateOf(opportunity: ProductionOpportunity): 'loss' | 'blocked' | 'ok' {
-  if (opportunity.loss) return 'loss'
+function stateOf(opportunity: ProductionOpportunity): 'blocked' | 'ok' {
   return opportunity.missingSkills.length > 0 ? 'blocked' : 'ok'
 }
 
@@ -174,13 +173,12 @@ function rowKey(opportunity: ProductionOpportunity): string {
                 {{ formatIskFull(opportunity.sellPrice) }}
                 <div class="text-xs text-slate-500">{{ t('industry.opportunities.perDay', { count: formatNumber(opportunity.dailyVolume, 0) }) }}</div>
               </td>
-              <td class="py-2.5 px-3 text-right font-mono tabular-nums" :class="opportunity.profitPerUnit < 0 ? 'text-red-400' : 'text-slate-100'">
+              <td class="py-2.5 px-3 text-right font-mono tabular-nums text-slate-100">
                 {{ formatIskFull(opportunity.profitPerUnit) }}
                 <div v-if="opportunity.marginPercent !== null" class="text-xs text-slate-500">{{ formatNumber(opportunity.marginPercent, MARGIN_DECIMALS) }} %</div>
               </td>
               <td data-testid="opportunity-quantity" class="py-2.5 px-3 text-right font-mono tabular-nums text-slate-100">
-                <span v-if="opportunity.loss" class="font-sans text-red-400">{{ t('industry.opportunities.loss') }}</span>
-                <SellMarketUnknownValue v-else-if="opportunity.missingSkills.length > 0" :cause="t('industry.opportunities.required', { skills: requiredSkills(opportunity) })" />
+                <SellMarketUnknownValue v-if="opportunity.missingSkills.length > 0" :cause="t('industry.opportunities.required', { skills: requiredSkills(opportunity) })" />
                 <SellMarketUnknownValue v-else-if="opportunity.weeklyQuantity === null" :cause="t('industry.opportunities.unknown.slots')" />
                 <template v-else>
                   <b>{{ formatNumber(opportunity.weeklyQuantity, 0) }}</b>
