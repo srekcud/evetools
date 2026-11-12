@@ -44,6 +44,7 @@ use App\State\Provider\Assets\CharacterAssetsProvider;
             ),
         ),
     ],
+    normalizationContext: ['skip_null_values' => false],
     security: "is_granted('ROLE_USER')",
 )]
 class CharacterAssetsResource
