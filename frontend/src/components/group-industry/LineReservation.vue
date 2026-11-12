@@ -23,6 +23,7 @@ const isBusy = ref(false)
 const hasFailed = ref(false)
 
 const projectId = computed(() => projectStore.currentProject?.id ?? null)
+const isSolo = computed(() => projectStore.currentProject?.solo === true)
 const isOpen = computed(() => {
   const project = projectStore.currentProject
   return project !== null && project.status !== 'completed' && !props.item.isFulfilled
@@ -65,7 +66,7 @@ function release(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-1.5" data-testid="line-reservation">
-    <ul v-if="item.reservations.length > 0" class="flex flex-wrap gap-1">
+    <ul v-if="!isSolo && item.reservations.length > 0" class="flex flex-wrap gap-1">
       <li
         v-for="reservation in item.reservations"
         :key="reservation.participantId"
@@ -78,12 +79,12 @@ function release(): Promise<void> {
         <span v-if="reservation.isMine" class="text-cyan-400/70">({{ t('groupIndustry.reservation.mine') }})</span>
       </li>
     </ul>
-    <span v-if="isOpen && item.freeQuantity > 0 && item.reservations.length > 0" class="text-xs text-slate-500">
+    <span v-if="!isSolo && isOpen && item.freeQuantity > 0 && item.reservations.length > 0" class="text-xs text-slate-500">
       {{ t('groupIndustry.reservation.free', { quantity: formatNumber(item.freeQuantity, 0) }) }}
     </span>
 
     <div v-if="isOpen" class="flex flex-wrap items-center gap-1.5">
-      <template v-if="canReserve">
+      <template v-if="!isSolo && canReserve">
         <input
           v-model.number="quantity"
           type="number"
@@ -100,7 +101,7 @@ function release(): Promise<void> {
         >{{ t('groupIndustry.reservation.reserve') }}</button>
       </template>
       <button
-        v-if="myReservation !== null"
+        v-if="!isSolo && myReservation !== null"
         type="button"
         class="rounded border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
         :disabled="isBusy"
@@ -110,7 +111,7 @@ function release(): Promise<void> {
         type="button"
         class="rounded border border-emerald-500/40 px-2 py-0.5 text-xs text-emerald-300 hover:bg-emerald-500/10"
         @click="emit('contribute', item)"
-      >{{ t('groupIndustry.reservation.contribute') }}</button>
+      >{{ t(isSolo ? 'groupIndustry.reservation.contributeSolo' : 'groupIndustry.reservation.contribute') }}</button>
     </div>
     <p v-if="hasFailed" class="text-xs text-red-400" role="alert">{{ t('groupIndustry.reservation.failed') }}</p>
   </div>

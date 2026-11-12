@@ -19,6 +19,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
+const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { formatIsk, formatNumber } = useFormatters()
 
@@ -297,7 +298,7 @@ function isJobDimmed(job: BomItem): boolean {
                 <th class="text-center py-2.5 px-3">ME/TE</th>
                 <th class="text-center py-2.5 px-3">{{ t('groupIndustry.jobs.status') }}</th>
                 <th class="text-right py-2.5 px-6">{{ t('groupIndustry.bom.estCost') }}</th>
-                <th class="text-left py-2.5 px-3">{{ t('groupIndustry.reservation.reservedBy') }}</th>
+                <th class="text-left py-2.5 px-3">{{ isSoloProject ? '' : t('groupIndustry.reservation.reservedBy') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800/30">

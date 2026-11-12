@@ -15,6 +15,7 @@ import { CHART_COLORS } from '@/utils/chartColors'
 
 const { t } = useI18n()
 const projectStore = useGroupProjectStore()
+const isSoloProject = computed(() => projectStore.currentProject?.solo === true)
 const { getTypeIconUrl, onImageError } = useEveImages()
 const { formatIsk, formatNumber } = useFormatters()
 
@@ -115,7 +116,7 @@ function ringStrokeColor(percent: number): string {
               <th class="text-right py-2.5 px-3">{{ t('groupIndustry.bom.fulfilled') }}</th>
               <th class="text-right py-2.5 px-3">{{ t('groupIndustry.bom.remaining') }}</th>
               <th class="text-left py-2.5 px-3 w-36">{{ t('groupIndustry.bom.progress') }}</th>
-              <th class="text-left py-2.5 px-3">{{ t('groupIndustry.reservation.reservedBy') }}</th>
+              <th class="text-left py-2.5 px-3">{{ isSoloProject ? '' : t('groupIndustry.reservation.reservedBy') }}</th>
               <th class="text-right py-2.5 px-6">
                 <div class="flex items-center justify-end gap-1">
                   {{ t('groupIndustry.bom.estCost') }}

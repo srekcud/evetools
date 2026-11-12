@@ -106,6 +106,12 @@ class ProjectContributionService
             return $contribution;
         }
 
+        if ($contributor !== null && $member->getProject()->isSoleReviewingOwner($contributor)) {
+            $this->approve($contribution, $contributor);
+
+            return $contribution;
+        }
+
         $this->entityManager->flush();
 
         return $contribution;

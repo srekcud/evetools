@@ -152,9 +152,9 @@ class SubmitSoloContributionProcessorTest extends TestCase
         self::assertLessThanOrEqual($after, $contribution->getReviewedAt());
     }
 
-    public function testContributionOfTheOwnerStaysPendingWhenAnotherParticipantIsAccepted(): void
+    public function testContributionOfTheOwnerStaysPendingWhenAnotherAdminIsAccepted(): void
     {
-        $this->addParticipant(ParticipantRole::Member, ParticipantStatus::Accepted);
+        $this->addParticipant(ParticipantRole::Admin, ParticipantStatus::Accepted);
 
         $resource = $this->submitZydrine(10);
 

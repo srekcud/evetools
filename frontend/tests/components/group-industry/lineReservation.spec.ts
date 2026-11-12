@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/i18n/locales/en.json'
 import fr from '@/i18n/locales/fr.json'
 import BomTable from '@/components/group-industry/BomTable.vue'
+import JobsTable from '@/components/group-industry/JobsTable.vue'
 import LineReservation from '@/components/group-industry/LineReservation.vue'
 import { apiRequest } from '@/services/api'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
@@ -51,9 +52,9 @@ function project(status: GroupProject['status']): GroupProject {
   return { id: PROJECT_ID, name: 'Ishtar batch', status } as GroupProject
 }
 
-function mountReservation(item: BomItem, status: GroupProject['status'] = 'in_progress'): VueWrapper {
+function mountReservation(item: BomItem, status: GroupProject['status'] = 'in_progress', solo = false): VueWrapper {
   setActivePinia(createPinia())
-  useGroupProjectStore().currentProject = project(status)
+  useGroupProjectStore().currentProject = { ...project(status), solo }
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
 
   return mount(LineReservation, { props: { item }, global: { plugins: [i18n] } })
@@ -175,5 +176,76 @@ describe('BomTable reservation column', () => {
     expect(wrapper.text()).toContain('Reserved by')
     expect(wrapper.text()).toContain('Brann Holt')
     expect(wrapper.emitted('contribute')).toEqual([[item]])
+  })
+})
+
+describe('Solo project line action', () => {
+  it('offers a single I supplied it action and no reservation block on an incomplete line', async () => {
+    const wrapper = mountReservation(line({ freeQuantity: 80 }), 'in_progress', true)
+
+    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['I supplied it'])
+    expect(wrapper.find('input[type="number"]').exists()).toBe(false)
+
+    await buttonLabelled(wrapper, 'I supplied it')!.trigger('click')
+
+    expect(wrapper.emitted('contribute')).toHaveLength(1)
+  })
+
+  it('offers no action once the line is fulfilled', () => {
+    const wrapper = mountReservation(line({ isFulfilled: true, remainingQuantity: 0, freeQuantity: 0 }), 'in_progress', true)
+
+    expect(wrapper.findAll('button')).toHaveLength(0)
+  })
+
+  it('keeps the reservation block on a group project', () => {
+    const wrapper = mountReservation(line({ freeQuantity: 80 }), 'in_progress', false)
+
+    expect(wrapper.findAll('button').map(button => button.text())).toEqual(["I'll handle it", 'Contribute'])
+  })
+})
+
+describe('BomTable on a solo project', () => {
+  function mountBomTable(solo: boolean): VueWrapper {
+    setActivePinia(createPinia())
+    const store = useGroupProjectStore()
+    store.currentProject = { ...project('in_progress'), solo }
+    store.bomItems = [line({})]
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
+
+    return mount(BomTable, { global: { plugins: [i18n] } })
+  }
+
+  it('drops the Reserved by column but keeps the line action', () => {
+    const wrapper = mountBomTable(true)
+
+    expect(wrapper.text()).not.toContain('Reserved by')
+    expect(buttonLabelled(wrapper, 'I supplied it')).toBeDefined()
+  })
+
+  it('keeps the Reserved by column on a group project', () => {
+    expect(mountBomTable(false).text()).toContain('Reserved by')
+  })
+})
+
+describe('JobsTable on a solo project', () => {
+  function mountJobsTable(solo: boolean): VueWrapper {
+    setActivePinia(createPinia())
+    const store = useGroupProjectStore()
+    store.currentProject = { ...project('in_progress'), solo }
+    store.bomItems = [line({ id: 'job-ishtar', typeName: 'Ishtar', isJob: true, jobGroup: 'final', activityType: 'manufacturing', runs: 2 })]
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
+
+    return mount(JobsTable, { global: { plugins: [i18n], stubs: { teleport: true } } })
+  }
+
+  it('drops the Reserved by column but keeps the line action', () => {
+    const wrapper = mountJobsTable(true)
+
+    expect(wrapper.text()).not.toContain('Reserved by')
+    expect(buttonLabelled(wrapper, 'I supplied it')).toBeDefined()
+  })
+
+  it('keeps the Reserved by column on a group project', () => {
+    expect(mountJobsTable(false).text()).toContain('Reserved by')
   })
 })

@@ -3109,6 +3109,7 @@
       "reserve": "I'll handle it",
       "release": "Release",
       "contribute": "Contribute",
+      "contributeSolo": "I supplied it",
       "quantity": "Quantity to handle",
       "free": "{quantity} free",
       "mine": "you",

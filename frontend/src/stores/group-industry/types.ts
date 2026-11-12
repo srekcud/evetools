@@ -62,6 +62,7 @@ export type GroupProject = {
   containerName: string | null
   private: boolean
   personalUse?: boolean
+  solo?: boolean
   acceptsOutsideFavoriteSystem: boolean
   minimumOutsideSaving: number
   sellStructureId: number | null

@@ -409,9 +409,10 @@ async function submit(): Promise<void> {
 
     <!-- Footer -->
     <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
-      <p class="text-xs text-slate-500">
+      <p v-if="projectStore.currentProject?.solo !== true" class="text-xs text-slate-500">
         {{ t('groupIndustry.contribute.pendingNote') }}
       </p>
+      <span v-else></span>
       <div class="flex gap-3">
         <button
           @click="emit('close')"
