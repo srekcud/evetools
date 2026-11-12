@@ -30,6 +30,7 @@ import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.v
 import MiningStockpileCoverage from '@/components/mining-operation/MiningStockpileCoverage.vue'
 import OreSalePanel from '@/components/ledger/OreSalePanel.vue'
 import { useStockpileCoverage } from '@/composables/useStockpileCoverage'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import MiningUnitPrices from '@/components/mining-operation/MiningUnitPrices.vue'
 import MiningValuationRules from '@/components/mining-operation/MiningValuationRules.vue'
 import MiningValuationSettings from '@/components/mining-operation/MiningValuationSettings.vue'
@@ -452,6 +453,8 @@ watch(showsHaulerPlan, (shows) => {
   if (!shows) return
   haulerPlanTicker = setInterval(() => store.fetchHaulerPlan(operationId.value), HAULER_PLAN_RELOAD_SECONDS * MILLISECONDS_PER_SECOND)
 })
+
+useRefetchOnReconnect(load)
 
 watch(
   () => syncStore.corporationAssetsProgress?.status,

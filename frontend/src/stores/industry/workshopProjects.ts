@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useSyncStore } from '@/stores/sync'
 import type { GroupMemberRole, ProjectPhase } from '@/stores/group-industry/types'
 
@@ -42,6 +43,8 @@ export const useIndustryWorkshopProjectsStore = defineStore('industry-workshop-p
   watch(() => syncStore.getSyncProgress('industry-project'), () => {
     void fetchWorkshopProjects()
   })
+
+  useRefetchOnReconnect(fetchWorkshopProjects)
 
   return { rows, isLoaded, error, fetchWorkshopProjects }
 })

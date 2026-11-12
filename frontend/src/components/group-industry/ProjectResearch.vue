@@ -6,6 +6,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useGroupResearchStore } from '@/stores/group-industry/research'
 import type { ResearchCost, ResearchDuration, ResearchRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 const props = defineProps<{
@@ -47,6 +48,8 @@ watch(
     researchStore.fetchResearch(props.projectId)
   },
 )
+
+useRefetchOnReconnect(() => researchStore.fetchResearch(props.projectId))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),

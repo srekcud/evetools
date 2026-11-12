@@ -62,6 +62,7 @@ import { DETAIL_TABS, detailTabOfNextAction, type ProjectDetailTab } from './pro
 import { PROJECTS_HOME } from './projectsHome'
 import { groupProjectRefreshes, refreshesActivityOn, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 
 const { t } = useI18n()
 const editNameFieldId = useId()
@@ -215,6 +216,12 @@ watch(
     ]).then(flashProject)
   },
 )
+
+useRefetchOnReconnect(() => Promise.all([
+  refreshGroupProject.bom(projectId.value),
+  refreshGroupProject.projectDetail(projectId.value),
+  refreshGroupProject.cockpit(projectId.value),
+]).then(flashProject))
 
 // Tab switching triggers lazy data loading
 watch(activeTab, (tab) => {

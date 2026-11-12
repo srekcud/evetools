@@ -9,6 +9,7 @@ import MiningModuleTabs from '@/components/mining-module/MiningModuleTabs.vue'
 import MiningSubTabs from '@/components/mining-module/MiningSubTabs.vue'
 import MiningStatusBadge from '@/components/mining-operation/MiningStatusBadge.vue'
 import NewMiningOperationModal from '@/components/mining-operation/NewMiningOperationModal.vue'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useTabQuery } from '@/composables/useTabQuery'
 import { useKnownCorporation } from '@/composables/useKnownCorporation'
 import { useMiningCompanionStore } from '@/stores/miningCompanion'
@@ -145,6 +146,8 @@ function openCreatedOperation(operationId: string): void {
 function openDetail(operation: MiningOperation): void {
   router.push(detailTarget(operation))
 }
+
+useRefetchOnReconnect(loadLists)
 
 onMounted(async () => {
   await loadLists()
