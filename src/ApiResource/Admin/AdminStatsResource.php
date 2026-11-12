@@ -24,6 +24,7 @@ use App\State\Provider\Admin\AdminStatsProvider;
         new Get(
             uriTemplate: '/admin/stats',
             provider: AdminStatsProvider::class,
+            normalizationContext: ['skip_null_values' => false],
             openapi: new Model\Operation(summary: 'Get admin statistics', tags: ['Administration']),
         ),
     ],
