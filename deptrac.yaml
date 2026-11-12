@@ -176,6 +176,9 @@ deptrac:
     App\State\Processor\Industry\Project\UpdateParticipantProcessor:
       - App\State\Provider\Industry\Project\ProjectResourceMapper
       - App\State\Provider\Industry\Project\ProjectAccessChecker
+    App\State\Processor\Industry\Project\DeclareT2BlueprintCopiesProcessor:
+      - App\State\Provider\Industry\Project\ProjectAccessChecker
+      - App\State\Provider\Industry\Project\ProjectT2BlueprintCopyProposalResourceMapper
     App\State\Processor\Industry\Project\UpdateSaleProcessor:
       - App\State\Provider\Industry\Project\ProjectAccessChecker
     App\State\Processor\Industry\Project\UpdateProjectProcessor:

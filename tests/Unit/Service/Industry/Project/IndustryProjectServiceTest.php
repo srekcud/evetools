@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectDeclaredBlueprintCopy;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\IndustryProjectParticipant;
@@ -14,6 +15,7 @@ use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
+use App\Exception\InventionProbabilityMissingException;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Enum\IndustryActivityType;
@@ -1004,6 +1006,149 @@ final class IndustryProjectServiceTest extends TestCase
         );
     }
 
+    #[Group('issue-804')]
+    public function testHailLRunsFullyCoveredByDeclaredBlueprintCopiesHaveNoInventionNoT1CopyNoDatacoreAndNoCopyOfTheT2Blueprint(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]]);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 15)]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([[self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null]], $this->jobLines($project));
+        $this->assertSame([self::MORPHITE => 221], $this->materialQuantities($project));
+    }
+
+    #[Group('issue-804')]
+    public function testHailLRunsPartiallyCoveredPlanTheInventionOnlyForTheRunsLeftToInvent(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]]);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 6)]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 6, 6, null],
+                [self::HAIL_L, 'invention', 'blueprint', 6, 6, null],
+                [self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null],
+            ],
+            $this->jobLines($project),
+        );
+        $this->assertSame(
+            [self::MORPHITE => 221, self::DATACORE_NUCLEAR_PHYSICS => 6, self::DATACORE_MECHANICAL_ENGINEERING => 12],
+            $this->materialQuantities($project),
+        );
+    }
+
+    #[Group('issue-804')]
+    public function testHailLRunsWithoutDeclaredBlueprintCopyPlanTheInventionOfEveryRun(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 10, 10, null],
+                [self::HAIL_L, 'invention', 'blueprint', 10, 10, null],
+                [self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null],
+            ],
+            $this->jobLines($project),
+        );
+        $this->assertSame(
+            [self::MORPHITE => 221, self::DATACORE_NUCLEAR_PHYSICS => 10, self::DATACORE_MECHANICAL_ENGINEERING => 20],
+            $this->materialQuantities($project),
+        );
+    }
+
+    #[Group('issue-804')]
+    public function testDeclaredRunsAboveTheManufacturingRunsCoverTheProductWithoutInvention(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 12]]);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 40)]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([[self::HAIL_L, 'manufacturing', 'final', 12, 60_000, null]], $this->jobLines($project));
+        $this->assertSame([self::MORPHITE => 177], $this->materialQuantities($project));
+    }
+
+    #[Group('issue-804')]
+    public function testFullyCoveredProductDoesNotRequireItsInventionProbability(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns(probability: null);
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]]);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 15)]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([[self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null]], $this->jobLines($project));
+    }
+
+    #[Group('issue-804')]
+    public function testPartiallyCoveredProductStillRequiresItsInventionProbability(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns(probability: null);
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]]);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 14)]);
+
+        $this->expectException(InventionProbabilityMissingException::class);
+
+        $this->service()->buildBom($project, $this->createUser());
+    }
+
+    #[Group('issue-804')]
+    public function testT1CopySharedByTwoInventedProductsKeepsTheAttemptsOfTheProductThatIsNotCovered(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns(prototypeAmmunitionLFromTheSameT1Blueprint: true);
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $this->givenRecipe(self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', [self::MORPHITE => 7], outputPerRun: 100, maxProductionLimit: 40, hasCopyActivity: true);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15], [self::PROTOTYPE_AMMUNITION_L, 'Prototype Ammunition L', 8]]);
+        $project->replaceDeclaredBlueprintCopies([new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 15)]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame(
+            [
+                [self::DEPLETED_URANIUM_L, 'copy', 'blueprint', 8, 8, null],
+                [self::HAIL_L, 'manufacturing', 'final', 15, 75_000, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'invention', 'blueprint', 8, 8, null],
+                [self::PROTOTYPE_AMMUNITION_L, 'manufacturing', 'final', 8, 800, null],
+            ],
+            $this->jobLines($project),
+        );
+        $this->assertSame(
+            [self::MORPHITE => 276, self::DATACORE_MECHANICAL_ENGINEERING => 40],
+            $this->materialQuantities($project),
+        );
+    }
+
+    #[Group('issue-804')]
+    public function testDeclarationOfAProductAbsentFromThePlanIsIgnoredWhileTheOtherDeclarationApplies(): void
+    {
+        $this->givenInventionOfHailLWithFortyPercentSuccessOverFourRuns();
+        $this->givenRecipe(self::HAIL_L, 'Hail L', [self::MORPHITE => 15], outputPerRun: 5000, maxProductionLimit: 40);
+        $project = $this->projectWithItems([[self::HAIL_L, 'Hail L', 15]]);
+        $project->replaceDeclaredBlueprintCopies([
+            new IndustryProjectDeclaredBlueprintCopy(self::PROTOTYPE_AMMUNITION_L, 15),
+            new IndustryProjectDeclaredBlueprintCopy(self::HAIL_L, 6),
+        ]);
+
+        $this->service()->buildBom($project, $this->createUser());
+
+        $this->assertSame([6], $this->runsOf($project, self::HAIL_L, 'invention'));
+    }
+
     private function copyLineOf(IndustryProject $project): IndustryProjectBomLine
     {
         $copyLines = array_values(array_filter($this->getJobBomItems($project), static fn (IndustryProjectBomLine $job): bool => 'copy' === $job->getActivityType()));
@@ -1224,6 +1369,33 @@ final class IndustryProjectServiceTest extends TestCase
             self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L,
             self::PROTOTYPE_AMMUNITION_L_T1_BLUEPRINT => self::PROTOTYPE_T1_AMMUNITION_L,
         ];
+    }
+
+    private function givenInventionOfHailLWithFortyPercentSuccessOverFourRuns(?float $probability = 0.4, bool $prototypeAmmunitionLFromTheSameT1Blueprint = false): void
+    {
+        $this->inventionService->method('getInventionData')->willReturnCallback(static fn (int $t2TypeId): ?array => match ($t2TypeId) {
+            self::HAIL_L => [
+                't1BlueprintTypeId' => self::HAIL_L_T1_BLUEPRINT,
+                't2BlueprintTypeId' => self::HAIL_L + self::BLUEPRINT_TYPE_ID_OFFSET,
+                'probability' => $probability,
+                'baseRuns' => 4,
+                'materials' => [
+                    ['typeId' => self::DATACORE_NUCLEAR_PHYSICS, 'typeName' => 'Datacore - Nuclear Physics', 'quantity' => 1],
+                    ['typeId' => self::DATACORE_MECHANICAL_ENGINEERING, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 2],
+                ],
+            ],
+            self::PROTOTYPE_AMMUNITION_L => $prototypeAmmunitionLFromTheSameT1Blueprint ? [
+                't1BlueprintTypeId' => self::HAIL_L_T1_BLUEPRINT,
+                't2BlueprintTypeId' => self::PROTOTYPE_AMMUNITION_L + self::BLUEPRINT_TYPE_ID_OFFSET,
+                'probability' => 0.5,
+                'baseRuns' => 2,
+                'materials' => [
+                    ['typeId' => self::DATACORE_MECHANICAL_ENGINEERING, 'typeName' => 'Datacore - Mechanical Engineering', 'quantity' => 5],
+                ],
+            ] : null,
+            default => null,
+        });
+        $this->t1ProductByBlueprint = [self::HAIL_L_T1_BLUEPRINT => self::DEPLETED_URANIUM_L];
     }
 
     private function createUser(): User&Stub

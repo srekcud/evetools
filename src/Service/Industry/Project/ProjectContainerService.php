@@ -158,7 +158,9 @@ class ProjectContainerService
         }
 
         $quantities = [];
+        $contentItemIds = [];
         foreach ($named['contents'] as $content) {
+            $contentItemIds[] = $content->getItemId();
             if (isset($subContainerItemIds[$content->getItemId()])) {
                 continue;
             }
@@ -167,7 +169,7 @@ class ProjectContainerService
             $quantities[$typeId] = isset($quantities[$typeId]) ? $quantities[$typeId] + $content->getQuantity() : $content->getQuantity();
         }
 
-        return new ProjectContainerStock(null, $quantities);
+        return new ProjectContainerStock(null, $quantities, $contentItemIds);
     }
 
     private function containerNameOf(IndustryProject $project): ?string

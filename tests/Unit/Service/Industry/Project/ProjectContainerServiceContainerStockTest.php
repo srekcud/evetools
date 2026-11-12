@@ -102,6 +102,31 @@ final class ProjectContainerServiceContainerStockTest extends TestCase
         self::assertSame(['no_container_name', []], [$stock->unknownReason, $stock->quantitiesByTypeId]);
     }
 
+    #[Group('issue-804')]
+    public function testContainerStockExposesTheItemIdsOfTheContentsOfTheNamedContainerAndItsSubContainersOnly(): void
+    {
+        $build = $this->cache(self::STATION_CONTAINER, 1, self::OFFICE_ITEM_ID, 'CorpSAG2', self::CONTAINER_NAME);
+        $hydrogen = $this->cache(self::HYDROGEN_FUEL_BLOCK, 40, $build, 'Unlocked', null);
+        $minerals = $this->cache(self::STATION_CONTAINER, 1, $build, 'Unlocked', 'Minerals');
+        $fernite = $this->cache(self::FERNITE_ALLOY, 220, $minerals, 'Unlocked', null);
+        $this->cache(self::FERNITE_ALLOY, 999, self::OFFICE_ITEM_ID, 'CorpSAG2', null);
+
+        $stock = $this->service->containerStockOf($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertEqualsCanonicalizing([$hydrogen, $minerals, $fernite], $stock->contentItemIds);
+        self::assertNotContains($build, $stock->contentItemIds);
+    }
+
+    #[Group('issue-804')]
+    public function testContainerStockHasNoContentItemIdWhenNoVisibleContainerHasTheName(): void
+    {
+        $this->cache(self::STATION_CONTAINER, 1, self::OFFICE_ITEM_ID, 'CorpSAG2', 'Spare');
+
+        $stock = $this->service->containerStockOf($this->projectUsingContainer(self::CONTAINER_NAME));
+
+        self::assertSame(['container_not_found', []], [$stock->unknownReason, $stock->contentItemIds]);
+    }
+
     private function projectUsingContainer(?string $containerName): IndustryProject
     {
         $owner = $this->createStub(User::class);

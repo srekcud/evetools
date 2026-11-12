@@ -115,6 +115,10 @@ class IndustryProject
     #[ORM\OneToMany(targetEntity: IndustryProjectSale::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $sales;
 
+    /** @var Collection<int, IndustryProjectDeclaredBlueprintCopy> */
+    #[ORM\OneToMany(targetEntity: IndustryProjectDeclaredBlueprintCopy::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $declaredBlueprintCopies;
+
     public function __construct()
     {
         $this->id = Uuid::v7();
@@ -125,6 +129,7 @@ class IndustryProject
         $this->bomItems = new ArrayCollection();
         $this->contributions = new ArrayCollection();
         $this->sales = new ArrayCollection();
+        $this->declaredBlueprintCopies = new ArrayCollection();
     }
 
     private static function generateShortLinkCode(): string
@@ -500,6 +505,49 @@ class IndustryProject
         $this->bomItems->removeElement($bomItem);
 
         return $this;
+    }
+
+    /** @return Collection<int, IndustryProjectDeclaredBlueprintCopy> */
+    public function getDeclaredBlueprintCopies(): Collection
+    {
+        return $this->declaredBlueprintCopies;
+    }
+
+    /** @param list<IndustryProjectDeclaredBlueprintCopy> $declaredBlueprintCopies */
+    public function replaceDeclaredBlueprintCopies(array $declaredBlueprintCopies): static
+    {
+        $existingByProductTypeId = [];
+        foreach ($this->declaredBlueprintCopies as $existingCopy) {
+            $existingByProductTypeId[$existingCopy->getProductTypeId()] = $existingCopy;
+        }
+
+        $retainedCopies = [];
+        foreach ($declaredBlueprintCopies as $declaredBlueprintCopy) {
+            $existingCopy = $existingByProductTypeId[$declaredBlueprintCopy->getProductTypeId()] ?? null;
+            if (null !== $existingCopy && $existingCopy !== $declaredBlueprintCopy) {
+                $retainedCopies[] = $existingCopy->setRuns($declaredBlueprintCopy->getRuns());
+            } else {
+                $retainedCopies[] = $declaredBlueprintCopy;
+            }
+        }
+
+        $this->declaredBlueprintCopies->clear();
+        foreach ($retainedCopies as $retainedCopy) {
+            $this->declaredBlueprintCopies->add($retainedCopy->setProject($this));
+        }
+
+        return $this;
+    }
+
+    /** @return array<int, int> */
+    public function declaredRunsByProductTypeId(): array
+    {
+        $runsByProductTypeId = [];
+        foreach ($this->declaredBlueprintCopies as $declaredBlueprintCopy) {
+            $runsByProductTypeId[$declaredBlueprintCopy->getProductTypeId()] = $declaredBlueprintCopy->getRuns();
+        }
+
+        return $runsByProductTypeId;
     }
 
     /** @return Collection<int, IndustryProjectContribution> */
