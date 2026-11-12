@@ -12,6 +12,7 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\BatchProfitScannerService;
 use App\Service\Industry\SalesFees\SalesFees;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
+use App\Service\Industry\SellQuoteReading;
 use App\State\Provider\Industry\BatchScanProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -344,6 +345,11 @@ class BatchScanProviderTest extends TestCase
         $arguments = $this->argumentsReceivedByTheScanner(new Request(), new IndustryUserSettings(), $user, new SalesFees(0.0215, 0.0337));
 
         $this->assertEquals(new SalesFees(0.0215, 0.0337), $arguments[6]);
+    }
+
+    public function testScannerReadsJitaQuotesFromTheCacheOnlySoAColdScanCannotTimeOut(): void
+    {
+        $this->assertSame(SellQuoteReading::CachedOnly, $this->argumentsReceivedByTheScanner(new Request(['sellVenue' => 'structure']), null)[10] ?? null);
     }
 
     private function settings(?int $favoriteManufacturingSystemId, ?int $favoriteReactionSystemId): IndustryUserSettings

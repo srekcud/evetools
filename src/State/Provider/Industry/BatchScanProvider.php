@@ -13,6 +13,7 @@ use App\Repository\IndustryUserSettingsRepository;
 use App\Service\Industry\SalesFees\SellerSalesFeesResolver;
 use App\Service\Industry\AnalysisSolarSystems;
 use App\Service\Industry\BatchProfitScannerService;
+use App\Service\Industry\SellQuoteReading;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -79,6 +80,7 @@ class BatchScanProvider implements ProviderInterface
             $exportCostPerM3,
             $user,
             $solarSystems->reactionSolarSystemId,
+            SellQuoteReading::CachedOnly,
         );
 
         return array_map([$this, 'mapToResource'], $results);
