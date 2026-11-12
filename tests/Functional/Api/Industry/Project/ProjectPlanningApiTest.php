@@ -7,6 +7,9 @@ namespace App\Tests\Functional\Api\Industry\Project;
 use App\Entity\CachedCharacterSkill;
 use App\Entity\Character;
 use App\Entity\IndustryProject;
+use App\Entity\Sde\InvCategory;
+use App\Entity\Sde\InvGroup;
+use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
@@ -26,6 +29,8 @@ final class ProjectPlanningApiTest extends WebTestCase
     private const int HULL_RUNS = 3;
     private const int HULL_TE_LEVEL = 10;
     private const int HULL_DURATION_SECONDS = 11_016;
+    private const int BLUEPRINT_CATEGORY_ID = 990_747_001;
+    private const int BLUEPRINT_GROUP_ID = 990_747_002;
 
     private const array PLANNING_KEYS = [
         'anchor',
@@ -221,6 +226,48 @@ final class ProjectPlanningApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertTrue($this->responseJson()['structureTimeBonusIncluded']);
+    }
+
+    #[Group('issue-747')]
+    public function testJobOfALaneCarriesTheNameOfTheBlueprintThatBuildsItsProduct(): void
+    {
+        self::assertSame('Synthetic Hull Blueprint', $this->blueprintNameOfTheHullJob(true));
+    }
+
+    #[Group('issue-747')]
+    public function testJobWhoseBlueprintHasNoSdeTypeCarriesNoBlueprintNameInsteadOfAGuessedOne(): void
+    {
+        self::assertNull($this->blueprintNameOfTheHullJob(false));
+    }
+
+    private function blueprintNameOfTheHullJob(bool $withBlueprintType): ?string
+    {
+        $this->insertHullBlueprint();
+        if ($withBlueprintType) {
+            $category = (new InvCategory())->setCategoryId(self::BLUEPRINT_CATEGORY_ID)->setCategoryName('Test Blueprint');
+            $group = (new InvGroup())->setGroupId(self::BLUEPRINT_GROUP_ID)->setGroupName('Test Blueprint Group')->setCategory($category);
+            $this->em->persist($category);
+            $this->em->persist($group);
+            $this->em->persist((new InvType())->setTypeId(self::HULL_BLUEPRINT_TYPE_ID)->setTypeName('Synthetic Hull Blueprint')->setGroup($group)->setPublished(true));
+        }
+        $this->cacheSkills($this->owner->getMainCharacter(), [
+            CachedCharacterSkill::SKILL_INDUSTRY => 5,
+            CachedCharacterSkill::SKILL_ADVANCED_INDUSTRY => 5,
+        ]);
+        $hullBatch = $this->persistProject('Hull batch');
+        $this->addMembership($hullBatch, $this->owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addJobLine($hullBatch, self::HULL_TYPE_ID, 'Synthetic Hull', 'final', self::HULL_RUNS, self::HULL_RUNS, 10, self::HULL_TE_LEVEL, null);
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->planningUri($hullBatch));
+
+        self::assertResponseStatusCodeSame(200);
+        $jobs = array_merge(...array_column($this->responseJson()['characters'], 'jobs'));
+        self::assertCount(1, $jobs);
+        self::assertArrayHasKey('blueprintName', $jobs[0]);
+
+        return $jobs[0]['blueprintName'];
     }
 
     public function testPilotOfAnotherCorporationIsRefusedThePlanning(): void

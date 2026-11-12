@@ -121,9 +121,9 @@ describe('ProjectPlanning figures', () => {
     const wrapper = await mountPlanning(projectPlanning({
       characters: [CORIN_WITHOUT_SKILLS],
       unscheduled: [
-        { lineId: HULL_LINE_ID, typeName: 'Hull Rework', reason: 'no_eligible_worker' },
-        { lineId: NOCXIUM_LINE_ID, typeName: 'Nocxium Reaction', reason: 'duration_unknown' },
-        { lineId: ISHTAR_LINE_ID, typeName: 'Ishtar', reason: 'dependency_unscheduled' },
+        { lineId: HULL_LINE_ID, typeName: 'Hull Rework', blueprintName: null, reason: 'no_eligible_worker' },
+        { lineId: NOCXIUM_LINE_ID, typeName: 'Nocxium Reaction', blueprintName: null, reason: 'duration_unknown' },
+        { lineId: ISHTAR_LINE_ID, typeName: 'Ishtar', blueprintName: null, reason: 'dependency_unscheduled' },
       ],
     }))
 

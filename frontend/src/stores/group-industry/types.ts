@@ -867,6 +867,7 @@ export type PlanningJob = {
   lineId: string
   typeId: number
   typeName: string
+  blueprintName: string | null
   activity: PlanningActivity
   runs: number
   planned: { start: string; end: string } | null
@@ -886,6 +887,7 @@ export type PlanningCharacter = {
 export type PlanningUnscheduled = {
   lineId: string
   typeName: string
+  blueprintName: string | null
   reason: PlanningUnscheduledReason
 }
 

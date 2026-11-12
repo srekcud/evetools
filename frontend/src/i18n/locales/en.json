@@ -2669,6 +2669,9 @@
       "noJob": "No job",
       "skillsUnknownCause": "Skills not synchronized: no job can be given to this character",
       "runs": "{runs} runs",
+      "copyBlueprintName": "Copy the blueprint name {name}",
+      "blueprintNameCopied": "Blueprint name copied",
+      "blueprintNameCopyFailed": "Copy failed: the browser refused access to the clipboard",
       "activity": {
         "manufacturing": "Manufacturing",
         "reaction": "Reaction"

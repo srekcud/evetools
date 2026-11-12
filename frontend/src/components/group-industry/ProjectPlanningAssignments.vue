@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { PlanningCharacter } from '@/stores/group-industry/types'
+import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 defineProps<{
@@ -73,6 +74,7 @@ function endsAtCell(character: PlanningCharacter): 'known' | 'none' | 'unknown' 
             <ul v-else class="space-y-0.5">
               <li v-for="job in character.jobs" :key="job.lineId" class="flex items-baseline gap-1.5 min-w-0">
                 <span :title="job.typeName" class="truncate">{{ job.typeName }}</span>
+                <BlueprintNameCopyButton :blueprint-name="job.blueprintName" />
                 <span class="shrink-0 text-xs text-slate-500">{{ t('groupIndustry.planning.runs', { runs: job.runs }) }}</span>
               </li>
             </ul>
