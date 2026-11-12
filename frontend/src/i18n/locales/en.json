@@ -1541,6 +1541,9 @@
       "unknownCount": "{count} products left out: data missing",
       "feesUnknown": "Seller fees unknown: sync the skills and standings of your main character",
       "empty": "No product to show",
+      "emptyProfitable": "No profitable product found with complete data.",
+      "showLosses": "Show products at a loss ({count})",
+      "hideLosses": "Hide products at a loss ({count})",
       "footnote": "* Weekly profit if everything sells at the current price, net of the seller fees. Quantity = the smallest of the market (10 % of the daily volume × 7), the capital (cap ÷ unit cost) and the slots (free slots × 168 h ÷ time per unit)."
     },
     "sellMarkets": {
