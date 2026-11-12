@@ -1,7 +1,6 @@
 ---
 name: tdd-red
 description: Phase rouge du TDD — écrit uniquement les tests à partir d'une spec validée, et prouve qu'ils échouent pour la bonne raison.
-disable-model-invocation: true
 argument-hint: <numéro d'issue>
 ---
 
@@ -22,4 +21,4 @@ Entrée : une spec validée dans `docs/specs/$ARGUMENTS-*.md`. Sans spec validé
 5b. **Contrôle avant verrouillage** : chaque dépendance de la note de câblage a sa place dans le harnais, et chaque test existant appelé à casser est listé avec sa raison. S'il manque une dépendance, complète le harnais maintenant ou arrête-toi. N'écris pas `green`.
 5c. **Lint des tests** : si `frontend/tests/` est touché, lance `npm --prefix frontend run lint` et corrige les erreurs maintenant (espaces insécables littéraux dans une regex, variables inutilisées) : après le verrouillage, le lint ne peut plus être corrigé sans rouvrir la phase.
 6. Écris `green` dans `.claude/state/tdd-phase` (crée le dossier si besoin). À partir de là, le hook `tdd-guard` bloque toute modification de `tests/`.
-7. 🚦 Ajoute le lot à `.claude/tasks/red-queue.md`, puis présente les tests à Sylvain. Ils sont la spec exécutable : rien ne passe à `/tdd-green` sans son accord.
+7. 🚦 Ajoute le lot à `.claude/tasks/red-queue.md`. **Mode nuit, par défaut** : la phase rouge est validée en autonomie, résumé des tests au journal, puis `/tdd-green`. **Mode jour**, seulement si Sylvain le demande : présente-lui les tests, rien ne passe à `/tdd-green` sans son accord.

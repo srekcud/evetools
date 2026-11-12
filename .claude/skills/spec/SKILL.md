@@ -1,7 +1,6 @@
 ---
 name: spec
 description: Transforme une issue en spec validée (docs/specs/<n>-<slug>.md) par une série de questions courtes, avant toute phase TDD.
-disable-model-invocation: true
 argument-hint: <numéro d'issue>
 ---
 
@@ -9,7 +8,7 @@ Issue : $ARGUMENTS
 
 1. Lis l'issue (`gh issue view $ARGUMENTS --json title,body,comments` : sans `--json`, `gh` échoue sur l'API Projects classic), `docs/glossary.md`, les ADR pertinentes et le code concerné. Pour chaque service existant que la spec modifie ou réutilise, lis ses tests de caractérisation et son harnais (`grep -rln "<Classe>\|Currently.*Issue" tests`). Vérifie tout ce qui est vérifiable avant de poser une question.
 1b. **Preuves de l'issue** (audits périmés constatés en #149, #178, #180, #192) : vérifie chaque preuve citée (`fichier::méthode`, valeur, comportement) dans le code actuel, et lance `git log -S '<symbole>' --oneline -- <fichier>` pour retrouver un correctif déjà passé. Une preuve fausse va dans le journal et son point sort de la spec ; si aucune ne tient, propose la fermeture de l'issue au lieu d'une spec.
-2. **Interroge Sylvain en mode interactif** : invoque la skill `ask` (outil `AskUserQuestion`, choix guidés avec recommandation en premier), par petits groupes de questions (2 ou 3 à la fois), en adaptant les suivantes aux réponses. Couvre :
+2. **Tranche les questions** avec la skill `ask` (en mode nuit, elle retient la recommandation sans poser de question ; en mode jour, outil `AskUserQuestion` choix guidés avec recommandation en premier, par petits groupes de questions (2 ou 3 à la fois), en adaptant les suivantes aux réponses. Couvre :
    - le comportement attendu, avec des exemples chiffrés (entrée → sortie attendue) ;
    - les cas limites (produit à plusieurs unités par run, arrondis, données ESI manquantes, réactions…) ;
    - ce qui est explicitement hors périmètre ;
@@ -26,6 +25,6 @@ Issue : $ARGUMENTS
    - hors périmètre ;
    - termes du glossaire ajoutés ou modifiés.
 4. Mets à jour `docs/glossary.md` si des termes ont été validés.
-5. 🚦 Présente la spec. Elle n'est validée qu'avec l'accord explicite de Sylvain. Ce n'est qu'ensuite que `/tdd-red` peut démarrer.
+5. 🚦 **Mode nuit, par défaut** : la spec est validée en autonomie. Les questions ouvertes sont tranchées sur la recommandation et notées dans « Décisions » de la spec et du journal, puis `/tdd-red` démarre. **Mode jour**, seulement si Sylvain le demande (consigne ou brief du thread) : présente la spec, elle n'est validée qu'avec son accord explicite.
 
 N'écris ni test ni code.
