@@ -81,12 +81,19 @@ final readonly class ConfiguredProductionStructures implements UserProductionStr
             $this->structureBonusReader->materialMultiplierOf($structureTypeId) ?? Multiplier::one(),
             $this->rigsOf($rigNames, $rigTypes, $activity),
             $this->structureBonusReader->costMultiplierOf($structureTypeId) ?? Multiplier::one(),
-            ($configuration->getFacilityTaxPercent() ?? self::UNSET_FACILITY_TAX_PERCENT) / self::PERCENT,
+            self::facilityTaxRateOf($configuration),
             $this->structureBonusReader->timeMultiplierOf($structureTypeId, ActivityKind::Copying) ?? Multiplier::one(),
             $this->scienceRigsOf($rigNames, $rigTypes),
             $this->structureBonusReader->timeMultiplierOf($structureTypeId, ActivityKind::Reaction) ?? Multiplier::one(),
             $this->timeRigsOf($rigNames, $rigTypes, $activity),
         );
+    }
+
+    private static function facilityTaxRateOf(IndustryStructureConfig $configuration): ?float
+    {
+        $facilityTaxPercent = $configuration->getFacilityTaxPercent();
+
+        return null === $facilityTaxPercent ? null : $facilityTaxPercent / self::PERCENT;
     }
 
     private static function securityOf(IndustryStructureConfig $configuration): SecurityClass

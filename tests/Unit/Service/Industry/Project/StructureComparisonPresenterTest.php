@@ -173,6 +173,33 @@ final class StructureComparisonPresenterTest extends TestCase
         );
     }
 
+    #[Group('issue-780')]
+    public function testStructureWithoutFacilityTaxIsPresentedWithANullFacilityTaxPercentAndAZeroTaxWithZero(): void
+    {
+        $breakdown = new StructureCostBreakdown($this->known(1_000.0), $this->known(100.0), $this->known(10.0), 10.0, 3);
+        $comparison = new JobStructureComparison(
+            Example::PRODUCT_TYPE_ID,
+            ActivityKind::Manufacturing,
+            1,
+            1,
+            null,
+            StructureChoiceStatus::NotConfigured,
+            [
+                new StructureComparisonRow(Example::unriggedStructure('E', Example::WORKSHOP_SYSTEM_ID, null), false, Multiplier::one(), $breakdown, null),
+                new StructureComparisonRow(Example::unriggedStructure('F', Example::WORKSHOP_SYSTEM_ID, 0.0), false, Multiplier::one(), $breakdown, null),
+            ],
+            null,
+            null,
+        );
+
+        $presented = StructureComparisonPresenter::of($comparison, 'Ishtar', $this->labels(), $this->systemNames());
+
+        $this->assertArrayHasKey('facilityTaxPercent', $presented['rows'][0]);
+        $this->assertNull($presented['rows'][0]['facilityTaxPercent']);
+        $this->assertArrayHasKey('facilityTaxPercent', $presented['rows'][1]);
+        $this->assertSame(0.0, $presented['rows'][1]['facilityTaxPercent']);
+    }
+
     public function testEveryChoiceStatusHasItsContractName(): void
     {
         $presentedStatuses = [];

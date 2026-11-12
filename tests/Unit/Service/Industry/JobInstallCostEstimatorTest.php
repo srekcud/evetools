@@ -100,7 +100,8 @@ class JobInstallCostEstimatorTest extends TestCase
         $this->assertEqualsWithDelta(67.05109016, $invention['cost'], 1e-6);
     }
 
-    public function testNullFacilityTaxStillAddsTheSccSurcharge(): void
+    #[Group('issue-780')]
+    public function testUnsetFacilityTaxLeavesTheInstallCostUnknownNeverZero(): void
     {
         $estimate = $this->estimator->estimate(
             $this->nitrogenFuelBlockMaterials(),
@@ -111,12 +112,13 @@ class JobInstallCostEstimatorTest extends TestCase
             null,
         );
 
-        $this->assertEqualsWithDelta(1532.80656, $estimate['cost'], 1e-6);
-        $this->assertNull($estimate['unknownReason']);
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_facility_tax', $estimate['unknownReason']);
         $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
     }
 
-    public function testExplicitZeroFacilityTaxIsTheSameAsNullFacilityTax(): void
+    #[Group('issue-780')]
+    public function testFacilityTaxSetToZeroIsARealZeroPercentAndStillAddsTheSccSurcharge(): void
     {
         $estimate = $this->estimator->estimate(
             $this->nitrogenFuelBlockMaterials(),
@@ -129,6 +131,43 @@ class JobInstallCostEstimatorTest extends TestCase
 
         $this->assertEqualsWithDelta(1532.80656, $estimate['cost'], 1e-6);
         $this->assertNull($estimate['unknownReason']);
+        $this->assertSame([], $estimate['missingAdjustedPriceTypeIds']);
+    }
+
+    #[Group('issue-780')]
+    public function testMissingCostIndexTakesPrecedenceOverAnUnsetFacilityTax(): void
+    {
+        $estimate = $this->estimator->estimate(
+            $this->nitrogenFuelBlockMaterials(),
+            $this->nitrogenFuelBlockAdjustedPrices(),
+            null,
+            1,
+            'manufacturing',
+            null,
+        );
+
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_cost_index', $estimate['unknownReason']);
+    }
+
+    #[Group('issue-780')]
+    public function testMissingAdjustedPriceTakesPrecedenceOverAnUnsetFacilityTax(): void
+    {
+        $adjustedPrices = $this->nitrogenFuelBlockAdjustedPrices();
+        unset($adjustedPrices[self::ROBOTICS]);
+
+        $estimate = $this->estimator->estimate(
+            $this->nitrogenFuelBlockMaterials(),
+            $adjustedPrices,
+            self::MANUFACTURING_COST_INDEX,
+            1,
+            'manufacturing',
+            null,
+        );
+
+        $this->assertNull($estimate['cost']);
+        $this->assertSame('missing_adjusted_price', $estimate['unknownReason']);
+        $this->assertSame([self::ROBOTICS], $estimate['missingAdjustedPriceTypeIds']);
     }
 
     public function testReactionInstallCostUsesTheGivenCostIndex(): void
@@ -155,7 +194,7 @@ class JobInstallCostEstimatorTest extends TestCase
             self::MANUFACTURING_COST_INDEX,
             3,
             'manufacturing',
-            null,
+            0.0,
         );
 
         $this->assertEqualsWithDelta(4598.41968, $estimate['cost'], 1e-6);
@@ -244,7 +283,7 @@ class JobInstallCostEstimatorTest extends TestCase
             self::COPYING_COST_INDEX,
             10,
             'copying',
-            null,
+            0.0,
         );
 
         $this->assertEqualsWithDelta(60_000.0, $estimate['cost'], 1e-6);

@@ -25,6 +25,7 @@ class EsiCostIndexService
 {
     public const UNKNOWN_REASON_MISSING_COST_INDEX = 'missing_cost_index';
     public const UNKNOWN_REASON_MISSING_ADJUSTED_PRICE = 'missing_adjusted_price';
+    public const UNKNOWN_REASON_MISSING_FACILITY_TAX = 'missing_facility_tax';
 
     private const SECONDS_PER_HOUR = 3600;
     private const SYNC_INTERVALS_KEPT_IN_CACHE = 3;

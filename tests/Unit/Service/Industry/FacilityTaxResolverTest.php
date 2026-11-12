@@ -155,6 +155,28 @@ final class FacilityTaxResolverTest extends TestCase
         $this->assertNull($this->resolverOf([])->structureFor(null, self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing));
     }
 
+    #[Group('issue-780')]
+    public function testStructureWithoutFacilityTaxGivesNoFacilityTaxPercent(): void
+    {
+        $resolver = $this->resolverOf([ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, null)]);
+
+        $this->assertNull($resolver->percentFor($this->userWithId(self::USER_ID), self::REQUESTED_SOLAR_SYSTEM_ID, ActivityKind::Manufacturing));
+        $this->assertNull(FacilityTaxResolver::percentOf(ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, null)));
+    }
+
+    #[Group('issue-780')]
+    public function testFacilityTaxPercentOfNoStructureIsTheNpcStationAndOfAStructureItsOwnRate(): void
+    {
+        $this->assertSame(0.25, FacilityTaxResolver::percentOf(null));
+        $this->assertEqualsWithDelta(3.5, FacilityTaxResolver::percentOf(ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, 0.035)), 1e-12);
+    }
+
+    #[Group('issue-780')]
+    public function testFacilityTaxSetToZeroIsAZeroPercentNotAnUnknownOne(): void
+    {
+        $this->assertSame(0.0, FacilityTaxResolver::percentOf(ProductionStructures::raitaruWithFacilityTax('raitaru', SecurityClass::NullSec, self::REQUESTED_SOLAR_SYSTEM_ID, 0.0)));
+    }
+
     public function testStructuresAreReadForTheRfc4122IdOfTheUser(): void
     {
         $structures = new InMemoryUserProductionStructures();

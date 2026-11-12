@@ -926,7 +926,7 @@ export interface StructureComparisonRow {
   inFavoriteSystem: boolean
   jumps: number | null
   materialBonusPercent: number
-  facilityTaxPercent: number
+  facilityTaxPercent: number | null
   materialsCost: number | null
   installationCost: number | null
   transportCost: number | null

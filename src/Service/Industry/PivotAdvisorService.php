@@ -436,7 +436,7 @@ class PivotAdvisorService
      * @param array<int, string> $groupNames
      * @param array<int, int> $userStock
      * @param array<string, int> $solarSystemIdByActivity
-     * @param array<string, float> $facilityTaxByActivity
+     * @param array<string, ?float> $facilityTaxByActivity
      * @param array<string, ?ProductionStructure> $structureByActivity
      * @return array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}
      */
@@ -590,7 +590,7 @@ class PivotAdvisorService
     /**
      * @return array{totalCost: ?float, unknownReason: ?string}
      */
-    private function totalCostWithInvention(?float $totalCost, bool $isT2, int $typeId, int $solarSystemId, float $facilityTaxPercent, ?ProductionStructure $structure): array
+    private function totalCostWithInvention(?float $totalCost, bool $isT2, int $typeId, int $solarSystemId, ?float $facilityTaxPercent, ?ProductionStructure $structure): array
     {
         if (!$isT2 || $totalCost === null) {
             return ['totalCost' => $totalCost, 'unknownReason' => null];
@@ -690,7 +690,7 @@ class PivotAdvisorService
      *
      * @param list<array{materialTypeId: int, quantity: int}> $sourceMaterials
      * @param array<string, int> $solarSystemIdByActivity
-     * @param array<string, float> $facilityTaxByActivity
+     * @param array<string, ?float> $facilityTaxByActivity
      * @param array<string, ?ProductionStructure> $structureByActivity
      * @return array{typeId: int, sourceProduct: array{typeId: int, typeName: string|null, groupName: string, marginPercent: float|null, sellPrice: float|null, dailyVolume: float|null, keyComponents: list<array{typeId: int, typeName: string|null, inStock: int}>, unknownReason?: string|null, missingPriceTypeIds?: list<int>, priceSources?: array{materials: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}, sale: array{market: string, side: string, method: string, coveragePercent: ?float, percentile?: float}|null, assumptions: array{runs: int, materialEfficiency: int}}}, matrix: list<mixed>, candidates: list<mixed>, matrixProductIds: list<int>}
      */

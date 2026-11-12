@@ -126,7 +126,7 @@ export interface UserSettings {
 
 // Profit Margin types
 
-export type MissingDataReason = 'market_price' | 'adjusted_price' | 'cost_index' | 'invention_probability' | 'inventor_skills'
+export type MissingDataReason = 'market_price' | 'adjusted_price' | 'cost_index' | 'facility_tax' | 'invention_probability' | 'inventor_skills'
 
 export interface MissingData {
   reason: MissingDataReason
@@ -274,7 +274,7 @@ export type ScannerFavorite = {
 }
 
 // Buy vs Build types
-export type JobInstallCostUnknownReason = 'missing_cost_index' | 'missing_adjusted_price'
+export type JobInstallCostUnknownReason = 'missing_cost_index' | 'missing_adjusted_price' | 'missing_facility_tax'
 
 export type BuyVsBuildMaterial = {
   typeId: number

@@ -175,10 +175,18 @@ final class ConfiguredProductionStructuresTest extends TestCase
         $this->assertEqualsWithDelta(0.035, $this->onlyStructureOf(self::USER_ID)->facilityTaxRate, self::FLOAT_TOLERANCE);
     }
 
-    public function testFacilityTaxNeverSetIsZeroPercentD14(): void
+    #[Group('issue-780')]
+    public function testFacilityTaxNeverSetStaysUnsetNotZeroPercent(): void
     {
-        // D14 (2026-10-22): the structure form does not expose the tax yet; not set = 0 %, documented convention.
         $this->configure('raitaru', 'nullsec', facilityTaxPercent: null);
+
+        $this->assertNull($this->onlyStructureOf(self::USER_ID)->facilityTaxRate);
+    }
+
+    #[Group('issue-780')]
+    public function testFacilityTaxSetToZeroStaysAZeroPercentRate(): void
+    {
+        $this->configure('raitaru', 'nullsec', facilityTaxPercent: 0.0);
 
         $this->assertSame(0.0, $this->onlyStructureOf(self::USER_ID)->facilityTaxRate);
     }

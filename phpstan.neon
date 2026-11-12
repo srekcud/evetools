@@ -11,6 +11,10 @@ parameters:
         containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
     ignoreErrors:
         -
+            identifier: classConstant.unused
+            path: src/Industry/Infrastructure/Doctrine/ConfiguredProductionStructures.php
+            message: '#UNSET_FACILITY_TAX_PERCENT#'
+        -
             identifier: property.unusedType
             path: src/Entity/
             message: '#is never assigned .+ so it can be removed from the property type#'

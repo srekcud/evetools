@@ -69,7 +69,7 @@ final class StructureTotalCostExample
         return self::engineeringComplex($id, $solarSystemId, $configuredAt, self::RIGGED_FACILITY_TAX_RATE, self::manufacturingRig(self::RIG_REDUCTION_PERCENT));
     }
 
-    public static function unriggedStructure(string $id, int $solarSystemId, float $facilityTaxRate): ProductionStructure
+    public static function unriggedStructure(string $id, int $solarSystemId, ?float $facilityTaxRate): ProductionStructure
     {
         return self::engineeringComplex($id, $solarSystemId, '2026-01-01 00:00:00', $facilityTaxRate);
     }
@@ -154,7 +154,7 @@ final class StructureTotalCostExample
         );
     }
 
-    private static function engineeringComplex(string $id, ?int $solarSystemId, string $configuredAt, float $facilityTaxRate, StructureRig ...$rigs): ProductionStructure
+    private static function engineeringComplex(string $id, ?int $solarSystemId, string $configuredAt, ?float $facilityTaxRate, StructureRig ...$rigs): ProductionStructure
     {
         return new ProductionStructure(
             $id,
@@ -169,7 +169,7 @@ final class StructureTotalCostExample
         );
     }
 
-    private static function refinery(string $id, int $solarSystemId, float $facilityTaxRate, StructureRig $rig): ProductionStructure
+    private static function refinery(string $id, int $solarSystemId, ?float $facilityTaxRate, StructureRig $rig): ProductionStructure
     {
         return new ProductionStructure(
             $id,

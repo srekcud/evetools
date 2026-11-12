@@ -20,6 +20,8 @@ import {
   ISHTAR_TYPE_ID,
   projectStructures,
   REFINERY_STRUCTURE_ID,
+  structureGroup,
+  structureRow,
   THREE_JUMPS_NAME,
   THREE_JUMPS_STRUCTURE_ID,
   WORKSHOP_STRUCTURE_ID,
@@ -38,6 +40,34 @@ const BLANK = /[\u00a0\u202f]/g
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
 
 const projectEvents = ref<Record<string, GroupProjectEvent>>({})
+
+function ishtarWithWorkshopTaxOf(facilityTaxPercent: number | null): StructureComparisonGroup {
+  return structureGroup({
+    typeId: ISHTAR_TYPE_ID,
+    typeName: 'Ishtar',
+    jobs: 1,
+    runs: 10,
+    chosenStructureId: WORKSHOP_STRUCTURE_ID,
+    choiceStatus: 'best_in_favorite_system',
+    rows: [structureRow({
+      structureId: WORKSHOP_STRUCTURE_ID,
+      name: 'Perimeter Raitaru',
+      kind: 'raitaru',
+      solarSystemId: 30_000_144,
+      solarSystemName: 'Perimeter',
+      inFavoriteSystem: true,
+      jumps: 0,
+      facilityTaxPercent,
+      materialsCost: 10_000_000,
+      installationCost: facilityTaxPercent === null ? null : 900_000,
+      transportCost: 0,
+      transportedCubicMeters: 2_000,
+      totalCost: facilityTaxPercent === null ? null : 10_900_000,
+      delta: facilityTaxPercent === null ? null : 0,
+      missingData: facilityTaxPercent === null ? [{ reason: 'facility_tax', typeId: null }] : [],
+    })],
+  })
+}
 
 function text(key: string, params: Record<string, unknown> = {}): string {
   return i18n.global.t(key, params).replace(BLANK, ' ')
@@ -143,6 +173,25 @@ describe('ProjectStructures', () => {
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, REFINERY_STRUCTURE_ID, 'transport')).toContain('450.00 K')
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, REFINERY_STRUCTURE_ID, 'materials')).not.toMatch(/\b0\b/)
     expect(partText(wrapper, FERNITE_COMPOSITE_TYPE_ID, REFINERY_STRUCTURE_ID, 'total')).not.toMatch(/\b0\b/)
+  })
+
+  it('says the facility tax was not entered, in the wording of the locale, when the structure has none', async () => {
+    i18n.global.locale.value = 'fr'
+    try {
+      const wrapper = await mountStructures([ishtarWithWorkshopTaxOf(null)])
+
+      expect(partText(wrapper, ISHTAR_TYPE_ID, WORKSHOP_STRUCTURE_ID, 'installation')).toContain('non saisie')
+      expect(partText(wrapper, ISHTAR_TYPE_ID, WORKSHOP_STRUCTURE_ID, 'installation')).not.toMatch(/\b0\s%/)
+    } finally {
+      i18n.global.locale.value = 'en'
+    }
+  })
+
+  it('shows a facility tax entered as zero as 0 % and not as a tax left empty', async () => {
+    const wrapper = await mountStructures([ishtarWithWorkshopTaxOf(0)])
+
+    expect(partText(wrapper, ISHTAR_TYPE_ID, WORKSHOP_STRUCTURE_ID, 'installation')).toContain(text('groupIndustry.structures.taxDetail', { percent: '0 %' }))
+    expect(partText(wrapper, ISHTAR_TYPE_ID, WORKSHOP_STRUCTURE_ID, 'installation')).not.toContain('non saisie')
   })
 
   it('stars the structure retained by the plan and no other one', async () => {

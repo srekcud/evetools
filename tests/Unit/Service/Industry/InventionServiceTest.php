@@ -458,6 +458,50 @@ class InventionServiceTest extends TestCase
         $this->assertSame(['cost' => 187068.0, 'unknownReason' => null], $result);
     }
 
+    #[Group('issue-780')]
+    public function testExpectedCostPerRunWithoutAFacilityTaxAsksBothInstallEstimatesWithoutOneAndIsUnknownForIt(): void
+    {
+        $this->setupPricedSabreInvention(0.25, 10, self::PRICED_INVENTION_MARKET_PRICES, $this->unknownInstallEstimate(self::MISSING_FACILITY_TAX));
+
+        $result = $this->service->expectedCostPerRun(self::SABRE_TYPE_ID, self::AMARR_SOLAR_SYSTEM_ID);
+
+        $this->assertSame(['cost' => null, 'unknownReason' => self::MISSING_FACILITY_TAX], $result);
+        $this->assertSame(
+            [
+                [self::THRASHER_MANUFACTURING_MATERIALS, 1, self::AMARR_SOLAR_SYSTEM_ID, 'copying', null],
+                [self::SABRE_MANUFACTURING_MATERIALS, 1, self::AMARR_SOLAR_SYSTEM_ID, 'invention', null],
+            ],
+            $this->installEstimateCalls,
+        );
+    }
+
+    #[Group('issue-780')]
+    public function testInventionCostIsUnknownWhenTheInventionInstallHasNoFacilityTax(): void
+    {
+        $this->setupSabreInventionAt(self::INVENTION_PROBABILITY, self::DATACORE_LINES_OF_THE_SABRE, $this->unknownInstallEstimate(self::MISSING_FACILITY_TAX));
+        $this->stubMarketPricesWithFallback(self::DATACORE_PRICES);
+
+        $result = $this->service->calculateInventionCost(self::SABRE_TYPE_ID, 30002510);
+
+        $this->assertInventionCostOutcome([
+            'costPerAttempt' => null,
+            'totalCost' => null,
+            'costBreakdown' => ['datacores' => 800.0, 'decryptor' => 0.0, 'copyCost' => 1000.0, 'inventionInstall' => null],
+            'unknownReason' => self::MISSING_FACILITY_TAX,
+        ], $result);
+    }
+
+    #[Group('issue-780')]
+    public function testEstimateCopyJobCostWithoutAFacilityTaxIsUnknownForIt(): void
+    {
+        $this->stubInventionInstallEstimate($this->knownInstallEstimate(0.0), $this->unknownInstallEstimate(self::MISSING_FACILITY_TAX));
+
+        $estimate = $this->service->estimateCopyJobCost(self::THRASHER_BLUEPRINT_ID, 10, 30002510);
+
+        $this->assertSame(['cost' => null, 'unknownReason' => self::MISSING_FACILITY_TAX, 'missingAdjustedPriceTypeIds' => []], $estimate);
+        $this->assertSame([[self::THRASHER_MANUFACTURING_MATERIALS, 10, 30002510, 'copying', null]], $this->installEstimateCalls);
+    }
+
     #[Group('issue-124')]
     public function testExpectedCostPerRunIsUnknownWhenTheSdeHasNoInventionProbability(): void
     {
@@ -782,6 +826,7 @@ class InventionServiceTest extends TestCase
     private const int HYPERSYNAPTIC_FIBERS_TYPE_ID = 11478;
     private const string MISSING_COST_INDEX = 'missing_cost_index';
     private const string MISSING_ADJUSTED_PRICE = 'missing_adjusted_price';
+    private const string MISSING_FACILITY_TAX = 'missing_facility_tax';
 
     private array $requestedPriceTypeIdsPerCall = [];
     private array $installEstimateCalls = [];

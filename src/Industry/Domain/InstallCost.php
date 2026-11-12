@@ -40,7 +40,7 @@ final readonly class InstallCost
         Cost $estimatedItemValue,
         ?float $systemCostIndex,
         Multiplier $structureCostModifier,
-        float $facilityTaxRate,
+        ?float $facilityTaxRate,
         bool $alphaClone,
     ): self {
         $base = match ($activity) {
@@ -61,7 +61,7 @@ final readonly class InstallCost
         int $targetLevel,
         ?float $systemCostIndex,
         Multiplier $structureCostModifier,
-        float $facilityTaxRate,
+        ?float $facilityTaxRate,
         bool $alphaClone,
     ): self {
         if (ActivityKind::ResearchMaterial !== $activity && ActivityKind::ResearchTime !== $activity) {
@@ -78,19 +78,23 @@ final readonly class InstallCost
         float $sccSurchargeRate,
         ?float $systemCostIndex,
         Multiplier $structureCostModifier,
-        float $facilityTaxRate,
+        ?float $facilityTaxRate,
         bool $alphaClone,
     ): self {
         if (null !== $systemCostIndex) {
             self::assertRate($systemCostIndex, 'cost index', self::MAX_COST_INDEX);
         }
-        self::assertRate($facilityTaxRate, 'facility tax rate', self::MAX_FACILITY_TAX_RATE);
+        if (null !== $facilityTaxRate) {
+            self::assertRate($facilityTaxRate, 'facility tax rate', self::MAX_FACILITY_TAX_RATE);
+        }
 
         // The structure cost role bonus applies to the cost index term only, never to the taxes.
         $systemCost = null === $systemCostIndex
             ? $base->plus(Cost::unknown(MissingData::costIndex()))
             : $base->times($systemCostIndex * $structureCostModifier->value);
-        $facilityTax = $base->times($facilityTaxRate);
+        $facilityTax = null === $facilityTaxRate
+            ? $base->plus(Cost::unknown(MissingData::facilityTax()))
+            : $base->times($facilityTaxRate);
         $sccSurcharge = $base->times($sccSurchargeRate);
         $alphaCloneTax = $base->times($alphaClone ? self::ALPHA_CLONE_TAX_RATE : 0.0);
 

@@ -30,7 +30,7 @@ final readonly class ProductionStructure
         public Multiplier $manufacturingMaterialRoleBonus,
         public array $rigs,
         public Multiplier $costRoleBonus,
-        public float $facilityTaxRate,
+        public ?float $facilityTaxRate,
         public Multiplier $timeRoleBonus = new Multiplier(1.0),
         public array $scienceRigs = [],
         public Multiplier $reactionTimeRoleBonus = new Multiplier(1.0),

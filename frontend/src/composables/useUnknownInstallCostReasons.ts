@@ -4,6 +4,7 @@ import type { JobInstallCostUnknownReason, MissingData, MissingDataReason } from
 const JOB_INSTALL_COST_UNKNOWN_REASONS: Partial<Record<MissingDataReason, JobInstallCostUnknownReason>> = {
   cost_index: 'missing_cost_index',
   adjusted_price: 'missing_adjusted_price',
+  facility_tax: 'missing_facility_tax',
 }
 
 export function useUnknownInstallCostReasons(missingData: () => MissingData[]): ComputedRef<JobInstallCostUnknownReason[]> {

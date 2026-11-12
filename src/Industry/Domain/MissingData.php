@@ -14,6 +14,7 @@ final readonly class MissingData
     private const string COPY_SKILLS = 'copy_skills';
     private const string COPY_STRUCTURE_NOT_PLANNED = 'copy_structure_not_planned';
     private const string COST_INDEX = 'cost_index';
+    private const string FACILITY_TAX = 'facility_tax';
     private const string INVENTION_PROBABILITY = 'invention_probability';
     private const string ITEM_VOLUME = 'item_volume';
     private const string JUMP_ROUTE = 'jump_route';
@@ -48,6 +49,11 @@ final readonly class MissingData
     public static function costIndex(): self
     {
         return new self(self::COST_INDEX, null);
+    }
+
+    public static function facilityTax(): self
+    {
+        return new self(self::FACILITY_TAX, null);
     }
 
     public static function itemVolume(int $typeId): self
