@@ -94,7 +94,21 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
         self::assertSame([], $this->storedJobIdsOf($this->ishtarJobLine));
     }
 
-    public function testPurchaseSuggestionsOfTheOwnerListTheBuysOfTheComponentLineOnly(): void
+    public function testPurchaseSuggestionsLeaveOutTheBuysMadeBeforeTheCreationOfTheProject(): void
+    {
+        $ownerCharacter = $this->owner->getMainCharacter();
+        self::assertNotNull($ownerCharacter);
+        $this->walletBuy($ownerCharacter, self::RAM_BUY_ID, self::RAM_STARSHIP_TECH_TYPE_ID, 50, self::RAM_UNIT_PRICE, '-2 days');
+        $this->em->flush();
+
+        $this->client->loginUser($this->owner, 'api');
+        $this->request('GET', $this->ishtarUri().'/purchase-suggestions');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(0, $this->responseJson()['totalCount']);
+    }
+
+    public function testPurchaseSuggestionsOfTheOwnerListTheBuysOfTheComponentAndMaterialLines(): void
     {
         $ownerCharacter = $this->owner->getMainCharacter();
         self::assertNotNull($ownerCharacter);
@@ -107,8 +121,13 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(200);
         $suggestions = $this->responseJson();
+        $suggestionList = $suggestions['suggestions'];
+        usort($suggestionList, static fn (array $first, array $second): int => $first['transactionId'] <=> $second['transactionId']);
         self::assertSame(
-            [1, [[self::RAM_BUY_ID, self::RAM_STARSHIP_TECH_TYPE_ID, 50, 152_025.0, 'Aria Solberg', false]]],
+            [2, [
+                [self::RAM_BUY_ID, self::RAM_STARSHIP_TECH_TYPE_ID, 50, 152_025.0, 'Aria Solberg', false],
+                [self::TRITANIUM_BUY_ID, self::TRITANIUM_TYPE_ID, 1_000, 4_400.0, 'Aria Solberg', false],
+            ]],
             [
                 $suggestions['totalCount'],
                 array_map(static fn (array $suggestion): array => [
@@ -118,7 +137,7 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
                     $suggestion['totalPrice'],
                     $suggestion['characterName'],
                     $suggestion['alreadyLinked'],
-                ], $suggestions['suggestions']),
+                ], $suggestionList),
             ],
         );
     }
@@ -169,7 +188,7 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
         return $purchase;
     }
 
-    private function walletBuy(Character $character, int $transactionId, int $typeId, int $quantity, float $unitPrice): void
+    private function walletBuy(Character $character, int $transactionId, int $typeId, int $quantity, float $unitPrice, string $date = 'now'): void
     {
         $this->em->persist((new CachedWalletTransaction())
             ->setCharacter($character)
@@ -179,7 +198,7 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
             ->setUnitPrice($unitPrice)
             ->setIsBuy(true)
             ->setLocationId(self::JITA_STATION_ID)
-            ->setDate(new \DateTimeImmutable('2026-11-02T09:00:00+00:00')));
+            ->setDate(new \DateTimeImmutable($date)));
     }
 
     private function storedPurchasesOf(IndustryProjectBomLine $line): array

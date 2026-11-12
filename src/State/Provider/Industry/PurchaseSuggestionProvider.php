@@ -27,8 +27,6 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
  */
 class PurchaseSuggestionProvider implements ProviderInterface
 {
-    private const string COMPONENT_JOB_GROUP = 'component';
-
     public function __construct(
         private readonly Security $security,
         private readonly IndustryProjectRepository $projectRepository,
@@ -64,7 +62,7 @@ class PurchaseSuggestionProvider implements ProviderInterface
 
         $foundTransactions = [];
         foreach ($user->getCharacters() as $character) {
-            foreach ($this->transactionRepository->findBuysByTypeIds($character, $typeIds) as $transaction) {
+            foreach ($this->transactionRepository->findBuysByTypeIds($character, $typeIds, $project->getCreatedAt()) as $transaction) {
                 $foundTransactions[] = [$character, $transaction];
             }
         }
@@ -116,25 +114,9 @@ class PurchaseSuggestionProvider implements ProviderInterface
      */
     private function suggestedTypeIdsOf(IndustryProject $project): array
     {
-        $componentTypeIds = $this->typeIdsOfLines($project, static fn (IndustryProjectBomLine $line): bool => $line->isJob() && $line->getJobGroup() === self::COMPONENT_JOB_GROUP);
-
-        if ($componentTypeIds !== []) {
-            return $componentTypeIds;
-        }
-
-        return $this->typeIdsOfLines($project, static fn (IndustryProjectBomLine $line): bool => !$line->isJob());
-    }
-
-    /**
-     * @param \Closure(IndustryProjectBomLine): bool $isSelected
-     *
-     * @return int[]
-     */
-    private function typeIdsOfLines(IndustryProject $project, \Closure $isSelected): array
-    {
         return array_values(array_unique(array_map(
             static fn (IndustryProjectBomLine $line): int => $line->getTypeId(),
-            $project->getBomItems()->filter($isSelected)->toArray(),
+            $project->getBomItems()->filter(static fn (IndustryProjectBomLine $line): bool => $line->isPurchasable())->toArray(),
         )));
     }
 }

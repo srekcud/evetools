@@ -8,6 +8,7 @@ use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Service\ESI\EsiClient;
+use App\Service\Industry\Project\AutomaticPurchaseLinker;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -20,6 +21,7 @@ class WalletTransactionSyncService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly AutomaticPurchaseLinker $purchaseLinker,
     ) {
     }
 
@@ -39,6 +41,7 @@ class WalletTransactionSyncService
 
         $totalCount = 0;
         $newCount = 0;
+        $newTransactions = [];
         $fromId = null;
         $maxPages = 50; // Safety limit
 
@@ -94,6 +97,7 @@ class WalletTransactionSyncService
                     $tx->setDate(new \DateTimeImmutable($txData['date']));
 
                     $this->entityManager->persist($tx);
+                    $newTransactions[] = $tx;
                     $newCount++;
                 }
 
@@ -142,6 +146,10 @@ class WalletTransactionSyncService
                 'wallet-transactions',
                 sprintf('%d transactions fetched (%d new)', $totalCount, $newCount),
             );
+        }
+
+        if ($newTransactions !== []) {
+            $this->purchaseLinker->linkNewPurchases($character, $newTransactions);
         }
     }
 }

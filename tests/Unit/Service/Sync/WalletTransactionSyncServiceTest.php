@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Sync;
 
+use App\Entity\CachedWalletTransaction;
 use App\Entity\Character;
 use App\Entity\EveToken;
 use App\Entity\User;
 use App\Repository\CachedWalletTransactionRepository;
 use App\Service\ESI\EsiClient;
+use App\Service\Industry\Project\AutomaticPurchaseLinker;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\WalletTransactionSyncService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +31,7 @@ class WalletTransactionSyncServiceTest extends TestCase
     private CachedWalletTransactionRepository&MockObject $transactionRepository;
     private EntityManagerInterface&MockObject $em;
     private HubInterface&MockObject $hub;
+    private AutomaticPurchaseLinker&MockObject $purchaseLinker;
     private WalletTransactionSyncService $service;
 
     protected function setUp(): void
@@ -37,6 +40,7 @@ class WalletTransactionSyncServiceTest extends TestCase
         $this->transactionRepository = $this->createMock(CachedWalletTransactionRepository::class);
         $this->em = $this->createMock(EntityManagerInterface::class);
         $this->hub = $this->createMock(HubInterface::class);
+        $this->purchaseLinker = $this->createMock(AutomaticPurchaseLinker::class);
 
         $mercurePublisher = new MercurePublisherService($this->hub, new NullLogger());
 
@@ -46,6 +50,7 @@ class WalletTransactionSyncServiceTest extends TestCase
             $this->em,
             new NullLogger(),
             $mercurePublisher,
+            $this->purchaseLinker,
         );
     }
 
@@ -140,6 +145,52 @@ class WalletTransactionSyncServiceTest extends TestCase
         $this->transactionRepository->method('findExistingTransactionIds')->willReturn([3001]);
 
         $this->em->expects($this->exactly(2))->method('persist');
+
+        $this->service->syncCharacterTransactions($character);
+    }
+
+    public function testOnlyTheNewTransactionsAreHandedToTheAutomaticPurchaseLinker(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('get')->willReturnOnConsecutiveCalls(
+            [$this->makeTransactionData(7001), $this->makeTransactionData(7002)],
+            [],
+        );
+        $this->transactionRepository->method('findExistingTransactionIds')->willReturn([7001]);
+
+        $this->purchaseLinker->expects($this->once())
+            ->method('linkNewPurchases')
+            ->with(
+                $character,
+                $this->callback(static fn (array $transactions): bool => array_map(
+                    static fn (CachedWalletTransaction $transaction): int => $transaction->getTransactionId(),
+                    $transactions,
+                ) === [7002]),
+            );
+
+        $this->service->syncCharacterTransactions($character);
+    }
+
+    public function testAutomaticPurchaseLinkerIsNotCalledWhenNothingIsNew(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('get')->willReturn([$this->makeTransactionData(7101)]);
+        $this->transactionRepository->method('findExistingTransactionIds')->willReturn([7101]);
+
+        $this->purchaseLinker->expects($this->never())->method('linkNewPurchases');
+
+        $this->service->syncCharacterTransactions($character);
+    }
+
+    public function testAutomaticPurchaseLinkerIsNotCalledWhenTheEsiFetchFails(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+
+        $this->esiClient->method('get')->willThrowException(new \RuntimeException('ESI down'));
+
+        $this->purchaseLinker->expects($this->never())->method('linkNewPurchases');
 
         $this->service->syncCharacterTransactions($character);
     }

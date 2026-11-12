@@ -27,21 +27,25 @@ class CachedWalletTransactionRepository extends ServiceEntityRepository
      * @param int[] $typeIds
      * @return CachedWalletTransaction[]
      */
-    public function findBuysByTypeIds(Character $character, array $typeIds): array
+    public function findBuysByTypeIds(Character $character, array $typeIds, ?\DateTimeImmutable $since = null): array
     {
         if (empty($typeIds)) {
             return [];
         }
 
-        return $this->createQueryBuilder('t')
+        $queryBuilder = $this->createQueryBuilder('t')
             ->where('t.character = :character')
             ->andWhere('t.typeId IN (:typeIds)')
             ->andWhere('t.isBuy = true')
             ->setParameter('character', $character)
             ->setParameter('typeIds', $typeIds)
-            ->orderBy('t.date', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('t.date', 'DESC');
+
+        if ($since !== null) {
+            $queryBuilder->andWhere('t.date >= :since')->setParameter('since', $since);
+        }
+
+        return $queryBuilder->getQuery()->getResult();
     }
 
     /**
