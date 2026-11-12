@@ -82,6 +82,7 @@ services:
       - MERCURE_URL=${MERCURE_URL:-http://app/.well-known/mercure}
       - MERCURE_PUBLIC_URL=${MERCURE_PUBLIC_URL:-/.well-known/mercure}
       - MERCURE_RESOURCE_IDENTIFIER=${MERCURE_RESOURCE_IDENTIFIER:-https://${DOMAIN:-evetools.local}/.well-known/mercure}
+      - MERCURE_JWT_SECRET=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
       - MERCURE_PUBLISHER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
       - MERCURE_SUBSCRIBER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureSecretKey!}
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
