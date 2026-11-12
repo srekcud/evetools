@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Constant\EveConstants;
 use App\Repository\CachedAssetRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -247,7 +248,9 @@ class CachedAsset
 
     public function canResolveItemName(): bool
     {
-        return false;
+        return $this->isSingleton === true
+            && $this->itemName === null
+            && $this->locationFlag !== EveConstants::OFFICE_LOCATION_FLAG;
     }
 
     public function getCharacter(): ?Character

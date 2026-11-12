@@ -17,5 +17,6 @@ final class EveConstants
     public const CORPORATION_BLUEPRINTS_SCOPE = 'esi-corporations.read_blueprints.v1';
     public const CORPORATION_ASSETS_SCOPE = 'esi-assets.read_corporation_assets.v1';
     public const CORPORATION_ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
+    public const OFFICE_LOCATION_FLAG = 'OfficeFolder';
     public const CHARACTER_ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
 }

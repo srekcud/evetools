@@ -75,6 +75,7 @@ class AssetsSyncService
                 $cachedAsset->setSolarSystemId($assetDto->solarSystemId);
                 $cachedAsset->setSolarSystemName($assetDto->solarSystemName);
                 $cachedAsset->setItemName($assetDto->itemName);
+                $cachedAsset->setIsSingleton($assetDto->isSingleton);
                 $cachedAsset->setCharacter($character);
                 $cachedAsset->setIsCorporationAsset(false);
 
@@ -166,6 +167,7 @@ class AssetsSyncService
                 $cachedAsset->setSolarSystemId($assetDto->solarSystemId);
                 $cachedAsset->setSolarSystemName($assetDto->solarSystemName);
                 $cachedAsset->setItemName($assetDto->itemName);
+                $cachedAsset->setIsSingleton($assetDto->isSingleton);
                 $cachedAsset->setCorporationId($corporationId);
                 $cachedAsset->setIsCorporationAsset(true);
 
