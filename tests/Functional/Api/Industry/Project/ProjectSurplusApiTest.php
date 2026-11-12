@@ -47,6 +47,7 @@ final class ProjectSurplusApiTest extends WebTestCase
                         'contributedQuantity' => self::TRITANIUM_CONTRIBUTED,
                         'lineId' => $this->idOf($this->tritaniumLine),
                         'requiredQuantity' => 12_000,
+                        'source' => 'contribution',
                         'surplusQuantity' => self::TRITANIUM_SURPLUS,
                         'surplusValue' => self::TRITANIUM_SURPLUS_VALUE,
                         'typeId' => self::TRITANIUM_TYPE_ID,
@@ -58,6 +59,27 @@ final class ProjectSurplusApiTest extends WebTestCase
             ],
             $this->canonical($this->responseJson()),
         );
+    }
+
+    public function testIntermediateSurplusOfAJobLineIsListedAsProductionWithoutValueAndKeepsTheTotal(): void
+    {
+        $this->ramJobLine->setSurplusQuantity(20);
+        $this->em->flush();
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->surplusUri($this->ishtarBatch->getId()->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(200);
+        $resource = $this->responseJson();
+        self::assertSame(self::TRITANIUM_SURPLUS_VALUE, $resource['totalValue']);
+        $production = array_values(array_filter($resource['lines'], fn (array $line): bool => $line['source'] === 'production'));
+        self::assertCount(1, $production);
+        self::assertSame($this->idOf($this->ramJobLine), $production[0]['lineId']);
+        self::assertSame($this->ramJobLine->getRequiredQuantity() - 20, $production[0]['requiredQuantity']);
+        self::assertSame($this->ramJobLine->getRequiredQuantity(), $production[0]['contributedQuantity']);
+        self::assertSame(20, $production[0]['surplusQuantity']);
+        self::assertNull($production[0]['unitPrice']);
+        self::assertNull($production[0]['surplusValue']);
     }
 
     public function testContributionWithoutValueKeepsItsNullKeysInsteadOfZero(): void

@@ -16,6 +16,7 @@ use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Service\Industry\Project\ProjectSurplusBuilder;
 use App\Service\Industry\Project\ProjectSurplusLine;
+use App\Service\Industry\Project\ProjectSurplusSource;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -197,6 +198,68 @@ final class ProjectSurplusBuilderTest extends TestCase
 
         self::assertSame([], $surplus->lines);
         self::assertSame(0.0, $surplus->totalValue);
+    }
+
+    public function testComponentJobProducingMoreThanItsDemandListsTheIntermediateSurplusWithoutValue(): void
+    {
+        $ram = $this->jobLine(self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 300)->setSurplusQuantity(20);
+
+        $surplus = $this->builder->build($this->project);
+
+        self::assertEquals(
+            [new ProjectSurplusLine($this->idOf($ram), self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 280, 300, 20, null, null, ProjectSurplusSource::Production)],
+            $surplus->lines,
+        );
+    }
+
+    public function testJobLineWithAnUnrecordedOrNilIntermediateSurplusIsSkippedNeverShownAsZero(): void
+    {
+        $this->jobLine(self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 300);
+        $this->jobLine(self::MORPHITE, 'Morphite', 150)->setSurplusQuantity(0);
+
+        $surplus = $this->builder->build($this->project);
+
+        self::assertSame([], $surplus->lines);
+        self::assertSame(0.0, $surplus->totalValue);
+    }
+
+    public function testIntermediateSurplusDoesNotMakeTheTotalValueUnknown(): void
+    {
+        $tritanium = $this->materialLine(self::TRITANIUM, 'Tritanium', 12_000);
+        $this->contribute($this->owner, $tritanium, ContributionType::Material, 12_500, 53_125.0);
+        $this->jobLine(self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 300)->setSurplusQuantity(20);
+
+        $surplus = $this->builder->build($this->project);
+
+        self::assertCount(2, $surplus->lines);
+        self::assertSame(2_125.0, $surplus->totalValue);
+    }
+
+    public function testJobLineWithBothAContributionSurplusAndAnIntermediateSurplusListsBothSources(): void
+    {
+        $ram = $this->jobLine(self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 300)->setSurplusQuantity(20);
+        $this->contribute($this->owner, $ram, ContributionType::Material, 320, 64_000.0);
+
+        $surplus = $this->builder->build($this->project);
+
+        self::assertEquals(
+            [
+                new ProjectSurplusLine($this->idOf($ram), self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 300, 320, 20, 200.0, 4_000.0, ProjectSurplusSource::Contribution),
+                new ProjectSurplusLine($this->idOf($ram), self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 280, 300, 20, null, null, ProjectSurplusSource::Production),
+            ],
+            $surplus->lines,
+        );
+        self::assertSame(4_000.0, $surplus->totalValue);
+    }
+
+    public function testIntermediateSurplusOfAProjectThatIsNotCompletedIsNotListed(): void
+    {
+        $this->jobLine(self::RAM_STARSHIP_TECH, 'R.A.M.- Starship Tech', 300)->setSurplusQuantity(20);
+        $this->project->setStatus(ProjectStatus::InProgress);
+
+        $surplus = $this->builder->build($this->project);
+
+        self::assertSame([], $surplus->lines);
     }
 
     private function participant(ParticipantRole $role): IndustryProjectParticipant

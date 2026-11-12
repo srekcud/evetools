@@ -2984,17 +2984,21 @@
       }
     },
     "surplus": {
-      "title": "Material surplus",
+      "title": "Surplus",
       "loading": "Reading the surplus...",
       "loadError": "The material surplus could not be read",
-      "empty": "No surplus: no material line was contributed above its required quantity.",
-      "readOnly": "Read only: nothing is added to the Stockpile and the profit is unchanged. Valued at the price of the contributions.",
+      "empty": "No surplus: no line was contributed above its required quantity and no job produced more than its demand.",
+      "readOnly": "Read only: nothing is added to the Stockpile and the profit is unchanged. Materials are valued at the price of the contributions; intermediates produced beyond the demand (whole runs) are not valued and stay out of the total.",
+      "notValued": "not valued",
+      "source": {
+        "production": "produced"
+      },
       "unknown": "unknown",
       "total": "Total value of the surplus",
       "columns": {
         "type": "Material",
         "required": "Required",
-        "contributed": "Contributed",
+        "contributed": "Contributed / produced",
         "surplus": "Surplus",
         "unitPrice": "Contribution price",
         "value": "Value"

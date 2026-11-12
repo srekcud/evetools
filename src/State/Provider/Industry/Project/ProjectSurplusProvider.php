@@ -63,6 +63,7 @@ final readonly class ProjectSurplusProvider implements ProviderInterface
                 'surplusQuantity' => $line->surplusQuantity,
                 'unitPrice' => $line->unitPrice,
                 'surplusValue' => $line->surplusValue,
+                'source' => $line->source->value,
             ],
             $surplus->lines,
         );

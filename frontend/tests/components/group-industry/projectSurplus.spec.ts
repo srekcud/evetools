@@ -28,6 +28,7 @@ const TRITANIUM: ProjectSurplusLine = {
   surplusQuantity: 500,
   unitPrice: 4.25,
   surplusValue: 2_125,
+  source: 'contribution',
 }
 const MORPHITE: ProjectSurplusLine = {
   lineId: 'line-morphite',
@@ -38,6 +39,7 @@ const MORPHITE: ProjectSurplusLine = {
   surplusQuantity: 10,
   unitPrice: 18_500,
   surplusValue: 185_000,
+  source: 'contribution',
 }
 const ISOGEN_WITHOUT_VALUE: ProjectSurplusLine = {
   lineId: 'line-isogen',
@@ -48,6 +50,18 @@ const ISOGEN_WITHOUT_VALUE: ProjectSurplusLine = {
   surplusQuantity: 50,
   unitPrice: null,
   surplusValue: null,
+  source: 'contribution',
+}
+const RAM_PRODUCTION: ProjectSurplusLine = {
+  lineId: 'line-ram',
+  typeId: 11_478,
+  typeName: 'R.A.M.- Starship Tech',
+  requiredQuantity: 280,
+  contributedQuantity: 300,
+  surplusQuantity: 20,
+  unitPrice: null,
+  surplusValue: null,
+  source: 'production',
 }
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, fr } })
@@ -68,8 +82,12 @@ async function mountSurplus(lines: ProjectSurplusLine[], totalValue: number | nu
   return wrapper
 }
 
+function rowTestId(line: ProjectSurplusLine): string {
+  return line.source === 'production' ? `project-surplus-row-production-${line.lineId}` : `project-surplus-row-${line.lineId}`
+}
+
 function rowText(wrapper: VueWrapper, line: ProjectSurplusLine): string {
-  const found = wrapper.find(`[data-testid="project-surplus-row-${line.lineId}"]`)
+  const found = wrapper.find(`[data-testid="${rowTestId(line)}"]`)
   return found.exists() ? found.text().replace(BLANK, ' ') : 'absent'
 }
 
@@ -163,6 +181,38 @@ describe('project surplus card', () => {
     expect(alert.text()).toContain(text('groupIndustry.surplus.loadError'))
     expect(alert.text()).toContain('Server unreachable')
     expect(wrapper.find('[data-testid="project-surplus-empty"]').exists()).toBe(false)
+  })
+
+  it('lists the intermediate surplus of a job line next to the material surplus, marked as produced and not valued', async () => {
+    const wrapper = await mountSurplus([TRITANIUM, RAM_PRODUCTION], 2_125)
+
+    const shown = rowText(wrapper, RAM_PRODUCTION)
+    expect(shown).toContain('R.A.M.- Starship Tech')
+    expect(shown).toContain('280')
+    expect(shown).toContain('300')
+    expect(shown).toContain('20')
+    expect(shown).toContain(text('groupIndustry.surplus.source.production'))
+    expect(shown).toContain(text('groupIndustry.surplus.notValued'))
+    expect(shown).not.toContain('0 ISK')
+    expect(rowText(wrapper, TRITANIUM)).not.toContain(text('groupIndustry.surplus.source.production'))
+    expect(totalText(wrapper)).toContain('2,125 ISK')
+  })
+
+  it('shows both rows when a job line has a contribution surplus and an intermediate surplus', async () => {
+    const ramContribution: ProjectSurplusLine = { ...TRITANIUM, lineId: 'line-ram', typeName: 'R.A.M.- Starship Tech' }
+    const wrapper = await mountSurplus([ramContribution, RAM_PRODUCTION], 2_125)
+
+    expect(wrapper.findAll('[data-testid^="project-surplus-row-"]').map(row => row.attributes('data-testid'))).toEqual([
+      'project-surplus-row-line-ram',
+      'project-surplus-row-production-line-ram',
+    ])
+  })
+
+  it('has the intermediate surplus labels in English and French', () => {
+    const keys = ['source.production', 'notValued']
+    const missing = (['en', 'fr'] as const).flatMap(locale => keys.filter(key => i18n.global.te(`groupIndustry.surplus.${key}`, locale) === false))
+
+    expect(missing).toEqual([])
   })
 
   it('has the labels in English and French', () => {

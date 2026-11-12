@@ -13,7 +13,7 @@ use App\State\Provider\Industry\Project\ProjectSurplusProvider;
 
 #[ApiResource(
     shortName: 'ProjectSurplus',
-    description: 'Material surplus of a completed industry project: approved material contributions above the required quantity, valued at the contribution price',
+    description: 'Surplus of a completed industry project: approved material contributions above the required quantity, valued at the contribution price, and the intermediate surplus of its job lines (whole runs), not valued',
     operations: [
         new Get(
             uriTemplate: '/industry/projects/{projectId}/surplus',
@@ -23,7 +23,7 @@ use App\State\Provider\Industry\Project\ProjectSurplusProvider;
             provider: ProjectSurplusProvider::class,
             openapi: new Model\Operation(
                 summary: 'Read the material surplus of the project',
-                description: 'Lists the BOM lines whose approved material contributions exceed the required quantity, with the surplus valued at the contribution price; read only, nothing is written to the Stockpile and the profit is unchanged',
+                description: 'Lists the BOM lines whose approved material contributions exceed the required quantity, with the surplus valued at the contribution price, and the intermediates produced beyond the demand (source production, not valued, left out of the total); read only, nothing is written to the Stockpile and the profit is unchanged',
                 tags: ['Group Industry - Materials'],
             ),
         ),
@@ -39,7 +39,7 @@ class ProjectSurplusResource
     public ?float $totalValue = null;
 
     /**
-     * @var list<array{lineId: string, typeId: int, typeName: string, requiredQuantity: int, contributedQuantity: int, surplusQuantity: int, unitPrice: float|null, surplusValue: float|null}>
+     * @var list<array{lineId: string, typeId: int, typeName: string, requiredQuantity: int, contributedQuantity: int, surplusQuantity: int, unitPrice: float|null, surplusValue: float|null, source: string}>
      */
     public array $lines = [];
 }

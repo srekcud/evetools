@@ -23,21 +23,34 @@ final readonly class ProjectSurplusBuilder
             $contributions = $this->countedContributionsOf($project, $bomLine);
             $contributedQuantity = array_sum(array_map(static fn (IndustryProjectContribution $contribution): int => $contribution->getQuantity(), $contributions));
             $surplusQuantity = $contributedQuantity - $bomLine->getRequiredQuantity();
-            if ($surplusQuantity <= 0) {
-                continue;
+            if ($surplusQuantity > 0) {
+                $unitPrice = $this->unitPriceOf($contributions, $contributedQuantity);
+                $lines[] = new ProjectSurplusLine(
+                    $bomLine->getId()->toRfc4122(),
+                    $bomLine->getTypeId(),
+                    $bomLine->getTypeName(),
+                    $bomLine->getRequiredQuantity(),
+                    $contributedQuantity,
+                    $surplusQuantity,
+                    $unitPrice,
+                    $unitPrice === null ? null : $surplusQuantity * $unitPrice,
+                );
             }
 
-            $unitPrice = $this->unitPriceOf($contributions, $contributedQuantity);
-            $lines[] = new ProjectSurplusLine(
-                $bomLine->getId()->toRfc4122(),
-                $bomLine->getTypeId(),
-                $bomLine->getTypeName(),
-                $bomLine->getRequiredQuantity(),
-                $contributedQuantity,
-                $surplusQuantity,
-                $unitPrice,
-                $unitPrice === null ? null : $surplusQuantity * $unitPrice,
-            );
+            $producedSurplus = $bomLine->isJob() ? $bomLine->getSurplusQuantity() : null;
+            if ($producedSurplus !== null && $producedSurplus > 0) {
+                $lines[] = new ProjectSurplusLine(
+                    $bomLine->getId()->toRfc4122(),
+                    $bomLine->getTypeId(),
+                    $bomLine->getTypeName(),
+                    $bomLine->getRequiredQuantity() - $producedSurplus,
+                    $bomLine->getRequiredQuantity(),
+                    $producedSurplus,
+                    null,
+                    null,
+                    ProjectSurplusSource::Production,
+                );
+            }
         }
 
         usort($lines, static fn (ProjectSurplusLine $left, ProjectSurplusLine $right): int => $left->typeName <=> $right->typeName ?: $left->typeId <=> $right->typeId);
@@ -88,6 +101,9 @@ final readonly class ProjectSurplusBuilder
     {
         $totalValue = 0.0;
         foreach ($lines as $line) {
+            if ($line->source === ProjectSurplusSource::Production) {
+                continue;
+            }
             if ($line->surplusValue === null) {
                 return null;
             }
