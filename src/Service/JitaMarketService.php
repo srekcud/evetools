@@ -792,13 +792,26 @@ class JitaMarketService
         $orderBook = $this->getOrderBook(self::CACHE_KEY);
 
         $result = [];
+        $missingTypeIds = [];
 
         foreach ($typeIds as $typeId) {
-            $orders = ($orderBook !== null) ? ($orderBook[$typeId] ?? []) : [];
-            $result[$typeId] = $this->calculatePercentilePrice($orders, $percentile);
+            if ($orderBook === null || !array_key_exists($typeId, $orderBook)) {
+                $missingTypeIds[] = $typeId;
+                continue;
+            }
+
+            $result[$typeId] = $this->calculatePercentilePrice($orderBook[$typeId], $percentile);
         }
 
-        return $result;
+        if ($missingTypeIds !== []) {
+            $onDemandSellBooks = $this->fetchOnDemandOrderBooks($missingTypeIds)['sell'];
+
+            foreach ($missingTypeIds as $typeId) {
+                $result[$typeId] = $this->calculatePercentilePrice($onDemandSellBooks[$typeId] ?? [], $percentile);
+            }
+        }
+
+        return array_replace(array_fill_keys($typeIds, null), $result);
     }
 
     /**

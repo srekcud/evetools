@@ -193,6 +193,49 @@ final class JitaMarketServiceEsiClientTest extends TestCase
         $this->assertSame([self::PRODUCTION_ESI_BASE_URL . '/markets/10000002/orders/?order_type=all&type_id=35'], $this->esiUrlsWithoutPage($this->requestedUrls));
     }
 
+    #[Group('issue-739')]
+    public function testGetCheapestPercentilePricesFetchesTheTypeAbsentFromTheSyncedBookOnDemand(): void
+    {
+        $this->storeInMarketCache(self::SELL_ORDER_BOOK_KEY, [self::TRITANIUM => [['price' => 4.95, 'volume' => 500]]]);
+        $service = $this->createService([
+            $this->ordersRoute(self::PYERITE) => [[
+                $this->sellOrder(10.0, 300, self::JITA_STATION),
+                $this->sellOrder(9.5, 700, self::JITA_STATION),
+            ]],
+        ], self::PRODUCTION_ESI_BASE_URL);
+
+        $prices = $service->getCheapestPercentilePrices([self::TRITANIUM, self::PYERITE]);
+
+        $this->assertSame([self::TRITANIUM => 4.95, self::PYERITE => 9.5], $prices);
+        $this->assertSame([self::PRODUCTION_ESI_BASE_URL . '/markets/10000002/orders/?order_type=all&type_id=35'], $this->esiUrlsWithoutPage($this->requestedUrls));
+    }
+
+    #[Group('issue-739')]
+    public function testGetCheapestPercentilePricesKeepsNullForATypeWithoutSellOrdersAtJita(): void
+    {
+        $this->storeInMarketCache(self::SELL_ORDER_BOOK_KEY, [self::TRITANIUM => [['price' => 4.95, 'volume' => 500]]]);
+        $service = $this->createService([
+            $this->ordersRoute(self::PYERITE) => [[]],
+        ], self::PRODUCTION_ESI_BASE_URL);
+
+        $prices = $service->getCheapestPercentilePrices([self::PYERITE]);
+
+        $this->assertSame([self::PYERITE => null], $prices);
+        $this->assertCount(1, $this->esiUrlsWithoutPage($this->requestedUrls));
+    }
+
+    #[Group('issue-739')]
+    public function testGetCheapestPercentilePricesDoesNotCallEsiForATypeInTheSyncedBook(): void
+    {
+        $this->storeInMarketCache(self::SELL_ORDER_BOOK_KEY, [self::TRITANIUM => [['price' => 4.95, 'volume' => 500]]]);
+        $service = $this->createService([], self::PRODUCTION_ESI_BASE_URL);
+
+        $prices = $service->getCheapestPercentilePrices([self::TRITANIUM]);
+
+        $this->assertSame([self::TRITANIUM => 4.95], $prices);
+        $this->assertSame([], $this->requestedUrls);
+    }
+
     public function testGetWeightedSellPricesWithFallbackComputesTheWeightedPriceFromOnDemandOrders(): void
     {
         $service = $this->createService([
