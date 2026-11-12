@@ -10,11 +10,15 @@ use App\Service\Mercure\MercurePublisherService;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Contracts\Service\ResetInterface;
 
-class StructureMarketService
+class StructureMarketService implements ResetInterface
 {
     private const CACHE_KEY_PREFIX = 'structure_market_';
     private const CACHE_TTL = 7200; // 2 hours
+
+    /** @var array<string, array<int, mixed>> */
+    private array $loadedItems = [];
 
     public function __construct(
         private readonly EsiClient $esiClient,
@@ -34,13 +38,11 @@ class StructureMarketService
     public function getLowestSellPrice(int $structureId, int $typeId): ?float
     {
         $cacheKey = self::CACHE_KEY_PREFIX . $structureId;
-        $cacheItem = $this->cache->getItem($cacheKey);
+        $data = $this->loadItem($cacheKey);
 
-        if (!$cacheItem->isHit()) {
+        if ($data === null) {
             return null;
         }
-
-        $data = $cacheItem->get();
 
         return $this->extractSellPrice($data[$typeId] ?? null);
     }
@@ -52,13 +54,11 @@ class StructureMarketService
     public function getHighestBuyPrice(int $structureId, int $typeId): ?float
     {
         $cacheKey = self::CACHE_KEY_PREFIX . $structureId;
-        $cacheItem = $this->cache->getItem($cacheKey);
+        $data = $this->loadItem($cacheKey);
 
-        if (!$cacheItem->isHit()) {
+        if ($data === null) {
             return null;
         }
-
-        $data = $cacheItem->get();
 
         return $this->extractBuyPrice($data[$typeId] ?? null);
     }
@@ -82,13 +82,11 @@ class StructureMarketService
         }
 
         $cacheKey = self::CACHE_KEY_PREFIX . $structureId;
-        $cacheItem = $this->cache->getItem($cacheKey);
+        $data = $this->loadItem($cacheKey);
 
-        if (!$cacheItem->isHit()) {
+        if ($data === null) {
             return $result;
         }
-
-        $data = $cacheItem->get();
 
         foreach ($typeIds as $typeId) {
             $result[$typeId] = $this->extractSellPrice($data[$typeId] ?? null);
@@ -118,13 +116,11 @@ class StructureMarketService
         }
 
         $cacheKey = self::CACHE_KEY_PREFIX . $structureId;
-        $cacheItem = $this->cache->getItem($cacheKey);
+        $data = $this->loadItem($cacheKey);
 
-        if (!$cacheItem->isHit()) {
+        if ($data === null) {
             return $result;
         }
-
-        $data = $cacheItem->get();
 
         foreach ($typeIds as $typeId) {
             $result[$typeId] = $this->extractBuyPrice($data[$typeId] ?? null);
@@ -184,6 +180,32 @@ class StructureMarketService
         return null;
     }
 
+    public function reset(): void
+    {
+        $this->loadedItems = [];
+    }
+
+    /**
+     * @return array<int, mixed>|null
+     */
+    private function loadItem(string $cacheKey): ?array
+    {
+        if (isset($this->loadedItems[$cacheKey])) {
+            return $this->loadedItems[$cacheKey];
+        }
+
+        $cacheItem = $this->cache->getItem($cacheKey);
+
+        if (!$cacheItem->isHit()) {
+            return null;
+        }
+
+        /** @var array<int, mixed> $data */
+        $data = $cacheItem->get();
+
+        return $this->loadedItems[$cacheKey] = $data;
+    }
+
     /**
      * Check if we have cached data for a structure.
      */
@@ -201,13 +223,11 @@ class StructureMarketService
     public function getSellOrders(int $structureId, int $typeId): array
     {
         $cacheKey = self::CACHE_KEY_PREFIX . $structureId . '_orderbooks';
-        $cacheItem = $this->cache->getItem($cacheKey);
+        $data = $this->loadItem($cacheKey);
 
-        if (!$cacheItem->isHit()) {
+        if ($data === null) {
             return [];
         }
-
-        $data = $cacheItem->get();
 
         return $data[$typeId]['sell'] ?? [];
     }
@@ -220,13 +240,11 @@ class StructureMarketService
     public function getBuyOrders(int $structureId, int $typeId): array
     {
         $cacheKey = self::CACHE_KEY_PREFIX . $structureId . '_orderbooks';
-        $cacheItem = $this->cache->getItem($cacheKey);
+        $data = $this->loadItem($cacheKey);
 
-        if (!$cacheItem->isHit()) {
+        if ($data === null) {
             return [];
         }
-
-        $data = $cacheItem->get();
 
         return $data[$typeId]['buy'] ?? [];
     }
@@ -243,6 +261,7 @@ class StructureMarketService
         $this->cache->deleteItem($cacheKey);
         $this->cache->deleteItem($metaKey);
         $this->cache->deleteItem($orderBookKey);
+        $this->reset();
 
         $this->logger->info('Structure market cache cleared', [
             'structureId' => $structureId,
@@ -398,6 +417,7 @@ class StructureMarketService
             $orderBookItem->set($orderBooks);
             $orderBookItem->expiresAfter(self::CACHE_TTL);
             $this->cache->save($orderBookItem);
+            $this->reset();
 
             $typeCount = count($pricesByType);
 

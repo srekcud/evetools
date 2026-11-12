@@ -162,6 +162,7 @@ final class JitaMarketServiceOrderBookCacheTest extends TestCase
         $this->assertSame([self::TRITANIUM => 4.7], $service->getBuyPrices([self::TRITANIUM]));
 
         $this->clock->sleep(2);
+        $service->reset();
         $this->assertFalse($service->hasCachedData());
         $this->assertSame([self::TRITANIUM => null], $service->getPrices([self::TRITANIUM]));
         $this->assertSame([self::TRITANIUM => null], $service->getBuyPrices([self::TRITANIUM]));

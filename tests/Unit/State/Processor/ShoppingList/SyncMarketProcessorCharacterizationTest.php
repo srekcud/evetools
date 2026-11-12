@@ -235,6 +235,7 @@ final class SyncMarketProcessorCharacterizationTest extends TestCase
         $this->assertSame(0, $result->sellOrders);
         $this->assertSame(0, $result->buyOrders);
         $this->assertSame(0, $result->typeCount);
+        $structureMarketService->reset();
         $this->assertNull($structureMarketService->getLowestSellPrice(self::REQUESTED_STRUCTURE_ID, self::TRITANIUM));
         $this->assertNull($structureMarketService->getHighestBuyPrice(self::REQUESTED_STRUCTURE_ID, self::TRITANIUM));
         $this->assertNull($structureMarketService->getLowestSellPrice(self::REQUESTED_STRUCTURE_ID, self::PYERITE));

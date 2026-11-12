@@ -194,6 +194,7 @@ final class JitaMarketSyncCharacterizationTest extends TestCase
         $this->assertNotNull($service->getLastSyncTime());
 
         $this->clock->sleep(2);
+        $service->reset();
         $this->assertFalse($service->hasCachedData());
         $this->assertSame([self::TRITANIUM => null], $service->getBuyPrices([self::TRITANIUM]));
         $this->assertNull($service->getLastSyncTime());
