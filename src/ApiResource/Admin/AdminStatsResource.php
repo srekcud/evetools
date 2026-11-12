@@ -63,6 +63,9 @@ class AdminStatsResource
 
     public EsiErrorBudgetDto $esiErrorBudget;
 
+    /** @var array<int, mixed> */
+    public array $esiRateLimits = [];
+
     public MercureCookieDto $mercureCookie;
 
     public CharactersToRepairDto $charactersToRepair;

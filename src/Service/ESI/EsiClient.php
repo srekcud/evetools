@@ -39,6 +39,7 @@ class EsiClient
         private readonly LoggerInterface $logger,
         private readonly ClockInterface $clock = new NativeClock(),
         private readonly EsiErrorBudget $errorBudget = new EsiErrorBudget(new ArrayAdapter()),
+        private readonly EsiRateLimitBudget $rateLimitBudget = new EsiRateLimitBudget(new ArrayAdapter()),
     ) {
     }
 

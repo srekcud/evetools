@@ -183,7 +183,7 @@ class EsiErrorBudget
         return $item->isHit() ? $item->get() : [];
     }
 
-    private static function familyOf(string $endpoint): string
+    public static function familyOf(string $endpoint): string
     {
         $path = explode('?', $endpoint, 2)[0];
 

@@ -24,9 +24,11 @@ use App\Service\Admin\AdminService;
 use App\Service\Admin\CharacterRepairLister;
 use App\Service\Admin\CharacterToRepair;
 use App\Service\ESI\EsiErrorBudget;
+use App\Service\ESI\EsiRateLimitBudget;
 use App\Service\Mercure\MercureCookieSizeMonitor;
 use App\Service\Mercure\MercureCookieUsage;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -43,6 +45,7 @@ class AdminStatsProvider implements ProviderInterface
         private readonly MercureCookieSizeMonitor $mercureCookieMonitor,
         private readonly CharacterRepairLister $characterRepairLister,
         private readonly AdminCharacterLister $adminCharacterLister,
+        private readonly EsiRateLimitBudget $rateLimitBudget = new EsiRateLimitBudget(new ArrayAdapter()),
     ) {
     }
 
