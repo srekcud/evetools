@@ -31,6 +31,7 @@ class EsiErrorBudget
         private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly ClockInterface $clock = new NativeClock(),
+        private readonly ?EsiErrorBudgetBroadcaster $broadcaster = null,
     ) {
     }
 
@@ -63,6 +64,7 @@ class EsiErrorBudget
 
         $this->lastWrittenRemain = $remain;
         $this->lastWrittenAt = $now;
+        $this->broadcaster?->levelObserved(self::levelOf($remain));
     }
 
     public function recordLimitedResponse(int $statusCode, string $endpoint): void
@@ -83,6 +85,8 @@ class EsiErrorBudget
         } catch (\Throwable $e) {
             $this->logger->warning('ESI limited response could not be counted: {message}', ['message' => $e->getMessage()]);
         }
+
+        $this->broadcaster?->limitedResponseRecorded();
     }
 
     /**

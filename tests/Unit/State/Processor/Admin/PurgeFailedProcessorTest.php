@@ -10,7 +10,9 @@ use App\Entity\User;
 use App\Security\AdminChecker;
 use App\Service\Admin\MessengerQueueService;
 use App\State\Processor\Admin\PurgeFailedProcessor;
+use App\Tests\Unit\Service\Mercure\RecordsAdminHealthUpdates;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Messenger\Envelope;
@@ -20,6 +22,8 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
 #[CoversClass(PurgeFailedProcessor::class)]
 class PurgeFailedProcessorTest extends TestCase
 {
+    use RecordsAdminHealthUpdates;
+
     private const ADMIN_EVE_CHARACTER_ID = 90000001;
     private const FAILED_MESSAGE_COUNT = 4;
 
@@ -49,6 +53,28 @@ class PurgeFailedProcessorTest extends TestCase
         $this->assertSame('Error: AMQP connection lost', $result->message);
     }
 
+    #[Group('issue-813')]
+    public function testPurgingPublishesTheFailedMessagesScopeOnceAfterTheSuccess(): void
+    {
+        $failedTransport = new InMemoryTransport();
+        $failedTransport->send(new Envelope(new \stdClass()));
+
+        $this->processorFor($failedTransport)->process(null, new Post());
+
+        $this->assertSame(['failed-messages'], $this->publishedScopes());
+    }
+
+    #[Group('issue-813')]
+    public function testPurgingPublishesNothingWhenTheTransportFails(): void
+    {
+        $failedTransport = $this->createStub(TransportInterface::class);
+        $failedTransport->method('get')->willThrowException(new \RuntimeException('AMQP connection lost'));
+
+        $this->processorFor($failedTransport)->process(null, new Post());
+
+        $this->assertSame([], $this->publishedScopes());
+    }
+
     private function processorFor(TransportInterface $failedTransport): PurgeFailedProcessor
     {
         $security = $this->createStub(Security::class);
@@ -58,6 +84,7 @@ class PurgeFailedProcessorTest extends TestCase
             $security,
             new MessengerQueueService(new InMemoryTransport(), $failedTransport),
             new AdminChecker((string) self::ADMIN_EVE_CHARACTER_ID),
+            $this->adminHealthPublisher(),
         );
     }
 

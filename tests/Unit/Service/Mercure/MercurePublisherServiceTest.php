@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Mercure;
 
+use App\Enum\AdminHealthScope;
 use App\Service\Mercure\MercurePublisherService;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -754,6 +755,52 @@ class MercurePublisherServiceTest extends TestCase
         $this->assertContains('/corp/98000001/escalations', $topics);
         $this->assertContains('/alliance/99000001/escalations', $topics);
         $this->assertCount(3, $topics);
+    }
+
+    #[Group('issue-813')]
+    public function testPublishAdminHealthSendsAPrivateUpdateOnTheSharedAdminTopicWithTheScopeAndATimestamp(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishAdminHealth(AdminHealthScope::EsiErrorBudget);
+
+        $this->assertCount(1, $publishedUpdates);
+        $update = $publishedUpdates[0];
+        $this->assertSame(['/admin/health'], $update->getTopics());
+        $this->assertTrue($update->isPrivate());
+        $payload = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(['adminHealth', 'timestamp'], array_keys($payload));
+        $this->assertSame('esi-error-budget', $payload['adminHealth']);
+        $this->assertNotFalse(\DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $payload['timestamp']));
+    }
+
+    #[Group('issue-813')]
+    public function testPublishAdminHealthCarriesTheFailedMessagesScope(): void
+    {
+        $publishedUpdates = $this->capturePublishedUpdates();
+
+        $this->service->publishAdminHealth(AdminHealthScope::FailedMessages);
+
+        $this->assertCount(1, $publishedUpdates);
+        $this->assertSame('failed-messages', json_decode($publishedUpdates[0]->getData(), true)['adminHealth']);
+    }
+
+    #[Group('issue-813')]
+    public function testPublishAdminHealthLogsAWarningWhenTheHubIsDownAndNeverRaises(): void
+    {
+        $this->hub->method('publish')->willThrowException(new \RuntimeException('Hub down'));
+
+        $this->logger->expects($this->once())->method('warning');
+
+        $this->service->publishAdminHealth(AdminHealthScope::FailedMessages);
+    }
+
+    #[Group('issue-813')]
+    public function testTheAdminTopicsAreTheSharedAdminHealthTopicAlone(): void
+    {
+        $this->assertSame('/admin/health', MercurePublisherService::ADMIN_HEALTH_TOPIC);
+        $this->assertSame(['/admin/health'], MercurePublisherService::getAdminTopics());
+        $this->assertNotContains('/admin/health', MercurePublisherService::getTopicsForUser('user-uuid-123'));
     }
 
     /**

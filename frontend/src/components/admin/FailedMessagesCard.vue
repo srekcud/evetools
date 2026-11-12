@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -34,6 +34,10 @@ type Removal = PendingRemoval & { target: string; label: string }
 const FAILED_MESSAGES_PATH = '/admin/failed-messages'
 const NOT_FOUND_STATUS = 404
 const UNKNOWN_VALUE = '—'
+
+const props = defineProps<{
+  refreshSignal?: string | null
+}>()
 
 const { t, locale } = useI18n()
 
@@ -129,6 +133,10 @@ function cancelRemoval(): void {
 }
 
 onMounted(load)
+
+watch(() => props.refreshSignal, (signal) => {
+  if (signal) void load()
+})
 </script>
 
 <template>

@@ -8,7 +8,9 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Admin\ActionResultResource;
 use App\Entity\User;
+use App\Enum\AdminHealthScope;
 use App\Security\AdminChecker;
+use App\Service\Mercure\MercurePublisherService;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -26,6 +28,7 @@ class RetryFailedProcessor implements ProcessorInterface
         private readonly Security $security,
         private readonly KernelInterface $kernel,
         private readonly AdminChecker $adminChecker,
+        private readonly MercurePublisherService $mercurePublisher,
     ) {
     }
 
@@ -66,6 +69,8 @@ class RetryFailedProcessor implements ProcessorInterface
             $resource->success = false;
             $resource->message = 'Error: ' . $e->getMessage();
         }
+
+        $this->mercurePublisher->publishAdminHealth(AdminHealthScope::FailedMessages);
 
         return $resource;
     }

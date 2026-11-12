@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import type { AdminEsiErrorBudget } from '@/stores/admin'
@@ -12,6 +12,26 @@ const { t } = useI18n()
 const { formatTimeSince, formatNumber } = useFormatters()
 
 const MINIMUM_BAR_PERCENT = 8
+const RELATIVE_TIME_TICK_MS = 30000
+
+const ticked = ref<Date | null>(null)
+let tickTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  tickTimer = setInterval(() => {
+    ticked.value = new Date()
+  }, RELATIVE_TIME_TICK_MS)
+})
+
+onUnmounted(() => {
+  if (tickTimer !== null) clearInterval(tickTimer)
+})
+
+const displayedLevel = computed<AdminEsiErrorBudget['level']>(() => {
+  const windowEndsAt = props.budget.windowEndsAt
+  if (windowEndsAt !== null && ticked.value !== null && ticked.value.getTime() > new Date(windowEndsAt).getTime()) return 'unknown'
+  return props.budget.level
+})
 
 const levelClasses: Record<AdminEsiErrorBudget['level'], string> = {
   unknown: 'bg-slate-500/20 text-slate-400',
@@ -43,8 +63,8 @@ function barClass(limited420: number, limited429: number): string {
       <h3 class="text-lg font-semibold text-slate-200">{{ t('admin.esiBudget.title') }}</h3>
       <span
         data-testid="esi-budget-level"
-        :class="['inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', levelClasses[budget.level]]"
-      >{{ t(`admin.esiBudget.level.${budget.level}`) }}</span>
+        :class="['inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', levelClasses[displayedLevel]]"
+      >{{ t(`admin.esiBudget.level.${displayedLevel}`) }}</span>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -54,7 +74,7 @@ function barClass(limited420: number, limited429: number): string {
       </div>
       <div>
         <p class="text-xs uppercase text-slate-500">{{ t('admin.esiBudget.lastReset') }}</p>
-        <p class="text-sm font-mono text-slate-300">{{ budget.observedAt ? formatTimeSince(budget.observedAt) : '--' }}</p>
+        <p data-testid="esi-budget-observed" class="text-sm font-mono text-slate-300">{{ budget.observedAt ? formatTimeSince(budget.observedAt, ticked ?? undefined) : '--' }}</p>
         <p v-if="budget.resetSeconds !== null" class="text-xs text-slate-500">{{ t('admin.esiBudget.resetIn', { seconds: budget.resetSeconds }) }}</p>
       </div>
       <div>

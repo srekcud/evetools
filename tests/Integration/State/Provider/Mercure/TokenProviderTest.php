@@ -13,6 +13,7 @@ use App\Enum\ParticipantRole;
 use App\Enum\ParticipantStatus;
 use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectParticipantRepository;
+use App\Security\AdminChecker;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\Mercure\TokenProvider;
 use App\Tests\Integration\IntegrationTestCase;
@@ -184,12 +185,49 @@ final class TokenProviderTest extends IntegrationTestCase
         $this->tokenProvider($this->securityOf($user))->provide(new Get(), [], ['request' => $this->requestToTheHub()]);
     }
 
-    private function tokenProvider(Security $security): TokenProvider
+    #[Group('issue-813')]
+    public function testAnAdminSubscribesToTheAdminHealthTopicAndTheCookieGrantsItExactly(): void
+    {
+        $user = $this->persistedUserWithProjects(1);
+        $request = $this->requestToTheHub();
+        $adminCharacterIds = '90000001, ' . $user->getMainCharacter()->getEveCharacterId();
+
+        $resource = $this->tokenProvider($this->securityOf($user), $adminCharacterIds)->provide(new Get(), [], ['request' => $request]);
+
+        self::assertSame(1, count(array_keys($resource->topics, '/admin/health', true)));
+        [, $payload] = $this->decodeJwt($resource->token);
+        $exactMatches = [];
+        foreach ($payload['authorization_details'] as $detail) {
+            foreach ($detail['topics'] as $matcher) {
+                if (($matcher['match_type'] ?? 'exact') === 'exact') {
+                    $exactMatches[] = $matcher['match'];
+                }
+            }
+        }
+        self::assertSame(1, count(array_keys($exactMatches, '/admin/health', true)));
+        self::assertTrue($this->isGranted('/admin/health', $payload['authorization_details']));
+    }
+
+    #[Group('issue-813')]
+    public function testANonAdminGetsNeitherTheAdminHealthTopicNorItsGrant(): void
+    {
+        $user = $this->persistedUserWithProjects(1);
+        $request = $this->requestToTheHub();
+
+        $resource = $this->tokenProvider($this->securityOf($user), '90000001')->provide(new Get(), [], ['request' => $request]);
+
+        self::assertNotContains('/admin/health', $resource->topics);
+        [, $payload] = $this->decodeJwt($resource->token);
+        self::assertFalse($this->isGranted('/admin/health', $payload['authorization_details']));
+    }
+
+    private function tokenProvider(Security $security, string $adminCharacterIds = ''): TokenProvider
     {
         return new TokenProvider(
             $security,
             self::getContainer()->get(IndustryProjectParticipantRepository::class),
             self::getContainer()->get(Authorization::class),
+            new AdminChecker($adminCharacterIds),
             'https://mercure.example.test/.well-known/mercure',
         );
     }

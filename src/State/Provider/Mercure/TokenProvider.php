@@ -9,6 +9,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Mercure\TokenResource;
 use App\Entity\User;
 use App\Repository\IndustryProjectParticipantRepository;
+use App\Security\AdminChecker;
 use App\Service\Mercure\MercureCookieSizeMonitor;
 use App\Service\Mercure\MercurePublisherService;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,6 +27,7 @@ class TokenProvider implements ProviderInterface
         private readonly Security $security,
         private readonly IndustryProjectParticipantRepository $memberRepository,
         private readonly Authorization $authorization,
+        private readonly AdminChecker $adminChecker,
         #[Autowire('%env(MERCURE_PUBLIC_URL)%')]
         private readonly string $mercurePublicUrl,
     ) {
@@ -51,13 +53,16 @@ class TokenProvider implements ProviderInterface
             $user->getAllianceId(),
             $groupProjectIds,
         );
-        $topics = array_merge($topics, $groupTopics);
+        $exactTopics = $this->adminChecker->isAdmin($user)
+            ? [...$groupTopics, ...MercurePublisherService::getAdminTopics()]
+            : $groupTopics;
+        $topics = array_merge($topics, $exactTopics);
         $request = $context['request'] ?? null;
         if (!$request instanceof Request) {
             throw new \LogicException('The Mercure token needs the current request to set the authorization cookie.');
         }
 
-        $this->authorization->setCookie($request, [MercurePublisherService::getSubscriberGrant($userId, $groupTopics)]);
+        $this->authorization->setCookie($request, [MercurePublisherService::getSubscriberGrant($userId, $exactTopics)]);
 
         $cookie = $request->attributes->get('_mercure_authorization_cookies')[''];
         if (strlen((string) $cookie) > MercureCookieSizeMonitor::BROWSER_COOKIE_LIMIT_BYTES) {

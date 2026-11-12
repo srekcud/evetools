@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mercure;
 
+use App\Enum\AdminHealthScope;
 use App\Event\GroupProjectEventPublished;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -13,6 +14,8 @@ use Symfony\Component\Mercure\Update;
 
 final readonly class MercurePublisherService
 {
+    public const string ADMIN_HEALTH_TOPIC = '/admin/health';
+
     public function __construct(
         private HubInterface $hub,
         private LoggerInterface $logger,
@@ -315,6 +318,33 @@ final readonly class MercurePublisherService
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    public function publishAdminHealth(AdminHealthScope $scope): void
+    {
+        $payload = [
+            'adminHealth' => $scope->value,
+            'timestamp' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+        ];
+
+        try {
+            $this->hub->publish(new Update(
+                self::ADMIN_HEALTH_TOPIC,
+                json_encode($payload, JSON_THROW_ON_ERROR),
+                private: true,
+            ));
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to publish admin health update', [
+                'scope' => $scope->value,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /** @return list<string> */
+    public static function getAdminTopics(): array
+    {
+        return [self::ADMIN_HEALTH_TOPIC];
     }
 
     /**

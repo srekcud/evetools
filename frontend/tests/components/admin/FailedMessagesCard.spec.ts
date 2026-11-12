@@ -381,3 +381,47 @@ describe('FailedMessagesCard failures, limits and unknown values', () => {
     expect(wrapper.text()).not.toContain(en.common.actions.confirm)
   })
 })
+
+describe('FailedMessagesCard, refresh signal', () => {
+  beforeEach(() => {
+    apiRequestMock.mockReset()
+    respondToApi([FILLED_LISTING])
+  })
+
+  function mountWithSignal(refreshSignal: string | null) {
+    return mount(FailedMessagesCard, {
+      props: { refreshSignal },
+      global: {
+        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en, fr } })],
+        stubs: { teleport: true },
+      },
+    })
+  }
+
+  it('loads the listing once when mounted, with or without a signal', async () => {
+    mountWithSignal(null)
+    await flushPromises()
+
+    expect(listingCalls()).toBe(1)
+  })
+
+  it('loads the listing again on every non-null signal change and ignores a change to null', async () => {
+    const wrapper = mountWithSignal(null)
+    await flushPromises()
+
+    await wrapper.setProps({ refreshSignal: '2026-11-13T08:00:00+00:00' })
+    await flushPromises()
+
+    expect(listingCalls()).toBe(2)
+
+    await wrapper.setProps({ refreshSignal: null })
+    await flushPromises()
+
+    expect(listingCalls()).toBe(2)
+
+    await wrapper.setProps({ refreshSignal: '2026-11-13T08:00:07+00:00' })
+    await flushPromises()
+
+    expect(listingCalls()).toBe(3)
+  })
+})
