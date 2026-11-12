@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { usePilotName } from '@/composables/usePilotName'
 import { safeJsonParse } from '@/services/api'
+import { SYNC_EVENT_TIMEOUT_MS } from '@/constants/syncConstants'
 import { useTypeNames } from '@/composables/useTypeNames'
 import { useCorporationAssetVisibility, type CorporationVisibilityPayload } from '@/composables/useCorporationAssetVisibility'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -305,20 +306,54 @@ const currentSyncProgress = computed(() =>
 )
 const { isFlashing: assetsUpdated, flash: flashAssets } = useFlash()
 
+let syncTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+function stopSyncTimeout() {
+  if (syncTimeoutId === null) return
+  clearTimeout(syncTimeoutId)
+  syncTimeoutId = null
+}
+
+function startSyncTimeout() {
+  stopSyncTimeout()
+  syncTimeoutId = setTimeout(giveUpWaitingForSync, SYNC_EVENT_TIMEOUT_MS)
+}
+
+async function giveUpWaitingForSync() {
+  syncTimeoutId = null
+  isRefreshing.value = false
+  syncStore.clearSyncStatus(currentSyncType.value)
+  await fetchAssets()
+  error.value = t('assets.syncNoAnswer')
+}
+
+watch(isRefreshing, (refreshing) => {
+  if (refreshing && syncStore.isConnected) {
+    startSyncTimeout()
+  } else {
+    stopSyncTimeout()
+  }
+})
+
+onUnmounted(stopSyncTimeout)
+
 watch(
   () => currentSyncProgress.value,
   (progress) => {
     if (!progress) return
     if (progress.status === 'completed') {
+      stopSyncTimeout()
       fetchAssets().then(flashAssets)
       isRefreshing.value = false
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'error') {
+      stopSyncTimeout()
       error.value = progress.message || 'Sync failed'
       isRefreshing.value = false
       syncStore.clearSyncStatus(currentSyncType.value)
     } else if (progress.status === 'started' || progress.status === 'in_progress') {
       isRefreshing.value = true
+      startSyncTimeout()
     }
   }
 )

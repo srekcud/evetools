@@ -2073,6 +2073,7 @@
     "allSystems": "All systems",
     "location": "Location",
     "allLocations": "All locations",
+    "syncNoAnswer": "The sync did not answer.",
     "syncing": "Syncing...",
     "noAssets": "No assets",
     "selectCharacter": "Select a character",

@@ -2073,6 +2073,7 @@
     "allSystems": "Tous les systemes",
     "location": "Emplacement",
     "allLocations": "Tous les emplacements",
+    "syncNoAnswer": "La synchro n'a pas répondu.",
     "syncing": "Synchronisation...",
     "noAssets": "Aucun asset",
     "selectCharacter": "Selectionner un personnage",
