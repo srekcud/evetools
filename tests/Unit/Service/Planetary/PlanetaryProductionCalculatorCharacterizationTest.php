@@ -272,10 +272,16 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         $this->assertOnlyTheSuppliedWaterFactoryCounts($schematicMap, $schematicCycleTimes);
     }
 
-    #[Group('pi-audit-2')]
-    public function testAdvancedCommodityInputsKeepTheirOwnSchematicQuantityCurrentlyWithoutSupplyPiAudit2(): void
+    public function testAdvancedCommodityInputsKeepTheirOwnSchematicQuantity(): void
     {
-        $colony = $this->colony($this->factoryPin(self::SCHEMATIC_STERILE_CONDUITS));
+        $colony = $this->colony(
+            $this->storagePin([
+                ['type_id' => self::SMARTFAB_UNITS, 'amount' => 500],
+                ['type_id' => self::VACCINES, 'amount' => 500],
+                ['type_id' => self::WATER, 'amount' => 5000],
+            ]),
+            $this->factoryPin(self::SCHEMATIC_STERILE_CONDUITS),
+        );
 
         $result = $this->calculator()->calculateProduction([$colony]);
 
@@ -413,8 +419,7 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         ], $outputs[self::WATER_COOLED_CPU][5]);
     }
 
-    #[Group('pi-audit-2')]
-    public function testFactoryWhoseExtractorExpiredCurrentlyProducesAtFullRatePiAudit2(): void
+    public function testFactoryWhoseExtractorExpiredStopsProducingAndStaysListed(): void
     {
         $colony = $this->colony(
             $this->extractorPin(self::AQUEOUS_LIQUIDS, cycleTime: 1800, qtyPerCycle: 3000, expiryTime: new \DateTimeImmutable('-2 hours')),
@@ -428,15 +433,117 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
                 'tier' => 'P1',
                 'label' => 'Basic Commodities',
                 'items' => [
-                    $this->item(self::WATER, 960.0, 412.37, 395875.2, [
-                        $this->input(self::AQUEOUS_LIQUIDS, dailyConsumed: 144000.0, dailyProduced: 0.0, delta: -144000.0),
+                    $this->item(self::WATER, 0.0, 412.37, 0.0, [
+                        $this->input(self::AQUEOUS_LIQUIDS, dailyConsumed: 0.0, dailyProduced: 0.0, delta: 0.0),
                     ]),
                 ],
-                'dailyIskValue' => 395875.2,
+                'dailyIskValue' => 0.0,
             ],
         ], $result['tiers']);
-        $this->assertSame(395875.2, $result['totalDailyIsk']);
-        $this->assertSame(11876256.0, $result['totalMonthlyIsk']);
+        $this->assertSame(0.0, $result['totalDailyIsk']);
+        $this->assertSame(0.0, $result['totalMonthlyIsk']);
+    }
+
+    public function testFactoryWithoutExtractorNorStockProducesAndConsumesNothing(): void
+    {
+        $result = $this->calculator()->calculateProduction([$this->colony($this->factoryPin(self::SCHEMATIC_WATER))]);
+
+        $water = $this->itemOf($result, self::WATER);
+        $this->assertSame(0.0, $water['dailyQuantity']);
+        $this->assertSame(0.0, $water['dailyIskValue']);
+        $this->assertSame(0.0, $water['inputs'][0]['dailyConsumed']);
+    }
+
+    public function testFactoryRunsAtFullRateOnTheStockOfAStorageOfItsColony(): void
+    {
+        $colony = $this->colony(
+            $this->storagePin([['type_id' => self::AQUEOUS_LIQUIDS, 'amount' => 1]]),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+        );
+
+        $water = $this->itemOf($this->calculator()->calculateProduction([$colony]), self::WATER);
+
+        $this->assertSame(960.0, $water['dailyQuantity']);
+        $this->assertSame(144000.0, $water['inputs'][0]['dailyConsumed']);
+    }
+
+    public function testFactoryRunsAtFullRateOnItsOwnContents(): void
+    {
+        $colony = $this->colony(
+            $this->factoryPin(self::SCHEMATIC_WATER, contents: [['type_id' => self::AQUEOUS_LIQUIDS, 'amount' => 20]]),
+        );
+
+        $water = $this->itemOf($this->calculator()->calculateProduction([$colony]), self::WATER);
+
+        $this->assertSame(960.0, $water['dailyQuantity']);
+    }
+
+    public function testFactoryWithAnEmptyStockOfItsInputStaysStopped(): void
+    {
+        $colony = $this->colony(
+            $this->storagePin([['type_id' => self::AQUEOUS_LIQUIDS, 'amount' => 0]]),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+        );
+
+        $water = $this->itemOf($this->calculator()->calculateProduction([$colony]), self::WATER);
+
+        $this->assertSame(0.0, $water['dailyQuantity']);
+    }
+
+    public function testFactoryRunsAtTheShareOfItsDemandThatItsExtractorsCover(): void
+    {
+        $colony = $this->colony(
+            $this->extractorPin(self::AQUEOUS_LIQUIDS, cycleTime: 3600, qtyPerCycle: 3000, expiryTime: new \DateTimeImmutable('+2 days')),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+        );
+
+        $water = $this->itemOf($this->calculator()->calculateProduction([$colony]), self::WATER);
+
+        $this->assertSame(480.0, $water['dailyQuantity']);
+        $this->assertSame(
+            $this->input(self::AQUEOUS_LIQUIDS, dailyConsumed: 72000.0, dailyProduced: 72000.0, delta: 0.0),
+            $water['inputs'][0],
+        );
+    }
+
+    public function testFactoriesOfTheSameSchematicShareTheSupplyOfTheirColony(): void
+    {
+        $colony = $this->colony(
+            $this->extractorPin(self::AQUEOUS_LIQUIDS, cycleTime: 1800, qtyPerCycle: 3000, expiryTime: new \DateTimeImmutable('+2 days')),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+        );
+
+        $water = $this->itemOf($this->calculator()->calculateProduction([$colony]), self::WATER);
+
+        $this->assertSame(960.0, $water['dailyQuantity']);
+        $this->assertSame(144000.0, $water['inputs'][0]['dailyConsumed']);
+    }
+
+    public function testFactoryWhoseUpstreamFactoryIsStoppedIsStoppedToo(): void
+    {
+        $colony = $this->colony(
+            $this->storagePin([['type_id' => self::REACTIVE_METALS, 'amount' => 5000]]),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+            $this->factoryPin(self::SCHEMATIC_WATER_COOLED_CPU),
+        );
+
+        $result = $this->calculator()->calculateProduction([$colony]);
+
+        $this->assertSame(0.0, $this->itemOf($result, self::WATER)['dailyQuantity']);
+        $cpu = $this->itemOf($result, self::WATER_COOLED_CPU);
+        $this->assertSame(0.0, $cpu['dailyQuantity']);
+        $this->assertSame(0.0, $cpu['dailyIskValue']);
+    }
+
+    public function testStockOfAnotherColonyDoesNotFeedAFactory(): void
+    {
+        $stockColony = $this->colony($this->storagePin([['type_id' => self::AQUEOUS_LIQUIDS, 'amount' => 90000]]));
+        $factoryColony = $this->colony($this->factoryPin(self::SCHEMATIC_WATER));
+
+        $result = $this->calculator()->calculateProduction([$stockColony, $factoryColony]);
+
+        $this->assertSame(0.0, $this->itemOf($result, self::WATER)['dailyQuantity']);
     }
 
     #[Group('pi-audit-6')]
@@ -541,7 +648,10 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
             ],
             schematicCycleTimes: [self::SCHEMATIC_ROBOTICS => 3600],
             typesById: [self::BACTERIA => $bacteria],
-        )->calculateProduction([$this->colony($this->factoryPin(self::SCHEMATIC_ROBOTICS))]);
+        )->calculateProduction([$this->colony(
+            $this->storagePin([['type_id' => self::BACTERIA, 'amount' => 6000]]),
+            $this->factoryPin(self::SCHEMATIC_ROBOTICS),
+        )]);
 
         $this->assertSame([
             'tiers' => [
@@ -825,12 +935,13 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         return $pin;
     }
 
-    private function factoryPin(int $schematicId): PlanetaryPin
+    private function factoryPin(int $schematicId, ?array $contents = null): PlanetaryPin
     {
         $pin = new PlanetaryPin();
         $pin->setPinId($this->nextPinId++);
         $pin->setTypeId(2473);
         $pin->setSchematicId($schematicId);
+        $pin->setContents($contents);
         $pin->setLastCycleStart(new \DateTimeImmutable('-10 minutes'));
 
         return $pin;

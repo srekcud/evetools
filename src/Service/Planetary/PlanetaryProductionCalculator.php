@@ -26,6 +26,7 @@ class PlanetaryProductionCalculator
 {
     private const SECONDS_PER_DAY = 86400;
     private const DAYS_PER_MONTH = 30;
+    private const MAX_RESOLUTION_PASSES = 6;
 
     // PI market group IDs in EVE SDE
     private const MARKET_GROUP_P1 = 1334; // Basic Commodities
@@ -157,8 +158,9 @@ class PlanetaryProductionCalculator
     }
 
     /**
-     * Aggregate daily outputs from all extractors and factories across colonies.
-     * Also computes global consumption per input type and per-output-type input breakdown.
+     * Aggregate the effective daily outputs of extractors and factories across colonies.
+     * A factory only runs on what its colony supplies or stocks, so outputs and
+     * consumptions are scaled by the run rate of each factory.
      *
      * @param PlanetaryColony[]                                                                          $colonies
      * @param array<int, array{inputs: array<int, int>, output: array{typeId: int, quantity: int}|null}> $schematicMap
@@ -176,40 +178,25 @@ class PlanetaryProductionCalculator
         $now = new \DateTimeImmutable();
 
         foreach ($colonies as $colony) {
+            $producers = [];
             foreach ($colony->getPins() as $pin) {
-                $dailyOutput = $this->calculatePinDailyOutput($pin, $schematicMap, $now);
-                if ($dailyOutput === null) {
-                    continue;
+                $producer = $this->calculatePinDailyOutput($pin, $schematicMap, $now);
+                if ($producer !== null) {
+                    $producers[] = $producer;
                 }
+            }
 
-                $typeId = $dailyOutput['typeId'];
-                $outputsByType[$typeId] = ($outputsByType[$typeId] ?? 0.0) + $dailyOutput['quantity'];
+            $runRates = $this->resolveRunRates($producers, $this->stockByType($colony));
 
-                // Track consumption for factory pins
-                if ($pin->isFactory()) {
-                    $schematicId = $pin->getSchematicId();
-                    if ($schematicId === null) {
-                        continue;
-                    }
-                    $schematicInputs = $schematicMap[$schematicId]['inputs'] ?? [];
-                    $schematic = $this->schematicRepository->findBySchematicId($schematicId);
+            foreach ($producers as $index => $producer) {
+                $typeId = $producer['typeId'];
+                $runRate = $runRates[$index];
+                $outputsByType[$typeId] = ($outputsByType[$typeId] ?? 0.0) + $producer['quantity'] * $runRate;
 
-                    if ($schematic !== null && $schematic->getCycleTime() > 0) {
-                        $cyclesPerDay = self::SECONDS_PER_DAY / $schematic->getCycleTime();
-
-                        foreach ($schematicInputs as $inputTypeId => $inputQty) {
-                            $dailyConsumed = $inputQty * $cyclesPerDay;
-
-                            // Global consumption tracking
-                            $consumptionByType[$inputTypeId] = ($consumptionByType[$inputTypeId] ?? 0.0) + $dailyConsumed;
-
-                            // Per-output-type input tracking
-                            if (!isset($inputsByOutputType[$typeId])) {
-                                $inputsByOutputType[$typeId] = [];
-                            }
-                            $inputsByOutputType[$typeId][$inputTypeId] = ($inputsByOutputType[$typeId][$inputTypeId] ?? 0.0) + $dailyConsumed;
-                        }
-                    }
+                foreach ($producer['inputs'] as $inputTypeId => $fullRateConsumed) {
+                    $dailyConsumed = $fullRateConsumed * $runRate;
+                    $consumptionByType[$inputTypeId] = ($consumptionByType[$inputTypeId] ?? 0.0) + $dailyConsumed;
+                    $inputsByOutputType[$typeId][$inputTypeId] = ($inputsByOutputType[$typeId][$inputTypeId] ?? 0.0) + $dailyConsumed;
                 }
             }
         }
@@ -218,10 +205,69 @@ class PlanetaryProductionCalculator
     }
 
     /**
-     * Calculate the daily output of a single pin.
+     * @return array<int, float> typeId => amount held by the pins of the colony
+     */
+    private function stockByType(PlanetaryColony $colony): array
+    {
+        $stock = [];
+        foreach ($colony->getPins() as $pin) {
+            foreach ($pin->getContents() ?? [] as $content) {
+                if ($content['amount'] > 0) {
+                    $stock[$content['type_id']] = ($stock[$content['type_id']] ?? 0.0) + $content['amount'];
+                }
+            }
+        }
+
+        return $stock;
+    }
+
+    /**
+     * @param list<array{typeId: int, quantity: float, inputs: array<int, float>}> $producers
+     * @param array<int, float>                                                    $stock
+     * @return list<float> run rate between 0 and 1 of each producer
+     */
+    private function resolveRunRates(array $producers, array $stock): array
+    {
+        $demand = [];
+        foreach ($producers as $producer) {
+            foreach ($producer['inputs'] as $inputTypeId => $fullRateConsumed) {
+                $demand[$inputTypeId] = ($demand[$inputTypeId] ?? 0.0) + $fullRateConsumed;
+            }
+        }
+
+        $runRates = array_fill(0, count($producers), 1.0);
+        for ($pass = 0; $pass < self::MAX_RESOLUTION_PASSES; ++$pass) {
+            $supply = [];
+            foreach ($producers as $index => $producer) {
+                $supply[$producer['typeId']] = ($supply[$producer['typeId']] ?? 0.0) + $producer['quantity'] * $runRates[$index];
+            }
+
+            $nextRunRates = [];
+            foreach ($producers as $producer) {
+                $runRate = 1.0;
+                foreach (array_keys($producer['inputs']) as $inputTypeId) {
+                    $coverage = isset($stock[$inputTypeId])
+                        ? 1.0
+                        : min(1.0, ($supply[$inputTypeId] ?? 0.0) / $demand[$inputTypeId]);
+                    $runRate = min($runRate, $coverage);
+                }
+                $nextRunRates[] = $runRate;
+            }
+
+            if ($nextRunRates === $runRates) {
+                break;
+            }
+            $runRates = $nextRunRates;
+        }
+
+        return $runRates;
+    }
+
+    /**
+     * Calculate the full-rate daily output of a single pin and, for a factory, the daily inputs it needs.
      *
      * @param array<int, array<string, mixed>> $schematicMap
-     * @return array{typeId: int, quantity: float}|null
+     * @return array{typeId: int, quantity: float, inputs: array<int, float>}|null
      */
     private function calculatePinDailyOutput(PlanetaryPin $pin, array $schematicMap, \DateTimeImmutable $now): ?array
     {
@@ -243,7 +289,7 @@ class PlanetaryProductionCalculator
 
             $dailyQty = $qtyPerCycle * (self::SECONDS_PER_DAY / $cycleTime);
 
-            return ['typeId' => $productTypeId, 'quantity' => $dailyQty];
+            return ['typeId' => $productTypeId, 'quantity' => $dailyQty, 'inputs' => []];
         }
 
         // Factories: use schematic cycle time
@@ -268,9 +314,13 @@ class PlanetaryProductionCalculator
                 return null;
             }
 
-            $dailyQty = $output['quantity'] * (self::SECONDS_PER_DAY / $cycleTime);
+            $cyclesPerDay = self::SECONDS_PER_DAY / $cycleTime;
+            $inputs = [];
+            foreach ($schematicMap[$schematicId]['inputs'] ?? [] as $inputTypeId => $inputQty) {
+                $inputs[$inputTypeId] = $inputQty * $cyclesPerDay;
+            }
 
-            return ['typeId' => $output['typeId'], 'quantity' => $dailyQty];
+            return ['typeId' => $output['typeId'], 'quantity' => $output['quantity'] * $cyclesPerDay, 'inputs' => $inputs];
         }
 
         return null;

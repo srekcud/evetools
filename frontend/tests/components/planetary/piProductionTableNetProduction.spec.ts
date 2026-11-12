@@ -8,6 +8,7 @@ import type { ProductionTier } from '@/stores/planetary'
 
 const EmptyView = { render: () => null }
 const INTERNAL_USE = '[data-testid="pi-product-internal"]'
+const STOPPED = '[data-testid="pi-product-stopped"]'
 
 const WATER_TYPE_ID = 3645
 const COOLANT_TYPE_ID = 9832
@@ -21,15 +22,23 @@ const P1_TIER: ProductionTier = {
   ],
 }
 
+const STOPPED_TIER: ProductionTier = {
+  tier: 'P2',
+  dailyIskValue: 0,
+  items: [
+    { typeId: COOLANT_TYPE_ID, typeName: 'Coolant', dailyQuantity: 0, dailyConsumedInternally: 0, dailySellableQuantity: 0, unitPrice: 11_873, dailyIskValue: 0, inputs: [] },
+  ],
+}
+
 enableAutoUnmount(afterEach)
 
-function mountTable() {
+function mountTable(production: ProductionTier[] = [P1_TIER]) {
   setActivePinia(createPinia())
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/market', name: 'market', component: EmptyView }] })
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   return mount(PiProductionTable, {
     global: { plugins: [i18n, router], stubs: { OpenInGameButton: true } },
-    props: { production: [P1_TIER], totalDailyIsk: 395_875 },
+    props: { production, totalDailyIsk: 395_875 },
   })
 }
 
@@ -47,5 +56,14 @@ describe('PiProductionTable net production', () => {
     const wrapper = mountTable()
 
     expect(wrapper.text()).toContain('surplus not consumed by your own factories')
+  })
+
+  it('flags a product whose factories are stopped for lack of input, and only that one', async () => {
+    const wrapper = mountTable([P1_TIER, STOPPED_TIER])
+    await Promise.all(wrapper.findAll('tbody tr').map(row => row.trigger('click')))
+
+    const stopped = wrapper.findAll(STOPPED)
+    expect(stopped).toHaveLength(1)
+    expect(stopped[0].text()).toBe('Stopped: no input available')
   })
 })

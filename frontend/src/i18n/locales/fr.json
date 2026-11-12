@@ -375,6 +375,7 @@
       "percentTotal": "% total",
       "total": "Total",
       "footnote": "Production theorique : qty_per_cycle x (3600 / cycle_time) x 24, chainee via schematics SDE, valorisee aux prix sell Jita 4-4 (MAJ toutes les 2h). La valeur ne compte que le surplus non consomme par vos propres usines.",
+      "stopped": "Arrêtée : aucune entrée disponible",
       "consumedInternally": "{consumed}/j consommes sur place, {sellable}/j vendables",
       "jitaTooltip": "Prix sell Jita 4-4, rafraichis toutes les 2h",
       "jitaSellPriceTooltip": "Valorisation basee sur les ordres de vente (sell) a Jita 4-4, mises a jour toutes les 2h"

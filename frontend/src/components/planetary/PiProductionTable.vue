@@ -129,6 +129,13 @@ function toggleTier(tier: string): void {
                           &larr; {{ item.inputs.map(i => typeNameLabel(i.typeName, i.typeId)).join(' + ') }}
                         </span>
                         <span
+                          v-if="item.dailyQuantity === 0"
+                          data-testid="pi-product-stopped"
+                          class="text-red-400 text-xs font-mono-tech"
+                        >
+                          {{ t('pi.production.stopped') }}
+                        </span>
+                        <span
                           v-if="item.dailyConsumedInternally > 0"
                           data-testid="pi-product-internal"
                           class="text-amber-400 text-xs font-mono-tech"
