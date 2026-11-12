@@ -8,6 +8,7 @@ use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProjectContribution;
 use App\Entity\IndustryProjectParticipant;
 use App\Entity\IndustryProject;
+use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -91,6 +92,56 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
 
         return array_values(array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $bomItemIds));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function findBomItemIdsWithMaterialContributionOf(IndustryProject $project, User $user): array
+    {
+        $bomItemIds = $this->createQueryBuilder('c')
+            ->select('DISTINCT IDENTITY(c.bomItem)')
+            ->join('c.member', 'm')
+            ->andWhere('c.project = :project')
+            ->andWhere('m.user = :user')
+            ->andWhere('c.bomItem IS NOT NULL')
+            ->andWhere('c.type = :type')
+            ->andWhere('c.status IN (:statuses)')
+            ->setParameter('project', $project)
+            ->setParameter('user', $user)
+            ->setParameter('type', ContributionType::Material->value)
+            ->setParameter('statuses', [ContributionStatus::Pending->value, ContributionStatus::Approved->value])
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $bomItemIds));
+    }
+
+    /**
+     * @return array<int, int> by typeId
+     */
+    public function findIntermediateStockByTypeId(IndustryProject $project): array
+    {
+        $rows = $this->createQueryBuilder('c')
+            ->select('line.typeId AS typeId', 'SUM(c.quantity) AS stock')
+            ->join('c.bomItem', 'line')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.type = :type')
+            ->andWhere('c.status = :status')
+            ->andWhere('line.isJob = true')
+            ->setParameter('project', $project)
+            ->setParameter('type', ContributionType::Material->value)
+            ->setParameter('status', ContributionStatus::Approved->value)
+            ->groupBy('line.typeId')
+            ->getQuery()
+            ->getScalarResult();
+
+        $stockByTypeId = [];
+        foreach ($rows as $row) {
+            $stockByTypeId[(int) $row['typeId']] = (int) $row['stock'];
+        }
+
+        return $stockByTypeId;
     }
 
     /**

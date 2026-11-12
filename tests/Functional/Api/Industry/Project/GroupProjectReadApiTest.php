@@ -228,12 +228,13 @@ final class GroupProjectReadApiTest extends WebTestCase
                 [$this->idOf($this->tritaniumLine), self::TRITANIUM_TYPE_ID, 'Tritanium', 12_000, 12_000, 'verified', null],
                 [$this->idOf($this->nocxiumLine), self::NOCXIUM_TYPE_ID, 'Nocxium', 600, 0, 'missing', null],
                 [$this->idOf($this->morphiteLine), self::MORPHITE_TYPE_ID, 'Morphite', 150, 100, 'partial', null],
+                [$this->idOf($this->ramJobLine), self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, 0, 'missing', null],
             ],
             $this->containerRows(),
         );
     }
 
-    public function testOwnerVerifyingWithoutSyncedCorporationAssetsGetsEveryMaterialLineUnknown(): void
+    public function testOwnerVerifyingWithoutSyncedCorporationAssetsGetsEveryLineUnknown(): void
     {
         $this->connectDirectorOfTheOwnerCorporation();
         $this->em->flush();
@@ -246,6 +247,7 @@ final class GroupProjectReadApiTest extends WebTestCase
                 [$this->idOf($this->tritaniumLine), self::TRITANIUM_TYPE_ID, 'Tritanium', 12_000, null, 'unknown', 'corporation_assets_not_synced'],
                 [$this->idOf($this->nocxiumLine), self::NOCXIUM_TYPE_ID, 'Nocxium', 600, null, 'unknown', 'corporation_assets_not_synced'],
                 [$this->idOf($this->morphiteLine), self::MORPHITE_TYPE_ID, 'Morphite', 150, null, 'unknown', 'corporation_assets_not_synced'],
+                [$this->idOf($this->ramJobLine), self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, null, 'unknown', 'corporation_assets_not_synced'],
             ],
             $this->containerRows(),
         );
@@ -263,6 +265,7 @@ final class GroupProjectReadApiTest extends WebTestCase
                 [$this->idOf($this->tritaniumLine), self::TRITANIUM_TYPE_ID, 'Tritanium', 12_000, 12_000, 'verified', null],
                 [$this->idOf($this->nocxiumLine), self::NOCXIUM_TYPE_ID, 'Nocxium', 600, 0, 'missing', null],
                 [$this->idOf($this->morphiteLine), self::MORPHITE_TYPE_ID, 'Morphite', 150, 100, 'partial', null],
+                [$this->idOf($this->ramJobLine), self::RAM_STARSHIP_TECH_TYPE_ID, 'R.A.M.- Starship Tech', 300, 0, 'missing', null],
             ],
             $this->containerRows(),
         );

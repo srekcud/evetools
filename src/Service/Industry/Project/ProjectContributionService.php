@@ -29,6 +29,7 @@ class ProjectContributionService
         private readonly EntityManagerInterface $entityManager,
         private readonly JitaMarketService $jitaMarket,
         private readonly LineReservationService $lineReservations,
+        private readonly IndustryProjectService $projectService,
     ) {
     }
 
@@ -44,6 +45,25 @@ class ProjectContributionService
         int $quantity,
         ?float $estimatedValue = null,
         ?string $note = null,
+    ): IndustryProjectContribution {
+        if ($this->isIntermediateContribution($bomItem, $type)) {
+            $this->assertSoloProject($member);
+
+            return $this->entityManager->wrapInTransaction(
+                fn (): IndustryProjectContribution => $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note),
+            );
+        }
+
+        return $this->submitContribution($member, $bomItem, $type, $quantity, $estimatedValue, $note);
+    }
+
+    private function submitContribution(
+        IndustryProjectParticipant $member,
+        IndustryProjectBomLine $bomItem,
+        ContributionType $type,
+        int $quantity,
+        ?float $estimatedValue,
+        ?string $note,
     ): IndustryProjectContribution {
         $this->validateAntiDuplicate($member, $bomItem, $type);
 
@@ -74,6 +94,13 @@ class ProjectContributionService
 
         $contributor = $member->getUser();
         if ($contributor !== null && $member->getProject()->isSoloProjectOf($contributor)) {
+            if ($this->isIntermediateContribution($bomItem, $type)) {
+                $this->approveContribution($contribution, $contributor, $bomItem);
+                $this->recalculateBomOf($contribution);
+
+                return $contribution;
+            }
+
             $this->approve($contribution, $contributor);
 
             return $contribution;
@@ -97,11 +124,25 @@ class ProjectContributionService
             );
         }
 
+        $bomItem = $contribution->getBomItem();
+        if (null !== $bomItem && $this->isIntermediateContribution($bomItem, $contribution->getType())) {
+            $this->entityManager->wrapInTransaction(function () use ($contribution, $reviewer, $bomItem): void {
+                $this->approveContribution($contribution, $reviewer, $bomItem);
+                $this->recalculateBomOf($contribution);
+            });
+
+            return;
+        }
+
+        $this->approveContribution($contribution, $reviewer, $bomItem);
+    }
+
+    private function approveContribution(IndustryProjectContribution $contribution, User $reviewer, ?IndustryProjectBomLine $bomItem): void
+    {
         $contribution->setStatus(ContributionStatus::Approved);
         $contribution->setReviewedBy($reviewer);
         $contribution->setReviewedAt(new \DateTimeImmutable());
 
-        $bomItem = $contribution->getBomItem();
         if ($bomItem !== null) {
             $this->incrementFulfillment($bomItem, $contribution->getQuantity());
             $this->lineReservations->settleApproval($bomItem, $contribution->getMember(), $contribution->getQuantity());
@@ -125,6 +166,20 @@ class ProjectContributionService
         }
 
         $bomItem = $contribution->getBomItem();
+        if ($isDuplicate && null !== $bomItem && $this->isIntermediateContribution($bomItem, $contribution->getType())) {
+            $this->entityManager->wrapInTransaction(function () use ($contribution, $reviewer, $bomItem, $isDuplicate): void {
+                $this->rejectContribution($contribution, $reviewer, $bomItem, $isDuplicate);
+                $this->recalculateBomOf($contribution);
+            });
+
+            return;
+        }
+
+        $this->rejectContribution($contribution, $reviewer, $bomItem, $isDuplicate);
+    }
+
+    private function rejectContribution(IndustryProjectContribution $contribution, User $reviewer, ?IndustryProjectBomLine $bomItem, bool $isDuplicate): void
+    {
         if ($isDuplicate && $bomItem !== null && ContributionType::Material === $contribution->getType()) {
             $bomItem->setFulfilledQuantity(max(0, $bomItem->getFulfilledQuantity() - $contribution->getQuantity()));
         }
@@ -134,6 +189,30 @@ class ProjectContributionService
         $contribution->setReviewedAt(new \DateTimeImmutable());
 
         $this->entityManager->flush();
+    }
+
+    private function isIntermediateContribution(IndustryProjectBomLine $bomItem, ContributionType $type): bool
+    {
+        return ContributionType::Material === $type && $bomItem->isJob();
+    }
+
+    private function assertSoloProject(IndustryProjectParticipant $member): void
+    {
+        $contributor = $member->getUser();
+        if (null === $contributor || !$member->getProject()->isSoloProjectOf($contributor)) {
+            throw new \DomainException('An intermediate contribution can only be made on a solo project.');
+        }
+    }
+
+    private function recalculateBomOf(IndustryProjectContribution $contribution): void
+    {
+        $project = $contribution->getProject();
+
+        try {
+            $this->projectService->buildBom($project, $project->getOwner(), refuseToDropWorkedLines: true);
+        } catch (\RuntimeException $refusal) {
+            throw new \DomainException($refusal->getMessage(), 0, $refusal);
+        }
     }
 
     /**

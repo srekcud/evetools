@@ -3004,6 +3004,33 @@
         "value": "Value"
       }
     },
+    "intermediateStockProposal": {
+      "title": "Use my stock",
+      "toggle": "Use my stock",
+      "loading": "Reading your assets...",
+      "loadError": "The stock proposal could not be read",
+      "empty": "No intermediate of the plan was found in your stock.",
+      "unknownTitle": "Your stock cannot be read",
+      "unknown": {
+        "personal_assets_not_synced": "Your personal assets were never synced. Sync them from the Assets page.",
+        "container_not_found": "The project container was not found in the corporation assets.",
+        "no_director": "No Director is connected to read the corporation assets.",
+        "corporation_assets_not_synced": "The corporation assets were never synced.",
+        "no_visible_division": "No corporation division is shared with you.",
+        "owner_without_corporation": "You have no corporation to read the container from."
+      },
+      "columns": {
+        "type": "Intermediate",
+        "remaining": "To make",
+        "personal": "Personal",
+        "container": "Container",
+        "stock": "Available",
+        "quantity": "Quantity"
+      },
+      "validate": "Declare the selected stock",
+      "validating": "Declaring...",
+      "validationFailed": "The declaration stopped"
+    },
     "structureHealth": {
       "title": "Structure health",
       "loading": "Reading the structures...",

@@ -21,6 +21,7 @@ use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
@@ -119,7 +120,7 @@ class SubmitSoloContributionProcessorTest extends TestCase
             $projectRepository,
             $memberRepository,
             $bomItemRepository,
-            new ProjectContributionService($contributionRepository, $this->entityManager, $jitaMarket, $this->createStub(LineReservationService::class)),
+            new ProjectContributionService($contributionRepository, $this->entityManager, $jitaMarket, $this->createStub(LineReservationService::class), $this->createStub(IndustryProjectService::class)),
             new ProjectResourceMapper(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
         );

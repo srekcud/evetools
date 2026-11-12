@@ -22,6 +22,7 @@ use App\Enum\ProjectStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectParticipantRepository;
 use App\Repository\IndustryProjectRepository;
+use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
@@ -103,6 +104,7 @@ class ReviewContributionProcessorTest extends TestCase
                 $this->entityManager,
                 $this->createStub(JitaMarketService::class),
                 $this->createStub(LineReservationService::class),
+                $this->createStub(IndustryProjectService::class),
             ),
             new ProjectAccessChecker($this->memberRepository),
             new ProjectResourceMapper(),

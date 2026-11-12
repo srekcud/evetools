@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Industry\Project;
 
 use App\Entity\IndustryProjectBomLine;
+use App\Entity\IndustryProjectJobMatch;
 use App\Entity\IndustryProject;
 use App\Entity\IndustryProjectProduct;
 use App\Entity\Sde\IndustryActivityProduct;
@@ -26,12 +27,14 @@ use App\Industry\Application\StructureSelectionPolicy;
 use App\Industry\Application\UserProductionStructures;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
+use App\Industry\Domain\Intermediate;
 use App\Industry\Domain\Isk;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\Plan;
 use App\Industry\Domain\PlanTarget;
 use App\Industry\Domain\ProductionPlanner;
+use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Runs;
 use App\Industry\Domain\TimeEfficiency;
 use App\Repository\IndustryProjectContributionRepository;
@@ -116,12 +119,16 @@ class IndustryProjectService
             throw new \RuntimeException('The BOM of a completed project cannot be rebuilt.');
         }
 
-        $plannedProduction = $this->planOf($project, $owner);
+        $stockByTypeId = $this->contributionRepository->findIntermediateStockByTypeId($project);
+        $ownedBlueprints = $this->ownedBlueprintsOf($owner);
+        $plannedProduction = $this->plannedProductionOf($project, $owner, $stockByTypeId, $ownedBlueprints);
         $plan = $plannedProduction->plan;
         $producers = $this->producersOf($plan);
+        $coveredIntermediateTypeIds = array_keys(array_filter($plan->intermediates, static fn (Intermediate $intermediate): bool => [] === $intermediate->jobs));
         $typeNames = $this->sdeTypeNames(array_values(array_unique([
             ...array_map(static fn (Job $job): int => $job->productTypeId, $plan->jobs),
             ...array_keys($plan->leaves),
+            ...$coveredIntermediateTypeIds,
         ])));
 
         $materialAggregation = [];
@@ -132,7 +139,10 @@ class IndustryProjectService
 
         $this->replaceT2BlueprintCopiesByInventions($materialAggregation, $jobAggregation, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'));
 
-        $bomLineCount = count($materialAggregation) + count($jobAggregation);
+        $consumedStockByTypeId = $this->consumedStockByTypeId($project, $plan, $stockByTypeId);
+        $coveredLines = $this->coveredLinesOf($project, $plan, $coveredIntermediateTypeIds, $stockByTypeId, $consumedStockByTypeId, $ownedBlueprints, $typeNames);
+
+        $bomLineCount = count($materialAggregation) + count($jobAggregation) + count($coveredLines);
         if ($bomLineCount > self::MAX_BOM_LINES) {
             throw new \RuntimeException(sprintf('The production plan has %d BOM lines, above the limit of %d BOM lines per project.', $bomLineCount, self::MAX_BOM_LINES));
         }
@@ -174,7 +184,9 @@ class IndustryProjectService
             $plannedLines[] = $bomItem;
         }
 
-        $this->reconcileBomLines($project, $plannedLines, $refuseToDropWorkedLines);
+        $this->addConsumedStockToTheLargestJobLines($plannedLines, $consumedStockByTypeId);
+
+        $this->reconcileBomLines($project, [...$plannedLines, ...$coveredLines], $refuseToDropWorkedLines);
     }
 
     /**
@@ -194,14 +206,17 @@ class IndustryProjectService
         unset($existingLines);
 
         $plannedByKey = $this->groupByLineKey($plannedLines);
+        foreach ($plannedByKey as &$plannedGroup) {
+            usort($plannedGroup, static fn (IndustryProjectBomLine $a, IndustryProjectBomLine $b): int => $b->getRuns() <=> $a->getRuns());
+        }
+        unset($plannedGroup);
 
         if ($refuseToDropWorkedLines) {
             $this->assertNoWorkedLineIsDropped($existingByKey, $plannedByKey, $carriesContribution);
+            $this->assertNoLineIsCutBelowItsProgress($existingByKey, $plannedByKey);
         }
 
         foreach ($plannedByKey as $key => $plannedGroup) {
-            usort($plannedGroup, static fn (IndustryProjectBomLine $a, IndustryProjectBomLine $b): int => $b->getRuns() <=> $a->getRuns());
-
             foreach ($plannedGroup as $rank => $plannedLine) {
                 if (!isset($existingByKey[$key][$rank])) {
                     $project->addBomItem($plannedLine);
@@ -233,6 +248,31 @@ class IndustryProjectService
             foreach (array_slice($existingLines, \count($plannedByKey[$key] ?? [])) as $droppedLine) {
                 if (!$droppedLine->getJobMatches()->isEmpty() || !$droppedLine->getPurchases()->isEmpty() || $carriesContribution($droppedLine)) {
                     throw new \RuntimeException(\sprintf('The line "%s" carries a linked job, a purchase or a contribution and cannot be removed from the plan.', $droppedLine->getTypeName()));
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array<string, list<IndustryProjectBomLine>> $existingByKey
+     * @param array<string, list<IndustryProjectBomLine>> $plannedByKey
+     */
+    private function assertNoLineIsCutBelowItsProgress(array $existingByKey, array $plannedByKey): void
+    {
+        foreach ($plannedByKey as $key => $plannedGroup) {
+            foreach ($plannedGroup as $rank => $plannedLine) {
+                $existingLine = $existingByKey[$key][$rank] ?? null;
+                if (null === $existingLine) {
+                    continue;
+                }
+
+                if (!$existingLine->isJob() && $existingLine->getFulfilledQuantity() > $plannedLine->getRequiredQuantity()) {
+                    throw new \RuntimeException(\sprintf('The line "%s" has already received %d, more than the %d the plan now needs.', $existingLine->getTypeName(), $existingLine->getFulfilledQuantity(), $plannedLine->getRequiredQuantity()));
+                }
+
+                $linkedRuns = array_sum(array_map(static fn (IndustryProjectJobMatch $match): int => $match->getRuns(), $existingLine->getJobMatches()->toArray()));
+                if ($existingLine->isJob() && $linkedRuns > $plannedLine->getRuns()) {
+                    throw new \RuntimeException(\sprintf('The line "%s" has %d runs linked to ESI jobs, more than the %d the plan now needs.', $existingLine->getTypeName(), $linkedRuns, $plannedLine->getRuns()));
                 }
             }
         }
@@ -300,6 +340,21 @@ class IndustryProjectService
 
     public function planOf(IndustryProject $project, User $owner, ?int $unblacklistedTypeId = null): PlannedProduction
     {
+        return $this->plannedProductionOf(
+            $project,
+            $owner,
+            $this->contributionRepository->findIntermediateStockByTypeId($project),
+            $this->ownedBlueprintsOf($owner),
+            $unblacklistedTypeId,
+        );
+    }
+
+    /**
+     * @param array<int, int>               $stockByTypeId
+     * @param array<int, OwnedBlueprintUse> $ownedBlueprints by product typeId
+     */
+    private function plannedProductionOf(IndustryProject $project, User $owner, array $stockByTypeId, array $ownedBlueprints, ?int $unblacklistedTypeId = null): PlannedProduction
+    {
         $blacklistedTypeIds = $this->resolveBlacklistedTypeIds(
             $project->getBlacklistGroupIds(),
             array_values(array_filter(
@@ -310,12 +365,13 @@ class IndustryProjectService
 
         try {
             return $this->productionPlanning->planWithStructuresOf(new ProductionPlanRequest(
-                $this->targetsOf($project),
+                $this->targetsOf($project, $stockByTypeId),
                 $this->structuresOf($owner),
                 $this->favoriteSystemsOf($owner),
                 $blacklistedTypeIds,
-                selectionPolicy: new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving())),
-                ownedBlueprints: $this->ownedBlueprintsOf($owner),
+                array_map(static fn (int $stock): Quantity => new Quantity($stock), $stockByTypeId),
+                new StructureSelectionPolicy($project->isAcceptsOutsideFavoriteSystem(), new Isk($project->getMinimumOutsideSaving())),
+                $ownedBlueprints,
             ));
         } catch (\DomainException $e) {
             throw new \RuntimeException($e->getMessage(), 0, $e);
@@ -367,23 +423,41 @@ class IndustryProjectService
     }
 
     /**
+     * @param array<int, int> $stockByTypeId
      * @return list<PlanTarget>
      */
-    private function targetsOf(IndustryProject $project): array
+    private function targetsOf(IndustryProject $project, array $stockByTypeId): array
     {
         $targets = [];
         foreach ($project->getItems() as $item) {
-            $isReaction = $this->producerOf($item->getTypeId())->getActivityId() === IndustryActivityType::Reaction->value;
-            $materialEfficiency = $isReaction ? ProductionPlanner::REACTION_EFFICIENCY_LEVEL : $item->getMeLevel();
-            $timeEfficiency = $isReaction ? ProductionPlanner::REACTION_EFFICIENCY_LEVEL : $item->getTeLevel();
-            $targets[] = new PlanTarget(
-                $item->getTypeId(),
-                new Runs($item->getRuns()),
-                new BlueprintEfficiency(new MaterialEfficiency($materialEfficiency), new TimeEfficiency($timeEfficiency)),
-            );
+            $runs = $this->runsLeftAfterStock($item, $stockByTypeId);
+            if (0 === $runs) {
+                continue;
+            }
+            $targets[] = new PlanTarget($item->getTypeId(), new Runs($runs), $this->targetEfficiencyOf($item));
         }
 
         return $targets;
+    }
+
+    private function targetEfficiencyOf(IndustryProjectProduct $item): BlueprintEfficiency
+    {
+        $isReaction = $this->producerOf($item->getTypeId())->getActivityId() === IndustryActivityType::Reaction->value;
+        $materialEfficiency = $isReaction ? ProductionPlanner::REACTION_EFFICIENCY_LEVEL : $item->getMeLevel();
+        $timeEfficiency = $isReaction ? ProductionPlanner::REACTION_EFFICIENCY_LEVEL : $item->getTeLevel();
+
+        return new BlueprintEfficiency(new MaterialEfficiency($materialEfficiency), new TimeEfficiency($timeEfficiency));
+    }
+
+    /**
+     * @param array<int, int> $stockByTypeId
+     */
+    private function runsLeftAfterStock(IndustryProjectProduct $item, array $stockByTypeId): int
+    {
+        $unitsPerRun = $this->producerOf($item->getTypeId())->getQuantity();
+        $stock = isset($stockByTypeId[$item->getTypeId()]) ? $stockByTypeId[$item->getTypeId()] : 0;
+
+        return max(0, (int) ceil(($item->getRuns() * $unitsPerRun - $stock) / $unitsPerRun));
     }
 
     /**
@@ -421,12 +495,7 @@ class IndustryProjectService
             }
         }
 
-        $firstConsumerByMaterial = [];
-        foreach ($plan->jobs as $consumer) {
-            foreach (array_keys($consumer->materials) as $materialTypeId) {
-                $firstConsumerByMaterial[$materialTypeId] ??= $consumer->productTypeId;
-            }
-        }
+        $firstConsumerByMaterial = $this->firstConsumerByMaterialOf($plan);
 
         $lines = [];
         foreach ($plan->jobs as $job) {
@@ -452,6 +521,132 @@ class IndustryProjectService
         }
 
         return $lines + $this->copyLinesOf($lines, $producers, $owner, $plannedProduction->copyStructureChoice ?? throw new \LogicException('A planned production has no copy structure choice.'));
+    }
+
+    /**
+     * @return array<int, int> consumer product typeId by material typeId
+     */
+    private function firstConsumerByMaterialOf(Plan $plan): array
+    {
+        $firstConsumerByMaterial = [];
+        foreach ($plan->jobs as $consumer) {
+            foreach (array_keys($consumer->materials) as $materialTypeId) {
+                $firstConsumerByMaterial[$materialTypeId] ??= $consumer->productTypeId;
+            }
+        }
+
+        return $firstConsumerByMaterial;
+    }
+
+    /**
+     * @param array<int, int> $stockByTypeId
+     * @return array<int, int> by typeId
+     */
+    private function consumedStockByTypeId(IndustryProject $project, Plan $plan, array $stockByTypeId): array
+    {
+        $finalDemandByTypeId = [];
+        foreach ($project->getItems() as $item) {
+            $demand = $item->getRuns() * $this->producerOf($item->getTypeId())->getQuantity();
+            $finalDemandByTypeId[$item->getTypeId()] = isset($finalDemandByTypeId[$item->getTypeId()]) ? $finalDemandByTypeId[$item->getTypeId()] + $demand : $demand;
+        }
+
+        $consumedStockByTypeId = [];
+        foreach ($finalDemandByTypeId as $typeId => $demand) {
+            if (isset($stockByTypeId[$typeId])) {
+                $consumedStockByTypeId[$typeId] = min($stockByTypeId[$typeId], $demand);
+            }
+        }
+        foreach ($plan->intermediates as $typeId => $intermediate) {
+            $consumedStockByTypeId[$typeId] = $intermediate->consumedStock->value;
+        }
+
+        return $consumedStockByTypeId;
+    }
+
+    /**
+     * @param list<IndustryProjectBomLine> $plannedLines
+     * @param array<int, int>              $consumedStockByTypeId
+     */
+    private function addConsumedStockToTheLargestJobLines(array $plannedLines, array $consumedStockByTypeId): void
+    {
+        $largestLineByTypeId = [];
+        foreach ($plannedLines as $line) {
+            if (!$line->isManufacturingOrReactionJob() || $line->isCoveredByStock() || !isset($consumedStockByTypeId[$line->getTypeId()])) {
+                continue;
+            }
+            $largest = $largestLineByTypeId[$line->getTypeId()] ?? null;
+            if (null === $largest || $line->getRuns() > $largest->getRuns()) {
+                $largestLineByTypeId[$line->getTypeId()] = $line;
+            }
+        }
+
+        foreach ($largestLineByTypeId as $typeId => $line) {
+            $line->setRequiredQuantity($line->getRequiredQuantity() + $consumedStockByTypeId[$typeId]);
+        }
+    }
+
+    /**
+     * @param list<int>                     $coveredIntermediateTypeIds
+     * @param array<int, int>               $stockByTypeId
+     * @param array<int, int>               $consumedStockByTypeId
+     * @param array<int, OwnedBlueprintUse> $ownedBlueprints         by product typeId
+     * @param array<int, string>            $typeNames
+     * @return list<IndustryProjectBomLine>
+     */
+    private function coveredLinesOf(IndustryProject $project, Plan $plan, array $coveredIntermediateTypeIds, array $stockByTypeId, array $consumedStockByTypeId, array $ownedBlueprints, array $typeNames): array
+    {
+        $firstConsumerByMaterial = $this->firstConsumerByMaterialOf($plan);
+
+        $lines = [];
+        foreach ($coveredIntermediateTypeIds as $typeId) {
+            $efficiency = $this->isReaction($typeId)
+                ? new BlueprintEfficiency(new MaterialEfficiency(ProductionPlanner::REACTION_EFFICIENCY_LEVEL), new TimeEfficiency(ProductionPlanner::REACTION_EFFICIENCY_LEVEL))
+                : (isset($ownedBlueprints[$typeId])
+                    ? $ownedBlueprints[$typeId]->efficiency
+                    : new BlueprintEfficiency(new MaterialEfficiency(ProductionPlanner::MANUFACTURED_INTERMEDIATE_ME), new TimeEfficiency(ProductionPlanner::MANUFACTURED_INTERMEDIATE_TE)));
+            $lines[] = $this->coveredLineOf(
+                $typeId,
+                $typeNames[$typeId],
+                'component',
+                $efficiency,
+                $consumedStockByTypeId[$typeId],
+            )
+                ->setParentTypeId($firstConsumerByMaterial[$typeId] ?? throw new \LogicException(\sprintf('Intermediate %d is consumed by no job of the plan.', $typeId)))
+                ->setSurplusQuantity(0);
+        }
+
+        foreach ($project->getItems() as $item) {
+            if (0 !== $this->runsLeftAfterStock($item, $stockByTypeId)) {
+                continue;
+            }
+            $efficiency = !$this->isReaction($item->getTypeId()) && isset($ownedBlueprints[$item->getTypeId()])
+                ? $ownedBlueprints[$item->getTypeId()]->efficiency
+                : $this->targetEfficiencyOf($item);
+            $lines[] = $this->coveredLineOf($item->getTypeId(), $item->getTypeName(), 'final', $efficiency, $consumedStockByTypeId[$item->getTypeId()]);
+        }
+
+        return $lines;
+    }
+
+    private function coveredLineOf(int $typeId, string $typeName, string $jobGroup, BlueprintEfficiency $efficiency, int $consumedStock): IndustryProjectBomLine
+    {
+        return (new IndustryProjectBomLine())
+            ->setTypeId($typeId)
+            ->setTypeName($typeName)
+            ->setRequiredQuantity($consumedStock)
+            ->setIsJob(true)
+            ->setJobGroup($jobGroup)
+            ->setActivityType($this->isReaction($typeId) ? 'reaction' : 'manufacturing')
+            ->setMeLevel($efficiency->materialEfficiency->value)
+            ->setTeLevel($efficiency->timeEfficiency->value)
+            ->setRuns(0)
+            ->setPlannedStructureId(null)
+            ->setPlannedStructureStatus(null);
+    }
+
+    private function isReaction(int $typeId): bool
+    {
+        return $this->producerOf($typeId)->getActivityId() === IndustryActivityType::Reaction->value;
     }
 
     /**

@@ -3004,6 +3004,33 @@
         "value": "Valeur"
       }
     },
+    "intermediateStockProposal": {
+      "title": "Utiliser mon stock",
+      "toggle": "Utiliser mon stock",
+      "loading": "Lecture de vos assets...",
+      "loadError": "La proposition de stock n'a pas pu être lue",
+      "empty": "Aucun intermédiaire du plan n'a été trouvé dans votre stock.",
+      "unknownTitle": "Votre stock ne peut pas être lu",
+      "unknown": {
+        "personal_assets_not_synced": "Vos assets personnels n'ont jamais été synchronisés. Synchronisez-les depuis la page Assets.",
+        "container_not_found": "Le container du projet est introuvable dans les assets de la corporation.",
+        "no_director": "Aucun Director n'est connecté pour lire les assets de la corporation.",
+        "corporation_assets_not_synced": "Les assets de la corporation n'ont jamais été synchronisés.",
+        "no_visible_division": "Aucune division de la corporation n'est partagée avec vous.",
+        "owner_without_corporation": "Vous n'avez pas de corporation où lire le container."
+      },
+      "columns": {
+        "type": "Intermédiaire",
+        "remaining": "À produire",
+        "personal": "Personnel",
+        "container": "Container",
+        "stock": "Disponible",
+        "quantity": "Quantité"
+      },
+      "validate": "Déclarer le stock sélectionné",
+      "validating": "Déclaration...",
+      "validationFailed": "La déclaration s'est arrêtée"
+    },
     "structureHealth": {
       "title": "Santé des structures",
       "loading": "Lecture des structures...",

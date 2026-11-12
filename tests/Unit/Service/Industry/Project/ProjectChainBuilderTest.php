@@ -140,6 +140,18 @@ final class ProjectChainBuilderTest extends TestCase
         self::assertSame('todo', $this->node($chain, self::PRODUCT_LINE_ID)->status);
     }
 
+    #[Group('issue-706')]
+    public function testComponentCoveredByItsStockAtZeroRunsIsDoneAndNoLongerBlocksTheProduct(): void
+    {
+        $this->component->setRuns(0)->setRequiredQuantity(40)->setFulfilledQuantity(40);
+
+        $chain = $this->chainOf([$this->product, $this->component, $this->tritanium, $this->particleAcceleratorUnit]);
+
+        $component = $this->node($chain, self::COMPONENT_LINE_ID);
+        self::assertSame(['done', 0, 40, 40], [$component->status, $component->runs, $component->requiredQuantity, $component->fulfilledQuantity]);
+        self::assertSame('todo', $this->node($chain, self::PRODUCT_LINE_ID)->status);
+    }
+
     public function testProductWithTwoOfItsFiveJobsDeliveredAndTheOthersRunningIsActiveWithItsFiveJobs(): void
     {
         foreach (['delivered', 'delivered', 'active', 'paused', 'ready'] as $status) {

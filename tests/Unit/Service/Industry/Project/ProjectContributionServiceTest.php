@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Enum\ContributionStatus;
 use App\Enum\ContributionType;
 use App\Repository\IndustryProjectContributionRepository;
+use App\Service\Industry\Project\IndustryProjectService;
 use App\Service\Industry\Project\ProjectContributionService;
 use App\Service\JitaMarketService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -69,6 +70,7 @@ class ProjectContributionServiceTest extends TestCase
             $this->entityManager,
             $this->jitaMarket,
             $this->createStub(LineReservationService::class),
+            $this->createStub(IndustryProjectService::class),
         );
 
         $this->project = new IndustryProject();

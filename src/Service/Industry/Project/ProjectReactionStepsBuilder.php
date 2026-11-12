@@ -39,7 +39,7 @@ final readonly class ProjectReactionStepsBuilder
     {
         $linesByTypeId = [];
         foreach ($bomLines as $line) {
-            if ($line->isJob() && self::ACTIVITY_REACTION === $line->getActivityType()) {
+            if ($line->isJob() && !$line->isCoveredByStock() && self::ACTIVITY_REACTION === $line->getActivityType()) {
                 $linesByTypeId[$line->getTypeId()][] = $line;
             }
         }
@@ -55,12 +55,12 @@ final readonly class ProjectReactionStepsBuilder
     private function stepOf(int $typeId, array $lines, ?Recipe $recipe, array $typeNames, array $fuelBlockTypeIds): ProjectReactionStep
     {
         $runs = 0;
-        $producedQuantity = 0;
+        $requiredQuantity = 0;
         $surplusQuantity = 0;
         $surplusKnown = true;
         foreach ($lines as $line) {
             $runs += $line->getRuns() ?? throw new \UnexpectedValueException(\sprintf('Reaction line %s of type %d has no runs.', $line->getId()->toRfc4122(), $typeId));
-            $producedQuantity += $line->getRequiredQuantity();
+            $requiredQuantity += $line->getRequiredQuantity();
             $lineSurplus = $line->getSurplusQuantity();
             if (null === $lineSurplus) {
                 $surplusKnown = false;
@@ -70,6 +70,7 @@ final readonly class ProjectReactionStepsBuilder
 
         $surplus = $surplusKnown ? $surplusQuantity : null;
         $formula = null !== $recipe && ActivityKind::Reaction === $recipe->activity ? $recipe : null;
+        $producedQuantity = null === $formula ? $requiredQuantity : $runs * $formula->outputPerRun->value;
 
         return new ProjectReactionStep(
             $typeId,
