@@ -56,7 +56,7 @@ class RefreshCorporationAssetsProcessor implements ProcessorInterface
         if ($directorCharacter === null) {
             $result = new SyncStatusResource();
             $result->status = 'error';
-            $result->error = 'No character with corporation assets access. A director with esi-assets.read_corporation_assets.v1 scope must be linked.';
+            $result->error = 'No Director connected. A Director of the corporation must link a character with the esi-assets.read_corporation_assets.v1 and esi-characters.read_corporation_roles.v1 scopes.';
             $result->hasAccess = false;
 
             return $result;

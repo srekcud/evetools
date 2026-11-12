@@ -54,7 +54,20 @@ final class RefreshCorporationAssetsProcessorTest extends TestCase
         );
     }
 
-    private function processor(MessageBusInterface $messageBus): RefreshCorporationAssetsProcessor
+    #[Group('issue-729')]
+    public function testRefreshWithoutAConnectedDirectorDispatchesNothingAndSaysSo(): void
+    {
+        $messageBus = $this->createMock(MessageBusInterface::class);
+        $messageBus->expects(self::never())->method('dispatch');
+
+        $result = $this->processor($messageBus, false)->process(null, new Post());
+
+        self::assertSame(['error', false], [$result->status, $result->hasAccess]);
+        self::assertStringContainsString('No Director connected', (string) $result->error);
+        self::assertStringNotContainsString('Access forbidden', (string) $result->error);
+    }
+
+    private function processor(MessageBusInterface $messageBus, bool $withSyncCharacter = true): RefreshCorporationAssetsProcessor
     {
         $requester = new User();
         (new \ReflectionProperty($requester, 'id'))->setValue($requester, Uuid::fromString(self::REQUESTER_ID));
@@ -67,7 +80,7 @@ final class RefreshCorporationAssetsProcessorTest extends TestCase
         $directorCharacter = new Character();
         (new \ReflectionProperty($directorCharacter, 'id'))->setValue($directorCharacter, Uuid::fromString(self::DIRECTOR_CHARACTER_ID));
         $assetsSyncService = $this->createStub(AssetsSyncService::class);
-        $assetsSyncService->method('getCorpAssetsCharacter')->willReturn($directorCharacter);
+        $assetsSyncService->method('getCorpAssetsCharacter')->willReturn($withSyncCharacter ? $directorCharacter : null);
 
         return new RefreshCorporationAssetsProcessor(
             $security,

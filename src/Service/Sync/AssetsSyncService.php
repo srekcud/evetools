@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace App\Service\Sync;
 
+use App\Constant\EveConstants;
 use App\Dto\AssetDto;
 use App\Entity\CachedAsset;
 use App\Entity\Character;
+use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
-use App\Repository\CorpAssetVisibilityRepository;
 use App\Service\ESI\AssetsService;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\CorporationService;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Response;
 
 class AssetsSyncService
 {
@@ -25,7 +28,7 @@ class AssetsSyncService
         private readonly CorporationService $corporationService,
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CharacterRepository $characterRepository,
-        private readonly CorpAssetVisibilityRepository $visibilityRepository,
+        private readonly CorporationRoleReader $corporationRoleReader,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly MercurePublisherService $mercurePublisher,
@@ -180,6 +183,9 @@ class AssetsSyncService
                 $this->publishCompletion($userId, 'corporation-assets', count($assets));
             }
         } catch (\Throwable $e) {
+            if ($e instanceof EsiApiException && $e->statusCode === Response::HTTP_FORBIDDEN) {
+                $this->corporationRoleReader->forget($corporationId, []);
+            }
             foreach ($recipientUserIds as $userId) {
                 $this->mercurePublisher->syncError($userId, 'corporation-assets', $e->getMessage());
             }
@@ -260,21 +266,12 @@ class AssetsSyncService
      */
     public function getCorpAssetsCharacter(int $corporationId): ?Character
     {
-        // Prefer the Director who configured visibility
-        $directorUser = $this->visibilityRepository->findByCorporationId($corporationId)?->getConfiguredBy();
-        if ($directorUser !== null) {
-            foreach ($directorUser->getCharacters() as $character) {
-                if ($character->getCorporationId() === $corporationId && $character->isAuthValid()) {
-                    $token = $character->getEveToken();
-                    if ($token !== null && $token->hasScope('esi-assets.read_corporation_assets.v1')) {
-                        return $character;
-                    }
-                }
-            }
-        }
-
-        // Fallback: any character in the corp with the scope
-        return $this->characterRepository->findWithCorpAssetsAccess($corporationId);
+        return $this->corporationRoleReader->findHolder(
+            $corporationId,
+            array_values($this->characterRepository->findByCorporationId($corporationId)),
+            [],
+            [EveConstants::CORPORATION_ASSETS_SCOPE, EveConstants::CORPORATION_ROLES_SCOPE],
+        )->holder;
     }
 
     /**

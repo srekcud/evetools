@@ -13,10 +13,11 @@ use App\MessageHandler\SyncCharacterAssetsHandler;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\CharacterRepository;
-use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\ESI\AssetsService;
+use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\CorporationService;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\TokenManager;
@@ -129,7 +130,7 @@ final class SyncCharacterAssetsHandlerTest extends TestCase
             $this->createStub(CorporationService::class),
             $this->createStub(CachedAssetRepository::class),
             $characterRepository,
-            $this->createStub(CorpAssetVisibilityRepository::class),
+            new CorporationRoleReader(new CharacterService($this->createStub(EsiClient::class)), new ArrayAdapter(), new NullLogger()),
             $entityManager,
             new NullLogger(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),

@@ -68,7 +68,6 @@ use App\Service\Industry\Project\DistributionResult;
 use App\Service\Industry\Project\ProjectDistributionService;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Notification\NotificationDispatcher;
-use App\Service\Sync\AssetsSyncService;
 use App\State\Provider\Assets\CorpAssetVisibilityProvider;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use App\State\Provider\Industry\Project\ProjectSaleCollectionProvider;
@@ -589,7 +588,7 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         );
     }
 
-    public function testCorporationAssetVisibilityIsKeptWithoutAuthorAndCorporationAssetsSyncFallsBackOnAnotherCharacter(): void
+    public function testCorporationAssetVisibilityIsKeptWithoutAuthor(): void
     {
         $kaelen = $this->createAccount('Kaelen Voss', 'refresh-token-kaelen-main', self::SHARED_CORPORATION_ID, [self::CORP_ASSETS_SCOPE]);
         $brann = $this->createAccount('Brann Holt', 'refresh-token-brann-main', self::SHARED_CORPORATION_ID, [self::CORP_ASSETS_SCOPE]);
@@ -601,9 +600,6 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $this->em->flush();
         $visibilityId = (string) $visibility->getId();
         $brannId = (string) $brann->getId();
-        $brannCharacterId = (string) $brann->getMainCharacter()?->getId();
-        $kaelenCharacterId = (string) $kaelen->getMainCharacter()?->getId();
-        self::assertSame($kaelenCharacterId, (string) $this->assetsSyncService()->getCorpAssetsCharacter(self::SHARED_CORPORATION_ID)?->getId());
         $this->em->clear();
 
         $this->deleteAccount((string) $kaelen->getId());
@@ -615,7 +611,6 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         $resource = $this->corpAssetVisibilityFor($brannId);
         self::assertNull($resource->configuredByName);
         self::assertSame([1, 3], $resource->visibleDivisions);
-        self::assertSame($brannCharacterId, (string) $this->assetsSyncService()->getCorpAssetsCharacter(self::SHARED_CORPORATION_ID)?->getId());
     }
 
     public function testDeletedAccountIsRemovedFromTheUsersWhoHidASharedStructure(): void
@@ -1061,14 +1056,6 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
         );
 
         return $provider->provide(new Get());
-    }
-
-    private function assetsSyncService(): AssetsSyncService
-    {
-        $assetsSyncService = self::getContainer()->get(AssetsSyncService::class);
-        \assert($assetsSyncService instanceof AssetsSyncService);
-
-        return $assetsSyncService;
     }
 
     private function createStructure(User $owner, string $name, string $structureType): IndustryStructureConfig

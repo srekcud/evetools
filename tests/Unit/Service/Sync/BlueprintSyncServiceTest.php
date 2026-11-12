@@ -14,6 +14,9 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\OwnedBlueprintRepository;
 use App\Service\ESI\BlueprintsService;
+use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationRoleReader;
+use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\BlueprintSyncService;
 use App\Tests\Unit\Service\Industry\Blueprint\BuildsBlueprintLibrary;
@@ -22,6 +25,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 
@@ -32,6 +36,7 @@ final class BlueprintSyncServiceTest extends TestCase
     use BuildsBlueprintLibrary;
 
     private const string SYNC_TYPE = 'blueprints';
+    private const string ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
 
     private Character $main;
     private Character $alt;
@@ -49,18 +54,25 @@ final class BlueprintSyncServiceTest extends TestCase
 
     private array $corporationAssets = [];
 
-    private ?Character $corporationReader = null;
+    private array $corporationMembers = [];
+
+    private array $rolesByEveCharacterId = [];
+
+    private array $rolesFailures = [];
+
+    private array $rolesReadFor = [];
 
     protected function setUp(): void
     {
-        $this->main = $this->pilot('Aria Solberg', self::MAIN_CORPORATION_ID, self::MAIN_CORPORATION_NAME, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE]);
-        $this->alt = $this->pilot('Brann Holt', self::MAIN_CORPORATION_ID, self::MAIN_CORPORATION_NAME, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE]);
-        $this->corporationReader = $this->main;
+        $this->main = $this->pilot('Aria Solberg', self::MAIN_CORPORATION_ID, self::MAIN_CORPORATION_NAME, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE, self::ROLES_SCOPE]);
+        $this->alt = $this->pilot('Brann Holt', self::MAIN_CORPORATION_ID, self::MAIN_CORPORATION_NAME, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE, self::ROLES_SCOPE]);
+        $this->corporationMembers = [$this->main, $this->alt];
+        $this->rolesByEveCharacterId = [$this->main->getEveCharacterId() => ['Director'], $this->alt->getEveCharacterId() => []];
     }
 
     public function testReplacesTheBlueprintsOfACharacterAfterReadingThemFromTheEsiInOneFlush(): void
     {
-        $this->corporationReader = null;
+        $this->corporationMembers = [];
         $this->user = $this->userOf(self::MAIN_USER_ID, $this->pilotWithoutCorporationScope());
         $this->personalReads['Aria Solberg'] = [
             new BlueprintDto(1_001, self::DRAKE_BLUEPRINT, 60_003_760, 'Hangar', -1, 10, 20, -1),
@@ -84,7 +96,7 @@ final class BlueprintSyncServiceTest extends TestCase
 
     public function testKeepsTheCachedBlueprintsOfACharacterWhoseEsiReadFailsAndReplacesTheOtherOnes(): void
     {
-        $this->corporationReader = null;
+        $this->corporationMembers = [];
         $this->user = $this->userOf(self::MAIN_USER_ID, $this->pilotWithoutCorporationScope(), $this->altWithoutCorporationScope());
         $this->personalReads['Aria Solberg'] = EsiApiException::fromResponse(500, 'ESI down', '/characters/1/blueprints/');
         $this->personalReads['Brann Holt'] = [new BlueprintDto(2_001, self::VEXOR_BLUEPRINT, 60_003_760, 'Hangar', -1, 6, 12, -1)];
@@ -154,7 +166,7 @@ final class BlueprintSyncServiceTest extends TestCase
 
     public function testCharacterWithoutTheBlueprintScopesIsIgnoredAndNotListedAsAFailure(): void
     {
-        $this->corporationReader = null;
+        $this->corporationMembers = [];
         $withoutScopes = $this->pilot('Corin Vale', self::ALT_CORPORATION_ID, 'Vale Freight', []);
         $this->user = $this->userOf(self::MAIN_USER_ID, $this->pilotWithoutCorporationScope(), $withoutScopes);
         $this->personalReads['Aria Solberg'] = [new BlueprintDto(5_001, self::DRAKE_BLUEPRINT, 60_003_760, 'Hangar', -1, 10, 20, -1)];
@@ -204,6 +216,53 @@ final class BlueprintSyncServiceTest extends TestCase
             $this->completedData(),
         );
         self::assertNotContains('error', array_column($this->mercureCalls, 0));
+    }
+
+    #[Group('issue-729')]
+    public function testCorporationBlueprintsAreReadWithTheMemberHoldingTheDirectorRole(): void
+    {
+        $this->user = $this->userOf(self::MAIN_USER_ID, $this->main, $this->alt);
+        $this->corporationMembers = [$this->main, $this->alt];
+        $this->rolesByEveCharacterId = [$this->main->getEveCharacterId() => [], $this->alt->getEveCharacterId() => ['Director']];
+        $this->personalReads['Aria Solberg'] = [];
+        $this->personalReads['Brann Holt'] = [];
+        $this->corporationReads[self::MAIN_CORPORATION_ID] = [];
+
+        $this->service()->syncUserBlueprints($this->user);
+
+        self::assertSame(['read-corporation:' . self::MAIN_CORPORATION_ID], array_values(array_filter($this->events, static fn (string $event): bool => str_starts_with($event, 'read-corporation:'))));
+        self::assertSame([$this->main->getEveCharacterId(), $this->alt->getEveCharacterId()], $this->rolesReadFor);
+    }
+
+    #[Group('issue-729')]
+    public function testCorporationBlueprintsAreNotReadWhenNoMemberHoldsTheDirectorRole(): void
+    {
+        $this->user = $this->userOf(self::MAIN_USER_ID, $this->main);
+        $this->rolesByEveCharacterId = [$this->main->getEveCharacterId() => ['Accountant'], $this->alt->getEveCharacterId() => []];
+        $this->personalReads['Aria Solberg'] = [];
+        $this->corporationReads[self::MAIN_CORPORATION_ID] = [];
+
+        $this->service()->syncUserBlueprints($this->user);
+
+        self::assertNotContains('read-corporation:' . self::MAIN_CORPORATION_ID, $this->events);
+        self::assertNotContains('delete-corporation:' . self::MAIN_CORPORATION_ID, $this->events);
+        self::assertSame(['characters' => 1, 'corporations' => 0, 'failedCharacters' => []], $this->completedData());
+    }
+
+    #[Group('issue-729')]
+    public function testCorporationBlueprintsAreNotReadWithADirectorLackingTheRolesScope(): void
+    {
+        $director = $this->pilot('Corin Vale', self::MAIN_CORPORATION_ID, self::MAIN_CORPORATION_NAME, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE]);
+        $this->user = $this->userOf(self::MAIN_USER_ID, $director);
+        $this->corporationMembers = [$director];
+        $this->rolesByEveCharacterId = [$director->getEveCharacterId() => ['Director']];
+        $this->personalReads['Corin Vale'] = [];
+        $this->corporationReads[self::MAIN_CORPORATION_ID] = [];
+
+        $this->service()->syncUserBlueprints($this->user);
+
+        self::assertNotContains('read-corporation:' . self::MAIN_CORPORATION_ID, $this->events);
+        self::assertSame([], $this->rolesReadFor);
     }
 
     public function testPublishesStartedThenProgressThenCompletedOfTheBlueprintsSyncTypeToTheUser(): void
@@ -290,9 +349,23 @@ final class BlueprintSyncServiceTest extends TestCase
         );
 
         $characterRepository = $this->createStub(CharacterRepository::class);
-        $characterRepository->method('findWithCorpBlueprintsAccess')->willReturnCallback(
-            fn (int $corporationId): ?Character => $this->corporationReader,
+        $characterRepository->method('findByCorporationId')->willReturnCallback(
+            fn (int $corporationId): array => array_values(array_filter(
+                $this->corporationMembers,
+                static fn (Character $member): bool => $member->getCorporationId() === $corporationId,
+            )),
         );
+
+        $esiClient = $this->createStub(EsiClient::class);
+        $esiClient->method('get')->willReturnCallback(function (string $endpoint): array {
+            $eveCharacterId = (int) preg_replace('#\D#', '', $endpoint);
+            $this->rolesReadFor[] = $eveCharacterId;
+            if (isset($this->rolesFailures[$eveCharacterId])) {
+                throw $this->rolesFailures[$eveCharacterId];
+            }
+
+            return ['roles' => $this->rolesByEveCharacterId[$eveCharacterId] ?? []];
+        });
 
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('persist')->willReturnCallback(
@@ -314,7 +387,7 @@ final class BlueprintSyncServiceTest extends TestCase
             $ownedBlueprintRepository,
             $cachedAssetRepository,
             $characterRepository,
-            $this->visibilityOf([]),
+            new CorporationRoleReader(new CharacterService($esiClient), new ArrayAdapter(), new NullLogger()),
             $entityManager,
             new NullLogger(),
             $this->mercurePublisher(),
