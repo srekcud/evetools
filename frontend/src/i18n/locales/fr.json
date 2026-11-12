@@ -1314,6 +1314,11 @@
       "structureType": "Type de structure",
       "namePlaceholder": "Ex. : Raitaru de production",
       "security": "Sécurité",
+      "rigBonus": {
+        "material": "ME : -{value}%",
+        "time": "Temps : -{value}%",
+        "cost": "Coût : -{value}%"
+      },
       "rigsLabel": "Rigs (bonus matériaux)",
       "searchRig": "Rechercher un rig...",
       "maxRigsReached": "Maximum de rigs atteint",
@@ -2828,7 +2833,8 @@
         "me": "Durée ME (vers ME {level})",
         "te": "Durée TE (niveau {level})"
       },
-      "durationNotice": "Durées informatives, hors verdict, sans bonus de structure.",
+      "durationNotice": "Durées et coût d'installation TE informatifs, hors verdict, selon les bonus de votre structure configurée.",
+      "teCost": "Coût d'installation TE",
       "unknown": "Non proposée, inconnu : {reasons}",
       "notWorth": "{count} recherche ne paie pas sur les runs du projet | {count} recherches ne paient pas sur les runs du projet",
       "reason": {

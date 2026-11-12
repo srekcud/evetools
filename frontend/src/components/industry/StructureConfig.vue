@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useIndustryStore } from '@/stores/industry'
 import type { StructureConfig, RigOption, CorporationStructure, StructureSearchResult, StructureBonusPreview } from '@/stores/industry'
 import FavoriteSystemsConfig from './FavoriteSystemsConfig.vue'
+import RigBonusLabels from './RigBonusLabels.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { ApiError } from '@/services/api'
@@ -769,11 +770,7 @@ watch(
               >
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-slate-200">{{ formatRigName(rig.name) }}</span>
-                  <span class="text-table-cell ml-2">
-                    <span v-if="rig.bonus > 0" class="text-emerald-400">ME: -{{ rig.bonus }}%</span>
-                    <span v-if="rig.timeBonus !== undefined" class="text-amber-400 ml-1">TE: -{{ rig.timeBonus }}%</span>
-                    <span class="text-slate-500 ml-1">({{ rig.size }})</span>
-                  </span>
+                  <RigBonusLabels :rig="rig" class="ml-2" />
                 </div>
                 <div class="text-table-cell text-slate-500 mt-0.5">{{ formatTargetCategories(rig.targetCategories) }}</div>
                 <div v-if="rig.categoryBonuses" class="text-table-cell text-emerald-400/80 mt-0.5">ME {{ formatCategoryBonuses(rig.categoryBonuses) }}</div>
@@ -799,11 +796,7 @@ watch(
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                   <span class="text-sm text-slate-300 truncate">{{ formatRigName(rigInfo.name) }}</span>
-                  <span class="text-table-cell shrink-0">
-                    <span v-if="rigInfo.bonus > 0" class="text-emerald-400">ME: -{{ rigInfo.bonus }}%</span>
-                    <span v-if="rigInfo.timeBonus !== undefined" class="text-amber-400 ml-1">TE: -{{ rigInfo.timeBonus }}%</span>
-                    <span class="text-slate-500 ml-1">({{ rigInfo.size }})</span>
-                  </span>
+                  <RigBonusLabels :rig="rigInfo" class="shrink-0" />
                 </div>
                 <button
                   @click="removeRig(rigInfo.name)"

@@ -40,8 +40,8 @@ final readonly class ProductionStructure
 
     public function timeMultiplierFor(ActivityKind $activity): Multiplier
     {
-        if (ActivityKind::Copying !== $activity) {
-            throw new \InvalidArgumentException(\sprintf('The structure time multiplier is not modelled for %s.', $activity->name));
+        if (!$activity->isLaboratory()) {
+            throw new \InvalidArgumentException(\sprintf('The structure time multiplier is only modelled for laboratory activities, got %s.', $activity->name));
         }
 
         $multiplier = $this->timeRoleBonus;

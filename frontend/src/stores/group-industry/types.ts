@@ -738,6 +738,11 @@ export interface ResearchDuration {
   missingData: BuyOrBuildMissingData[]
 }
 
+export interface ResearchCost {
+  amount: number | null
+  missingData: BuyOrBuildMissingData[]
+}
+
 export interface ResearchRow {
   typeId: number
   typeName: string | null
@@ -751,6 +756,7 @@ export interface ResearchRow {
   missingData: BuyOrBuildMissingData[]
   meResearchDuration: ResearchDuration
   teResearchDuration: ResearchDuration | null
+  teResearchCost: ResearchCost | null
 }
 
 export interface ProjectResearch {

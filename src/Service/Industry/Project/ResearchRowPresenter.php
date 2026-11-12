@@ -6,6 +6,7 @@ namespace App\Service\Industry\Project;
 
 use App\Industry\Application\ResearchJobEstimate;
 use App\Industry\Application\ResearchSuggestion;
+use App\Industry\Domain\Cost;
 use App\Industry\Domain\MissingData;
 
 final class ResearchRowPresenter
@@ -30,6 +31,7 @@ final class ResearchRowPresenter
             'verdict' => $suggestion->verdict->value,
             'meResearchDuration' => self::durationOf($suggestion->meResearch),
             'teResearchDuration' => null === $suggestion->teResearch ? null : self::durationOf($suggestion->teResearch),
+            'teResearchCost' => null === $suggestion->teResearchCost ? null : self::costOf($suggestion->teResearchCost),
         ];
     }
 
@@ -42,6 +44,17 @@ final class ResearchRowPresenter
             'targetLevel' => $estimate->targetLevel,
             'seconds' => $estimate->duration->isKnown() ? $estimate->duration->jobDuration()->seconds : null,
             'missingData' => self::missingDataOf($estimate->duration->missingData),
+        ];
+    }
+
+    /**
+     * @return array{amount: ?float, missingData: list<array{reason: string, typeId: ?int}>}
+     */
+    private static function costOf(Cost $cost): array
+    {
+        return [
+            'amount' => $cost->isKnown() ? self::rounded($cost->amount()->amount) : null,
+            'missingData' => self::missingDataOf($cost->missingData),
         ];
     }
 

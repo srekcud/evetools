@@ -200,8 +200,8 @@ final class ProductionStructureCopyTimeMultiplierTest extends TestCase
         $this->assertSame(1.0, $structure->timeMultiplierFor(ActivityKind::Copying)->value);
     }
 
-    #[DataProvider('activityOtherThanCopyingProvider')]
-    public function testTimeMultiplierIsRefusedForAnActivityOtherThanCopying(ActivityKind $activity): void
+    #[DataProvider('industrialActivityProvider')]
+    public function testTimeMultiplierIsRefusedForManufacturingAndReaction(ActivityKind $activity): void
     {
         $sotiyo = self::sotiyo(SecurityClass::NullSec, scienceRigs: self::xlLaboratoryOptimizationII());
 
@@ -210,13 +210,10 @@ final class ProductionStructureCopyTimeMultiplierTest extends TestCase
         $sotiyo->timeMultiplierFor($activity);
     }
 
-    public static function activityOtherThanCopyingProvider(): iterable
+    public static function industrialActivityProvider(): iterable
     {
         yield 'manufacturing' => [ActivityKind::Manufacturing];
         yield 'reaction' => [ActivityKind::Reaction];
-        yield 'invention' => [ActivityKind::Invention];
-        yield 'ME research' => [ActivityKind::ResearchMaterial];
-        yield 'TE research' => [ActivityKind::ResearchTime];
     }
 
     private static function xlLaboratoryOptimizationII(): array

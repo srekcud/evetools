@@ -105,16 +105,24 @@ final class SdeStructureBonusReaderTest extends IntegrationTestCase
         $this->assertNull($this->reader()->timeMultiplierOf(self::ATHANOR, ActivityKind::Copying));
     }
 
-    #[Group('issue-523')]
-    #[DataProvider('inventionAndResearchProvider')]
-    public function testInventionAndResearchTimeRoleBonusesAreRefused(ActivityKind $activity): void
+    #[Group('issue-724')]
+    #[DataProvider('laboratoryResearchAndInventionProvider')]
+    public function testResearchAndInventionTimeRoleBonusOfEachEngineeringComplexIsReadFromStrEngTimeBonus(ActivityKind $activity): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-
-        $this->reader()->timeMultiplierOf(self::SOTIYO, $activity);
+        $this->assertSame(0.85, $this->reader()->timeMultiplierOf(self::RAITARU, $activity)?->value);
+        $this->assertSame(0.8, $this->reader()->timeMultiplierOf(self::AZBEL, $activity)?->value);
+        $this->assertSame(0.7, $this->reader()->timeMultiplierOf(self::SOTIYO, $activity)?->value);
     }
 
-    public static function inventionAndResearchProvider(): iterable
+    #[Group('issue-724')]
+    #[DataProvider('laboratoryResearchAndInventionProvider')]
+    public function testRefineriesHaveNoResearchNorInventionTimeRoleBonus(ActivityKind $activity): void
+    {
+        $this->assertNull($this->reader()->timeMultiplierOf(self::TATARA, $activity));
+        $this->assertNull($this->reader()->timeMultiplierOf(self::ATHANOR, $activity));
+    }
+
+    public static function laboratoryResearchAndInventionProvider(): iterable
     {
         yield 'invention' => [ActivityKind::Invention];
         yield 'ME research' => [ActivityKind::ResearchMaterial];

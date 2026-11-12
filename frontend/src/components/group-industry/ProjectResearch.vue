@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEveImages } from '@/composables/useEveImages'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupResearchStore } from '@/stores/group-industry/research'
-import type { ResearchDuration, ResearchRow } from '@/stores/group-industry/types'
+import type { ResearchCost, ResearchDuration, ResearchRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
@@ -34,7 +34,7 @@ function unknownReasons(row: ResearchRow): string[] {
   return [...new Set(row.missingData.map(missing => reasonLabel(missing.reason)))]
 }
 
-function durationReasons(duration: ResearchDuration): string {
+function durationReasons(duration: ResearchDuration | ResearchCost): string {
   return [...new Set(duration.missingData.map(missing => reasonLabel(missing.reason)))].join(', ')
 }
 
@@ -156,6 +156,18 @@ watch(
               <template v-else>
                 <UnknownContributionValue class="ml-2" />
                 <span class="ml-1 text-violet-300">{{ durationReasons(row.teResearchDuration) }}</span>
+              </template>
+            </span>
+            <span
+              v-if="row.teResearchCost !== null"
+              :data-testid="`research-row-${row.typeId}-te-cost`"
+              class="text-slate-400"
+            >
+              <span class="uppercase tracking-wider text-slate-500">{{ t('groupIndustry.research.teCost') }}</span>
+              <span v-if="row.teResearchCost.amount !== null" class="ml-2 font-mono tabular-nums text-cyan-300">{{ formatIsk(row.teResearchCost.amount) }}</span>
+              <template v-else>
+                <UnknownContributionValue class="ml-2" />
+                <span class="ml-1 text-violet-300">{{ durationReasons(row.teResearchCost) }}</span>
               </template>
             </span>
           </div>

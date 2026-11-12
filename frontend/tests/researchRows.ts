@@ -14,6 +14,7 @@ export function researchRow(overrides: Partial<ResearchRow>): ResearchRow {
     missingData: [],
     meResearchDuration: { targetLevel: 1, seconds: 2_100, missingData: [] },
     teResearchDuration: { targetLevel: 1, seconds: 2_800, missingData: [] },
+    teResearchCost: { amount: 1_000, missingData: [] },
     ...overrides,
   }
 }
@@ -37,6 +38,7 @@ export const HOBGOBLIN_II_WORTH = researchRow({
   verdict: 'worth',
   meResearchDuration: { targetLevel: 1, seconds: 1_678, missingData: [] },
   teResearchDuration: { targetLevel: 4, seconds: 26_545, missingData: [] },
+  teResearchCost: { amount: 132_034, missingData: [] },
 })
 
 export const ISHTAR_WORTH = researchRow({
@@ -66,6 +68,7 @@ export const OGRE_II_UNKNOWN_COST = researchRow({
   missingData: [{ reason: 'research_cost_index', typeId: null }],
   meResearchDuration: { targetLevel: 6, seconds: null, missingData: [{ reason: 'researcher', typeId: null }] },
   teResearchDuration: { targetLevel: 3, seconds: null, missingData: [{ reason: 'research_base_time', typeId: OGRE_II_TYPE_ID }] },
+  teResearchCost: { amount: null, missingData: [{ reason: 'cost_index', typeId: null }] },
 })
 
 export const WARRIOR_II_NOT_WORTH = researchRow({
