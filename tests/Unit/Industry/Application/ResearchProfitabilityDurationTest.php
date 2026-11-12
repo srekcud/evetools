@@ -7,9 +7,11 @@ namespace App\Tests\Unit\Industry\Application;
 use App\Entity\CachedCharacterSkill;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\OwnedBlueprintUse;
+use App\Industry\Application\ProductionStructure;
 use App\Industry\Application\ResearchJobEstimate;
 use App\Industry\Application\ResearchProfitability;
 use App\Industry\Application\ResearchVerdict;
+use App\Industry\Application\StructureType;
 use App\Industry\Domain\ActivityKind;
 use App\Industry\Domain\BlueprintEfficiency;
 use App\Industry\Domain\Cost;
@@ -17,18 +19,22 @@ use App\Industry\Domain\Isk;
 use App\Industry\Domain\Job;
 use App\Industry\Domain\MaterialEfficiency;
 use App\Industry\Domain\MissingData;
+use App\Industry\Domain\Multiplier;
 use App\Industry\Domain\OutputPerRun;
 use App\Industry\Domain\Plan;
 use App\Industry\Domain\Quantity;
 use App\Industry\Domain\Recipe;
 use App\Industry\Domain\RecipeMaterial;
 use App\Industry\Domain\Runs;
+use App\Industry\Domain\ScienceRig;
+use App\Industry\Domain\SecurityClass;
 use App\Industry\Domain\TimeEfficiency;
 use App\Tests\Unit\Industry\Application\Double\BuildCostsByMaterialEfficiency;
 use App\Tests\Unit\Industry\Application\Double\InMemoryAdjustedPrices;
 use App\Tests\Unit\Industry\Application\Double\InMemoryCharacterSkillLevels;
 use App\Tests\Unit\Industry\Application\Double\InMemoryResearchBaseTimes;
 use App\Tests\Unit\Industry\Application\Double\InMemorySystemCostIndices;
+use App\Tests\Unit\Industry\Application\Double\ProductionStructures;
 use App\Tests\Unit\Industry\Domain\Double\InMemoryBlueprintCatalog;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -47,6 +53,12 @@ final class ResearchProfitabilityDurationTest extends TestCase
     private const int MANUFACTURING_SYSTEM_ID = 30_002_187;
     private const int REACTION_SYSTEM_ID = 30_002_659;
     private const float RESEARCH_COST_INDEX = 0.05;
+    private const float TE_RESEARCH_COST_INDEX = 0.04;
+
+    private const float RAITARU_TIME_ROLE_BONUS = 0.85;
+    private const float RAITARU_COST_ROLE_BONUS = 0.97;
+    private const float RIG_II_TIME_REDUCTION_PERCENT = 24.0;
+    private const float RIG_II_COST_REDUCTION_PERCENT = 12.0;
 
     private const int HOBGOBLIN_ME_RESEARCH_BASE_TIME = 2_100;
     private const int HOBGOBLIN_TE_RESEARCH_BASE_TIME = 2_800;
@@ -249,12 +261,178 @@ final class ResearchProfitabilityDurationTest extends TestCase
         self::assertEquals([MissingData::researchSkill(CachedCharacterSkill::SKILL_RESEARCH)], $suggestions[0]->teResearch->duration->missingData);
     }
 
+    #[Group('issue-724')]
+    public function testMeAcceleratorOfTheStructureShortensTheMeDurationAndLeavesTheTeDurationAtTheRoleBonus(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 4, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 4, te: 6, researcher: self::SEASONED_RESEARCHER)],
+            structures: [$this->raitaru(ProductionStructures::scienceRig(ActivityKind::ResearchMaterial, self::RIG_II_TIME_REDUCTION_PERCENT, null))],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearch);
+        self::assertSame([5, true, 18_699], $this->estimateOf($suggestions[0]->meResearch));
+        self::assertSame([4, true, 22_564], $this->estimateOf($suggestions[0]->teResearch));
+    }
+
+    #[Group('issue-724')]
+    public function testTeAcceleratorOfTheStructureShortensTheTeDurationAndLeavesTheMeDurationAtTheRoleBonus(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 4, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 4, te: 6, researcher: self::SEASONED_RESEARCHER)],
+            structures: [$this->raitaru(ProductionStructures::scienceRig(ActivityKind::ResearchTime, self::RIG_II_TIME_REDUCTION_PERCENT, null))],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearch);
+        self::assertSame([5, true, 37_699], $this->estimateOf($suggestions[0]->meResearch));
+        self::assertSame([4, true, 11_192], $this->estimateOf($suggestions[0]->teResearch));
+    }
+
+    #[Group('issue-724')]
+    public function testCopyAndInventionRigsOfTheStructureLeaveBothResearchDurationsAtTheRoleBonus(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 4, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 4, te: 6, researcher: self::SEASONED_RESEARCHER)],
+            structures: [$this->raitaru(
+                ProductionStructures::scienceRig(ActivityKind::Copying, self::RIG_II_TIME_REDUCTION_PERCENT, null),
+                ProductionStructures::scienceRig(ActivityKind::Invention, self::RIG_II_TIME_REDUCTION_PERCENT, null),
+            )],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearch);
+        self::assertSame([5, true, 37_699], $this->estimateOf($suggestions[0]->meResearch));
+        self::assertSame([4, true, 22_564], $this->estimateOf($suggestions[0]->teResearch));
+    }
+
+    #[Group('issue-724')]
+    public function testStructureDoesNotMakeAnUnknownResearchDurationKnown(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 4, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 4, te: 6, researcher: null)],
+            structures: [$this->raitaru(...ProductionStructures::laboratoryRigs(self::RIG_II_TIME_REDUCTION_PERCENT, self::RIG_II_COST_REDUCTION_PERCENT))],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearch);
+        self::assertFalse($suggestions[0]->meResearch->duration->isKnown());
+        self::assertFalse($suggestions[0]->teResearch->duration->isKnown());
+        self::assertEquals([MissingData::researcher()], $suggestions[0]->teResearch->duration->missingData);
+    }
+
+    #[Group('issue-724')]
+    public function testTeResearchInstallCostAppliesTheTeCostOptimizationOfTheStructureOnTheTeCostIndex(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 4, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 4, te: 6, researcher: self::SEASONED_RESEARCHER)],
+            structures: [$this->raitaru(ProductionStructures::scienceRig(ActivityKind::ResearchTime, null, self::RIG_II_COST_REDUCTION_PERCENT))],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearchCost);
+        self::assertTrue($suggestions[0]->teResearchCost->isKnown());
+        self::assertEqualsWithDelta(132_033.66, $suggestions[0]->teResearchCost->amount()->amount, 0.01);
+    }
+
+    #[Group('issue-724')]
+    public function testMeCostOptimizationLeavesTheTeResearchInstallCostAtTheRoleBonus(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 4, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 4, te: 6, researcher: self::SEASONED_RESEARCHER)],
+            structures: [$this->raitaru(ProductionStructures::scienceRig(ActivityKind::ResearchMaterial, null, self::RIG_II_COST_REDUCTION_PERCENT))],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearchCost);
+        self::assertEqualsWithDelta(158_368.0, $suggestions[0]->teResearchCost->amount()->amount, 0.01);
+    }
+
+    #[Group('issue-724')]
+    public function testOriginalAtTe20HasNoTeResearchCost(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0, te: 20)],
+            [self::HOBGOBLIN_II => $this->owned(me: 0, te: 20, researcher: self::SEASONED_RESEARCHER)],
+            structures: [$this->raitaru(ProductionStructures::scienceRig(ActivityKind::ResearchTime, null, self::RIG_II_COST_REDUCTION_PERCENT))],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNull($suggestions[0]->teResearch);
+        self::assertNull($suggestions[0]->teResearchCost);
+    }
+
+    #[Group('issue-724')]
+    public function testMissingTeResearchCostIndexMakesTheTeCostUnknownWithItsReasonAndLeavesTheVerdictAlone(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 0, te: 6, researcher: self::SEASONED_RESEARCHER)],
+            structures: [$this->raitaru()],
+            costIndices: new InMemorySystemCostIndices([self::MANUFACTURING_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::RESEARCH_COST_INDEX]]),
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearchCost);
+        self::assertFalse($suggestions[0]->teResearchCost->isKnown());
+        self::assertEquals([MissingData::costIndex()], $suggestions[0]->teResearchCost->missingData);
+        self::assertSame([], $suggestions[0]->missingData);
+        self::assertSame(ResearchVerdict::Worth, $suggestions[0]->verdict);
+    }
+
+    #[Group('issue-724')]
+    public function testWithoutStructureTheTeResearchInstallCostUsesTheFavoriteSystemIndexAndTheNpcFacilityTax(): void
+    {
+        $suggestions = $this->suggestionsOf(
+            $this->hobgoblinCosts(),
+            [$this->manufacturingJob(self::HOBGOBLIN_II, runs: 10, me: 0, te: 6)],
+            [self::HOBGOBLIN_II => $this->owned(me: 0, te: 6, researcher: self::SEASONED_RESEARCHER)],
+        );
+
+        self::assertCount(1, $suggestions);
+        self::assertNotNull($suggestions[0]->teResearchCost);
+        self::assertEqualsWithDelta(2_693_333.33 * (self::TE_RESEARCH_COST_INDEX + 0.0025 + 0.02), $suggestions[0]->teResearchCost->amount()->amount, 0.01);
+    }
+
+    private function raitaru(ScienceRig ...$scienceRigs): ProductionStructure
+    {
+        return new ProductionStructure(
+            'raitaru',
+            StructureType::EngineeringComplex,
+            SecurityClass::NullSec,
+            self::MANUFACTURING_SYSTEM_ID,
+            new \DateTimeImmutable('2026-01-01 00:00:00'),
+            new Multiplier(ProductionStructures::ENGINEERING_COMPLEX_MATERIAL_ROLE_BONUS),
+            [],
+            new Multiplier(self::RAITARU_COST_ROLE_BONUS),
+            ProductionStructures::NO_FACILITY_TAX,
+            new Multiplier(self::RAITARU_TIME_ROLE_BONUS),
+            array_values($scienceRigs),
+        );
+    }
+
     private function suggestionsOf(
         BuildCostsByMaterialEfficiency $buildCosts,
         array $jobs,
         array $ownedBlueprints,
         ?array $skillLevels = null,
         ?array $baseTimes = null,
+        array $structures = [],
+        ?InMemorySystemCostIndices $costIndices = null,
     ): array {
         $profitability = new ResearchProfitability(
             $buildCosts,
@@ -263,7 +441,10 @@ final class ResearchProfitabilityDurationTest extends TestCase
                 $this->recipe(self::WARRIOR_II, [self::MEXALLON => 200]),
             ),
             new InMemoryAdjustedPrices([self::TRITANIUM => 5_000.0, self::PYERITE => 10_000.0, self::MEXALLON => 25_000.0]),
-            new InMemorySystemCostIndices([self::MANUFACTURING_SYSTEM_ID => [ActivityKind::ResearchMaterial->name => self::RESEARCH_COST_INDEX]]),
+            $costIndices ?? new InMemorySystemCostIndices([self::MANUFACTURING_SYSTEM_ID => [
+                ActivityKind::ResearchMaterial->name => self::RESEARCH_COST_INDEX,
+                ActivityKind::ResearchTime->name => self::TE_RESEARCH_COST_INDEX,
+            ]]),
             new InMemoryResearchBaseTimes($baseTimes ?? [
                 self::HOBGOBLIN_II => [
                     ActivityKind::ResearchMaterial->name => self::HOBGOBLIN_ME_RESEARCH_BASE_TIME,
@@ -304,7 +485,7 @@ final class ResearchProfitabilityDurationTest extends TestCase
         return $profitability->suggestionsOf(
             new Plan($jobs, [], []),
             $ownedBlueprints,
-            [],
+            $structures,
             new FavoriteSystems(self::MANUFACTURING_SYSTEM_ID, self::REACTION_SYSTEM_ID),
         );
     }

@@ -91,16 +91,22 @@ final readonly class ResearchProfitability
     {
         $currentLevel = $firstJob->materialEfficiency->value;
         $targetLevel = $currentLevel + 1;
+        $meStructure = $selector->select(ActivityKind::ResearchMaterial, null)->structure;
 
         $currentCost = $this->productionCostOf($firstJob, $runs, $currentLevel, $structures, $favoriteSystems);
         $nextCost = $this->productionCostOf($firstJob, $runs, $targetLevel, $structures, $favoriteSystems);
-        $researchCost = $this->researchCostOf($recipe, $targetLevel, $selector, $favoriteSystems, $alphaClone);
+        $researchCost = $this->researchCostOf(ActivityKind::ResearchMaterial, $recipe, $targetLevel, $meStructure, $favoriteSystems, $alphaClone);
 
         $saving = $currentCost->isKnown() && $nextCost->isKnown()
             ? $currentCost->amount()->amount - $nextCost->amount()->amount
             : null;
         $researchAmount = $researchCost->isKnown() ? $researchCost->amount()->amount : null;
         $net = null === $saving || null === $researchAmount ? null : $saving - $researchAmount;
+
+        $teTargetLevel = $firstJob->timeEfficiency->value >= TimeEfficiency::MAXIMUM_LEVEL
+            ? null
+            : intdiv($firstJob->timeEfficiency->value, TimeEfficiency::LEVEL_STEP) + 1;
+        $teStructure = null === $teTargetLevel ? null : $selector->select(ActivityKind::ResearchTime, null)->structure;
 
         return new ResearchSuggestion(
             $firstJob->productTypeId,
@@ -112,14 +118,17 @@ final readonly class ResearchProfitability
             $net,
             self::verdictOf($net),
             $currentCost->plus($nextCost)->plus($researchCost)->missingData,
-            $this->researchEstimateOf(ActivityKind::ResearchMaterial, $firstJob->productTypeId, $targetLevel, $owned->researcherEveCharacterId),
-            $firstJob->timeEfficiency->value >= TimeEfficiency::MAXIMUM_LEVEL
+            $this->researchEstimateOf(ActivityKind::ResearchMaterial, $firstJob->productTypeId, $targetLevel, $owned->researcherEveCharacterId, $meStructure),
+            null === $teTargetLevel
                 ? null
-                : $this->researchEstimateOf(ActivityKind::ResearchTime, $firstJob->productTypeId, intdiv($firstJob->timeEfficiency->value, TimeEfficiency::LEVEL_STEP) + 1, $owned->researcherEveCharacterId),
+                : $this->researchEstimateOf(ActivityKind::ResearchTime, $firstJob->productTypeId, $teTargetLevel, $owned->researcherEveCharacterId, $teStructure),
+            null === $teTargetLevel
+                ? null
+                : $this->researchCostOf(ActivityKind::ResearchTime, $recipe, $teTargetLevel, $teStructure, $favoriteSystems, $alphaClone),
         );
     }
 
-    private function researchEstimateOf(ActivityKind $activity, int $productTypeId, int $targetLevel, ?int $researcherEveCharacterId): ResearchJobEstimate
+    private function researchEstimateOf(ActivityKind $activity, int $productTypeId, int $targetLevel, ?int $researcherEveCharacterId, ?ProductionStructure $structure): ResearchJobEstimate
     {
         $baseTimeSeconds = $this->researchBaseTimes->of($productTypeId, $activity);
 
@@ -138,7 +147,7 @@ final readonly class ResearchProfitability
             $targetLevel,
             $this->characterSkillLevels->levelOf($researcherEveCharacterId, $researchSkillTypeId),
             $this->characterSkillLevels->levelOf($researcherEveCharacterId, ResearchJobDuration::ADVANCED_INDUSTRY_SKILL_TYPE_ID),
-            Multiplier::one(),
+            null === $structure ? Multiplier::one() : $structure->timeMultiplierFor($activity),
         ));
     }
 
@@ -157,18 +166,17 @@ final readonly class ResearchProfitability
         );
     }
 
-    private function researchCostOf(Recipe $recipe, int $targetLevel, StructureSelector $selector, FavoriteSystems $favoriteSystems, bool $alphaClone): Cost
+    private function researchCostOf(ActivityKind $activity, Recipe $recipe, int $targetLevel, ?ProductionStructure $structure, FavoriteSystems $favoriteSystems, bool $alphaClone): Cost
     {
-        $structure = $selector->select(ActivityKind::ResearchMaterial, null)->structure;
-        $solarSystemId = $favoriteSystems->systemOrFavorite($structure, ActivityKind::ResearchMaterial);
-        $costIndex = null === $solarSystemId ? null : $this->costIndices->costIndexOf($solarSystemId, ActivityKind::ResearchMaterial);
+        $solarSystemId = $favoriteSystems->systemOrFavorite($structure, $activity);
+        $costIndex = null === $solarSystemId ? null : $this->costIndices->costIndexOf($solarSystemId, $activity);
 
         return InstallCost::forResearch(
-            ActivityKind::ResearchMaterial,
+            $activity,
             EstimatedItemValue::of(new Runs(1), $this->eivMaterialsOf($recipe)),
             $targetLevel,
             $costIndex,
-            null === $structure ? Multiplier::one() : $structure->installCostMultiplierFor(ActivityKind::ResearchMaterial),
+            null === $structure ? Multiplier::one() : $structure->installCostMultiplierFor($activity),
             null === $structure ? ProductionCostCalculator::NPC_STATION_FACILITY_TAX_RATE : $structure->facilityTaxRate,
             $alphaClone,
         )->total;

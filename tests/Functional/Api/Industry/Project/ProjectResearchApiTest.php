@@ -44,7 +44,7 @@ final class ProjectResearchApiTest extends WebTestCase
     private const int NO_RESEARCH_BASE_TIME = 0;
 
     private const array ROW_KEYS = [
-        'currentLevel', 'materialSaving', 'meResearchDuration', 'missingData', 'net', 'researchCost', 'runs', 'targetLevel', 'teResearchDuration', 'typeId', 'typeName', 'verdict',
+        'currentLevel', 'materialSaving', 'meResearchDuration', 'missingData', 'net', 'researchCost', 'runs', 'targetLevel', 'teResearchCost', 'teResearchDuration', 'typeId', 'typeName', 'verdict',
     ];
 
     protected function setUp(): void
@@ -58,6 +58,7 @@ final class ProjectResearchApiTest extends WebTestCase
         $this->seedAdjustedPrices([self::TRITANIUM_TYPE_ID => self::TRITANIUM_ADJUSTED_PRICE]);
         $this->seedJitaCostIndex('manufacturing', self::COST_INDEX);
         $this->seedJitaCostIndex('researching_material_efficiency', self::COST_INDEX);
+        $this->seedJitaCostIndex('researching_time_efficiency', self::COST_INDEX);
     }
 
     public function testAcceptedParticipantReadsTheResearchRowOfTheOwnedOriginalAtMe0WithItsSavingCostAndNet(): void
@@ -82,6 +83,7 @@ final class ProjectResearchApiTest extends WebTestCase
                 $row['materialSaving'], $row['researchCost'], $row['net'], $row['verdict'], $row['missingData'],
             ],
         );
+        self::assertSame(['amount' => 29.0, 'missingData' => []], $row['teResearchCost']);
     }
 
     #[Group('issue-475')]
@@ -147,6 +149,8 @@ final class ProjectResearchApiTest extends WebTestCase
         $row = $this->responseJson()['rows'][0];
         self::assertArrayHasKey('teResearchDuration', $row);
         self::assertNull($row['teResearchDuration']);
+        self::assertArrayHasKey('teResearchCost', $row);
+        self::assertNull($row['teResearchCost']);
         self::assertSame(1, $row['meResearchDuration']['targetLevel']);
     }
 

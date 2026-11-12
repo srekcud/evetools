@@ -9,6 +9,7 @@ use App\Industry\Application\ResearchSuggestion;
 use App\Industry\Application\ResearchVerdict;
 use App\Entity\CachedCharacterSkill;
 use App\Industry\Domain\ActivityKind;
+use App\Industry\Domain\Cost;
 use App\Industry\Domain\Isk;
 use App\Industry\Domain\MissingData;
 use App\Industry\Domain\Multiplier;
@@ -39,6 +40,7 @@ final class ResearchRowPresenterTest extends TestCase
             [],
             $this->knownMeResearch(),
             $this->knownTeResearch(),
+            Cost::known(new Isk(1_234.567)),
         );
 
         self::assertSame(
@@ -55,6 +57,7 @@ final class ResearchRowPresenterTest extends TestCase
                 'missingData' => [],
                 'meResearchDuration' => ['targetLevel' => 5, 'seconds' => 44_352, 'missingData' => []],
                 'teResearchDuration' => ['targetLevel' => 4, 'seconds' => 26_545, 'missingData' => []],
+                'teResearchCost' => ['amount' => 1_234.57, 'missingData' => []],
             ]),
             $this->sorted(ResearchRowPresenter::of($suggestion, 'Hobgoblin II')),
         );
@@ -74,6 +77,7 @@ final class ResearchRowPresenterTest extends TestCase
             [MissingData::marketPrice(self::WARRIOR_II), MissingData::costIndex()],
             $this->knownMeResearch(),
             $this->knownTeResearch(),
+            Cost::unknown(MissingData::costIndex()),
         );
 
         $row = ResearchRowPresenter::of($suggestion, 'Warrior II');
@@ -95,6 +99,7 @@ final class ResearchRowPresenterTest extends TestCase
                 ],
                 'meResearchDuration' => ['targetLevel' => 5, 'seconds' => 44_352, 'missingData' => []],
                 'teResearchDuration' => ['targetLevel' => 4, 'seconds' => 26_545, 'missingData' => []],
+                'teResearchCost' => ['amount' => null, 'missingData' => [['reason' => 'cost_index', 'typeId' => null]]],
             ]),
             $this->sorted($row),
         );
@@ -156,7 +161,7 @@ final class ResearchRowPresenterTest extends TestCase
     public function testUnknownResearchCostIsAnExplicitNullKey(): void
     {
         $row = ResearchRowPresenter::of(
-            new ResearchSuggestion(self::HOBGOBLIN_II, 4, 5, 10, new Isk(10_000.0), null, null, ResearchVerdict::Unknown, [MissingData::costIndex()], $this->knownMeResearch(), $this->knownTeResearch()),
+            new ResearchSuggestion(self::HOBGOBLIN_II, 4, 5, 10, new Isk(10_000.0), null, null, ResearchVerdict::Unknown, [MissingData::costIndex()], $this->knownMeResearch(), $this->knownTeResearch(), null),
             'Hobgoblin II',
         );
 
@@ -164,9 +169,26 @@ final class ResearchRowPresenterTest extends TestCase
         self::assertNull($row['researchCost']);
     }
 
+    #[Group('issue-724')]
+    public function testTeResearchCostIsAnExplicitNullKeyAtTe20(): void
+    {
+        $row = ResearchRowPresenter::of($this->suggestionWith($this->knownMeResearch(), null), 'Hobgoblin II');
+
+        self::assertArrayHasKey('teResearchCost', $row);
+        self::assertNull($row['teResearchCost']);
+    }
+
+    #[Group('issue-724')]
+    public function testKnownTeResearchCostIsItsAmountRoundedToTwoDecimalsWithNoMissingData(): void
+    {
+        $row = ResearchRowPresenter::of($this->suggestionWith($this->knownMeResearch(), $this->knownTeResearch()), 'Hobgoblin II');
+
+        self::assertSame(['amount' => 2_000.0, 'missingData' => []], $row['teResearchCost']);
+    }
+
     private function suggestionWith(ResearchJobEstimate $meResearch, ?ResearchJobEstimate $teResearch): ResearchSuggestion
     {
-        return new ResearchSuggestion(self::HOBGOBLIN_II, 4, 5, 10, new Isk(10_000.0), new Isk(14_500.0), -4_500.0, ResearchVerdict::NotWorth, [], $meResearch, $teResearch);
+        return new ResearchSuggestion(self::HOBGOBLIN_II, 4, 5, 10, new Isk(10_000.0), new Isk(14_500.0), -4_500.0, ResearchVerdict::NotWorth, [], $meResearch, $teResearch, null === $teResearch ? null : Cost::known(new Isk(2_000.0)));
     }
 
     private function knownMeResearch(): ResearchJobEstimate

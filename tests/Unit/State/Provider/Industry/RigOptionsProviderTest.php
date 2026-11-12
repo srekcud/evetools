@@ -8,6 +8,7 @@ use App\Entity\IndustryStructureConfig;
 use App\State\Provider\Industry\RigOptionsProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -122,6 +123,19 @@ final class RigOptionsProviderTest extends TestCase
             ['manufacturing M' => 66, 'manufacturing L' => 36, 'manufacturing XL' => 9, 'reaction M' => 6, 'reaction L' => 2],
             $countBySize,
         );
+    }
+
+    #[Group('issue-724')]
+    public function testLaboratoryRigsStateTheirCostBonusAlongsideTheirTimeBonus(): void
+    {
+        $rigs = $this->rigsByName();
+
+        $this->assertSame(12.0, $rigs['Standup M-Set ME Research Cost Optimization II']['costBonus'] ?? null);
+        $this->assertArrayNotHasKey('timeBonus', $rigs['Standup M-Set ME Research Cost Optimization II']);
+        $this->assertSame(24.0, $rigs['Standup M-Set ME Research Accelerator II']['timeBonus'] ?? null);
+        $this->assertArrayNotHasKey('costBonus', $rigs['Standup M-Set ME Research Accelerator II']);
+        $this->assertSame([20.0, 10.0], [$rigs['Standup L-Set TE Research Optimization I']['timeBonus'] ?? null, $rigs['Standup L-Set TE Research Optimization I']['costBonus'] ?? null]);
+        $this->assertSame([24.0, 12.0], [$rigs['Standup XL-Set Laboratory Optimization II']['timeBonus'] ?? null, $rigs['Standup XL-Set Laboratory Optimization II']['costBonus'] ?? null]);
     }
 
     public function testLargeEfficiencyRigsStateTheirTimeBonus(): void
