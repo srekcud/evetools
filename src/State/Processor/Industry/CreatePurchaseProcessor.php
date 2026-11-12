@@ -16,6 +16,7 @@ use App\Repository\IndustryProjectBomLineRepository;
 use App\Repository\IndustryProjectPurchaseRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\DerivedContributionService;
+use App\Service\Industry\Project\ProjectPurchaseFactory;
 use App\Service\UuidOrNotFound;
 use App\State\Provider\Industry\Project\ProjectAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
@@ -69,8 +70,6 @@ class CreatePurchaseProcessor implements ProcessorInterface
 
         \assert($data instanceof CreatePurchaseInput);
 
-        $purchase = new IndustryProjectPurchase();
-
         if ($data->transactionId !== null) {
             $transaction = $this->findOwnedTransaction($user, $data->transactionId);
 
@@ -86,13 +85,10 @@ class CreatePurchaseProcessor implements ProcessorInterface
                 throw new BadRequestHttpException(self::QUANTITY_ABOVE_TRANSACTION_MESSAGE);
             }
 
-            $purchase->setTransaction($transaction);
-            $purchase->setTypeId($transaction->getTypeId());
-            $purchase->setQuantity($data->quantity ?? $transaction->getQuantity());
-            $purchase->setUnitPrice($transaction->getUnitPrice());
-            $purchase->setTotalPrice($purchase->getUnitPrice() * $purchase->getQuantity());
-            $purchase->setSource('esi_wallet');
+            $purchase = ProjectPurchaseFactory::fromTransaction($transaction, $data->quantity);
         } else {
+            $purchase = new IndustryProjectPurchase();
+
             if ($data->typeId === null || $data->quantity === null || $data->unitPrice === null) {
                 throw new BadRequestHttpException('Manual purchase requires typeId, quantity and unitPrice');
             }

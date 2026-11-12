@@ -105,4 +105,18 @@ class IndustryProjectRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    /**
+     * @return list<IndustryProject>
+     */
+    public function findOpenOwnedBy(User $user): array
+    {
+        return $this->createQueryBuilder('p')
+            ->where('p.owner = :user')
+            ->andWhere('p.status != :completed')
+            ->setParameter('user', $user)
+            ->setParameter('completed', ProjectStatus::Completed)
+            ->getQuery()
+            ->getResult();
+    }
 }

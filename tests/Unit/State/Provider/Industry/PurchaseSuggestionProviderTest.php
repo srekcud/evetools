@@ -42,7 +42,7 @@ final class PurchaseSuggestionProviderTest extends TestCase
         $this->setUpIshtarProject();
     }
 
-    public function testBuysOfTheComponentLinesAreSuggestedAndTheBuysOfTheMaterialLinesAreLeftOut(): void
+    public function testBuysOfTheComponentLinesAndOfTheMaterialLinesAreBothSuggested(): void
     {
         $this->buy($this->ownerAltCharacter, 6_362_000_001, self::RAM_TYPE_ID, 50, 3_040.5);
         $this->buy($this->ownerMainCharacter, 6_362_000_002, self::TRITANIUM_TYPE_ID, 1_000, 4.4);
@@ -50,10 +50,30 @@ final class PurchaseSuggestionProviderTest extends TestCase
         $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
 
         self::assertSame(
-            [1, [[6_362_000_001, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 50, 152_025.0, 'Aria Alt', false]]],
+            [
+                2,
+                [
+                    [6_362_000_002, self::TRITANIUM_TYPE_ID, 'Tritanium', 1_000, 4_400.0, 'Aria Solberg', false],
+                    [6_362_000_001, self::RAM_TYPE_ID, 'R.A.M.- Starship Tech', 50, 152_025.0, 'Aria Alt', false],
+                ],
+            ],
             [$result->totalCount, $this->fieldsOf($result->suggestions)],
         );
-        self::assertSame([['Aria Solberg', [self::RAM_TYPE_ID]], ['Aria Alt', [self::RAM_TYPE_ID]]], $this->buyLookups);
+        self::assertSame(
+            [['Aria Solberg', [self::TRITANIUM_TYPE_ID, self::RAM_TYPE_ID]], ['Aria Alt', [self::TRITANIUM_TYPE_ID, self::RAM_TYPE_ID]]],
+            array_map(static fn (array $lookup): array => [$lookup[0], $lookup[1]], $this->buyLookups),
+        );
+    }
+
+    public function testBuyMadeBeforeTheCreationOfTheProjectIsNotSuggested(): void
+    {
+        $this->buy($this->ownerAltCharacter, 6_750_000_101, self::RAM_TYPE_ID, 50, 3_040.5, '2026-10-31T23:59:59+00:00');
+        $this->buy($this->ownerAltCharacter, 6_750_000_102, self::RAM_TYPE_ID, 20, 3_040.5, '2026-11-01T10:00:00+00:00');
+
+        $result = $this->suggestionsFor($this->owner, $this->ishtarProject);
+
+        self::assertSame([6_750_000_102], array_map(static fn (PurchaseSuggestionResource $suggestion): int => $suggestion->transactionId, $result->suggestions));
+        self::assertSame(['2026-11-01T10:00:00+00:00'], array_unique(array_column($this->buyLookups, 2)));
     }
 
     public function testBuyLinkedToALineOfTheProjectIsMarkedAlreadyLinked(): void
@@ -92,14 +112,15 @@ final class PurchaseSuggestionProviderTest extends TestCase
     {
         $transactionRepository = $this->createStub(CachedWalletTransactionRepository::class);
         $transactionRepository->method('findBuysByTypeIds')->willReturnCallback(
-            function (Character $character, array $typeIds): array {
+            function (Character $character, array $typeIds, ?\DateTimeImmutable $since = null): array {
                 $sortedTypeIds = array_values($typeIds);
                 sort($sortedTypeIds);
-                $this->buyLookups[] = [$character->getName(), $sortedTypeIds];
+                $this->buyLookups[] = [$character->getName(), $sortedTypeIds, $since?->format('c')];
 
                 return array_values(array_filter(
                     $this->buysByCharacterName[$character->getName()] ?? [],
-                    static fn (CachedWalletTransaction $transaction): bool => in_array($transaction->getTypeId(), $typeIds, true),
+                    static fn (CachedWalletTransaction $transaction): bool => in_array($transaction->getTypeId(), $typeIds, true)
+                        && ($since === null || $transaction->getDate() >= $since),
                 ));
             },
         );
@@ -125,7 +146,7 @@ final class PurchaseSuggestionProviderTest extends TestCase
         ))->provide(new Get(), ['projectId' => $project->getId()->toRfc4122()]);
     }
 
-    private function buy(Character $character, int $transactionId, int $typeId, int $quantity, float $unitPrice): CachedWalletTransaction
+    private function buy(Character $character, int $transactionId, int $typeId, int $quantity, float $unitPrice, string $date = '2026-11-02T12:00:00+00:00'): CachedWalletTransaction
     {
         $transaction = (new CachedWalletTransaction())
             ->setCharacter($character)
@@ -135,7 +156,7 @@ final class PurchaseSuggestionProviderTest extends TestCase
             ->setUnitPrice($unitPrice)
             ->setIsBuy(true)
             ->setLocationId(self::JITA_4_4_STATION_ID)
-            ->setDate(new \DateTimeImmutable('2026-11-02T12:00:00+00:00'));
+            ->setDate(new \DateTimeImmutable($date));
         $this->buysByCharacterName[$character->getName()][] = $transaction;
 
         return $transaction;

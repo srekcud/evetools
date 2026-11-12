@@ -19,6 +19,7 @@ class IndustryProjectBomLine
 {
     private const string ACTIVITY_MANUFACTURING = 'manufacturing';
     private const string ACTIVITY_REACTION = 'reaction';
+    private const string JOB_GROUP_COMPONENT = 'component';
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -295,6 +296,11 @@ class IndustryProjectBomLine
     public function isCoveredByStock(): bool
     {
         return $this->isJob && 0 === $this->runs;
+    }
+
+    public function isPurchasable(): bool
+    {
+        return !$this->isJob || self::JOB_GROUP_COMPONENT === $this->jobGroup;
     }
 
     public function isManufacturingOrReactionJob(): bool
