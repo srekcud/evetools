@@ -1236,7 +1236,8 @@
         "esi_rate_limited": "limite de requêtes ESI atteinte, réessayez plus tard",
         "esi_unavailable": "ESI indisponible (maintenance ou erreur serveur), réessayez plus tard",
         "esi_error": "erreur ESI {status}",
-        "sync_failed": "échec de la synchronisation"
+        "sync_failed": "échec de la synchronisation",
+        "no_director": "aucun Director connecté, connectez-en un pour synchroniser les blueprints de la corporation"
       },
       "reconnectLink": "Reconnecter des personnages"
     },
@@ -1282,7 +1283,7 @@
         "detail": "Les blueprints corpo ne sont listés que pour les divisions rendues visibles pour vous. Vos blueprints personnels restent à jour."
       },
       "syncErrorTitle": "Synchronisation des blueprints en échec ({count} erreur), la liste affichée peut être périmée : | Synchronisation des blueprints en échec ({count} erreurs), la liste affichée peut être périmée :",
-      "syncFailuresTitle": "Blueprints non synchronisés pour {count} personnage à la dernière synchronisation : | Blueprints non synchronisés pour {count} personnages à la dernière synchronisation :"
+      "syncFailuresTitle": "Blueprints non synchronisés pour {count} personnage ou corporation à la dernière synchronisation : | Blueprints non synchronisés pour {count} personnages ou corporations à la dernière synchronisation :"
     },
     "jobsSyncError": {
       "title": "Échec de la synchronisation des jobs ({count} erreur), les jobs affichés peuvent être périmés : | Échec de la synchronisation des jobs ({count} erreurs), les jobs affichés peuvent être périmés :"

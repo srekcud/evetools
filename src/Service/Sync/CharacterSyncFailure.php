@@ -20,6 +20,7 @@ final readonly class CharacterSyncFailure
         public string $characterName,
         public CharacterSyncFailureReason $reason,
         public ?int $statusCode,
+        public ?int $corporationId = null,
     ) {
     }
 
@@ -31,6 +32,11 @@ final readonly class CharacterSyncFailure
     public static function missingScope(Character $character): self
     {
         return new self($character->getName(), CharacterSyncFailureReason::MissingScope, null);
+    }
+
+    public static function noDirector(int $corporationId, string $corporationName): self
+    {
+        return new self($corporationName, CharacterSyncFailureReason::NoDirector, null, $corporationId);
     }
 
     public static function fromThrowable(Character $character, \Throwable $throwable): self
@@ -47,15 +53,20 @@ final readonly class CharacterSyncFailure
     }
 
     /**
-     * @return array{characterName: string, reason: string, statusCode: int|null}
+     * @return array{characterName: string, reason: string, statusCode: int|null, corporationId?: int}
      */
     public function toArray(): array
     {
-        return [
+        $payload = [
             'characterName' => $this->characterName,
             'reason' => $this->reason->value,
             'statusCode' => $this->statusCode,
         ];
+        if ($this->corporationId !== null) {
+            $payload['corporationId'] = $this->corporationId;
+        }
+
+        return $payload;
     }
 
     /**

@@ -96,8 +96,8 @@ final class BlueprintSyncServiceTest extends TestCase
 
     public function testKeepsTheCachedBlueprintsOfACharacterWhoseEsiReadFailsAndReplacesTheOtherOnes(): void
     {
-        $this->corporationMembers = [];
         $this->user = $this->userOf(self::MAIN_USER_ID, $this->pilotWithoutCorporationScope(), $this->altWithoutCorporationScope());
+        $this->corporationMembers = $this->user->getCharacters()->getValues();
         $this->personalReads['Aria Solberg'] = EsiApiException::fromResponse(500, 'ESI down', '/characters/1/blueprints/');
         $this->personalReads['Brann Holt'] = [new BlueprintDto(2_001, self::VEXOR_BLUEPRINT, 60_003_760, 'Hangar', -1, 6, 12, -1)];
 
@@ -166,9 +166,9 @@ final class BlueprintSyncServiceTest extends TestCase
 
     public function testCharacterWithoutTheBlueprintScopesIsIgnoredAndNotListedAsAFailure(): void
     {
-        $this->corporationMembers = [];
         $withoutScopes = $this->pilot('Corin Vale', self::ALT_CORPORATION_ID, 'Vale Freight', []);
         $this->user = $this->userOf(self::MAIN_USER_ID, $this->pilotWithoutCorporationScope(), $withoutScopes);
+        $this->corporationMembers = [$this->user->getCharacters()->getValues()[0], $withoutScopes];
         $this->personalReads['Aria Solberg'] = [new BlueprintDto(5_001, self::DRAKE_BLUEPRINT, 60_003_760, 'Hangar', -1, 10, 20, -1)];
 
         $this->service()->syncUserBlueprints($this->user);
@@ -235,7 +235,8 @@ final class BlueprintSyncServiceTest extends TestCase
     }
 
     #[Group('issue-729')]
-    public function testCorporationBlueprintsAreNotReadWhenNoMemberHoldsTheDirectorRole(): void
+    #[Group('issue-734')]
+    public function testCorporationWithoutDirectorIsNotReadAndIsListedAsANoDirectorFailure(): void
     {
         $this->user = $this->userOf(self::MAIN_USER_ID, $this->main);
         $this->rolesByEveCharacterId = [$this->main->getEveCharacterId() => ['Accountant'], $this->alt->getEveCharacterId() => []];
@@ -246,7 +247,56 @@ final class BlueprintSyncServiceTest extends TestCase
 
         self::assertNotContains('read-corporation:' . self::MAIN_CORPORATION_ID, $this->events);
         self::assertNotContains('delete-corporation:' . self::MAIN_CORPORATION_ID, $this->events);
-        self::assertSame(['characters' => 1, 'corporations' => 0, 'failedCharacters' => []], $this->completedData());
+        self::assertSame(
+            [
+                'characters' => 1,
+                'corporations' => 0,
+                'failedCharacters' => [['characterName' => self::MAIN_CORPORATION_NAME, 'reason' => 'no_director', 'statusCode' => null, 'corporationId' => self::MAIN_CORPORATION_ID]],
+            ],
+            $this->completedData(),
+        );
+    }
+
+    #[Group('issue-734')]
+    public function testCorporationWithoutDirectorDoesNotTurnTheSyncOfTheCharactersIntoAnError(): void
+    {
+        $this->user = $this->userOf(self::MAIN_USER_ID, $this->main);
+        $this->rolesByEveCharacterId = [$this->main->getEveCharacterId() => [], $this->alt->getEveCharacterId() => []];
+        $this->personalReads['Aria Solberg'] = [];
+
+        $this->service()->syncUserBlueprints($this->user);
+
+        self::assertNotContains('error', array_column($this->mercureCalls, 0));
+        self::assertSame(['completed'], array_slice(array_column($this->mercureCalls, 0), -1));
+    }
+
+    #[Group('issue-734')]
+    public function testMessageCountsTheCorporationWithoutDirectorApartFromTheCharactersNotSynced(): void
+    {
+        $this->user = $this->userOf(self::MAIN_USER_ID, $this->main);
+        $this->rolesByEveCharacterId = [$this->main->getEveCharacterId() => [], $this->alt->getEveCharacterId() => []];
+        $this->personalReads['Aria Solberg'] = [];
+
+        $this->service()->syncUserBlueprints($this->user);
+
+        self::assertSame('1 characters and 0 corporations synced, 1 corporations without a Director', $this->messageOfLastEvent());
+    }
+
+    #[Group('issue-734')]
+    public function testSyncIsAnErrorWhenOnlyACorporationWithoutDirectorWasProcessed(): void
+    {
+        $this->user = $this->userOf(self::MAIN_USER_ID, $this->pilotWithoutPersonalScope());
+        $this->corporationMembers = [$this->user->getCharacters()->getValues()[0]];
+        $this->rolesByEveCharacterId = [$this->corporationMembers[0]->getEveCharacterId() => []];
+
+        $this->service()->syncUserBlueprints($this->user);
+
+        self::assertSame(['error'], array_slice(array_column($this->mercureCalls, 0), -1));
+        self::assertSame('No blueprints could be synced', $this->messageOfLastEvent());
+        self::assertSame(
+            [['characterName' => self::MAIN_CORPORATION_NAME, 'reason' => 'no_director', 'statusCode' => null, 'corporationId' => self::MAIN_CORPORATION_ID]],
+            array_slice($this->mercureCalls, -1)[0][3]['failedCharacters'],
+        );
     }
 
     #[Group('issue-729')]
@@ -288,6 +338,16 @@ final class BlueprintSyncServiceTest extends TestCase
             ['characters' => 1, 'corporations' => 1, 'failedCharacters' => []],
             $this->completedData(),
         );
+    }
+
+    private function messageOfLastEvent(): string
+    {
+        return array_slice($this->mercureCalls, -1)[0][4];
+    }
+
+    private function pilotWithoutPersonalScope(): Character
+    {
+        return $this->pilot('Aria Solberg', self::MAIN_CORPORATION_ID, self::MAIN_CORPORATION_NAME, [self::CORPORATION_SCOPE, self::ROLES_SCOPE]);
     }
 
     private function pilotWithoutCorporationScope(): Character
@@ -409,7 +469,7 @@ final class BlueprintSyncServiceTest extends TestCase
         $hub->method('publish')->willReturnCallback(
             function (Update $update): string {
                 $payload = json_decode($update->getData(), true, flags: JSON_THROW_ON_ERROR);
-                $this->mercureCalls[] = [$payload['status'], $update->getTopics()[0], $payload['syncType'], $payload['data']];
+                $this->mercureCalls[] = [$payload['status'], $update->getTopics()[0], $payload['syncType'], $payload['data'], $payload['message']];
 
                 return 'urn:uuid:published';
             },

@@ -544,6 +544,16 @@ describe('BlueprintLibraryTab refresh and Mercure (issue 409)', () => {
     expect(wrapper.find(SYNC_FAILURES_BANNER).text()).toContain('Pilot Five')
   })
 
+  it('names the corporation without a connected Director among the sources not synced', async () => {
+    const failure: CharacterSyncFailure = { characterName: 'Solberg Industries', reason: 'no_director', statusCode: null, corporationId: 98357001 }
+    const wrapper = await mountTab([libraryOf('known', [DRAKE_BPO])])
+
+    await receive({ status: 'completed', progress: 100, data: { characters: 1, corporations: 0, failedCharacters: [failure] } })
+
+    expect(wrapper.find(SYNC_FAILURES_BANNER).text()).toContain('Blueprints not synced for 1 character or corporation at the last sync:')
+    expect(wrapper.find(SYNC_FAILURES_BANNER).text()).toContain('Solberg Industries: no Director connected')
+  })
+
   it('shows the sync error message and keeps the previous list', async () => {
     const wrapper = await mountTab([libraryOf('known', [DRAKE_BPO])])
 
