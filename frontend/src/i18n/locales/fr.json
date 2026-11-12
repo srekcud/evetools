@@ -2872,6 +2872,13 @@
         "invention_probability": "probabilité d'invention"
       }
     },
+    "sourcingDone": {
+      "summary": "{count} matériau couvert. | {count} matériaux couverts.",
+      "pointer": "La production se suit dans l'onglet Production (chaîne, jobs, structures).",
+      "openChain": "Ouvrir la production",
+      "show": "Afficher l'approvisionnement",
+      "hide": "Masquer l'approvisionnement"
+    },
     "materialSourcing": {
       "title": "Où acheter les matériaux",
       "loading": "Comparaison de Jita et de la structure...",
@@ -3585,14 +3592,14 @@
       "available": "Disponibles",
       "sameCorp": "meme corp",
       "materialsAndJobs": "Materiaux & Jobs",
-      "materialsJobs": "Materiaux & Jobs",
+      "materialsJobs": "Approvisionnement & jobs",
       "contributions": "Contributions",
       "distribution": "Distribution",
       "members": "Membres",
       "finances": "Finances",
       "sales": "Ventes",
       "team": "Équipe",
-      "chain": "Chaîne",
+      "chain": "Production",
       "invention": "Invention",
       "planning": "Planning",
       "journal": "Journal",

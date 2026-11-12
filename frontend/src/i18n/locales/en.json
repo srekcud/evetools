@@ -2872,6 +2872,13 @@
         "invention_probability": "invention probability"
       }
     },
+    "sourcingDone": {
+      "summary": "{count} material covered. | {count} materials covered.",
+      "pointer": "Production is followed in the Production tab (chain, jobs, structures).",
+      "openChain": "Open production",
+      "show": "Show sourcing",
+      "hide": "Hide sourcing"
+    },
     "materialSourcing": {
       "title": "Where to buy the materials",
       "loading": "Comparing Jita and the structure...",
@@ -3585,14 +3592,14 @@
       "available": "Available",
       "sameCorp": "same corp",
       "materialsAndJobs": "Materials & Jobs",
-      "materialsJobs": "Materials & Jobs",
+      "materialsJobs": "Sourcing & jobs",
       "contributions": "Contributions",
       "distribution": "Distribution",
       "members": "Members",
       "finances": "Finances",
       "sales": "Sales",
       "team": "Team",
-      "chain": "Chain",
+      "chain": "Production",
       "invention": "Invention",
       "planning": "Planning",
       "journal": "Journal",

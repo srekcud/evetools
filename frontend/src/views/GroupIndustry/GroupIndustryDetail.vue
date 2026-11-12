@@ -16,6 +16,7 @@ import { useToast } from '@/composables/useToast'
 import { useTabQuery } from '@/composables/useTabQuery'
 import BomTable from '@/components/group-industry/BomTable.vue'
 import MaterialSourcing from '@/components/group-industry/MaterialSourcing.vue'
+import CollapsibleSourcing from '@/components/group-industry/CollapsibleSourcing.vue'
 import JobsTable from '@/components/group-industry/JobsTable.vue'
 import ContainerBanner from '@/components/group-industry/ContainerBanner.vue'
 import ContributeModal from '@/components/group-industry/ContributeModal.vue'
@@ -60,6 +61,7 @@ import { nextProjectStatuses } from './nextProjectStatus'
 import { groupJoinUrl } from './groupJoinUrl'
 import { DETAIL_TABS, detailTabOfNextAction, type ProjectDetailTab } from './projectDetailTabs'
 import { PROJECTS_HOME } from './projectsHome'
+import { isSourcingCollapsed, isSourcingComplete, readSourcingOverride, writeSourcingOverride, type SourcingOverride } from './sourcingCollapse'
 import { groupProjectRefreshes, refreshesActivityOn, type GroupProjectRefresh } from './groupProjectRefreshes'
 import { useFlash } from '@/composables/useUpdateFlash'
 import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
@@ -415,6 +417,20 @@ const projectDisplayName = computed(() => {
   return project.value.items.map(i => `${i.runs}x ${i.typeName}`).join(', ')
 })
 
+const sourcingOverride = ref<SourcingOverride | null>(null)
+const sourcingComplete = computed(() => isSourcingComplete(projectStore.materials))
+const sourcingCollapsed = computed(() => isSourcingCollapsed(sourcingComplete.value, sourcingOverride.value))
+
+watch(projectId, id => {
+  sourcingOverride.value = readSourcingOverride(localStorage, id)
+}, { immediate: true })
+
+function toggleSourcing(): void {
+  const next: SourcingOverride = sourcingCollapsed.value ? 'open' : 'closed'
+  sourcingOverride.value = next
+  writeSourcingOverride(localStorage, projectId.value, next)
+}
+
 const HEADER_VISIBLE_PRODUCTS = 8
 
 const headerProducts = computed(() => project.value?.items.slice(0, HEADER_VISIBLE_PRODUCTS) ?? [])
@@ -620,15 +636,23 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           @saved="onBlacklistSaved"
         />
 
-        <!-- Container Banner -->
-        <ContainerBanner
-          v-if="project.containerName"
-          :container-name="project.containerName"
-          :project-id="projectId"
-          :can-verify="isOwnerOrAdmin"
-        />
+        <CollapsibleSourcing
+          :complete="sourcingComplete"
+          :collapsed="sourcingCollapsed"
+          :material-count="projectStore.materials.length"
+          @toggle="toggleSourcing"
+          @open-chain="activeTab = 'chain'"
+        >
+          <!-- Container Banner -->
+          <ContainerBanner
+            v-if="project.containerName"
+            :container-name="project.containerName"
+            :project-id="projectId"
+            :can-verify="isOwnerOrAdmin"
+          />
 
-        <ProjectCourier :project-id="projectId" />
+          <ProjectCourier :project-id="projectId" />
+        </CollapsibleSourcing>
 
         <IntermediateStockProposal
           v-if="isOwner && !isCompleted"
@@ -640,7 +664,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <!-- Materials Table -->
         <BomTable @contribute="openContributeModal" />
 
-        <MaterialSourcing :project-id="projectId" />
+        <MaterialSourcing v-if="!sourcingCollapsed" :project-id="projectId" />
 
         <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
 
