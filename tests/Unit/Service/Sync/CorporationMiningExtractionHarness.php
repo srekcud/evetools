@@ -23,6 +23,7 @@ use App\Repository\ReprocessingProfileRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Service\Admin\SyncTracker;
+use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\EsiClient;
@@ -126,7 +127,7 @@ trait CorporationMiningExtractionHarness
         $this->userB = $this->userWithId(self::USER_B_ID);
         $this->userC = $this->userWithId(self::USER_C_ID);
         $this->currentUser = $this->userA;
-        $this->syncTracker = new SyncTracker(new ArrayAdapter(), $this->mercurePublisher());
+        $this->syncTracker = new SyncTracker(new ArrayAdapter(), $this->mercurePublisher(), new InMemorySyncRunLog());
     }
 
     private function userWithId(string $id): User

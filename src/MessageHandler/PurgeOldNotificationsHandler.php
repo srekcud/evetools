@@ -6,6 +6,7 @@ namespace App\MessageHandler;
 
 use App\Message\PurgeOldNotifications;
 use App\Repository\NotificationRepository;
+use App\Service\Admin\SyncRunLog;
 use App\Service\Admin\SyncTracker;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -19,6 +20,7 @@ final readonly class PurgeOldNotificationsHandler
         private NotificationRepository $notificationRepository,
         private LoggerInterface $logger,
         private SyncTracker $syncTracker,
+        private SyncRunLog $syncRunLog,
     ) {
     }
 

@@ -58,6 +58,7 @@ class SyncTracker
     public function __construct(
         private readonly CacheInterface $cache,
         private readonly MercurePublisherService $mercurePublisher,
+        private readonly SyncRunLog $runLog,
     ) {
     }
 
@@ -204,6 +205,8 @@ class SyncTracker
             'expected_interval' => $expectedInterval,
             'on_demand' => $expectedInterval === null,
             'triggerable' => TriggerableSyncs::isTriggerable($type),
+            'runs' => [],
+            'success_rate_24h' => null,
         ];
     }
 

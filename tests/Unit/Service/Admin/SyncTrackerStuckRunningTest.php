@@ -27,6 +27,7 @@ class SyncTrackerStuckRunningTest extends TestCase
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            new InMemorySyncRunLog(),
         );
     }
 

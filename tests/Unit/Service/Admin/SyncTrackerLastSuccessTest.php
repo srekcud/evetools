@@ -39,6 +39,7 @@ final class SyncTrackerLastSuccessTest extends TestCase
         $this->syncTracker = new SyncTracker(
             $this->cache,
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            new InMemorySyncRunLog(),
         );
     }
 
@@ -263,7 +264,7 @@ final class SyncTrackerLastSuccessTest extends TestCase
         $this->syncTracker->complete(self::MARKET_JITA, '4210 prices refreshed');
 
         $this->assertSame(
-            ['type', 'status', 'health', 'started_at', 'completed_at', 'message', 'expected_interval', 'on_demand', 'triggerable'],
+            ['type', 'status', 'health', 'started_at', 'completed_at', 'message', 'expected_interval', 'on_demand', 'triggerable', 'runs', 'success_rate_24h'],
             array_keys($this->adminEntryFor(self::MARKET_JITA)),
         );
     }

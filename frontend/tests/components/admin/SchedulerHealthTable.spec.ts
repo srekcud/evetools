@@ -25,6 +25,8 @@ function entryOfType(type: string, triggerable = false): SchedulerHealthEntry {
     expectedInterval: 1800,
     onDemand: false,
     triggerable,
+    runs: [],
+    successRate24h: null,
   } as SchedulerHealthEntry
 }
 
@@ -98,6 +100,8 @@ function entry(type: string, overrides: Partial<SchedulerHealthEntry> = {}): Sch
     expectedInterval: HOURLY_INTERVAL,
     onDemand: false,
     triggerable: false,
+    runs: [],
+    successRate24h: null,
     ...overrides,
   }
 }

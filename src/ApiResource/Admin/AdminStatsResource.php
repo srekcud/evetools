@@ -191,6 +191,9 @@ class SchedulerHealthEntryDto
     public ?int $expectedInterval;
     public bool $onDemand;
     public bool $triggerable;
+    /** @var SchedulerHealthRunDto[] */
+    public array $runs = [];
+    public ?int $successRate24h = null;
 
     public function __construct(
         string $type = '',
@@ -212,6 +215,18 @@ class SchedulerHealthEntryDto
         $this->expectedInterval = $expectedInterval;
         $this->onDemand = $onDemand;
         $this->triggerable = $triggerable;
+    }
+}
+
+class SchedulerHealthRunDto
+{
+    public function __construct(
+        public string $startedAt,
+        public ?string $completedAt,
+        public string $status,
+        public ?string $message,
+        public bool $stuck,
+    ) {
     }
 }
 

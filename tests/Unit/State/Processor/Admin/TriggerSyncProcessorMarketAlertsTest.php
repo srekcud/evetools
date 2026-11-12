@@ -12,6 +12,7 @@ use App\Repository\MarketPriceHistoryRepository;
 use App\Repository\NotificationRepository;
 use App\Security\AdminChecker;
 use App\Service\Admin\SyncTracker;
+use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\MarketAlertService;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Processor\Admin\TriggerSyncProcessor;
@@ -58,6 +59,7 @@ class TriggerSyncProcessorMarketAlertsTest extends TestCase
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(),
             new MercurePublisherService($hub, new NullLogger()),
+            new InMemorySyncRunLog(),
         );
 
         $security = $this->createStub(Security::class);
