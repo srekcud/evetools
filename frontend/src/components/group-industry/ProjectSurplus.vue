@@ -88,7 +88,7 @@ watch(() => props.projectId, projectId => surplusStore.fetchSurplus(projectId), 
               {{ line.typeName }}
               <span
                 v-if="isProduction(line)"
-                class="ml-2 rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-cyan-300"
+                class="ml-2 rounded border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-xs uppercase tracking-wider text-cyan-300"
               >{{ t('groupIndustry.surplus.source.production') }}</span>
             </td>
             <td class="px-4 py-2 text-right tabular-nums text-slate-400">{{ formatNumber(line.requiredQuantity, 0) }}</td>
