@@ -153,6 +153,10 @@
             "time": 24.0
         }
     },
+    "Standup L-Set Invention Optimization I": [],
+    "Standup L-Set Invention Optimization II": [],
+    "Standup L-Set ME Research Optimization I": [],
+    "Standup L-Set ME Research Optimization II": [],
     "Standup L-Set Reactor Efficiency I": {
         "biochemical_reaction": {
             "material": 2.0,
@@ -201,6 +205,8 @@
             "time": 24.0
         }
     },
+    "Standup L-Set TE Research Optimization I": [],
+    "Standup L-Set TE Research Optimization II": [],
     "Standup L-Set Thukker Advanced Component Manufacturing Efficiency": {
         "advanced_component": {
             "material": 0.2,
@@ -533,6 +539,14 @@
             "time": 0.0
         }
     },
+    "Standup M-Set Invention Accelerator I": [],
+    "Standup M-Set Invention Accelerator II": [],
+    "Standup M-Set Invention Cost Optimization I": [],
+    "Standup M-Set Invention Cost Optimization II": [],
+    "Standup M-Set ME Research Accelerator I": [],
+    "Standup M-Set ME Research Accelerator II": [],
+    "Standup M-Set ME Research Cost Optimization I": [],
+    "Standup M-Set ME Research Cost Optimization II": [],
     "Standup M-Set Structure Manufacturing Material Efficiency I": {
         "structure": {
             "material": 2.0,
@@ -573,6 +587,10 @@
             "time": 24.0
         }
     },
+    "Standup M-Set TE Research Accelerator I": [],
+    "Standup M-Set TE Research Accelerator II": [],
+    "Standup M-Set TE Research Cost Optimization I": [],
+    "Standup M-Set TE Research Cost Optimization II": [],
     "Standup M-Set Thukker Advanced Component Manufacturing Material Efficiency": {
         "advanced_component": {
             "material": 0.2,
