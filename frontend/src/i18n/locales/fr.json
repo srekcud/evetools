@@ -2074,6 +2074,7 @@
     "location": "Emplacement",
     "allLocations": "Tous les emplacements",
     "syncNoAnswer": "La synchro n'a pas répondu.",
+    "refreshFailed": "L'actualisation des assets a échoué.",
     "syncing": "Synchronisation...",
     "noAssets": "Aucun asset",
     "selectCharacter": "Selectionner un personnage",

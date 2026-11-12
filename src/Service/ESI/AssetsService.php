@@ -95,22 +95,37 @@ class AssetsService
 
         // Collect resolvable location IDs (skip location_type "item" — those are container/ship item_ids, not structures)
         $locationIds = [];
+        $solarSystemLocationIds = [];
+        $ownedStructureIds = [];
         foreach ($rawAssets as $raw) {
             $locId = $raw['location_id'];
-            if (($raw['location_type'] ?? '') !== 'item' || $this->isStructureOutsideAssetList($locId, $rawAssetsByItemId)) {
+            $locationType = $raw['location_type'] ?? '';
+            if ($locationType === 'solar_system') {
+                $solarSystemLocationIds[$locId] = true;
+            }
+            if ($locationType !== 'item' || $this->isStructureOutsideAssetList($locId, $rawAssetsByItemId)) {
                 $locationIds[$locId] = true;
             }
+            if ($locationType === 'item' && $this->isSolarSystemRoot($rawAssetsByItemId[$locId] ?? null)) {
+                $ownedStructureIds[$locId] = true;
+            }
         }
-        $locationIds = array_keys($locationIds);
 
         // Get type names
         $typeNames = $this->resolveTypeNames($typeIds);
 
-        // Get location info (names + solar systems)
-        $locationInfo = $this->resolveLocationInfo($locationIds, $token);
-
         // Get item names (custom names for containers, ships, etc.)
         $itemNames = $this->resolveItemNames($nameableItemIds, $token, $characterId, $corporationId);
+
+        foreach (array_keys($ownedStructureIds) as $structureId) {
+            if (!isset($itemNames[$structureId])) {
+                $locationIds[$structureId] = true;
+            }
+        }
+        $locationIds = array_keys($locationIds);
+
+        // Get location info (names + solar systems)
+        $locationInfo = $this->resolveLocationInfo($locationIds, $token, array_keys($solarSystemLocationIds));
 
         $assets = [];
 
@@ -163,6 +178,10 @@ class AssetsService
             return $locationInfo[$containerId] ?? null;
         }
 
+        if ($this->isSolarSystemRoot($container)) {
+            return $this->resolveOwnedStructure($container, $locationInfo, $itemNames);
+        }
+
         $current = $container;
         $visited = [$containerId => true];
         while (($current['location_type'] ?? '') === 'item' && isset($rawAssetsByItemId[$current['location_id']])) {
@@ -174,7 +193,9 @@ class AssetsService
             $current = $rawAssetsByItemId[$parentId];
         }
 
-        $root = $locationInfo[$current['location_id']] ?? null;
+        $root = $this->isSolarSystemRoot($current)
+            ? $this->resolveOwnedStructure($current, $locationInfo, $itemNames)
+            : $locationInfo[$current['location_id']] ?? null;
         if ($root === null) {
             return null;
         }
@@ -183,6 +204,37 @@ class AssetsService
         $containerName = $itemNames[$containerId] ?? $typeNames[$containerTypeId] ?? UnknownTypeName::label($containerTypeId);
 
         return [...$root, 'name' => "{$containerName} — {$root['name']}"];
+    }
+
+    /**
+     * @param array<string, mixed>|null $asset
+     */
+    private function isSolarSystemRoot(?array $asset): bool
+    {
+        return $asset !== null && ($asset['location_type'] ?? '') === 'solar_system';
+    }
+
+    /**
+     * @param array<string, mixed> $structure
+     * @param array<int, array{name: string, solar_system_id: ?int, solar_system_name: ?string}> $locationInfo
+     * @param array<int, string> $itemNames
+     * @return array{name: string, solar_system_id: ?int, solar_system_name: ?string}|null
+     */
+    private function resolveOwnedStructure(array $structure, array $locationInfo, array $itemNames): ?array
+    {
+        $structureId = $structure['item_id'];
+        $structureName = $itemNames[$structureId] ?? ($locationInfo[$structureId]['name'] ?? null);
+        if ($structureName === null) {
+            return null;
+        }
+
+        $systemId = $structure['location_id'];
+
+        return [
+            'name' => $structureName,
+            'solar_system_id' => $systemId,
+            'solar_system_name' => $locationInfo[$systemId]['solar_system_name'] ?? null,
+        ];
     }
 
     /**
@@ -262,9 +314,10 @@ class AssetsService
 
     /**
      * @param int[] $locationIds
+     * @param int[] $solarSystemLocationIds
      * @return array<int, array{name: string, solar_system_id: ?int, solar_system_name: ?string}>
      */
-    private function resolveLocationInfo(array $locationIds, mixed $token): array
+    private function resolveLocationInfo(array $locationIds, mixed $token, array $solarSystemLocationIds = []): array
     {
         if (empty($locationIds)) {
             return [];
@@ -277,8 +330,12 @@ class AssetsService
         $stationIds = [];
         $structureIds = [];
 
+        $solarSystemLocations = array_flip($solarSystemLocationIds);
+
         foreach ($locationIds as $id) {
-            if ($id < self::FIRST_STRUCTURE_ID) {
+            if (isset($solarSystemLocations[$id])) {
+                $solarSystemIds[$id] = true;
+            } elseif ($id < self::FIRST_STRUCTURE_ID) {
                 $stationIds[] = $id;
             } else {
                 $structureIds[] = $id;
@@ -343,6 +400,13 @@ class AssetsService
         // Resolve solar system names
         if (!empty($solarSystemIds)) {
             $systemNames = $this->resolveSolarSystemNames(array_keys($solarSystemIds));
+            foreach (array_keys($solarSystemLocations) as $systemId) {
+                $info[$systemId] = [
+                    'name' => $systemNames[$systemId] ?? "Solar system #{$systemId}",
+                    'solar_system_id' => $systemId,
+                    'solar_system_name' => null,
+                ];
+            }
             foreach ($info as $locationId => &$locationInfo) {
                 if ($locationInfo['solar_system_id'] !== null) {
                     $locationInfo['solar_system_name'] = $systemNames[$locationInfo['solar_system_id']] ?? null;

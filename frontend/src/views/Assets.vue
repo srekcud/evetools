@@ -384,9 +384,12 @@ async function refreshAssets() {
       throw new Error(data.error || 'Failed to refresh')
     }
 
-    const data = await safeJsonParse<{ status?: string }>(response)
+    const data = await safeJsonParse<{ status?: string; error?: string }>(response)
 
-    if (data.status === 'pending') {
+    if (data.status === 'error') {
+      error.value = data.error || t('assets.refreshFailed')
+      isRefreshing.value = false
+    } else if (data.status === 'pending') {
       if (!syncStore.isConnected) {
         let attempts = 0
         const maxAttempts = 12
