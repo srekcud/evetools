@@ -17,8 +17,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['type_id'])]
 class IndustryProjectBomLine
 {
-    private const string ACTIVITY_MANUFACTURING = 'manufacturing';
-    private const string ACTIVITY_REACTION = 'reaction';
+    public const string ACTIVITY_MANUFACTURING = 'manufacturing';
+    public const string ACTIVITY_REACTION = 'reaction';
     private const string JOB_GROUP_COMPONENT = 'component';
 
     #[ORM\Id]

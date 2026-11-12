@@ -129,9 +129,11 @@ class IndustryProjectContributionRepository extends ServiceEntityRepository
             ->andWhere('c.type = :type')
             ->andWhere('c.status = :status')
             ->andWhere('line.isJob = true')
+            ->andWhere('line.activityType IN (:producingActivities)')
             ->setParameter('project', $project)
             ->setParameter('type', ContributionType::Material->value)
             ->setParameter('status', ContributionStatus::Approved->value)
+            ->setParameter('producingActivities', [IndustryProjectBomLine::ACTIVITY_MANUFACTURING, IndustryProjectBomLine::ACTIVITY_REACTION])
             ->groupBy('line.typeId')
             ->getQuery()
             ->getScalarResult();
