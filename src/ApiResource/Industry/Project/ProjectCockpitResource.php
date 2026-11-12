@@ -28,6 +28,7 @@ use App\State\Provider\Industry\Project\ProjectCockpitProvider;
             ),
         ),
     ],
+    normalizationContext: ['skip_null_values' => false],
     security: "is_granted('ROLE_USER')",
 )]
 class ProjectCockpitResource
