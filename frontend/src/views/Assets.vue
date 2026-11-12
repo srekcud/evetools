@@ -77,10 +77,14 @@ const solarSystems = computed(() => {
   return Array.from(systems).sort()
 })
 
+const rootAssets = computed(() =>
+  assets.value.filter(asset => asset.locationType !== 'item' || !existingItemIds.value.has(asset.locationId)),
+)
+
 // Get unique locations (filtered by selected solar system)
 const locations = computed(() => {
   const locs = new Map<string, { solarSystemName: string | null }>()
-  for (const asset of assets.value) {
+  for (const asset of rootAssets.value) {
     if (asset.locationName.startsWith('Structure #') || asset.locationName.startsWith('Location #')) {
       continue
     }
@@ -252,7 +256,7 @@ watch(selectedSolarSystem, () => {
 // Stats
 const totalItems = computed(() => assets.value.reduce((sum, a) => sum + a.quantity, 0))
 const totalTypes = computed(() => new Set(assets.value.map(a => a.typeId)).size)
-const totalLocations = computed(() => new Set(assets.value.map(a => a.locationId)).size)
+const totalLocations = computed(() => new Set(rootAssets.value.map(a => a.locationId)).size)
 const totalSystems = computed(() => new Set(assets.value.filter(a => a.solarSystemName).map(a => a.solarSystemName)).size)
 
 // Fetch assets
