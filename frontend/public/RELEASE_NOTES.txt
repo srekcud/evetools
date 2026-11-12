@@ -10,6 +10,8 @@ Version 0.18 (2026-11-12)
 - Collage en masse : un suffixe *N ajoute N copies identiques d'un blueprint
   (ex. "Ogre II 2 4 x10 *5" ajoute 5 lignes de 10 runs)
 - Plus d'erreur a l'ouverture d'un projet sans alerte de prix
+- Gros projets : les onglets (chaine, acheter ou fabriquer, recherche,
+  structures) se chargent sans tomber en erreur d'attente
 
 ### Assets
 - Objets des structures de la corporation : ranges sous la bonne structure et
