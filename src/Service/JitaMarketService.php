@@ -959,7 +959,7 @@ class JitaMarketService
         $sql = <<<SQL
             SELECT DISTINCT material_type_id
             FROM sde_industry_activity_materials
-            WHERE activity_id IN (1, 9, 11)
+            WHERE activity_id IN (1, 8, 9, 11)
             ORDER BY material_type_id
         SQL;
 
