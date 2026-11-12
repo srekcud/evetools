@@ -1541,6 +1541,9 @@
       "unknownCount": "{count} produits écartés : données manquantes",
       "feesUnknown": "Frais du vendeur inconnus : synchronisez les compétences et standings de votre personnage principal",
       "empty": "Aucun produit à afficher",
+      "emptyProfitable": "Aucun produit rentable trouvé avec des données complètes.",
+      "showLosses": "Afficher les produits à perte ({count})",
+      "hideLosses": "Masquer les produits à perte ({count})",
       "footnote": "* Profit par semaine si tout est vendu au prix actuel, net des frais du vendeur. Quantité = la plus petite des limites : marché (10 % du volume quotidien × 7), capital (plafond ÷ coût unitaire), slots (slots libres × 168 h ÷ temps par unité)."
     },
     "sellMarkets": {

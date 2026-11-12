@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DataTable from '@/components/common/DataTable.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -21,6 +21,11 @@ const market = ref<OpportunityMarket>('all')
 const sort = ref<OpportunitySort>('week')
 const capital = ref<number | null>(readStoredCapital())
 const capitalInput = ref<number | string>(capital.value ?? '')
+const showLosses = ref(false)
+
+const rankedRows = computed<ProductionOpportunity[]>(() => (store.result === null ? [] : store.result.rows))
+const lossRowCount = computed(() => rankedRows.value.filter(opportunity => opportunity.loss).length)
+const visibleRows = computed(() => (showLosses.value ? rankedRows.value : rankedRows.value.filter(opportunity => !opportunity.loss)))
 
 function readStoredCapital(): number | null {
   try {
@@ -137,7 +142,20 @@ function rowKey(opportunity: ProductionOpportunity): string {
         {{ t('industry.opportunities.unknownCount', { count: store.result.unknownProductCount }) }}
       </p>
 
-      <p v-if="store.result.rows.length === 0" class="px-4 py-4 text-sm text-slate-500">{{ t('industry.opportunities.empty') }}</p>
+      <div v-if="lossRowCount > 0" class="px-4 py-2 border-b border-slate-800">
+        <button
+          type="button"
+          data-testid="opportunities-show-losses"
+          :aria-pressed="showLosses"
+          class="px-3 py-1 text-xs uppercase tracking-wider rounded-sm border border-slate-700"
+          :class="showLosses ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400 hover:bg-slate-800'"
+          @click="showLosses = !showLosses"
+        >{{ t(showLosses ? 'industry.opportunities.hideLosses' : 'industry.opportunities.showLosses', { count: lossRowCount }) }}</button>
+      </div>
+
+      <p v-if="visibleRows.length === 0" data-testid="opportunities-empty" class="px-4 py-4 text-sm text-slate-500">
+        {{ t(showLosses ? 'industry.opportunities.empty' : 'industry.opportunities.emptyProfitable') }}
+      </p>
 
       <DataTable v-else>
         <table class="w-full text-sm">
@@ -154,7 +172,7 @@ function rowKey(opportunity: ProductionOpportunity): string {
           </thead>
           <tbody class="divide-y divide-slate-800">
             <tr
-              v-for="opportunity in store.result.rows"
+              v-for="opportunity in visibleRows"
               :key="rowKey(opportunity)"
               :data-testid="`opportunity-row-${opportunity.typeId}-${opportunity.market}`"
               :data-state="stateOf(opportunity)"
