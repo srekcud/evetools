@@ -18,10 +18,28 @@ final class RigCatalogueTest extends TestCase
     private const array SDE_TYPE_ID_BY_LABORATORY_RIG_NAME = [
         'Standup L-Set Blueprint Copy Optimization I' => 43729,
         'Standup L-Set Blueprint Copy Optimization II' => 43730,
+        'Standup L-Set Invention Optimization I' => 43722,
+        'Standup L-Set Invention Optimization II' => 43723,
+        'Standup L-Set ME Research Optimization I' => 43724,
+        'Standup L-Set ME Research Optimization II' => 43725,
+        'Standup L-Set TE Research Optimization I' => 43726,
+        'Standup L-Set TE Research Optimization II' => 43727,
         'Standup M-Set Blueprint Copy Accelerator I' => 43893,
         'Standup M-Set Blueprint Copy Accelerator II' => 43892,
         'Standup M-Set Blueprint Copy Cost Optimization I' => 43891,
         'Standup M-Set Blueprint Copy Cost Optimization II' => 43890,
+        'Standup M-Set Invention Accelerator I' => 43880,
+        'Standup M-Set Invention Accelerator II' => 43881,
+        'Standup M-Set Invention Cost Optimization I' => 43879,
+        'Standup M-Set Invention Cost Optimization II' => 43878,
+        'Standup M-Set ME Research Accelerator I' => 43883,
+        'Standup M-Set ME Research Accelerator II' => 43882,
+        'Standup M-Set ME Research Cost Optimization I' => 43885,
+        'Standup M-Set ME Research Cost Optimization II' => 43884,
+        'Standup M-Set TE Research Accelerator I' => 43889,
+        'Standup M-Set TE Research Accelerator II' => 43888,
+        'Standup M-Set TE Research Cost Optimization I' => 43887,
+        'Standup M-Set TE Research Cost Optimization II' => 43886,
         'Standup XL-Set Laboratory Optimization I' => 37183,
         'Standup XL-Set Laboratory Optimization II' => 37182,
     ];
@@ -40,15 +58,33 @@ final class RigCatalogueTest extends TestCase
         }
     }
 
-    public function testBlueprintCopyRigsOfTheSdeAreOfferedAsManufacturingFamilyLaboratoryRigsWithTheirTimeBonus(): void
+    public function testLaboratoryRigsOfTheSdeAreOfferedAsManufacturingFamilyLaboratoryRigsWithTheirTimeBonus(): void
     {
         $expectedLaboratoryRigs = [
             'Standup M-Set Blueprint Copy Accelerator I' => self::laboratoryRig('Standup M-Set Blueprint Copy Accelerator I', 'M', 20.0),
             'Standup M-Set Blueprint Copy Accelerator II' => self::laboratoryRig('Standup M-Set Blueprint Copy Accelerator II', 'M', 24.0),
             'Standup M-Set Blueprint Copy Cost Optimization I' => self::laboratoryRig('Standup M-Set Blueprint Copy Cost Optimization I', 'M', null),
             'Standup M-Set Blueprint Copy Cost Optimization II' => self::laboratoryRig('Standup M-Set Blueprint Copy Cost Optimization II', 'M', null),
+            'Standup M-Set Invention Accelerator I' => self::laboratoryRig('Standup M-Set Invention Accelerator I', 'M', 20.0),
+            'Standup M-Set Invention Accelerator II' => self::laboratoryRig('Standup M-Set Invention Accelerator II', 'M', 24.0),
+            'Standup M-Set Invention Cost Optimization I' => self::laboratoryRig('Standup M-Set Invention Cost Optimization I', 'M', null),
+            'Standup M-Set Invention Cost Optimization II' => self::laboratoryRig('Standup M-Set Invention Cost Optimization II', 'M', null),
+            'Standup M-Set ME Research Accelerator I' => self::laboratoryRig('Standup M-Set ME Research Accelerator I', 'M', 20.0),
+            'Standup M-Set ME Research Accelerator II' => self::laboratoryRig('Standup M-Set ME Research Accelerator II', 'M', 24.0),
+            'Standup M-Set ME Research Cost Optimization I' => self::laboratoryRig('Standup M-Set ME Research Cost Optimization I', 'M', null),
+            'Standup M-Set ME Research Cost Optimization II' => self::laboratoryRig('Standup M-Set ME Research Cost Optimization II', 'M', null),
+            'Standup M-Set TE Research Accelerator I' => self::laboratoryRig('Standup M-Set TE Research Accelerator I', 'M', 20.0),
+            'Standup M-Set TE Research Accelerator II' => self::laboratoryRig('Standup M-Set TE Research Accelerator II', 'M', 24.0),
+            'Standup M-Set TE Research Cost Optimization I' => self::laboratoryRig('Standup M-Set TE Research Cost Optimization I', 'M', null),
+            'Standup M-Set TE Research Cost Optimization II' => self::laboratoryRig('Standup M-Set TE Research Cost Optimization II', 'M', null),
             'Standup L-Set Blueprint Copy Optimization I' => self::laboratoryRig('Standup L-Set Blueprint Copy Optimization I', 'L', 20.0),
             'Standup L-Set Blueprint Copy Optimization II' => self::laboratoryRig('Standup L-Set Blueprint Copy Optimization II', 'L', 24.0),
+            'Standup L-Set Invention Optimization I' => self::laboratoryRig('Standup L-Set Invention Optimization I', 'L', 20.0),
+            'Standup L-Set Invention Optimization II' => self::laboratoryRig('Standup L-Set Invention Optimization II', 'L', 24.0),
+            'Standup L-Set ME Research Optimization I' => self::laboratoryRig('Standup L-Set ME Research Optimization I', 'L', 20.0),
+            'Standup L-Set ME Research Optimization II' => self::laboratoryRig('Standup L-Set ME Research Optimization II', 'L', 24.0),
+            'Standup L-Set TE Research Optimization I' => self::laboratoryRig('Standup L-Set TE Research Optimization I', 'L', 20.0),
+            'Standup L-Set TE Research Optimization II' => self::laboratoryRig('Standup L-Set TE Research Optimization II', 'L', 24.0),
             'Standup XL-Set Laboratory Optimization I' => self::laboratoryRig('Standup XL-Set Laboratory Optimization I', 'XL', 20.0),
             'Standup XL-Set Laboratory Optimization II' => self::laboratoryRig('Standup XL-Set Laboratory Optimization II', 'XL', 24.0),
         ];
