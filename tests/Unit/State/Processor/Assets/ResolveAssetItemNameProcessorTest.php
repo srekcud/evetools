@@ -16,6 +16,7 @@ use App\Repository\CachedAssetRepository;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Repository\Sde\StaStationRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\EsiClient;
@@ -410,6 +411,7 @@ final class ResolveAssetItemNameProcessorTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
             new TypeNameResolver($this->createStub(InvTypeRepository::class)),
+            $this->createStub(StaStationRepository::class),
         );
     }
 

@@ -9,6 +9,7 @@ use App\Exception\EsiApiException;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Repository\Sde\StaStationRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\EsiClient;
 use App\Service\TypeNameResolver;
@@ -129,6 +130,7 @@ final class AssetsServiceSingleItemNameTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
             new TypeNameResolver($this->createStub(InvTypeRepository::class)),
+            $this->createStub(StaStationRepository::class),
         );
     }
 }
