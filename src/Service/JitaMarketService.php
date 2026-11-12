@@ -513,13 +513,20 @@ class JitaMarketService implements ResetInterface
         return $result;
     }
 
+    private function volumeCachePrefix(int $regionId): string
+    {
+        return $regionId === self::THE_FORGE_REGION_ID
+            ? self::VOLUME_CACHE_PREFIX
+            : sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT_PREFIX, $regionId);
+    }
+
     /**
      * @param int[] $typeIds
      * @return array<int, float> typeId => avgDailyVolume
      */
     public function getCachedDailyVolumesForRegion(int $regionId, array $typeIds): array
     {
-        $cachePrefix = sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT_PREFIX, $regionId);
+        $cachePrefix = $this->volumeCachePrefix($regionId);
 
         $result = [];
         foreach ($typeIds as $typeId) {
@@ -538,7 +545,7 @@ class JitaMarketService implements ResetInterface
      */
     public function syncRegionalDailyVolumes(int $regionId, array $typeIds): array
     {
-        $cachePrefix = sprintf(self::REGIONAL_VOLUME_CACHE_FORMAT_PREFIX, $regionId);
+        $cachePrefix = $this->volumeCachePrefix($regionId);
         $synced = 0;
         $failed = 0;
         $consecutiveFailedBatches = 0;
