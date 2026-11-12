@@ -117,6 +117,47 @@ class ProjectContainerService
         return new ProjectContainerScope(null, array_values(array_unique($containerItemIds)), $visibleAssetsByItemId);
     }
 
+    public function containerStockOf(IndustryProject $project): ProjectContainerStock
+    {
+        $containerName = $project->getContainerName();
+        if ($containerName === null) {
+            return new ProjectContainerStock(self::REASON_NO_CONTAINER_NAME);
+        }
+
+        $owner = $project->getOwner();
+        $corporationId = $owner->getCorporationId();
+        if ($corporationId === null) {
+            return new ProjectContainerStock(self::REASON_OWNER_WITHOUT_CORPORATION);
+        }
+
+        $unavailabilityReason = $this->unavailabilityReason($corporationId, $owner);
+        if ($unavailabilityReason !== null) {
+            return new ProjectContainerStock($unavailabilityReason);
+        }
+
+        $named = $this->walkNamedContainers($this->visibleAssetsFinder->findVisibleAssets($corporationId, null, $owner), $containerName);
+        if ($named === null) {
+            return new ProjectContainerStock(self::STATUS_CONTAINER_NOT_FOUND);
+        }
+
+        $subContainerItemIds = [];
+        foreach ($named['contents'] as $content) {
+            $subContainerItemIds[$content->getLocationId()] = true;
+        }
+
+        $quantities = [];
+        foreach ($named['contents'] as $content) {
+            if (isset($subContainerItemIds[$content->getItemId()])) {
+                continue;
+            }
+
+            $typeId = $content->getTypeId();
+            $quantities[$typeId] = isset($quantities[$typeId]) ? $quantities[$typeId] + $content->getQuantity() : $content->getQuantity();
+        }
+
+        return new ProjectContainerStock(null, $quantities);
+    }
+
     private function unavailabilityReason(int $corporationId, User $owner): ?string
     {
         if ($this->characterRepository->findWithCorpAssetsAccess($corporationId) === null) {

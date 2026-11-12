@@ -1074,3 +1074,37 @@ export interface ProjectActivity {
   events: ProjectActivityEvent[]
   runningJobs: ProjectRunningJob[]
 }
+
+export type IntermediateStockProposalState = 'ready' | 'not_solo' | 'assets_unknown'
+
+export type IntermediateStockUnknownReason =
+  | 'personal_assets_not_synced'
+  | 'container_not_found'
+  | 'no_director'
+  | 'corporation_assets_not_synced'
+  | 'no_visible_division'
+  | 'owner_without_corporation'
+
+export interface IntermediateStockProposalLine {
+  bomItemId: string
+  typeId: number
+  typeName: string
+  demandQuantity: number
+  remainingQuantity: number
+  personalQuantity: number
+  containerQuantity: number | null
+  stockQuantity: number
+  proposedQuantity: number
+}
+
+export interface IntermediateStockProposal {
+  id: string
+  state: IntermediateStockProposalState
+  unknownReason: IntermediateStockUnknownReason | null
+  lines: IntermediateStockProposalLine[]
+}
+
+export interface IntermediateStockSelection {
+  bomItemId: string
+  quantity: number
+}
