@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, useId } from 'vue'
+import { ref, computed, onMounted, watch, useId, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -320,6 +320,8 @@ async function handleEditSave(): Promise<void> {
   }
 }
 
+const jobsSection = ref<HTMLElement | null>(null)
+
 function actOnNextAction(): void {
   const action = cockpit.value?.nextAction
   if (!action) return
@@ -336,6 +338,9 @@ function actOnNextAction(): void {
   }
   if (action.tab !== null) {
     activeTab.value = detailTabOfNextAction(action.tab)
+  }
+  if (action.code === 'launch_job') {
+    void nextTick(() => jobsSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 }
 
@@ -626,7 +631,9 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
         <ProjectSurplus v-if="isCompleted" :project-id="projectId" class="mt-6" />
 
         <!-- Jobs Table -->
-        <JobsTable @contribute="openContributeModal" />
+        <div ref="jobsSection" data-testid="project-jobs-section">
+          <JobsTable @contribute="openContributeModal" />
+        </div>
       </div>
 
       <!-- Tab Content: Contributions -->
