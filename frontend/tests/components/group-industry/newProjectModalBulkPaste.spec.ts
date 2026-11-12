@@ -15,7 +15,8 @@ const SEARCH_ENDPOINT = '/industry/search'
 const LINE_RESULT = '[data-testid="bulk-line-result"]'
 const FEROX = { typeId: 16227, typeName: 'Ferox', isT2: false }
 const SABRE = { typeId: 22456, typeName: 'Sabre', isT2: false }
-const CATALOG = [FEROX, SABRE]
+const OGRE_II = { typeId: 2446, typeName: 'Ogre II', isT2: true }
+const CATALOG = [FEROX, SABRE, OGRE_II]
 
 function searchedName(endpoint: string): string {
   return decodeURIComponent(new URL(endpoint, 'http://localhost').searchParams.get('q') ?? '')
@@ -187,5 +188,65 @@ describe('NewProjectModal bulk paste results', () => {
     const wrapper = mountModal()
 
     expect(wrapper.findAll(LINE_RESULT)).toHaveLength(0)
+  })
+})
+
+describe('NewProjectModal bulk paste blueprint copies', () => {
+  it('adds one identical item per copy and reports the repeat on the recognized line', async () => {
+    const wrapper = mountModal()
+
+    await pasteAndParse(wrapper, 'Ogre II 2 4 x10 *5')
+
+    const result = onlyLineResult(wrapper)
+    expect(result.status).toBe('recognized')
+    expect(result.text).toContain('5 × Ogre II')
+    expect(result.text).toContain('ME 2')
+    expect(result.text).toContain('TE 4')
+    expect(result.text).toContain('10 runs')
+
+    await clickButton(wrapper, 'Create Project')
+    await flushPromises()
+    const ogreItem = { typeId: OGRE_II.typeId, typeName: 'Ogre II', meLevel: 2, teLevel: 4, runs: 10 }
+    expect(sentCreationBody().items).toEqual(Array(5).fill(ogreItem))
+  })
+
+  it('keeps a line without a repeat suffix as a single item reported without a repeat', async () => {
+    const wrapper = mountModal()
+
+    await pasteAndParse(wrapper, 'Ferox 2 4 x100\nOgre II 2 4 x10 *3')
+
+    const results = lineResults(wrapper)
+    expect(results[0].text).not.toContain('×')
+    expect(results[1].text).toContain('3 × Ogre II')
+    await clickButton(wrapper, 'Create Project')
+    await flushPromises()
+    expect((sentCreationBody().items as { typeName: string }[]).map(item => item.typeName)).toEqual(['Ferox', 'Ogre II', 'Ogre II', 'Ogre II'])
+  })
+
+  it.each([
+    ['Ogre II 2 4 x10 *0'],
+    ['Ogre II 2 4 x10 *101'],
+  ])('rejects the line %s with the copies reason and adds nothing', async line => {
+    const wrapper = mountModal()
+
+    await pasteAndParse(wrapper, line)
+
+    const result = onlyLineResult(wrapper)
+    expect(result.status).toBe('invalid')
+    expect(result.text).toContain('Copies must be between 1 and 100')
+    expect(wrapper.text()).toContain('No items added yet')
+  })
+
+  it('adds every copy of the line when the suggested correction is accepted', async () => {
+    const wrapper = mountModal()
+    await pasteAndParse(wrapper, 'Ogrr II 2 4 x10 *4')
+
+    await clickButton(wrapper, 'Correct')
+    await flushPromises()
+
+    expect(onlyLineResult(wrapper).text).toContain('4 × Ogre II')
+    await clickButton(wrapper, 'Create Project')
+    await flushPromises()
+    expect((sentCreationBody().items as { typeName: string }[]).map(item => item.typeName)).toEqual(Array(4).fill('Ogre II'))
   })
 })

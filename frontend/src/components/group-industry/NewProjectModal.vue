@@ -16,8 +16,10 @@ import ProjectTemplatesPanel from '@/components/group-industry/ProjectTemplatesP
 import SellStructureSelect from '@/components/group-industry/SellStructureSelect.vue'
 import {
   MAXIMUM_MATERIAL_EFFICIENCY,
+  MAXIMUM_BLUEPRINT_COPIES,
   MAXIMUM_RUNS,
   MAXIMUM_TIME_EFFICIENCY,
+  MINIMUM_BLUEPRINT_COPIES,
   MINIMUM_RUNS,
   parseBulkLine,
   splitBulkLines,
@@ -121,7 +123,7 @@ const bulkText = ref('')
 const isParsingBulk = ref(false)
 
 type BulkLineResult =
-  | { line: string; status: 'recognized'; item: ProjectItem }
+  | { line: string; status: 'recognized'; items: ProjectItem[] }
   | { line: string; status: 'unknown'; request: BulkLineRequest; suggestion: SearchResult | null }
   | { line: string; status: 'invalid'; rejection: BulkLineRejection }
 const bulkResults = ref<BulkLineResult[]>([])
@@ -349,14 +351,14 @@ function lookupKey(typeName: string): string {
   return typeName.toLowerCase()
 }
 
-function bulkItemOf(request: BulkLineRequest, product: SearchResult): ProjectItem {
-  return {
+function bulkItemsOf(request: BulkLineRequest, product: SearchResult): ProjectItem[] {
+  return Array.from({ length: request.copies }, () => ({
     typeId: product.typeId,
     typeName: product.typeName,
     meLevel: request.meLevel,
     teLevel: request.teLevel,
     runs: request.runs,
-  }
+  }))
 }
 
 function resolveBulkLine(line: string, catalogs: Map<string, SearchResult[]>): BulkLineResult {
@@ -366,7 +368,7 @@ function resolveBulkLine(line: string, catalogs: Map<string, SearchResult[]>): B
   const candidates = catalogs.get(lookupKey(parsed.request.typeName)) ?? []
   const exactMatch = candidates.find(candidate => lookupKey(candidate.typeName) === lookupKey(parsed.request.typeName))
   if (exactMatch !== undefined) {
-    return { line, status: 'recognized', item: bulkItemOf(parsed.request, exactMatch) }
+    return { line, status: 'recognized', items: bulkItemsOf(parsed.request, exactMatch) }
   }
   return { line, status: 'unknown', request: parsed.request, suggestion: candidates[0] ?? null }
 }
@@ -396,7 +398,7 @@ async function parseBulkText() {
 
   const results = lines.map(line => resolveBulkLine(line, catalogs))
   for (const result of results) {
-    if (result.status === 'recognized') items.value.push(result.item)
+    if (result.status === 'recognized') items.value.push(...result.items)
   }
   bulkResults.value = results
   bulkText.value = results.filter(result => result.status !== 'recognized').map(result => result.line).join('\n')
@@ -406,9 +408,9 @@ async function parseBulkText() {
 function acceptSuggestion(index: number) {
   const result = bulkResults.value[index]
   if (result.status !== 'unknown' || result.suggestion === null) return
-  const item = bulkItemOf(result.request, result.suggestion)
-  items.value.push(item)
-  bulkResults.value[index] = { line: result.line, status: 'recognized', item }
+  const acceptedItems = bulkItemsOf(result.request, result.suggestion)
+  items.value.push(...acceptedItems)
+  bulkResults.value[index] = { line: result.line, status: 'recognized', items: acceptedItems }
   const remainingLines = splitBulkLines(bulkText.value)
   const lineIndex = remainingLines.indexOf(result.line)
   if (lineIndex >= 0) remainingLines.splice(lineIndex, 1)
@@ -425,6 +427,8 @@ function bulkRejectionMessage(rejection: BulkLineRejection): string {
       return t('groupIndustry.modals.newProject.bulkInvalidTimeEfficiency', { max: MAXIMUM_TIME_EFFICIENCY })
     case 'runs':
       return t('groupIndustry.modals.newProject.bulkInvalidRuns', { min: MINIMUM_RUNS, max: MAXIMUM_RUNS })
+    case 'copies':
+      return t('groupIndustry.modals.newProject.bulkInvalidCopies', { min: MINIMUM_BLUEPRINT_COPIES, max: MAXIMUM_BLUEPRINT_COPIES })
   }
 }
 
@@ -634,7 +638,7 @@ function handleClose() {
           ></textarea>
           <p class="text-xs text-slate-500 mt-1.5">
             {{ t('groupIndustry.modals.newProject.bulkFormat') }}
-            <span class="font-mono text-slate-500">ItemName ME TE xRuns</span>
+            <span class="font-mono text-slate-500">ItemName ME TE xRuns [*Copies]</span>
           </p>
           <button
             class="btn-action mt-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium flex items-center gap-2"
@@ -676,11 +680,12 @@ function handleClose() {
               </span>
               <div class="min-w-0 flex-1 text-slate-300">
                 <template v-if="result.status === 'recognized'">
-                  {{ t('groupIndustry.modals.newProject.bulkRecognized', {
-                    name: result.item.typeName,
-                    me: result.item.meLevel,
-                    te: result.item.teLevel,
-                    runs: result.item.runs,
+                  {{ t(result.items.length > 1 ? 'groupIndustry.modals.newProject.bulkRecognizedCopies' : 'groupIndustry.modals.newProject.bulkRecognized', {
+                    copies: result.items.length,
+                    name: result.items[0].typeName,
+                    me: result.items[0].meLevel,
+                    te: result.items[0].teLevel,
+                    runs: result.items[0].runs,
                   }) }}
                 </template>
                 <template v-else-if="result.status === 'unknown'">
