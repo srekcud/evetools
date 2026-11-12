@@ -14,7 +14,7 @@ Version visée : `$ARGUMENTS`. Le déroulé du déploiement est dans `docs/deplo
    - français sans accents, rubriques `### <module>` (Pont, Industrie, Minage, Commerce, PVE, Assets, Alertes de prix, Notifications, Compte…), puces courtes, lignes de 80 caractères au plus, suite de puce indentée de deux espaces ;
    - écrit pour un joueur : ce qui change à l'écran, pas le nom d'une classe ni d'une issue ;
    - rubrique `### A lire avant tout` en tête si une donnée est effacée ou une action du joueur est requise.
-   Insère la section (dans le worktree de l'étape 4) juste après l'en-tête du fichier, au-dessus de la version précédente. Montre-la à Sylvain et attends son accord ou ses corrections avant de continuer.
+   Insère la section (dans le worktree de l'étape 4) juste après l'en-tête du fichier, au-dessus de la version précédente. Sylvain valide d'avance les notes (2026-11-12) : montre la section dans le rapport et continue sans attendre son accord.
 4. **PR.** Le checkout principal reste détaché sur `origin/main` (cron `sync-local-main.sh`) : travaille dans un worktree, `git worktree add --no-track -b docs/release-notes-<version> ~/.t3/worktrees/evetools/release-notes-<version> origin/main`, retiré après la fusion. Commit `docs(release): add the <version> in-app release notes`, push de la branche, `gh pr create` (titre identique, corps : la liste des PR couvertes, labels `docs`). Attends la CI verte (`gh pr checks`), puis `gh pr merge --squash --delete-branch`. Rien d'autre dans cette PR.
 5. **Vérification avant tag.** `git fetch origin`, puis :
    - `git show origin/main:frontend/public/RELEASE_NOTES.txt | grep -q "^Version ${VERSION#V} ("` (le job `release-notes` fait le même contrôle) ;
