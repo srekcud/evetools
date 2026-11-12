@@ -124,6 +124,8 @@ class IndustryProjectResource
 
     public bool $personalUse = false;
 
+    public bool $solo = false;
+
     public bool $acceptsOutsideFavoriteSystem = false;
 
     public float $minimumOutsideSaving;

@@ -85,7 +85,7 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
-        $this->loadItemsAndBomItems(
+        $this->loadListedCollections(
             array_map(static fn (IndustryProjectParticipant $m): IndustryProject => $m->getProject(), $memberships),
         );
 
@@ -115,7 +115,7 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
-        $this->loadItemsAndBomItems(
+        $this->loadListedCollections(
             array_map(static fn (IndustryProjectParticipant $m): IndustryProject => $m->getProject(), $memberships),
         );
 
@@ -123,12 +123,12 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
     }
 
     /**
-     * Initializes the items and the BOM items of the given projects: one query per collection,
+     * Initializes the items, the BOM items and the members of the given projects: one query per collection,
      * whatever the number of projects (a single fetch join would multiply the rows).
      *
      * @param IndustryProject[] $projects
      */
-    public function loadItemsAndBomItems(array $projects): void
+    public function loadListedCollections(array $projects): void
     {
         if ($projects === []) {
             return;
@@ -136,6 +136,7 @@ class IndustryProjectParticipantRepository extends ServiceEntityRepository
 
         $this->loadProjectCollection($projects, 'items');
         $this->loadProjectCollection($projects, 'bomItems');
+        $this->loadProjectCollection($projects, 'members');
     }
 
     /**

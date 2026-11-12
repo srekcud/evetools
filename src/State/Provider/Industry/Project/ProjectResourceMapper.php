@@ -40,6 +40,7 @@ class ProjectResourceMapper
         $resource->containerName = $project->getContainerName();
         $resource->private = $project->isPrivate();
         $resource->personalUse = $project->isPersonalUse();
+        $resource->solo = $project->isSoloProjectOf($project->getOwner());
         $resource->acceptsOutsideFavoriteSystem = $project->isAcceptsOutsideFavoriteSystem();
         $resource->minimumOutsideSaving = $project->getMinimumOutsideSaving();
         $resource->notes = $project->getNotes();

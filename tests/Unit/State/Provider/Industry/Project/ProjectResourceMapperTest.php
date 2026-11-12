@@ -176,6 +176,41 @@ class ProjectResourceMapperTest extends TestCase
         }
     }
 
+    #[Group('issue-726')]
+    public function testProjectWhoseOwnerIsTheOnlyAcceptedParticipantIsExposedAsSolo(): void
+    {
+        $owner = new User();
+        $project = $this->projectOf($owner);
+        $this->addParticipant($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addParticipant($project, new User(), ParticipantRole::Member, ParticipantStatus::Pending);
+
+        self::assertTrue($this->mapper->projectToResource($project, null, 1, 0.0, true)->solo);
+    }
+
+    #[Group('issue-726')]
+    public function testProjectWithAnotherAcceptedParticipantIsNotExposedAsSolo(): void
+    {
+        $owner = new User();
+        $project = $this->projectOf($owner);
+        $this->addParticipant($project, $owner, ParticipantRole::Owner, ParticipantStatus::Accepted);
+        $this->addParticipant($project, new User(), ParticipantRole::Member, ParticipantStatus::Accepted);
+
+        self::assertFalse($this->mapper->projectToResource($project, null, 2, 0.0, true)->solo);
+    }
+
+    private function projectOf(User $owner): IndustryProject
+    {
+        $project = (new IndustryProject())->setOwner($owner);
+        (new \ReflectionProperty(IndustryProject::class, 'id'))->setValue($project, Uuid::v4());
+
+        return $project;
+    }
+
+    private function addParticipant(IndustryProject $project, User $user, ParticipantRole $role, ParticipantStatus $status): void
+    {
+        $project->addMember((new IndustryProjectParticipant())->setUser($user)->setRole($role)->setStatus($status));
+    }
+
     private function contributionOf(ContributionType $type, ?float $estimatedValue): IndustryProjectContribution
     {
         $contribution = (new IndustryProjectContribution())

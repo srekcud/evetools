@@ -70,7 +70,7 @@ class AvailableProjectsProvider implements ProviderInterface
             static fn (IndustryProject $project): bool => !\in_array((string) $project->getId(), $joinedProjectIds, true),
         ));
 
-        $this->memberRepository->loadItemsAndBomItems($availableProjects);
+        $this->memberRepository->loadListedCollections($availableProjects);
         $membersCountByProject = $this->memberRepository->countAcceptedByProject($availableProjects);
         $approvedValueByProject = $this->contributionRepository->sumApprovedValueByProject($availableProjects);
 

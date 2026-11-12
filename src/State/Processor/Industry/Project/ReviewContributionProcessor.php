@@ -8,10 +8,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\ApiResource\Industry\Project\ProjectContributionResource;
 use App\ApiResource\Input\Industry\Project\ReviewContributionInput;
-use App\Entity\IndustryProject;
 use App\Entity\User;
-use App\Enum\ParticipantRole;
-use App\Enum\ParticipantStatus;
 use App\Repository\IndustryProjectContributionRepository;
 use App\Repository\IndustryProjectRepository;
 use App\Service\Industry\Project\PilotName;
@@ -76,7 +73,7 @@ class ReviewContributionProcessor implements ProcessorInterface
         }
 
         // The owner may review his own contribution only when nobody else could ever review it.
-        $isSoleReviewingOwner = $project->getOwner() === $user && !$this->hasAnotherAcceptedReviewer($user, $project);
+        $isSoleReviewingOwner = $project->isSoleReviewingOwner($user);
         if ($contribution->getMember()->getUser() === $user && !$isSoleReviewingOwner) {
             throw new BadRequestHttpException('You cannot review your own contribution');
         }
@@ -105,18 +102,5 @@ class ReviewContributionProcessor implements ProcessorInterface
         );
 
         return $this->mapper->contributionToResource($contribution);
-    }
-
-    private function hasAnotherAcceptedReviewer(User $user, IndustryProject $project): bool
-    {
-        foreach ($project->getMembers() as $member) {
-            $canReview = $member->getStatus() === ParticipantStatus::Accepted
-                && \in_array($member->getRole(), [ParticipantRole::Owner, ParticipantRole::Admin], true);
-            if ($canReview && $member->getUser() !== $user) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

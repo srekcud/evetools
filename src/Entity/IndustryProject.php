@@ -204,6 +204,23 @@ class IndustryProject
         return true;
     }
 
+    public function isSoleReviewingOwner(User $user): bool
+    {
+        if ($this->owner !== $user) {
+            return false;
+        }
+
+        foreach ($this->members as $member) {
+            $canReview = $member->getStatus() === ParticipantStatus::Accepted
+                && \in_array($member->getRole(), [ParticipantRole::Owner, ParticipantRole::Admin], true);
+            if ($canReview && $member->getUser() !== $user) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function transferOwnershipTo(IndustryProjectParticipant $member): void
     {
         $newOwner = $member->getUser();
