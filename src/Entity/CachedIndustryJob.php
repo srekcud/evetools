@@ -68,9 +68,6 @@ class CachedIndustryJob
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $endDate;
 
-    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
-    private ?\DateTimeImmutable $completedDate = null;
-
     #[ORM\Column(type: 'bigint', nullable: true)]
     private ?int $stationId = null;
 
@@ -224,17 +221,6 @@ class CachedIndustryJob
     public function setEndDate(\DateTimeImmutable $endDate): static
     {
         $this->endDate = $endDate;
-        return $this;
-    }
-
-    public function getCompletedDate(): ?\DateTimeImmutable
-    {
-        return $this->completedDate;
-    }
-
-    public function setCompletedDate(?\DateTimeImmutable $completedDate): static
-    {
-        $this->completedDate = $completedDate;
         return $this;
     }
 

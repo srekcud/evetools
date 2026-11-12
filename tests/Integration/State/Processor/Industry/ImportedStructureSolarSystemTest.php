@@ -157,8 +157,7 @@ final class ImportedStructureSolarSystemTest extends IntegrationTestCase
             ->setName('Favorite Raitaru')
             ->setSolarSystemId($solarSystemId)
             ->setOwnerCorporationId(self::CORPORATION_ID)
-            ->setTypeId(35825)
-            ->setResolvedAt(new \DateTimeImmutable('2026-10-01'));
+            ->setTypeId(35825);
         $this->em->persist($cached);
     }
 

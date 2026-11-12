@@ -225,9 +225,6 @@ class IndustryJobSyncService
                 $existing->setProductTypeId($jobData['product_type_id'] ?? null);
                 $existing->setRuns($jobData['runs']);
                 $existing->setCost(self::esiCost($jobData));
-                if (isset($jobData['completed_date'])) {
-                    $existing->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
-                }
                 $existing->setCachedAt(new \DateTimeImmutable());
                 $syncedJobsByJobId[$jobData['job_id']] = $existing;
                 continue;
@@ -248,9 +245,6 @@ class IndustryJobSyncService
             $job->setOutputLocationId($jobData['output_location_id'] ?? null);
             $job->setStartDate(new \DateTimeImmutable($jobData['start_date']));
             $job->setEndDate(new \DateTimeImmutable($jobData['end_date']));
-            if (isset($jobData['completed_date'])) {
-                $job->setCompletedDate(new \DateTimeImmutable($jobData['completed_date']));
-            }
             if ($jobData['status'] === CachedIndustryJob::STATUS_DELIVERED) {
                 $job->setCompletionNotifiedAt(new \DateTimeImmutable());
             }
@@ -273,7 +267,6 @@ class IndustryJobSyncService
                     continue;
                 }
                 $dbJob->setStatus(CachedIndustryJob::STATUS_DELIVERED);
-                $dbJob->setCompletedDate($dbJob->getEndDate());
                 $dbJob->setCachedAt($now);
                 $dbJob->setCompletionNotifiedAt($now);
                 $syncedJobsByJobId[$jobId] = $dbJob;

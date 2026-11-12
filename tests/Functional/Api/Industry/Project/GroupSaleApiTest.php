@@ -411,8 +411,7 @@ final class GroupSaleApiTest extends WebTestCase
             ->setQuantity($quantity)
             ->setUnitPrice($unitPrice)
             ->setDate(new \DateTimeImmutable('+1 minute'))
-            ->setLocationId(60003760)
-            ->setClientId(2_119_000_241);
+            ->setLocationId(60003760);
         $this->em->persist($transaction);
         $this->em->flush();
 

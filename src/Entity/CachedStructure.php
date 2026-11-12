@@ -35,14 +35,6 @@ class CachedStructure
     #[ORM\Column(type: 'integer', nullable: true)]
     private ?int $typeId = null;
 
-    #[ORM\Column(type: 'datetime_immutable')]
-    private \DateTimeImmutable $resolvedAt;
-
-    public function __construct()
-    {
-        $this->resolvedAt = new \DateTimeImmutable();
-    }
-
     public function getId(): ?Uuid
     {
         return $this->id;
@@ -78,17 +70,6 @@ class CachedStructure
     public function setSolarSystemId(?int $solarSystemId): static
     {
         $this->solarSystemId = $solarSystemId;
-        return $this;
-    }
-
-    public function getResolvedAt(): \DateTimeImmutable
-    {
-        return $this->resolvedAt;
-    }
-
-    public function setResolvedAt(\DateTimeImmutable $resolvedAt): static
-    {
-        $this->resolvedAt = $resolvedAt;
         return $this;
     }
 

@@ -338,14 +338,12 @@ class StructureSearchProviderTest extends TestCase
 
     public function testAlreadyCachedStructureIsRefreshedWithItsEsiDetails(): void
     {
-        $staleResolvedAt = new \DateTimeImmutable('2026-01-15 08:00:00');
         $cached = new CachedStructure();
         $cached->setStructureId(self::ACCESSIBLE_STRUCTURE_ID);
         $cached->setName('Old Raitaru name');
         $cached->setSolarSystemId(30002187);
         $cached->setOwnerCorporationId(98000999);
         $cached->setTypeId(35825);
-        $cached->setResolvedAt($staleResolvedAt);
         $this->cachedStructureRepository->method('findByStructureId')->willReturnMap([[self::ACCESSIBLE_STRUCTURE_ID, $cached]]);
         $this->givenEsiResolves([self::ACCESSIBLE_STRUCTURE_ID => $this->azbelInfo('Renamed Azbel')]);
 
@@ -355,7 +353,6 @@ class StructureSearchProviderTest extends TestCase
         $this->assertSame(self::SOLAR_SYSTEM_ID, $cached->getSolarSystemId());
         $this->assertSame(self::CORPORATION_ID, $cached->getOwnerCorporationId());
         $this->assertSame(self::AZBEL_TYPE_ID, $cached->getTypeId());
-        $this->assertGreaterThan($staleResolvedAt, $cached->getResolvedAt());
     }
 
     public function testServerErrorOnTheSearchCallIsReportedAsServiceUnavailable(): void

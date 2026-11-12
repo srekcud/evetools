@@ -159,8 +159,7 @@ final class CachedWalletTransactionRepositoryTest extends IntegrationTestCase
             ->setQuantity($quantity)
             ->setUnitPrice($unitPrice)
             ->setDate(new \DateTimeImmutable($date))
-            ->setLocationId(60003760)
-            ->setClientId(2_119_000_000 + $transactionId % 1000);
+            ->setLocationId(60003760);
         $this->em->persist($transaction);
 
         return $transaction;

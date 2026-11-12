@@ -280,8 +280,7 @@ final class ProjectSaleCollectionProviderTest extends IntegrationTestCase
             ->setQuantity($sale->getQuantity())
             ->setUnitPrice($sale->getUnitPrice())
             ->setDate($sale->getSoldAt())
-            ->setLocationId(60003760)
-            ->setClientId(2_119_000_241);
+            ->setLocationId(60003760);
         $this->em->persist($transaction);
 
         return $transaction;

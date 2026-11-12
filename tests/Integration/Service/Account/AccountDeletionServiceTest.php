@@ -554,7 +554,6 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setUnitPrice(61_000_000.0)
             ->setIsBuy(false)
             ->setLocationId(1_035_466_617_946)
-            ->setClientId(2_119_000_005)
             ->setDate(new \DateTimeImmutable('2026-10-25 18:00:00'));
         $this->em->persist($t5);
         $sale = $this->addSale($project, $kaelen, 22_456, 'Sabre', 2, 61_000_000.0)
@@ -1201,7 +1200,6 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             ->setUnitPrice(9_800.0 * $seed)
             ->setIsBuy($seed === 1)
             ->setLocationId(60_003_760)
-            ->setClientId(2_112_100_000 + $seed)
             ->setDate($start));
         $this->em->persist((new IndustryProjectTemplate())
             ->setOwner($user)

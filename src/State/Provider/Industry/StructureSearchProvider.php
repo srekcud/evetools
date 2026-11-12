@@ -191,7 +191,6 @@ class StructureSearchProvider implements ProviderInterface
         $cached->setSolarSystemId($solarSystemId);
         $cached->setOwnerCorporationId($ownerId);
         $cached->setTypeId($typeId);
-        $cached->setResolvedAt(new \DateTimeImmutable());
 
         $this->entityManager->flush();
     }

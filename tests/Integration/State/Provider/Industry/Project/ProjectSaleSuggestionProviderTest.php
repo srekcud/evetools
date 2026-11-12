@@ -95,8 +95,7 @@ final class ProjectSaleSuggestionProviderTest extends IntegrationTestCase
                     ->setQuantity($transactionIndex + 1)
                     ->setUnitPrice(60_000_000.0 + $characterIndex * 250_000.0)
                     ->setDate(new \DateTimeImmutable(sprintf('2026-10-%02dT12:00:00+00:00', 21 + $characterIndex)))
-                    ->setLocationId(60003760)
-                    ->setClientId(2_119_000_241));
+                    ->setLocationId(60003760));
             }
         }
 

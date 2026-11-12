@@ -227,7 +227,6 @@ final class CreatePurchaseProcessorTest extends TestCase
             ->setUnitPrice($unitPrice)
             ->setIsBuy(true)
             ->setLocationId(60_003_760)
-            ->setClientId(1_000_125)
             ->setDate(new \DateTimeImmutable('2026-11-02T09:30:00+00:00'));
         (new \ReflectionProperty(CachedWalletTransaction::class, 'id'))->setValue($transaction, Uuid::fromString($uuid));
         $this->walletTransactionsByUuid[$uuid] = $transaction;

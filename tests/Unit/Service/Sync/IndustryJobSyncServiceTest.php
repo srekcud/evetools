@@ -435,11 +435,6 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame('delivered', $staleJob->getStatus());
-        $this->assertNotNull($staleJob->getCompletedDate());
-        $this->assertSame(
-            $staleJob->getEndDate()->format('c'),
-            $staleJob->getCompletedDate()->format('c'),
-        );
     }
 
     public function testFutureJobNotMarkedAsDeliveredWhenMissingFromEsi(): void
@@ -467,7 +462,6 @@ class IndustryJobSyncServiceTest extends TestCase
 
         // Job should remain active — endDate is in the future, could be an ESI glitch
         $this->assertSame('active', $futureJob->getStatus());
-        $this->assertNull($futureJob->getCompletedDate());
     }
 
     #[Group('issue-209')]
@@ -482,7 +476,6 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame('paused', $pausedJob->getStatus());
-        $this->assertNull($pausedJob->getCompletedDate());
     }
 
     #[Group('issue-209')]
@@ -498,9 +491,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame('delivered', $activeJob->getStatus());
-        $this->assertEquals(new \DateTimeImmutable('2026-10-05 14:15:00'), $activeJob->getCompletedDate());
         $this->assertSame('paused', $pausedJob->getStatus());
-        $this->assertNull($pausedJob->getCompletedDate());
     }
 
     #[Group('issue-209')]
@@ -515,7 +506,6 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame('paused', $pausedJob->getStatus());
-        $this->assertNull($pausedJob->getCompletedDate());
     }
 
     // ===========================================
@@ -539,7 +529,6 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($characterA);
 
         $this->assertSame('active', $altJob->getStatus());
-        $this->assertNull($altJob->getCompletedDate());
     }
 
     public function testSyncOfCharacterStillMarksItsOwnStaleJobAsDeliveredWhenUserHasAlts(): void
@@ -556,10 +545,6 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($characterA);
 
         $this->assertSame('delivered', $ownStaleJob->getStatus());
-        $this->assertSame(
-            $ownStaleJob->getEndDate()->format('c'),
-            $ownStaleJob->getCompletedDate()?->format('c'),
-        );
     }
 
     public function testAltJobCompletionNotificationSentWhenAltSyncedAfterMainCharacter(): void
@@ -628,7 +613,6 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('active', $corporationJobOfB->getStatus());
-        $this->assertNull($corporationJobOfB->getCompletedDate());
         $this->assertSame('delivered', $personalStaleJobOfB->getStatus());
     }
 
@@ -924,7 +908,6 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame([], $this->storedCacheEntries());
         $this->assertSame('active', $personalStaleJobOfD->getStatus());
-        $this->assertNull($personalStaleJobOfD->getCompletedDate());
         $this->assertCount(1, $this->loggedWarnings());
 
         $this->service->syncCharacterJobs($characterA);
@@ -956,10 +939,6 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame([], $this->loggedWarnings());
         $this->assertSame(['active', 6, 3_100_000.5], [$corporationJobOfD->getStatus(), $corporationJobOfD->getRuns(), $corporationJobOfD->getCost()]);
         $this->assertSame('delivered', $personalStaleJobOfD->getStatus());
-        $this->assertSame(
-            $personalStaleJobOfD->getEndDate()->format('c'),
-            $personalStaleJobOfD->getCompletedDate()?->format('c'),
-        );
     }
 
     #[Group('issue-213')]
@@ -1112,7 +1091,6 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('active', $corporationJobOfA->getStatus());
-        $this->assertNull($corporationJobOfA->getCompletedDate());
         $this->assertSame(10, $corporationJobOfA->getRuns());
         $this->assertSame(1_250_000.75, $corporationJobOfA->getCost());
     }
@@ -1125,9 +1103,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame('ready', $corporationJob->getStatus());
-        $this->assertNull($corporationJob->getCompletedDate());
         $this->assertSame('active', $personalStaleJob->getStatus());
-        $this->assertNull($personalStaleJob->getCompletedDate());
     }
 
     public function testForbiddenCorporationJobsReadStillRecordsPersonalJobsFromEsi(): void
@@ -1164,9 +1140,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame(0, $this->flushCount);
         $this->assertSame([], $this->persistedJobs);
         $this->assertSame('ready', $corporationJob->getStatus());
-        $this->assertNull($corporationJob->getCompletedDate());
         $this->assertSame('active', $personalStaleJob->getStatus());
-        $this->assertNull($personalStaleJob->getCompletedDate());
         $this->assertSame([], $this->loggedWarnings());
     }
 
@@ -1190,12 +1164,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->service->syncCharacterJobs($character);
 
         $this->assertSame('ready', $corporationJob->getStatus());
-        $this->assertNull($corporationJob->getCompletedDate());
         $this->assertSame('delivered', $personalStaleJob->getStatus());
-        $this->assertSame(
-            $personalStaleJob->getEndDate()->format('c'),
-            $personalStaleJob->getCompletedDate()?->format('c'),
-        );
         $this->assertSame([], $this->loggedWarnings());
     }
 
@@ -1244,7 +1213,6 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->assertSame([], $this->corporationJobsReads);
         $this->assertSame('ready', $readyPersonalJob->getStatus());
-        $this->assertNull($readyPersonalJob->getCompletedDate());
     }
 
     public function testStalePersonalJobStaysActiveForCharacterWithoutAnyJobsScope(): void
@@ -1259,7 +1227,6 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->assertSame([], $this->corporationJobsReads);
         $this->assertSame('active', $personalStaleJob->getStatus());
-        $this->assertNull($personalStaleJob->getCompletedDate());
     }
 
     public function testStalePersonalJobStaysActiveWhileCorporationJobIsRecordedForCharacterWithCorporationJobsScopeOnly(): void
@@ -1281,7 +1248,6 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('active', $personalStaleJob->getStatus());
-        $this->assertNull($personalStaleJob->getCompletedDate());
         $this->assertSame([[900, 3, 'ready']], array_map(
             static fn (CachedIndustryJob $job): array => [$job->getJobId(), $job->getRuns(), $job->getStatus()],
             $this->persistedJobs,
@@ -1309,7 +1275,6 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->assertSame([self::CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame('active', $personalStaleJobOfA->getStatus());
-        $this->assertNull($personalStaleJobOfA->getCompletedDate());
     }
 
     public function testCorporationJobsReadAgainBySecondCharacterAfterForbiddenRead(): void
@@ -2083,10 +2048,7 @@ class IndustryJobSyncServiceTest extends TestCase
         );
         $this->assertSame([[self::CORPORATION_JOB_IN_NEW_CORPORATION_ID, 3, 'active', self::RIFTER_TYPE_ID, 4_200_000.25]], $this->persistedJobStates());
         $this->assertSame($character, $this->persistedJobs[0]->getCharacter());
-        $this->assertSame(
-            ['delivered', $stalePersonalJob->getEndDate()->format('c')],
-            [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()?->format('c')],
-        );
+        $this->assertSame('delivered', $stalePersonalJob->getStatus());
         $this->assertSame(1, $this->flushCount);
     }
 
@@ -2122,7 +2084,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame(0, $this->flushCount);
         $this->assertSame([], $this->persistedJobs);
         $this->assertSame([self::CORPORATION_ID, self::OLD_CORPORATION_NAME, null, null], $this->affiliationOf($character));
-        $this->assertSame(['active', null], [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()]);
+        $this->assertSame('active', $stalePersonalJob->getStatus());
         $this->assertSame(
             [[$this->userTopicOf($character), $affiliationReadFailure->getMessage()]],
             $this->industryJobsSyncErrorEvents(),
@@ -2160,10 +2122,7 @@ class IndustryJobSyncServiceTest extends TestCase
 
         $this->assertSame([self::OTHER_CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame([], $this->loggedWarnings());
-        $this->assertSame(
-            ['delivered', $stalePersonalJob->getEndDate()->format('c')],
-            [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()?->format('c')],
-        );
+        $this->assertSame('delivered', $stalePersonalJob->getStatus());
     }
 
     #[Group('issue-211')]
@@ -2178,7 +2137,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame([self::OTHER_CORPORATION_ID, self::NEW_CORPORATION_NAME, null, null], $this->affiliationOf($character));
         $this->assertSame([self::OTHER_CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertCount(1, $this->loggedWarnings());
-        $this->assertSame(['active', null], [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()]);
+        $this->assertSame('active', $stalePersonalJob->getStatus());
         $this->assertSame(1, $this->flushCount);
     }
 
@@ -2193,7 +2152,7 @@ class IndustryJobSyncServiceTest extends TestCase
         $this->assertSame($serviceUnavailable, $this->syncCatchingFailure($character));
         $this->assertSame([self::OTHER_CORPORATION_JOBS_ENDPOINT], $this->corporationJobsReads);
         $this->assertSame(0, $this->flushCount);
-        $this->assertSame(['active', null], [$stalePersonalJob->getStatus(), $stalePersonalJob->getCompletedDate()]);
+        $this->assertSame('active', $stalePersonalJob->getStatus());
     }
 
     #[Group('issue-211')]
@@ -2694,7 +2653,6 @@ class IndustryJobSyncServiceTest extends TestCase
             $job->getRuns(),
             $job->getCost(),
             $job->getEndDate()->format('c'),
-            $job->getCompletedDate()?->format('c'),
             $job->getCachedAt()->format('U.u'),
             $job->getCompletionNotifiedAt()?->format('c'),
         ];

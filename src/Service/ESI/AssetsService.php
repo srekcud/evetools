@@ -469,7 +469,6 @@ class AssetsService
                 $existing->setSolarSystemId($data['solar_system_id']);
                 $existing->setOwnerCorporationId($data['owner_id'] ?? null);
                 $existing->setTypeId($data['type_id'] ?? null);
-                $existing->setResolvedAt(new \DateTimeImmutable());
             }
             return;
         }
