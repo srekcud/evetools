@@ -137,7 +137,7 @@ watch(
       closeWindowContent()
       return
     }
-    if (!detached.isOpen.value) openWindow()
+    if (!detached.isOpen.value && !detached.isOpening.value) openWindow()
   },
   { immediate: true },
 )
