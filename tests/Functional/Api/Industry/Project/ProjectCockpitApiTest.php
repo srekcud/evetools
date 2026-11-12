@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Api\Industry\Project;
 
 use App\Entity\IndustryProjectProduct;
+use App\Service\Industry\Project\ProjectPriceAlert;
+use App\Service\Industry\Project\ProjectPriceAlertReader;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -56,6 +58,40 @@ final class ProjectCockpitApiTest extends WebTestCase
                 'phases' => $cockpit['phases'] ?? null,
                 'nextAction' => $cockpit['nextAction'] ?? null,
             ],
+        );
+    }
+
+    public function testCockpitSendsAnExplicitNullPriceAlertWhenNoAlertApplies(): void
+    {
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/cockpit');
+
+        self::assertResponseStatusCodeSame(200);
+        $cockpit = $this->responseJson();
+        self::assertArrayHasKey('priceAlert', $cockpit);
+        self::assertNull($cockpit['priceAlert']);
+    }
+
+    public function testCockpitSendsThePriceAlertWhenOneApplies(): void
+    {
+        $priceAlertReader = $this->createStub(ProjectPriceAlertReader::class);
+        $priceAlertReader->method('of')->willReturn(new ProjectPriceAlert(self::ISHTAR_TYPE_ID, 'Ishtar', 2, 90_000_000.0, 110_000_000.0));
+        self::getContainer()->set(ProjectPriceAlertReader::class, $priceAlertReader);
+
+        $this->client->loginUser($this->member, 'api');
+        $this->request('GET', $this->projectUri($this->ishtarBatch).'/cockpit');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(
+            [
+                'typeId' => self::ISHTAR_TYPE_ID,
+                'typeName' => 'Ishtar',
+                'quantity' => 2,
+                'jitaUnitPrice' => 90_000_000.0,
+                'breakEvenPerUnit' => 110_000_000.0,
+                'gapPerUnit' => 20_000_000.0,
+            ],
+            $this->responseJson()['priceAlert'] ?? null,
         );
     }
 
