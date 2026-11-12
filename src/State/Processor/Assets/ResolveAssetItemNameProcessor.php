@@ -12,6 +12,7 @@ use App\Entity\EveToken;
 use App\Entity\User;
 use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
+use App\Repository\Sde\InvTypeRepository;
 use App\Service\Assets\VisibleCorporationAssetsFinder;
 use App\Service\ESI\AssetsService;
 use App\Service\Sync\AssetsSyncService;
@@ -41,6 +42,7 @@ class ResolveAssetItemNameProcessor implements ProcessorInterface
         private readonly AssetsSyncService $assetsSyncService,
         private readonly AssetsService $assetsService,
         private readonly EntityManagerInterface $entityManager,
+        private readonly InvTypeRepository $invTypeRepository,
     ) {
     }
 
@@ -120,7 +122,7 @@ class ResolveAssetItemNameProcessor implements ProcessorInterface
 
     private function assertEligible(CachedAsset $asset): void
     {
-        if ($asset->canResolveItemName()) {
+        if ($asset->canResolveItemName($this->categoryIdOf($asset))) {
             return;
         }
 
@@ -132,6 +134,13 @@ class ResolveAssetItemNameProcessor implements ProcessorInterface
         };
 
         throw new UnprocessableEntityHttpException($reason);
+    }
+
+    private function categoryIdOf(CachedAsset $asset): ?int
+    {
+        $invType = $this->invTypeRepository->findByTypeIds([$asset->getTypeId()])[$asset->getTypeId()] ?? null;
+
+        return $invType?->getGroup()->getCategory()->getCategoryId();
     }
 
     private function fetchItemName(CachedAsset $asset): ?string
