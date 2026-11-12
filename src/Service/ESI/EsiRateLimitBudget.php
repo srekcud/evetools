@@ -160,11 +160,16 @@ class EsiRateLimitBudget
     public function delayBeforeBatch(iterable $requests): ?EsiRateLimitDelay
     {
         $planned = [];
+        $groupByFamily = [];
         foreach ($requests as $request) {
             if ($request['scope'] === null) {
                 continue;
             }
-            $group = $this->groupOf($request['endpoint']);
+            $family = EsiErrorBudget::familyOf($request['endpoint']);
+            if (!array_key_exists($family, $groupByFamily)) {
+                $groupByFamily[$family] = $this->groupOf($request['endpoint']);
+            }
+            $group = $groupByFamily[$family];
             if ($group === null) {
                 continue;
             }
@@ -306,9 +311,9 @@ class EsiRateLimitBudget
         $familyItem->set($group)->expiresAt($this->expiryAfter(self::GROUP_ASSOCIATION_TTL_SECONDS));
         $this->cache->saveDeferred($familyItem);
 
-        /** @var array{observedAt: int}|null $previous */
+        /** @var array{observedAt: int, remaining: int}|null $previous */
         $previous = $items[$bucketKey]->isHit() ? $items[$bucketKey]->get() : null;
-        if ($previous === null || $previous['observedAt'] <= $bucket['observedAt']) {
+        if ($previous === null || $previous['observedAt'] < $bucket['observedAt'] || ($previous['observedAt'] === $bucket['observedAt'] && $bucket['remaining'] <= $previous['remaining'])) {
             $bucketTtl = max($bucket['windowSeconds'], ($bucket['retryUntil'] ?? 0) - $bucket['observedAt']);
             $this->cache->saveDeferred($items[$bucketKey]->set($bucket)->expiresAt($this->expiryAfter($bucketTtl)));
         }

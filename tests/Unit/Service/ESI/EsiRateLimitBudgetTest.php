@@ -242,6 +242,18 @@ final class EsiRateLimitBudgetTest extends TestCase
         $this->assertEqualsWithDelta(20.0, $this->rateLimitBudget->estimatedRemaining(self::ASSETS_ENDPOINT, self::PILOT_A_SCOPE), 0.001);
     }
 
+    public function testSuccessReadAfterATooManyRequestsOfTheSameSecondKeepsTheEmptyBucket(): void
+    {
+        $this->rateLimitBudget->record(self::ASSETS_ENDPOINT, self::PILOT_A_SCOPE, 429, $this->headers('assets', '150/15m', '0', '120'));
+
+        $this->rateLimitBudget->record(self::ASSETS_ENDPOINT, self::PILOT_A_SCOPE, 200, $this->headers('assets', '150/15m', '50'));
+
+        $bucket = $this->rateLimitBudget->bucketOf(self::ASSETS_ENDPOINT, self::PILOT_A_SCOPE);
+        $this->assertNotNull($bucket);
+        $this->assertSame(0, $bucket['remaining']);
+        $this->assertNotNull($bucket['retryUntil']);
+    }
+
     public function testTooManyRequestsWithoutGroupHeaderTouchesNoBucket(): void
     {
         $this->rateLimitBudget->record(self::ASSETS_ENDPOINT, self::PILOT_A_SCOPE, 200, $this->headers('assets', '150/15m', '140'));

@@ -21,6 +21,9 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 
 class EsiClient
 {
+    public const int MAX_CUMULATIVE_PAUSE_SECONDS = 120;
+
+    private const int PAUSE_BUDGET_WINDOW_SECONDS = 600;
     private const REQUEST_TIMEOUT = 30;
     private const MAX_RETRY_AFTER_SECONDS = 60;
     private const DEFAULT_CACHE_TTL_SECONDS = 300;
@@ -30,6 +33,8 @@ class EsiClient
 
     private int $errorLimitRemain = 100;
     private int $errorLimitReset = 0;
+    private float $pauseWindowStartedAt = 0.0;
+    private float $pausedInWindow = 0.0;
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -624,20 +629,36 @@ class EsiClient
             return;
         }
 
+        $now = (float) $this->clock->now()->format('U.u');
+        if ($now - $this->pauseWindowStartedAt >= self::PAUSE_BUDGET_WINDOW_SECONDS) {
+            $this->pauseWindowStartedAt = $now;
+            $this->pausedInWindow = 0.0;
+        }
+        $seconds = min($delay->seconds, self::MAX_CUMULATIVE_PAUSE_SECONDS - $this->pausedInWindow);
+        if ($seconds <= 0.0) {
+            $this->logger->warning('ESI group {group} pause budget of {cap}s exhausted, continuing without pause', [
+                'group' => $delay->group,
+                'cap' => self::MAX_CUMULATIVE_PAUSE_SECONDS,
+            ]);
+
+            return;
+        }
+        $this->pausedInWindow += $seconds;
+
         if ($delay->isPause) {
             $this->logger->warning('ESI group {group} budget critical (about {remaining} tokens left), pausing {seconds}s', [
                 'group' => $delay->group,
                 'remaining' => round($delay->estimatedRemaining, 1),
-                'seconds' => round($delay->seconds, 1),
+                'seconds' => round($seconds, 1),
             ]);
         } else {
             $this->logger->info('ESI group {group} budget low (about {remaining} tokens left), throttling {delay}ms', [
                 'group' => $delay->group,
                 'remaining' => round($delay->estimatedRemaining, 1),
-                'delay' => (int) round($delay->seconds * 1000),
+                'delay' => (int) round($seconds * 1000),
             ]);
         }
-        $this->clock->sleep($delay->seconds);
+        $this->clock->sleep($seconds);
     }
 
     /**

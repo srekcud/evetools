@@ -125,6 +125,23 @@ final class EsiClientRateLimitTest extends TestCase
         $this->assertLessThanOrEqual(EsiRateLimitBudget::MAX_PAUSE_SECONDS, $this->requests[0]['at']);
     }
 
+    public function testPausesOfSuccessiveRequestsStayWithinTheCumulativeCap(): void
+    {
+        $this->seedBucket(self::ASSETS_ENDPOINT, self::PILOT_A_SCOPE, 'assets', '150/15m', '3');
+        $esiClient = $this->esiClient(array_map(
+            fn (): MockResponse => $this->response(headers: $this->groupHeaders('assets', '150/15m', '3')),
+            range(1, 5),
+        ));
+        $token = $this->tokenOfCharacter(self::PILOT_A_SCOPE);
+
+        for ($call = 0; $call < 5; ++$call) {
+            $esiClient->get(self::ASSETS_ENDPOINT, $token);
+        }
+
+        $this->assertLessThanOrEqual(EsiClient::MAX_CUMULATIVE_PAUSE_SECONDS, $this->elapsedSeconds());
+        $this->assertSame($this->requests[2]['at'], $this->requests[4]['at']);
+    }
+
     public function testCriticalPauseEndsWhenTheEstimatedRemainingIsBackAtTheLowThreshold(): void
     {
         $this->seedBucket(self::ASSETS_ENDPOINT, self::PILOT_A_SCOPE, 'assets', '150/1m', '3');
