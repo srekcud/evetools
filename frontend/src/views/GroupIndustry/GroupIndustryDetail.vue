@@ -415,6 +415,12 @@ const projectDisplayName = computed(() => {
   return project.value.items.map(i => `${i.runs}x ${i.typeName}`).join(', ')
 })
 
+const HEADER_VISIBLE_PRODUCTS = 8
+
+const headerProducts = computed(() => project.value?.items.slice(0, HEADER_VISIBLE_PRODUCTS) ?? [])
+const hiddenHeaderProducts = computed(() => project.value?.items.slice(HEADER_VISIBLE_PRODUCTS) ?? [])
+const hiddenHeaderProductNames = computed(() => hiddenHeaderProducts.value.map(item => item.typeName).join(', '))
+
 const totalRuns = computed(() =>
   project.value?.items.reduce((sum, i) => sum + i.runs, 0) ?? 0
 )
@@ -457,27 +463,35 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
 
       <!-- Project Header (compact) -->
       <div class="bg-slate-900/80 rounded-xl border border-slate-800 p-5 mb-6">
-        <div class="flex items-center gap-5">
+        <div data-testid="project-header" class="flex flex-wrap items-center gap-x-5 gap-y-3">
           <!-- Item icons row -->
-          <div class="flex flex-row gap-1 flex-shrink-0">
+          <div data-testid="project-header-products" class="flex flex-row flex-wrap items-center gap-1 flex-shrink-0 max-w-full">
             <div
-              v-for="item in project.items"
+              v-for="item in headerProducts"
               :key="item.typeId"
+              data-testid="project-header-product"
               class="w-8 h-8 rounded bg-slate-800 border border-slate-700 overflow-hidden"
             >
               <img
                 :src="getTypeIconUrl(item.typeId, 32)"
                 :alt="item.typeName"
+                :title="item.typeName"
                 class="w-full h-full object-cover"
                 @error="onImageError"
               />
             </div>
+            <span
+              v-if="hiddenHeaderProducts.length > 0"
+              data-testid="project-header-products-more"
+              class="h-8 px-2 rounded bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 inline-flex items-center"
+              :title="hiddenHeaderProductNames"
+            >+{{ hiddenHeaderProducts.length }}</span>
           </div>
 
           <!-- Project info -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-3 mb-1">
-              <h1 class="text-xl font-bold text-slate-100">{{ projectDisplayName }}</h1>
+          <div class="flex-1 min-w-[16rem]">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+              <h1 data-testid="project-header-title" class="text-xl font-bold text-slate-100 break-words min-w-0">{{ projectDisplayName }}</h1>
               <span
                 class="text-xs px-2.5 py-1 rounded-lg font-medium border"
                 :class="[statusConfig[project.status].bg, statusConfig[project.status].text, statusConfig[project.status].border]"
@@ -505,7 +519,7 @@ const memberCount = computed(() => project.value?.membersCount ?? 0)
           </div>
 
           <!-- Actions -->
-          <div class="flex gap-2 flex-shrink-0">
+          <div class="flex flex-wrap gap-2 max-w-full">
             <button
               @click="copyShareLink"
               class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm flex items-center gap-2 transition-all hover:-translate-y-px"
