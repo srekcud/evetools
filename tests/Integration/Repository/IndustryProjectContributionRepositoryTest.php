@@ -241,6 +241,39 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         self::assertSame([4_246 => 42], $this->repository->findIntermediateStockByTypeId($project));
     }
 
+    #[Group('issue-803')]
+    public function testMaterialContributionsOnInventionAndCopyLinesNeverCountAsIntermediateStock(): void
+    {
+        $project = $this->createProject('Ishtar');
+        $member = $this->addMember($project, ParticipantRole::Owner);
+        $inventionLine = $this->addJobLine($project, 12_005, 'Ishtar', 'invention');
+        $copyLine = $this->addJobLine($project, 11_999, 'Ishtar Blueprint', 'copy');
+        $this->addContributionOn($member, $inventionLine, ContributionStatus::Approved)->setQuantity(15);
+        $this->addContributionOn($member, $copyLine, ContributionStatus::Approved)->setQuantity(8);
+        $this->em->flush();
+
+        self::assertSame([], $this->repository->findIntermediateStockByTypeId($project));
+    }
+
+    #[Group('issue-803')]
+    public function testInventionLineSharingTheTypeOfAManufacturingLineDoesNotAddToItsIntermediateStock(): void
+    {
+        $project = $this->createProject('Ishtar');
+        $member = $this->addMember($project, ParticipantRole::Owner);
+        $manufacturingLine = $this->addJobLine($project, 12_005, 'Ishtar');
+        $reactionLine = $this->addJobLine($project, 16_673, 'Fernite Carbide', 'reaction');
+        $inventionLine = $this->addJobLine($project, 12_005, 'Ishtar', 'invention');
+        $this->addContributionOn($member, $manufacturingLine, ContributionStatus::Approved)->setQuantity(4);
+        $this->addContributionOn($member, $reactionLine, ContributionStatus::Approved)->setQuantity(9);
+        $this->addContributionOn($member, $inventionLine, ContributionStatus::Approved)->setQuantity(15);
+        $this->em->flush();
+
+        $stockByTypeId = $this->repository->findIntermediateStockByTypeId($project);
+        ksort($stockByTypeId);
+
+        self::assertSame([12_005 => 4, 16_673 => 9], $stockByTypeId);
+    }
+
     #[Group('issue-706')]
     public function testProjectWithoutIntermediateContributionHasNoIntermediateStock(): void
     {
@@ -251,7 +284,7 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
         self::assertSame([], $this->repository->findIntermediateStockByTypeId($project));
     }
 
-    private function addJobLine(IndustryProject $project, int $typeId, string $typeName): IndustryProjectBomLine
+    private function addJobLine(IndustryProject $project, int $typeId, string $typeName, string $activityType = 'manufacturing'): IndustryProjectBomLine
     {
         $line = (new IndustryProjectBomLine())
             ->setTypeId($typeId)
@@ -259,7 +292,7 @@ final class IndustryProjectContributionRepositoryTest extends IntegrationTestCas
             ->setRequiredQuantity(100)
             ->setIsJob(true)
             ->setJobGroup('component')
-            ->setActivityType('manufacturing')
+            ->setActivityType($activityType)
             ->setRuns(1);
         $project->addBomItem($line);
 
