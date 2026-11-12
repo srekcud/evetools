@@ -10,6 +10,8 @@ Groupe : `$ARGUMENTS`. Les issues d'un groupe partagent une cause racine ou les 
 
 1. `zsh -ic 'gh issue list --state open --label "$ARGUMENTS" --json number,title,labels'`.
 2. Écarte les issues `circuit:decision` : elles attendent Sylvain. Note-les dans le journal.
+   - Une issue labellisée `circuit:m` ou `circuit:s` dont l'attendu propose deux conceptions (un « ou » entre un choix stocké en base ou un écran de choix et une autre voie, ce qui implique un champ et une migration) est traitée comme `circuit:decision` : pas de branche, et si Sylvain est là, la question passe par `AskUserQuestion` (voies, périmètre de la première PR) ; sinon la décision attendue, avec options et recommandation, va au journal. Cas #801 : le thread de nuit a lu l'issue puis s'est bloqué.
+   - Décisions déjà tranchées par Sylvain, à ne pas « corriger » : #801 (2026-11-12) les containers portant le nom du projet s'additionnent même s'ils sont dans plusieurs stations, car un projet peut s'appuyer sur des stations spécialisées (réactions, puis composants de base, etc.) ; ni choix par item id, ni station liée au projet.
 3. Lis le dernier tri `.claude/tasks/caduc-sweep-*/` : une issue `corrigé` ou `caduc` n'est pas traitée, sa preuve va dans le journal. Une issue `partiel` ne garde que ce qui reste.
 4. Ordre : d'abord l'issue qui porte la cause racine (souvent `circuit:l`), puis les autres. Après chaque fusion, vérifie si les suivantes sont devenues caduques (test ou `fichier::méthode` à l'appui).
 5. Plusieurs issues sur une même règle : une seule spec `docs/specs/<n1>-<n2>-<slug>.md`, un seul lot rouge puis vert, chaque numéro cité dans les commits.
@@ -26,6 +28,7 @@ Groupe : `$ARGUMENTS`. Les issues d'un groupe partagent une cause racine ou les 
 - sans logique métier (CSS, accessibilité, i18n, docs, code mort) : un seul agent, `frontend-developer` (front), `implementer` (suppression backend) ou `doc-writer` (docs), lancé avec `model: sonnet` ;
 - tests seuls (mutants, caractérisation) : `test-writer`, puis `test-skeptic` ;
 - petite logique : `test-writer` puis `implementer`, sans fichier de spec ni ligne dans `red-queue.md`.
+- refactor qui change l'appelant d'une méthode de dépôt ou de service : compte d'abord les sites de stub dans `tests/` (`grep -rn "createStub(<Classe>" tests`) ; au-delà de 5 fichiers de test, c'est `circuit:m`. Un helper de test commun (cas #811 : `ProducerOfStub::from`) plutôt qu'un copier-coller par site.
 
 Un fix reste un rouge puis un vert : jamais `backend-developer` pour un fix, quel que soit le circuit. Si l'issue s'avère plus grosse que son label, change de circuit et note-le dans le journal.
 
