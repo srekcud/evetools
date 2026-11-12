@@ -45,6 +45,7 @@ use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
 use Symfony\Component\Uid\Uuid;
+use App\Tests\Unit\Service\Industry\ProducerOfStub;
 
 #[CoversClass(StockpileImportPreviewProcessor::class)]
 final class StockpileImportPreviewProcessorTest extends TestCase
@@ -86,6 +87,7 @@ final class StockpileImportPreviewProcessorTest extends TestCase
         );
         $userStructures = new InMemoryUserProductionStructures([self::PILOT_ID => []]);
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($productRepository);
         $productRepository->method('findBlueprintForProduct')->willReturnCallback(
             static fn (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct => $productTypeId === self::WIDGET && $activityId === IndustryActivityType::Manufacturing->value
                 ? (new IndustryActivityProduct())->setTypeId(self::WIDGET_BLUEPRINT)->setActivityId($activityId)->setProductTypeId(self::WIDGET)->setQuantity(1)

@@ -149,6 +149,7 @@ trait BuildsStockpileOnWidgetSde
     private function productRepositoryOnWidgetSde(): IndustryActivityProductRepository
     {
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($productRepository);
         $productRepository->method('findBlueprintForProduct')->willReturnCallback(
             function (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct {
                 $recipe = $this->recipes[$productTypeId] ?? null;

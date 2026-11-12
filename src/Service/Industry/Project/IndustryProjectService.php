@@ -442,7 +442,7 @@ class IndustryProjectService
 
     private function targetEfficiencyOf(IndustryProjectProduct $item): BlueprintEfficiency
     {
-        $isReaction = $this->producerOf($item->getTypeId())->getActivityId() === IndustryActivityType::Reaction->value;
+        $isReaction = $this->activityProductRepository->producerOf($item->getTypeId())->getActivityId() === IndustryActivityType::Reaction->value;
         $materialEfficiency = $isReaction ? ProductionPlanner::REACTION_EFFICIENCY_LEVEL : $item->getMeLevel();
         $timeEfficiency = $isReaction ? ProductionPlanner::REACTION_EFFICIENCY_LEVEL : $item->getTeLevel();
 
@@ -454,7 +454,7 @@ class IndustryProjectService
      */
     private function runsLeftAfterStock(IndustryProjectProduct $item, array $stockByTypeId): int
     {
-        $unitsPerRun = $this->producerOf($item->getTypeId())->getQuantity();
+        $unitsPerRun = $this->activityProductRepository->producerOf($item->getTypeId())->getQuantity();
         $stock = isset($stockByTypeId[$item->getTypeId()]) ? $stockByTypeId[$item->getTypeId()] : 0;
 
         return max(0, (int) ceil(($item->getRuns() * $unitsPerRun - $stock) / $unitsPerRun));
@@ -467,17 +467,10 @@ class IndustryProjectService
     {
         $producers = [];
         foreach ($plan->jobs as $job) {
-            $producers[$job->productTypeId] ??= $this->producerOf($job->productTypeId);
+            $producers[$job->productTypeId] ??= $this->activityProductRepository->producerOf($job->productTypeId);
         }
 
         return $producers;
-    }
-
-    private function producerOf(int $productTypeId): IndustryActivityProduct
-    {
-        return $this->activityProductRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Manufacturing->value)
-            ?? $this->activityProductRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Reaction->value)
-            ?? throw new \RuntimeException("No blueprint or reaction found for product type ID {$productTypeId}");
     }
 
     /**
@@ -546,7 +539,7 @@ class IndustryProjectService
     {
         $finalDemandByTypeId = [];
         foreach ($project->getItems() as $item) {
-            $demand = $item->getRuns() * $this->producerOf($item->getTypeId())->getQuantity();
+            $demand = $item->getRuns() * $this->activityProductRepository->producerOf($item->getTypeId())->getQuantity();
             $finalDemandByTypeId[$item->getTypeId()] = isset($finalDemandByTypeId[$item->getTypeId()]) ? $finalDemandByTypeId[$item->getTypeId()] + $demand : $demand;
         }
 
@@ -646,7 +639,7 @@ class IndustryProjectService
 
     private function isReaction(int $typeId): bool
     {
-        return $this->producerOf($typeId)->getActivityId() === IndustryActivityType::Reaction->value;
+        return $this->activityProductRepository->producerOf($typeId)->getActivityId() === IndustryActivityType::Reaction->value;
     }
 
     /**

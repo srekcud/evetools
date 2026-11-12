@@ -57,6 +57,7 @@ trait StubsGoldenSdeRepositories
     private function sdeProductRepository(): IndustryActivityProductRepository
     {
         $repository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($repository);
         $repository->method('findBlueprintForProduct')->willReturnCallback(
             function (int $productTypeId, int $activityId): ?IndustryActivityProduct {
                 if (IndustryActivityType::Invention->value === $activityId) {

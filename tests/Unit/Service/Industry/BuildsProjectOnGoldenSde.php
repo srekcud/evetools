@@ -59,6 +59,8 @@ trait BuildsProjectOnGoldenSde
         $recipes = self::goldenRecipes();
 
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+
+        ProducerOfStub::from($productRepository);
         $productRepository->method('findBlueprintForProduct')->willReturnCallback(
             static function (int $productTypeId, int $activityId = 1) use ($recipes): ?IndustryActivityProduct {
                 $recipe = $recipes[$productTypeId] ?? null;

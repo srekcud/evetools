@@ -31,6 +31,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
+use App\Tests\Unit\Service\Industry\ProducerOfStub;
 
 #[CoversClass(StockpileStatusProvider::class)]
 #[AllowMockObjectsWithoutExpectations]
@@ -68,6 +69,7 @@ final class StockpileStatusProviderTest extends TestCase
         $productionPlanning = new ProductionPlanning(new InMemoryBlueprintCatalog(), InMemorySystemCostIndices::none(), new InMemoryRigCategories());
         $userStructures = new InMemoryUserProductionStructures();
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($productRepository);
         $importRepository = $this->createMock(IndustryStockpileImportRepository::class);
         $importRepository->method('findByUserInCreationOrder')->willReturnCallback(fn (): array => $this->imports);
 

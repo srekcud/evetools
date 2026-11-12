@@ -43,6 +43,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
+use App\Tests\Unit\Service\Industry\ProducerOfStub;
 
 #[CoversClass(IndustryProjectService::class)]
 #[Group('issue-343')]
@@ -227,6 +228,8 @@ final class IndustryProjectServiceBlacklistSwitchTest extends TestCase
         );
 
         $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
+
+        ProducerOfStub::from($activityProductRepository);
         $activityProductRepository->method('findBlueprintForProduct')->willReturnCallback(
             static fn (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct => $activityId === IndustryActivityType::Manufacturing->value && in_array($productTypeId, [self::RIFTER, self::HULL_PLATING], true)
                 ? (new IndustryActivityProduct())->setTypeId($productTypeId + 500_000)->setActivityId($activityId)->setProductTypeId($productTypeId)->setQuantity(1)
