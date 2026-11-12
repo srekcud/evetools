@@ -21,6 +21,8 @@ const BLUEPRINT_IMAGE_VARIATION: Record<BlueprintImageKind, string> = { bpo: 'bp
 // EVE categories whose types have no icon on images.evetech.net
 const ICONLESS_CATEGORY_IDS = new Set([91]) // 91 = SKINs
 
+const BLUEPRINT_CATEGORY_ID = 9
+
 export function useEveImages() {
   /**
    * Get type icon URL (items, ships, modules, etc.)
@@ -29,6 +31,9 @@ export function useEveImages() {
   function getTypeIconUrl(typeId: number, size: ImageSize = 32, categoryId?: number): string {
     if (categoryId != null && ICONLESS_CATEGORY_IDS.has(categoryId)) {
       return FALLBACK_ICON_DATA_URI
+    }
+    if (categoryId === BLUEPRINT_CATEGORY_ID) {
+      return getBlueprintIconUrl(typeId, 'bpo', size)
     }
     return `${EVE_IMAGE_SERVER}/types/${typeId}/icon?size=${size}`
   }
