@@ -217,7 +217,7 @@ describe('ProjectResearch', () => {
   })
 
   it('shows no TE duration at all when the original is already at TE 20 and keeps the ME duration', async () => {
-    const { wrapper } = await mountResearch([{ ...HOBGOBLIN_II_WORTH, teResearchDuration: null }])
+    const { wrapper } = await mountResearch([{ ...HOBGOBLIN_II_WORTH, teResearchDuration: null, teResearchCost: null }])
 
     expect(partText(wrapper, HOBGOBLIN_II_TYPE_ID, 'me-duration')).toContain('27m')
     expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'te-duration').exists()).toBe(false)
@@ -227,6 +227,31 @@ describe('ProjectResearch', () => {
     const { wrapper } = await mountResearch([HOBGOBLIN_II_WORTH])
 
     expect(wrapper.find('[data-testid="research-duration-notice"]').exists()).toBe(true)
+  })
+
+  it('shows the TE install cost of each proposed row next to its TE duration', async () => {
+    const { wrapper } = await mountResearch([HOBGOBLIN_II_WORTH, ISHTAR_WORTH])
+
+    expect({
+      hobgoblin: partText(wrapper, HOBGOBLIN_II_TYPE_ID, 'te-cost'),
+      ishtar: partText(wrapper, ISHTAR_TYPE_ID, 'te-cost'),
+    }).toEqual({
+      hobgoblin: expect.stringContaining('132.03 K'),
+      ishtar: expect.stringContaining('1.00 K'),
+    })
+  })
+
+  it('shows the unknown marker and the reason of an unknown TE install cost, never 0', async () => {
+    const { wrapper } = await mountResearch([OGRE_II_UNKNOWN_COST])
+
+    expect(showsUnknownMarker(wrapper, OGRE_II_TYPE_ID, 'te-cost')).toBe(true)
+    expect(partText(wrapper, OGRE_II_TYPE_ID, 'te-cost')).toContain(REASON_LABELS.en.cost_index)
+  })
+
+  it('shows no TE install cost when the original is already at TE 20', async () => {
+    const { wrapper } = await mountResearch([{ ...HOBGOBLIN_II_WORTH, teResearchDuration: null, teResearchCost: null }])
+
+    expect(part(wrapper, HOBGOBLIN_II_TYPE_ID, 'te-cost').exists()).toBe(false)
   })
 
   it('shows no duration on a not worth research, which is only counted', async () => {

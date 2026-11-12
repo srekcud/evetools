@@ -59,6 +59,7 @@ export interface RigOption {
   name: string
   bonus: number
   timeBonus?: number
+  costBonus?: number
   categoryBonuses?: Record<string, number>
   category: string
   size: 'M' | 'L' | 'XL'
