@@ -59,6 +59,8 @@ use App\Repository\IndustryProjectSaleRepository;
 use App\Repository\UserRepository;
 use App\Service\Account\AccountDeletionService;
 use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationDirectorAccess;
+use App\Service\ESI\CorporationRoleReader;
 use App\Service\ESI\CorporationService;
 use App\Service\ESI\EsiClient;
 use App\Service\ESI\EveSsoTokenRevoker;
@@ -77,6 +79,7 @@ use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\ErrorHandler\BufferingLogger;
@@ -1051,7 +1054,10 @@ final class AccountDeletionServiceTest extends IntegrationTestCase
             self::getContainer()->get(CachedAssetRepository::class),
             $this->createStub(CorporationService::class),
             $this->createStub(CharacterService::class),
-            self::getContainer()->get(CharacterRepository::class),
+            new CorporationDirectorAccess(
+                self::getContainer()->get(CharacterRepository::class),
+                new CorporationRoleReader($this->createStub(CharacterService::class), new ArrayAdapter(), new NullLogger()),
+            ),
             self::getContainer()->get(UserRepository::class),
         );
 

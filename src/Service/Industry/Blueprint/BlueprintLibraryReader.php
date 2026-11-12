@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Service\Industry\Blueprint;
 
+use App\Constant\EveConstants;
 use App\Entity\Character;
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CachedIndustryJobRepository;
-use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\OwnedBlueprintRepository;
 use App\Repository\Sde\IndustryActivityRepository;
+use App\Service\ESI\CorporationDirectorAccess;
 use App\Service\TypeNameResolver;
 
 class BlueprintLibraryReader
@@ -36,7 +37,7 @@ class BlueprintLibraryReader
     public function __construct(
         private readonly OwnedBlueprintRepository $ownedBlueprintRepository,
         private readonly CorpAssetVisibilityRepository $visibilityRepository,
-        private readonly CharacterRepository $characterRepository,
+        private readonly CorporationDirectorAccess $directorAccess,
         private readonly TypeNameResolver $typeNameResolver,
         private readonly CachedIndustryJobRepository $jobRepository,
         private readonly CachedAssetRepository $assetRepository,
@@ -78,7 +79,7 @@ class BlueprintLibraryReader
     /** @return array{string, list<OwnedBlueprint>} */
     private function corporationBlueprints(int $corporationId, User $user): array
     {
-        if ($this->characterRepository->findWithCorpBlueprintsAccess($corporationId) === null) {
+        if (!$this->directorAccess->isConnected($corporationId, [EveConstants::CORPORATION_BLUEPRINTS_SCOPE])) {
             return [self::STATE_NO_DIRECTOR, []];
         }
 

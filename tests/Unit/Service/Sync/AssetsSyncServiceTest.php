@@ -366,6 +366,33 @@ class AssetsSyncServiceTest extends TestCase
         $this->assertSame([self::DIRECTOR_ID, self::DIRECTOR_ID], $this->rolesReadFor);
     }
 
+    #[Group('issue-728')]
+    public function testAForbiddenCorporationAssetsReadTellsTheUsersThatADirectorMustBeConnected(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->corporationService->method('getDivisions')->willThrowException(EsiApiException::forbidden());
+
+        $caught = $this->catchThrowable(fn () => $this->service->syncCorporationAssets($character));
+
+        $this->assertInstanceOf(EsiApiException::class, $caught);
+        $errors = array_values(array_filter($this->publishedSyncEvents, static fn (array $event): bool => $event[1] === 'error'));
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('Director', $errors[0][3]);
+        $this->assertStringNotContainsString('Access forbidden', $errors[0][3]);
+    }
+
+    #[Group('issue-728')]
+    public function testANonForbiddenCorporationAssetsFailureKeepsItsOwnMessageOnTheErrorEvent(): void
+    {
+        $character = $this->createCharacterWithUser(12345);
+        $this->corporationService->method('getDivisions')->willThrowException(EsiApiException::fromResponse(502, 'Bad Gateway'));
+
+        $this->catchThrowable(fn () => $this->service->syncCorporationAssets($character));
+
+        $errors = array_values(array_filter($this->publishedSyncEvents, static fn (array $event): bool => $event[1] === 'error'));
+        $this->assertSame(['Bad Gateway'], array_column($errors, 3));
+    }
+
     // ===========================================
     // ESI failure — cached assets are kept (issue #14)
     // ===========================================

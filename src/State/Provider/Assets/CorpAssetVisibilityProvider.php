@@ -7,13 +7,14 @@ namespace App\State\Provider\Assets;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\Assets\CorpAssetVisibilityResource;
+use App\Constant\EveConstants;
 use App\Entity\User;
 use App\Repository\CachedAssetRepository;
-use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\UserRepository;
 use App\Service\Assets\CorpVisibilityPlayers;
 use App\Service\ESI\CharacterService;
+use App\Service\ESI\CorporationDirectorAccess;
 use App\Service\ESI\CorporationService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -30,7 +31,7 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         private readonly CachedAssetRepository $cachedAssetRepository,
         private readonly CorporationService $corporationService,
         private readonly CharacterService $characterService,
-        private readonly CharacterRepository $characterRepository,
+        private readonly CorporationDirectorAccess $directorAccess,
         private readonly UserRepository $userRepository,
     ) {
     }
@@ -79,7 +80,7 @@ class CorpAssetVisibilityProvider implements ProviderInterface
         $resource->players = $isDirector
             ? array_map(CorpVisibilityPlayers::describe(...), $players)
             : [];
-        $resource->directorConnected = $this->characterRepository->findWithCorpAssetsAccess($corporationId) !== null;
+        $resource->directorConnected = $this->directorAccess->isConnected($corporationId, [EveConstants::CORPORATION_ASSETS_SCOPE]);
         $resource->allDivisions = $allDivisions;
         $resource->isDirector = $isDirector;
         $resource->configuredByName = $directorUser?->getMainCharacter()?->getName();

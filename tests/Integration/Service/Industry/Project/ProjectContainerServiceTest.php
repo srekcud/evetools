@@ -11,6 +11,7 @@ use App\Entity\EveToken;
 use App\Entity\IndustryProjectBomLine;
 use App\Entity\IndustryProject;
 use App\Entity\User;
+use App\Service\ESI\EsiClient;
 use App\Service\Industry\Project\ProjectContainerService;
 use App\Tests\Integration\IntegrationTestCase;
 
@@ -40,7 +41,15 @@ final class ProjectContainerServiceTest extends IntegrationTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->replaceEsiWithADirector();
         $this->owner = $this->createCorporationMember('Project Owner');
+    }
+
+    private function replaceEsiWithADirector(): void
+    {
+        $esiClient = $this->createStub(EsiClient::class);
+        $esiClient->method('get')->willReturn(['roles' => ['Director']]);
+        self::getContainer()->set(EsiClient::class, $esiClient);
     }
 
     public function testContainerOutsideTheAllowedDivisionsIsNotFound(): void
@@ -314,7 +323,7 @@ final class ProjectContainerServiceTest extends IntegrationTestCase
             ->setAccessToken('access-token')
             ->setRefreshTokenEncrypted('encrypted-refresh-token')
             ->setAccessTokenExpiresAt(new \DateTimeImmutable('+20 minutes'))
-            ->setScopes(['esi-assets.read_corporation_assets.v1']);
+            ->setScopes(['esi-assets.read_corporation_assets.v1', 'esi-characters.read_corporation_roles.v1']);
         $character->setEveToken($token);
         $this->em->persist($token);
         $this->em->flush();

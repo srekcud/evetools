@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AssetsSyncService
 {
+    public const string DIRECTOR_REQUIRED_MESSAGE = 'Corporation assets cannot be read: a character holding the Director role of the corporation must be connected with the corporation assets and corporation roles scopes';
     private const SYNC_INTERVAL_MINUTES = 30;
 
     public function __construct(
@@ -183,11 +184,13 @@ class AssetsSyncService
                 $this->publishCompletion($userId, 'corporation-assets', count($assets));
             }
         } catch (\Throwable $e) {
+            $errorMessage = $e->getMessage();
             if ($e instanceof EsiApiException && $e->statusCode === Response::HTTP_FORBIDDEN) {
                 $this->corporationRoleReader->forget($corporationId, []);
+                $errorMessage = self::DIRECTOR_REQUIRED_MESSAGE;
             }
             foreach ($recipientUserIds as $userId) {
-                $this->mercurePublisher->syncError($userId, 'corporation-assets', $e->getMessage());
+                $this->mercurePublisher->syncError($userId, 'corporation-assets', $errorMessage);
             }
             throw $e;
         }

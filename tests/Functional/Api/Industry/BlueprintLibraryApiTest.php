@@ -15,6 +15,7 @@ use App\Entity\Sde\InvGroup;
 use App\Entity\Sde\InvType;
 use App\Entity\User;
 use App\Message\SyncUserBlueprints;
+use App\Service\ESI\EsiClient;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\NullLogger;
@@ -27,6 +28,7 @@ final class BlueprintLibraryApiTest extends WebTestCase
 {
     private const string PERSONAL_SCOPE = 'esi-characters.read_blueprints.v1';
     private const string CORPORATION_SCOPE = 'esi-corporations.read_blueprints.v1';
+    private const string ROLES_SCOPE = 'esi-characters.read_corporation_roles.v1';
     private const int CORPORATION_ID = 98_357_301;
     private const string CORPORATION_NAME = 'Solberg Industries';
     private const int OTHER_CORPORATION_ID = 98_357_302;
@@ -52,11 +54,14 @@ final class BlueprintLibraryApiTest extends WebTestCase
         self::getContainer()->set('logger', new NullLogger());
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
         $this->seedTypeNames();
+        $esiClient = $this->createStub(EsiClient::class);
+        $esiClient->method('get')->willReturn(['roles' => ['Director']]);
+        self::getContainer()->set(EsiClient::class, $esiClient);
     }
 
     public function testReadsThePersonalBlueprintsAndTheCorporationBlueprintsOfTheVisibleDivisionsOnly(): void
     {
-        $aria = $this->persistPilot('Aria Solberg', self::CORPORATION_ID, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE]);
+        $aria = $this->persistPilot('Aria Solberg', self::CORPORATION_ID, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE, self::ROLES_SCOPE]);
         $other = $this->persistPilot('Corin Vale', self::OTHER_CORPORATION_ID, [self::PERSONAL_SCOPE]);
         $this->em->persist((new CorpAssetVisibility())->setCorporationId(self::CORPORATION_ID)->setVisibleDivisions([3])->setShareBlueprintsOfHiddenDivisions(false)->setConfiguredBy($aria));
         $this->persistPersonalBlueprint($aria, 1_001, self::DRAKE_BLUEPRINT, -1, -1, 10, 20);
@@ -117,7 +122,7 @@ final class BlueprintLibraryApiTest extends WebTestCase
     #[Group('issue-411')]
     public function testFlagsOnlyTheBlueprintsHeldByAJobInProgress(): void
     {
-        $aria = $this->persistPilot('Aria Solberg', self::CORPORATION_ID, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE]);
+        $aria = $this->persistPilot('Aria Solberg', self::CORPORATION_ID, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE, self::ROLES_SCOPE]);
         $this->em->persist((new CorpAssetVisibility())->setCorporationId(self::CORPORATION_ID)->setVisibleDivisions([3])->setConfiguredBy($aria));
         $this->persistPersonalBlueprint($aria, 1_001, self::DRAKE_BLUEPRINT, -1, -1, 10, 20);
         $this->persistPersonalBlueprint($aria, 1_002, self::VEXOR_BLUEPRINT, -1, -1, 4, 8);
@@ -171,7 +176,7 @@ final class BlueprintLibraryApiTest extends WebTestCase
 
     public function testRefreshQueuesTheBlueprintsSyncOfTheUserAndAnswersPending(): void
     {
-        $aria = $this->persistPilot('Aria Solberg', self::CORPORATION_ID, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE]);
+        $aria = $this->persistPilot('Aria Solberg', self::CORPORATION_ID, [self::PERSONAL_SCOPE, self::CORPORATION_SCOPE, self::ROLES_SCOPE]);
         $this->em->flush();
 
         $this->client->loginUser($aria, 'api');

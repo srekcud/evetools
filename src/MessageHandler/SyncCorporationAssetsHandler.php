@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
+use App\Exception\EsiApiException;
 use App\Exception\EveAuthRequiredException;
 use App\Message\SyncCorporationAssets;
 use App\Repository\CharacterRepository;
@@ -12,7 +13,9 @@ use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
 use App\Service\Sync\CorporationSyncRecipients;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 use Symfony\Component\Uid\Uuid;
 
 #[AsMessageHandler]
@@ -76,6 +79,21 @@ final readonly class SyncCorporationAssetsHandler
                 'error' => $e->getMessage(),
             ]);
             $this->syncTracker->fail(self::TRACKED_SYNC_TYPE, self::AUTH_REQUIRED);
+        } catch (EsiApiException $e) {
+            $this->logger->error('Failed to sync corporation assets', [
+                'corporationId' => $message->corporationId,
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($e->statusCode !== Response::HTTP_FORBIDDEN) {
+                $this->syncTracker->fail(self::TRACKED_SYNC_TYPE, $e->getMessage());
+
+                throw $e;
+            }
+
+            $this->syncTracker->fail(self::TRACKED_SYNC_TYPE, AssetsSyncService::DIRECTOR_REQUIRED_MESSAGE);
+
+            throw new UnrecoverableMessageHandlingException(AssetsSyncService::DIRECTOR_REQUIRED_MESSAGE, 0, $e);
         } catch (\Throwable $e) {
             $this->logger->error('Failed to sync corporation assets', [
                 'corporationId' => $message->corporationId,

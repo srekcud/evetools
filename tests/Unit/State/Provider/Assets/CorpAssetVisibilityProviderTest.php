@@ -12,11 +12,11 @@ use App\Entity\User;
 use App\Entity\EveToken;
 use App\Exception\EsiApiException;
 use App\Repository\CachedAssetRepository;
-use App\Repository\CharacterRepository;
 use App\Repository\CorpAssetVisibilityRepository;
 use App\Repository\UserRepository;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationService;
+use App\Tests\Unit\Service\ESI\BuildsCorporationDirectorAccess;
 use App\State\Provider\Assets\CorpAssetVisibilityProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -33,6 +33,8 @@ use Symfony\Component\Uid\Uuid;
 #[Group('issue-358')]
 class CorpAssetVisibilityProviderTest extends TestCase
 {
+    use BuildsCorporationDirectorAccess;
+
     private const string ALICE_ID = '0199a1f0-0000-7000-8000-000000358001';
     private const string BOB_ID = '0199a1f0-0000-7000-8000-000000358002';
 
@@ -41,7 +43,6 @@ class CorpAssetVisibilityProviderTest extends TestCase
     private CachedAssetRepository&Stub $cachedAssetRepository;
     private CorporationService&MockObject $corporationService;
     private CharacterService&Stub $characterService;
-    private CharacterRepository&Stub $characterRepository;
     private UserRepository&Stub $userRepository;
     private CorpAssetVisibilityProvider $provider;
 
@@ -52,7 +53,6 @@ class CorpAssetVisibilityProviderTest extends TestCase
         $this->cachedAssetRepository = $this->createStub(CachedAssetRepository::class);
         $this->corporationService = $this->createMock(CorporationService::class);
         $this->characterService = $this->createStub(CharacterService::class);
-        $this->characterRepository = $this->createStub(CharacterRepository::class);
         $this->userRepository = $this->createStub(UserRepository::class);
 
         $this->provider = new CorpAssetVisibilityProvider(
@@ -61,7 +61,7 @@ class CorpAssetVisibilityProviderTest extends TestCase
             $this->cachedAssetRepository,
             $this->corporationService,
             $this->characterService,
-            $this->characterRepository,
+            $this->corporationDirectorAccess(),
             $this->userRepository,
         );
     }
@@ -289,16 +289,26 @@ class CorpAssetVisibilityProviderTest extends TestCase
         $this->assertSame([2], $result->visibleDivisions);
     }
 
-    public function testDirectorConnectedWhenACharacterOfTheCorporationHasTheCorporationAssetsAccess(): void
+    public function testDirectorConnectedWhenACharacterOfTheCorporationHoldsTheDirectorRole(): void
     {
         $this->security->method('getUser')->willReturn($this->createUserWithCharacter());
         $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
         $this->cachedAssetRepository->method('findDistinctDivisions')->willReturn([1 => 'Minerals']);
-        $this->characterRepository->method('findWithCorpAssetsAccess')->willReturnCallback(
-            fn (int $corporationId): ?Character => $corporationId === 98000001 ? $this->createStub(Character::class) : null,
-        );
+        $this->corporationMember(98000001, ['Director']);
 
         $this->assertTrue($this->provider->provide(new Get())->directorConnected);
+    }
+
+    #[Group('issue-733')]
+    public function testDirectorIsNotConnectedWhenTheCharactersOfTheCorporationHoldNoDirectorRole(): void
+    {
+        $this->security->method('getUser')->willReturn($this->createUserWithCharacter());
+        $this->visibilityRepository->method('findByCorporationId')->willReturn(null);
+        $this->cachedAssetRepository->method('findDistinctDivisions')->willReturn([1 => 'Minerals']);
+        $this->corporationMember(98000001, []);
+        $this->corporationMember(98000001, ['Accountant']);
+
+        $this->assertFalse($this->provider->provide(new Get())->directorConnected);
     }
 
     public function testRestrictedDivisionsAreReturnedWithTheNamesOfTheirPlayers(): void
