@@ -7,6 +7,7 @@ namespace App\Tests\Unit\State\Provider\DataFreshness;
 use ApiPlatform\Metadata\GetCollection;
 use App\ApiResource\DataFreshness\DataFreshnessResource;
 use App\Service\Admin\SyncTracker;
+use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\Mercure\MercurePublisherService;
 use App\State\Provider\DataFreshness\DataFreshnessProvider;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -28,6 +29,7 @@ final class DataFreshnessProviderTest extends TestCase
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            new InMemorySyncRunLog(),
         );
         $this->provider = new DataFreshnessProvider($this->syncTracker);
     }

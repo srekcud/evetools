@@ -205,7 +205,11 @@ class SchedulerHealthEntryDto
     public ?int $expectedInterval;
     public bool $onDemand;
     public bool $triggerable;
+    /** @var SchedulerHealthRunDto[] */
+    public array $runs = [];
+    public ?int $successRate24h = null;
 
+    /** @param SchedulerHealthRunDto[] $runs */
     public function __construct(
         string $type = '',
         string $status = 'unknown',
@@ -216,7 +220,11 @@ class SchedulerHealthEntryDto
         ?int $expectedInterval = null,
         bool $onDemand = false,
         bool $triggerable = false,
+        array $runs = [],
+        ?int $successRate24h = null,
     ) {
+        $this->runs = $runs;
+        $this->successRate24h = $successRate24h;
         $this->type = $type;
         $this->status = $status;
         $this->health = $health;
@@ -226,6 +234,18 @@ class SchedulerHealthEntryDto
         $this->expectedInterval = $expectedInterval;
         $this->onDemand = $onDemand;
         $this->triggerable = $triggerable;
+    }
+}
+
+class SchedulerHealthRunDto
+{
+    public function __construct(
+        public string $startedAt,
+        public ?string $completedAt,
+        public string $status,
+        public ?string $message,
+        public bool $stuck,
+    ) {
     }
 }
 

@@ -12,6 +12,7 @@ use App\MessageHandler\TriggerStructureMarketSyncHandler;
 use App\Repository\CharacterRepository;
 use App\Repository\UserRepository;
 use App\Service\Admin\SyncTracker;
+use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\ESI\EsiClient;
 use App\Service\Mercure\MercurePublisherService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -65,6 +66,7 @@ final class TriggerStructureMarketSyncHandlerTest extends TestCase
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            new InMemorySyncRunLog(),
         );
 
         $this->handler = new TriggerStructureMarketSyncHandler(

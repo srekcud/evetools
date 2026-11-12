@@ -50,6 +50,7 @@ class SyncTrackerTest extends TestCase
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(clock: $this->cacheClock),
             new MercurePublisherService($hub, new NullLogger()),
+            new InMemorySyncRunLog(),
         );
     }
 
@@ -123,6 +124,8 @@ class SyncTrackerTest extends TestCase
                 'expected_interval' => self::INDUSTRY_INTERVAL,
                 'on_demand' => false,
                 'triggerable' => true,
+                'runs' => [],
+                'success_rate_24h' => null,
             ],
             $this->entryFor('industry'),
         );
@@ -141,6 +144,8 @@ class SyncTrackerTest extends TestCase
                 'expected_interval' => null,
                 'on_demand' => true,
                 'triggerable' => true,
+                'runs' => [],
+                'success_rate_24h' => null,
             ],
             $this->entryFor('assets'),
         );

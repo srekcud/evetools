@@ -13,6 +13,7 @@ use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
 use App\Repository\UserRepository;
 use App\Service\Admin\SyncTracker;
+use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\JitaMarketService;
 use App\Service\Mercure\MercurePublisherService;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -58,6 +59,7 @@ final class SyncRegionalMarketVolumesHandlerTest extends TestCase
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            new InMemorySyncRunLog(),
         );
         $this->regionByStructure = [
             self::DEFAULT_STRUCTURE_ID => self::DEFAULT_REGION_ID,

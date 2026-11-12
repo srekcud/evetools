@@ -62,6 +62,14 @@ export interface AdminPveStats {
   byCorporation: PveCorporationStats[]
 }
 
+export interface SchedulerHealthRun {
+  startedAt: string
+  completedAt?: string | null
+  status: 'running' | 'ok' | 'error'
+  message?: string | null
+  stuck: boolean
+}
+
 export interface SchedulerHealthEntry {
   type: string
   status: 'running' | 'ok' | 'error' | 'unknown'
@@ -73,6 +81,8 @@ export interface SchedulerHealthEntry {
   expectedInterval?: number | null
   onDemand: boolean
   triggerable: boolean
+  runs: SchedulerHealthRun[]
+  successRate24h?: number | null
 }
 
 export interface AdminEsiErrorBudgetFamily {

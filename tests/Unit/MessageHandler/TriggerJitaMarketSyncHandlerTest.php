@@ -8,6 +8,7 @@ use App\Constant\EveConstants;
 use App\Message\TriggerJitaMarketSync;
 use App\MessageHandler\TriggerJitaMarketSyncHandler;
 use App\Service\Admin\SyncTracker;
+use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\Mercure\MercurePublisherService;
 use App\Tests\Unit\Service\SimulatesJitaMarketEsi;
 use Doctrine\DBAL\Connection;
@@ -49,6 +50,7 @@ final class TriggerJitaMarketSyncHandlerTest extends TestCase
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(),
             new MercurePublisherService($hub, new NullLogger()),
+            new InMemorySyncRunLog(),
         );
     }
 

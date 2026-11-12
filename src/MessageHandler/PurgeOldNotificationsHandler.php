@@ -6,6 +6,7 @@ namespace App\MessageHandler;
 
 use App\Message\PurgeOldNotifications;
 use App\Repository\NotificationRepository;
+use App\Service\Admin\SyncRunLog;
 use App\Service\Admin\SyncTracker;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -14,11 +15,13 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class PurgeOldNotificationsHandler
 {
     private const string SYNC_KEY = 'notifications-purge';
+    private const string SYNC_RUN_RETENTION = '-30 days';
 
     public function __construct(
         private NotificationRepository $notificationRepository,
         private LoggerInterface $logger,
         private SyncTracker $syncTracker,
+        private SyncRunLog $syncRunLog,
     ) {
     }
 
@@ -30,10 +33,13 @@ final readonly class PurgeOldNotificationsHandler
         try {
             $deleted = $this->notificationRepository->deleteOlderThan(new \DateTimeImmutable('-7 days'));
 
+            $deletedRuns = $this->syncRunLog->deleteStartedBefore(new \DateTimeImmutable(self::SYNC_RUN_RETENTION));
+
             $this->logger->info('Notification purge completed', [
                 'deleted' => $deleted,
+                'deletedSyncRuns' => $deletedRuns,
             ]);
-            $this->syncTracker->complete(self::SYNC_KEY, sprintf('%d notification(s) deleted', $deleted));
+            $this->syncTracker->complete(self::SYNC_KEY, sprintf('%d notification(s) deleted, %d sync run(s) deleted', $deleted, $deletedRuns));
         } catch (\Throwable $e) {
             $this->logger->error('Notification purge failed', [
                 'error' => $e->getMessage(),

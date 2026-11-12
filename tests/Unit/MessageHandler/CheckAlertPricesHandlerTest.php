@@ -14,6 +14,7 @@ use App\Message\CheckAlertPrices;
 use App\MessageHandler\CheckAlertPricesHandler;
 use App\Repository\MarketPriceAlertRepository;
 use App\Service\Admin\SyncTracker;
+use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\ESI\EsiClient;
 use App\Service\JitaMarketService;
 use App\Service\MarketAlertService;
@@ -54,6 +55,7 @@ final class CheckAlertPricesHandlerTest extends TestCase
         $this->syncTracker = new SyncTracker(
             new ArrayAdapter(),
             new MercurePublisherService($this->createStub(HubInterface::class), new NullLogger()),
+            new InMemorySyncRunLog(),
         );
     }
 

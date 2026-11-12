@@ -27,6 +27,7 @@ use App\Repository\NotificationRepository;
 use App\Repository\SharedShoppingListRepository;
 use App\Repository\StructureMarketSnapshotRepository;
 use App\Repository\StructureTradedVolumeRepository;
+use App\Service\Admin\SyncRunLog;
 use App\Service\Admin\SyncTracker;
 use App\Service\MiningOperation\MiningOperationNotifier;
 use App\Service\MiningSite\EveDowntime;
@@ -109,13 +110,13 @@ final class ScheduledTasksSyncTrackingTest extends TestCase
         $repository = $this->createStub(NotificationRepository::class);
         $repository->method('deleteOlderThan')->willReturn(4);
         $calls = [];
-        (new PurgeOldNotificationsHandler($repository, new NullLogger(), $this->trackerRecordingInto($calls)))(new PurgeOldNotifications());
+        (new PurgeOldNotificationsHandler($repository, new NullLogger(), $this->trackerRecordingInto($calls), $this->createStub(SyncRunLog::class)))(new PurgeOldNotifications());
         self::assertSame([['start', self::NOTIFICATIONS_PURGE_KEY], ['complete', self::NOTIFICATIONS_PURGE_KEY]], $this->withoutMessages($calls));
 
         $failingRepository = $this->createStub(NotificationRepository::class);
         $failingRepository->method('deleteOlderThan')->willThrowException(new \RuntimeException('delete failed'));
         $failedCalls = [];
-        (new PurgeOldNotificationsHandler($failingRepository, new NullLogger(), $this->trackerRecordingInto($failedCalls)))(new PurgeOldNotifications());
+        (new PurgeOldNotificationsHandler($failingRepository, new NullLogger(), $this->trackerRecordingInto($failedCalls), $this->createStub(SyncRunLog::class)))(new PurgeOldNotifications());
         self::assertSame([['start', self::NOTIFICATIONS_PURGE_KEY], ['fail', self::NOTIFICATIONS_PURGE_KEY, 'delete failed']], $failedCalls);
     }
 

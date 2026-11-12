@@ -12,6 +12,7 @@ use App\Message\SyncCorporationAssets;
 use App\MessageHandler\SyncCorporationAssetsHandler;
 use App\Repository\CharacterRepository;
 use App\Service\Admin\SyncTracker;
+use App\Tests\Unit\Service\Admin\InMemorySyncRunLog;
 use App\Service\Mercure\MercurePublisherService;
 use App\Service\Sync\AssetsSyncService;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -42,7 +43,7 @@ final class SyncCorporationAssetsHandlerTest extends TestCase
     {
         $this->publishedUpdates = [];
         $this->mercurePublisher = new MercurePublisherService($this->hubCollectingUpdates(), new NullLogger());
-        $this->syncTracker = new SyncTracker(new ArrayAdapter(), $this->mercurePublisher);
+        $this->syncTracker = new SyncTracker(new ArrayAdapter(), $this->mercurePublisher, new InMemorySyncRunLog());
     }
 
     public function testCharacterThatCannotSyncPublishesAnErrorOnTheUserCorporationAssetsTopic(): void
