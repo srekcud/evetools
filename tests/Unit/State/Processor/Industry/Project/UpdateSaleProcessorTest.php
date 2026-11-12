@@ -565,8 +565,7 @@ final class UpdateSaleProcessorTest extends TestCase
             ->setQuantity(3)
             ->setUnitPrice(61_250_000.0)
             ->setDate(new \DateTimeImmutable('2026-10-24T21:05:00+00:00'))
-            ->setLocationId(60003760)
-            ->setClientId(2119000001);
+            ->setLocationId(60003760);
         (new \ReflectionProperty(CachedWalletTransaction::class, 'id'))->setValue($t1, Uuid::v4());
 
         $this->sabreSale

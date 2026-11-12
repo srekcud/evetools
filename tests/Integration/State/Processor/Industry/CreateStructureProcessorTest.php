@@ -161,8 +161,7 @@ final class CreateStructureProcessorTest extends IntegrationTestCase
         $cached = (new CachedStructure())
             ->setStructureId($locationId)
             ->setName('Corp Sotiyo')
-            ->setOwnerCorporationId(self::CORPORATION_ID)
-            ->setResolvedAt(new \DateTimeImmutable('2026-10-01'));
+            ->setOwnerCorporationId(self::CORPORATION_ID);
         $this->em->persist($cached);
     }
 

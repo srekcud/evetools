@@ -230,7 +230,6 @@ class ResolveAllStructuresCommand extends Command
             $existing->setSolarSystemId($solarSystemId);
             $existing->setOwnerCorporationId($ownerId);
             $existing->setTypeId($typeId);
-            $existing->setResolvedAt(new \DateTimeImmutable());
             return;
         }
 

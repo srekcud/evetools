@@ -135,7 +135,6 @@ final class PurchaseSuggestionProviderTest extends TestCase
             ->setUnitPrice($unitPrice)
             ->setIsBuy(true)
             ->setLocationId(self::JITA_4_4_STATION_ID)
-            ->setClientId(1_000_125)
             ->setDate(new \DateTimeImmutable('2026-11-02T12:00:00+00:00'));
         $this->buysByCharacterName[$character->getName()][] = $transaction;
 

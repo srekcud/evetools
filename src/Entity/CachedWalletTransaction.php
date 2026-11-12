@@ -43,9 +43,6 @@ class CachedWalletTransaction
     #[ORM\Column(type: 'bigint')]
     private int $locationId;
 
-    #[ORM\Column(type: 'bigint')]
-    private int $clientId;
-
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $date;
 
@@ -137,17 +134,6 @@ class CachedWalletTransaction
     public function setLocationId(int $locationId): static
     {
         $this->locationId = $locationId;
-        return $this;
-    }
-
-    public function getClientId(): int
-    {
-        return $this->clientId;
-    }
-
-    public function setClientId(int $clientId): static
-    {
-        $this->clientId = $clientId;
         return $this;
     }
 

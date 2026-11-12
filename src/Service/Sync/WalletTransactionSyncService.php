@@ -91,7 +91,6 @@ class WalletTransactionSyncService
                     $tx->setUnitPrice((float) $txData['unit_price']);
                     $tx->setIsBuy($txData['is_buy']);
                     $tx->setLocationId((int) $txData['location_id']);
-                    $tx->setClientId((int) $txData['client_id']);
                     $tx->setDate(new \DateTimeImmutable($txData['date']));
 
                     $this->entityManager->persist($tx);

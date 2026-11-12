@@ -179,7 +179,6 @@ final class ProjectJobAndPurchaseTrackingApiTest extends WebTestCase
             ->setUnitPrice($unitPrice)
             ->setIsBuy(true)
             ->setLocationId(self::JITA_STATION_ID)
-            ->setClientId(91_362_001)
             ->setDate(new \DateTimeImmutable('2026-11-02T09:00:00+00:00')));
     }
 

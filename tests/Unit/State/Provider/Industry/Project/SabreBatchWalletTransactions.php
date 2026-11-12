@@ -104,8 +104,7 @@ trait SabreBatchWalletTransactions
             ->setQuantity($quantity)
             ->setUnitPrice($unitPrice)
             ->setDate(new \DateTimeImmutable($date))
-            ->setLocationId($locationId)
-            ->setClientId(2_119_000_000 + $transactionId % 1000);
+            ->setLocationId($locationId);
         (new \ReflectionProperty(CachedWalletTransaction::class, 'id'))->setValue($transaction, Uuid::v4());
         $this->walletTransactions[] = $transaction;
 
