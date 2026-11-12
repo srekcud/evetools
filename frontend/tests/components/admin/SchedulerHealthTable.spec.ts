@@ -224,3 +224,26 @@ describe('SchedulerHealthTable ESI throttle note', () => {
     expect(wrapper.text()).toContain(en.admin.scheduler.throttleEsi)
   })
 })
+
+describe('SchedulerHealthTable layout', () => {
+  it('writes the last message under the sync name with the full text as tooltip', () => {
+    const wrapper = mountTable([entry(MAPPED_TYPE, { message: 'Access forbidden' })])
+
+    const message = rowFor(wrapper, MAPPED_TYPE).find('[data-testid="scheduler-message"]')
+
+    expect(message.text()).toBe('Access forbidden')
+    expect(message.attributes('title')).toBe('Access forbidden')
+  })
+
+  it('writes no message line when the sync has no message', () => {
+    const wrapper = mountTable([entry(MAPPED_TYPE, { message: null })])
+
+    expect(rowFor(wrapper, MAPPED_TYPE).find('[data-testid="scheduler-message"]').exists()).toBe(false)
+  })
+
+  it('keeps the table to six columns so it fits beside the maintenance card', () => {
+    const wrapper = mountTable([entry(MAPPED_TYPE)])
+
+    expect(wrapper.findAll('thead th')).toHaveLength(6)
+  })
+})

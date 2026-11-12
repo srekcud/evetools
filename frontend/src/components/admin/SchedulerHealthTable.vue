@@ -79,69 +79,72 @@ function intervalLabel(entry: SchedulerHealthEntry): string {
         <thead>
           <tr class="text-slate-500 text-xs uppercase">
             <th class="text-left pb-3 font-medium">{{ t('admin.sync.type') }}</th>
-            <th class="text-left pb-3 font-medium">{{ t('admin.sync.lastRun') }}</th>
-            <th class="text-left pb-3 font-medium">{{ t('admin.sync.nextRun') }}</th>
+            <th class="text-left pb-3 font-medium whitespace-nowrap">{{ t('admin.sync.lastRun') }} / {{ t('admin.sync.nextRun') }}</th>
             <th class="text-left pb-3 font-medium">{{ t('admin.sync.duration') }}</th>
-            <th class="text-center pb-3 font-medium">{{ t('admin.sync.status') }}</th>
-            <th class="text-center pb-3 font-medium">{{ t('admin.sync.health') }}</th>
+            <th class="text-left pb-3 font-medium">{{ t('admin.sync.status') }}</th>
             <th class="text-left pb-3 font-medium">{{ t('admin.sync.history') }}</th>
-            <th class="text-left pb-3 font-medium">{{ t('admin.sync.message') }}</th>
-            <th class="text-center pb-3 font-medium w-16"></th>
+            <th class="pb-3 w-8"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
           <tr v-for="entry in sortedEntries" :key="entry.type" class="hover:bg-slate-800/30">
-            <td class="py-2.5 pr-3">
-              <span class="text-slate-200 font-medium">{{ t(`admin.sync.types.${entry.type}`) }}</span>
-              <span class="text-slate-500 text-xs ml-1">({{ intervalLabel(entry) }})</span>
+            <td class="py-2.5 pr-3 max-w-0 w-full">
+              <div class="truncate">
+                <span class="text-slate-200 font-medium">{{ t(`admin.sync.types.${entry.type}`) }}</span>
+                <span class="text-slate-500 text-xs ml-1">({{ intervalLabel(entry) }})</span>
+              </div>
+              <div
+                v-if="entry.message"
+                data-testid="scheduler-message"
+                class="text-slate-500 text-xs truncate"
+                :title="entry.message"
+              >{{ entry.message }}</div>
             </td>
-            <td class="py-2.5 pr-3">
-              <span class="text-slate-300 font-mono text-xs">{{ entry.completedAt ? formatTimeSince(entry.completedAt) : '--' }}</span>
-            </td>
-            <td class="py-2.5 pr-3">
-              <span
+            <td class="py-2.5 pr-3 whitespace-nowrap">
+              <div class="text-slate-300 font-mono text-xs">{{ entry.completedAt ? formatTimeSince(entry.completedAt) : '--' }}</div>
+              <div
                 data-testid="scheduler-next-run"
-                :class="['font-mono text-xs', nextRunView(entry)?.overdue ? 'text-red-400' : 'text-slate-300']"
-              >{{ nextRunView(entry)?.text ?? '--' }}</span>
+                :class="['font-mono text-xs', nextRunView(entry)?.overdue ? 'text-red-400' : 'text-slate-500']"
+              >{{ nextRunView(entry)?.text ?? '--' }}</div>
             </td>
-            <td class="py-2.5 pr-3">
+            <td class="py-2.5 pr-3 whitespace-nowrap">
               <span data-testid="scheduler-duration" class="text-slate-300 font-mono text-xs">{{ durationText(entry) }}</span>
             </td>
-            <td class="py-2.5 text-center">
-              <span
-                :class="[
-                  'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                  entry.status === 'ok' ? 'bg-emerald-500/20 text-emerald-400' :
-                  entry.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
-                  entry.status === 'error' ? 'bg-red-500/20 text-red-400' :
-                  'bg-slate-500/20 text-slate-400'
-                ]"
-              >
-                <svg v-if="entry.status === 'running'" class="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                {{ entry.status === 'ok' ? 'OK' : entry.status === 'running' ? t('admin.sync.running') : entry.status === 'error' ? t('common.status.error') : '--' }}
-              </span>
+            <td class="py-2.5 pr-3 whitespace-nowrap">
+              <div class="flex items-center gap-2">
+                <span
+                  :class="[
+                    'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                    entry.status === 'ok' ? 'bg-emerald-500/20 text-emerald-400' :
+                    entry.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
+                    entry.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                    'bg-slate-500/20 text-slate-400'
+                  ]"
+                >
+                  <svg v-if="entry.status === 'running'" class="w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                  {{ entry.status === 'ok' ? 'OK' : entry.status === 'running' ? t('admin.sync.running') : entry.status === 'error' ? t('common.status.error') : '--' }}
+                </span>
+                <span v-if="entry.onDemand" class="text-slate-500 text-xs" :title="t('admin.health.onDemandHint')">--</span>
+                <span
+                  v-else
+                  :class="[
+                    'inline-block w-2.5 h-2.5 rounded-full',
+                    entry.health === 'healthy' ? 'bg-emerald-400' :
+                    entry.health === 'late' ? 'bg-amber-400' :
+                    entry.health === 'stale' ? 'bg-red-400' :
+                    entry.health === 'running' ? 'bg-blue-400 animate-pulse' :
+                    'bg-slate-600'
+                  ]"
+                  :title="entry.health === 'healthy' ? t('admin.health.onTime') :
+                          entry.health === 'late' ? t('admin.health.late') :
+                          entry.health === 'stale' ? t('admin.health.stale') :
+                          entry.health === 'running' ? t('admin.sync.running') : t('admin.health.unknown')"
+                ></span>
+              </div>
             </td>
-            <td class="py-2.5 text-center">
-              <span v-if="entry.onDemand" class="text-slate-500 text-xs" :title="t('admin.health.onDemandHint')">--</span>
-              <span
-                v-else
-                :class="[
-                  'inline-block w-2.5 h-2.5 rounded-full',
-                  entry.health === 'healthy' ? 'bg-emerald-400' :
-                  entry.health === 'late' ? 'bg-amber-400' :
-                  entry.health === 'stale' ? 'bg-red-400' :
-                  entry.health === 'running' ? 'bg-blue-400 animate-pulse' :
-                  'bg-slate-600'
-                ]"
-                :title="entry.health === 'healthy' ? t('admin.health.onTime') :
-                        entry.health === 'late' ? t('admin.health.late') :
-                        entry.health === 'stale' ? t('admin.health.stale') :
-                        entry.health === 'running' ? t('admin.sync.running') : t('admin.health.unknown')"
-              ></span>
-            </td>
-            <td class="py-2.5 pl-3">
+            <td class="py-2.5 pr-3 whitespace-nowrap">
               <div class="flex items-center gap-2">
                 <div class="flex items-center gap-0.5">
                   <span
@@ -164,9 +167,6 @@ function intervalLabel(entry: SchedulerHealthEntry): string {
                   class="text-slate-300 font-mono text-xs"
                 >{{ successRateText(entry) }}</span>
               </div>
-            </td>
-            <td class="py-2.5 pl-3">
-              <span class="text-slate-500 text-xs truncate max-w-[200px] inline-block">{{ entry.message || '--' }}</span>
             </td>
             <td class="py-2.5 text-center">
               <button
