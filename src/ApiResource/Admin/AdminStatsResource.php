@@ -63,7 +63,7 @@ class AdminStatsResource
 
     public EsiErrorBudgetDto $esiErrorBudget;
 
-    /** @var array<int, mixed> */
+    /** @var EsiRateLimitGroupDto[] */
     public array $esiRateLimits = [];
 
     public MercureCookieDto $mercureCookie;
@@ -267,6 +267,19 @@ class EsiErrorBudgetDto
 
     /** @var EsiLimitedHourDto[] */
     public array $hourly = [];
+}
+
+class EsiRateLimitGroupDto
+{
+    public function __construct(
+        public string $group = '',
+        public int $remaining = 0,
+        public int $limit = 0,
+        public int $windowSeconds = 0,
+        public string $observedAt = '',
+        public string $level = 'unknown',
+    ) {
+    }
 }
 
 class EsiLimitedFamilyDto

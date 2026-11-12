@@ -11,6 +11,7 @@ use App\ApiResource\Admin\AdminCharacterDto;
 use App\ApiResource\Admin\CharacterToRepairDto;
 use App\ApiResource\Admin\EsiLimitedFamilyDto;
 use App\ApiResource\Admin\EsiLimitedHourDto;
+use App\ApiResource\Admin\EsiRateLimitGroupDto;
 use App\ApiResource\Admin\MercureCookieUserDto;
 use App\ApiResource\Admin\ModuleActiveUsersDto;
 use App\ApiResource\Admin\PveCorporationStatsDto;
@@ -166,6 +167,7 @@ class AdminStatsProvider implements ProviderInterface
         );
 
         $this->fillEsiErrorBudget($resource);
+        $this->fillEsiRateLimits($resource);
         $this->fillMercureCookie($resource);
         $this->fillCharactersToRepair($resource);
         $this->fillAdminCharacters($resource);
@@ -240,6 +242,21 @@ class AdminStatsProvider implements ProviderInterface
         $budget->hourly = array_map(
             static fn (array $hour): EsiLimitedHourDto => new EsiLimitedHourDto($hour['hour'], $hour['limited420'], $hour['limited429']),
             $snapshot['hourly'],
+        );
+    }
+
+    private function fillEsiRateLimits(AdminStatsResource $resource): void
+    {
+        $resource->esiRateLimits = array_map(
+            static fn (array $group): EsiRateLimitGroupDto => new EsiRateLimitGroupDto(
+                $group['group'],
+                $group['remaining'],
+                $group['limit'],
+                $group['windowSeconds'],
+                $group['observedAt'],
+                $group['level'],
+            ),
+            $this->rateLimitBudget->snapshot(),
         );
     }
 
