@@ -2551,6 +2551,13 @@
     "scheduler": {
       "throttleEsi": "Throttle ESI : progressif sous 20 errors remain, pause sous 5"
     },
+    "esiRateLimit": {
+      "title": "Budgets de groupes ESI",
+      "group": "Groupe de routes",
+      "remaining": "Restant / limite",
+      "level": "Niveau",
+      "empty": "Aucun budget de groupe observé pour l'instant"
+    },
     "charts": {
       "registrations": "Inscriptions",
       "logins": "Connexions",

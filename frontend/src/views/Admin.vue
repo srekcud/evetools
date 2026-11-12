@@ -11,6 +11,7 @@ import AdminStatusBanner from '@/components/admin/AdminStatusBanner.vue'
 import AdminKpiGrid from '@/components/admin/AdminKpiGrid.vue'
 import SchedulerHealthTable from '@/components/admin/SchedulerHealthTable.vue'
 import EsiErrorBudgetCard from '@/components/admin/EsiErrorBudgetCard.vue'
+import EsiRateLimitCard from '@/components/admin/EsiRateLimitCard.vue'
 import MercureCookieCard from '@/components/admin/MercureCookieCard.vue'
 import CharactersToRepairCard from '@/components/admin/CharactersToRepairCard.vue'
 import AdminCharactersCard from '@/components/admin/AdminCharactersCard.vue'
@@ -290,6 +291,8 @@ watch(
         </div>
 
         <EsiErrorBudgetCard v-if="stats?.esiErrorBudget" :budget="stats.esiErrorBudget" />
+
+        <EsiRateLimitCard v-if="stats?.esiRateLimits" :groups="stats.esiRateLimits" />
 
         <MercureCookieCard v-if="stats?.mercureCookie" :mercure-cookie="stats.mercureCookie" />
       </template>

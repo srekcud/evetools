@@ -51,6 +51,10 @@ services:
         arguments:
             $cache: '@esi_error_budget.cache'
 
+    App\Service\ESI\EsiRateLimitBudget:
+        arguments:
+            $cache: '@esi_error_budget.cache'
+
     App\Service\ESI\EsiClient:
         arguments:
             $esiCache: '@esi.cache'

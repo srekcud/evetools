@@ -109,6 +109,15 @@ export interface AdminEsiErrorBudget {
   hourly: AdminEsiErrorBudgetHour[]
 }
 
+export interface AdminEsiRateLimitGroup {
+  group: string
+  remaining: number
+  limit: number
+  windowSeconds: number
+  observedAt: string
+  level: 'unknown' | 'ok' | 'low' | 'critical'
+}
+
 export interface AdminMercureCookieUser {
   userId: string
   mainCharacterName: string | null
@@ -186,6 +195,7 @@ export interface AdminStats {
   schedulerHealth: SchedulerHealthEntry[]
   moduleActiveUsers: AdminModuleActiveUsers[]
   esiErrorBudget: AdminEsiErrorBudget
+  esiRateLimits: AdminEsiRateLimitGroup[]
   mercureCookie: AdminMercureCookie
   charactersToRepair: AdminCharactersToRepair
   adminCharacters: AdminCharacters
