@@ -1,0 +1,1 @@
+export const SYNC_EVENT_TIMEOUT_MS = 120_000
