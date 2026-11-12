@@ -12,6 +12,7 @@ use App\Entity\EveToken;
 use App\Exception\EsiApiException;
 use App\Repository\CachedStructureRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Repository\Sde\StaStationRepository;
 use App\Service\TypeNameResolver;
 use App\Service\UnknownTypeName;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,6 +37,7 @@ class AssetsService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly TypeNameResolver $typeNameResolver,
+        private readonly StaStationRepository $staStationRepository,
     ) {
     }
 
@@ -446,7 +448,26 @@ class AssetsService
         }
 
         // Resolve station info
+        $sdeStations = $this->staStationRepository->findByStationIds($stationIds);
+        foreach ($sdeStations as $stationId => $station) {
+            $systemId = $station->getSolarSystem()->getSolarSystemId();
+            $info[$stationId] = [
+                'name' => $station->getStationName(),
+                'solar_system_id' => $systemId,
+                'solar_system_name' => null,
+            ];
+            $solarSystemIds[$systemId] = true;
+        }
+
         foreach ($stationIds as $stationId) {
+            if (isset($sdeStations[$stationId])) {
+                continue;
+            }
+
+            $this->logger->warning('NPC station missing from the SDE, resolved through ESI', [
+                'station_id' => $stationId,
+            ]);
+
             try {
                 $data = $this->esiClient->get("/universe/stations/{$stationId}/");
                 $info[$stationId] = [

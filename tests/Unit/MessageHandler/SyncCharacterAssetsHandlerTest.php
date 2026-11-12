@@ -15,6 +15,7 @@ use App\Repository\CachedStructureRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\Sde\InvTypeRepository;
 use App\Repository\Sde\MapSolarSystemRepository;
+use App\Repository\Sde\StaStationRepository;
 use App\Service\ESI\AssetsService;
 use App\Service\ESI\CharacterService;
 use App\Service\ESI\CorporationRoleReader;
@@ -122,6 +123,7 @@ final class SyncCharacterAssetsHandlerTest extends TestCase
             $entityManager,
             new NullLogger(),
             new TypeNameResolver($this->createStub(InvTypeRepository::class)),
+            $this->createStub(StaStationRepository::class),
         );
         $characterRepository = $this->createStub(CharacterRepository::class);
         $characterRepository->method('find')->willReturn($character);
