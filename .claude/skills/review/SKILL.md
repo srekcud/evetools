@@ -1,7 +1,6 @@
 ---
 name: review
 description: Review de la branche courante par les reviewers spécialisés (API Platform, ESI, sécurité, DDD, tests) ; rapport consolidé, aucune modification.
-disable-model-invocation: true
 argument-hint: [base] (défaut : main)
 ---
 

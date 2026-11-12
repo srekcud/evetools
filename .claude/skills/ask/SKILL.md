@@ -38,5 +38,5 @@ Rends la liste des décisions, une ligne chacune, avec leur destination (spec, g
 
 ## Quand ne pas poser de question
 
-- **Mode nuit ou session non interactive** (consigne de Sylvain, brief du thread, `AskUserQuestion` indisponible) : n'appelle pas l'outil. Applique les décisions déjà prises, retiens la recommandation pour ce qui est couvert par le brief ou l'issue, et écris le reste dans « Blocages » du journal avec options et recommandation, puis passe à la suite.
+- **Mode nuit (par défaut) ou session non interactive** (sauf mode jour demandé par Sylvain, ou `AskUserQuestion` indisponible) : n'appelle pas l'outil. Applique les décisions déjà prises, retiens la recommandation pour ce qui est couvert par le brief ou l'issue, et écris le reste dans « Blocages » du journal avec options et recommandation, puis passe à la suite.
 - Une décision déjà prise (commentaire d'issue, spec validée, mémoire) ne se redemande pas.

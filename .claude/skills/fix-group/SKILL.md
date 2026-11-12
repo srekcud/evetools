@@ -1,7 +1,6 @@
 ---
 name: fix-group
 description: Traite dans un thread toutes les issues d'un label group:*, chacune selon son label circuit:* (léger, standard, complet), jusqu'à la fusion locale dans main.
-disable-model-invocation: true
 argument-hint: <label group:…>
 ---
 
@@ -57,7 +56,7 @@ Elle se calcule sur le diff de la branche (`git diff main...HEAD`), jamais sur l
 3. Après la fusion et les gates verts, **si la technicité du lot (section 4) l'autorise** : `git push origin main` (fast-forward seulement, jamais `--force`, jamais de tag). Sinon, laisse `main` local et note-le dans le journal. Si le push est rejeté, ne résous rien : note-le dans le journal et dans le rapport.
 4. Si la technicité l'autorise, ferme chaque issue dont le correctif est entièrement dans `main` : `zsh -ic 'gh issue close <n> --reason completed --comment "Corrigé dans main (<sha>) : <une ligne>."'` (commentaire en français, sans attribution IA). Une issue partielle, ou dont une décision reste ouverte, reste ouverte avec un commentaire qui dit ce qui reste. Vérifie l'état avec `gh issue view <n> --json state` avant et après (le push d'un autre thread ou une fermeture manuelle est possible).
 
-Les gates 🚦 de `/spec` et `/tdd-red` restent à Sylvain, sauf si le brief du thread indique le mode nuit.
+Le mode nuit est le mode par défaut : les gates 🚦 de `/spec` et `/tdd-red` sont validés en autonomie. Ils restent à Sylvain seulement en mode jour, s'il le demande (consigne ou brief du thread). `circuit:decision`, la technicité (section 4) et la fusion des PR ne changent pas.
 
 ## 4b. Budget de tokens
 

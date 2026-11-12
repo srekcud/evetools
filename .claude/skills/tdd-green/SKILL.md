@@ -1,7 +1,6 @@
 ---
 name: tdd-green
 description: Phase verte du TDD — implémente jusqu'au vert sans jamais modifier les tests (verrouillés par le hook tdd-guard), puis refactor et review.
-disable-model-invocation: true
 argument-hint: <numéro d'issue>
 ---
 
