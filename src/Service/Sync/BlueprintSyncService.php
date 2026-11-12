@@ -9,10 +9,13 @@ use App\Dto\BlueprintDto;
 use App\Entity\Character;
 use App\Entity\OwnedBlueprint;
 use App\Entity\User;
+use App\Enum\CharacterSyncFailureReason;
+use App\Enum\CorporationRoleStatus;
 use App\Repository\CachedAssetRepository;
 use App\Repository\CharacterRepository;
 use App\Repository\OwnedBlueprintRepository;
 use App\Service\ESI\BlueprintsService;
+use App\Service\ESI\CorporationRoleLookup;
 use App\Service\ESI\CorporationRoleReader;
 use App\Service\Mercure\MercurePublisherService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -47,6 +50,10 @@ class BlueprintSyncService
             $corporationIds = $user->getCharacterCorporationIds();
             $stepCount = count($characters) + count($corporationIds);
             $stepsDone = 0;
+            $corporationNames = [];
+            foreach ($characters as $character) {
+                $corporationNames[$character->getCorporationId()] = $character->getCorporationName();
+            }
             $syncedCharacters = 0;
             $syncedCorporations = 0;
             $failures = [];
@@ -63,7 +70,7 @@ class BlueprintSyncService
             }
 
             foreach ($corporationIds as $corporationId) {
-                $outcome = $this->syncCorporation($corporationId);
+                $outcome = $this->syncCorporation($corporationId, $corporationNames[$corporationId]);
                 if ($outcome instanceof CharacterSyncFailure) {
                     $failures[] = $outcome->toArray();
                 } elseif ($outcome) {
@@ -85,9 +92,15 @@ class BlueprintSyncService
                 return;
             }
 
+            $corporationsWithoutDirector = count(array_filter($failures, static fn (array $failure): bool => $failure['reason'] === CharacterSyncFailureReason::NoDirector->value));
+            $charactersNotSynced = count($failures) - $corporationsWithoutDirector;
+
             $message = sprintf('%d characters and %d corporations synced', $syncedCharacters, $syncedCorporations);
-            if ($failures !== []) {
-                $message .= sprintf(', %d characters not synced', count($failures));
+            if ($charactersNotSynced > 0) {
+                $message .= sprintf(', %d characters not synced', $charactersNotSynced);
+            }
+            if ($corporationsWithoutDirector > 0) {
+                $message .= sprintf(', %d corporations without a Director', $corporationsWithoutDirector);
             }
             $this->mercurePublisher->syncCompleted($userId, self::SYNC_TYPE, $message, $data);
         } catch (\Throwable $e) {
@@ -134,11 +147,14 @@ class BlueprintSyncService
         return true;
     }
 
-    private function syncCorporation(int $corporationId): bool|CharacterSyncFailure
+    private function syncCorporation(int $corporationId, string $corporationName): bool|CharacterSyncFailure
     {
-        $reader = $this->corporationReader($corporationId);
+        $lookup = $this->corporationReaderLookup($corporationId);
+        $reader = $lookup->holder;
         if ($reader === null) {
-            return false;
+            return $lookup->status === CorporationRoleStatus::RoleAbsent
+                ? CharacterSyncFailure::noDirector($corporationId, $corporationName)
+                : false;
         }
 
         try {
@@ -164,14 +180,14 @@ class BlueprintSyncService
         return true;
     }
 
-    private function corporationReader(int $corporationId): ?Character
+    private function corporationReaderLookup(int $corporationId): CorporationRoleLookup
     {
         return $this->corporationRoleReader->findHolder(
             $corporationId,
             array_values($this->characterRepository->findByCorporationId($corporationId)),
             [],
             [EveConstants::CORPORATION_BLUEPRINTS_SCOPE, EveConstants::CORPORATION_ROLES_SCOPE],
-        )->holder;
+        );
     }
 
     private function ownedBlueprintOf(BlueprintDto $blueprint, \DateTimeImmutable $syncedAt): OwnedBlueprint

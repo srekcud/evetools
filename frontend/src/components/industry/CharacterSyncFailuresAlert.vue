@@ -14,7 +14,7 @@ defineEmits<{
 
 const { t } = useI18n()
 
-const REASONS_REQUIRING_RECONNECTION: CharacterSyncFailureReason[] = ['missing_token', 'missing_scope', 'authentication_required']
+const REASONS_REQUIRING_RECONNECTION: CharacterSyncFailureReason[] = ['missing_token', 'missing_scope', 'authentication_required', 'no_director']
 
 const mustReconnectCharacters = computed(() =>
   props.failures.some(failure => REASONS_REQUIRING_RECONNECTION.includes(failure.reason)),

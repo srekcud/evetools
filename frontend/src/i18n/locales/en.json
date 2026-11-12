@@ -1236,7 +1236,8 @@
         "esi_rate_limited": "ESI request limit reached, retry later",
         "esi_unavailable": "ESI unavailable (maintenance or server error), retry later",
         "esi_error": "ESI error {status}",
-        "sync_failed": "sync failed"
+        "sync_failed": "sync failed",
+        "no_director": "no Director connected, connect one to sync the corporation blueprints"
       },
       "reconnectLink": "Reconnect characters"
     },
@@ -1282,7 +1283,7 @@
         "detail": "The corporation blueprints are listed only for the divisions made visible to you. Your personal blueprints stay up to date."
       },
       "syncErrorTitle": "Blueprints sync failed ({count} error), the list shown may be out of date: | Blueprints sync failed ({count} errors), the list shown may be out of date:",
-      "syncFailuresTitle": "Blueprints not synced for {count} character at the last sync: | Blueprints not synced for {count} characters at the last sync:"
+      "syncFailuresTitle": "Blueprints not synced for {count} character or corporation at the last sync: | Blueprints not synced for {count} characters or corporations at the last sync:"
     },
     "jobsSyncError": {
       "title": "Industry jobs sync failed ({count} error), the jobs shown may be out of date: | Industry jobs sync failed ({count} errors), the jobs shown may be out of date:"

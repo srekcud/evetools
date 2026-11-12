@@ -107,12 +107,13 @@ export interface CharacterSkill {
   lastSyncAt: string | null
 }
 
-export type CharacterSyncFailureReason = 'missing_token' | 'missing_scope' | 'authentication_required' | 'esi_rate_limited' | 'esi_unavailable' | 'esi_error' | 'sync_failed'
+export type CharacterSyncFailureReason = 'missing_token' | 'missing_scope' | 'authentication_required' | 'esi_rate_limited' | 'esi_unavailable' | 'esi_error' | 'sync_failed' | 'no_director'
 
 export interface CharacterSyncFailure {
   characterName: string
   reason: CharacterSyncFailureReason
   statusCode: number | null
+  corporationId?: number
 }
 
 export interface UserSettings {

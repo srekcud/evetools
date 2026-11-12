@@ -13,4 +13,5 @@ enum CharacterSyncFailureReason: string
     case EsiUnavailable = 'esi_unavailable';
     case EsiError = 'esi_error';
     case SyncFailed = 'sync_failed';
+    case NoDirector = 'no_director';
 }

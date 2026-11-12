@@ -22,10 +22,10 @@ final class CharacterSyncFailureTest extends TestCase
     private const string PILOT_TWO = 'Pilot Two';
     private const string PILOT_THREE = 'Pilot Three';
 
-    public function testOffersExactlyTheSevenReasonsOfAnUnsyncedCharacter(): void
+    public function testOffersExactlyTheEightReasonsOfAnUnsyncedCharacterOrCorporation(): void
     {
         $this->assertSame(
-            ['missing_token', 'missing_scope', 'authentication_required', 'esi_rate_limited', 'esi_unavailable', 'esi_error', 'sync_failed'],
+            ['missing_token', 'missing_scope', 'authentication_required', 'esi_rate_limited', 'esi_unavailable', 'esi_error', 'sync_failed', 'no_director'],
             array_map(static fn (CharacterSyncFailureReason $reason): string => $reason->value, CharacterSyncFailureReason::cases()),
         );
     }
@@ -44,6 +44,21 @@ final class CharacterSyncFailureTest extends TestCase
             ['characterName' => self::PILOT_THREE, 'reason' => 'missing_scope', 'statusCode' => null],
             CharacterSyncFailure::missingScope($this->character(self::PILOT_THREE))->toArray(),
         );
+    }
+
+    #[Group('issue-734')]
+    public function testNamesACorporationWithoutDirectorByItsNameAndIdentifierWithoutStatusCode(): void
+    {
+        $this->assertSame(
+            ['characterName' => 'Solberg Industries', 'reason' => 'no_director', 'statusCode' => null, 'corporationId' => 98_357_001],
+            CharacterSyncFailure::noDirector(98_357_001, 'Solberg Industries')->toArray(),
+        );
+    }
+
+    #[Group('issue-734')]
+    public function testKeepsTheCorporationIdentifierOutOfTheFailureOfACharacter(): void
+    {
+        $this->assertArrayNotHasKey('corporationId', CharacterSyncFailure::missingToken($this->character(self::PILOT_TWO))->toArray());
     }
 
     public static function provideEsiStatusCodeAndReason(): iterable

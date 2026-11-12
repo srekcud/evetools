@@ -98,6 +98,19 @@ describe('CharacterSyncFailuresAlert', () => {
     },
   )
 
+  it('names the corporation without a connected Director in english and links to the characters page', () => {
+    const wrapper = mountAlert([{ characterName: 'Solberg Industries', reason: 'no_director', statusCode: null, corporationId: 98357001 }])
+
+    expect(lines(wrapper)).toEqual(['Solberg Industries: no Director connected, connect one to sync the corporation blueprints'])
+    expect(linkTargets(wrapper, 'Reconnect characters')).toEqual(['/characters'])
+  })
+
+  it('names the corporation without a connected Director in french', () => {
+    const wrapper = mountAlert([{ characterName: 'Solberg Industries', reason: 'no_director', statusCode: null, corporationId: 98357001 }], 'fr')
+
+    expect(lines(wrapper)).toEqual(['Solberg Industries : aucun Director connecté, connectez-en un pour synchroniser les blueprints de la corporation'])
+  })
+
   it('links to the characters page in french', () => {
     const wrapper = mountAlert([{ characterName: 'Pilot Three', reason: 'missing_scope', statusCode: null }], 'fr')
 
@@ -143,6 +156,7 @@ describe('CharacterSyncFailuresAlert', () => {
       'reasons.esi_unavailable',
       'reasons.missing_scope',
       'reasons.missing_token',
+      'reasons.no_director',
       'reasons.sync_failed',
       'reconnectLink',
       'skillsTitle',
