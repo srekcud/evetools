@@ -24,6 +24,7 @@ use App\State\Provider\Admin\AdminStatsProvider;
         new Get(
             uriTemplate: '/admin/stats',
             provider: AdminStatsProvider::class,
+            normalizationContext: ['skip_null_values' => false],
             openapi: new Model\Operation(summary: 'Get admin statistics', tags: ['Administration']),
         ),
     ],
@@ -56,6 +57,9 @@ class AdminStatsResource
 
     /** @var SchedulerHealthEntryDto[] */
     public array $schedulerHealth = [];
+
+    /** @var ModuleActiveUsersDto[] */
+    public array $moduleActiveUsers = [];
 
     public EsiErrorBudgetDto $esiErrorBudget;
 
@@ -177,6 +181,16 @@ class MarketStatsDto
     public int $alertsActive = 0;
     public int $alertsTriggered = 0;
     public int $favorites = 0;
+}
+
+class ModuleActiveUsersDto
+{
+    public function __construct(
+        public string $module = '',
+        public ?int $activeLast7Days = null,
+        public ?int $activeLast30Days = null,
+    ) {
+    }
 }
 
 class SchedulerHealthEntryDto

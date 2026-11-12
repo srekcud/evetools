@@ -19,6 +19,7 @@ import MaintenanceActions from '@/components/admin/MaintenanceActions.vue'
 import FailedMessagesCard from '@/components/admin/FailedMessagesCard.vue'
 import AdminChartsGrid from '@/components/admin/AdminChartsGrid.vue'
 import PveCorpRevenue from '@/components/admin/PveCorpRevenue.vue'
+import ModuleActiveUsersCard from '@/components/admin/ModuleActiveUsersCard.vue'
 import type { MaintenanceActionKey } from '@/components/admin/maintenanceActionKeys'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import {
@@ -309,6 +310,11 @@ watch(
         <div class="relative rounded-xl" :class="{ 'hud-updated': statsUpdated }">
           <AdminKpiGrid :stats="stats" :queues="queues" scope="statistics" />
         </div>
+        <ModuleActiveUsersCard
+          v-if="stats?.moduleActiveUsers"
+          :modules="stats.moduleActiveUsers"
+          :active-users-last30-days="stats.users.activeLastMonth"
+        />
         <AdminChartsGrid :charts="charts" />
         <PveCorpRevenue :pve="stats?.pve" />
       </template>

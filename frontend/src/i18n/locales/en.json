@@ -2487,6 +2487,23 @@
         "planetary": "Planetary colonies"
       }
     },
+    "moduleActiveUsers": {
+      "title": "Active users per module",
+      "description": "Users with data in the module who logged in during the period",
+      "module": "Module",
+      "last7Days": "7 days",
+      "last30Days": "30 days",
+      "unavailable": "measure unavailable",
+      "modules": {
+        "industry": "Industry",
+        "groupIndustry": "Group projects",
+        "mining": "Mining",
+        "planetary": "Planetary interaction",
+        "market": "Market",
+        "pve": "PVE",
+        "contracts": "Contracts"
+      }
+    },
     "mercureCookie": {
       "title": "Mercure cookie size",
       "threshold": "Users from {warning} bytes up to the browser limit of {limit} bytes",

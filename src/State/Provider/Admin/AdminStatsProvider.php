@@ -12,6 +12,7 @@ use App\ApiResource\Admin\CharacterToRepairDto;
 use App\ApiResource\Admin\EsiLimitedFamilyDto;
 use App\ApiResource\Admin\EsiLimitedHourDto;
 use App\ApiResource\Admin\MercureCookieUserDto;
+use App\ApiResource\Admin\ModuleActiveUsersDto;
 use App\ApiResource\Admin\PveCorporationStatsDto;
 use App\ApiResource\Admin\SchedulerHealthEntryDto;
 use App\Entity\User;
@@ -123,6 +124,15 @@ class AdminStatsProvider implements ProviderInterface
         $resource->market->alertsActive = $stats['market']['alertsActive'] ?? 0;
         $resource->market->alertsTriggered = $stats['market']['alertsTriggered'] ?? 0;
         $resource->market->favorites = $stats['market']['favorites'] ?? 0;
+
+        $resource->moduleActiveUsers = array_map(
+            static fn (array $row): ModuleActiveUsersDto => new ModuleActiveUsersDto(
+                $row['module'],
+                $row['activeLast7Days'],
+                $row['activeLast30Days'],
+            ),
+            $stats['moduleActiveUsers'] ?? [],
+        );
 
         // Scheduler Health
         $resource->schedulerHealth = array_map(

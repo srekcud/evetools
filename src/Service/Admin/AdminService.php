@@ -6,11 +6,28 @@ namespace App\Service\Admin;
 
 use App\Entity\User;
 use App\Enum\AuthStatus;
+use App\Enum\ParticipantStatus;
 use Doctrine\DBAL\Connection;
 
 class AdminService
 {
     private const REGISTRATION_CHART_WEEKS = 12;
+    private const ACTIVE_WEEK_DAYS = 7;
+    private const ACTIVE_MONTH_DAYS = 30;
+    private const UNMEASURED_MODULE = 'contracts';
+    private const MODULE_USER_SOURCES = [
+        'industry' => 'SELECT owner_id FROM industry_projects',
+        'groupIndustry' => 'SELECT participant.user_id FROM industry_project_participants participant'
+            . ' WHERE participant.user_id IS NOT NULL AND participant.status = \'' . ParticipantStatus::Accepted->value . '\''
+            . ' AND EXISTS (SELECT 1 FROM industry_project_participants fellow'
+            . ' WHERE fellow.project_id = participant.project_id AND fellow.id <> participant.id'
+            . ' AND fellow.status = \'' . ParticipantStatus::Accepted->value . '\')',
+        'mining' => 'SELECT user_id FROM mining_entries UNION SELECT owner_id FROM mining_operations'
+            . ' UNION SELECT user_id FROM mining_operation_members',
+        'planetary' => 'SELECT owner.user_id FROM planetary_colonies colony JOIN characters owner ON owner.id = colony.character_id',
+        'market' => 'SELECT user_id FROM market_favorites UNION SELECT user_id FROM market_price_alerts',
+        'pve' => 'SELECT user_id FROM pve_income UNION SELECT user_id FROM pve_expenses',
+    ];
 
     public function __construct(
         private readonly Connection $connection,
@@ -32,6 +49,7 @@ class AdminService
             'pve' => $this->getPveStats(),
             'notifications' => $this->getNotificationStats(),
             'market' => $this->getMarketStats(),
+            'moduleActiveUsers' => $this->getModuleActiveUsers(),
             'schedulerHealth' => $this->syncTracker->getAll(),
         ];
     }
@@ -348,6 +366,33 @@ class AdminService
             'pushSubscriptions' => $pushSubscriptions,
             'preferences' => $preferences,
         ];
+    }
+
+    /** @return list<array{module: string, activeLast7Days: ?int, activeLast30Days: ?int}> */
+    private function getModuleActiveUsers(): array
+    {
+        $oneWeekAgo = (new \DateTimeImmutable(sprintf('-%d days', self::ACTIVE_WEEK_DAYS)))->format('Y-m-d H:i:s');
+        $oneMonthAgo = (new \DateTimeImmutable(sprintf('-%d days', self::ACTIVE_MONTH_DAYS)))->format('Y-m-d H:i:s');
+
+        $rows = [];
+        foreach (self::MODULE_USER_SOURCES as $module => $usersWithData) {
+            $rows[] = [
+                'module' => $module,
+                'activeLast7Days' => $this->countLoggedInSince($usersWithData, $oneWeekAgo),
+                'activeLast30Days' => $this->countLoggedInSince($usersWithData, $oneMonthAgo),
+            ];
+        }
+        $rows[] = ['module' => self::UNMEASURED_MODULE, 'activeLast7Days' => null, 'activeLast30Days' => null];
+
+        return $rows;
+    }
+
+    private function countLoggedInSince(string $usersWithData, string $since): int
+    {
+        return (int) $this->connection->fetchOne(
+            sprintf('SELECT COUNT(*) FROM users u WHERE u.last_login_at >= ? AND u.id IN (%s)', $usersWithData),
+            [$since],
+        );
     }
 
     /** @return array<string, int> */

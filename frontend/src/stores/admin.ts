@@ -156,6 +156,12 @@ export interface AdminMarketStats {
   favorites: number
 }
 
+export interface AdminModuleActiveUsers {
+  module: string
+  activeLast7Days: number | null
+  activeLast30Days: number | null
+}
+
 export interface AdminStats {
   users: AdminUserStats
   characters: AdminCharacterStats
@@ -168,6 +174,7 @@ export interface AdminStats {
   notifications: AdminNotificationStats
   market: AdminMarketStats
   schedulerHealth: SchedulerHealthEntry[]
+  moduleActiveUsers: AdminModuleActiveUsers[]
   esiErrorBudget: AdminEsiErrorBudget
   mercureCookie: AdminMercureCookie
   charactersToRepair: AdminCharactersToRepair
