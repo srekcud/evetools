@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
+import type { ContainerVerificationStatus } from '@/stores/group-industry/types'
+import { useSyncStore } from '@/stores/sync'
 
 const { t } = useI18n()
-const { formatNumber } = useFormatters()
+const { formatNumber, formatDateTime } = useFormatters()
 const projectStore = useGroupProjectStore()
+const syncStore = useSyncStore()
+
+const PROBLEM_STATUSES: readonly ContainerVerificationStatus[] = [
+  'container_not_found',
+  'container_in_hidden_division',
+  'corporation_assets_stale',
+  'unknown',
+]
 
 const props = defineProps<{
   containerName: string
@@ -15,9 +25,15 @@ const props = defineProps<{
 }>()
 
 const isVerifying = ref(false)
+const isRefreshing = ref(false)
+const refreshError = ref<string | null>(null)
 
 const containerCheckProblem = computed(() =>
-  projectStore.containerVerification.find(line => line.status === 'container_not_found' || line.status === 'unknown'),
+  projectStore.containerVerification.find(line => PROBLEM_STATUSES.includes(line.status)),
+)
+
+const assetsSyncedAt = computed(() =>
+  projectStore.containerVerification.find(line => line.assetsSyncedAt !== null)?.assetsSyncedAt ?? null,
 )
 
 const approvedGapLines = computed(() => {
@@ -49,6 +65,35 @@ async function verifyAll(): Promise<void> {
     isVerifying.value = false
   }
 }
+
+async function refreshAssets(): Promise<void> {
+  refreshError.value = null
+  isRefreshing.value = true
+  try {
+    const refresh = await projectStore.refreshCorporationAssets()
+    if (refresh.status === 'error') {
+      refreshError.value = refresh.error ?? t('groupIndustry.container.refreshFailed')
+      isRefreshing.value = false
+    } else if (refresh.status === 'completed') {
+      isRefreshing.value = false
+      await verifyAll()
+    }
+  } catch {
+    refreshError.value = t('groupIndustry.container.refreshFailed')
+    isRefreshing.value = false
+  }
+}
+
+watch(() => syncStore.corporationAssetsProgress?.status, async status => {
+  if (!isRefreshing.value) return
+  if (status === 'completed') {
+    isRefreshing.value = false
+    await verifyAll()
+  } else if (status === 'error') {
+    isRefreshing.value = false
+    refreshError.value = t('groupIndustry.container.refreshFailed')
+  }
+})
 </script>
 
 <template>
@@ -67,8 +112,14 @@ async function verifyAll(): Promise<void> {
             {{ t('groupIndustry.container.statuses.unknown') }}: {{ t(`groupIndustry.container.unknownReasons.${containerCheckProblem.unknownReason}`) }}
           </template>
           <template v-else>
-            {{ t('groupIndustry.container.statuses.container_not_found') }}
+            {{ t(`groupIndustry.container.statuses.${containerCheckProblem.status}`) }}
           </template>
+        </p>
+        <p v-if="assetsSyncedAt !== null" data-testid="container-assets-synced-at" class="text-xs text-slate-500 mt-1">
+          {{ t('groupIndustry.container.assetsSyncedAt', { date: formatDateTime(assetsSyncedAt) }) }}
+        </p>
+        <p v-if="refreshError !== null" data-testid="container-refresh-error" class="text-xs text-red-400 mt-1">
+          {{ refreshError }}
         </p>
         <p v-if="projectStore.containerVerificationFailed" class="text-xs text-red-400 mt-1">
           {{ t('groupIndustry.container.verifyFailed') }}
@@ -87,8 +138,16 @@ async function verifyAll(): Promise<void> {
         </div>
       </div>
     </div>
+    <div v-if="canVerify" class="flex items-center gap-2">
     <button
-      v-if="canVerify"
+      data-testid="container-refresh-assets"
+      @click="refreshAssets"
+      :disabled="isRefreshing"
+      class="px-3 py-1.5 bg-slate-700/30 hover:bg-slate-700/50 rounded-lg text-slate-300 text-xs font-medium border border-slate-600/40 transition-colors disabled:opacity-50"
+    >
+      {{ isRefreshing ? t('groupIndustry.container.refreshingAssets') : t('groupIndustry.container.refreshAssets') }}
+    </button>
+    <button
       @click="verifyAll"
       :disabled="isVerifying"
       class="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 rounded-lg text-violet-400 text-xs font-medium flex items-center gap-1.5 border border-violet-500/25 transition-colors disabled:opacity-50"
@@ -103,5 +162,6 @@ async function verifyAll(): Promise<void> {
       </svg>
       {{ isVerifying ? t('groupIndustry.container.verifying') : t('groupIndustry.container.verifyAll') }}
     </button>
+    </div>
   </div>
 </template>

@@ -398,6 +398,28 @@ class UpdateProjectProcessorTest extends TestCase
         self::assertNull($this->project->getContainerName());
     }
 
+    #[Group('issue-800')]
+    public function testContainerNameIsTrimmedOnUpdate(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->containerName = '  GI Rorqual hangar ';
+
+        $this->update($input);
+
+        self::assertSame('GI Rorqual hangar', $this->project->getContainerName());
+    }
+
+    #[Group('issue-800')]
+    public function testContainerNameMadeOfSpacesClearsIt(): void
+    {
+        $input = new UpdateProjectInput();
+        $input->containerName = '   ';
+
+        $this->update($input);
+
+        self::assertNull($this->project->getContainerName());
+    }
+
     #[Group('issue-321')]
     public function testChangingTheBrokerFeePublishesFeesUpdatedWithTheNewAndThePreviousFees(): void
     {

@@ -54,6 +54,7 @@ function verification(line: JobLine, status: ContainerVerificationStatus, contai
     containerQuantity,
     status,
     unknownReason: null,
+    assetsSyncedAt: null,
   }
 }
 

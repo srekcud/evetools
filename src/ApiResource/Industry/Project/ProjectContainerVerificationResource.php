@@ -48,4 +48,6 @@ class ProjectContainerVerificationResource
     public string $status;
 
     public ?string $unknownReason = null;
+
+    public ?\DateTimeImmutable $assetsSyncedAt = null;
 }

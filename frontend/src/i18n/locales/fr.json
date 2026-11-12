@@ -3453,6 +3453,8 @@
         "partial": "Partiel",
         "missing": "Absent du container",
         "container_not_found": "Container introuvable",
+        "container_in_hidden_division": "Un container de ce nom existe dans une division masquée au propriétaire du projet",
+        "corporation_assets_stale": "Aucun container de ce nom dans les assets synchronisés, les assets de la corporation sont peut-être périmés",
         "unknown": "Non vérifiable"
       },
       "unknownReasons": {
@@ -3461,6 +3463,10 @@
         "no_director": "Aucun directeur connecté",
         "owner_without_corporation": "L'owner n'a pas de corporation"
       },
+      "assetsSyncedAt": "Assets de la corporation synchronisés le {date}",
+      "refreshAssets": "Rafraîchir les assets corpo",
+      "refreshingAssets": "Rafraîchissement...",
+      "refreshFailed": "Impossible de rafraîchir les assets de la corporation",
       "verifyFailed": "Vérification échouée",
       "approvedGapTitle": "Contributions approuvées absentes du container, relancez la vérification avant les jobs",
       "approvedGapLine": "{name} : {container} / {approved} dans le container, {approved} approuvés"
