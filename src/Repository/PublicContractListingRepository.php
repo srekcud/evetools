@@ -33,6 +33,23 @@ class PublicContractListingRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return list<int>
+     */
+    public function findUnconcludedContractIdsInRegion(int $regionId): array
+    {
+        $rows = $this->createQueryBuilder('l')
+            ->select('l.contractId')
+            ->where('l.regionId = :regionId')
+            ->andWhere('l.missedPolls < :confirmationPolls')
+            ->setParameter('regionId', $regionId)
+            ->setParameter('confirmationPolls', PublicContractListing::CONFIRMATION_POLLS)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(static fn (mixed $contractId): int => (int) $contractId, $rows));
+    }
+
+    /**
      * @param list<int> $contractIds
      * @return list<PublicContractListing>
      */

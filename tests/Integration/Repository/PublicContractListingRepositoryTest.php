@@ -46,6 +46,25 @@ final class PublicContractListingRepositoryTest extends IntegrationTestCase
         self::assertSame([1, 2], $contractIds);
     }
 
+    #[Group('issue-764')]
+    public function testUnconcludedContractIdsOfTheRegionAreScalarIntegersWithoutConcludedOrOtherRegionListings(): void
+    {
+        $listed = $this->listing(3_000_000_001, self::FORGE, '-2 days');
+        $pending = $this->listing(2, self::FORGE, '-2 days');
+        $pending->missed(new \DateTimeImmutable('-1 day'));
+        $concluded = $this->listing(7, self::FORGE, '-2 days');
+        $concluded->missed(new \DateTimeImmutable('-1 day'));
+        $concluded->missed(new \DateTimeImmutable('-1 day'));
+        $otherRegion = $this->listing(4, self::DOMAIN, '-2 days');
+        $this->persistAll([$listed, $pending, $concluded, $otherRegion]);
+
+        $contractIds = $this->repository->findUnconcludedContractIdsInRegion(self::FORGE);
+        sort($contractIds);
+
+        self::assertSame([2, 3_000_000_001], $contractIds);
+        self::assertSame([], $this->repository->findUnconcludedContractIdsInRegion(10000099));
+    }
+
     public function testListingsAreFoundByContractIdWhateverTheirRegionOrState(): void
     {
         $concluded = $this->listing(3, self::FORGE, '-2 days');

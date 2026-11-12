@@ -11,11 +11,15 @@ use Doctrine\ORM\EntityManagerInterface;
 class PublicContractHistoryRecorder
 {
     public const int RETENTION_DAYS = 90;
-    private const int LOOKUP_CHUNK_SIZE = 1000;
+    public const int BATCH_SIZE = 1000;
 
+    /**
+     * @param int<1, max> $batchSize
+     */
     public function __construct(
         private readonly PublicContractListingRepository $repository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly int $batchSize = self::BATCH_SIZE,
     ) {
     }
 
@@ -26,10 +30,35 @@ class PublicContractHistoryRecorder
     public function record(int $regionId, array $readableContracts, array $listedContractIds, \DateTimeImmutable $now): void
     {
         $listedIds = array_flip($listedContractIds);
+        $trackedContractIds = $this->repository->findUnconcludedContractIdsInRegion($regionId);
 
-        $tracked = [];
-        foreach ($this->repository->findUnconcludedInRegion($regionId) as $listing) {
-            $tracked[$listing->getContractId()] = $listing;
+        foreach (array_chunk($trackedContractIds, $this->batchSize) as $contractIdBatch) {
+            $this->updateTrackedListings($contractIdBatch, $listedIds, $now);
+        }
+
+        $trackedIds = array_flip($trackedContractIds);
+        $untracked = array_values(array_filter(
+            $readableContracts,
+            static fn (ObservedContract $contract): bool => !isset($trackedIds[$contract->contractId]),
+        ));
+
+        foreach (array_chunk($untracked, $this->batchSize) as $contractBatch) {
+            $this->recordUntrackedContracts($regionId, $contractBatch, $now);
+        }
+    }
+
+    public function purgeExpiredHistory(\DateTimeImmutable $now): int
+    {
+        return $this->repository->purgeLastSeenBefore($now->modify('-' . self::RETENTION_DAYS . ' days'));
+    }
+
+    /**
+     * @param list<int> $contractIds
+     * @param array<int, int> $listedIds
+     */
+    private function updateTrackedListings(array $contractIds, array $listedIds, \DateTimeImmutable $now): void
+    {
+        foreach ($this->repository->findByContractIds($contractIds) as $listing) {
             if (isset($listedIds[$listing->getContractId()])) {
                 $listing->seenAgain($now);
             } else {
@@ -37,13 +66,22 @@ class PublicContractHistoryRecorder
             }
         }
 
-        $untracked = array_filter(
-            $readableContracts,
-            static fn (ObservedContract $contract): bool => !isset($tracked[$contract->contractId]),
-        );
-        $concluded = $this->concludedListingsAmong($untracked);
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+    }
 
-        foreach ($untracked as $contract) {
+    /**
+     * @param list<ObservedContract> $contracts
+     */
+    private function recordUntrackedContracts(int $regionId, array $contracts, \DateTimeImmutable $now): void
+    {
+        $concluded = [];
+        $contractIds = array_map(static fn (ObservedContract $contract): int => $contract->contractId, $contracts);
+        foreach ($this->repository->findByContractIds($contractIds) as $listing) {
+            $concluded[$listing->getContractId()] = $listing;
+        }
+
+        foreach ($contracts as $contract) {
             if (isset($concluded[$contract->contractId])) {
                 $concluded[$contract->contractId]->seenAgain($now);
                 continue;
@@ -65,27 +103,6 @@ class PublicContractHistoryRecorder
         }
 
         $this->entityManager->flush();
-    }
-
-    public function purgeExpiredHistory(\DateTimeImmutable $now): int
-    {
-        return $this->repository->purgeLastSeenBefore($now->modify('-' . self::RETENTION_DAYS . ' days'));
-    }
-
-    /**
-     * @param array<int, ObservedContract> $contracts
-     * @return array<int, PublicContractListing>
-     */
-    private function concludedListingsAmong(array $contracts): array
-    {
-        $concluded = [];
-        $contractIds = array_map(static fn (ObservedContract $contract): int => $contract->contractId, array_values($contracts));
-        foreach (array_chunk($contractIds, self::LOOKUP_CHUNK_SIZE) as $chunk) {
-            foreach ($this->repository->findByContractIds($chunk) as $listing) {
-                $concluded[$listing->getContractId()] = $listing;
-            }
-        }
-
-        return $concluded;
+        $this->entityManager->clear();
     }
 }
