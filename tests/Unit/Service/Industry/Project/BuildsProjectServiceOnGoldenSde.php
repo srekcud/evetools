@@ -38,6 +38,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use Symfony\Component\Uid\Uuid;
+use App\Tests\Unit\Service\Industry\ProducerOfStub;
 
 trait BuildsProjectServiceOnGoldenSde
 {
@@ -316,6 +317,7 @@ trait BuildsProjectServiceOnGoldenSde
     private function productRepositoryOnGoldenSde(): IndustryActivityProductRepository
     {
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($productRepository);
         $productRepository->method('findBlueprintForProduct')->willReturnCallback(
             function (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct {
                 $recipe = $this->sde['recipes'][(string) $productTypeId] ?? null;

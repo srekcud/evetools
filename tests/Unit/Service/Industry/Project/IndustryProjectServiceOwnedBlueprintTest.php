@@ -44,6 +44,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
+use App\Tests\Unit\Service\Industry\ProducerOfStub;
 
 #[CoversClass(IndustryProjectService::class)]
 #[AllowMockObjectsWithoutExpectations]
@@ -183,6 +184,7 @@ final class IndustryProjectServiceOwnedBlueprintTest extends TestCase
     private function activityProductRepository(): IndustryActivityProductRepository
     {
         $repository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($repository);
         $repository->method('findBlueprintForProduct')->willReturnCallback(
             static fn (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct => isset(self::BASE_QUANTITIES_PER_RUN[$productTypeId]) && $activityId === IndustryActivityType::Manufacturing->value
                 ? (new IndustryActivityProduct())

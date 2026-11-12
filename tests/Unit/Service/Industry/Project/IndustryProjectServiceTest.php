@@ -58,6 +58,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
+use App\Tests\Unit\Service\Industry\ProducerOfStub;
 
 #[CoversClass(IndustryProjectService::class)]
 #[AllowMockObjectsWithoutExpectations]
@@ -1093,6 +1094,7 @@ final class IndustryProjectServiceTest extends TestCase
     private function activityProductRepository(): IndustryActivityProductRepository
     {
         $activityProductRepository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($activityProductRepository);
         $activityProductRepository->method('findBlueprintForProduct')->willReturnCallback(
             function (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct {
                 $recipe = $this->recipes[$productTypeId] ?? null;

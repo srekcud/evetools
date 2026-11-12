@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Repository;
 
+use App\Enum\IndustryActivityType;
+use App\Exception\ProducerMissingFromSdeException;
 use App\Repository\Sde\IndustryActivityProductRepository;
 use App\Tests\Fixtures\Sde\ManufacturableProductSde;
 use App\Tests\Integration\IntegrationTestCase;
@@ -11,6 +13,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 #[Group('issue-293')]
+#[Group('issue-811')]
 final class IndustryActivityProductRepositoryTest extends IntegrationTestCase
 {
     private IndustryActivityProductRepository $repository;
@@ -98,6 +101,28 @@ final class IndustryActivityProductRepositoryTest extends IntegrationTestCase
                 ManufacturableProductSde::INVENTED_REACTION_FORMULA,
             ),
         );
+    }
+
+    public function testProducerOfAManufacturedProductIsItsManufacturingBlueprint(): void
+    {
+        $producer = $this->repository->producerOf(ManufacturableProductSde::FEROX);
+
+        self::assertSame([ManufacturableProductSde::FEROX_BLUEPRINT, IndustryActivityType::Manufacturing->value], [$producer->getTypeId(), $producer->getActivityId()]);
+    }
+
+    public function testProducerOfAReactedProductIsItsReactionFormula(): void
+    {
+        $producer = $this->repository->producerOf(ManufacturableProductSde::FERNITE_CARBIDE);
+
+        self::assertSame([ManufacturableProductSde::FERNITE_CARBIDE_REACTION_FORMULA, IndustryActivityType::Reaction->value], [$producer->getTypeId(), $producer->getActivityId()]);
+    }
+
+    public function testProducerOfAProductMissingFromTheSdeIsRejectedWithTheProducerMissingException(): void
+    {
+        $this->expectException(ProducerMissingFromSdeException::class);
+        $this->expectExceptionMessage('No blueprint or reaction found for product type ID '.ManufacturableProductSde::ABSENT_FROM_SDE);
+
+        $this->repository->producerOf(ManufacturableProductSde::ABSENT_FROM_SDE);
     }
 
     private function t2ProductTypeIdsAmong(int ...$productTypeIds): array

@@ -686,6 +686,7 @@ final class StockpileGoldenImportCharacterizationTest extends TestCase
     private function productRepositoryOnGoldenSde(): IndustryActivityProductRepository
     {
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($productRepository);
         $productRepository->method('findBlueprintForProduct')->willReturnCallback(
             function (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct {
                 $recipe = $this->sde['recipes'][(string) $productTypeId] ?? null;

@@ -7,6 +7,7 @@ namespace App\Service\Industry;
 use App\Entity\Sde\IndustryActivityProduct;
 use App\Entity\User;
 use App\Enum\IndustryActivityType;
+use App\Exception\ProducerMissingFromSdeException;
 use App\Exception\StockpileProductNotPlannableException;
 use App\Industry\Application\FavoriteSystems;
 use App\Industry\Application\ProductionPlanRequest;
@@ -26,9 +27,11 @@ trait PlansStockpileImports
 
     private function producerOf(int $productTypeId): IndustryActivityProduct
     {
-        return $this->activityProductRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Manufacturing->value)
-            ?? $this->activityProductRepository->findBlueprintForProduct($productTypeId, IndustryActivityType::Reaction->value)
-            ?? throw StockpileProductNotPlannableException::noBlueprint($productTypeId);
+        try {
+            return $this->activityProductRepository->producerOf($productTypeId);
+        } catch (ProducerMissingFromSdeException) {
+            throw StockpileProductNotPlannableException::noBlueprint($productTypeId);
+        }
     }
 
     /**

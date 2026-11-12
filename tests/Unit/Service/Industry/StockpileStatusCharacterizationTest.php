@@ -81,6 +81,7 @@ final class StockpileStatusCharacterizationTest extends TestCase
         $productionPlanning = new ProductionPlanning(new InMemoryBlueprintCatalog(), InMemorySystemCostIndices::none(), new InMemoryRigCategories());
         $userStructures = new InMemoryUserProductionStructures();
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($productRepository);
         $this->service = new StockpileService(
             $targetRepository,
             $assetRepository,

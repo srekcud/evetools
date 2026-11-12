@@ -64,6 +64,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
+use App\Tests\Unit\Service\Industry\ProducerOfStub;
 
 #[CoversClass(IndustryProjectService::class)]
 #[AllowMockObjectsWithoutExpectations]
@@ -2527,6 +2528,7 @@ final class GroupIndustryBomGoldenCharacterizationTest extends TestCase
     private function productRepositoryOnGoldenSde(): IndustryActivityProductRepository
     {
         $productRepository = $this->createStub(IndustryActivityProductRepository::class);
+        ProducerOfStub::from($productRepository);
         $productRepository->method('findBlueprintForProduct')->willReturnCallback(
             function (int $productTypeId, int $activityId = 1): ?IndustryActivityProduct {
                 $recipe = $this->sde['recipes'][(string) $productTypeId] ?? null;
