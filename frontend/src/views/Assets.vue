@@ -124,6 +124,12 @@ const containerContents = computed(() => {
   return contents
 })
 
+function applyResolvedItemName(itemId: number, itemName: string): void {
+  assets.value = assets.value.map(asset =>
+    asset.itemId === itemId ? { ...asset, itemName, canResolveItemName: false } : asset,
+  )
+}
+
 function isContainer(asset: Asset): boolean {
   return containerContents.value.has(asset.itemId)
 }
@@ -622,6 +628,7 @@ watch([selectedCharacterId, viewMode], () => {
               :container-contents="visibleContainerContents"
               @toggle-container="toggleContainer"
               @toggle-location="toggleLocation"
+              @item-name-resolved="applyResolvedItemName"
             />
           </div>
 

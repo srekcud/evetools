@@ -31,6 +31,18 @@ export interface Asset {
   cachedAt: string
 }
 
+export type ItemNameResolution =
+  | { status: 'loading' }
+  | { status: 'named'; itemName: string }
+  | { status: 'unnamed' }
+  | { status: 'error'; message: string }
+
+export interface ItemNameAnswer {
+  id: string
+  status: 'named' | 'unnamed'
+  itemName: string | null
+}
+
 export interface User {
   id: string
   authStatus: string

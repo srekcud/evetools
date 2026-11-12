@@ -2092,6 +2092,11 @@
     "syncDescription": "Vos assets sont en cours de synchronisation depuis l'ESI...",
     "refreshFromEve": "Rafraichir depuis EVE",
     "noMatchingItems": "Aucun item correspondant aux filtres",
+    "itemName": {
+      "resolve": "Récupérer le nom personnalisé depuis EVE",
+      "unnamed": "Pas de nom personnalisé en jeu",
+      "invalidAnswer": "Réponse inattendue du serveur"
+    },
     "chart": {
       "title": "Répartition par emplacement",
       "noData": "Aucune donnée d'asset disponible",

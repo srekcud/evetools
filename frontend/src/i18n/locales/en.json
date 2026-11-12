@@ -2092,6 +2092,11 @@
     "syncDescription": "Your assets are being synced from ESI...",
     "refreshFromEve": "Refresh from EVE",
     "noMatchingItems": "No items match the selected filters",
+    "itemName": {
+      "resolve": "Fetch the custom name from EVE",
+      "unnamed": "No custom name in game",
+      "invalidAnswer": "Unexpected server answer"
+    },
     "chart": {
       "title": "Distribution by Location",
       "noData": "No asset data available",
