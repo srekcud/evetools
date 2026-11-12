@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { apiRequest } from '@/services/api'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { useSyncStore } from '@/stores/sync'
 import type { BomItem, GroupMember, GroupProject, ProjectCockpit, ProjectPriceAlert, ProjectSellOrder } from './types'
 
 const MEMBER_EVENT_PREFIX = 'member_'
+const RECONNECTION_REFRESH = 'reconnected'
 const CHARACTER_ORDERS_SYNC = 'character-orders'
 
 export const useGroupCompanionStore = defineStore('group-companion', () => {
@@ -131,6 +133,8 @@ export const useGroupCompanionStore = defineStore('group-companion', () => {
     const id = projectId.value
     if (id !== null && progress?.status === 'completed') void loadCockpitAlerts(id)
   })
+
+  useRefetchOnReconnect(() => handleEvent(RECONNECTION_REFRESH))
 
   return { projectId, bomItems, project, members, priceAlert, undercutOrders, error, open, close, claim, release, handleEvent }
 })

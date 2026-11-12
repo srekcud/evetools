@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGroupChainStore } from '@/stores/group-industry/chain'
 import { useSyncStore } from '@/stores/sync'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import { CHAIN_STATUSES, chainStatusDotClass } from './chainStatus'
 import ProductionChainFlow from './ProductionChainFlow.vue'
 import ProductionChainJobTree from './ProductionChainJobTree.vue'
@@ -41,6 +42,8 @@ watch(
     chainStore.fetchChain(props.projectId)
   },
 )
+
+useRefetchOnReconnect(() => chainStore.fetchChain(props.projectId))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),

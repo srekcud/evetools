@@ -8,6 +8,7 @@ import { useGroupMaterialSourcingStore } from '@/stores/group-industry/materialS
 import type { MaterialSourcingRow, MaterialSourcingSide } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
 import { multibuyText } from '@/utils/multibuy'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 const SIDE_CHIP_CLASSES: Record<MaterialSourcingSide, string> = {
@@ -67,6 +68,8 @@ watch(
     sourcingStore.fetchMaterialSourcing(props.projectId)
   },
 )
+
+useRefetchOnReconnect(() => sourcingStore.fetchMaterialSourcing(props.projectId))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),

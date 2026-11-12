@@ -8,6 +8,7 @@ import { useGroupBuyOrBuildStore } from '@/stores/group-industry/buyOrBuild'
 import { useGroupProjectStore } from '@/stores/group-industry/project'
 import type { BuyOrBuildChoice, BuyOrBuildRow } from '@/stores/group-industry/types'
 import { useSyncStore } from '@/stores/sync'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import UnknownContributionValue from './UnknownContributionValue.vue'
 
 const CHOICE_CHIP_CLASSES: Record<BuyOrBuildChoice, string> = {
@@ -79,6 +80,8 @@ watch(
     buyOrBuildStore.fetchBuyOrBuild(props.projectId)
   },
 )
+
+useRefetchOnReconnect(() => buyOrBuildStore.fetchBuyOrBuild(props.projectId))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),

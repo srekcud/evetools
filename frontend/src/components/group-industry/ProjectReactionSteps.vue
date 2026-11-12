@@ -5,6 +5,7 @@ import { useFormatters } from '@/composables/useFormatters'
 import { useGroupReactionStepsStore } from '@/stores/group-industry/reactionSteps'
 import { useSyncStore } from '@/stores/sync'
 import type { ReactionStep } from '@/stores/group-industry/types'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 
 const SECONDS_PER_HOUR = 3_600
 const PERCENT = 100
@@ -48,6 +49,8 @@ watch(
     reactionStepsStore.fetchReactionSteps(props.projectId)
   },
 )
+
+useRefetchOnReconnect(() => reactionStepsStore.fetchReactionSteps(props.projectId))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),

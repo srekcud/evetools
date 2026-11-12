@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
 import { useGroupPlanningStore } from '@/stores/group-industry/planning'
 import { useSyncStore } from '@/stores/sync'
+import { useRefetchOnReconnect } from '@/composables/useRefetchOnReconnect'
 import BlueprintNameCopyButton from './BlueprintNameCopyButton.vue'
 import PlanningWaitLabel from './PlanningWaitLabel.vue'
 import ProjectPlanningAssignments from './ProjectPlanningAssignments.vue'
@@ -43,6 +44,8 @@ watch(
     planningStore.fetchPlanning(props.projectId)
   },
 )
+
+useRefetchOnReconnect(() => planningStore.fetchPlanning(props.projectId))
 
 watch(
   () => syncStore.getSyncProgress('industry-project'),
