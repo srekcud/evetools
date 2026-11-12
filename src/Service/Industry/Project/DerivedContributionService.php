@@ -103,19 +103,19 @@ class DerivedContributionService
 
     private function synchronize(
         IndustryProjectBomLine $line,
-        IndustryProjectParticipant $ownerParticipant,
+        IndustryProjectParticipant $contributingParticipant,
         ContributionType $type,
         int $quantity,
         ?float $value,
     ): ?string {
-        $existing = $this->derivedContributionOf($line, $ownerParticipant, $type);
+        $existing = $this->derivedContributionOf($line, $contributingParticipant, $type);
 
         if ($quantity === 0) {
             return $existing === null ? null : $this->remove($line, $existing);
         }
 
         if ($existing === null) {
-            return $this->create($line, $ownerParticipant, $type, $quantity, $value);
+            return $this->create($line, $contributingParticipant, $type, $quantity, $value);
         }
 
         if ($existing->getQuantity() === $quantity && $existing->getEstimatedValue() === $value) {
@@ -131,14 +131,14 @@ class DerivedContributionService
 
     private function create(
         IndustryProjectBomLine $line,
-        IndustryProjectParticipant $ownerParticipant,
+        IndustryProjectParticipant $contributingParticipant,
         ContributionType $type,
         int $quantity,
         ?float $value,
     ): string {
-        $contribution = $this->approvedDerivedContribution($line->getProject(), $ownerParticipant, $type, $quantity, $value)->setBomItem($line);
-        $hasApprovedDeclared = $this->hasApprovedDeclared($line, $ownerParticipant, $type);
-        $hasRejectedPendingDeclared = $this->rejectPendingDeclared($line, $ownerParticipant, $type);
+        $contribution = $this->approvedDerivedContribution($line->getProject(), $contributingParticipant, $type, $quantity, $value)->setBomItem($line);
+        $hasApprovedDeclared = $this->hasApprovedDeclared($line, $contributingParticipant, $type);
+        $hasRejectedPendingDeclared = $this->rejectPendingDeclared($line, $contributingParticipant, $type);
         $this->persistDerived($contribution);
         $this->shiftFulfillment($line, $type, $quantity);
         if ($hasApprovedDeclared || $hasRejectedPendingDeclared) {
@@ -229,7 +229,7 @@ class DerivedContributionService
 
     private function approvedDerivedContribution(
         IndustryProject $project,
-        IndustryProjectParticipant $ownerParticipant,
+        IndustryProjectParticipant $contributingParticipant,
         ContributionType $type,
         int $quantity,
         ?float $value,
@@ -238,7 +238,7 @@ class DerivedContributionService
 
         return (new IndustryProjectContribution())
             ->setProject($project)
-            ->setMember($ownerParticipant)
+            ->setMember($contributingParticipant)
             ->setType($type)
             ->setQuantity($quantity)
             ->setEstimatedValue($value)
@@ -246,7 +246,7 @@ class DerivedContributionService
             ->setIsAutoDetected(true)
             ->setIsVerified(true)
             ->setVerifiedAt($now)
-            ->setReviewedBy($ownerParticipant->getUser())
+            ->setReviewedBy($contributingParticipant->getUser())
             ->setReviewedAt($now);
     }
 
@@ -369,10 +369,10 @@ class DerivedContributionService
         return null;
     }
 
-    private function derivedContributionOf(IndustryProjectBomLine $line, IndustryProjectParticipant $ownerParticipant, ContributionType $type): ?IndustryProjectContribution
+    private function derivedContributionOf(IndustryProjectBomLine $line, IndustryProjectParticipant $contributingParticipant, ContributionType $type): ?IndustryProjectContribution
     {
         foreach ($line->getProject()->getContributions() as $contribution) {
-            if ($this->isDerivedOn($contribution, $line) && $contribution->getMember() === $ownerParticipant && $contribution->getType() === $type) {
+            if ($this->isDerivedOn($contribution, $line) && $contribution->getMember() === $contributingParticipant && $contribution->getType() === $type) {
                 return $contribution;
             }
         }
