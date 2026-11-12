@@ -21,6 +21,9 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 
 class EsiClient
 {
+    public const int MAX_CUMULATIVE_PAUSE_SECONDS = 120;
+
+    private const int PAUSE_BUDGET_WINDOW_SECONDS = 600;
     private const REQUEST_TIMEOUT = 30;
     private const MAX_RETRY_AFTER_SECONDS = 60;
     private const DEFAULT_CACHE_TTL_SECONDS = 300;
@@ -30,6 +33,8 @@ class EsiClient
 
     private int $errorLimitRemain = 100;
     private int $errorLimitReset = 0;
+    private float $pauseWindowStartedAt = 0.0;
+    private float $pausedInWindow = 0.0;
 
     public function __construct(
         private readonly HttpClientInterface $httpClient,
@@ -39,6 +44,7 @@ class EsiClient
         private readonly LoggerInterface $logger,
         private readonly ClockInterface $clock = new NativeClock(),
         private readonly EsiErrorBudget $errorBudget = new EsiErrorBudget(new ArrayAdapter()),
+        private readonly EsiRateLimitBudget $rateLimitBudget = new EsiRateLimitBudget(new ArrayAdapter()),
     ) {
     }
 
@@ -50,7 +56,7 @@ class EsiClient
     {
         try {
             $response = $this->requestWithRetry('GET', $endpoint, $token, $extraHeaders);
-            return $this->handleResponse($response, $endpoint);
+            return $this->handleResponse($response, $endpoint, $token);
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
         }
@@ -72,7 +78,7 @@ class EsiClient
                 ['X-Compatibility-Date' => $compatibilityDate],
                 baseUrl: $this->unversionedBaseUrl(),
             );
-            return $this->handleResponse($response, $endpoint);
+            return $this->handleResponse($response, $endpoint, $token);
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
         }
@@ -174,7 +180,7 @@ class EsiClient
 
         if ($stale === null) {
             try {
-                return $this->cacheResponse($cacheKey, $cacheTags, $this->requestWithRetry('GET', $endpoint, $token), $endpoint);
+                return $this->cacheResponse($cacheKey, $cacheTags, $this->requestWithRetry('GET', $endpoint, $token), $endpoint, $token);
             } catch (TransportExceptionInterface $e) {
                 throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
             }
@@ -183,7 +189,7 @@ class EsiClient
         try {
             $response = $this->conditionalGet($endpoint, $token, $stale['etag']);
             if ($response->getStatusCode() !== 304) {
-                return $this->cacheResponse($cacheKey, $cacheTags, $response, $endpoint);
+                return $this->cacheResponse($cacheKey, $cacheTags, $response, $endpoint, $token);
             }
         } catch (TransportExceptionInterface) {
             // ESI unreachable: the stale copy is better than no data.
@@ -220,7 +226,7 @@ class EsiClient
                 // Get headers before consuming body
                 $headers = $response->getHeaders(false);
                 $pages = (int) ($headers['x-pages'][0] ?? 1);
-                $this->processRateLimitHeaders($response);
+                $this->processRateLimitHeaders($response, $paginatedEndpoint, $token);
 
                 if ($statusCode >= 200 && $statusCode < 300) {
                     $data = $response->toArray();
@@ -251,7 +257,7 @@ class EsiClient
             $response = $this->request('POST', $endpoint, $token);
 
             $statusCode = $response->getStatusCode();
-            $this->processRateLimitHeaders($response);
+            $this->processRateLimitHeaders($response, $endpoint, $token);
 
             // Consume response body to prevent curl handle issues
             $response->getContent(false);
@@ -284,7 +290,7 @@ class EsiClient
         try {
             $response = $this->requestWithRetry('POST', $endpoint, $token, ['Content-Type' => 'application/json'], $body);
 
-            return $this->handleResponse($response, $endpoint);
+            return $this->handleResponse($response, $endpoint, $token);
         } catch (TransportExceptionInterface $e) {
             throw EsiApiException::fromResponse(0, 'Network error: ' . $e->getMessage(), $endpoint);
         }
@@ -307,6 +313,11 @@ class EsiClient
      */
     private function fetchBatch(array $requests, int $timeout, \Closure $decode): array
     {
+        $this->waitForGroupBudget($this->rateLimitBudget->delayBeforeBatch(array_map(
+            static fn (array $request): array => ['endpoint' => $request['endpoint'], 'scope' => EsiRateLimitBudget::scopeOf($request['token'])],
+            $requests,
+        )));
+
         $results = $this->collectBatch($requests, $this->launchBatch($requests, $timeout), $decode, $retryDelays);
 
         if ($retryDelays !== []) {
@@ -364,11 +375,11 @@ class EsiClient
             try {
                 $statusCode = $response->getStatusCode();
                 if ($statusCode === 420 || $statusCode === 429) {
-                    $retryDelays[$key] = $this->retryDelaySeconds($response, $statusCode, $requests[$key]['endpoint']);
+                    $retryDelays[$key] = $this->retryDelaySeconds($response, $statusCode, $requests[$key]['endpoint'], $requests[$key]['token']);
                     continue;
                 }
 
-                $this->processRateLimitHeaders($response);
+                $this->processRateLimitHeaders($response, $requests[$key]['endpoint'], $requests[$key]['token']);
                 if ($statusCode >= 200 && $statusCode < 300) {
                     $results[$key] = $decode($response);
                 } else {
@@ -404,6 +415,7 @@ class EsiClient
     ): ResponseInterface {
         if ($throttle) {
             $this->throttleIfNeeded();
+            $this->waitForGroupBudget($this->rateLimitBudget->delayBeforeRequest($endpoint, EsiRateLimitBudget::scopeOf($token)));
         }
 
         $options = [
@@ -440,7 +452,7 @@ class EsiClient
             return $response;
         }
 
-        $sleepSeconds = $this->retryDelaySeconds($response, $statusCode, $endpoint);
+        $sleepSeconds = $this->retryDelaySeconds($response, $statusCode, $endpoint, $token);
         $this->logger->warning('ESI {status} received, sleeping {seconds}s before retry', [
             'status' => $statusCode,
             'seconds' => $sleepSeconds,
@@ -463,9 +475,9 @@ class EsiClient
      * Records the error-limit headers of a 420/429 response, releases its body and returns
      * how long to wait before replaying it: Retry-After for a 429, else the error-limit reset.
      */
-    private function retryDelaySeconds(ResponseInterface $response, int $statusCode, string $endpoint): int
+    private function retryDelaySeconds(ResponseInterface $response, int $statusCode, string $endpoint, ?EveToken $token): int
     {
-        $this->processRateLimitHeaders($response);
+        $this->processRateLimitHeaders($response, $endpoint, $token);
         $this->errorBudget->recordLimitedResponse($statusCode, $endpoint);
         // Consume response body to prevent curl handle issues
         $response->getContent(false);
@@ -497,7 +509,7 @@ class EsiClient
     {
         $response = $this->requestWithRetry('GET', $endpoint, $token, ['If-None-Match' => $etag]);
 
-        $this->processRateLimitHeaders($response);
+        $this->processRateLimitHeaders($response, $endpoint, $token);
 
         if ($response->getStatusCode() === 304) {
             $response->getContent(false);
@@ -525,11 +537,11 @@ class EsiClient
     /**
      * @return array<mixed>
      */
-    private function handleResponse(ResponseInterface $response, string $endpoint): array
+    private function handleResponse(ResponseInterface $response, string $endpoint, ?EveToken $token): array
     {
         try {
             $statusCode = $response->getStatusCode();
-            $this->processRateLimitHeaders($response);
+            $this->processRateLimitHeaders($response, $endpoint, $token);
 
             if ($statusCode >= 200 && $statusCode < 300) {
                 return $response->toArray();
@@ -563,10 +575,11 @@ class EsiClient
         return EsiApiException::fromResponse($statusCode, $message, $endpoint);
     }
 
-    private function processRateLimitHeaders(ResponseInterface $response): void
+    private function processRateLimitHeaders(ResponseInterface $response, string $endpoint, ?EveToken $token): void
     {
         try {
             $headers = $response->getHeaders(false);
+            $statusCode = $response->getStatusCode();
         } catch (TransportExceptionInterface) {
             return;
         }
@@ -580,6 +593,8 @@ class EsiClient
         if (isset($headers['x-esi-error-limit-remain'][0], $headers['x-esi-error-limit-reset'][0])) {
             $this->errorBudget->observe($this->errorLimitRemain, $this->errorLimitReset);
         }
+
+        $this->rateLimitBudget->record($endpoint, EsiRateLimitBudget::scopeOf($token), $statusCode, $headers);
     }
 
     private function recordIfLimited(int $statusCode, string $endpoint): void
@@ -608,13 +623,51 @@ class EsiClient
         }
     }
 
+    private function waitForGroupBudget(?EsiRateLimitDelay $delay): void
+    {
+        if ($delay === null) {
+            return;
+        }
+
+        $now = (float) $this->clock->now()->format('U.u');
+        if ($now - $this->pauseWindowStartedAt >= self::PAUSE_BUDGET_WINDOW_SECONDS) {
+            $this->pauseWindowStartedAt = $now;
+            $this->pausedInWindow = 0.0;
+        }
+        $seconds = min($delay->seconds, self::MAX_CUMULATIVE_PAUSE_SECONDS - $this->pausedInWindow);
+        if ($seconds <= 0.0) {
+            $this->logger->warning('ESI group {group} pause budget of {cap}s exhausted, continuing without pause', [
+                'group' => $delay->group,
+                'cap' => self::MAX_CUMULATIVE_PAUSE_SECONDS,
+            ]);
+
+            return;
+        }
+        $this->pausedInWindow += $seconds;
+
+        if ($delay->isPause) {
+            $this->logger->warning('ESI group {group} budget critical (about {remaining} tokens left), pausing {seconds}s', [
+                'group' => $delay->group,
+                'remaining' => round($delay->estimatedRemaining, 1),
+                'seconds' => round($seconds, 1),
+            ]);
+        } else {
+            $this->logger->info('ESI group {group} budget low (about {remaining} tokens left), throttling {delay}ms', [
+                'group' => $delay->group,
+                'remaining' => round($delay->estimatedRemaining, 1),
+                'delay' => (int) round($seconds * 1000),
+            ]);
+        }
+        $this->clock->sleep($seconds);
+    }
+
     /**
      * @param list<string> $cacheTags
      * @return array<mixed>
      */
-    private function cacheResponse(string $cacheKey, array $cacheTags, ResponseInterface $response, string $endpoint): array
+    private function cacheResponse(string $cacheKey, array $cacheTags, ResponseInterface $response, string $endpoint, ?EveToken $token): array
     {
-        $data = $this->handleResponse($response, $endpoint);
+        $data = $this->handleResponse($response, $endpoint, $token);
         $headers = $this->responseHeaders($response);
 
         $this->storeInCache($cacheKey, $cacheTags, $data, $headers['etag'][0] ?? null, $headers);
