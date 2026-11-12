@@ -2073,6 +2073,7 @@
     "allSystems": "Tous les systemes",
     "location": "Emplacement",
     "allLocations": "Tous les emplacements",
+    "refreshFailed": "L'actualisation des assets a échoué.",
     "syncing": "Synchronisation...",
     "noAssets": "Aucun asset",
     "selectCharacter": "Selectionner un personnage",
