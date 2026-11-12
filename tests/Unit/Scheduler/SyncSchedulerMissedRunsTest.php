@@ -90,7 +90,7 @@ class SyncSchedulerMissedRunsTest extends TestCase
     {
         $classes = [];
         while ($messages->valid()) {
-            $classes[] = $messages->current()::class;
+            $classes[] = $messages->current()->envelope::class;
             $messages->next();
         }
 

@@ -197,7 +197,8 @@ class SyncSchedulerIntervalsTest extends TestCase
                 $referenceRun,
             );
 
-            foreach ($recurringMessage->getMessages($context) as $message) {
+            foreach ($recurringMessage->getMessages($context) as $redispatchMessage) {
+                $message = $redispatchMessage->envelope;
                 $nextRun = $recurringMessage->getTrigger()->getNextRunDate($referenceRun);
                 $this->assertNotNull($nextRun);
 
@@ -224,7 +225,8 @@ class SyncSchedulerIntervalsTest extends TestCase
                 $referenceRun,
             );
 
-            foreach ($recurringMessage->getMessages($context) as $message) {
+            foreach ($recurringMessage->getMessages($context) as $redispatchMessage) {
+                $message = $redispatchMessage->envelope;
                 $this->assertArrayHasKey(
                     $message::class,
                     self::SYNC_TRACKER_KEY_BY_SCHEDULED_MESSAGE,
