@@ -64,9 +64,9 @@ export interface AdminPveStats {
 
 export interface SchedulerHealthRun {
   startedAt: string
-  completedAt: string | null
+  completedAt?: string | null
   status: 'running' | 'ok' | 'error'
-  message: string | null
+  message?: string | null
   stuck: boolean
 }
 
@@ -82,7 +82,7 @@ export interface SchedulerHealthEntry {
   onDemand: boolean
   triggerable: boolean
   runs: SchedulerHealthRun[]
-  successRate24h: number | null
+  successRate24h?: number | null
 }
 
 export interface AdminEsiErrorBudgetFamily {

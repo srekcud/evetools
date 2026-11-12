@@ -195,6 +195,7 @@ class SchedulerHealthEntryDto
     public array $runs = [];
     public ?int $successRate24h = null;
 
+    /** @param SchedulerHealthRunDto[] $runs */
     public function __construct(
         string $type = '',
         string $status = 'unknown',
@@ -205,7 +206,11 @@ class SchedulerHealthEntryDto
         ?int $expectedInterval = null,
         bool $onDemand = false,
         bool $triggerable = false,
+        array $runs = [],
+        ?int $successRate24h = null,
     ) {
+        $this->runs = $runs;
+        $this->successRate24h = $successRate24h;
         $this->type = $type;
         $this->status = $status;
         $this->health = $health;

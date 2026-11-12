@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFormatters } from '@/composables/useFormatters'
-import type { SchedulerHealthEntry } from '@/stores/admin'
+import type { SchedulerHealthEntry, SchedulerHealthRun } from '@/stores/admin'
 import { intervalOf, nextRunAt, runDurationSeconds, sortBySeverity } from '@/utils/schedulerHealth'
 
 const MS_PER_SECOND = 1000
@@ -17,7 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { formatTimeSince, formatDuration } = useFormatters()
+const { formatTimeSince, formatDuration, formatDateTime } = useFormatters()
 
 const sortedEntries = computed(() => sortBySeverity(props.entries))
 
@@ -36,6 +36,27 @@ function nextRunView(entry: SchedulerHealthEntry): { text: string; overdue: bool
 function durationText(entry: SchedulerHealthEntry): string {
   const seconds = runDurationSeconds(entry)
   return seconds === null ? '--' : formatDuration(seconds)
+}
+
+function oldestFirst(runs: SchedulerHealthRun[]): SchedulerHealthRun[] {
+  return [...runs].reverse()
+}
+
+function runStatusText(run: SchedulerHealthRun): string {
+  if (run.stuck) return t('admin.sync.runStuck')
+  if (run.status === 'ok') return 'OK'
+  if (run.status === 'running') return t('admin.sync.running')
+  return t('common.status.error')
+}
+
+function runTitle(run: SchedulerHealthRun): string {
+  const seconds = runDurationSeconds({ startedAt: run.startedAt, completedAt: run.completedAt ?? null, status: run.status })
+  const duration = seconds === null ? '--' : formatDuration(seconds)
+  return [runStatusText(run), formatDateTime(run.startedAt), duration, run.message].filter((part): part is string => typeof part === 'string' && part !== '').join(' · ')
+}
+
+function successRateText(entry: SchedulerHealthEntry): string {
+  return typeof entry.successRate24h === 'number' ? `${entry.successRate24h} %` : '--'
 }
 
 function formatInterval(seconds: number): string {
@@ -63,6 +84,7 @@ function intervalLabel(entry: SchedulerHealthEntry): string {
             <th class="text-left pb-3 font-medium">{{ t('admin.sync.duration') }}</th>
             <th class="text-center pb-3 font-medium">{{ t('admin.sync.status') }}</th>
             <th class="text-center pb-3 font-medium">{{ t('admin.sync.health') }}</th>
+            <th class="text-left pb-3 font-medium">{{ t('admin.sync.history') }}</th>
             <th class="text-left pb-3 font-medium">{{ t('admin.sync.message') }}</th>
             <th class="text-center pb-3 font-medium w-16"></th>
           </tr>
@@ -118,6 +140,30 @@ function intervalLabel(entry: SchedulerHealthEntry): string {
                         entry.health === 'stale' ? t('admin.health.stale') :
                         entry.health === 'running' ? t('admin.sync.running') : t('admin.health.unknown')"
               ></span>
+            </td>
+            <td class="py-2.5 pl-3">
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-0.5">
+                  <span
+                    v-for="(run, position) in oldestFirst(entry.runs)"
+                    :key="`${run.startedAt}-${position}`"
+                    data-testid="scheduler-run"
+                    :data-status="run.status"
+                    :title="runTitle(run)"
+                    :class="[
+                      'inline-block w-1.5 h-4 rounded-[1px]',
+                      run.status === 'ok' ? 'bg-emerald-400' :
+                      run.status === 'error' ? 'bg-red-400' :
+                      'bg-blue-400 animate-pulse'
+                    ]"
+                  ></span>
+                </div>
+                <span
+                  data-testid="scheduler-success-rate"
+                  :title="t('admin.sync.successRate24h')"
+                  class="text-slate-300 font-mono text-xs"
+                >{{ successRateText(entry) }}</span>
+              </div>
             </td>
             <td class="py-2.5 pl-3">
               <span class="text-slate-500 text-xs truncate max-w-[200px] inline-block">{{ entry.message || '--' }}</span>

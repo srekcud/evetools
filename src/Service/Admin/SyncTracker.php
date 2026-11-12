@@ -54,6 +54,9 @@ class SyncTracker
     private const STUCK_RUNNING_INTERVAL_RATIO = 2;
     private const ON_DEMAND_STUCK_RUNNING_SECONDS = 3600;
     private const SECONDS_PER_MINUTE = 60;
+    private const RUN_HISTORY_SIZE = 20;
+    private const SUCCESS_RATE_WINDOW = '-24 hours';
+    private const PERCENT = 100;
 
     public function __construct(
         private readonly CacheInterface $cache,
@@ -65,21 +68,24 @@ class SyncTracker
     public function start(string $type): void
     {
         $state = $this->getState($type);
+        $startedAt = new \DateTimeImmutable();
 
         $this->saveState($type, [
-            'started_at' => (new \DateTimeImmutable())->format('c'),
+            'started_at' => $startedAt->format('c'),
             'completed_at' => $state['completed_at'] ?? null,
             'last_success_at' => $state['last_success_at'] ?? null,
             'status' => 'running',
             'message' => null,
         ]);
+        $this->runLog->begin($type, $startedAt);
 
         $this->notifyTriggeredBy($type, 'started', 'Sync in progress...');
     }
 
     public function complete(string $type, ?string $message = null): void
     {
-        $now = (new \DateTimeImmutable())->format('c');
+        $nowAt = new \DateTimeImmutable();
+        $now = $nowAt->format('c');
         $state = $this->getState($type);
 
         $this->saveState($type, [
@@ -89,13 +95,15 @@ class SyncTracker
             'status' => 'ok',
             'message' => $message,
         ]);
+        $this->runLog->finish($type, SyncRunLog::STATUS_OK, $message, $nowAt);
 
         $this->notifyTriggeredBy($type, 'completed', $message);
     }
 
     public function fail(string $type, string $message): void
     {
-        $now = (new \DateTimeImmutable())->format('c');
+        $nowAt = new \DateTimeImmutable();
+        $now = $nowAt->format('c');
         $state = $this->getState($type);
 
         $this->saveState($type, [
@@ -105,6 +113,7 @@ class SyncTracker
             'status' => 'error',
             'message' => $message,
         ]);
+        $this->runLog->finish($type, SyncRunLog::STATUS_ERROR, $message, $nowAt);
 
         $this->notifyTriggeredBy($type, 'error', $message);
     }
@@ -127,18 +136,32 @@ class SyncTracker
     public function getAll(): array
     {
         $result = [];
+        $runsByType = $this->runLog->recentRunsByType(self::RUN_HISTORY_SIZE);
+        $finishedCounts = $this->runLog->finishedRunCountsSince(new \DateTimeImmutable(self::SUCCESS_RATE_WINDOW));
 
         foreach (self::EXPECTED_INTERVALS as $type => $interval) {
-            $state = $this->reportStuckRunning(
-                $this->getState($type),
-                $interval * self::STUCK_RUNNING_INTERVAL_RATIO,
+            $stuckAfter = $interval * self::STUCK_RUNNING_INTERVAL_RATIO;
+            $state = $this->reportStuckRunning($this->getState($type), $stuckAfter);
+            $result[] = $this->buildEntry(
+                $type,
+                $state,
+                $this->computeHealth($state, $interval),
+                $interval,
+                $this->presentRuns($runsByType[$type] ?? [], $stuckAfter),
+                $this->successRate($finishedCounts[$type] ?? null),
             );
-            $result[] = $this->buildEntry($type, $state, $this->computeHealth($state, $interval), $interval);
         }
 
         foreach (self::ON_DEMAND as $type) {
             $state = $this->reportStuckRunning($this->getState($type), self::ON_DEMAND_STUCK_RUNNING_SECONDS);
-            $result[] = $this->buildEntry($type, $state, self::ON_DEMAND_HEALTH, null);
+            $result[] = $this->buildEntry(
+                $type,
+                $state,
+                self::ON_DEMAND_HEALTH,
+                null,
+                $this->presentRuns($runsByType[$type] ?? [], self::ON_DEMAND_STUCK_RUNNING_SECONDS),
+                $this->successRate($finishedCounts[$type] ?? null),
+            );
         }
 
         return $result;
@@ -180,20 +203,58 @@ class SyncTracker
 
         $state['status'] = 'error';
         $state['stuck'] = true;
-        $state['message'] = sprintf(
-            'Stuck: still running after %d min without completion',
-            intdiv($runningSeconds, self::SECONDS_PER_MINUTE),
-        );
+        $state['message'] = $this->stuckMessage($runningSeconds);
 
         return $state;
     }
 
+    private function stuckMessage(int $runningSeconds): string
+    {
+        return sprintf(
+            'Stuck: still running after %d min without completion',
+            intdiv($runningSeconds, self::SECONDS_PER_MINUTE),
+        );
+    }
+
+    /**
+     * @param list<array{started_at: string, completed_at: ?string, status: string, message: ?string}> $runs
+     *
+     * @return list<array{started_at: string, completed_at: ?string, status: string, message: ?string, stuck: bool}>
+     */
+    private function presentRuns(array $runs, int $maxRunningSeconds): array
+    {
+        return array_map(function (array $run) use ($maxRunningSeconds): array {
+            $runningSeconds = time() - (new \DateTimeImmutable($run['started_at']))->getTimestamp();
+            $stuck = $run['status'] === SyncRunLog::STATUS_RUNNING && $runningSeconds > $maxRunningSeconds;
+
+            return [
+                'started_at' => $run['started_at'],
+                'completed_at' => $run['completed_at'],
+                'status' => $stuck ? SyncRunLog::STATUS_ERROR : $run['status'],
+                'message' => $stuck ? $this->stuckMessage($runningSeconds) : $run['message'],
+                'stuck' => $stuck,
+            ];
+        }, $runs);
+    }
+
+    /** @param array{ok: int, error: int}|null $finishedCounts */
+    private function successRate(?array $finishedCounts): ?int
+    {
+        $finished = $finishedCounts === null ? 0 : $finishedCounts['ok'] + $finishedCounts['error'];
+        if ($finishedCounts === null || $finished === 0) {
+            return null;
+        }
+
+        return (int) round($finishedCounts['ok'] * self::PERCENT / $finished);
+    }
+
     /**
      * @param array<string, mixed> $state
+     * @param list<array<string, mixed>> $runs
      *
      * @return array<string, mixed>
      */
-    private function buildEntry(string $type, array $state, string $health, ?int $expectedInterval): array
+    private function buildEntry(string $type, array $state, string $health, ?int $expectedInterval, array $runs, ?int $successRate24h): array
     {
         return [
             'type' => $type,
@@ -205,8 +266,8 @@ class SyncTracker
             'expected_interval' => $expectedInterval,
             'on_demand' => $expectedInterval === null,
             'triggerable' => TriggerableSyncs::isTriggerable($type),
-            'runs' => [],
-            'success_rate_24h' => null,
+            'runs' => $runs,
+            'success_rate_24h' => $successRate24h,
         ];
     }
 

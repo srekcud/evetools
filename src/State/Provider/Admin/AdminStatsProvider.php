@@ -14,6 +14,7 @@ use App\ApiResource\Admin\EsiLimitedHourDto;
 use App\ApiResource\Admin\MercureCookieUserDto;
 use App\ApiResource\Admin\PveCorporationStatsDto;
 use App\ApiResource\Admin\SchedulerHealthEntryDto;
+use App\ApiResource\Admin\SchedulerHealthRunDto;
 use App\Entity\User;
 use App\Security\AdminCharacterEntry;
 use App\Security\AdminCharacterLister;
@@ -136,6 +137,17 @@ class AdminStatsProvider implements ProviderInterface
                 $entry['expected_interval'],
                 $entry['on_demand'],
                 $entry['triggerable'],
+                array_map(
+                    static fn (array $run) => new SchedulerHealthRunDto(
+                        $run['started_at'],
+                        $run['completed_at'],
+                        $run['status'],
+                        $run['message'],
+                        $run['stuck'],
+                    ),
+                    $entry['runs'],
+                ),
+                $entry['success_rate_24h'],
             ),
             $stats['schedulerHealth'] ?? []
         );

@@ -27,7 +27,7 @@ export function nextRunAt(entry: SchedulerHealthEntry): Date | null {
   return new Date(new Date(entry.completedAt).getTime() + interval * MS_PER_SECOND)
 }
 
-export function runDurationSeconds(entry: SchedulerHealthEntry): number | null {
+export function runDurationSeconds(entry: Pick<SchedulerHealthEntry, 'startedAt' | 'completedAt' | 'status'>): number | null {
   if (entry.startedAt === null || entry.completedAt === null || entry.status === 'running') return null
 
   const elapsedMs = new Date(entry.completedAt).getTime() - new Date(entry.startedAt).getTime()
