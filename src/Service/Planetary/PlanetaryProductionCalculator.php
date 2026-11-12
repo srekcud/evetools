@@ -96,7 +96,10 @@ class PlanetaryProductionCalculator
             $tier = $this->classifyTier($typeId);
             $typeName = $this->resolveTypeName($typeId);
             $unitPrice = $prices[$typeId] ?? null;
-            $dailyIsk = $unitPrice !== null ? $dailyQty * $unitPrice : 0.0;
+            $dailyConsumed = $consumptionByType[$typeId] ?? 0.0;
+            $dailyConsumedInternally = min($dailyQty, $dailyConsumed);
+            $dailySellableQty = max(0.0, $dailyQty - $dailyConsumed);
+            $dailyIsk = $unitPrice !== null ? $dailySellableQty * $unitPrice : 0.0;
             $totalDailyIsk += $dailyIsk;
 
             if (!isset($tierData[$tier])) {
@@ -129,6 +132,8 @@ class PlanetaryProductionCalculator
                 'typeId' => $typeId,
                 'typeName' => $typeName,
                 'dailyQuantity' => round($dailyQty, 2),
+                'dailyConsumedInternally' => round($dailyConsumedInternally, 2),
+                'dailySellableQuantity' => round($dailySellableQty, 2),
                 'unitPrice' => $unitPrice,
                 'dailyIskValue' => round($dailyIsk, 2),
                 'inputs' => $inputs,

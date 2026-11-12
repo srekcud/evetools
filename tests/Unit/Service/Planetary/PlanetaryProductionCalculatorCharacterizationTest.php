@@ -311,8 +311,7 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         ], $this->factoryOutputsByTypeId($result));
     }
 
-    #[Group('pi-audit-1')]
-    public function testSuppliedChainTotalCurrentlyAddsTheValueOfEveryTierIncludingConsumedMaterialsPiAudit1(): void
+    public function testSuppliedChainTotalValuesOnlyTheSurplusOfEveryType(): void
     {
         $result = $this->calculator()->calculateProduction([$this->suppliedChainColony()]);
 
@@ -321,27 +320,27 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
                 'tier' => 'P0',
                 'label' => 'Raw Materials',
                 'items' => [
-                    $this->item(self::AQUEOUS_LIQUIDS, 583200.0, 6.834713, 3986004.62),
-                    $this->item(self::IONIC_SOLUTIONS, 300000.0, 9.4713, 2841390.0),
-                    $this->item(self::BASE_METALS, 291804.0, 4.2179, 1230800.09),
+                    $this->item(self::IONIC_SOLUTIONS, 300000.0, 9.4713, 1477522.8, consumedInternally: 144000.0),
+                    $this->item(self::AQUEOUS_LIQUIDS, 583200.0, 6.834713, 49209.93, consumedInternally: 576000.0),
+                    $this->item(self::BASE_METALS, 291804.0, 4.2179, 16044.89, consumedInternally: 288000.0),
                 ],
-                'dailyIskValue' => 8058194.71,
+                'dailyIskValue' => 1542777.63,
             ],
             [
                 'tier' => 'P1',
                 'label' => 'Basic Commodities',
                 'items' => [
-                    $this->item(self::WATER, 3840.0, 412.37, 1583500.8, [
+                    $this->item(self::WATER, 3840.0, 412.37, 395875.2, [
                         $this->input(self::AQUEOUS_LIQUIDS, dailyConsumed: 576000.0, dailyProduced: 583200.0, delta: 7200.0),
-                    ]),
-                    $this->item(self::REACTIVE_METALS, 1920.0, 389.53, 747897.6, [
+                    ], consumedInternally: 2880.0),
+                    $this->item(self::REACTIVE_METALS, 1920.0, 389.53, 0.0, [
                         $this->input(self::BASE_METALS, dailyConsumed: 288000.0, dailyProduced: 291804.0, delta: 3804.0),
-                    ]),
-                    $this->item(self::ELECTROLYTES, 960.0, 467.91, 449193.6, [
+                    ], consumedInternally: 1920.0),
+                    $this->item(self::ELECTROLYTES, 960.0, 467.91, 0.0, [
                         $this->input(self::IONIC_SOLUTIONS, dailyConsumed: 144000.0, dailyProduced: 300000.0, delta: 156000.0),
-                    ]),
+                    ], consumedInternally: 960.0),
                 ],
-                'dailyIskValue' => 2780592.0,
+                'dailyIskValue' => 395875.2,
             ],
             [
                 'tier' => 'P2',
@@ -359,8 +358,27 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
                 'dailyIskValue' => 4607664.0,
             ],
         ], $result['tiers']);
-        $this->assertSame(15446450.71, $result['totalDailyIsk']);
-        $this->assertSame(463393521.4, $result['totalMonthlyIsk']);
+        $this->assertSame(6546316.83, $result['totalDailyIsk']);
+        $this->assertSame(196389504.76, $result['totalMonthlyIsk']);
+    }
+
+    public function testConsumptionAboveProductionLeavesNothingSellableAndNeverGoesNegative(): void
+    {
+        $colony = $this->colony(
+            $this->extractorPin(self::AQUEOUS_LIQUIDS, cycleTime: 1800, qtyPerCycle: 3000, expiryTime: new \DateTimeImmutable('+2 days')),
+            $this->storagePin([['type_id' => self::REACTIVE_METALS, 'amount' => 5000]]),
+            $this->factoryPin(self::SCHEMATIC_WATER),
+            $this->factoryPin(self::SCHEMATIC_WATER_COOLED_CPU),
+            $this->factoryPin(self::SCHEMATIC_WATER_COOLED_CPU),
+        );
+
+        $result = $this->calculator()->calculateProduction([$colony]);
+
+        $water = $this->itemOf($result, self::WATER);
+        $this->assertSame(960.0, $water['dailyQuantity']);
+        $this->assertSame(960.0, $water['dailyConsumedInternally']);
+        $this->assertSame(0.0, $water['dailySellableQuantity']);
+        $this->assertSame(0.0, $water['dailyIskValue']);
     }
 
     #[Group('pi-audit-20')]
@@ -492,6 +510,8 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
                         'typeId' => self::NON_CS_CRYSTALS,
                         'typeName' => null,
                         'dailyQuantity' => 2400.0,
+                        'dailyConsumedInternally' => 0.0,
+                        'dailySellableQuantity' => 2400.0,
                         'unitPrice' => 3.6871,
                         'dailyIskValue' => 8849.04,
                         'inputs' => [],
@@ -533,6 +553,8 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
                             'typeId' => self::ROBOTICS,
                             'typeName' => null,
                             'dailyQuantity' => 72.0,
+                            'dailyConsumedInternally' => 0.0,
+                            'dailySellableQuantity' => 72.0,
                             'unitPrice' => 71245.6,
                             'dailyIskValue' => 5129683.2,
                             'inputs' => [
@@ -663,6 +685,19 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         return $orderedByTypeId;
     }
 
+    private function itemOf(array $result, int $typeId): array
+    {
+        foreach ($result['tiers'] as $tier) {
+            foreach ($tier['items'] as $item) {
+                if ($item['typeId'] === $typeId) {
+                    return $item;
+                }
+            }
+        }
+
+        $this->fail('Type '.$typeId.' is not in the production tiers');
+    }
+
     private function tierAndLabelOf(array $result, int $typeId): array
     {
         foreach ($result['tiers'] as $tier) {
@@ -674,12 +709,14 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         return [];
     }
 
-    private function item(int $typeId, float $dailyQuantity, ?float $unitPrice, float $dailyIskValue, array $inputs = []): array
+    private function item(int $typeId, float $dailyQuantity, ?float $unitPrice, float $dailyIskValue, array $inputs = [], float $consumedInternally = 0.0): array
     {
         return [
             'typeId' => $typeId,
             'typeName' => self::TYPE_NAMES[$typeId],
             'dailyQuantity' => $dailyQuantity,
+            'dailyConsumedInternally' => $consumedInternally,
+            'dailySellableQuantity' => $dailyQuantity - $consumedInternally,
             'unitPrice' => $unitPrice,
             'dailyIskValue' => $dailyIskValue,
             'inputs' => $inputs,
@@ -774,6 +811,16 @@ final class PlanetaryProductionCalculatorCharacterizationTest extends TestCase
         $pin->setExtractorCycleTime($cycleTime);
         $pin->setExtractorQtyPerCycle($qtyPerCycle);
         $pin->setExpiryTime($expiryTime);
+
+        return $pin;
+    }
+
+    private function storagePin(array $contents): PlanetaryPin
+    {
+        $pin = new PlanetaryPin();
+        $pin->setPinId($this->nextPinId++);
+        $pin->setTypeId(2541);
+        $pin->setContents($contents);
 
         return $pin;
     }

@@ -374,7 +374,8 @@
       "iskPerDay": "ISK / day",
       "percentTotal": "% total",
       "total": "Total",
-      "footnote": "Theoretical production: qty_per_cycle x (3600 / cycle_time) x 24, chained via SDE schematics, valued at Jita 4-4 sell prices (updated every 2h)",
+      "footnote": "Theoretical production: qty_per_cycle x (3600 / cycle_time) x 24, chained via SDE schematics, valued at Jita 4-4 sell prices (updated every 2h). The value only counts the surplus not consumed by your own factories.",
+      "consumedInternally": "{consumed}/d used in-house, {sellable}/d sellable",
       "jitaTooltip": "Jita 4-4 sell prices, refreshed every 2h",
       "jitaSellPriceTooltip": "Valuation based on sell orders at Jita 4-4, updated every 2h"
     },

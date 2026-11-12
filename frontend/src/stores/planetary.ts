@@ -97,6 +97,8 @@ export interface ProductionItem {
   typeId: number
   typeName: string | null
   dailyQuantity: number
+  dailyConsumedInternally: number
+  dailySellableQuantity: number
   unitPrice: number
   dailyIskValue: number
   inputs: ProductionInput[]

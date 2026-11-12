@@ -16,8 +16,8 @@ const P2_TIER: ProductionTier = {
   tier: 'P2',
   dailyIskValue: 4_200_000,
   items: [
-    { typeId: COOLANT_TYPE_ID, typeName: 'Coolant', dailyQuantity: 40, unitPrice: 3_100, dailyIskValue: 124_000, inputs: [] },
-    { typeId: ROBOTICS_TYPE_ID, typeName: null, dailyQuantity: 12, unitPrice: 6_400, dailyIskValue: 76_800, inputs: [] },
+    { typeId: COOLANT_TYPE_ID, typeName: 'Coolant', dailyQuantity: 40, dailyConsumedInternally: 0, dailySellableQuantity: 40, unitPrice: 3_100, dailyIskValue: 124_000, inputs: [] },
+    { typeId: ROBOTICS_TYPE_ID, typeName: null, dailyQuantity: 12, dailyConsumedInternally: 0, dailySellableQuantity: 12, unitPrice: 6_400, dailyIskValue: 76_800, inputs: [] },
   ],
 }
 
