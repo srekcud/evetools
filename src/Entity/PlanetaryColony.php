@@ -211,6 +211,21 @@ class PlanetaryColony
         return $this->routes;
     }
 
+    /** @return array<int, int> typeId => amount held by the pins of the colony */
+    public function getStockByType(): array
+    {
+        $stock = [];
+        foreach ($this->pins as $pin) {
+            foreach ($pin->getContents() ?? [] as $content) {
+                if ($content['amount'] > 0) {
+                    $stock[$content['type_id']] = ($stock[$content['type_id']] ?? 0) + $content['amount'];
+                }
+            }
+        }
+
+        return $stock;
+    }
+
     public function addRoute(PlanetaryRoute $route): static
     {
         if (!$this->routes->contains($route)) {

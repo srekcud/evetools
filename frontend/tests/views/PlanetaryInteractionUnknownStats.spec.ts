@@ -31,6 +31,7 @@ function colony(overrides: Partial<Colony>): Colony {
     factoryCount: 6,
     activeExtractors: 2,
     nearestExpiry: '2026-10-24T09:00:00+00:00',
+    factoryProgress: null,
     status: 'active',
     pins: [],
     routes: [],

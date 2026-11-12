@@ -50,6 +50,16 @@ export interface Route {
   waypoints: number[]
 }
 
+export interface FactoryProgress {
+  finalProductTypeId: number
+  finalProductName: string | null
+  factoryCount: number
+  stockedFinalProduct: number
+  maxProducts: number
+  remainingSeconds: number
+  endsAt: string
+}
+
 export interface Colony {
   id: string
   characterId: number
@@ -68,6 +78,7 @@ export interface Colony {
   factoryCount: number
   activeExtractors: number
   nearestExpiry: string | null
+  factoryProgress: FactoryProgress | null
   status: 'active' | 'expiring' | 'expired' | 'idle'
   pins: Pin[]
   routes: Route[]
@@ -97,6 +108,8 @@ export interface ProductionItem {
   typeId: number
   typeName: string | null
   dailyQuantity: number
+  dailyConsumedInternally: number
+  dailySellableQuantity: number
   unitPrice: number
   dailyIskValue: number
   inputs: ProductionInput[]

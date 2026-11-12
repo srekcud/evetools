@@ -22,6 +22,7 @@ const TAMA_COLONY: Colony = {
   factoryCount: 0,
   activeExtractors: 2,
   nearestExpiry: '2026-11-10T15:00:00+00:00',
+  factoryProgress: null,
   status: 'expiring',
   pins: [],
   routes: [],
